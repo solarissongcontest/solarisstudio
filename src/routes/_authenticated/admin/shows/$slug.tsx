@@ -16,11 +16,21 @@ import {
   AdminSheet,
   AdminStatus,
 } from "@/components/admin/AdminUI";
-import { supabase } from "@/integrations/supabase/client";
 import { getMergedTelevotingRoundsPage } from "@/integrations/televoting/rounds.functions";
 import { resolveBroadcast, type ShowModeManualPhase } from "@/lib/broadcast";
 import { editionLabel, useEdition, useParticipants, useShows, type Show } from "@/lib/data";
 import { DEFAULT_PUBLICATION_CONFIG, hasAnyPublicInformation, resolveShowPublication } from "@/lib/publication";
+import {
+  createShow,
+  createShowLifecycleIdentity,
+  deleteShow as executeShowDelete,
+  previewShowLifecycle,
+  reauthenticateShowLifecycleR3,
+  updateShow,
+  updateShowMode,
+  type ShowLifecycleIdentity,
+  type ShowLifecyclePreview,
+} from "@/lib/show-lifecycle-authority";
 import {
   safeShowModeYoutubeUrl,
   transitionShowModePhase,
@@ -47,6 +57,23 @@ type ShowDraft = {
   sort_order: number;
 };
 
+type ShowIdentitySnapshot = {
+  name: string;
+  kind: string;
+  sortOrder: number;
+};
+
+type PendingShowSaveReview = {
+  mode: "create" | "update";
+  editionId: string;
+  showId: string | null;
+  showName: string;
+  before: ShowIdentitySnapshot | null;
+  after: ShowIdentitySnapshot;
+  expectedVersion: number | null;
+  identity: ShowLifecycleIdentity;
+};
+
 type ShowModeDraft = {
   phase: ShowModeManualPhase;
   scheduledStart: string;
@@ -67,20 +94,18 @@ type PendingShowModeReview = {
   editionId: string;
   showId: string;
   showName: string;
+  expectedVersion: number;
   before: ShowModeSnapshot;
   after: ShowModeSnapshot;
+  identity: ShowLifecycleIdentity;
 };
 
 type PendingShowDeleteReview = {
   editionId: string;
   showId: string;
   showName: string;
-  kind: string;
-  sortOrder: number;
-  published: boolean;
-  publicationFingerprint: string;
-  broadcastFingerprint: string;
-  participantIds: string[];
+  preview: ShowLifecyclePreview;
+  identity: ShowLifecycleIdentity;
 };
 
 const emptyDraft: ShowDraft = { name: "", kind: "semi-final", sort_order: 1 };
@@ -124,26 +149,30 @@ function sameShowMode(left: ShowModeSnapshot, right: ShowModeSnapshot) {
   );
 }
 
+function sameShowIdentity(preview: ShowLifecyclePreview, snapshot: ShowIdentitySnapshot) {
+  return (
+    preview.show.name === snapshot.name &&
+    preview.show.kind === snapshot.kind &&
+    preview.show.sortOrder === snapshot.sortOrder
+  );
+}
+
+function sameDeleteReview(left: ShowLifecyclePreview, right: ShowLifecyclePreview) {
+  return (
+    left.expectedVersion === right.expectedVersion &&
+    left.publication.state === right.publication.state &&
+    left.publication.version === right.publication.version &&
+    left.publication.hasPublicInformation === right.publication.hasPublicInformation &&
+    left.dependencies.blockingTableCount === right.dependencies.blockingTableCount &&
+    left.dependencies.blockingReferenceCount === right.dependencies.blockingReferenceCount &&
+    JSON.stringify(left.dependencies.tables) === JSON.stringify(right.dependencies.tables) &&
+    left.delete.allowed === right.delete.allowed &&
+    JSON.stringify(left.delete.blockers) === JSON.stringify(right.delete.blockers)
+  );
+}
+
 function showModeValue(value: string | null) {
   return value || "Not set";
-}
-
-function stableJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map((item) => stableJson(item)).join(",")}]`;
-  if (value && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`);
-    return `{${entries.join(",")}}`;
-  }
-  return JSON.stringify(value ?? null);
-}
-
-function sameIdSet(left: string[], right: string[]) {
-  if (left.length !== right.length) return false;
-  const sortedLeft = [...left].sort();
-  const sortedRight = [...right].sort();
-  return sortedLeft.every((value, index) => value === sortedRight[index]);
 }
 
 function ShowsWorkspace() {
@@ -157,11 +186,14 @@ function ShowsWorkspace() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [draft, setDraft] = useState<ShowDraft>(emptyDraft);
   const [busy, setBusy] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<PendingShowDeleteReview | null>(null);
   const [actionsTarget, setActionsTarget] = useState<Show | null>(null);
+  const [pendingShowSaveReview, setPendingShowSaveReview] = useState<PendingShowSaveReview | null>(null);
   const [showModeTarget, setShowModeTarget] = useState<Show | null>(null);
   const [showModeDraft, setShowModeDraft] = useState<ShowModeDraft>(emptyShowModeDraft);
   const [pendingShowModeReview, setPendingShowModeReview] = useState<PendingShowModeReview | null>(null);
+  const [pendingDeleteReview, setPendingDeleteReview] = useState<PendingShowDeleteReview | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
 
   const roundsQuery = useQuery({
     enabled: Boolean(edition?.id),
@@ -182,9 +214,14 @@ function ShowsWorkspace() {
       ).values()];
 
   useEffect(() => {
+    setPendingShowSaveReview(null);
     setPendingShowModeReview(null);
-    setDeleteTarget(null);
-  }, [organizerEditionId, edition?.id]);
+    setPendingDeleteReview(null);
+    setShowModeTarget(null);
+    setSheetOpen(false);
+    setDeleteReason("");
+    setDeletePassword("");
+  }, [organizerEditionId]);
 
   async function refresh() {
     await Promise.all([
@@ -203,11 +240,13 @@ function ShowsWorkspace() {
   }
 
   function openCreate() {
+    setPendingShowSaveReview(null);
     setDraft({ ...emptyDraft, sort_order: (orderedShows.at(-1)?.sort_order ?? 0) + 1 });
     setSheetOpen(true);
   }
 
   function openEdit(show: Show) {
+    setPendingShowSaveReview(null);
     setDraft({ id: show.id, name: show.name, kind: show.kind as ShowDraft["kind"], sort_order: show.sort_order });
     setSheetOpen(true);
   }
@@ -224,25 +263,117 @@ function ShowsWorkspace() {
     });
   }
 
-  function openDeleteReview(show: Show) {
-    if (!edition || !assertEditionScope(show)) return;
-    setDeleteTarget({
-      editionId: edition.id,
-      showId: show.id,
-      showName: show.name,
-      kind: show.kind,
-      sortOrder: show.sort_order,
-      published: Boolean(show.published),
-      publicationFingerprint: stableJson(show.publication_config),
-      broadcastFingerprint: stableJson(show.broadcast_config),
-      participantIds: participants
-        .filter((participant) => participant.show_id === show.id)
-        .map((participant) => participant.id)
-        .sort(),
-    });
+  async function reviewShowSave() {
+    if (!edition || !draft.name.trim() || !assertEditionScope() || busy) return;
+    if (!Number.isInteger(draft.sort_order) || draft.sort_order < 1) {
+      toast.error("Show order must be a positive whole number.");
+      return;
+    }
+
+    const after: ShowIdentitySnapshot = {
+      name: draft.name.trim(),
+      kind: draft.kind,
+      sortOrder: draft.sort_order,
+    };
+
+    setBusy(true);
+    try {
+      if (draft.id) {
+        const target = shows.find((show) => show.id === draft.id) ?? null;
+        if (!target || !assertEditionScope(target)) return;
+        const preview = await previewShowLifecycle({ editionId: edition.id, showId: draft.id });
+        if (organizerEditionId !== edition.id) {
+          throw new Error("Edition context changed while the show review was loading. Nothing was applied.");
+        }
+        const before: ShowIdentitySnapshot = {
+          name: preview.show.name,
+          kind: preview.show.kind,
+          sortOrder: preview.show.sortOrder,
+        };
+        setPendingShowSaveReview({
+          mode: "update",
+          editionId: edition.id,
+          showId: draft.id,
+          showName: preview.show.name,
+          before,
+          after,
+          expectedVersion: preview.expectedVersion,
+          identity: createShowLifecycleIdentity("show-update"),
+        });
+      } else {
+        setPendingShowSaveReview({
+          mode: "create",
+          editionId: edition.id,
+          showId: null,
+          showName: after.name,
+          before: null,
+          after,
+          expectedVersion: null,
+          identity: createShowLifecycleIdentity("show-create"),
+        });
+      }
+      setSheetOpen(false);
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Show review could not be prepared");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function reviewShowMode() {
+  async function applyShowSaveReview() {
+    if (!pendingShowSaveReview || busy) return;
+    const review = pendingShowSaveReview;
+    if (!edition || organizerEditionId !== review.editionId || edition.id !== review.editionId) {
+      setPendingShowSaveReview(null);
+      toast.error("Edition context changed while this show review was open. Nothing was applied.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      if (review.mode === "update") {
+        if (!review.showId || review.expectedVersion == null || !review.before) {
+          throw new Error("The reviewed Show update is incomplete. Reopen the editor and review it again.");
+        }
+        const live = await previewShowLifecycle({ editionId: review.editionId, showId: review.showId });
+        if (organizerEditionId !== review.editionId) {
+          throw new Error("Edition context changed during Show revalidation. Nothing was applied.");
+        }
+        if (live.expectedVersion !== review.expectedVersion || !sameShowIdentity(live, review.before)) {
+          throw new Error("The Show changed while this review was open. Nothing was applied. Reopen the editor from current state.");
+        }
+        const result = await updateShow({
+          editionId: review.editionId,
+          showId: review.showId,
+          name: review.after.name,
+          kind: review.after.kind,
+          sortOrder: review.after.sortOrder,
+          expectedVersion: review.expectedVersion,
+          identity: review.identity,
+        });
+        toast.success(`Show updated · v${result.stateVersion} · receipt ${result.receiptId.slice(0, 8)}`);
+      } else {
+        const result = await createShow({
+          editionId: review.editionId,
+          name: review.after.name,
+          kind: review.after.kind,
+          sortOrder: review.after.sortOrder,
+          publicationConfig: DEFAULT_PUBLICATION_CONFIG as unknown as Record<string, unknown>,
+          identity: review.identity,
+        });
+        toast.success(`Show created · v${result.stateVersion} · receipt ${result.receiptId.slice(0, 8)}`);
+      }
+      setPendingShowSaveReview(null);
+      await refresh();
+    } catch (caught) {
+      await refresh();
+      toast.error(caught instanceof Error ? caught.message : "Show could not be saved");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reviewShowMode() {
     if (!showModeTarget || !edition || !assertEditionScope(showModeTarget) || busy) return;
 
     const youtubeUrl = showModeDraft.youtubeUrl.trim();
@@ -258,8 +389,13 @@ function ShowsWorkspace() {
       return;
     }
 
+    setBusy(true);
     try {
-      const current = resolveBroadcast(showModeTarget.broadcast_config).showMode;
+      const preview = await previewShowLifecycle({ editionId: edition.id, showId: showModeTarget.id });
+      if (organizerEditionId !== edition.id) {
+        throw new Error("Edition context changed while the Show Mode review was loading. Nothing was applied.");
+      }
+      const current = resolveBroadcast(preview.show.broadcastConfig).showMode;
       const transitioned = transitionShowModePhase(current, showModeDraft.phase);
       const next: ResolvedShowMode = {
         ...transitioned,
@@ -271,12 +407,16 @@ function ShowsWorkspace() {
       setPendingShowModeReview({
         editionId: edition.id,
         showId: showModeTarget.id,
-        showName: showModeTarget.name,
+        showName: preview.show.name,
+        expectedVersion: preview.expectedVersion,
         before: showModeSnapshot(current),
         after: showModeSnapshot(next),
+        identity: createShowLifecycleIdentity("show-mode"),
       });
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : "Show Mode transition is not valid.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -291,165 +431,112 @@ function ShowsWorkspace() {
 
     setBusy(true);
     try {
-      const { data: liveShow, error: loadError } = await (supabase.from("shows") as any)
-        .select("id,edition_id,name,broadcast_config")
-        .eq("id", review.showId)
-        .maybeSingle();
-      if (loadError) throw loadError;
-      if (!liveShow || liveShow.edition_id !== review.editionId || liveShow.name !== review.showName) {
-        throw new Error("The reviewed show changed or is no longer available. Nothing was applied. Reopen Show Mode and review the current state.");
-      }
+      const live = await previewShowLifecycle({ editionId: review.editionId, showId: review.showId });
       if (organizerEditionId !== review.editionId) {
         throw new Error("Edition context changed during Show Mode revalidation. Nothing was applied.");
       }
-
-      const raw =
-        liveShow.broadcast_config && typeof liveShow.broadcast_config === "object"
-          ? liveShow.broadcast_config
-          : {};
-      const current = resolveBroadcast(raw).showMode;
-      if (!sameShowMode(showModeSnapshot(current), review.before)) {
+      const current = resolveBroadcast(live.show.broadcastConfig).showMode;
+      if (live.expectedVersion !== review.expectedVersion || !sameShowMode(showModeSnapshot(current), review.before)) {
         throw new Error("Show Mode changed while this review was open. Nothing was applied. Reopen the review from the current state.");
       }
+      transitionShowModePhase(current, review.after.phase);
 
-      const transitioned = transitionShowModePhase(current, review.after.phase);
-      const nextShowMode: ResolvedShowMode = {
-        ...transitioned,
+      const result = await updateShowMode({
+        editionId: review.editionId,
+        showId: review.showId,
+        phase: review.after.phase,
         scheduledStart: review.after.scheduledStart,
         youtubeUrl: review.after.youtubeUrl,
         televoteRoundId: review.after.televoteRoundId,
-      };
+        expectedVersion: review.expectedVersion,
+        identity: review.identity,
+      });
 
-      const { data: updated, error } = await (supabase.from("shows") as any)
-        .update({
-          broadcast_config: {
-            ...raw,
-            showMode: nextShowMode,
-          },
-        })
-        .eq("id", review.showId)
-        .eq("edition_id", review.editionId)
-        .select("id")
-        .maybeSingle();
-      if (error) throw error;
-      if (!updated) throw new Error("Show Mode was not updated because the exact reviewed show scope no longer matched.");
-
-      toast.success("Show Mode companion updated");
+      toast.success(`Show Mode updated · v${result.stateVersion} · receipt ${result.receiptId.slice(0, 8)}`);
       setPendingShowModeReview(null);
       setShowModeTarget(null);
       await refresh();
     } catch (caught) {
-      setPendingShowModeReview(null);
+      await refresh();
       toast.error(caught instanceof Error ? caught.message : "Show Mode could not be updated");
     } finally {
       setBusy(false);
     }
   }
 
-  async function saveShow() {
-    if (!edition || !draft.name.trim() || !assertEditionScope()) return;
+  async function openDeleteReview(show: Show) {
+    if (!edition || !assertEditionScope(show) || busy) return;
+    setActionsTarget(null);
     setBusy(true);
     try {
-      if (draft.id) {
-        const target = shows.find((show) => show.id === draft.id) ?? null;
-        if (!target || !assertEditionScope(target)) return;
-        const { error } = await (supabase.from("shows") as any)
-          .update({ name: draft.name.trim(), kind: draft.kind, sort_order: draft.sort_order })
-          .eq("id", draft.id);
-        if (error) throw error;
-        toast.success("Show updated");
-      } else {
-        const { error } = await supabase.from("shows").insert({
-          edition_id: edition.id,
-          name: draft.name.trim(),
-          kind: draft.kind,
-          sort_order: draft.sort_order,
-          published: false,
-          publication_config: DEFAULT_PUBLICATION_CONFIG,
-        });
-        if (error) throw error;
-        toast.success("Show created");
+      const preview = await previewShowLifecycle({ editionId: edition.id, showId: show.id });
+      if (organizerEditionId !== edition.id) {
+        throw new Error("Edition context changed while deletion preflight was loading. Nothing was applied.");
       }
-      setSheetOpen(false);
-      await refresh();
+      setDeleteReason("");
+      setDeletePassword("");
+      setPendingDeleteReview({
+        editionId: edition.id,
+        showId: show.id,
+        showName: preview.show.name,
+        preview,
+        identity: createShowLifecycleIdentity("show-delete"),
+      });
     } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Show could not be saved");
+      toast.error(caught instanceof Error ? caught.message : "Show deletion review could not be prepared");
     } finally {
       setBusy(false);
     }
   }
 
   async function deleteShow() {
-    const review = deleteTarget;
-    if (!review || busy) return;
+    if (!pendingDeleteReview || busy) return;
+    const review = pendingDeleteReview;
     if (!edition || organizerEditionId !== review.editionId || edition.id !== review.editionId) {
-      setDeleteTarget(null);
-      toast.error("Edition context changed while this show deletion review was open. Nothing was deleted.");
+      setPendingDeleteReview(null);
+      toast.error("Edition context changed while this deletion review was open. Nothing was deleted.");
+      return;
+    }
+    if (!review.preview.delete.allowed) {
+      toast.error("System preflight blocks permanent deletion for this Show.");
+      return;
+    }
+    if (deleteReason.trim().length < 5) {
+      toast.error("Give a deletion reason of at least 5 characters.");
       return;
     }
 
     setBusy(true);
     try {
-      const [showResponse, participantResponse] = await Promise.all([
-        (supabase.from("shows") as any)
-          .select("id,edition_id,name,kind,sort_order,published,publication_config,broadcast_config")
-          .eq("id", review.showId)
-          .eq("edition_id", review.editionId)
-          .maybeSingle(),
-        (supabase.from("participants") as any)
-          .select("id")
-          .eq("edition_id", review.editionId)
-          .eq("show_id", review.showId),
-      ]);
-      if (showResponse.error) throw showResponse.error;
-      if (participantResponse.error) throw participantResponse.error;
-
-      const liveShow = showResponse.data;
-      if (
-        !liveShow ||
-        liveShow.edition_id !== review.editionId ||
-        liveShow.name !== review.showName ||
-        liveShow.kind !== review.kind ||
-        liveShow.sort_order !== review.sortOrder ||
-        Boolean(liveShow.published) !== review.published ||
-        stableJson(liveShow.publication_config) !== review.publicationFingerprint ||
-        stableJson(liveShow.broadcast_config) !== review.broadcastFingerprint
-      ) {
-        throw Object.assign(
-          new Error("The show changed while this deletion review was open. Nothing was deleted. Reopen the current show and review deletion again."),
-          { status: 409 },
-        );
-      }
-
-      const liveParticipantIds = (participantResponse.data ?? []).map((participant: { id: string }) => participant.id);
-      if (!sameIdSet(review.participantIds, liveParticipantIds)) {
-        throw Object.assign(
-          new Error("The show's participant membership changed while this deletion review was open. Nothing was deleted. Review the current dependent data before retrying."),
-          { status: 409 },
-        );
-      }
+      const live = await previewShowLifecycle({ editionId: review.editionId, showId: review.showId });
       if (organizerEditionId !== review.editionId) {
-        throw Object.assign(new Error("Edition context changed during deletion revalidation. Nothing was deleted."), { status: 409 });
+        throw new Error("Edition context changed during deletion revalidation. Nothing was deleted.");
       }
-
-      const { data: deleted, error } = await (supabase.from("shows") as any)
-        .delete()
-        .eq("id", review.showId)
-        .eq("edition_id", review.editionId)
-        .select("id")
-        .maybeSingle();
-      if (error) throw error;
-      if (!deleted) {
-        throw Object.assign(new Error("The exact reviewed show no longer matched at deletion time. Refresh before retrying."), { status: 409 });
+      if (!sameDeleteReview(live, review.preview)) {
+        throw new Error("Show publication or dependency state changed while this deletion review was open. Nothing was deleted. Review current System preflight again.");
       }
-
-      toast.success(`${review.showName} deleted`);
-      setDeleteTarget(null);
+      if (!live.delete.allowed) {
+        throw new Error(`System now blocks deletion: ${live.delete.blockers.join(" · ") || "dependency state changed"}.`);
+      }
+      if (live.delete.requiresFreshAuthentication) {
+        await reauthenticateShowLifecycleR3(deletePassword);
+      }
+      const result = await executeShowDelete({
+        editionId: review.editionId,
+        showId: review.showId,
+        expectedVersion: review.preview.expectedVersion,
+        reason: deleteReason.trim(),
+        identity: review.identity,
+      });
+      toast.success(`${review.showName} deleted · receipt ${result.receiptId.slice(0, 8)}`);
+      setPendingDeleteReview(null);
+      setDeleteReason("");
+      setDeletePassword("");
       await refresh();
     } catch (caught) {
-      setDeleteTarget(null);
+      setDeletePassword("");
       await refresh();
-      toast.error(caught instanceof Error ? caught.message : "Show could not be deleted. Refresh canonical state before retrying.");
+      toast.error(caught instanceof Error ? caught.message : "Show could not be deleted");
     } finally {
       setBusy(false);
     }
@@ -534,9 +621,47 @@ function ShowsWorkspace() {
           <label className="block"><span className="admin-section-label">Show name</span><input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Grand Final" className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30" /></label>
           <label className="block"><span className="admin-section-label">Type</span><select value={draft.kind} onChange={(event) => setDraft((current) => ({ ...current, kind: event.target.value as ShowDraft["kind"] }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">{SHOW_KIND_OPTIONS.map((kind) => <option key={kind} value={kind}>{kind.replaceAll("-", " ")}</option>)}</select></label>
           <label className="block"><span className="admin-section-label">Show order</span><input type="number" min={1} value={draft.sort_order} onChange={(event) => setDraft((current) => ({ ...current, sort_order: Number(event.target.value) || 1 }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30" /></label>
-          <button type="button" disabled={busy || !draft.name.trim()} onClick={() => void saveShow()} className="admin-action-primary w-full">{busy ? "Saving…" : draft.id ? "Save changes" : "Create show"}</button>
+          <button type="button" disabled={busy || !draft.name.trim()} onClick={() => void reviewShowSave()} className="admin-action-primary w-full">{busy ? "Preparing review…" : draft.id ? "Review changes" : "Review new show"}</button>
         </div>
       </AdminSheet>
+
+      <AdminConfirmSheet
+        open={Boolean(pendingShowSaveReview)}
+        onClose={busy ? () => undefined : () => setPendingShowSaveReview(null)}
+        onConfirm={applyShowSaveReview}
+        title={pendingShowSaveReview?.mode === "create" ? `Create ${pendingShowSaveReview.showName}?` : `Update ${pendingShowSaveReview?.showName ?? "show"}?`}
+        description={pendingShowSaveReview ? (
+          <div className="space-y-3 text-xs">
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">Exact governed target</p>
+              <p className="mt-1 break-all">Edition ID: {pendingShowSaveReview.editionId}</p>
+              {pendingShowSaveReview.showId ? <p className="mt-1 break-all">Show ID: {pendingShowSaveReview.showId}</p> : <p className="mt-1">New Show</p>}
+              {pendingShowSaveReview.expectedVersion != null ? <p className="mt-1">Reviewed version: {pendingShowSaveReview.expectedVersion}</p> : null}
+            </div>
+            <div className="overflow-hidden rounded-xl border border-white/[0.08]">
+              <div className="grid grid-cols-[90px_1fr_1fr] gap-2 border-b border-white/[0.07] bg-white/[0.025] p-2 font-semibold text-foreground">
+                <span>Field</span><span>Current</span><span>After</span>
+              </div>
+              {[
+                ["Name", pendingShowSaveReview.before?.name ?? "New", pendingShowSaveReview.after.name],
+                ["Type", pendingShowSaveReview.before?.kind ?? "New", pendingShowSaveReview.after.kind],
+                ["Order", pendingShowSaveReview.before ? String(pendingShowSaveReview.before.sortOrder) : "New", String(pendingShowSaveReview.after.sortOrder)],
+              ].map(([label, before, after]) => (
+                <div key={label} className="grid grid-cols-[90px_1fr_1fr] gap-2 border-b border-white/[0.05] p-2 last:border-b-0">
+                  <span className="font-semibold text-foreground">{label}</span>
+                  <span className="break-all text-muted-foreground">{before}</span>
+                  <span className="break-all text-foreground">{after}</span>
+                </div>
+              ))}
+            </div>
+            <p className="leading-5 text-muted-foreground">
+              Existing Shows are revalidated against the exact System lifecycle version before commit. The command is edition-scoped, idempotent and receipted; an uncertain transport outcome is reconciled by operation identity rather than blindly retried.
+            </p>
+          </div>
+        ) : null}
+        confirmLabel={pendingShowSaveReview?.mode === "create" ? "Create reviewed Show" : "Apply reviewed changes"}
+        busy={busy}
+      />
 
       <AdminSheet open={!!actionsTarget} onClose={() => setActionsTarget(null)} title={actionsTarget?.name ?? "Show actions"} description="Edit the show itself or jump directly to a specialist workspace.">
         {actionsTarget ? <div className="space-y-2">
@@ -555,7 +680,7 @@ function ShowsWorkspace() {
           <Link to="/admin/voting-system/$slug" params={{ slug }} search={{ show: actionsTarget.id }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><Calculator className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Voting system</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Configure scales, weighting, qualifiers and tie-breaks.</span></span></Link>
           <Link to="/admin/publication/$slug" params={{ slug }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><Globe2 className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Publication</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Control which layers of this show are public.</span></span></Link>
           <Link to="/admin/design/$slug" params={{ slug }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><RadioTower className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Design & broadcast</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Theme, scoreboard and broadcast presentation.</span></span></Link>
-          <AdminActionItem icon={Trash2} tone="danger" title="Delete show" description="Permanently remove this show and dependent show data." onClick={() => { const show = actionsTarget; setActionsTarget(null); openDeleteReview(show); }} />
+          <AdminActionItem icon={Trash2} tone="danger" title="Delete show" description="Run canonical dependency preflight before any permanent deletion." disabled={busy} onClick={() => void openDeleteReview(actionsTarget)} />
         </div> : null}
       </AdminSheet>
 
@@ -675,10 +800,10 @@ function ShowsWorkspace() {
           <button
             type="button"
             disabled={busy}
-            onClick={reviewShowMode}
+            onClick={() => void reviewShowMode()}
             className="admin-action-primary w-full"
           >
-            {busy ? "Saving…" : "Review Show Mode changes"}
+            {busy ? "Preparing review…" : "Review Show Mode changes"}
           </button>
         </div>
       </AdminSheet>
@@ -695,6 +820,7 @@ function ShowsWorkspace() {
               <p className="mt-1">Show: {pendingShowModeReview.showName}</p>
               <p className="mt-1 break-all">Show ID: {pendingShowModeReview.showId}</p>
               <p className="mt-1 break-all">Edition ID: {pendingShowModeReview.editionId}</p>
+              <p className="mt-1">Reviewed version: {pendingShowModeReview.expectedVersion}</p>
             </div>
             <div className="overflow-hidden rounded-xl border border-white/[0.08]">
               <div className="grid grid-cols-[110px_1fr_1fr] gap-2 border-b border-white/[0.07] bg-white/[0.025] p-2 font-semibold text-foreground">
@@ -714,10 +840,10 @@ function ShowsWorkspace() {
               ))}
             </div>
             <p className="leading-5 text-muted-foreground">
-              Organizer re-reads this exact show and refuses the save if its Show Mode state or edition changed while this review was open.
+              Organizer re-runs canonical Show lifecycle preflight and refuses the command if the reviewed version or Show Mode state changed while this review was open.
             </p>
-            <p className="rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 leading-5 text-amber-50/90">
-              This still uses the legacy browser-side broadcast configuration write. The recheck narrows stale-state risk but is not a server CAS, idempotency key or authoritative operation receipt. System #625 remains the blocker for the governed production-configuration command.
+            <p className="rounded-xl border border-sky-200/15 bg-sky-200/[0.04] p-3 leading-5 text-muted-foreground">
+              The final mutation uses the governed Show lifecycle command: exact edition/show scope, optimistic versioning, idempotency, audit evidence and operation-receipt reconciliation stay server-authoritative.
             </p>
           </div>
         ) : null}
@@ -728,30 +854,88 @@ function ShowsWorkspace() {
       />
 
       <AdminConfirmSheet
-        open={!!deleteTarget}
-        onClose={() => !busy && setDeleteTarget(null)}
+        open={Boolean(pendingDeleteReview)}
+        onClose={() => {
+          if (busy) return;
+          setPendingDeleteReview(null);
+          setDeleteReason("");
+          setDeletePassword("");
+        }}
         onConfirm={deleteShow}
-        title={`Delete ${deleteTarget?.showName ?? "show"}?`}
-        description={deleteTarget ? (
-          <div className="space-y-3 text-left">
-            <p>This permanently removes <strong>{deleteTarget.showName}</strong> and dependent show data.</p>
-            <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3 text-xs text-muted-foreground">
-              <p><strong className="text-foreground">Edition:</strong> {editionLabel(edition)}</p>
-              <p className="mt-1"><strong className="text-foreground">Type:</strong> {deleteTarget.kind.replaceAll("-", " ")}</p>
-              <p className="mt-1"><strong className="text-foreground">Show order:</strong> {deleteTarget.sortOrder}</p>
-              <p className="mt-1"><strong className="text-foreground">Dependent participants reviewed:</strong> {deleteTarget.participantIds.length}</p>
-              <p className="mt-1"><strong className="text-foreground">Publication state:</strong> {deleteTarget.published ? "Published" : "Not published"}</p>
+        title={`Delete ${pendingDeleteReview?.showName ?? "show"}?`}
+        description={pendingDeleteReview ? (
+          <div className="space-y-3 text-xs">
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">Canonical deletion preflight</p>
+              <p className="mt-1 break-all">Edition ID: {pendingDeleteReview.editionId}</p>
+              <p className="mt-1 break-all">Show ID: {pendingDeleteReview.showId}</p>
+              <p className="mt-1">Reviewed version: {pendingDeleteReview.preview.expectedVersion}</p>
+              <p className="mt-1">Publication: {pendingDeleteReview.preview.publication.state} · v{pendingDeleteReview.preview.publication.version}</p>
+              <p className="mt-1">Blocking references: {pendingDeleteReview.preview.dependencies.blockingReferenceCount}</p>
             </div>
-            {deleteTarget.published ? (
-              <p className="text-amber-100">This show was published when the deletion review opened. Verify archived/public-result obligations before deleting it.</p>
+
+            {pendingDeleteReview.preview.delete.blockers.length ? (
+              <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.05] p-3">
+                <p className="font-semibold text-rose-50">System blocks deletion</p>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-rose-50/85">
+                  {pendingDeleteReview.preview.delete.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
+                </ul>
+              </div>
+            ) : (
+              <p className="rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 leading-5 text-amber-50/90">
+                Permanent deletion is R3. Solaris will revalidate publication and every discovered canonical dependency again at commit; dependency-bearing or public Show history is not silently cascaded away.
+              </p>
+            )}
+
+            {Object.entries(pendingDeleteReview.preview.dependencies.tables).filter(([, dependency]) => dependency.count > 0).length ? (
+              <div className="rounded-xl border border-white/[0.08] p-3">
+                <p className="font-semibold text-foreground">Detected references</p>
+                <div className="mt-2 space-y-1 text-muted-foreground">
+                  {Object.entries(pendingDeleteReview.preview.dependencies.tables)
+                    .filter(([, dependency]) => dependency.count > 0)
+                    .map(([table, dependency]) => (
+                      <p key={table} className="break-all">{table}: {dependency.count} · {dependency.deleteAction}{dependency.blocking ? " · blocking" : ""}</p>
+                    ))}
+                </div>
+              </div>
             ) : null}
-            <p>Immediately before deletion, Organizer re-reads this exact show plus its participant membership. If identity, ordering, publication/broadcast configuration, or dependent participants changed, deletion is refused and must be reviewed again.</p>
-            <p className="rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 text-xs leading-5 text-amber-50/90"><strong>Legacy authority:</strong> the final delete is still the existing direct show delete, not the governed show-lifecycle command. System #581 owns authoritative version/CAS, idempotency, dependency handling and operation receipts. A concurrent dependency change after this final browser recheck remains outside this compatibility boundary.</p>
+
+            <label className="block">
+              <span className="font-semibold text-foreground">Deletion reason</span>
+              <textarea
+                value={deleteReason}
+                onChange={(event) => setDeleteReason(event.target.value)}
+                placeholder="Why is permanent deletion appropriate instead of retaining this Show?"
+                rows={3}
+                className="mt-2 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 py-2 text-sm text-foreground outline-none focus:border-sky-200/30"
+              />
+            </label>
+
+            {pendingDeleteReview.preview.delete.requiresFreshAuthentication ? (
+              <label className="block">
+                <span className="font-semibold text-foreground">Current Solaris password</span>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={deletePassword}
+                  onChange={(event) => setDeletePassword(event.target.value)}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30"
+                />
+                <p className="mt-1 leading-5 text-muted-foreground">Fresh authentication is required immediately before the permanent command.</p>
+              </label>
+            ) : null}
           </div>
-        ) : undefined}
-        confirmLabel="Delete reviewed show"
-        confirmationText={deleteTarget?.showName}
-        confirmationHint={deleteTarget ? `Type ${deleteTarget.showName} to confirm permanent deletion` : undefined}
+        ) : null}
+        confirmLabel="Delete show permanently"
+        confirmationText={pendingDeleteReview?.showName}
+        confirmationHint={pendingDeleteReview ? `Type ${pendingDeleteReview.showName} exactly to confirm permanent deletion` : undefined}
+        confirmDisabled={Boolean(
+          pendingDeleteReview && (
+            !pendingDeleteReview.preview.delete.allowed ||
+            deleteReason.trim().length < 5 ||
+            (pendingDeleteReview.preview.delete.requiresFreshAuthentication && !deletePassword.trim())
+          )
+        )}
         busy={busy}
         danger
       />
