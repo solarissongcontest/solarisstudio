@@ -37,6 +37,7 @@ import {
   summarizeAdminQaCoverage,
   type QaCoverageEvidence,
 } from "@/lib/admin-qa-coverage";
+import { rowsToSpreadsheetSafeCsv } from "@/lib/spreadsheet-safe-csv";
 
 const EXPECTED_ADMIN_TEAM = 2;
 
@@ -60,7 +61,6 @@ type AdminBetaSubmission = {
   answers: BetaAnswers;
   bug_reports: AdminBetaBug[];
   screenshot_paths: string[];
-  user_agent: string | null;
   form_version: number;
   created_at: string;
 };
@@ -78,7 +78,7 @@ export function AdminQaCoveragePage() {
     try {
       const { data, error: selectError } = await supabase
         .from("admin_beta_test_submissions" as never)
-        .select("*")
+        .select("id,tester_name,device,browser,familiarity,answers,bug_reports,screenshot_paths,form_version,created_at")
         .order("created_at", { ascending: false });
       if (selectError) throw selectError;
 
@@ -183,9 +183,7 @@ export function AdminQaCoveragePage() {
       ...questions.map((question) => csvValue(submission.answers[question.id])),
       JSON.stringify(submission.bug_reports ?? []),
     ]);
-    const csv = [headers, ...rows]
-      .map((row) => row.map((value) => escapeCsv(String(value ?? ""))).join(","))
-      .join("\n");
+    const csv = rowsToSpreadsheetSafeCsv([headers, ...rows]);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -437,8 +435,4 @@ function csvValue(value: unknown) {
   if (Array.isArray(value)) return value.join(" | ");
   if (value && typeof value === "object") return Object.entries(value as Record<string, string>).map(([key, answer]) => `${key}: ${answer}`).join(" | ");
   return value ?? "";
-}
-
-function escapeCsv(value: string) {
-  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
