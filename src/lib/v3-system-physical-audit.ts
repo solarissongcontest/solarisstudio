@@ -227,6 +227,7 @@ export const V3_VERIFIED_DOMAIN_TABLES: Readonly<Record<string, readonly string[
     "televoting.admin_audit_log",
     "televoting.integrity_action_audit",
   ],
+  "organizer-reminder": ["public.admin_deadlines"],
   "feature-rollout": [
     "public.studio2_feature_flags",
     "public.public_ia_rollout_state",

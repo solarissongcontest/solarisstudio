@@ -62,6 +62,7 @@ const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = 
   "notification.queued": [],
   "notification.delivered": [],
   "notification.failed": ["notification.delivery_failed"],
+  "organizer_reminder.changed": [],
   "prediction.changed": [],
   "prediction.scored": [],
 };
@@ -133,6 +134,10 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "supabase/migrations/20261017103000_v3_s5_preference_consequences.sql",
     "src/lib/v3-s5-preference-consequences.test.ts",
     ".github/scripts/v3-s5-preference-consequences-rehearsal.sh",
+  ],
+  "organizer_reminder.changed": [
+    "supabase/migrations/20261020002000_v3_organizer_reminder_commands.sql",
+    "src/lib/v3-organizer-reminder-commands.contract.test.ts",
   ],
   "prediction.changed": [
     "supabase/migrations/20261017113000_v3_s5_prediction_round_consequences.sql",

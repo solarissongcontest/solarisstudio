@@ -1,8 +1,10 @@
+import { useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveSolarisV6OperationRecovery } from "@/lib/solaris-v6-operation-recovery";
 
 export type AdminDeadline = {
   id: string;
@@ -14,6 +16,8 @@ export type AdminDeadline = {
   completed_at: string | null;
   notes: string | null;
   created_at: string;
+  revision: number;
+  updated_at: string;
 };
 
 export type AdminAuditRow = {
@@ -44,6 +48,13 @@ export type AdminNotification = {
   created_at: string;
 };
 
+type PendingReminderOperation = {
+  fingerprint: string;
+  operationId: string;
+  idempotencyKey: string;
+  expectedRevision?: number;
+};
+
 const adminDb = supabase as any;
 
 function missingSchema(error: unknown) {
@@ -57,6 +68,37 @@ function missingSchema(error: unknown) {
 
 function normalizeEditionId(editionId?: string | null) {
   return editionId?.trim() || null;
+}
+
+function newReminderOperation(prefix: string, fingerprint: string): PendingReminderOperation {
+  const operationId = crypto.randomUUID();
+  return {
+    fingerprint,
+    operationId,
+    idempotencyKey: `${prefix}:${operationId}`,
+  };
+}
+
+async function reconcileReminderOperation(operationId: string) {
+  const { data, error } = await adminDb.rpc("studio2_reconcile_operation", {
+    p_operation_id: operationId,
+  });
+  if (error) return null;
+  const receipt = data as { status?: string; result?: unknown } | null;
+  return receipt?.status === "succeeded" ? receipt.result : null;
+}
+
+async function recoverReminderCommand(
+  error: unknown,
+  pending: PendingReminderOperation,
+): Promise<unknown | null> {
+  const recovery = resolveSolarisV6OperationRecovery(error, {
+    online: typeof navigator === "undefined" ? true : navigator.onLine,
+    stableOperationIdentity: true,
+  });
+
+  if (!recovery.outcomeUnknown) return null;
+  return reconcileReminderOperation(pending.operationId);
 }
 
 async function loadAdminDeadlines(editionId?: string | null) {
@@ -167,10 +209,14 @@ export function useCreateAdminDeadline() {
   const qc = useQueryClient();
   const { editionId } = useAdminContext();
   const organizerEditionId = normalizeEditionId(editionId);
+  const pendingRef = useRef<PendingReminderOperation | null>(null);
 
   return useMutation({
     mutationFn: async (
-      payload: Omit<AdminDeadline, "id" | "created_at" | "completed_at">,
+      payload: Omit<
+        AdminDeadline,
+        "id" | "created_at" | "completed_at" | "revision" | "updated_at"
+      >,
     ) => {
       if (!organizerEditionId || payload.edition_id !== organizerEditionId) {
         throw new Error(
@@ -178,17 +224,54 @@ export function useCreateAdminDeadline() {
         );
       }
 
-      const { data, error } = await adminDb
-        .from("admin_deadlines")
-        .insert(payload)
-        .select("id, edition_id")
-        .single();
-      if (error) throw error;
-      if (!data || data.edition_id !== organizerEditionId) {
-        throw new Error("Custom reminder creation returned an unexpected edition scope.");
+      const fingerprint = JSON.stringify({
+        editionId: payload.edition_id,
+        showId: payload.show_id,
+        kind: payload.kind,
+        label: payload.label.trim(),
+        dueAt: payload.due_at,
+        notes: payload.notes?.trim() || null,
+      });
+      const pending =
+        pendingRef.current?.fingerprint === fingerprint
+          ? pendingRef.current
+          : newReminderOperation("organizer-reminder-create", fingerprint);
+      pendingRef.current = pending;
+
+      const { data, error } = await adminDb.rpc("studio2_create_admin_deadline", {
+        p_edition_id: payload.edition_id,
+        p_show_id: payload.show_id,
+        p_kind: payload.kind,
+        p_label: payload.label,
+        p_due_at: payload.due_at,
+        p_notes: payload.notes,
+        p_operation_id: pending.operationId,
+        p_idempotency_key: pending.idempotencyKey,
+      });
+
+      if (error) {
+        const reconciled = await recoverReminderCommand(error, pending);
+        if (reconciled) {
+          pendingRef.current = null;
+          return reconciled;
+        }
+        const recovery = resolveSolarisV6OperationRecovery(error, {
+          online: typeof navigator === "undefined" ? true : navigator.onLine,
+          stableOperationIdentity: true,
+        });
+        if (!recovery.keepOperationOpen) pendingRef.current = null;
+        throw error;
       }
+
+      pendingRef.current = null;
+      return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
+        qc.invalidateQueries({ queryKey: ["admin-audit"] }),
+      ]);
+    },
   });
 }
 
@@ -196,6 +279,7 @@ export function useToggleAdminDeadline() {
   const qc = useQueryClient();
   const { editionId } = useAdminContext();
   const organizerEditionId = normalizeEditionId(editionId);
+  const pendingRef = useRef<PendingReminderOperation | null>(null);
 
   return useMutation({
     mutationFn: async ({ id, complete }: { id: string; complete: boolean }) => {
@@ -203,43 +287,63 @@ export function useToggleAdminDeadline() {
         throw new Error("Custom reminder changes require an explicit Organizer edition scope.");
       }
 
-      const { data: current, error: currentError } = await adminDb
-        .from("admin_deadlines")
-        .select("id, edition_id, completed_at")
-        .eq("id", id)
-        .eq("edition_id", organizerEditionId)
-        .maybeSingle();
-      if (currentError) throw currentError;
-      if (!current || current.edition_id !== organizerEditionId) {
-        throw new Error("This reminder is not part of the selected Organizer edition.");
-      }
+      const fingerprint = JSON.stringify({ id, complete, editionId: organizerEditionId });
+      let pending = pendingRef.current?.fingerprint === fingerprint ? pendingRef.current : null;
 
-      if (Boolean(current.completed_at) === complete) return;
-
-      let update = adminDb
-        .from("admin_deadlines")
-        .update({ completed_at: complete ? new Date().toISOString() : null })
-        .eq("id", id)
-        .eq("edition_id", organizerEditionId);
-
-      update = current.completed_at
-        ? update.eq("completed_at", current.completed_at)
-        : update.is("completed_at", null);
-
-      const { data: updated, error } = await update
-        .select("id, edition_id, completed_at")
-        .maybeSingle();
-      if (error) throw error;
-      if (!updated) {
-        throw new Error(
-          "This reminder changed before your action was applied. Refresh and review the current state.",
+      if (!pending) {
+        const { data: previewData, error: previewError } = await adminDb.rpc(
+          "studio2_admin_deadline_preview",
+          { p_deadline_id: id },
         );
+        if (previewError) throw previewError;
+        const preview = previewData as {
+          editionId?: string | null;
+          completedAt?: string | null;
+          revision?: number;
+        } | null;
+        if (!preview || preview.editionId !== organizerEditionId || !preview.revision) {
+          throw new Error("This reminder is not part of the selected Organizer edition.");
+        }
+        if (Boolean(preview.completedAt) === complete) return preview;
+
+        pending = {
+          ...newReminderOperation("organizer-reminder-complete", fingerprint),
+          expectedRevision: preview.revision,
+        };
+        pendingRef.current = pending;
       }
-      if (updated.edition_id !== organizerEditionId || Boolean(updated.completed_at) !== complete) {
-        throw new Error("Custom reminder state could not be reconciled after the update.");
+
+      const { data, error } = await adminDb.rpc("studio2_set_admin_deadline_completed", {
+        p_deadline_id: id,
+        p_complete: complete,
+        p_expected_revision: pending.expectedRevision,
+        p_operation_id: pending.operationId,
+        p_idempotency_key: pending.idempotencyKey,
+      });
+
+      if (error) {
+        const reconciled = await recoverReminderCommand(error, pending);
+        if (reconciled) {
+          pendingRef.current = null;
+          return reconciled;
+        }
+        const recovery = resolveSolarisV6OperationRecovery(error, {
+          online: typeof navigator === "undefined" ? true : navigator.onLine,
+          stableOperationIdentity: true,
+        });
+        if (!recovery.keepOperationOpen) pendingRef.current = null;
+        throw error;
       }
+
+      pendingRef.current = null;
+      return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
+        qc.invalidateQueries({ queryKey: ["admin-audit"] }),
+      ]);
+    },
   });
 }
 
