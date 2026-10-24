@@ -40,5 +40,10 @@ export async function loadV3PublishedResultSnapshot(
     throw new Error(`Could not load canonical published Result snapshot: ${errorMessage(error)}`);
   }
 
-  return parseV3PublishedResultSnapshot(data);
+  const snapshot = parseV3PublishedResultSnapshot(data);
+  if (snapshot && snapshot.show.id !== showId) {
+    throw new Error("Canonical published Result snapshot escaped the requested Show scope");
+  }
+
+  return snapshot;
 }
