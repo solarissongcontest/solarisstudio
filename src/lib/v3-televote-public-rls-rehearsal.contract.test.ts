@@ -46,14 +46,16 @@ describe("Televote upgrade verification", () => {
     }
   });
 
-  it("refuses a hosted DB_URL before starting psql", () => {
+  it.each([
+    "postgresql://postgres:postgres@hosted.invalid:5432/postgres",
+    "postgresql://postgres:postgres@127.0.0.1:54322/postgres?host=hosted.invalid",
+    "postgresql://postgres:postgres@localhost:54322@hosted.invalid/postgres",
+  ])("refuses hosted database routing before starting psql: %s", (databaseUrl) => {
     const root = mkdtempSync(join(tmpdir(), "solaris-tv-isolation-"));
     try {
-      writeFileSync(
-        join(root, "supabase"),
-        "#!/bin/sh\nprintf '%s\\n' 'DB_URL=postgresql://postgres:postgres@hosted.invalid:5432/postgres'\n",
-        { mode: 0o755 },
-      );
+      writeFileSync(join(root, "supabase"), `#!/bin/sh\nprintf '%s\\n' 'DB_URL=${databaseUrl}'\n`, {
+        mode: 0o755,
+      });
       writeFileSync(join(root, "psql"), "#!/bin/sh\necho 'PSQL_MUST_NOT_RUN'\nexit 9\n", {
         mode: 0o755,
       });
@@ -68,4 +70,29 @@ describe("Televote upgrade verification", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+  it.each([
+    "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+    "postgres://postgres:postgres@localhost:54322/postgres",
+  ])(
+    "accepts an exact isolated connection and runs migration plus role proof: %s",
+    (databaseUrl) => {
+      const root = mkdtempSync(join(tmpdir(), "solaris-tv-local-"));
+      try {
+        writeFileSync(
+          join(root, "supabase"),
+          `#!/bin/sh\nprintf '%s\\n' 'DB_URL=${databaseUrl}'\n`,
+          { mode: 0o755 },
+        );
+        writeFileSync(join(root, "psql"), "#!/bin/sh\necho LOCAL_PSQL_CALLED\n", { mode: 0o755 });
+        const result = spawnSync("bash", [rlsRunner], {
+          env: { ...process.env, PATH: `${root}:${process.env.PATH}` },
+          encoding: "utf8",
+        });
+        expect(result.status).toBe(0);
+        expect(result.stdout.match(/LOCAL_PSQL_CALLED/g)).toHaveLength(2);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
 });
