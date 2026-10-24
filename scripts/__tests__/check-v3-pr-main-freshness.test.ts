@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   assessV3PrMainFreshness,
@@ -6,6 +7,11 @@ import {
 
 const MAIN = "1111111111111111111111111111111111111111";
 const HEAD = "2222222222222222222222222222222222222222";
+const workflow = readFileSync(
+  ".github/workflows/v3-pr-main-freshness.yml",
+  "utf8",
+);
+const checker = readFileSync("scripts/check-v3-pr-main-freshness.ts", "utf8");
 
 describe("V3 PR current-main freshness guard", () => {
   it("accepts an exact PR head that contains literal current main", () => {
@@ -135,7 +141,7 @@ describe("V3 PR current-main freshness guard", () => {
     );
   });
 
-  it("selects V3 main PRs for refresh by branch or title", () => {
+  it("selects V3 main PRs for freshness by branch or title", () => {
     expect(
       isV3PullForFreshness({
         title: "A normal title",
@@ -167,5 +173,31 @@ describe("V3 PR current-main freshness guard", () => {
         head: { ref: "v3/child", sha: HEAD },
       }),
     ).toBe(false);
+  });
+
+  it("keeps automatic and requested integration identities separate", () => {
+    expect(workflow).toContain("workflow_dispatch:");
+    expect(workflow).toContain("workflow_call:");
+    expect(workflow).toContain("if: inputs.pr_number == 0");
+    expect(workflow).toContain("if: inputs.pr_number != 0");
+    expect(workflow).toContain(
+      "V3_EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}",
+    );
+    expect(workflow).toContain("V3_CURRENT_PR: ${{ inputs.pr_number }}");
+    expect(workflow).toContain(
+      "ref: ${{ inputs.pr_number == 0 && github.event.pull_request.head.sha || 'main' }}",
+    );
+  });
+
+  it("keeps the freshness gate bounded, read-only and production-isolated", () => {
+    expect(workflow).not.toContain("\n  push:");
+    expect(workflow).not.toContain("statuses: write");
+    expect(checker).not.toContain("/pulls?");
+    expect(checker).not.toContain("state=open");
+    expect(checker).not.toContain("supabase.co");
+    expect(workflow).not.toContain("supabase.co");
+    expect(workflow).toContain(
+      "It does not enumerate all open PRs, write GitHub state, start Supabase",
+    );
   });
 });
