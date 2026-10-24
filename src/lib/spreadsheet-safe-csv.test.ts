@@ -18,7 +18,7 @@ describe("spreadsheet-safe CSV", () => {
 
   it("applies CSV quoting after formula neutralization", () => {
     expect(escapeSpreadsheetCsvCell('=HYPERLINK("https://example.invalid")')).toBe(
-      '"\'=HYPERLINK(""https://example.invalid"")"',
+      "\"'=HYPERLINK(\"\"https://example.invalid\"\")\"",
     );
     expect(escapeSpreadsheetCsvCell("line one\nline two")).toBe('"line one\nline two"');
     expect(escapeSpreadsheetCsvCell("plain")).toBe("plain");
