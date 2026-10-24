@@ -47,6 +47,13 @@ describe("V3 Public Next in Line runtime", () => {
     expect(page).toContain("return <NextInLineCompetition />");
   });
 
+  it("keeps the caller-specific participant workflow out of crawler indexes", () => {
+    const page = route();
+
+    expect(page).toContain('{ name: "robots", content: "noindex, nofollow" }');
+    expect(page).not.toContain('{ name: "robots", content: "index, follow" }');
+  });
+
   it("uses the caller-scoped V3 projection as the participant read authority", () => {
     const runtime = source();
 
