@@ -22,7 +22,7 @@ describe("V3 Organizer navigation update interruption safety", () => {
     expect(startBlock.indexOf("if (")).toBeLessThan(startBlock.indexOf("setAppUpdateBlocker("));
   });
 
-  it("clears gesture update safety through the unified reset path", () => {
+  it("clears gesture update safety through the unified interruption path", () => {
     const tabs = source("src/components/admin/OrganizerV6TabBar.tsx");
     const reset = tabs.indexOf("const resetDragDom =");
     const clear = tabs.indexOf("const clearDrag =", reset);
@@ -31,7 +31,9 @@ describe("V3 Organizer navigation update interruption safety", () => {
     expect(resetBlock).toContain(
       "clearAppUpdateBlocker(V3_ORGANIZER_LENS_UPDATE_BLOCKER)",
     );
-    expect(tabs).toContain("const resetInterruptedGesture = () => clearDrag()");
+    expect(tabs).toContain("const interruptDrag = useCallback");
+    expect(tabs).toContain("if (dragState.current) suppressClick.current = true");
+    expect(tabs).toContain("const resetInterruptedGesture = () => interruptDrag()");
     expect(tabs).toContain('window.addEventListener("blur", resetInterruptedGesture)');
     expect(tabs).toContain('window.addEventListener("pagehide", resetInterruptedGesture)');
     expect(tabs).toContain('window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture)');

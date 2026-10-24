@@ -27,11 +27,15 @@ describe("V3 Liquid navigation update interruption safety", () => {
     );
   });
 
-  it("keeps interruption exits on unified cleanup and adjacent-only release", () => {
+  it("keeps interruption exits on click-safe unified cleanup and adjacent-only release", () => {
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
     expect(tabs).toContain("const clearDrag = useCallback");
     expect(tabs).toContain("resetDragDom();");
-    expect(tabs).toContain("const resetInterruptedGesture = () => clearDrag()");
+    expect(tabs).toContain("const interruptDrag = useCallback");
+    expect(tabs).toContain("if (dragState.current) suppressClick.current = true");
+    expect(tabs).toContain("const resetInterruptedGesture = () => interruptDrag()");
+    expect(tabs).toContain("root.hasAttribute(\"data-solaris-feature-overlay-open\")");
+    expect(tabs).toContain("root.hasAttribute(\"data-solaris-keyboard-open\")");
     expect(tabs).toContain("onPointerCancel={cancelDrag}");
     expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
     expect(tabs.match(/maxSteps: 1/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
