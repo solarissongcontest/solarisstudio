@@ -8,6 +8,9 @@ import { missingEngagementSchema } from "./prediction-data";
 
 const supabase = baseSupabase as unknown as SupabaseClient<AppDatabase>;
 
+const FAN_TASTE_BALLOT_PROJECTION =
+  "id, profile_id, show_id, ranking, created_at, updated_at" as const;
+
 export function useTasteBallots(profileId?: string) {
   return useQuery({
     enabled: Boolean(profileId),
@@ -15,7 +18,7 @@ export function useTasteBallots(profileId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fan_taste_ballots")
-        .select("*")
+        .select(FAN_TASTE_BALLOT_PROJECTION)
         .eq("profile_id", profileId!)
         .order("updated_at", { ascending: false });
 
@@ -68,7 +71,7 @@ export function useSaveTasteBallot(profileId?: string) {
           },
           { onConflict: "profile_id,show_id" },
         )
-        .select("*")
+        .select(FAN_TASTE_BALLOT_PROJECTION)
         .single();
 
       if (error) throw error;
