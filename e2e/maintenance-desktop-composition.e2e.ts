@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("TerraOS maintenance hero stays above the fold on wide desktop", async ({ page }) => {
+test("TerraOS maintenance hero stays above the fold on wide desktop", async ({ page }, testInfo) => {
   const viewport = { width: 1920, height: 1080 };
   await page.setViewportSize(viewport);
 
@@ -53,4 +53,9 @@ test("TerraOS maintenance hero stays above the fold on wide desktop", async ({ p
 
   // The copy and device tableau should read as one horizontal composition.
   expect(Math.abs(geometry.copy.centerY - geometry.stage.centerY)).toBeLessThan(150);
+
+  await testInfo.attach("maintenance-desktop-1920x1080", {
+    body: await page.screenshot({ fullPage: false }),
+    contentType: "image/png",
+  });
 });
