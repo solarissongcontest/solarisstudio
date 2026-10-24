@@ -76,17 +76,22 @@ describe("country account jury voting contract", () => {
     expect(route).toContain("submit_country_jury_ballot");
   });
 
-  it("keeps manual organizer entry while adding open and close controls", () => {
+  it("keeps manual organizer entry while governing score corrections and Jury windows", () => {
     const shell = source("src/components/admin/AdminShell.tsx");
     const control = source("src/components/admin/JuryVotingWindowControl.tsx");
     const manual = source("src/routes/_authenticated/admin/jury/$slug.tsx");
+    const correction = source("src/lib/v3-organizer-jury-correction-authority.ts");
     expect(shell).toContain("JuryVotingWindowControl");
     expect(control).toContain("studio2_jury_window_change_preview");
     expect(control).toContain("studio2_apply_jury_voting_status");
     expect(control).toContain("Open jury voting");
     expect(control).toContain("Close jury voting");
-    expect(manual).toContain('rpc("assign_jury_vote"');
-    expect(manual).toContain('rpc("clear_jury_point"');
+    expect(manual).toContain("previewOrganizerJuryCorrection");
+    expect(manual).toContain("applyOrganizerJuryCorrection");
+    expect(manual).not.toContain('rpc("assign_jury_vote"');
+    expect(manual).not.toContain('rpc("clear_jury_point"');
+    expect(correction).toContain('"studio2_jury_vote_correction_preview"');
+    expect(correction).toContain('"studio2_apply_jury_vote_correction"');
   });
 
   it("shows Jury voting as a separate country-account service on Participate", () => {
