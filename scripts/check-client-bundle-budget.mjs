@@ -1,4 +1,11 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 
@@ -26,6 +33,19 @@ const BUDGETS = {
   maxAppShellCssGzip: 15 * 1024,
   maxGlobalStylesCssGzip: 48 * 1024,
 };
+
+const reportDir = process.env.CLIENT_BUNDLE_REPORT_DIR || "artifacts/client-bundle";
+const attributionPath = join(reportDir, "build-attribution.json");
+let attribution = null;
+if (existsSync(attributionPath)) {
+  try {
+    attribution = JSON.parse(readFileSync(attributionPath, "utf8"));
+  } catch (error) {
+    console.warn(
+      `Solaris client budget: could not parse ${attributionPath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
 
 const files = readdirSync(assetRoot)
   .filter((name) => /\.(?:js|css)$/.test(name))
@@ -137,7 +157,7 @@ if (globalStyles) {
 }
 
 const report = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   generatedAt: new Date().toISOString(),
   assetRoot,
   assetCount: files.length,
@@ -154,9 +174,9 @@ const report = {
   failures,
   passed: failures.length === 0,
   largestAssets,
+  attribution,
 };
 
-const reportDir = process.env.CLIENT_BUNDLE_REPORT_DIR || "artifacts/client-bundle";
 mkdirSync(reportDir, { recursive: true });
 writeFileSync(
   join(reportDir, "budget-report.json"),
@@ -164,12 +184,23 @@ writeFileSync(
   "utf8",
 );
 
+const moduleRows = Array.isArray(attribution?.topInitialModules)
+  ? attribution.topInitialModules.slice(0, 20)
+  : [];
+const packageRows = Array.isArray(attribution?.topInitialPackages)
+  ? attribution.topInitialPackages.slice(0, 20)
+  : [];
+const serverOnlyCandidates = Array.isArray(attribution?.serverOnlyCandidatesInInitialGraph)
+  ? attribution.serverOnlyCandidatesInInitialGraph
+  : [];
+
 const markdown = [
   "## Solaris Studio client performance budget",
   "",
   `- Result: **${report.passed ? "PASS" : "FAIL"}**`,
   `- Asset root: \`${assetRoot}\``,
   `- JS/CSS assets: ${files.length}`,
+  `- Module attribution: **${attribution ? "available" : "unavailable"}**`,
   "",
   "### Budget checks",
   "",
@@ -188,9 +219,46 @@ const markdown = [
     (file, index) =>
       `| ${index + 1} | \`${file.name}\` | ${file.type} | ${kb(file.raw)} KiB | ${kb(file.gzip)} KiB |`,
   ),
+  ...(moduleRows.length
+    ? [
+        "",
+        "### 20 largest modules in the initial browser graph",
+        "",
+        "| # | Module | Package | Rendered | Initial chunk(s) |",
+        "| ---: | --- | --- | ---: | --- |",
+        ...moduleRows.map(
+          (row, index) =>
+            `| ${index + 1} | \`${String(row.module).replaceAll("|", "\\|")}\` | ${row.package ? `\`${row.package}\`` : "app"} | ${kb(row.renderedBytes ?? 0)} KiB | ${(row.chunks ?? []).map((chunk) => `\`${chunk}\``).join(", ")} |`,
+        ),
+      ]
+    : []),
+  ...(packageRows.length
+    ? [
+        "",
+        "### Largest packages in the initial browser graph",
+        "",
+        "| # | Package | Rendered |",
+        "| ---: | --- | ---: |",
+        ...packageRows.map(
+          (row, index) => `| ${index + 1} | \`${row.name}\` | ${kb(row.renderedBytes ?? 0)} KiB |`,
+        ),
+      ]
+    : []),
+  "",
+  `### Server-only-looking modules in the initial browser graph: ${serverOnlyCandidates.length}`,
+  "",
+  ...(serverOnlyCandidates.length
+    ? serverOnlyCandidates.map(
+        (row) => `- \`${row.module}\` · ${kb(row.renderedBytes ?? 0)} KiB · ${(row.chunks ?? []).join(", ")}`,
+      )
+    : ["None detected by the conservative path heuristic."]),
   "",
 ].join("\n");
 writeFileSync(join(reportDir, "budget-report.md"), `${markdown}\n`, "utf8");
+
+if (process.env.GITHUB_STEP_SUMMARY) {
+  appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`, "utf8");
+}
 
 console.log("Solaris Studio client performance budget");
 console.log(`  assets: ${files.length} from ${assetRoot}`);
@@ -206,12 +274,22 @@ console.log(
 console.log(`  total JS + CSS gzip: ${kb(totalGzip)} KiB`);
 if (appShell) console.log(`  app shell CSS gzip: ${kb(appShell.gzip)} KiB`);
 if (globalStyles) console.log(`  global styles CSS gzip: ${kb(globalStyles.gzip)} KiB`);
+console.log(`  module attribution: ${attribution ? "available" : "unavailable"}`);
 console.log(`  report: ${join(reportDir, "budget-report.md")}`);
 console.log("\n20 largest emitted assets by gzip size:");
 for (const [index, file] of largestAssets.entries()) {
   console.log(
     `  ${String(index + 1).padStart(2, " ")}. ${file.name} · raw ${kb(file.raw)} KiB · gzip ${kb(file.gzip)} KiB`,
   );
+}
+
+if (moduleRows.length) {
+  console.log("\n20 largest modules in the initial browser graph:");
+  for (const [index, row] of moduleRows.entries()) {
+    console.log(
+      `  ${String(index + 1).padStart(2, " ")}. ${row.module} · ${kb(row.renderedBytes ?? 0)} KiB · ${(row.chunks ?? []).join(", ")}`,
+    );
+  }
 }
 
 if (failures.length) {
