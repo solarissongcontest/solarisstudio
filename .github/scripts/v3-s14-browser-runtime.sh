@@ -19,6 +19,7 @@ run_s14_browser_test() {
   local app_body="$evidence_dir/${safe_name}.app-smoke-body.txt"
   local playwright_list_log="$evidence_dir/${safe_name}.playwright-list.log"
   local vite_pid=""
+  local listening=0
   local ready=0
   local status=0
   local code=""
@@ -42,33 +43,53 @@ run_s14_browser_test() {
     >"$vite_log" 2>&1 &
   vite_pid=$!
 
-  CURRENT_STAGE="${bootstrap_stage}:http-readiness"
-  for attempt in $(seq 1 60); do
+  # A live process is not enough: prove Vite actually bound the exact strict
+  # loopback port before any HTTP or Playwright work starts.
+  for attempt in $(seq 1 40); do
     if ! kill -0 "$vite_pid" 2>/dev/null; then
-      status=90
+      status=89
       break
     fi
-
-    code="$(
-      curl \
-        --silent \
-        --show-error \
-        --max-time 5 \
-        --output "$readiness_body" \
-        --write-out '%{http_code}' \
-        "$base_url/favicon.ico" \
-        || true
-    )"
-    printf '[v3-s14-browser-runtime] readiness attempt=%s status=%s\n' "$attempt" "${code:-curl-error}" | tee -a "$vite_log"
-
-    case "$code" in
-      2*|3*|400|401|402|403)
-        ready=1
-        break
-        ;;
-    esac
-    sleep 2
+    if ss -ltn 2>/dev/null | grep -Eq "127\\.0\\.0\\.1:${port}[[:space:]]"; then
+      listening=1
+      break
+    fi
+    sleep 0.5
   done
+  if [[ "$status" == "0" && "$listening" != "1" ]]; then
+    status=89
+  fi
+
+  CURRENT_STAGE="${bootstrap_stage}:http-readiness"
+  if [[ "$status" == "0" ]]; then
+    for attempt in $(seq 1 60); do
+      if ! kill -0 "$vite_pid" 2>/dev/null; then
+        status=90
+        break
+      fi
+
+      code="$(
+        curl \
+          --silent \
+          --show-error \
+          --max-time 5 \
+          --output "$readiness_body" \
+          --write-out '%{http_code}' \
+          --header 'Cookie: solaris_e2e_maintenance_bypass=1' \
+          "$base_url/" \
+          || true
+      )"
+      printf '[v3-s14-browser-runtime] readiness attempt=%s status=%s\n' "$attempt" "${code:-curl-error}" | tee -a "$vite_log"
+
+      case "$code" in
+        2*|3*|400|401|402|403)
+          ready=1
+          break
+          ;;
+      esac
+      sleep 2
+    done
+  fi
 
   if [[ "$status" == "0" && "$ready" != "1" ]]; then
     status=91
@@ -119,6 +140,18 @@ run_s14_browser_test() {
   fi
 
   if [[ "$status" != "0" ]]; then
+    printf '\n[v3-s14-browser-runtime] failure status=%s stage=%s\n' "$status" "$CURRENT_STAGE" >&2
+    case "$status" in
+      89) printf '[v3-s14-browser-runtime] Vite process started but port %s never listened\n' "$port" >&2 ;;
+      90) printf '[v3-s14-browser-runtime] Vite exited before HTTP readiness\n' >&2 ;;
+      91) printf '[v3-s14-browser-runtime] GET / never became HTTP-ready\n' >&2 ;;
+      92) printf '[v3-s14-browser-runtime] application smoke route was not HTTP-ready\n' >&2 ;;
+      93) printf '[v3-s14-browser-runtime] Playwright failed during collection/bootstrap\n' >&2 ;;
+      94) printf '[v3-s14-browser-runtime] Playwright reached the application leg and failed there\n' >&2 ;;
+    esac
+    if grep -Fq "No StartEvent found in AsyncLocalStorage" "$readiness_body" "$app_body" 2>/dev/null; then
+      printf '[v3-s14-browser-runtime] TanStack runtime failure: No StartEvent found in AsyncLocalStorage\n' >&2
+    fi
     printf '\n[v3-s14-browser-runtime] Vite tail for %s\n' "$run_stage" >&2
     tail -300 "$vite_log" >&2 || true
     printf '\n[v3-s14-browser-runtime] listening sockets for port %s\n' "$port" >&2
