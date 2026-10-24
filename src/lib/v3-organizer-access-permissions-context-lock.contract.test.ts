@@ -25,6 +25,16 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     );
   });
 
+  it("does not reinterpret stale edition context as a global permission evaluation", () => {
+    expect(route).toContain(
+      'editionId ? (resolvedEditionId || "unverified") : "global"',
+    );
+    expect(route).toContain(
+      'enabled: editionsQuery.isSuccess && (!editionId || Boolean(resolvedEditionId))',
+    );
+    expect(route).toContain('editionId: resolvedEditionId || null');
+  });
+
   it("makes exact access scope visible instead of calling every non-global change merely selected edition", () => {
     expect(route).toContain('data-v3-organizer-context-lock="permissions"');
     expect(route).toContain('No verified edition selected');
@@ -52,16 +62,23 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     );
   });
 
-  it("cancels unfinished local R3 review state when Organizer edition context changes", () => {
-    expect(route).toContain('useEffect(() => {');
+  it("cancels unfinished local R3 review state only from edition-context changes", () => {
+    expect(route).toContain('const resetSimulation = simulation.reset;');
     expect(route).toContain('setPendingChange(null);');
     expect(route).toContain('setReauthPassword("");');
     expect(route).toContain('setApprovalAction(null);');
     expect(route).toContain('setApprovalPassword("");');
-    expect(route).toContain('editionId,');
+    expect(route).toContain('setMessage(null);');
+    expect(route).toContain('resetSimulation();');
+    expect(route).toContain('}, [editionId, resetSimulation]);');
+    expect(route).not.toContain('simulation,\n  ]);');
   });
 
-  it("uses resolved edition context for access simulation instead of raw shell scope", () => {
+  it("uses resolved edition context for access simulation and refuses stale-context global fallback", () => {
+    expect(route).toContain('if (editionId && !resolvedEditionId)');
+    expect(route).toContain(
+      'Access simulation will not fall back to global scope.',
+    );
     expect(route).toContain('viewAccessAs(userId, resolvedEditionId || null)');
     expect(route).not.toContain('viewAccessAs(userId, editionId || null)');
   });
