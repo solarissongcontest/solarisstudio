@@ -12,6 +12,10 @@ export function renderMaintenanceDesktopV2Style() {
       width: min(calc(100% - 6rem), 1240px);
     }
 
+    #terraos-release-local-nav {
+      display: none !important;
+    }
+
     /*
      * The release choreography stylesheet is installed after the static page and
      * deliberately uses higher-specificity html[data-*] selectors. Desktop is a
@@ -211,25 +215,26 @@ export function renderMaintenanceDesktopV2Style() {
     }
 
     html[data-terraos-release-choreography="v2"] .story-touch[data-terra-scroll-scene="true"] {
-      min-height: 0 !important;
+      min-height: 180svh !important;
     }
 
     html[data-terraos-release-choreography="v2"] .story-touch[data-terra-scroll-scene="true"] .interactive-device {
-      position: relative !important;
-      top: auto !important;
+      position: sticky !important;
+      top: max(6rem, 12svh) !important;
       margin-top: 0 !important;
     }
 
     .story-touch {
-      min-height: 0;
       grid-template-columns: minmax(300px, .7fr) minmax(590px, 1.3fr);
       gap: clamp(3rem, 5vw, 5.5rem);
-      align-items: center;
+      align-items: start;
       text-align: left;
     }
 
     .story-touch .story-heading {
-      align-self: center;
+      position: sticky;
+      top: 20svh;
+      align-self: start;
     }
 
     .story-touch .interactive-device {
@@ -249,27 +254,30 @@ export function renderMaintenanceDesktopV2Style() {
       text-align: left;
     }
 
-    html[data-terraos-release-choreography="v2"] .participation-story[data-terra-scroll-scene="true"],
+    html[data-terraos-release-choreography="v2"] .participation-story[data-terra-scroll-scene="true"] {
+      min-height: 165svh !important;
+    }
+
     html[data-terraos-release-choreography="v2"] .participation-story[data-terra-scroll-scene="true"] .story-grid {
-      min-height: 0 !important;
+      min-height: 150svh !important;
     }
 
     html[data-terraos-release-choreography="v2"] .participation-story[data-terra-scroll-scene="true"] .participation-device {
-      position: relative !important;
-      top: auto !important;
-      align-self: center !important;
+      position: sticky !important;
+      top: max(6rem, 12svh) !important;
+      align-self: start !important;
     }
 
     .participation-story .story-grid {
       grid-template-columns: minmax(300px, .7fr) minmax(590px, 1.3fr);
       gap: clamp(3rem, 5vw, 5.5rem);
-      align-items: center;
+      align-items: start;
     }
 
     .participation-story .sticky-heading {
-      position: relative;
-      top: auto;
-      align-self: center;
+      position: sticky;
+      top: 20svh;
+      align-self: start;
     }
 
     .participation-device {
@@ -279,13 +287,15 @@ export function renderMaintenanceDesktopV2Style() {
     }
 
     html[data-terraos-release-choreography="v2"] .results-story[data-terra-scroll-scene="true"] {
-      min-height: 0 !important;
+      min-height: 190svh !important;
     }
 
-    html[data-terraos-release-choreography="v2"] .results-story[data-terra-scroll-scene="true"] .story-heading,
+    html[data-terraos-release-choreography="v2"] .results-story[data-terra-scroll-scene="true"] .story-heading {
+      top: max(5.5rem, 11svh) !important;
+    }
+
     html[data-terraos-release-choreography="v2"] .results-story[data-terra-scroll-scene="true"] .results-reveal {
-      position: relative !important;
-      top: auto !important;
+      top: max(9.5rem, 19svh) !important;
     }
 
     .results-story .story-heading,
