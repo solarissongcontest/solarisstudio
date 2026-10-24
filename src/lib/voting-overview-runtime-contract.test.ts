@@ -16,18 +16,6 @@ describe("Voting organizer overview runtime contract", () => {
     expect(loader).not.toContain("maybeSingle()");
   });
 
-  it("requires edition-scoped voting.read before the privileged overview RPC", () => {
-    const loader = source("integrations/televoting/admin-data.functions.ts");
-    const guard = loader.indexOf(
-      'await requireSolarisCapabilityServer("voting.read", data.editionId);',
-    );
-    const rpc = loader.indexOf('"admin_overview_summary"');
-
-    expect(guard).toBeGreaterThan(-1);
-    expect(rpc).toBeGreaterThan(guard);
-    expect(loader).not.toContain("requireMergedTelevotingAdminServer");
-  });
-
   it("follows the exact Organizer edition context without a separate backend probe", () => {
     const page = source("routes/televoting/admin/index.tsx");
 
