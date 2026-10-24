@@ -12,7 +12,9 @@ const migration = readFileSync(
 
 function functionBody(name: string, nextMarker: string) {
   const start = migration.indexOf(`create or replace function ${name}`);
+  expect(start).toBeGreaterThanOrEqual(0);
   const end = migration.indexOf(nextMarker, start);
+  expect(end).toBeGreaterThan(start);
   return migration.slice(start, end);
 }
 
@@ -68,7 +70,7 @@ describe("System V3 P9 durable Artist/Song identity", () => {
     expect(migration).not.toContain("grant insert on table private.v3_music_");
   });
 
-  it("delegates every public entity visibility decision to canonical public participant publication truth", () => {
+  it("delegates public entity evidence to canonical public participant publication truth", () => {
     const evidence = functionBody(
       "private.v3_public_music_entry_evidence()",
       "revoke all on function private.v3_public_music_entry_evidence()",
@@ -83,11 +85,136 @@ describe("System V3 P9 durable Artist/Song identity", () => {
     expect(evidence).not.toContain("scheduled_publish_at <= now()");
   });
 
+  it("preserves independent Artist and Song field visibility", () => {
+    const evidence = functionBody(
+      "private.v3_public_music_entry_evidence()",
+      "revoke all on function private.v3_public_music_entry_evidence()",
+    );
+    const songVisibility = functionBody(
+      "private.v3_public_music_song_is_visible(p_song_id uuid)",
+      "create or replace function private.v3_public_music_artist_is_visible",
+    );
+    const artistVisibility = functionBody(
+      "private.v3_public_music_artist_is_visible(p_artist_id uuid)",
+      "create or replace function private.v3_public_music_artist_alias_is_visible",
+    );
+
+    expect(evidence).toContain("nullif(btrim(row ->> 'artist'), '') is not null");
+    expect(evidence).toContain("or nullif(btrim(row ->> 'song'), '') is not null");
+    expect(songVisibility).toContain("evidence.song_label is not null");
+    expect(songVisibility).not.toContain("evidence.artist_label is not null");
+    expect(artistVisibility).toContain("evidence.artist_label is not null");
+    expect(artistVisibility).not.toContain("evidence.song_label is not null");
+  });
+
+  it("gates edition-specific aliases on publication-safe Artist evidence", () => {
+    const aliasVisibility = functionBody(
+      "private.v3_public_music_artist_alias_is_visible(",
+      "create or replace function private.v3_public_music_song_artist_relationship_is_visible",
+    );
+    const artistDirect = functionBody(
+      "public.v3_public_artist(p_artist_id uuid)",
+      "create or replace function public.v3_public_song",
+    );
+    const artistList = functionBody(
+      "public.v3_public_artists(",
+      "create or replace function public.v3_public_songs",
+    );
+
+    expect(aliasVisibility).toContain("when p_edition_id is null then true");
+    expect(aliasVisibility).toContain("evidence.edition_id = p_edition_id");
+    expect(aliasVisibility).toContain("evidence.artist_label is not null");
+    expect(artistDirect).toContain(
+      "private.v3_public_music_artist_alias_is_visible(v_artist.id, alias.edition_id)",
+    );
+    expect(artistList).toContain(
+      "private.v3_public_music_artist_alias_is_visible(artist.id, alias.edition_id)",
+    );
+  });
+
+  it("publishes Song/Artist relationships only from same-Song evidence", () => {
+    const relationship = functionBody(
+      "private.v3_public_music_song_artist_relationship_is_visible(",
+      "create or replace function private.v3_public_music_song_artist_credits",
+    );
+    const artistDirect = functionBody(
+      "public.v3_public_artist(p_artist_id uuid)",
+      "create or replace function public.v3_public_song",
+    );
+
+    expect(relationship).toContain(
+      "private.v3_resolve_music_song(relation.song_id) = p_song_id",
+    );
+    expect(relationship).toContain(
+      "private.v3_resolve_music_artist(relation.artist_id) = p_artist_id",
+    );
+    expect(relationship).toContain("evidence.song_label is not null");
+    expect(relationship).toContain("evidence.artist_label is not null");
+    expect(artistDirect).toContain(
+      "private.v3_public_music_song_artist_relationship_is_visible(song.id, v_artist.id)",
+    );
+  });
+
+  it("deduplicates canonical Artists and re-ranks credits after identity merges", () => {
+    const credits = functionBody(
+      "private.v3_public_music_song_artist_credits(p_song_id uuid)",
+      "revoke all on function private.v3_public_music_song_is_visible",
+    );
+    const songDirect = functionBody(
+      "public.v3_public_song(p_song_id uuid)",
+      "create or replace function public.v3_public_artists",
+    );
+    const songList = functionBody(
+      "public.v3_public_songs(",
+      "comment on function public.v3_public_artist",
+    );
+
+    expect(credits).toContain("artist.id = private.v3_resolve_music_artist(relation.artist_id)");
+    expect(credits).toContain(
+      "private.v3_public_music_song_artist_relationship_is_visible(p_song_id, artist.id)",
+    );
+    expect(credits).toContain("select distinct on (artist_id)");
+    expect(credits).toContain("row_number() over (");
+    expect(credits).toContain(
+      "order by original_position, artist_id, source_song_id, source_artist_id",
+    );
+    expect(songDirect).toContain("private.v3_public_music_song_artist_credits(v_song.id)");
+    expect(songList).toContain("private.v3_public_music_song_artist_credits(song.id)");
+  });
+
+  it("omits partially published appearances instead of leaking hidden labels as null", () => {
+    const artistDirect = functionBody(
+      "public.v3_public_artist(p_artist_id uuid)",
+      "create or replace function public.v3_public_song",
+    );
+    const songDirect = functionBody(
+      "public.v3_public_song(p_song_id uuid)",
+      "create or replace function public.v3_public_artists",
+    );
+
+    for (const source of [artistDirect, songDirect]) {
+      expect(source).toContain("evidence.artist_label is not null");
+      expect(source).toContain("evidence.song_label is not null");
+    }
+  });
+
   it("uses the same caller-invariant visibility helpers for direct, list and search reads", () => {
-    const artistDirect = functionBody("public.v3_public_artist(p_artist_id uuid)", "create or replace function public.v3_public_song");
-    const songDirect = functionBody("public.v3_public_song(p_song_id uuid)", "create or replace function public.v3_public_artists");
-    const artistList = functionBody("public.v3_public_artists(", "create or replace function public.v3_public_songs");
-    const songList = functionBody("public.v3_public_songs(", "comment on function public.v3_public_artist");
+    const artistDirect = functionBody(
+      "public.v3_public_artist(p_artist_id uuid)",
+      "create or replace function public.v3_public_song",
+    );
+    const songDirect = functionBody(
+      "public.v3_public_song(p_song_id uuid)",
+      "create or replace function public.v3_public_artists",
+    );
+    const artistList = functionBody(
+      "public.v3_public_artists(",
+      "create or replace function public.v3_public_songs",
+    );
+    const songList = functionBody(
+      "public.v3_public_songs(",
+      "comment on function public.v3_public_artist",
+    );
 
     expect(artistDirect).toContain("private.v3_public_music_artist_is_visible(v_target)");
     expect(songDirect).toContain("private.v3_public_music_song_is_visible(v_target)");
@@ -102,8 +229,14 @@ describe("System V3 P9 durable Artist/Song identity", () => {
   });
 
   it("fails closed for hidden/tombstoned identities and exposes no private reason on public reads", () => {
-    const artistDirect = functionBody("public.v3_public_artist(p_artist_id uuid)", "create or replace function public.v3_public_song");
-    const songDirect = functionBody("public.v3_public_song(p_song_id uuid)", "create or replace function public.v3_public_artists");
+    const artistDirect = functionBody(
+      "public.v3_public_artist(p_artist_id uuid)",
+      "create or replace function public.v3_public_song",
+    );
+    const songDirect = functionBody(
+      "public.v3_public_song(p_song_id uuid)",
+      "create or replace function public.v3_public_artists",
+    );
 
     expect(artistDirect).toContain("return null");
     expect(songDirect).toContain("return null");
@@ -144,5 +277,7 @@ describe("System V3 P9 durable Artist/Song identity", () => {
     ]) {
       expect(migration).toContain(`grant execute on function ${fn} to anon, authenticated`);
     }
+
+    expect(migration).not.toContain("grant execute on function private.v3_public_music_");
   });
 });
