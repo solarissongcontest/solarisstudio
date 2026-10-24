@@ -96,21 +96,25 @@ export function AdminQaCoveragePage() {
         ),
       );
 
-      const signed = await Promise.all(
-        paths.map(async (path) => {
-          const { data: result, error: signedError } = await supabase.storage
-            .from("beta-feedback")
-            .createSignedUrl(path, 60 * 60);
-          if (signedError || !result?.signedUrl) return null;
-          return [path, result.signedUrl] as const;
-        }),
-      );
+      if (!paths.length) {
+        setSignedScreenshots({});
+      } else {
+        const { data: signed, error: signedError } = await supabase.storage
+          .from("beta-feedback")
+          .createSignedUrls(paths, 60 * 60);
 
-      setSignedScreenshots(
-        Object.fromEntries(
-          signed.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)),
-        ),
-      );
+        if (signedError) {
+          setSignedScreenshots({});
+        } else {
+          setSignedScreenshots(
+            Object.fromEntries(
+              (signed ?? []).flatMap((entry) =>
+                entry.path && entry.signedUrl ? [[entry.path, entry.signedUrl] as const] : [],
+              ),
+            ),
+          );
+        }
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not load Organizer QA evidence.");
     } finally {
