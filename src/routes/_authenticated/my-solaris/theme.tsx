@@ -6,6 +6,11 @@ export const Route = createFileRoute("/_authenticated/my-solaris/theme")({
   validateSearch: (search: Record<string, unknown>): { country?: string } => ({
     country: typeof search.country === "string" ? search.country : undefined,
   }),
-  head: () => ({ meta: [{ title: "Country appearance — Solaris Studio" }] }),
+  head: () => ({
+    meta: [
+      { title: "Country appearance — Solaris Studio" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: MySolarisAppearanceModule,
 });
