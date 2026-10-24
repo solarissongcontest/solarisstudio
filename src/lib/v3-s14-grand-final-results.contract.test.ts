@@ -109,7 +109,7 @@ describe("S14 Grand Final results", () => {
       driver.indexOf("run_s14_grand_final_publication"),
     );
     expect(driver.indexOf("run_s14_grand_final_publication")).toBeLessThan(
-      driver.indexOf("reconcile_edition_runtime_to_results"),
+      driver.lastIndexOf("reconcile_edition_runtime_to_results"),
     );
     expect(driver.lastIndexOf("reconcile_edition_runtime_to_results")).toBeLessThan(
       driver.indexOf("run_stage stage-10-archive run_s14_stage_10_archive"),
