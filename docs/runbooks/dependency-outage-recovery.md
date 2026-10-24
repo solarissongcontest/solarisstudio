@@ -11,7 +11,7 @@ The recovery objective is deliberately narrow:
 3. record the failed attempt through the canonical S4 delivery-failure contract;
 4. retry only through the canonical lease/claim contract;
 5. restore the dependency;
-6. converge on exactly one immutable consumer receipt.
+6. converge on exactly one immutable consumer receipt while retaining attempt/error history.
 
 This runbook does **not** declare provider-level disaster recovery or full-service recovery certified. It proves one deterministic local dependency-outage path.
 
@@ -53,7 +53,7 @@ The rehearsal performs these steps:
 10. restores the dependency on the same endpoint;
 11. reclaims the exact delivery through the canonical worker contract;
 12. completes it through `public.studio2_complete_domain_event_delivery`;
-13. verifies exactly one immutable consumer receipt;
+13. verifies exactly one immutable consumer receipt and the preserved dependency-failure history;
 14. replays completion and verifies it resolves to the same receipt without rewriting it.
 
 ## What counts as a pass
@@ -68,8 +68,8 @@ A pass requires all of the following:
 - the dependency came back on the same endpoint;
 - recovery advanced the existing attempt history rather than creating replacement work;
 - completion produced one immutable consumer receipt;
-- duplicate completion reported replay and did not create or rewrite a receipt;
-- successful completion cleared stale delivery-error state.
+- the completed delivery retained its prior attempt count and `last_error_code` as recovery history;
+- duplicate completion reported replay and did not create or rewrite a receipt.
 
 ## Evidence to retain
 
