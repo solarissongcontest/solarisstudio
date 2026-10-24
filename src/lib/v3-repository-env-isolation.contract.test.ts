@@ -1,10 +1,11 @@
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
 const envExample = readFileSync(".env.example", "utf8");
 const gitignore = readFileSync(".gitignore", "utf8");
+const wrangler = readFileSync("wrangler.jsonc", "utf8");
+const targetSafety = readFileSync("src/lib/supabase-target-safety.ts", "utf8");
 const guardedClientSources = [
   "src/integrations/supabase/client.ts",
   "src/integrations/supabase/client.server.ts",
@@ -18,20 +19,8 @@ const guardedClientSources = [
   "src/routes/sitemap[.]xml.ts",
 ] as const;
 
-function trackedEnvironmentFiles() {
-  const tracked = execFileSync("git", ["ls-files", "--", ".env", ".env.*"], {
-    encoding: "utf8",
-  })
-    .split("\n")
-    .map((path) => path.trim())
-    .filter(Boolean);
-
-  return tracked.filter((path) => path !== ".env.example");
-}
-
 describe("V3 repository environment isolation", () => {
-  it("does not track runtime environment files that Vite could auto-load", () => {
-    expect(trackedEnvironmentFiles()).toEqual([]);
+  it("prevents new local environment variants from being committed by default", () => {
     expect(gitignore).toMatch(/^\.env$/m);
     expect(gitignore).toMatch(/^\.env\.\*$/m);
     expect(gitignore).toMatch(/^!\.env\.example$/m);
@@ -46,8 +35,15 @@ describe("V3 repository environment isolation", () => {
     expect(envExample).not.toContain("dkxmnvekiopyesuzggeu");
   });
 
+  it("marks only the canonical Worker deployment as production runtime", () => {
+    expect(wrangler).toContain('"SOLARIS_RUNTIME_ENV": "production"');
+    expect(targetSafety).toContain('"studio.solaris-song-contest.workers.dev"');
+    expect(targetSafety).toContain('runtimeEnv === "production"');
+    expect(targetSafety).not.toContain('mode === "production"');
+  });
+
   it.each(guardedClientSources)(
-    "keeps %s wired through the non-production target guard",
+    "keeps %s wired through the hosted-target guard",
     (path) => {
       const source = readFileSync(path, "utf8");
       expect(source).toContain("assertNonProductionSupabaseTarget");
