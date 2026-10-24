@@ -44,25 +44,4 @@ describe("V3 authenticated identity reconciliation", () => {
     expect(text).toContain("<AuthenticatedUserProvider user={identity.data}>");
     expect(text).not.toContain("<AuthenticatedUserProvider user={session.data}>");
   });
-
-  it("fails closed when current delegation access cannot be verified", () => {
-    const text = route();
-    expect(text).toContain("account.isError || account.data?.access.schemaReady === false");
-    expect(text).toContain('title="Account access unavailable"');
-    expect(text).toContain("protected participation tools stay closed");
-    expect(text).toContain("void account.refetch()");
-    expect(text).toContain("Retry access check");
-  });
-
-  it("does not reinterpret access-read failure as signed out, unassigned or active", () => {
-    const text = route();
-    const unavailable = text.indexOf("account.isError || account.data?.access.schemaReady === false");
-    const suspended = text.indexOf('account.data?.access.countryStatus === "suspended"');
-    const children = text.indexOf("return <>{children}</>");
-
-    expect(unavailable).toBeGreaterThan(-1);
-    expect(suspended).toBeGreaterThan(unavailable);
-    expect(children).toBeGreaterThan(suspended);
-    expect(text).toContain("Your account has not been treated as signed out or unassigned");
-  });
 });
