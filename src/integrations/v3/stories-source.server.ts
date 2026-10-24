@@ -3,6 +3,7 @@ import { SOLARIS_TIME_ZONE } from "@/lib/public-time";
 import type {
   V3StoriesAnniversary,
   V3StoriesIndexBundle,
+  V3StoryArtwork,
   V3StoryDetailBundle,
   V3StoryMoment,
   V3StorySummary,
@@ -14,6 +15,7 @@ type StoriesSourceClient = {
     data: unknown;
     error: unknown;
   }>;
+  from(table: string): any;
 };
 
 function throwIfError(error: unknown, label: string) {
@@ -132,6 +134,35 @@ function todayInSolaris() {
   }).format(new Date());
 }
 
+async function loadPublishedEditionArtwork(
+  client: StoriesSourceClient,
+  story: V3Storyline,
+): Promise<V3StoryArtwork | null> {
+  try {
+    const { data, error } = await client
+      .from("editions")
+      .select("id,artwork_url")
+      .eq("id", story.editionId)
+      .eq("published", true)
+      .maybeSingle();
+
+    if (error || !data || typeof data !== "object" || Array.isArray(data)) return null;
+    const row = data as Record<string, unknown>;
+    const editionId = nullableString(row.id);
+    const src = nullableString(row.artwork_url);
+    if (editionId !== story.editionId || !src) return null;
+
+    return {
+      src,
+      alt: `${story.editionName} official artwork`,
+    };
+  } catch {
+    // Artwork is presentation-only. Never hide an authoritative published Story
+    // merely because supplemental Edition artwork is missing or unavailable.
+    return null;
+  }
+}
+
 /**
  * Published-only Stories archive source.
  *
@@ -170,8 +201,9 @@ export async function loadV3StoriesIndexBundle(): Promise<V3StoriesIndexBundle> 
 /**
  * Published-only edition Story source.
  *
- * Related stories are optional continuity links. Failure to load that supplemental
- * public archive must never turn a valid published Story into an unavailable page.
+ * Related stories and Edition artwork are optional continuity/presentation data.
+ * Failure to load either supplemental source must never turn a valid published
+ * Story into an unavailable page.
  */
 export async function loadV3StoryDetailBundle(
   editionSlug: string,
@@ -181,6 +213,7 @@ export async function loadV3StoryDetailBundle(
     return {
       shell: { editionLabel: "Solaris Studio", phaseLabel: "Stories" },
       story: null,
+      artwork: null,
       relatedEdition: null,
       relatedStories: [],
       generatedAt: new Date().toISOString(),
@@ -194,20 +227,26 @@ export async function loadV3StoryDetailBundle(
   throwIfError(result.error, "Could not load published Solaris edition story");
 
   const story = parseStoryline(result.data);
+  let artwork: V3StoryArtwork | null = null;
   let relatedStories: V3StorySummary[] = [];
 
   if (story) {
-    try {
-      const relatedResult = await client.rpc("studio2_public_storylines", { p_limit: 12 });
-      if (!relatedResult.error && Array.isArray(relatedResult.data)) {
+    const [resolvedArtwork, relatedResult] = await Promise.all([
+      loadPublishedEditionArtwork(client, story),
+      Promise.resolve(client.rpc("studio2_public_storylines", { p_limit: 12 })).catch(() => null),
+    ]);
+    artwork = resolvedArtwork;
+
+    if (relatedResult && !relatedResult.error && Array.isArray(relatedResult.data)) {
+      try {
         relatedStories = relatedResult.data
           .map(parseStorySummary)
           .filter((candidate) => candidate.editionId !== story.editionId)
           .slice(0, 3);
+      } catch {
+        // Related continuity is optional. The authoritative published Story remains usable.
+        relatedStories = [];
       }
-    } catch {
-      // Related continuity is optional. The authoritative published Story remains usable.
-      relatedStories = [];
     }
   }
 
@@ -220,6 +259,7 @@ export async function loadV3StoryDetailBundle(
       phaseLabel: "Stories",
     },
     story,
+    artwork,
     relatedEdition: story
       ? {
           label: story.editionName,
