@@ -1,0 +1,54 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+const source = readFileSync("scripts/check-v3-s16-readiness.ts", "utf8");
+
+describe("S16 readiness diagnostic", () => {
+  it("enumerates the canonical certification categories rather than maintaining a second list", () => {
+    expect(source).toContain("V3_S16_CERTIFICATION_CATEGORIES.map");
+    expect(source).toContain("validateV3S16CategorySourceEvidence");
+  });
+
+  it("reports exact-candidate artifact presence and semantic blockers", () => {
+    expect(source).toContain("candidateValid");
+    expect(source).toContain("missing exact-candidate evidence");
+    expect(source).toContain("passedCount");
+    expect(source).toContain("evidenceDirectory");
+  });
+
+  it("uses the canonical static release-readiness assessment instead of duplicating release blockers", () => {
+    expect(source).toContain("assessV3S16StaticReleaseReadiness");
+    expect(source).toContain("const staticReadiness = assessV3S16StaticReleaseReadiness()");
+    expect(source).toContain("staticReadiness.ready");
+    expect(source).toContain("staticReadiness.blockers");
+    expect(source).toContain("publicCutoverRemaining: staticReadiness.publicCutoverRemaining");
+    expect(source).toContain("organizerCutoverRemaining: staticReadiness.organizerCutoverRemaining");
+    expect(source).toContain("pendingPhysicalDomains: staticReadiness.pendingPhysicalDomains");
+    expect(source).toContain("declarationOnlyConsequences: staticReadiness.declarationOnlyConsequences");
+    expect(source).toContain("publicParityMissingEvidence: staticReadiness.publicParityMissingEvidence");
+  });
+
+  it("fails final readiness while any static release blocker remains", () => {
+    expect(source).toContain("passedCount === categories.length &&");
+    expect(source).toContain("staticReadiness.ready");
+    expect(source).toContain("if (requireReady && !result.ready) process.exit(1)");
+  });
+
+  it("reports the canonical required surface-case counts", () => {
+    expect(source).toContain("requiredV3S16PublicAcceptanceCases");
+    expect(source).toContain("requiredV3S16OrganizerAcceptanceCases");
+    expect(source).toContain("V3_S16_NAVIGATION_REQUIRED_CASES.length");
+    expect(source).toContain("V3_S16_ACCESSIBILITY_REQUIRED_CASES.length");
+    expect(source).toContain("V3_S16_RESPONSIVE_REQUIRED_CASES.length");
+  });
+
+  it("is diagnostic by default but can enforce final readiness", () => {
+    expect(source).toContain('process.argv.includes("--require-ready")');
+    expect(source).toContain("if (requireReady && !result.ready) process.exit(1)");
+  });
+
+  it("does not contact hosted services", () => {
+    expect(source).not.toContain("supabase.co");
+    expect(source).not.toContain("api.github.com");
+  });
+});
