@@ -13,8 +13,6 @@ describe("System V3 S14 Stage 7 genuine deadline rehearsal", () => {
       'select (clock_timestamp() >= closes_at)::text from televoting.rounds',
     );
     expect(stage7DeadlineAdapter).toContain('== "true"');
-    expect(stage7DeadlineAdapter).not.toContain(
-      'closes_at)::text from televoting.rounds where id=\'$round_id\'::uuid;\")" == "t"',
-    );
+    expect(stage7DeadlineAdapter).not.toContain('::uuid;")" == "t"');
   });
 });
