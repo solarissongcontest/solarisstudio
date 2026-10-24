@@ -27,6 +27,7 @@ import {
   retryFailedDeliveryWithReconciliation,
   type DeliveryRetryIdentity,
   type DeliveryRetryOutcome,
+  type DeliveryRetrySuccess,
 } from "@/lib/v3-organizer-delivery-retry";
 
 type DeliveryStatus = "pending" | "processing" | "sent" | "failed" | "suppressed";
@@ -106,6 +107,7 @@ function SystemOperationsPage() {
     backend.data?.capabilities.systemOperations === true;
   const retryIdentities = useRef(new Map<string, DeliveryRetryIdentity>());
   const [retryRecovery, setRetryRecovery] = useState<RetryRecoveryState | null>(null);
+  const [retryReceipt, setRetryReceipt] = useState<DeliveryRetrySuccess | null>(null);
 
   const health = useQuery({
     enabled: systemOperationsSupported,
@@ -126,12 +128,16 @@ function SystemOperationsPage() {
       setRetryRecovery((current) =>
         current?.deliveryId === deliveryId ? null : current,
       );
+      setRetryReceipt(outcome);
       await queryClient.invalidateQueries({
         queryKey: ["admin-system-runtime-health"],
       });
       return;
     }
 
+    setRetryReceipt((current) =>
+      current?.deliveryId === deliveryId ? null : current,
+    );
     setRetryRecovery({ deliveryId, outcome });
 
     if (outcome.state === "failed" || outcome.recovery.shouldRefreshCanonical) {
@@ -214,6 +220,9 @@ function SystemOperationsPage() {
       retryIdentities.current.set(deliveryId, identity);
     }
 
+    setRetryReceipt((current) =>
+      current?.deliveryId === deliveryId ? null : current,
+    );
     setRetryRecovery((current) =>
       current?.deliveryId === deliveryId ? null : current,
     );
@@ -354,6 +363,36 @@ function SystemOperationsPage() {
                   </AdminStatus>
                 }
               />
+              {retryReceipt ? (
+                <div
+                  role="status"
+                  className="mt-4 rounded-xl border border-emerald-200/15 bg-emerald-200/[0.055] p-4"
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-emerald-200/15 bg-emerald-200/[0.06] text-emerald-100">
+                      <CheckCircle2 className="size-4" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-emerald-50">
+                          {retryReceipt.reconciled
+                            ? "Retry confirmed by reconciliation"
+                            : "Retry accepted"}
+                        </p>
+                        <AdminStatus tone="ready">Authoritative result</AdminStatus>
+                      </div>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Solaris confirmed that delivery {retryReceipt.deliveryId} was requeued by the governed
+                        operation. The canonical runtime snapshot is refreshing; this acknowledgement remains visible
+                        if the old failed row disappears.
+                      </p>
+                      <p className="mt-2 break-all font-mono text-[10px] leading-4 text-muted-foreground">
+                        Operation {retryReceipt.operationId} · {retryReceipt.reconciled ? "confirmed from operation receipt" : "confirmed directly by server"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               {data.push.recent.length ? (
                 <div className="mt-4 divide-y divide-white/[0.07]">
                   {data.push.recent.map((delivery) => {
