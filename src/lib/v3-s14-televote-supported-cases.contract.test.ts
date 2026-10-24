@@ -46,6 +46,16 @@ describe("S14 canonical Televote Stage 7", () => {
     expect(deadlineStage).not.toContain("update televoting.rounds set closes_at");
   });
 
+  it("assigns unique deterministic deadline identities to both semi-finals and the Grand Final", () => {
+    expect(deadlineStage).toContain("$TV_ROUND_ID");
+    expect(deadlineStage).toContain("$TV_ROUND_TWO_ID");
+    expect(deadlineStage).toContain("$S14_FINAL_TELEVOTE_ROUND_ID");
+    expect(deadlineStage).toContain("14000000-0000-4007-8500-000000000001");
+    expect(deadlineStage).toContain("14000000-0000-4007-8500-000000000004");
+    expect(deadlineStage).toContain("14000000-0000-4007-8500-000000000005");
+    expect(deadlineStage).toContain("s14-televote-final-deadline-set");
+  });
+
   it("does not directly rewrite an already-canonical deterministic fixture baseline", () => {
     const baselineCheck = deterministicFixture.indexOf('baseline_ready="$(db_scalar');
     const existingReturn = deterministicFixture.indexOf('source=existing');
