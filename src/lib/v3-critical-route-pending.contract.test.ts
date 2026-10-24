@@ -29,7 +29,8 @@ describe("critical-task pending chrome", () => {
     const source = routerSource();
 
     expect(source).toContain('import { resolveSolarisAppScreen } from "@/lib/app-screen-registry"');
-    expect(source).toContain("resolveSolarisAppScreen(pathname).behavior.criticalTask");
+    expect(source).toContain("const screen = pathname ? resolveSolarisAppScreen(pathname) : null");
+    expect(source).toContain("screen?.behavior.criticalTask ?? false");
     expect(source).toContain("if (isAppMode && criticalTask)");
     expect(source).not.toContain('pathname.startsWith("/confirmations") || pathname.startsWith("/televoting")');
     expect(source).not.toContain("alreadyInsideParticipationChrome");
@@ -44,7 +45,7 @@ describe("critical-task pending chrome", () => {
 
     expect(criticalBranch).toContain("<section");
     expect(criticalBranch).toContain('aria-busy="true"');
-    expect(criticalBranch).toContain("<AppRouteSkeleton />");
+    expect(criticalBranch).toContain("<AppRouteSkeleton variant={skeletonVariant} />");
     expect(criticalBranch).not.toContain("<AppRouteStateFrame");
     expect(criticalBranch).not.toContain("<main");
     expect(criticalBranch).not.toContain("<h1");

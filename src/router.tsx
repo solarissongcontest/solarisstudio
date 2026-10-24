@@ -1,7 +1,11 @@
 import { QueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { createRouter } from "@tanstack/react-router";
-import { AppRouteSkeleton, AppRouteStateFrame } from "@/components/app/AppRouteStateFrame";
+import {
+  AppRouteSkeleton,
+  AppRouteStateFrame,
+  type AppRouteSkeletonVariant,
+} from "@/components/app/AppRouteStateFrame";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { solarisQueryPolicy } from "@/lib/app-query-policy";
@@ -20,13 +24,19 @@ function RoutePending() {
     setPathname(window.location.pathname);
   }, []);
 
-  // Critical-task ownership belongs to the canonical screen registry. Pending
-  // transitions must not maintain a smaller hand-written route list or they can
-  // briefly re-introduce global AppShell chrome while Entry/Jury/etc. are meant
-  // to own focused task chrome.
-  const criticalTask = pathname
-    ? resolveSolarisAppScreen(pathname).behavior.criticalTask
-    : false;
+  // Critical-task and loading-shape ownership both come from the canonical
+  // screen registry. Pending transitions must not maintain smaller hand-written
+  // route lists or a second information architecture.
+  const screen = pathname ? resolveSolarisAppScreen(pathname) : null;
+  const criticalTask = screen?.behavior.criticalTask ?? false;
+  const skeletonVariant: AppRouteSkeletonVariant =
+    screen?.hierarchy.rootTab === "participate"
+      ? "participant"
+      : screen?.hierarchy.rootTab === "results"
+        ? "results"
+        : screen?.presentation === "entity"
+          ? "entity"
+          : "generic";
 
   // Nested Organizer loading belongs inside AdminFrame's existing landmark.
   // A second main during child-route transitions breaks keyboard/screen readers.
@@ -37,7 +47,7 @@ function RoutePending() {
   if (isAppMode && criticalTask) {
     return (
       <section className="solaris-app-route-pending" aria-busy="true" aria-label="Loading">
-        <AppRouteSkeleton />
+        <AppRouteSkeleton variant={skeletonVariant} />
       </section>
     );
   }
@@ -45,17 +55,14 @@ function RoutePending() {
   if (isAppMode) {
     return (
       <AppRouteStateFrame title="Loading" busy>
-        <AppRouteSkeleton />
+        <AppRouteSkeleton variant={skeletonVariant} />
       </AppRouteStateFrame>
     );
   }
 
-  // A pending route is transient transition UI, not the destination page.
-  // TanStack can briefly keep more than one pending boundary mounted while a
-  // route tree settles. Giving those boundaries <main> / <h1> semantics would
-  // create duplicate page landmarks and let audits mistake loading UI for the
-  // actual destination. Keep the status accessible without claiming ownership
-  // of the document's page landmark or primary heading.
+  // Public-web route transitions use the same content-shaped skeleton instead
+  // of shipping a second text-only loading treatment. It remains transient
+  // status UI rather than claiming the destination's main/heading landmarks.
   return (
     <section
       className="mx-auto w-full max-w-[1440px] px-4 py-10 sm:px-6"
@@ -64,13 +71,7 @@ function RoutePending() {
       aria-label="Loading page"
       role="status"
     >
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
-        Solaris Studio
-      </p>
-      <p className="mt-1 font-display text-2xl font-bold">Loading page…</p>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Preparing the published Solaris view.
-      </p>
+      <AppRouteSkeleton variant={skeletonVariant} />
     </section>
   );
 }

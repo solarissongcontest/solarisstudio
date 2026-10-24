@@ -37,7 +37,8 @@ describe("App Experience v3 task and route-state foundation", () => {
 
   it("keeps ordinary installed navigation during pending routes but lets critical tasks own focused pending chrome", () => {
     const router = source("src/router.tsx");
-    expect(router).toContain("resolveSolarisAppScreen(pathname).behavior.criticalTask");
+    expect(router).toContain("const screen = pathname ? resolveSolarisAppScreen(pathname) : null");
+    expect(router).toContain("screen?.behavior.criticalTask ?? false");
     expect(router).toContain("if (isAppMode && criticalTask)");
     expect(router).toContain("AppRouteStateFrame");
     expect(router).toContain("AppRouteSkeleton");
