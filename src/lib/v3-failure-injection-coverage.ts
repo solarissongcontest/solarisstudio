@@ -33,8 +33,8 @@ export type V3FailureCoverageEntry = {
  *
  * `rehearsed` requires retained evidence that the deterministic local rehearsal
  * actually ran. `rehearsal_ready` means an executable local injection/recovery
- * path and source-level regression proof exist, but Chat 5 still needs to run
- * and retain exact-SHA rehearsal evidence before it may be promoted.
+ * path and source-level regression proof exist, but the QA/release evidence lane
+ * still needs to run and retain exact-SHA rehearsal evidence before promotion.
  */
 export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = [
   {
@@ -143,15 +143,17 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
   },
   {
     scenario: "unavailable_dependency",
-    state: "partial",
-    injection: "Record DEPENDENCY_FAILURE for a claimed event consumer delivery; this exercises the canonical retry/dead-letter response to a dependency-classified failure but does not make a real dependency unavailable.",
-    expectedRecovery: "Schedule retry, preserve attempt evidence, dead-letter repeated poison work, and requeue only through the explicit operator path.",
+    state: "rehearsal_ready",
+    injection: "Claim a real jury.tasks DomainEvent delivery, stop a real loopback HTTP dependency used by the rehearsal consumer boundary, observe the failed health request, and record DEPENDENCY_FAILURE through the canonical S4 failure contract.",
+    expectedRecovery: "Retain the dependency-classified retry evidence, restore the same dependency endpoint, reclaim the delivery, process it through the canonical Jury consumer, and converge on exactly one immutable consumer receipt without duplicating the DomainEvent.",
     evidence: [
+      ".github/scripts/v3-s11-unavailable-dependency-rehearsal.sh",
+      "src/lib/v3-s11-unavailable-dependency-rehearsal.test.ts",
       ".github/scripts/v3-s4-domain-event-outbox-rehearsal.sh",
       "src/lib/v3-s4-domain-event-outbox.contract.test.ts",
     ],
     remainingGap:
-      "A deterministic local rehearsal still needs to make a real dependency unavailable, observe the resulting dependency failure through a canonical consumer or operation boundary, restore the dependency, and prove recovery convergence.",
+      "The deterministic real loopback dependency outage/restore rehearsal is implemented, but exact-SHA local execution evidence still needs to be retained by the QA/release evidence lane before this scenario may be promoted to rehearsed.",
     productionTrafficRequired: false,
   },
 ] as const;
