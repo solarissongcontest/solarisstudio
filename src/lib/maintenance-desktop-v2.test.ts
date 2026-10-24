@@ -16,8 +16,12 @@ describe("maintenance desktop v2 composition", () => {
     expect(style).toContain("width: min(620px, 42vw)");
   });
 
-  it("turns the product stories into bounded desktop editorial compositions", () => {
+  it("turns the product stories into unconditional bounded desktop grids", () => {
     expect(style).toContain("width: min(calc(100% - 6rem), 1240px)");
+    expect(style).toContain(".product-story > .story:first-child {\n      display: grid;");
+    expect(style).toContain(".product-story > .story:first-child .first-look {\n      display: grid;");
+    expect(style).toContain(".story-touch {\n      display: grid;");
+    expect(style).toContain(".participation-story .story-grid {\n      display: grid;");
     expect(style).toContain("grid-template-columns: minmax(300px, .68fr) minmax(590px, 1.32fr)");
     expect(style).toContain("min-height: 500px");
     expect(style).toContain("font-size: clamp(3.7rem, 4.65vw, 5.25rem)");
