@@ -60,6 +60,28 @@ describe("System V3 S6 bounded Confirmation requirement repair", () => {
     );
   });
 
+  it("preserves canonical lifecycle-loss state across page boundaries", () => {
+    const repair = repairBody();
+    expect(repair).toContain("v_edition_canonical_recovery_required integer := 0");
+    expect(repair).toContain("from public.studio2_confirmation_requirements historical_requirement");
+    expect(repair).toContain("not exists (");
+    expect(repair).toContain("current_requirement.superseded_at is null");
+    expect(repair).toContain(
+      "when v_edition_canonical_recovery_required > 0 then 'canonical_recovery_required'",
+    );
+    expect(repair).toContain(
+      "'canonicalRecoveryRequired', v_edition_canonical_recovery_required",
+    );
+    expect(repair).toContain(
+      "'pageCanonicalRecoveryRequired', v_page_canonical_recovery_required",
+    );
+    expect(repair).toContain("'complete', v_complete");
+    expect(repair).toContain("and v_edition_canonical_recovery_required = 0");
+    expect(repair.indexOf("into v_edition_canonical_recovery_required")).toBeLessThan(
+      repair.indexOf("v_state := case"),
+    );
+  });
+
   it("delegates repair to the existing canonical per-country invariant instead of adding a second writer", () => {
     const repair = repairBody();
     expect(repair).toContain("perform private.studio2_reconcile_confirmation_requirement(");
