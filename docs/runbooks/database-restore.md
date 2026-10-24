@@ -54,9 +54,50 @@ A mismatch is a failed restore until explained and approved. Never silently "rep
 
 ## Local rehearsal
 
-`.github/scripts/v3-s11-database-restore-rehearsal.sh` performs the database portion against local Supabase only. It creates a temporary sentinel, produces a full custom-format dump, restores it into a new isolated local database, verifies the sentinel, compares fingerprints of critical canonical tables, compares foreign-key validation state and verifies S2/S4 recovery ledgers exist.
+`.github/scripts/v3-s11-database-restore-rehearsal.sh` performs the database portion against local Supabase only. It creates a temporary sentinel, captures the source migration head, produces a full custom-format dump, restores it into a new isolated local database, verifies the migration head and sentinel, compares fingerprints of critical canonical tables, compares foreign-key validation state and verifies S2/S4 recovery ledgers exist.
 
 This proves the repository's PostgreSQL restore path, not provider backup availability and not Storage object recovery.
+
+## Exact-SHA evidence mode
+
+The same rehearsal can retain a machine-readable evidence artifact without changing the restore target or adding network access.
+
+Evidence mode requires:
+
+- a clean Git worktree before and immediately after the rehearsal;
+- an exact 40-character `V3_RECOVERY_EVIDENCE_SHA` matching checked-out `HEAD`;
+- a traceable 1–120 character `V3_RECOVERY_EVIDENCE_OPERATOR` label;
+- a local/loopback `DB_URL`;
+- `V3_RECOVERY_EVIDENCE_OUTPUT` naming the JSON artifact path.
+
+Example:
+
+```bash
+V3_RECOVERY_EVIDENCE_SHA="$(git rev-parse HEAD)" \
+V3_RECOVERY_EVIDENCE_OPERATOR="chat-1-system" \
+V3_RECOVERY_EVIDENCE_ENVIRONMENT="isolated-local-supabase" \
+V3_RECOVERY_EVIDENCE_OUTPUT="artifacts/recovery/database-restore.json" \
+DB_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+.github/scripts/v3-s11-database-restore-rehearsal.sh
+```
+
+The retained artifact records:
+
+- exact commit SHA;
+- generated rehearsal UUID and operator identity;
+- source/restored migration head equality;
+- start/completion timestamps, excluding test-sentinel setup from the measured interval;
+- custom-format dump SHA-256 and byte size;
+- measured **exercise** restore duration;
+- zero snapshot-to-restored-copy data loss for that isolated dump (`exerciseRpoSeconds = 0`);
+- verified canonical relation fingerprints;
+- foreign-key validation state;
+- S2 operation-receipt and S4 event/outbox presence;
+- issues found and follow-up actions.
+
+The exercise RPO/RTO fields are deliberately not hosted-provider promises. The artifact carries `providerRpoClaim: false`, `providerRtoClaim: false`, `certificationClaim: false`, and `qaReviewRequired: true`. Hosted Supabase backup availability, provider restore latency, Storage byte recovery, deployment rollback and full-service recovery still require their own evidence before S11 can be certified.
+
+`src/lib/v3-database-restore-evidence.ts` validates the retained artifact against the expected exact SHA and fails closed if canonical evidence, local scope, migration/rehearsal identity, timing, snapshot identity or anti-overclaim fields are missing.
 
 ## Evidence to retain
 
