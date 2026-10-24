@@ -64,8 +64,8 @@ describe("V3 Televote integrity caller identity", () => {
   });
 
   it("keeps actor identity server-derived inside the governed RPCs", () => {
-    expect(cutover).toContain("auth.uid()")
-    expect(cutover).toContain("p_reason,\n    auth.uid()")
+    expect(cutover).toContain("auth.uid()");
+    expect(cutover).toContain("p_reason,\n    auth.uid()");
     expect(server).not.toContain("actorId");
     expect(server).not.toContain("organizerId");
     expect(server).not.toContain("userId");
