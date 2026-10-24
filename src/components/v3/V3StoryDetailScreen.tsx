@@ -2,7 +2,10 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { BookOpen, CalendarDays, Share2 } from "lucide-react";
 
-import type { V3StoryDetailBundle } from "@/lib/v3-stories";
+import {
+  formatV3StoryDate,
+  type V3StoryDetailBundle,
+} from "@/lib/v3-stories";
 import {
   V3ActionCard,
   V3Screen,
@@ -113,7 +116,7 @@ export function V3StoryDetailScreen({
 
       <div className="mt-5">
         <V3ScreenHeader
-          kicker={`${story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}${story.eventDate ? ` · ${story.eventDate}` : ""}`}
+          kicker={`${story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}${story.eventDate ? ` · ${formatV3StoryDate(story.eventDate)}` : ""}`}
           title={story.title}
           description={story.introduction ?? undefined}
           editorial
@@ -121,7 +124,7 @@ export function V3StoryDetailScreen({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {story.subtitle ? <V3StatusChip tone="neutral">{story.subtitle}</V3StatusChip> : null}
           <span className="text-xs text-white/38">
-            Published {formatDate(story.publishedAt)} · {story.items.length} reviewed moments
+            Published {formatV3StoryDate(story.publishedAt)} · {story.items.length} reviewed moments
           </span>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -172,7 +175,7 @@ export function V3StoryDetailScreen({
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="inline-flex items-center gap-1.5 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-white/42">
                         <CalendarDays className="size-3.5" aria-hidden="true" />
-                        {formatDate(item.occurredAt)}
+                        {formatV3StoryDate(item.occurredAt)}
                       </span>
                       <V3StatusChip tone="neutral">importance {item.importance}</V3StatusChip>
                     </div>
@@ -221,15 +224,4 @@ export function V3StoryDetailScreen({
       ) : null}
     </V3Screen>
   );
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
 }

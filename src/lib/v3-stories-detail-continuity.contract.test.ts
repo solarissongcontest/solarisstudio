@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 const storySource = source("src/integrations/v3/stories-source.server.ts");
+const storyModel = source("src/lib/v3-stories.ts");
 const storyScreen = source("src/components/v3/V3StoryDetailScreen.tsx");
 const storyRoute = source("src/routes/stories/$editionSlug.tsx");
 
@@ -45,6 +46,14 @@ describe("V3 Story detail continuity", () => {
     expect(storyScreen).toContain("const shareTitle = story.title;");
     expect(storyScreen).toContain("navigator.share({ title: shareTitle, url })");
     expect(storyScreen).not.toContain("navigator.share({ title: story.title, url })");
+  });
+
+  it("keeps archival Story dates deterministic across SSR and hydration", () => {
+    expect(storyScreen).toContain("formatV3StoryDate");
+    expect(storyScreen).not.toContain("toLocaleDateString");
+    expect(storyModel).toContain('new Intl.DateTimeFormat("en-GB"');
+    expect(storyModel).toContain("timeZone: SOLARIS_TIME_ZONE");
+    expect(storyModel).not.toContain("resolvedOptions().timeZone");
   });
 
   it("keeps shared-link metadata generic instead of leaking Story content", () => {
