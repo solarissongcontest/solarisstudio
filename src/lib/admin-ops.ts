@@ -44,6 +44,13 @@ export type AdminNotification = {
   created_at: string;
 };
 
+const ADMIN_DEADLINE_FIELDS =
+  "id,edition_id,show_id,kind,label,due_at,completed_at,notes,created_at";
+const ADMIN_AUDIT_FIELDS =
+  "id,actor_id,action,table_name,record_id,edition_id,country_id,before_data,after_data,created_at";
+const ADMIN_NOTIFICATION_FIELDS =
+  "id,recipient_id,severity,title,body,href,source_key,read_at,resolved_at,requires_action,resolution_mode,created_at";
+
 const adminDb = supabase as any;
 
 function missingSchema(error: unknown) {
@@ -67,7 +74,7 @@ async function loadAdminDeadlines(editionId?: string | null) {
 
   const { data, error } = await adminDb
     .from("admin_deadlines")
-    .select("*")
+    .select(ADMIN_DEADLINE_FIELDS)
     .eq("edition_id", normalizedEditionId)
     .order("due_at", { ascending: true });
 
@@ -120,7 +127,7 @@ export function useAdminAudit(limit = 30) {
     queryFn: async () => {
       const { data, error } = await adminDb
         .from("admin_audit_log")
-        .select("*")
+        .select(ADMIN_AUDIT_FIELDS)
         .order("created_at", { ascending: false })
         .limit(limit);
 
@@ -145,7 +152,7 @@ export function useAdminNotifications() {
     queryFn: async () => {
       const { data, error } = await adminDb
         .from("admin_notifications")
-        .select("*")
+        .select(ADMIN_NOTIFICATION_FIELDS)
         .eq("recipient_id", user.id)
         .order("created_at", { ascending: false })
         .limit(50);
