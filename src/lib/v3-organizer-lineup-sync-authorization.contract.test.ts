@@ -7,7 +7,12 @@ const source = readFileSync(
   "utf8",
 );
 
+const targetReadStart = source.indexOf("export const getSolarisEditionSyncTargets");
 const mutationStart = source.indexOf("export const addCountriesToShow");
+const targetRead =
+  targetReadStart >= 0 && mutationStart > targetReadStart
+    ? source.slice(targetReadStart, mutationStart)
+    : "";
 const mutation = mutationStart >= 0 ? source.slice(mutationStart) : "";
 const inputStart = source.indexOf("type AddCountriesInput");
 const inputEnd = source.indexOf("type SyncTargetsInput");
@@ -15,7 +20,23 @@ const inputContract =
   inputStart >= 0 && inputEnd > inputStart ? source.slice(inputStart, inputEnd) : "";
 
 describe("Organizer lineup-sync authorization boundary", () => {
-  it("requires exact-edition entry.edit before crossing into service-role access", () => {
+  it("keeps target discovery on caller-authenticated authority and binds exact-edition capability before shows", () => {
+    const editionLookup = targetRead.indexOf('.from("editions")');
+    const capabilityCheck = targetRead.indexOf(
+      'await requireSolarisCapabilityServer("entry.edit", editionResult.data.id);',
+    );
+    const showsRead = targetRead.indexOf('.from("shows")');
+
+    expect(targetReadStart).toBeGreaterThanOrEqual(0);
+    expect(targetRead).toContain("createSolarisAuthenticatedClientServer()");
+    expect(targetRead).not.toContain("supabaseAdmin");
+    expect(targetRead).not.toContain("requireSolarisOrganizerServer");
+    expect(editionLookup).toBeGreaterThanOrEqual(0);
+    expect(capabilityCheck).toBeGreaterThan(editionLookup);
+    expect(showsRead).toBeGreaterThan(capabilityCheck);
+  });
+
+  it("requires exact-edition entry.edit before crossing into service-role mutation access", () => {
     const capabilityCheck = mutation.indexOf(
       'await requireSolarisCapabilityServer("entry.edit", data.editionId);',
     );
@@ -42,10 +63,14 @@ describe("Organizer lineup-sync authorization boundary", () => {
     expect(inputContract).not.toMatch(/actorId|userId|organizerId/);
   });
 
-  it("uses the canonical server capability resolver instead of role-name inference", () => {
+  it("uses canonical authenticated capability resolution instead of role-name inference", () => {
     expect(source).toContain(
       'import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";',
     );
+    expect(source).toContain(
+      'import { createSolarisAuthenticatedClientServer } from "@/integrations/supabase/organizer.server";',
+    );
+    expect(source).not.toContain("requireSolarisOrganizerServer");
     expect(mutation).not.toMatch(/role\s*[!=]==?\s*["']/i);
   });
 });
