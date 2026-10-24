@@ -14,6 +14,7 @@ export type V3ParticipateProjection = {
   journeyTotalCount: number;
   voting: V3VotingOverviewProjection;
   needsAttention: readonly V3ActionProjection[];
+  blocked: readonly V3ActionProjection[];
   next: readonly V3ActionProjection[];
   waiting: readonly V3ActionProjection[];
   optionalNow: readonly V3ActionProjection[];
@@ -40,17 +41,19 @@ function currentVotingAction(
  * that feeds Home. It deliberately does not create another task source or
  * infer workflow truth from routes.
  *
- * Responsibilities, waiting state and optional participation remain separate.
- * A public vote may be time-sensitive, but it must never visually compete with
- * an unfinished official delegation responsibility as though both were required
- * work. Likewise, a canonical waiting action must not be presented as the
- * viewer's next/optional action until server-owned workflow state makes it
- * actionable.
+ * Responsibilities, blocked/waiting state and optional participation remain
+ * separate. A canonical problem that the viewer cannot currently act on is
+ * blocked, not their "Next" task. A public vote may be time-sensitive, but it
+ * must never visually compete with an unfinished official delegation
+ * responsibility as though both were required work. Likewise, a canonical
+ * waiting action must not be presented as the viewer's next/optional action
+ * until server-owned workflow state makes it actionable.
  */
 export function projectV3Participate(
   bootstrap: Pick<V3BootstrapProjection, "actions" | "journey">,
 ): V3ParticipateProjection {
   const needsAttention: V3ActionProjection[] = [];
+  const blocked: V3ActionProjection[] = [];
   const next: V3ActionProjection[] = [];
   const waiting: V3ActionProjection[] = [];
   const optionalNow: V3ActionProjection[] = [];
@@ -59,6 +62,15 @@ export function projectV3Participate(
   for (const action of bootstrap.actions) {
     if (action.completed) {
       completed.push(action);
+      continue;
+    }
+
+    // A server-owned problem with no current participant action is blocked.
+    // Typical example: Organizer requires Entry changes but editing has not
+    // been reopened. Calling this "Next" would imply an action the user cannot
+    // actually take yet.
+    if (action.sourceState === "problem" && !action.actionRequired) {
+      blocked.push(action);
       continue;
     }
 
@@ -93,9 +105,12 @@ export function projectV3Participate(
     voting: {
       jury,
       televote,
-      currentCount: Number(Boolean(jury)) + Number(Boolean(televote)),
+      currentCount:
+        Number(Boolean(jury && !jury.completed)) +
+        Number(Boolean(televote && !televote.completed)),
     },
     needsAttention,
+    blocked,
     next,
     waiting,
     optionalNow,
