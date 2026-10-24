@@ -49,19 +49,17 @@ import {
   type OperationalNotice,
 } from '@/lib/official-communications';
 import {
-  archiveStudio2Communication,
-  cancelStudio2Notice,
-  createStudio2NoticeDraft,
-  createSupersedingStudio2NoticeDraft,
-  deleteStudio2Communication,
   loadStudio2NoticeRevisions,
   loadStudio2Notices,
-  publishStudio2Notice,
-  restoreStudio2Communication,
-  scheduleStudio2Notice,
-  updateStudio2NoticeDraft,
-  type SaveStudio2NoticeInput,
 } from '@/lib/studio2-communications';
+import {
+  commitOrganizerNoticeLifecycleReview,
+  prepareOrganizerNoticeLifecycleReview,
+  saveOrganizerNoticeDraft,
+  supersedeOrganizerNotice,
+  type OrganizerNoticeLifecycleReview,
+} from '@/lib/v3-organizer-communications-operations';
+import type { V3NoticeLifecycleAction } from '@/lib/v3-official-communications-commands';
 
 type CommunicationsStateFilter = NoticeState | 'archived';
 const NOTICE_STATE_SET = new Set<string>([...NOTICE_STATES, 'archived']);
@@ -72,10 +70,13 @@ type CommunicationsSearch = {
 };
 
 type PendingLifecycleReview = {
-  kind: 'cancel' | 'archive' | 'restore' | 'delete';
+  action: V3NoticeLifecycleAction;
   notice: OperationalNotice;
   reason: string;
+  prepared: OrganizerNoticeLifecycleReview | null;
 };
+
+type NoticeDraftContent = Parameters<typeof saveOrganizerNoticeDraft>[0]['content'];
 
 export const Route = createFileRoute('/_authenticated/admin/communications')({
   validateSearch: (search: Record<string, unknown>): CommunicationsSearch => ({
@@ -90,8 +91,13 @@ export const Route = createFileRoute('/_authenticated/admin/communications')({
       { name: 'robots', content: 'noindex' },
     ],
   }),
-  component: CommunicationsCentre,
+  component: CommunicationsRoute,
 });
+
+function CommunicationsRoute() {
+  const { editionId } = useAdminContext();
+  return <CommunicationsCentre key={editionId || 'unscoped'} />;
+}
 
 function CommunicationsCentre() {
   const search = Route.useSearch();
@@ -111,9 +117,9 @@ function CommunicationsCentre() {
   const [acknowledgementRequired, setAcknowledgementRequired] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [scheduleReviewOpen, setScheduleReviewOpen] = useState(false);
-  const [publishReviewOpen, setPublishReviewOpen] = useState(false);
+  const [editingBase, setEditingBase] = useState<OperationalNotice | null>(null);
   const [lifecycleReview, setLifecycleReview] = useState<PendingLifecycleReview | null>(null);
+  const [reviewError, setReviewError] = useState<Error | null>(null);
 
   const inboxEnabled = displaySurfaces.includes('delegation_inbox');
 
@@ -140,21 +146,22 @@ function CommunicationsCentre() {
     },
   });
 
-  const currentInput = (): SaveStudio2NoticeInput => {
-    if (!editionId) throw new Error('Choose an edition before creating Official Communications.');
-    return {
-      editionId,
-      noticeType,
-      title,
-      body,
-      severity,
-      displaySurfaces,
-      audience: inboxEnabled ? audience : 'all_delegations',
-      audienceGroup: inboxEnabled && audience === 'edition_group' ? audienceGroup : null,
-      countryIds: inboxEnabled && audience === 'specific_countries' ? countryIds : [],
-      acknowledgementRequired: inboxEnabled ? acknowledgementRequired : false,
-    };
+  const organizerContext = () => {
+    if (!editionId) throw new Error('Choose an edition before operating Official Communications.');
+    return { editionId };
   };
+
+  const currentContent = (): NoticeDraftContent => ({
+    noticeType,
+    title,
+    body,
+    severity,
+    displaySurfaces: [...displaySurfaces],
+    audience: inboxEnabled ? audience : 'all_delegations',
+    audienceGroup: inboxEnabled && audience === 'edition_group' ? audienceGroup : null,
+    countryIds: inboxEnabled && audience === 'specific_countries' ? [...countryIds] : [],
+    acknowledgementRequired: inboxEnabled ? acknowledgementRequired : false,
+  });
 
   const refresh = async () => {
     await Promise.all([
@@ -168,91 +175,170 @@ function CommunicationsCentre() {
     }
   };
 
+  async function loadFreshNotice(noticeId: string): Promise<OperationalNotice> {
+    const context = organizerContext();
+    const current = await loadStudio2Notices(context.editionId);
+    const notice = current.find((item) => item.notice.id === noticeId)?.notice ?? null;
+    if (!notice || notice.editionId !== context.editionId) {
+      throw new Error('Official Communications could not reconcile the operated notice in the selected edition.');
+    }
+    return notice;
+  }
+
+  function currentExistingNotice(): OperationalNotice | null {
+    if (!editingId) {
+      if (editingBase) {
+        throw new Error('Official Communications editor state is inconsistent. Reload the draft before continuing.');
+      }
+      return null;
+    }
+    if (!editingBase || editingBase.id !== editingId) {
+      throw new Error('The communication editor lost its reviewed base revision. Reload the draft before continuing.');
+    }
+    if (!editionId || editingBase.editionId !== editionId) {
+      throw new Error('The communication being edited is outside the selected Organizer edition.');
+    }
+    return cloneNotice(editingBase);
+  }
+
+  async function saveCurrentDraft(): Promise<OperationalNotice> {
+    const context = organizerContext();
+    const existing = currentExistingNotice();
+    const result = await saveOrganizerNoticeDraft({
+      context,
+      content: currentContent(),
+      existing,
+    });
+    const noticeId = result.result?.noticeId;
+    if (!noticeId) throw new Error('Official Communications draft receipt did not identify the saved notice.');
+    return loadFreshNotice(noticeId);
+  }
+
   const saveDraft = useMutation({
-    mutationFn: async () => editingId
-      ? updateStudio2NoticeDraft(editingId, currentInput())
-      : createStudio2NoticeDraft(currentInput()),
+    mutationFn: saveCurrentDraft,
     onSuccess: async (notice) => {
-      setEditingId(notice.id);
+      setReviewError(null);
+      loadIntoComposer(notice);
       void navigate({ search: { ...search, notice: notice.id }, replace: true });
+      await refresh();
+    },
+    onError: async (error) => {
+      setReviewError(error instanceof Error ? error : new Error('The governed draft operation failed.'));
       await refresh();
     },
   });
 
-  const scheduleNotice = useMutation({
-    mutationFn: async () => {
-      const draft = editingId
-        ? await updateStudio2NoticeDraft(editingId, currentInput())
-        : await createStudio2NoticeDraft(currentInput());
-      if (!scheduledAt) throw new Error('Choose a publication time before scheduling.');
-      const date = new Date(scheduledAt);
-      if (Number.isNaN(date.getTime())) throw new Error('The scheduled publication time is invalid.');
-      return scheduleStudio2Notice(draft.id, date.toISOString());
+  const preparePublicationReview = useMutation({
+    mutationFn: async (action: 'schedule' | 'publish') => {
+      const draft = await saveCurrentDraft();
+      const exactScheduledAt = action === 'schedule' ? parseScheduledInput(scheduledAt) : null;
+      const review = await prepareOrganizerNoticeLifecycleReview({
+        context: organizerContext(),
+        notice: draft,
+        action,
+        scheduledAt: exactScheduledAt,
+      });
+      return { action, notice: cloneNotice(draft), reason: '', prepared: review } satisfies PendingLifecycleReview;
     },
-    onSuccess: async (notice) => {
-      setScheduleReviewOpen(false);
-      setEditingId(notice.id);
-      void navigate({ search: { ...search, notice: notice.id }, replace: true });
-      await refresh();
+    onSuccess: (review) => {
+      setReviewError(null);
+      loadIntoComposer(review.notice, false);
+      setLifecycleReview(review);
     },
-  });
-
-  const publishNotice = useMutation({
-    mutationFn: async () => {
-      const draft = editingId
-        ? await updateStudio2NoticeDraft(editingId, currentInput())
-        : await createStudio2NoticeDraft(currentInput());
-      return publishStudio2Notice(draft.id);
-    },
-    onSuccess: async (notice) => {
-      setPublishReviewOpen(false);
-      resetComposer();
-      void navigate({ search: { ...search, notice: notice.id }, replace: true });
-      await refresh();
-    },
-  });
-
-  const cancelNotice = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => cancelStudio2Notice(id, reason),
-    onSuccess: async () => {
+    onError: async (error) => {
       setLifecycleReview(null);
+      setReviewError(error instanceof Error ? error : new Error('The communication could not be prepared for governed review.'));
+      await refresh();
+    },
+  });
+
+  const prepareLifecycleReview = useMutation({
+    mutationFn: async (intent: PendingLifecycleReview) => {
+      const fresh = await loadFreshNotice(intent.notice.id);
+      if (
+        fresh.revision !== intent.notice.revision
+        || fresh.state !== intent.notice.state
+        || fresh.archivedAt !== intent.notice.archivedAt
+      ) {
+        throw new Error('The communication changed before final review. Reload its current state and review the action again.');
+      }
+      const review = await prepareOrganizerNoticeLifecycleReview({
+        context: organizerContext(),
+        notice: fresh,
+        action: intent.action,
+        reason: intent.reason,
+      });
+      return { ...intent, notice: cloneNotice(fresh), prepared: review };
+    },
+    onSuccess: (review) => {
+      setReviewError(null);
+      setLifecycleReview(review);
+    },
+    onError: async (error) => {
+      setLifecycleReview(null);
+      setReviewError(error instanceof Error ? error : new Error('The lifecycle action could not be prepared for governed review.'));
+      await refresh();
+    },
+  });
+
+  const commitLifecycleReview = useMutation({
+    mutationFn: async (pending: PendingLifecycleReview) => {
+      if (!pending.prepared) throw new Error('Prepare the final governed review before applying this action.');
+      const fresh = await loadFreshNotice(pending.prepared.noticeId);
+      const result = await commitOrganizerNoticeLifecycleReview({
+        context: organizerContext(),
+        currentNotice: fresh,
+        review: pending.prepared,
+      });
+      return { result, pending };
+    },
+    onSuccess: async ({ pending }) => {
+      setLifecycleReview(null);
+      setReviewError(null);
+      if (pending.action === 'publish') {
+        resetComposer();
+      } else if (pending.action === 'delete' && editingId === pending.notice.id) {
+        resetComposer();
+      } else if (pending.action !== 'delete') {
+        try {
+          const fresh = await loadFreshNotice(pending.notice.id);
+          loadIntoComposer(fresh);
+        } catch {
+          if (pending.action !== 'delete') resetComposer();
+        }
+      }
+      if (pending.action === 'delete' && search.notice === pending.notice.id) {
+        void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
+      } else if (pending.action !== 'delete') {
+        void navigate({ search: { ...search, notice: pending.notice.id }, replace: true });
+      }
+      await refresh();
+    },
+    onError: async (error) => {
+      setLifecycleReview(null);
+      setReviewError(error instanceof Error ? error : new Error('The governed communication operation could not be reconciled.'));
       await refresh();
     },
   });
 
   const supersedeNotice = useMutation({
-    mutationFn: (id: string) => createSupersedingStudio2NoticeDraft(id),
+    mutationFn: async (notice: OperationalNotice) => {
+      const result = await supersedeOrganizerNotice({
+        context: organizerContext(),
+        notice,
+      });
+      const noticeId = result.result?.noticeId;
+      if (!noticeId) throw new Error('Official Communications supersede receipt did not identify the new draft.');
+      return loadFreshNotice(noticeId);
+    },
     onSuccess: async (draft) => {
+      setReviewError(null);
       loadIntoComposer(draft);
       void navigate({ search: { ...search, notice: draft.id }, replace: true });
       await refresh();
     },
-  });
-
-  const archiveCommunication = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => archiveStudio2Communication(id, reason),
-    onSuccess: async () => {
-      setLifecycleReview(null);
-      await refresh();
-    },
-  });
-
-  const restoreCommunication = useMutation({
-    mutationFn: (id: string) => restoreStudio2Communication(id),
-    onSuccess: async () => {
-      setLifecycleReview(null);
-      await refresh();
-    },
-  });
-
-  const deleteCommunication = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => deleteStudio2Communication(id, reason),
-    onSuccess: async (_result, variables) => {
-      setLifecycleReview(null);
-      if (editingId === variables.id) resetComposer();
-      if (search.notice === variables.id) {
-        void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
-      }
+    onError: async (error) => {
+      setReviewError(error instanceof Error ? error : new Error('The governed supersede operation failed.'));
       await refresh();
     },
   });
@@ -267,25 +353,23 @@ function CommunicationsCentre() {
     return notices;
   }, [notices, search.state]);
 
-  const mutationError = saveDraft.error
-    || scheduleNotice.error
-    || publishNotice.error
-    || cancelNotice.error
-    || supersedeNotice.error
-    || archiveCommunication.error
-    || restoreCommunication.error
-    || deleteCommunication.error;
+  const mutationError = reviewError
+    || saveDraft.error
+    || preparePublicationReview.error
+    || prepareLifecycleReview.error
+    || commitLifecycleReview.error
+    || supersedeNotice.error;
   const busy = saveDraft.isPending
-    || scheduleNotice.isPending
-    || publishNotice.isPending
-    || cancelNotice.isPending
-    || supersedeNotice.isPending
-    || archiveCommunication.isPending
-    || restoreCommunication.isPending
-    || deleteCommunication.isPending;
+    || preparePublicationReview.isPending
+    || prepareLifecycleReview.isPending
+    || commitLifecycleReview.isPending
+    || supersedeNotice.isPending;
 
-  function loadIntoComposer(notice: OperationalNotice) {
+  function loadIntoComposer(notice: OperationalNotice, clearReview = true) {
+    setReviewError(null);
+    if (clearReview) setLifecycleReview(null);
     setEditingId(notice.id);
+    setEditingBase(cloneNotice(notice));
     setNoticeType(notice.noticeType);
     setTitle(notice.title);
     setBody(notice.body);
@@ -299,7 +383,9 @@ function CommunicationsCentre() {
   }
 
   function resetComposer() {
+    setLifecycleReview(null);
     setEditingId(null);
+    setEditingBase(null);
     setNoticeType('official_notice');
     setTitle('');
     setBody('');
@@ -312,40 +398,28 @@ function CommunicationsCentre() {
     setScheduledAt('');
   }
 
-  function requestCancel(notice: OperationalNotice) {
-    setLifecycleReview({ kind: 'cancel', notice, reason: '' });
-  }
-
-  function requestArchive(notice: OperationalNotice) {
-    setLifecycleReview({ kind: 'archive', notice, reason: '' });
-  }
-
-  function requestRestore(notice: OperationalNotice) {
-    setLifecycleReview({ kind: 'restore', notice, reason: '' });
-  }
-
-  function requestDelete(notice: OperationalNotice) {
-    setLifecycleReview({ kind: 'delete', notice, reason: '' });
+  function requestLifecycleReview(action: PendingLifecycleReview['action'], notice: OperationalNotice) {
+    try {
+      setReviewError(null);
+      const context = organizerContext();
+      if (notice.editionId !== context.editionId) {
+        throw new Error('The communication action must match the exact selected Organizer edition.');
+      }
+      setLifecycleReview({ action, notice: cloneNotice(notice), reason: '', prepared: null });
+    } catch (error) {
+      setLifecycleReview(null);
+      setReviewError(error instanceof Error ? error : new Error('The communication could not be prepared for review.'));
+    }
   }
 
   async function confirmLifecycleReview() {
     if (!lifecycleReview) return;
-    const reason = lifecycleReview.reason.trim();
-    if (lifecycleReview.kind === 'delete' && !reason) return;
-    const variables = { id: lifecycleReview.notice.id, reason };
-    if (lifecycleReview.kind === 'cancel') {
-      await cancelNotice.mutateAsync(variables);
+    if (!lifecycleReview.prepared) {
+      if (lifecycleReview.action === 'delete' && !lifecycleReview.reason.trim()) return;
+      await prepareLifecycleReview.mutateAsync(lifecycleReview);
       return;
     }
-    if (lifecycleReview.kind === 'archive') {
-      await archiveCommunication.mutateAsync(variables);
-      return;
-    }
-    if (lifecycleReview.kind === 'restore') {
-      await restoreCommunication.mutateAsync(lifecycleReview.notice.id);
-      return;
-    }
-    await deleteCommunication.mutateAsync(variables);
+    await commitLifecycleReview.mutateAsync(lifecycleReview);
   }
 
   const toggleCountry = (countryId: string) => {
@@ -402,11 +476,12 @@ function CommunicationsCentre() {
         <AdminPageHeader
           eyebrow="Operations · Communications"
           title="Official Communications"
-          description="Publish one authoritative message to delegation inboxes, every MySolaris home, the public homepage, or any combination of those destinations. Archive removes a publication everywhere without erasing its audit history."
+          description="Publish one authoritative message to delegation inboxes, every MySolaris home, the public homepage, or any combination of those destinations. Governed commands bind each consequential action to the selected edition, canonical notice revision and durable operation identity."
           actions={
             <button
               type="button"
               onClick={() => {
+                setReviewError(null);
                 resetComposer();
                 void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
               }}
@@ -597,7 +672,7 @@ function CommunicationsCentre() {
                 <button
                   type="button"
                   disabled={busy || !scheduledAt || !saveAllowed}
-                  onClick={() => setScheduleReviewOpen(true)}
+                  onClick={() => preparePublicationReview.mutate('schedule')}
                   className="admin-action-secondary min-h-11 disabled:opacity-50"
                 >
                   <CalendarClock className="size-4" /> Review &amp; Schedule
@@ -605,7 +680,7 @@ function CommunicationsCentre() {
                 <button
                   type="button"
                   disabled={busy || !saveAllowed}
-                  onClick={() => setPublishReviewOpen(true)}
+                  onClick={() => preparePublicationReview.mutate('publish')}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                 >
                   <Send className="size-4" /> Review &amp; publish
@@ -708,7 +783,7 @@ function CommunicationsCentre() {
                             <button
                               type="button"
                               className="admin-action-secondary"
-                              onClick={() => requestCancel(notice)}
+                              onClick={() => requestLifecycleReview('cancel', notice)}
                             >
                               Cancel
                             </button>
@@ -717,7 +792,8 @@ function CommunicationsCentre() {
                             <button
                               type="button"
                               className="admin-action-secondary"
-                              onClick={() => supersedeNotice.mutate(notice.id)}
+                              disabled={busy}
+                              onClick={() => supersedeNotice.mutate(notice)}
                             >
                               <CopyPlus className="size-4" /> Supersede
                             </button>
@@ -727,7 +803,7 @@ function CommunicationsCentre() {
                               type="button"
                               className="admin-action-secondary"
                               disabled={busy}
-                              onClick={() => requestRestore(notice)}
+                              onClick={() => requestLifecycleReview('restore', notice)}
                             >
                               <ArchiveRestore className="size-4" /> Review restore
                             </button>
@@ -736,7 +812,7 @@ function CommunicationsCentre() {
                               type="button"
                               className="admin-action-secondary"
                               disabled={busy}
-                              onClick={() => requestArchive(notice)}
+                              onClick={() => requestLifecycleReview('archive', notice)}
                             >
                               <ArchiveX className="size-4" /> Archive
                             </button>
@@ -746,7 +822,7 @@ function CommunicationsCentre() {
                               type="button"
                               className="admin-action-secondary text-red-200"
                               disabled={busy}
-                              onClick={() => requestDelete(notice)}
+                              onClick={() => requestLifecycleReview('delete', notice)}
                             >
                               <Trash2 className="size-4" /> Delete permanently
                             </button>
@@ -802,7 +878,7 @@ function CommunicationsCentre() {
                       type="button"
                       className="admin-action-secondary"
                       disabled={busy}
-                      onClick={() => requestRestore(selectedNotice)}
+                      onClick={() => requestLifecycleReview('restore', selectedNotice)}
                     >
                       <ArchiveRestore className="size-4" /> Review restore to destinations
                     </button>
@@ -811,7 +887,7 @@ function CommunicationsCentre() {
                       type="button"
                       className="admin-action-secondary"
                       disabled={busy}
-                      onClick={() => requestArchive(selectedNotice)}
+                      onClick={() => requestLifecycleReview('archive', selectedNotice)}
                     >
                       <ArchiveX className="size-4" /> Archive / remove everywhere
                     </button>
@@ -821,7 +897,7 @@ function CommunicationsCentre() {
                       type="button"
                       className="admin-action-secondary text-red-200"
                       disabled={busy}
-                      onClick={() => requestDelete(selectedNotice)}
+                      onClick={() => requestLifecycleReview('delete', selectedNotice)}
                     >
                       <Trash2 className="size-4" /> Delete permanently
                     </button>
@@ -862,136 +938,148 @@ function CommunicationsCentre() {
         </div>
 
         <AdminConfirmSheet
-          open={scheduleReviewOpen}
-          onClose={() => {
-            if (!scheduleNotice.isPending) setScheduleReviewOpen(false);
-          }}
-          onConfirm={async () => {
-            await scheduleNotice.mutateAsync();
-          }}
-          title="Schedule this communication?"
-          description={
-            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
-              <p>Review the exact publication time, message, destinations and audience before scheduling.</p>
-              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-                <p className="font-semibold text-foreground">{title.trim() || 'Untitled communication'}</p>
-                <p className="mt-2"><span className="font-semibold text-foreground">Publishes:</span> {formatScheduledInput(scheduledAt)}</p>
-                <p className="mt-2"><span className="font-semibold text-foreground">Destinations:</span> {displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
-                {inboxEnabled ? <p className="mt-2"><span className="font-semibold text-foreground">Inbox audience:</span> {humanize(audience)}{audienceGroup ? ` · ${humanize(audienceGroup)}` : ''}{audience === 'specific_countries' ? ` · ${countryIds.length} countr${countryIds.length === 1 ? 'y' : 'ies'}` : ''}</p> : null}
-                <p className="mt-2"><span className="font-semibold text-foreground">Acknowledgement:</span> {acknowledgementRequired && inboxEnabled ? 'required' : 'not required'}</p>
-                <p className="mt-2 whitespace-pre-wrap">{body.trim()}</p>
-              </div>
-              <p>Once scheduled, the existing server scheduler can publish this communication at that time without another Organizer action. Verify the timing and audience before applying the schedule.</p>
-              <p>Canonical expected-revision, idempotency, receipt and uncertain-outcome reconciliation remain tracked in System #599.</p>
-            </div>
-          }
-          confirmLabel="Schedule communication"
-          busy={scheduleNotice.isPending}
-          confirmDisabled={!scheduledAt || !saveAllowed}
-        />
-
-        <AdminConfirmSheet
-          open={publishReviewOpen}
-          onClose={() => {
-            if (!publishNotice.isPending) setPublishReviewOpen(false);
-          }}
-          onConfirm={async () => {
-            await publishNotice.mutateAsync();
-          }}
-          title="Publish this communication now?"
-          description={
-            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
-              <p>Review the exact message, destinations and audience before it becomes live.</p>
-              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-                <p className="font-semibold text-foreground">{title.trim() || 'Untitled communication'}</p>
-                <p className="mt-2 whitespace-pre-wrap">{body.trim()}</p>
-                <p className="mt-3"><span className="font-semibold text-foreground">Destinations:</span> {displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
-                {inboxEnabled ? <p className="mt-2"><span className="font-semibold text-foreground">Inbox audience:</span> {humanize(audience)}{audienceGroup ? ` · ${humanize(audienceGroup)}` : ''}{audience === 'specific_countries' ? ` · ${countryIds.length} countr${countryIds.length === 1 ? 'y' : 'ies'}` : ''}</p> : null}
-                <p className="mt-2"><span className="font-semibold text-foreground">Acknowledgement:</span> {acknowledgementRequired && inboxEnabled ? 'required' : 'not required'}</p>
-              </div>
-              <p>The current legacy publication authority applies immediately after confirmation. Canonical expected-revision, idempotency, receipt and uncertain-outcome reconciliation remain tracked in System #599.</p>
-            </div>
-          }
-          confirmLabel="Publish communication now"
-          busy={publishNotice.isPending}
-          confirmDisabled={!saveAllowed}
-        />
-
-        <AdminConfirmSheet
           open={Boolean(lifecycleReview)}
           onClose={() => {
             if (!busy) setLifecycleReview(null);
           }}
           onConfirm={confirmLifecycleReview}
-          title={lifecycleReview
-            ? lifecycleReview.kind === 'delete'
-              ? `Permanently delete “${lifecycleReview.notice.title}”?`
-              : lifecycleReview.kind === 'archive'
-                ? `Archive “${lifecycleReview.notice.title}”?`
-                : lifecycleReview.kind === 'restore'
-                  ? `Restore “${lifecycleReview.notice.title}” to its destinations?`
-                  : `Cancel “${lifecycleReview.notice.title}”?`
-            : 'Review communication action'}
+          title={reviewTitle(lifecycleReview)}
           description={lifecycleReview ? (
             <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
                 <p className="font-semibold text-foreground">{lifecycleReview.notice.title}</p>
-                <p className="mt-1">Revision {lifecycleReview.notice.revision} · {noticeStateLabel(lifecycleReview.notice.state)}</p>
+                <p className="mt-1">Edition {lifecycleReview.notice.editionId} · revision r{lifecycleReview.notice.revision} · {noticeStateLabel(lifecycleReview.notice.state)}</p>
                 <p className="mt-2"><span className="font-semibold text-foreground">Destinations:</span> {lifecycleReview.notice.displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
+                {lifecycleReview.notice.displaySurfaces.includes('delegation_inbox') ? (
+                  <p className="mt-2"><span className="font-semibold text-foreground">Inbox audience:</span> {humanize(lifecycleReview.notice.audience)}{lifecycleReview.notice.audienceGroup ? ` · ${humanize(lifecycleReview.notice.audienceGroup)}` : ''}</p>
+                ) : null}
+                <p className="mt-2 whitespace-pre-wrap">{lifecycleReview.notice.body}</p>
               </div>
-              {lifecycleReview.kind !== 'restore' ? (
-                <label className="block space-y-1.5">
-                  <span className="font-semibold text-foreground">
-                    Organizer reason {lifecycleReview.kind === 'delete' ? '(required)' : '(optional)'}
-                  </span>
-                  <textarea
-                    value={lifecycleReview.reason}
-                    onChange={(event) => setLifecycleReview((current) => current ? { ...current, reason: event.target.value } : current)}
-                    rows={3}
-                    placeholder={lifecycleReview.kind === 'delete' ? 'Explain why permanent deletion is required…' : 'Add an operational reason…'}
-                    className="w-full rounded-xl border border-white/[0.1] bg-black/10 p-3 text-sm text-foreground outline-none focus:border-sky-300/30"
-                  />
-                </label>
-              ) : null}
-              {lifecycleReview.kind === 'cancel' ? (
-                <p>Cancelling stops this draft or scheduled communication from publishing. The lifecycle record remains available to Organizer history.</p>
-              ) : lifecycleReview.kind === 'archive' ? (
-                <p>Archiving removes the communication from all live destinations until an organizer deliberately restores it. Its revision and audit history remain.</p>
-              ) : lifecycleReview.kind === 'restore' ? (
-                <p>Restoring republishes this archived communication to its original destinations using the existing server restore authority. Verify the destinations above before making it live again.</p>
+
+              {lifecycleReview.prepared ? (
+                <>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <ReviewFact label="Risk" value={lifecycleReview.prepared.preflight.riskClass} />
+                    <ReviewFact label="Canonical revision" value={`r${lifecycleReview.prepared.preflight.currentRevision}`} />
+                    <ReviewFact label="Recipient receipts" value={`${lifecycleReview.prepared.preflight.recipientReceiptCount}`} />
+                  </div>
+                  {lifecycleReview.prepared.scheduledAt ? (
+                    <p><span className="font-semibold text-foreground">Scheduled publication:</span> {formatTimestamp(lifecycleReview.prepared.scheduledAt)}</p>
+                  ) : null}
+                  {lifecycleReview.prepared.reason ? (
+                    <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                      <p className="font-semibold text-foreground">Frozen Organizer reason</p>
+                      <p className="mt-1 whitespace-pre-wrap">{lifecycleReview.prepared.reason}</p>
+                    </div>
+                  ) : null}
+                  <p>Server preflight reports no blockers. The same frozen edition, notice revision and operation identity will be used for commit. If state changes first, the authoritative command fails closed instead of silently substituting a newer revision.</p>
+                </>
               ) : (
+                <>
+                  {lifecycleReview.action !== 'restore' ? (
+                    <label className="block space-y-1.5">
+                      <span className="font-semibold text-foreground">
+                        Organizer reason {lifecycleReview.action === 'delete' ? '(required)' : '(optional)'}
+                      </span>
+                      <textarea
+                        value={lifecycleReview.reason}
+                        onChange={(event) => setLifecycleReview((current) => current ? { ...current, reason: event.target.value, prepared: null } : current)}
+                        rows={3}
+                        placeholder={lifecycleReview.action === 'delete' ? 'Explain why permanent deletion is required…' : 'Add an operational reason…'}
+                        className="w-full rounded-xl border border-white/[0.1] bg-black/10 p-3 text-sm text-foreground outline-none focus:border-sky-300/30"
+                      />
+                    </label>
+                  ) : null}
+                  <p>The first confirmation runs authoritative preflight and freezes its canonical revision, blockers, risk class and one secure operation identity. Solaris will then show the final governed review before applying anything consequential.</p>
+                </>
+              )}
+
+              {lifecycleReview.action === 'cancel' ? (
+                <p>Cancelling stops this draft or scheduled communication from publishing. The lifecycle record remains available to Organizer history.</p>
+              ) : lifecycleReview.action === 'archive' ? (
+                <p>Archiving removes the communication from all live destinations until an organizer deliberately restores it. Its revision and audit history remain.</p>
+              ) : lifecycleReview.action === 'restore' ? (
+                <p>Restoring republishes this archived communication to its original destinations.</p>
+              ) : lifecycleReview.action === 'delete' ? (
                 <>
                   <p className="font-semibold text-red-100">Permanent deletion cannot be undone.</p>
                   <p>{lifecycleReview.notice.sentAt ? 'This communication was previously published. Its content, revisions and receipt rows will be deleted while the minimal private deletion audit record remains.' : 'This communication has never been published. Its draft record and revision history will be deleted.'}</p>
                 </>
+              ) : lifecycleReview.action === 'schedule' ? (
+                <p>Scheduling stores the reviewed publication instant. The existing scheduler may publish it later without another Organizer action, but the schedule command itself is governed and receipted now.</p>
+              ) : (
+                <p>Publishing makes this reviewed canonical notice live on its configured destinations immediately.</p>
               )}
-              <p>These actions still use the existing server-authorized lifecycle RPCs. Canonical version/CAS, idempotency, operation receipts and uncertain-outcome reconciliation remain tracked in System #599.</p>
             </div>
           ) : null}
           confirmLabel={lifecycleReview
-            ? lifecycleReview.kind === 'delete'
-              ? 'Delete communication permanently'
-              : lifecycleReview.kind === 'archive'
-                ? 'Archive communication'
-                : lifecycleReview.kind === 'restore'
-                  ? 'Restore communication'
-                  : 'Cancel communication'
-            : 'Confirm'}
-          confirmationText={lifecycleReview?.kind === 'delete' ? lifecycleReview.notice.title : undefined}
-          confirmationHint={lifecycleReview?.kind === 'delete' ? `Type ${lifecycleReview.notice.title} to confirm permanent deletion.` : undefined}
+            ? lifecycleReview.prepared
+              ? finalConfirmLabel(lifecycleReview)
+              : 'Run preflight & prepare final review'
+            : 'Confirm communication action'}
+          confirmationText={lifecycleReview?.prepared && lifecycleReview.prepared.preflight.riskClass === 'R3'
+            ? lifecycleReview.notice.title
+            : undefined}
+          confirmationHint={lifecycleReview?.prepared && lifecycleReview.prepared.preflight.riskClass === 'R3'
+            ? `Type ${lifecycleReview.notice.title} to confirm this ${humanize(lifecycleReview.action)} operation.`
+            : undefined}
           busy={busy}
-          confirmDisabled={lifecycleReview?.kind === 'delete' && !lifecycleReview.reason.trim()}
-          danger={lifecycleReview?.kind === 'delete'}
+          confirmDisabled={!lifecycleReview?.prepared && lifecycleReview?.action === 'delete' && !lifecycleReview.reason.trim()}
+          danger={Boolean(lifecycleReview?.prepared && lifecycleReview.prepared.preflight.riskClass === 'R3')}
         />
 
         <AdminCard>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CheckCircle2 className="size-4" />
-            Publication, scheduling, surface placement, archive/restore, permanent deletion, recipient access and acknowledgement are validated server-side.
+            Draft, supersede, schedule, publish, cancel, archive, restore and delete operations now use the governed V3 Communications command path with exact edition scope, canonical revisions, idempotent operation identity and receipt reconciliation.
           </div>
         </AdminCard>
       </div>
     </AdminPage>
+  );
+}
+
+function cloneNotice(notice: OperationalNotice): OperationalNotice {
+  return {
+    ...notice,
+    countryIds: [...notice.countryIds],
+    displaySurfaces: [...notice.displaySurfaces],
+  };
+}
+
+function parseScheduledInput(value: string): string {
+  if (!value) throw new Error('Choose a publication time before scheduling.');
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error('The scheduled publication time is invalid.');
+  return date.toISOString();
+}
+
+function reviewTitle(review: PendingLifecycleReview | null) {
+  if (!review) return 'Review communication action';
+  const prefix = review.prepared ? 'Final review' : 'Prepare governed review';
+  if (review.action === 'delete') return `${prefix}: permanently delete “${review.notice.title}”?`;
+  if (review.action === 'archive') return `${prefix}: archive “${review.notice.title}”?`;
+  if (review.action === 'restore') return `${prefix}: restore “${review.notice.title}”?`;
+  if (review.action === 'cancel') return `${prefix}: cancel “${review.notice.title}”?`;
+  if (review.action === 'schedule') return `${prefix}: schedule “${review.notice.title}”?`;
+  return `${prefix}: publish “${review.notice.title}” now?`;
+}
+
+function finalConfirmLabel(review: PendingLifecycleReview) {
+  if (review.action === 'delete') return 'Delete communication permanently';
+  if (review.action === 'archive') return 'Archive communication';
+  if (review.action === 'restore') return 'Restore communication';
+  if (review.action === 'cancel') return 'Cancel communication';
+  if (review.action === 'schedule') return 'Schedule communication';
+  return 'Publish communication now';
+}
+
+function ReviewFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 font-semibold text-foreground">{value}</p>
+    </div>
   );
 }
 
@@ -1095,12 +1183,6 @@ function humanize(value: string) {
 }
 
 function formatTimestamp(value: string | null) {
-  if (!value) return 'Not set';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-}
-
-function formatScheduledInput(value: string) {
   if (!value) return 'Not set';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
