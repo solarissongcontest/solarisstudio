@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const server = readFileSync("src/integrations/televoting/entries.server.ts", "utf8");
+const editions = readFileSync("src/integrations/televoting/editions.server.ts", "utf8");
 const overview = readFileSync("src/integrations/televoting/admin-data.functions.ts", "utf8");
 const routeMap = readFileSync("src/lib/permission-route-map.ts", "utf8");
 const rls = readFileSync(
@@ -9,12 +10,15 @@ const rls = readFileSync(
   "utf8",
 );
 
-function section(start: string, end?: string) {
-  const startIndex = server.indexOf(start);
+function sliceSection(value: string, start: string, end?: string) {
+  const startIndex = value.indexOf(start);
   if (startIndex < 0) return "";
-  const endIndex = end ? server.indexOf(end, startIndex + start.length) : -1;
-  return server.slice(startIndex, endIndex < 0 ? undefined : endIndex);
+  const endIndex = end ? value.indexOf(end, startIndex + start.length) : -1;
+  return value.slice(startIndex, endIndex < 0 ? undefined : endIndex);
 }
+
+const section = (start: string, end?: string) => sliceSection(server, start, end);
+const editionSection = (start: string, end?: string) => sliceSection(editions, start, end);
 
 describe("Organizer Televote configuration authorization", () => {
   it("requires voting.read before the privileged round-entry configuration reader", () => {
@@ -45,6 +49,23 @@ describe("Organizer Televote configuration authorization", () => {
     expect(compatibility).toBeGreaterThan(capability);
     expect(privilegedRpc).toBeGreaterThan(compatibility);
     expect(overview).toContain("p_solaris_edition_id: data.editionId");
+  });
+
+  it("requires voting.read before the privileged legacy Televote edition list", () => {
+    const helper = editionSection(
+      "async function requireTelevotingEditionReadServer()",
+      "async function requireTelevotingEditionManageServer()",
+    );
+    const reader = editionSection(
+      "export async function listMergedTelevotingEditionsServer",
+      "export async function createMergedTelevotingEditionServer",
+    );
+
+    expect(helper).toContain('requireSolarisCapabilityServer("voting.read", null)');
+    expect(helper.indexOf("requireMergedTelevotingAdminServer()"))
+      .toBeGreaterThan(helper.indexOf("requireSolarisCapabilityServer"));
+    expect(reader.indexOf("requireTelevotingEditionReadServer()"))
+      .toBeLessThan(reader.indexOf("televotingAdmin"));
   });
 
   it("requires voting.manage before every participant/configuration mutation", () => {
@@ -84,6 +105,39 @@ describe("Organizer Televote configuration authorization", () => {
     }
   });
 
+  it("requires voting.manage before every Televote edition mutation", () => {
+    const helper = editionSection(
+      "async function requireTelevotingEditionManageServer()",
+      "async function audit(",
+    );
+    expect(helper).toContain('requireSolarisCapabilityServer("voting.manage", null)');
+    expect(helper.indexOf("requireMergedTelevotingAdminServer()"))
+      .toBeGreaterThan(helper.indexOf("requireSolarisCapabilityServer"));
+
+    const mutations = [
+      editionSection(
+        "export async function createMergedTelevotingEditionServer",
+        "export async function renameMergedTelevotingEditionServer",
+      ),
+      editionSection(
+        "export async function renameMergedTelevotingEditionServer",
+        "export async function activateMergedTelevotingEditionServer",
+      ),
+      editionSection(
+        "export async function activateMergedTelevotingEditionServer",
+        "export async function archiveMergedTelevotingEditionServer",
+      ),
+      editionSection("export async function archiveMergedTelevotingEditionServer"),
+    ];
+
+    for (const mutation of mutations) {
+      const guard = mutation.indexOf("requireTelevotingEditionManageServer()");
+      const privilegedAccess = mutation.indexOf("televotingAdmin");
+      expect(guard).toBeGreaterThan(-1);
+      expect(privilegedAccess).toBeGreaterThan(guard);
+    }
+  });
+
   it("keeps the existing closed-round safety gate after authorization", () => {
     expect(server).toContain('if (round.status === "open")');
     expect(server).toContain("Close the round before changing its participants");
@@ -94,6 +148,7 @@ describe("Organizer Televote configuration authorization", () => {
     expect(routeMap).toContain('"/televoting/admin/"');
     expect(routeMap).toContain('"voting.read"');
     expect(rls).toContain("on televoting.round_entries for all to authenticated");
+    expect(rls).toContain("on televoting.editions for all to authenticated");
     expect(rls).toContain(
       "using (public.studio2_access_allowed('voting.manage', null, false))",
     );
