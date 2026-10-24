@@ -52,9 +52,11 @@ describe("Organizer acceptance evidence replay model", () => {
         payload,
       ),
     ).toBe(false);
+
+    const answers = payload.answers as Record<string, unknown>;
     expect(
       organizerAcceptanceEvidenceMatches(
-        { ...payload, answers: { ...payload.answers as object, overallNow: 4 } },
+        { ...payload, answers: { ...answers, overallNow: 4 } },
         payload,
       ),
     ).toBe(false);
