@@ -54,11 +54,20 @@ describe("V3 Organizer Acceptance Test", () => {
   });
 
   it("reconciles the exact stable row instead of blind-inserting a new id after an uncertain result", () => {
-    expect(source).toContain('id: submissionId');
+    expect(source).toContain("id: submissionId");
     expect(source).toContain('.eq("id", submissionId)');
     expect(source).toContain("organizerAcceptanceEvidenceMatches(");
     expect(source).not.toContain("const submissionId = crypto.randomUUID();");
     expect(source).toContain("Retry will reuse the same evidence identity and reconcile it before creating anything new.");
+  });
+
+  it("reuses verified screenshots instead of re-uploading them after an evidence insert failure", () => {
+    expect(source).toContain("let screenshotPath = bug.screenshotPath");
+    expect(source).toContain("if (bug.file)");
+    expect(source).toContain("return { ...withoutFile, screenshotPath };");
+    expect(source).toContain("if (screenshotPath) screenshotPaths.push(screenshotPath)");
+    expect(source).toContain("screenshot_paths: screenshotPaths");
+    expect(source).not.toContain("const uploadedPaths: string[] = []");
   });
 
   it("treats acceptance as scenario execution rather than page opening", () => {
