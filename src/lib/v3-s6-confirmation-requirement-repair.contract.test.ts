@@ -40,6 +40,15 @@ describe("System V3 S6 bounded Confirmation requirement repair", () => {
     );
   });
 
+  it("rejects a skipped or exhausted page instead of reporting an empty repair as consistent", () => {
+    const repair = repairBody();
+    expect(repair).toContain("if p_offset > 0 and p_offset >= v_total then");
+    expect(repair).toContain("Confirmation repair offset is outside the candidate range");
+    expect(repair.indexOf("if p_offset > 0 and p_offset >= v_total then")).toBeLessThan(
+      repair.indexOf("for v_country_id in"),
+    );
+  });
+
   it("keeps historical-only countries in the recovery candidate set", () => {
     const repair = repairBody();
     const candidateSections = repair.match(
