@@ -114,23 +114,28 @@ begin
       )
       and (cardinality(v_jury_scale) = 0 or j.points = any(v_jury_scale))
   ),
-  jury_sums as (
+  jury_totals as (
     select coalesce(j.receiving_country_id, j.receiving_entity_id) as identity_id,
            sum(j.points)::integer as jury_points,
-           count(*) filter (where j.points = v_top_score)::integer as top_scores,
+           count(*) filter (where j.points = v_top_score)::integer as top_scores
+    from valid_jury_votes j
+    group by coalesce(j.receiving_country_id, j.receiving_entity_id)
+  ),
+  jury_sums as (
+    select totals.identity_id,
+           totals.jury_points,
+           totals.top_scores,
            array(
              select (
                select count(*)::integer
                from valid_jury_votes counted
-               where coalesce(counted.receiving_country_id, counted.receiving_entity_id)
-                     = coalesce(j.receiving_country_id, j.receiving_entity_id)
+               where coalesce(counted.receiving_country_id, counted.receiving_entity_id) = totals.identity_id
                  and counted.points = score.value
              )
              from unnest(v_countback_scale) with ordinality as score(value, ord)
              order by score.ord
            )::integer[] as countback_counts
-    from valid_jury_votes j
-    group by coalesce(j.receiving_country_id, j.receiving_entity_id)
+    from jury_totals totals
   ),
   tele_sums as (
     select coalesce(t.country_id, t.contest_entity_id) as identity_id,
