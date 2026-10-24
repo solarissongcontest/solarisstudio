@@ -36,8 +36,8 @@ run_s14_browser_test() {
   : >"$app_body"
   : >"$playwright_list_log"
 
-  CURRENT_STAGE="${bootstrap_stage}:vite-bootstrap"
-  log "S14 browser runtime: starting Vite explicitly on $base_url for $run_stage"
+  CURRENT_STAGE="vite-bootstrap"
+  log "S14 browser runtime: starting Vite explicitly on $base_url for $run_stage (context=$bootstrap_stage)"
   SOLARIS_E2E_BYPASS_MAINTENANCE=1 \
     bun run dev --host 127.0.0.1 --port "$port" --strictPort \
     >"$vite_log" 2>&1 &
@@ -60,7 +60,7 @@ run_s14_browser_test() {
     status=89
   fi
 
-  CURRENT_STAGE="${bootstrap_stage}:http-readiness"
+  CURRENT_STAGE="http-readiness"
   if [[ "$status" == "0" ]]; then
     for attempt in $(seq 1 60); do
       if ! kill -0 "$vite_pid" 2>/dev/null; then
@@ -82,7 +82,7 @@ run_s14_browser_test() {
       printf '[v3-s14-browser-runtime] readiness attempt=%s status=%s\n' "$attempt" "${code:-curl-error}" | tee -a "$vite_log"
 
       case "$code" in
-        2*|3*|400|401|402|403)
+        2*|3*|400|401|403)
           ready=1
           break
           ;;
@@ -110,13 +110,13 @@ run_s14_browser_test() {
     printf '[v3-s14-browser-runtime] app-smoke path=%s status=%s\n' "$smoke_path" "${code:-curl-error}" | tee -a "$vite_log"
 
     case "$code" in
-      2*|3*|400|401|402|403) ;;
+      2*|3*|400|401|403) ;;
       *) status=92 ;;
     esac
   fi
 
   if [[ "$status" == "0" ]]; then
-    CURRENT_STAGE="${bootstrap_stage}:playwright-bootstrap"
+    CURRENT_STAGE="playwright-bootstrap"
     if ! E2E_BASE_URL="$base_url" \
       SOLARIS_E2E_BYPASS_MAINTENANCE=1 \
       bunx playwright test --list --config="$config" \
@@ -140,7 +140,8 @@ run_s14_browser_test() {
   fi
 
   if [[ "$status" != "0" ]]; then
-    printf '\n[v3-s14-browser-runtime] failure status=%s stage=%s\n' "$status" "$CURRENT_STAGE" >&2
+    printf '\n[v3-s14-browser-runtime] failure status=%s stage=%s context=%s run_stage=%s\n' \
+      "$status" "$CURRENT_STAGE" "$bootstrap_stage" "$run_stage" >&2
     case "$status" in
       89) printf '[v3-s14-browser-runtime] Vite process started but port %s never listened\n' "$port" >&2 ;;
       90) printf '[v3-s14-browser-runtime] Vite exited before HTTP readiness\n' >&2 ;;
