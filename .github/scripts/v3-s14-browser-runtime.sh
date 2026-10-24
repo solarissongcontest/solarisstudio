@@ -37,7 +37,7 @@ run_s14_browser_test() {
   : >"$app_body"
   : >"$playwright_list_log"
 
-  CURRENT_STAGE="vite-bootstrap"
+  CURRENT_STAGE="${bootstrap_stage}:vite-bootstrap"
   log "S14 browser runtime: starting Vite explicitly on $base_url for $run_stage (context=$bootstrap_stage)"
   SOLARIS_E2E_BYPASS_MAINTENANCE=1 \
     bun run dev --host 127.0.0.1 --port "$port" --strictPort \
@@ -61,7 +61,7 @@ run_s14_browser_test() {
     status=89
   fi
 
-  CURRENT_STAGE="http-readiness"
+  CURRENT_STAGE="${bootstrap_stage}:http-readiness"
   if [[ "$status" == "0" ]]; then
     for attempt in $(seq 1 60); do
       if ! kill -0 "$vite_pid" 2>/dev/null; then
@@ -117,7 +117,7 @@ run_s14_browser_test() {
   fi
 
   if [[ "$status" == "0" ]]; then
-    CURRENT_STAGE="playwright-bootstrap"
+    CURRENT_STAGE="${bootstrap_stage}:playwright-bootstrap"
     if ! E2E_BASE_URL="$base_url" \
       SOLARIS_E2E_BYPASS_MAINTENANCE=1 \
       bunx playwright test --list --config="$config" \

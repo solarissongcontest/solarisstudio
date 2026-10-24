@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(path, "utf8");
 const driver = source(".github/scripts/v3-full-contest-rehearsal.sh");
+const browserRuntime = source(".github/scripts/v3-s14-browser-runtime.sh");
 const workflow = source(".github/workflows/v3-s14-full-contest-rehearsal.yml");
 
 describe("S14 exact-SHA runtime failure evidence", () => {
@@ -19,6 +20,15 @@ describe("S14 exact-SHA runtime failure evidence", () => {
     expect(driver).toContain('"partial": True');
     expect(driver).toContain("COMPLETED_STAGES");
     expect(driver).toContain("CURRENT_STAGE");
+  });
+
+  it("keeps browser bootstrap diagnostics inside the caller's canonical failure phase", () => {
+    expect(browserRuntime).toContain('CURRENT_STAGE="${bootstrap_stage}:vite-bootstrap"');
+    expect(browserRuntime).toContain('CURRENT_STAGE="${bootstrap_stage}:http-readiness"');
+    expect(browserRuntime).toContain('CURRENT_STAGE="${bootstrap_stage}:playwright-bootstrap"');
+    expect(browserRuntime).not.toContain('CURRENT_STAGE="vite-bootstrap"');
+    expect(browserRuntime).not.toContain('CURRENT_STAGE="http-readiness"');
+    expect(browserRuntime).not.toContain('CURRENT_STAGE="playwright-bootstrap"');
   });
 
   it("tracks pending canonical stages and contest extensions independently", () => {
