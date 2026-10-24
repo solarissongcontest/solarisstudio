@@ -37,12 +37,14 @@ describe("Solaris V6 Rules and Trust depth harmonisation", () => {
     }
   });
 
-  it("keeps protected case and appeal detail non-indexable", () => {
+  it("keeps protected case and appeal detail out of indexing and crawler link-following", () => {
     for (const path of [
       "src/routes/integrity/cases/$caseId.tsx",
       "src/routes/integrity/appeal.$caseId.tsx",
     ]) {
-      expect(source(path), path).toContain('{ name: "robots", content: "noindex" }');
+      expect(source(path), path).toContain(
+        '{ name: "robots", content: "noindex, nofollow" }',
+      );
     }
   });
 
