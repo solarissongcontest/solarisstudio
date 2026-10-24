@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
-import { supabase } from "@/integrations/supabase/client";
 import {
   CommandDialog,
   CommandEmpty,
@@ -16,6 +15,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { DialogClose } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
 import {
   clearAppSearchReturn,
   readAppSearchState,
@@ -23,27 +23,16 @@ import {
   rememberAppSearchQuery,
   rememberAppSearchReturn,
 } from "@/lib/app-search-state";
+import { runAppViewTransition } from "@/lib/app-view-transitions";
 import type { AccountAccess } from "@/lib/country-account";
-import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
-import {
-  editionLabel,
-  useAllJuryVotes,
-  useAllParticipants,
-  useAllResults,
-  useAllShows,
-  useCountries,
-  useEditions,
-} from "@/lib/data";
+import { searchGovernanceLibrary } from "@/lib/public-library-governance";
+import { readPublicRecents } from "@/lib/public-recents";
 import {
   dedupePublicSearchResults,
   matchesPublicSearch,
   navigationSearchResults,
   type PublicSearchResult,
 } from "@/lib/public-search";
-import { readPublicRecents } from "@/lib/public-recents";
-import { runAppViewTransition } from "@/lib/app-view-transitions";
-import { searchGovernanceLibrary } from "@/lib/public-library-governance";
-import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 import { loadPublicStorylines } from "@/lib/studio2-storytelling";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -169,19 +158,66 @@ function appSearchGroup(type: string) {
   return "Solaris";
 }
 
-function AppPublicPaletteDialog({
-  open,
-  setOpen,
-  originPath,
-  initialQuery,
-}: PublicPaletteDialogProps) {
-  const router = useRouter();
-  const initialSearchState = useMemo(() => readAppSearchState(), []);
-  const [query, setQuery] = useState(() => initialQuery ?? initialSearchState.lastQuery);
-  const normalized = query.trim();
+function searchActions(access?: AccountAccess): PublicSearchResult[] {
+  return [
+    {
+      id: "action:explore",
+      label: "Explore Solaris",
+      description: "Browse countries, editions, shows and stories.",
+      href: "/explore",
+      group: "Actions",
+      keywords: "explore countries editions shows stories current edition",
+    },
+    {
+      id: "action:participate",
+      label: "Participate",
+      description: "Open confirmations, jury voting and public voting.",
+      href: "/participate",
+      group: "Actions",
+      keywords: "participate tasks confirmation country entry jury televote voting",
+    },
+    {
+      id: "action:results",
+      label: "Results",
+      description: "Open published results and score tools.",
+      href: "/results",
+      group: "Actions",
+      keywords: "latest results scoreboard ranking scorechart",
+    },
+    {
+      id: "action:compare",
+      label: "Compare countries",
+      description: "Open the side-by-side country comparison tool.",
+      href: "/compare",
+      group: "Actions",
+      keywords: "compare versus countries",
+    },
+    {
+      id: "action:site-directory",
+      label: "All Solaris pages",
+      description: "Browse the complete public site directory.",
+      href: "/site-directory",
+      group: "Actions",
+      keywords: "all pages site directory sitemap browse",
+    },
+    ...(access?.userId
+      ? [
+          {
+            id: "action:me",
+            label: "Open Me",
+            description: "Open your Solaris identity, history and account.",
+            href: "/me",
+            group: "Actions",
+            keywords: "me account identity history country delegation profile",
+          } satisfies PublicSearchResult,
+        ]
+      : []),
+  ];
+}
 
-  const remote = useQuery({
-    queryKey: ["solaris-public-app-search", normalized.toLowerCase()],
+function useRemotePublicSearch(normalized: string) {
+  return useQuery({
+    queryKey: ["solaris-public-search", normalized.toLowerCase()],
     enabled: normalized.length >= 2,
     staleTime: 60_000,
     queryFn: async () => {
@@ -193,56 +229,17 @@ function AppPublicPaletteDialog({
       return (Array.isArray(data) ? data : []) as AppSearchRow[];
     },
   });
+}
 
-  const actionResults = useMemo<PublicSearchResult[]>(
-    () => [
-      {
-        id: "action:participate",
-        label: "Participate",
-        description: "Open confirmations, jury voting and public voting.",
-        href: "/participate",
-        group: "Actions",
-        keywords: "participate tasks confirmations jury televote voting",
-      },
-      {
-        id: "action:results",
-        label: "Results",
-        description: "Open published results and score tools.",
-        href: "/results",
-        group: "Actions",
-        keywords: "results scoreboard ranking scorechart",
-      },
-      {
-        id: "action:explore",
-        label: "Explore Solaris",
-        description: "Browse countries, editions, shows and stories.",
-        href: "/explore",
-        group: "Actions",
-        keywords: "explore countries editions shows stories",
-      },
-      {
-        id: "action:site-directory",
-        label: "All Solaris pages",
-        description: "Browse the complete public site directory.",
-        href: "/site-directory",
-        group: "Actions",
-        keywords: "all pages site directory sitemap browse",
-      },
-    ],
-    [],
-  );
-
-  const recentResults = useMemo<PublicSearchResult[]>(
-    () =>
-      readPublicRecents().slice(0, 8).map((item) => ({
-        id: `recent:${item.path}`,
-        label: item.label,
-        description: "Recently visited",
-        href: item.path,
-        group: "Recent",
-      })),
-    [],
-  );
+function usePublicSearchResults(normalized: string, access?: AccountAccess) {
+  const remote = useRemotePublicSearch(normalized);
+  const stories = useQuery({
+    queryKey: ["public-command-palette-stories"],
+    enabled: normalized.length >= 2,
+    queryFn: () => loadPublicStorylines(40),
+    staleTime: 5 * 60 * 1000,
+  });
+  const actionResults = useMemo(() => searchActions(access), [access?.userId]);
 
   const searchResults = useMemo<PublicSearchResult[]>(() => {
     if (!normalized) return [];
@@ -256,7 +253,25 @@ function AppPublicPaletteDialog({
       keywords: item.keywords ?? undefined,
     }));
 
-    const local = [
+    const storyResults = (stories.data ?? [])
+      .filter((story) =>
+        matchesPublicSearch(
+          normalized,
+          story.title,
+          story.subtitle,
+          story.editionName,
+          story.editionNumber,
+        ),
+      )
+      .map((story) => ({
+        id: `story:${story.editionSlug}`,
+        label: story.title,
+        description: `${story.editionName} · published story`,
+        href: `/stories/${story.editionSlug}`,
+        group: "Stories",
+      }));
+
+    const localResults: PublicSearchResult[] = [
       ...actionResults.filter((item) =>
         matchesPublicSearch(normalized, item.label, item.description, item.keywords),
       ),
@@ -270,8 +285,24 @@ function AppPublicPaletteDialog({
       })),
     ];
 
-    return dedupePublicSearchResults([...local, ...remoteResults]).slice(0, 50);
-  }, [actionResults, normalized, remote.data]);
+    return dedupePublicSearchResults([
+      ...localResults,
+      ...remoteResults,
+      ...storyResults,
+    ]).slice(0, 50);
+  }, [actionResults, normalized, remote.data, stories.data]);
+
+  const recentResults = useMemo<PublicSearchResult[]>(
+    () =>
+      readPublicRecents().slice(0, 8).map((item) => ({
+        id: `recent:${item.path}`,
+        label: item.label,
+        description: "Recently visited",
+        href: item.path,
+        group: "Recent",
+      })),
+    [],
+  );
 
   const grouped = useMemo(() => {
     const source = normalized ? searchResults : [...recentResults, ...actionResults];
@@ -284,6 +315,20 @@ function AppPublicPaletteDialog({
     return [...map.entries()];
   }, [actionResults, normalized, recentResults, searchResults]);
 
+  return {
+    actionResults,
+    grouped,
+    isFetching: remote.isFetching || stories.isFetching,
+    recentResults,
+    searchResults,
+  };
+}
+
+function useSearchTelemetry(
+  normalized: string,
+  searchResults: PublicSearchResult[],
+  isFetching: boolean,
+) {
   useEffect(() => {
     if (normalized.length < 2) return;
     const timer = window.setTimeout(() => {
@@ -296,7 +341,7 @@ function AppPublicPaletteDialog({
         target: "public-command-palette",
         metadata,
       });
-      if (!remote.isFetching && !searchResults.length) {
+      if (!isFetching && !searchResults.length) {
         trackPublicUxEvent("search_no_results", {
           target: "public-command-palette",
           metadata,
@@ -304,7 +349,28 @@ function AppPublicPaletteDialog({
       }
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [normalized, remote.isFetching, searchResults.length]);
+  }, [isFetching, normalized, searchResults.length]);
+}
+
+function AppPublicPaletteDialog({
+  open,
+  setOpen,
+  access,
+  originPath,
+  initialQuery,
+}: PublicPaletteDialogProps) {
+  const router = useRouter();
+  const initialSearchState = useMemo(() => readAppSearchState(), []);
+  const [query, setQuery] = useState(() => initialQuery ?? initialSearchState.lastQuery);
+  const normalized = query.trim();
+  const {
+    grouped,
+    isFetching,
+    recentResults,
+    searchResults,
+  } = usePublicSearchResults(normalized, access);
+
+  useSearchTelemetry(normalized, searchResults, isFetching);
 
   const openResult = (result: PublicSearchResult) => {
     trackPublicUxEvent("search_result_clicked", {
@@ -334,76 +400,53 @@ function AppPublicPaletteDialog({
       showCloseButton={false}
       shouldFilter={false}
     >
-        <div className="solaris-app-global-search-header">
-          <SolarisSearchField
-            autoFocus
-            value={query}
-            onChange={setQuery}
-            placeholder="Search Solaris Studio…"
-            label="Search Solaris Studio"
-            className="solaris-app-command-search-shell"
-          />
-          <DialogClose asChild>
-            <button
-              type="button"
-              className="solaris-app-global-search-close"
-              aria-label="Close search"
-            >
-              <X className="size-5" aria-hidden="true" />
-            </button>
-          </DialogClose>
-        </div>
-        <CommandList className="solaris-app-search-list">
-          <CommandEmpty>
-            {remote.isFetching
-              ? "Searching Solaris…"
-              : normalized.length === 1
-                ? "Type one more character to search."
-                : normalized
-                  ? "Nothing in Solaris Studio matches that search."
-                  : "Start typing to search Solaris Studio."}
-          </CommandEmpty>
+      <div className="solaris-app-global-search-header">
+        <SolarisSearchField
+          autoFocus
+          value={query}
+          onChange={setQuery}
+          placeholder="Search Solaris Studio…"
+          label="Search Solaris Studio"
+          className="solaris-app-command-search-shell"
+        />
+        <DialogClose asChild>
+          <button
+            type="button"
+            className="solaris-app-global-search-close"
+            aria-label="Close search"
+          >
+            <X className="size-5" aria-hidden="true" />
+          </button>
+        </DialogClose>
+      </div>
+      <CommandList className="solaris-app-search-list">
+        <CommandEmpty>
+          {isFetching
+            ? "Searching Solaris…"
+            : normalized.length === 1
+              ? "Type one more character to search."
+              : normalized
+                ? "Nothing in Solaris Studio matches that search."
+                : "Start typing to search Solaris Studio."}
+        </CommandEmpty>
 
-          {!normalized && initialSearchState.recentQueries.length ? (
-            <CommandGroup heading="Recent searches">
-              {initialSearchState.recentQueries.map((recentQuery) => (
-                <CommandItem
-                  key={recentQuery}
-                  onSelect={() => setQuery(recentQuery)}
-                  className="min-h-12 rounded-xl px-3 py-2"
-                >
-                  <Search className="size-4 text-muted-foreground" aria-hidden="true" />
-                  <span className="truncate text-sm font-semibold">{recentQuery}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          ) : null}
+        {!normalized && initialSearchState.recentQueries.length ? (
+          <CommandGroup heading="Recent searches">
+            {initialSearchState.recentQueries.map((recentQuery) => (
+              <CommandItem
+                key={recentQuery}
+                onSelect={() => setQuery(recentQuery)}
+                className="min-h-12 rounded-xl px-3 py-2"
+              >
+                <Search className="size-4 text-muted-foreground" aria-hidden="true" />
+                <span className="truncate text-sm font-semibold">{recentQuery}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ) : null}
 
-          {grouped.map(([group, items], groupIndex) => (
-            <div key={group}>
-              {groupIndex ? <CommandSeparator /> : null}
-              <CommandGroup heading={group}>
-                {items.slice(0, group === "Recent" ? 8 : 12).map((item) => (
-                  <CommandItem
-                    key={item.id}
-                    value={`${item.label} ${item.description} ${item.href}`}
-                    onSelect={() => openResult(item)}
-                    className="min-h-12 rounded-xl px-3 py-2"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">{item.label}</span>
-                      {item.description ? (
-                        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                          {item.description}
-                        </span>
-                      ) : null}
-                    </span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </div>
-          ))}
-        </CommandList>
+        <SearchGroups grouped={grouped} openResult={openResult} />
+      </CommandList>
     </CommandDialog>
   );
 }
@@ -412,394 +455,18 @@ function WebPublicPaletteDialog({
   open,
   setOpen,
   access,
-  appMode,
-  originPath,
-  initialQuery,
 }: PublicPaletteDialogProps) {
   const router = useRouter();
-  const initialSearchState = useMemo(() => readAppSearchState(), []);
-  const [query, setQuery] = useState(() =>
-    appMode ? initialQuery ?? initialSearchState.lastQuery : "",
-  );
-  const { data: countries = [] } = useCountries();
-  const { data: editions = [] } = useEditions();
-  const { data: shows = [] } = useAllShows();
-  const { data: participants = [] } = useAllParticipants();
-  const { data: results = [] } = useAllResults();
-  const { data: jury = [] } = useAllJuryVotes();
-  const storiesQuery = useQuery({
-    queryKey: ["public-command-palette-stories"],
-    queryFn: () => loadPublicStorylines(40),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const editionById = useMemo(
-    () => new Map(editions.map((edition) => [edition.id, edition])),
-    [editions],
-  );
-  const countryById = useMemo(
-    () => new Map(countries.map((country) => [country.id, country])),
-    [countries],
-  );
-  const searchableEntries = useMemo(() => {
-    const byEditionCountry = new Map<string, (typeof participants)[number]>();
-    for (const participant of participants) {
-      if (!participant.artist && !participant.song) continue;
-      const key = `${participant.edition_id}:${participant.country_id}`;
-      const existing = byEditionCountry.get(key);
-      if (!existing || (existing.show_id && !participant.show_id)) {
-        byEditionCountry.set(key, participant);
-      }
-    }
-    return [...byEditionCountry.values()];
-  }, [participants]);
-  const scorechartShows = useMemo(
-    () =>
-      shows.filter(
-        (show) =>
-          isShowPublic(show) &&
-          Boolean(resolveShowPublication(show).detailed_voting),
-      ),
-    [shows],
-  );
-  const records = useMemo(
-    () =>
-      buildCanonicalFanRecords({
-        countries,
-        editions,
-        shows,
-        participants,
-        results,
-        jury,
-      }),
-    [countries, editions, jury, participants, results, shows],
-  );
+  const [query, setQuery] = useState("");
   const normalized = query.trim();
+  const {
+    grouped,
+    isFetching,
+    recentResults,
+    searchResults,
+  } = usePublicSearchResults(normalized, access);
 
-  const actionResults = useMemo<PublicSearchResult[]>(() => {
-    const currentEdition =
-      editions.find(
-        (edition) =>
-          !["complete", "completed", "finished"].includes(
-            String(edition.status ?? "").toLowerCase(),
-          ),
-      ) ??
-      editions[0] ??
-      null;
-    const myCountry = access?.countryId
-      ? countries.find((country) => country.id === access.countryId) ?? null
-      : null;
-
-    return [
-      ...(currentEdition
-        ? [
-            {
-              id: "action:current-edition",
-              label: "Open current edition",
-              description: `${editionLabel(currentEdition)} · ${currentEdition.name}`,
-              href: `/editions/${currentEdition.slug}`,
-              group: "Actions",
-              keywords: "current edition contest now",
-            },
-          ]
-        : []),
-      {
-        id: "action:confirmation",
-        label: "Continue confirmation",
-        description: "Open the current country confirmation workflow.",
-        href: "/confirmations",
-        group: "Actions",
-        keywords: "confirmation participate country entry",
-      },
-      ...(myCountry
-        ? [
-            {
-              id: "action:my-country",
-              label: "Open my country",
-              description: `${myCountry.name} · public country page`,
-              href: `/countries/${myCountry.short_code}`,
-              group: "Actions",
-              keywords: "my country delegation profile",
-            },
-          ]
-        : []),
-      {
-        id: "action:latest-results",
-        label: "Go to latest results",
-        description: "Open the latest published result and result tools.",
-        href: "/results",
-        group: "Actions",
-        keywords: "latest result scoreboard ranking",
-      },
-      {
-        id: "action:compare",
-        label: "Compare countries",
-        description: "Open the side-by-side country comparison tool.",
-        href: "/compare",
-        group: "Actions",
-        keywords: "compare versus countries",
-      },
-      {
-        id: "action:site-directory",
-        label: "All Solaris pages",
-        description: "Browse the complete public site directory.",
-        href: "/site-directory",
-        group: "Actions",
-        keywords: "all pages site directory sitemap browse",
-      },
-    ];
-  }, [access?.countryId, countries, editions]);
-
-  const searchResults = useMemo(() => {
-    if (!normalized) return [] as PublicSearchResult[];
-
-    const results: PublicSearchResult[] = [
-      ...actionResults.filter((item) =>
-        matchesPublicSearch(
-          normalized,
-          item.label,
-          item.description,
-          item.keywords,
-        ),
-      ),
-      ...navigationSearchResults(normalized),
-      ...countries
-        .filter((country) =>
-          matchesPublicSearch(
-            normalized,
-            country.name,
-            country.native_name,
-            country.short_code,
-            country.region,
-          ),
-        )
-        .flatMap((country) => [
-          {
-            id: `country:${country.id}`,
-            label: country.name,
-            description: `${country.short_code} · Country profile and SSC history`,
-            href: `/countries/${country.short_code}`,
-            group: "Countries",
-          },
-          {
-            id: `wiki:${country.id}`,
-            label: `${country.name} in the Wiki`,
-            description: "Detailed country article",
-            href: `/wiki/${country.short_code}`,
-            group: "Wiki",
-          },
-        ]),
-      ...editions
-        .filter((edition) =>
-          matchesPublicSearch(
-            normalized,
-            edition.name,
-            edition.edition_number,
-            edition.year,
-            edition.host_city,
-            edition.slug,
-          ),
-        )
-        .map((edition) => ({
-          id: `edition:${edition.id}`,
-          label: `${editionLabel(edition)} · ${edition.name}`,
-          description: [edition.host_city, edition.year].filter(Boolean).join(" · "),
-          href: `/editions/${edition.slug}`,
-          group: "Editions",
-        })),
-      ...shows
-        .filter((show) => {
-          const edition = editionById.get(show.edition_id);
-          return matchesPublicSearch(
-            normalized,
-            show.name,
-            show.kind,
-            edition?.name,
-            edition?.edition_number,
-          );
-        })
-        .map((show) => {
-          const edition = editionById.get(show.edition_id);
-          return {
-            id: `show:${show.id}`,
-            label: show.name,
-            description: edition ? editionLabel(edition) : "SSC show",
-            href: `/shows/${show.id}`,
-            group: "Shows",
-          };
-        }),
-      ...(storiesQuery.data ?? [])
-        .filter((story) =>
-          matchesPublicSearch(
-            normalized,
-            story.title,
-            story.subtitle,
-            story.editionName,
-            story.editionNumber,
-          ),
-        )
-        .map((story) => ({
-          id: `story:${story.editionSlug}`,
-          label: story.title,
-          description: `${story.editionName} · published story`,
-          href: `/stories/${story.editionSlug}`,
-          group: "Stories",
-        })),      ...searchableEntries
-        .filter((entry) => {
-          const country = countryById.get(entry.country_id);
-          const edition = editionById.get(entry.edition_id);
-          return matchesPublicSearch(
-            normalized,
-            entry.artist,
-            entry.song,
-            country?.name,
-            country?.short_code,
-            edition?.name,
-            edition?.edition_number,
-          );
-        })
-        .map((entry) => {
-          const country = countryById.get(entry.country_id);
-          const edition = editionById.get(entry.edition_id);
-          return {
-            id: `entry:${entry.edition_id}:${entry.country_id}`,
-            label: [entry.artist, entry.song].filter(Boolean).join(" — ") || "SSC entry",
-            description: [
-              country?.name,
-              edition ? editionLabel(edition) : null,
-            ]
-              .filter(Boolean)
-              .join(" · "),
-            href: country ? `/countries/${country.short_code}` : "/editions",
-            group: "Entries",
-            keywords: "entry song artist participant",
-          };
-        }),
-      ...scorechartShows
-        .filter((show) => {
-          const edition = editionById.get(show.edition_id);
-          return matchesPublicSearch(
-            normalized,
-            show.name,
-            show.kind,
-            edition?.name,
-            edition?.edition_number,
-            "scorechart",
-            "detailed voting",
-            "jury matrix",
-          );
-        })
-        .map((show) => {
-          const edition = editionById.get(show.edition_id);
-          return {
-            id: `scorechart:${show.id}`,
-            label: `${show.name} scorechart`,
-            description: edition
-              ? `${editionLabel(edition)} · detailed voting matrix`
-              : "Detailed voting matrix",
-            href: `/shows/${show.id}`,
-            group: "Scorecharts",
-            keywords: "scorechart detailed jury voting matrix",
-          };
-        }),
-      ...records
-        .filter((record) =>
-          matchesPublicSearch(
-            normalized,
-            record.label,
-            record.value,
-            record.explanation,
-            ...record.holders.flatMap((holder) => [
-              holder.countryName,
-              holder.shortCode,
-              holder.artist,
-              holder.song,
-              holder.editionLabel,
-            ]),
-          ),
-        )
-        .slice(0, 12)
-        .map((record) => ({
-          id: `record:${record.id}`,
-          label: record.label,
-          description: `${record.value} · ${record.explanation}`,
-          href: "/records",
-          group: "Records",
-          keywords: "record all-time archive statistic",
-        })),
-
-      ...searchGovernanceLibrary(normalized).slice(0, 16).map((item) => ({
-        id: `governance:${item.to}:${item.title}`,
-        label: item.title,
-        description: item.description,
-        href: item.to,
-        group: item.group,
-      })),
-    ];
-
-    return dedupePublicSearchResults(results).slice(0, 50);
-  }, [
-    actionResults,
-    countries,
-    countryById,
-    editionById,
-    editions,
-    normalized,
-    records,
-    scorechartShows,
-    searchableEntries,
-    shows,
-    storiesQuery.data,
-  ]);
-
-  const recentQueries = appMode ? initialSearchState.recentQueries : [];
-
-  const recentResults = useMemo(
-    () =>
-      readPublicRecents().map((item) => ({
-        id: `recent:${item.path}`,
-        label: item.label,
-        description: "Recently visited",
-        href: item.path,
-        group: "Recent",
-      })),
-    [],
-  );
-
-  const grouped = useMemo(() => {
-    const source = normalized ? searchResults : [...recentResults, ...actionResults];
-    const map = new Map<string, PublicSearchResult[]>();
-    for (const item of source) {
-      const values = map.get(item.group) ?? [];
-      values.push(item);
-      map.set(item.group, values);
-    }
-    return [...map.entries()];
-  }, [actionResults, normalized, recentResults, searchResults]);
-
-  useEffect(() => {
-    if (normalized.length < 2) return;
-
-    const timer = window.setTimeout(() => {
-      const metadata = {
-        source: "global_search",
-        query_length: normalized.length,
-        result_count: searchResults.length,
-      } as const;
-      trackPublicUxEvent("search_submitted", {
-        target: "public-command-palette",
-        metadata,
-      });
-      if (!searchResults.length) {
-        trackPublicUxEvent("search_no_results", {
-          target: "public-command-palette",
-          metadata,
-        });
-      }
-    }, 500);
-
-    return () => window.clearTimeout(timer);
-  }, [normalized, searchResults.length]);
+  useSearchTelemetry(normalized, searchResults, isFetching);
 
   const openResult = (result: PublicSearchResult) => {
     trackPublicUxEvent("search_result_clicked", {
@@ -811,103 +478,84 @@ function WebPublicPaletteDialog({
         result_count: normalized ? searchResults.length : recentResults.length,
       },
     });
-    if (appMode) {
-      if (normalized.length >= 2) rememberAppSearchQuery(normalized);
-      rememberAppSearchReturn(originPath, normalized, result.href);
-    }
     setOpen(false);
-    if (appMode) {
-      void runAppViewTransition("push", () =>
-        router.navigate({ to: result.href as any }),
-      );
-    } else {
-      void router.navigate({ to: result.href as any });
-    }
+    void router.navigate({ to: result.href as any });
   };
 
   return (
     <CommandDialog
       open={open}
       onOpenChange={setOpen}
-      contentClassName={appMode ? "solaris-app-search-dialog" : undefined}
-      commandClassName={appMode ? "solaris-app-search-command" : undefined}
       shouldFilter={false}
     >
-        <CommandInput
-          autoFocus
-          value={query}
-          onValueChange={setQuery}
-          placeholder="Search Solaris Studio…"
-          aria-label="Search Solaris Studio"
-        />
-        <CommandList
-          className={
-            appMode
-              ? "solaris-app-search-list"
-              : "max-h-[min(68dvh,34rem)]"
-          }
-        >
-          <CommandEmpty>
-            {normalized
-              ? "Nothing in Solaris Studio matches that search."
-              : "Start typing to search Solaris Studio."}
-          </CommandEmpty>
+      <CommandInput
+        autoFocus
+        value={query}
+        onValueChange={setQuery}
+        placeholder="Search Solaris Studio…"
+        aria-label="Search Solaris Studio"
+      />
+      <CommandList className="max-h-[min(68dvh,34rem)]">
+        <CommandEmpty>
+          {isFetching
+            ? "Searching Solaris…"
+            : normalized.length === 1
+              ? "Type one more character to search."
+              : normalized
+                ? "Nothing in Solaris Studio matches that search."
+                : "Start typing to search Solaris Studio."}
+        </CommandEmpty>
 
-          {!normalized && recentQueries.length ? (
-            <CommandGroup heading="Recent searches">
-              {recentQueries.map((recentQuery) => (
-                <CommandItem
-                  key={recentQuery}
-                  onSelect={() => setQuery(recentQuery)}
-                  className="min-h-12 rounded-xl px-3 py-2"
-                >
-                  <Search className="size-4 text-muted-foreground" aria-hidden="true" />
-                  <span className="truncate text-sm font-semibold">{recentQuery}</span>
+        <SearchGroups grouped={grouped} openResult={openResult} />
+
+        {!normalized && !recentResults.length ? (
+          <CommandGroup heading="Start here">
+            {navigationSearchResults("")
+              .filter((item) =>
+                ["/explore", "/participate", "/results", "/guide", "/rules"].includes(item.href),
+              )
+              .map((item) => (
+                <CommandItem key={item.id} onSelect={() => openResult(item)}>
+                  <CommandIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+                  <span>{item.label}</span>
                 </CommandItem>
               ))}
-            </CommandGroup>
-          ) : null}
-
-          {grouped.map(([group, items], groupIndex) => (
-            <div key={group}>
-              {groupIndex ? <CommandSeparator /> : null}
-              <CommandGroup heading={group}>
-                {items.slice(0, group === "Recent" ? 8 : 12).map((item) => (
-                  <CommandItem
-                    key={item.id}
-                    value={`${item.label} ${item.description} ${item.href}`}
-                    onSelect={() => openResult(item)}
-                    className="min-h-12 rounded-xl px-3 py-2"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">{item.label}</span>
-                      {item.description ? (
-                        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                          {item.description}
-                        </span>
-                      ) : null}
-                    </span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </div>
-          ))}
-
-          {!normalized && !recentResults.length ? (
-            <CommandGroup heading="Start here">
-              {navigationSearchResults("")
-                .filter((item) =>
-                  ["/explore", "/participate", "/results", "/guide", "/rules"].includes(item.href),
-                )
-                .map((item) => (
-                  <CommandItem key={item.id} onSelect={() => openResult(item)}>
-                    <CommandIcon className="size-4 text-muted-foreground" aria-hidden="true" />
-                    <span>{item.label}</span>
-                  </CommandItem>
-                ))}
-            </CommandGroup>
-          ) : null}
-        </CommandList>
+          </CommandGroup>
+        ) : null}
+      </CommandList>
     </CommandDialog>
   );
+}
+
+function SearchGroups({
+  grouped,
+  openResult,
+}: {
+  grouped: Array<[string, PublicSearchResult[]]>;
+  openResult: (result: PublicSearchResult) => void;
+}) {
+  return grouped.map(([group, items], groupIndex) => (
+    <div key={group}>
+      {groupIndex ? <CommandSeparator /> : null}
+      <CommandGroup heading={group}>
+        {items.slice(0, group === "Recent" ? 8 : 12).map((item) => (
+          <CommandItem
+            key={item.id}
+            value={`${item.label} ${item.description} ${item.href}`}
+            onSelect={() => openResult(item)}
+            className="min-h-12 rounded-xl px-3 py-2"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold">{item.label}</span>
+              {item.description ? (
+                <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                  {item.description}
+                </span>
+              ) : null}
+            </span>
+          </CommandItem>
+        ))}
+      </CommandGroup>
+    </div>
+  ));
 }
