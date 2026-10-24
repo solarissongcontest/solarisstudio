@@ -33,6 +33,8 @@ import {
   useAllShows,
   useCountries,
   useEditions,
+  type Country,
+  type Edition,
 } from "@/lib/data";
 import {
   dedupePublicSearchResults,
@@ -507,11 +509,7 @@ function WebPublicPaletteDialog({
   }, [actionResults, recentResults]);
 
   return (
-    <CommandDialog
-      open={open}
-      onOpenChange={setOpen}
-      shouldFilter={false}
-    >
+    <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
       <CommandInput
         autoFocus
         value={query}
@@ -560,8 +558,8 @@ function WebSearchArchiveResults({
   setOpen,
 }: {
   normalized: string;
-  countries: ReturnType<typeof useCountries>["data"] extends infer T ? NonNullable<T> : never;
-  editions: ReturnType<typeof useEditions>["data"] extends infer T ? NonNullable<T> : never;
+  countries: Country[];
+  editions: Edition[];
   actionResults: PublicSearchResult[];
   setOpen: (open: boolean) => void;
 }) {
