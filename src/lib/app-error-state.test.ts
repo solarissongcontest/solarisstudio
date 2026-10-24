@@ -14,12 +14,36 @@ describe("app error taxonomy", () => {
     expect(classifyAppError({ status: 402, message: "Payment Required" })).toBe("service-unavailable");
   });
 
-  it("gives recoverable failures a constructive retry", () => {
+  it("recognizes feature availability as a first-class app state", () => {
+    expect(classifyAppError({ code: "FEATURE_DISABLED" })).toBe("feature-unavailable");
+    expect(classifyAppError({ message: "Feature unavailable for this edition" })).toBe(
+      "feature-unavailable",
+    );
+    expect(classifyAppError({ message: "Not enabled for your account" })).toBe(
+      "feature-unavailable",
+    );
+    expect(appErrorPresentation("feature-unavailable")).toMatchObject({
+      retry: false,
+      primaryLabel: "Explore Solaris",
+      primaryHref: "/explore",
+    });
+  });
+
+  it("gives recoverable failures a constructive retry or safe destination", () => {
     expect(appErrorPresentation("offline").retry).toBe(true);
     expect(appErrorPresentation("request-failed").retry).toBe(true);
+    expect(appErrorPresentation("conflict").retry).toBe(true);
     expect(appErrorPresentation("authentication-expired")).toMatchObject({
       retry: false,
       primaryHref: "/auth",
+    });
+    expect(appErrorPresentation("not-found")).toMatchObject({
+      retry: false,
+      primaryHref: "/explore",
+    });
+    expect(appErrorPresentation("unpublished")).toMatchObject({
+      retry: false,
+      primaryHref: "/explore",
     });
   });
 });

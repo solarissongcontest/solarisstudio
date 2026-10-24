@@ -8,6 +8,7 @@ export type AppErrorKind =
   | "conflict"
   | "not-found"
   | "unpublished"
+  | "feature-unavailable"
   | "request-failed"
   | "unexpected";
 
@@ -32,6 +33,11 @@ function errorMessage(error: unknown) {
   return String(value.message ?? value.error_description ?? value.details ?? "");
 }
 
+function errorCode(error: unknown) {
+  const value = errorRecord(error);
+  return typeof value.code === "string" ? value.code.toLowerCase() : "";
+}
+
 function errorStatus(error: unknown) {
   const value = errorRecord(error);
   const status = Number(value.status ?? value.statusCode ?? value.httpStatusCode ?? value.code);
@@ -43,6 +49,7 @@ export function classifyAppError(error: unknown, online = true): AppErrorKind {
   if (isSupabaseServiceRestrictionError(error)) return "service-unavailable";
 
   const status = errorStatus(error);
+  const code = errorCode(error);
   const message = errorMessage(error).toLowerCase();
 
   if (
@@ -65,6 +72,14 @@ export function classifyAppError(error: unknown, online = true): AppErrorKind {
   if (status === 404 || /not found/.test(message)) return "not-found";
   if (/not published|unpublished|results? (?:is|are) not public/.test(message)) {
     return "unpublished";
+  }
+  if (
+    /feature[_-]?disabled|feature[_-]?unavailable/.test(code) ||
+    /feature (?:is )?(?:disabled|unavailable)|not (?:available|enabled) for (?:this|the) edition|not enabled for (?:this|your) account/.test(
+      message,
+    )
+  ) {
+    return "feature-unavailable";
   }
   if (
     /failed to fetch|networkerror|network request failed|load failed|fetch failed|timeout/.test(
@@ -124,7 +139,7 @@ export function appErrorPresentation(kind: AppErrorKind): AppErrorPresentation {
         title: "This state changed before your action completed",
         description:
           "Solaris must refresh the canonical server state before this action can be attempted again. Your stale version will not overwrite newer work.",
-        retry: false,
+        retry: true,
       };
     case "not-found":
       return {
@@ -133,6 +148,8 @@ export function appErrorPresentation(kind: AppErrorKind): AppErrorPresentation {
         title: "This page wasn't found",
         description: "The link may be outdated, private, or no longer available.",
         retry: false,
+        primaryLabel: "Explore Solaris",
+        primaryHref: "/explore",
       };
     case "unpublished":
       return {
@@ -142,6 +159,19 @@ export function appErrorPresentation(kind: AppErrorKind): AppErrorPresentation {
         description:
           "Solaris will show this information after the relevant contest stage is officially published.",
         retry: false,
+        primaryLabel: "Explore Solaris",
+        primaryHref: "/explore",
+      };
+    case "feature-unavailable":
+      return {
+        kind,
+        eyebrow: "Availability",
+        title: "This feature isn't available here",
+        description:
+          "This Solaris feature is not enabled for the current context. Other available areas still work normally.",
+        retry: false,
+        primaryLabel: "Explore Solaris",
+        primaryHref: "/explore",
       };
     case "request-failed":
       return {
