@@ -60,12 +60,19 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(responsiveCss).toContain(".v3-desktop-primary-nav");
   });
 
-  it("does not smuggle whole-page swipe into the foundation cutover", () => {
+  it("keeps whole-page swipe opt-in, live-DOM-only and free of shell-owned preview data", () => {
     const shell = source("src/components/v3/V3AppShell.tsx");
+    const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
 
-    expect(shell).not.toContain("V3TopLevelSwipeSurface");
-    expect(shell).not.toContain("swipePreviewSurfaces");
-    expect(shell).toContain("safe live adjacent DOM surfaces");
-    expect(shell).toContain("duplicate data graphs");
+    expect(shell).toContain("V3TopLevelSwipeSurface");
+    expect(shell).toContain("swipePreviewSurfaces?: V3TopLevelSwipePreviews");
+    expect(shell).toContain("const content = swipePreviewSurfaces ? (");
+    expect(shell).toContain("screenshots");
+    expect(shell).toContain("shell-owned data fetching");
+    expect(shell).toContain("permanently mounted five-tab applications");
+    expect(shell).not.toContain("fetch(");
+    expect(shell).not.toContain("supabase.from");
+    expect(swipe).toContain("previousSurface?: ReactNode");
+    expect(swipe).toContain("nextSurface?: ReactNode");
   });
 });
