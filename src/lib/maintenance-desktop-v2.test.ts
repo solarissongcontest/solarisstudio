@@ -23,6 +23,13 @@ describe("maintenance desktop v2 composition", () => {
     expect(style).toContain("font-size: clamp(3.7rem, 4.65vw, 5.25rem)");
   });
 
+  it("keeps the first-look phone fully visible on short desktop viewports", () => {
+    expect(style).toContain(
+      'html[data-terraos-release-choreography="v2"] [data-terra-first-look="true"] .preview-device',
+    );
+    expect(style).toContain("width: min(310px, 100%, 35svh) !important");
+  });
+
   it("keeps desktop scroll choreography bounded instead of multi-screen dead space", () => {
     expect(style).toContain(
       'html[data-terraos-release-choreography="v2"] [data-terra-first-look="true"] .first-look',
