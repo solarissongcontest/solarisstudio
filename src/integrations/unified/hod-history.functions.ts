@@ -109,6 +109,7 @@ export const deleteHodAssignment = createServerFn({ method: "POST" })
       action: "hod_assignment.delete",
       tableName: "delegation_hod_assignments",
       recordId: data.id,
+      editionId: result.editionId,
     });
     return result;
   });
