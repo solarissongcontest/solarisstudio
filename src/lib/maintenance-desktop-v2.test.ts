@@ -23,20 +23,20 @@ describe("maintenance desktop v2 composition", () => {
     expect(style).toContain("font-size: clamp(3.7rem, 4.65vw, 5.25rem)");
   });
 
-  it("neutralizes oversized scroll-scene geometry on desktop without changing mobile", () => {
+  it("keeps desktop scroll choreography bounded instead of multi-screen dead space", () => {
     expect(style).toContain(
       'html[data-terraos-release-choreography="v2"] [data-terra-first-look="true"] .first-look',
     );
     expect(style).toContain("min-height: 500px !important");
-    expect(style).toContain(
-      'html[data-terraos-release-choreography="v2"] .story-touch[data-terra-scroll-scene="true"]',
-    );
-    expect(style).toContain(
-      'html[data-terraos-release-choreography="v2"] .participation-story[data-terra-scroll-scene="true"]',
-    );
-    expect(style).toContain(
-      'html[data-terraos-release-choreography="v2"] .results-story[data-terra-scroll-scene="true"]',
-    );
-    expect(style).toContain("min-height: 0 !important");
+    expect(style).toContain("min-height: 180svh !important");
+    expect(style).toContain("min-height: 165svh !important");
+    expect(style).toContain("min-height: 150svh !important");
+    expect(style).toContain("min-height: 190svh !important");
+    expect(style).toContain("position: sticky !important");
+  });
+
+  it("does not show the redundant floating local preview nav on desktop", () => {
+    expect(style).toContain("#terraos-release-local-nav");
+    expect(style).toContain("display: none !important");
   });
 });
