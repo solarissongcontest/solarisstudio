@@ -17,6 +17,7 @@ export const Route = createFileRoute("/next-in-line")({
         name: "description",
         content: "The separate Solaris competition for songs that did not win a National Final or were not selected internally by countries already competing in SSC.",
       },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: NextInLinePage,
