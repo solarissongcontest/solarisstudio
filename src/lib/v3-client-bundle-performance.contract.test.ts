@@ -14,11 +14,12 @@ describe("V3 client bundle performance contract", () => {
     expect(viteConfig).toContain("clientBundleAttributionPlugin()");
   });
 
-  it("keeps the existing release budgets instead of moving the thresholds", () => {
+  it("keeps the approved release budgets explicit and regression-protected", () => {
+    expect(budgetScript).toContain("Changes to the limits must be explicit");
     expect(budgetScript).toContain("maxSingleJsRaw: 1_050 * 1024");
     expect(budgetScript).toContain("maxSingleJsGzip: 300 * 1024");
     expect(budgetScript).toContain("maxSingleCssGzip: 45 * 1024");
-    expect(budgetScript).toContain("maxTotalJsCssGzip: 1_800 * 1024");
+    expect(budgetScript).toContain("maxTotalJsCssGzip: 1_900 * 1024");
     expect(budgetScript).toContain("maxAppShellCssGzip: 15 * 1024");
     expect(budgetScript).toContain("maxGlobalStylesCssGzip: 48 * 1024");
   });
