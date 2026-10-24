@@ -93,6 +93,14 @@ begin
     );
   end if;
 
+  -- A caller may only use offsets issued by this bounded scan. Treating an
+  -- out-of-range offset as an empty successful page would allow a skipped repair
+  -- to be reported as consistent without touching or verifying the omitted row.
+  if p_offset > 0 and p_offset >= v_total then
+    raise exception 'Confirmation repair offset is outside the candidate range'
+      using errcode = '22023';
+  end if;
+
   for v_country_id in
     select candidate.country_id
     from (
