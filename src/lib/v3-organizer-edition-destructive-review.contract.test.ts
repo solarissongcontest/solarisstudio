@@ -2,49 +2,63 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-const source = readFileSync(
-  "src/routes/_authenticated/admin/editions.tsx",
+const route = readFileSync("src/routes/_authenticated/admin/editions.tsx", "utf8");
+const workspace = readFileSync("src/components/admin/AllEditionsWorkspaceV3.tsx", "utf8");
+const client = readFileSync("src/lib/v3-all-editions-lifecycle.ts", "utf8");
+const migration = readFileSync(
+  "supabase/migrations/20261020092500_v3_all_editions_lifecycle_authority.sql",
   "utf8",
 );
 
-describe("V3 Organizer edition destructive review boundary", () => {
-  it("prepares an exact reviewed edition scope instead of mutating from the action menu", () => {
-    expect(source).toContain("prepareEditionLifecycleReview");
-    expect(source).toContain('prepareEditionLifecycleReview(edition, "private")');
-    expect(source).toContain('prepareEditionLifecycleReview(edition, "delete")');
-    expect(source).toContain("editionLifecycleFingerprint");
-    expect(source).toContain("showLifecycleFingerprint");
-    expect(source).toContain("publicationControlFingerprints");
-    expect(source).not.toContain("setPrivateEdition(edition)");
-    expect(source).not.toContain("setDeleteEdition(edition)");
+describe("V3 Organizer edition lifecycle review boundary", () => {
+  it("routes the All Editions screen through the governed workspace", () => {
+    expect(route).toContain("AllEditionsWorkspaceV3");
+    expect(route).not.toContain("supabase");
+    expect(workspace).toContain("previewEditionMakePrivateV3(edition.id)");
+    expect(workspace).toContain("makeEditionPrivateV3(review, review.reason)");
   });
 
-  it("re-reads exact edition dependencies and fails closed on review drift", () => {
-    expect(source).toContain("revalidateEditionLifecycleReview");
-    expect(source).toContain('supabase.from("editions").select("*").eq("id", review.editionId).maybeSingle()');
-    expect(source).toContain('supabase.from("shows").select("*").eq("edition_id", review.editionId)');
-    expect(source).toContain('supabase.from("participants").select("id").eq("edition_id", review.editionId)');
-    expect(source).toContain("loadShowPublicationControls(review.editionId)");
-    expect(source).toContain("Edition state changed after this review opened");
-    expect(source).toContain("Nothing was applied");
+  it("uses exact aggregate CAS instead of browser snapshots", () => {
+    expect(migration).toContain("studio2_all_editions_versions");
+    expect(migration).toContain("p_expected_version bigint");
+    expect(migration).toContain("v_before_version is distinct from p_expected_version");
+    expect(migration).toContain("using errcode = 'PT409'");
+    expect(workspace).toContain("exact aggregate revision");
+    expect(client).toContain("p_expected_version: preview.stateVersion");
   });
 
-  it("keeps deletion Tier-4 deliberate with a reason and exact-name confirmation", () => {
-    expect(source).toContain("Reason for permanent deletion");
-    expect(source).toContain("Why is permanent deletion required instead of archive?");
-    expect(source).toContain("lifecycleReview.reason.trim().length < 5");
-    expect(source).toContain("confirmationText");
-    expect(source).toContain("to confirm permanent deletion");
-    expect(source).toContain("Archive is safer when historical truth must remain available");
+  it("keeps the cross-domain make-private action R3 and deliberate", () => {
+    expect(migration).toContain("'edition.make_private'");
+    expect(migration).toContain("'R3'");
+    expect(migration).toContain("private.studio2_require_fresh_auth(300)");
+    expect(workspace).toContain("Reason");
+    expect(workspace).toContain("review.reason.trim().length < 5");
+    expect(workspace).toContain("confirmationText={privateReview?.displayLabel}");
+    expect(workspace).toContain("authentication from the last five minutes");
   });
 
-  it("preserves existing authorities and does not pretend System #1068 is solved", () => {
-    expect(source).toContain("previewShowPublicationChange");
-    expect(source).toContain("applyShowPublicationChange");
-    expect(source).toContain('.from("editions")\n          .delete()');
-    expect(source).toContain("System #1068 still owns the canonical edition lifecycle command");
-    expect(source).toContain("no edition CAS, durable operation receipt or atomic cross-domain preflight");
-    expect(source).toContain("Do not treat this");
-    expect(source).toContain("review as V3 lifecycle parity");
+  it("reuses canonical show publication authority in one transaction", () => {
+    expect(migration).toContain("public.studio2_apply_show_publication_change(");
+    expect(migration).toContain("p_idempotency_key || ':hide:' || v_control.show_id::text");
+    expect(migration).toContain("update public.editions\n  set published = false");
+    expect(workspace).not.toContain("applyShowPublicationChange");
+    expect(workspace).not.toContain("loadShowPublicationControls");
+    expect(workspace).not.toContain("previewShowPublicationChange");
+  });
+
+  it("retires permanent browser deletion instead of cascading historical truth", () => {
+    expect(migration).toContain("Permanent browser edition deletion is retired");
+    expect(workspace).toContain("Archive / retire edition");
+    expect(workspace).toContain("Permanent edition deletion is retired");
+    expect(workspace).not.toContain("Delete edition");
+    expect(workspace).not.toContain('.from("editions")');
+  });
+
+  it("produces durable audit, event and operation evidence", () => {
+    expect(migration).toContain("edition_made_private");
+    expect(migration).toContain("private.v3_emit_domain_event(");
+    expect(migration).toContain("'edition.changed'");
+    expect(migration).toContain("private.studio2_complete_operation");
+    expect(client).toContain('"studio2_reconcile_operation"');
   });
 });

@@ -8,10 +8,13 @@ describe("Organisation OS V5 show publication lifecycle", () => {
   const migration = source(
     "supabase/migrations/20261003203000_organisation_os_v5_show_publication_lifecycle.sql",
   );
+  const allEditionsMigration = source(
+    "supabase/migrations/20261020092500_v3_all_editions_lifecycle_authority.sql",
+  );
   const client = source("src/lib/show-publication-lifecycle.ts");
   const publication = source("src/routes/_authenticated/admin/publication/$slug.tsx");
   const shows = source("src/routes/_authenticated/admin/shows/$slug.tsx");
-  const editions = source("src/routes/_authenticated/admin/editions.tsx");
+  const editions = source("src/components/admin/AllEditionsWorkspaceV3.tsx");
 
   it("models Draft, Scheduled, Public and Hidden as canonical server state", () => {
     expect(migration).toContain("studio2_show_publication_controls");
@@ -74,7 +77,7 @@ describe("Organisation OS V5 show publication lifecycle", () => {
     expect(client).toContain("idempotencyKey: input.idempotencyKey");
   });
 
-  it("closes browser visibility/config writes and routes all Organizer surfaces through the lifecycle", () => {
+  it("closes browser visibility/config writes and routes Organizer surfaces through canonical publication authority", () => {
     expect(migration).toContain(
       "Show publication must use the Organisation OS V5 publication operation contract.",
     );
@@ -86,8 +89,13 @@ describe("Organisation OS V5 show publication lifecycle", () => {
     expect(publication).toContain("applyShowPublicationChange");
     expect(publication).toContain("loadShowPublicationControls");
     expect(publication).toContain("Schedule exact frozen release");
-    expect(editions).toContain("loadShowPublicationControls");
-    expect(editions).toContain("applyShowPublicationChange");
+
+    // All Editions composes the exact same canonical operation server-side so
+    // the parent visibility change and all child show changes share one SQL transaction.
+    expect(allEditionsMigration).toContain("public.studio2_apply_show_publication_change(");
+    expect(allEditionsMigration).toContain("p_idempotency_key || ':hide:' || v_control.show_id::text");
+    expect(editions).toContain("previewEditionMakePrivateV3");
+    expect(editions).toContain("makeEditionPrivateV3");
 
     for (const [path, code] of [
       ["Publication", publication],

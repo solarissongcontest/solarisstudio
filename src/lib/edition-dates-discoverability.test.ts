@@ -6,11 +6,16 @@ function source(path: string) {
 }
 
 describe("edition date discoverability", () => {
-  const editions = source("routes/_authenticated/admin/editions.tsx");
+  const editionsRoute = source("routes/_authenticated/admin/editions.tsx");
+  const editions = source("components/admin/AllEditionsWorkspaceV3.tsx");
   const administration = source("routes/_authenticated/admin/more.tsx");
   const dateEditor = source("routes/_authenticated/admin/anniversary-dates.tsx");
 
-  it("links to the date editor directly from the Editions page", () => {
+  it("keeps the Editions route bound to the governed workspace", () => {
+    expect(editionsRoute).toContain("AllEditionsWorkspaceV3");
+  });
+
+  it("links to the date editor directly from the Editions workspace", () => {
     expect(editions).toContain('to="/admin/anniversary-dates"');
     expect(editions).toContain("Edition dates");
   });
