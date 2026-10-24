@@ -7,7 +7,7 @@ begin;
 -- NULL. S3 explicitly grandfathered those rows without inventing provenance;
 -- this projection must not undo that safety decision by reading mutable results.
 select public.v3_register_migration_contract(
-  '20261020064712_v3_public_published_result_snapshot',
+  'v3.results.public-published-result-snapshot-v1',
   1,
   'forward_fix_only',
   false,
