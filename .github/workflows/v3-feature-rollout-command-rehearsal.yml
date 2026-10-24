@@ -1,0 +1,143 @@
+name: V3 Feature Rollout Command Rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+      - v3/sys-feature-rollout-command-current-main-20261024
+    paths:
+      - "supabase/migrations/**"
+      - "scripts/v3-feature-rollout-command-rehearsal.sh"
+      - "src/lib/v3-feature-rollout-command-authority.contract.test.ts"
+      - ".github/workflows/v3-feature-rollout-command-rehearsal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-feature-rollout-command-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-replay:
+    name: Clean replay + Feature Rollout command proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Verify exact feature head
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='${{ github.event.pull_request.head.sha || github.sha }}'
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected" || {
+            echo "Feature Rollout rehearsal checkout is $actual, expected exact source SHA $expected" >&2
+            exit 1
+          }
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local --no-seed
+
+      - name: Ensure PostgreSQL client
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Rehearse governed Feature Rollout mutations
+        shell: bash
+        run: bash scripts/v3-feature-rollout-command-rehearsal.sh
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  upgrade-from-main:
+    name: Current main upgrade + Feature Rollout command proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact feature head
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='${{ github.event.pull_request.head.sha || github.sha }}'
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected" || {
+            echo "Feature Rollout rehearsal checkout is $actual, expected exact source SHA $expected" >&2
+            exit 1
+          }
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Ensure PostgreSQL client
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Prepare disposable current-main worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-feature-rollout-main origin/main
+
+      - name: Build current main locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-feature-rollout-main
+          supabase start
+          supabase db reset --local --no-seed
+
+      - name: Apply exact branch migration delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" /tmp/solaris-feature-rollout-main
+          cd /tmp/solaris-feature-rollout-main
+          supabase migration up --local --include-all
+
+      - name: Rehearse command after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-feature-rollout-main
+          bash "$GITHUB_WORKSPACE/scripts/v3-feature-rollout-command-rehearsal.sh"
+
+      - name: Stop isolated local Supabase
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-feature-rollout-main 2>/dev/null || exit 0
+          supabase stop --no-backup || true
