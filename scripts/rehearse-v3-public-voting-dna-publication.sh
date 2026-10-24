@@ -49,7 +49,7 @@ cleanup
 log "Seeding one published Result with split layers initially hidden"
 db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_ID','Voting DNA Boundary Country','V27');"
 db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_ID','Voting DNA Boundary Edition',2026,'voting-dna-boundary-edition',9927,'active',true);"
-db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published,publication_config) values ('$SHOW_ID','$EDITION_ID','Voting DNA Boundary Final','final',1,true,jsonb_build_object('results',true,'jury_results',false,'televote_results',false,'detailed_voting',false));"
+db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published,publication_config) values ('$SHOW_ID','$EDITION_ID','Voting DNA Boundary Final','grand-final',1,true,jsonb_build_object('results',true,'jury_results',false,'televote_results',false,'detailed_voting',false));"
 db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_ID','$SHOW_ID','$COUNTRY_ID',120,80,200,1);"
 
 [[ "$(db_value "select prosecdef::text from pg_proc where oid='public.v3_public_country_voting_dna(uuid)'::regprocedure;")" == 't' ]] || fail "Voting DNA projection must remain SECURITY DEFINER"
