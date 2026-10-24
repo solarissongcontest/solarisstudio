@@ -1,6 +1,8 @@
 name: V3 S11 Cloudflare rollback rehearsal
 
 on:
+  pull_request:
+    types: [ready_for_review]
   workflow_dispatch:
     inputs:
       worker_name:
@@ -19,14 +21,57 @@ concurrency:
 jobs:
   cloudflare-rollback:
     name: Isolated Cloudflare Worker rollback
+    if: ${{ (github.event_name == 'workflow_dispatch' && github.ref_name == 'main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'v3/qa-s11-cloudflare-rollback-runtime-gate' && github.event.pull_request.base.ref == 'v3/sys-s11-cloudflare-rollback-current-main' && github.event.pull_request.base.sha == '4b4629abfea10471a4ddf906d39fb951d2e5c5ce') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
-      - name: Validate isolated provider target
+      - name: Checkout exact candidate source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify trusted stacked PR delta
+        if: ${{ github.event_name == 'pull_request' }}
         shell: bash
         env:
-          WORKER_NAME_INPUT: ${{ inputs.worker_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          readonly expected_parent='4b4629abfea10471a4ddf906d39fb951d2e5c5ce'
+          if [ "$PR_BASE_SHA" != "$expected_parent" ]; then
+            echo "::error::Cloudflare provider drill parent moved: $PR_BASE_SHA != $expected_parent"
+            exit 1
+          fi
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [ "$actual" != "$PR_HEAD_SHA" ]; then
+            echo "::error::Provider drill checkout is $actual, expected PR head $PR_HEAD_SHA"
+            exit 1
+          fi
+          mapfile -t changed < <(git diff --name-only "$PR_BASE_SHA...$PR_HEAD_SHA" | sort)
+          expected=(
+            '.github/workflows/v3-s11-cloudflare-rollback-rehearsal.yml'
+            'src/lib/v3-s11-cloudflare-rollback-workflow.contract.test.ts'
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          if [ "${#changed[@]}" -ne "${#expected_sorted[@]}" ]; then
+            printf '::error::Provider drill PR delta must contain exactly the two QA-owned files; got: %s\n' "${changed[*]}"
+            exit 1
+          fi
+          for i in "${!expected_sorted[@]}"; do
+            if [ "${changed[$i]}" != "${expected_sorted[$i]}" ]; then
+              printf '::error::Unexpected provider drill PR delta: %s\n' "${changed[*]}"
+              exit 1
+            fi
+          done
+
+      - name: Validate isolated provider target
+        id: target
+        shell: bash
+        env:
+          WORKER_NAME_INPUT: ${{ github.event_name == 'pull_request' && 'solaris-s11-rollback-github' || inputs.worker_name }}
         run: |
           set -euo pipefail
           worker="$(printf '%s' "$WORKER_NAME_INPUT" | tr '[:upper:]' '[:lower:]')"
@@ -42,18 +87,13 @@ jobs:
             echo "::error::Worker name exceeds the 63-character safety bound"
             exit 1
           fi
-
-      - name: Checkout exact dispatch source
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 0
+          echo "worker=$worker" >> "$GITHUB_OUTPUT"
 
       - name: Resolve exact source SHA
         id: source
         shell: bash
         env:
-          EVENT_SOURCE_SHA: ${{ github.sha }}
+          EVENT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           expected="$(printf '%s' "$EVENT_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
@@ -63,7 +103,7 @@ jobs:
             exit 1
           fi
           if [ "$actual" != "$expected" ]; then
-            echo "::error::Cloudflare rollback checkout is $actual, expected exact dispatch SHA $expected"
+            echo "::error::Cloudflare rollback checkout is $actual, expected exact source SHA $expected"
             exit 1
           fi
           if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
@@ -80,7 +120,7 @@ jobs:
       - name: Rehearse real provider rollback on dedicated Worker
         shell: bash
         env:
-          SOLARIS_S11_ROLLBACK_WORKER: ${{ inputs.worker_name }}
+          SOLARIS_S11_ROLLBACK_WORKER: ${{ steps.target.outputs.worker }}
           SOLARIS_S11_ROLLBACK_OPERATOR: github-actions-s11-cloudflare
           SOLARIS_S11_ROLLBACK_EVIDENCE_PATH: /tmp/v3-s11-cloudflare-rollback.json
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -129,7 +169,7 @@ jobs:
             assessment.expectedCommitSha !== expectedSha ||
             assessment.evidenceCommitSha !== expectedSha
           ) {
-            throw new Error("Cloudflare rollback evidence is not bound to the exact dispatch SHA");
+            throw new Error("Cloudflare rollback evidence is not bound to the exact source SHA");
           }
           if (
             assessment.certificationClaim !== false ||
@@ -147,7 +187,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v3-s11-cloudflare-rollback-evidence-${{ github.sha }}
+          name: v3-s11-cloudflare-rollback-evidence-${{ steps.source.outputs.sha }}
           path: |
             /tmp/v3-s11-cloudflare-rollback.json
             /tmp/v3-s11-cloudflare-rollback-assessment.json
