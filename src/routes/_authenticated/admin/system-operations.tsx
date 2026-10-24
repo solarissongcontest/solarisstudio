@@ -23,9 +23,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
 import { useOrganisationBackendContract } from "@/lib/organisation-backend-contract";
 import {
-  resolveSolarisV6OperationRecovery,
-  type SolarisV6OperationRecovery,
-} from "@/lib/solaris-v6-operation-recovery";
+  reconcileDeliveryRetry,
+  retryFailedDeliveryWithReconciliation,
+  type DeliveryRetryIdentity,
+  type DeliveryRetryOutcome,
+} from "@/lib/v3-organizer-delivery-retry";
 
 type DeliveryStatus = "pending" | "processing" | "sent" | "failed" | "suppressed";
 
@@ -63,14 +65,9 @@ type JobRow = {
     | "operator_intervention";
 };
 
-type RetryIdentity = {
-  operationId: string;
-  idempotencyKey: string;
-};
-
 type RetryRecoveryState = {
   deliveryId: string;
-  recovery: SolarisV6OperationRecovery;
+  outcome: Exclude<DeliveryRetryOutcome, { state: "succeeded" }>;
 };
 
 type RuntimeHealth = {
@@ -107,7 +104,7 @@ function SystemOperationsPage() {
   const backend = useOrganisationBackendContract();
   const systemOperationsSupported =
     backend.data?.capabilities.systemOperations === true;
-  const retryIdentities = useRef(new Map<string, RetryIdentity>());
+  const retryIdentities = useRef(new Map<string, DeliveryRetryIdentity>());
   const [retryRecovery, setRetryRecovery] = useState<RetryRecoveryState | null>(null);
 
   const health = useQuery({
@@ -122,6 +119,31 @@ function SystemOperationsPage() {
     },
     refetchInterval: 60_000,
   });
+
+  const applyRetryOutcome = async (deliveryId: string, outcome: DeliveryRetryOutcome) => {
+    if (outcome.state === "succeeded") {
+      retryIdentities.current.delete(deliveryId);
+      setRetryRecovery((current) =>
+        current?.deliveryId === deliveryId ? null : current,
+      );
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-system-runtime-health"],
+      });
+      return;
+    }
+
+    setRetryRecovery({ deliveryId, outcome });
+
+    if (outcome.state === "failed" || outcome.recovery.shouldRefreshCanonical) {
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-system-runtime-health"],
+      });
+    }
+
+    if (outcome.state === "failed" && !outcome.recovery.keepOperationOpen) {
+      retryIdentities.current.delete(deliveryId);
+    }
+  };
 
   const retry = useMutation({
     mutationFn: async ({
@@ -138,42 +160,39 @@ function SystemOperationsPage() {
           "The production database does not yet support System Operations.",
         );
       }
-      const { data, error } = await (supabase as any).rpc(
-        "admin_retry_failed_notification_delivery",
-        {
-          p_delivery_id: deliveryId,
-          p_operation_id: operationId,
-          p_idempotency_key: idempotencyKey,
-        },
-      );
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: async (_data, variables) => {
-      retryIdentities.current.delete(variables.deliveryId);
-      setRetryRecovery((current) =>
-        current?.deliveryId === variables.deliveryId ? null : current,
-      );
-      await queryClient.invalidateQueries({
-        queryKey: ["admin-system-runtime-health"],
+      return retryFailedDeliveryWithReconciliation({
+        deliveryId,
+        identity: { operationId, idempotencyKey },
       });
     },
-    onError: async (error, variables) => {
-      const recovery = resolveSolarisV6OperationRecovery(error, {
-        online: typeof navigator === "undefined" ? true : navigator.onLine,
-        stableOperationIdentity: true,
+    onSuccess: async (outcome, variables) => {
+      await applyRetryOutcome(variables.deliveryId, outcome);
+    },
+  });
+
+  const reconcile = useMutation({
+    mutationFn: async ({
+      deliveryId,
+      operationId,
+      outcome,
+    }: {
+      deliveryId: string;
+      operationId: string;
+      outcome: Exclude<DeliveryRetryOutcome, { state: "succeeded" }>;
+    }) => {
+      if (!systemOperationsSupported) {
+        throw new Error(
+          "The production database does not yet support System Operations.",
+        );
+      }
+      return reconcileDeliveryRetry({
+        deliveryId,
+        operationId,
+        recovery: outcome.recovery,
       });
-      setRetryRecovery({ deliveryId: variables.deliveryId, recovery });
-
-      if (recovery.shouldRefreshCanonical) {
-        await queryClient.invalidateQueries({
-          queryKey: ["admin-system-runtime-health"],
-        });
-      }
-
-      if (!recovery.keepOperationOpen) {
-        retryIdentities.current.delete(variables.deliveryId);
-      }
+    },
+    onSuccess: async (outcome, variables) => {
+      await applyRetryOutcome(variables.deliveryId, outcome);
     },
   });
 
@@ -201,8 +220,20 @@ function SystemOperationsPage() {
     retry.mutate({ deliveryId, ...identity });
   };
 
-  const recoveryForDelivery = (deliveryId: string) =>
-    retryRecovery?.deliveryId === deliveryId ? retryRecovery.recovery : null;
+  const reconcileFailedDelivery = (deliveryId: string) => {
+    if (!systemOperationsSupported) return;
+    const identity = retryIdentities.current.get(deliveryId);
+    const current = retryRecovery?.deliveryId === deliveryId ? retryRecovery.outcome : null;
+    if (!identity || !current || current.state !== "unresolved") return;
+    reconcile.mutate({
+      deliveryId,
+      operationId: identity.operationId,
+      outcome: current,
+    });
+  };
+
+  const outcomeForDelivery = (deliveryId: string) =>
+    retryRecovery?.deliveryId === deliveryId ? retryRecovery.outcome : null;
 
   const data = health.data;
   const pushAttention = Boolean(
@@ -325,84 +356,108 @@ function SystemOperationsPage() {
               />
               {data.push.recent.length ? (
                 <div className="mt-4 divide-y divide-white/[0.07]">
-                  {data.push.recent.map((delivery) => (
-                    <div
-                      key={delivery.id}
-                      className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold">
-                            {humanize(delivery.eventType)}
+                  {data.push.recent.map((delivery) => {
+                    const outcome = outcomeForDelivery(delivery.id);
+                    const operationBusy = retry.isPending || reconcile.isPending;
+                    const invalidReceipt =
+                      outcome?.state === "unresolved" && outcome.reason === "invalid_receipt";
+                    const shouldReconcile =
+                      outcome?.state === "unresolved" && !outcome.allowSameIdentityRetry;
+                    const actionLabel = invalidReceipt
+                      ? "Operation blocked"
+                      : shouldReconcile
+                        ? "Reconcile operation"
+                        : outcome?.state === "unresolved" && outcome.allowSameIdentityRetry
+                          ? "Retry same operation"
+                          : "Retry failed delivery";
+
+                    return (
+                      <div
+                        key={delivery.id}
+                        className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold">
+                              {humanize(delivery.eventType)}
+                            </p>
+                            <AdminStatus tone={deliveryTone(delivery.status)}>
+                              {delivery.status}
+                            </AdminStatus>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {humanize(delivery.category)} · {delivery.route}
                           </p>
-                          <AdminStatus tone={deliveryTone(delivery.status)}>
-                            {delivery.status}
-                          </AdminStatus>
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            {delivery.displayedAt
+                              ? `Displayed ${formatDate(delivery.displayedAt)}`
+                              : delivery.receivedAt
+                                ? `Received by device ${formatDate(delivery.receivedAt)}`
+                                : delivery.providerAcceptedAt
+                                  ? `Provider accepted ${formatDate(delivery.providerAcceptedAt)}`
+                                  : `Created ${formatDate(delivery.createdAt)}`}
+                          </p>
+                          {delivery.error ? (
+                            <p className="mt-2 max-w-3xl text-xs leading-5 text-amber-100/80">
+                              {delivery.error}
+                            </p>
+                          ) : null}
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {humanize(delivery.category)} · {delivery.route}
-                        </p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {delivery.displayedAt
-                            ? `Displayed ${formatDate(delivery.displayedAt)}`
-                            : delivery.receivedAt
-                              ? `Received by device ${formatDate(delivery.receivedAt)}`
-                              : delivery.providerAcceptedAt
-                                ? `Provider accepted ${formatDate(delivery.providerAcceptedAt)}`
-                                : `Created ${formatDate(delivery.createdAt)}`}
-                        </p>
-                        {delivery.error ? (
-                          <p className="mt-2 max-w-3xl text-xs leading-5 text-amber-100/80">
-                            {delivery.error}
-                          </p>
+                        {delivery.status === "failed" ? (
+                          <div className="shrink-0 space-y-2 sm:max-w-xs">
+                            {outcome ? (
+                              <div
+                                role="status"
+                                className="rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3 text-xs leading-5"
+                              >
+                                <p className="font-semibold text-amber-50">
+                                  {outcome.recovery.title}
+                                </p>
+                                <p className="mt-1 text-muted-foreground">
+                                  {outcome.recovery.description}
+                                </p>
+                                {outcome.state === "unresolved" ? (
+                                  <p className="mt-2 font-semibold text-foreground">
+                                    {outcome.reason === "operation_not_found" && outcome.allowSameIdentityRetry
+                                      ? "Reconciliation proved this exact operation was never accepted. A replay may reuse the same reviewed identity."
+                                      : outcome.reason === "invalid_receipt"
+                                        ? "Solaris received operation evidence that does not match this reviewed delivery. Automatic replay is blocked."
+                                        : "The outcome is still not settled. Solaris will reconcile this exact operation receipt before any replay."}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="admin-action-secondary w-full"
+                              disabled={operationBusy || !systemOperationsSupported || invalidReceipt}
+                              onClick={() => {
+                                if (shouldReconcile) {
+                                  reconcileFailedDelivery(delivery.id);
+                                } else {
+                                  retryFailedDelivery(delivery.id);
+                                }
+                              }}
+                            >
+                              <RefreshCw className={operationBusy ? "size-4 animate-spin" : "size-4"} />
+                              {actionLabel}
+                            </button>
+                          </div>
                         ) : null}
                       </div>
-                      {delivery.status === "failed" ? (
-                        <div className="shrink-0 space-y-2 sm:max-w-xs">
-                          {recoveryForDelivery(delivery.id) ? (
-                            <div
-                              role="status"
-                              className="rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3 text-xs leading-5"
-                            >
-                              <p className="font-semibold text-amber-50">
-                                {recoveryForDelivery(delivery.id)!.title}
-                              </p>
-                              <p className="mt-1 text-muted-foreground">
-                                {recoveryForDelivery(delivery.id)!.description}
-                              </p>
-                              {recoveryForDelivery(delivery.id)!.outcomeUnknown ? (
-                                <p className="mt-2 font-semibold text-foreground">
-                                  The server outcome is unknown. A retry reuses this exact operation identity.
-                                </p>
-                              ) : null}
-                            </div>
-                          ) : null}
-                          <button
-                            type="button"
-                            className="admin-action-secondary w-full"
-                            disabled={retry.isPending || !systemOperationsSupported}
-                            onClick={() => retryFailedDelivery(delivery.id)}
-                          >
-                            <RefreshCw className="size-4" />
-                            {recoveryForDelivery(delivery.id)?.allowSameIdentityRetry
-                              ? "Retry same operation"
-                              : "Retry failed delivery"}
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-muted-foreground">
                   No delivery receipts are available yet.
                 </p>
               )}
-              {retry.error && !retryRecovery ? (
+              {retry.error || reconcile.error ? (
                 <p className="mt-3 text-xs text-rose-200">
-                  {retry.error instanceof Error
-                    ? retry.error.message
-                    : "The failed delivery could not be retried."}
+                  {(retry.error ?? reconcile.error) instanceof Error
+                    ? (retry.error ?? reconcile.error)?.message
+                    : "The delivery operation could not be completed or reconciled."}
                 </p>
               ) : null}
             </AdminCard>
@@ -442,7 +497,7 @@ function SystemOperationsPage() {
                                 : "ready"
                           }
                         >
-{!job.active
+                          {!job.active
                             ? "inactive"
                             : job.deadLettered
                               ? "dead-letter"
@@ -489,8 +544,6 @@ function SystemOperationsPage() {
                           </p>
                         ) : null}
                       </div>
-
-
                     </div>
                   ))}
                 </div>
@@ -506,7 +559,8 @@ function SystemOperationsPage() {
             <p className="px-1 text-[11px] text-muted-foreground">
               Snapshot generated {formatDate(data.generatedAt)}. Failed delivery retry is available only
               for rows the dispatcher conclusively marked failed; processing rows are recovered by the
-              bounded queue lease instead of being replayed manually.
+              bounded queue lease instead of being replayed manually. Unknown retry outcomes are reconciled
+              against the actor-scoped operation receipt before another mutation is allowed.
             </p>
           </>
         )}
