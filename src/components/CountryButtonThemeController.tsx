@@ -3,7 +3,7 @@ import { useEffect, useMemo } from "react";
 
 import { resolveCountryButtonTheme } from "@/lib/country-button-theme";
 import { useCountries } from "@/lib/data";
-import { useCountryThemes } from "@/lib/visual-theme";
+import { useCountryTheme } from "@/lib/visual-theme";
 
 function segmentAfter(pathname: string, prefix: string) {
   if (!pathname.startsWith(prefix)) return null;
@@ -14,17 +14,23 @@ export function CountryButtonThemeController() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const code = segmentAfter(pathname, "/countries/") ?? segmentAfter(pathname, "/wiki/");
   const { data: countries } = useCountries();
-  const { data: countryThemes } = useCountryThemes({ enabled: Boolean(code) });
+  const country = useMemo(() => {
+    if (!code) return null;
+    return (
+      (countries ?? []).find(
+        (item) => item.short_code.toLowerCase() === code.toLowerCase(),
+      ) ?? null
+    );
+  }, [code, countries]);
+  const { data: countryTheme } = useCountryTheme(country?.id);
 
   const resolved = useMemo(() => {
-    if (!code) return null;
-    const country = (countries ?? []).find(
-      (item) => item.short_code.toLowerCase() === code.toLowerCase(),
-    );
     if (!country) return null;
-    const row = (countryThemes ?? []).find((item) => item.country_id === country.id) ?? null;
-    return resolveCountryButtonTheme(row, row?.accent ?? country.accent_color);
-  }, [code, countries, countryThemes]);
+    return resolveCountryButtonTheme(
+      countryTheme ?? null,
+      countryTheme?.accent ?? country.accent_color,
+    );
+  }, [country, countryTheme]);
 
   useEffect(() => {
     if (!resolved) return;
