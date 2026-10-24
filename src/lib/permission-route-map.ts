@@ -20,6 +20,7 @@ const ROUTE_CAPABILITY_RULES: RouteCapabilityRule[] = [
       "/admin/beta1-feedback",
       "/admin/beta2-feedback",
       "/admin/beta3-feedback",
+      "/admin/public-ux",
     ],
     "rollout.manage",
   ),
