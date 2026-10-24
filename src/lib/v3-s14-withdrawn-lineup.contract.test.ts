@@ -32,7 +32,7 @@ describe("S14 canonical lineup after Stage-4 withdrawal", () => {
   it("reviews submitted Jury evidence through versioned Organizer authority before readiness", () => {
     expect(stage8).toContain("studio2_jury_ballot_review_preview");
     expect(stage8).toContain("studio2_apply_jury_ballot_review");
-    expect(stage8).toContain('p_expected_version\\\":$preview_version');
+    expect(stage8).toContain('p_expected_version\\":$preview_version');
     expect(stage8).toContain("jury.ballot.review.valid");
     expect(stage8).toContain('"$votes_before" == "$votes_after"');
     expect(stage8).toContain('"$reviewed_count" == "64"');
