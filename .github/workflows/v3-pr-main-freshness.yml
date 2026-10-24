@@ -50,8 +50,11 @@ jobs:
         with:
           bun-version: 1.2.19
 
-      - name: Verify freshness-policy unit tests
-        run: bun test scripts/__tests__/check-v3-pr-main-freshness.test.ts
+      - name: Verify integration-truth unit tests
+        run: >-
+          bun test
+          scripts/__tests__/check-v3-pr-main-freshness.test.ts
+          src/lib/v3-pr-integration-state.test.ts
 
       - name: Require automatic PR head to contain live current main
         if: inputs.pr_number == 0
