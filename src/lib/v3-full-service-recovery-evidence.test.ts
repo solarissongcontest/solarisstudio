@@ -8,6 +8,11 @@ import {
 const SHA = "a".repeat(40);
 const DIGEST = "b".repeat(64);
 
+type MutableManifestShape = {
+  components: Array<Record<string, unknown>>;
+  fullServiceRehearsal: Record<string, unknown>;
+};
+
 function completeManifest(): V3S11FullServiceRecoveryManifest {
   const components = ["database", "storage", "deployment"] as const;
   const checks = Object.fromEntries(
@@ -52,6 +57,10 @@ function completeManifest(): V3S11FullServiceRecoveryManifest {
       qaReviewRequired: true,
     },
   };
+}
+
+function mutableManifest(): MutableManifestShape {
+  return completeManifest() as unknown as MutableManifestShape;
 }
 
 describe("S11 full-service recovery evidence", () => {
@@ -115,7 +124,7 @@ describe("S11 full-service recovery evidence", () => {
   });
 
   it("rejects production-touching or provider-overclaiming rehearsal evidence", () => {
-    const manifest = completeManifest() as unknown as Record<string, any>;
+    const manifest = mutableManifest();
     manifest.fullServiceRehearsal.productionSupabaseTraffic = true;
     manifest.fullServiceRehearsal.providerRtoClaim = true;
 
@@ -130,7 +139,7 @@ describe("S11 full-service recovery evidence", () => {
   });
 
   it("rejects a component assessment that tries to impersonate release certification", () => {
-    const manifest = completeManifest() as unknown as Record<string, any>;
+    const manifest = mutableManifest();
     manifest.components[0].certificationClaim = true;
 
     const assessment = assessV3FullServiceRecoveryEvidence(manifest, SHA);
@@ -152,7 +161,7 @@ describe("S11 full-service recovery evidence", () => {
   });
 
   it("rejects unsafe artifact paths and malformed digests", () => {
-    const manifest = completeManifest() as unknown as Record<string, any>;
+    const manifest = mutableManifest();
     manifest.components[0].artifactPath = "../../secret.json";
     manifest.components[1].artifactSha256 = "not-a-digest";
 
