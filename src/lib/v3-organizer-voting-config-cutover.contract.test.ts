@@ -12,16 +12,15 @@ const authority = readFileSync(
   "utf8",
 );
 const systemAuthority = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20261019231500_v3_versioned_voting_config.sql"),
-  "utf8",
-);
-const riskClosure = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20261019231600_v3_voting_config_preflight_risk_closure.sql"),
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20261024235500_v3_voting_configuration_authority_current_main.sql",
+  ),
   "utf8",
 );
 
 describe("V3 Organizer voting configuration cutover", () => {
-  it("consumes the canonical System snapshot, preflight and versioned apply contract", () => {
+  it("consumes the canonical current-main System snapshot, preflight and versioned apply contract", () => {
     expect(authority).toContain('"studio2_voting_config_snapshot"');
     expect(authority).toContain('"studio2_voting_config_preflight"');
     expect(authority).toContain('"studio2_apply_voting_config_change"');
@@ -30,9 +29,12 @@ describe("V3 Organizer voting configuration cutover", () => {
     expect(route).toContain("preflightOrganizerVotingConfigChange");
     expect(route).toContain("applyOrganizerVotingConfigChange");
 
+    expect(systemAuthority).toContain("'v3.voting.configuration-authority'");
     expect(systemAuthority).toContain("create or replace function public.studio2_voting_config_snapshot(");
+    expect(systemAuthority).toContain("create or replace function public.studio2_voting_config_preflight(");
     expect(systemAuthority).toContain("create or replace function public.studio2_apply_voting_config_change(");
-    expect(riskClosure).toContain("create or replace function public.studio2_voting_config_preflight(");
+    expect(systemAuthority).not.toContain("'20261019231500_v3_versioned_voting_config'");
+    expect(systemAuthority).not.toContain("'20261019231600_v3_voting_config_preflight_risk_closure'");
   });
 
   it("removes the legacy browser-owned voting and Results mutation path", () => {
@@ -57,13 +59,18 @@ describe("V3 Organizer voting configuration cutover", () => {
     expect(authority).toContain("result.showId !== input.showId");
   });
 
-  it("binds review to the version actually shown and revalidates before commit", () => {
+  it("binds review to the version actually shown and allocates canonical identity before confirmation", () => {
     expect(route).toContain("preflight.expectedVersion !== snapshot.version");
     expect(route).toContain("expectedVersion: preflight.expectedVersion");
-    expect(route).toContain('command: "voting.config.update"');
+    expect(route).toContain('command: "voting.configure"');
     expect(route).toContain('riskClass: "R2"');
+    expect(route).toContain("operationId: command.operationId");
+    expect(route).toContain("idempotencyKey: command.idempotencyKey");
     expect(route).toContain("expectedVersion: review.expectedVersion");
+    expect(route).toContain("operationId: review.operationId");
+    expect(route).toContain("idempotencyKey: review.idempotencyKey");
     expect(route).toContain("configuration version and voting/result evidence at commit time");
+    expect(systemAuthority).toContain("'voting.configure','R2'");
   });
 
   it("treats official voting/result evidence as a hard freeze rather than a recalculation prompt", () => {
@@ -71,17 +78,37 @@ describe("V3 Organizer voting configuration cutover", () => {
     expect(route).toContain("Voting configuration is frozen because official voting or result evidence now exists");
     expect(systemAuthority).toContain("private.v3_voting_config_change_blocked");
     expect(systemAuthority).toContain("message = 'DEPENDENCY_FAILURE'");
-    expect(riskClosure).toContain("when v_blocked then 'blocked'");
-    expect(riskClosure).toContain("else 'R2'");
+    expect(systemAuthority).toContain("when v_blocked then 'blocked'");
+    expect(systemAuthority).toContain("else 'R2'");
   });
 
-  it("uses operation identity and bounded reconciliation for uncertain outcomes", () => {
-    expect(route).toContain("createOrganisationCommand({");
-    expect(route).toContain("operationId: command.operationId");
-    expect(route).toContain("idempotencyKey: command.idempotencyKey");
-    expect(route).toContain("reconcileSystemOperation");
-    expect(route).toContain("parseOrganizerVotingConfigApplyResult(reconciliation.receipt.result)");
+  it("keeps one reviewed operation identity across an uncertain apply/reconciliation outcome", () => {
+    expect(route).toContain("outcomeUncertain: boolean");
+    expect(route).toContain("review.outcomeUncertain");
+    expect(route).toContain("recoverApply(review.operationId, edition.id, review.showId)");
+    expect(route).toContain("current.operationId === review.operationId");
+    expect(route).toContain("{ ...current, outcomeUncertain: true }");
+    expect(route).toContain("retry this review to reconcile that same operation instead of creating another");
+    expect(route).toContain("if (!busy && !pendingSave?.outcomeUncertain) setPendingSave(null)");
+    expect(route).toContain("Reconcile same operation");
+    expect(route).not.toContain('command: "voting.config.update"');
+  });
+
+  it("distinguishes authoritative failure from still-unresolved reconciliation", () => {
+    expect(route).toContain('state: "failed"');
+    expect(route).toContain('state: "unresolved"');
+    expect(route).toContain('reconciliation.receipt.status === "failed"');
+    expect(route).toContain('reconciliation.receipt.status !== "succeeded"');
+    expect(route).toContain("preserveReviewedOperation = false");
+    expect(route).toContain("preserveReviewedOperation = true");
+  });
+
+  it("surfaces both canonical receipt and operation identity after success", () => {
+    expect(route).toContain("receiptId: result.receiptId");
+    expect(route).toContain("Receipt {receipt.receiptId}");
+    expect(route).toContain("Operation {receipt.operationId}");
     expect(route).toContain("Confirmed from the canonical operation ledger after an uncertain response.");
+    expect(authority).toContain("receiptId: asString(record, \"receiptId\"");
   });
 
   it("preserves compatibility metadata instead of replacing the canonical config with a client-only subset", () => {
@@ -96,5 +123,8 @@ describe("V3 Organizer voting configuration cutover", () => {
     expect(route).toContain('qc.invalidateQueries({ queryKey: ["shows"] })');
     expect(route).toContain('qc.invalidateQueries({ queryKey: ["show"] })');
     expect(route).not.toContain('qc.invalidateQueries({ queryKey: ["results"] })');
+    expect(systemAuthority).not.toContain("sync_show_results_from_votes");
+    expect(systemAuthority).not.toContain("studio2_apply_result");
+    expect(systemAuthority).not.toContain("studio2_apply_show_publication");
   });
 });
