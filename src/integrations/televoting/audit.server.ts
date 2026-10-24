@@ -1,4 +1,4 @@
-import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 
 export type AuditJson =
@@ -28,7 +28,7 @@ export async function listMergedAuditLogServer(filters: {
   targetType?: string | null;
   limit?: number;
 }): Promise<MergedAuditRow[]> {
-  await requireMergedTelevotingAdminServer();
+  await requireSolarisCapabilityServer("voting.read", null);
 
   let query = televotingAdmin
     .from("admin_audit_log")

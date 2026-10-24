@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import type { FriendVotingSettings } from "@/integrations/televoting/friend-voting-settings.server";
 
 const fraction = (value: unknown, name: string) => {
@@ -110,6 +111,8 @@ export const updateFriendVotingSettings = createServerFn({ method: "POST" })
     return parsed;
   })
   .handler(async ({ data }) => {
+    await requireSolarisCapabilityServer("voting.manage", null);
+
     const [
       { loadFriendVotingSettingsServer, updateFriendVotingSettingsServer },
       { writeAdminAuditServer },

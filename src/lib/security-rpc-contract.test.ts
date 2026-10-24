@@ -20,8 +20,11 @@ describe("organizer RPC security boundary", () => {
     expect(migration).toContain("clear_jury_point(uuid, uuid, uuid, uuid, uuid, integer) from public, anon");
   });
 
-  it("keeps the raw friend-voting settings mutation service-role only", () => {
-    expect(friendVotingServer).toContain("requireSolarisOrganizerServer");
+  it("keeps the raw friend-voting settings mutation service-role only behind voting capabilities", () => {
+    expect(friendVotingServer).toContain('requireSolarisCapabilityServer("voting.read", null)');
+    expect(friendVotingServer).toContain('requireSolarisCapabilityServer("voting.manage", null)');
+    expect(friendVotingServer).not.toContain("requireSolarisOrganizerServer");
+    expect(friendVotingServer).toContain("p_actor_id: capability.userId");
     expect(friendVotingServer).toContain("supabaseAdmin");
     expect(migration).toContain("update_friend_voting_settings_with_audit(uuid, jsonb) from public, anon, authenticated");
     expect(migration).toContain("update_friend_voting_settings_with_audit(uuid, jsonb) to service_role");
