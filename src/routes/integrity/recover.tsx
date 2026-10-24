@@ -22,7 +22,7 @@ export const Route = createFileRoute("/integrity/recover")({
   head: () => ({
     meta: [
       { title: "Recover Anonymous Integrity Case — Solaris" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: RecoverAnonymousCasePage,
