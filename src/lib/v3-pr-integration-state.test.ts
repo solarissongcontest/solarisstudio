@@ -133,6 +133,17 @@ describe("V3 current-PR integration state", () => {
     );
   });
 
+  it("classifies valid GitHub stale/startup conclusions as failed evidence", () => {
+    for (const conclusion of ["stale", "startup_failure"] as const) {
+      const checks = candidate().checks.map((check) =>
+        check.name === "Quality" ? { ...check, conclusion } : check,
+      );
+      const report = reportFor(candidate({ checks }));
+      expect(report.candidates[0]?.state).toBe("ci_failed");
+      expect(report.candidates[0]?.failedChecks).toContain("Quality");
+    }
+  });
+
   it("keeps open stack dependencies ahead of child exact-head checks", () => {
     const report = reportFor(
       candidate({
