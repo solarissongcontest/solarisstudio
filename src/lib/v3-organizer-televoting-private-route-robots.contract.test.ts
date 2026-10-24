@@ -24,4 +24,13 @@ describe("V3 Organizer Televoting private-route crawler policy", () => {
       expect(route).not.toContain('name: "robots", content: "noindex" }');
     },
   );
+
+  it("keeps the heavy voting audit projection user-refreshed instead of polling", () => {
+    const auditLog = source("src/routes/televoting/admin/audit-log.tsx");
+
+    expect(auditLog).toContain("staleTime: 30_000");
+    expect(auditLog).toContain("refetchOnWindowFocus: false");
+    expect(auditLog).toContain("void refetch()");
+    expect(auditLog).not.toContain("refetchInterval:");
+  });
 });
