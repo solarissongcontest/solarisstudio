@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
+import { useServerFn } from '@tanstack/react-start';
 import { ExternalLink, Flag, ShieldCheck, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -14,6 +15,10 @@ import {
 } from '@/components/admin/AdminUI';
 import { WorkspaceTabs } from '@/components/admin/AdminWorkspacePrimitives';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  applyFeatureRolloutChange,
+  previewFeatureRolloutChange,
+} from '@/lib/admin-feature-rollout.functions';
 import { SOLARIS_FEATURE_FLAGS, type SolarisFeatureFlag } from '@/lib/feature-flags';
 import {
   STUDIO2_PRODUCT_SURFACE_LIST,
@@ -45,6 +50,7 @@ type FeatureFlagRow = {
   admins_only: boolean;
   user_ids: string[];
   edition_ids: string[];
+  revision: number;
   updated_at: string;
 };
 
@@ -54,6 +60,13 @@ type PendingRolloutReview = {
   surfaceLabel: string;
   dependencyLabels: string[];
   dependentLabels: string[];
+  expectedRevision: number;
+  operationId: string;
+};
+
+type UnconfirmedRollout = {
+  operationId: string;
+  message: string;
 };
 
 type QueryBuilder = {
@@ -64,7 +77,6 @@ type QueryBuilder = {
 
 type FeatureFlagClient = {
   from(table: string): QueryBuilder;
-  rpc(name: string, args: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
 };
 
 const client = supabase as unknown as FeatureFlagClient;
@@ -72,7 +84,7 @@ const client = supabase as unknown as FeatureFlagClient;
 async function loadFlags(): Promise<FeatureFlagRow[]> {
   const { data, error } = await client
     .from('studio2_feature_flags')
-    .select('key,enabled,admins_only,user_ids,edition_ids,updated_at')
+    .select('key,enabled,admins_only,user_ids,edition_ids,revision,updated_at')
     .order('key');
 
   if (error) throw error;
@@ -89,6 +101,7 @@ async function loadFlags(): Promise<FeatureFlagRow[]> {
       admins_only: row.admins_only === true,
       user_ids: Array.isArray(row.user_ids) ? row.user_ids.filter((value): value is string => typeof value === 'string') : [],
       edition_ids: Array.isArray(row.edition_ids) ? row.edition_ids.filter((value): value is string => typeof value === 'string') : [],
+      revision: Number.isSafeInteger(Number(row.revision)) ? Number(row.revision) : 0,
       updated_at: typeof row.updated_at === 'string' ? row.updated_at : '',
     }));
 }
@@ -105,56 +118,40 @@ function cloneFlagRow(row: FeatureFlagRow): FeatureFlagRow {
   };
 }
 
-function sameStringList(left: readonly string[], right: readonly string[]) {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
-}
+function rolloutDecisionError(row: FeatureFlagRow, currentRows: readonly FeatureFlagRow[]) {
+  const decision = studio2RolloutDecision(row.key, row.enabled, enabledKeySet(currentRows));
+  if (decision.allowed) return null;
 
-function sameFlagSnapshot(live: FeatureFlagRow, baseline: FeatureFlagRow) {
-  return (
-    live.key === baseline.key &&
-    live.enabled === baseline.enabled &&
-    live.admins_only === baseline.admins_only &&
-    live.updated_at === baseline.updated_at &&
-    sameStringList(live.user_ids, baseline.user_ids) &&
-    sameStringList(live.edition_ids, baseline.edition_ids)
-  );
-}
-
-async function setFlag(row: FeatureFlagRow, enabled: boolean, currentRows: readonly FeatureFlagRow[]) {
-  const enabledKeys = enabledKeySet(currentRows);
-  const decision = studio2RolloutDecision(row.key, row.enabled, enabledKeys);
   const surface = studio2SurfaceFor(row.key);
-
-  if (!decision.allowed) {
-    const labels = decision.blockingKeys.map((key) => studio2SurfaceFor(key).label).join(', ');
-    if (decision.reason === 'rollout_locked') {
-      throw new Error(`${surface.label} is not eligible for rollout from this workstream.`);
-    }
-    if (decision.reason === 'missing_dependencies') {
-      throw new Error(`Enable ${labels} before ${surface.label}.`);
-    }
-    if (decision.reason === 'active_dependents') {
-      throw new Error(`Disable ${labels} before disabling ${surface.label}.`);
-    }
+  const labels = decision.blockingKeys.map((key) => studio2SurfaceFor(key).label).join(', ');
+  if (decision.reason === 'rollout_locked') {
+    return new Error(`${surface.label} is not eligible for rollout from this workstream.`);
   }
+  if (decision.reason === 'missing_dependencies') {
+    return new Error(`Enable ${labels} before ${surface.label}.`);
+  }
+  return new Error(`Disable ${labels} before disabling ${surface.label}.`);
+}
 
-  const { data, error } = await client.rpc('studio2_set_feature_flag', {
-    p_key: row.key,
-    p_enabled: enabled,
-    p_admins_only: row.admins_only,
-    p_user_ids: row.user_ids,
-    p_edition_ids: row.edition_ids,
-  });
-
-  if (error) throw error;
-  return data;
+function messageFor(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message) return message;
+  }
+  return fallback;
 }
 
 function FeatureRolloutPage() {
   const queryClient = useQueryClient();
+  const previewRollout = useServerFn(previewFeatureRolloutChange);
+  const applyRollout = useServerFn(applyFeatureRolloutChange);
   const [view, setView] = useState<Studio2RolloutView>('active');
   const [selectedKey, setSelectedKey] = useState<SolarisFeatureFlag | null>(null);
   const [pendingReview, setPendingReview] = useState<PendingRolloutReview | null>(null);
+  const [unconfirmedOutcome, setUnconfirmedOutcome] = useState<UnconfirmedRollout | null>(null);
+  const [preparingKey, setPreparingKey] = useState<SolarisFeatureFlag | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const flagsQuery = useQuery({
     queryKey: ['studio2-feature-flags-admin'],
     queryFn: loadFlags,
@@ -166,53 +163,113 @@ function FeatureRolloutPage() {
   const visibleRows = useMemo(() => rowsForRolloutView(rows, view), [rows, view]);
   const selectedRow = selectedKey ? rows.find((row) => row.key === selectedKey) ?? null : null;
 
-  const toggleFlag = useMutation({
-    mutationFn: async (pending: PendingRolloutReview) => {
-      const freshRows = await loadFlags();
-      const live = freshRows.find((row) => row.key === pending.baseline.key) ?? null;
+  const refreshRolloutTruth = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['studio2-feature-flags-admin'] });
+    await queryClient.invalidateQueries({ queryKey: ['studio2-feature'] });
+  };
 
-      if (!live || !sameFlagSnapshot(live, pending.baseline)) {
-        throw new Error(
-          `${pending.surfaceLabel} changed while this review was open. Nothing was intentionally changed. Refresh the rollout state and review it again.`,
-        );
+  const toggleFlag = useMutation({
+    mutationFn: async (pending: PendingRolloutReview) => applyRollout({
+      data: {
+        key: pending.baseline.key,
+        enabled: pending.nextEnabled,
+        adminsOnly: pending.baseline.admins_only,
+        userIds: pending.baseline.user_ids,
+        editionIds: pending.baseline.edition_ids,
+        expectedRevision: pending.expectedRevision,
+        operationId: pending.operationId,
+      },
+    }),
+    onSuccess: async (outcome) => {
+      if (outcome.status === 'unconfirmed') {
+        setUnconfirmedOutcome({
+          operationId: outcome.operationId,
+          message: outcome.message,
+        });
+        await refreshRolloutTruth();
+        return;
       }
 
-      return setFlag(live, pending.nextEnabled, freshRows);
-    },
-    onSuccess: async () => {
       setPendingReview(null);
-      await queryClient.invalidateQueries({ queryKey: ['studio2-feature-flags-admin'] });
-      await queryClient.invalidateQueries({ queryKey: ['studio2-feature'] });
+      setUnconfirmedOutcome(null);
+      setReviewError(null);
+      await refreshRolloutTruth();
     },
-    onError: async () => {
-      setPendingReview(null);
-      await queryClient.invalidateQueries({ queryKey: ['studio2-feature-flags-admin'] });
-      await queryClient.invalidateQueries({ queryKey: ['studio2-feature'] });
+    onError: async (error) => {
+      // A thrown server-function error happens outside the structured command
+      // outcome. Keep the reviewed operation intact; a previously unconfirmed
+      // operation must never be discarded because transport middleware hid text.
+      setReviewError(messageFor(error, 'Could not apply the reviewed rollout operation.'));
+      await refreshRolloutTruth();
     },
   });
 
-  function prepareRolloutReview(row: FeatureFlagRow) {
-    const decision = studio2RolloutDecision(row.key, row.enabled, enabledKeys);
-    if (!decision.allowed) return;
+  async function prepareRolloutReview(row: FeatureFlagRow) {
+    if (preparingKey || toggleFlag.isPending || unconfirmedOutcome) return;
+    setPreparingKey(row.key);
+    setReviewError(null);
+    setUnconfirmedOutcome(null);
+    toggleFlag.reset();
 
-    const surface = studio2SurfaceFor(row.key);
-    const dependents = STUDIO2_PRODUCT_SURFACE_LIST.filter((candidate) =>
-      candidate.dependsOn?.includes(row.key),
-    );
+    try {
+      const freshRows = await loadFlags();
+      const live = freshRows.find((candidate) => candidate.key === row.key) ?? null;
+      if (!live || live.revision < 1) {
+        throw new Error('The canonical rollout row changed or has no usable revision. Refresh before retrying.');
+      }
 
-    setPendingReview({
-      baseline: cloneFlagRow(row),
-      nextEnabled: !row.enabled,
-      surfaceLabel: surface.label,
-      dependencyLabels: surface.dependsOn?.map((key) => studio2SurfaceFor(key).label) ?? [],
-      dependentLabels: dependents.map((candidate) => candidate.label),
-    });
+      const decisionError = rolloutDecisionError(live, freshRows);
+      if (decisionError) throw decisionError;
+
+      const nextEnabled = !live.enabled;
+      const preview = await previewRollout({
+        data: {
+          key: live.key,
+          enabled: nextEnabled,
+          adminsOnly: live.admins_only,
+          userIds: live.user_ids,
+          editionIds: live.edition_ids,
+        },
+      });
+
+      if (
+        preview.key !== live.key ||
+        preview.currentRevision !== live.revision ||
+        preview.enabled !== live.enabled ||
+        preview.adminsOnly !== live.admins_only ||
+        preview.noChange
+      ) {
+        throw new Error('The rollout state changed while the review was being prepared. Refresh and review the new canonical state.');
+      }
+
+      const surface = studio2SurfaceFor(live.key);
+      const dependents = STUDIO2_PRODUCT_SURFACE_LIST.filter((candidate) =>
+        candidate.dependsOn?.includes(live.key),
+      );
+
+      queryClient.setQueryData(['studio2-feature-flags-admin'], freshRows);
+      setPendingReview({
+        baseline: cloneFlagRow(live),
+        nextEnabled,
+        surfaceLabel: surface.label,
+        dependencyLabels: surface.dependsOn?.map((key) => studio2SurfaceFor(key).label) ?? [],
+        dependentLabels: dependents.map((candidate) => candidate.label),
+        expectedRevision: preview.currentRevision,
+        operationId: crypto.randomUUID(),
+      });
+    } catch (caught) {
+      setReviewError(messageFor(caught, 'Feature rollout review could not be prepared.'));
+      await queryClient.invalidateQueries({ queryKey: ['studio2-feature-flags-admin'] });
+    } finally {
+      setPreparingKey(null);
+    }
   }
 
   const enabledCount = rows.filter((row) => row.enabled).length;
   const productSurfaceCount = STUDIO2_PRODUCT_SURFACE_LIST.filter((surface) => surface.state === 'product_surface').length;
   const plannedCount = STUDIO2_PRODUCT_SURFACE_LIST.filter((surface) => surface.state === 'planned').length;
   const activeView = STUDIO2_ROLLOUT_VIEWS.find((candidate) => candidate.id === view)!;
+  const applyErrorMessage = toggleFlag.error ? messageFor(toggleFlag.error, 'Could not update the rollout flag.') : null;
 
   return (
     <AdminPage>
@@ -220,7 +277,7 @@ function FeatureRolloutPage() {
         <AdminPageHeader
           eyebrow="Solaris Studio 2"
           title="Feature rollout"
-          description="Control live rollout without mixing production surfaces, foundations, roadmap placeholders and externally owned work into one giant list. Dependency safety remains enforced server-side."
+          description="Control live rollout without mixing production surfaces, foundations, roadmap placeholders and externally owned work into one giant list."
         />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -237,10 +294,10 @@ function FeatureRolloutPage() {
             <p className="mt-2 text-sm text-muted-foreground">Roadmap flags remain visible without pretending they can be enabled.</p>
           </AdminCard>
           <AdminCard>
-            <AdminCardHeader eyebrow="Safety" title="Dependency-safe" />
+            <AdminCardHeader eyebrow="Command safety" title="Versioned + receipted" />
             <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
               <ShieldCheck className="size-4" />
-              Active dependencies still block unsafe enable and disable actions.
+              Reviewed revisions and stable operation receipts fail closed on rollout-state drift.
             </div>
           </AdminCard>
         </div>
@@ -266,7 +323,8 @@ function FeatureRolloutPage() {
                       onClick={() => {
                         setView(candidate.id);
                         setSelectedKey(null);
-                        setPendingReview(null);
+                        if (!unconfirmedOutcome) setPendingReview(null);
+                        setReviewError(null);
                       }}
                       aria-pressed={active}
                       className={active
@@ -297,10 +355,13 @@ function FeatureRolloutPage() {
                         key={row.key}
                         row={row}
                         enabledKeys={enabledKeys}
-                        busy={toggleFlag.isPending && pendingReview?.baseline.key === row.key}
+                        busy={
+                          preparingKey === row.key ||
+                          (toggleFlag.isPending && pendingReview?.baseline.key === row.key)
+                        }
                         selected={row.key === selectedKey}
                         onSelect={() => setSelectedKey(row.key)}
-                        onToggle={() => prepareRolloutReview(row)}
+                        onToggle={() => void prepareRolloutReview(row)}
                       />
                     ))}
                   </div>
@@ -318,16 +379,16 @@ function FeatureRolloutPage() {
           </>
         )}
 
-        {toggleFlag.error ? (
+        {reviewError || applyErrorMessage ? (
           <div className="rounded-xl border border-red-300/25 bg-red-300/10 px-4 py-3 text-sm text-red-100">
-            {toggleFlag.error instanceof Error ? toggleFlag.error.message : 'Could not update the rollout flag. Organizer permission is required.'}
+            {reviewError ?? applyErrorMessage}
           </div>
         ) : null}
 
         <AdminConfirmSheet
           open={Boolean(pendingReview)}
           onClose={() => {
-            if (!toggleFlag.isPending) setPendingReview(null);
+            if (!toggleFlag.isPending && !unconfirmedOutcome) setPendingReview(null);
           }}
           onConfirm={async () => {
             if (pendingReview) await toggleFlag.mutateAsync(pendingReview);
@@ -335,12 +396,19 @@ function FeatureRolloutPage() {
           title={pendingReview?.nextEnabled ? 'Enable production feature?' : 'Disable production feature?'}
           description={
             pendingReview ? (
-              <FeatureRolloutReview pending={pendingReview} />
+              <FeatureRolloutReview
+                pending={pendingReview}
+                unconfirmed={unconfirmedOutcome}
+              />
             ) : (
               'Review the exact live rollout change before applying it.'
             )
           }
-          confirmLabel={pendingReview?.nextEnabled ? 'Enable reviewed feature' : 'Disable reviewed feature'}
+          confirmLabel={unconfirmedOutcome
+            ? 'Reconcile reviewed operation'
+            : pendingReview?.nextEnabled
+              ? 'Enable reviewed feature'
+              : 'Disable reviewed feature'}
           confirmationText={pendingReview?.surfaceLabel}
           confirmationHint={
             pendingReview ? `Type ${pendingReview.surfaceLabel} to confirm this production rollout change` : undefined
@@ -353,7 +421,13 @@ function FeatureRolloutPage() {
   );
 }
 
-function FeatureRolloutReview({ pending }: { pending: PendingRolloutReview }) {
+function FeatureRolloutReview({
+  pending,
+  unconfirmed,
+}: {
+  pending: PendingRolloutReview;
+  unconfirmed: UnconfirmedRollout | null;
+}) {
   return (
     <div className="space-y-3 text-sm leading-6">
       <p>
@@ -379,7 +453,8 @@ function FeatureRolloutReview({ pending }: { pending: PendingRolloutReview }) {
           {pending.baseline.edition_ids.length ? `${pending.baseline.edition_ids.length} restricted` : 'all'} · users:{' '}
           {pending.baseline.user_ids.length ? `${pending.baseline.user_ids.length} restricted` : 'all eligible'}
         </p>
-        <p className="mt-1 text-muted-foreground">Reviewed revision: {formatTimestamp(pending.baseline.updated_at)}</p>
+        <p className="mt-1 text-muted-foreground">Canonical revision: {pending.expectedRevision}</p>
+        <p className="mt-1 break-all text-muted-foreground">Operation: {pending.operationId}</p>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
@@ -387,8 +462,15 @@ function FeatureRolloutReview({ pending }: { pending: PendingRolloutReview }) {
         <Detail label="Used by" value={pending.dependentLabels.length ? pending.dependentLabels.join(', ') : 'No declared dependents'} />
       </div>
 
+      {unconfirmed ? (
+        <div className="rounded-lg border border-amber-300/25 bg-amber-300/10 p-3 text-xs leading-5 text-amber-100">
+          <strong>Outcome not yet confirmed.</strong> {unconfirmed.message}
+          {' '}This review remains locked to operation <code>{unconfirmed.operationId}</code>, so retrying reconciles the same operation instead of creating another rollout mutation.
+        </div>
+      ) : null}
+
       <p className="text-xs text-muted-foreground">
-        Solaris re-reads the complete flag row immediately before apply and recomputes dependency legality from that fresh rollout state. The existing server RPC still serializes writes and enforces rollout permissions, but it does not accept the reviewed revision, idempotency identity, or return a durable operation receipt. System #1178 owns that canonical command gap, so a narrow read-to-RPC race and ambiguous network outcome remain until it lands.
+        Solaris binds this review to the canonical aggregate revision above. The Organizer server performs a fresh dependency preflight, while the canonical System command owns the required atomic dependency enforcement. This stacked cutover remains blocked until that System transaction serializes and validates related flags. Apply otherwise uses revision CAS plus an idempotent operation receipt, and retries reconcile the same operation before any new write.
       </p>
     </div>
   );
@@ -454,7 +536,7 @@ function FeatureRow({
           onClick={onToggle}
           className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/[0.09] bg-white/[0.035] px-4 text-sm font-semibold transition-colors hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-45"
         >
-          {busy ? 'Saving…' : rolloutButtonLabel(row.enabled, decision.reason)}
+          {busy ? 'Preparing…' : rolloutButtonLabel(row.enabled, decision.reason)}
         </button>
       </div>
     </div>
@@ -483,6 +565,7 @@ function FeatureDetail({ row, onClose }: { row: FeatureFlagRow; onClose: () => v
         <Detail label="Rollout" value={rolloutStateSummary(surface.state, row.enabled)} />
         <Detail label="Type" value={studio2SurfaceStateLabel(surface.state)} />
         <Detail label="Audience" value={humanize(surface.audience)} />
+        <Detail label="Revision" value={String(row.revision)} />
         <Detail label="Last updated" value={formatTimestamp(row.updated_at)} />
         <Detail label="Depends on" value={surface.dependsOn?.length ? surface.dependsOn.map((key) => studio2SurfaceFor(key).label).join(', ') : 'None'} />
         <Detail label="Used by" value={dependents.length ? dependents.map((candidate) => candidate.label).join(', ') : 'No declared dependents'} />
