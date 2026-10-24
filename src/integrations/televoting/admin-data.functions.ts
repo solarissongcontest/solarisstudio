@@ -21,12 +21,12 @@ export const getMergedTelevotingOverview = createServerFn({ method: "POST" })
     editionId: data?.editionId ? String(data.editionId) : null,
   }))
   .handler(async ({ data }) => {
-    const [{ requireMergedTelevotingAdminServer }, { televotingAdmin }] = await Promise.all([
-      import("@/integrations/televoting/admin-session.server"),
+    const [{ requireSolarisCapabilityServer }, { televotingAdmin }] = await Promise.all([
+      import("@/integrations/supabase/capabilities.server"),
       import("@/integrations/televoting/client.server"),
     ]);
 
-    await requireMergedTelevotingAdminServer();
+    await requireSolarisCapabilityServer("voting.read", data.editionId);
 
     // One database round trip keeps the Cloudflare Worker comfortably below
     // its subrequest ceiling and makes the overview follow Organizer edition
