@@ -1,4 +1,4 @@
-import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { backtestRound } from "@/integrations/televoting/backtest-math";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 import {
@@ -12,7 +12,11 @@ export async function runHistoricalTelevoteBacktestServer(input: {
   roundId?: string | null;
   limit?: number;
 }) {
-  await requireMergedTelevotingAdminServer();
+  // This workspace can inspect stored ballots across editions. Require the
+  // canonical global read capability before any service-role backed Televote
+  // query is reachable; broad Organizer membership alone is not sufficient.
+  await requireSolarisCapabilityServer("televote.ballots.read");
+
   let query = televotingAdmin
     .from("rounds")
     .select("id,name,edition_id,status,created_at")
