@@ -107,7 +107,7 @@ describe("S14 Grand Final failure evidence", () => {
     expect(server).toContain("if (!localHost) return false;");
   });
 
-  it("owns Vite outside Playwright and separates bootstrap, HTTP readiness, and app execution evidence", () => {
+  it("owns Vite outside Playwright and separates listener, HTTP readiness, bootstrap, and app execution evidence", () => {
     expect(grandFinalLeg).toContain('source "$S14_BROWSER_RUNTIME_DIR/v3-s14-browser-runtime.sh"');
     expect(grandFinalResults).toContain(
       'source "$S14_BROWSER_RUNTIME_DIR/v3-s14-browser-runtime.sh"',
@@ -122,11 +122,16 @@ describe("S14 Grand Final failure evidence", () => {
     expect(browserRuntime).toContain(
       'bun run dev --host 127.0.0.1 --port "$port" --strictPort',
     );
-    expect(browserRuntime).toContain('"$base_url/favicon.ico"');
+    expect(browserRuntime).toContain('ss -ltn 2>/dev/null');
+    expect(browserRuntime).toContain('"$base_url/"');
     expect(browserRuntime).toContain("Cookie: solaris_e2e_maintenance_bypass=1");
     expect(browserRuntime).toContain('E2E_BASE_URL="$base_url"');
+    expect(browserRuntime).toContain('bunx playwright test --list --config="$config"');
     expect(browserRuntime).toContain('tail -300 "$vite_log"');
     expect(browserRuntime).toContain('ss -ltnp 2>/dev/null | grep ":$port"');
+    expect(browserRuntime).toContain("Vite process started but port");
+    expect(browserRuntime).toContain("GET / never became HTTP-ready");
+    expect(browserRuntime).toContain("No StartEvent found in AsyncLocalStorage");
 
     expect(grandFinalLeg).toContain("grand-final-browser-bootstrap");
     expect(grandFinalLeg).toContain("grand-final-qualifier-bridge");
