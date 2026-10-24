@@ -7,6 +7,7 @@ function source(path: string) {
 }
 
 const rehearsal = source(".github/scripts/v3-s11-storage-byte-recovery-rehearsal.sh");
+const workflow = source(".github/workflows/v3-s11-storage-byte-recovery-rehearsal.yml");
 const runbook = source("docs/runbooks/storage-restore.md");
 
 describe("System V3 S11 Storage byte recovery contract", () => {
@@ -53,6 +54,23 @@ describe("System V3 S11 Storage byte recovery contract", () => {
     expect(rehearsal).toContain('"providerRtoClaim": False');
     expect(rehearsal).toContain('"certificationClaim": False');
     expect(rehearsal).toContain('"qaReviewRequired": True');
+  });
+
+  it("runs the real rehearsal only against isolated exact-head local Supabase", () => {
+    expect(workflow).toContain("pull_request:");
+    expect(workflow).toContain("Checkout exact source");
+    expect(workflow).toContain("github.event.pull_request.head.sha || github.sha");
+    expect(workflow).toContain("supabase/setup-cli@v1");
+    expect(workflow).toContain("version: 2.113.0");
+    expect(workflow).toContain("supabase start");
+    expect(workflow).toContain("bash .github/scripts/v3-s11-storage-byte-recovery-rehearsal.sh");
+    expect(workflow).toContain("V3_STORAGE_RECOVERY_EVIDENCE_SHA: ${{ steps.source.outputs.sha }}");
+    expect(workflow).toContain("storageApiDeleteVerified");
+    expect(workflow).toContain("providerRpoClaim");
+    expect(workflow).toContain("certificationClaim");
+    expect(workflow).toContain("supabase stop --no-backup");
+    expect(workflow).not.toContain("SUPABASE_ACCESS_TOKEN");
+    expect(workflow).not.toContain("project-ref");
   });
 
   it("keeps hosted provider recovery and combined full-service recovery open", () => {
