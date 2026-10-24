@@ -28,7 +28,7 @@ export const Route = createFileRoute('/_authenticated/admin/edition-simulator')(
   head: () => ({
     meta: [
       { title: 'Simulation Lab — Solaris Organizer' },
-      { name: 'robots', content: 'noindex' },
+      { name: 'robots', content: 'noindex, nofollow' },
     ],
   }),
   component: EditionSimulatorRoute,
@@ -103,8 +103,9 @@ function EditionSimulatorPage() {
   const [simulationError, setSimulationError] = useState<string | null>(null);
 
   const featureQuery = useQuery({
-    queryKey: ['studio2-feature', 'edition_simulator'],
-    queryFn: () => isStudio2FeatureEnabled('edition_simulator'),
+    queryKey: ['studio2-feature', 'edition_simulator', editionId ?? 'none'],
+    enabled: Boolean(editionId),
+    queryFn: () => isStudio2FeatureEnabled('edition_simulator', editionId),
     staleTime: 30_000,
   });
 
@@ -166,6 +167,18 @@ function EditionSimulatorPage() {
     }
   };
 
+  if (!editionId) {
+    return (
+      <SimulatorScaffold>
+        <AdminEmptyState
+          icon={FlaskConical}
+          title="Select an edition"
+          description="Simulation Lab starts from one explicitly selected Organizer edition. It will not probe a global rollout or substitute another edition."
+        />
+      </SimulatorScaffold>
+    );
+  }
+
   if (featureQuery.isLoading) {
     return (
       <SimulatorScaffold>
@@ -182,19 +195,7 @@ function EditionSimulatorPage() {
         <AdminEmptyState
           icon={FlaskConical}
           title="Simulation Lab is disabled"
-          description="Enable the Edition Simulator rollout flag before rehearsing edition operations."
-        />
-      </SimulatorScaffold>
-    );
-  }
-
-  if (!editionId) {
-    return (
-      <SimulatorScaffold>
-        <AdminEmptyState
-          icon={FlaskConical}
-          title="Select an edition"
-          description="Simulation Lab starts from one explicitly selected Organizer edition and never substitutes another edition."
+          description="Enable the Edition Simulator rollout flag for this edition before rehearsing edition operations."
         />
       </SimulatorScaffold>
     );

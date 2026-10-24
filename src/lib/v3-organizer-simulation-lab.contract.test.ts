@@ -24,6 +24,16 @@ describe("V3 Organizer Simulation Lab", () => {
     expect(route).toContain("enabled: featureQuery.data === true && Boolean(editionId)");
   });
 
+  it("fails closed before rollout resolution without an exact Organizer edition", () => {
+    expect(route).toContain("queryKey: ['studio2-feature', 'edition_simulator', editionId ?? 'none']");
+    expect(route).toContain('enabled: Boolean(editionId)');
+    expect(route).toContain("isStudio2FeatureEnabled('edition_simulator', editionId)");
+    expect(route).toContain('if (!editionId)');
+    expect(route).toContain('title="Select an edition"');
+    expect(route).toContain('will not probe a global rollout or substitute another edition');
+    expect(route).not.toContain("isStudio2FeatureEnabled('edition_simulator')");
+  });
+
   it("takes one read snapshot and prevents automatic production refresh from replacing rehearsal state", () => {
     expect(route).toContain('getControlRoomModel');
     expect(route).toContain("queryKey: ['studio2-simulator-source', editionId ?? 'none']");
@@ -61,6 +71,10 @@ describe("V3 Organizer Simulation Lab", () => {
     expect(route).not.toContain('.update(');
     expect(route).not.toContain('.delete(');
     expect(route).not.toContain('.rpc(');
+  });
+
+  it("keeps the authenticated simulation surface out of crawler discovery", () => {
+    expect(route).toContain("{ name: 'robots', content: 'noindex, nofollow' }");
   });
 
   it("remains visibly discoverable from More", () => {
