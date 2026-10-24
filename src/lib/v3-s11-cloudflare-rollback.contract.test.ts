@@ -64,6 +64,38 @@ describe("System V3 S11 Cloudflare deployment rollback rehearsal", () => {
     expect(rehearsal).toContain("Cloudflare rollback converged to exact known-good version");
   });
 
+  it("retains the complete artifact-digest set required by the validator", () => {
+    for (const artifact of [
+      "CONFIG",
+      "BASELINE_DEPLOY_OUTPUT",
+      "BASELINE_RUNTIME",
+      "DEFECTIVE_UPLOAD_OUTPUT",
+      "DEFECTIVE_DEPLOY_OUTPUT",
+      "DEFECTIVE_RUNTIME",
+      "PRE_ROLLBACK_DEPLOYMENTS",
+      "ROLLBACK_COMMAND_OUTPUT",
+      "POST_ROLLBACK_DEPLOYMENTS",
+      "ROLLBACK_RUNTIME",
+    ]) {
+      expect(rehearsal).toContain(`$(sha256_file "$${artifact}")`);
+    }
+
+    for (const key of [
+      "fixtureConfig",
+      "baselineDeploy",
+      "baselineRuntime",
+      "defectiveUpload",
+      "defectiveDeploy",
+      "defectiveRuntime",
+      "preRollbackDeployments",
+      "rollbackCommandOutput",
+      "postRollbackDeployments",
+      "rollbackRuntime",
+    ]) {
+      expect(rehearsal).toContain(`"${key}":`);
+    }
+  });
+
   it("retains exact-SHA evidence without claiming data or full-service recovery", () => {
     expect(rehearsal).toContain('COMMIT_SHA="$(git rev-parse HEAD)"');
     expect(rehearsal).toContain("dirty working tree");
