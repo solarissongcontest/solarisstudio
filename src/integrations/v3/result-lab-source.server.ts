@@ -1,14 +1,14 @@
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
+import { loadV3PublishedResultSnapshot } from "@/integrations/v3/public-result-snapshot.server";
 import type {
   Country,
   Edition,
   JuryVote,
-  ResultRow,
   Show,
   Voter,
 } from "@/lib/data";
 import { matchVoterKey, resolveShowVoters } from "@/lib/data";
-import { entityDisplayMap, entityKeyOf, type ContestEntityRow } from "@/lib/entities";
+import { entityDisplayMap, type ContestEntityRow } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 import type { ResultLabJuryVote, ResultLabOfficialEntry } from "@/lib/result-lab";
 import type {
@@ -21,8 +21,6 @@ import type {
 const EDITION_COLUMNS = "id,edition_number,name,slug,published";
 const SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,publication_config";
-const RESULT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 const JURY_COLUMNS =
   "id,edition_id,show_id,voter_country_id,voter_id,voter_entity_id,receiving_country_id,receiving_entity_id,points";
 const ENTITY_COLUMNS =
@@ -88,31 +86,33 @@ function parseParticipantStates(value: unknown): PublicParticipantState[] {
   });
 }
 
-function competingRows(
-  rows: readonly ResultRow[],
-  participants: readonly PublicParticipantState[],
-) {
-  const excluded = new Set(
-    participants
-      .filter(
-        (participant) =>
-          participant.participation_status === "withdrawn" ||
-          participant.participation_status === "disqualified",
-      )
-      .map(
-        (participant) =>
-          `${participant.edition_id}:${participant.country_id}`,
-      ),
-  );
-  return rows.filter(
-    (row) => !excluded.has(`${row.edition_id}:${row.country_id}`),
-  );
+function emptyBundle(
+  edition: Pick<Edition, "slug" | "edition_number" | "name"> | null,
+  options: V3ResultLabShowOption[],
+  selectedShowId: string | null,
+): V3ResultLabBundle {
+  return {
+    rolloutEditionSlug: edition?.slug ?? null,
+    shell: {
+      editionLabel: editionLabel(edition),
+      phaseLabel: "Result Lab",
+    },
+    options,
+    selectedShowId,
+    detailedVotingPublic: false,
+    officialEntries: [],
+    juryVotes: [],
+    voters: [],
+    identities: [],
+    generatedAt: new Date().toISOString(),
+  };
 }
 
 /**
  * Server-owned official input projection for Result Lab.
  *
- * The returned data is immutable public truth. Scenario configuration remains a
+ * The returned official score rows come only from the exact immutable Result
+ * version selected by canonical Publication. Scenario configuration remains a
  * browser-only concern and is never sent back as a result mutation.
  */
 export async function loadV3ResultLabBundle(
@@ -130,18 +130,7 @@ export async function loadV3ResultLabBundle(
   const editions = (editionsResult.data ?? []) as Edition[];
   const latestEdition = editions[0] ?? null;
   if (!editions.length) {
-    return {
-      rolloutEditionSlug: null,
-      shell: { editionLabel: "Solaris Studio", phaseLabel: "Result Lab" },
-      options: [],
-      selectedShowId: null,
-      detailedVotingPublic: false,
-      officialEntries: [],
-      juryVotes: [],
-      voters: [],
-      identities: [],
-      generatedAt: new Date().toISOString(),
-    };
+    return emptyBundle(null, [], null);
   }
 
   const editionMap = new Map(editions.map((edition) => [edition.id, edition]));
@@ -200,69 +189,48 @@ export async function loadV3ResultLabBundle(
     : latestEdition;
 
   if (!selectedShow || !selectedEdition) {
-    return {
-      rolloutEditionSlug: selectedEdition?.slug ?? null,
-      shell: {
-        editionLabel: editionLabel(selectedEdition),
-        phaseLabel: "Result Lab",
-      },
-      options,
-      selectedShowId: null,
-      detailedVotingPublic: false,
-      officialEntries: [],
-      juryVotes: [],
-      voters: [],
-      identities: [],
-      generatedAt: new Date().toISOString(),
-    };
+    return emptyBundle(selectedEdition, options, null);
   }
 
-  const publication = resolveShowPublication(selectedShow);
-  const detailedVotingPublic = publication.detailed_voting === true;
+  const snapshot = await loadV3PublishedResultSnapshot(selectedShow.id);
+  if (!snapshot) {
+    return emptyBundle(selectedEdition, options, selectedShow.id);
+  }
+  if (snapshot.edition.id !== selectedEdition.id) {
+    throw new Error("Canonical published Result snapshot escaped the selected Edition scope");
+  }
+  if (!snapshot.availability.jury || !snapshot.availability.televote) {
+    return emptyBundle(selectedEdition, options, selectedShow.id);
+  }
 
-  const [resultsResult, entitiesResult, countriesResult, participantsResult] =
-    await Promise.all([
-      client
-        .from("results")
-        .select(RESULT_COLUMNS)
-        .eq("show_id", selectedShow.id)
-        .not("final_rank", "is", null)
-        .order("final_rank", { ascending: true }),
-      client
-        .from("contest_entities")
-        .select(ENTITY_COLUMNS)
-        .eq("edition_id", selectedEdition.id),
-      client.from("countries").select(COUNTRY_COLUMNS),
-      client.rpc("public_safe_participants", {
-        _edition_id: selectedEdition.id,
-        _show_id: selectedShow.id,
-      }),
-    ]);
+  const [entitiesResult, countriesResult] = await Promise.all([
+    client
+      .from("contest_entities")
+      .select(ENTITY_COLUMNS)
+      .eq("edition_id", selectedEdition.id),
+    client.from("countries").select(COUNTRY_COLUMNS),
+  ]);
 
-  throwIfError(resultsResult.error, "Could not load published Result Lab result");
   throwIfError(entitiesResult.error, "Could not load public Result Lab identities");
   throwIfError(countriesResult.error, "Could not load public Result Lab countries");
-  throwIfError(participantsResult.error, "Could not load public Result Lab participants");
 
-  const participantStates = parseParticipantStates(participantsResult.data);
-  const rows = competingRows(
-    (resultsResult.data ?? []) as ResultRow[],
-    participantStates,
-  );
   const entities = (entitiesResult.data ?? []) as ContestEntityRow[];
   const countries = (countriesResult.data ?? []) as Country[];
   const displayMap = entityDisplayMap(entities, countries);
 
-  const officialEntries: ResultLabOfficialEntry[] = rows.flatMap((row) => {
-    const id = entityKeyOf(row);
+  const officialEntries: ResultLabOfficialEntry[] = snapshot.rows.flatMap((row) => {
+    const id = row.contestEntityId ?? row.countryId ?? "";
     const display = displayMap.get(id);
     if (!display) return [];
+    if (row.juryPoints == null || row.televotePoints == null) {
+      throw new Error("Canonical published Result snapshot is missing public split points");
+    }
     return [{
       id,
       name: display.name,
-      juryPoints: row.jury_points,
-      televotePoints: row.televote_points,
-      officialRank: row.final_rank,
+      juryPoints: row.juryPoints,
+      televotePoints: row.televotePoints,
+      officialRank: row.finalRank,
     }];
   });
 
@@ -278,20 +246,27 @@ export async function loadV3ResultLabBundle(
     }];
   });
 
+  const detailedVotingPublic = snapshot.availability.detailedVoting;
   let juryVotes: ResultLabJuryVote[] = [];
   let voters: V3ResultLabVoter[] = [];
 
   if (detailedVotingPublic) {
-    const [juryResult, votersResult] = await Promise.all([
+    const [participantsResult, juryResult, votersResult] = await Promise.all([
+      client.rpc("public_safe_participants", {
+        _edition_id: selectedEdition.id,
+        _show_id: selectedShow.id,
+      }),
       client
         .from("jury_votes")
         .select(JURY_COLUMNS)
         .eq("show_id", selectedShow.id),
       client.from("voters").select("*").eq("show_id", selectedShow.id),
     ]);
+    throwIfError(participantsResult.error, "Could not load public Result Lab participants");
     throwIfError(juryResult.error, "Could not load published Result Lab jury ballots");
     throwIfError(votersResult.error, "Could not load public Result Lab voters");
 
+    const participantStates = parseParticipantStates(participantsResult.data);
     const rawJuryVotes = (juryResult.data ?? []) as JuryVote[];
     const rawVoters = (votersResult.data ?? []) as Voter[];
     const participantIds = participantStates.map((participant) => participant.country_id);
