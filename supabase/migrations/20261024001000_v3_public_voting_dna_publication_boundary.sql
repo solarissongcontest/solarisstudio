@@ -5,16 +5,60 @@ begin;
 --
 -- The legacy public_country_voting_dna(uuid) aggregate admits a result row when
 -- generic Results are public and then serializes jury_points + televote_points
--- together. That allows split layers to cross the Public API boundary before
--- their own publication flags are enabled. V3 receives a new bounded projection
--- rather than mutating the legacy compatibility RPC in place.
+-- together. More importantly, public.results itself has historically been
+-- row-readable once generic Results are public. RLS cannot redact individual
+-- columns, so leaving that policy unchanged would let callers bypass any safe
+-- projection and request hidden split-point columns directly.
+--
+-- This migration therefore does two things together:
+--   1. fail closed for legacy/direct public.results reads until all split-result
+--      layers are public, while preserving capability-gated Organizer reads;
+--   2. expose a bounded SECURITY DEFINER projection that can still publish
+--      generic rank/total earlier, but only after explicit per-layer checks and
+--      with hidden Jury/Televote values serialized as null.
 select public.v3_register_migration_contract(
   'v3.results.public-voting-dna-publication-boundary-v1',
   1,
   'forward_fix_only',
   false,
   null,
-  'Adds the V3 Public Voting DNA projection with independently gated Jury and Televote result layers while preserving the legacy RPC for older clients'
+  'Adds the V3 Public Voting DNA projection with independently gated Jury and Televote result layers and fails legacy direct Result reads closed while split layers are withheld'
+);
+
+-- A public.results row contains generic + Jury + Televote fields. PostgreSQL
+-- row policies cannot hide selected columns, so a row must not cross the raw
+-- table boundary while either split layer is intentionally private. New V3
+-- Public consumers use bounded projections for independently publishable data.
+-- Authorized Organizer preview/verification remains unchanged.
+drop policy if exists "solaris consolidated anon read" on public.results;
+create policy "solaris consolidated anon read"
+on public.results
+for select
+to anon
+using (
+  (
+    show_id is not null
+    and public.show_publication_enabled(show_id, 'results')
+    and public.show_publication_enabled(show_id, 'jury_results')
+    and public.show_publication_enabled(show_id, 'televote_results')
+  )
+  or public.studio2_access_allowed('results.preview', edition_id, false)
+);
+
+drop policy if exists "solaris consolidated authenticated read" on public.results;
+create policy "solaris consolidated authenticated read"
+on public.results
+for select
+to authenticated
+using (
+  public.studio2_access_allowed('results.verify', edition_id, true)
+  or public.studio2_access_allowed('results.preview', edition_id, false)
+  or (
+    show_id is not null
+    and public.show_publication_enabled(show_id, 'results')
+    and public.show_publication_enabled(show_id, 'jury_results')
+    and public.show_publication_enabled(show_id, 'televote_results')
+  )
 );
 
 create or replace function public.v3_public_country_voting_dna(
@@ -23,7 +67,7 @@ create or replace function public.v3_public_country_voting_dna(
 returns jsonb
 language sql
 stable
-security invoker
+security definer
 set search_path = ''
 as $function$
   with detailed_votes as (
@@ -209,6 +253,6 @@ revoke all on function public.v3_public_country_voting_dna(uuid) from public;
 grant execute on function public.v3_public_country_voting_dna(uuid) to anon, authenticated, service_role;
 
 comment on function public.v3_public_country_voting_dna(uuid) is
-  'V3 bounded Public Country Voting DNA projection. Generic Results control rank/total visibility; Jury and Televote point layers are independently gated and serialize as null until their own publication policy is public.';
+  'V3 bounded Public Country Voting DNA projection. SECURITY DEFINER is required because direct public.results reads fail closed while split layers are hidden; the function independently enforces generic Results, Jury, Televote and detailed-voting publication policy before serializing data.';
 
 commit;
