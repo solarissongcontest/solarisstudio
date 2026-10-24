@@ -19,12 +19,14 @@ const screen = readFileSync(
 const route = readFileSync(new URL("../routes/results/index.tsx", import.meta.url), "utf8");
 
 describe("V3 Results root source contract", () => {
-  it("uses the public server boundary and publication gates", () => {
+  it("uses the public server boundary and immutable publication authority", () => {
     expect(source).toContain("createConfirmationPublicRuntimeClient");
+    expect(source).toContain("loadV3PublishedResultSnapshot");
     expect(source).toContain('.eq("published", true)');
     expect(source).toContain('.in("kind", ["grand-final", "final"])');
     expect(source).toContain("resolveShowPublication(show).results");
     expect(source).toContain("isShowPublic(show)");
+    expect(source).not.toContain('.from("results")');
   });
 
   it("treats browser show selection only as a server-revalidated nomination", () => {
@@ -38,11 +40,10 @@ describe("V3 Results root source contract", () => {
   });
 
   it("scopes larger reads to exactly the selected public result edition and show", () => {
-    expect(source).toContain('.eq("show_id", selectedShow.id)');
-    expect(source).toContain('client.rpc("public_safe_participants"');
-    expect(source).toContain("_edition_id: selectedEdition.id");
+    expect(source).toContain("loadV3PublishedResultSnapshot(selectedShow.id)");
     expect(source).toContain('.eq("edition_id", selectedEdition.id)');
     expect(source).toContain('.in("id", [...countryIds])');
+    expect(source).not.toContain('client.rpc("public_safe_participants"');
     expect(source).not.toContain("useAllResults");
     expect(source).not.toContain("useAllParticipants");
     expect(source).not.toContain("localStorage");
@@ -50,13 +51,37 @@ describe("V3 Results root source contract", () => {
 
   it("retains canonical country identity separately from historical display identity", () => {
     expect(source).toContain("countryId: display.id");
-    expect(source).toContain("canonicalCountryId: row.country_id");
+    expect(source).toContain("canonicalCountryId: row.countryId");
+    expect(source).toContain(
+      'const identityId = row.contestEntityId ?? row.countryId ?? ""',
+    );
   });
 
-  it("filters withdrawn and disqualified identities without deleting stored results", () => {
-    expect(source).toContain('participant.participation_status === "withdrawn"');
-    expect(source).toContain('participant.participation_status === "disqualified"');
-    expect(source).toContain("filterNonCompetingRows");
+  it("does not let current participant state rewrite immutable published history", () => {
+    expect(source).not.toContain('participant.participation_status === "withdrawn"');
+    expect(source).not.toContain('participant.participation_status === "disqualified"');
+    expect(source).not.toContain("filterNonCompetingRows");
+    expect(source).not.toContain("parseParticipantStates");
+    expect(source).not.toContain("public_safe_participants");
+  });
+
+  it("derives public split visibility and official scores from the immutable snapshot", () => {
+    expect(source).toContain("points: row.totalPoints");
+    expect(source).toContain("rank: row.finalRank");
+    expect(source).toContain("snapshot.availability.jury");
+    expect(source).toContain("snapshot.availability.televote");
+    expect(source).toContain("juryPublished: snapshot.availability.jury");
+    expect(source).toContain("televotePublished: snapshot.availability.televote");
+    expect(source).toContain(
+      "Canonical published Result snapshot escaped the selected Edition scope",
+    );
+  });
+
+  it("fails closed without mutable fallback when immutable publication evidence is missing", () => {
+    expect(source).toContain("if (!snapshot)");
+    expect(source).toContain("input: emptyInput(selectedEdition, selectedShow)");
+    expect(source).not.toContain("RESULT_COLUMNS");
+    expect(source).not.toContain("ResultRow");
   });
 
   it("keeps historical result queries bounded and non-polling", () => {
