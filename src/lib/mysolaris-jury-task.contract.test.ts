@@ -20,10 +20,13 @@ describe("shared participant jury task truth", () => {
 
   it("shows the official jury window state on the Voting page", () => {
     expect(voting).toContain("loadCountryJuryVotingState");
+    expect(voting).toContain("resolveScheduleState");
     expect(voting).toContain("const juryWindowOpen: boolean | null");
-    expect(voting).toContain('canonicalJuryState.status === "open"');
-    expect(voting).toContain("Voting is closed");
-    expect(voting).toContain("Open · ready to submit");
+    expect(voting).toContain(
+      'juryScheduleState === "open" || juryScheduleState === "closing-soon"',
+    );
+    expect(voting).toContain('"Closed · not submitted"');
+    expect(voting).toContain('"Open · not submitted"');
   });
 
   it("feeds the open jury task into the canonical Participation OS", () => {
