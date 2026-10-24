@@ -73,7 +73,7 @@ describe("Organizer Televote round-entry authorization", () => {
   it("keeps the existing closed-round safety gate after authorization", () => {
     expect(server).toContain('if (round.status === "open")');
     expect(server).toContain("Close the round before changing its participants");
-    expect(server.match(/await assertEditableRound\(data\.roundId\)/g)).toHaveLength(4);
+    expect(server.match(/await assertEditableRound\(data\.roundId\)/g)).toHaveLength(5);
   });
 
   it("matches existing route and raw-table Permission Engine ownership", () => {
