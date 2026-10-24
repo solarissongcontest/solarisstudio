@@ -7,8 +7,15 @@ const envExample = readFileSync(".env.example", "utf8");
 const gitignore = readFileSync(".gitignore", "utf8");
 const guardedClientSources = [
   "src/integrations/supabase/client.ts",
+  "src/integrations/supabase/client.server.ts",
+  "src/integrations/supabase/organizer.server.ts",
+  "src/integrations/supabase/auth-middleware.ts",
   "src/integrations/televoting/client.ts",
+  "src/integrations/televoting/public.server.ts",
+  "src/integrations/confirmations/public-runtime.server.ts",
   "src/lib/integrity-portal.ts",
+  "src/lib/integrity.functions.ts",
+  "src/routes/sitemap[.]xml.ts",
 ] as const;
 
 function trackedRootEnv() {
