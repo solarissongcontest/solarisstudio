@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { CountryCard } from "@/components/broadcast/CountryCard";
+import { PublicDataState } from "@/components/public/PublicDataState";
 import { V3ScoreboardPresentation } from "@/components/v3/V3ScoreboardPresentation";
 import type { Country, Participant } from "@/lib/data";
 import type { Standing } from "@/lib/analysis";
@@ -16,6 +17,7 @@ import {
 import type { ThemeConfig } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import { useV3ScoreboardBundle } from "@/lib/v3-scoreboard-runtime";
 
 type EditionPublicStyle = "cinematic" | "editorial" | "minimal" | "glass";
 
@@ -50,11 +52,21 @@ export function ScoreboardStage({
   const rows = standings.slice(0, standings.length);
   const [editionStyle, setEditionStyle] = useState<EditionPublicStyle | null>(null);
   const { isAppMode, platformResolved } = useSolarisApp();
-  const isPublicShowRoute =
-    typeof window !== "undefined" && /^\/shows\/[^/]+\/?$/.test(window.location.pathname);
+  const showRouteMatch =
+    typeof window !== "undefined"
+      ? /^\/shows\/([^/]+)\/?$/.exec(window.location.pathname)
+      : null;
+  const publicShowId = showRouteMatch?.[1] ?? null;
+  const isPublicShowRoute = publicShowId !== null;
   const rollout = useV3RolloutProbe(
     platformResolved && isAppMode && isPublicShowRoute,
   );
+  const v3ScoreboardEnabled =
+    platformResolved &&
+    isAppMode &&
+    isPublicShowRoute &&
+    rollout.data?.scoreboardEnabled === true;
+  const v3Scoreboard = useV3ScoreboardBundle(publicShowId, v3ScoreboardEnabled);
 
   useEffect(() => {
     const read = () => {
@@ -71,6 +83,53 @@ export function ScoreboardStage({
     observer.observe(document.body, { attributes: true, attributeFilter: ["data-edition-public-style"] });
     return () => observer.disconnect();
   }, []);
+
+  if (v3ScoreboardEnabled) {
+    if (v3Scoreboard.isPending) {
+      return (
+        <PublicDataState
+          kind="loading"
+          title="Loading official scoreboard…"
+          description="Checking the published Result Version for this show."
+          compact
+        />
+      );
+    }
+
+    if (v3Scoreboard.isError) {
+      return (
+        <PublicDataState
+          kind="error"
+          title="Official scoreboard unavailable"
+          description="Solaris could not verify the published Result Version. The app will not substitute mutable archive rows."
+          action={(
+            <button
+              type="button"
+              className="rounded-xl border border-border px-3 py-2 text-xs font-semibold"
+              onClick={() => void v3Scoreboard.refetch()}
+            >
+              Retry
+            </button>
+          )}
+          compact
+        />
+      );
+    }
+
+    const bundle = v3Scoreboard.data;
+    const v3Countries = new Map(
+      (bundle?.countries ?? []).map((country) => [country.id, country]),
+    );
+
+    return (
+      <V3ScoreboardPresentation
+        standings={bundle?.standings ?? []}
+        countries={v3Countries}
+        participants={participants}
+        qualifiers={qualifiers}
+      />
+    );
+  }
 
   const baseResolved =
     theme.scoreboardConfig ??
@@ -130,17 +189,6 @@ export function ScoreboardStage({
       topPoints: gain === topAward && topAward > 0,
     } as BroadcastRowData;
   });
-
-  if (isPublicShowRoute && isAppMode && rollout.data?.scoreboardEnabled === true) {
-    return (
-      <V3ScoreboardPresentation
-        standings={rows}
-        countries={countries}
-        participants={participants}
-        qualifiers={qualifiers}
-      />
-    );
-  }
 
   const perColumn = Math.ceil(broadcastRows.length / columns);
   const columnRows = Array.from({ length: columns }, (_, columnIndex) =>
