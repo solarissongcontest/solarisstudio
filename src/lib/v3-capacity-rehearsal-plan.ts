@@ -119,6 +119,7 @@ function validRelativeTargetPath(value: unknown): string | null {
   if (!normalized.startsWith("/") || normalized.startsWith("//")) return null;
   if (normalized.includes("://") || normalized.includes("\\")) return null;
   if (normalized.includes("?") || normalized.includes("#")) return null;
+  if (normalized.includes("%")) return null;
   if (/\s/.test(normalized)) return null;
 
   const segments = normalized.split("/");
