@@ -28,10 +28,20 @@ describe("V3 Edition published-outcome hierarchy", () => {
     expect(source).toContain("navigationSections.map");
   });
 
-  it("keeps fallback outcome ordering owned by the canonical published result source", () => {
-    expect(serverSource).toContain('.not("final_rank", "is", null)');
-    expect(serverSource).toContain('.order("final_rank", { ascending: true })');
+  it("keeps fallback outcome ordering owned by the immutable published result source", () => {
+    expect(serverSource).toContain("loadV3PublishedResultSnapshot(resultShow.id)");
+    expect(serverSource).toContain("const resultRows = resultSnapshot?.rows ?? []");
+    expect(serverSource).toContain(".sort((a, b) => a.finalRank - b.finalRank)");
+    expect(serverSource).not.toContain('.from("results")');
     expect(source).not.toMatch(/\.sort\([^)]*rank|final_rank/);
+  });
+
+  it("fails closed when publication metadata has no immutable Result version", () => {
+    expect(serverSource).toContain("const resultsPublished = resultSnapshot !== null");
+    expect(serverSource).toContain('resultsPublication: resultsPublished ? "published" : "hidden"');
+    expect(serverSource).toContain(
+      "resultShow && resultsPublished ? `/shows/${resultShow.id}?from=results` : null",
+    );
   });
 
   it("uses the existing canonical result destination and avoids duplicate outcome actions", () => {
