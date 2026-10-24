@@ -16,8 +16,9 @@ describe("Public V3 exact published Result consumer", () => {
     expect(source).not.toContain("service_role");
   });
 
-  it("accepts only one bounded Show identity from the browser", () => {
+  it("accepts only one bounded Show identity from the browser and binds the response to it", () => {
     const fn = read("src/lib/v3-public-result-snapshot.functions.ts");
+    const source = read("src/integrations/v3/public-result-snapshot.server.ts");
 
     expect(fn).toContain("showId: z.string().uuid()");
     expect(fn).toContain(".strict()");
@@ -25,6 +26,8 @@ describe("Public V3 exact published Result consumer", () => {
     expect(fn).not.toContain("publicationVersion");
     expect(fn).not.toContain("resultVersion:");
     expect(fn).not.toContain("rows:");
+    expect(source).toContain("snapshot.show.id !== showId");
+    expect(source).toContain("escaped the requested Show scope");
   });
 
   it("keeps hidden, stale and historically unversioned Results fail-closed", () => {
