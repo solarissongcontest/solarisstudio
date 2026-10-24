@@ -60,7 +60,7 @@ describe("CI egress safety contracts", () => {
     const qualifierRuntime = source("e2e/v3-s14-grand-final-runtime.e2e.ts");
     const resultsRuntime = source("e2e/v3-s14-grand-final-results-runtime.e2e.ts");
     expect(qualifierRuntime).toContain("S14 grand-final browser refuses non-local Supabase URL");
-    expect(resultsRuntime).toContain("S14 Grand Final Results refuses non-local Supabase URL");
+    expect(resultsRuntime).toContain("S14 Grand Final results browser refuses non-local Supabase URL");
   });
 
   it("keeps normal Quality CI pinned to loopback Supabase values", () => {
