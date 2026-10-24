@@ -72,4 +72,11 @@ describe("V3 Organizer current-edition Broadcast building evidence", () => {
     expect(route).toContain("participantCountByShow.get(show.id)");
     expect(route).toContain("committed together by one atomic server operation");
   });
+
+  it("surfaces the authoritative receipt on the post-operation success state", () => {
+    expect(route).toContain("const receiptId = result.receiptId ?? result.operationId");
+    expect(route).toContain("Receipt ${receiptId}.");
+    expect(adapter).toContain("receiptId:");
+    expect(adapter).toContain("operationId:");
+  });
 });
