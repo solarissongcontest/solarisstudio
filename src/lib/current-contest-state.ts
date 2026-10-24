@@ -32,6 +32,16 @@ export type PublicContestState = {
   primaryAction: PublicContestAction | null;
 };
 
+/**
+ * Public contest-state projection only needs identity and placement evidence.
+ * Keeping this structural type narrow prevents callers from depending on Jury,
+ * Televote or other split-result fields merely to decide whether Results exist.
+ */
+export type PublicResultStateEvidence = Pick<
+  ResultRow,
+  "edition_id" | "show_id" | "final_rank"
+>;
+
 const LIVE_SHOW_STATUSES = new Set(["live", "on_air", "on-air", "in_progress", "in-progress"]);
 
 function editionNumber(edition: Edition) {
@@ -65,7 +75,7 @@ function exactLiveShow(shows: readonly Show[]) {
 function finalResultPublished(
   edition: Edition,
   shows: readonly Show[],
-  results: readonly ResultRow[],
+  results: readonly PublicResultStateEvidence[],
 ) {
   const finalShowIds = new Set(
     shows
@@ -226,7 +236,7 @@ export function resolvePublicEditionState({
 }: {
   edition: Edition;
   shows: readonly Show[];
-  results: readonly ResultRow[];
+  results: readonly PublicResultStateEvidence[];
 }): PublicContestState {
   const lifecycle = normalizeLegacyEditionStatus(edition.status);
   const editionShows = shows.filter((show) => show.edition_id === edition.id);
@@ -254,7 +264,7 @@ export function resolvePublicContestState({
 }: {
   editions: readonly Edition[];
   shows: readonly Show[];
-  results: readonly ResultRow[];
+  results: readonly PublicResultStateEvidence[];
 }): PublicContestState {
   const edition = resolveCurrentPublicEdition(editions);
 

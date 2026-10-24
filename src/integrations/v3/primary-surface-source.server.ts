@@ -1,13 +1,14 @@
 import { getRequestHeader } from "@tanstack/react-start/server";
 
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
+import { loadV3PublishedResultSnapshot } from "@/integrations/v3/public-result-snapshot.server";
 import { createSolarisAuthenticatedClientServer } from "@/integrations/supabase/organizer.server";
 import type {
   CountryConfirmationAccess,
   CountryConfirmationRequirement,
 } from "@/lib/confirmation-country-account";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
-import type { Edition, ResultRow, Show } from "@/lib/data";
+import type { Edition, Show } from "@/lib/data";
 import {
   tasksFromHodWorkspace,
   type SolarisTask,
@@ -42,8 +43,6 @@ const EDITION_COLUMNS =
   "id,edition_number,name,year,slug,description,host_country_id,host_city,logo,theme_id,status,published";
 const SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,publication_config";
-const RESULT_COLUMNS =
-  "id,edition_id,show_id,country_id,final_rank,jury_points,televote_points,total_points";
 const PARTICIPANT_IDENTITY_COLUMNS = "country_id,contest_entity_id";
 
 type RpcResult = {
@@ -218,6 +217,32 @@ async function loadDelegationCount(client: AnyClient, editionId: string | null) 
   );
 }
 
+async function loadPublishedResultEvidence(
+  shows: readonly Show[],
+  editionId: string | null,
+) {
+  if (!editionId) return [];
+
+  const publicShows = shows.filter(
+    (show) => show.edition_id === editionId && show.published,
+  );
+  const snapshots = await Promise.all(
+    publicShows.map((show) => loadV3PublishedResultSnapshot(show.id)),
+  );
+
+  return snapshots.flatMap((snapshot) => {
+    if (!snapshot) return [];
+    if (snapshot.edition.id !== editionId) {
+      throw new Error("Published Result snapshot escaped the requested edition.");
+    }
+    return snapshot.rows.map((row) => ({
+      edition_id: snapshot.edition.id,
+      show_id: snapshot.show.id,
+      final_rank: row.finalRank,
+    }));
+  });
+}
+
 async function loadHodTasks(input: {
   client: AnyClient;
   editionId: string | null;
@@ -363,28 +388,21 @@ async function loadSnapshotForRequest(input: {
   }
   const editionId = selectedEdition?.id ?? null;
 
-  const [showsResult, resultsResult, participantCount, publicTelevote] = editionId
+  const [showsResult, participantCount, publicTelevote] = editionId
     ? await Promise.all([
         publicClient
           .from("shows")
           .select(SHOW_COLUMNS)
           .eq("edition_id", editionId)
           .order("sort_order", { ascending: true }),
-        publicClient
-          .from("results")
-          .select(RESULT_COLUMNS)
-          .eq("edition_id", editionId),
         loadDelegationCount(publicClient, editionId),
         loadOpenPublicTelevote(publicClient),
       ])
-    : [
-        { data: [], error: null },
-        { data: [], error: null },
-        0,
-        null,
-      ];
+    : [{ data: [], error: null }, 0, null];
   throwIfError(showsResult.error, "Could not load current-edition shows");
-  throwIfError(resultsResult.error, "Could not load current-edition results");
+
+  const shows = (showsResult.data ?? []) as Show[];
+  const resultEvidence = await loadPublishedResultEvidence(shows, editionId);
 
   const participant = viewer
     ? await loadParticipantEvidence({
@@ -411,8 +429,8 @@ async function loadSnapshotForRequest(input: {
     generatedAt,
     targetEditionId: editionId,
     editions,
-    shows: (showsResult.data ?? []) as Show[],
-    results: (resultsResult.data ?? []) as ResultRow[],
+    shows,
+    results: resultEvidence,
     participantCount,
     viewer: viewer ? { id: viewer.id, displayName: viewer.displayName } : null,
     delegation: participant.delegation,
