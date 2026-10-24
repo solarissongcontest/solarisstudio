@@ -21,6 +21,13 @@ describe("Organizer QA evidence export safety", () => {
     expect(page).not.toContain('from("admin_beta_test_submissions" as never)\n        .select("*")');
   });
 
+  it("batches screenshot URL signing instead of issuing one Storage request per image", () => {
+    expect(page).toContain("createSignedUrls(paths, 60 * 60)");
+    expect(page).toContain("if (!paths.length)");
+    expect(page).not.toContain("createSignedUrl(path, 60 * 60)");
+    expect(page).not.toContain("paths.map(async (path)");
+  });
+
   it("does not mistake safety hardening for deterministic exact-SHA certification", () => {
     expect(registry).toContain('"workspace-beta-coverage": "restrict"');
     expect(registry).toContain('id === "workspace-beta-coverage"');
