@@ -9,7 +9,7 @@ import {
   ShieldEllipsis,
   UserRoundCog,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AccessSimulationPanel } from "@/components/admin/AccessSimulationPanel";
@@ -24,6 +24,8 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { WorkspaceTabs } from "@/components/admin/AdminWorkspacePrimitives";
+import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
+import { editionLabel as formatEditionLabel, useEditions } from "@/lib/data";
 import {
   applyPermissionChange,
   approvePermissionChangeApproval,
@@ -89,6 +91,8 @@ type PendingAccessChange = {
   preview: PermissionChangePreview;
   operationId: string;
   idempotencyKey: string;
+  reviewContextEditionId: string | null;
+  scopeLabel: string;
 };
 
 const TABS: Array<{ id: AccessTab; label: string }> = [
@@ -102,6 +106,17 @@ const TABS: Array<{ id: AccessTab; label: string }> = [
 function AccessPermissionsPage() {
   const queryClient = useQueryClient();
   const { editionId } = useAdminContext();
+  const editionsQuery = useEditions();
+  const organizerEdition = selectOrganizerEdition(editionsQuery.data ?? [], editionId);
+  const resolvedEditionId = editionId && organizerEdition ? organizerEdition.id : "";
+  const organizerEditionLabel = organizerEdition ? formatEditionLabel(organizerEdition) : null;
+  const editionLabels = useMemo(
+    () =>
+      new Map(
+        (editionsQuery.data ?? []).map((edition) => [edition.id, formatEditionLabel(edition)] as const),
+      ),
+    [editionsQuery.data],
+  );
   const [tab, setTab] = useState<AccessTab>("users");
   const [search, setSearch] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -115,6 +130,7 @@ function AccessPermissionsPage() {
   const [approvalAction, setApprovalAction] = useState<{
     approval: PermissionChangeApproval;
     mode: "approve" | "apply";
+    reviewContextEditionId: string | null;
   } | null>(null);
   const [approvalPassword, setApprovalPassword] = useState("");
 
@@ -141,16 +157,21 @@ function AccessPermissionsPage() {
     refetchIntervalInBackground: false,
   });
   useQuery({
-    queryKey: ["permission-engine-evaluation", "permissions.read", editionId],
+    queryKey: [
+      "permission-engine-evaluation",
+      "permissions.read",
+      editionId ? (resolvedEditionId || "unverified") : "global",
+    ],
     queryFn: async () => {
       await recordPermissionEvaluation({
         capability: "permissions.read",
-        editionId: editionId || null,
+        editionId: resolvedEditionId || null,
         action: "permissions.workspace.view",
         route: "/admin/access-permissions",
       });
       return true;
     },
+    enabled: editionsQuery.isSuccess && (!editionId || Boolean(resolvedEditionId)),
     staleTime: Number.POSITIVE_INFINITY,
     retry: false,
   });
@@ -201,6 +222,8 @@ function AccessPermissionsPage() {
         preview,
         operationId: operation.operationId,
         idempotencyKey: operation.idempotencyKey,
+        reviewContextEditionId: editionId ?? null,
+        scopeLabel: permissionScopeLabel(preview.editionId, editionLabels),
       };
     },
     onSuccess: (pending) => {
@@ -223,6 +246,11 @@ function AccessPermissionsPage() {
       pending: PendingAccessChange;
       password: string;
     }) => {
+      if ((editionId ?? null) !== pending.reviewContextEditionId) {
+        throw new Error(
+          "Organizer edition context changed after this R3 review opened. Nothing was requested. Close the review and start again from the current context.",
+        );
+      }
       await reauthenticatePermissionR3(password);
       return requestPermissionChangeApproval({
         ...pending.command,
@@ -308,10 +336,27 @@ function AccessPermissionsPage() {
   });
 
   const simulation = useMutation({
-    mutationFn: ({ userId }: { userId: string }) => viewAccessAs(userId, editionId || null),
+    mutationFn: ({ userId }: { userId: string }) => {
+      if (editionId && !resolvedEditionId) {
+        throw new Error(
+          "The selected Organizer edition could not be verified. Access simulation will not fall back to global scope.",
+        );
+      }
+      return viewAccessAs(userId, resolvedEditionId || null);
+    },
   });
+  const resetSimulation = simulation.reset;
 
-  const effectiveScope = scope === "edition" && editionId ? editionId : null;
+  useEffect(() => {
+    setPendingChange(null);
+    setReauthPassword("");
+    setApprovalAction(null);
+    setApprovalPassword("");
+    setMessage(null);
+    resetSimulation();
+  }, [editionId, resetSimulation]);
+
+  const effectiveScope = scope === "edition" ? (resolvedEditionId || null) : null;
   const summary = summaryQuery.data;
   const loading = catalogQuery.isLoading || usersQuery.isLoading;
   const pageError = catalogQuery.error ?? usersQuery.error;
@@ -329,6 +374,19 @@ function AccessPermissionsPage() {
         <div className="rounded-xl border border-emerald-200/20 bg-emerald-200/[0.06] px-4 py-3 text-sm text-emerald-50">
           <span className="font-bold">Capability enforcement is authoritative.</span> Route
           evaluations continue to be recorded for audit and operational review.
+        </div>
+
+        <div
+          data-v3-organizer-context-lock="permissions"
+          className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2"
+        >
+          <span className="admin-section-label">Edition context</span>
+          <AdminStatus tone={organizerEditionLabel ? "info" : "neutral"}>
+            {organizerEditionLabel ?? "No verified edition selected"}
+          </AdminStatus>
+          <span className="text-xs text-muted-foreground">
+            Edition-scoped grants use only this verified Organizer context. Global changes remain explicitly labeled as every edition.
+          </span>
         </div>
 
         <section
@@ -362,13 +420,24 @@ function AccessPermissionsPage() {
           approvals={approvalsQuery.data ?? []}
           loading={approvalsQuery.isLoading}
           error={approvalsQuery.error}
+          scopeLabelForEdition={(approvalEditionId) =>
+            permissionScopeLabel(approvalEditionId, editionLabels)
+          }
           onApprove={(approval) => {
             setApprovalPassword("");
-            setApprovalAction({ approval, mode: "approve" });
+            setApprovalAction({
+              approval,
+              mode: "approve",
+              reviewContextEditionId: editionId ?? null,
+            });
           }}
           onApply={(approval) => {
             setApprovalPassword("");
-            setApprovalAction({ approval, mode: "apply" });
+            setApprovalAction({
+              approval,
+              mode: "apply",
+              reviewContextEditionId: editionId ?? null,
+            });
           }}
         />
 
@@ -428,7 +497,8 @@ function AccessPermissionsPage() {
             capabilities={catalog?.capabilities ?? []}
             scope={scope}
             onScope={setScope}
-            editionAvailable={Boolean(editionId)}
+            editionAvailable={Boolean(resolvedEditionId)}
+            editionScopeLabel={organizerEditionLabel}
             roleKey={roleKey}
             onRoleKey={setRoleKey}
             capabilityKey={capabilityKey}
@@ -507,6 +577,14 @@ function AccessPermissionsPage() {
           }}
           onConfirm={async () => {
             if (!approvalAction) return;
+            if ((editionId ?? null) !== approvalAction.reviewContextEditionId) {
+              setApprovalAction(null);
+              setApprovalPassword("");
+              setMessage(
+                "Organizer edition context changed after this R3 review opened. Nothing was applied. Open the approval again from the current context.",
+              );
+              return;
+            }
             if (approvalAction.mode === "approve") {
               await approveR3.mutateAsync({
                 approval: approvalAction.approval,
@@ -531,6 +609,7 @@ function AccessPermissionsPage() {
                 mode={approvalAction.mode}
                 password={approvalPassword}
                 onPassword={setApprovalPassword}
+                scopeLabel={permissionScopeLabel(approvalAction.approval.editionId, editionLabels)}
               />
             ) : (
               "Review the bound R3 operation before continuing."
@@ -623,7 +702,7 @@ function PermissionImpactPreview({
             Scope
           </span>
           <strong className="mt-1 block text-sm text-foreground">
-            {pending.preview.globalScope ? "Every edition" : "Selected edition"}
+            {pending.scopeLabel}
           </strong>
         </div>
         <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
@@ -701,12 +780,14 @@ function PermissionApprovalQueue({
   approvals,
   loading,
   error,
+  scopeLabelForEdition,
   onApprove,
   onApply,
 }: {
   approvals: PermissionChangeApproval[];
   loading: boolean;
   error: Error | null;
+  scopeLabelForEdition: (editionId: string | null) => string;
   onApprove: (approval: PermissionChangeApproval) => void;
   onApply: (approval: PermissionChangeApproval) => void;
 }) {
@@ -768,7 +849,7 @@ function PermissionApprovalQueue({
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {humanize(approval.changeKind)} · {approval.key} ·{" "}
-                    {approval.editionId ? "Selected edition" : "Every edition"}
+                    {scopeLabelForEdition(approval.editionId)}
                   </p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     Requested by {approval.requesterDisplayName} · expires{" "}
@@ -817,11 +898,13 @@ function PermissionApprovalActionPreview({
   mode,
   password,
   onPassword,
+  scopeLabel,
 }: {
   approval: PermissionChangeApproval;
   mode: "approve" | "apply";
   password: string;
   onPassword: (value: string) => void;
+  scopeLabel: string;
 }) {
   return (
     <div className="space-y-3">
@@ -870,8 +953,7 @@ function PermissionApprovalActionPreview({
           <code className="text-sky-100">{approval.key}</code>
         </p>
         <p className="mt-1 text-muted-foreground">
-          Scope: {approval.editionId ? "selected edition" : "every edition"} · approval expires{" "}
-          {formatDateTime(approval.approvalExpiresAt)}
+          Scope: {scopeLabel} · approval expires {formatDateTime(approval.approvalExpiresAt)}
         </p>
       </div>
 
@@ -913,6 +995,7 @@ function UsersTab({
   scope,
   onScope,
   editionAvailable,
+  editionScopeLabel,
   roleKey,
   onRoleKey,
   capabilityKey,
@@ -934,6 +1017,7 @@ function UsersTab({
   scope: "edition" | "global";
   onScope: (scope: "edition" | "global") => void;
   editionAvailable: boolean;
+  editionScopeLabel: string | null;
   roleKey: string;
   onRoleKey: (value: string) => void;
   capabilityKey: SolarisCapability | "";
@@ -1042,7 +1126,7 @@ function UsersTab({
                   Scope
                 </p>
                 <p className="mt-1 text-sm font-bold">
-                  {effectiveScope ? "Current edition" : "Global"}
+                  {effectiveScope ? (editionScopeLabel ?? "Selected edition") : "Global"}
                 </p>
               </div>
             </div>
@@ -1485,6 +1569,11 @@ function EmptyLine({ children }: { children: string }) {
 
 function scopeLabel(editionName: string | null, editionId: string | null) {
   return editionId ? (editionName ?? "One edition") : "Every edition";
+}
+
+function permissionScopeLabel(editionId: string | null, editionLabels: Map<string, string>) {
+  if (!editionId) return "Every edition";
+  return editionLabels.get(editionId) ?? `Edition ${editionId.slice(0, 8)}…`;
 }
 
 function changeMessage(change: AccessChange) {
