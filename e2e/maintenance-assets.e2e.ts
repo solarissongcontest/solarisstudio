@@ -9,9 +9,17 @@ const VECTOR_ARTWORK = [
 const RASTER_ARTWORK = [
   ["/solaris-background.webp", "image/webp"],
   ["/solaris-studio-social.jpg", "image/jpeg"],
+  ["/assets/terraos-maintenance/atmosphere.jpeg", "image/jpeg"],
+  ["/assets/terraos-maintenance/moment-a.png", "image/png"],
+  ["/assets/terraos-maintenance/moment-b.png", "image/png"],
 ] as const;
 
-test("TerraOS editorial artwork remains available while the app is maintenance-gated", async ({ request }) => {
+const PRESENTATION_ASSETS = [
+  ["/assets/terraos-maintenance.css", "text/css"],
+  ["/assets/terraos-maintenance.js", "javascript"],
+] as const;
+
+test("TerraOS editorial assets remain available while the app is maintenance-gated", async ({ request }) => {
   for (const asset of VECTOR_ARTWORK) {
     const response = await request.get(asset);
     expect(response.status(), `${asset} should bypass the maintenance 503 page`).toBe(200);
@@ -24,5 +32,12 @@ test("TerraOS editorial artwork remains available while the app is maintenance-g
     expect(response.status(), `${asset} should bypass the maintenance 503 page`).toBe(200);
     expect(response.headers()["content-type"] ?? "").toContain(contentType);
     expect((await response.body()).byteLength).toBeGreaterThan(1_000);
+  }
+
+  for (const [asset, contentType] of PRESENTATION_ASSETS) {
+    const response = await request.get(asset);
+    expect(response.status(), `${asset} should bypass the maintenance 503 page`).toBe(200);
+    expect(response.headers()["content-type"] ?? "").toContain(contentType);
+    expect((await response.text()).length).toBeGreaterThan(500);
   }
 });
