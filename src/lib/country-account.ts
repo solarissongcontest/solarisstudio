@@ -101,11 +101,31 @@ function missingCountrySchema(error: unknown) {
   );
 }
 
+function missingCountryAccountSchema(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: string }).code;
+  return (
+    code === "42P01" ||
+    code === "42703" ||
+    code === "PGRST204" ||
+    code === "PGRST205"
+  );
+}
+
+function missingAuthSession(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  return (error as { name?: string }).name === "AuthSessionMissingError";
+}
+
 export async function getCurrentAccountAccess(userId?: string | null): Promise<AccountAccess> {
   let resolvedUserId = userId ?? null;
 
   if (!resolvedUserId) {
-    const { data } = await typedSupabase.auth.getUser();
+    const { data, error } = await typedSupabase.auth.getUser();
+    // Supabase intentionally returns AuthSessionMissingError when a browser has
+    // no local access token. That is ordinary anonymity, not an authority outage.
+    // All other Auth errors still fail closed.
+    if (error && !missingAuthSession(error)) throw error;
     resolvedUserId = data.user?.id ?? null;
   }
 
@@ -120,10 +140,8 @@ export async function getCurrentAccountAccess(userId?: string | null): Promise<A
     };
   }
 
-  const [organizerResult, countryResult] = await Promise.all([
-    hasSolarisOrganizerAccess(resolvedUserId)
-      .then((value) => ({ value, error: null as unknown }))
-      .catch((error) => ({ value: false, error })),
+  const [isOrganizer, countryResult] = await Promise.all([
+    hasSolarisOrganizerAccess(resolvedUserId),
     supabase
       .from("country_accounts")
       .select("country_id,status,suspension_reason")
@@ -131,21 +149,30 @@ export async function getCurrentAccountAccess(userId?: string | null): Promise<A
       .maybeSingle(),
   ]);
 
-  if (organizerResult.error && !missingCountrySchema(organizerResult.error)) {
-    console.warn("Could not resolve organizer access", organizerResult.error);
-  }
-
-  if (countryResult.error && !missingCountrySchema(countryResult.error)) {
-    console.warn("Could not resolve country account", countryResult.error);
+  if (countryResult.error) {
+    // Compatibility mode is allowed only for concrete missing relation/column
+    // contracts. Permission, transport, auth and other authority failures must
+    // surface as errors instead of being mislabeled as "schema not ready".
+    if (missingCountryAccountSchema(countryResult.error)) {
+      return {
+        userId: resolvedUserId,
+        isOrganizer,
+        countryId: null,
+        countryStatus: null,
+        suspensionReason: null,
+        schemaReady: false,
+      };
+    }
+    throw countryResult.error;
   }
 
   return {
     userId: resolvedUserId,
-    isOrganizer: organizerResult.value,
+    isOrganizer,
     countryId: countryResult.data?.country_id ?? null,
     countryStatus: countryResult.data?.status ?? null,
     suspensionReason: countryResult.data?.suspension_reason ?? null,
-    schemaReady: !missingCountrySchema(countryResult.error),
+    schemaReady: true,
   };
 }
 
@@ -174,6 +201,7 @@ export function useMyCountryAccount() {
     enabled: !session.isLoading,
     queryKey: ["my-country-account", userId],
     queryFn: async () => {
+      if (session.error) throw session.error;
       const access = userId ? await getCurrentAccountAccess(userId) : {
         userId: null, isOrganizer: false, countryId: null, countryStatus: null,
         suspensionReason: null, schemaReady: true,
