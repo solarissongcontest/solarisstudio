@@ -74,7 +74,9 @@ jobs:
           V3_STATUS_BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          git fetch --no-tags --depth=1 origin "$V3_STATUS_BASE_REF"
+          if ! git cat-file -e "${V3_STATUS_BASE_REF}^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "$V3_STATUS_BASE_REF"
+          fi
           bun run scripts/check-v3-capability-status-transitions.ts
 
       - name: Enforce V3 capability status transitions on pushes
@@ -84,7 +86,9 @@ jobs:
           V3_STATUS_BASE_REF: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          git fetch --no-tags --depth=1 origin "$V3_STATUS_BASE_REF"
+          if ! git cat-file -e "${V3_STATUS_BASE_REF}^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "$V3_STATUS_BASE_REF"
+          fi
           bun run scripts/check-v3-capability-status-transitions.ts
 
       - name: Generate V3 capability report
