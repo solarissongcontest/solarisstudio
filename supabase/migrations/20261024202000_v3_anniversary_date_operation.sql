@@ -33,7 +33,7 @@ declare
   v_edition public.editions%rowtype;
 begin
   if auth.uid() is null then
-    raise exception using errcode = '42501', message = 'AUTHENTICATION_REQUIRED';
+    raise exception using errcode = '42501', message = 'AUTHENTICATION';
   end if;
 
   if p_edition_id is null then
@@ -50,7 +50,7 @@ begin
   where id = p_edition_id;
 
   if not found then
-    raise exception using errcode = 'P0002', message = 'EDITION_NOT_FOUND';
+    raise exception using errcode = 'P0002', message = 'UNKNOWN';
   end if;
 
   return jsonb_build_object(
@@ -97,7 +97,7 @@ declare
   v_result jsonb;
 begin
   if v_actor is null then
-    raise exception using errcode = '42501', message = 'AUTHENTICATION_REQUIRED';
+    raise exception using errcode = '42501', message = 'AUTHENTICATION';
   end if;
 
   if p_edition_id is null
@@ -107,7 +107,7 @@ begin
   end if;
 
   if v_reason is null or length(v_reason) < 5 then
-    raise exception using errcode = '22023', message = 'REASON_REQUIRED';
+    raise exception using errcode = '22023', message = 'VALIDATION';
   end if;
 
   if public.studio2_access_allowed('edition.manage', p_edition_id, true) is not true then
@@ -151,7 +151,7 @@ begin
   for update;
 
   if not found then
-    raise exception using errcode = 'P0002', message = 'EDITION_NOT_FOUND';
+    raise exception using errcode = 'P0002', message = 'UNKNOWN';
   end if;
 
   if v_edition.event_date is distinct from p_expected_event_date
