@@ -323,6 +323,30 @@ export function renderMaintenanceDesktopV2Style() {
       margin: 1rem auto 0;
     }
 
+    /* Keep the existing accessibility contract authoritative. The desktop
+     * animation geometry above is intentionally disabled when the runtime has
+     * selected Reduced Motion, matching the host choreography's static fallback.
+     */
+    html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .hero,
+    html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .story-touch[data-terra-scroll-scene="true"],
+    html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .participation-story[data-terra-scroll-scene="true"],
+    html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .participation-story[data-terra-scroll-scene="true"] .story-grid,
+    html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .results-story[data-terra-scroll-scene="true"] {
+      min-height: auto !important;
+    }
+
+    html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .hero-copy,
+    html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .hero-stage,
+    html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .story-touch .story-heading,
+    html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .interactive-device,
+    html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .participation-story .sticky-heading,
+    html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .participation-device,
+    html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .results-story .story-heading,
+    html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .results-reveal {
+      position: static !important;
+      top: auto !important;
+    }
+
     footer {
       width: min(calc(100% - 6rem), 1240px);
     }
