@@ -16,6 +16,8 @@ import {
   publicSearchText,
   type PublicArea,
 } from "@/lib/public-navigation";
+import { useFanSession } from "@/lib/prediction-data";
+import { visibleSiteDirectoryDestinations } from "@/lib/site-directory-visibility";
 
 export const Route = createFileRoute("/site-directory/")({
   head: () => ({
@@ -43,20 +45,22 @@ const AREA_LABELS: Record<PublicArea, string> = {
 
 function SiteDirectoryPage() {
   const { isAppMode } = useSolarisApp();
+  const { data: user, isLoading: isSessionLoading } = useFanSession();
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
+  const authenticationState = isSessionLoading ? "loading" : user ? "signed-in" : "anonymous";
 
   const matches = useMemo(() => {
-    const discoverableDestinations = PUBLIC_DESTINATIONS.filter(
-      (item) => item.discoverable !== false,
-    );
+    const discoverableDestinations = visibleSiteDirectoryDestinations(PUBLIC_DESTINATIONS, {
+      authenticationState,
+    });
     if (!normalizedQuery) return discoverableDestinations;
     const terms = normalizedQuery.split(/\s+/).filter(Boolean);
     return discoverableDestinations.filter((item) => {
       const searchable = publicSearchText(item);
       return terms.every((term) => searchable.includes(term));
     });
-  }, [normalizedQuery]);
+  }, [authenticationState, normalizedQuery]);
 
   const content = (
     <>
