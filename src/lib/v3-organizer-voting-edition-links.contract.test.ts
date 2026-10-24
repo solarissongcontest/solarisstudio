@@ -11,6 +11,11 @@ const readFunction = readFileSync(
   "src/integrations/televoting/edition-links.functions.ts",
   "utf8",
 );
+const syncFunction = readFileSync(
+  "src/integrations/televoting/solaris-sync.functions.ts",
+  "utf8",
+);
+const routeMap = readFileSync("src/lib/permission-route-map.ts", "utf8");
 
 describe("V3 Organizer voting edition-link boundary", () => {
   it("keeps ordinary page load and Refresh read-only", () => {
@@ -41,9 +46,18 @@ describe("V3 Organizer voting edition-link boundary", () => {
     expect(route).toContain("Viewing this page is read-only");
   });
 
-  it("authenticates the read on the server before using service credentials", () => {
-    expect(readServer).toContain("await requireMergedTelevotingAdminServer()");
-    expect(readServer.indexOf("await requireMergedTelevotingAdminServer()"))
+  it("binds privileged diagnostic reads to canonical voting.read before service credentials", () => {
+    expect(routeMap).toContain('rule(["/televoting/admin"], "voting.read")');
+    expect(readServer).toContain('requireSolarisCapabilityServer("voting.read")');
+    expect(readServer).not.toContain("requireMergedTelevotingAdminServer");
+    expect(readServer.indexOf('requireSolarisCapabilityServer("voting.read")'))
       .toBeLessThan(readServer.indexOf("await solarisDb()"));
+  });
+
+  it("requires voting.manage before the explicit repair path can import the privileged writer", () => {
+    expect(syncFunction).toContain('requireSolarisCapabilityServer("voting.manage")');
+    expect(syncFunction.indexOf('requireSolarisCapabilityServer("voting.manage")'))
+      .toBeLessThan(syncFunction.indexOf('"@/integrations/televoting/solaris-sync.server"'));
+    expect(syncFunction).toContain("ensureCanonicalTelevotingEditionsServer");
   });
 });
