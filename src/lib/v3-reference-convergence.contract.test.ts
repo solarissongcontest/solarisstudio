@@ -47,10 +47,28 @@ describe("V3 Reference convergence", () => {
     expect(source).toContain('{ title: "Reference — Solaris Studio" }');
     expect(source).toContain('title="Reference"');
     expect(source).toContain('aria-label="Filter Reference"');
-    expect(source).toContain('buildPublicCountryArchive({');
+    expect(source).toContain('rpc(\n        "solaris_public_search"');
+    expect(source).toContain('rpc(\n        "v3_public_explore_counts"');
     expect(source).toContain('isStudio2FeatureEnabled("public_encyclopedia")');
     expect(source).toContain('to="/countries"');
     expect(source).not.toContain('to="/wiki"');
+  });
+
+  it("keeps Reference reads bounded instead of downloading the archive graph", () => {
+    const source = reference();
+
+    expect(source).toContain("normalizedQuery.length >= 2");
+    expect(source).toContain("result_limit: 50");
+    expect(source).toContain("60 * 60 * 1000");
+    expect(source).toContain("Reference search is temporarily unavailable");
+    expect(source).toContain("No private archive data");
+    expect(source).not.toContain("useAllParticipants");
+    expect(source).not.toContain("useAllShows");
+    expect(source).not.toContain("useCountries");
+    expect(source).not.toContain("useEditions");
+    expect(source).not.toContain("buildPublicCountryArchive");
+    expect(source).not.toContain('select("*")');
+    expect(source).not.toContain("refetchInterval");
   });
 
   it("does not create a new browser-owned publication or mutation authority", () => {
