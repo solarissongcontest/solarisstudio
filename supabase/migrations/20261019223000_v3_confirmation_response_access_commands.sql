@@ -750,8 +750,8 @@ begin
   if v_mode in ('normal', 'degraded') then return; end if;
   if v_method in ('GET', 'HEAD', 'OPTIONS') then return; end if;
 
-  if v_path like '/rpc/%' then
-    v_rpc_name := split_part(split_part(v_path, '/', 3), '?', 1);
+  if position('/rpc/' in v_path) > 0 then
+    v_rpc_name := split_part(split_part(v_path, '/rpc/', 2), '?', 1);
 
     if v_mode = 'read_only' then
       if v_rpc_name in (
