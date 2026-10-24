@@ -14,7 +14,8 @@ begin;
 --   * an OPEN round remains public so the voting booth can render;
 --   * a PUBLISHED-result round remains public so historical result readers work;
 --   * a CLOSED round remains readable only when it is canonically bound to a
---     Solaris show, so Show Mode / V3 Live can truthfully show voting closure;
+--     published Solaris show, so Show Mode / V3 Live can truthfully show voting
+--     closure;
 --   * entries/country membership are public only while voting is open or after
 --     the round result is published;
 --   * Organizer readers retain voting.manage access to all states.
@@ -39,16 +40,48 @@ begin
     raise exception 'Televoting public RLS boundary requires rounds, round_entries and round_countries';
   end if;
 
-  if to_regclass('public.televoting_round_bindings') is null then
-    raise exception 'Televoting public RLS boundary requires canonical round bindings';
+  if to_regclass('public.televoting_round_bindings') is null
+     or to_regclass('public.shows') is null then
+    raise exception 'Televoting public RLS boundary requires canonical round/show bindings';
   end if;
 end
 $preflight$;
 
+-- Bindings are Organizer-only by design, so an anon RLS policy cannot safely
+-- query them directly: nested RLS would make every binding look absent. Expose
+-- one bounded security-definer predicate instead. It reveals only whether a
+-- specific remote round is attached to a show whose canonical row is public.
+-- It does not expose binding metadata, edition scope, or unpublished shows.
+create or replace function public.v3_public_televote_round_show_visible(
+  p_round_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $visible$
+  select exists (
+    select 1
+    from public.televoting_round_bindings binding
+    join public.shows show_row
+      on show_row.id = binding.show_id
+    where binding.remote_round_id = p_round_id::text
+      and binding.show_id is not null
+      and show_row.published = true
+  );
+$visible$;
+
+revoke all on function public.v3_public_televote_round_show_visible(uuid)
+  from public;
+grant execute on function public.v3_public_televote_round_show_visible(uuid)
+  to anon, authenticated, service_role;
+
 -- A raw round row is public only when Public Solaris has a legitimate reason to
 -- know it exists. Draft rounds are never public. Closed-but-unpublished rounds
--- are exposed only when linked to a canonical show, because Live/Show Mode needs
--- the authoritative closed state without exposing every historical test round.
+-- are exposed only when linked to a published canonical show, because Live /
+-- Show Mode needs the authoritative closed state without exposing every
+-- historical test round.
 drop policy if exists "solaris consolidated anon read" on televoting.rounds;
 create policy "solaris consolidated anon read"
 on televoting.rounds
@@ -59,12 +92,7 @@ using (
   or results_status = 'published'
   or (
     status = 'closed'::televoting.round_status
-    and exists (
-      select 1
-      from public.televoting_round_bindings binding
-      where binding.remote_round_id = rounds.id::text
-        and binding.show_id is not null
-    )
+    and public.v3_public_televote_round_show_visible(id)
   )
 );
 
@@ -79,12 +107,7 @@ using (
   or results_status = 'published'
   or (
     status = 'closed'::televoting.round_status
-    and exists (
-      select 1
-      from public.televoting_round_bindings binding
-      where binding.remote_round_id = rounds.id::text
-        and binding.show_id is not null
-    )
+    and public.v3_public_televote_round_show_visible(id)
   )
 );
 
@@ -165,11 +188,12 @@ using (
 );
 
 -- Fail closed if a later edit accidentally recreates unconditional browser
--- access on any of the three operational tables.
+-- access on any of the three operational tables or drops Organizer access.
 do $verify$
 declare
   v_unconditional integer;
   v_organizer_missing integer;
+  v_helper_security_definer boolean;
 begin
   select count(*)
   into v_unconditional
@@ -182,6 +206,18 @@ begin
 
   if v_unconditional <> 0 then
     raise exception 'Unconditional browser Televoting configuration policy remains: %', v_unconditional;
+  end if;
+
+  select p.prosecdef
+  into v_helper_security_definer
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.proname = 'v3_public_televote_round_show_visible'
+    and pg_get_function_identity_arguments(p.oid) = 'p_round_id uuid';
+
+  if coalesce(v_helper_security_definer, false) is not true then
+    raise exception 'Public Televote show-visibility predicate is not SECURITY DEFINER';
   end if;
 
   select count(*)
