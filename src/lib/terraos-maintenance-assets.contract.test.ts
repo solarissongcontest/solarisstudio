@@ -6,8 +6,10 @@ const page = readFileSync("src/lib/maintenance-page.ts", "utf8");
 const server = readFileSync("src/server.ts", "utf8");
 
 describe("TerraOS maintenance artwork routing", () => {
-  it("keeps only the shipped editorial artwork reachable through the maintenance asset allowlist", () => {
+  it("keeps only explicitly shipped editorial artwork reachable through the maintenance asset allowlist", () => {
     for (const asset of [
+      "/solaris-background.webp",
+      "/solaris-studio-social.jpg",
       "/terraos-maintenance/blue-motion.svg",
       "/terraos-maintenance/live-stage.svg",
       "/terraos-maintenance/purple-tunnel.svg",
