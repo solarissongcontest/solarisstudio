@@ -1,22 +1,19 @@
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
-import {
-  broadcastEntriesFromResults,
-  buildBroadcastIntelligence,
-} from "@/lib/broadcast-intelligence";
-import type { Country, Edition, ResultRow, Show } from "@/lib/data";
-import { entityDisplayMap, entityKeyOf, type ContestEntityRow } from "@/lib/entities";
+import { loadV3PublishedResultSnapshot } from "@/integrations/v3/public-result-snapshot.server";
+import { buildBroadcastIntelligence } from "@/lib/broadcast-intelligence";
+import type { Country, Edition, Show } from "@/lib/data";
+import { entityDisplayMap, type ContestEntityRow } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 import type {
   V3BroadcastIdentity,
   V3BroadcastIntelligenceBundle,
   V3BroadcastShowOption,
 } from "@/lib/v3-broadcast-intelligence";
+import type { V3PublicResultRow } from "@/lib/v3-public-result-snapshot";
 
 const EDITION_COLUMNS = "id,edition_number,name,slug,published";
 const SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,publication_config";
-const RESULT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 const ENTITY_COLUMNS =
   "id,edition_id,entity_type,country_id,display_name,abbreviation,flag_image,region,historical_identity_override";
 const COUNTRY_COLUMNS =
@@ -85,7 +82,8 @@ function parseParticipantStates(value: unknown): PublicParticipantState[] {
 }
 
 function filterNonCompetingRows(
-  rows: readonly ResultRow[],
+  rows: readonly V3PublicResultRow[],
+  editionId: string,
   participants: readonly PublicParticipantState[],
 ) {
   const excluded = new Set(
@@ -102,16 +100,18 @@ function filterNonCompetingRows(
   );
   if (!excluded.size) return [...rows];
   return rows.filter(
-    (row) => !excluded.has(`${row.edition_id}:${row.country_id}`),
+    (row) =>
+      !row.countryId || !excluded.has(`${editionId}:${row.countryId}`),
   );
 }
 
 /**
  * Publication-safe, show-scoped source for Broadcast Intelligence.
  *
- * The browser may nominate a public show id, but this source first rebuilds the
- * eligible show list from canonical publication state. An unpublished or
- * partially published show can therefore never be unlocked by client input.
+ * The browser may nominate a public show id, but the official totals come only
+ * from the exact immutable Result Version selected by canonical Publication.
+ * A stale legacy show projection may keep a selector option visible, but it can
+ * never unlock hidden or superseded Result evidence.
  */
 export async function loadV3BroadcastIntelligenceBundle(
   requestedShowId?: string | null,
@@ -225,13 +225,8 @@ export async function loadV3BroadcastIntelligenceBundle(
     };
   }
 
-  const [resultsResult, entitiesResult, participantsResult] = await Promise.all([
-    client
-      .from("results")
-      .select(RESULT_COLUMNS)
-      .eq("show_id", selectedShow.id)
-      .not("final_rank", "is", null)
-      .order("final_rank", { ascending: true }),
+  const [snapshot, entitiesResult, participantsResult] = await Promise.all([
+    loadV3PublishedResultSnapshot(selectedShow.id),
     client
       .from("contest_entities")
       .select(ENTITY_COLUMNS)
@@ -242,10 +237,6 @@ export async function loadV3BroadcastIntelligenceBundle(
     }),
   ]);
   throwIfError(
-    resultsResult.error,
-    "Could not load published Broadcast Intelligence result",
-  );
-  throwIfError(
     entitiesResult.error,
     "Could not load public Broadcast Intelligence identities",
   );
@@ -254,18 +245,34 @@ export async function loadV3BroadcastIntelligenceBundle(
     "Could not load public participant state for Broadcast Intelligence",
   );
 
+  if (snapshot && snapshot.edition.id !== selectedEdition.id) {
+    throw new Error(
+      "Canonical published Result snapshot escaped the selected Broadcast Intelligence Edition",
+    );
+  }
+
   const participantStates = parseParticipantStates(participantsResult.data);
-  const rows = filterNonCompetingRows(
-    (resultsResult.data ?? []) as ResultRow[],
-    participantStates,
-  );
+  const hasCompletePublishedSplits =
+    snapshot?.availability.jury === true &&
+    snapshot.availability.televote === true &&
+    snapshot.rows.every(
+      (row) => row.juryPoints != null && row.televotePoints != null,
+    );
+  const rows = hasCompletePublishedSplits
+    ? filterNonCompetingRows(
+        snapshot.rows,
+        selectedEdition.id,
+        participantStates,
+      )
+    : [];
+
   const entities = (entitiesResult.data ?? []) as ContestEntityRow[];
   const countryIds = new Set<string>();
   for (const entity of entities) {
     if (entity.country_id) countryIds.add(entity.country_id);
   }
   for (const row of rows) {
-    if (row.country_id) countryIds.add(row.country_id);
+    if (row.countryId) countryIds.add(row.countryId);
   }
 
   let countries: Country[] = [];
@@ -282,14 +289,23 @@ export async function loadV3BroadcastIntelligenceBundle(
   }
 
   const displayMap = entityDisplayMap(entities, countries);
-  const analysisRows = rows.flatMap((row) => {
-    const key = entityKeyOf(row);
-    return displayMap.has(key) ? [{ ...row, country_id: key }] : [];
+  const entries = rows.flatMap((row) => {
+    const key = row.contestEntityId ?? row.countryId;
+    const display = key ? displayMap.get(key) : null;
+    if (!key || !display || row.juryPoints == null || row.televotePoints == null) {
+      return [];
+    }
+    return [
+      {
+        id: key,
+        name: display.name,
+        juryPoints: row.juryPoints,
+        televotePoints: row.televotePoints,
+        totalPoints: row.totalPoints,
+        officialRank: row.finalRank,
+      },
+    ];
   });
-  const entries = broadcastEntriesFromResults(
-    analysisRows,
-    (id) => displayMap.get(id)?.name ?? "Unknown entry",
-  );
   const intelligence = buildBroadcastIntelligence(entries);
 
   const identities: V3BroadcastIdentity[] = entries.flatMap((entry) => {
