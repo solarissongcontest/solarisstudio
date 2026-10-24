@@ -3,6 +3,7 @@ import { Compass, Home, Trophy, UserRound, Vote, type LucideIcon } from "lucide-
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
+import { APP_RESUME_EVENT } from "@/lib/app-lifecycle";
 import {
   appEntryHref,
   appTabRoot,
@@ -13,6 +14,10 @@ import {
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import {
+  clearAppUpdateBlocker,
+  setAppUpdateBlocker,
+} from "@/lib/app-update-safety";
+import {
   prefersReducedMotion,
   resolveElasticDrag,
   resolveTabDragTargetIndex,
@@ -22,6 +27,8 @@ import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
+
+const APP_TABBAR_LENS_UPDATE_BLOCKER = "app-tabbar-lens-drag";
 
 const ICONS: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
   home: Home,
@@ -35,6 +42,7 @@ type PrimaryArea = (typeof PUBLIC_GLOBAL_AREAS)[number]["id"];
 
 type DragState = {
   pointerId: number;
+  captureTarget: HTMLAnchorElement;
   startX: number;
   originIndex: number;
   moved: boolean;
@@ -212,6 +220,18 @@ export function AppTabBar({
   };
 
   const resetDragDom = useCallback(() => {
+    clearAppUpdateBlocker(APP_TABBAR_LENS_UPDATE_BLOCKER);
+    const drag = dragState.current;
+    if (drag) {
+      try {
+        if (drag.captureTarget.hasPointerCapture?.(drag.pointerId)) {
+          drag.captureTarget.releasePointerCapture?.(drag.pointerId);
+        }
+      } catch {
+        // Browser may already have released pointer capture.
+      }
+    }
+
     const material = materialRef.current;
     material?.style.setProperty("--solaris-tab-drag-x", "0px");
     material?.style.setProperty("--solaris-tab-drag-scale-x", "1");
@@ -229,31 +249,77 @@ export function AppTabBar({
     setDragPreviewIndex(null);
   }, [endHold, resetDragDom]);
 
-  useEffect(() => {
-    const resetInterruptedGesture = () => clearDrag();
-    const resetWhenHidden = () => {
-      if (document.visibilityState !== "visible") clearDrag();
-    };
+  const interruptDrag = useCallback(() => {
+    if (!dragState.current) return;
+    // The press which began this gesture is no longer valid after an
+    // environment/route interruption. Arm suppression before cleanup releases
+    // gesture ownership so a trailing synthetic click cannot navigate.
+    suppressClick.current = true;
+    clearDrag();
+  }, [clearDrag]);
 
+  useEffect(() => {
+    const resetInterruptedGesture = () => interruptDrag();
+    const resetWhenHidden = () => {
+      if (document.visibilityState !== "visible") interruptDrag();
+    };
+    const root = document.documentElement;
+    const rootInterruptionObserver =
+      typeof MutationObserver !== "undefined"
+        ? new MutationObserver(() => {
+            if (
+              root.hasAttribute("data-solaris-feature-overlay-open") ||
+              root.hasAttribute("data-solaris-keyboard-open")
+            ) {
+              interruptDrag();
+            }
+          })
+        : null;
+
+    rootInterruptionObserver?.observe(root, {
+      attributes: true,
+      attributeFilter: [
+        "data-solaris-feature-overlay-open",
+        "data-solaris-keyboard-open",
+      ],
+    });
     window.addEventListener("blur", resetInterruptedGesture);
+    window.addEventListener("resize", resetInterruptedGesture);
     window.addEventListener("orientationchange", resetInterruptedGesture);
+    window.addEventListener("pagehide", resetInterruptedGesture);
+    window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
     document.addEventListener("visibilitychange", resetWhenHidden);
 
     return () => {
+      rootInterruptionObserver?.disconnect();
       window.removeEventListener("blur", resetInterruptedGesture);
+      window.removeEventListener("resize", resetInterruptedGesture);
       window.removeEventListener("orientationchange", resetInterruptedGesture);
+      window.removeEventListener("pagehide", resetInterruptedGesture);
+      window.removeEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
       // Unmount/StrictMode teardown must not set React state. The press-hold
       // hook cancels its own timer; only imperative DOM/ref cleanup is needed.
       resetDragDom();
     };
-  }, [clearDrag, pathname, resetDragDom, searchStr]);
+  }, [interruptDrag, resetDragDom]);
+
+  useEffect(() => {
+    // A route/search replacement can keep this shell mounted, so treat it as a
+    // first-class interruption instead of relying on unmount cleanup.
+    interruptDrag();
+  }, [interruptDrag, pathname, searchStr]);
 
   const startDrag = (
     event: ReactPointerEvent<HTMLAnchorElement>,
     index: number,
     active: boolean,
   ) => {
+    // A completed or interrupted gesture may deliberately suppress its trailing
+    // click. A genuinely new pointer press starts a fresh click sequence, even
+    // when it lands on an inactive tab that will not enter drag mode.
+    if (!dragState.current) suppressClick.current = false;
+
     if (
       !active ||
       collapsed ||
@@ -263,11 +329,17 @@ export function AppTabBar({
 
     dragState.current = {
       pointerId: event.pointerId,
+      captureTarget: event.currentTarget,
       startX: event.clientX,
       originIndex: index,
       moved: false,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    setAppUpdateBlocker(
+      APP_TABBAR_LENS_UPDATE_BLOCKER,
+      true,
+      "Finish the current navigation gesture before updating.",
+    );
     beginHold(event.pointerId, event.clientX, event.clientY);
     setDragging(true);
   };
