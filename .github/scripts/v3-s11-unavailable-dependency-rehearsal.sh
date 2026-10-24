@@ -52,7 +52,7 @@ start_dependency() {
     node scripts/v3-s11-loopback-dependency.mjs &
   DEPENDENCY_PID=$!
 
-  for _ in $(seq 1 50); do
+  for ((attempt = 0; attempt < 50; attempt += 1)); do
     [[ -s "$READY_FILE" ]] && break
     kill -0 "$DEPENDENCY_PID" >/dev/null 2>&1 \
       || fail "loopback dependency exited before becoming ready"
@@ -160,14 +160,12 @@ RECOVERY_RESULT="$(service_value "select public.studio2_complete_domain_event_de
   '{\"dependencyRecovered\":true,\"dependencyHost\":\"127.0.0.1\"}'::jsonb
 )->>'replayed';")"
 [[ "$RECOVERY_RESULT" == 'false' ]] || fail "first recovery completion was reported as replay"
-[[ "$(db_value "select status from private.v3_domain_event_outbox where event_id='$EVENT_ID'::uuid and consumer_key='$CONSUMER_KEY';")" == 'completed' ]] \
-  || fail "recovered dependency delivery is not completed"
+[[ "$(db_value "select status || ':' || attempt_count || ':' || coalesce(last_error_code,'') from private.v3_domain_event_outbox where event_id='$EVENT_ID'::uuid and consumer_key='$CONSUMER_KEY';")" == 'completed:2:DEPENDENCY_FAILURE' ]] \
+  || fail "successful recovery did not preserve canonical attempt/error history"
 [[ "$(db_value "select count(*) from private.v3_domain_event_consumer_receipts where event_id='$EVENT_ID'::uuid and consumer_key='$CONSUMER_KEY';")" == '1' ]] \
   || fail "dependency recovery did not create exactly one immutable consumer receipt"
 [[ "$(db_value "select (result_metadata->>'dependencyRecovered')::boolean from private.v3_domain_event_consumer_receipts where event_id='$EVENT_ID'::uuid and consumer_key='$CONSUMER_KEY';")" == 't' ]] \
   || fail "dependency recovery receipt metadata missing"
-[[ "$(db_value "select count(*) from private.v3_domain_event_outbox where event_id='$EVENT_ID'::uuid and consumer_key='$CONSUMER_KEY' and last_error_code is null;")" == '1' ]] \
-  || fail "successful recovery retained stale dependency error state"
 
 log "Replay the completion to prove exactly-once convergence"
 REPLAY_RESULT="$(service_value "select public.studio2_complete_domain_event_delivery(
@@ -182,4 +180,4 @@ REPLAY_RESULT="$(service_value "select public.studio2_complete_domain_event_deli
 [[ "$(db_value "select (result_metadata->>'dependencyRecovered')::boolean from private.v3_domain_event_consumer_receipts where event_id='$EVENT_ID'::uuid and consumer_key='$CONSUMER_KEY';")" == 't' ]] \
   || fail "duplicate recovery completion rewrote the immutable receipt"
 
-log "PASS: real loopback dependency outage classified as DEPENDENCY_FAILURE and recovered exactly once through canonical S4 delivery contracts"
+log "PASS: real loopback dependency outage classified as DEPENDENCY_FAILURE and recovered exactly once with canonical failure history preserved"
