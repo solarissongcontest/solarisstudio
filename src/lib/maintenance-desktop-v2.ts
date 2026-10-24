@@ -165,6 +165,7 @@ export function renderMaintenanceDesktopV2Style() {
     }
 
     .product-story > .story:first-child {
+      display: grid;
       width: min(calc(100% - 6rem), 1240px);
       grid-template-columns: minmax(300px, .68fr) minmax(590px, 1.32fr);
       align-items: center;
@@ -192,6 +193,7 @@ export function renderMaintenanceDesktopV2Style() {
     }
 
     .product-story > .story:first-child .first-look {
+      display: grid;
       min-height: 500px;
       grid-template-columns: minmax(230px, .8fr) minmax(280px, 1fr);
       gap: clamp(1.75rem, 3vw, 3.25rem);
@@ -228,6 +230,7 @@ export function renderMaintenanceDesktopV2Style() {
     }
 
     .story-touch {
+      display: grid;
       grid-template-columns: minmax(300px, .7fr) minmax(590px, 1.3fr);
       gap: clamp(3rem, 5vw, 5.5rem);
       align-items: start;
@@ -272,6 +275,7 @@ export function renderMaintenanceDesktopV2Style() {
     }
 
     .participation-story .story-grid {
+      display: grid;
       grid-template-columns: minmax(300px, .7fr) minmax(590px, 1.3fr);
       gap: clamp(3rem, 5vw, 5.5rem);
       align-items: start;
