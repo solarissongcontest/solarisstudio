@@ -4,6 +4,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { getRequestHeader } from '@tanstack/react-start/server';
 import type { Database } from './types';
+import { assertNonProductionSupabaseTarget } from '@/lib/supabase-target-safety';
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
@@ -39,6 +40,13 @@ function getSupabaseUrl() {
 function createSupabaseServerClient() {
   const url = getSupabaseUrl();
   const serviceKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
+
+  if (url) {
+    assertNonProductionSupabaseTarget(
+      url,
+      import.meta.env.MODE || process.env.NODE_ENV || 'development',
+    );
+  }
 
   if (url && serviceKey) {
     return createClient<Database>(url, serviceKey, {
