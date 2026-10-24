@@ -1,0 +1,195 @@
+name: V3 S11 Cloudflare rollback rehearsal
+
+on:
+  pull_request:
+    types: [ready_for_review]
+  workflow_dispatch:
+    inputs:
+      worker_name:
+        description: Dedicated non-production Worker in the solaris-s11-rollback-* namespace
+        required: true
+        default: solaris-s11-rollback-github
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s11-cloudflare-rollback-provider
+  cancel-in-progress: false
+
+jobs:
+  cloudflare-rollback:
+    name: Isolated Cloudflare Worker rollback
+    if: ${{ (github.event_name == 'workflow_dispatch' && github.ref_name == 'main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'v3/qa-s11-cloudflare-rollback-runtime-gate' && github.event.pull_request.base.ref == 'v3/sys-s11-cloudflare-rollback-current-main' && github.event.pull_request.base.sha == '4b4629abfea10471a4ddf906d39fb951d2e5c5ce') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout exact candidate source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify trusted stacked PR delta
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          readonly expected_parent='4b4629abfea10471a4ddf906d39fb951d2e5c5ce'
+          if [ "$PR_BASE_SHA" != "$expected_parent" ]; then
+            echo "::error::Cloudflare provider drill parent moved: $PR_BASE_SHA != $expected_parent"
+            exit 1
+          fi
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [ "$actual" != "$PR_HEAD_SHA" ]; then
+            echo "::error::Provider drill checkout is $actual, expected PR head $PR_HEAD_SHA"
+            exit 1
+          fi
+          mapfile -t changed < <(git diff --name-only "$PR_BASE_SHA...$PR_HEAD_SHA" | sort)
+          expected=(
+            '.github/workflows/v3-s11-cloudflare-rollback-rehearsal.yml'
+            'src/lib/v3-s11-cloudflare-rollback-workflow.contract.test.ts'
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          if [ "${#changed[@]}" -ne "${#expected_sorted[@]}" ]; then
+            printf '::error::Provider drill PR delta must contain exactly the two QA-owned files; got: %s\n' "${changed[*]}"
+            exit 1
+          fi
+          for i in "${!expected_sorted[@]}"; do
+            if [ "${changed[$i]}" != "${expected_sorted[$i]}" ]; then
+              printf '::error::Unexpected provider drill PR delta: %s\n' "${changed[*]}"
+              exit 1
+            fi
+          done
+
+      - name: Validate isolated provider target
+        id: target
+        shell: bash
+        env:
+          WORKER_NAME_INPUT: ${{ github.event_name == 'pull_request' && 'solaris-s11-rollback-github' || inputs.worker_name }}
+        run: |
+          set -euo pipefail
+          worker="$(printf '%s' "$WORKER_NAME_INPUT" | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$worker" =~ ^solaris-s11-rollback-[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+            echo "::error::Worker must use the dedicated solaris-s11-rollback-* namespace"
+            exit 1
+          fi
+          if [ "$worker" = "studio" ]; then
+            echo "::error::Refusing production Cloudflare Worker 'studio'"
+            exit 1
+          fi
+          if (( ${#worker} > 63 )); then
+            echo "::error::Worker name exceeds the 63-character safety bound"
+            exit 1
+          fi
+          echo "worker=$worker" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve exact source SHA
+        id: source
+        shell: bash
+        env:
+          EVENT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s' "$EVENT_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Cannot resolve exact source SHA for Cloudflare rollback rehearsal"
+            exit 1
+          fi
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Cloudflare rollback checkout is $actual, expected exact source SHA $expected"
+            exit 1
+          fi
+          if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
+            echo "::error::Refusing retained provider evidence from a dirty checkout"
+            exit 1
+          fi
+          echo "sha=$expected" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Rehearse real provider rollback on dedicated Worker
+        shell: bash
+        env:
+          SOLARIS_S11_ROLLBACK_WORKER: ${{ steps.target.outputs.worker }}
+          SOLARIS_S11_ROLLBACK_OPERATOR: github-actions-s11-cloudflare
+          SOLARIS_S11_ROLLBACK_EVIDENCE_PATH: /tmp/v3-s11-cloudflare-rollback.json
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID secret is required for the isolated provider drill}"
+          : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN secret is required for the isolated provider drill}"
+          bash .github/scripts/v3-s11-cloudflare-rollback-rehearsal.sh
+
+      - name: Assess exact-head rollback evidence
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.source.outputs.sha }}
+          EVIDENCE_PATH: /tmp/v3-s11-cloudflare-rollback.json
+          ASSESSMENT_PATH: /tmp/v3-s11-cloudflare-rollback-assessment.json
+        run: |
+          set -euo pipefail
+          cat >/tmp/assess-v3-s11-cloudflare-rollback.ts <<'TS'
+          import { readFileSync, writeFileSync } from "node:fs";
+          import { join } from "node:path";
+          import { pathToFileURL } from "node:url";
+
+          const expectedSha = process.env.EXPECTED_SHA;
+          const evidencePath = process.env.EVIDENCE_PATH;
+          const assessmentPath = process.env.ASSESSMENT_PATH;
+          const workspace = process.env.GITHUB_WORKSPACE;
+          if (!expectedSha || !evidencePath || !assessmentPath || !workspace) {
+            throw new Error("exact SHA, evidence paths, and GITHUB_WORKSPACE are required");
+          }
+
+          const moduleUrl = pathToFileURL(
+            join(workspace, "src/lib/v3-deployment-rollback-evidence.ts"),
+          ).href;
+          const { assessV3DeploymentRollbackEvidence } = await import(moduleUrl);
+          const evidence = JSON.parse(readFileSync(evidencePath, "utf8"));
+          const assessment = assessV3DeploymentRollbackEvidence(evidence, expectedSha);
+          writeFileSync(assessmentPath, `${JSON.stringify(assessment, null, 2)}\n`, "utf8");
+
+          if (assessment.status !== "ready_for_qa_review") {
+            throw new Error(
+              `Cloudflare rollback evidence is not ready for QA review: ${assessment.errors.join("; ")}`,
+            );
+          }
+          if (
+            assessment.expectedCommitSha !== expectedSha ||
+            assessment.evidenceCommitSha !== expectedSha
+          ) {
+            throw new Error("Cloudflare rollback evidence is not bound to the exact source SHA");
+          }
+          if (
+            assessment.certificationClaim !== false ||
+            assessment.fullServiceRecoveryClaim !== false
+          ) {
+            throw new Error("Component evidence attempted to overclaim release/full-service recovery");
+          }
+          if (assessment.qaReviewRequired !== true) {
+            throw new Error("Cloudflare rollback evidence must remain QA-review gated");
+          }
+          TS
+          bun /tmp/assess-v3-s11-cloudflare-rollback.ts
+
+      - name: Upload exact-head Cloudflare rollback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s11-cloudflare-rollback-evidence-${{ steps.source.outputs.sha }}
+          path: |
+            /tmp/v3-s11-cloudflare-rollback.json
+            /tmp/v3-s11-cloudflare-rollback-assessment.json
+          if-no-files-found: error
+          retention-days: 14
