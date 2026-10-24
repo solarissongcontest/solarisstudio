@@ -147,6 +147,7 @@ describe("System V3 S12 capacity rehearsal plan", () => {
     "//example.invalid/api",
     "/api/../admin",
     "/api/./admin",
+    "/api/%2e%2e/admin",
     "/api?token=secret",
     "/api#fragment",
     "/api\\admin",
