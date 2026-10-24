@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import type { FriendVotingSettings } from "@/integrations/televoting/friend-voting-settings.server";
 
 const fraction = (value: unknown, name: string) => {
@@ -110,6 +111,11 @@ export const updateFriendVotingSettings = createServerFn({ method: "POST" })
     return parsed;
   })
   .handler(async ({ data }) => {
+    // Authorize the caller before reading the current service-role-backed model
+    // for audit comparison. The server writer below repeats this check at its
+    // own boundary so neither layer treats route visibility as authority.
+    await requireSolarisCapabilityServer("voting.manage", null);
+
     const [
       { loadFriendVotingSettingsServer, updateFriendVotingSettingsServer },
       { writeAdminAuditServer },
