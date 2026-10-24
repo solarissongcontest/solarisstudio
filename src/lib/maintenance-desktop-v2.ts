@@ -188,7 +188,7 @@ export function renderMaintenanceDesktopV2Style() {
     }
 
     html[data-terraos-release-choreography="v2"] [data-terra-first-look="true"] .preview-device {
-      width: min(310px, 100%, 35svh) !important;
+      width: min(310px, 20.5vw, 100%) !important;
     }
 
     .product-story > .story:first-child .first-look {
