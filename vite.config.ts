@@ -4,12 +4,33 @@
 //     nitro (build-only using cloudflare as a default target), VITE_* env injection, @ path alias,
 //     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
+import { fileURLToPath, URL } from "node:url";
+
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 const browserAudit = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
 
 export default defineConfig({
   vite: {
+    resolve: {
+      // Broadcast uses only canvas-confetti's one-shot default function. Keep
+      // that narrow visual contract local instead of shipping the general
+      // purpose dependency into the aggregate client budget.
+      alias: {
+        "canvas-confetti": fileURLToPath(new URL("./src/lib/lightweight-confetti.ts", import.meta.url)),
+      },
+    },
+    build: {
+      rolldownOptions: {
+        output: {
+          // Consolidate the used icon modules rather than emitting hundreds
+          // of independently compressed fragments across route chunks.
+          codeSplitting: {
+            groups: [{ name: "vendor-icons", test: /[\\/]node_modules[\\/]lucide-react[\\/]/ }],
+          },
+        },
+      },
+    },
     optimizeDeps: {
       // Browser Audit exercises the complete generated route tree against the
       // dev server. Scan it up front so opening a previously untouched lazy

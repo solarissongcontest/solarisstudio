@@ -87,7 +87,7 @@ describe("TerraOS 3 final visual production contract", () => {
 
   it("gives all five V3 destinations standalone real-preview chapters", () => {
     for (const id of ["solaris-now", "participate-feature", "explore-feature", "results-feature", "me-feature"]) {
-      expect(rendered).toContain(`id=\"${id}\"`);
+      expect(rendered).toContain(`id="${id}"`);
     }
     for (const screen of ["home", "participate", "explore", "results", "me"]) {
       expect(rendered).toContain(`/terraos-teaser-preview?screen=${screen}&chrome=content`);
@@ -99,8 +99,8 @@ describe("TerraOS 3 final visual production contract", () => {
     expect(rendered).toContain('/assets/terraos-maintenance/atmosphere.jpeg');
     expect(rendered).toContain('/assets/terraos-maintenance/moment-a.png');
     expect(rendered).toContain('/assets/terraos-maintenance/moment-b.png');
-    expect(rendered.match(/data-photo-kind=\"photo\"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
-    expect(rendered.match(/class=\"photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(rendered.match(/data-photo-kind="photo"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(rendered.match(/class="photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(rendered.match(/data-photo-parallax=/g)?.length ?? 0).toBe(7);
   });
 

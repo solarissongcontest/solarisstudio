@@ -21,9 +21,13 @@ describe("TerraOS maintenance visual asset routing", () => {
   });
 
   it("requires multiple obvious image moments and locally hosted photo layers", () => {
-    expect(page.match(/data-photo-kind=\"photo\"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
-    expect(page.match(/data-photo-parallax=/g)?.length ?? 0).toBeGreaterThanOrEqual(7);
-    expect(page.match(/class=\"photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(page.match(/data-photo-kind="photo"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    // Each photographic chapter must participate in the motion contract;
+    // do not pin the superseded composition's arbitrary total image count.
+    const photoTags = page.match(/<img[^>]*data-photo-kind="photo"[^>]*>/g) ?? [];
+    expect(photoTags.length).toBeGreaterThanOrEqual(3);
+    for (const photo of photoTags) expect(photo).toContain("data-photo-parallax=");
+    expect(page.match(/class="photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(css).toContain(".photo-chapter{");
     expect(css).toContain(".live-art{");
   });
