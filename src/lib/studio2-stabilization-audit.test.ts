@@ -264,7 +264,10 @@ describe("Studio 2 stabilization contract", () => {
     expect(organizerGate).toContain("return await hasSolarisOrganizerAccess(user.id)");
     expect(organizerGate).toContain("retry: false");
     expect(organizerGate).toContain("useEffect(() =>");
-    expect(organizerGate).toContain("if (organizerAccess.isPending || organizerAccess.data) return");
+    expect(organizerGate).toContain("organizerAccessDecision(organizerAccess)");
+    expect(organizerGate).toContain('if (decision !== "denied") return');
+    expect(organizerGate).toContain('if (decision === "unavailable")');
+    expect(organizerGate).toContain("organizerAccess.refetch()");
     expect(organizerGate).not.toContain("useState(");
     expect(organizerGate).not.toContain("setState(");
     expect(organizerGate).toContain('to: "/my-solaris"');
