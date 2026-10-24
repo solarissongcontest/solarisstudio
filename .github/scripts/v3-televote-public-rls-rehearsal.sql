@@ -22,8 +22,8 @@ from televoting.rounds r where r.name in ('draft','show-closed','private-show')
 and r.edition_id='16320000-0000-4000-8000-000000000010';
 insert into televoting.round_entries(round_id,entry_key,country_code)
 select id,'country:XRL','XRL' from televoting.rounds where edition_id='16320000-0000-4000-8000-000000000010';
-insert into televoting.round_countries(round_id,country_code,display_order)
-select id,'XRL',1 from televoting.rounds where edition_id='16320000-0000-4000-8000-000000000010';
+-- Canonical round_entries_sync_countries creates country membership; do not
+-- insert duplicate membership rows or disable the synchronization trigger.
 insert into auth.users(id,aud,role,email,created_at,updated_at) values
  ('16320000-0000-4000-8000-000000000021','authenticated','authenticated','rls-ordinary@local.invalid',now(),now()),
  ('16320000-0000-4000-8000-000000000022','authenticated','authenticated','rls-organizer@local.invalid',now(),now());
