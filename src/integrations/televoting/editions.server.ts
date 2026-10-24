@@ -1,3 +1,4 @@
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 
@@ -30,6 +31,7 @@ async function audit(
 }
 
 export async function listMergedTelevotingEditionsServer(): Promise<MergedTelevotingEdition[]> {
+  await requireSolarisCapabilityServer("voting.read");
   await requireMergedTelevotingAdminServer();
   const [editionResult, roundResult, voteResult] = await Promise.all([
     televotingAdmin.from("editions").select("id,name,is_active,is_archived,created_at").order("created_at", { ascending: false }),
@@ -62,6 +64,7 @@ export async function listMergedTelevotingEditionsServer(): Promise<MergedTelevo
 }
 
 export async function createMergedTelevotingEditionServer(name: string) {
+  await requireSolarisCapabilityServer("voting.manage");
   const actor = await requireMergedTelevotingAdminServer();
   const { data: row, error } = await televotingAdmin
     .from("editions")
@@ -74,6 +77,7 @@ export async function createMergedTelevotingEditionServer(name: string) {
 }
 
 export async function renameMergedTelevotingEditionServer(data: { id: string; name: string }) {
+  await requireSolarisCapabilityServer("voting.manage");
   const actor = await requireMergedTelevotingAdminServer();
   const { data: before, error: readError } = await televotingAdmin.from("editions").select("name").eq("id", data.id).maybeSingle();
   if (readError) throw new Error(readError.message);
@@ -85,6 +89,7 @@ export async function renameMergedTelevotingEditionServer(data: { id: string; na
 }
 
 export async function activateMergedTelevotingEditionServer(id: string) {
+  await requireSolarisCapabilityServer("voting.manage");
   const actor = await requireMergedTelevotingAdminServer();
   const { data: target, error: readError } = await televotingAdmin.from("editions").select("id,name,is_active,is_archived").eq("id", id).maybeSingle();
   if (readError) throw new Error(readError.message);
@@ -101,6 +106,7 @@ export async function activateMergedTelevotingEditionServer(id: string) {
 }
 
 export async function archiveMergedTelevotingEditionServer(data: { id: string; archived: boolean }) {
+  await requireSolarisCapabilityServer("voting.manage");
   const actor = await requireMergedTelevotingAdminServer();
   const { data: before, error: readError } = await televotingAdmin.from("editions").select("id,name,is_active,is_archived").eq("id", data.id).maybeSingle();
   if (readError) throw new Error(readError.message);
