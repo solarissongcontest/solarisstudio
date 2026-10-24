@@ -11,7 +11,7 @@ export type V3S13MigrationRisk =
 
 export type V3S13ReviewedExemptionReason =
   | "pre_framework_merge"
-  | "already_merged_immutable";
+  | "immutable_history_forward_repaired";
 
 export type V3S13ReviewedMigrationExemption = {
   path: string;
@@ -54,7 +54,7 @@ const CONTRACT_DECLARATION = /(?:v3_register_migration_contract\s*\(|insert\s+in
 const MIGRATION_PATH = /^supabase\/migrations\/\d{14}_[a-z0-9_.-]+\.sql$/;
 const VALID_EXEMPTION_REASONS = new Set<V3S13ReviewedExemptionReason>([
   "pre_framework_merge",
-  "already_merged_immutable",
+  "immutable_history_forward_repaired",
 ]);
 
 function stripSqlComments(source: string) {
