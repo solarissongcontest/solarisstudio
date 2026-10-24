@@ -1,0 +1,154 @@
+name: V3 S11 Cloudflare rollback rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact 40-character candidate SHA to rehearse
+        required: true
+        type: string
+      worker_name:
+        description: Dedicated non-production Worker in solaris-s11-rollback-* namespace
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s11-cloudflare-rollback-${{ inputs.worker_name }}
+  cancel-in-progress: false
+
+jobs:
+  cloudflare-rollback:
+    name: Dedicated Worker defective deploy + rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+    steps:
+      - name: Checkout requested candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate and dedicated Worker namespace
+        id: candidate
+        shell: bash
+        env:
+          REQUESTED_SHA: ${{ inputs.candidate_sha }}
+          REQUESTED_WORKER: ${{ inputs.worker_name }}
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s' "$REQUESTED_SHA" | tr '[:upper:]' '[:lower:]')"
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::candidate_sha must be an exact 40-character commit SHA"
+            exit 1
+          fi
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Cloudflare rollback checkout is $actual, expected $expected"
+            exit 1
+          fi
+          worker="$(printf '%s' "$REQUESTED_WORKER" | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$worker" =~ ^solaris-s11-rollback-[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] || [ ${#worker} -gt 63 ]; then
+            echo "::error::worker_name must be a bounded dedicated solaris-s11-rollback-* Worker"
+            exit 1
+          fi
+          if [ "$worker" = "studio" ]; then
+            echo "::error::Refusing production Worker"
+            exit 1
+          fi
+          if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
+            echo "::error::Cloudflare rollback evidence requires a clean exact-head checkout"
+            git status --short
+            exit 1
+          fi
+          echo "sha=$expected" >> "$GITHUB_OUTPUT"
+          echo "worker=$worker" >> "$GITHUB_OUTPUT"
+
+      - name: Require isolated Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID repository secret is required}"
+          : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN repository secret is required}"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Execute real provider rollback rehearsal
+        shell: bash
+        env:
+          SOLARIS_S11_ROLLBACK_WORKER: ${{ steps.candidate.outputs.worker }}
+          SOLARIS_S11_ROLLBACK_OPERATOR: github-actions-${{ github.actor }}
+          SOLARIS_S11_ROLLBACK_EVIDENCE_PATH: /tmp/v3-s11-cloudflare-rollback.json
+        run: |
+          set -euo pipefail
+          bash .github/scripts/v3-s11-cloudflare-rollback-rehearsal.sh
+
+      - name: Verify exact-head component evidence
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.candidate.outputs.sha }}
+          EXPECTED_WORKER: ${{ steps.candidate.outputs.worker }}
+        run: |
+          set -euo pipefail
+          python3 - "$EXPECTED_SHA" "$EXPECTED_WORKER" /tmp/v3-s11-cloudflare-rollback.json <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          expected_sha, expected_worker, evidence_path = sys.argv[1:]
+          evidence = json.loads(Path(evidence_path).read_text(encoding="utf-8"))
+          assert evidence["schemaVersion"] == 1
+          assert evidence["kind"] == "cloudflare_deployment_rollback_rehearsal"
+          assert evidence["scope"] == "isolated_cloudflare_worker"
+          assert evidence["status"] == "passed"
+          assert evidence["commitSha"] == expected_sha
+          assert evidence["worker"]["name"] == expected_worker
+          assert evidence["worker"]["productionWorkerName"] == "studio"
+          assert evidence["worker"]["targetUrl"].startswith("https://")
+          assert ".workers.dev" in evidence["worker"]["targetUrl"]
+          assert expected_worker in evidence["worker"]["targetUrl"]
+          assert evidence["worker"]["fixtureBindings"] == "CF_VERSION_METADATA only"
+          assert evidence["wranglerVersion"] == "4.141.0"
+          versions = evidence["versions"]
+          assert versions["baseline"]["id"] != versions["defective"]["id"]
+          assert versions["rolledBackToVersionId"] == versions["baseline"]["id"]
+          achieved = evidence["achieved"]
+          assert achieved["isolatedProviderRollbackMs"] >= 0
+          assert achieved["productionRpoClaim"] is False
+          assert achieved["productionRtoClaim"] is False
+          assert achieved["dataRollbackClaim"] is False
+          validation = evidence["validation"]
+          assert validation["baselineServedBeforeDefect"] is True
+          assert validation["defectiveServedBeforeRollback"] is True
+          assert validation["rollbackDeploymentSingleVersion"] is True
+          assert validation["rollbackTrafficPercent"] == 100
+          assert validation["runtimeVersionMatchesBaseline"] is True
+          assert validation["runtimeMarkerMatchesBaseline"] is True
+          assert validation["fixtureContainsNoSolarisBindings"] is True
+          assert validation["databaseRollbackAttempted"] is False
+          assert validation["storageRollbackAttempted"] is False
+          assert len(evidence["artifactDigests"]) == 10
+          assert all(len(value) == 64 for value in evidence["artifactDigests"].values())
+          assert evidence["issuesFound"] == []
+          assert evidence["certificationClaim"] is False
+          assert evidence["fullServiceRecoveryClaim"] is False
+          assert evidence["qaReviewRequired"] is True
+          PY
+
+      - name: Upload exact-head Cloudflare rollback evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s11-cloudflare-rollback-evidence-${{ steps.candidate.outputs.sha }}
+          path: /tmp/v3-s11-cloudflare-rollback.json
+          if-no-files-found: error
+          retention-days: 14
