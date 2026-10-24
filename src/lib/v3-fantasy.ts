@@ -22,10 +22,11 @@ export type V3FantasyChoice = {
 export type V3FantasyTeam = {
   id: string;
   game_id: string;
-  profile_id: string;
+  profile_id?: string;
   state: string;
   captain_country_id: string | null;
   score: number | null;
+  revision?: number;
 };
 
 export type V3FantasyTeamEntry = {
@@ -50,6 +51,43 @@ export type V3FantasyState =
   | "live_scoring"
   | "settled";
 
+export type V3FantasyProjection = {
+  serverTime: string;
+  effectiveState: V3FantasyState;
+  stateVersion: number;
+  canEdit: boolean;
+  game: V3FantasyGame;
+  choices: V3FantasyChoice[];
+  team: V3FantasyTeam | null;
+  teamEntries: V3FantasyTeamEntry[];
+};
+
+export type V3FantasySubmitResult = {
+  status: "processing" | "succeeded" | "failed" | "uncertain";
+  operationId: string;
+  correlationId?: string;
+  replayed?: boolean;
+  result?: {
+    ok?: boolean;
+    teamId?: string;
+    gameId?: string;
+    state?: string;
+    stateVersion?: number;
+    eventId?: string;
+    operationId?: string;
+    serverTime?: string;
+  };
+  error?: {
+    code?: string;
+    metadata?: Record<string, unknown>;
+  } | null;
+};
+
+/**
+ * Legacy/local resolver retained for non-authoritative previews and historical
+ * tests. Participant Fantasy must use V3FantasyProjection.effectiveState from
+ * the server rather than supplying a browser clock here.
+ */
 export function resolveV3FantasyState(input: {
   game: V3FantasyGame | null;
   team: V3FantasyTeam | null;
@@ -116,4 +154,26 @@ export function fantasyStateLabel(state: V3FantasyState) {
 
 export function canEditV3FantasyRoster(state: V3FantasyState) {
   return state === "open" || state === "submitted";
+}
+
+/**
+ * Convert an authoritative server snapshot into a one-shot refresh delay.
+ * Only the server timestamp is used as the clock origin, so a wrong device
+ * clock cannot extend or prematurely open the roster window.
+ */
+export function fantasyBoundaryRefreshDelayMs(
+  projection: V3FantasyProjection | null | undefined,
+  maxDelayMs = 2_147_000_000,
+) {
+  if (!projection) return null;
+  const serverMs = Date.parse(projection.serverTime);
+  if (!Number.isFinite(serverMs)) return null;
+
+  const futureBoundaries = [projection.game.opens_at, projection.game.locks_at]
+    .map((value) => Date.parse(value))
+    .filter((value) => Number.isFinite(value) && value > serverMs);
+
+  if (!futureBoundaries.length) return null;
+  const nextBoundary = Math.min(...futureBoundaries);
+  return Math.max(0, Math.min(maxDelayMs, nextBoundary - serverMs + 250));
 }
