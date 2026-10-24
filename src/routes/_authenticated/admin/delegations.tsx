@@ -22,6 +22,8 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { loadConfirmationRequirements } from "@/integrations/confirmations/admin";
+import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
+import { editionLabel, useEditions } from "@/lib/data";
 import { summarizeConfirmationRequirementAttention } from "@/lib/v3-organizer-confirmation-requirement-attention";
 
 export const Route = createFileRoute("/_authenticated/admin/delegations")({
@@ -36,10 +38,20 @@ export const Route = createFileRoute("/_authenticated/admin/delegations")({
 
 function OrganizerDelegationsPage() {
   const { editionId } = useAdminContext();
+  const editionsQuery = useEditions();
+  const selectedEdition = selectOrganizerEdition(editionsQuery.data ?? [], editionId);
+  const resolvedEditionId = selectedEdition?.id ?? "";
+  const selectedEditionLabel = selectedEdition ? editionLabel(selectedEdition) : null;
+
   const requirementsQuery = useQuery({
-    queryKey: ["v3-organizer", "delegations", "confirmation-requirements", editionId],
-    queryFn: () => loadConfirmationRequirements(editionId!),
-    enabled: Boolean(editionId),
+    queryKey: [
+      "v3-organizer",
+      "delegations",
+      "confirmation-requirements",
+      resolvedEditionId || "none",
+    ],
+    queryFn: () => loadConfirmationRequirements(resolvedEditionId),
+    enabled: Boolean(resolvedEditionId),
     staleTime: 20_000,
   });
 
@@ -48,17 +60,41 @@ function OrganizerDelegationsPage() {
   return (
     <div className="mx-auto max-w-6xl">
       <AdminPageHeader
-        eyebrow="Current edition"
+        eyebrow={selectedEditionLabel ?? "Current edition"}
         title="Delegations"
-        description="Exception-first delegation operations. Confirmation attention is derived from the canonical requirement projection for the Organizer edition, never from entry-review status."
+        description="Exception-first delegation operations. Confirmation attention is derived from the canonical requirement projection for the exact Organizer edition, never from entry-review status."
       />
 
-      {!editionId ? (
+      {editionsQuery.isLoading ? (
+        <AdminCard>
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Verifying Organizer edition context…
+          </p>
+        </AdminCard>
+      ) : editionsQuery.isError ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={CircleAlert}
+            title="Edition context could not be verified"
+            description="Delegation operations stay unavailable until Solaris can verify that the selected Organizer edition is still accessible."
+          />
+          <div className="mt-3 flex justify-center">
+            <button
+              type="button"
+              onClick={() => void editionsQuery.refetch()}
+              disabled={editionsQuery.isFetching}
+              className="admin-action-secondary"
+            >
+              Retry edition lookup
+            </button>
+          </div>
+        </AdminCard>
+      ) : !selectedEdition ? (
         <AdminCard>
           <AdminEmptyState
             icon={Flag}
-            title="Select an edition"
-            description="Delegation operations fail closed until Organizer context identifies an edition. Solaris will not substitute another edition or a globally active Confirmation edition."
+            title="Edition context required"
+            description="Select an exact accessible Organizer edition before opening Delegations. Solaris will not substitute another edition or a globally active Confirmation edition for missing, stale or revoked context."
           />
         </AdminCard>
       ) : requirementsQuery.isLoading ? (
@@ -72,9 +108,27 @@ function OrganizerDelegationsPage() {
           <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-4 text-sm leading-relaxed text-rose-100">
             Confirmation requirement truth could not be loaded. The workspace will not infer an all-clear from missing data.
           </div>
+          <div className="mt-3 flex justify-center">
+            <button
+              type="button"
+              onClick={() => void requirementsQuery.refetch()}
+              disabled={requirementsQuery.isFetching}
+              className="admin-action-secondary"
+            >
+              Retry requirements
+            </button>
+          </div>
         </AdminCard>
       ) : (
         <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.018] px-3 py-2">
+            <AdminStatus tone="neutral">Edition context</AdminStatus>
+            <span className="text-sm font-semibold text-foreground">{selectedEditionLabel}</span>
+            <span className="text-xs text-muted-foreground">
+              All delegation attention and workspace links below are scoped to this Organizer edition.
+            </span>
+          </div>
+
           <section className="grid gap-2 sm:grid-cols-3">
             <MetricCard
               icon={CircleAlert}
