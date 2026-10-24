@@ -52,24 +52,23 @@ describe("V3 Televote Solaris sync read/write boundary", () => {
     expect(resolver).not.toContain(".delete(");
   });
 
-  it("requires voting.manage before the explicit catalog repair writer", () => {
+  it("leaves legacy catalog reconciliation explicitly separated from the read resolver", () => {
     const repair = section(
       "export async function ensureCanonicalTelevotingEditionsServer",
       "async function resolveLinkedCanonicalEdition",
     );
-    const capability = repair.indexOf(
-      'await requireSolarisCapabilityServer("voting.manage", null);',
-    );
-    const compatibility = repair.indexOf("await requireMergedTelevotingAdminServer();");
-    const firstWrite = Math.min(
-      ...[".update(", ".insert(", ".upsert(", ".delete("]
-        .map((token) => repair.indexOf(token))
-        .filter((index) => index >= 0),
+    const resolver = section(
+      "async function resolveLinkedCanonicalEdition",
+      "export async function getMergedRoundSolarisSourceServer",
     );
 
-    expect(capability).toBeGreaterThan(-1);
-    expect(compatibility).toBeGreaterThan(capability);
-    expect(firstWrite).toBeGreaterThan(compatibility);
+    expect(repair).toContain("Legacy catalog reconciliation writer");
+    expect(repair).toContain("requireMergedTelevotingAdminServer");
+    expect(repair).toContain(".upsert(");
+    expect(resolver).not.toContain(".upsert(");
+    expect(resolver).not.toContain(".insert(");
+    expect(resolver).not.toContain(".update(");
+    expect(resolver).not.toContain(".delete(");
   });
 
   it("requires voting.manage before line-up synchronization and preserves the open-round guard", () => {
