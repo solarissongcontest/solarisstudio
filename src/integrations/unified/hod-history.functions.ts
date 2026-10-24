@@ -1,9 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireHodHistoryCapabilityServer } from "@/integrations/unified/hod-access.server";
 import type { HodChannel } from "@/integrations/unified/hod-history.server";
 
 export const getHodHistory = createServerFn({ method: "GET" }).handler(async () => {
-  await requireHodHistoryCapabilityServer("delegation.read");
   const { getHodHistoryServer } = await import("@/integrations/unified/hod-history.server");
   const result = await getHodHistoryServer();
   if (!result) throw new Error("HOD history returned no data");
@@ -11,7 +9,6 @@ export const getHodHistory = createServerFn({ method: "GET" }).handler(async () 
 });
 
 export const getHodIdentitySuggestions = createServerFn({ method: "GET" }).handler(async () => {
-  await requireHodHistoryCapabilityServer("delegation.read");
   const { getHodIdentitySuggestionsServer } = await import("@/integrations/unified/hod-suggestions.server");
   const result = await getHodIdentitySuggestionsServer();
   return result ?? [];
@@ -29,7 +26,6 @@ export const saveHodPerson = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data }) => {
-    await requireHodHistoryCapabilityServer("delegation.manage");
     const [{ saveHodPersonServer }, { writeAdminAuditServer }] = await Promise.all([
       import("@/integrations/unified/hod-history.server"),
       import("@/integrations/supabase/admin-audit.server"),
@@ -75,7 +71,6 @@ export const saveHodAssignments = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data }) => {
-    await requireHodHistoryCapabilityServer("delegation.manage");
     const [{ saveHodAssignmentsServer }, { writeAdminAuditServer }] = await Promise.all([
       import("@/integrations/unified/hod-history.server"),
       import("@/integrations/supabase/admin-audit.server"),
@@ -104,7 +99,6 @@ export const deleteHodAssignment = createServerFn({ method: "POST" })
     return { id: String(data.id) };
   })
   .handler(async ({ data }) => {
-    await requireHodHistoryCapabilityServer("delegation.manage");
     const [{ deleteHodAssignmentServer }, { writeAdminAuditServer }] = await Promise.all([
       import("@/integrations/unified/hod-history.server"),
       import("@/integrations/supabase/admin-audit.server"),
