@@ -10,6 +10,8 @@ export type V3PrMainFreshnessInput = {
   compareStatus: string;
   mergeBaseSha: string;
   expectedEventHeadSha?: string | null;
+  finalMainSha?: string | null;
+  finalPrHeadSha?: string | null;
 };
 
 export type V3PrMainFreshnessAssessment = {
@@ -61,6 +63,8 @@ export function assessV3PrMainFreshness(
   const expectedEventHeadSha = input.expectedEventHeadSha
     ? exactSha(input.expectedEventHeadSha)
     : null;
+  const finalMainSha = input.finalMainSha ? exactSha(input.finalMainSha) : null;
+  const finalPrHeadSha = input.finalPrHeadSha ? exactSha(input.finalPrHeadSha) : null;
 
   if (input.baseRef !== "main") {
     errors.push(`V3 integration freshness applies only to main-based PRs; received ${input.baseRef}`);
@@ -71,8 +75,20 @@ export function assessV3PrMainFreshness(
   if (input.expectedEventHeadSha && !expectedEventHeadSha) {
     errors.push("workflow event head SHA is not an exact 40-character SHA");
   }
+  if (input.finalMainSha && !finalMainSha) {
+    errors.push("final current-main SHA is not an exact 40-character SHA");
+  }
+  if (input.finalPrHeadSha && !finalPrHeadSha) {
+    errors.push("final pull-request head SHA is not an exact 40-character SHA");
+  }
   if (expectedEventHeadSha && prHeadSha && expectedEventHeadSha !== prHeadSha) {
     errors.push("pull-request head moved after this workflow event; rerun on the current exact head");
+  }
+  if (currentMainSha && finalMainSha && currentMainSha !== finalMainSha) {
+    errors.push("current main moved during the freshness check; rerun before integration");
+  }
+  if (prHeadSha && finalPrHeadSha && prHeadSha !== finalPrHeadSha) {
+    errors.push("pull-request head moved during the freshness check; rerun on the new exact head");
   }
   if (!ACCEPTED_COMPARE_STATUSES.has(input.compareStatus)) {
     errors.push(
@@ -151,28 +167,31 @@ export async function runV3PrMainFreshnessCheck(): Promise<number> {
   const expectedEventHeadSha = process.env.V3_EXPECTED_HEAD_SHA?.trim() || null;
   const apiBase = `https://api.github.com/repos/${repository}`;
 
-  const pull = await githubJson<PullResponse>(`${apiBase}/pulls/${prNumber}`, token);
-  if (String(pull.number) !== prNumber) {
-    throw new Error(`GitHub returned PR #${pull.number} while #${prNumber} was requested`);
+  const pullBefore = await githubJson<PullResponse>(`${apiBase}/pulls/${prNumber}`, token);
+  if (String(pullBefore.number) !== prNumber) {
+    throw new Error(`GitHub returned PR #${pullBefore.number} while #${prNumber} was requested`);
   }
-  if (!isV3PullForFreshness(pull)) {
+  if (!isV3PullForFreshness(pullBefore)) {
     throw new Error(`PR #${prNumber} is not a main-based V3 pull request`);
   }
 
-  const branch = await githubJson<BranchResponse>(`${apiBase}/branches/main`, token);
-  const currentMainSha = branch.commit.sha;
+  const mainBefore = await githubJson<BranchResponse>(`${apiBase}/branches/main`, token);
   const compare = await githubJson<CompareResponse>(
-    `${apiBase}/compare/${encodeURIComponent(currentMainSha)}...${encodeURIComponent(pull.head.sha)}`,
+    `${apiBase}/compare/${encodeURIComponent(mainBefore.commit.sha)}...${encodeURIComponent(pullBefore.head.sha)}`,
     token,
   );
+  const pullAfter = await githubJson<PullResponse>(`${apiBase}/pulls/${prNumber}`, token);
+  const mainAfter = await githubJson<BranchResponse>(`${apiBase}/branches/main`, token);
 
   const assessment = assessV3PrMainFreshness({
-    baseRef: pull.base.ref,
-    currentMainSha,
-    prHeadSha: pull.head.sha,
+    baseRef: pullBefore.base.ref,
+    currentMainSha: mainBefore.commit.sha,
+    prHeadSha: pullBefore.head.sha,
     compareStatus: compare.status,
     mergeBaseSha: compare.merge_base_commit.sha,
     expectedEventHeadSha,
+    finalMainSha: mainAfter.commit.sha,
+    finalPrHeadSha: pullAfter.head.sha,
   });
 
   writeSummary(prNumber, assessment);
