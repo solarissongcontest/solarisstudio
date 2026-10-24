@@ -52,6 +52,36 @@ limit 1;
   [[ "$(db_scalar "select count(*) from public.jury_ballot_statuses where show_id='$show_id'::uuid and voter_id='$voter_id'::uuid and status='did_not_vote';")" == "1" ]] || fail "DNV truth was not persisted for $show_id"
 }
 
+review_s14_submitted_jury_ballots() {
+  local ballot_id country_suffix preview_version review_id review_rows reviewed_count=0
+  local votes_before votes_after
+  votes_before="$(db_scalar "select md5(jsonb_agg(to_jsonb(v) order by v.id)::text) from public.jury_votes v where v.show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid);")"
+  review_rows="$(db_scalar "select id::text || '|' || right(voter_country_id::text,12) from public.jury_ballot_submissions where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and status='submitted' order by show_id,voter_country_id;")"
+  while IFS='|' read -r ballot_id country_suffix; do
+    [[ -n "$ballot_id" ]] || continue
+    rpc_request "$ORGANIZER_A_TOKEN" studio2_jury_ballot_review_preview "{\"p_ballot_id\":\"$ballot_id\",\"p_target_status\":\"valid\"}"
+    expect_success "preview submitted Jury ballot review $ballot_id"
+    expect_json "Jury review risk $ballot_id" riskClass R2
+    expect_json "Jury review current state $ballot_id" currentStatus submitted
+    expect_json "Jury review saved scores $ballot_id" voteRows 10
+    preview_version="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
+    [[ "$preview_version" =~ ^[0-9]+$ ]] || fail "Jury review preview omitted expected version"
+    review_id="14000000-0000-4008-8700-$country_suffix"
+    rpc_request "$ORGANIZER_A_TOKEN" studio2_apply_jury_ballot_review "{\"p_ballot_id\":\"$ballot_id\",\"p_target_status\":\"valid\",\"p_reason\":\"S14 Organizer reviewed immutable submitted Jury evidence\",\"p_operation_id\":\"$review_id\",\"p_idempotency_key\":\"s14-results-jury-review-$ballot_id\",\"p_expected_version\":$preview_version}"
+    expect_success "review submitted Jury ballot $ballot_id"
+    expect_json "Jury review accepted $ballot_id" ok true
+    expect_json "Jury review canonical state $ballot_id" status valid
+    expect_json "Jury review ballot identity $ballot_id" ballotId "$ballot_id"
+    expect_json "Jury review operation identity $ballot_id" operationId "$review_id"
+    [[ "$(db_scalar "select count(*) from public.studio2_operation_receipts where operation_id='$review_id'::uuid and command='jury.ballot.review.valid' and status='succeeded';")" == "1" ]] || fail "Jury review omitted successful canonical receipt"
+    reviewed_count=$((reviewed_count+1))
+  done <<< "$review_rows"
+  [[ "$reviewed_count" == "64" ]] || fail "S14 reviewed $reviewed_count submitted Jury ballots instead of 64"
+  [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and status='valid';")" == "64" ]] || fail "Jury review did not persist all 64 valid states"
+  votes_after="$(db_scalar "select md5(jsonb_agg(to_jsonb(v) order by v.id)::text) from public.jury_votes v where v.show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid);")"
+  [[ "$votes_before" == "$votes_after" ]] || fail "Organizer review changed immutable Jury score evidence"
+}
+
 exercise_result_timeout_before_commit() {
   local show_id="$1" expected_version="$2" ordinal="$3"
   local execution_id lock_pid timeout_log
@@ -192,9 +222,12 @@ run_s14_stage_8_results() {
   resolve_missing_jury_ballot_as_dnv "$SEMI_TWO_ID" 2
   [[ "$(db_scalar "select count(*) from public.jury_ballot_statuses where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and status='did_not_vote';")" == "2" ]] || fail "S14 did not preserve exactly two authorized DNV resolutions"
 
+  review_s14_submitted_jury_ballots
+
   for show_id in "$SEMI_ONE_ID" "$SEMI_TWO_ID"; do
-    ready="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'calculationReady');")"
-    [[ "$ready" == "true" ]] || fail "show $show_id is still not calculation-ready after integrity resolution"
+    readiness="$(service_value "select private.studio2_result_preconditions('$show_id'::uuid)::text;")"
+    ready="$(printf '%s' "$readiness" | json_value calculationReady)"
+    [[ "$ready" == "true" ]] || fail "show $show_id is still not calculation-ready after integrity resolution: $readiness"
   done
 
   current_version="$(db_scalar "select coalesce((select calculation_version from public.studio2_result_operations where show_id='$SEMI_ONE_ID'::uuid),0);")"

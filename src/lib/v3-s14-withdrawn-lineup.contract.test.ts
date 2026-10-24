@@ -29,6 +29,19 @@ describe("S14 canonical lineup after Stage-4 withdrawal", () => {
     expect(stage8).toContain("DNV truth was not persisted for $show_id");
   });
 
+  it("reviews submitted Jury evidence through versioned Organizer authority before readiness", () => {
+    expect(stage8).toContain("studio2_jury_ballot_review_preview");
+    expect(stage8).toContain("studio2_apply_jury_ballot_review");
+    expect(stage8).toContain('p_expected_version\\\":$preview_version');
+    expect(stage8).toContain("jury.ballot.review.valid");
+    expect(stage8).toContain('"$votes_before" == "$votes_after"');
+    expect(stage8).toContain('"$reviewed_count" == "64"');
+    const invocation = stage8.indexOf("  review_s14_submitted_jury_ballots\n");
+    expect(invocation).toBeGreaterThan(0);
+    expect(invocation).toBeLessThan(stage8.indexOf('ready="$(printf'));
+    expect(stage8).not.toMatch(/update public\.jury_ballot_submissions/i);
+  });
+
   const expected = [{ country_id: "confirmed-a", points: 12 }, { country_id: "confirmed-b", points: 8 }];
   it("accepts canonical publication in a different row order", () => {
     expect(assertS14TelevoteReadback(expected, [...expected].reverse())).toBe(2);
