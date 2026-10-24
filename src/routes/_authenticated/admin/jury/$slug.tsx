@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowDown,
   ArrowLeft,
@@ -50,6 +51,16 @@ import {
 import { DEFAULT_ACCENT, entityDisplayMap } from "@/lib/entities";
 import { reportSupabaseError } from "@/lib/errors";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
+import { toSystemError } from "@/lib/system-error";
+import { reconcileSystemOperation } from "@/lib/system-operation.functions";
+import {
+  applyOrganizerJuryCorrection,
+  juryCorrectionBlockerMessage,
+  parseOrganizerJuryCorrectionResult,
+  previewOrganizerJuryCorrection,
+  type OrganizerJuryCorrectionAction,
+  type OrganizerJuryCorrectionPreview,
+} from "@/lib/v3-organizer-jury-correction-authority";
 import { resolveVoting } from "@/lib/voting";
 
 type JurySearch = { show?: string };
@@ -103,6 +114,34 @@ type PendingDnvChange = {
   savedVoteRows: number;
   operationId: string;
   idempotencyKey: string;
+};
+
+type PendingJuryCorrection = {
+  action: OrganizerJuryCorrectionAction;
+  editionId: string;
+  showId: string;
+  voterKey: string;
+  voterName: string;
+  authoritativeVoterKey: string;
+  voterId: string | null;
+  voterCountryId: string | null;
+  voterEntityId: string | null;
+  receivingCountryId: string | null;
+  receivingEntityId: string | null;
+  receiverName: string | null;
+  points: number;
+  preview: OrganizerJuryCorrectionPreview;
+  operationId: string;
+  idempotencyKey: string;
+  correlationId: string;
+};
+
+type JuryCorrectionReceipt = {
+  operationId: string;
+  version: number;
+  replayed: boolean;
+  resultsRecalculationRequired: boolean;
+  invalidatedResultRows: number;
 };
 
 type LifecycleRpcResult = {
@@ -172,6 +211,7 @@ function JuryWorkspace() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const qc = useQueryClient();
+  const reconcileOperation = useServerFn(reconcileSystemOperation);
   const { data: edition, isLoading: loadingEdition } = useEdition(slug);
   const { data: shows = [], isLoading: loadingShows } = useShows(edition?.id);
   const { data: allParticipants = [] } = useParticipants(edition?.id);
@@ -245,6 +285,9 @@ function JuryWorkspace() {
   const [pendingBallotReview, setPendingBallotReview] =
     useState<PendingBallotReview | null>(null);
   const [pendingDnvChange, setPendingDnvChange] = useState<PendingDnvChange | null>(null);
+  const [pendingCorrection, setPendingCorrection] = useState<PendingJuryCorrection | null>(null);
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [lastCorrectionReceipt, setLastCorrectionReceipt] = useState<JuryCorrectionReceipt | null>(null);
   const [lifecycleReason, setLifecycleReason] = useState("");
 
   const neededPerBallot = voting.juryPoints.length;
@@ -300,51 +343,198 @@ function JuryWorkspace() {
     return { voterId: option?.voterId ?? null, countryId: option?.countryId ?? null };
   }
 
-  async function assign(voterKey: string, receiver: string, points: number) {
-    if (!edition || !selectedShow) return;
-    if (didNotVoteVoterKeys.has(voterKey)) {
-      toast.error("Restore this jury ballot before assigning points.");
+  async function prepareJuryCorrection(
+    action: OrganizerJuryCorrectionAction,
+    voterKey: string,
+    points: number,
+    receiver?: string,
+  ) {
+    if (!edition || !selectedShow || busy) return;
+    const voterOption = voterOptions.find((option) => option.key === voterKey);
+    if (!voterOption) {
+      toast.error("That Jury identity is no longer available. Refresh the ballot before changing scores.");
       return;
     }
+
     const { voterId, countryId } = decodeVoterKey(voterKey);
-    const voterIdentity = countryId ? identityFor(countryId) : { country_id: null, contest_entity_id: null };
-    const target = identityFor(receiver);
-    const { error } = await (supabase as any).rpc("assign_jury_vote", {
-      p_edition_id: edition.id,
-      p_show_id: selectedShow.id,
-      p_voter_id: voterId,
-      p_voter_country_id: voterIdentity.country_id,
-      p_voter_entity_id: voterIdentity.contest_entity_id,
-      p_receiving_country_id: target.country_id,
-      p_receiving_entity_id: target.contest_entity_id,
-      p_points: points,
-    });
-    if (error) {
-      toast.error(reportSupabaseError(error, "Could not save that jury score. Nothing was changed."));
+    const voterIdentity = countryId
+      ? identityFor(countryId)
+      : { country_id: null, contest_entity_id: null };
+    const target = action === "assign" && receiver
+      ? identityFor(receiver)
+      : { country_id: null, contest_entity_id: null };
+    const receiverName = action === "assign" && receiver
+      ? displays.get(receiver)?.name ?? countries.find((country) => country.id === receiver)?.name ?? "Selected entry"
+      : null;
+
+    setBusy(true);
+    try {
+      const preview = await previewOrganizerJuryCorrection({
+        editionId: edition.id,
+        showId: selectedShow.id,
+        voterId,
+        voterCountryId: voterIdentity.country_id,
+        voterEntityId: voterIdentity.contest_entity_id,
+        action,
+        receivingCountryId: target.country_id,
+        receivingEntityId: target.contest_entity_id,
+        points,
+      });
+      if (!preview.canApply || preview.blockers.length) {
+        toast.error(juryCorrectionBlockerMessage(preview));
+        return;
+      }
+
+      const command = createOrganisationCommand({
+        command: action === "assign" ? "jury.vote.correct" : "jury.vote.clear",
+        payload: {
+          showId: selectedShow.id,
+          voterKey: preview.stateVersion,
+          action,
+          points,
+          receivingCountryId: target.country_id,
+          receivingEntityId: target.contest_entity_id,
+        },
+        riskClass: preview.riskClass,
+        scope: {
+          editionId: edition.id,
+          showId: selectedShow.id,
+          entityId: voterId ?? voterIdentity.contest_entity_id ?? voterIdentity.country_id,
+        },
+        expectedVersion: preview.version,
+      });
+
+      setCorrectionReason("");
+      setPendingCorrection({
+        action,
+        editionId: edition.id,
+        showId: selectedShow.id,
+        voterKey,
+        voterName: voterOption.name,
+        authoritativeVoterKey: preview.stateVersion,
+        voterId,
+        voterCountryId: voterIdentity.country_id,
+        voterEntityId: voterIdentity.contest_entity_id,
+        receivingCountryId: target.country_id,
+        receivingEntityId: target.contest_entity_id,
+        receiverName,
+        points,
+        preview,
+        operationId: command.operationId,
+        idempotencyKey: command.idempotencyKey,
+        correlationId: command.correlationId,
+      });
+    } catch (caught) {
+      toast.error(toSystemError(caught).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function recoverJuryCorrection(
+    pending: PendingJuryCorrection,
+  ) {
+    const reconciliation = await reconcileOperation({ data: { operationId: pending.operationId } });
+    if (!reconciliation.ok) return null;
+    if (reconciliation.receipt.status !== "succeeded") {
+      throw new Error(
+        reconciliation.receipt.error?.message ??
+          "The Jury correction is still unresolved. Keep the operation ID and reconcile before retrying.",
+      );
+    }
+    const result = parseOrganizerJuryCorrectionResult(reconciliation.receipt.result);
+    if (
+      result.operationId !== pending.operationId ||
+      result.editionId !== pending.editionId ||
+      result.showId !== pending.showId
+    ) {
+      throw new Error("Reconciled Jury correction belongs to a different operation scope.");
+    }
+    return { ...result, replayed: true };
+  }
+
+  async function applyJuryCorrection() {
+    const pending = pendingCorrection;
+    if (!pending || !edition || !selectedShow || busy) return;
+    const reason = correctionReason.trim();
+    if (reason.length < 5) return;
+    if (edition.id !== pending.editionId || selectedShow.id !== pending.showId) {
+      setPendingCorrection(null);
+      setCorrectionReason("");
+      toast.error("Edition or show context changed while the Jury correction was under review. Nothing was applied.");
       return;
     }
-    await qc.invalidateQueries({ queryKey: ["jury_votes"] });
-    await qc.invalidateQueries({ queryKey: ["admin-readiness-data"] });
+
+    setBusy(true);
+    try {
+      let result;
+      try {
+        result = await applyOrganizerJuryCorrection({
+          editionId: pending.editionId,
+          showId: pending.showId,
+          voterId: pending.voterId,
+          voterCountryId: pending.voterCountryId,
+          voterEntityId: pending.voterEntityId,
+          action: pending.action,
+          receivingCountryId: pending.receivingCountryId,
+          receivingEntityId: pending.receivingEntityId,
+          points: pending.points,
+          reason,
+          expectedVersion: pending.preview.version,
+          expectedStateHash: pending.preview.stateHash,
+          operationId: pending.operationId,
+          idempotencyKey: pending.idempotencyKey,
+          correlationId: pending.correlationId,
+        });
+      } catch (caught) {
+        const systemError = toSystemError(caught);
+        if (!systemError.retryable) throw caught;
+        const recovered = await recoverJuryCorrection(pending);
+        if (!recovered) throw caught;
+        result = recovered;
+      }
+
+      setLastCorrectionReceipt({
+        operationId: result.operationId,
+        version: result.version,
+        replayed: result.replayed,
+        resultsRecalculationRequired: result.resultsRecalculationRequired,
+        invalidatedResultRows: result.invalidatedResultRows,
+      });
+      setPendingCorrection(null);
+      setCorrectionReason("");
+      await refresh();
+      if (result.resultsRecalculationRequired) {
+        await qc.invalidateQueries({ queryKey: ["results"] });
+        toast.warning(
+          `Jury score saved. ${result.invalidatedResultRows} mutable Result row${result.invalidatedResultRows === 1 ? " was" : "s were"} invalidated; recalculate in Results before review or publication.`,
+        );
+      } else {
+        toast.success(
+          result.replayed
+            ? "Jury score correction confirmed from the operation ledger"
+            : `Jury score correction saved as version ${result.version}`,
+        );
+      }
+    } catch (caught) {
+      const systemError = toSystemError(caught);
+      setPendingCorrection(null);
+      setCorrectionReason("");
+      toast.error(systemError.message);
+      if (systemError.code === "STATE_CHANGED" || systemError.code === "VERSION_CONFLICT") {
+        await refresh();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function assign(voterKey: string, receiver: string, points: number) {
+    await prepareJuryCorrection("assign", voterKey, points, receiver);
   }
 
   async function clearPoint(voterKey: string, points: number) {
-    if (!edition || !selectedShow) return;
-    const { voterId, countryId } = decodeVoterKey(voterKey);
-    const voterIdentity = countryId ? identityFor(countryId) : { country_id: null, contest_entity_id: null };
-    const { error } = await (supabase as any).rpc("clear_jury_point", {
-      p_edition_id: edition.id,
-      p_show_id: selectedShow.id,
-      p_voter_id: voterId,
-      p_voter_country_id: voterIdentity.country_id,
-      p_voter_entity_id: voterIdentity.contest_entity_id,
-      p_points: points,
-    });
-    if (error) {
-      toast.error(reportSupabaseError(error, "Could not clear that jury score. Nothing was changed."));
-      return;
-    }
-    await qc.invalidateQueries({ queryKey: ["jury_votes"] });
-    await qc.invalidateQueries({ queryKey: ["admin-readiness-data"] });
+    await prepareJuryCorrection("clear", voterKey, points);
   }
 
   async function setDidNotVote(voterKey: string, didNotVote: boolean) {
@@ -683,13 +873,13 @@ function JuryWorkspace() {
       <AdminPageHeader
         eyebrow={editionLabel(edition)}
         title="Jury voting"
-        description="Enter jury ballots quickly during production, or explicitly mark a jury as did not vote without inventing scores."
+        description="Enter and review jury ballots, or explicitly mark a jury as did not vote without inventing scores."
         actions={<AdminMoreMenu label="More" title="Jury actions" description="Configuration that should stay out of the way during live ballot entry."><AdminActionItem icon={Users} title="Manage jury roster" description={explicitRoster ? `${orderedVoters.length} explicit jury entities configured.` : "Participating countries are used automatically."} onClick={() => setView("roster")} /><AdminActionItem icon={Settings2} title="Voting system" description="Change point scale, weighting, self-voting and qualifier rules." onClick={() => void navigate({ to: "/admin/voting-system/$slug", params: { slug } })} /></AdminMoreMenu>}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Link to="/admin/$slug" params={{ slug }} className="admin-action-quiet"><ArrowLeft className="size-4" /> Edition home</Link>
-        <select value={selectedShow?.id ?? ""} onChange={(event) => { setActiveVoter(""); void navigate({ search: { show: event.target.value || undefined } }); }} className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
+        <select value={selectedShow?.id ?? ""} onChange={(event) => { setActiveVoter(""); setPendingCorrection(null); setCorrectionReason(""); setLastCorrectionReceipt(null); void navigate({ search: { show: event.target.value || undefined } }); }} className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
           {orderedShows.map((show) => <option key={show.id} value={show.id}>{show.name} · {show.kind.replaceAll("-", " ")}</option>)}
         </select>
       </div>
@@ -813,9 +1003,24 @@ function JuryWorkspace() {
           <AdminCardHeader
             eyebrow="Live entry"
             title={selectedShow?.name ?? "Jury ballots"}
-            description={`${neededPerBallot} awards per jury · ${voting.allowSelfVote ? "self-voting allowed" : "self-voting blocked"}. Scores save immediately; “did not vote” is a separate absence status and never inserts points.`}
+            description={`${neededPerBallot} awards per jury · ${voting.allowSelfVote ? "self-voting allowed" : "self-voting blocked"}. Score edits open an R2 review and commit through the canonical correction command; “did not vote” remains a separate absence state.`}
             action={resolvedVoters === voterOptions.length && voterOptions.length ? <AdminStatus tone="ready"><CheckCircle2 className="size-3" /> All resolved</AdminStatus> : <AdminStatus tone="attention">{resolvedVoters}/{voterOptions.length} resolved</AdminStatus>}
           />
+          {lastCorrectionReceipt ? (
+            <div className="mb-4 rounded-xl border border-emerald-200/15 bg-emerald-200/[0.04] p-3 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2">
+                <AdminStatus tone="ready">Correction v{lastCorrectionReceipt.version}</AdminStatus>
+                {lastCorrectionReceipt.replayed ? <AdminStatus tone="info">Reconciled</AdminStatus> : null}
+                {lastCorrectionReceipt.resultsRecalculationRequired ? <AdminStatus tone="attention">Results stale</AdminStatus> : null}
+              </div>
+              <p className="mt-2 break-all font-mono text-[11px]">{lastCorrectionReceipt.operationId}</p>
+              {lastCorrectionReceipt.resultsRecalculationRequired ? (
+                <p className="mt-2 text-amber-100">
+                  The correction invalidated {lastCorrectionReceipt.invalidatedResultRows} mutable Result row{lastCorrectionReceipt.invalidatedResultRows === 1 ? "" : "s"}. Recalculate in Results before review or publication.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           {loadingVoters || loadingVotes || loadingStatuses ? <p className="py-8 text-center text-sm text-muted-foreground">Loading ballots…</p> : !participants.length ? <AdminEmptyState icon={ListChecks} title="No entries in this show" description="Build the line-up before entering jury votes." action={<Link to="/admin/entries/$slug" params={{ slug }} search={{ show: selectedShow?.id }} className="admin-action-primary">Open entries</Link>} /> : !voterOptions.length ? <AdminEmptyState icon={Users} title="No jury entities" description="Participating countries normally become juries automatically. If this show uses a custom roster, configure it in Juries." action={<button type="button" className="admin-action-primary" onClick={() => setView("roster")}>Manage juries</button>} /> : <FastJuryEntry voters={voterOptions} receivers={receiverDisplays} voting={voting} votes={juryVotes} activeVoter={resolvedActiveVoter} onVoterChange={setActiveVoter} onAssign={(voter, receiver, points) => void assign(voter, receiver, points)} onClear={(voter, points) => void clearPoint(voter, points)} didNotVoteVoterKeys={didNotVoteVoterKeys} onDidNotVoteChange={(voter, didNotVote) => void setDidNotVote(voter, didNotVote)} />}
         </AdminCard>
       ) : (
@@ -839,6 +1044,55 @@ function JuryWorkspace() {
       <AdminSheet open={addOpen} onClose={() => !busy && setAddOpen(false)} title="Add jury" description="An explicit roster can include participating countries, external countries, organisations, people or custom voting entities."><div className="space-y-4"><label className="block"><span className="admin-section-label">Type</span><select value={draft.kind} onChange={(event) => setDraft({ ...emptyVoter, kind: event.target.value as VoterKind })} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30">{VOTER_KINDS.map((kind) => <option key={kind} value={kind}>{kind.replaceAll("-", " ")}</option>)}</select></label>{draft.kind === "country" || draft.kind === "external-country" ? <label className="block"><span className="admin-section-label">Country</span><CountryPicker countries={countryChoices} value={draft.countryId} onChange={(id) => { const country = countries.find((item) => item.id === id); setDraft((current) => ({ ...current, countryId: id, name: country?.name ?? "", flag_image: country?.flag_image ?? "", accent_color: country?.accent_color ?? current.accent_color })); }} placeholder={draft.kind === "country" ? "Search participating country…" : "Search any country…"} className="mt-2" /></label> : <label className="block"><span className="admin-section-label">Name</span><input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="International Jury" className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label>}<label className="block"><span className="admin-section-label">Flag / logo URL</span><input value={draft.flag_image} onChange={(event) => setDraft((current) => ({ ...current, flag_image: event.target.value }))} placeholder="Optional" className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Accent colour</span><input value={draft.accent_color} onChange={(event) => setDraft((current) => ({ ...current, accent_color: event.target.value }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><button type="button" disabled={busy || !draft.name.trim()} onClick={() => void addVoter()} className="admin-action-primary w-full">{busy ? "Adding…" : "Add jury"}</button></div></AdminSheet>
 
       <AdminSheet open={!!editDraft} onClose={() => !busy && setEditDraft(null)} title="Edit jury" description="Identity binding stays unchanged. Edit its display and jury call order here.">{editDraft ? <div className="space-y-4"><label className="block"><span className="admin-section-label">Name</span><input value={editDraft.name} onChange={(event) => setEditDraft((current) => current ? { ...current, name: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Flag / logo URL</span><input value={editDraft.flag_image} onChange={(event) => setEditDraft((current) => current ? { ...current, flag_image: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Accent colour</span><input value={editDraft.accent_color} onChange={(event) => setEditDraft((current) => current ? { ...current, accent_color: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Call order</span><input type="number" min={1} value={editDraft.sort_order} onChange={(event) => setEditDraft((current) => current ? { ...current, sort_order: Number(event.target.value) || 1 } : current)} className="numeric mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><button type="button" disabled={busy || !editDraft.name.trim()} onClick={() => void saveEdit()} className="admin-action-primary w-full">{busy ? "Saving…" : "Save jury"}</button></div> : null}</AdminSheet>
+
+      <AdminConfirmSheet
+        open={Boolean(pendingCorrection)}
+        onClose={() => {
+          if (!busy) {
+            setPendingCorrection(null);
+            setCorrectionReason("");
+          }
+        }}
+        onConfirm={applyJuryCorrection}
+        title={pendingCorrection?.action === "assign" ? "Apply jury score correction?" : "Clear this jury score?"}
+        description={
+          pendingCorrection ? (
+            <div className="space-y-3">
+              <p>
+                <strong className="text-foreground">{pendingCorrection.voterName}</strong>
+                {pendingCorrection.action === "assign"
+                  ? ` will give ${pendingCorrection.points} points to ${pendingCorrection.receiverName ?? "the selected entry"}.`
+                  : ` will clear the ${pendingCorrection.points}-point assignment.`}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Reviewed against correction version {pendingCorrection.preview.version}. The server will revalidate the exact ballot state hash and object scope when committing.
+              </p>
+              {pendingCorrection.preview.results.recalculationRequiredIfApplied ? (
+                <p className="rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3 text-xs text-amber-100">
+                  This show already has an unlocked Result calculation. Applying the correction will invalidate its mutable Result rows. Results must then be recalculated through the Results workspace before review or publication.
+                </p>
+              ) : null}
+              <label className="block">
+                <span className="text-xs font-semibold text-foreground">Operator reason</span>
+                <textarea
+                  value={correctionReason}
+                  onChange={(event) => setCorrectionReason(event.target.value)}
+                  className="admin-input mt-2 min-h-24 resize-y"
+                  placeholder="Why is this official Jury score changing?"
+                />
+              </label>
+            </div>
+          ) : (
+            "Review the canonical Jury correction impact before continuing."
+          )
+        }
+        confirmLabel="Apply jury correction"
+        confirmationText="APPLY"
+        confirmationHint={pendingCorrection ? "Type APPLY to confirm" : undefined}
+        busy={busy}
+        confirmDisabled={correctionReason.trim().length < 5}
+        danger={Boolean(pendingCorrection?.preview.results.recalculationRequiredIfApplied)}
+      />
 
       <AdminConfirmSheet
         open={Boolean(pendingBallotReview)}
