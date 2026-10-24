@@ -106,6 +106,16 @@ describe("V3 country-account suspension/restoration command", () => {
     expect(client).toContain("must retain and resupply operationIdentity");
   });
 
+  it("preserves authoritative failed receipts instead of collapsing them into ambiguous transport errors", () => {
+    expect(client).toContain("function requireSucceededReceipt(");
+    expect(client).toContain('if (receipt.status === "failed")');
+    expect(client).toContain("receipt.error?.message");
+    expect(client).toContain('code: receipt.error?.code ?? "UNKNOWN"');
+    expect(client).toContain('code: receipt.error?.code ?? "TIMEOUT"');
+    expect(client).toContain("A valid authoritative receipt wins over");
+    expect(client).toContain("return requireSucceededReceipt(receipt, command.operationId)");
+  });
+
   it("provides a non-retrying client with one bounded lost-response reconciliation", () => {
     expect(client).toContain("createOrganisationCommand");
     expect(client).toContain('riskClass: "R2"');
