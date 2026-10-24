@@ -86,18 +86,19 @@ describe("V3 governed Anniversary edition-date operation", () => {
     expect(migration).not.toContain("studio2_platform_mutation_allowed('edition.anniversary_date.update')");
   });
 
-  it("keeps browser roles away from unauthenticated execution and exposes only the two narrow RPCs", () => {
+  it("keeps both new RPCs authenticated-only and omits service-role execution grants", () => {
     expect(migration).toContain(
       "revoke all on function public.studio2_anniversary_date_snapshot(uuid)\n  from public, anon;",
     );
     expect(migration).toContain(
-      "grant execute on function public.studio2_anniversary_date_snapshot(uuid)\n  to authenticated, service_role;",
+      "grant execute on function public.studio2_anniversary_date_snapshot(uuid)\n  to authenticated;",
     );
     expect(migration).toContain(
       "revoke all on function public.studio2_set_anniversary_date(\n  uuid, date, date, integer, text, uuid, text, uuid\n) from public, anon;",
     );
     expect(migration).toContain(
-      "grant execute on function public.studio2_set_anniversary_date(\n  uuid, date, date, integer, text, uuid, text, uuid\n) to authenticated, service_role;",
+      "grant execute on function public.studio2_set_anniversary_date(\n  uuid, date, date, integer, text, uuid, text, uuid\n) to authenticated;",
     );
+    expect(migration).not.toContain("to authenticated, service_role;");
   });
 });
