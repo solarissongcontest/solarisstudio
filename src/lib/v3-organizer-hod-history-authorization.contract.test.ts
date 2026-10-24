@@ -5,8 +5,16 @@ function source(path: string) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
+function section(value: string, start: string, end?: string) {
+  const startIndex = value.indexOf(start);
+  if (startIndex < 0) return "";
+  const endIndex = end ? value.indexOf(end, startIndex + start.length) : -1;
+  return value.slice(startIndex, endIndex < 0 ? undefined : endIndex);
+}
+
 const access = source("integrations/unified/hod-access.server.ts");
 const functions = source("integrations/unified/hod-history.functions.ts");
+const history = source("integrations/unified/hod-history.server.ts");
 const suggestions = source("integrations/unified/hod-suggestions.server.ts");
 const routeMap = source("lib/permission-route-map.ts");
 const rls = source("../supabase/migrations/20260914174742_permission_engine_v2_core_rls_cutover.sql");
@@ -23,22 +31,43 @@ describe("Organizer HOD history authorization boundary", () => {
     expect(access).not.toContain("supabaseAdmin");
   });
 
-  it("keeps reads on delegation.read and mutations on delegation.manage before service helpers are imported", () => {
-    const historyRead = functions.indexOf('requireHodHistoryCapabilityServer("delegation.read")');
-    const suggestionsRead = functions.indexOf(
-      'requireHodHistoryCapabilityServer("delegation.read")',
-      historyRead + 1,
+  it("guards direct HOD history server exports before any service-role read or mutation", () => {
+    const read = section(
+      history,
+      "export async function getHodHistoryServer()",
+      "export async function saveHodPersonServer",
     );
-    const firstManage = functions.indexOf('requireHodHistoryCapabilityServer("delegation.manage")');
-    const firstHistoryImport = functions.indexOf(
-      'import("@/integrations/unified/hod-history.server")',
+    const savePerson = section(
+      history,
+      "export async function saveHodPersonServer",
+      "export async function saveHodAssignmentsServer",
+    );
+    const saveAssignments = section(
+      history,
+      "export async function saveHodAssignmentsServer",
+      "export async function deleteHodAssignmentServer",
+    );
+    const removeAssignment = section(
+      history,
+      "export async function deleteHodAssignmentServer",
     );
 
-    expect(historyRead).toBeGreaterThan(-1);
-    expect(suggestionsRead).toBeGreaterThan(historyRead);
-    expect(firstManage).toBeGreaterThan(suggestionsRead);
-    expect(firstHistoryImport).toBeGreaterThan(historyRead);
-    expect(functions.match(/requireHodHistoryCapabilityServer\("delegation\.manage"\)/g)).toHaveLength(3);
+    expect(read.indexOf('requireHodHistoryCapabilityServer("delegation.read")')).toBeGreaterThan(-1);
+    expect(read.indexOf("loadHodResolverServer()")).toBeGreaterThan(
+      read.indexOf('requireHodHistoryCapabilityServer("delegation.read")'),
+    );
+
+    for (const mutation of [savePerson, saveAssignments, removeAssignment]) {
+      const guard = mutation.indexOf('requireHodHistoryCapabilityServer("delegation.manage")');
+      const adminAccess = mutation.indexOf("const db = supabaseAdmin as any");
+      expect(guard).toBeGreaterThan(-1);
+      expect(adminAccess).toBeGreaterThan(guard);
+    }
+  });
+
+  it("does not duplicate caller capability lookups in the thin TanStack server wrappers", () => {
+    expect(functions).not.toContain("requireHodHistoryCapabilityServer");
+    expect(functions).not.toContain("supabaseAdmin");
   });
 
   it("protects the raw televote-derived identity suggestion reader even when called outside its route wrapper", () => {
