@@ -37,49 +37,55 @@ describe("V3 governed Broadcast Rundown operations", () => {
     expect(migration).not.toContain("max(edition_number)");
   });
 
-  it("splits configuration authority from live-control authority", () => {
-    const manageChecks = migration.match(
-      /studio2_access_allowed\('broadcast\.manage', p_edition_id, true\)/g,
-    );
-    const controlChecks = migration.match(
-      /studio2_access_allowed\('broadcast\.control', p_edition_id, true\)/g,
-    );
+  it("requires an active authenticated session at the governed boundary", () => {
+    expect(migration.match(/private\.v3_require_active_auth_session\(\)/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(migration).toContain("message = 'AUTHENTICATION'");
+    expect(migration).not.toContain("p_actor_id");
+  });
 
-    expect(manageChecks?.length).toBeGreaterThanOrEqual(5);
-    expect(controlChecks?.length).toBeGreaterThanOrEqual(3);
+  it("splits configuration authority from live-control authority", () => {
+    expect(migration).toContain("v_capability := 'broadcast.manage'");
+    expect(migration).toContain("v_capability := 'broadcast.control'");
+    expect(migration).toContain("studio2_access_allowed(v_capability, p_edition_id, true)");
     expect(migration).toContain("'broadcast.rundown.save'");
     expect(migration).toContain("'broadcast.rundown.lock'");
     expect(migration).toContain("'broadcast.rundown.unlock'");
     expect(migration).toContain("'broadcast.segment.' || p_to_status");
   });
 
-  it("claims semantic operations before mutable row locking and revision CAS", () => {
-    const saveStart = indexOrFail("create or replace function public.studio2_save_broadcast_rundown_v3(");
-    const lockStart = indexOrFail("create or replace function public.studio2_set_broadcast_rundown_lock_v3(");
-    const transitionStart = indexOrFail("create or replace function public.studio2_transition_broadcast_segment_v3(");
+  it("uses one private authority pipeline so sibling command semantics cannot drift", () => {
+    const applyStart = indexOrFail(
+      "create or replace function private.v3_apply_broadcast_rundown_operation(",
+    );
+    const saveWrapper = indexOrFail(
+      "create or replace function public.studio2_save_broadcast_rundown_v3(",
+    );
+    const body = migration.slice(applyStart, saveWrapper);
 
-    for (const [start, next] of [
-      [saveStart, lockStart],
-      [lockStart, transitionStart],
-      [transitionStart, migration.length],
-    ] as const) {
-      const body = migration.slice(start, next);
-      const claim = body.indexOf("private.studio2_claim_operation(");
-      const rowLock = body.indexOf("for update;");
-      const version = body.indexOf("VERSION_CONFLICT");
-      const update = body.indexOf("update public.shows");
+    const claim = body.indexOf("private.studio2_claim_operation(");
+    const rowLock = body.indexOf("for update;");
+    const version = body.indexOf("VERSION_CONFLICT");
+    const update = body.indexOf("update public.shows");
 
-      expect(claim).toBeGreaterThan(-1);
-      expect(rowLock).toBeGreaterThan(claim);
-      expect(version).toBeGreaterThan(rowLock);
-      if (body.includes("update public.shows")) {
-        expect(update).toBeGreaterThan(version);
-      }
-    }
+    expect(claim).toBeGreaterThan(-1);
+    expect(rowLock).toBeGreaterThan(claim);
+    expect(version).toBeGreaterThan(rowLock);
+    expect(update).toBeGreaterThan(version);
+    expect(body.match(/studio2_access_allowed\(v_capability, p_edition_id, true\)/g)?.length).toBe(2);
+
+    expect(migration).toContain(
+      "select private.v3_apply_broadcast_rundown_operation(\n    'save'",
+    );
+    expect(migration).toContain(
+      "select private.v3_apply_broadcast_rundown_operation(\n    'lock'",
+    );
+    expect(migration).toContain(
+      "select private.v3_apply_broadcast_rundown_operation(\n    'segment'",
+    );
   });
 
   it("fingerprints the complete reviewed semantic request", () => {
-    expect(migration).toContain("'expectedRevision', p_expected_revision");
+    expect(migration.match(/'expectedRevision', p_expected_revision/g)?.length).toBe(3);
     expect(migration).toContain("'startAt', p_start_at");
     expect(migration).toContain("'segments', p_segments");
     expect(migration).toContain("'locked', p_locked");
@@ -108,12 +114,18 @@ describe("V3 governed Broadcast Rundown operations", () => {
     expect(migration).toContain("message = 'STATE_CHANGED'");
   });
 
+  it("preserves the version-2 persisted Rundown contract during client cutover", () => {
+    expect(migration.match(/'version', 2/g)?.length).toBe(3);
+    expect(migration).not.toContain("'version', 3");
+    expect(migration).toContain("compatibility client accepts only 1/2");
+  });
+
   it("returns durable receipt identity and authoritative readback state", () => {
-    expect(migration.match(/'receiptId', v_canonical_operation_id/g)?.length).toBe(3);
-    expect(migration.match(/'operationId', v_canonical_operation_id/g)?.length).toBe(3);
-    expect(migration.match(/'stateVersion'/g)?.length).toBeGreaterThanOrEqual(4);
-    expect(migration.match(/'serverTime', now\(\)/g)?.length).toBeGreaterThanOrEqual(4);
-    expect(migration.match(/'rundown', v_next/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(migration.match(/'receiptId', v_canonical_operation_id/g)?.length).toBe(2);
+    expect(migration.match(/'operationId', v_canonical_operation_id/g)?.length).toBe(2);
+    expect(migration.match(/'stateVersion'/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(migration.match(/'serverTime', now\(\)/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(migration).toContain("'rundown', v_next");
     expect(migration).toContain("private.studio2_complete_operation(v_canonical_operation_id, v_result)");
   });
 
@@ -129,19 +141,28 @@ describe("V3 governed Broadcast Rundown operations", () => {
     expect(migration).toContain("array[]::text[]");
   });
 
+  it("preserves legacy event entity identity for rundown and segment consumers", () => {
+    expect(migration).toContain("v_legacy_entity_type text := 'broadcast_rundown'");
+    expect(migration).toContain("v_legacy_entity_type := 'broadcast_segment'");
+    expect(migration).toContain("v_legacy_entity_id := p_show_id::text || ':' || v_segment_id");
+    expect(migration).toContain("v_legacy_event_type := case");
+    expect(migration).toContain("'broadcast.segment_started'");
+    expect(migration).toContain("'broadcast.segment_completed'");
+  });
+
   it("does not fabricate a DomainEvent for an idempotent lock no-op", () => {
     const noOp = indexOrFail("'changed', false");
-    const recordAfterNoOp = migration.indexOf(
-      "private.v3_record_broadcast_rundown_change(",
-      noOp,
-    );
     const completeAfterNoOp = migration.indexOf(
       "private.studio2_complete_operation(v_canonical_operation_id, v_result)",
       noOp,
     );
+    const recordAfterNoOp = migration.indexOf(
+      "private.v3_record_broadcast_rundown_change(",
+      noOp,
+    );
 
     expect(completeAfterNoOp).toBeGreaterThan(noOp);
-    expect(recordAfterNoOp === -1 || completeAfterNoOp < recordAfterNoOp).toBe(true);
+    expect(recordAfterNoOp).toBeGreaterThan(completeAfterNoOp);
   });
 
   it("keeps new RPC execution authenticated-only while retaining legacy compatibility", () => {
@@ -169,7 +190,7 @@ describe("V3 governed Broadcast Rundown operations", () => {
     );
   });
 
-  it("does not expose a generic show mutation or bypass canonical operation infrastructure", () => {
+  it("does not expose a generic Show mutation or bypass canonical operation infrastructure", () => {
     expect(migration).not.toContain("jsonb_populate_record");
     expect(migration).not.toContain("execute format(");
     expect(migration).not.toContain("p_column");
