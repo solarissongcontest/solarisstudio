@@ -11,11 +11,12 @@ const migration = () =>
 const rehearsal = () => source("scripts/rehearse-v3-public-result-snapshot.sh");
 
 describe("System V3 public published result snapshot", () => {
-  it("registers through the S13 migration contract", () => {
+  it("registers through the strict S13 migration contract with a semantic key", () => {
     const sql = migration();
 
     expect(sql).toContain("public.v3_register_migration_contract(");
-    expect(sql).toContain("20261020064712_v3_public_published_result_snapshot");
+    expect(sql).toContain("'v3.results.public-published-result-snapshot-v1'");
+    expect(sql).not.toContain("'20261020064712_v3_public_published_result_snapshot'");
     expect(sql).toContain("'forward_fix_only'");
   });
 
