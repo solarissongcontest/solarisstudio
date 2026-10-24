@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_authenticated/admin/beta2-feedback")({
   head: () => ({
     meta: [
       { title: "Beta 2 feedback — Solaris Organizer" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: Beta2FeedbackDashboard,
@@ -33,7 +33,6 @@ type Beta2Submission = {
   tester_name: string;
   device: string;
   browser: string | null;
-  familiarity: string | null;
   answers: BetaAnswers;
   bug_reports: BetaBug[];
   created_at: string;
@@ -52,7 +51,10 @@ function Beta2FeedbackDashboard() {
     setError(null);
     try {
       const [beta2, beta1] = await Promise.all([
-        supabase.from("beta2_test_submissions" as never).select("*").order("created_at", { ascending: false }),
+        supabase
+          .from("beta2_test_submissions" as never)
+          .select("id,tester_name,device,browser,answers,bug_reports,created_at")
+          .order("created_at", { ascending: false }),
         supabase.from("beta_test_submissions" as never).select("id", { count: "exact", head: true }),
       ]);
       if (beta2.error) throw beta2.error;
