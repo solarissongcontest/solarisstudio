@@ -19,7 +19,10 @@ export function isOrganizerAcceptanceSubmissionId(value: unknown): value is stri
 }
 
 function canonicalJson(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (value === undefined) return "undefined";
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value) ?? String(value);
+  }
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
 
   const object = value as Record<string, unknown>;
