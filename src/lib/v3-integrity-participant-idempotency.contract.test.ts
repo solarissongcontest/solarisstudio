@@ -30,6 +30,22 @@ describe("V3 participant Integrity retry identity", () => {
     expect(text).toContain("clearIntegrityReportV5SubmissionIdentity();\n  try {\n    session()?.removeItem(DRAFT_KEY)");
   });
 
+  it("keeps the authoritative receipt reachable when session storage is unavailable", () => {
+    const text = draft();
+    const writeStart = text.indexOf("export function writeIntegrityReportV5Receipt");
+    const memoryWrite = text.indexOf("memoryReceipt = receipt", writeStart);
+    const storageWrite = text.indexOf("session()?.setItem(RECEIPT_KEY", writeStart);
+    const readStart = text.indexOf("export function readIntegrityReportV5Receipt");
+    const memoryFallback = text.indexOf("return memoryReceipt", readStart);
+    const clearStart = text.indexOf("export function clearIntegrityReportV5Receipt");
+
+    expect(writeStart).toBeGreaterThanOrEqual(0);
+    expect(memoryWrite).toBeGreaterThan(writeStart);
+    expect(storageWrite).toBeGreaterThan(memoryWrite);
+    expect(memoryFallback).toBeGreaterThan(readStart);
+    expect(text.indexOf("memoryReceipt = null", clearStart)).toBeGreaterThan(clearStart);
+  });
+
   it("keeps anonymous creation sessionless and sends the stable operation identity", () => {
     const text = anonymous();
     expect(text).toContain("persistSession: false");
