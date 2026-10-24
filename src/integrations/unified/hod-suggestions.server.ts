@@ -48,7 +48,8 @@ export async function getHodIdentitySuggestionsServer(): Promise<HodIdentitySugg
       .select("id,edition_id,name"),
     televotingAdmin
       .from("vote_submissions")
-      .select("id,round_id,country_code,username,username_normalized,status")
+      .select("round_id,country_code,username,username_normalized")
+      .neq("status", "deleted")
       .limit(50000),
   ]);
 
@@ -78,7 +79,6 @@ export async function getHodIdentitySuggestionsServer(): Promise<HodIdentitySugg
   const candidates = new Map<string, Candidate>();
 
   for (const submission of submissionsResult.data ?? []) {
-    if (submission.status === "deleted") continue;
     const roundId = String(submission.round_id);
     const editionId = canonicalByRound.get(roundId)
       ?? canonicalByRemoteEdition.get(remoteEditionByRound.get(roundId) ?? "");
