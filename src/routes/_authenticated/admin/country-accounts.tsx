@@ -16,10 +16,10 @@ import {
 import { FlagChip } from "@/components/FlagChip";
 import {
   useAdminCountryAccounts,
-  useAdminSetCountryAccountStatus,
   type AdminCountryAccount,
 } from "@/lib/country-account";
 import { useCountries } from "@/lib/data";
+import { useAdminSetCountryAccountStatusV3 } from "@/lib/v3-organizer-country-account-status";
 
 export const Route = createFileRoute("/_authenticated/admin/country-accounts")({
   head: () => ({
@@ -53,11 +53,12 @@ function CountryAccountsAdminPage() {
     error: accountsError,
     refetch: refetchAccounts,
   } = useAdminCountryAccounts();
-  const setStatus = useAdminSetCountryAccountStatus();
+  const setStatus = useAdminSetCountryAccountStatusV3();
   const [query, setQuery] = useState("");
   const [target, setTarget] = useState<AdminCountryAccount | null>(null);
   const [reason, setReason] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [lastOperationId, setLastOperationId] = useState<string | null>(null);
   const [pendingReview, setPendingReview] = useState<PendingAccountStatusReview | null>(null);
 
   const accountByCountry = useMemo(
@@ -83,6 +84,7 @@ function CountryAccountsAdminPage() {
     setTarget(account);
     setReason(account.suspension_reason ?? "");
     setMessage(null);
+    setLastOperationId(null);
     setPendingReview(null);
   }
 
@@ -95,6 +97,7 @@ function CountryAccountsAdminPage() {
   function requestStatusReview(targetStatus: "active" | "suspended") {
     if (!target || target.status === targetStatus) return;
     setMessage(null);
+    setLastOperationId(null);
     setPendingReview({
       userId: target.user_id,
       countryId: target.country_id,
@@ -116,11 +119,14 @@ function CountryAccountsAdminPage() {
 
     if (refreshed.error || !refreshedData?.schemaReady) {
       setPendingReview(null);
-      setMessage("Country account state could not be refreshed before apply. Nothing was changed. Reload the account and review the access change again.");
+      setMessage(
+        "Country account state could not be refreshed before apply. Nothing was changed. Reload the account and review the access change again.",
+      );
       return;
     }
 
-    const liveAccount = refreshedData.accounts.find((account) => account.user_id === review.userId) ?? null;
+    const liveAccount =
+      refreshedData.accounts.find((account) => account.user_id === review.userId) ?? null;
     if (
       !liveAccount ||
       liveAccount.country_id !== review.countryId ||
@@ -131,16 +137,21 @@ function CountryAccountsAdminPage() {
       liveAccount.updated_at !== review.currentUpdatedAt
     ) {
       setPendingReview(null);
-      setMessage("Country account state changed while the review was open. Nothing was changed. Reload the account and review the access change again.");
+      setMessage(
+        "Country account state changed while the review was open. Nothing was changed. Reload the account and review the access change again.",
+      );
       return;
     }
 
     try {
-      await setStatus.mutateAsync({
+      const receipt = await setStatus.mutateAsync({
         userId: review.userId,
-        status: review.targetStatus,
+        countryId: review.countryId,
+        currentUpdatedAt: review.currentUpdatedAt,
+        targetStatus: review.targetStatus,
         ...(review.targetStatus === "suspended" ? { reason: review.reason } : {}),
       });
+      setLastOperationId(receipt.operationId);
       setMessage(
         review.targetStatus === "suspended"
           ? `${review.countryName} account suspended.`
@@ -181,7 +192,12 @@ function CountryAccountsAdminPage() {
 
       {message ? (
         <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] p-3 text-sm text-foreground">
-          {message}
+          <p>{message}</p>
+          {lastOperationId ? (
+            <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+              Operation {lastOperationId}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -378,31 +394,45 @@ function CountryAccountsAdminPage() {
         description={
           pendingReview ? (
             <div className="space-y-3" data-v3-organizer-country-account-status-review>
-              <p>
-                Review the exact country account before changing delegation editing access.
-              </p>
+              <p>Review the exact country account before changing delegation editing access.</p>
               <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3 text-xs leading-5 text-muted-foreground">
-                <strong className="text-foreground">Account:</strong> {pendingReview.email ?? "No account email"}<br />
-                <strong className="text-foreground">Access:</strong> {pendingReview.currentStatus} → {pendingReview.targetStatus}
+                <strong className="text-foreground">Account:</strong>{" "}
+                {pendingReview.email ?? "No account email"}
+                <br />
+                <strong className="text-foreground">Access:</strong>{" "}
+                {pendingReview.currentStatus} → {pendingReview.targetStatus}
+                <br />
+                <strong className="text-foreground">Reviewed revision:</strong>{" "}
+                {pendingReview.currentUpdatedAt}
               </div>
               {pendingReview.targetStatus === "suspended" ? (
                 <p className="text-xs leading-5 text-muted-foreground">
-                  The owner will lose country-profile editing access. Public country visibility and contest results are not removed. Reason shown to owner: {pendingReview.reason || "No reason provided"}.
+                  The owner will lose country-profile editing access. Public country visibility and
+                  contest results are not removed. Reason shown to owner:{" "}
+                  {pendingReview.reason || "No reason provided"}.
                 </p>
               ) : (
                 <p className="text-xs leading-5 text-muted-foreground">
-                  The owner will regain country-profile editing access. This does not change contest participation, entries or results.
+                  The owner will regain country-profile editing access. This does not change contest
+                  participation, entries or results.
                 </p>
               )}
               <p className="text-xs leading-5 text-muted-foreground">
-                Organizer refreshes the account directory immediately before apply and refuses the change if the exact country, owner email, access state, suspension reason or account revision changed while this review was open. The existing status RPC is still not a version-bound/idempotent V3 command, so a narrow race remains until System provides canonical account-access authority and receipts.
+                Organizer refreshes the account directory immediately before apply and refuses the
+                change if the exact country, owner email, access state, suspension reason or account
+                revision changed while this review was open. The canonical R2 command then repeats
+                exact user + country scope and applies only when this reviewed account revision still
+                matches. Retries reconcile the same operation receipt instead of issuing a second
+                status write.
               </p>
             </div>
           ) : (
             "Review the account access change before continuing."
           )
         }
-        confirmLabel={pendingReview?.targetStatus === "suspended" ? "Suspend editing" : "Restore editing"}
+        confirmLabel={
+          pendingReview?.targetStatus === "suspended" ? "Suspend editing" : "Restore editing"
+        }
         confirmationText={pendingReview?.countryName}
         confirmationHint={
           pendingReview ? `Type ${pendingReview.countryName} to confirm the access change` : undefined
