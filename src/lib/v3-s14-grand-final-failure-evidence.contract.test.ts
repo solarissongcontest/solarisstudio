@@ -147,6 +147,19 @@ describe("S14 Grand Final failure evidence", () => {
     );
   });
 
+  it("copies retained Playwright failure artifacts into the uploaded exact-SHA evidence tree", () => {
+    expect(browserRuntime).toContain(
+      'local playwright_artifact_dir="$evidence_dir/${safe_name}.playwright"',
+    );
+    expect(browserRuntime).toContain('if [[ -d test-results ]]');
+    expect(browserRuntime).toContain('cp -a test-results/. "$playwright_artifact_dir/"');
+    expect(browserRuntime).toContain('for summary in playwright-*.json; do');
+    expect(browserRuntime).toContain(
+      'cp "$summary" "$evidence_dir/${safe_name}.$(basename "$summary")"',
+    );
+    expect(workflow).toContain("path: v3-release-evidence/");
+  });
+
   it("does not preserve the resolved #651 synthetic blocker", () => {
     expect(driver).not.toContain("#651 canonical Televote publication/readiness mismatch");
     expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"');

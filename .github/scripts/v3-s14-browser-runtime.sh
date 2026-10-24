@@ -18,6 +18,7 @@ run_s14_browser_test() {
   local readiness_body="$evidence_dir/${safe_name}.readiness-body.txt"
   local app_body="$evidence_dir/${safe_name}.app-smoke-body.txt"
   local playwright_list_log="$evidence_dir/${safe_name}.playwright-list.log"
+  local playwright_artifact_dir="$evidence_dir/${safe_name}.playwright"
   local vite_pid=""
   local listening=0
   local ready=0
@@ -140,6 +141,19 @@ run_s14_browser_test() {
   fi
 
   if [[ "$status" != "0" ]]; then
+    # Playwright retains traces/screenshots on failure, but they normally live
+    # under test-results/ outside the workflow's uploaded release-evidence tree.
+    # Copy them into the exact-SHA evidence bundle before returning the failure.
+    if [[ -d test-results ]]; then
+      rm -rf "$playwright_artifact_dir"
+      mkdir -p "$playwright_artifact_dir"
+      cp -a test-results/. "$playwright_artifact_dir/"
+    fi
+    for summary in playwright-*.json; do
+      [[ -f "$summary" ]] || continue
+      cp "$summary" "$evidence_dir/${safe_name}.$(basename "$summary")"
+    done
+
     printf '\n[v3-s14-browser-runtime] failure status=%s stage=%s context=%s run_stage=%s\n' \
       "$status" "$CURRENT_STAGE" "$bootstrap_stage" "$run_stage" >&2
     case "$status" in
