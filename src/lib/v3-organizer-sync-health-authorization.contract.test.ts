@@ -13,43 +13,43 @@ describe("Organizer V3 System Health authorization", () => {
     expect(permissionMap).toContain(
       'rule(["/admin/system-operations", "/admin/system", "/admin/sync-health"], "system.read")',
     );
-    expect(syncHealth).toContain('p_capability: "system.read"');
-    expect(syncHealth).toContain('p_edition_id: null');
+    expect(syncHealth).toContain(
+      'await requireSolarisCapabilityServer("system.read", null);',
+    );
   });
 
-  it("evaluates capability through the authenticated caller before service-role access", () => {
-    const organizerGuard = syncHealth.indexOf("await requireSolarisOrganizerServer();");
-    const callerClient = syncHealth.indexOf("createSolarisAuthenticatedClientServer() as any");
-    const capabilityRpc = syncHealth.indexOf('"studio2_access_allowed"');
+  it("uses the canonical capability server before service-role access", () => {
+    const capabilityImport = syncHealth.indexOf(
+      '"@/integrations/supabase/capabilities.server"',
+    );
+    const capabilityGuard = syncHealth.indexOf(
+      'await requireSolarisCapabilityServer("system.read", null);',
+    );
     const adminImport = syncHealth.indexOf(
       'await import("@/integrations/supabase/client.server")',
     );
     const firstAdminQuery = syncHealth.indexOf('db.from("editions")');
 
-    expect(organizerGuard).toBeGreaterThan(-1);
-    expect(callerClient).toBeGreaterThan(organizerGuard);
-    expect(capabilityRpc).toBeGreaterThan(callerClient);
-    expect(adminImport).toBeGreaterThan(capabilityRpc);
+    expect(capabilityImport).toBeGreaterThan(-1);
+    expect(capabilityGuard).toBeGreaterThan(capabilityImport);
+    expect(adminImport).toBeGreaterThan(capabilityGuard);
     expect(firstAdminQuery).toBeGreaterThan(adminImport);
   });
 
-  it("fails closed when capability evaluation errors or denies access", () => {
-    expect(syncHealth).toContain("if (capabilityError)");
-    expect(syncHealth).toContain(
-      'throw new Error("System health authorization could not be verified.")',
-    );
-    expect(syncHealth).toContain("if (allowed !== true)");
-    expect(syncHealth).toContain(
-      'throw new Error("System read capability required.")',
-    );
+  it("does not fall back to generic Organizer role authorization", () => {
+    expect(syncHealth).not.toContain("requireSolarisOrganizerServer");
+    expect(syncHealth).not.toContain('"studio2_access_allowed"');
+    expect(syncHealth).not.toContain("createSolarisAuthenticatedClientServer");
   });
 
   it("does not move the privileged runtime probe ahead of the capability boundary", () => {
-    const capabilityRpc = syncHealth.indexOf('"studio2_access_allowed"');
+    const capabilityGuard = syncHealth.indexOf(
+      'await requireSolarisCapabilityServer("system.read", null);',
+    );
     const runtimeProbe = syncHealth.indexOf("const runtimeProbe =");
     const televotingAdmin = syncHealth.indexOf("requireMergedTelevotingAdminServer");
 
-    expect(runtimeProbe).toBeGreaterThan(capabilityRpc);
+    expect(runtimeProbe).toBeGreaterThan(capabilityGuard);
     expect(televotingAdmin).toBeGreaterThan(runtimeProbe);
   });
 });
