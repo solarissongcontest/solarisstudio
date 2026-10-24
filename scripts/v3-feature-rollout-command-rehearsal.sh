@@ -165,6 +165,44 @@ select public.studio2_apply_feature_flag_change(
 [[ "$(db_value "select count(*) from private.v3_domain_events where operation_id='$APPLY_OPERATION_ID'::uuid and event_type='rollout.changed' and aggregate_version=3;")" == '1' ]] \
   || fail "explicit rollout apply lacks revision-3 event"
 
+log "Exact replay survives rollout.manage permission drift"
+db_exec "
+delete from public.studio2_capability_grants
+where user_id='$ACTOR_ID'::uuid
+  and capability='rollout.manage'
+  and edition_id is null;
+"
+[[ "$(db_value "select count(*) from public.studio2_capability_grants where user_id='$ACTOR_ID'::uuid and capability='rollout.manage' and edition_id is null;")" == '0' ]] \
+  || fail "rollout.manage permission drift fixture did not remove the grant"
+
+REPLAY_RESULT="$(actor_value "$ACTOR_ID" "
+select public.studio2_apply_feature_flag_change(
+  '$FLAG_KEY',false,false,
+  array['$ACTOR_ID'::uuid,'$OTHER_ID'::uuid],
+  '{}'::uuid[],
+  '$APPLY_OPERATION_ID'::uuid,
+  'rollout-explicit',
+  2,
+  '$APPLY_OPERATION_ID'::uuid
+)::text;
+")"
+[[ "$REPLAY_RESULT" == *'"replayed": true'* ]] || fail "permission-drift replay did not reconcile exact operation"
+[[ "$(db_value "select count(*) from private.v3_domain_events where operation_id='$APPLY_OPERATION_ID'::uuid and event_type='rollout.changed';")" == '1' ]] \
+  || fail "rollout replay duplicated event"
+[[ "$(db_value "select count(*) from public.admin_audit_log where action='feature_rollout_changed' and after_data->>'operationId'='$APPLY_OPERATION_ID';")" == '1' ]] \
+  || fail "rollout replay duplicated audit evidence"
+[[ "$(db_value "select revision::text from public.studio2_feature_flags where key='$FLAG_KEY';")" == '3' ]] \
+  || fail "rollout replay advanced revision"
+
+# Restore the capability for the independent stale-CAS test. The replay above
+# must have succeeded without it; a brand-new operation must still require it.
+db_exec "
+insert into public.studio2_capability_grants(user_id,capability,edition_id)
+values ('$ACTOR_ID','rollout.manage',null)
+on conflict do nothing;
+"
+
+log "Exact replay still reports the canonical replay marker"
 REPLAY_RESULT="$(actor_value "$ACTOR_ID" "
 select public.studio2_apply_feature_flag_change(
   '$FLAG_KEY',false,false,
@@ -177,12 +215,6 @@ select public.studio2_apply_feature_flag_change(
 )::text;
 ")"
 [[ "$REPLAY_RESULT" == *'"replayed": true'* ]] || fail "exact rollout operation did not replay"
-[[ "$(db_value "select count(*) from private.v3_domain_events where operation_id='$APPLY_OPERATION_ID'::uuid and event_type='rollout.changed';")" == '1' ]] \
-  || fail "rollout replay duplicated event"
-[[ "$(db_value "select count(*) from public.admin_audit_log where action='feature_rollout_changed' and after_data->>'operationId'='$APPLY_OPERATION_ID';")" == '1' ]] \
-  || fail "rollout replay duplicated audit evidence"
-[[ "$(db_value "select revision::text from public.studio2_feature_flags where key='$FLAG_KEY';")" == '3' ]] \
-  || fail "rollout replay advanced revision"
 
 log "Stale revision and unauthorized actor fail closed"
 actor_expect_failure "$ACTOR_ID" "stale rollout CAS" "
