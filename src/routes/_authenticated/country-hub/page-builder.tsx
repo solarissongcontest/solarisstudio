@@ -9,6 +9,11 @@ export const Route = createFileRoute("/_authenticated/country-hub/page-builder")
   beforeLoad: ({ search }) => {
     throw redirect({ to: NAV_TARGETS.mySolarisPageBuilder, search, replace: true });
   },
-  head: () => ({ meta: [{ title: "Country page builder — Solaris Studio" }] }),
+  head: () => ({
+    meta: [
+      { title: "Country page builder — Solaris Studio" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: () => null,
 });
