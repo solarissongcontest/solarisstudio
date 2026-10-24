@@ -1,0 +1,98 @@
+name: V3 client bundle diagnostic
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  bundle-diagnostic:
+    name: Client bundle diagnostic
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+
+      - name: Isolate diagnostic from hosted Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "VITE_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_bundle_diag_local_only"
+            echo "SUPABASE_URL=http://127.0.0.1:54321"
+            echo "SUPABASE_PUBLISHABLE_KEY=sb_publishable_bundle_diag_local_only"
+            echo "SUPABASE_PROJECT_ID=local"
+            echo "SUPABASE_PROJECT_REF=local"
+            echo "VITE_SUPABASE_PROJECT_ID=local"
+            echo "VITE_SUPABASE_PROJECT_REF=local"
+            echo "V3_VERIFICATION_TARGET=local"
+            echo "VITE_CONFIRMATIONS_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=sb_publishable_bundle_diag_local_only"
+            echo "CONFIRMATIONS_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=sb_publishable_bundle_diag_local_only"
+          } >> "$GITHUB_ENV"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify production isolation
+        run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Production build
+        run: bun run build
+
+      - name: Generate sorted client bundle report
+        shell: bash
+        run: |
+          node <<'NODE'
+          const { existsSync, readdirSync, readFileSync, writeFileSync } = require('node:fs');
+          const { join } = require('node:path');
+          const { gzipSync } = require('node:zlib');
+          const roots = ['.output/public/assets', 'dist/client/assets', 'dist/assets'];
+          const root = roots.find(existsSync);
+          if (!root) throw new Error('No client asset directory found');
+          const rows = readdirSync(root)
+            .filter((name) => /\.(?:js|css)$/.test(name))
+            .map((name) => {
+              const bytes = readFileSync(join(root, name));
+              return { name, type: name.endsWith('.js') ? 'js' : 'css', raw: bytes.length, gzip: gzipSync(bytes, { level: 9 }).length };
+            })
+            .sort((a, b) => b.gzip - a.gzip);
+          const report = {
+            sourceSha: process.env.GITHUB_SHA,
+            root,
+            assetCount: rows.length,
+            totalGzip: rows.reduce((sum, row) => sum + row.gzip, 0),
+            totalGzipKiB: +(rows.reduce((sum, row) => sum + row.gzip, 0) / 1024).toFixed(2),
+            top100: rows.slice(0, 100),
+          };
+          writeFileSync('client-bundle-report.json', JSON.stringify(report, null, 2));
+          console.log(JSON.stringify({ assetCount: report.assetCount, totalGzipKiB: report.totalGzipKiB, top20: rows.slice(0, 20) }, null, 2));
+          NODE
+
+      - name: Upload client bundle report
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-bundle-report
+          path: client-bundle-report.json
+          if-no-files-found: error
+          retention-days: 1
