@@ -42,4 +42,23 @@ describe("V3 Prediction League fallback convergence", () => {
     expect(code).toContain("PublicResponsiveDataView");
     expect(code).toContain("privacy-safe public standings");
   });
+
+  it("distinguishes rollout read failure from a canonical disabled state", () => {
+    const code = fallback();
+    expect(code).toContain("feature.isError ? (");
+    expect(code).toContain("Prediction League is temporarily unavailable");
+    expect(code).toContain("not proof that the league is disabled");
+    expect(code).toContain("feature.refetch()");
+    expect(code).toContain("Retry availability check");
+    expect(code.indexOf("feature.isError ? (")).toBeLessThan(code.indexOf("feature.data !== true ? ("));
+  });
+
+  it("provides focused standings recovery without resetting the selected edition", () => {
+    const code = fallback();
+    expect(code).toContain("standings.isError ? (");
+    expect(code).toContain("Your edition filter is preserved.");
+    expect(code).toContain("standings.refetch()");
+    expect(code).toContain("Retry standings");
+    expect(code).toContain('value={editionId}');
+  });
 });
