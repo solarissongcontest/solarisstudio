@@ -106,3 +106,35 @@ describe("authorization evidence across account changes", () => {
     client.clear();
   });
 });
+
+describe("Permissions workspace account isolation", () => {
+  it("removes privileged directory, audit and approval data and cancels late approval reads", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const applySession = createAccountCacheIsolationHandler(client, () => {});
+    applySession({ id: "A" });
+    const privateKeys = [
+      ["permission-engine-users"],
+      ["permission-engine-summary"],
+      ["permission-engine-events", true],
+      ["permission-engine-evaluation", "permissions.read", "ssc22"],
+    ];
+    for (const key of privateKeys) client.setQueryData(key, { privateTo: "A" });
+    let finish: (value: string[]) => void = () => {};
+    const pending = client
+      .fetchQuery({
+        queryKey: ["permission-engine-approvals"],
+        queryFn: () =>
+          new Promise<string[]>((resolve) => {
+            finish = resolve;
+          }),
+      })
+      .catch(() => undefined);
+    applySession({ id: "B" });
+    finish(["A private approval"]);
+    await pending;
+    for (const key of privateKeys) expect(client.getQueryData(key)).toBeUndefined();
+    expect(client.getQueryData(["permission-engine-approvals"])).toBeUndefined();
+    expect(client.getQueryData(["fan-session"])).toEqual({ id: "B" });
+    client.clear();
+  });
+});
