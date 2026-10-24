@@ -167,9 +167,13 @@ export function assessV3CapacityEvidencePortfolio(
         entryValid = false;
       } else if (
         scenario &&
-        missingMeasurements.some((item) => !scenario.requiredMeasurements.includes(item as V3CapacityMeasurement))
+        missingMeasurements.some(
+          (item) => !scenario.requiredMeasurements.includes(item as V3CapacityMeasurement),
+        )
       ) {
-        errors.push(`assessments[${index}] contains a measurement outside its scenario contract`);
+        errors.push(
+          `assessments[${index}] contains a measurement outside its scenario contract`,
+        );
         entryValid = false;
       }
       if (!missingExternalEvidenceDimensions) {
@@ -183,7 +187,9 @@ export function assessV3CapacityEvidencePortfolio(
           (item) => !scenario.capacityDimensions.includes(item as V3CapacityDimension),
         )
       ) {
-        errors.push(`assessments[${index}] contains a capacity dimension outside its scenario contract`);
+        errors.push(
+          `assessments[${index}] contains a capacity dimension outside its scenario contract`,
+        );
         entryValid = false;
       }
       if (!missingBudgetKeys) {
@@ -196,7 +202,9 @@ export function assessV3CapacityEvidencePortfolio(
           ),
         );
         if (missingBudgetKeys.some((key) => !allowedBudgetKeys.has(key))) {
-          errors.push(`assessments[${index}] contains a budget key outside its scenario contract`);
+          errors.push(
+            `assessments[${index}] contains a budget key outside its scenario contract`,
+          );
           entryValid = false;
         }
       }
@@ -206,14 +214,27 @@ export function assessV3CapacityEvidencePortfolio(
       }
 
       if (
-        status === "ready_for_qa_review" &&
-        ((missingMeasurements?.length ?? 0) > 0 ||
-          (missingExternalEvidenceDimensions?.length ?? 0) > 0 ||
-          (missingBudgetKeys?.length ?? 0) > 0 ||
-          (assessmentErrors?.length ?? 0) > 0)
+        status &&
+        missingMeasurements &&
+        missingExternalEvidenceDimensions &&
+        missingBudgetKeys &&
+        assessmentErrors
       ) {
-        errors.push(`assessments[${index}] claims review readiness with unresolved gaps`);
-        entryValid = false;
+        const expectedStatus: V3CapacityEvidenceStatus =
+          assessmentErrors.length > 0
+            ? "invalid"
+            : missingMeasurements.length > 0
+              ? "measurement_incomplete"
+              : missingExternalEvidenceDimensions.length > 0 || missingBudgetKeys.length > 0
+                ? "evidence_incomplete"
+                : "ready_for_qa_review";
+
+        if (status !== expectedStatus) {
+          errors.push(
+            `assessments[${index}] status does not match its unresolved evidence`,
+          );
+          entryValid = false;
+        }
       }
 
       if (!entryValid || !scenarioId || !status) {
