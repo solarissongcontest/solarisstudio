@@ -1,26 +1,42 @@
 import {
-  V3_SLO_SCOPES,
   type V3OperationSuccessObservation,
   type V3SloScope,
 } from "./v3-error-budget";
 
 /**
- * Only scopes with a real canonical S2 operation-receipt producer belong here.
- * Projection reconciliation already has S9 freshness/recovery evidence, but it
- * does not yet have a canonical operation producer. Returning an all-zero row
- * for it would turn absence of instrumentation into apparently healthy data.
+ * Operation-success SLI evidence requires more than the existence of an S2
+ * receipt. The receipt must be claimed at the real command boundary so failed
+ * infrastructure attempts can enter the same denominator as successes.
+ *
+ * Confirmation, public Televote and Results currently bridge completion facts
+ * into S2 only after success. Notification receipts describe queue/delivery/fail
+ * lifecycle facts, where notification.fail is intentionally a successfully
+ * recorded event rather than a successful delivery. Projection reconciliation
+ * has separate freshness/recovery evidence but no canonical operation producer.
  */
 export type V3WorkflowSliScope = Exclude<
   V3SloScope,
-  "system" | "projection_reconciliation"
+  | "system"
+  | "confirmation_submission"
+  | "televote_submission"
+  | "results_lifecycle"
+  | "notification_consequence"
+  | "projection_reconciliation"
 >;
 
-export const V3_WORKFLOW_SLI_SCOPES = V3_SLO_SCOPES.filter(
-  (scope): scope is V3WorkflowSliScope =>
-    scope !== "system" && scope !== "projection_reconciliation",
-);
+export const V3_WORKFLOW_SLI_SCOPES = [
+  "entry_mutation",
+  "media_review_consequence",
+  "jury_submission",
+  "voting_round_transition",
+  "publication",
+] as const satisfies readonly V3WorkflowSliScope[];
 
 export const V3_UNINSTRUMENTED_OPERATION_SLI_SCOPES = [
+  "confirmation_submission",
+  "televote_submission",
+  "results_lifecycle",
+  "notification_consequence",
   "projection_reconciliation",
 ] as const satisfies readonly V3SloScope[];
 
@@ -175,10 +191,10 @@ function validateMetric(metric: V3WorkflowSliMetric) {
 }
 
 /**
- * Convert one server-aggregated workflow SLI row into the already-canonical S10
- * operation-success observation shape. This deliberately accepts only the
- * aggregate snapshot. Callers must never derive workflow evidence by filtering
- * raw operation receipts in the browser or in release tooling.
+ * Convert one server-aggregated workflow SLI row into the canonical S10
+ * operation-success observation shape. Only scopes with a true attempt boundary
+ * are accepted. Completion/event bridges stay visible in operational telemetry
+ * but cannot be laundered into an availability/error-budget observation.
  */
 export function workflowOperationObservation(
   snapshot: V3WorkflowSliSnapshot,

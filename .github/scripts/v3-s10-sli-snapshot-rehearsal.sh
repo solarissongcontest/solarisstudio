@@ -71,7 +71,7 @@ assert s['schemaVersion'] == 3
 assert s['windowMinutes'] == 60
 assert s['source']['projection'] == 'admin_system_observability_snapshot'
 assert s['source']['workflowProjection'] == 'admin_system_workflow_observability_snapshot'
-assert s['coverage']['state'] == 'workflow_measured'
+assert s['coverage']['state'] == 'partial_workflow_measured'
 measured=set(s['coverage']['measured'])
 remaining=set(s['coverage']['remaining'])
 assert {
@@ -79,23 +79,31 @@ assert {
   'domain_event_volume',
   'consequence_queue_state',
   'consequence_completion_lag',
-  'authoritative_submission_latency',
   'workflow_operation_latency',
   'workflow_consequence_lag',
   'workflow_reconciliation_pressure',
 }.issubset(measured)
-assert remaining == {'core_read_availability', 'projection_freshness_by_projection'}
+assert 'authoritative_submission_latency' not in measured
+assert remaining == {
+  'authoritative_submission_latency',
+  'core_read_availability',
+  'projection_freshness_by_projection',
+}
 workflow_scopes={row['scope'] for row in s['workflows']}
 assert workflow_scopes == {
-  'confirmation_submission',
   'entry_mutation',
   'media_review_consequence',
   'jury_submission',
-  'televote_submission',
   'voting_round_transition',
-  'results_lifecycle',
   'publication',
+}
+assert set(s['coverage']['operationReceiptScopes']) == workflow_scopes
+assert set(s['coverage']['unavailableOperationScopes']) == {
+  'confirmation_submission',
+  'televote_submission',
+  'results_lifecycle',
   'notification_consequence',
+  'projection_reconciliation',
 }
 assert s['operations']['total'] == 3
 assert s['operations']['completed'] == 2
@@ -123,6 +131,6 @@ assert s['targets'] is None
 assert s['errorBudgets'] is None
 assert s['alerts'] is None
 PY
-log "PASS: S10 schema v3 exposes workflow-measured coverage and preserves bounded S9 queue evidence"
+log "PASS: S10 exposes only trustworthy attempt-level workflow SLI scopes and preserves bounded S9 queue evidence"
 
-log "All S10 workflow-measured SLI checks passed"
+log "All S10 partial workflow-measured SLI checks passed"

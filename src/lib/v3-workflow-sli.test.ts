@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { V3_SLO_SCOPES } from "./v3-error-budget";
 import {
   V3_UNINSTRUMENTED_OPERATION_SLI_SCOPES,
   V3_WORKFLOW_SLI_SCOPES,
@@ -12,7 +11,7 @@ const SHA = "1111111111111111111111111111111111111111";
 
 function metric(overrides: Partial<V3WorkflowSliMetric> = {}): V3WorkflowSliMetric {
   return {
-    scope: "confirmation_submission",
+    scope: "jury_submission",
     totalOperations: 100,
     completedOperations: 95,
     succeededOperations: 92,
@@ -43,22 +42,28 @@ function snapshot(workflows: readonly V3WorkflowSliMetric[]): V3WorkflowSliSnaps
 }
 
 describe("System V3 workflow SLI evidence adapter", () => {
-  it("exposes only SLO scopes backed by a canonical operation-receipt producer", () => {
-    expect(V3_WORKFLOW_SLI_SCOPES).toEqual(
-      V3_SLO_SCOPES.filter(
-        (scope) => scope !== "system" && scope !== "projection_reconciliation",
-      ),
-    );
+  it("exposes only workflows with a real pre-execution operation boundary", () => {
+    expect(V3_WORKFLOW_SLI_SCOPES).toEqual([
+      "entry_mutation",
+      "media_review_consequence",
+      "jury_submission",
+      "voting_round_transition",
+      "publication",
+    ]);
     expect(V3_UNINSTRUMENTED_OPERATION_SLI_SCOPES).toEqual([
+      "confirmation_submission",
+      "televote_submission",
+      "results_lifecycle",
+      "notification_consequence",
       "projection_reconciliation",
     ]);
   });
 
-  it("maps only server-aggregated workflow evidence into the canonical error-budget observation", () => {
+  it("maps only server-aggregated trustworthy workflow evidence into the canonical error-budget observation", () => {
     expect(
       workflowOperationObservation(
         snapshot([metric()]),
-        "confirmation_submission",
+        "jury_submission",
         { environment: "local-supabase", commitSha: SHA },
       ),
     ).toEqual({
@@ -75,7 +80,7 @@ describe("System V3 workflow SLI evidence adapter", () => {
     expect(() =>
       workflowOperationObservation(
         snapshot([]),
-        "confirmation_submission",
+        "jury_submission",
         { environment: "local-supabase", commitSha: SHA },
       )
     ).toThrow("Expected exactly one workflow SLI row");
@@ -83,7 +88,7 @@ describe("System V3 workflow SLI evidence adapter", () => {
     expect(() =>
       workflowOperationObservation(
         snapshot([metric(), metric()]),
-        "confirmation_submission",
+        "jury_submission",
         { environment: "local-supabase", commitSha: SHA },
       )
     ).toThrow("received 2");
@@ -100,7 +105,7 @@ describe("System V3 workflow SLI evidence adapter", () => {
             uncertainOperations: 1,
           }),
         ]),
-        "confirmation_submission",
+        "jury_submission",
         { environment: "local-supabase", commitSha: SHA },
       )
     ).toThrow("completedOperations must equal succeeded + failed + uncertain operations");
@@ -108,7 +113,7 @@ describe("System V3 workflow SLI evidence adapter", () => {
     expect(() =>
       workflowOperationObservation(
         snapshot([metric({ reconciliationPendingOperations: 5 })]),
-        "confirmation_submission",
+        "jury_submission",
         { environment: "local-supabase", commitSha: SHA },
       )
     ).toThrow("cannot be lower than unresolved operations in the observation window");
@@ -118,7 +123,7 @@ describe("System V3 workflow SLI evidence adapter", () => {
     expect(() =>
       workflowOperationObservation(
         snapshot([metric({ reconciliationPendingOperations: 11 })]),
-        "confirmation_submission",
+        "jury_submission",
         { environment: "local-supabase", commitSha: SHA },
       )
     ).not.toThrow();
@@ -135,7 +140,7 @@ describe("System V3 workflow SLI evidence adapter", () => {
             p99OperationLatencyMs: null,
           }),
         ]),
-        "confirmation_submission",
+        "jury_submission",
         { environment: "local-supabase", commitSha: SHA },
       )
     ).not.toThrow();
@@ -150,7 +155,7 @@ describe("System V3 workflow SLI evidence adapter", () => {
             p99OperationLatencyMs: 0,
           }),
         ]),
-        "confirmation_submission",
+        "jury_submission",
         { environment: "local-supabase", commitSha: SHA },
       )
     ).toThrow("must be null when no trustworthy timing samples exist");
@@ -158,7 +163,7 @@ describe("System V3 workflow SLI evidence adapter", () => {
     expect(() =>
       workflowOperationObservation(
         snapshot([metric({ operationLatencySamples: 96 })]),
-        "confirmation_submission",
+        "jury_submission",
         { environment: "local-supabase", commitSha: SHA },
       )
     ).toThrow("operationLatencySamples cannot exceed completedOperations");
@@ -166,7 +171,7 @@ describe("System V3 workflow SLI evidence adapter", () => {
     expect(() =>
       workflowOperationObservation(
         snapshot([metric({ p50OperationLatencyMs: 500, p95OperationLatencyMs: 400 })]),
-        "confirmation_submission",
+        "jury_submission",
         { environment: "local-supabase", commitSha: SHA },
       )
     ).toThrow("operation latency percentiles must be monotonic");
@@ -181,7 +186,7 @@ describe("System V3 workflow SLI evidence adapter", () => {
     expect(() =>
       workflowOperationObservation(
         unsupported,
-        "confirmation_submission",
+        "jury_submission",
         { environment: "local-supabase", commitSha: SHA },
       )
     ).toThrow("schemaVersion must be 3");
@@ -191,7 +196,7 @@ describe("System V3 workflow SLI evidence adapter", () => {
     expect(() =>
       workflowOperationObservation(
         { ...snapshot([metric()]), windowMinutes: 1 },
-        "confirmation_submission",
+        "jury_submission",
         { environment: "local-supabase", commitSha: SHA },
       )
     ).toThrow("windowMinutes must be between 5 and 10080");
@@ -199,7 +204,7 @@ describe("System V3 workflow SLI evidence adapter", () => {
     expect(() =>
       workflowOperationObservation(
         snapshot([metric()]),
-        "confirmation_submission",
+        "jury_submission",
         { environment: "", commitSha: "not-a-sha" },
       )
     ).toThrow("environment is required");
@@ -207,7 +212,7 @@ describe("System V3 workflow SLI evidence adapter", () => {
     expect(() =>
       workflowOperationObservation(
         snapshot([metric()]),
-        "confirmation_submission",
+        "jury_submission",
         { environment: "local-supabase", commitSha: "not-a-sha" },
       )
     ).toThrow("commitSha must be an exact 40-character SHA");
