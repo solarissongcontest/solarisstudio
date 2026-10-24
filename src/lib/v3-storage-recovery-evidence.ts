@@ -243,6 +243,7 @@ export function assessV3StorageRecoveryEvidence(
     "byteSizesVerified",
     "mimeTypesVerified",
     "privatePolicyVerified",
+    "storageApiDeleteVerified",
   ] as const) {
     if (validation?.[key] !== true) errors.push(`${key} must be true`);
   }
