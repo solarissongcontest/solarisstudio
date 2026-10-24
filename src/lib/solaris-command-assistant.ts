@@ -1,11 +1,15 @@
+import type { SolarisCapability } from "@/lib/permissions-v2";
+
 export type SolarisAssistantCommand = {
   id: string;
   label: string;
   description: string;
   route: string;
   keywords: string[];
-  capability?: string;
+  capability?: SolarisCapability;
 };
+
+export type SolarisAssistantCapabilityAccess = Partial<Record<SolarisCapability, boolean>>;
 
 export const SOLARIS_ASSISTANT_COMMANDS: SolarisAssistantCommand[] = [
   {
@@ -14,7 +18,7 @@ export const SOLARIS_ASSISTANT_COMMANDS: SolarisAssistantCommand[] = [
     description: "Open the selected edition entry workspace to review missing song data.",
     route: "/admin/entries",
     keywords: ["entries missing song", "missing songs", "entry missing", "song missing"],
-    capability: "entry.read",
+    capability: "entry.read_private",
   },
   {
     id: "publication-status",
@@ -76,6 +80,28 @@ export const SOLARIS_ASSISTANT_COMMANDS: SolarisAssistantCommand[] = [
 
 function normalize(value: string) {
   return value.toLocaleLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+export function uniqueSolarisAssistantCapabilities(
+  commands: readonly SolarisAssistantCommand[],
+): SolarisCapability[] {
+  return Array.from(
+    new Set(
+      commands
+        .map((command) => command.capability)
+        .filter((capability): capability is SolarisCapability => Boolean(capability)),
+    ),
+  );
+}
+
+export function filterSolarisAssistantCommandsByAccess(
+  commands: readonly SolarisAssistantCommand[],
+  access: SolarisAssistantCapabilityAccess | null | undefined,
+): SolarisAssistantCommand[] {
+  if (!access) return [];
+  return commands.filter(
+    (command) => !command.capability || access[command.capability] === true,
+  );
 }
 
 export function matchSolarisAssistantCommands(input: string, limit = 5) {
