@@ -34,6 +34,7 @@ function evidence(): Record<string, unknown> {
         marker: "defective",
       },
       rolledBackToVersionId: BASELINE_VERSION,
+      rollbackDeploymentId: "44444444-4444-4444-8444-444444444444",
     },
     achieved: {
       isolatedProviderRollbackMs: 4200,
@@ -53,12 +54,16 @@ function evidence(): Record<string, unknown> {
       storageRollbackAttempted: false,
     },
     artifactDigests: {
+      fixtureConfig: "0".repeat(64),
       baselineDeploy: "a".repeat(64),
+      baselineRuntime: "1".repeat(64),
       defectiveUpload: "b".repeat(64),
       defectiveDeploy: "c".repeat(64),
+      defectiveRuntime: "2".repeat(64),
       preRollbackDeployments: "d".repeat(64),
       rollbackCommandOutput: "e".repeat(64),
       postRollbackDeployments: "f".repeat(64),
+      rollbackRuntime: "3".repeat(64),
     },
     issuesFound: [],
     followUpActions: [
@@ -81,6 +86,7 @@ describe("System V3 S11 deployment rollback evidence", () => {
       workerName: "solaris-s11-rollback-drill",
       baselineVersionId: BASELINE_VERSION,
       defectiveVersionId: DEFECTIVE_VERSION,
+      rollbackDeploymentId: "44444444-4444-4444-8444-444444444444",
       isolatedProviderRollbackMs: 4200,
       errors: [],
       certificationClaim: false,
@@ -186,6 +192,16 @@ describe("System V3 S11 deployment rollback evidence", () => {
       "artifactDigests.postRollbackDeployments must be a SHA-256 digest",
     );
     expect(result.errors).toContain("artifactDigests contains an unexpected artifact");
+  });
+
+  it("rejects nominally passed evidence that still reports unresolved issues", () => {
+    const value = evidence();
+    value.issuesFound = ["rollback runtime returned a stale version once"];
+    const result = assessV3DeploymentRollbackEvidence(value, SHA);
+    expect(result.status).toBe("invalid");
+    expect(result.errors).toContain(
+      "passed evidence must not retain unresolved issuesFound",
+    );
   });
 
   it("never turns the component drill into full-service or release certification", () => {

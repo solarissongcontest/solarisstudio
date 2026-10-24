@@ -270,7 +270,11 @@ export function assessV3DeploymentRollbackEvidence(
     }
   }
 
-  if (!issuesFound) errors.push("issuesFound must be a string array");
+  if (!issuesFound) {
+    errors.push("issuesFound must be a string array");
+  } else if (issuesFound.length > 0) {
+    errors.push("passed evidence must not retain unresolved issuesFound");
+  }
   if (
     !followUpActions ||
     followUpActions.length === 0 ||

@@ -314,20 +314,25 @@ if [[ -n "$EVIDENCE_PATH" ]]; then
     "$STARTED_AT" "$COMPLETED_AT" "$WORKER_NAME" "$TARGET_URL" \
     "$BASELINE_VERSION_ID" "$DEFECTIVE_VERSION_ID" "$ROLLBACK_DEPLOYMENT_ID" \
     "$ROLLBACK_DURATION_MS" "$WRANGLER_VERSION" \
+    "$(sha256_file "$CONFIG")" \
     "$(sha256_file "$BASELINE_DEPLOY_OUTPUT")" \
+    "$(sha256_file "$BASELINE_RUNTIME")" \
     "$(sha256_file "$DEFECTIVE_UPLOAD_OUTPUT")" \
     "$(sha256_file "$DEFECTIVE_DEPLOY_OUTPUT")" \
+    "$(sha256_file "$DEFECTIVE_RUNTIME")" \
     "$(sha256_file "$PRE_ROLLBACK_DEPLOYMENTS")" \
     "$(sha256_file "$ROLLBACK_COMMAND_OUTPUT")" \
-    "$(sha256_file "$POST_ROLLBACK_DEPLOYMENTS")" <<'PY'
+    "$(sha256_file "$POST_ROLLBACK_DEPLOYMENTS")" \
+    "$(sha256_file "$ROLLBACK_RUNTIME")" <<'PY'
 import json, sys
 (
     path, commit_sha, operator, rehearsal_id, started_at, completed_at,
     worker_name, target_url, baseline_id, defective_id, rollback_deployment_id,
-    rollback_ms, wrangler_version, baseline_deploy_digest, defective_upload_digest,
-    defective_deploy_digest, pre_rollback_digest, rollback_output_digest,
-    post_rollback_digest,
-) = sys.argv[1:20]
+    rollback_ms, wrangler_version, fixture_config_digest, baseline_deploy_digest,
+    baseline_runtime_digest, defective_upload_digest, defective_deploy_digest,
+    defective_runtime_digest, pre_rollback_digest, rollback_output_digest,
+    post_rollback_digest, rollback_runtime_digest,
+) = sys.argv[1:24]
 value = {
     "schemaVersion": 1,
     "kind": "cloudflare_deployment_rollback_rehearsal",
@@ -370,12 +375,16 @@ value = {
         "storageRollbackAttempted": False,
     },
     "artifactDigests": {
+        "fixtureConfig": fixture_config_digest,
         "baselineDeploy": baseline_deploy_digest,
+        "baselineRuntime": baseline_runtime_digest,
         "defectiveUpload": defective_upload_digest,
         "defectiveDeploy": defective_deploy_digest,
+        "defectiveRuntime": defective_runtime_digest,
         "preRollbackDeployments": pre_rollback_digest,
         "rollbackCommandOutput": rollback_output_digest,
         "postRollbackDeployments": post_rollback_digest,
+        "rollbackRuntime": rollback_runtime_digest,
     },
     "issuesFound": [],
     "followUpActions": [
