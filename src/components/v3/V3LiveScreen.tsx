@@ -7,6 +7,7 @@ import {
   Vote,
 } from "lucide-react";
 
+import { SOLARIS_TIME_ZONE } from "@/lib/public-time";
 import type { V3LiveExperience, V3PublicShowState } from "@/lib/v3-live";
 import {
   V3ActionCard,
@@ -28,6 +29,19 @@ export type V3LiveScreenProps = {
   refreshing?: boolean;
   degraded?: boolean;
 };
+
+const liveFreshnessFormatter = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: SOLARIS_TIME_ZONE,
+});
+
+const liveMomentFormatter = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: SOLARIS_TIME_ZONE,
+});
 
 function showStatePresentation(
   state: V3PublicShowState,
@@ -57,20 +71,13 @@ function showStatePresentation(
 function freshnessLabel(iso: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "Authoritative snapshot";
-  return `Updated ${date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+  return `Updated ${liveFreshnessFormatter.format(date)}`;
 }
 
 function liveMomentLabel(iso: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString([], {
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return liveMomentFormatter.format(date);
 }
 
 function liveTimingRows(experience: V3LiveExperience) {
