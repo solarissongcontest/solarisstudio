@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
+import { requireHodHistoryCapabilityServer } from "@/integrations/unified/hod-access.server";
 import { loadHodResolverServer } from "@/integrations/unified/hod-history.server";
 
 export type HodIdentitySuggestion = {
@@ -30,7 +30,7 @@ function normalizeUsername(value: unknown) {
 }
 
 export async function getHodIdentitySuggestionsServer(): Promise<HodIdentitySuggestion[]> {
-  await requireSolarisOrganizerServer();
+  await requireHodHistoryCapabilityServer("delegation.read");
   const db = supabaseAdmin as any;
   const hod = await loadHodResolverServer();
 
@@ -48,7 +48,8 @@ export async function getHodIdentitySuggestionsServer(): Promise<HodIdentitySugg
       .select("id,edition_id,name"),
     televotingAdmin
       .from("vote_submissions")
-      .select("id,round_id,country_code,username,username_normalized,status")
+      .select("round_id,country_code,username,username_normalized")
+      .neq("status", "deleted")
       .limit(50000),
   ]);
 
@@ -78,7 +79,6 @@ export async function getHodIdentitySuggestionsServer(): Promise<HodIdentitySugg
   const candidates = new Map<string, Candidate>();
 
   for (const submission of submissionsResult.data ?? []) {
-    if (submission.status === "deleted") continue;
     const roundId = String(submission.round_id);
     const editionId = canonicalByRound.get(roundId)
       ?? canonicalByRemoteEdition.get(remoteEditionByRound.get(roundId) ?? "");
