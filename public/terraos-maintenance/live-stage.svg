@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Abstract Solaris live stage artwork</title>
+  <desc id="desc">Original dark concert-like artwork with cyan and violet stage lights and a silhouetted audience.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#020308"/>
+      <stop offset=".55" stop-color="#061426"/>
+      <stop offset="1" stop-color="#010205"/>
+    </linearGradient>
+    <linearGradient id="beamA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8eecff" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#36a8ff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="beamB" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b48cff" stop-opacity=".78"/>
+      <stop offset="1" stop-color="#7158ff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="centerGlow">
+      <stop offset="0" stop-color="#5bdcff" stop-opacity=".68"/>
+      <stop offset="1" stop-color="#5bdcff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur32"><feGaussianBlur stdDeviation="32"/></filter>
+    <filter id="blur70"><feGaussianBlur stdDeviation="70"/></filter>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <ellipse cx="810" cy="520" rx="520" ry="300" fill="url(#centerGlow)" filter="url(#blur70)"/>
+  <path d="M130 -40 L690 820 L450 820 Z" fill="url(#beamA)" filter="url(#blur32)" opacity=".62"/>
+  <path d="M1470 -60 L920 830 L1190 830 Z" fill="url(#beamB)" filter="url(#blur32)" opacity=".56"/>
+  <path d="M530 -20 L760 820 L650 820 Z" fill="#8ae9ff" opacity=".17"/>
+  <path d="M1090 -20 L830 820 L945 820 Z" fill="#a27dff" opacity=".14"/>
+  <g stroke="#dffbff" stroke-opacity=".16" fill="none">
+    <path d="M280 230 H1320"/><path d="M330 310 H1270"/><path d="M390 390 H1210"/>
+  </g>
+  <g fill="#7de8ff" opacity=".62">
+    <circle cx="350" cy="250" r="7"/><circle cx="505" cy="320" r="5"/><circle cx="680" cy="245" r="6"/><circle cx="870" cy="295" r="5"/><circle cx="1030" cy="235" r="7"/><circle cx="1220" cy="330" r="5"/>
+  </g>
+  <g fill="#05070d">
+    <path d="M0 855 C90 810 140 870 210 840 C280 810 320 885 400 850 C470 820 520 870 600 845 C690 815 760 875 840 850 C930 820 1000 875 1080 845 C1180 805 1250 880 1340 850 C1430 820 1500 875 1600 835 V1000 H0Z"/>
+    <circle cx="120" cy="840" r="42"/><circle cx="275" cy="825" r="36"/><circle cx="455" cy="850" r="45"/><circle cx="635" cy="825" r="39"/><circle cx="805" cy="842" r="44"/><circle cx="980" cy="824" r="37"/><circle cx="1160" cy="850" r="43"/><circle cx="1350" cy="828" r="38"/><circle cx="1505" cy="846" r="44"/>
+  </g>
+  <rect y="790" width="1600" height="210" fill="url(#bg)" opacity=".22"/>
+</svg>

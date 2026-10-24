@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test";
-import { MAINTENANCE_RETURN_DATE } from "../src/lib/maintenance";
 
 const ROUTES = [
   "/",
@@ -13,7 +12,7 @@ const ROUTES = [
 
 const SUPABASE_API_PATH = /\/(?:auth|rest|functions|storage|realtime|graphql)\/v1\//;
 
-test("Solaris Studio serves the TerraOS 3 maintenance teaser across the app", async ({ page }) => {
+test("Solaris Studio serves the editorial TerraOS 3 maintenance experience across the app", async ({ page }) => {
   for (const route of ROUTES) {
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${route} should be deliberately unavailable`).toBe(503);
@@ -23,25 +22,29 @@ test("Solaris Studio serves the TerraOS 3 maintenance teaser across the app", as
     const main = page.locator('[data-solaris-maintenance="true"]');
     await expect(main).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("TerraOS 3");
-    await expect(page.getByText("Solaris Studio, rebuilt.", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("Estimated arrival", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(MAINTENANCE_RETURN_DATE, { exact: true })).toBeVisible();
+    await expect(page.getByText("Solaris, reimagined.", { exact: true })).toBeVisible();
+    const arrival = page.locator(".arrival-line");
+    await expect(arrival).toBeVisible();
+    await expect(arrival).toContainText(/Estimated arrival|TerraOS 3 is being prepared\./);
+    await expect(page.getByText("TerraOS 3 readiness", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "A new generation of Solaris." })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Take a closer look." })).toBeVisible();
-    await expect(page.getByText("Five places.", { exact: false }).first()).toBeVisible();
-    await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=home"]')).toHaveCount(2);
-    await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=explore"]')).toHaveCount(1);
-    await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=participate"]')).toHaveCount(1);
-    await expect(page.getByText("Solaris Studio", { exact: true }).first()).toBeVisible();
-    await expect(page.locator('.mark[src="/solaris-studio-mark.png"]')).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Built for\s*contest night\./ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Your delegation\s*keeps moving\./ })).toBeVisible();
+    await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=home&chrome=content"]')).toHaveCount(2);
+    await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=explore&chrome=content"]')).toHaveCount(2);
+    await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=participate&chrome=content"]')).toHaveCount(2);
+    await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=results&chrome=content"]')).toHaveCount(1);
+    await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=me&chrome=content"]')).toHaveCount(1);
+    await expect(page.locator('.product-mark[src="/solaris-studio-mark.png"]')).toBeVisible();
 
     await expect(page.locator('[data-locked-copy]')).toHaveCount(0);
     await expect(page.locator('.orbit')).toHaveCount(0);
-    const nextRevealCount = await page.locator('[data-next-reveal]').count();
-    expect(nextRevealCount, `${route} should expose at most one next reveal`).toBeLessThanOrEqual(1);
-
+    await expect(page.locator('[data-next-reveal]')).toHaveCount(0);
     await expect(page.getByText(/Solaris Studio is temporarily unavailable/i)).toHaveCount(0);
     await expect(page.getByText(/database service error/i)).toHaveCount(0);
     await expect(page.getByText(/All Solaris Studio services are temporarily unavailable/i)).toHaveCount(0);
+    await expect(page.getByText(/deployment|commit|pull request|supabase/i)).toHaveCount(0);
 
     const overflow = await page.evaluate(
       () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
@@ -133,136 +136,71 @@ test("TerraOS teaser preview route renders all five production V3 destinations w
   ).toEqual([]);
 });
 
-test("Five Places upgrades its static fallback panes to the real V3 screen previews", async ({ page }) => {
+test("Take a closer look exposes all five real V3 previews with non-swipe controls", async ({ page }) => {
   const response = await page.goto("/", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(503);
 
-  const story = page.locator(".story-touch");
-  await expect(story).toBeVisible();
-  await story.scrollIntoViewIfNeeded();
-
-  const previews = story.locator("iframe.terraos-v3-nav-preview");
-  await expect(previews).toHaveCount(5);
+  const gallery = page.locator('[data-look-track]');
+  await gallery.scrollIntoViewIfNeeded();
+  await expect(gallery.locator('[data-look-card]')).toHaveCount(5);
+  await expect(page.locator('[data-gallery-prev]')).toBeVisible();
+  await expect(page.locator('[data-gallery-next]')).toBeVisible();
 
   for (const screen of ["home", "explore", "participate", "results", "me"] as const) {
     await expect(
-      story.locator(
-        `iframe.terraos-v3-nav-preview[src="/terraos-teaser-preview?screen=${screen}&chrome=content"]`,
+      gallery.locator(
+        `iframe[src="/terraos-teaser-preview?screen=${screen}&chrome=content"]`,
       ),
     ).toHaveCount(1);
   }
 
-  await expect(previews.first()).toHaveCSS("pointer-events", "none");
+  await expect(gallery.locator("iframe").first()).toHaveCSS("pointer-events", "none");
+  await gallery.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(() => gallery.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
 });
 
-test("TerraOS first-look device keeps a complete phone aspect on short desktop viewports", async ({ page }) => {
-  const viewport = { width: 1366, height: 768 };
-  await page.setViewportSize(viewport);
-  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
-  expect(response?.status()).toBe(503);
-
-  const device = page.locator(".preview-device");
-  const previewFrame = device.locator("iframe.preview-page");
-
-  // The real V3 preview iframe is intentionally lazy-loaded below the fold.
-  // Bring it into the viewport before checking its fitted phone geometry so the
-  // child preview can render at the same responsive dimensions as its host.
-  await device.scrollIntoViewIfNeeded();
-  await expect(device).toBeVisible();
-  await expect(previewFrame).toBeVisible();
-
-  await expect
-    .poll(async () => {
-      const box = await device.boundingBox();
-      if (!box || box.width === 0) return Number.POSITIVE_INFINITY;
-      return Math.abs(box.height / box.width - 844 / 390);
-    })
-    .toBeLessThan(0.05);
-
-  const box = await device.boundingBox();
-  expect(box).not.toBeNull();
-  if (!box) return;
-  expect(box.height).toBeLessThanOrEqual(viewport.height * 0.8);
-});
-
-test("TerraOS first-look preview fills its phone and keeps copy below mobile top chrome", async ({ page }) => {
+test("TerraOS hero and readiness remain contained on a narrow phone viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const response = await page.goto("/", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(503);
 
-  const firstLook = page.locator(".first-look");
-  const device = firstLook.locator(".preview-device");
-  const previewFrame = device.locator("iframe.preview-page");
-
-  await firstLook.scrollIntoViewIfNeeded();
-  await expect(previewFrame).toBeVisible();
-
-  // The visible 1px device border belongs to the phone frame, not to the
-  // embedded viewport. Measure the iframe against the frame's inner box so a
-  // correct edge-to-edge preview is not reported as a 2px width regression.
-  await expect
-    .poll(async () => {
-      return device.evaluate((element) => {
-        const frame = element.querySelector<HTMLIFrameElement>("iframe.preview-page");
-        if (!frame) return Number.POSITIVE_INFINITY;
-
-        const deviceBox = element.getBoundingClientRect();
-        const frameBox = frame.getBoundingClientRect();
-        const style = getComputedStyle(element);
-        const borderLeft = Number.parseFloat(style.borderLeftWidth) || 0;
-        const borderRight = Number.parseFloat(style.borderRightWidth) || 0;
-        const innerLeft = deviceBox.left + borderLeft;
-        const innerWidth = deviceBox.width - borderLeft - borderRight;
-
-        return Math.max(
-          Math.abs(innerLeft - frameBox.left),
-          Math.abs(innerWidth - frameBox.width),
-        );
-      });
-    })
-    .toBeLessThan(1);
-
-  // Compare internal geometry instead of absolute viewport Y. The maintenance
-  // page intentionally uses smooth scrolling, so sampling immediately after a
-  // scrollIntoView() call can catch the card mid-animation even though its
-  // safe-area padding is already applied.
-  await expect
-    .poll(async () => {
-      const [cardBox, copyBox] = await Promise.all([
-        firstLook.boundingBox(),
-        firstLook.locator(".first-look-copy h3").boundingBox(),
-      ]);
-      if (!cardBox || !copyBox) return Number.NEGATIVE_INFINITY;
-      return copyBox.y - cardBox.y;
-    })
-    .toBeGreaterThanOrEqual(72);
-});
-
-test("TerraOS hero stays visually centered on a narrow phone viewport", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
-  expect(response?.status()).toBe(503);
+  await expect(page.locator('[data-product-bar]')).toBeVisible();
+  await expect(page.getByText("TerraOS 3 readiness", { exact: true })).toBeVisible();
+  await expect(page.locator('.hero-device-main')).toBeVisible();
 
   const geometry = await page.locator("#maintenance-title").evaluate((element) => {
-    const range = document.createRange();
-    range.selectNodeContents(element);
-    const text = range.getBoundingClientRect();
-    const countdown = document.querySelector("#terraos-countdown")?.getBoundingClientRect();
+    const title = element.getBoundingClientRect();
+    const readiness = document.querySelector(".release-card")?.getBoundingClientRect();
     return {
-      textLeft: text.left,
-      textRight: text.right,
-      textCenter: text.left + text.width / 2,
-      countdownLeft: countdown?.left ?? -1,
-      countdownRight: countdown?.right ?? -1,
+      titleLeft: title.left,
+      titleRight: title.right,
+      readinessLeft: readiness?.left ?? -1,
+      readinessRight: readiness?.right ?? -1,
       viewport: window.innerWidth,
     };
   });
 
-  expect(geometry.textLeft).toBeGreaterThanOrEqual(0);
-  expect(geometry.textRight).toBeLessThanOrEqual(geometry.viewport);
-  expect(Math.abs(geometry.textCenter - geometry.viewport / 2)).toBeLessThanOrEqual(2);
-  expect(geometry.countdownLeft).toBeGreaterThanOrEqual(0);
-  expect(geometry.countdownRight).toBeLessThanOrEqual(geometry.viewport);
+  expect(geometry.titleLeft).toBeGreaterThanOrEqual(0);
+  expect(geometry.titleRight).toBeLessThanOrEqual(geometry.viewport);
+  expect(geometry.readinessLeft).toBeGreaterThanOrEqual(0);
+  expect(geometry.readinessRight).toBeLessThanOrEqual(geometry.viewport);
+
+  const overflow = await page.evaluate(
+    () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test("Confirmation remains an immediate maintenance destination", async ({ page }) => {
+  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(503);
+
+  const confirmationLink = page.locator('.confirmation-link[href="#confirmation-access"]');
+  await expect(confirmationLink).toBeVisible();
+  await confirmationLink.click();
+  await expect(page.locator("#confirmation-access")).toBeInViewport();
+  await expect(page.getByRole("heading", { name: /Your delegation\s*keeps moving\./ })).toBeVisible();
 });
 
 test("maintenance mode blocks writes instead of forwarding them to app services", async ({ request }) => {

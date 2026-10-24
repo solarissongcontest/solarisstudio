@@ -49,6 +49,9 @@ const MAINTENANCE_ASSET_PATHS = new Set([
   "/tsbc-maintenance-mark.svg",
   "/solaris-studio-mark.png",
   "/solaris-background.webp",
+  "/terraos-maintenance/blue-motion.svg",
+  "/terraos-maintenance/live-stage.svg",
+  "/terraos-maintenance/purple-tunnel.svg",
   "/favicon.ico",
   "/apple-touch-icon.png",
   "/icon-192.png",
@@ -341,6 +344,9 @@ function maintenanceResponse(request: Request, env: unknown, includeHodPortal: b
 
   if (request.method === "GET" || request.method === "HEAD") {
     let html = renderMaintenancePage();
+    if (new URL(request.url).pathname !== "/") {
+      html = html.replaceAll('href="#confirmation-access"', 'href="/#confirmation-access"');
+    }
     if (request.method === "GET" && includeHodPortal) {
       const hod = maintenanceHodRuntime(env);
       if (hod.enabled && hod.supabaseUrl && hod.publishableKey) {
