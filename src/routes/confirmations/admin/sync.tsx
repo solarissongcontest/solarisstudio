@@ -64,6 +64,7 @@ type PendingLineupSyncReview = {
   showName: string;
   responseIds: string[];
   countries: string[];
+  operationId: string;
 };
 
 export const Route = createFileRoute("/confirmations/admin/sync")({
@@ -208,6 +209,7 @@ function ConfirmationSyncPage() {
       showName: selectedShow.name,
       responseIds: selectedRows.map((row) => row.id).sort(),
       countries: selectedRows.map((row) => row.country).sort((a, b) => a.localeCompare(b)),
+      operationId: crypto.randomUUID(),
     });
   }
 
@@ -268,7 +270,7 @@ function ConfirmationSyncPage() {
       for (const row of liveRows) {
         if (organizerEditionIdRef.current !== review.editionId) {
           throw new Error(
-            "Organizer edition changed during the legacy multi-step sync. Some earlier submission syncs may already have completed; reconcile the selected edition before retrying.",
+            "Organizer edition changed during the submission-sync phase. Some earlier submission syncs may already have completed; reconcile the selected edition before retrying.",
           );
         }
         try {
@@ -287,14 +289,23 @@ function ConfirmationSyncPage() {
         );
       }
 
-      const showResult = await addToShow({ data: { editionId: review.editionId, showId: review.showId, countryIds } });
+      const showResult = await addToShow({
+        data: {
+          editionId: review.editionId,
+          showId: review.showId,
+          countryIds,
+          operationId: review.operationId,
+          idempotencyKey: `show-lineup-sync:${review.operationId}`,
+        },
+      });
       setPendingSyncReview(null);
       toast.success(
-        `${countryIds.length} countries synced · ${showResult.added} added to ${showResult.showName}${showResult.refreshed ? ` · ${showResult.refreshed} refreshed` : ""}`,
+        `${countryIds.length} countries synced · ${showResult.added} added to ${showResult.showName}${showResult.refreshed ? ` · ${showResult.refreshed} refreshed` : ""}${showResult.replayed ? " · reconciled" : ""}`,
       );
       if (failures.length) setError(`${failures.length} response${failures.length === 1 ? "" : "s"} need attention: ${failures.join(" | ")}`);
     } catch (caught) {
-      setPendingSyncReview(null);
+      // Keep the reviewed operation identity after an ambiguous failure. A retry
+      // first reconciles its receipt before any fresh line-up preflight/write.
       const message = caught instanceof Error ? caught.message : "Round sync failed.";
       setError(message);
       toast.error(message);
@@ -393,7 +404,7 @@ function ConfirmationSyncPage() {
               Organizer re-fetches the participating responses and Solaris target immediately before apply and refuses the operation if the batch, edition or target show changed while this review was open.
             </p>
             <p className="rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 leading-5 text-amber-50/90">
-              This still uses the legacy multi-step sync boundary: submissions are synchronized individually before show membership is applied. A mid-operation failure can therefore leave partial progress. System #598 remains the blocker for one atomic, versioned, idempotent and receipted line-up command; reconcile current state before retrying an ambiguous failure.
+              Submission-to-edition synchronization still runs one response at a time, so a failure there may leave earlier submission syncs complete. The final show-membership write now uses the governed System line-up command: it is exact-edition scoped, atomic, version-checked, idempotent and receipted, and an ambiguous retry reuses this review's operation identity before any new write.
             </p>
           </div>
         ) : null}
