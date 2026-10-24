@@ -84,6 +84,33 @@ function MySolarisAccessGate({ children }: { children: ReactNode }) {
     );
   }
 
+  if (account.isError || account.data?.access.schemaReady === false) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="MySolaris"
+          title="Account access unavailable"
+          description="Solaris could not verify your current delegation access, so protected participation tools stay closed."
+        />
+        <Panel title="Try again before continuing">
+          <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>
+              Your account has not been treated as signed out, unassigned or active. Solaris needs a fresh authority check before it can open delegation tools.
+            </p>
+            <button
+              type="button"
+              onClick={() => void account.refetch()}
+              disabled={account.isFetching}
+              className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 font-semibold text-foreground disabled:opacity-50"
+            >
+              {account.isFetching ? "Checking access…" : "Retry access check"}
+            </button>
+          </div>
+        </Panel>
+      </AppShell>
+    );
+  }
+
   if (account.data?.access.countryStatus === "suspended") {
     const reason = account.data.access.suspensionReason;
     return (
