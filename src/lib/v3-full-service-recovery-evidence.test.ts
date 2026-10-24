@@ -24,14 +24,21 @@ function completeManifest(): V3S11FullServiceRecoveryManifest {
     candidateSha: SHA,
     components: components.map((component) => ({
       component,
-      commitSha: SHA,
-      status: "ready_for_qa_review" as const,
-      rehearsalId: `${component}-rehearsal`,
       observedAt: "2026-10-24T16:00:00.000Z",
-      artifactPath: `docs/evidence/v3-s11/${component}.json`,
+      artifactPath: `docs/evidence/v3-s11/${component}-assessment.json`,
       artifactSha256: DIGEST,
-      certificationClaim: false as const,
-      qaReviewRequired: true as const,
+      assessment: {
+        status: "ready_for_qa_review" as const,
+        expectedCommitSha: SHA,
+        evidenceCommitSha: SHA,
+        rehearsalId: `${component}-rehearsal`,
+        errors: [],
+        certificationClaim: false as const,
+        qaReviewRequired: true as const,
+        ...(component === "deployment"
+          ? { fullServiceRecoveryClaim: false as const }
+          : {}),
+      },
     })),
     fullServiceRehearsal: {
       commitSha: SHA,
@@ -63,8 +70,19 @@ function mutableManifest(): MutableManifestShape {
   return completeManifest() as unknown as MutableManifestShape;
 }
 
+function componentAssessment(
+  manifest: MutableManifestShape,
+  index: number,
+): Record<string, unknown> {
+  const assessment = manifest.components[index]?.assessment;
+  if (!assessment || typeof assessment !== "object" || Array.isArray(assessment)) {
+    throw new Error("component assessment fixture missing");
+  }
+  return assessment as Record<string, unknown>;
+}
+
 describe("S11 full-service recovery evidence", () => {
-  it("marks complete exact-SHA isolated evidence ready for QA without claiming certification", () => {
+  it("accepts the real component-assessor envelope shape on one exact SHA", () => {
     expect(assessV3FullServiceRecoveryEvidence(completeManifest(), SHA)).toEqual({
       schemaVersion: 1,
       status: "ready_for_qa_review",
@@ -79,14 +97,25 @@ describe("S11 full-service recovery evidence", () => {
     });
   });
 
-  it("fails closed on mixed component SHA", () => {
-    const manifest = completeManifest();
-    manifest.components[1].commitSha = "c".repeat(40);
+  it("fails closed on mixed component evidence SHA", () => {
+    const manifest = mutableManifest();
+    componentAssessment(manifest, 1).evidenceCommitSha = "c".repeat(40);
 
     const assessment = assessV3FullServiceRecoveryEvidence(manifest, SHA);
     expect(assessment.status).toBe("invalid");
     expect(assessment.errors).toContain(
-      "storage component commitSha does not match candidateSha",
+      "storage assessment evidenceCommitSha does not match candidateSha",
+    );
+  });
+
+  it("fails closed when a component assessment was produced for a different expected SHA", () => {
+    const manifest = mutableManifest();
+    componentAssessment(manifest, 0).expectedCommitSha = "c".repeat(40);
+
+    const assessment = assessV3FullServiceRecoveryEvidence(manifest, SHA);
+    expect(assessment.status).toBe("invalid");
+    expect(assessment.errors).toContain(
+      "database assessment expectedCommitSha does not match candidateSha",
     );
   });
 
@@ -99,6 +128,17 @@ describe("S11 full-service recovery evidence", () => {
     const assessment = assessV3FullServiceRecoveryEvidence(manifest, SHA);
     expect(assessment.status).toBe("component_evidence_incomplete");
     expect(assessment.missingComponents).toEqual(["deployment"]);
+  });
+
+  it("rejects an assessment that still contains component errors", () => {
+    const manifest = mutableManifest();
+    componentAssessment(manifest, 0).errors = ["restore mismatch"];
+
+    const assessment = assessV3FullServiceRecoveryEvidence(manifest, SHA);
+    expect(assessment.status).toBe("invalid");
+    expect(assessment.errors).toContain(
+      "database assessment still contains errors",
+    );
   });
 
   it("does not accept an end-to-end rehearsal with an incomplete cross-layer check", () => {
@@ -140,12 +180,23 @@ describe("S11 full-service recovery evidence", () => {
 
   it("rejects a component assessment that tries to impersonate release certification", () => {
     const manifest = mutableManifest();
-    manifest.components[0].certificationClaim = true;
+    componentAssessment(manifest, 0).certificationClaim = true;
 
     const assessment = assessV3FullServiceRecoveryEvidence(manifest, SHA);
     expect(assessment.status).toBe("invalid");
     expect(assessment.errors).toContain(
       "database component must not claim release certification",
+    );
+  });
+
+  it("requires the deployment component to retain its no-full-service claim boundary", () => {
+    const manifest = mutableManifest();
+    componentAssessment(manifest, 2).fullServiceRecoveryClaim = true;
+
+    const assessment = assessV3FullServiceRecoveryEvidence(manifest, SHA);
+    expect(assessment.status).toBe("invalid");
+    expect(assessment.errors).toContain(
+      "deployment component must not claim full-service recovery",
     );
   });
 
