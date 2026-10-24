@@ -5,23 +5,38 @@ import { renderMaintenanceDesktopV2Style } from "./maintenance-desktop-v2";
 describe("maintenance desktop v2 composition", () => {
   const style = renderMaintenanceDesktopV2Style();
 
-  it("keeps the desktop hero compact instead of forcing a giant mobile viewport", () => {
+  it("keeps the desktop hero compact and outranks the runtime choreography", () => {
     expect(style).toContain("@media (min-width: 1100px)");
-    expect(style).toContain("min-height: 720px");
-    expect(style).toContain("grid-template-columns: minmax(360px, 455px) minmax(500px, 640px)");
-    expect(style).toContain("width: min(640px, 43vw)");
+    expect(style).toContain('html[data-terraos-release-choreography="v2"] .hero');
+    expect(style).toContain("min-height: clamp(620px, 76svh, 700px) !important");
+    expect(style).toContain('html[data-terraos-release-choreography="v2"] .hero-copy');
+    expect(style).toContain("position: relative !important");
+    expect(style).toContain("top: auto !important");
+    expect(style).toContain("grid-template-columns: minmax(420px, 500px) minmax(520px, 640px)");
+    expect(style).toContain("width: min(620px, 42vw)");
   });
 
   it("turns the product stories into bounded desktop editorial compositions", () => {
     expect(style).toContain("width: min(calc(100% - 6rem), 1240px)");
-    expect(style).toContain("grid-template-columns: minmax(300px, .7fr) minmax(590px, 1.3fr)");
-    expect(style).toContain("min-height: 520px");
-    expect(style).toContain("font-size: clamp(3.9rem, 4.9vw, 5.6rem)");
+    expect(style).toContain("grid-template-columns: minmax(300px, .68fr) minmax(590px, 1.32fr)");
+    expect(style).toContain("min-height: 500px");
+    expect(style).toContain("font-size: clamp(3.7rem, 4.65vw, 5.25rem)");
   });
 
-  it("prevents sticky mobile storytelling behavior from creating desktop overlap", () => {
-    expect(style).toContain(".participation-story .sticky-heading");
-    expect(style).toContain("position: relative");
-    expect(style).toContain("top: auto");
+  it("neutralizes oversized scroll-scene geometry on desktop without changing mobile", () => {
+    expect(style).toContain(
+      'html[data-terraos-release-choreography="v2"] [data-terra-first-look="true"] .first-look',
+    );
+    expect(style).toContain("min-height: 500px !important");
+    expect(style).toContain(
+      'html[data-terraos-release-choreography="v2"] .story-touch[data-terra-scroll-scene="true"]',
+    );
+    expect(style).toContain(
+      'html[data-terraos-release-choreography="v2"] .participation-story[data-terra-scroll-scene="true"]',
+    );
+    expect(style).toContain(
+      'html[data-terraos-release-choreography="v2"] .results-story[data-terra-scroll-scene="true"]',
+    );
+    expect(style).toContain("min-height: 0 !important");
   });
 });
