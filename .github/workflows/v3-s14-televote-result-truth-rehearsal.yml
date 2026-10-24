@@ -10,6 +10,7 @@ on:
       - ".github/scripts/v3-s14-televote-result-truth-replay-hardening-rehearsal.sh"
       - ".github/workflows/v3-s14-televote-result-truth-rehearsal.yml"
       - "src/lib/v3-s14-televote-result-truth.contract.test.ts"
+      - "src/lib/v3-s14-atomic-televote-calculation.contract.test.ts"
   workflow_dispatch:
 
 permissions:
@@ -78,6 +79,8 @@ jobs:
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261017001010_v3_s14_televote_projection_guard_hardening.sql" \
             /tmp/solaris-s14-tv-truth-main/supabase/migrations/
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261017001020_v3_s14_televote_projection_replay_hardening.sql" \
+            /tmp/solaris-s14-tv-truth-main/supabase/migrations/
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261017001030_v3_s14_atomic_televote_calculation.sql" \
             /tmp/solaris-s14-tv-truth-main/supabase/migrations/
           cd /tmp/solaris-s14-tv-truth-main
           supabase migration up --local --include-all
