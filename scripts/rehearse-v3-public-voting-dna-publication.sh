@@ -52,8 +52,8 @@ db_exec "insert into public.editions(id,name,year,slug,edition_number,status,pub
 db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published,publication_config) values ('$SHOW_ID','$EDITION_ID','Voting DNA Boundary Final','final',1,true,jsonb_build_object('results',true,'jury_results',false,'televote_results',false,'detailed_voting',false));"
 db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_ID','$SHOW_ID','$COUNTRY_ID',120,80,200,1);"
 
-[[ "$(db_value "select prosecdef::text from pg_proc where oid='public.v3_public_country_voting_dna(uuid)'::regprocedure;")" == 'false' ]] || fail "Voting DNA projection must remain SECURITY INVOKER"
-[[ "$(db_value "select proconfig::text from pg_proc where oid='public.v3_public_country_voting_dna(uuid)'::regprocedure;")" == '{\"search_path=\\\"\\\"\"}' ]] || fail "Voting DNA projection search_path is not fixed to empty"
+[[ "$(db_value "select prosecdef::text from pg_proc where oid='public.v3_public_country_voting_dna(uuid)'::regprocedure;")" == 'f' ]] || fail "Voting DNA projection must remain SECURITY INVOKER"
+[[ "$(db_value "select coalesce(array_to_string(proconfig, ','),'') from pg_proc where oid='public.v3_public_country_voting_dna(uuid)'::regprocedure;")" == 'search_path=""' ]] || fail "Voting DNA projection search_path is not fixed to empty"
 
 for role in anon authenticated; do
   log "Checking ${role}: generic Results public, split layers hidden"
