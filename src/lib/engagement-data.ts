@@ -14,6 +14,13 @@ import type { PredictionMovementPayload } from "./pulse";
 
 const supabase = baseSupabase as unknown as SupabaseClient<AppDatabase>;
 
+const FAN_FOLLOW_PROJECTION =
+  "id, profile_id, entity_type, entity_id, notification_level, created_at, updated_at" as const;
+const CONTENT_EVENT_PROJECTION =
+  "id, event_type, entity_type, entity_id, title, summary, route, importance, payload, published_at, created_at, dedupe_key" as const;
+const NOTIFICATION_PREFERENCE_PROJECTION =
+  "profile_id, in_app_enabled, categories, external_enabled, quiet_hours_start, quiet_hours_end, urgent_deadline_reminders, spoiler_free, timezone, updated_at" as const;
+
 export type FollowEntityType = FanFollowRow["entity_type"];
 
 export const DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES = [
@@ -32,7 +39,7 @@ export function useMyFollows(profileId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fan_follows")
-        .select("*")
+        .select(FAN_FOLLOW_PROJECTION)
         .eq("profile_id", profileId!)
         .order("created_at", { ascending: false });
       if (missingEngagementSchema(error)) {
@@ -83,7 +90,7 @@ export function useContentEvents(limit = 30) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("content_events")
-        .select("*")
+        .select(CONTENT_EVENT_PROJECTION)
         .lte("published_at", new Date().toISOString())
         .order("published_at", { ascending: false })
         .limit(limit);
@@ -152,7 +159,7 @@ export function useNotificationPreferences(profileId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notification_preferences")
-        .select("*")
+        .select(NOTIFICATION_PREFERENCE_PROJECTION)
         .eq("profile_id", profileId!)
         .maybeSingle();
       if (missingEngagementSchema(error)) return null;
@@ -192,7 +199,7 @@ export function useSaveNotificationPreferences(profileId?: string) {
           { profile_id: profileId, ...preferences, updated_at: new Date().toISOString() },
           { onConflict: "profile_id" },
         )
-        .select("*")
+        .select(NOTIFICATION_PREFERENCE_PROJECTION)
         .single();
       if (error) throw error;
       return data;
