@@ -256,17 +256,16 @@ export function useMarkNotificationRead() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const readAt = new Date().toISOString();
       const { data, error } = await adminDb
         .from("admin_notifications")
-        .update({ read_at: readAt })
+        .update({ read_at: new Date().toISOString() })
         .eq("id", id)
         .eq("recipient_id", user.id)
         .select("id, recipient_id, read_at")
         .maybeSingle();
 
       if (error) throw error;
-      if (!data || data.recipient_id !== user.id || data.read_at !== readAt) {
+      if (!data || data.recipient_id !== user.id || !data.read_at) {
         throw new Error("Notification read state could not be reconciled for this account.");
       }
     },
@@ -290,7 +289,7 @@ export function useResolveAdminNotification() {
         .maybeSingle();
 
       if (error) throw error;
-      if (!data || data.recipient_id !== user.id || data.resolved_at !== resolvedAt) {
+      if (!data || data.recipient_id !== user.id || Boolean(data.resolved_at) !== resolved) {
         throw new Error("Notification resolution state could not be reconciled for this account.");
       }
     },
