@@ -1,0 +1,123 @@
+name: V3 S11 Storage byte recovery rehearsal
+
+on:
+  pull_request:
+    paths:
+      - ".github/scripts/v3-s11-storage-byte-recovery-rehearsal.sh"
+      - ".github/workflows/v3-s11-storage-byte-recovery-rehearsal.yml"
+      - "docs/runbooks/storage-restore.md"
+      - "src/lib/v3-s11-recovery.contract.test.ts"
+      - "src/lib/v3-s11-storage-recovery.contract.test.ts"
+      - "src/lib/v3-s11-storage-recovery-workflow.contract.test.ts"
+      - "src/lib/v3-storage-recovery-evidence.ts"
+      - "src/lib/v3-storage-recovery-evidence.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s11-storage-recovery-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  storage-byte-recovery:
+    name: Isolated Storage byte loss + restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Resolve exact source SHA
+        id: source
+        shell: bash
+        env:
+          EVENT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s' "$EVENT_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Cannot resolve exact source SHA for Storage recovery rehearsal"
+            exit 1
+          fi
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Storage recovery checkout is $actual, expected exact source SHA $expected"
+            exit 1
+          fi
+          if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
+            echo "::error::Storage recovery rehearsal requires a clean exact-head checkout"
+            git status --short
+            exit 1
+          fi
+          echo "sha=$expected" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        run: supabase start
+
+      - name: Rehearse Storage byte loss and exact-key restore
+        shell: bash
+        env:
+          V3_STORAGE_RECOVERY_EVIDENCE_SHA: ${{ steps.source.outputs.sha }}
+          V3_STORAGE_RECOVERY_EVIDENCE_OPERATOR: github-actions-s11-storage
+          V3_STORAGE_RECOVERY_EVIDENCE_ENVIRONMENT: isolated-github-actions-local-supabase
+          V3_STORAGE_RECOVERY_EVIDENCE_OUTPUT: /tmp/v3-s11-storage-byte-recovery.json
+        run: |
+          set -euo pipefail
+          bash .github/scripts/v3-s11-storage-byte-recovery-rehearsal.sh
+
+      - name: Verify retained evidence boundary
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python3 - "$EXPECTED_SHA" /tmp/v3-s11-storage-byte-recovery.json <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          expected, evidence_path = sys.argv[1:]
+          evidence = json.loads(Path(evidence_path).read_text(encoding="utf-8"))
+          assert evidence["commitSha"] == expected
+          assert evidence["scope"] == "isolated_local_supabase_storage"
+          assert evidence["status"] == "passed"
+          assert evidence["issuesFound"] == []
+          assert evidence["validation"]["storageApiDeleteVerified"] is True
+          assert evidence["validation"]["sameBucketIdRestored"] is True
+          assert evidence["validation"]["sameObjectKeysRestored"] is True
+          assert evidence["validation"]["byteHashesVerified"] is True
+          assert evidence["validation"]["byteSizesVerified"] is True
+          assert evidence["validation"]["mimeTypesVerified"] is True
+          assert evidence["validation"]["privatePolicyVerified"] is True
+          assert evidence["validation"]["missingCount"] == 0
+          assert evidence["validation"]["extraCount"] == 0
+          assert evidence["achieved"]["exerciseRpoSeconds"] == 0
+          assert evidence["achieved"]["providerRpoClaim"] is False
+          assert evidence["achieved"]["providerRtoClaim"] is False
+          assert evidence["certificationClaim"] is False
+          assert evidence["qaReviewRequired"] is True
+          PY
+
+      - name: Upload exact-head Storage recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s11-storage-byte-recovery-evidence
+          path: /tmp/v3-s11-storage-byte-recovery.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
