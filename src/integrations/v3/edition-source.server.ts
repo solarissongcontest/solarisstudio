@@ -13,7 +13,6 @@ import {
   type EntityDisplay,
 } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
-import { showModeConfig } from "@/lib/show-mode";
 import {
   buildV3EditionPageProjection,
   type V3EditionEntry,
@@ -26,6 +25,7 @@ import type {
   V3EditionExperience,
   V3ExploreEditionInput,
 } from "@/lib/v3-explore";
+import { resolveV3ExploreNextPublicEvent } from "@/lib/v3-explore-next-event";
 import type { V3PublicResultRow } from "@/lib/v3-public-result-snapshot";
 
 const EDITION_COLUMNS =
@@ -148,12 +148,6 @@ function parsePublicStory(value: unknown): V3EditionStory | null {
     publishedAt: stringOrNull(story.publishedAt),
     items,
   };
-}
-
-function publicScheduledStart(show: Show): string | null {
-  const value = showModeConfig(show).scheduledStart;
-  if (!value) return null;
-  return Number.isFinite(Date.parse(value)) ? value : null;
 }
 
 function experienceFromPhase(phase: PublicContestPhase): V3EditionExperience {
@@ -378,6 +372,8 @@ export async function loadV3EditionBundle(input: {
   const resultProjection = publicResults(resultRows, displayMap);
   const story = parsePublicStory(storyResult.data);
   const experience = editionExperience(edition, shows, resultsPublished);
+  const generatedAt = new Date().toISOString();
+  const nextEvent = resolveV3ExploreNextPublicEvent(shows, generatedAt);
 
   const editionInput: V3ExploreEditionInput = {
     id: edition.id,
@@ -392,7 +388,7 @@ export async function loadV3EditionBundle(input: {
     resultsPublication: resultsPublished ? "published" : "hidden",
     href: `/editions/${edition.slug}`,
     liveHref: experience.experience === "live" ? "/show-mode" : null,
-    nextEvent: null,
+    nextEvent,
     archiveEligible:
       experience.experience === "post-edition" || experience.experience === "archived",
   };
@@ -409,7 +405,6 @@ export async function loadV3EditionBundle(input: {
         name: show.name,
         kind: show.kind,
         href: `/shows/${show.id}`,
-        startsAt: publicScheduledStart(show),
         participantCount: publication.participants
           ? participants.filter((participant) => participant.show_id === show.id).length
           : 0,
@@ -432,6 +427,6 @@ export async function loadV3EditionBundle(input: {
       editionLabel: shellEditionLabel(edition),
       phaseLabel: experience.phaseLabel,
     },
-    generatedAt: new Date().toISOString(),
+    generatedAt,
   };
 }
