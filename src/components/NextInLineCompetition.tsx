@@ -16,6 +16,7 @@ import {
   type NextInLineNfEntry,
 } from "@/lib/confirmation-next-in-line.functions";
 import { checkEntryDuplicate } from "@/lib/public.functions";
+import { formatEventWallTime } from "@/lib/public-time";
 import { isValidUrl, offsetTimestamp, parseTimestamp } from "@/lib/ssc";
 import { cn } from "@/lib/utils";
 
@@ -57,10 +58,20 @@ function formatSavedAt(value: string | null) {
   if (!value) return "time unavailable";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "time unavailable";
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return formatEventWallTime(date, { locale: "en-GB" });
+}
+
+function initialLoadError(reason: string | undefined, hasEdition: boolean) {
+  if (reason === "authentication") {
+    return "Your Solaris session expired while Next in Line was loading. Sign in again before continuing.";
+  }
+  if (reason === "forbidden" || reason === "ineligible") {
+    return "Your current account does not have an eligible delegation for this Next in Line competition.";
+  }
+  if (!hasEdition) {
+    return "There is no active Next in Line competition at the moment.";
+  }
+  return "Next in Line could not be loaded. Try again after Solaris reconnects.";
 }
 
 export function NextInLineCompetition() {
@@ -101,13 +112,14 @@ export function NextInLineCompetition() {
         const result = await loadCountries();
         if (cancelled) return;
         if (!result.ok || !result.edition) {
-          setError("There is no active Next in Line competition at the moment.");
+          const reason = "error" in result && typeof result.error === "string" ? result.error : undefined;
+          setError(initialLoadError(reason, Boolean(result.edition)));
           return;
         }
         setEdition(result.edition);
         setCountries((result.countries ?? []).map((item) => item.country));
       } catch {
-        if (!cancelled) setError("Next in Line could not be loaded.");
+        if (!cancelled) setError("Next in Line could not be loaded. Try again after Solaris reconnects.");
       } finally {
         if (!cancelled) setLoading(false);
       }
