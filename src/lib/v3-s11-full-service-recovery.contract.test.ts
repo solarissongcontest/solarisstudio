@@ -12,6 +12,7 @@ function source(path: string) {
 
 const assessor = source("src/lib/v3-full-service-recovery-evidence.ts");
 const generator = source("scripts/generate-v3-full-service-recovery-evidence.ts");
+const artifactVerifier = source("scripts/lib/v3-full-service-recovery-artifacts.ts");
 const runbook = source("docs/runbooks/full-service-recovery.md");
 
 describe("System V3 S11 full-service recovery composition", () => {
@@ -62,19 +63,22 @@ describe("System V3 S11 full-service recovery composition", () => {
   });
 
   it("provides a deterministic no-network readiness command with retained-artifact proof", () => {
-    expect(generator).toContain("readFileSync");
-    expect(generator).toContain("createHash(\"sha256\")");
-    expect(generator).toContain("canonicalJson(retainedAssessment)");
-    expect(generator).toContain("canonicalJson(embeddedAssessment)");
-    expect(generator).toContain("assessment artifact digest does not match artifactSha256");
-    expect(generator).toContain("embedded assessment does not match retained artifact");
+    expect(generator).toContain("verifyV3FullServiceRecoveryArtifacts");
     expect(generator).toContain("artifactProvenanceVerified");
     expect(generator).toContain("assessV3FullServiceRecoveryEvidence");
     expect(generator).toContain("--expected-sha");
     expect(generator).toContain("--require-ready");
+    expect(artifactVerifier).toContain("createHash(\"sha256\")");
+    expect(artifactVerifier).toContain("canonicalJson(retainedAssessment)");
+    expect(artifactVerifier).toContain("canonicalJson(embeddedAssessment)");
+    expect(artifactVerifier).toContain("assessment artifact digest does not match artifactSha256");
+    expect(artifactVerifier).toContain("embedded assessment does not match retained artifact");
     expect(generator).not.toMatch(/fetch\s*\(/);
+    expect(artifactVerifier).not.toMatch(/fetch\s*\(/);
     expect(generator).not.toContain("supabase");
     expect(generator).not.toContain("wrangler");
+    expect(artifactVerifier).not.toContain("supabase");
+    expect(artifactVerifier).not.toContain("wrangler");
     expect(runbook).toContain("generate-v3-full-service-recovery-evidence.ts");
     expect(runbook).toContain("artifactSha256");
   });
