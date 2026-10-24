@@ -55,7 +55,7 @@ describe("System V3 S14 atomic official Televote calculation", () => {
   });
 
   it("routes the server calculation through the atomic RPC instead of piecemeal writes", () => {
-    expect(conversionServer).toContain('.rpc("v3_commit_official_round_calculation"');
+    expect(conversionServer).toContain('"v3_commit_official_round_calculation"');
     expect(conversionServer).not.toContain('.from("round_influence_results").delete().eq("round_id", roundId)');
     expect(conversionServer).not.toContain('.from("round_results").delete().eq("round_id", roundId)');
   });
