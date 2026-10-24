@@ -1,5 +1,6 @@
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
@@ -8,14 +9,61 @@ import { useAppExperiencePreferences } from "@/lib/app-experience";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { useNotificationPreferences } from "@/lib/engagement-data";
 import { useV3EditionRolloutProbe, useV3RolloutProbe } from "@/lib/v3-primary-runtime";
-import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
+import {
+  resolveV3ResultsSpoilerProtection,
+  type V3ResultMode,
+} from "@/lib/v3-results";
 import { useV3ResultsBundle } from "@/lib/v3-results-runtime";
+
+const MAX_RESULTS_SHOW_NOMINATION_LENGTH = 120;
+
+type ResultsSearchNomination = {
+  showId: string | null;
+  mode: V3ResultMode;
+  hasModeParam: boolean;
+  modeValid: boolean;
+};
+
+function resultsSearchNomination(search: unknown): ResultsSearchNomination {
+  if (!search || typeof search !== "object" || Array.isArray(search)) {
+    return { showId: null, mode: "combined", hasModeParam: false, modeValid: true };
+  }
+
+  const values = search as Record<string, unknown>;
+  const showId =
+    typeof values.show === "string" && values.show.trim()
+      ? values.show.trim().slice(0, MAX_RESULTS_SHOW_NOMINATION_LENGTH)
+      : null;
+  const hasModeParam = typeof values.mode === "string" && values.mode.length > 0;
+  const mode = values.mode;
+  const modeValid =
+    !hasModeParam || mode === "combined" || mode === "jury" || mode === "televote";
+
+  return {
+    showId,
+    mode: mode === "jury" || mode === "televote" ? mode : "combined",
+    hasModeParam,
+    modeValid,
+  };
+}
+
+function publishedMode(
+  requested: V3ResultMode,
+  input: { juryPublished: boolean; televotePublished: boolean } | null | undefined,
+): V3ResultMode {
+  if (requested === "jury" && input?.juryPublished === true) return "jury";
+  if (requested === "televote" && input?.televotePublished === true) return "televote";
+  return "combined";
+}
 
 export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
   const { preferences } = useAppExperiencePreferences();
-  const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
-  const bundle = useV3ResultsBundle(selectedShowId, true);
+  const navigate = useNavigate();
+  const search = useRouterState({ select: (state) => state.location.search });
+  const nomination = resultsSearchNomination(search);
+  const bundle = useV3ResultsBundle(nomination.showId, true);
   const countryAccount = useMyCountryAccount();
+  const [revealedShowId, setRevealedShowId] = useState<string | null>(null);
   const editionSlug = bundle.data?.editionSlug ?? "";
   const editionProbe = useV3EditionRolloutProbe(
     editionSlug,
@@ -26,11 +74,55 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
   );
   const rollout = editionSlug ? editionProbe : currentProbe;
   const serverPreferences = useNotificationPreferences(rollout.data?.userId ?? undefined);
+  const selectedMode = publishedMode(nomination.mode, bundle.data?.input);
+  const activeShowId = bundle.data?.input.showId || null;
 
   const countries = useMemo(
     () => new Map((bundle.data?.countries ?? []).map((country) => [country.id, country])),
     [bundle.data?.countries],
   );
+
+  // Browser search state only nominates a public result and an already-published
+  // layer. The server owns Show selection and publication. Canonicalize invalid
+  // or stale nominations after that authoritative response so refresh/share/back
+  // navigation always describes the data actually rendered.
+  useEffect(() => {
+    const selectedShowId = bundle.data?.input.showId ?? "";
+    if (!bundle.isSuccess || !selectedShowId) return;
+
+    const shouldPinShow = Boolean(nomination.showId || nomination.hasModeParam);
+    const showMismatch = shouldPinShow && nomination.showId !== selectedShowId;
+    const modeMismatch = !nomination.modeValid || nomination.mode !== selectedMode;
+    if (!showMismatch && !modeMismatch) return;
+
+    void navigate({
+      to: "/results",
+      search: {
+        show: shouldPinShow ? selectedShowId : undefined,
+        mode: selectedMode === "combined" ? undefined : selectedMode,
+      } as any,
+      replace: true,
+    });
+  }, [
+    bundle.data?.input.showId,
+    bundle.isSuccess,
+    navigate,
+    nomination.hasModeParam,
+    nomination.mode,
+    nomination.modeValid,
+    nomination.showId,
+    selectedMode,
+  ]);
+
+  // A deliberate reveal survives a refetch/canonical URL transition only while
+  // the server continues to resolve the same result show. Once canonical result
+  // context changes, discard that disclosure memory instead of carrying it into
+  // later back/forward navigation.
+  useEffect(() => {
+    if (revealedShowId && activeShowId && revealedShowId !== activeShowId) {
+      setRevealedShowId(null);
+    }
+  }, [activeShowId, revealedShowId]);
 
   if (bundle.isLoading || (bundle.isSuccess && rollout.isLoading)) {
     return (
@@ -72,6 +164,29 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
     countryAccount.data?.access.userId === rollout.data.userId
       ? countryAccount.data.access.countryId
       : null;
+  const resultRevealed = Boolean(activeShowId && revealedShowId === activeShowId);
+
+  const changeResult = (showId: string) => {
+    if (!showId || showId === bundle.data.input.showId) return;
+    void navigate({
+      to: "/results",
+      search: {
+        show: showId,
+        mode: selectedMode === "combined" ? undefined : selectedMode,
+      } as any,
+    });
+  };
+
+  const changeMode = (mode: V3ResultMode) => {
+    if (mode === selectedMode) return;
+    void navigate({
+      to: "/results",
+      search: {
+        show: bundle.data.input.showId || undefined,
+        mode: mode === "combined" ? undefined : mode,
+      } as any,
+    });
+  };
 
   return (
     <V3AppShell
@@ -89,7 +204,11 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
         }}
         options={bundle.data.options}
         changingResult={bundle.isFetching}
-        onResultChange={setSelectedShowId}
+        onResultChange={changeResult}
+        selectedMode={selectedMode}
+        onModeChange={changeMode}
+        revealed={resultRevealed}
+        onReveal={() => setRevealedShowId(activeShowId)}
       />
     </V3AppShell>
   );

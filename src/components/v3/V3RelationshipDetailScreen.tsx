@@ -33,6 +33,14 @@ export function V3RelationshipDetailScreen({
     aToB: point.normalizedAtoB,
     bToA: point.normalizedBtoA,
   }));
+  const newestSharedEdition = sharedEditions[0] ?? null;
+  const oldestSharedEdition = sharedEditions[sharedEditions.length - 1] ?? null;
+  const coverageLabel =
+    oldestSharedEdition && newestSharedEdition
+      ? oldestSharedEdition.id === newestSharedEdition.id
+        ? oldestSharedEdition.label
+        : `${oldestSharedEdition.label} to ${newestSharedEdition.label}`
+      : "No shared public editions";
 
   return (
     <V3Screen>
@@ -85,6 +93,36 @@ export function V3RelationshipDetailScreen({
           />
         </div>
       </V3Surface>
+
+      <V3Section title="Methodology & limitations">
+        <div className="grid gap-3 md:grid-cols-2">
+          <V3Surface className="p-4">
+            <p className="v3-kicker">Included sample</p>
+            <p className="mt-2 text-sm font-semibold">{coverageLabel}</p>
+            <p className="mt-2 text-xs leading-5 text-white/48">
+              {sharedEditions.length} shared public edition{sharedEditions.length === 1 ? "" : "s"}; {relationship.opportunitiesAtoB} published voting opportunit{relationship.opportunitiesAtoB === 1 ? "y" : "ies"} {a.shortCode} → {b.shortCode} and {relationship.opportunitiesBtoA} {b.shortCode} → {a.shortCode}.
+            </p>
+          </V3Surface>
+          <V3Surface className="p-4">
+            <p className="v3-kicker">Publication boundary</p>
+            <p className="mt-2 text-xs leading-5 text-white/48">
+              Result comparisons use canonically published result layers. Support metrics and the timeline use only detailed voting that is officially public. Unpublished or missing detail is omitted, never treated as zero.
+            </p>
+          </V3Surface>
+          <V3Surface className="p-4">
+            <p className="v3-kicker">Sample size</p>
+            <p className="mt-2 text-xs leading-5 text-white/48">
+              There is no hard minimum sample threshold for showing a relationship. The displayed {relationship.sampleConfidence} confidence describes how much usable shared history exists, so small samples can move sharply when another edition is published.
+            </p>
+          </V3Surface>
+          <V3Surface className="p-4">
+            <p className="v3-kicker">Interpretation</p>
+            <p className="mt-2 text-xs leading-5 text-white/48">
+              These are normalized archive patterns, not evidence of intent, favoritism, coordination or personal relationships. Voting systems and historical coverage vary between eras even when scores are normalized against the points available at the time.
+            </p>
+          </V3Surface>
+        </div>
+      </V3Section>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <V3Section title="Support over time">

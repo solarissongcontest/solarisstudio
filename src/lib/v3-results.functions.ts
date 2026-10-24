@@ -2,7 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 const inputSchema = z.object({
-  showId: z.string().uuid().nullable().optional(),
+  // The browser value is only an untrusted, bounded nomination. The canonical
+  // source revalidates it against publication-safe Result shows before any data
+  // is selected, so malformed deep links must not fail before canonicalization.
+  showId: z.string().trim().min(1).max(120).nullable().optional(),
 });
 
 /**

@@ -27,7 +27,7 @@ const SHOW_COLUMNS =
 const COUNTRY_COLUMNS =
   "id,name,native_name,short_code,flag_image,region,accent_color,description,first_participation";
 const PARTICIPANT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,artist,song,running_order,semi_final,qualified,notes,publication_status,scheduled_publish_at,participation_status";
+  "id,edition_id,show_id,country_id,contest_entity_id,artist,song,running_order,semi_final,qualified,publication_status,scheduled_publish_at,participation_status";
 const RESULT_COLUMNS =
   "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 const JURY_COLUMNS =

@@ -94,6 +94,18 @@ function editionLabel(edition: Pick<Edition, "edition_number" | "name"> | null) 
     : `SSC ${edition.edition_number} · ${edition.name}`;
 }
 
+function editionHrefMap(editions: readonly Edition[]) {
+  return Object.fromEntries(
+    editions.flatMap((edition) => {
+      const id = typeof edition.id === "string" ? edition.id.trim() : "";
+      const slug = typeof edition.slug === "string" ? edition.slug.trim() : "";
+      return id && slug
+        ? [[id, `/editions/${encodeURIComponent(slug)}`] as const]
+        : [];
+    }),
+  );
+}
+
 function countFinalEditions(
   results: readonly ResultRow[],
   publicShows: readonly Show[],
@@ -118,6 +130,10 @@ function countFinalEditions(
  * buildCanonicalFanRecords, which applies the canonical public archive filter
  * again before calculating records.
  *
+ * Edition-scoped holders receive only a stable public Edition href derived from
+ * their canonical edition id and published Edition slug. We do not manufacture
+ * a Show/result source for career aggregates that legitimately span many shows.
+ *
  * A second derived projection excludes the canonical current public edition.
  * Spoiler-free clients can therefore render career totals, streaks and record
  * holders without letting a freshly published result leak indirectly through
@@ -137,6 +153,7 @@ export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
       (b.edition_number ?? Number.MIN_SAFE_INTEGER) -
       (a.edition_number ?? Number.MIN_SAFE_INTEGER),
   );
+  const editionHrefById = editionHrefMap(editions);
 
   const latestEdition = editions[0] ?? null;
   const currentEdition = resolveCurrentPublicEdition(editions);
@@ -147,6 +164,7 @@ export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
       shell: { editionLabel: "Solaris Studio", phaseLabel: "Records" },
       records: [],
       spoilerSafeRecords: [],
+      editionHrefById: {},
       archivedFinalEditions: 0,
       spoilerSafeArchivedFinalEditions: 0,
       currentEditionAffectsRecords: false,
@@ -246,6 +264,7 @@ export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
     },
     records,
     spoilerSafeRecords,
+    editionHrefById,
     archivedFinalEditions: countFinalEditions(canonicalResults, publicShows),
     spoilerSafeArchivedFinalEditions: countFinalEditions(
       spoilerSafeResults,

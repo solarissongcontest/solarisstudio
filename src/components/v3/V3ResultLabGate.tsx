@@ -1,5 +1,6 @@
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
@@ -10,9 +11,21 @@ import {
 import { useV3ResultLabBundle } from "@/lib/v3-result-lab-runtime";
 import { V3ResultLabScreen } from "./V3ResultLabScreen";
 
+const MAX_SHOW_NOMINATION_LENGTH = 120;
+
+function requestedShowIdFromSearch(search: unknown): string | null {
+  if (!search || typeof search !== "object" || Array.isArray(search)) return null;
+  const showId = (search as Record<string, unknown>).show;
+  return typeof showId === "string" && showId.trim()
+    ? showId.trim().slice(0, MAX_SHOW_NOMINATION_LENGTH)
+    : null;
+}
+
 export function V3ResultLabGate({ fallback }: { fallback: ReactNode }) {
-  const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
-  const bundle = useV3ResultLabBundle(selectedShowId, true);
+  const navigate = useNavigate();
+  const search = useRouterState({ select: (state) => state.location.search });
+  const requestedShowId = requestedShowIdFromSearch(search);
+  const bundle = useV3ResultLabBundle(requestedShowId, true);
   const rolloutEditionSlug = bundle.data?.rolloutEditionSlug ?? "";
   const editionProbe = useV3EditionRolloutProbe(
     rolloutEditionSlug,
@@ -22,6 +35,22 @@ export function V3ResultLabGate({ fallback }: { fallback: ReactNode }) {
     bundle.isSuccess && !rolloutEditionSlug,
   );
   const rollout = rolloutEditionSlug ? editionProbe : currentProbe;
+
+  // Search state only nominates an official source show. The server revalidates
+  // that id against eligible published Result Lab inputs. If a direct link asks
+  // for anything else, replace the misleading URL with the authoritative show
+  // actually returned by the server.
+  useEffect(() => {
+    const selectedShowId = bundle.data?.selectedShowId ?? null;
+    if (!bundle.isSuccess || !requestedShowId || !selectedShowId) return;
+    if (selectedShowId === requestedShowId) return;
+
+    void navigate({
+      to: "/result-lab",
+      search: { show: selectedShowId } as any,
+      replace: true,
+    });
+  }, [bundle.data?.selectedShowId, bundle.isSuccess, navigate, requestedShowId]);
 
   if (bundle.isLoading || (bundle.isSuccess && rollout.isLoading)) {
     return (
@@ -50,6 +79,14 @@ export function V3ResultLabGate({ fallback }: { fallback: ReactNode }) {
     return <>{fallback}</>;
   }
 
+  const changeShow = (showId: string) => {
+    if (!showId || showId === bundle.data.selectedShowId) return;
+    void navigate({
+      to: "/result-lab",
+      search: { show: showId } as any,
+    });
+  };
+
   return (
     <V3AppShell
       editionLabel={bundle.data.shell.editionLabel}
@@ -57,8 +94,9 @@ export function V3ResultLabGate({ fallback }: { fallback: ReactNode }) {
       activeArea="results"
     >
       <V3ResultLabScreen
+        key={bundle.data.selectedShowId ?? "none"}
         bundle={bundle.data}
-        onShowChange={setSelectedShowId}
+        onShowChange={changeShow}
         changingShow={bundle.isFetching}
       />
     </V3AppShell>

@@ -10,6 +10,17 @@ import {
 import { V3Screen, V3ScreenHeader, V3Section, V3Surface } from "./V3Foundation";
 import { V3ScoreboardPresentation } from "./V3ScoreboardPresentation";
 
+function resultToolHref(input: {
+  key: string;
+  href: string;
+  showId: string;
+}) {
+  if (input.key === "scorecharts" && input.showId) {
+    return `/shows/${encodeURIComponent(input.showId)}?tab=matrix&from=results`;
+  }
+  return input.href;
+}
+
 export function V3ResultsScreen({
   input,
   countries,
@@ -17,6 +28,10 @@ export function V3ResultsScreen({
   options = [],
   changingResult = false,
   onResultChange,
+  selectedMode: controlledMode,
+  onModeChange,
+  revealed: controlledRevealed,
+  onReveal,
 }: {
   input: V3ResultProjectionInput;
   countries: ReadonlyMap<string, Country>;
@@ -24,14 +39,33 @@ export function V3ResultsScreen({
   options?: readonly V3ResultShowOption[];
   changingResult?: boolean;
   onResultChange?: (showId: string) => void;
+  selectedMode?: V3ResultMode;
+  onModeChange?: (mode: V3ResultMode) => void;
+  revealed?: boolean;
+  onReveal?: () => void;
 }) {
-  const [revealed, setRevealed] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<V3ResultMode>("combined");
+  // Standalone callers may keep disclosure locally. The routed Results root
+  // controls it by canonical show id so URL canonicalization can refetch the
+  // same result without forgetting a deliberate reveal. A different show id
+  // still starts protected.
+  const [localRevealed, setLocalRevealed] = useState(false);
+  const [localMode, setLocalMode] = useState<V3ResultMode>("combined");
+  const revealed = controlledRevealed ?? localRevealed;
   const projection = buildV3ResultsProjection({
     ...input,
     disclosure: hideSpoilers && !revealed ? "withheld" : "revealed",
   });
-  const mode = projection.tabs.includes(selectedMode) ? selectedMode : "combined";
+  const requestedMode = controlledMode ?? localMode;
+  const mode = projection.tabs.includes(requestedMode) ? requestedMode : "combined";
+  const changeMode = (nextMode: V3ResultMode) => {
+    if (!projection.tabs.includes(nextMode)) return;
+    if (onModeChange) onModeChange(nextMode);
+    else setLocalMode(nextMode);
+  };
+  const revealResult = () => {
+    if (onReveal) onReveal();
+    else setLocalRevealed(true);
+  };
 
   return (
     <V3Screen>
@@ -91,7 +125,7 @@ export function V3ResultsScreen({
             </p>
             <button
               type="button"
-              onClick={() => setRevealed(true)}
+              onClick={revealResult}
               className="mt-4 min-h-11 rounded-xl bg-[var(--v3-accent)] px-4 font-semibold text-[var(--v3-bg-base)]"
             >
               Reveal official result
@@ -132,7 +166,7 @@ export function V3ResultsScreen({
                         key={tab}
                         type="button"
                         aria-pressed={mode === tab}
-                        onClick={() => setSelectedMode(tab)}
+                        onClick={() => changeMode(tab)}
                         className="min-h-11 rounded-xl border border-[var(--v3-border)] px-2 text-sm aria-pressed:bg-white/10"
                       >
                         {tab === "combined" ? "Combined" : tab === "jury" ? "Jury" : "Televote"}
@@ -201,7 +235,7 @@ export function V3ResultsScreen({
                 {projection.exploreThisResult.map((link) => (
                   <Link
                     key={link.key}
-                    to={link.href as any}
+                    to={resultToolHref({ key: link.key, href: link.href, showId: input.showId }) as any}
                     className="flex min-h-11 items-center rounded-xl border border-[var(--v3-border-subtle)] px-4"
                   >
                     {link.label}
