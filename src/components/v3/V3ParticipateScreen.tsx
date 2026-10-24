@@ -170,10 +170,10 @@ function VotingOverviewCard({
  * V3 Participate composition.
  *
  * The screen consumes the same bootstrap as Home. The shared Participate
- * projection groups canonical Actions into required, upcoming, waiting,
- * optional and completed buckets while Journey remains the evidence-backed
- * responsibility timeline. No network call or second workflow state is
- * introduced here.
+ * projection groups canonical Actions into required, blocked, upcoming,
+ * waiting, optional and completed buckets while Journey remains the
+ * evidence-backed responsibility timeline. No network call or second workflow
+ * state is introduced here.
  */
 export function V3ParticipateScreen({
   bootstrap,
@@ -278,6 +278,22 @@ export function V3ParticipateScreen({
           </V3Surface>
         )}
       </V3Section>
+
+      {participate.blocked.length ? (
+        <V3Section title="Blocked" meta={<V3StatusChip tone="danger">No action available</V3StatusChip>}>
+          <V3Surface className="mb-3 p-4">
+            <p className="text-sm font-semibold">Something needs resolution, but you cannot act yet</p>
+            <p className="mt-1 text-xs leading-5 text-white/48">
+              Solaris will move this back to Needs attention when the authoritative workflow gives you an action, such as reopened Entry editing.
+            </p>
+          </V3Surface>
+          <ActionList
+            actions={participate.blocked}
+            progressByActionId={progressByActionId}
+            delegationLabel={delegationLabel}
+          />
+        </V3Section>
+      ) : null}
 
       {participate.next.length ? (
         <V3Section title="Next" meta={<V3StatusChip tone="progress">Upcoming</V3StatusChip>}>
