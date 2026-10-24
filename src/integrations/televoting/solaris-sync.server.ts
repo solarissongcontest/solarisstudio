@@ -27,11 +27,11 @@ async function solarisDb() {
 }
 
 /**
- * Explicit repair/reconciliation writer. Ordinary Televote source inspection
- * must never call this function implicitly.
+ * Legacy catalog reconciliation writer. Request-facing repair is capability
+ * gated by the explicit Organizer repair action; the rounds workspace still
+ * owns a compatibility auto-reconciliation caller until its separate cutover.
  */
 export async function ensureCanonicalTelevotingEditionsServer(): Promise<CanonicalTelevotingEdition[]> {
-  await requireSolarisCapabilityServer("voting.manage", null);
   await requireMergedTelevotingAdminServer();
   const db = await solarisDb();
 
