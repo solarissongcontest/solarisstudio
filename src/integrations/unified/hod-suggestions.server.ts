@@ -1,6 +1,4 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
-import { televotingAdmin } from "@/integrations/televoting/client.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { loadHodResolverServer } from "@/integrations/unified/hod-history.server";
 
 export type HodIdentitySuggestion = {
@@ -30,9 +28,19 @@ function normalizeUsername(value: unknown) {
 }
 
 export async function getHodIdentitySuggestionsServer(): Promise<HodIdentitySuggestion[]> {
-  await requireSolarisOrganizerServer();
-  const db = supabaseAdmin as any;
+  // This cross-edition helper combines private HOD history with raw protected
+  // Televote submission usernames. Both global read capabilities are required.
+  // The HOD resolver enforces global delegation.read before its service-role
+  // history queries; require protected-ballot access before invoking it so no
+  // privileged source is touched until the caller owns both data classes.
+  await requireSolarisCapabilityServer("televote.ballots.read", null);
   const hod = await loadHodResolverServer();
+
+  const [{ supabaseAdmin }, { televotingAdmin }] = await Promise.all([
+    import("@/integrations/supabase/client.server"),
+    import("@/integrations/televoting/client.server"),
+  ]);
+  const db = supabaseAdmin as any;
 
   const [editionLinksResult, bindingsResult, roundsResult, submissionsResult] = await Promise.all([
     db
