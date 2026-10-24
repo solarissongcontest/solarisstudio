@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   BarChart3,
@@ -17,7 +18,9 @@ import {
   Users,
 } from "lucide-react";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminCard, AdminCardHeader, AdminPageHeader } from "@/components/admin/AdminUI";
+import { loadOrganizerMoreRouteAccess } from "@/lib/v3-organizer-more-access";
 
 export const Route = createFileRoute("/_authenticated/admin/more")({
   head: () => ({ meta: [{ title: "More — Solaris Organizer" }] }),
@@ -106,7 +109,28 @@ const groups = [
   },
 ] as const;
 
+const morePaths = groups.flatMap((group) => group.items.map((item) => item.to));
+
 function MoreAdmin() {
+  const { editionId } = useAdminContext();
+  const access = useQuery({
+    queryKey: ["v3-organizer-more-access", editionId ?? "unscoped"],
+    queryFn: () => loadOrganizerMoreRouteAccess(morePaths, editionId ?? null),
+    retry: false,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const accessByPath = access.data;
+  const visibleGroups = accessByPath
+    ? groups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => accessByPath[item.to] === true),
+        }))
+        .filter((group) => group.items.length > 0)
+    : [];
+
   return (
     <div className="mx-auto max-w-3xl">
       <AdminPageHeader
@@ -116,28 +140,58 @@ function MoreAdmin() {
       />
 
       <div className="space-y-4">
-        {groups.map((group) => (
-          <AdminCard key={group.title}>
-            <AdminCardHeader title={group.title} description={group.description} />
-            <div className="divide-y divide-white/[0.07]">
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link key={item.to} to={item.to as any} className="admin-list-row group">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-muted-foreground group-hover:text-foreground">
-                      <Icon className="size-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-foreground">{item.label}</span>
-                      <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{item.description}</span>
-                    </span>
-                    <span className="text-muted-foreground">›</span>
-                  </Link>
-                );
-              })}
-            </div>
+        {access.isPending ? (
+          <AdminCard>
+            <AdminCardHeader
+              title="Checking access"
+              description="Solaris is verifying which specialist tools are available in your current Organizer context."
+            />
           </AdminCard>
-        ))}
+        ) : access.isError ? (
+          <AdminCard>
+            <AdminCardHeader
+              title="Specialist access unavailable"
+              description="Solaris could not verify your permissions, so specialist destinations are hidden until access can be checked safely."
+            />
+            <button
+              type="button"
+              className="admin-action-secondary w-full"
+              onClick={() => void access.refetch()}
+            >
+              Retry access check
+            </button>
+          </AdminCard>
+        ) : visibleGroups.length === 0 ? (
+          <AdminCard>
+            <AdminCardHeader
+              title="No specialist tools available"
+              description="Your current permissions do not expose any low-frequency Organizer tools in this context."
+            />
+          </AdminCard>
+        ) : (
+          visibleGroups.map((group) => (
+            <AdminCard key={group.title}>
+              <AdminCardHeader title={group.title} description={group.description} />
+              <div className="divide-y divide-white/[0.07]">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link key={item.to} to={item.to as any} className="admin-list-row group">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-muted-foreground group-hover:text-foreground">
+                        <Icon className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-foreground">{item.label}</span>
+                        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{item.description}</span>
+                      </span>
+                      <span className="text-muted-foreground">›</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </AdminCard>
+          ))
+        )}
 
         <AdminCard>
           <AdminCardHeader title="Public site" description="Open the public Solaris Studio in a new tab." />
