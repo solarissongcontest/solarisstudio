@@ -7,6 +7,7 @@ on:
     paths:
       - "supabase/migrations/**"
       - ".github/scripts/v3-production-head-upgrade-rehearsal.sh"
+      - ".github/scripts/v3-s5-*-consequences-rehearsal.sh"
       - ".github/workflows/v3-production-head-upgrade.yml"
   workflow_dispatch:
 
@@ -23,10 +24,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - name: Checkout feature head
+      - name: Checkout exact candidate head
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+
+      - name: Verify exact candidate checkout
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          expected="$(printf '%s' "$EXPECTED_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Expected source SHA is not one exact 40-character commit: $EXPECTED_SOURCE_SHA"
+            exit 1
+          fi
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Exact-head mismatch: checked out $actual, expected $expected"
+            exit 1
+          fi
+          echo "Exact candidate verified: $actual"
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -47,3 +67,12 @@ jobs:
         env:
           V3_PRODUCTION_MIGRATION_HEAD: "20261014020000"
         run: bash .github/scripts/v3-production-head-upgrade-rehearsal.sh
+
+      - name: Upload production-head upgrade evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-production-head-upgrade-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-evidence/production-head-upgrade-evidence.json
+          if-no-files-found: warn
+          retention-days: 14
