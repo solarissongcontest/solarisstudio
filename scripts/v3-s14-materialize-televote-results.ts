@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
+import { assertS14TelevoteReadback } from "./lib/s14-televote-readback";
+
 import { analyseRobustInfluence } from "../src/integrations/televoting/influence-math";
 import {
   DEFAULT_ROBUST_TELEVOTE_CONFIG,
@@ -118,6 +120,34 @@ async function main() {
     if (!allocation) fail(`vote entry references unknown submission ${submissionId}`);
     allocation[code] = points;
   }
+
+  const { data: show, error: showError } = await db
+    .from("shows")
+    .select("id,edition_id")
+    .eq("id", showId)
+    .maybeSingle();
+  if (showError) fail(showError.message);
+  if (!show || show.edition_id !== editionId) fail(`show ${showId} is not in edition ${editionId}`);
+
+  const { data: showParticipants, error: showParticipantError } = await db
+    .from("participants")
+    .select("country_id,participation_status")
+    .eq("show_id", showId);
+  if (showParticipantError) fail(showParticipantError.message);
+  const active = (showParticipants ?? []).filter((row) => !row.participation_status || row.participation_status === "confirmed");
+  const countryIds = active.map((row) => String(row.country_id));
+  const { data: countries, error: countryError } = await db
+    .from("countries")
+    .select("id,short_code")
+    .in("id", countryIds);
+  if (countryError) fail(countryError.message);
+  const countryByCode = new Map((countries ?? []).map((row) => [String(row.short_code).toUpperCase(), String(row.id)]));
+  const expectedCodes = [...countryByCode.keys()].sort();
+  const resultCodes = [...participants].sort();
+  if (JSON.stringify(expectedCodes) !== JSON.stringify(resultCodes)) {
+    fail(`Televote lineup does not exactly match confirmed show ${showId}`);
+  }
+
 
   const version = Number(round.calculation_version ?? 0) + 1;
   const calculatedAt = new Date().toISOString();
@@ -269,56 +299,18 @@ async function main() {
     .eq("id", roundId);
   if (publishUpdateError) fail(publishUpdateError.message);
 
-  const { data: show, error: showError } = await db
-    .from("shows")
-    .select("id,edition_id")
-    .eq("id", showId)
-    .maybeSingle();
-  if (showError) fail(showError.message);
-  if (!show || show.edition_id !== editionId) fail(`show ${showId} is not in edition ${editionId}`);
-
-  const { data: showParticipants, error: showParticipantError } = await db
-    .from("participants")
-    .select("country_id,participation_status")
-    .eq("show_id", showId);
-  if (showParticipantError) fail(showParticipantError.message);
-  const active = (showParticipants ?? []).filter((row) => !row.participation_status || row.participation_status === "confirmed");
-  const countryIds = active.map((row) => String(row.country_id));
-  const { data: countries, error: countryError } = await db
-    .from("countries")
-    .select("id,short_code")
-    .in("id", countryIds);
-  if (countryError) fail(countryError.message);
-  const countryByCode = new Map((countries ?? []).map((row) => [String(row.short_code).toUpperCase(), String(row.id)]));
-  const expectedCodes = [...countryByCode.keys()].sort();
-  const resultCodes = rows.map((row) => row.country_code).sort();
-  if (JSON.stringify(expectedCodes) !== JSON.stringify(resultCodes)) {
-    fail(`published Televote result does not exactly match show ${showId}`);
-  }
-
-  const { count: existingVotes, error: existingVoteError } = await db
+  // Publication's canonical database trigger owns the projection. Read back
+  // exact identities and points; never create a second browser/fixture writer.
+  const { data: canonicalVotes, error: canonicalReadError } = await db
     .from("televote_votes")
-    .select("id", { count: "exact", head: true })
+    .select("country_id,points")
     .eq("show_id", showId);
-  if (existingVoteError) fail(existingVoteError.message);
-  if ((existingVotes ?? 0) !== 0) fail(`show ${showId} already has canonical Televote vote rows`);
-
-  const canonicalVotes = rows.map((row) => ({
-    edition_id: editionId,
-    show_id: showId,
-    country_id: countryByCode.get(row.country_code),
+  if (canonicalReadError) fail(canonicalReadError.message);
+  const expectedVotes = rows.map((row) => ({
+    country_id: countryByCode.get(row.country_code)!,
     points: row.final_points,
   }));
-  if (canonicalVotes.some((row) => !row.country_id)) fail("could not resolve every Televote result country");
-  const { error: canonicalInsertError } = await db.from("televote_votes").insert(canonicalVotes);
-  if (canonicalInsertError) fail(canonicalInsertError.message);
-
-  const { count: canonicalCount, error: canonicalCountError } = await db
-    .from("televote_votes")
-    .select("id", { count: "exact", head: true })
-    .eq("show_id", showId);
-  if (canonicalCountError) fail(canonicalCountError.message);
-  if (canonicalCount !== rows.length) fail(`canonical Televote projection is incomplete for show ${showId}`);
+  const canonicalCount = assertS14TelevoteReadback(expectedVotes, canonicalVotes ?? []);
 
   process.stdout.write(`${JSON.stringify({
     roundId,
