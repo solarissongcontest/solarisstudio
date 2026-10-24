@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { Check, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -9,6 +10,7 @@ import { ArchiveDataError, ArchiveDataLoading } from "@/components/ArchiveDataSt
 import { FlagChip } from "@/components/FlagChip";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useCountries } from "@/lib/data";
+import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 
 export const Route = createFileRoute("/wiki/")({
   head: () => ({
@@ -27,6 +29,25 @@ const DIRECTORY_PAGE_SIZE = 18;
 
 function WikiIndexPage() {
   const { isAppMode } = useSolarisApp();
+  const referenceRollout = useQuery({
+    queryKey: ["studio2-feature", "public_encyclopedia"],
+    queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
+    enabled: isAppMode,
+    staleTime: 30_000,
+  });
+
+  if (isAppMode && referenceRollout.isLoading) {
+    return (
+      <AppShell>
+        <ArchiveDataLoading label="Opening Solaris Reference…" />
+      </AppShell>
+    );
+  }
+
+  if (isAppMode && !referenceRollout.isError && referenceRollout.data === true) {
+    return <Navigate to="/encyclopedia" replace />;
+  }
+
   return isAppMode ? <AppWikiIndexPage /> : <WebWikiIndexPage />;
 }
 
