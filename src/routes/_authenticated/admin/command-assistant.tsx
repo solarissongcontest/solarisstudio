@@ -7,7 +7,10 @@ import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { useEditions } from "@/lib/data";
-import { matchSolarisAssistantCommands } from "@/lib/solaris-command-assistant";
+import {
+  matchSolarisAssistantCommands,
+  partitionSolarisAssistantCommandsByContext,
+} from "@/lib/solaris-command-assistant";
 import { buildCommandAssistantInsight } from "@/lib/solaris-command-assistant-insights";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import { useV3OrganizerProjection } from "@/lib/v3-organizer-projection.query";
@@ -23,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/admin/command-assistant")(
 });
 
 function CommandAssistantPage() {
-  const { editionId } = useAdminContext();
+  const { editionId, setEditionId } = useAdminContext();
   const editionsQuery = useEditions();
   const [prompt, setPrompt] = useState("");
   const feature = useQuery({
@@ -37,6 +40,10 @@ function CommandAssistantPage() {
   const projectionQuery = useV3OrganizerProjection(resolvedEditionId || null);
 
   const matches = useMemo(() => matchSolarisAssistantCommands(prompt), [prompt]);
+  const commandContext = useMemo(
+    () => partitionSolarisAssistantCommandsByContext(matches, Boolean(selectedEdition)),
+    [matches, selectedEdition],
+  );
   const insight = useMemo(
     () => prompt.trim() && projectionQuery.data
       ? buildCommandAssistantInsight(prompt, projectionQuery.data)
@@ -111,6 +118,23 @@ function CommandAssistantPage() {
               </button>
             </div>
           </AdminCard>
+        ) : editionId && !selectedEdition ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={Sparkles}
+              title="Selected edition is unavailable"
+              description="The stored Organizer context no longer resolves to an edition you can verify. Edition-scoped commands remain blocked until you choose a valid context."
+              action={
+                <button
+                  type="button"
+                  className="admin-action-secondary"
+                  onClick={() => setEditionId("")}
+                >
+                  Clear unavailable context
+                </button>
+              }
+            />
+          </AdminCard>
         ) : selectedEdition ? (
           <AdminCard>
             <AdminCardHeader eyebrow="Current edition" title="Canonical operational summary" description="One projection shared with Control and readiness surfaces, rather than a second set of browser database queries." />
@@ -172,7 +196,7 @@ function CommandAssistantPage() {
         <AdminCard>
           <AdminCardHeader eyebrow="Registered commands" title={prompt ? "Best matches" : "Available read-only workflows"} />
           <div className="space-y-2">
-            {matches.length ? matches.map((command) => (
+            {commandContext.available.length ? commandContext.available.map((command) => (
               <Link
                 key={command.id}
                 to={command.route as any}
@@ -183,15 +207,46 @@ function CommandAssistantPage() {
                     <p className="text-sm font-semibold">{command.label}</p>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">{command.description}</p>
                   </div>
-                  <AdminStatus tone="info">Read-only navigation</AdminStatus>
+                  <AdminStatus tone="info">
+                    {command.scope === "global" ? "Global read-only navigation" : "Edition read-only navigation"}
+                  </AdminStatus>
                 </div>
                 {command.capability ? <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Capability context: {command.capability}</p> : null}
               </Link>
-            )) : (
+            )) : commandContext.blockedByEdition.length ? (
+              <AdminEmptyState
+                icon={Search}
+                title="Choose an edition for this command"
+                description="The matching workflows are edition-scoped. Solaris will not navigate to them until the Organizer context resolves to an exact edition."
+              />
+            ) : (
               <AdminEmptyState icon={Search} title="No registered command matched" description="Try a status, results, voting, confirmation, Inbox or Integrity request. Unknown wording is not converted into an invented database operation." />
             )}
           </div>
         </AdminCard>
+
+        {!selectedEdition && commandContext.blockedByEdition.length ? (
+          <AdminCard>
+            <AdminCardHeader
+              eyebrow="Context required"
+              title={`${commandContext.blockedByEdition.length} matching workflow${commandContext.blockedByEdition.length === 1 ? "" : "s"} need an edition`}
+              description="These suggestions remain visible as explanations, but they are deliberately not links until the edition context is verified."
+            />
+            <div className="mt-3 space-y-2">
+              {commandContext.blockedByEdition.map((command) => (
+                <div key={command.id} className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold">{command.label}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{command.description}</p>
+                    </div>
+                    <AdminStatus tone="blocked">Edition required</AdminStatus>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </AdminCard>
+        ) : null}
       </div>
     </AdminPage>
   );
