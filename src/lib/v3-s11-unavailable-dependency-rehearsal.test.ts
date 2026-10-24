@@ -33,7 +33,8 @@ function listenLoopback(server: ReturnType<typeof createServer>) {
 
 function closeServer(server: ReturnType<typeof createServer>) {
   return new Promise<void>((resolveClose, reject) => {
-    server.close((error) => (error ? reject(error) : resolveClose()));
+    server.once("error", reject);
+    server.close(() => resolveClose());
   });
 }
 
@@ -70,9 +71,11 @@ describe("System V3 S11 real unavailable-dependency recovery", () => {
     expect(rehearsal).toContain("studio2_complete_domain_event_delivery");
   });
 
-  it("restores the same endpoint and proves exactly-once convergence", () => {
+  it("restores the same endpoint and proves exactly-once convergence with failure history", () => {
     expect(rehearsal).toContain('DEPENDENCY_PORT="$ORIGINAL_DEPENDENCY_PORT"');
     expect(rehearsal).toContain("restored dependency did not bind the original port");
+    expect(rehearsal).toContain("completed:2:DEPENDENCY_FAILURE");
+    expect(rehearsal).toContain("preserve canonical attempt/error history");
     expect(rehearsal).toContain("exactly one immutable consumer receipt");
     expect(rehearsal).toContain("duplicate completion did not report replay");
     expect(rehearsal).toContain("duplicate recovery completion created another consumer receipt");
