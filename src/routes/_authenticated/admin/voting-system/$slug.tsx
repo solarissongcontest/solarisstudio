@@ -27,6 +27,7 @@ import {
   parseOrganizerVotingConfigApplyResult,
   preflightOrganizerVotingConfigChange,
   votingEvidenceCount,
+  type OrganizerVotingConfigApplyResult,
   type OrganizerVotingConfigPreflight,
   type OrganizerVotingConfigSnapshot,
 } from "@/lib/v3-organizer-voting-config-authority";
@@ -40,13 +41,22 @@ type PendingSave = {
   config: Record<string, unknown>;
   expectedVersion: number;
   preflight: OrganizerVotingConfigPreflight;
+  operationId: string;
+  idempotencyKey: string;
+  outcomeUncertain: boolean;
 };
 
 type VotingConfigReceipt = {
   operationId: string;
+  receiptId: string;
   version: number;
   replayed: boolean;
 };
+
+type VotingConfigRecovery =
+  | { state: "succeeded"; result: OrganizerVotingConfigApplyResult }
+  | { state: "failed"; message: string }
+  | { state: "unresolved"; message: string };
 
 export const Route = createFileRoute("/_authenticated/admin/voting-system/$slug")({
   head: () => ({
@@ -230,12 +240,23 @@ function VotingSystemWorkspace() {
         throw new Error("Voting configuration preflight returned an unexpected risk class.");
       }
 
+      const command = createOrganisationCommand({
+        command: "voting.configure",
+        riskClass: "R2",
+        scope: { editionId: edition.id, showId: selectedShow.id },
+        payload: { config: proposedConfig },
+        expectedVersion: preflight.expectedVersion,
+      });
+
       setPendingSave({
         showId: selectedShow.id,
         showName: selectedShow.name,
         config: proposedConfig,
         expectedVersion: preflight.expectedVersion,
         preflight,
+        operationId: command.operationId,
+        idempotencyKey: command.idempotencyKey,
+        outcomeUncertain: false,
       });
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : toSystemError(caught).message;
@@ -246,14 +267,25 @@ function VotingSystemWorkspace() {
     }
   }
 
-  async function recoverApply(operationId: string, editionId: string, showId: string) {
+  async function recoverApply(operationId: string, editionId: string, showId: string): Promise<VotingConfigRecovery> {
     const reconciliation = await reconcileOperation({ data: { operationId } });
-    if (!reconciliation.ok) return null;
+    if (!reconciliation.ok) {
+      return {
+        state: "unresolved",
+        message: reconciliation.error.message,
+      };
+    }
+    if (reconciliation.receipt.status === "failed") {
+      return {
+        state: "failed",
+        message: reconciliation.receipt.error?.message ?? "The voting-rule operation failed authoritatively.",
+      };
+    }
     if (reconciliation.receipt.status !== "succeeded") {
-      throw new Error(
-        reconciliation.receipt.error?.message ??
-          "The voting-rule operation is still unresolved. Keep its operation ID and reconcile before retrying.",
-      );
+      return {
+        state: "unresolved",
+        message: "The voting-rule operation is still unresolved. Solaris will keep this exact operation identity for reconciliation.",
+      };
     }
     const result = parseOrganizerVotingConfigApplyResult(reconciliation.receipt.result);
     if (
@@ -261,9 +293,12 @@ function VotingSystemWorkspace() {
       result.editionId !== editionId ||
       result.showId !== showId
     ) {
-      throw new Error("Reconciled voting-rule receipt belongs to a different operation scope.");
+      return {
+        state: "unresolved",
+        message: "Reconciled voting-rule receipt belongs to a different operation scope.",
+      };
     }
-    return { ...result, replayed: true };
+    return { state: "succeeded", result: { ...result, replayed: true } };
   }
 
   async function applyReviewedSave() {
@@ -282,36 +317,53 @@ function VotingSystemWorkspace() {
 
     setBusy(true);
     setAuthorityError(null);
-    const command = createOrganisationCommand({
-      command: "voting.config.update",
-      riskClass: "R2",
-      scope: { editionId: edition.id, showId: review.showId },
-      payload: { config: review.config },
-      expectedVersion: review.expectedVersion,
-    });
+    let preserveReviewedOperation = review.outcomeUncertain;
 
     try {
-      let result;
-      try {
-        result = await applyOrganizerVotingConfigChange({
-          editionId: edition.id,
-          showId: review.showId,
-          config: review.config,
-          reason: command.reason ?? null,
-          operationId: command.operationId,
-          idempotencyKey: command.idempotencyKey,
-          expectedVersion: review.expectedVersion,
-        });
-      } catch (caught) {
-        const systemError = toSystemError(caught);
-        if (!systemError.retryable) throw caught;
-        const recovered = await recoverApply(command.operationId, edition.id, review.showId);
-        if (!recovered) throw caught;
-        result = recovered;
+      let result: OrganizerVotingConfigApplyResult;
+
+      if (review.outcomeUncertain) {
+        const recovery = await recoverApply(review.operationId, edition.id, review.showId);
+        if (recovery.state === "failed") {
+          preserveReviewedOperation = false;
+          throw new Error(recovery.message);
+        }
+        if (recovery.state === "unresolved") {
+          preserveReviewedOperation = true;
+          throw new Error(recovery.message);
+        }
+        result = recovery.result;
+        preserveReviewedOperation = false;
+      } else {
+        try {
+          result = await applyOrganizerVotingConfigChange({
+            editionId: edition.id,
+            showId: review.showId,
+            config: review.config,
+            reason: null,
+            operationId: review.operationId,
+            idempotencyKey: review.idempotencyKey,
+            expectedVersion: review.expectedVersion,
+          });
+        } catch (caught) {
+          const systemError = toSystemError(caught);
+          if (!systemError.retryable) throw caught;
+
+          const recovery = await recoverApply(review.operationId, edition.id, review.showId);
+          if (recovery.state === "failed") {
+            throw new Error(recovery.message);
+          }
+          if (recovery.state === "unresolved") {
+            preserveReviewedOperation = true;
+            throw new Error(recovery.message);
+          }
+          result = recovery.result;
+        }
       }
 
       setReceipt({
         operationId: result.operationId,
+        receiptId: result.receiptId,
         version: result.version,
         replayed: result.replayed,
       });
@@ -324,20 +376,31 @@ function VotingSystemWorkspace() {
       );
     } catch (caught) {
       const systemError = toSystemError(caught);
-      if (
-        systemError.code === "STATE_CHANGED" ||
-        systemError.code === "VERSION_CONFLICT" ||
-        systemError.code === "DEPENDENCY_FAILURE"
-      ) {
-        try {
-          await reloadAuthority();
-        } catch {
-          // Keep the original failure as the actionable message.
+      if (preserveReviewedOperation) {
+        setPendingSave((current) =>
+          current && current.operationId === review.operationId
+            ? { ...current, outcomeUncertain: true }
+            : current,
+        );
+        const message = `${systemError.message} Solaris kept operation ${review.operationId}; retry this review to reconcile that same operation instead of creating another.`;
+        setAuthorityError(message);
+        toast.error(message);
+      } else {
+        if (
+          systemError.code === "STATE_CHANGED" ||
+          systemError.code === "VERSION_CONFLICT" ||
+          systemError.code === "DEPENDENCY_FAILURE"
+        ) {
+          try {
+            await reloadAuthority();
+          } catch {
+            // Keep the original failure as the actionable message.
+          }
         }
+        setPendingSave(null);
+        setAuthorityError(systemError.message);
+        toast.error(systemError.message);
       }
-      setPendingSave(null);
-      setAuthorityError(systemError.message);
-      toast.error(systemError.message);
     } finally {
       setBusy(false);
     }
@@ -537,7 +600,10 @@ function VotingSystemWorkspace() {
                 description={receipt.replayed ? "Confirmed from the canonical operation ledger after an uncertain response." : "The canonical versioned command completed successfully."}
                 action={<AdminStatus tone="ready">Saved</AdminStatus>}
               />
-              <p className="break-all font-mono text-[11px] text-muted-foreground">{receipt.operationId}</p>
+              <div className="space-y-1 break-all font-mono text-[11px] text-muted-foreground">
+                <p>Receipt {receipt.receiptId}</p>
+                <p>Operation {receipt.operationId}</p>
+              </div>
             </AdminCard>
           ) : null}
 
@@ -572,17 +638,29 @@ function VotingSystemWorkspace() {
 
       <AdminConfirmSheet
         open={!!pendingSave}
-        onClose={() => !busy && setPendingSave(null)}
+        onClose={() => {
+          if (!busy && !pendingSave?.outcomeUncertain) setPendingSave(null);
+        }}
         onConfirm={() => void applyReviewedSave()}
-        title={`Apply ${pendingSave?.showName ?? "show"} voting rules?`}
+        title={pendingSave?.outcomeUncertain ? `Reconcile ${pendingSave.showName} voting-rule operation?` : `Apply ${pendingSave?.showName ?? "show"} voting rules?`}
         description={
           pendingSave ? (
-            <>
-              This is a canonical R2 configuration change from version {pendingSave.expectedVersion}. The server will revalidate exact edition/show scope, configuration version and voting/result evidence at commit time. It will not recalculate or publish results as a hidden side effect.
-            </>
+            <div className="space-y-2">
+              <p>
+                This is a canonical R2 configuration change from version {pendingSave.expectedVersion}. The server will revalidate exact edition/show scope, configuration version and voting/result evidence at commit time. It will not recalculate or publish results as a hidden side effect.
+              </p>
+              <p className="break-all font-mono text-[11px] text-muted-foreground">
+                Operation {pendingSave.operationId}
+              </p>
+              {pendingSave.outcomeUncertain ? (
+                <p className="text-amber-100">
+                  The previous response could not be reconciled authoritatively. Solaris has locked this review to the same operation identity. Retry reconciles that operation; it does not submit a second mutation.
+                </p>
+              ) : null}
+            </div>
           ) : undefined
         }
-        confirmLabel="Apply versioned rules"
+        confirmLabel={pendingSave?.outcomeUncertain ? "Reconcile same operation" : "Apply versioned rules"}
         busy={busy}
       />
     </AdminPage>
