@@ -57,34 +57,11 @@ export type SyncHealthSummary = {
   };
 };
 
-async function requireSystemHealthReadCapability() {
-  const {
-    createSolarisAuthenticatedClientServer,
-    requireSolarisOrganizerServer,
-  } = await import("@/integrations/supabase/organizer.server");
-
-  await requireSolarisOrganizerServer();
-
-  const caller = createSolarisAuthenticatedClientServer() as any;
-  const { data: allowed, error: capabilityError } = await caller.rpc(
-    "studio2_access_allowed",
-    {
-      p_capability: "system.read",
-      p_edition_id: null,
-      p_strict_before_cutover: false,
-    },
-  );
-
-  if (capabilityError) {
-    throw new Error("System health authorization could not be verified.");
-  }
-  if (allowed !== true) {
-    throw new Error("System read capability required.");
-  }
-}
-
 export async function loadUnifiedSyncHealthServer(): Promise<SyncHealthSummary> {
-  await requireSystemHealthReadCapability();
+  const { requireSolarisCapabilityServer } = await import(
+    "@/integrations/supabase/capabilities.server"
+  );
+  await requireSolarisCapabilityServer("system.read", null);
 
   // The service-role client is deliberately loaded only after the caller's
   // canonical system.read capability has been verified above. Route visibility
