@@ -31,6 +31,21 @@ describe("V3 Organizer Workflows exact-edition safety", () => {
     expect(adminOps).toContain('.eq("edition_id", normalizedEditionId)');
   });
 
+  it("uses canonical Studio 2 runtime independently of the Control Room presentation flag", () => {
+    expect(workflows).toContain("loadStudio2ControlRoomSnapshot(resolvedEditionId, undefined, 100)");
+    expect(workflows).toContain("isStudio2FeatureEnabled('workflow_engine', resolvedEditionId)");
+    expect(workflows).not.toContain("isStudio2FeatureEnabled('live_control_room'");
+    expect(workflows).not.toContain("studio2ControlRoom.loadSnapshot");
+  });
+
+  it("fails closed instead of synthesizing operational truth from legacy edition status", () => {
+    expect(workflows).toContain("const runtime = snapshotQuery.data?.runtime.runtime ?? null");
+    expect(workflows).toContain("Workflows could not load canonical state");
+    expect(workflows).not.toContain("normalizeLegacyEditionStatus");
+    expect(workflows).not.toContain("defaultSubsystemStatesForEdition");
+    expect(workflows).not.toContain("Compatibility runtime in use");
+  });
+
   it("marks the implemented Workflows slice building without overstating parity", () => {
     const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "operations-workflows",
