@@ -2,13 +2,14 @@ import { Link } from "@tanstack/react-router";
 import { Bell, BellOff, BookmarkCheck, ChevronRight, Radio, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import { useMyFollows, useSetFanFollow } from "@/lib/engagement-data";
 import {
   buildV3FollowingSavedProjection,
+  v3FollowPreferenceMatches,
   type V3FollowingSavedItem,
   type V3FollowNotificationLevel,
 } from "@/lib/v3-following-saved";
+import { useV3FollowEntityDetails } from "@/lib/v3-following-saved-data";
 import { V3Screen, V3ScreenHeader, V3Section, V3StatusChip, V3Surface } from "./V3Foundation";
 
 const LEVELS: Array<{ value: V3FollowNotificationLevel; label: string }> = [
@@ -101,26 +102,27 @@ function SavedItem({
 
 export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
   const follows = useMyFollows(viewerId);
-  const countries = useCountries();
-  const editions = useEditions();
-  const shows = useAllShows();
+  const followRows = follows.data?.schemaReady ? follows.data.follows : undefined;
+  const entityDetails = useV3FollowEntityDetails(viewerId, followRows);
   const setFollow = useSetFanFollow(viewerId);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const projection = useMemo(() => {
-    if (!follows.data?.schemaReady) return null;
+    if (!followRows) return null;
     return buildV3FollowingSavedProjection({
       viewerId,
-      follows: follows.data.follows,
-      countries: countries.data ?? [],
-      editions: editions.data ?? [],
-      shows: shows.data ?? [],
+      follows: followRows,
+      countries: entityDetails.data?.countries ?? [],
+      editions: entityDetails.data?.editions ?? [],
+      shows: entityDetails.data?.shows ?? [],
     });
-  }, [countries.data, editions.data, follows.data, shows.data, viewerId]);
+  }, [entityDetails.data, followRows, viewerId]);
 
-  const loading = follows.isLoading || countries.isLoading || editions.isLoading || shows.isLoading;
-  const failed = follows.isError || countries.isError || editions.isError || shows.isError;
+  const loading =
+    follows.isLoading ||
+    (follows.data?.schemaReady === true && entityDetails.isLoading);
+  const failed = follows.isError || entityDetails.isError;
 
   const updateFollow = async (
     item: V3FollowingSavedItem,
@@ -131,6 +133,20 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
     const operationKey = `${item.entityType}:${item.entityId}`;
     setPendingKey(operationKey);
     setMessage(null);
+
+    const matchesIntent = (rows: typeof followRows) =>
+      Boolean(
+        rows &&
+          v3FollowPreferenceMatches({
+            viewerId,
+            follows: rows,
+            entityType: item.entityType,
+            entityId: item.entityId,
+            following,
+            notificationLevel,
+          }),
+      );
+
     try {
       await setFollow.mutateAsync({
         entityType: item.entityType,
@@ -138,10 +154,41 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
         following,
         notificationLevel,
       });
-      setMessage(following ? `Updated ${item.title}.` : `Removed ${item.title} from Following & Saved.`);
+
+      const reconciled = await follows.refetch();
+      const reconciledRows = reconciled.data?.schemaReady
+        ? reconciled.data.follows
+        : undefined;
+
+      if (matchesIntent(reconciledRows)) {
+        setMessage(
+          following
+            ? `Updated ${item.title}.`
+            : `Removed ${item.title} from Following & Saved.`,
+        );
+      } else {
+        setMessage(
+          "Solaris submitted that preference, but the refreshed server state has not confirmed it yet. The current list remains authoritative.",
+        );
+      }
     } catch (error) {
       console.error("[V3 Following & Saved] Preference update failed", error);
-      setMessage("Solaris could not save that preference. Nothing else was changed.");
+      const reconciled = await follows.refetch();
+      const reconciledRows = reconciled.data?.schemaReady
+        ? reconciled.data.follows
+        : undefined;
+
+      if (matchesIntent(reconciledRows)) {
+        setMessage(
+          following
+            ? `Updated ${item.title} after reconnecting to server state.`
+            : `Removed ${item.title} after reconnecting to server state.`,
+        );
+      } else {
+        setMessage(
+          "Solaris could not confirm whether that preference was saved. The list above has been refreshed from server state; retry only if it still shows the old setting.",
+        );
+      }
     } finally {
       setPendingKey(null);
     }
