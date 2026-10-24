@@ -6,8 +6,12 @@ const route = readFileSync(
   resolve(process.cwd(), "src/routes/site-directory/index.tsx"),
   "utf8",
 );
-const visibility = readFileSync(
+const directoryVisibility = readFileSync(
   resolve(process.cwd(), "src/lib/site-directory-visibility.ts"),
+  "utf8",
+);
+const discoveryVisibility = readFileSync(
+  resolve(process.cwd(), "src/lib/public-discovery-visibility.ts"),
   "utf8",
 );
 
@@ -19,21 +23,25 @@ describe("V3 Site Directory auth-aware discovery contract", () => {
     expect(route).not.toContain("PUBLIC_DESTINATIONS.filter(\n      (item) => item.discoverable !== false");
   });
 
-  it("keeps restricted destinations out of the public directory even for signed-in viewers", () => {
-    expect(visibility).toContain('case "hod":');
-    expect(visibility).toContain('case "organizer":');
-    expect(visibility).toContain("return false;");
+  it("shares the canonical Public discovery filter instead of duplicating auth rules", () => {
+    expect(directoryVisibility).toContain(
+      "visiblePublicDiscoveryDestinations as visibleSiteDirectoryDestinations",
+    );
+    expect(discoveryVisibility).toContain('case "hod":');
+    expect(discoveryVisibility).toContain('case "organizer":');
+    expect(discoveryVisibility).toContain("return false;");
   });
 
   it("shows Sign in only to known anonymous viewers and signed-in Me only after auth", () => {
-    expect(visibility).toContain('case "signed-in":');
-    expect(visibility).toContain('viewer.authenticationState === "signed-in"');
-    expect(visibility).toContain('destination.id !== "sign-in"');
-    expect(visibility).toContain('viewer.authenticationState === "anonymous"');
+    expect(discoveryVisibility).toContain('case "signed-in":');
+    expect(discoveryVisibility).toContain('viewer.authenticationState === "signed-in"');
+    expect(discoveryVisibility).toContain('destination.id !== "sign-in"');
+    expect(discoveryVisibility).toContain('viewer.authenticationState === "anonymous"');
   });
 
   it("fails contextual account discovery closed during session loading", () => {
-    expect(visibility).toContain('authenticationState: "loading" | "anonymous" | "signed-in"');
+    expect(discoveryVisibility).toContain('authenticationState: "loading" | "anonymous" | "signed-in"');
+    expect(discoveryVisibility).toContain('destination.visibility === "contextual"');
     expect(route).toContain("[authenticationState, normalizedQuery]");
   });
 });

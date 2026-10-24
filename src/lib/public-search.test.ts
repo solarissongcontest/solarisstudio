@@ -18,7 +18,9 @@ describe("public search", () => {
 
   it("fails protected contextual navigation discovery closed for anonymous callers", () => {
     expect(navigationSearchResults("preclearance")).toEqual([]);
-    expect(navigationSearchResults("MySolaris")).toEqual([]);
+    expect(
+      navigationSearchResults("MySolaris").some((item) => item.href === "/my-solaris"),
+    ).toBe(false);
 
     expect(
       navigationSearchResults("preclearance", {
