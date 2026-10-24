@@ -2,11 +2,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+const migrationPath =
+  "supabase/migrations/20261024205500_v3_p40_personal_participation_history.sql";
 const migration = readFileSync(
-  resolve(
-    process.cwd(),
-    "supabase/migrations/20261019235700_v3_p40_personal_participation_history.sql",
-  ),
+  resolve(process.cwd(), migrationPath),
   "utf8",
 );
 
@@ -110,7 +109,8 @@ describe("V3 P40 personal participation history projection", () => {
     expect(aggregate).toContain("row.id");
   });
 
-  it("registers as an additive forward-fix-only S13 migration", () => {
+  it("registers as an additive semantic forward-fix-only S13 migration", () => {
+    expect(migrationPath).not.toContain("20261019235700");
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain("v3.public.p40-personal-participation-history");
     expect(migration).toContain("'forward_fix_only'");
