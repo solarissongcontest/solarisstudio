@@ -6,8 +6,9 @@ import {
   resolveCurrentPublicEdition,
   resolvePublicContestState,
   resolvePublicEditionState,
+  type PublicResultStateEvidence,
 } from "./current-contest-state";
-import type { Edition, ResultRow, Show } from "./data";
+import type { Edition, Show } from "./data";
 import {
   defaultSubsystemStatesForEdition,
   normalizeLegacyEditionStatus,
@@ -50,7 +51,7 @@ export type V3PrimarySurfaceReadModel = {
   targetEditionId?: string | null;
   editions: readonly Edition[];
   shows: readonly Show[];
-  results: readonly ResultRow[];
+  results: readonly PublicResultStateEvidence[];
   participantCount?: number | null;
   viewer: V3PrimarySurfaceViewer | null;
   delegation: V3PrimarySurfaceDelegation | null;
@@ -155,7 +156,10 @@ function currentOrRequestedEdition(
   return edition;
 }
 
-function showHasPublishedResult(show: Show, results: readonly ResultRow[]) {
+function showHasPublishedResult(
+  show: Show,
+  results: readonly PublicResultStateEvidence[],
+) {
   if (!showPublishesResults(show)) return false;
   return results.some(
     (result) => result.show_id === show.id && result.final_rank != null,
@@ -164,7 +168,7 @@ function showHasPublishedResult(show: Show, results: readonly ResultRow[]) {
 
 function upcomingItems(
   shows: readonly Show[],
-  results: readonly ResultRow[],
+  results: readonly PublicResultStateEvidence[],
 ): readonly V3PrimaryHomeListItem[] {
   return [...shows]
     .filter(
@@ -184,7 +188,7 @@ function upcomingItems(
 
 function latestItems(input: {
   shows: readonly Show[];
-  results: readonly ResultRow[];
+  results: readonly PublicResultStateEvidence[];
   fallback: { label: string; to: string } | null;
   headline: string;
   description: string;
