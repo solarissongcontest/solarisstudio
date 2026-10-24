@@ -8,6 +8,12 @@ export type MergedTelevoteConversionState = Awaited<
   ReturnType<typeof getMergedTelevoteConversionServer>
 >;
 
+export type OfficialCalculationReadbackResult = {
+  calculationVersion: number;
+  state: MergedTelevoteConversionState;
+  reconciledAfterUncertainOutcome: boolean;
+};
+
 function assertCommittedCalculationState(
   state: MergedTelevoteConversionState,
   expectedVersion: number,
@@ -50,28 +56,6 @@ function assertCommittedCalculationState(
   }
 }
 
-function recoveredCalculationSummary(
-  state: MergedTelevoteConversionState,
-  expectedVersion: number,
-) {
-  const distributedTotal = state.stored.reduce(
-    (sum, row) => sum + Number(row.final_points ?? 0),
-    0,
-  );
-  return {
-    version: expectedVersion,
-    calculatedAt: state.round.calculated_at ?? new Date().toISOString(),
-    engineVersion: state.round.televote_engine_version,
-    participantCount: state.participants.length,
-    rankBase: null,
-    distributedTotal,
-    totalPoints: state.round.total_points_to_distribute,
-    zeroWeight: state.stored.every((row) => Number(row.final_points ?? 0) === 0),
-    config: {},
-    influence: null,
-  };
-}
-
 /**
  * A successful official calculation is not complete from the app's point of view
  * until the same authenticated Organizer boundary can read the committed round
@@ -85,16 +69,16 @@ function recoveredCalculationSummary(
  */
 export async function runMergedOfficialCalculationWithReadbackServer(
   roundId: string,
-) {
+): Promise<OfficialCalculationReadbackResult> {
   const before = await loadMergedConversionRound(roundId);
   const expectedVersion = before.calculation_version + 1;
 
   try {
-    const calculation = await runMergedOfficialCalculationServer(roundId);
+    await runMergedOfficialCalculationServer(roundId);
     const state = await getMergedTelevoteConversionServer(roundId);
-    assertCommittedCalculationState(state, calculation.version);
+    assertCommittedCalculationState(state, expectedVersion);
     return {
-      ...calculation,
+      calculationVersion: expectedVersion,
       state,
       reconciledAfterUncertainOutcome: false,
     };
@@ -107,7 +91,7 @@ export async function runMergedOfficialCalculationWithReadbackServer(
     const state = await getMergedTelevoteConversionServer(roundId);
     assertCommittedCalculationState(state, expectedVersion);
     return {
-      ...recoveredCalculationSummary(state, expectedVersion),
+      calculationVersion: expectedVersion,
       state,
       reconciledAfterUncertainOutcome: true,
     };
