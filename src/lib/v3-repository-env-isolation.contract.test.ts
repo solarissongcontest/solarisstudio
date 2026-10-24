@@ -5,6 +5,10 @@ import { describe, expect, it } from "vitest";
 
 const envExample = readFileSync(".env.example", "utf8");
 const gitignore = readFileSync(".gitignore", "utf8");
+const supabaseClientSource = readFileSync(
+  "src/integrations/supabase/client.ts",
+  "utf8",
+);
 
 function trackedRootEnv() {
   return execFileSync("git", ["ls-files", "--", ".env"], {
@@ -25,5 +29,14 @@ describe("V3 repository environment isolation", () => {
     expect(envExample).toContain('SUPABASE_PROJECT_ID="local"');
     expect(envExample).not.toContain(".supabase.co");
     expect(envExample).not.toContain("dkxmnvekiopyesuzggeu");
+  });
+
+  it("keeps the shared client wired through the non-production target guard", () => {
+    expect(supabaseClientSource).toContain(
+      "assertNonProductionSupabaseTarget",
+    );
+    expect(supabaseClientSource).toMatch(
+      /assertNonProductionSupabaseTarget\(\s*SUPABASE_URL,/,
+    );
   });
 });
