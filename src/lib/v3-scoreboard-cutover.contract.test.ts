@@ -16,6 +16,10 @@ const probe = () => read("src/integrations/v3/rollout-probe.server.ts");
 const stage = () => read("src/components/ScoreboardStage.tsx");
 const presentation = () =>
   read("src/components/v3/V3ScoreboardPresentation.tsx");
+const scoreboardSource = () =>
+  read("src/integrations/v3/scoreboard-source.server.ts");
+const scoreboardFunctions = () => read("src/lib/v3-scoreboard.functions.ts");
+const scoreboardRuntime = () => read("src/lib/v3-scoreboard-runtime.ts");
 
 function constrainedFlagKeys(source: string) {
   const constraint = source.match(
@@ -60,21 +64,66 @@ describe("V3 Scoreboard cutover", () => {
     );
   });
 
-  it("limits V3 scoreboard presentation to installed-app show detail routes", () => {
+  it("limits V3 scoreboard presentation to installed-app Show routes", () => {
     const source = stage();
 
     expect(source).toContain("useSolarisApp");
     expect(source).toContain("useV3RolloutProbe");
-    expect(source).toContain("isPublicShowRoute");
-    expect(source).toContain("/^\\/shows\\/[^/]+\\/?$/");
-    expect(source).toContain(
-      "platformResolved && isAppMode && isPublicShowRoute",
-    );
+    expect(source).toContain("/^\\/shows\\/([^/]+)\\/?$/");
+    expect(source).toContain("const publicShowId = showRouteMatch?.[1] ?? null");
     expect(source).toContain("rollout.data?.scoreboardEnabled === true");
+    expect(source).toContain("useV3ScoreboardBundle(publicShowId, v3ScoreboardEnabled)");
     expect(source).toContain("<V3ScoreboardPresentation");
   });
 
-  it("preserves the proven scoreboard as the fail-closed fallback", () => {
+  it("reads official V3 Scoreboard rank and scores only from the immutable published Result snapshot", () => {
+    const source = scoreboardSource();
+
+    expect(source).toContain("loadV3PublishedResultSnapshot(showId)");
+    expect(source).toContain('publication: "hidden"');
+    expect(source).toContain('publication: "published"');
+    expect(source).toContain("row.totalPoints");
+    expect(source).toContain("row.finalRank");
+    expect(source).toContain("snapshot.availability.jury");
+    expect(source).toContain("snapshot.availability.televote");
+    expect(source).not.toContain('.from("results")');
+    expect(source).not.toContain("public_safe_participants");
+  });
+
+  it("fails closed rather than manufacturing incomplete published split scores", () => {
+    const source = scoreboardSource();
+
+    expect(source).toContain("Published Scoreboard Jury split is incomplete");
+    expect(source).toContain("Published Scoreboard Televote split is incomplete");
+    expect(source).toContain("Published Scoreboard identity could not be resolved");
+    expect(source).not.toContain("row.juryPoints ?? 0");
+    expect(source).not.toContain("row.televotePoints ?? 0");
+  });
+
+  it("keeps the immutable Scoreboard query bounded and non-polling", () => {
+    const functions = scoreboardFunctions();
+    const runtime = scoreboardRuntime();
+
+    expect(functions).toContain("z.string().uuid()");
+    expect(functions).toContain("loadV3ScoreboardBundle(data.showId)");
+    expect(runtime).toContain('["v3-scoreboard-bundle", showId ?? "none"]');
+    expect(runtime).toContain("staleTime: 60_000");
+    expect(runtime).toContain("refetchOnWindowFocus: false");
+    expect(runtime).toContain("retry: false");
+    expect(runtime).not.toMatch(/setInterval|refetchInterval/);
+  });
+
+  it("renders only immutable Scoreboard data after the V3 rollout gate opens", () => {
+    const source = stage();
+
+    expect(source).toContain("if (v3ScoreboardEnabled)");
+    expect(source).toContain("standings={bundle?.standings ?? []}");
+    expect(source).toContain("countries={v3Countries}");
+    expect(source).toContain("The app will not substitute mutable archive rows");
+    expect(source).not.toContain("standings={rows}\n        countries={countries}");
+  });
+
+  it("preserves the proven legacy scoreboard when V3 is not enabled", () => {
     const source = stage();
 
     expect(source).toContain("<CountryCard");
@@ -83,7 +132,7 @@ describe("V3 Scoreboard cutover", () => {
     expect(source).toContain("broadcastRows");
   });
 
-  it("keeps V3 presentation downstream of canonical ranking data", () => {
+  it("keeps V3 presentation downstream of server-resolved ranking data", () => {
     const source = presentation();
 
     expect(source).toContain('import type { Standing } from "@/lib/analysis"');
@@ -148,7 +197,15 @@ describe("V3 Scoreboard cutover", () => {
   });
 
   it("does not expose a browser-controlled scoreboard rollout escape hatch", () => {
-    const combined = [migration(), probe(), stage(), presentation()].join("\n");
+    const combined = [
+      migration(),
+      probe(),
+      stage(),
+      presentation(),
+      scoreboardSource(),
+      scoreboardFunctions(),
+      scoreboardRuntime(),
+    ].join("\n");
 
     expect(combined).not.toContain("VITE_SOLARIS_APP_V3_SCOREBOARD");
     expect(combined).not.toContain("localStorage");
