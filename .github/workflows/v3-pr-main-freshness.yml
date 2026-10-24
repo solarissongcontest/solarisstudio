@@ -1,0 +1,62 @@
+name: V3 PR Main Freshness
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - ready_for_review
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: v3-pr-main-freshness-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  pr-main-freshness:
+    if: github.event_name == 'pull_request' && (startsWith(github.head_ref, 'v3/') || startsWith(github.event.pull_request.title, '[V3-'))
+    name: V3 PR current-main freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Verify freshness-policy unit tests
+        run: bun test scripts/__tests__/check-v3-pr-main-freshness.test.ts
+
+      - name: Require exact head to contain live current main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          V3_CURRENT_PR: ${{ github.event.pull_request.number }}
+          V3_EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bun run scripts/check-v3-pr-main-freshness.ts
+
+      - name: Safety boundary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo
+            echo "### Verification boundary"
+            echo
+            echo "This guard reads GitHub PR/branch/compare metadata only."
+            echo "It does not start Supabase, contact hosted Supabase, run Browser Audit, generate load, or mutate production data."
+          } >> "$GITHUB_STEP_SUMMARY"
