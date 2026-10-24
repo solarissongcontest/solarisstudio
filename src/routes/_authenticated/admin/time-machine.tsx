@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_authenticated/admin/time-machine")({
   head: () => ({
     meta: [
       { title: "Time Machine — Solaris Organizer" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: TimeMachinePage,
@@ -55,13 +55,45 @@ type TimelineRow = {
 const TIME_MACHINE_EVENT_LIMIT = 250;
 const TIME_MACHINE_AUDIT_LIMIT = 100;
 
+function validateSnapshotScope(
+  value: unknown,
+  editionId: string,
+  requestedAsOf: string,
+): TimeMachineSnapshot {
+  if (!value || typeof value !== "object") {
+    throw new Error("Time Machine returned an invalid historical snapshot.");
+  }
+
+  const snapshot = value as Partial<TimeMachineSnapshot>;
+  if (snapshot.edition?.id !== editionId) {
+    throw new Error("Time Machine evidence did not match the selected Organizer edition.");
+  }
+
+  const requestedAt = Date.parse(requestedAsOf);
+  const returnedAt = Date.parse(snapshot.asOf ?? "");
+  if (!Number.isFinite(requestedAt) || !Number.isFinite(returnedAt) || returnedAt !== requestedAt) {
+    throw new Error("Time Machine evidence did not match the requested historical instant.");
+  }
+
+  if (
+    !Array.isArray(snapshot.events) ||
+    !Array.isArray(snapshot.audit) ||
+    typeof snapshot.evidenceComplete !== "boolean" ||
+    (snapshot.evidenceStart !== null && typeof snapshot.evidenceStart !== "string")
+  ) {
+    throw new Error("Time Machine returned malformed historical evidence.");
+  }
+
+  return snapshot as TimeMachineSnapshot;
+}
+
 async function loadSnapshot(editionId: string, asOf: string) {
   const { data, error } = await (supabase as any).rpc("studio2_time_machine", {
     _edition_id: editionId,
     _as_of: asOf,
   });
   if (error) throw error;
-  return data as TimeMachineSnapshot;
+  return validateSnapshotScope(data, editionId, asOf);
 }
 
 function snapshotRows(snapshot: TimeMachineSnapshot | null | undefined): TimelineRow[] {
@@ -98,8 +130,9 @@ function TimeMachinePage() {
   const [compareEnabled, setCompareEnabled] = useState(false);
   const [compareAsOf, setCompareAsOf] = useState(() => new Date(Date.now() - 60 * 60 * 1000).toISOString());
   const feature = useQuery({
-    queryKey: ["studio2-feature", "time_machine"],
-    queryFn: () => isStudio2FeatureEnabled("time_machine"),
+    enabled: Boolean(editionId),
+    queryKey: ["studio2-feature", "time_machine", editionId ?? "none"],
+    queryFn: () => isStudio2FeatureEnabled("time_machine", editionId),
     staleTime: 30_000,
   });
 
@@ -147,12 +180,12 @@ function TimeMachinePage() {
     };
   }, [compareEnabled, comparisonSnapshot.data, snapshot.data]);
 
+  if (!editionId) {
+    return <AdminPage><AdminEmptyState icon={History} title="Select an edition" description="Time Machine reconstructs evidence for the currently selected Organizer edition." /></AdminPage>;
+  }
   if (feature.isLoading) return <AdminPage><p className="text-sm text-muted-foreground">Loading Time Machine…</p></AdminPage>;
   if (feature.data !== true) {
     return <AdminPage><AdminEmptyState icon={History} title="Time Machine is disabled" description="The read-only historical reconstruction surface is installed but remains behind its rollout flag during verification." /></AdminPage>;
-  }
-  if (!editionId) {
-    return <AdminPage><AdminEmptyState icon={History} title="Select an edition" description="Time Machine reconstructs evidence for the currently selected Organizer edition." /></AdminPage>;
   }
 
   return (
