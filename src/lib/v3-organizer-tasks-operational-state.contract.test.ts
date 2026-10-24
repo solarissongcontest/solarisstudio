@@ -37,6 +37,33 @@ describe("V3 Organizer Tasks operational state contract", () => {
     expect(route).toContain('value == null ? "Unknown"');
   });
 
+  it("binds Tasks to an edition that still resolves in the Organizer edition set", () => {
+    expect(route).toContain("selectOrganizerEdition(editions, editionId)");
+    expect(route).toContain('const resolvedEditionId = editionId && edition ? edition.id : ""');
+    expect(route).toContain("useOrganizerTasksV5(");
+    expect(route).toContain("resolvedEditionId || null");
+    expect(route).toContain("Boolean(resolvedEditionId) &&");
+    expect(route).toContain("editionsQuery.isSuccess &&");
+    expect(route).toContain("!editionsQuery.error");
+    expect(route).not.toContain("useOrganizerTasksV5(editionId,");
+  });
+
+  it("stops task polling when edition verification fails even if cached edition data remains", () => {
+    expect(route).toContain("tasksSupported &&");
+    expect(route).toContain("editionsQuery.isSuccess &&");
+    expect(route).toContain("!editionsQuery.error,");
+    expect(route).toContain("!editionsQuery.error &&");
+  });
+
+  it("makes the edition scope visible and fails closed for missing or stale context", () => {
+    expect(route).toContain('data-v3-organizer-context-lock="edition"');
+    expect(route).toContain("Edition context");
+    expect(route).toContain("Choose an edition");
+    expect(route).toContain("missing, stale or inaccessible edition context");
+    expect(route).toContain("edition && filter !== \"resolved\"");
+    expect(route).toContain("Boolean(resolvedEditionId) &&");
+  });
+
   it("does not equate task priority with blocked workflow state", () => {
     expect(route).toContain("Priority is severity, not workflow state");
     expect(route).not.toContain('task.priority === "critical") return "blocked"');
