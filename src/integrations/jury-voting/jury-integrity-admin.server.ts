@@ -1,4 +1,4 @@
-import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type JuryIntegrityTargetEvidence = {
@@ -49,9 +49,9 @@ function numberValue(value: unknown) {
 }
 
 export async function listJuryIntegrityCasesServer(editionId: string) {
-  await requireMergedTelevotingAdminServer();
   const scopedEditionId = String(editionId ?? "").trim();
   if (!scopedEditionId) throw new Error("Jury Integrity requires an explicit edition scope");
+  await requireSolarisCapabilityServer("integrity.read", scopedEditionId);
 
   const db = supabaseAdmin as any;
   const tv = db.schema("televoting");
