@@ -7,29 +7,52 @@ function source(path: string) {
 }
 
 const route = source("src/routes/confirmations/admin/responses/$id.tsx");
+const controls = source("src/components/admin/ConfirmationResponseRecoveryControls.tsx");
+const client = source("src/lib/v3-organizer-confirmation-response-access.ts");
 
 describe("V3 Organizer Confirmation permanent deletion review", () => {
-  it("requires an explicit typed review before invoking the delete authority", () => {
-    expect(route).toContain("AdminConfirmSheet");
-    expect(route).toContain("deleteReviewOpen");
-    expect(route).toContain('confirmationText={data.country}');
-    expect(route).toContain("Review permanent deletion");
-    expect(route).toContain("Delete response permanently");
-    expect(route).toContain("onClick={() => setDeleteReviewOpen(true)}");
-    expect(route).not.toContain("window.confirm");
+  it("removes the legacy destructive RPC from the response route", () => {
+    expect(route).toContain("<ConfirmationResponseRecoveryControls");
+    expect(route).not.toContain("admin_confirmation_delete_response");
+    expect(controls).not.toContain("admin_confirmation_delete_response");
+    expect(controls).toContain('changeKind: "delete_response"');
+    expect(client).toContain('"confirmation.response.delete"');
   });
 
-  it("repeats the exact response context and keeps the existing authority behind review", () => {
-    expect(route).toContain("data.edition.edition_number");
-    expect(route).toContain("data.round?.name");
-    expect(route).toContain("data.submitted_at");
-    expect(route).toContain("admin_confirmation_delete_response");
-    expect(route).toContain("legacy Confirmation delete authority");
+  it("requires canonical deletion eligibility and shows dependency evidence", () => {
+    expect(controls).toContain("reviewed.delete.allowed");
+    expect(controls).toContain("reviewed.delete.dependencies");
+    expect(controls).toContain("Deletion blocked by canonical dependencies");
+    expect(controls).toContain("Preserve this Confirmation response instead");
+    expect(controls).toContain("dependencyCount");
   });
 
-  it("states irreversibility without inventing rollback or a second mutation path", () => {
-    expect(route).toContain("Organizer cannot undo this action");
-    expect(route).toContain("not a versioned rollback operation");
-    expect(route.match(/admin_confirmation_delete_response/g)?.length).toBe(1);
+  it("binds the irreversible review to exact context and a reviewed response version", () => {
+    expect(controls).toContain("editionLabel");
+    expect(controls).toContain("roundName");
+    expect(controls).toContain("submittedAt");
+    expect(controls).toContain("submissionId");
+    expect(controls).toContain("pendingDelete?.preview.expectedVersion");
+    expect(controls).toContain("live.expectedVersion !== pendingDelete.preview.expectedVersion");
+    expect(controls).toContain('confirmationText={country}');
+    expect(controls).toContain("Review permanent deletion");
+  });
+
+  it("requires an organizer reason and fresh authentication for R3 commit", () => {
+    expect(controls).toContain("Add an organiser reason for this permanent deletion");
+    expect(controls).toContain("Fresh authentication required");
+    expect(controls).toContain('type="password"');
+    expect(controls).toContain("reauthenticateConfirmationResponseR3(deletePassword)");
+    expect(client).toContain('riskClass: changeKind === "delete_response" ? "R3" : "R2"');
+    expect(client).toContain("signInWithPassword");
+    expect(client).toContain("data.user.id !== originalUserId");
+  });
+
+  it("keeps one destructive operation identity and reconciles unknown outcomes", () => {
+    expect(controls).toContain("commandReason !== reason");
+    expect(controls).toContain("command.operationId");
+    expect(controls).toContain("command.idempotencyKey");
+    expect(controls).toContain("reconcile(command.operationId");
+    expect(controls).toContain("rather than retried with a second destructive write");
   });
 });

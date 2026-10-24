@@ -56,17 +56,23 @@ describe("confirmation response review routing", () => {
     expect(listRoute).toContain("rgba(110,231,183");
   });
 
-  it("restores old response-detail organizer tools", () => {
+  it("keeps response-detail organizer tools while routing response access through V3 authority", () => {
     const detailRoute = source("src/routes/confirmations/admin/responses/$id.tsx");
+    const recoveryControls = source("src/components/admin/ConfirmationResponseRecoveryControls.tsx");
 
     expect(detailRoute).toContain("90s final clip");
     expect(detailRoute).toContain("Replacement video");
     expect(detailRoute).toContain("Reset to pending");
     expect(detailRoute).toContain("Clear NF winner");
     expect(detailRoute).toContain("Copy National Final entries");
-    expect(detailRoute).toContain("admin_confirmation_create_edit_token");
-    expect(detailRoute).toContain("admin_confirmation_revoke_edit_token");
     expect(detailRoute).toContain("admin_confirmation_technical");
-    expect(detailRoute).toContain("admin_confirmation_delete_response");
+    expect(detailRoute).toContain("ConfirmationResponseRecoveryControls");
+    expect(recoveryControls).toContain("Generate edit link");
+    expect(recoveryControls).toContain("Review permanent deletion");
+    expect(recoveryControls).toContain("previewConfirmationResponseAccess");
+    expect(recoveryControls).toContain("applyConfirmationResponseAccessChange");
+    expect(detailRoute).not.toContain("admin_confirmation_create_edit_token");
+    expect(detailRoute).not.toContain("admin_confirmation_revoke_edit_token");
+    expect(detailRoute).not.toContain("admin_confirmation_delete_response");
   });
 });
