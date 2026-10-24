@@ -86,6 +86,16 @@ describe("V3 Edition production cutover", () => {
     expect(server).toContain("resolveShowPublication(show).results");
   });
 
+  it("derives the next Edition event from the shared server-time chronology resolver", () => {
+    const server = source();
+    expect(server).toContain('from "@/lib/v3-explore-next-event"');
+    expect(server).toContain("const generatedAt = new Date().toISOString();");
+    expect(server).toContain("resolveV3ExploreNextPublicEvent(shows, generatedAt)");
+    expect(server).toContain("nextEvent,");
+    expect(server).toContain("generatedAt,");
+    expect(server).not.toContain("nextEvent: null");
+  });
+
   it("keeps the browser data boundary narrow and non-authoritative", () => {
     expect(functions()).toContain("z.string().trim().min(1).max(120)");
     expect(functions()).toContain("loadV3EditionBundle({ slug: data.slug })");

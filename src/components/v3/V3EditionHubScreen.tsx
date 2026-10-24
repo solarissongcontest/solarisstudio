@@ -222,6 +222,28 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
         </V3Section>
       ) : null}
 
+      {projection.hub.hero.nextEvent ? (
+        <V3Section
+          title="Coming up"
+          meta={<V3StatusChip tone="progress">Next public show</V3StatusChip>}
+        >
+          <V3ActionCard
+            title={projection.hub.hero.nextEvent.title}
+            description="Next scheduled public show"
+            icon={CalendarDays}
+            tone="neutral"
+            to={projection.hub.hero.nextEvent.href}
+            meta={
+              projection.hub.hero.nextEvent.startsAt ? (
+                <EventTime value={projection.hub.hero.nextEvent.startsAt} label="Starts" />
+              ) : (
+                "Time to be announced"
+              )
+            }
+          />
+        </V3Section>
+      ) : null}
+
       {featuredOutcomeRows.length > 0 ? (
         <V3Section
           title="Edition outcome"
@@ -388,29 +410,19 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
         <div id="edition-schedule" className="grid gap-3">
           {projection.shows.length ? (
             projection.shows.map((show) => (
-              <div key={show.id} className="grid gap-2">
-                <div className="px-1">
-                  {show.startsAt ? (
-                    <EventTime value={show.startsAt} label="Scheduled" />
-                  ) : (
-                    <span className="text-xs font-semibold text-white/45">
-                      Time to be announced
-                    </span>
-                  )}
-                </div>
-                <V3ActionCard
-                  title={show.name}
-                  description={[
-                    show.kind.replaceAll("-", " "),
-                    show.participantCount ? `${show.participantCount} entries` : null,
-                    show.runningOrderAvailable ? "running order public" : null,
-                    show.resultsAvailable ? "results available" : null,
-                  ].filter(Boolean).join(" · ")}
-                  icon={CalendarDays}
-                  tone="neutral"
-                  to={show.href}
-                />
-              </div>
+              <V3ActionCard
+                key={show.id}
+                title={show.name}
+                description={[
+                  show.kind.replaceAll("-", " "),
+                  show.participantCount ? `${show.participantCount} entries` : null,
+                  show.runningOrderAvailable ? "running order public" : null,
+                  show.resultsAvailable ? "results available" : null,
+                ].filter(Boolean).join(" · ")}
+                icon={CalendarDays}
+                tone="neutral"
+                to={show.href}
+              />
             ))
           ) : (
             <V3Surface className="p-4">

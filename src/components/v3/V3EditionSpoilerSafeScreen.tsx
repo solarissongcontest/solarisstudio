@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { CalendarDays, Eye, Flag, LockKeyhole } from "lucide-react";
 import { useState } from "react";
 
+import { EventTime } from "@/components/public/EventTime";
 import type { V3EditionPageProjection } from "@/lib/v3-edition";
 import {
   V3ActionCard,
@@ -87,6 +88,28 @@ export function V3EditionSpoilerSafeScreen({
           Reveal edition spoilers
         </button>
       </V3Surface>
+
+      {projection.hub.hero.nextEvent ? (
+        <V3Section
+          title="Coming up"
+          meta={<V3StatusChip tone="progress">Next public show</V3StatusChip>}
+        >
+          <V3ActionCard
+            title={projection.hub.hero.nextEvent.title}
+            description="Next scheduled public show"
+            icon={CalendarDays}
+            tone="neutral"
+            to={projection.hub.hero.nextEvent.href}
+            meta={
+              projection.hub.hero.nextEvent.startsAt ? (
+                <EventTime value={projection.hub.hero.nextEvent.startsAt} label="Starts" />
+              ) : (
+                "Time to be announced"
+              )
+            }
+          />
+        </V3Section>
+      ) : null}
 
       <nav aria-label={`Explore ${projection.hub.hero.name}`} className="flex flex-wrap gap-2">
         {projection.hub.sections.map((section) =>
