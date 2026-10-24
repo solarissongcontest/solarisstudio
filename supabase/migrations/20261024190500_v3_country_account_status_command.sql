@@ -65,11 +65,11 @@ begin
   end if;
 
   v_command := case v_status
-    when 'suspended' then 'delegation.account.suspend'
-    else 'delegation.account.restore'
+    when 'suspended' then 'delegation.suspend'
+    else 'delegation.restore'
   end;
 
-  -- Claim before mutable-state validation. A response-lost retry can therefore
+  -- Claim before mutable-state validation so a lost-response retry can therefore
   -- return the completed receipt even though the first call advanced updated_at.
   v_claim := private.studio2_claim_operation(
     p_operation_id,
