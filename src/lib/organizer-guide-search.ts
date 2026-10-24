@@ -11,23 +11,23 @@ type GuideSectionLike<TQuestion extends GuideQuestionLike> = {
 export function filterOrganizerGuideSections<
   TQuestion extends GuideQuestionLike,
   TSection extends GuideSectionLike<TQuestion>,
->(sections: readonly TSection[], query: string) {
+>(sections: readonly TSection[], query: string): Array<Omit<TSection, "questions"> & { questions: TQuestion[] }> {
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  if (!normalizedQuery) return [...sections];
 
   return sections
     .map((section) => {
       const sectionMatches = [section.title, section.description ?? ""].some((value) =>
         value.toLocaleLowerCase().includes(normalizedQuery),
       );
+      const questions = !normalizedQuery || sectionMatches
+        ? [...section.questions]
+        : section.questions.filter((item) =>
+            item.question.toLocaleLowerCase().includes(normalizedQuery),
+          );
 
       return {
         ...section,
-        questions: sectionMatches
-          ? [...section.questions]
-          : section.questions.filter((item) =>
-              item.question.toLocaleLowerCase().includes(normalizedQuery),
-            ),
+        questions,
       };
     })
     .filter((section) => section.questions.length > 0);
