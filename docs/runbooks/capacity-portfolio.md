@@ -17,8 +17,23 @@ Never use this portfolio step as a reason to point the local capacity harness at
 Provide:
 
 1. the exact 40-character candidate commit SHA;
-2. one per-scenario `V3CapacityEvidenceAssessment` JSON artifact for every scenario in `V3_CAPACITY_SCENARIOS`;
+2. one per-scenario assessment artifact for every scenario in `V3_CAPACITY_SCENARIOS`;
 3. assessments produced for that same exact SHA.
+
+The canonical producer `scripts/generate-v3-capacity-evidence.ts` writes each per-scenario artifact as:
+
+```json
+{
+  "generatedAt": "2026-10-24T17:00:00.000Z",
+  "assessment": {
+    "schemaVersion": 1
+  }
+}
+```
+
+The portfolio loader validates that producer envelope and passes only the nested `assessment` to `assessV3CapacityEvidencePortfolio(...)`. A malformed half-envelope, including a missing/invalid `generatedAt` or missing/non-object `assessment`, fails closed instead of being misread as an assessment.
+
+Direct `V3CapacityEvidenceAssessment` JSON remains accepted for explicitly retained historical/manual evidence. New evidence should use the canonical producer envelope so the pipeline has one normal shape.
 
 Each per-scenario assessment remains responsible for proving its required measurements, external/runtime evidence and all four budget bands:
 
@@ -65,6 +80,7 @@ npx tsx scripts/generate-v3-capacity-portfolio.ts <exact-commit-sha> <assessment
 Exit behavior:
 
 - `0`: structurally valid portfolio; unless the strict environment flag is set, it may still be incomplete;
+- `1`: an input file cannot be read/parsed or its producer envelope is malformed;
 - `2`: invalid portfolio;
 - `3`: strict review-ready mode requested but canonical capacity evidence is still incomplete.
 
