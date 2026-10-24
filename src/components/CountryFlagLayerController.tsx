@@ -25,7 +25,7 @@ export function CountryFlagLayerController() {
 
   const flagEnabled = useMemo(() => {
     if (!country) return null;
-    const row = theme as ({ flag_enabled?: boolean | null } & typeof theme) | undefined;
+    const row = theme as { flag_enabled?: boolean | null } | null | undefined;
     return row?.flag_enabled !== false;
   }, [country, theme]);
 
