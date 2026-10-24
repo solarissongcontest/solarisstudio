@@ -18,16 +18,23 @@ const guardedClientSources = [
   "src/routes/sitemap[.]xml.ts",
 ] as const;
 
-function trackedRootEnv() {
-  return execFileSync("git", ["ls-files", "--", ".env"], {
+function trackedEnvironmentFiles() {
+  const tracked = execFileSync("git", ["ls-files", "--", ".env", ".env.*"], {
     encoding: "utf8",
-  }).trim();
+  })
+    .split("\n")
+    .map((path) => path.trim())
+    .filter(Boolean);
+
+  return tracked.filter((path) => path !== ".env.example");
 }
 
 describe("V3 repository environment isolation", () => {
-  it("does not track a root .env that Vite could auto-load", () => {
-    expect(trackedRootEnv()).toBe("");
+  it("does not track runtime environment files that Vite could auto-load", () => {
+    expect(trackedEnvironmentFiles()).toEqual([]);
     expect(gitignore).toMatch(/^\.env$/m);
+    expect(gitignore).toMatch(/^\.env\.\*$/m);
+    expect(gitignore).toMatch(/^!\.env\.example$/m);
   });
 
   it("keeps the local-development template loopback-only", () => {
