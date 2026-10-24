@@ -83,6 +83,13 @@ describe("V3 current-PR integration state", () => {
     expect(report.candidates[0]?.blockers[0]).toMatch(/has not been measured/);
   });
 
+  it("fails closed while GitHub mergeability is still unknown", () => {
+    const report = reportFor(candidate({ mergeable: null }));
+
+    expect(report.candidates[0]?.state).toBe("mergeability_unknown");
+    expect(report.candidates[0]?.blockers[0]).toMatch(/mergeability.*still unknown/i);
+  });
+
   it("rejects successful checks from a stale head SHA", () => {
     const checks = candidate().checks.map((check) =>
       check.name === "Quality" ? { ...check, headSha: OLD_SHA } : check,
@@ -179,6 +186,40 @@ describe("V3 current-PR integration state", () => {
     expect(markdown).toContain("not S16 release certification");
     expect(report.mergeAuthorizationClaim).toBe(false);
     expect(report.certificationClaim).toBe(false);
+  });
+
+  it("rejects empty or malformed integration requirements instead of guessing", () => {
+    expect(() => reportFor(candidate({ requiredChecks: [] }))).toThrow(/no required checks/);
+
+    expect(() =>
+      reportFor(
+        candidate({
+          dependencies: [
+            {
+              number: 99,
+              state: "mystery" as unknown as "open",
+              headSha: OLD_SHA,
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/dependency #99 has invalid state/);
+
+    expect(() =>
+      reportFor(
+        candidate({
+          checks: [
+            {
+              name: "Quality",
+              headSha: HEAD_SHA,
+              status: "mystery" as unknown as "completed",
+              conclusion: "success",
+            },
+            ...candidate().checks.filter((check) => check.name !== "Quality"),
+          ],
+        }),
+      ),
+    ).toThrow(/check Quality has invalid status/);
   });
 
   it("rejects malformed or ambiguous evidence rather than guessing", () => {
