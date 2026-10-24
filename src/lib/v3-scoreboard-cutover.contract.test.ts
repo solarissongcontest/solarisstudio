@@ -125,19 +125,14 @@ describe("V3 Scoreboard cutover", () => {
     expect(source).not.toContain("b.televote - a.televote");
   });
 
-  it("prefers projected qualification truth over a numeric cutoff fallback", () => {
+  it("uses only canonical projected qualification truth and never guesses from rank", () => {
     const source = presentation();
-    const qualifiedTrue = source.indexOf("participant?.qualified === true");
-    const qualifiedFalse = source.indexOf("participant?.qualified === false");
-    const cutoffFallback = source.indexOf("standing.rank <= qualifiers!");
 
-    expect(source).toContain(
-      'const hasQualifierCutoff = typeof qualifiers === "number" && qualifiers > 0',
-    );
-    expect(qualifiedTrue).toBeGreaterThan(-1);
-    expect(qualifiedFalse).toBeGreaterThan(qualifiedTrue);
-    expect(cutoffFallback).toBeGreaterThan(qualifiedFalse);
-    expect(source).not.toContain("qualifiers\n                  ? standing.rank <= qualifiers");
+    expect(source).toContain("const isQualified = participant?.qualified ?? null");
+    expect(source).not.toContain("hasQualifierCutoff");
+    expect(source).not.toContain("standing.rank <= qualifiers");
+    expect(source).not.toContain("participant?.qualified === true");
+    expect(source).not.toContain("participant?.qualified === false");
   });
 
   it("fails unresolved country identity closed instead of exposing internal ids", () => {
