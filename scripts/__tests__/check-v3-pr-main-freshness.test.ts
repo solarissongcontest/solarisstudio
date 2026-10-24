@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { assessV3PrMainFreshness } from "../check-v3-pr-main-freshness";
+import {
+  assessV3PrMainFreshness,
+  isV3PullForFreshness,
+} from "../check-v3-pr-main-freshness";
 
 const MAIN = "1111111111111111111111111111111111111111";
 const HEAD = "2222222222222222222222222222222222222222";
@@ -96,5 +99,39 @@ describe("V3 PR current-main freshness guard", () => {
     expect(result.errors).toContain(
       "V3 integration freshness applies only to main-based PRs; received release-candidate",
     );
+  });
+
+  it("selects V3 main PRs for refresh by branch or title", () => {
+    expect(
+      isV3PullForFreshness({
+        title: "A normal title",
+        base: { ref: "main" },
+        head: { ref: "v3/public-example", sha: HEAD },
+      }),
+    ).toBe(true);
+    expect(
+      isV3PullForFreshness({
+        title: "[V3-QA] Example",
+        base: { ref: "main" },
+        head: { ref: "qa/example", sha: HEAD },
+      }),
+    ).toBe(true);
+  });
+
+  it("does not refresh unrelated or non-main PRs", () => {
+    expect(
+      isV3PullForFreshness({
+        title: "ordinary change",
+        base: { ref: "main" },
+        head: { ref: "feature/example", sha: HEAD },
+      }),
+    ).toBe(false);
+    expect(
+      isV3PullForFreshness({
+        title: "[V3-QA] stacked child",
+        base: { ref: "v3/parent" },
+        head: { ref: "v3/child", sha: HEAD },
+      }),
+    ).toBe(false);
   });
 });
