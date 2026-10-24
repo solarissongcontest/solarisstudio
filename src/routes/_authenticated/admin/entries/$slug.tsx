@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 import { HeatProgressionSyncPanel } from "@/components/admin/HeatProgressionSyncPanel";
 import { ShowLineupWorkspace } from "@/components/admin/ShowLineupWorkspace";
+import { useEdition, useShows } from "@/lib/data";
 
 type EntriesSearch = { show?: string };
 
@@ -23,15 +24,17 @@ function EntriesRoute() {
   const { slug } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const { data: edition, isSuccess: editionResolved } = useEdition(slug);
+  const { isSuccess: showsResolved } = useShows(edition?.id);
+  const canConsumeRequestedShow = editionResolved && (!edition?.id || showsResolved);
 
-  // `show` is only an entry point. ShowLineupWorkspace already seeds its local
-  // state from it, so leaving the query parameter in the URL would make the
-  // workspace effect keep forcing the user back to that show after every
-  // selector click. Consume it once, then release the selector.
+  // `show` is only an entry point, but it must remain available until the
+  // async show list has resolved. Consuming it earlier lets the workspace lose
+  // the requested show while its loading state is still active.
   useEffect(() => {
-    if (!search.show) return;
+    if (!search.show || !canConsumeRequestedShow) return;
     void navigate({ search: { show: undefined }, replace: true });
-  }, [navigate, search.show]);
+  }, [canConsumeRequestedShow, navigate, search.show]);
 
   return (
     <div className="space-y-4 sm:space-y-5">

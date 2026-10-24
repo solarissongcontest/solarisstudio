@@ -64,9 +64,37 @@ test("promotes exactly the canonical S14 qualifiers through the real Organizer l
   test.skip(!supabaseUrl || !publishableKey, "S14 local Supabase environment is required");
   await seedOrganizerBrowserSession(context);
 
+  let markShowsRequestStarted!: () => void;
+  let releaseShowsRequest!: () => void;
+  const showsRequestStarted = new Promise<void>((resolve) => {
+    markShowsRequestStarted = resolve;
+  });
+  const showsRequestRelease = new Promise<void>((resolve) => {
+    releaseShowsRequest = resolve;
+  });
+  let delayedShowsRequest = false;
+
+  await page.route("**/rest/v1/shows*", async (route) => {
+    if (delayedShowsRequest) {
+      await route.continue();
+      return;
+    }
+    delayedShowsRequest = true;
+    markShowsRequestStarted();
+    await showsRequestRelease;
+    await route.continue();
+  });
+
   await page.goto(`/admin/entries/${editionSlug}?show=${encodeURIComponent(finalShowId)}`, {
     waitUntil: "domcontentloaded",
   });
+  await showsRequestStarted;
+  try {
+    expect(new URL(page.url()).searchParams.get("show")).toBe(finalShowId);
+  } finally {
+    releaseShowsRequest();
+  }
+
   await expect(page.getByRole("heading", { name: "Line-up, allocation & running order" })).toBeVisible({
     timeout: 60_000,
   });
@@ -74,6 +102,7 @@ test("promotes exactly the canonical S14 qualifiers through the real Organizer l
   const showSelector = page.getByLabel("Current show");
   await expect(showSelector).toBeVisible();
   await expect(showSelector).toHaveValue(finalShowId);
+  await expect.poll(() => new URL(page.url()).searchParams.get("show")).toBeNull();
 
   await page.getByRole("button", { name: "More" }).click();
   const promote = page.getByRole("button", { name: "Add semi-final qualifiers" });
