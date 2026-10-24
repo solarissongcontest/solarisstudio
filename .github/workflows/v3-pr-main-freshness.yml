@@ -10,14 +10,17 @@ on:
       - reopened
       - edited
       - ready_for_review
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
   pull-requests: read
+  statuses: write
 
 concurrency:
-  group: v3-pr-main-freshness-${{ github.event.pull_request.number || github.run_id }}
+  group: v3-pr-main-freshness-${{ github.event_name }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -57,6 +60,45 @@ jobs:
             echo
             echo "### Verification boundary"
             echo
-            echo "This guard reads GitHub PR/branch/compare metadata only."
+            echo "This guard reads GitHub PR/branch/compare metadata and writes only a commit-status context on V3 PR heads."
             echo "It does not start Supabase, contact hosted Supabase, run Browser Audit, generate load, or mutate production data."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  refresh-open-v3-pr-freshness:
+    if: github.event_name == 'push'
+    name: Refresh open V3 PR freshness after main moves
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout current main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Verify freshness-policy unit tests
+        run: bun test scripts/__tests__/check-v3-pr-main-freshness.test.ts
+
+      - name: Refresh freshness status on every open V3 PR head
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          V3_SCAN_OPEN_PRS: "1"
+        run: bun run scripts/check-v3-pr-main-freshness.ts
+
+      - name: Safety boundary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo
+            echo "### Verification boundary"
+            echo
+            echo "This main-push refresh reads GitHub PR/branch/compare metadata and updates only the V3 PR Main Freshness commit-status context."
+            echo "It does not start Supabase, contact hosted Supabase, run browser traffic, generate load, or mutate production data."
           } >> "$GITHUB_STEP_SUMMARY"
