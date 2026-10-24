@@ -52,7 +52,10 @@ function Beta2FeedbackDashboard() {
     setError(null);
     try {
       const [beta2, beta1] = await Promise.all([
-        supabase.from("beta2_test_submissions" as never).select("*").order("created_at", { ascending: false }),
+        supabase
+          .from("beta2_test_submissions" as never)
+          .select("id,tester_name,device,browser,familiarity,answers,bug_reports,created_at")
+          .order("created_at", { ascending: false }),
         supabase.from("beta_test_submissions" as never).select("id", { count: "exact", head: true }),
       ]);
       if (beta2.error) throw beta2.error;
