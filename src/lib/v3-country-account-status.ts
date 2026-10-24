@@ -41,9 +41,7 @@ export async function applyCountryAccountStatusV3(
 ): Promise<SystemReceipt<SystemJsonValue>> {
   const reason = input.targetStatus === "suspended" ? input.reason?.trim() || null : null;
   const commandName =
-    input.targetStatus === "suspended"
-      ? "delegation.account.suspend"
-      : "delegation.account.restore";
+    input.targetStatus === "suspended" ? "delegation.suspend" : "delegation.restore";
   const command = createOrganisationCommand({
     command: commandName,
     riskClass: "R2",
