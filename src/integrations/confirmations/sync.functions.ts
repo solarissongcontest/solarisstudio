@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { createServerFn } from "@tanstack/react-start";
 
-import { requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 
 type ConfirmationReviewEntry = {
   id?: string | null;
@@ -690,6 +690,6 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
     snapshot: assertSnapshot(data?.snapshot),
   }))
   .handler(async ({ data }) => {
-    await requireSolarisOrganizerServer();
+    await requireSolarisCapabilityServer("confirmation.manage", null);
     return syncConfirmationSnapshotToSolarisInternal(data.snapshot);
   });
