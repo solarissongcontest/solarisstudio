@@ -78,7 +78,7 @@ create table if not exists private.v3_music_song_artists (
 );
 
 -- One canonical edition/country Entry can point at one durable Song identity.
--- The Entry remains the owner of credits/media/publication truth; this table is
+-- Entry remains authority for credits/media/publication truth; this table is
 -- identity linkage only and intentionally contains no copied media URLs.
 create table if not exists private.v3_music_entry_links (
   entry_id uuid primary key references public.entries(id) on delete restrict,
@@ -93,8 +93,7 @@ create table if not exists private.v3_music_entry_links (
 );
 
 -- Durable correction evidence. Public reads resolve through entity state +
--- redirect ids; this ledger exists so identity corrections remain explainable
--- without mutating historical display labels into a new identity.
+-- redirects; this ledger keeps merge/split/tombstone corrections explainable.
 create table if not exists private.v3_music_identity_corrections (
   id uuid primary key default gen_random_uuid(),
   entity_type text not null check (entity_type in ('artist', 'song')),
@@ -148,7 +147,8 @@ security definer
 set search_path = pg_catalog
 as $resolve$
   with recursive chain as (
-    select artist.id, artist.state, artist.redirect_artist_id, array[artist.id]::uuid[] as path, 0 as depth
+    select artist.id, artist.state, artist.redirect_artist_id,
+           array[artist.id]::uuid[] as path, 0 as depth
     from private.v3_music_artists artist
     where artist.id = p_artist_id
 
@@ -181,7 +181,8 @@ security definer
 set search_path = pg_catalog
 as $resolve$
   with recursive chain as (
-    select song.id, song.state, song.redirect_song_id, array[song.id]::uuid[] as path, 0 as depth
+    select song.id, song.state, song.redirect_song_id,
+           array[song.id]::uuid[] as path, 0 as depth
     from private.v3_music_songs song
     where song.id = p_song_id
 
@@ -209,11 +210,8 @@ $resolve$;
 revoke all on function private.v3_resolve_music_artist(uuid) from public, anon, authenticated;
 revoke all on function private.v3_resolve_music_song(uuid) from public, anon, authenticated;
 
--- This helper is the publication boundary for P9. It intentionally delegates to
--- public_safe_participants(), whose server-time schedule and show/edition policy
--- are already canonical for public artist/song labels. Organizer capabilities do
--- not widen public_safe_participants, so an Organizer using the public app sees
--- the same music entity set as an anonymous viewer.
+-- Canonical publication evidence for P9. Artist and Song fields remain
+-- independent because canonical publication may expose one before the other.
 create or replace function private.v3_public_music_entry_evidence()
 returns table (
   entry_id uuid,
@@ -239,8 +237,10 @@ as $evidence$
     from safe_rows
     where nullif(row ->> 'edition_id', '') is not null
       and nullif(row ->> 'country_id', '') is not null
-      and nullif(btrim(row ->> 'artist'), '') is not null
-      and nullif(btrim(row ->> 'song'), '') is not null
+      and (
+        nullif(btrim(row ->> 'artist'), '') is not null
+        or nullif(btrim(row ->> 'song'), '') is not null
+      )
   )
   select entry.id,
          entry.edition_id,
@@ -268,6 +268,7 @@ as $visible$
     join private.v3_public_music_entry_evidence() evidence
       on evidence.entry_id = link.entry_id
     where private.v3_resolve_music_song(link.song_id) = p_song_id
+      and evidence.song_label is not null
   );
 $visible$;
 
@@ -286,11 +287,124 @@ as $visible$
     join private.v3_public_music_entry_evidence() evidence
       on evidence.entry_id = link.entry_id
     where private.v3_resolve_music_artist(relation.artist_id) = p_artist_id
+      and evidence.artist_label is not null
   );
 $visible$;
 
+create or replace function private.v3_public_music_artist_alias_is_visible(
+  p_artist_id uuid,
+  p_edition_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog
+as $visible$
+  select case
+    when p_edition_id is null then true
+    else exists (
+      select 1
+      from private.v3_music_song_artists relation
+      join private.v3_music_entry_links link
+        on private.v3_resolve_music_song(link.song_id) = private.v3_resolve_music_song(relation.song_id)
+      join private.v3_public_music_entry_evidence() evidence
+        on evidence.entry_id = link.entry_id
+      where private.v3_resolve_music_artist(relation.artist_id) = p_artist_id
+        and evidence.edition_id = p_edition_id
+        and evidence.artist_label is not null
+    )
+  end;
+$visible$;
+
+-- Relationships are independently publication-safe. An Artist being visible in
+-- some other Entry must never reveal a hidden credit relationship on this Song.
+create or replace function private.v3_public_music_song_artist_relationship_is_visible(
+  p_song_id uuid,
+  p_artist_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog
+as $visible$
+  select exists (
+    select 1
+    from private.v3_music_song_artists relation
+    join private.v3_music_entry_links link
+      on private.v3_resolve_music_song(link.song_id) = private.v3_resolve_music_song(relation.song_id)
+    join private.v3_public_music_entry_evidence() evidence
+      on evidence.entry_id = link.entry_id
+    where private.v3_resolve_music_song(relation.song_id) = p_song_id
+      and private.v3_resolve_music_artist(relation.artist_id) = p_artist_id
+      and evidence.song_label is not null
+      and evidence.artist_label is not null
+  );
+$visible$;
+
+-- Canonicalise supported identity corrections before serialising credits.
+-- Distinct canonical Artist ids are ordered by their earliest source position;
+-- row_number produces stable unique public positions after merges collapse rows.
+create or replace function private.v3_public_music_song_artist_credits(p_song_id uuid)
+returns table (
+  artist_id uuid,
+  display_name text,
+  credit_label text,
+  credit_position integer
+)
+language sql
+stable
+security definer
+set search_path = pg_catalog
+as $credits$
+  with candidates as (
+    select
+      artist.id as artist_id,
+      artist.canonical_name as display_name,
+      relation.credit_label,
+      relation.credit_position as original_position,
+      relation.song_id as source_song_id,
+      relation.artist_id as source_artist_id
+    from private.v3_music_song_artists relation
+    join private.v3_music_artists artist
+      on artist.id = private.v3_resolve_music_artist(relation.artist_id)
+    where private.v3_resolve_music_song(relation.song_id) = p_song_id
+      and artist.state = 'active'
+      and private.v3_public_music_song_artist_relationship_is_visible(p_song_id, artist.id)
+  ), deduped as (
+    select distinct on (artist_id)
+      artist_id,
+      display_name,
+      credit_label,
+      original_position,
+      source_song_id,
+      source_artist_id
+    from candidates
+    order by artist_id, original_position, source_song_id, source_artist_id
+  ), ranked as (
+    select
+      artist_id,
+      display_name,
+      credit_label,
+      row_number() over (
+        order by original_position, artist_id, source_song_id, source_artist_id
+      )::integer as credit_position
+    from deduped
+  )
+  select ranked.artist_id,
+         ranked.display_name,
+         ranked.credit_label,
+         ranked.credit_position
+  from ranked
+  order by ranked.credit_position;
+$credits$;
+
 revoke all on function private.v3_public_music_song_is_visible(uuid) from public, anon, authenticated;
 revoke all on function private.v3_public_music_artist_is_visible(uuid) from public, anon, authenticated;
+revoke all on function private.v3_public_music_artist_alias_is_visible(uuid, uuid) from public, anon, authenticated;
+revoke all on function private.v3_public_music_song_artist_relationship_is_visible(uuid, uuid) from public, anon, authenticated;
+revoke all on function private.v3_public_music_song_artist_credits(uuid) from public, anon, authenticated;
 
 -- Direct Artist projection. A merged source id returns only a durable redirect
 -- to a currently publishable target; it never leaks the hidden source label.
@@ -348,6 +462,7 @@ begin
       from private.v3_music_artist_aliases alias
       where private.v3_resolve_music_artist(alias.artist_id) = v_artist.id
         and alias.is_public
+        and private.v3_public_music_artist_alias_is_visible(v_artist.id, alias.edition_id)
     ), '[]'::jsonb),
     'songs', coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -357,13 +472,10 @@ begin
       from private.v3_music_songs song
       where song.state = 'active'
         and private.v3_public_music_song_is_visible(song.id)
-        and exists (
-          select 1
-          from private.v3_music_song_artists relation
-          where private.v3_resolve_music_song(relation.song_id) = song.id
-            and private.v3_resolve_music_artist(relation.artist_id) = v_artist.id
-        )
+        and private.v3_public_music_song_artist_relationship_is_visible(song.id, v_artist.id)
     ), '[]'::jsonb),
+    -- Existing Public consumer schema requires both labels. Keep partially
+    -- published appearances omitted rather than leaking a hidden field as NULL.
     'appearances', coalesce((
       select jsonb_agg(distinct jsonb_build_object(
         'entry_id', evidence.entry_id,
@@ -378,6 +490,8 @@ begin
       join private.v3_public_music_entry_evidence() evidence
         on evidence.entry_id = link.entry_id
       where private.v3_resolve_music_artist(relation.artist_id) = v_artist.id
+        and evidence.artist_label is not null
+        and evidence.song_label is not null
     ), '[]'::jsonb),
     'server_time', now()
   ) into v_payload;
@@ -433,17 +547,12 @@ begin
     'title', v_song.canonical_title,
     'artists', coalesce((
       select jsonb_agg(jsonb_build_object(
-        'id', artist.id,
-        'display_name', artist.canonical_name,
-        'credit_label', relation.credit_label,
-        'position', relation.credit_position
-      ) order by relation.credit_position)
-      from private.v3_music_song_artists relation
-      join private.v3_music_artists artist
-        on artist.id = private.v3_resolve_music_artist(relation.artist_id)
-      where private.v3_resolve_music_song(relation.song_id) = v_song.id
-        and artist.state = 'active'
-        and private.v3_public_music_artist_is_visible(artist.id)
+        'id', credit.artist_id,
+        'display_name', credit.display_name,
+        'credit_label', credit.credit_label,
+        'position', credit.credit_position
+      ) order by credit.credit_position)
+      from private.v3_public_music_song_artist_credits(v_song.id) credit
     ), '[]'::jsonb),
     'appearances', coalesce((
       select jsonb_agg(distinct jsonb_build_object(
@@ -457,9 +566,11 @@ begin
       join private.v3_public_music_entry_evidence() evidence
         on evidence.entry_id = link.entry_id
       where private.v3_resolve_music_song(link.song_id) = v_song.id
+        and evidence.artist_label is not null
+        and evidence.song_label is not null
     ), '[]'::jsonb),
-    -- Credits/media remain owned by canonical Entry/media surfaces. The durable
-    -- Entry ids above are the safe join keys; no copied URL is created here.
+    -- Credits/media remain owned by canonical Entry/media surfaces. Durable
+    -- Entry ids above are safe join keys; no copied URL authority is created.
     'server_time', now()
   ) into v_payload;
 
@@ -467,9 +578,9 @@ begin
 end
 $song$;
 
--- Bounded list/search projections use the exact same visibility helpers as the
--- direct endpoints. No auth/capability branch exists, so Organizer sessions do
--- not widen public discovery.
+-- Bounded list/search projections use the same visibility helpers as direct
+-- endpoints. No auth/capability branch exists, so Organizer sessions do not
+-- widen public discovery.
 create or replace function public.v3_public_artists(
   p_query text default null,
   p_limit integer default 50
@@ -510,6 +621,7 @@ begin
               from private.v3_music_artist_aliases alias
               where private.v3_resolve_music_artist(alias.artist_id) = artist.id
                 and alias.is_public
+                and private.v3_public_music_artist_alias_is_visible(artist.id, alias.edition_id)
                 and alias.display_name ilike '%' || v_query || '%'
             )
           )
@@ -552,16 +664,11 @@ begin
                  'title', song.canonical_title,
                  'artists', coalesce((
                    select jsonb_agg(jsonb_build_object(
-                     'id', artist.id,
-                     'display_name', artist.canonical_name,
-                     'position', relation.credit_position
-                   ) order by relation.credit_position)
-                   from private.v3_music_song_artists relation
-                   join private.v3_music_artists artist
-                     on artist.id = private.v3_resolve_music_artist(relation.artist_id)
-                   where private.v3_resolve_music_song(relation.song_id) = song.id
-                     and artist.state = 'active'
-                     and private.v3_public_music_artist_is_visible(artist.id)
+                     'id', credit.artist_id,
+                     'display_name', credit.display_name,
+                     'position', credit.credit_position
+                   ) order by credit.credit_position)
+                   from private.v3_public_music_song_artist_credits(song.id) credit
                  ), '[]'::jsonb)
                ) as payload
         from private.v3_music_songs song
@@ -585,6 +692,10 @@ comment on function public.v3_public_artists(text, integer) is
   'Bounded caller-invariant P9 Artist list/search projection over publishable linked Entries only.';
 comment on function public.v3_public_songs(text, integer) is
   'Bounded caller-invariant P9 Song list/search projection over publishable linked Entries only.';
+comment on function private.v3_public_music_song_artist_relationship_is_visible(uuid, uuid) is
+  'P9 relationship publication guard: a resolved Song/Artist credit is public only when the same resolved Song has publication-safe evidence exposing both fields.';
+comment on function private.v3_public_music_song_artist_credits(uuid) is
+  'Canonical merge-safe ordered public Artist credits for one resolved Song; deduplicates resolved identities and re-ranks positions deterministically.';
 
 revoke all on function public.v3_public_artist(uuid) from public;
 revoke all on function public.v3_public_song(uuid) from public;
