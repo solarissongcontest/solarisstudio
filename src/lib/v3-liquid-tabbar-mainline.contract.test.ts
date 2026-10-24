@@ -60,18 +60,20 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(responsiveCss).toContain(".v3-desktop-primary-nav");
   });
 
-  it("keeps whole-page swipe opt-in, live-DOM-only and free of shell-owned preview data", () => {
+  it("keeps whole-page swipe opt-in, live-DOM-only and outside the Liquid primitive", () => {
     const shell = source("src/components/v3/V3AppShell.tsx");
+    const viewport = source("src/components/v3/V3TopLevelNavigationViewport.tsx");
     const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
 
-    expect(shell).toContain("V3TopLevelSwipeSurface");
-    expect(shell).toContain("swipePreviewSurfaces?: V3TopLevelSwipePreviews");
-    expect(shell).toContain("const content = swipePreviewSurfaces ? (");
-    expect(shell).toContain("screenshots");
+    expect(shell).toContain("V3TopLevelNavigationViewport");
+    expect(shell).toContain("topLevelSwipePreviews?: V3TopLevelNavigationPreviews");
+    expect(shell).toContain("const content = topLevelSwipePreviews ? (");
+    expect(shell).toContain("Screenshots");
     expect(shell).toContain("shell-owned data fetching");
     expect(shell).toContain("permanently mounted five-tab applications");
     expect(shell).not.toContain("fetch(");
     expect(shell).not.toContain("supabase.from");
+    expect(viewport).toContain("V3TopLevelSwipeSurface");
     expect(swipe).toContain("previousSurface?: ReactNode");
     expect(swipe).toContain("nextSurface?: ReactNode");
   });
