@@ -40,13 +40,19 @@ jobs:
         shell: bash
         env:
           REQUESTED_SHA: ${{ inputs.candidate_sha }}
+          DISPATCH_SHA: ${{ github.sha }}
           REQUESTED_WORKER: ${{ inputs.worker_name }}
         run: |
           set -euo pipefail
           expected="$(printf '%s' "$REQUESTED_SHA" | tr '[:upper:]' '[:lower:]')"
+          dispatch="$(printf '%s' "$DISPATCH_SHA" | tr '[:upper:]' '[:lower:]')"
           actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
           if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::candidate_sha must be an exact 40-character commit SHA"
+            exit 1
+          fi
+          if [ "$expected" != "$dispatch" ]; then
+            echo "::error::candidate_sha must equal the exact workflow-dispatch ref SHA ($dispatch)"
             exit 1
           fi
           if [ "$actual" != "$expected" ]; then
