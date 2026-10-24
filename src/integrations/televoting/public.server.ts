@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 import type { TelevotingDatabase } from "@/integrations/televoting/database.types";
+import { assertNonProductionSupabaseTarget } from "@/lib/supabase-target-safety";
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
@@ -35,6 +36,11 @@ const key =
 if (!url || !key) {
   throw new Error("Missing Solaris Studio Supabase configuration.");
 }
+
+assertNonProductionSupabaseTarget(
+  url,
+  import.meta.env.MODE || process.env.NODE_ENV || "development",
+);
 
 export const televotingPublicServer = createClient<TelevotingDatabase, "televoting">(url, key, {
   db: { schema: "televoting" },
