@@ -58,6 +58,7 @@ describe("System V3 S12 capacity rehearsal-plan source contract", () => {
     expect(assessor).toContain('normalized.includes("://")');
     expect(assessor).toContain('normalized.includes("?")');
     expect(assessor).toContain('normalized.includes("#")');
+    expect(assessor).toContain('normalized.includes("%")');
     expect(assessor).toContain('segment === "." || segment === ".."');
     expect(runbook).toContain("relative route path only");
     expect(runbook).toContain("authorization tokens");
