@@ -4,6 +4,10 @@ import { describe, expect, it } from "vitest";
 const calendar = readFileSync("src/routes/confirmations/admin/calendar.tsx", "utf8");
 const settings = readFileSync("src/routes/confirmations/admin/settings.tsx", "utf8");
 const recovery = readFileSync("src/routes/confirmations/admin/recovery-codes.tsx", "utf8");
+const scopedReads = readFileSync(
+  "src/integrations/confirmations/scoped-admin-reads.ts",
+  "utf8",
+);
 
 describe("V3 Organizer secondary Confirmation context guards", () => {
   it("keeps Calendar bound to exact Organizer context", () => {
@@ -20,10 +24,13 @@ describe("V3 Organizer secondary Confirmation context guards", () => {
     expect(settings).toContain("Edition locked");
   });
 
-  it("keeps recovery credentials fail-closed until the server supports edition scope", () => {
+  it("loads recovery credentials only through the exact-edition server projection", () => {
     expect(recovery).toContain("const { editionId, editionLabel } = useAdminContext();");
-    expect(recovery).toContain("Edition-scoped Recovery Access requires a server update");
-    expect(recovery).toContain("current legacy RPC does not accept an edition scope");
-    expect(recovery).not.toContain("loadConfirmationRecoveryCodes");
+    expect(recovery).toContain("loadConfirmationRecoveryCodesForEdition(editionId)");
+    expect(recovery).toContain("No fallback request for all editions was attempted");
+    expect(recovery).not.toContain("loadConfirmationRecoveryCodes()");
+    expect(scopedReads).toContain('"admin_confirmation_recovery_codes_for_edition"');
+    expect(scopedReads).toContain("_edition_id: exactEditionId");
+    expect(scopedReads).not.toContain('rpc("admin_confirmation_recovery_codes")');
   });
 });
