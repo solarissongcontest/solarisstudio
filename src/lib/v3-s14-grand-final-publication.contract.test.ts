@@ -59,7 +59,7 @@ describe("S14 Grand Final exact-version publication", () => {
     expect(finalPublication).toContain("failed post-publication mutation moved Grand Final publication pointer");
   });
 
-  it("is wired into the stateful contest driver after Grand Final Results", () => {
+  it("is wired into the stateful contest driver after Grand Final Results and before canonical Archive", () => {
     expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-publication.sh"');
     expect(driver).toContain(
       "run_contest_extension grand-final-results run_s14_grand_final_results",
@@ -70,9 +70,14 @@ describe("S14 Grand Final exact-version publication", () => {
     expect(driver.indexOf("grand-final-results run_s14_grand_final_results")).toBeLessThan(
       driver.indexOf("grand-final-publication run_s14_grand_final_publication"),
     );
+    expect(driver.indexOf("grand-final-publication run_s14_grand_final_publication")).toBeLessThan(
+      driver.lastIndexOf("reconcile_edition_runtime_to_results"),
+    );
+    expect(driver.lastIndexOf("reconcile_edition_runtime_to_results")).toBeLessThan(
+      driver.indexOf("run_stage stage-10-archive run_s14_stage_10_archive"),
+    );
     expect(driver).toContain('"blockedContestExtensions": []');
-    expect(driver).toContain("only Archive remains pending");
-    expect(driver).toContain("passed through Stage 9");
+    expect(driver).toContain("S14 full persistent contest rehearsal passed through canonical Archive.");
     expect(finalPublication).toContain("S14_GRAND_FINAL_PUBLICATION_EXACT_VERSION_COMPLETE");
   });
 
