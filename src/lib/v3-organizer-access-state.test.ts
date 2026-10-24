@@ -138,3 +138,28 @@ describe("Permissions workspace account isolation", () => {
     client.clear();
   });
 });
+
+it("resets mounted authorization observers before verifying the next account", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const applySession = createAccountCacheIsolationHandler(client, () => {});
+  applySession({ id: "A" });
+  let current = "A";
+  const observer = new QueryObserver(client, {
+    queryKey: ["authenticated-identity-gate"],
+    queryFn: async () => ({ id: current }),
+  });
+  const unsubscribe = observer.subscribe(() => {});
+  try {
+    await observer.refetch();
+    expect(observer.getCurrentResult().data).toEqual({ id: "A" });
+    current = "B";
+    applySession({ id: "B" });
+    expect(observer.getCurrentResult().data).toBeUndefined();
+    expect(observer.getCurrentResult().isPending).toBe(true);
+    await observer.refetch();
+    expect(observer.getCurrentResult().data).toEqual({ id: "B" });
+  } finally {
+    unsubscribe();
+    client.clear();
+  }
+});

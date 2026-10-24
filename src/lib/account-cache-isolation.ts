@@ -9,13 +9,26 @@ export function isPrivateAccountQuery(key: readonly unknown[]) {
   );
 }
 
+function isAuthorizationQuery(key: readonly unknown[]) {
+  return key[0] === "authenticated-identity-gate" || key[0] === "organizer-access-gate";
+}
+
 export function clearPrivateAccountQueries(client: QueryClient) {
   const filter = {
     predicate: (query: { queryKey: readonly unknown[] }) => isPrivateAccountQuery(query.queryKey),
   };
   // cancelQueries cancels retryers synchronously, before its promise resolves.
   void client.cancelQueries(filter);
-  client.removeQueries(filter);
+  // Removing a mounted query leaves its observer holding the old result.
+  // Reset authorization evidence so mounted gates synchronously close and
+  // reverify against the new session instead of retaining an old identity/grant.
+  void client.resetQueries({
+    predicate: (query) => isAuthorizationQuery(query.queryKey),
+  });
+  client.removeQueries({
+    predicate: (query) =>
+      isPrivateAccountQuery(query.queryKey) && !isAuthorizationQuery(query.queryKey),
+  });
 }
 
 export function createAccountCacheIsolationHandler(
