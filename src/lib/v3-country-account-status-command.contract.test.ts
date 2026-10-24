@@ -8,6 +8,7 @@ const migration = source(
   "supabase/migrations/20261024190500_v3_country_account_status_command.sql",
 );
 const client = source("src/lib/v3-country-account-status.ts");
+const domainRegistry = source("src/lib/solaris-v6-domain-registry.ts");
 const legacy = source(
   "supabase/migrations/20260916033414_permission_engine_v2_country_admin_rpc_cutover.sql",
 );
@@ -28,6 +29,20 @@ describe("V3 country-account suspension/restoration command", () => {
     expect(migration).not.toMatch(/\bdrop\s+(?:table|column|constraint)\b/i);
     expect(migration).not.toMatch(/\btruncate\b/i);
     expect(migration).not.toMatch(/\bdelete\s+from\b/i);
+  });
+
+  it("uses the canonical registered delegation command identities", () => {
+    expect(domainRegistry).toContain(
+      'commands: ["delegation.assign", "delegation.suspend", "delegation.restore"]',
+    );
+    expect(migration).toContain("then 'delegation.suspend'");
+    expect(migration).toContain("else 'delegation.restore'");
+    expect(client).toContain('"delegation.suspend"');
+    expect(client).toContain('"delegation.restore"');
+    expect(migration).not.toContain("delegation.account.suspend");
+    expect(migration).not.toContain("delegation.account.restore");
+    expect(client).not.toContain("delegation.account.suspend");
+    expect(client).not.toContain("delegation.account.restore");
   });
 
   it("binds server authorization, exact account identity and reviewed CAS", () => {
