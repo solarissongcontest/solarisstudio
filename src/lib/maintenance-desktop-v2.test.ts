@@ -27,7 +27,7 @@ describe("maintenance desktop v2 composition", () => {
     expect(style).toContain(
       'html[data-terraos-release-choreography="v2"] [data-terra-first-look="true"] .preview-device',
     );
-    expect(style).toContain("width: min(310px, 100%, 35svh) !important");
+    expect(style).toContain("width: min(310px, 20.5vw, 100%) !important");
   });
 
   it("keeps desktop scroll choreography bounded instead of multi-screen dead space", () => {
