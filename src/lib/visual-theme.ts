@@ -365,18 +365,15 @@ export async function saveEditionVisualTheme(input: {
     palette: input.palette ?? [],
     generatedFromArtwork: Boolean(input.generatedFromArtwork),
   };
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("editions")
     .update({
       artwork_url: input.artworkUrl,
       artwork_storage_path: input.artworkStoragePath,
       theme_colors: themeColors,
     })
-    .eq("id", input.editionId)
-    .select("*")
-    .single();
+    .eq("id", input.editionId);
   if (error) throw error;
-  return data;
 }
 
 export async function extractThemeFromImage(file: File): Promise<{ theme: VisualTheme; palette: string[] }> {
