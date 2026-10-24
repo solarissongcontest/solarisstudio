@@ -6,6 +6,7 @@ const server = readFileSync("src/server.ts", "utf8");
 const start = readFileSync("src/start.ts", "utf8");
 const page = readFileSync("src/lib/maintenance-page.ts", "utf8");
 const hodPortal = readFileSync("src/lib/maintenance-hod-portal.ts", "utf8");
+const readiness = readFileSync("src/lib/terraos-release-readiness.ts", "utf8");
 const config = readFileSync("src/lib/maintenance.ts", "utf8");
 const envExample = readFileSync(".env.example", "utf8");
 const confirmationEditRoute = readFileSync("src/routes/confirmations/edit/$token.tsx", "utf8");
@@ -66,42 +67,57 @@ describe("emergency global maintenance mode", () => {
     expect(server).not.toContain('process.env.SOLARIS_E2E_BYPASS_MAINTENANCE !== "1"');
   });
 
-  it("renders the TerraOS 3 launch teaser instead of an outage incident report", () => {
+  it("renders the editorial TerraOS 3 product experience instead of an outage incident report", () => {
     expect(page).toContain('font-family:"Classica Crastao"');
     expect(page).toContain('font-family:"Gotham"');
     expect(page).toContain("<title>TerraOS 3 — Solaris Studio</title>");
     expect(page).toContain('<h1 id="maintenance-title">TerraOS 3</h1>');
-    expect(page).toContain("Solaris Studio, rebuilt.");
-    expect(page).toContain("Estimated arrival");
+    expect(page).toContain("Solaris, reimagined.");
+    expect(page).toContain("A new generation of Solaris.");
+    expect(page).toContain("Everything<br />in its place.");
     expect(page).toContain("Take a closer look.");
-    expect(page).toContain("Five places.<br />One Solaris.");
-    expect(page).toContain("TERRAOS_NAVIGATION_REVEAL_AT");
-    expect(page).toContain("TERRAOS_PARTICIPATION_REVEAL_AT");
-    expect(page).toContain("TERRAOS_RESULTS_REVEAL_AT");
-    expect(page).toContain('data-next-reveal="2026-10-19"');
-    expect(page).toContain("@media (prefers-reduced-motion:no-preference)");
+    expect(page).toContain("Built for<br />contest night.");
+    expect(page).toContain("Your delegation<br />keeps moving.");
+    expect(page).toContain("Built for what happens next.");
+    expect(page).toContain("/terraos-maintenance/blue-motion.svg");
+    expect(page).toContain("/terraos-maintenance/live-stage.svg");
+    expect(page).toContain("/terraos-maintenance/purple-tunnel.svg");
     expect(page).toContain("@media (prefers-reduced-motion:reduce)");
     expect(page).toContain("@media (prefers-reduced-transparency:reduce)");
-    expect(page).not.toContain('class="orbit"');
-    expect(page).not.toContain("data-locked-copy");
+    expect(page).not.toContain("TERRAOS_NAVIGATION_REVEAL_AT");
+    expect(page).not.toContain("TERRAOS_PARTICIPATION_REVEAL_AT");
+    expect(page).not.toContain("TERRAOS_RESULTS_REVEAL_AT");
+    expect(page).not.toContain("More on 19.10");
     expect(page).not.toContain('class="service-grid"');
     expect(page).not.toContain("Most services paused");
     expect(page).not.toContain("What does maintenance affect?");
-    expect(page).not.toContain('class="recovery-visual"');
-    expect(page).not.toContain('class="recovery-stage"');
-    expect(page).not.toContain("Awaiting restoration");
   });
 
-  it("uses truthful launch copy while keeping HOD Confirmation availability explicit", () => {
+  it("derives a sanitized public readiness percentage from canonical V3 state", () => {
+    expect(page).toContain("TerraOS 3 readiness");
+    expect(page).toContain("Based on tracked release criteria, not time elapsed.");
+    expect(page).toContain("getTerraOsPublicReadiness");
+    expect(readiness).toContain("V3_PUBLIC_CAPABILITIES");
+    expect(readiness).toContain("V3_ORGANIZER_CAPABILITY_REGISTRY");
+    expect(readiness).toContain("V3_SYSTEM_DOMAIN_REGISTRY");
+    expect(readiness).toContain("V3_DOMAIN_CONSEQUENCE_REGISTRY");
+    expect(readiness).toContain("Math.min(98");
+    expect(page).not.toContain("deployment");
+    expect(page).not.toContain("mainSha");
+    expect(page).not.toContain("PR #");
+  });
+
+  it("uses truthful estimated-arrival copy while keeping Confirmation immediately reachable", () => {
     expect(config).toContain('MAINTENANCE_RETURN_DATE = "25 October 2026"');
     expect(config).toContain('MAINTENANCE_LAST_UPDATED = "23 October 2026"');
     expect(config).toContain(
       'TERRAOS3_ESTIMATED_LAUNCH_AT = "2026-10-25T20:00:00+02:00"',
     );
     expect(config).toContain("Public estimate only. The maintenance/release gate remains authoritative.");
-    expect(page).toContain("Maintenance in progress");
     expect(page).toContain("Estimated arrival");
-    expect(page).toContain("root.insertBefore(portal,story)");
+    expect(page).toContain('href="#confirmation-access"');
+    expect(page).toContain("TerraOS 3 is being prepared.");
+    expect(page).toContain("confirmationHost.appendChild(portal)");
     expect(hodPortal).toContain("Manage your current Confirmation");
     expect(hodPortal).toContain(
       "This is the participant area that remains available during maintenance.",
@@ -112,7 +128,6 @@ describe("emergency global maintenance mode", () => {
     expect(page).not.toContain("A database service error is currently preventing Solaris Studio");
     expect(page).not.toContain("All Solaris Studio services are temporarily unavailable.");
     expect(page).not.toContain("Confirmations, Televoting and Organizer tools");
-    expect(page).not.toContain("Organizer tools");
     expect(page).toContain("Terra Solaris Broadcasting Coalition");
   });
 

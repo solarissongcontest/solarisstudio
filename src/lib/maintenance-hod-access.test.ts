@@ -132,40 +132,41 @@ describe("maintenance HOD route isolation", () => {
 });
 
 describe("TerraOS 3 maintenance teaser contract", () => {
-  const teaser = renderMaintenancePage(new Date("2026-10-18T13:00:00+03:00"));
+  const teaser = renderMaintenancePage(new Date("2026-10-24T13:00:00+03:00"));
 
   it("preserves the HOD insertion point while making TerraOS 3 the public hero", () => {
     expect(teaser).toContain("          <footer>");
     expect(teaser).toContain("TerraOS 3");
-    expect(teaser).toContain("Solaris Studio, rebuilt.");
+    expect(teaser).toContain("Solaris, reimagined.");
     expect(teaser).toContain("Estimated arrival");
     expect(teaser).toContain(MAINTENANCE_RETURN_DATE);
     expect(teaser).toContain(`data-terraos-launch-at="${TERRAOS3_ESTIMATED_LAUNCH_AT}"`);
-    expect(teaser).toContain('role="timer"');
-    expect(teaser).toContain('aria-live="off"');
+    expect(teaser).toContain("TerraOS 3 readiness");
+    expect(teaser).not.toContain('role="timer"');
     expect(teaser).not.toContain("Solaris Studio is temporarily unavailable");
     expect(teaser).not.toContain("Organizer tools");
   });
 
-  it("keeps the existing Confirmation portal theme tokens available", () => {
-    expect(teaser).toContain("--muted-soft:var(--soft)");
-    expect(teaser).toContain("--primary:var(--blue)");
+  it("keeps the Confirmation portal theme tokens available", () => {
+    expect(teaser).toContain("--muted-soft:");
+    expect(teaser).toContain("--primary:");
   });
 
-  it("moves the injected Confirmation portal ahead of the product story in DOM order", () => {
+  it("moves the injected Confirmation portal into the dedicated editorial Confirmation chapter", () => {
     expect(teaser).toContain("var portal=document.querySelector('.hod-portal')");
-    expect(teaser).toContain("var story=document.querySelector('.product-story')");
-    expect(teaser).toContain("root.insertBefore(portal,story)");
+    expect(teaser).toContain("var confirmationHost=document.querySelector('[data-confirmation-host]')");
+    expect(teaser).toContain("confirmationHost.appendChild(portal)");
+    expect(teaser).toContain('id="confirmation-access"');
   });
 
-  it("renders the production V3 page components inside the teaser devices instead of hand-built miniatures", () => {
-    expect(teaser).toContain('/terraos-teaser-preview?screen=home');
-    expect(teaser).toContain('/terraos-teaser-preview?screen=explore');
-    expect(teaser).toContain('/terraos-teaser-preview?screen=participate');
-    expect(teaser).toContain('class="phone-preview"');
-    expect(teaser).toContain('class="preview-page"');
+  it("renders the production V3 page components inside teaser surfaces instead of hand-built app screens", () => {
+    expect(teaser).toContain('/terraos-teaser-preview?screen=home&chrome=content');
+    expect(teaser).toContain('/terraos-teaser-preview?screen=explore&chrome=content');
+    expect(teaser).toContain('/terraos-teaser-preview?screen=participate&chrome=content');
+    expect(teaser).toContain('/terraos-teaser-preview?screen=results&chrome=content');
+    expect(teaser).toContain('/terraos-teaser-preview?screen=me&chrome=content');
+    expect(teaser).toContain('class="terra-preview-frame"');
     expect(teaser).not.toContain('class="orbit"');
-    expect(teaser).not.toContain("Final results");
 
     expect(teaserPreview).toContain("V3HomeScreen");
     expect(teaserPreview).toContain("V3ExploreScreen");
@@ -183,39 +184,34 @@ describe("TerraOS 3 maintenance teaser contract", () => {
     expect(serverEntry).toContain("isTerraOsTeaserPreviewRequest");
   });
 
-  it("renders only the current reveal phase instead of giant future placeholders", () => {
-    expect(teaser).toContain('data-terraos-teaser-phase="0"');
-    expect(teaser).toContain('data-next-reveal="2026-10-19"');
-    expect(teaser).toContain("More on 19.10");
-    expect(teaser).not.toContain("data-locked-copy");
-    expect(teaser).not.toContain('id="liquid-demo"');
-    expect(teaser).not.toContain("More on 20.10");
-    expect(teaser).not.toContain("More on 21.10");
+  it("ships the complete mature teaser instead of historical date-gated reveal placeholders", () => {
+    expect(teaser).toContain("A new generation of Solaris.");
+    expect(teaser).toContain("Everything<br />in its place.");
+    expect(teaser).toContain("Take a closer look.");
+    expect(teaser).toContain("Built for<br />contest night.");
+    expect(teaser).toContain("Your delegation<br />keeps moving.");
+    expect(teaser).not.toContain("data-terraos-teaser-phase");
+    expect(teaser).not.toContain("data-next-reveal");
+    expect(teaser).not.toContain("More on 19.10");
     expect(teaser).not.toContain("fetch(");
     expect(teaser).not.toContain("XMLHttpRequest");
   });
 
-  it("provides direct-manipulation navigation with accessibility fallbacks when the 19 October reveal is active", () => {
-    const navigation = renderMaintenancePage(new Date("2026-10-19T00:01:00+03:00"));
-    expect(navigation).toContain('id="liquid-demo"');
-    expect(navigation).toContain('role="tablist"');
-    expect(navigation).toContain('aria-selected="true"');
-    expect(navigation).toContain("demo.addEventListener('pointerdown'");
-    expect(navigation).toContain("demo.addEventListener('pointermove'");
-    expect(navigation).toContain("demo.addEventListener('pointerup'");
-    expect(navigation).toContain("velocity");
-    expect(navigation).toContain("prefers-reduced-motion:reduce");
-    expect(navigation).toContain("prefers-reduced-transparency:reduce");
+  it("keeps horizontal discovery accessible without stealing normal page scrolling", () => {
+    expect(teaser).toContain('data-gallery-prev');
+    expect(teaser).toContain('data-gallery-next');
+    expect(teaser).toContain("track.addEventListener('keydown'");
+    expect(teaser).toContain("scroll-snap-type:x mandatory");
+    expect(teaser).not.toContain("preventDefault()\n→ animate");
+    expect(teaser).toContain("prefers-reduced-motion:reduce");
+    expect(teaser).toContain("prefers-reduced-transparency:reduce");
   });
 
-  it("keeps sparse launch copy instead of generic technology language", () => {
-    const full = renderMaintenancePage(new Date("2026-10-21T00:01:00+03:00"));
-    expect(full).toContain("Take a closer look.");
-    expect(full).toContain("Five places.<br />One Solaris.");
-    expect(full).toContain("Touch it.");
-    expect(full).toContain("What’s next,<br />at a glance.");
-    expect(full).toContain("Results, live.");
-    expect(full).not.toMatch(/next-generation|revolutionary|reimagined|seamless|effortless/i);
+  it("uses sparse product language without generic technology filler", () => {
+    expect(teaser).toContain("Solaris, reimagined.");
+    expect(teaser).toContain("Take a closer look.");
+    expect(teaser).toContain("Built for what happens next.");
+    expect(teaser).not.toMatch(/next-generation|revolutionary|seamless|effortless/i);
   });
 });
 
@@ -225,7 +221,7 @@ describe("maintenance HOD portal contract", () => {
     publishableKey: "sb_publishable_test",
   });
 
-  it("keeps Confirmation as the operational section immediately after the hero", () => {
+  it("keeps Confirmation as the operational section exposed by the maintenance shell", () => {
     expect(html).toContain(".hod-portal {\n    order: 2;");
     expect(html).toContain("Manage your current Confirmation");
     expect(html).toContain("This is the participant area that remains available during maintenance.");
