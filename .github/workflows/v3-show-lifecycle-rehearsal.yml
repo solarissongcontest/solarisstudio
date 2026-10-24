@@ -1,0 +1,105 @@
+name: V3 Show Lifecycle Rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+      - v3/sys-show-lifecycle-current-main-20261024
+    paths:
+      - "supabase/migrations/20261024203500_v3_show_lifecycle_commands.sql"
+      - "supabase/migrations/20261024203600_v3_show_lifecycle_events.sql"
+      - "supabase/migrations/20261024203700_v3_show_lifecycle_r3_receipt_evidence.sql"
+      - "scripts/rehearse-v3-show-lifecycle.sh"
+      - "src/lib/show-lifecycle-authority.ts"
+      - "src/lib/v3-show-lifecycle*.test.ts"
+      - ".github/workflows/v3-show-lifecycle-rehearsal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-show-lifecycle-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-replay:
+    name: Clean replay + governed lifecycle runtime proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local --no-seed
+
+      - name: Rehearse governed Show lifecycle
+        shell: bash
+        run: bash scripts/rehearse-v3-show-lifecycle.sh
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  upgrade-from-main:
+    name: Current main upgrade + governed lifecycle runtime proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Prepare disposable literal current-main worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-show-lifecycle-main origin/main
+
+      - name: Build current main locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-show-lifecycle-main
+          supabase start
+          supabase db reset --local --no-seed
+
+      - name: Apply exact candidate migration delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" \
+            "$GITHUB_WORKSPACE" \
+            /tmp/solaris-show-lifecycle-main
+          cd /tmp/solaris-show-lifecycle-main
+          supabase migration up --local --include-all
+
+      - name: Rehearse governed Show lifecycle after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-show-lifecycle-main
+          bash "$GITHUB_WORKSPACE/scripts/rehearse-v3-show-lifecycle.sh"
+
+      - name: Stop isolated local Supabase
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-show-lifecycle-main 2>/dev/null || exit 0
+          supabase stop --no-backup || true
