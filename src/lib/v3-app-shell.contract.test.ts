@@ -63,7 +63,21 @@ describe("V3 app shell migration contract", () => {
     expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
     expect(shell).toContain("navigate({ to: v3PublicEntryHref(target) as any })");
     expect(shell).toContain('runAppViewTransition(alreadyActive ? "pop" : "tab"');
-    expect(shell).not.toContain("V3TopLevelSwipeSurface");
-    expect(shell).not.toContain("swipePreviewSurfaces");
+    expect(shell).toContain("V3TopLevelSwipeSurface");
+    expect(shell).toContain("swipePreviewSurfaces?: V3TopLevelSwipePreviews");
+  });
+
+  it("keeps swipe route authority in the shell without creating a second transition", () => {
+    const shell = source("src/components/v3/V3AppShell.tsx");
+
+    expect(shell).toContain("getV3PublicTabDestination(");
+    expect(shell).toContain("const commitSwipeDestination = (targetIndex: number) =>");
+    expect(shell).toContain("markV3PublicNavigationRestore(target.entry");
+    expect(shell).toContain("void navigate({ to: target.href as any })");
+    expect(shell).toContain("onCommit={commitSwipeDestination}");
+    const commitStart = shell.indexOf("const commitSwipeDestination =");
+    const shellActionsStart = shell.indexOf("const shellActions =", commitStart);
+    const commit = shell.slice(commitStart, shellActionsStart);
+    expect(commit).not.toContain("runAppViewTransition");
   });
 });
