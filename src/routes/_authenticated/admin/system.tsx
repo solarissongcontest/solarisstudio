@@ -79,14 +79,17 @@ type PendingPlatformModeChange = {
 function AdminSystemPage() {
   const { editionId } = useAdminContext();
   const queryClient = useQueryClient();
-  const { data: editions = [] } = useEditions();
+  const { data: editions = [], isLoading: editionsLoading } = useEditions();
 
-  const selectedEdition = useMemo(() => {
-    const ordered = [...editions].sort(
-      (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
-    );
-    return ordered.find((edition) => edition.id === editionId) ?? ordered[0] ?? null;
-  }, [editions, editionId]);
+  const selectedEdition = useMemo(
+    () => (editionId ? editions.find((edition) => edition.id === editionId) ?? null : null),
+    [editions, editionId],
+  );
+  const editionContextMessage = editionsLoading
+    ? "Resolving the Organizer edition before loading edition-scoped schedule data."
+    : !editionId
+      ? "Select an Organizer edition before viewing workflow dates or custom reminders. Solaris will not guess a newest edition."
+      : "The selected Organizer edition could not be resolved. Choose a valid edition before viewing or changing edition-scoped schedule data.";
 
   const { data: deadlines = [] } = useAdminDeadlines(selectedEdition?.id ?? null);
   const {
@@ -234,19 +237,29 @@ function AdminSystemPage() {
         description={
           selectedEdition
             ? `Operational dates for ${editionLabel(selectedEdition)} come from the workflows that actually control them. Custom reminders are kept separate.`
-            : "Operational schedule and organizer change history."
+            : "Platform controls remain available globally. Edition-scoped schedule data requires an explicit Organizer edition."
         }
       />
 
-      <MetricStrip className="grid-cols-3 sm:grid-cols-3 xl:grid-cols-3">
-        <Metric label="Workflow dates" value={relevantSchedule.length} />
-        <Metric label="Custom reminders" value={openReminders.length} />
-        <Metric
-          label="Overdue reminders"
-          value={overdueReminders.length}
-          attention={overdueReminders.length > 0}
-        />
-      </MetricStrip>
+      {selectedEdition ? (
+        <MetricStrip className="grid-cols-3 sm:grid-cols-3 xl:grid-cols-3">
+          <Metric label="Workflow dates" value={relevantSchedule.length} />
+          <Metric label="Custom reminders" value={openReminders.length} />
+          <Metric
+            label="Overdue reminders"
+            value={overdueReminders.length}
+            attention={overdueReminders.length > 0}
+          />
+        </MetricStrip>
+      ) : (
+        <AdminCard>
+          <AdminEmptyState
+            icon={CalendarClock}
+            title={editionsLoading ? "Resolving Organizer edition" : "Organizer edition required"}
+            description={editionContextMessage}
+          />
+        </AdminCard>
+      )}
 
       <AdminCard strong>
         <AdminCardHeader
@@ -434,12 +447,18 @@ function AdminSystemPage() {
 
       <AdminCard>
         <AdminCardHeader
-          eyebrow={selectedEdition ? editionLabel(selectedEdition) : "Current edition"}
+          eyebrow={selectedEdition ? editionLabel(selectedEdition) : "Edition context required"}
           title="Operational schedule"
           description="These dates come from the source workflow. Edit them there, and every Solaris surface sees the same date."
         />
 
-        {scheduleLoading ? (
+        {!selectedEdition ? (
+          <AdminEmptyState
+            icon={CalendarClock}
+            title={editionsLoading ? "Resolving Organizer edition" : "Select an Organizer edition"}
+            description={editionContextMessage}
+          />
+        ) : scheduleLoading ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             Verifying workflow dates…
           </p>
@@ -525,7 +544,13 @@ function AdminSystemPage() {
           }
         />
 
-        {!deadlines.length ? (
+        {!selectedEdition ? (
+          <AdminEmptyState
+            icon={CalendarClock}
+            title={editionsLoading ? "Resolving Organizer edition" : "Select an Organizer edition"}
+            description={editionContextMessage}
+          />
+        ) : !deadlines.length ? (
           <AdminEmptyState
             icon={CalendarClock}
             title="No custom reminders"
