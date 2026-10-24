@@ -7,6 +7,7 @@ function source(path: string) {
 
 const coverage = source("components/admin/AdminQaCoveragePage.tsx");
 const csv = source("lib/spreadsheet-safe-csv.ts");
+const registry = source("lib/v3-organizer-capability-registry.ts");
 
 describe("Organizer V3 QA Coverage least-data and export safety", () => {
   it("reads only the QA evidence fields the dashboard consumes", () => {
@@ -35,5 +36,11 @@ describe("Organizer V3 QA Coverage least-data and export safety", () => {
     expect(csv).toContain("SPREADSHEET_FORMULA_PREFIX");
     expect(csv).toContain("neutralizeSpreadsheetFormula");
     expect(csv).toContain('join("\\r\\n")');
+  });
+
+  it("does not promote manual QA coverage to parity or certification", () => {
+    expect(registry).toContain('"workspace-beta-coverage": "restrict"');
+    expect(registry).toContain('id === "workspace-beta-coverage"');
+    expect(registry).not.toContain('id === "workspace-beta-coverage") return "parity"');
   });
 });
