@@ -41,8 +41,10 @@ import {
   loadShowPublicationControls,
   previewShowPublicationChange,
   reauthenticateShowPublicationR3,
+  reconcileShowPublicationChange,
   type ShowPublicationControl,
   type ShowPublicationPreview,
+  type ShowPublicationReceipt,
   type ShowPublicationState,
 } from "@/lib/show-publication-lifecycle";
 
@@ -63,7 +65,7 @@ type PendingRelease = {
 };
 
 export const Route = createFileRoute("/_authenticated/admin/publication/$slug")({
-  head: () => ({ meta: [{ title: "Publication — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Publication — Solaris Studio" }, { name: "robots", content: "noindex, nofollow" }] }),
   component: PublicationWorkspace,
 });
 
@@ -93,6 +95,7 @@ function PublicationWorkspace() {
   const [scheduleAt, setScheduleAt] = useState("");
   const [publicationPassword, setPublicationPassword] = useState("");
   const [recovery, setRecovery] = useState<SolarisV6OperationRecovery | null>(null);
+  const [reconciliationOnly, setReconciliationOnly] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -103,6 +106,7 @@ function PublicationWorkspace() {
     setScheduleAt("");
     setPublicationPassword("");
     setRecovery(null);
+    setReconciliationOnly(false);
   }, [edition, organizerEditionId]);
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
@@ -224,6 +228,7 @@ function PublicationWorkspace() {
       const operationId = crypto.randomUUID();
       setPublicationPassword("");
       setRecovery(null);
+      setReconciliationOnly(false);
       setPendingRelease({
         show,
         preview,
@@ -240,15 +245,122 @@ function PublicationWorkspace() {
     }
   }
 
-  async function applyPendingRelease() {
+  async function settlePendingRelease(receipt: ShowPublicationReceipt, release: PendingRelease) {
+    const label =
+      receipt.state === "scheduled"
+        ? `scheduled for ${receipt.scheduledFor ? new Date(receipt.scheduledFor).toLocaleString() : "later"}`
+        : receipt.state === "hidden"
+          ? "hidden"
+          : receipt.state === "public"
+            ? "public"
+            : "saved as draft";
+    toast.success(`${release.show.name} ${label}`);
+    setDraft(null);
+    setPendingRelease(null);
+    setPublicationPassword("");
+    setScheduleAt("");
+    setRecovery(null);
+    setReconciliationOnly(false);
+    await refresh();
+  }
+
+  function unresolvedReconciliationState(status: "processing" | "uncertain" | "unknown") {
+    return {
+      kind: "request-failed" as const,
+      action: "retry-same-operation" as const,
+      title: "Publication outcome still unconfirmed",
+      description:
+        status === "unknown"
+          ? "Solaris checked the canonical operation ledger but no settled receipt is visible yet. Reconcile this same operation again before doing anything else. No new publication mutation will be sent."
+          : `The canonical operation receipt is ${status}. Reconcile this same operation again after it settles. No new publication mutation will be sent.`,
+      outcomeUnknown: true,
+      allowSameIdentityRetry: true,
+      shouldRefreshCanonical: true,
+      keepOperationOpen: true,
+    } satisfies SolarisV6OperationRecovery;
+  }
+
+  async function reconcilePendingRelease() {
     if (!pendingRelease) return;
+    const release = pendingRelease;
     setBusy(true);
     try {
-      const activeEditionId = assertPublicationEditionScope(pendingRelease.show);
+      const activeEditionId = assertPublicationEditionScope(release.show);
       const scope = validateEditionCommandScope({
         routeEditionId: activeEditionId,
-        commandEditionId: pendingRelease.editionId,
-        entityEditionId: pendingRelease.show.edition_id,
+        commandEditionId: release.editionId,
+        entityEditionId: release.show.edition_id,
+        capabilityEditionId: organizerEditionId || null,
+      });
+      if (!scope.ok) {
+        throw Object.assign(
+          new Error(
+            `Edition context changed during publication reconciliation (${scope.mismatches.join(", ")}).`,
+          ),
+          { status: 409 },
+        );
+      }
+
+      const reconciled = await reconcileShowPublicationChange({
+        preview: release.preview,
+        operationId: release.operationId,
+      });
+      if (reconciled.status === "succeeded") {
+        await settlePendingRelease(reconciled.receipt, release);
+        return;
+      }
+      if (reconciled.status === "failed") {
+        throw Object.assign(
+          new Error(
+            reconciled.errorCode
+              ? `The canonical publication operation failed (${reconciled.errorCode}). Reload before reviewing a new publication change.`
+              : "The canonical publication operation failed. Reload before reviewing a new publication change.",
+          ),
+          { status: 409 },
+        );
+      }
+
+      const next = unresolvedReconciliationState(reconciled.status);
+      setRecovery(next);
+      setReconciliationOnly(true);
+      await refresh();
+      toast.error(next.title);
+    } catch (caught) {
+      const next = resolveSolarisV6OperationRecovery(caught, {
+        online: typeof navigator === "undefined" ? true : navigator.onLine,
+        stableOperationIdentity: Boolean(release.operationId),
+      });
+      setRecovery(next);
+      if (next.shouldRefreshCanonical) {
+        await refresh();
+      }
+      if (!next.keepOperationOpen) {
+        setPendingRelease(null);
+        setPublicationPassword("");
+        setReconciliationOnly(false);
+      } else {
+        setReconciliationOnly(true);
+      }
+      toast.error(next.title);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyPendingRelease() {
+    if (!pendingRelease) return;
+    if (reconciliationOnly) {
+      await reconcilePendingRelease();
+      return;
+    }
+    const release = pendingRelease;
+    setBusy(true);
+    try {
+      const activeEditionId = assertPublicationEditionScope(release.show);
+      const scope = validateEditionCommandScope({
+        routeEditionId: activeEditionId,
+        commandEditionId: release.editionId,
+        entityEditionId: release.show.edition_id,
         capabilityEditionId: organizerEditionId || null,
       });
 
@@ -264,44 +376,40 @@ function PublicationWorkspace() {
         );
       }
 
-      if (pendingRelease.preview.riskClass === "R3") {
+      if (release.preview.riskClass === "R3") {
         await reauthenticateShowPublicationR3(publicationPassword);
       }
       const receipt = await applyShowPublicationChange({
-        preview: pendingRelease.preview,
-        operationId: pendingRelease.operationId,
-        idempotencyKey: pendingRelease.idempotencyKey,
+        preview: release.preview,
+        operationId: release.operationId,
+        idempotencyKey: release.idempotencyKey,
       });
-      const label =
-        receipt.state === "scheduled"
-          ? `scheduled for ${receipt.scheduledFor ? new Date(receipt.scheduledFor).toLocaleString() : "later"}`
-          : receipt.state === "hidden"
-            ? "hidden"
-            : receipt.state === "public"
-              ? "public"
-              : "saved as draft";
-      toast.success(`${pendingRelease.show.name} ${label}`);
-      setDraft(null);
-      setPendingRelease(null);
-      setPublicationPassword("");
-      setScheduleAt("");
-      await refresh();
+      await settlePendingRelease(receipt, release);
     } catch (caught) {
       const next = resolveSolarisV6OperationRecovery(caught, {
         online: typeof navigator === "undefined" ? true : navigator.onLine,
-        stableOperationIdentity: Boolean(pendingRelease.operationId),
+        stableOperationIdentity: Boolean(release.operationId),
       });
-      setRecovery(next);
 
+      if (next.outcomeUnknown && next.keepOperationOpen) {
+        const reconciliationState = unresolvedReconciliationState("unknown");
+        setRecovery(reconciliationState);
+        setReconciliationOnly(true);
+        setPublicationPassword("");
+        await refresh();
+        toast.error(reconciliationState.title);
+        return;
+      }
+
+      setRecovery(next);
       if (next.shouldRefreshCanonical) {
         await refresh();
       }
-
       if (!next.keepOperationOpen) {
         setPendingRelease(null);
         setPublicationPassword("");
+        setReconciliationOnly(false);
       }
-
       toast.error(next.title);
     } finally {
       setBusy(false);
@@ -593,16 +701,22 @@ function PublicationWorkspace() {
       <AdminConfirmSheet
         open={!!pendingRelease}
         onClose={() => {
-          if (!busy) {
-            setPendingRelease(null);
-            setPublicationPassword("");
-            setRecovery(null);
+          if (busy) return;
+          if (reconciliationOnly) {
+            toast.error("Reconcile this publication operation before closing the review.");
+            return;
           }
+          setPendingRelease(null);
+          setPublicationPassword("");
+          setRecovery(null);
+          setReconciliationOnly(false);
         }}
-        onConfirm={applyPendingRelease}
+        onConfirm={reconciliationOnly ? reconcilePendingRelease : applyPendingRelease}
         title={
           pendingRelease
-            ? `${publicationActionLabel(pendingRelease.preview.targetState)} ${pendingRelease.show.name}?`
+            ? reconciliationOnly
+              ? `Reconcile ${pendingRelease.show.name} publication`
+              : `${publicationActionLabel(pendingRelease.preview.targetState)} ${pendingRelease.show.name}?`
             : "Confirm publication change"
         }
         description={
@@ -648,7 +762,7 @@ function PublicationWorkspace() {
                   ) : null}
                 </div>
               ) : null}
-              {pendingRelease.preview.riskClass === "R3" ? (
+              {pendingRelease.preview.riskClass === "R3" && !reconciliationOnly ? (
                 <label className="block">
                   <span className="text-xs font-semibold text-foreground">
                     Fresh authentication required
@@ -669,19 +783,21 @@ function PublicationWorkspace() {
           )
         }
         confirmLabel={
-          recovery?.allowSameIdentityRetry
-            ? "Retry same publication operation"
-            : pendingRelease
-              ? publicationActionLabel(pendingRelease.preview.targetState)
-              : "Apply"
+          reconciliationOnly
+            ? "Reconcile publication operation"
+            : recovery?.allowSameIdentityRetry
+              ? "Retry same publication operation"
+              : pendingRelease
+                ? publicationActionLabel(pendingRelease.preview.targetState)
+                : "Apply"
         }
         confirmationText={pendingRelease?.show.name}
         confirmationHint={pendingRelease ? `Type ${pendingRelease.show.name} to confirm` : undefined}
         busy={busy}
         confirmDisabled={
-          pendingRelease?.preview.riskClass === "R3" && !publicationPassword
+          !reconciliationOnly && pendingRelease?.preview.riskClass === "R3" && !publicationPassword
         }
-        danger={pendingRelease?.preview.riskClass === "R3"}
+        danger={!reconciliationOnly && pendingRelease?.preview.riskClass === "R3"}
       />
     </AdminPage>
   );
