@@ -30,6 +30,19 @@ describe("V3 participant Integrity retry identity", () => {
     expect(text).toContain("clearIntegrityReportV5SubmissionIdentity();\n  try {\n    session()?.removeItem(DRAFT_KEY)");
   });
 
+  it("keeps the sensitive draft reachable when session storage is unavailable", () => {
+    const text = draft();
+    const readStart = text.indexOf("export function readIntegrityReportV5Draft");
+    const writeStart = text.indexOf("export function writeIntegrityReportV5Draft");
+    const clearStart = text.indexOf("export function clearIntegrityReportV5Draft");
+
+    expect(text).toContain("let memoryDraft: IntegrityReportV5Draft | null = null");
+    expect(text.indexOf("memoryDraft = next", readStart)).toBeGreaterThan(readStart);
+    expect(text.indexOf("return memoryDraft ? { ...memoryDraft }", readStart)).toBeGreaterThan(readStart);
+    expect(text.indexOf("memoryDraft = next", writeStart)).toBeGreaterThan(writeStart);
+    expect(text.indexOf("memoryDraft = null", clearStart)).toBeGreaterThan(clearStart);
+  });
+
   it("keeps the authoritative receipt reachable when session storage is unavailable", () => {
     const text = draft();
     const writeStart = text.indexOf("export function writeIntegrityReportV5Receipt");
