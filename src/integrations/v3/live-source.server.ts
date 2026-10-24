@@ -1,4 +1,5 @@
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
+import { loadV3PublishedResultSnapshot } from "@/integrations/v3/public-result-snapshot.server";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import type { Country, Edition, Participant, Show } from "@/lib/data";
 import { normalizeLegacyEditionStatus } from "@/lib/edition-state";
@@ -184,7 +185,9 @@ async function loadRunningOrder(input: {
  * Unlike the legacy Show Mode route this source does not fan out browser queries
  * across every edition/show/participant/country/entity. It resolves the current
  * non-terminal published edition first, then reads only its public shows and the
- * selected show's already-redacted participant projection.
+ * selected show's already-redacted participant projection. Result publication
+ * is accepted only when the strict immutable published-Result adapter can prove
+ * an exact published Result Version; publication metadata alone is not enough.
  */
 export async function loadV3LiveBundle(): Promise<V3LiveServerBundle> {
   const client =
@@ -233,16 +236,25 @@ export async function loadV3LiveBundle(): Promise<V3LiveServerBundle> {
     };
   }
 
-  const [round, runningOrder] = await Promise.all([
+  const publication = resolveShowPublication(selectedShow);
+  const [round, runningOrder, publishedResult] = await Promise.all([
     loadLinkedTelevoteRound(client, selectedShow),
     loadRunningOrder({ client, edition, show: selectedShow }),
+    publication.results
+      ? loadV3PublishedResultSnapshot(selectedShow.id)
+      : Promise.resolve(null),
   ]);
+  if (publishedResult && publishedResult.edition.id !== edition.id) {
+    throw new Error("Canonical Live Result snapshot escaped the active Edition scope");
+  }
+
   const experience = projectV3LiveExperience({
     show: selectedShow,
     televoteRound: round,
     runningOrder,
     serverTime,
     generatedAt,
+    resultsPublished: publishedResult !== null,
   });
 
   return {
