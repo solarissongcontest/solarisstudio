@@ -2,25 +2,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminCardHeader, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import { ORGANIZER_ANNIVERSARY_PREVIEWS } from "@/lib/v3-organizer-anniversary-preview";
 
 export const Route = createFileRoute("/_authenticated/admin/anniversary")({
   head: () => ({
     meta: [
       { title: "Anniversary Preview — Solaris Studio" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: AnniversaryPreviewPage,
 });
-
-const PREVIEWS = [
-  { href: "/?anniversary=active", title: "Anniversary Day", description: "Full 17 September takeover with particles, archive facts and homepage anniversary editorial." },
-  { href: "/?anniversary=countdown", title: "Countdown", description: "Pre-anniversary state without the full particle takeover." },
-  { href: "/anniversary?anniversary=active", title: "Anniversary hub", description: "Open the permanent anniversary archive with resolved historical results only." },
-  { href: "/my-solaris?anniversary=active", title: "MySolaris story", description: "Preview the route-native personalized country anniversary recap and share text." },
-  { href: "/countries?anniversary=active", title: "Countries archive", description: "Preview the country directory with anniversary context and canonical delegation statistics." },
-  { href: "/records?anniversary=active", title: "Records archive", description: "Preview the record book with anniversary styling and historical context." },
-] as const;
 
 function AnniversaryPreviewPage() {
   return (
@@ -79,9 +71,9 @@ function AnniversaryPreviewPage() {
             description="These URLs only change the current browser view. They do not publish or alter anniversary data."
           />
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {PREVIEWS.map((preview) => (
+            {ORGANIZER_ANNIVERSARY_PREVIEWS.map((preview) => (
               <a
-                key={preview.href}
+                key={preview.id}
                 href={preview.href}
                 target="_blank"
                 rel="noreferrer"
