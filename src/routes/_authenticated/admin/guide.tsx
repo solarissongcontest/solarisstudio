@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
+import { OrganizerGuideActions } from "@/components/admin/OrganizerGuideActions";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminPageHeader } from "@/components/admin/AdminUI";
 import { GuideFAQ } from "@/components/GuideFAQ";
@@ -8,7 +9,7 @@ export const Route = createFileRoute("/_authenticated/admin/guide")({
   head: () => ({
     meta: [
       { title: "Organizer guide — Solaris Organizer" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: AdminGuidePage,
@@ -358,6 +359,7 @@ function AdminGuidePage() {
         title="How to use the organizer tools"
         description="Start from the operational state or task that matters, then move into the authoritative workspace when deliberate control is needed."
       />
+      <OrganizerGuideActions />
       <GuideFAQ sections={SECTIONS} />
     </AdminPage>
   );
