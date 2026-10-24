@@ -28,12 +28,12 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: v3-pr-main-freshness-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
+  group: v3-pr-main-freshness-${{ inputs.pr_number || github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
   pr-main-freshness:
-    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'v3/') || startsWith(github.event.pull_request.title, '[V3-')
+    if: inputs.pr_number != 0 || startsWith(github.head_ref, 'v3/') || startsWith(github.event.pull_request.title, '[V3-')
     name: V3 PR current-main freshness
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -42,7 +42,7 @@ jobs:
       - name: Checkout freshness policy source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
+          ref: ${{ inputs.pr_number == 0 && github.event.pull_request.head.sha || 'main' }}
           fetch-depth: 1
 
       - name: Setup Bun
@@ -53,11 +53,19 @@ jobs:
       - name: Verify freshness-policy unit tests
         run: bun test scripts/__tests__/check-v3-pr-main-freshness.test.ts
 
-      - name: Require exact head to contain live current main
+      - name: Require automatic PR head to contain live current main
+        if: inputs.pr_number == 0
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          V3_CURRENT_PR: ${{ github.event.pull_request.number || inputs.pr_number }}
-          V3_EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}
+          V3_CURRENT_PR: ${{ github.event.pull_request.number }}
+          V3_EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bun run scripts/check-v3-pr-main-freshness.ts
+
+      - name: Require requested PR head to contain live current main
+        if: inputs.pr_number != 0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          V3_CURRENT_PR: ${{ inputs.pr_number }}
         run: bun run scripts/check-v3-pr-main-freshness.ts
 
       - name: Safety boundary
@@ -69,6 +77,7 @@ jobs:
             echo "### Verification boundary"
             echo
             echo "This gate performs five bounded GitHub reads: PR/main identity, ancestry, then final PR/main identity to reject mid-check movement."
+            echo "Automatic PR runs pin the exact event head. Manual/reusable runs intentionally read the requested PR's live head and current main at invocation time."
             echo "It does not enumerate all open PRs, write GitHub state, start Supabase, contact hosted Supabase, run Browser Audit, generate load, or mutate production data."
             echo "Run it again immediately before integration whenever main may have moved since earlier head-only evidence."
           } >> "$GITHUB_STEP_SUMMARY"
