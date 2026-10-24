@@ -21,7 +21,7 @@ export const Route = createFileRoute("/televoting/admin/result-integrity")({
 });
 
 function ResultIntegrityRoute() {
-  const { editionId } = useAdminContext();
+  const { editionId, editionLabel } = useAdminContext();
 
   if (!editionId) {
     return (
@@ -43,10 +43,16 @@ function ResultIntegrityRoute() {
     );
   }
 
-  return <ResultIntegrityPage key={editionId} editionId={editionId} />;
+  return (
+    <ResultIntegrityPage
+      key={editionId}
+      editionId={editionId}
+      editionLabel={editionLabel?.trim() || editionId}
+    />
+  );
 }
 
-function ResultIntegrityPage({ editionId }: { editionId: string }) {
+function ResultIntegrityPage({ editionId, editionLabel }: { editionId: string; editionLabel: string }) {
   const queryClient = useQueryClient();
   const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
   const getIntegrity = useServerFn(getResultIntegrity);
@@ -102,7 +108,7 @@ function ResultIntegrityPage({ editionId }: { editionId: string }) {
   return (
     <div className="admin-page mx-auto max-w-6xl pb-8" data-v3-organizer-result-integrity-edition={editionId}>
       <AdminPageHeader
-        eyebrow="Voting integrity"
+        eyebrow={`${editionLabel} · Voting integrity`}
         title="Result integrity"
         description="Separate suspicious-looking behaviour from evidence quality and actual result influence inside the exact selected edition. Counterfactuals are review evidence only and never delete ballots automatically."
         actions={
@@ -120,6 +126,14 @@ function ResultIntegrityPage({ editionId }: { editionId: string }) {
           </div>
         }
       />
+
+      <div
+        data-v3-organizer-context-lock="edition"
+        className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2"
+      >
+        <span className="admin-section-label">Edition context</span>
+        <AdminStatus tone="info">{editionLabel}</AdminStatus>
+      </div>
 
       {loadingRounds ? (
         <AdminCard className="py-10 text-center text-sm text-muted-foreground">Loading rounds…</AdminCard>

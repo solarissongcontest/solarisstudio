@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Radio } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
-import { AdminCard, AdminEmptyState } from "@/components/admin/AdminUI";
+import { AdminCard, AdminEmptyState, AdminStatus } from "@/components/admin/AdminUI";
 import { getMergedTelevotingRoundsPage } from "@/integrations/televoting/rounds.functions";
 
 export const Route = createFileRoute("/televoting/admin/rounds/$id")({
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/televoting/admin/rounds/$id")({
 
 function VotingRoundEditionGuard() {
   const { id: roundId } = Route.useParams();
-  const { editionId } = useAdminContext();
+  const { editionId, editionLabel } = useAdminContext();
   const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
 
   const scopeQuery = useQuery({
@@ -80,9 +80,10 @@ function VotingRoundEditionGuard() {
 
   const scopeEdition = scopeQuery.data?.edition ?? null;
   const exactEdition = Boolean(scopeEdition && scopeEdition.solaris_id === editionId);
-  const roundBelongsToEdition = Boolean(
-    exactEdition && scopeEdition?.rounds.some((round) => round.id === roundId),
-  );
+  const scopeRound = exactEdition
+    ? scopeEdition?.rounds.find((round) => round.id === roundId) ?? null
+    : null;
+  const roundBelongsToEdition = Boolean(scopeRound);
 
   if (!roundBelongsToEdition) {
     return (
@@ -103,5 +104,23 @@ function VotingRoundEditionGuard() {
     );
   }
 
-  return <Outlet />;
+  const editionContextLabel =
+    editionLabel?.trim() || `SSC ${scopeEdition!.edition_number} · ${scopeEdition!.name}`;
+
+  return (
+    <>
+      <div className="mx-auto max-w-6xl pt-4">
+        <div
+          data-v3-organizer-context-lock="edition-round"
+          className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2"
+        >
+          <span className="admin-section-label">Editing context</span>
+          <AdminStatus tone="info">{editionContextLabel}</AdminStatus>
+          <span className="text-xs text-muted-foreground">·</span>
+          <AdminStatus tone="neutral">{scopeRound!.name}</AdminStatus>
+        </div>
+      </div>
+      <Outlet />
+    </>
+  );
 }
