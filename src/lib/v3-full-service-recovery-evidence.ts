@@ -39,6 +39,7 @@ export type V3S11ComponentEvidence = {
   artifactPath: string;
   artifactSha256: string;
   assessment: {
+    schemaVersion: 1;
     status: "ready_for_qa_review";
     expectedCommitSha: string | null;
     evidenceCommitSha: string | null;
@@ -204,6 +205,9 @@ export function assessV3FullServiceRecoveryEvidence(
       if (!assessment) {
         errors.push(`${typedComponent} component assessment must be an object`);
         continue;
+      }
+      if (assessment.schemaVersion !== 1) {
+        errors.push(`${typedComponent} assessment schemaVersion must be 1`);
       }
 
       const assessmentExpectedSha = exactSha(assessment.expectedCommitSha);
