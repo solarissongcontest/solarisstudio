@@ -24,7 +24,7 @@ begin;
 -- they are presentation identity used by the current public ballot/results
 -- surfaces and do not contain ballot or future-entry payloads.
 select public.v3_register_migration_contract(
-  '20261024153000_v3_televote_public_rls_boundary',
+  'v3.televote.public-rls-boundary',
   1,
   'forward_fix_only',
   false,
