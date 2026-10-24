@@ -16,7 +16,6 @@ const s4Rehearsal = source(".github/scripts/v3-s4-domain-event-outbox-rehearsal.
 const staleProjectionRehearsal = source(".github/scripts/v3-s11-stale-projection-rehearsal.sh");
 const lostResponseRehearsal = source(".github/scripts/v3-s11-lost-response-rehearsal.sh");
 const backlogRehearsal = source(".github/scripts/v3-s11-backlog-drain-rehearsal.sh");
-const dependencyRehearsal = source(".github/scripts/v3-s11-unavailable-dependency-rehearsal.sh");
 const responseDropProxy = source("scripts/v3-drop-upstream-response-proxy.mjs");
 const evidenceGenerator = source("scripts/generate-v3-failure-injection-coverage.ts");
 
@@ -35,16 +34,12 @@ describe("System V3 S11 deterministic failure-injection coverage", () => {
     expect(s4Rehearsal).toContain("duplicate completion was not reported as replay");
   });
 
-  it("requires a real loopback dependency outage before marking dependency failure rehearsal-ready", () => {
+  it("does not overclaim a real unavailable-dependency rehearsal from an injected error code", () => {
     const dependency = V3_FAILURE_INJECTION_COVERAGE.find(
       (entry) => entry.scenario === "unavailable_dependency",
     );
-    expect(dependencyRehearsal).toContain('python3 -m http.server "$DEPENDENCY_PORT"');
-    expect(dependencyRehearsal).toContain("dependency outage injection failed; health probe still succeeded");
-    expect(dependencyRehearsal).toContain("studio2_fail_domain_event_delivery");
-    expect(dependencyRehearsal).toContain("studio2_process_jury_domain_event");
-    expect(dependency?.state).toBe("rehearsal_ready");
-    expect(dependency?.remainingGap).toContain("exact-SHA local execution evidence");
+    expect(dependency?.state).toBe("partial");
+    expect(dependency?.remainingGap).toContain("make a real dependency unavailable");
   });
 
   it("marks stale projection and reconciliation retry rehearsal-ready pending retained execution evidence", () => {
@@ -90,12 +85,12 @@ describe("System V3 S11 deterministic failure-injection coverage", () => {
     expect(evidenceGenerator).toContain("mkdirSync(dirname(absoluteOutputPath), { recursive: true })");
   });
 
-  it("reports all implemented S11 paths honestly without inventing execution evidence", () => {
+  it("reports implemented rehearsals honestly while the real dependency-outage injection remains open", () => {
     const report = buildV3FailureInjectionCoverageReport();
     expect(report.schemaVersion).toBe(2);
     expect(report.counts.rehearsed).toBe(2);
-    expect(report.counts.rehearsal_ready).toBe(6);
-    expect(report.counts.partial).toBe(0);
+    expect(report.counts.rehearsal_ready).toBe(5);
+    expect(report.counts.partial).toBe(1);
     expect(report.counts.contract_only).toBe(0);
     expect(report.counts.missing).toBe(0);
     expect(report.unresolved.map((item) => item.scenario).sort()).toEqual([
