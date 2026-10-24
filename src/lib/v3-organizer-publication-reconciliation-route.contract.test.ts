@@ -1,15 +1,15 @@
-import fs from "node:fs";
-import path from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 const root = process.cwd();
-const route = fs.readFileSync(
-  path.join(root, "src/routes/_authenticated/admin/publication/$slug.tsx"),
+const route = readFileSync(
+  join(root, "src/routes/_authenticated/admin/publication/$slug.tsx"),
   "utf8",
 );
-const lifecycle = fs.readFileSync(
-  path.join(root, "src/lib/show-publication-lifecycle.ts"),
+const lifecycle = readFileSync(
+  join(root, "src/lib/show-publication-lifecycle.ts"),
   "utf8",
 );
 
