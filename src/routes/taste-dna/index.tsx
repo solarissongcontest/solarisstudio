@@ -20,13 +20,17 @@ import { entityDisplayMap } from "@/lib/entities";
 import { useFanSession } from "@/lib/prediction-data";
 import { resolveShowPublication } from "@/lib/publication";
 import {
-  buildTasteDna,
   rankingFromScores,
   tasteFingerprintText,
   type TasteDnaJuryBallot,
   type TasteDnaResultEntry,
 } from "@/lib/taste-dna";
 import { useDeleteTasteBallot, useSaveTasteBallot, useTasteBallots } from "@/lib/taste-data";
+import {
+  buildV3TasteDnaAnalysis,
+  reconcileTasteRanking,
+  type V3TasteDnaSavedBallot,
+} from "@/lib/v3-taste-dna";
 
 export const Route = createFileRoute("/taste-dna/")({
   head: () => ({ meta: [{ title: "Taste DNA — Solaris Studio" }] }),
@@ -148,14 +152,12 @@ function TasteDnaPage() {
       return;
     }
 
-    if (savedBallot?.ranking?.length) {
-      const allowed = new Set(officialRanking);
-      const saved = savedBallot.ranking.filter((id) => allowed.has(id));
-      const seen = new Set(saved);
-      setRanking([...saved, ...officialRanking.filter((id) => !seen.has(id))]);
-    } else {
-      setRanking(officialRanking);
-    }
+    setRanking(
+      reconcileTasteRanking(
+        savedBallot?.ranking?.length ? savedBallot.ranking : officialRanking,
+        officialRanking,
+      ),
+    );
     setMessage(null);
   }, [showId, savedBallotKey, officialRankingKey]);
 
@@ -196,25 +198,28 @@ function TasteDnaPage() {
     }));
   }, [juryVotes, voterOptions, voterNameMap]);
 
-  const history = useMemo(
+  const savedBallots = useMemo<V3TasteDnaSavedBallot[]>(
     () =>
-      (tasteData?.ballots ?? [])
-        .filter((ballot) => ballot.show_id !== showId)
-        .map((ballot) => ({ showId: ballot.show_id, ranking: ballot.ranking })),
-    [tasteData?.ballots, showId],
+      (tasteData?.ballots ?? []).map((ballot) => ({
+        showId: ballot.show_id,
+        ranking: ballot.ranking,
+      })),
+    [tasteData?.ballots],
   );
 
-  const profile = useMemo(
+  const analysis = useMemo(
     () =>
-      buildTasteDna({
+      buildV3TasteDnaAnalysis({
+        currentShowId: showId,
         ranking,
         results: resultEntries,
         juryBallots,
-        history,
+        savedBallots,
         nameForId: (id) => displayMap.get(id)?.name ?? "Unknown entry",
       }),
-    [ranking, resultEntries, juryBallots, history, displayMap],
+    [showId, ranking, resultEntries, juryBallots, savedBallots, displayMap],
   );
+  const profile = analysis.profile;
 
   const save = async () => {
     setMessage(null);
