@@ -8,6 +8,11 @@ function validate(data: { roundId: string }) {
 export const getResultIntegrity = createServerFn({ method: "POST" })
   .inputValidator(validate)
   .handler(async ({ data }) => {
+    const { requireResultIntegrityReadServer } = await import(
+      "@/integrations/televoting/result-integrity-auth.server"
+    );
+    await requireResultIntegrityReadServer();
+
     const { getResultIntegrityServer } = await import(
       "@/integrations/televoting/result-integrity.server"
     );
@@ -17,6 +22,11 @@ export const getResultIntegrity = createServerFn({ method: "POST" })
 export const recomputeResultIntegrity = createServerFn({ method: "POST" })
   .inputValidator(validate)
   .handler(async ({ data }) => {
+    const { requireResultIntegrityRecomputeServer } = await import(
+      "@/integrations/televoting/result-integrity-auth.server"
+    );
+    await requireResultIntegrityRecomputeServer();
+
     const { recomputeResultIntegrityServer } = await import(
       "@/integrations/televoting/result-integrity.server"
     );
