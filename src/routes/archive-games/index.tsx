@@ -19,6 +19,7 @@ import {
   useEditions,
 } from "@/lib/data";
 import { entityDisplayMap } from "@/lib/entities";
+import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 
 export const Route = createFileRoute("/archive-games/")({
   head: () => ({ meta: [{ title: "Archive Games — Solaris Studio" }] }),
@@ -80,15 +81,32 @@ function ArchiveGamesPage() {
     [entities, countries],
   );
 
+  // Archive Games is a public projection. Broad archive hooks may legitimately
+  // return additional rows to privileged authenticated users, so every fact used
+  // to build a question must pass through the same publication boundary as the
+  // rest of the public archive before it reaches game logic.
+  const publicArchive = useMemo(
+    () =>
+      buildPublicCountryArchive({
+        editions: editions ?? [],
+        shows: shows ?? [],
+        participants: participants ?? [],
+        results: results ?? [],
+        jury: [],
+        televote: [],
+      }),
+    [editions, shows, participants, results],
+  );
+
   const gameInput = useMemo(
     () => ({
-      editions: editions ?? [],
-      shows: shows ?? [],
-      participants: participants ?? [],
-      results: results ?? [],
+      editions: publicArchive.editions,
+      shows: publicArchive.shows,
+      participants: publicArchive.participants,
+      results: publicArchive.results,
       nameForEntity: (id: string) => displayMap.get(id)?.name ?? "Unknown entry",
     }),
-    [editions, shows, participants, results, displayMap],
+    [publicArchive, displayMap],
   );
 
   const stats = useMemo(() => archiveGameStats(gameInput), [gameInput]);
