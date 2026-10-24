@@ -61,8 +61,14 @@ describe("System V3 S11 full-service recovery composition", () => {
     expect(runbook).toContain("certificationClaim: false");
   });
 
-  it("provides a deterministic no-network readiness command", () => {
+  it("provides a deterministic no-network readiness command with retained-artifact proof", () => {
     expect(generator).toContain("readFileSync");
+    expect(generator).toContain("createHash(\"sha256\")");
+    expect(generator).toContain("canonicalJson(retainedAssessment)");
+    expect(generator).toContain("canonicalJson(embeddedAssessment)");
+    expect(generator).toContain("assessment artifact digest does not match artifactSha256");
+    expect(generator).toContain("embedded assessment does not match retained artifact");
+    expect(generator).toContain("artifactProvenanceVerified");
     expect(generator).toContain("assessV3FullServiceRecoveryEvidence");
     expect(generator).toContain("--expected-sha");
     expect(generator).toContain("--require-ready");
@@ -70,6 +76,7 @@ describe("System V3 S11 full-service recovery composition", () => {
     expect(generator).not.toContain("supabase");
     expect(generator).not.toContain("wrangler");
     expect(runbook).toContain("generate-v3-full-service-recovery-evidence.ts");
+    expect(runbook).toContain("artifactSha256");
   });
 
   it("does not mark the repository as S11 certified merely because composition code exists", () => {
