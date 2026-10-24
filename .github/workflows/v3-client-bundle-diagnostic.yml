@@ -96,3 +96,11 @@ jobs:
           path: client-bundle-report.json
           if-no-files-found: error
           retention-days: 1
+
+      - name: Upload emitted client assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-assets
+          path: .output/public/assets
+          if-no-files-found: error
+          retention-days: 1
