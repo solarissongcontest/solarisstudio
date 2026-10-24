@@ -7,9 +7,9 @@ const recovery = readFileSync("src/routes/confirmations/admin/recovery-codes.tsx
 
 describe("V3 Organizer secondary Confirmation context guards", () => {
   it("keeps Calendar bound to exact Organizer context", () => {
-    expect(calendar).toContain('editionRows.find((item) => item.id === organizerEditionId)?.id ?? ""');
+    expect(calendar).toContain('editions.find((item) => item.id === organizerEditionId)?.id ?? ""');
     expect(calendar).not.toContain('item.status === "active"');
-    expect(calendar).not.toContain("editionRows[0]");
+    expect(calendar).not.toContain("editions[0]");
     expect(calendar).toContain("Solaris will not load a globally active or first edition");
   });
 
