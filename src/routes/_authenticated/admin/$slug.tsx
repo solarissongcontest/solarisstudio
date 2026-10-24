@@ -8,6 +8,7 @@ import {
   ListOrdered,
   RadioTower,
   RefreshCw,
+  ShieldCheck,
   Trophy,
   Users,
   Vote,
@@ -22,6 +23,7 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { editionLabel, useEdition, useParticipants, useShows } from "@/lib/data";
+import { buildV3OrganizerControlGroups } from "@/lib/v3-organizer";
 
 export const Route = createFileRoute("/_authenticated/admin/$slug")({
   component: AdminEditionWorkspace,
@@ -119,6 +121,7 @@ function ContestOverview({ slug }: { slug: string }) {
   const hasGrandFinal = shows.some((show) => show.kind === "grand-final" || show.kind === "final");
   const completeLineups = shows.length > 0 && showsWithEntries.length === shows.length;
   const showsWithoutEntries = Math.max(0, shows.length - showsWithEntries.length);
+  const contestWorkspace = buildV3OrganizerControlGroups(slug).find((group) => group.key === "contest");
   const structureChecks = [
     {
       key: "shows",
@@ -295,38 +298,20 @@ function ContestOverview({ slug }: { slug: string }) {
       <AdminCard className="mt-4">
         <AdminCardHeader
           eyebrow="Contest workspaces"
-          title="Build the edition"
-          description="Everything here changes the contest structure. Voting, publishing and broadcast controls stay in their own sections."
+          title="Operate the edition"
+          description="Entry review, media, shows, running order, participation, progression and eligibility all use their existing authoritative workspaces. This overview only routes you to them; it does not recreate their state or mutation logic."
         />
         <div className="divide-y divide-white/[0.07]">
-          <WorkspaceRow
-            icon={ListChecks}
-            title="Shows"
-            description="Create stages and manage each show's basic setup."
-            to={`/admin/shows/${slug}`}
-            detail={shows.length ? `${shows.length} configured` : "Start here"}
-          />
-          <WorkspaceRow
-            icon={RefreshCw}
-            title="Sync confirmed countries"
-            description="Bring confirmed delegation data into a show without manually rebuilding the line-up."
-            to={`/admin/lineup-sync/${slug}`}
-            detail="Delegations → contest"
-          />
-          <WorkspaceRow
-            icon={ListOrdered}
-            title="Entries & running order"
-            description="Build line-ups, edit songs, allocate halves and set the running order."
-            to={`/admin/entries/${slug}`}
-            detail={shows.length ? `${showsWithEntries.length}/${shows.length} filled` : "Waiting for shows"}
-          />
-          <WorkspaceRow
-            icon={Ban}
-            title="Participation status"
-            description="Mark countries active, withdrawn or disqualified without deleting edition history."
-            to={`/admin/participant-status/${slug}`}
-            detail="Status & eligibility"
-          />
+          {contestWorkspace?.items.map((item) => item.href ? (
+            <WorkspaceRow
+              key={item.key}
+              icon={contestWorkspaceIcon(item.key)}
+              title={item.label}
+              description={item.description}
+              to={item.href}
+              detail={contestWorkspaceDetail(item.key, shows.length, showsWithEntries.length)}
+            />
+          ) : null)}
         </div>
       </AdminCard>
 
@@ -377,6 +362,32 @@ function ContestOverview({ slug }: { slug: string }) {
       </AdminCard>
     </div>
   );
+}
+
+function contestWorkspaceIcon(key: string) {
+  switch (key) {
+    case "entry-review": return ClipboardCheck;
+    case "media": return Eye;
+    case "shows": return ListChecks;
+    case "running-order": return ListOrdered;
+    case "participants": return Ban;
+    case "progression": return RefreshCw;
+    case "eligibility": return ShieldCheck;
+    default: return ListChecks;
+  }
+}
+
+function contestWorkspaceDetail(key: string, showCount: number, filledShowCount: number) {
+  switch (key) {
+    case "entry-review": return "Submitted versions";
+    case "media": return "Assets & replacements";
+    case "shows": return showCount ? `${showCount} configured` : "Start here";
+    case "running-order": return showCount ? `${filledShowCount}/${showCount} line-ups filled` : "Waiting for shows";
+    case "participants": return "Status & qualification";
+    case "progression": return "Progression & sync";
+    case "eligibility": return "Blockers & overrides";
+    default: return "Open workspace";
+  }
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
