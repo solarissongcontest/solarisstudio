@@ -52,6 +52,7 @@ const SEMANTIC_DRAFT_KEYS = [
 ] as const satisfies ReadonlyArray<keyof IntegrityReportV5Draft>;
 
 let memorySubmissionIdentity: IntegrityReportV5SubmissionIdentity | null = null;
+let memoryReceipt: IntegrityReportV5Receipt | null = null;
 
 export const EMPTY_INTEGRITY_REPORT_V5: IntegrityReportV5Draft = {
   category: "",
@@ -205,24 +206,34 @@ export function clearIntegrityReportV5Draft() {
 }
 
 export function writeIntegrityReportV5Receipt(receipt: IntegrityReportV5Receipt) {
+  // Keep the authoritative response reachable across client-side navigation even
+  // when privacy settings or quota errors make sessionStorage unavailable. This
+  // matters most for anonymous reports because the recovery key is returned only
+  // in the successful create/replay response.
+  memoryReceipt = receipt;
   try {
     session()?.setItem(RECEIPT_KEY, JSON.stringify(receipt));
   } catch {
-    // The server-created case remains authoritative.
+    // The in-memory copy remains available for this page lifetime.
   }
 }
 
 export function readIntegrityReportV5Receipt(): IntegrityReportV5Receipt | null {
   try {
     const raw = session()?.getItem(RECEIPT_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as IntegrityReportV5Receipt;
+    if (raw) {
+      const parsed = JSON.parse(raw) as IntegrityReportV5Receipt;
+      memoryReceipt = parsed;
+      return parsed;
+    }
   } catch {
-    return null;
+    // Fall through to the in-memory authoritative response.
   }
+  return memoryReceipt;
 }
 
 export function clearIntegrityReportV5Receipt() {
+  memoryReceipt = null;
   try {
     session()?.removeItem(RECEIPT_KEY);
   } catch {
