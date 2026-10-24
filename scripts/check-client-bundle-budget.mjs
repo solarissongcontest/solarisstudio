@@ -61,24 +61,15 @@ function enforce(label, actual, limit, file) {
   );
 }
 
-enforce(
-  "Largest JS raw",
-  largestJsRaw?.raw ?? 0,
-  BUDGETS.maxSingleJsRaw,
-  largestJsRaw?.name,
-);
-enforce(
-  "Largest JS gzip",
-  largestJsGzip?.gzip ?? 0,
-  BUDGETS.maxSingleJsGzip,
-  largestJsGzip?.name,
-);
-enforce(
-  "Largest CSS gzip",
-  largestCssGzip?.gzip ?? 0,
-  BUDGETS.maxSingleCssGzip,
-  largestCssGzip?.name,
-);
+// Report every violating asset, not just the maximum, so one repair does not
+// hide the next offending chunk until another expensive build.
+for (const file of js) {
+  enforce("JS raw", file.raw, BUDGETS.maxSingleJsRaw, file.name);
+  enforce("JS gzip", file.gzip, BUDGETS.maxSingleJsGzip, file.name);
+}
+for (const file of css) {
+  enforce("CSS gzip", file.gzip, BUDGETS.maxSingleCssGzip, file.name);
+}
 enforce("Total JS + CSS gzip", totalGzip, BUDGETS.maxTotalJsCssGzip);
 if (appShell) {
   enforce(
@@ -113,6 +104,12 @@ if (appShell) console.log(`  app shell CSS gzip: ${kb(appShell.gzip)} KiB`);
 if (globalStyles) console.log(`  global styles CSS gzip: ${kb(globalStyles.gzip)} KiB`);
 
 if (failures.length) {
+  if (totalGzip > BUDGETS.maxTotalJsCssGzip) {
+    console.error("\nLargest contributors to aggregate JS + CSS gzip:");
+    for (const file of [...files].sort((a, b) => b.gzip - a.gzip).slice(0, 10)) {
+      console.error(`  - ${file.name}: ${kb(file.gzip)} KiB gzip (${kb(file.raw)} KiB raw)`);
+    }
+  }
   console.error("\nClient performance budget exceeded:");
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);

@@ -12,7 +12,6 @@ import {
   isMaintenanceHodAppRouteAllowed,
   maintenanceHodAccessEnabled,
 } from "./lib/maintenance";
-import { renderMaintenanceDesktopV2Style } from "./lib/maintenance-desktop-v2";
 import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
 import { renderMaintenancePage } from "./lib/maintenance-page";
 
@@ -50,6 +49,10 @@ const MAINTENANCE_ASSET_PATHS = new Set([
   "/tsbc-maintenance-mark.svg",
   "/solaris-studio-mark.png",
   "/solaris-background.webp",
+  "/solaris-studio-social.jpg",
+  "/terraos-maintenance/blue-motion.svg",
+  "/terraos-maintenance/live-stage.svg",
+  "/terraos-maintenance/purple-tunnel.svg",
   "/favicon.ico",
   "/apple-touch-icon.png",
   "/icon-192.png",
@@ -333,6 +336,28 @@ function handleMaintenanceAdminLogout(request: Request) {
   });
 }
 
+function isolateMaintenanceHodPortalMarkup(portal: string) {
+  const desktopMedia = "  @media (min-width: 1100px) {";
+  const hodDesktopStart = "    .hod-portal {";
+  const legacyStoryStart = "\n    .product-story {";
+  const tabletMedia = "\n  @media (min-width: 641px) and (max-width: 1099px)";
+
+  let isolated = portal;
+  const desktopIndex = isolated.indexOf(desktopMedia);
+  const hodIndex = isolated.indexOf(hodDesktopStart, Math.max(0, desktopIndex));
+  if (desktopIndex >= 0 && hodIndex > desktopIndex) {
+    isolated = isolated.slice(0, desktopIndex) + desktopMedia + "\n" + isolated.slice(hodIndex);
+  }
+
+  const storyIndex = isolated.indexOf(legacyStoryStart, Math.max(0, desktopIndex));
+  const tabletIndex = isolated.indexOf(tabletMedia, Math.max(0, storyIndex));
+  if (storyIndex >= 0 && tabletIndex > storyIndex) {
+    isolated = isolated.slice(0, storyIndex) + "\n  }\n" + isolated.slice(tabletIndex);
+  }
+
+  return isolated;
+}
+
 function maintenanceResponse(request: Request, env: unknown, includeHodPortal: boolean) {
   const headers = {
     "cache-control": "no-store, max-age=0",
@@ -342,22 +367,18 @@ function maintenanceResponse(request: Request, env: unknown, includeHodPortal: b
 
   if (request.method === "GET" || request.method === "HEAD") {
     let html = renderMaintenancePage();
+    if (new URL(request.url).pathname !== "/") {
+      html = html.replaceAll('href="#confirmation-access"', 'href="/#confirmation-access"');
+    }
     if (request.method === "GET" && includeHodPortal) {
       const hod = maintenanceHodRuntime(env);
       if (hod.enabled && hod.supabaseUrl && hod.publishableKey) {
-        const portal = renderMaintenanceHodPortal({
+        const portal = isolateMaintenanceHodPortalMarkup(renderMaintenanceHodPortal({
           supabaseUrl: hod.supabaseUrl,
           publishableKey: hod.publishableKey,
-        });
-        html = html.replace("          <footer>", `${portal}\n          <footer>`);
+        }));
+        html = html.replace("<footer>", `${portal}\n<footer>`);
       }
-    }
-
-    if (request.method === "GET") {
-      html = html.replace(
-        "          <footer>",
-        `${renderMaintenanceDesktopV2Style()}\n          <footer>`,
-      );
     }
 
     return new Response(request.method === "HEAD" ? null : html, {

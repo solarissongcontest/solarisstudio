@@ -20,6 +20,17 @@ export default defineConfig({
         "canvas-confetti": fileURLToPath(new URL("./src/lib/lightweight-confetti.ts", import.meta.url)),
       },
     },
+    build: {
+      rolldownOptions: {
+        output: {
+          // Consolidate the used icon modules rather than emitting hundreds
+          // of independently compressed fragments across route chunks.
+          codeSplitting: {
+            groups: [{ name: "vendor-icons", test: /[\\/]node_modules[\\/]lucide-react[\\/]/ }],
+          },
+        },
+      },
+    },
     optimizeDeps: {
       // Browser Audit exercises the complete generated route tree against the
       // dev server. Scan it up front so opening a previously untouched lazy
