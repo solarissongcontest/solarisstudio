@@ -16,6 +16,8 @@ describe("V3 PR current-main freshness guard", () => {
       compareStatus: "ahead",
       mergeBaseSha: MAIN,
       expectedEventHeadSha: HEAD,
+      finalMainSha: MAIN,
+      finalPrHeadSha: HEAD,
     });
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
@@ -29,6 +31,8 @@ describe("V3 PR current-main freshness guard", () => {
       compareStatus: "identical",
       mergeBaseSha: MAIN,
       expectedEventHeadSha: MAIN,
+      finalMainSha: MAIN,
+      finalPrHeadSha: MAIN,
     });
     expect(result.valid).toBe(true);
   });
@@ -41,6 +45,8 @@ describe("V3 PR current-main freshness guard", () => {
       compareStatus: "diverged",
       mergeBaseSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       expectedEventHeadSha: HEAD,
+      finalMainSha: MAIN,
+      finalPrHeadSha: HEAD,
     });
     expect(result.valid).toBe(false);
     expect(result.errors).toContain(
@@ -59,10 +65,32 @@ describe("V3 PR current-main freshness guard", () => {
       compareStatus: "ahead",
       mergeBaseSha: MAIN,
       expectedEventHeadSha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      finalMainSha: MAIN,
+      finalPrHeadSha: HEAD,
     });
     expect(result.valid).toBe(false);
     expect(result.errors).toContain(
       "pull-request head moved after this workflow event; rerun on the current exact head",
+    );
+  });
+
+  it("rejects main or head movement during the live ancestry check", () => {
+    const result = assessV3PrMainFreshness({
+      baseRef: "main",
+      currentMainSha: MAIN,
+      prHeadSha: HEAD,
+      compareStatus: "ahead",
+      mergeBaseSha: MAIN,
+      expectedEventHeadSha: HEAD,
+      finalMainSha: "3333333333333333333333333333333333333333",
+      finalPrHeadSha: "4444444444444444444444444444444444444444",
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain(
+      "current main moved during the freshness check; rerun before integration",
+    );
+    expect(result.errors).toContain(
+      "pull-request head moved during the freshness check; rerun on the new exact head",
     );
   });
 
@@ -74,6 +102,8 @@ describe("V3 PR current-main freshness guard", () => {
       compareStatus: "ahead",
       mergeBaseSha: "merge-base",
       expectedEventHeadSha: "event-head",
+      finalMainSha: "final-main",
+      finalPrHeadSha: "final-head",
     });
     expect(result.valid).toBe(false);
     expect(result.errors).toEqual(
@@ -82,6 +112,8 @@ describe("V3 PR current-main freshness guard", () => {
         "pull-request head SHA is not an exact 40-character SHA",
         "compare merge-base SHA is not an exact 40-character SHA",
         "workflow event head SHA is not an exact 40-character SHA",
+        "final current-main SHA is not an exact 40-character SHA",
+        "final pull-request head SHA is not an exact 40-character SHA",
       ]),
     );
   });
@@ -94,6 +126,8 @@ describe("V3 PR current-main freshness guard", () => {
       compareStatus: "ahead",
       mergeBaseSha: MAIN,
       expectedEventHeadSha: HEAD,
+      finalMainSha: MAIN,
+      finalPrHeadSha: HEAD,
     });
     expect(result.valid).toBe(false);
     expect(result.errors).toContain(
@@ -118,7 +152,7 @@ describe("V3 PR current-main freshness guard", () => {
     ).toBe(true);
   });
 
-  it("does not refresh unrelated or non-main PRs", () => {
+  it("does not select unrelated or non-main PRs", () => {
     expect(
       isV3PullForFreshness({
         title: "ordinary change",
