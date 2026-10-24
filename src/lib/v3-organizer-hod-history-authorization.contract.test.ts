@@ -70,7 +70,7 @@ describe("Organizer HOD history authorization boundary", () => {
     expect(functions).not.toContain("supabaseAdmin");
   });
 
-  it("protects the raw televote-derived identity suggestion reader even when called outside its route wrapper", () => {
+  it("protects and narrows the raw televote-derived identity evidence query", () => {
     const guard = suggestions.indexOf('requireHodHistoryCapabilityServer("delegation.read")');
     const adminRead = suggestions.indexOf("const db = supabaseAdmin as any");
     const voteRead = suggestions.indexOf('.from("vote_submissions")');
@@ -79,6 +79,14 @@ describe("Organizer HOD history authorization boundary", () => {
     expect(adminRead).toBeGreaterThan(guard);
     expect(voteRead).toBeGreaterThan(guard);
     expect(suggestions).not.toContain("requireSolarisOrganizerServer");
+    expect(suggestions).toContain(
+      '.select("round_id,country_code,username,username_normalized")',
+    );
+    expect(suggestions).toContain('.neq("status", "deleted")');
+    expect(suggestions).not.toContain(
+      '.select("id,round_id,country_code,username,username_normalized,status")',
+    );
+    expect(suggestions).not.toContain('submission.status === "deleted"');
   });
 
   it("matches the existing route and database Permission Engine contract instead of inventing a second authority", () => {
