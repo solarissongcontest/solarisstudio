@@ -6,9 +6,9 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const migration = source(
-  'supabase/migrations/20261020062000_v3_feature_rollout_command_authority.sql',
-);
+const migrationPath =
+  'supabase/migrations/20261024200500_v3_feature_rollout_command_authority.sql';
+const migration = source(migrationPath);
 const organizerRoute = source('src/routes/_authenticated/admin/feature-rollout.tsx');
 const maintenanceGuard = source(
   'supabase/migrations/20261017210000_confirmation_maintenance_operation_claim_gate.sql',
@@ -16,7 +16,8 @@ const maintenanceGuard = source(
 const rehearsal = source('scripts/v3-feature-rollout-command-rehearsal.sh');
 
 describe('System V3 Feature Rollout command authority', () => {
-  it('is explicitly governed by the S13 forward-fix migration contract', () => {
+  it('is a fresh current-main S13 forward-fix migration with a semantic contract key', () => {
+    expect(migrationPath).not.toContain('20261020062000');
     expect(migration).toContain("set_config('request.jwt.claim.role', 'service_role', true)");
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain("'v3.rollout.command-authority'");
