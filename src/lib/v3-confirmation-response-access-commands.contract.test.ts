@@ -138,6 +138,20 @@ describe("V3 Confirmation response/access command authority", () => {
     expect(mutationGate).not.toContain("'confirmation.response.delete'");
   });
 
+  it("preserves the current PostgREST /rest/v1/rpc path parser while extending maintenance access", () => {
+    const dataApiGate = between(
+      "create or replace function private.studio2_data_api_operational_gate()",
+      "create or replace function private.studio2_platform_mutation_allowed(",
+    );
+    expect(dataApiGate).toContain("if position('/rpc/' in v_path) > 0 then");
+    expect(dataApiGate).toContain(
+      "v_rpc_name := split_part(split_part(v_path, '/rpc/', 2), '?', 1);",
+    );
+    expect(dataApiGate).not.toContain("if v_path like '/rpc/%' then");
+    expect(dataApiGate).toContain("'studio2_confirmation_response_access_preview'");
+    expect(dataApiGate).toContain("'studio2_apply_confirmation_response_access_change'");
+  });
+
   it("preserves canonical consequence delivery and audit evidence", () => {
     const apply = between(
       "create or replace function public.studio2_apply_confirmation_response_access_change(",
