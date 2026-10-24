@@ -28,6 +28,7 @@ function completeManifest(): V3S11FullServiceRecoveryManifest {
       artifactPath: `docs/evidence/v3-s11/${component}-assessment.json`,
       artifactSha256: DIGEST,
       assessment: {
+        schemaVersion: 1 as const,
         status: "ready_for_qa_review" as const,
         expectedCommitSha: SHA,
         evidenceCommitSha: SHA,
@@ -95,6 +96,17 @@ describe("S11 full-service recovery evidence", () => {
       certificationClaim: false,
       qaReviewRequired: true,
     });
+  });
+
+  it("fails closed on unsupported component assessment schema", () => {
+    const manifest = mutableManifest();
+    componentAssessment(manifest, 1).schemaVersion = 2;
+
+    const assessment = assessV3FullServiceRecoveryEvidence(manifest, SHA);
+    expect(assessment.status).toBe("invalid");
+    expect(assessment.errors).toContain(
+      "storage assessment schemaVersion must be 1",
+    );
   });
 
   it("fails closed on mixed component evidence SHA", () => {
