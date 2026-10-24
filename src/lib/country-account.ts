@@ -17,6 +17,8 @@ export type AccountAccess = {
   schemaReady: boolean;
 };
 
+export type AccountAccessReadMode = "compatibility" | "strict";
+
 export type AvailableCountryClaim = {
   id: string;
   name: string;
@@ -101,11 +103,15 @@ function missingCountrySchema(error: unknown) {
   );
 }
 
-export async function getCurrentAccountAccess(userId?: string | null): Promise<AccountAccess> {
+export async function getCurrentAccountAccess(
+  userId?: string | null,
+  readMode: AccountAccessReadMode = "compatibility",
+): Promise<AccountAccess> {
   let resolvedUserId = userId ?? null;
 
   if (!resolvedUserId) {
-    const { data } = await typedSupabase.auth.getUser();
+    const { data, error } = await typedSupabase.auth.getUser();
+    if (error && readMode === "strict") throw error;
     resolvedUserId = data.user?.id ?? null;
   }
 
@@ -131,12 +137,19 @@ export async function getCurrentAccountAccess(userId?: string | null): Promise<A
       .maybeSingle(),
   ]);
 
-  if (organizerResult.error && !missingCountrySchema(organizerResult.error)) {
-    console.warn("Could not resolve organizer access", organizerResult.error);
-  }
+  const organizerSchemaMissing = missingCountrySchema(organizerResult.error);
+  const countrySchemaMissing = missingCountrySchema(countryResult.error);
 
-  if (countryResult.error && !missingCountrySchema(countryResult.error)) {
-    console.warn("Could not resolve country account", countryResult.error);
+  if (readMode === "strict") {
+    if (organizerResult.error && !organizerSchemaMissing) throw organizerResult.error;
+    if (countryResult.error && !countrySchemaMissing) throw countryResult.error;
+  } else {
+    if (organizerResult.error && !organizerSchemaMissing) {
+      console.warn("Could not resolve organizer access", organizerResult.error);
+    }
+    if (countryResult.error && !countrySchemaMissing) {
+      console.warn("Could not resolve country account", countryResult.error);
+    }
   }
 
   return {
@@ -145,7 +158,7 @@ export async function getCurrentAccountAccess(userId?: string | null): Promise<A
     countryId: countryResult.data?.country_id ?? null,
     countryStatus: countryResult.data?.status ?? null,
     suspensionReason: countryResult.data?.suspension_reason ?? null,
-    schemaReady: !missingCountrySchema(countryResult.error),
+    schemaReady: !organizerSchemaMissing && !countrySchemaMissing,
   };
 }
 
@@ -174,7 +187,7 @@ export function useMyCountryAccount() {
     enabled: !session.isLoading,
     queryKey: ["my-country-account", userId],
     queryFn: async () => {
-      const access = userId ? await getCurrentAccountAccess(userId) : {
+      const access = userId ? await getCurrentAccountAccess(userId, "strict") : {
         userId: null, isOrganizer: false, countryId: null, countryStatus: null,
         suspensionReason: null, schemaReady: true,
       };
