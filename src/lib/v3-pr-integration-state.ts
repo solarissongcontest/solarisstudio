@@ -50,6 +50,7 @@ export type V3PrIntegrationState =
   | "stacked_reconcile_required"
   | "needs_reconcile"
   | "main_sync_unknown"
+  | "mergeability_unknown"
   | "missing_evidence"
   | "stale_evidence"
   | "ci_failed"
@@ -91,6 +92,21 @@ export type V3PrIntegrationReport = {
 };
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/i;
+const CHECK_STATUSES = new Set<V3PrCheckStatus>(["queued", "in_progress", "completed"]);
+const CHECK_CONCLUSIONS = new Set<Exclude<V3PrCheckConclusion, null>>([
+  "success",
+  "failure",
+  "cancelled",
+  "timed_out",
+  "action_required",
+  "neutral",
+  "skipped",
+]);
+const DEPENDENCY_STATES = new Set<V3PrDependencyEvidence["state"]>([
+  "open",
+  "merged",
+  "closed",
+]);
 
 const STATE_ORDER: V3PrIntegrationState[] = [
   "blocked_dependency",
@@ -99,6 +115,7 @@ const STATE_ORDER: V3PrIntegrationState[] = [
   "stacked_reconcile_required",
   "needs_reconcile",
   "main_sync_unknown",
+  "mergeability_unknown",
   "missing_evidence",
   "stale_evidence",
   "ci_failed",
@@ -125,6 +142,16 @@ function validateCandidate(candidate: V3PrIntegrationCandidate) {
   }
   validateSha(candidate.headSha, `PR #${candidate.number} head SHA`);
 
+  if (candidate.draft !== undefined && typeof candidate.draft !== "boolean") {
+    throw new Error(`PR #${candidate.number} has invalid draft state`);
+  }
+  if (
+    candidate.mergeable !== undefined &&
+    candidate.mergeable !== null &&
+    typeof candidate.mergeable !== "boolean"
+  ) {
+    throw new Error(`PR #${candidate.number} has invalid mergeability state`);
+  }
   if (
     candidate.behindMainBy !== undefined &&
     candidate.behindMainBy !== null &&
@@ -134,6 +161,11 @@ function validateCandidate(candidate: V3PrIntegrationCandidate) {
   }
 
   const requiredChecks = unique(candidate.requiredChecks);
+  if (requiredChecks.length === 0) {
+    throw new Error(
+      `PR #${candidate.number} has no required checks; integration evidence requirements must be explicit`,
+    );
+  }
   if (requiredChecks.length !== candidate.requiredChecks.length) {
     throw new Error(`PR #${candidate.number} has duplicate required check names`);
   }
@@ -150,6 +182,12 @@ function validateCandidate(candidate: V3PrIntegrationCandidate) {
       throw new Error(`PR #${candidate.number} has blank check evidence name`);
     }
     validateSha(check.headSha, `PR #${candidate.number} check ${check.name} head SHA`);
+    if (!CHECK_STATUSES.has(check.status)) {
+      throw new Error(`PR #${candidate.number} check ${check.name} has invalid status`);
+    }
+    if (check.conclusion !== null && !CHECK_CONCLUSIONS.has(check.conclusion)) {
+      throw new Error(`PR #${candidate.number} check ${check.name} has invalid conclusion`);
+    }
   }
 
   const dependencies = candidate.dependencies ?? [];
@@ -163,6 +201,11 @@ function validateCandidate(candidate: V3PrIntegrationCandidate) {
     }
     if (dependency.number === candidate.number) {
       throw new Error(`PR #${candidate.number} cannot depend on itself`);
+    }
+    if (!DEPENDENCY_STATES.has(dependency.state)) {
+      throw new Error(
+        `PR #${candidate.number} dependency #${dependency.number} has invalid state`,
+      );
     }
     if (dependency.headSha !== undefined) {
       validateSha(
@@ -254,6 +297,9 @@ function assessCandidate(candidate: V3PrIntegrationCandidate): V3PrIntegrationRo
   } else if (candidate.behindMainBy === undefined || candidate.behindMainBy === null) {
     state = "main_sync_unknown";
     blockers.push("Current-main ancestry has not been measured for this PR head");
+  } else if (candidate.mergeable === undefined || candidate.mergeable === null) {
+    state = "mergeability_unknown";
+    blockers.push("GitHub mergeability for the current PR head/base pair is still unknown");
   } else if (checks.missingChecks.length > 0) {
     state = "missing_evidence";
     blockers.push(`Required checks missing: ${checks.missingChecks.join(", ")}`);
