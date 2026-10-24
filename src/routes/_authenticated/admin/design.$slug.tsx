@@ -345,12 +345,13 @@ function EditionDesignPage() {
         currentEditionId: currentEdition.id,
       });
       const affectedCount = result.affectedShowIds?.length ?? review.shows.length;
+      const receiptId = result.receiptId ?? result.operationId;
       if (review.kind === "edition-default") {
-        setMsg(`${review.editionName} default design was saved atomically to ${affectedCount} show${affectedCount === 1 ? "" : "s"}.`);
+        setMsg(`${review.editionName} default design was saved atomically to ${affectedCount} show${affectedCount === 1 ? "" : "s"}. Receipt ${receiptId}.`);
       } else if (review.kind === "round-reset") {
-        setMsg(`${review.shows[0]?.name ?? "Show"} is using the edition default again.`);
+        setMsg(`${review.shows[0]?.name ?? "Show"} is using the edition default again. Receipt ${receiptId}.`);
       } else {
-        setMsg(`${review.shows[0]?.name ?? "Show"} now has its own Production design override.`);
+        setMsg(`${review.shows[0]?.name ?? "Show"} now has its own Production design override. Receipt ${receiptId}.`);
       }
       setPendingReview(null);
       await refresh();
