@@ -91,9 +91,10 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
   const effectiveRoundId = selectedRoundStillInEdition
     ? roundId
     : scopedRounds.find((round) => round.status === "closed")?.id ?? scopedRounds[0]?.id ?? "";
+  const conversionQueryKey = ["merged-televoting-conversion", editionId, effectiveRoundId] as const;
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["merged-televoting-conversion", editionId, effectiveRoundId],
+    queryKey: conversionQueryKey,
     queryFn: () => getConversion({ data: { roundId: effectiveRoundId } }),
     enabled: Boolean(admin && effectiveRoundId),
   });
@@ -117,7 +118,7 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
 
   const invalidate = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["merged-televoting-conversion", editionId, effectiveRoundId] }),
+      queryClient.invalidateQueries({ queryKey: conversionQueryKey }),
       queryClient.invalidateQueries({ queryKey: ["merged-televoting-published-results"] }),
       queryClient.invalidateQueries({ queryKey: ["merged-televoting-admin-overview"] }),
     ]);
@@ -152,6 +153,7 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
     mutationFn: (confirmProtected: boolean) => recalculate({ data: { roundId: effectiveRoundId, confirm: confirmProtected } }),
     onSuccess: async (result) => {
       setProtectedRecalcOpen(false);
+      queryClient.setQueryData(conversionQueryKey, result.state);
       toast.success(`Calculation v${result.version} stored · ${result.distributedTotal}/${result.totalPoints} points distributed`);
       await invalidate();
     },
