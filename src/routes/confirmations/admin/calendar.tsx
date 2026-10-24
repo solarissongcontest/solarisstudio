@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Clock3 } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
@@ -12,6 +12,10 @@ import {
   type ConfirmationCalendarRow,
   type ConfirmationEdition,
 } from "@/integrations/confirmations/admin";
+import {
+  assertConfirmationCalendarRowsInScope,
+  confirmationCalendarScopeKey,
+} from "@/lib/v3-organizer-confirmation-calendar";
 
 export const Route = createFileRoute("/confirmations/admin/calendar")({
   head: () => ({ meta: [{ title: "Delegation Calendar — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
@@ -53,6 +57,7 @@ function kindLabel(kind: CalendarItem["kind"]) {
 function CalendarPage() {
   const navigate = useNavigate();
   const { editionId: organizerEditionId, setEditionId: setOrganizerEditionId } = useAdminContext();
+  const scopeRequestRef = useRef(0);
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
   const [editionId, setEditionId] = useState("");
   const [roundId, setRoundId] = useState("");
@@ -71,17 +76,17 @@ function CalendarPage() {
         }
         const editionRows = await loadConfirmationEditions();
         if (!alive) return;
-        const selected = editionRows.find((item) => item.id === organizerEditionId)?.id ?? "";
         setEditions(editionRows);
-        setEditionId(selected);
-        setRows(selected ? await loadConfirmationCalendar(selected) : []);
       } catch (caught) {
         if (alive) setError(caught instanceof Error ? caught.message : "Could not load delegation calendar.");
       } finally {
         if (alive) setLoading(false);
       }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+      scopeRequestRef.current += 1;
+    };
   }, [navigate]);
 
   const selectedEdition = editions.find((edition) => edition.id === editionId) ?? null;
@@ -96,18 +101,28 @@ function CalendarPage() {
   }, [editionId, editions, organizerEditionId]);
 
   async function changeScope(nextEditionId: string, nextRoundId: string) {
+    const requestId = ++scopeRequestRef.current;
     setLoading(true);
     setError(null);
     try {
       if (!nextEditionId) {
-        setRows([]);
+        if (scopeRequestRef.current === requestId) setRows([]);
         return;
       }
-      setRows(await loadConfirmationCalendar(nextEditionId, nextRoundId || undefined));
+      const scope = { editionId: nextEditionId, roundId: nextRoundId || null };
+      const requestedScopeKey = confirmationCalendarScopeKey(scope);
+      const nextRows = assertConfirmationCalendarRowsInScope(
+        await loadConfirmationCalendar(nextEditionId, nextRoundId || undefined),
+        scope,
+      );
+      if (scopeRequestRef.current !== requestId) return;
+      if (confirmationCalendarScopeKey(scope) !== requestedScopeKey) return;
+      setRows(nextRows);
     } catch (caught) {
+      if (scopeRequestRef.current !== requestId) return;
       setError(caught instanceof Error ? caught.message : "Could not load calendar data.");
     } finally {
-      setLoading(false);
+      if (scopeRequestRef.current === requestId) setLoading(false);
     }
   }
 
