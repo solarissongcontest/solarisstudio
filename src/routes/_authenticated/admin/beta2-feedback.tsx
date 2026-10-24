@@ -39,6 +39,9 @@ type Beta2Submission = {
   created_at: string;
 };
 
+const BETA2_SUBMISSION_FIELDS =
+  "id,tester_name,device,browser,familiarity,answers,bug_reports,created_at";
+
 const questions = betaSections.flatMap((section) => section.questions);
 
 function Beta2FeedbackDashboard() {
@@ -52,7 +55,10 @@ function Beta2FeedbackDashboard() {
     setError(null);
     try {
       const [beta2, beta1] = await Promise.all([
-        supabase.from("beta2_test_submissions" as never).select("*").order("created_at", { ascending: false }),
+        supabase
+          .from("beta2_test_submissions" as never)
+          .select(BETA2_SUBMISSION_FIELDS)
+          .order("created_at", { ascending: false }),
         supabase.from("beta_test_submissions" as never).select("id", { count: "exact", head: true }),
       ]);
       if (beta2.error) throw beta2.error;
