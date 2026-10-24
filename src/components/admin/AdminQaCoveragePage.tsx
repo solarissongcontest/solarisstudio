@@ -37,6 +37,7 @@ import {
   summarizeAdminQaCoverage,
   type QaCoverageEvidence,
 } from "@/lib/admin-qa-coverage";
+import { rowsToSpreadsheetSafeCsv } from "@/lib/spreadsheet-safe-csv";
 
 const EXPECTED_ADMIN_TEAM = 2;
 
@@ -59,8 +60,6 @@ type AdminBetaSubmission = {
   familiarity: string | null;
   answers: BetaAnswers;
   bug_reports: AdminBetaBug[];
-  screenshot_paths: string[];
-  user_agent: string | null;
   form_version: number;
   created_at: string;
 };
@@ -68,6 +67,8 @@ type AdminBetaSubmission = {
 export function AdminQaCoveragePage() {
   const [submissions, setSubmissions] = useState<AdminBetaSubmission[]>([]);
   const [signedScreenshots, setSignedScreenshots] = useState<Record<string, string>>({});
+  const [screenshotLoading, setScreenshotLoading] = useState<Record<string, boolean>>({});
+  const [screenshotErrors, setScreenshotErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const sections = useMemo(() => buildAdminBetaSections(), []);
@@ -78,45 +79,49 @@ export function AdminQaCoveragePage() {
     try {
       const { data, error: selectError } = await supabase
         .from("admin_beta_test_submissions" as never)
-        .select("*")
+        .select("id,tester_name,device,browser,familiarity,answers,bug_reports,form_version,created_at")
         .order("created_at", { ascending: false });
       if (selectError) throw selectError;
 
-      const rows = (data ?? []) as unknown as AdminBetaSubmission[];
-      setSubmissions(rows);
-
-      const paths = Array.from(
-        new Set(
-          rows.flatMap((row) => [
-            ...(row.screenshot_paths ?? []),
-            ...(row.bug_reports ?? [])
-              .map((bug) => bug.screenshotPath)
-              .filter((value): value is string => Boolean(value)),
-          ]),
-        ),
-      );
-
-      const signed = await Promise.all(
-        paths.map(async (path) => {
-          const { data: result, error: signedError } = await supabase.storage
-            .from("beta-feedback")
-            .createSignedUrl(path, 60 * 60);
-          if (signedError || !result?.signedUrl) return null;
-          return [path, result.signedUrl] as const;
-        }),
-      );
-
-      setSignedScreenshots(
-        Object.fromEntries(
-          signed.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)),
-        ),
-      );
+      setSubmissions((data ?? []) as unknown as AdminBetaSubmission[]);
+      setSignedScreenshots({});
+      setScreenshotLoading({});
+      setScreenshotErrors({});
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not load Organizer QA evidence.");
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const loadScreenshot = useCallback(
+    async (path: string) => {
+      if (signedScreenshots[path] || screenshotLoading[path]) return;
+
+      setScreenshotLoading((current) => ({ ...current, [path]: true }));
+      setScreenshotErrors((current) => {
+        const next = { ...current };
+        delete next[path];
+        return next;
+      });
+
+      try {
+        const { data: result, error: signedError } = await supabase.storage
+          .from("beta-feedback")
+          .createSignedUrl(path, 60 * 60);
+        if (signedError || !result?.signedUrl) throw signedError ?? new Error("Missing signed URL");
+        setSignedScreenshots((current) => ({ ...current, [path]: result.signedUrl }));
+      } catch {
+        setScreenshotErrors((current) => ({
+          ...current,
+          [path]: "Could not load screenshot. Try again.",
+        }));
+      } finally {
+        setScreenshotLoading((current) => ({ ...current, [path]: false }));
+      }
+    },
+    [signedScreenshots, screenshotLoading],
+  );
 
   useEffect(() => {
     void load();
@@ -183,9 +188,7 @@ export function AdminQaCoveragePage() {
       ...questions.map((question) => csvValue(submission.answers[question.id])),
       JSON.stringify(submission.bug_reports ?? []),
     ]);
-    const csv = [headers, ...rows]
-      .map((row) => row.map((value) => escapeCsv(String(value ?? ""))).join(","))
-      .join("\n");
+    const csv = rowsToSpreadsheetSafeCsv([headers, ...rows]);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -257,7 +260,6 @@ export function AdminQaCoveragePage() {
           title="Capability × scenario × environment"
           description="Each row comes from a real Organizer acceptance-test capability and its scenario section. Manual evidence is deliberately weaker than release certification; exact-SHA cells remain unknown until test evidence is bound to a commit."
         />
-
         <div className="space-y-6">
           {matrixGroups.map(([group, rows]) => (
             <section key={group}>
@@ -371,16 +373,39 @@ export function AdminQaCoveragePage() {
                   <section>
                     <h3 className="admin-section-label">Bug reports</h3>
                     <div className="mt-2 space-y-3">
-                      {submission.bug_reports.map((bug, index) => (
-                        <div key={bug.id ?? index} className="rounded-xl border border-rose-200/10 bg-rose-200/[0.035] p-3 text-xs leading-5">
-                          <p className="font-bold">Bug {index + 1} · {bug.page ?? "Unknown page"}</p>
-                          <p className="mt-2"><span className="text-muted-foreground">Did:</span> {bug.did}</p>
-                          <p><span className="text-muted-foreground">Expected:</span> {bug.expected}</p>
-                          <p><span className="text-muted-foreground">Instead:</span> {bug.instead}</p>
-                          <p className="mt-2 text-muted-foreground">{bug.reproducibility || "Reproducibility not given"} · {bug.severity || "Severity not given"}</p>
-                          {bug.screenshotPath && signedScreenshots[bug.screenshotPath] ? <a href={signedScreenshots[bug.screenshotPath]} target="_blank" rel="noreferrer" className="mt-2 inline-flex font-semibold text-sky-100 underline">Open screenshot</a> : null}
-                        </div>
-                      ))}
+                      {submission.bug_reports.map((bug, index) => {
+                        const screenshotPath = bug.screenshotPath;
+                        return (
+                          <div key={bug.id ?? index} className="rounded-xl border border-rose-200/10 bg-rose-200/[0.035] p-3 text-xs leading-5">
+                            <p className="font-bold">Bug {index + 1} · {bug.page ?? "Unknown page"}</p>
+                            <p className="mt-2"><span className="text-muted-foreground">Did:</span> {bug.did}</p>
+                            <p><span className="text-muted-foreground">Expected:</span> {bug.expected}</p>
+                            <p><span className="text-muted-foreground">Instead:</span> {bug.instead}</p>
+                            <p className="mt-2 text-muted-foreground">{bug.reproducibility || "Reproducibility not given"} · {bug.severity || "Severity not given"}</p>
+                            {screenshotPath ? (
+                              <div className="mt-2">
+                                {signedScreenshots[screenshotPath] ? (
+                                  <a href={signedScreenshots[screenshotPath]} target="_blank" rel="noreferrer" className="inline-flex font-semibold text-sky-100 underline">
+                                    Open screenshot
+                                  </a>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => void loadScreenshot(screenshotPath)}
+                                    disabled={Boolean(screenshotLoading[screenshotPath])}
+                                    className="font-semibold text-sky-100 underline disabled:cursor-wait disabled:opacity-60"
+                                  >
+                                    {screenshotLoading[screenshotPath] ? "Loading screenshot…" : "Load screenshot"}
+                                  </button>
+                                )}
+                                {screenshotErrors[screenshotPath] ? (
+                                  <p className="mt-1 text-[11px] text-rose-100">{screenshotErrors[screenshotPath]}</p>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
                     </div>
                   </section>
                 ) : null}
@@ -437,8 +462,4 @@ function csvValue(value: unknown) {
   if (Array.isArray(value)) return value.join(" | ");
   if (value && typeof value === "object") return Object.entries(value as Record<string, string>).map(([key, answer]) => `${key}: ${answer}`).join(" | ");
   return value ?? "";
-}
-
-function escapeCsv(value: string) {
-  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
