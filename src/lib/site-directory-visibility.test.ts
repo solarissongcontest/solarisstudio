@@ -7,6 +7,7 @@ function destination(
   id: string,
   auth?: PublicDestination["auth"],
   discoverable: boolean | undefined = true,
+  visibility: PublicDestination["visibility"] = "secondary",
 ): PublicDestination {
   return {
     id,
@@ -14,7 +15,7 @@ function destination(
     area: "me",
     label: id,
     description: id,
-    visibility: "secondary",
+    visibility,
     ...(auth ? { auth } : {}),
     ...(discoverable === undefined ? {} : { discoverable }),
   };
@@ -22,8 +23,9 @@ function destination(
 
 const destinations: PublicDestination[] = [
   destination("ordinary"),
-  destination("sign-in", "public"),
+  destination("sign-in", "public", true, "contextual"),
   destination("my-solaris", "signed-in"),
+  destination("contextual-private", undefined, true, "contextual"),
   destination("hod-workspace", "hod"),
   destination("organizer-workspace", "organizer"),
   destination("hidden-context", undefined, false),
@@ -38,12 +40,12 @@ describe("Site Directory visibility", () => {
     expect(visible).toEqual(["ordinary", "sign-in"]);
   });
 
-  it("replaces Sign in with the signed-in Me destination after authentication", () => {
+  it("replaces Sign in with signed-in and contextual destinations after authentication", () => {
     const visible = visibleSiteDirectoryDestinations(destinations, {
       authenticationState: "signed-in",
     }).map((item) => item.id);
 
-    expect(visible).toEqual(["ordinary", "my-solaris"]);
+    expect(visible).toEqual(["ordinary", "my-solaris", "contextual-private"]);
   });
 
   it("fails contextual account destinations closed while session state is unresolved", () => {
