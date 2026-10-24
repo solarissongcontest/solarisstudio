@@ -88,6 +88,8 @@ The manifest must bind all recovery evidence to one exact candidate SHA and cont
 - Storage object-byte recovery,
 - deployment rollback.
 
+Each component entry embeds the component assessor's real JSON output under `assessment` instead of translating it into another quasi-authoritative schema. The wrapper adds only composition provenance: `component`, `observedAt`, the retained assessment `artifactPath`, and its `artifactSha256`. The composer requires each embedded assessment's `expectedCommitSha` and `evidenceCommitSha` to equal the full-service candidate, its `errors` array to be empty, and its anti-certification boundary to remain intact. Deployment evidence must additionally retain `fullServiceRecoveryClaim: false`.
+
 Those component references are not enough by themselves. The same manifest must also retain one isolated end-to-end rehearsal that binds the exact component rehearsal identities and proves every cross-layer check:
 
 - database/Storage identity consistency,
