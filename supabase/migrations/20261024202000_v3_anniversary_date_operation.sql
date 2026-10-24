@@ -67,7 +67,7 @@ $snapshot$;
 revoke all on function public.studio2_anniversary_date_snapshot(uuid)
   from public, anon;
 grant execute on function public.studio2_anniversary_date_snapshot(uuid)
-  to authenticated, service_role;
+  to authenticated;
 
 comment on function public.studio2_anniversary_date_snapshot(uuid) is
   'Exact-edition Organizer snapshot for reviewing an Anniversary date change. Authorization is resolved server-side.';
@@ -203,7 +203,7 @@ revoke all on function public.studio2_set_anniversary_date(
 ) from public, anon;
 grant execute on function public.studio2_set_anniversary_date(
   uuid, date, date, integer, text, uuid, text, uuid
-) to authenticated, service_role;
+) to authenticated;
 
 comment on function public.studio2_set_anniversary_date(
   uuid, date, date, integer, text, uuid, text, uuid
