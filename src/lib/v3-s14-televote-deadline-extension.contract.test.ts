@@ -50,18 +50,12 @@ describe("System V3 S14 authoritative Televote deadline extension", () => {
   });
 
   it("replays every deadline prerequisite and lifecycle repair on current-main upgrade", () => {
-    const prerequisiteCopy = upgradeWorkflow.indexOf(
-      "20261017001900_v3_s14_televote_deadline_column.sql",
-    );
-    const foundationCopy = upgradeWorkflow.indexOf(
-      "20261017002000_v3_s14_televote_deadline_extension.sql",
-    );
-    const bindingFixCopy = upgradeWorkflow.indexOf(
-      "20261017002300_v3_s14_televote_round_binding_id_fix.sql",
-    );
-    expect(prerequisiteCopy).toBeGreaterThanOrEqual(0);
-    expect(foundationCopy).toBeGreaterThan(prerequisiteCopy);
-    expect(bindingFixCopy).toBeGreaterThan(foundationCopy);
+    const deltaCopy = upgradeWorkflow.indexOf("v3-copy-migration-delta.sh");
+    const apply = upgradeWorkflow.indexOf("supabase migration up --local --include-all", deltaCopy);
+    expect(deltaCopy).toBeGreaterThanOrEqual(0);
+    expect(apply).toBeGreaterThan(deltaCopy);
+    expect(upgradeWorkflow).toContain('"$GITHUB_WORKSPACE" /tmp/solaris-s14-deadline-main');
+
   });
 
   it("keeps authenticated rehearsal captures to one scalar result", () => {
