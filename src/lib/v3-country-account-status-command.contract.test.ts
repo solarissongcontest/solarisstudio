@@ -93,6 +93,19 @@ describe("V3 country-account suspension/restoration command", () => {
     expect(migration).not.toContain("delete from auth.users");
   });
 
+  it("lets reviewed callers freeze one operation identity across unresolved retries", () => {
+    expect(client).toContain("export type CountryAccountStatusOperationIdentity");
+    expect(client).toContain("operationIdentity?: CountryAccountStatusOperationIdentity");
+    expect(client).toContain("export function createCountryAccountStatusOperationIdentity()");
+    expect(client).toContain("idempotencyKey: operationId");
+    expect(client).toContain("correlationId: operationId");
+    expect(client).toContain("const operationIdentity = resolveOperationIdentity(input.operationIdentity)");
+    expect(client).toContain("operationId: operationIdentity.operationId");
+    expect(client).toContain("idempotencyKey: operationIdentity.idempotencyKey");
+    expect(client).toContain("correlationId: operationIdentity.correlationId");
+    expect(client).toContain("must retain and resupply operationIdentity");
+  });
+
   it("provides a non-retrying client with one bounded lost-response reconciliation", () => {
     expect(client).toContain("createOrganisationCommand");
     expect(client).toContain('riskClass: "R2"');
