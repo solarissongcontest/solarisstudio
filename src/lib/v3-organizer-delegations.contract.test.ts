@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
+const delegationsRoute = readFileSync(
+  'src/routes/_authenticated/admin/delegations.tsx',
+  'utf8',
+);
 const countriesRoute = readFileSync(
   'src/routes/_authenticated/admin/countries.tsx',
   'utf8',
@@ -11,6 +15,28 @@ const countryDetail = readFileSync(
 );
 
 describe('V3 Organizer Delegations context boundary', () => {
+  it('resolves the Delegations overview against the exact accessible Organizer edition before querying requirements', () => {
+    expect(delegationsRoute).toContain(
+      'const selectedEdition = selectOrganizerEdition(editionsQuery.data ?? [], editionId);',
+    );
+    expect(delegationsRoute).toContain('const resolvedEditionId = selectedEdition?.id ?? "";');
+    expect(delegationsRoute).toContain('queryFn: () => loadConfirmationRequirements(resolvedEditionId)');
+    expect(delegationsRoute).toContain('enabled: Boolean(resolvedEditionId)');
+    expect(delegationsRoute).not.toContain('loadConfirmationRequirements(editionId!)');
+  });
+
+  it('keeps missing, stale and revoked Delegations context fail-closed and visible', () => {
+    expect(delegationsRoute).toContain('editionsQuery.isLoading');
+    expect(delegationsRoute).toContain('editionsQuery.isError');
+    expect(delegationsRoute).toContain('!selectedEdition');
+    expect(delegationsRoute).toContain('Edition context required');
+    expect(delegationsRoute).toContain(
+      'Solaris will not substitute another edition or a globally active Confirmation edition for missing, stale or revoked context.',
+    );
+    expect(delegationsRoute).toContain('eyebrow={selectedEditionLabel ?? "Current edition"}');
+    expect(delegationsRoute).toContain('<AdminStatus tone="neutral">Edition context</AdminStatus>');
+  });
+
   it('fails closed before rendering country detail without an exact selected edition', () => {
     expect(countriesRoute).toContain(
       'const selectedEdition = selectOrganizerEdition(editionsQuery.data ?? [], editionId);',
