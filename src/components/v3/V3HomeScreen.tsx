@@ -80,20 +80,33 @@ function homeNowContent({
   switch (bootstrap.home.primaryMode) {
     case "attention": {
       const count = bootstrap.attention.badgeCount;
+      const remainingCount = Math.max(0, count - 1);
       return {
         headerTitle: greeting ?? "What matters now",
         eyebrow: "Right now",
         title: `${count} thing${count === 1 ? "" : "s"} need your attention`,
         count: count as number | "✓",
-        child: primary ? (
-          <V3ActionCard
-            title={primary.title}
-            description={primary.description}
-            tone={urgencyTone(primary)}
-            to={primary.route}
-            meta={actionMetaNodes(primary, actionMeta?.[primary.id])}
-          />
-        ) : null,
+        child: (
+          <div className="grid gap-3">
+            {primary ? (
+              <V3ActionCard
+                title={primary.title}
+                description={primary.description}
+                tone={urgencyTone(primary)}
+                to={primary.route}
+                meta={actionMetaNodes(primary, actionMeta?.[primary.id])}
+              />
+            ) : null}
+            {remainingCount > 0 ? (
+              <V3ActionCard
+                title={`View ${remainingCount} more in Participate`}
+                description="See the rest of your current responsibilities and participation actions."
+                tone="neutral"
+                to="/participate"
+              />
+            ) : null}
+          </div>
+        ),
       };
     }
     case "show-day":
