@@ -36,11 +36,13 @@ declare
   v_historical_count integer := 0;
   v_processed integer := 0;
   v_reconciled integer := 0;
-  v_canonical_recovery_required integer := 0;
+  v_page_canonical_recovery_required integer := 0;
+  v_edition_canonical_recovery_required integer := 0;
   v_next_offset integer;
   v_outcomes jsonb := '[]'::jsonb;
   v_verification jsonb;
   v_state text;
+  v_complete boolean := false;
 begin
   if p_edition_id is null
      or not exists (select 1 from public.editions edition where edition.id = p_edition_id) then
@@ -87,6 +89,7 @@ begin
       'processed', 0,
       'reconciled', 0,
       'canonicalRecoveryRequired', 0,
+      'pageCanonicalRecoveryRequired', 0,
       'nextOffset', null,
       'complete', false,
       'outcomes', '[]'::jsonb
@@ -142,7 +145,7 @@ begin
       -- lifecycle loss. Recovery must not infer max(generation)+1 or otherwise
       -- synthesize a reconfirmation generation from projection evidence.
       if v_historical_count > 0 then
-        v_canonical_recovery_required := v_canonical_recovery_required + 1;
+        v_page_canonical_recovery_required := v_page_canonical_recovery_required + 1;
         v_outcomes := v_outcomes || jsonb_build_array(jsonb_build_object(
           'countryId', v_country_id,
           'state', 'canonical_recovery_required',
@@ -168,19 +171,46 @@ begin
     else null
   end;
 
-  -- Certification remains independent and read-only. It can report drift in
-  -- unprocessed continuation pages or canonical recovery cases without hiding it.
+  -- Preserve unreconstructible canonical loss across every page. The older
+  -- independent verifier intentionally scans current requirements + submissions,
+  -- so it cannot see a historical country whose current generation disappeared.
+  -- This edition-wide check closes that blind spot before any page can report
+  -- successful recovery.
+  select count(*)::integer
+  into v_edition_canonical_recovery_required
+  from (
+    select distinct historical_requirement.country_id
+    from public.studio2_confirmation_requirements historical_requirement
+    where historical_requirement.edition_id = p_edition_id
+      and historical_requirement.country_id is not null
+      and not exists (
+        select 1
+        from public.studio2_confirmation_requirements current_requirement
+        where current_requirement.edition_id = p_edition_id
+          and current_requirement.country_id = historical_requirement.country_id
+          and current_requirement.superseded_at is null
+      )
+  ) canonical_gap;
+
+  -- Certification remains independent and read-only for repairable invariant
+  -- drift. Canonical lifecycle-loss detection above is edition-wide because that
+  -- state deliberately cannot be reconstructed from projection evidence.
   v_verification := public.studio2_verify_confirmation_requirements(
     p_edition_id,
     500
   );
 
   v_state := case
-    when v_canonical_recovery_required > 0 then 'canonical_recovery_required'
+    when v_edition_canonical_recovery_required > 0 then 'canonical_recovery_required'
     when v_next_offset is not null then 'continuation_required'
     when v_verification ->> 'state' = 'consistent' then 'consistent'
     else 'reconciliation_required'
   end;
+
+  v_complete :=
+    v_next_offset is null
+    and v_edition_canonical_recovery_required = 0
+    and v_verification ->> 'state' = 'consistent';
 
   return jsonb_build_object(
     'state', v_state,
@@ -191,9 +221,10 @@ begin
     'repairCandidateLimit', 500,
     'processed', v_processed,
     'reconciled', v_reconciled,
-    'canonicalRecoveryRequired', v_canonical_recovery_required,
+    'canonicalRecoveryRequired', v_edition_canonical_recovery_required,
+    'pageCanonicalRecoveryRequired', v_page_canonical_recovery_required,
     'nextOffset', v_next_offset,
-    'complete', v_next_offset is null,
+    'complete', v_complete,
     'outcomes', v_outcomes,
     'verification', v_verification
   );
