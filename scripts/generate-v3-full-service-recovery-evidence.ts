@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, relative, resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { assessV3FullServiceRecoveryEvidence } from "../src/lib/v3-full-service-recovery-evidence";
 
 type UnknownRecord = Record<string, unknown>;
@@ -45,16 +45,13 @@ function canonicalJson(value: unknown): string {
     .join(",")}}`;
 }
 
-function verifyComponentArtifacts(
-  manifestValue: unknown,
-  manifestPath: string,
-): string[] {
+function verifyComponentArtifacts(manifestValue: unknown): string[] {
   const errors: string[] = [];
   const manifest = asRecord(manifestValue);
   const components = manifest?.components;
   if (!Array.isArray(components)) return errors;
 
-  const manifestDirectory = dirname(resolve(process.cwd(), manifestPath));
+  const repositoryRoot = resolve(process.cwd());
 
   for (const [index, rawComponent] of components.entries()) {
     const component = asRecord(rawComponent);
@@ -73,15 +70,14 @@ function verifyComponentArtifacts(
 
     if (!artifactPath || !/^[0-9a-f]{64}$/i.test(expectedDigest)) continue;
 
-    const resolvedArtifact = resolve(manifestDirectory, artifactPath);
-    const relativeArtifact = relative(manifestDirectory, resolvedArtifact);
+    const resolvedArtifact = resolve(repositoryRoot, artifactPath);
+    const relativeArtifact = relative(repositoryRoot, resolvedArtifact);
     if (
       relativeArtifact === "" ||
       relativeArtifact === ".." ||
-      relativeArtifact.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) ||
-      resolve(resolvedArtifact) !== resolvedArtifact
+      relativeArtifact.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)
     ) {
-      errors.push(`${componentId} assessment artifact escapes the manifest directory`);
+      errors.push(`${componentId} assessment artifact escapes the repository root`);
       continue;
     }
 
@@ -132,7 +128,7 @@ const structuralAssessment = assessV3FullServiceRecoveryEvidence(manifest, expec
 const provenanceErrors =
   structuralAssessment.errors.length === 0 &&
   structuralAssessment.missingComponents.length === 0
-    ? verifyComponentArtifacts(manifest, inputPath)
+    ? verifyComponentArtifacts(manifest)
     : [];
 const assessment =
   provenanceErrors.length > 0
