@@ -35,7 +35,9 @@ describe("V3 Organizer voting declaration edition scope", () => {
 
   it("remounts pending operations when Organizer edition context changes", () => {
     expect(route).toContain("useAdminContext()");
-    expect(route).toContain('<IntegrityDeclarationsPage key={editionId} editionId={editionId} />');
+    expect(route).toContain("<IntegrityDeclarationsPage");
+    expect(route).toContain("editionId={editionId}");
+    expect(route).toContain("editionContextLabel={editionLabel?.trim() || editionId}");
     expect(route).toContain('["merged-integrity-declarations", editionId]');
     expect(route).toContain("data: { editionId, limit: 500, signedOnly: false }");
     expect(route).toContain("row.canonical_edition_id !== editionId");

@@ -10,7 +10,9 @@ const route = readFileSync(
 describe("V3 Organizer Result Integrity edition scope", () => {
   it("resolves rounds from the exact selected Organizer edition", () => {
     expect(route).toContain("useAdminContext()");
-    expect(route).toContain('<ResultIntegrityPage key={editionId} editionId={editionId} />');
+    expect(route).toContain("<ResultIntegrityPage");
+    expect(route).toContain("editionId={editionId}");
+    expect(route).toContain("editionLabel={editionLabel?.trim() || editionId}");
     expect(route).toContain("getMergedTelevotingRoundsPage");
     expect(route).toContain("getRoundsPage({ data: { editionId } })");
     expect(route).toContain('["v3-organizer-result-integrity-rounds", editionId]');
