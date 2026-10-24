@@ -73,11 +73,14 @@ export const recalculateMergedConversion = createServerFn({ method: "POST" })
     return { roundId: data.roundId, confirm: Boolean(data.confirm) };
   })
   .handler(async ({ data }) => {
-    const { loadMergedConversionRound, runMergedOfficialCalculationServer } = await import("@/integrations/televoting/conversion.server");
+    const { loadMergedConversionRound } = await import("@/integrations/televoting/conversion.server");
+    const { runMergedOfficialCalculationWithReadbackServer } = await import(
+      "@/integrations/televoting/conversion-readback.server"
+    );
     const round = await loadMergedConversionRound(data.roundId);
     if (round.results_status === "locked" && !data.confirm) throw new Error("This result is locked — explicit confirmation required");
     if (round.results_status === "published" && !data.confirm) throw new Error("This result is published — explicit confirmation required");
-    return runMergedOfficialCalculationServer(data.roundId);
+    return runMergedOfficialCalculationWithReadbackServer(data.roundId);
   });
 
 export const checkMergedPublicationReadiness = createServerFn({ method: "POST" })
