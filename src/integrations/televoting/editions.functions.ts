@@ -10,7 +10,15 @@ export type MergedTelevotingEdition = {
   vote_count: number;
 };
 
+async function requireVotingCapability(capability: "voting.read" | "voting.manage") {
+  const { requireSolarisCapabilityServer } = await import(
+    "@/integrations/supabase/capabilities.server"
+  );
+  await requireSolarisCapabilityServer(capability);
+}
+
 export const listMergedTelevotingEditions = createServerFn({ method: "GET" }).handler(async () => {
+  await requireVotingCapability("voting.read");
   const { listMergedTelevotingEditionsServer } = await import(
     "@/integrations/televoting/editions.server"
   );
@@ -25,6 +33,7 @@ export const createMergedTelevotingEdition = createServerFn({ method: "POST" })
     return { name };
   })
   .handler(async ({ data }) => {
+    await requireVotingCapability("voting.manage");
     const { createMergedTelevotingEditionServer } = await import(
       "@/integrations/televoting/editions.server"
     );
@@ -40,6 +49,7 @@ export const renameMergedTelevotingEdition = createServerFn({ method: "POST" })
     return { id: data.id, name };
   })
   .handler(async ({ data }) => {
+    await requireVotingCapability("voting.manage");
     const { renameMergedTelevotingEditionServer } = await import(
       "@/integrations/televoting/editions.server"
     );
@@ -52,6 +62,7 @@ export const activateMergedTelevotingEdition = createServerFn({ method: "POST" }
     return data;
   })
   .handler(async ({ data }) => {
+    await requireVotingCapability("voting.manage");
     const { activateMergedTelevotingEditionServer } = await import(
       "@/integrations/televoting/editions.server"
     );
@@ -64,6 +75,7 @@ export const archiveMergedTelevotingEdition = createServerFn({ method: "POST" })
     return { id: data.id, archived: Boolean(data.archived) };
   })
   .handler(async ({ data }) => {
+    await requireVotingCapability("voting.manage");
     const { archiveMergedTelevotingEditionServer } = await import(
       "@/integrations/televoting/editions.server"
     );
