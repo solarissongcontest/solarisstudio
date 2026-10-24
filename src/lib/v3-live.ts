@@ -82,6 +82,7 @@ function resolvePublicShowState(input: {
   show: Show;
   televoteRound: ShowModeTelevoteRound | null;
   serverTime: string;
+  resultsPublished: boolean;
 }): V3PublicShowState {
   const status = normalizedShowStatus(input.show);
   if (status === "cancelled" || status === "canceled") return "cancelled";
@@ -99,12 +100,10 @@ function resolvePublicShowState(input: {
   ) {
     return "results_pending";
   }
-  if (
-    companion.phase === "results_published" ||
-    companion.phase === "ended"
-  ) {
-    return "complete";
+  if (companion.phase === "results_published") {
+    return input.resultsPublished ? "complete" : "results_pending";
   }
+  if (companion.phase === "ended") return "complete";
   if (companion.phase === "live") return "live";
 
   const scheduledStart = companion.config.scheduledStart
@@ -185,8 +184,10 @@ function projectionStateVersion(input: {
  * instead of inferring them from wall-clock time or the running order.
  *
  * Scheduled and transition timestamps are presentation context only. They never
- * advance the official show/voting/result state in the browser; that state still
- * comes from the authoritative Show and linked voting-round snapshot.
+ * advance the official show/voting/result state in the browser. Result
+ * publication is supplied separately from exact immutable Result-version
+ * verification, so publication metadata alone cannot make Live claim that an
+ * official result exists.
  */
 export function projectV3LiveExperience(input: {
   show: Show;
@@ -194,6 +195,7 @@ export function projectV3LiveExperience(input: {
   runningOrder: V3LiveEntrySummary[];
   serverTime: string;
   generatedAt: string;
+  resultsPublished: boolean;
 }): V3LiveExperience {
   const companion = resolveShowCompanionState({
     show: input.show,
@@ -203,7 +205,10 @@ export function projectV3LiveExperience(input: {
     show: input.show,
     televoteRound: input.televoteRound,
     serverTime: input.serverTime,
+    resultsPublished: input.resultsPublished,
   });
+  const publicationClaimUnverified =
+    companion.phase === "results_published" && !input.resultsPublished;
   const youtubeUrl = safeShowModeYoutubeUrl(companion.config.youtubeUrl);
 
   return {
@@ -213,8 +218,14 @@ export function projectV3LiveExperience(input: {
       name: input.show.name,
     },
     state,
-    stateLabel: companion.label,
-    description: companion.description,
+    stateLabel:
+      publicationClaimUnverified && state === "results_pending"
+        ? "Results pending"
+        : companion.label,
+    description:
+      publicationClaimUnverified && state === "results_pending"
+        ? "Solaris has not verified an immutable published Result Version for this show yet."
+        : companion.description,
     runningOrder: [...input.runningOrder].sort(
       (a, b) =>
         (a.runningOrder ?? Number.MAX_SAFE_INTEGER) -
@@ -227,7 +238,7 @@ export function projectV3LiveExperience(input: {
       resultsStartedAt: companion.config.resultsStartedAt,
       endedAt: companion.config.endedAt,
     },
-    resultsPublished: companion.resultsPublished,
+    resultsPublished: input.resultsPublished,
     ...(youtubeUrl
       ? { broadcast: { href: youtubeUrl, label: "Watch broadcast" } }
       : {}),
@@ -237,7 +248,7 @@ export function projectV3LiveExperience(input: {
         show: input.show,
         round: input.televoteRound,
         state,
-        resultsPublished: companion.resultsPublished,
+        resultsPublished: input.resultsPublished,
       }),
       updatedAt: input.generatedAt,
       serverTime: input.serverTime,

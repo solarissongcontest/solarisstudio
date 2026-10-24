@@ -52,6 +52,7 @@ const base = {
   ],
   serverTime: "2026-10-18T20:00:00.000Z",
   generatedAt: "2026-10-18T20:00:01.000Z",
+  resultsPublished: false,
 };
 
 describe("Public V3 LiveExperience", () => {
@@ -153,6 +154,66 @@ describe("Public V3 LiveExperience", () => {
       });
       expect(experience.state).toBe(expected);
     }
+  });
+
+  it("refuses to call metadata-only result publication complete", () => {
+    const experience = projectV3LiveExperience({
+      ...base,
+      show: show({
+        publication_config: {
+          participants: true,
+          artists: true,
+          songs: true,
+          semi_split: true,
+          running_order: true,
+          qualifiers: true,
+          results: true,
+          jury_results: true,
+          televote_results: true,
+          detailed_voting: true,
+        },
+      }),
+      televoteRound: {
+        id: "round-1",
+        name: "Grand Final vote",
+        status: "closed",
+        openedAt: "2026-10-18T19:55:00.000Z",
+        closedAt: "2026-10-18T20:25:00.000Z",
+      },
+      resultsPublished: false,
+    });
+
+    expect(experience.state).toBe("results_pending");
+    expect(experience.stateLabel).toBe("Results pending");
+    expect(experience.resultsPublished).toBe(false);
+    expect(experience.description).toContain("immutable published Result Version");
+    expect(experience.freshness.stateVersion).toContain("results-hidden");
+  });
+
+  it("marks results complete only after exact immutable publication verification", () => {
+    const experience = projectV3LiveExperience({
+      ...base,
+      show: show({
+        publication_config: {
+          participants: true,
+          artists: true,
+          songs: true,
+          semi_split: true,
+          running_order: true,
+          qualifiers: true,
+          results: true,
+          jury_results: true,
+          televote_results: true,
+          detailed_voting: true,
+        },
+      }),
+      televoteRound: null,
+      resultsPublished: true,
+    });
+
+    expect(experience.state).toBe("complete");
+    expect(experience.resultsPublished).toBe(true);
+    expect(experience.freshness.stateVersion).toContain("results-public");
   });
 
   it("refuses unsafe broadcast URLs", () => {
