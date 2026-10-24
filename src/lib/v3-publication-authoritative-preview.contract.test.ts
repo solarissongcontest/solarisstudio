@@ -15,6 +15,10 @@ const publicResults = readFileSync(
   resolve(process.cwd(), "src/integrations/v3/results-source.server.ts"),
   "utf8",
 );
+const resultProjection = readFileSync(
+  resolve(process.cwd(), "src/lib/v3-results.ts"),
+  "utf8",
+);
 
 describe("V3 authoritative Organizer Publication preview", () => {
   it("is POST-only and keeps unpublished candidate intent out of a URL surface", () => {
@@ -52,11 +56,19 @@ describe("V3 authoritative Organizer Publication preview", () => {
     );
   });
 
-  it("binds rendering to the exact Show content and release-ready Result version", () => {
+  it("rejects any candidate config the canonical SQL preflight did not normalize identically", () => {
+    expect(source).toContain("normalisePublicationDependencies");
+    expect(source).toContain("samePublicationConfig(preflight.config, requestedConfig)");
+    expect(source).toContain(
+      "Canonical Publication preflight did not accept the reviewed candidate config",
+    );
+  });
+
+  it("binds rendering to exact Show content and the release-ready Result version", () => {
     expect(source).toContain(
       "sameInstant(show.updated_at, preflight.sourceShowUpdatedAt)",
     );
-    expect(source).toContain("exactVersion !== sourceResultVersion");
+    expect(source).toContain("exactVersion !== expectedVersion");
     expect(source).toContain(
       "Number(operation?.reviewed_version ?? -1) !== exactVersion",
     );
@@ -69,6 +81,13 @@ describe("V3 authoritative Organizer Publication preview", () => {
     expect(source).toContain(
       "Result version changed while Publication preview was loading",
     );
+  });
+
+  it("rechecks the exact Result operation after assembling rows to close the cutover race", () => {
+    const calls = source.match(/await loadResultOperation\(input\.showId\)/g) ?? [];
+    expect(calls.length).toBe(2);
+    expect(source).toContain("A second exact-version read closes the race");
+    expect(source).toContain("Result versions are monotonic");
   });
 
   it("uses canonical Publication normalization instead of browser-invented visibility", () => {
@@ -101,20 +120,39 @@ describe("V3 authoritative Organizer Publication preview", () => {
     expect(source).toContain('disclosure: "revealed"');
     expect(source).toContain("spoilerProtected,");
     expect(source).toContain("revealed,");
-    expect(source).toContain('status: "spoiler-protected"');
+    expect(resultProjection).toContain('status: "spoiler-protected"');
+    expect(resultProjection).toContain('status: "available"');
   });
 
-  it("does not read Result datasets at all when the candidate keeps Results hidden", () => {
+  it("does not fetch Result row datasets when the candidate keeps overall Results hidden", () => {
     const resultBranch = source.indexOf("if (publication.results) {");
     const resultRead = source.indexOf('.from("results")', resultBranch);
-    const noResultBranch = source.indexOf("} else {", resultRead);
-    const nullVersion = source.indexOf("sourceResultVersion = null;", noResultBranch);
+    const resultBranchEnd = source.indexOf(
+      "const spoilerProtected = buildResultProjection",
+      resultRead,
+    );
 
     expect(resultBranch).toBeGreaterThan(-1);
     expect(resultRead).toBeGreaterThan(resultBranch);
-    expect(noResultBranch).toBeGreaterThan(resultRead);
-    expect(nullVersion).toBeGreaterThan(noResultBranch);
-    expect(source).toContain("Non-result candidate previews deliberately do not fetch Result rows");
+    expect(resultBranchEnd).toBeGreaterThan(resultRead);
+    expect(source.slice(0, resultBranch)).not.toContain('.from("results")');
+    expect(source.slice(resultBranchEnd)).not.toContain('.from("results")');
+  });
+
+  it("still binds qualifier-only and other outcome releases to the exact Result version", () => {
+    expect(source).toContain("const sourceResultVersion = preflight.hasOutcomes");
+    expect(source).toContain("if (preflight.hasOutcomes) {");
+    expect(source).toContain("await loadResultOperation(input.showId)");
+    expect(source).toContain("config.qualifiers ||");
+  });
+
+  it("accounts for the Public Results root edition/show discovery gates", () => {
+    expect(source).toContain("input.edition.published &&");
+    expect(source).toContain(
+      '(input.show.kind === "grand-final" || input.show.kind === "final")',
+    );
+    expect(source).toContain("resultsIndexEligible");
+    expect(source).toContain("editionPublished: edition.published");
   });
 
   it("filters withdrawn/disqualified rows and preserves edition-scoped historical identity", () => {
@@ -132,14 +170,14 @@ describe("V3 authoritative Organizer Publication preview", () => {
     expect(source).not.toMatch(/\.update\s*\(/);
     expect(source).not.toMatch(/\.delete\s*\(/);
     expect(source).not.toContain("studio2_apply_show_publication_change");
-    expect(source).not.toContain("rpc(\"studio2_reconcile_operation\"");
+    expect(source).not.toContain('rpc("studio2_reconcile_operation"');
   });
 
   it("returns exact source-version evidence with the shadow public Show", () => {
     expect(source).toContain("publicationVersion: preflight.expectedVersion");
     expect(source).toContain("showUpdatedAt: preflight.sourceShowUpdatedAt");
     expect(source).toContain("resultVersion: sourceResultVersion");
-    expect(source).toContain("targetState: \"public\"");
+    expect(source).toContain('targetState: "public"');
     expect(source).toContain("published: true");
     expect(source).toContain("schemaVersion: 1");
   });
