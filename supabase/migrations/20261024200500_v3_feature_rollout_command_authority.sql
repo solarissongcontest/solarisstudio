@@ -289,25 +289,12 @@ begin
     raise exception using errcode = '22023', message = 'VALIDATION';
   end if;
 
-  perform pg_advisory_xact_lock(hashtextextended('studio2_feature_flag:' || p_key, 0));
-
-  select flag.* into v_row
-  from public.studio2_feature_flags flag
-  where flag.key = p_key
-  for update;
-  v_exists := found;
-
-  if not private.v3_rollout_manage_allowed(
-    v_exists,
-    case when v_exists then v_row.edition_ids else '{}'::uuid[] end,
-    v_editions
-  ) then
-    raise exception 'Feature rollout management capability required for every existing and requested edition scope'
-      using errcode = '42501';
-  end if;
-
-  -- Claim before CAS evaluation so an exact retry after a successful commit can
-  -- reconcile the original receipt even though the aggregate revision advanced.
+  -- Claim before reading mutable rollout state or re-evaluating current
+  -- rollout.manage scope. An exact retry must be able to reconcile a committed
+  -- operation even if the aggregate revision, target scopes or actor grants have
+  -- changed since the original response was lost. For a brand-new unauthorized
+  -- request, the later authorization exception rolls this claim back with the
+  -- transaction, so no partial operation receipt survives.
   v_claim := private.studio2_claim_operation(
     p_operation_id,
     p_idempotency_key,
@@ -328,6 +315,23 @@ begin
   if coalesce((v_claim ->> 'replayed')::boolean, false) then
     return public.studio2_reconcile_operation(v_operation_id)
       || jsonb_build_object('replayed', true);
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('studio2_feature_flag:' || p_key, 0));
+
+  select flag.* into v_row
+  from public.studio2_feature_flags flag
+  where flag.key = p_key
+  for update;
+  v_exists := found;
+
+  if not private.v3_rollout_manage_allowed(
+    v_exists,
+    case when v_exists then v_row.edition_ids else '{}'::uuid[] end,
+    v_editions
+  ) then
+    raise exception 'Feature rollout management capability required for every existing and requested edition scope'
+      using errcode = '42501';
   end if;
 
   if (v_exists and v_row.revision is distinct from p_expected_revision)
