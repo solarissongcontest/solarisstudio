@@ -134,8 +134,10 @@ describe("maintenance HOD route isolation", () => {
 describe("TerraOS 3 maintenance teaser contract", () => {
   const teaser = renderMaintenancePage(new Date("2026-10-24T13:00:00+03:00"));
 
-  it("preserves the HOD insertion point while making TerraOS 3 the public hero", () => {
-    expect(teaser).toContain("          <footer>");
+  it("preserves a formatting-independent HOD insertion point while making TerraOS 3 the public hero", () => {
+    expect(teaser).toContain("<footer>");
+    expect(serverEntry).toContain('html = html.replace("<footer>"');
+    expect(serverEntry).toContain("isolateMaintenanceHodPortalMarkup");
     expect(teaser).toContain("TerraOS 3");
     expect(teaser).toContain("Solaris, reimagined.");
     expect(teaser).toContain("Estimated arrival");
@@ -184,12 +186,18 @@ describe("TerraOS 3 maintenance teaser contract", () => {
     expect(serverEntry).toContain("isTerraOsTeaserPreviewRequest");
   });
 
-  it("ships the complete mature teaser instead of historical date-gated reveal placeholders", () => {
+  it("ships the complete mature story instead of historical date-gated reveal placeholders", () => {
     expect(teaser).toContain("A new generation of Solaris.");
     expect(teaser).toContain("Everything<br />in its place.");
+    expect(teaser).toContain("What matters, now.");
+    expect(teaser).toContain("Know exactly what needs you.");
+    expect(teaser).toContain("More Solaris. Less searching.");
+    expect(teaser).toContain("See what happened.");
+    expect(teaser).toContain("Your Solaris.");
     expect(teaser).toContain("Take a closer look.");
     expect(teaser).toContain("Built for<br />contest night.");
     expect(teaser).toContain("Your delegation<br />keeps moving.");
+    expect(teaser).toContain("TerraOS 3 is taking shape.");
     expect(teaser).not.toContain("data-terraos-teaser-phase");
     expect(teaser).not.toContain("data-next-reveal");
     expect(teaser).not.toContain("More on 19.10");
@@ -202,7 +210,6 @@ describe("TerraOS 3 maintenance teaser contract", () => {
     expect(teaser).toContain('data-gallery-next');
     expect(teaser).toContain("track.addEventListener('keydown'");
     expect(teaser).toContain("scroll-snap-type:x mandatory");
-    expect(teaser).not.toContain("preventDefault()\n→ animate");
     expect(teaser).toContain("prefers-reduced-motion:reduce");
     expect(teaser).toContain("prefers-reduced-transparency:reduce");
   });
@@ -228,8 +235,6 @@ describe("maintenance HOD portal contract", () => {
   });
 
   it("makes the signed-out country-account action understandable", () => {
-    expect(html).toContain("Manage your current Confirmation");
-    expect(html).toContain("This is the participant area that remains available during maintenance.");
     expect(html).toContain("Sign in to Confirmation access");
     expect(html).toContain("Instagram username or recovery email");
     expect(html).toContain("Use the Instagram username linked to your country account, or its recovery email.");

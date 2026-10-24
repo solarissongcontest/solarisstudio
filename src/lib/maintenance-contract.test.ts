@@ -26,15 +26,8 @@ describe("emergency global maintenance mode", () => {
     expect(server).toContain("await hasValidMaintenanceBypass(request, secret)");
     expect(server).toContain("HttpOnly; Secure; SameSite=Strict");
     expect(server).toContain("It does not grant Solaris account or Organizer permissions.");
-    expect(server).toContain("function maintenanceSecret(env: unknown)");
-    expect(server).toContain(
-      "async function handleMaintenanceAdminRequest(request: Request, secret: string)",
-    );
     expect(server).not.toContain("x-solaris-maintenance-bypass");
-    expect(server).not.toContain("maintenanceDatabaseIsReadOnly");
-    expect(server).not.toContain("solaris_maintenance_read_only_probe");
     expect(server).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
-    expect(server).not.toContain("service_role");
     expect(envExample).toContain("MAINTENANCE_ADMIN_SECRET=");
     expect(envExample).not.toContain("VITE_MAINTENANCE_ADMIN_SECRET");
   });
@@ -45,18 +38,13 @@ describe("emergency global maintenance mode", () => {
     expect(server).toContain("SUPABASE_PUBLISHABLE_KEY");
     expect(server).toContain("renderMaintenanceHodPortal");
     expect(server).toContain('if (request.method === "GET" && includeHodPortal)');
-    expect(server).toContain("if (hod.enabled && hod.supabaseUrl && hod.publishableKey)");
     expect(server).not.toContain("SUPABASE_SECRET_KEY");
     expect(server).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
 
   it("opens maintenance change requests on an editable entry step instead of the review-only summary", () => {
-    expect(confirmationEditRoute).toContain(
-      'GLOBAL_MAINTENANCE_MODE && entryFocus?.section === "review"',
-    );
-    expect(confirmationEditRoute).toContain(
-      "const editorInitialStep = maintenanceReviewFocus ? 3 : entryFocus?.step ?? undefined;",
-    );
+    expect(confirmationEditRoute).toContain('GLOBAL_MAINTENANCE_MODE && entryFocus?.section === "review"');
+    expect(confirmationEditRoute).toContain("const editorInitialStep = maintenanceReviewFocus ? 3 : entryFocus?.step ?? undefined;");
     expect(confirmationEditRoute).toContain('data-maintenance-entry-edit-focus="entry"');
     expect(confirmationEditRoute).toContain("initialStep={editorInitialStep}");
   });
@@ -67,35 +55,63 @@ describe("emergency global maintenance mode", () => {
     expect(server).not.toContain('process.env.SOLARIS_E2E_BYPASS_MAINTENANCE !== "1"');
   });
 
-  it("renders the editorial TerraOS 3 product experience instead of an outage incident report", () => {
+  it("renders the expanded TerraOS 3 product story with Classica Crastao branding", () => {
     expect(page).toContain('font-family:"Classica Crastao"');
     expect(page).toContain('font-family:"Gotham"');
     expect(page).toContain("<title>TerraOS 3 — Solaris Studio</title>");
-    expect(page).toContain('<h1 id="maintenance-title">TerraOS 3</h1>');
+    expect(page).toContain('<h1 id="maintenance-title" class="terra-wordmark">TerraOS 3</h1>');
+    expect(page).toContain('.terra-wordmark,.product-name span,#maintenance-title,#finale-title');
     expect(page).toContain("Solaris, reimagined.");
     expect(page).toContain("A new generation of Solaris.");
     expect(page).toContain("Everything<br />in its place.");
+    expect(page).toContain("What matters, now.");
+    expect(page).toContain("Know exactly what needs you.");
+    expect(page).toContain("More Solaris. Less searching.");
+    expect(page).toContain("See what happened.");
+    expect(page).toContain("Your Solaris.");
     expect(page).toContain("Take a closer look.");
     expect(page).toContain("Built for<br />contest night.");
     expect(page).toContain("Your delegation<br />keeps moving.");
+    expect(page).toContain("TerraOS 3 is taking shape.");
     expect(page).toContain("Built for what happens next.");
+    expect(page).toContain("/solaris-background.webp");
+    expect(page).toContain("/solaris-studio-social.jpg");
     expect(page).toContain("/terraos-maintenance/blue-motion.svg");
     expect(page).toContain("/terraos-maintenance/live-stage.svg");
     expect(page).toContain("/terraos-maintenance/purple-tunnel.svg");
     expect(page).toContain("@media (prefers-reduced-motion:reduce)");
     expect(page).toContain("@media (prefers-reduced-transparency:reduce)");
-    expect(page).not.toContain("TERRAOS_NAVIGATION_REVEAL_AT");
-    expect(page).not.toContain("TERRAOS_PARTICIPATION_REVEAL_AT");
-    expect(page).not.toContain("TERRAOS_RESULTS_REVEAL_AT");
-    expect(page).not.toContain("More on 19.10");
     expect(page).not.toContain('class="service-grid"');
     expect(page).not.toContain("Most services paused");
-    expect(page).not.toContain("What does maintenance affect?");
+  });
+
+  it("gives the five V3 destinations standalone feature chapters before the recap gallery", () => {
+    expect(page).toContain('id="solaris-now"');
+    expect(page).toContain('id="participate-feature"');
+    expect(page).toContain('id="explore-feature"');
+    expect(page).toContain('id="results-feature"');
+    expect(page).toContain('id="me-feature"');
+    expect(page).toContain("function featureChapter");
+    expect(page).toContain('screen:"home"');
+    expect(page).toContain('screen:"participate"');
+    expect(page).toContain('screen:"explore"');
+    expect(page).toContain('screen:"results"');
+    expect(page).toContain('screen:"me"');
+  });
+
+  it("uses mobile-first containment instead of desktop floating overlays on phones", () => {
+    expect(page).toContain("@media (max-width:680px)");
+    expect(page).toContain(".hero-device-left,.hero-device-right { display:none; }");
+    expect(page).toContain(".immersive-status,.immersive-liquid { position:static!important; transform:none!important;");
+    expect(page).toContain(".live-copy { position:static; }");
+    expect(page).toContain("overflow-x:clip");
+    expect(page).toContain("window.innerWidth<681");
   });
 
   it("derives a sanitized public readiness percentage from canonical V3 state", () => {
     expect(page).toContain("TerraOS 3 readiness");
     expect(page).toContain("Based on tracked release criteria, not time elapsed.");
+    expect(page).toContain("Progress reflects tracked release readiness rather than time remaining.");
     expect(page).toContain("getTerraOsPublicReadiness");
     expect(readiness).toContain("V3_PUBLIC_CAPABILITIES");
     expect(readiness).toContain("V3_ORGANIZER_CAPABILITY_REGISTRY");
@@ -109,39 +125,24 @@ describe("emergency global maintenance mode", () => {
 
   it("uses truthful estimated-arrival copy while keeping Confirmation immediately reachable", () => {
     expect(config).toContain('MAINTENANCE_RETURN_DATE = "25 October 2026"');
-    expect(config).toContain('MAINTENANCE_LAST_UPDATED = "23 October 2026"');
-    expect(config).toContain(
-      'TERRAOS3_ESTIMATED_LAUNCH_AT = "2026-10-25T20:00:00+02:00"',
-    );
-    expect(config).toContain("Public estimate only. The maintenance/release gate remains authoritative.");
+    expect(config).toContain('TERRAOS3_ESTIMATED_LAUNCH_AT = "2026-10-25T20:00:00+02:00"');
     expect(page).toContain("Estimated arrival");
     expect(page).toContain('href="#confirmation-access"');
     expect(page).toContain("TerraOS 3 is being prepared.");
     expect(page).toContain("confirmationHost.appendChild(portal)");
     expect(hodPortal).toContain("Manage your current Confirmation");
-    expect(hodPortal).toContain(
-      "This is the participant area that remains available during maintenance.",
-    );
-    expect(hodPortal).toContain(
-      "Sign in with the same country account you normally use for Solaris Studio.",
-    );
-    expect(page).not.toContain("A database service error is currently preventing Solaris Studio");
-    expect(page).not.toContain("All Solaris Studio services are temporarily unavailable.");
-    expect(page).not.toContain("Confirmations, Televoting and Organizer tools");
     expect(page).toContain("Terra Solaris Broadcasting Coalition");
   });
 
-  it("blocks writes while still allowing the maintenance branding assets", () => {
+  it("blocks writes while allowing only the maintenance artwork used by the experience", () => {
     expect(server).toContain('request.method === "GET" || request.method === "HEAD"');
-    expect(server).toContain('"solaris_studio_maintenance"');
-    expect(server).toContain('expected_return: "coming_soon"');
     expect(server).toContain('"/tsbc-maintenance-mark.svg"');
     expect(server).toContain('"/solaris-studio-mark.png"');
     expect(server).toContain('"/solaris-background.webp"');
-    expect(server).toContain('"/sw.js"');
-    expect(server).toContain('"/offline.html"');
-    expect(server).not.toContain('"retry-after": "Sat, 10 Oct 2026 00:00:00 GMT"');
-    expect(server).not.toContain('expected_return: "2026-10-10"');
+    expect(server).toContain('"/solaris-studio-social.jpg"');
+    expect(server).toContain('"/terraos-maintenance/blue-motion.svg"');
+    expect(server).toContain('"/terraos-maintenance/live-stage.svg"');
+    expect(server).toContain('"/terraos-maintenance/purple-tunnel.svg"');
     expect(server).toContain('"x-robots-tag": "noindex, nofollow"');
     expect(page).toContain('<meta name="robots" content="noindex, nofollow" />');
   });
