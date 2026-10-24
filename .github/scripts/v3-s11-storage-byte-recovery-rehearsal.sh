@@ -84,6 +84,11 @@ OBJECT_MIMES=(
   "application/json"
   "application/octet-stream"
 )
+DELETE_BODY="$(python3 - "${OBJECT_KEYS[@]}" <<'PY'
+import json, sys
+print(json.dumps({"prefixes": sys.argv[1:]}))
+PY
+)"
 
 HTTP_STATUS=''
 HTTP_BODY=''
@@ -136,11 +141,10 @@ download_file() {
     -H "Authorization: Bearer $token")"
 }
 
-delete_object() {
-  local key="$1"
-  request_json DELETE "$API_URL/storage/v1/object/$BUCKET/$key" \
-    "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY"
-  expect_success "delete $key"
+delete_objects() {
+  request_json DELETE "$API_URL/storage/v1/object/$BUCKET" \
+    "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY" "$DELETE_BODY"
+  expect_success "delete rehearsal objects through Storage API"
 }
 
 db_scalar() {
@@ -165,12 +169,11 @@ PY
 
 cleanup() {
   set +e
-  for key in "${OBJECT_KEYS[@]}"; do
-    curl -sS -o /dev/null -X DELETE "$API_URL/storage/v1/object/$BUCKET/$key" \
-      -H "apikey: $SERVICE_ROLE_KEY" \
-      -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
-      -H "Content-Type: application/json" >/dev/null 2>&1 || true
-  done
+  curl -sS -o /dev/null -X DELETE "$API_URL/storage/v1/object/$BUCKET" \
+    -H "apikey: $SERVICE_ROLE_KEY" \
+    -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+    -H "Content-Type: application/json" \
+    --data "$DELETE_BODY" >/dev/null 2>&1 || true
   curl -sS -o /dev/null -X DELETE "$API_URL/storage/v1/bucket/$BUCKET" \
     -H "apikey: $SERVICE_ROLE_KEY" \
     -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
@@ -241,11 +244,9 @@ PY
 )"
 
 log "Injecting isolated byte loss and removing the test bucket"
-for key in "${OBJECT_KEYS[@]}"; do
-  delete_object "$key"
-done
+delete_objects
 [[ "$(db_scalar "select count(*) from storage.objects where bucket_id='$BUCKET';")" == "0" ]] \
-  || fail "object metadata remained after loss injection"
+  || fail "object metadata remained after Storage API loss injection"
 request_json DELETE "$API_URL/storage/v1/bucket/$BUCKET" "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY"
 expect_success "remove empty recovery bucket"
 [[ "$(db_scalar "select count(*) from storage.buckets where id='$BUCKET';")" == "0" ]] \
@@ -371,6 +372,7 @@ evidence = {
         "byteSizesVerified": True,
         "mimeTypesVerified": True,
         "privatePolicyVerified": True,
+        "storageApiDeleteVerified": True,
         "restoredCount": len(objects),
         "missingCount": 0,
         "extraCount": 0,
