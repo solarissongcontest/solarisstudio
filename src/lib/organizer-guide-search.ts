@@ -5,7 +5,7 @@ type GuideQuestionLike = {
 type GuideSectionLike<TQuestion extends GuideQuestionLike> = {
   title: string;
   description?: string;
-  questions: TQuestion[];
+  questions: readonly TQuestion[];
 };
 
 export function filterOrganizerGuideSections<
