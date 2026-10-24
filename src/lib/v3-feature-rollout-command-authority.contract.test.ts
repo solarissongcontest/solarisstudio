@@ -75,6 +75,28 @@ describe('System V3 Feature Rollout command authority', () => {
     expect(migration).toContain('public.studio2_reconcile_operation');
   });
 
+  it('claims exact operations before mutable rollout state and authorization checks', () => {
+    const applyStart = migration.indexOf(
+      'create or replace function public.studio2_apply_feature_flag_change(',
+    );
+    const applyEnd = migration.indexOf(
+      'revoke all on function public.studio2_apply_feature_flag_change(',
+      applyStart,
+    );
+    const apply = migration.slice(applyStart, applyEnd);
+    const claim = apply.indexOf('v_claim := private.studio2_claim_operation(');
+    const replay = apply.indexOf("if coalesce((v_claim ->> 'replayed')::boolean, false)");
+    const mutableLock = apply.indexOf("perform pg_advisory_xact_lock(hashtextextended('studio2_feature_flag:'");
+    const authorization = apply.indexOf('if not private.v3_rollout_manage_allowed(', mutableLock);
+
+    expect(claim).toBeGreaterThan(-1);
+    expect(replay).toBeGreaterThan(claim);
+    expect(mutableLock).toBeGreaterThan(replay);
+    expect(authorization).toBeGreaterThan(mutableLock);
+    expect(apply).toContain('For a brand-new unauthorized');
+    expect(apply).toContain('the later authorization exception rolls this claim back');
+  });
+
   it('writes durable privacy-bounded audit and rollout.changed evidence in the same transaction', () => {
     expect(migration).toContain('insert into public.admin_audit_log (');
     expect(migration).toContain("'feature_rollout_changed'");
@@ -131,6 +153,8 @@ describe('System V3 Feature Rollout command authority', () => {
     expect(rehearsal).toContain('Refusing hosted Supabase rehearsal');
     expect(rehearsal).toContain('Refusing non-local database rehearsal');
     expect(rehearsal).toContain('Equivalent reordered scope is a true compatibility no-op');
+    expect(rehearsal).toContain('Exact replay survives rollout.manage permission drift');
+    expect(rehearsal).toContain('permission-drift replay did not reconcile exact operation');
     expect(rehearsal).toContain('exact rollout operation did not replay');
     expect(rehearsal).toContain('stale rollout CAS');
     expect(rehearsal).toContain('unauthorized rollout preview');
