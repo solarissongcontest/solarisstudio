@@ -45,9 +45,11 @@ describe("V3 Edition spoiler and result safety", () => {
     expect(source).toContain('meta="Spoiler protected"');
   });
 
-  it("keeps safe Edition identity, participant and schedule value available while protected", () => {
+  it("keeps safe Edition identity, chronology, participant and schedule value available while protected", () => {
     const source = safeScreen();
     expect(source).toContain("projection.hub.hero.name");
+    expect(source).toContain("projection.hub.hero.nextEvent ?");
+    expect(source).toContain('value={projection.hub.hero.nextEvent.startsAt}');
     expect(source).toContain("projection.overview.participantCount");
     expect(source).toContain("projection.participants.map");
     expect(source).toContain("projection.shows.map");

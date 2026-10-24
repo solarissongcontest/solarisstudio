@@ -77,13 +77,28 @@ describe("V3 Edition production cutover", () => {
     expect(server).toContain('client.rpc("studio2_public_storyline"');
   });
 
-  it("does not query result rows until the canonical show publication gate opens", () => {
+  it("requires the exact immutable published Result after metadata nominates the final Show", () => {
     const server = source();
-    const resultGate = server.indexOf("if (resultShow)");
-    const resultRead = server.indexOf('.from("results")');
-    expect(resultGate).toBeGreaterThan(0);
-    expect(resultRead).toBeGreaterThan(resultGate);
+    const resultShow = server.indexOf("const resultShow");
+    const snapshotRead = server.indexOf("loadV3PublishedResultSnapshot(resultShow.id)");
+
+    expect(resultShow).toBeGreaterThan(0);
+    expect(snapshotRead).toBeGreaterThan(resultShow);
     expect(server).toContain("resolveShowPublication(show).results");
+    expect(server).toContain("const resultRows = resultSnapshot?.rows ?? []");
+    expect(server).toContain("const resultsPublished = resultSnapshot !== null");
+    expect(server).toContain("resultSnapshot.edition.id !== edition.id");
+    expect(server).not.toContain('.from("results")');
+  });
+
+  it("derives the next Edition event from the shared server-time chronology resolver", () => {
+    const server = source();
+    expect(server).toContain('from "@/lib/v3-explore-next-event"');
+    expect(server).toContain("const generatedAt = new Date().toISOString();");
+    expect(server).toContain("resolveV3ExploreNextPublicEvent(shows, generatedAt)");
+    expect(server).toContain("nextEvent,");
+    expect(server).toContain("generatedAt,");
+    expect(server).not.toContain("nextEvent: null");
   });
 
   it("keeps the browser data boundary narrow and non-authoritative", () => {

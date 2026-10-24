@@ -58,7 +58,15 @@ describe("V3 Edition hub screen architecture boundary", () => {
     expect(source).not.toMatch(/publishResults|setResultsPublished|resultsPublication\s*=/);
   });
 
-  it("reuses shared V3 primitives and consumes only resolved Live state", () => {
+  it("renders the projected next public show with shared hydration-safe time UI", () => {
+    expect(source).toContain('import { EventTime } from "@/components/public/EventTime"');
+    expect(source).toContain("projection.hub.hero.nextEvent ?");
+    expect(source).toContain('title="Coming up"');
+    expect(source).toContain('value={projection.hub.hero.nextEvent.startsAt}');
+    expect(source).toContain('to={projection.hub.hero.nextEvent.href}');
+  });
+
+  it("reuses shared V3 primitives and consumes only resolved Live/event state", () => {
     expect(source).toContain('from "./V3Foundation"');
     expect(source).toContain("<V3Screen>");
     expect(source).toContain("<V3ScreenHeader");
