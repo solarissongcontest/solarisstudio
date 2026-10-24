@@ -33,16 +33,24 @@ describe("System V3 S9/S10 attempt-level SLI honesty", () => {
     expect(migration).not.toMatch(/https:\/\/[^\s'"]+\.supabase\.co/i);
   });
 
-  it("keeps the prior aggregate implementation internal instead of deleting evidence", () => {
+  it("keeps historical aggregate implementations private instead of creating shadow public RPCs", () => {
     expect(migration).toContain(
-      "rename to admin_system_workflow_observability_snapshot_unfiltered_v3",
+      "alter function public.admin_system_workflow_observability_snapshot(integer)\n  set schema private",
     );
     expect(migration).toContain(
-      "rename to admin_system_v3_sli_snapshot_unfiltered_v3",
+      "rename to v3_workflow_observability_snapshot_unfiltered_v3",
     );
+    expect(migration).toContain(
+      "alter function public.admin_system_v3_sli_snapshot(integer)\n  set schema private",
+    );
+    expect(migration).toContain("rename to v3_sli_snapshot_unfiltered_v3");
     expect(migration).toContain(
       "from public, anon, authenticated, service_role",
     );
+    expect(migration).toContain(
+      "private.v3_workflow_observability_snapshot_unfiltered_v3(",
+    );
+    expect(migration).toContain("private.v3_sli_snapshot_unfiltered_v3(");
   });
 
   it("advertises operation-success ratios only for proven pre-execution S2 boundaries", () => {

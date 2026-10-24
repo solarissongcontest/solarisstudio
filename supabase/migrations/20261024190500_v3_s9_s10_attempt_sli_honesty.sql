@@ -25,12 +25,15 @@ select public.v3_register_migration_contract(
 );
 select set_config('request.jwt.claim.role', '', true);
 
--- Preserve the existing aggregate implementation as an owner-only raw source.
--- The new public wrapper filters only the SLI claim; classification and exact
--- operation traces remain available for every existing receipt command.
+-- Preserve the existing aggregate implementation as a private owner-only raw
+-- source. Moving it out of public also prevents the historical implementation
+-- name from becoming a second PostgREST/API surface merely because we retained
+-- it for composition.
 alter function public.admin_system_workflow_observability_snapshot(integer)
-  rename to admin_system_workflow_observability_snapshot_unfiltered_v3;
-revoke all on function public.admin_system_workflow_observability_snapshot_unfiltered_v3(integer)
+  set schema private;
+alter function private.admin_system_workflow_observability_snapshot(integer)
+  rename to v3_workflow_observability_snapshot_unfiltered_v3;
+revoke all on function private.v3_workflow_observability_snapshot_unfiltered_v3(integer)
   from public, anon, authenticated, service_role;
 
 create or replace function public.admin_system_workflow_observability_snapshot(
@@ -46,7 +49,7 @@ declare
   v_raw jsonb;
   v_classes jsonb := '[]'::jsonb;
 begin
-  v_raw := public.admin_system_workflow_observability_snapshot_unfiltered_v3(
+  v_raw := private.v3_workflow_observability_snapshot_unfiltered_v3(
     p_lookback_minutes
   );
 
@@ -104,13 +107,15 @@ grant execute on function public.admin_system_workflow_observability_snapshot(in
 comment on function public.admin_system_workflow_observability_snapshot(integer) is
   'S9 workflow SLI projection. Attempt-level operation ratios are returned only for canonical pre-execution S2 command boundaries; completion/event bridges remain traceable but are explicitly unavailable as operation-success SLIs.';
 
--- Preserve the existing S10 mapping as an owner-only implementation, then put
--- an honest coverage contract in front of it. Because the old mapping resolves
--- the S9 function by its canonical name at execution time, it now consumes the
--- filtered S9 wrapper above; this wrapper filters again as a fail-closed guard.
+-- Preserve the previous S10 mapper privately as well. Its body resolves the S9
+-- projection by the canonical public name at execution time, so it now consumes
+-- the filtered wrapper above. The final wrapper filters once more as a fail-closed
+-- guard and replaces the coverage claim with the narrower truthful contract.
 alter function public.admin_system_v3_sli_snapshot(integer)
-  rename to admin_system_v3_sli_snapshot_unfiltered_v3;
-revoke all on function public.admin_system_v3_sli_snapshot_unfiltered_v3(integer)
+  set schema private;
+alter function private.admin_system_v3_sli_snapshot(integer)
+  rename to v3_sli_snapshot_unfiltered_v3;
+revoke all on function private.v3_sli_snapshot_unfiltered_v3(integer)
   from public, anon, authenticated, service_role;
 
 create or replace function public.admin_system_v3_sli_snapshot(
@@ -126,7 +131,7 @@ declare
   v_raw jsonb;
   v_workflows jsonb := '[]'::jsonb;
 begin
-  v_raw := public.admin_system_v3_sli_snapshot_unfiltered_v3(p_window_minutes);
+  v_raw := private.v3_sli_snapshot_unfiltered_v3(p_window_minutes);
 
   select coalesce(
     jsonb_agg(item order by item ->> 'scope'),
