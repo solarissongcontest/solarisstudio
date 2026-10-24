@@ -46,4 +46,14 @@ describe("Public V3 Stories directory classification", () => {
     expect(screen).toContain("bundle.historicalStories.map((story)");
     expect(screen).toContain("function StoryCard");
   });
+
+  it("formats Story publication and timeline timestamps through canonical Solaris event time", () => {
+    const screen = read("src/components/v3/V3StoryDetailScreen.tsx");
+
+    expect(screen).toContain('import { formatEventWallTime } from "@/lib/public-time"');
+    expect(screen).toContain('formatEventWallTime(story.publishedAt, { locale: "en-GB" })');
+    expect(screen).toContain('formatEventWallTime(item.occurredAt, { locale: "en-GB" })');
+    expect(screen).not.toContain("toLocaleDateString(undefined");
+    expect(screen).not.toContain("new Date(value)");
+  });
 });
