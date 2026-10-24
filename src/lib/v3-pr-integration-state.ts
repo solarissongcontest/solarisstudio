@@ -8,6 +8,8 @@ export type V3PrCheckConclusion =
   | "action_required"
   | "neutral"
   | "skipped"
+  | "stale"
+  | "startup_failure"
   | null;
 
 export type V3PrCheckEvidence = {
@@ -101,6 +103,8 @@ const CHECK_CONCLUSIONS = new Set<Exclude<V3PrCheckConclusion, null>>([
   "action_required",
   "neutral",
   "skipped",
+  "stale",
+  "startup_failure",
 ]);
 const DEPENDENCY_STATES = new Set<V3PrDependencyEvidence["state"]>([
   "open",
