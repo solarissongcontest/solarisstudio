@@ -68,6 +68,35 @@ jobs:
           git fetch origin main --no-tags
           git worktree add /tmp/solaris-results-main origin/main
 
+      - name: Isolate disposable Inbucket web port
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-results-main
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("supabase/config.toml")
+          text = path.read_text()
+          marker = "[inbucket]\n"
+          if marker not in text:
+              raise SystemExit("missing [inbucket] section in disposable current-main config")
+          if "port = 55324" not in text:
+              text = text.replace(marker, marker + "port = 55324\n", 1)
+              path.write_text(text)
+          PY
+          echo "Disposable current-main Inbucket port override:"
+          sed -n '/^\[inbucket\]/,/^\[/p' supabase/config.toml | head -8
+
+      - name: Diagnose local port ownership before upgrade start
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Listeners on the default and isolated Inbucket ports before supabase start:"
+          ss -ltnp | grep -E ':(54324|55324)[[:space:]]' || true
+          echo "Running Docker containers before supabase start:"
+          docker ps --format '{{.ID}} {{.Names}} {{.Ports}}' || true
+
       - name: Build current main locally
         shell: bash
         run: |
