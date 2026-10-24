@@ -72,6 +72,25 @@ describe("V3 Public Next in Line runtime", () => {
     expect(runtime).toContain("editing_open: false");
   });
 
+  it("does not collapse authentication, eligibility and server failures into an inactive-competition message", () => {
+    const ui = competition();
+
+    expect(ui).toContain('reason === "authentication"');
+    expect(ui).toContain('reason === "forbidden" || reason === "ineligible"');
+    expect(ui).toContain("Your Solaris session expired while Next in Line was loading");
+    expect(ui).toContain("does not have an eligible delegation for this Next in Line competition");
+    expect(ui).toContain("There is no active Next in Line competition at the moment");
+    expect(ui).toContain("Try again after Solaris reconnects");
+  });
+
+  it("renders persisted submission times through canonical Solaris time formatting", () => {
+    const ui = competition();
+
+    expect(ui).toContain('import { formatEventWallTime } from "@/lib/public-time"');
+    expect(ui).toContain('formatEventWallTime(date, { locale: "en-GB" })');
+    expect(ui).not.toContain("new Intl.DateTimeFormat(undefined");
+  });
+
   it("restores the canonical saved submission and uses the server window as edit authority", () => {
     const runtime = source();
     const ui = competition();
