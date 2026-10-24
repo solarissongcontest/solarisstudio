@@ -90,6 +90,8 @@ The manifest must bind all recovery evidence to one exact candidate SHA and cont
 
 Each component entry embeds the component assessor's real JSON output under `assessment` instead of translating it into another quasi-authoritative schema. The wrapper adds only composition provenance: `component`, `observedAt`, the retained assessment `artifactPath`, and its `artifactSha256`. The composer requires each embedded assessment's `expectedCommitSha` and `evidenceCommitSha` to equal the full-service candidate, its `errors` array to be empty, and its anti-certification boundary to remain intact. Deployment evidence must additionally retain `fullServiceRecoveryClaim: false`.
 
+`artifactPath` is repository-root-relative and must identify the retained JSON assessment that is embedded in the manifest. The generator reads that file, recomputes its SHA-256, and canonical-JSON-compares the retained assessment with the embedded `assessment`. A digest-shaped string is not provenance. A missing file, digest mismatch, invalid JSON, or embedded/file mismatch makes the composed evidence invalid. The strict `--require-ready` gate also requires `artifactProvenanceVerified: true`.
+
 Those component references are not enough by themselves. The same manifest must also retain one isolated end-to-end rehearsal that binds the exact component rehearsal identities and proves every cross-layer check:
 
 - database/Storage identity consistency,
@@ -115,7 +117,7 @@ bun scripts/generate-v3-full-service-recovery-evidence.ts \
   --require-ready
 ```
 
-`--require-ready` fails closed unless every component is present on the exact SHA, every cross-layer check passed, and there are no unresolved rehearsal issues.
+`--require-ready` fails closed unless every component is present on the exact SHA, every retained assessment artifact is content-verified, every cross-layer check passed, and there are no unresolved rehearsal issues.
 
 A `ready_for_qa_review` assessment still carries `certificationClaim: false` and `qaReviewRequired: true`. It is an S11 System evidence input, not final S16 release certification.
 
