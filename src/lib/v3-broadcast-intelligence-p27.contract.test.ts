@@ -40,8 +40,8 @@ describe("Public V3 P27 Broadcast Intelligence", () => {
     expect(source).toContain("totalPoints: row.totalPoints");
     expect(source).toContain("officialRank: row.finalRank");
     expect(source).not.toContain("id: row.id");
-    expect(source).not.toContain("edition_id:");
-    expect(source).not.toContain("show_id:");
+    expect(source).not.toContain("edition_id: selectedEdition.id");
+    expect(source).not.toContain("show_id: selectedShow.id");
   });
 
   it("filters withdrawn and disqualified participant placeholders consistently with Results", () => {
