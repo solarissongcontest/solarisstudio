@@ -104,19 +104,25 @@ jobs:
           bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > v3-release-preflight/s14-readiness.json
           bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > v3-release-preflight/s15-readiness.json
           V3_RELEASE_EVIDENCE_DIR=v3-release-preflight bun run scripts/build-v3-s15-zero-orphan-evidence.ts
+          V3_RELEASE_EVIDENCE_DIR=v3-release-preflight bun run scripts/check-v3-qa-release-truth.ts > v3-release-preflight/release-truth.json
           git rev-parse HEAD > v3-release-preflight/exact-sha.txt
           dashboard_sha="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-release-preflight/completion-dashboard.json","utf8")).candidateSha)')"
           s15_sha="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-release-preflight/s15-zero-orphan.json","utf8")).candidateSha)')"
+          truth_sha="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-release-preflight/release-truth.json","utf8")).candidateSha)')"
           checkout_sha="$(cat v3-release-preflight/exact-sha.txt)"
-          if [ "$dashboard_sha" != "$expected" ] || [ "$s15_sha" != "$expected" ] || [ "$checkout_sha" != "$expected" ]; then
-            echo "::error::release evidence identity mismatch: dashboard=$dashboard_sha s15=$s15_sha checkout=$checkout_sha expected=$expected"
+          if [ "$dashboard_sha" != "$expected" ] || [ "$s15_sha" != "$expected" ] || [ "$truth_sha" != "$expected" ] || [ "$checkout_sha" != "$expected" ]; then
+            echo "::error::release evidence identity mismatch: dashboard=$dashboard_sha s15=$s15_sha truth=$truth_sha checkout=$checkout_sha expected=$expected"
             exit 1
           fi
 
       - name: Enforce release-strict preconditions
         env:
           V3_RELEASE_EVIDENCE_DIR: v3-release-preflight
-        run: bun run scripts/check-v3-release-integrity.ts --release
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun run scripts/check-v3-qa-release-truth.ts --require-s16-ready > /dev/null
+          bun run scripts/check-v3-release-integrity.ts --release
 
       - name: Upload exact-SHA preflight evidence
         if: always()
@@ -136,7 +142,13 @@ jobs:
             echo
             echo "Requested candidate: \`${{ inputs.candidate_sha }}\`"
             echo
-            echo "This workflow is a fail-closed preflight, not an S16 certificate. It must remain red while S14, S15, cutover, security-classification, or other release prerequisites are incomplete."
+            echo "This workflow is a fail-closed preflight, not an S16 certificate. It must remain red while S10-S15 exact-SHA evidence, cutover, security-classification, or other release prerequisites are incomplete."
+            if [ -s v3-release-preflight/release-truth.json ]; then
+              echo
+              echo "### S10-S16 release truth"
+              echo
+              node -e 'const fs=require("fs"); const t=JSON.parse(fs.readFileSync("v3-release-preflight/release-truth.json","utf8")); console.log(`Ready for S16: **${t.readyForS16 ? "yes" : "no"}**  `); console.log(`Certified: **${t.certified ? "yes" : "no"}**  `); console.log(`Missing evidence: ${t.missingEvidence.length ? t.missingEvidence.join(", ") : "none"}  `); console.log(`Invalid evidence: ${t.invalidEvidence.length ? t.invalidEvidence.join(" | ") : "none"}`);'
+            fi
             if [ -s v3-release-preflight/completion-dashboard.md ]; then
               echo
               cat v3-release-preflight/completion-dashboard.md
