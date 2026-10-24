@@ -157,7 +157,11 @@ function AccessPermissionsPage() {
     refetchIntervalInBackground: false,
   });
   useQuery({
-    queryKey: ["permission-engine-evaluation", "permissions.read", resolvedEditionId || "global"],
+    queryKey: [
+      "permission-engine-evaluation",
+      "permissions.read",
+      editionId ? (resolvedEditionId || "unverified") : "global",
+    ],
     queryFn: async () => {
       await recordPermissionEvaluation({
         capability: "permissions.read",
@@ -167,6 +171,7 @@ function AccessPermissionsPage() {
       });
       return true;
     },
+    enabled: editionsQuery.isSuccess && (!editionId || Boolean(resolvedEditionId)),
     staleTime: Number.POSITIVE_INFINITY,
     retry: false,
   });
@@ -331,24 +336,25 @@ function AccessPermissionsPage() {
   });
 
   const simulation = useMutation({
-    mutationFn: ({ userId }: { userId: string }) =>
-      viewAccessAs(userId, resolvedEditionId || null),
+    mutationFn: ({ userId }: { userId: string }) => {
+      if (editionId && !resolvedEditionId) {
+        throw new Error(
+          "The selected Organizer edition could not be verified. Access simulation will not fall back to global scope.",
+        );
+      }
+      return viewAccessAs(userId, resolvedEditionId || null);
+    },
   });
+  const resetSimulation = simulation.reset;
 
   useEffect(() => {
-    if (requestApproval.isPending || approveR3.isPending || applyApproved.isPending) return;
     setPendingChange(null);
     setReauthPassword("");
     setApprovalAction(null);
     setApprovalPassword("");
-    simulation.reset();
-  }, [
-    editionId,
-    requestApproval.isPending,
-    approveR3.isPending,
-    applyApproved.isPending,
-    simulation,
-  ]);
+    setMessage(null);
+    resetSimulation();
+  }, [editionId, resetSimulation]);
 
   const effectiveScope = scope === "edition" ? (resolvedEditionId || null) : null;
   const summary = summaryQuery.data;
