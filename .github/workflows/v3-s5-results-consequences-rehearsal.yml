@@ -8,9 +8,11 @@ on:
       - "supabase/migrations/**"
       - ".github/scripts/v3-s5-results-consequences-rehearsal.sh"
       - ".github/scripts/v3-s5-results-runtime-convergence-diagnostics.sh"
+      - ".github/scripts/v3-s5-results-countback-rehearsal.sh"
       - ".github/workflows/v3-s5-results-consequences-rehearsal.yml"
       - "src/lib/v3-s5-results-consequences.test.ts"
       - "src/lib/v3-s5-results-runtime-convergence.contract.test.ts"
+      - "src/lib/v3-result-countback-parity.contract.test.ts"
       - "src/lib/v3-domain-consequence-registry.ts"
   workflow_dispatch:
 
@@ -45,6 +47,9 @@ jobs:
 
       - name: Rehearse Results lifecycle consequences
         run: bash .github/scripts/v3-s5-results-consequences-rehearsal.sh
+
+      - name: Rehearse canonical Results countback parity
+        run: bash .github/scripts/v3-s5-results-countback-rehearsal.sh
 
       - name: Prove runtime Results and qualification convergence
         run: bash .github/scripts/v3-s5-results-runtime-convergence-diagnostics.sh
@@ -108,6 +113,13 @@ jobs:
           set -euo pipefail
           cd /tmp/solaris-results-main
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-s5-results-consequences-rehearsal.sh"
+
+      - name: Rehearse canonical Results countback parity after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-results-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s5-results-countback-rehearsal.sh"
 
       - name: Prove runtime Results and qualification convergence after upgrade
         shell: bash
