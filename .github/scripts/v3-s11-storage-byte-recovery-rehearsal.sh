@@ -14,14 +14,34 @@ eval "$(supabase status -o env)"
 : "${ANON_KEY:?missing local Supabase ANON_KEY}"
 : "${SERVICE_ROLE_KEY:?missing local Supabase SERVICE_ROLE_KEY}"
 
-case "$API_URL" in
-  http://127.0.0.1:*|http://localhost:*) ;;
-  *) fail "Refusing hosted Supabase Storage recovery rehearsal ($API_URL)" ;;
-esac
-case "$DB_URL" in
-  postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
-  *) fail "Refusing non-local database during Storage recovery rehearsal" ;;
-esac
+assert_loopback_url() {
+  local label="$1" value="$2" schemes_csv="$3"
+  python3 - "$label" "$value" "$schemes_csv" <<'PY' || exit 1
+import ipaddress
+import sys
+from urllib.parse import urlparse
+
+label, value, schemes_csv = sys.argv[1:]
+parsed = urlparse(value)
+allowed_schemes = set(schemes_csv.split(","))
+if parsed.scheme not in allowed_schemes:
+    raise SystemExit(f"{label} must use one of {sorted(allowed_schemes)}")
+host = (parsed.hostname or "").lower()
+if host == "localhost":
+    raise SystemExit(0)
+try:
+    if ipaddress.ip_address(host).is_loopback:
+        raise SystemExit(0)
+except ValueError:
+    pass
+raise SystemExit(f"{label} is not loopback: {value}")
+PY
+}
+
+assert_loopback_url "Supabase API_URL" "$API_URL" "http,https" \
+  || fail "Refusing hosted Supabase Storage recovery rehearsal ($API_URL)"
+assert_loopback_url "Supabase DB_URL" "$DB_URL" "postgres,postgresql" \
+  || fail "Refusing non-local database during Storage recovery rehearsal"
 
 EVIDENCE_OUTPUT="${V3_STORAGE_RECOVERY_EVIDENCE_OUTPUT:-}"
 EVIDENCE_SHA="${V3_STORAGE_RECOVERY_EVIDENCE_SHA:-}"
@@ -121,7 +141,7 @@ upload_file() {
     -H "apikey: $SERVICE_ROLE_KEY" \
     -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
     -H "Content-Type: $mime" \
-    -H "x-upsert: true" \
+    -H "cache-control: no-cache" \
     --data-binary "@$file")"
   HTTP_BODY="$(cat "$output")"
   rm -f "$output"
@@ -136,11 +156,17 @@ download_file() {
     -H "Authorization: Bearer $token")"
 }
 
-delete_object() {
-  local key="$1"
-  request_json DELETE "$API_URL/storage/v1/object/$BUCKET/$key" \
-    "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY"
-  expect_success "delete $key"
+delete_objects() {
+  local payload
+  payload="$(python3 - "${OBJECT_KEYS[@]}" <<'PY'
+import json
+import sys
+print(json.dumps({"prefixes": sys.argv[1:]}))
+PY
+)"
+  request_json DELETE "$API_URL/storage/v1/object/$BUCKET" \
+    "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY" "$payload"
+  expect_success "delete recovery objects through Storage batch API"
 }
 
 db_scalar() {
@@ -165,12 +191,18 @@ PY
 
 cleanup() {
   set +e
-  for key in "${OBJECT_KEYS[@]}"; do
-    curl -sS -o /dev/null -X DELETE "$API_URL/storage/v1/object/$BUCKET/$key" \
-      -H "apikey: $SERVICE_ROLE_KEY" \
-      -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
-      -H "Content-Type: application/json" >/dev/null 2>&1 || true
-  done
+  local payload
+  payload="$(python3 - "${OBJECT_KEYS[@]}" <<'PY'
+import json
+import sys
+print(json.dumps({"prefixes": sys.argv[1:]}))
+PY
+)"
+  curl -sS -o /dev/null -X DELETE "$API_URL/storage/v1/object/$BUCKET" \
+    -H "apikey: $SERVICE_ROLE_KEY" \
+    -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+    -H "Content-Type: application/json" \
+    --data "$payload" >/dev/null 2>&1 || true
   curl -sS -o /dev/null -X DELETE "$API_URL/storage/v1/bucket/$BUCKET" \
     -H "apikey: $SERVICE_ROLE_KEY" \
     -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
@@ -240,12 +272,10 @@ print(time.time_ns())
 PY
 )"
 
-log "Injecting isolated byte loss and removing the test bucket"
-for key in "${OBJECT_KEYS[@]}"; do
-  delete_object "$key"
-done
+log "Injecting isolated byte loss through the Storage batch-delete API"
+delete_objects
 [[ "$(db_scalar "select count(*) from storage.objects where bucket_id='$BUCKET';")" == "0" ]] \
-  || fail "object metadata remained after loss injection"
+  || fail "object metadata remained after Storage API loss injection"
 request_json DELETE "$API_URL/storage/v1/bucket/$BUCKET" "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY"
 expect_success "remove empty recovery bucket"
 [[ "$(db_scalar "select count(*) from storage.buckets where id='$BUCKET';")" == "0" ]] \
@@ -275,6 +305,7 @@ for index in "${!OBJECT_KEYS[@]}"; do
   sha="$(sha256_file "$restored_file")"
   bytes="$(file_size "$restored_file")"
   mime="$(db_scalar "select coalesce(metadata->>'mimetype','') from storage.objects where bucket_id='$BUCKET' and name='$key';")"
+  [[ -n "$mime" ]] || fail "restored MIME metadata missing for $key"
   printf '%s\t%s\t%s\t%s\n' "$key" "$sha" "$bytes" "$mime" >>"$RESTORED_MANIFEST_LINES"
 done
 cmp -s "$MANIFEST_LINES" "$RESTORED_MANIFEST_LINES" \
@@ -371,6 +402,7 @@ evidence = {
         "byteSizesVerified": True,
         "mimeTypesVerified": True,
         "privatePolicyVerified": True,
+        "storageApiDeleteVerified": True,
         "restoredCount": len(objects),
         "missingCount": 0,
         "extraCount": 0,

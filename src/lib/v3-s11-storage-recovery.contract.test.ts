@@ -10,23 +10,26 @@ const rehearsal = source(".github/scripts/v3-s11-storage-byte-recovery-rehearsal
 const runbook = source("docs/runbooks/storage-restore.md");
 
 describe("System V3 S11 Storage byte recovery contract", () => {
-  it("hard-refuses hosted Supabase and uses only the local Supabase environment", () => {
+  it("hard-refuses non-loopback Supabase API and database endpoints", () => {
     expect(rehearsal).toContain("supabase status -o env");
     expect(rehearsal).toContain("Refusing hosted Supabase Storage recovery rehearsal");
     expect(rehearsal).toContain("Refusing non-local database during Storage recovery rehearsal");
-    expect(rehearsal).toContain("http://127.0.0.1:*");
-    expect(rehearsal).toContain("http://localhost:*");
+    expect(rehearsal).toContain("ipaddress.ip_address(host).is_loopback");
+    expect(rehearsal).toContain('host == "localhost"');
     expect(rehearsal).not.toContain("supabase.co");
   });
 
-  it("recovers actual object bytes through the Storage API rather than mutating storage metadata directly", () => {
+  it("recovers actual bytes and deletes through the current Storage batch API", () => {
     expect(rehearsal).toContain("/storage/v1/bucket");
     expect(rehearsal).toContain("/storage/v1/object/$BUCKET/$key");
     expect(rehearsal).toContain("/storage/v1/object/authenticated/$BUCKET/$key");
     expect(rehearsal).toContain("--data-binary \"@$file\"");
-    expect(rehearsal).toContain("delete_object");
+    expect(rehearsal).toContain("delete_objects");
+    expect(rehearsal).toContain('request_json DELETE "$API_URL/storage/v1/object/$BUCKET"');
+    expect(rehearsal).toContain('json.dumps({"prefixes": sys.argv[1:]})');
+    expect(rehearsal).not.toMatch(/DELETE\s+"\$API_URL\/storage\/v1\/object\/\$BUCKET\/\$key"/);
     expect(rehearsal).not.toMatch(/delete\s+from\s+storage\.objects/i);
-    expect(runbook).toContain("Object deletion intentionally goes through the Storage API");
+    expect(runbook).toContain("batch object endpoint with a `prefixes` payload");
   });
 
   it("preserves byte identity, canonical keys, MIME metadata and private policy", () => {
@@ -39,19 +42,20 @@ describe("System V3 S11 Storage byte recovery contract", () => {
     expect(rehearsal).toContain("anonymous caller unexpectedly read restored private object");
   });
 
-  it("retains exact-SHA component evidence without claiming hosted-provider recovery", () => {
+  it("retains exact-SHA evidence and proves the Storage API delete path", () => {
     expect(rehearsal).toContain("V3_STORAGE_RECOVERY_EVIDENCE_SHA");
     expect(rehearsal).toContain("V3_STORAGE_RECOVERY_EVIDENCE_OPERATOR");
     expect(rehearsal).toContain("git rev-parse HEAD");
     expect(rehearsal).toContain("git status --porcelain --untracked-files=all");
     expect(rehearsal.match(/verify_evidence_checkout/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(rehearsal).toContain('"storageApiDeleteVerified": True');
     expect(rehearsal).toContain('"providerRpoClaim": False');
     expect(rehearsal).toContain('"providerRtoClaim": False');
     expect(rehearsal).toContain('"certificationClaim": False');
     expect(rehearsal).toContain('"qaReviewRequired": True');
   });
 
-  it("keeps hosted provider recovery and the combined full-service drill explicitly open", () => {
+  it("keeps hosted provider recovery and combined full-service recovery open", () => {
     expect(runbook).toContain("isolated local Supabase Storage byte-recovery drill");
     expect(runbook).toContain("not proof that hosted Supabase Storage recovery is certified");
     expect(runbook).toContain("real hosted backup/export source");

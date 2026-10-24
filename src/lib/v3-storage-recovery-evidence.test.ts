@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { assessV3StorageRecoveryEvidence } from "./v3-storage-recovery-evidence";
 
-const SHA = "c24c9b6dabcea088f004eedcac3b42ad55074068";
+const SHA = "b32c97146ef11c104e7e5f7ce52a1f1fe3055b4c";
 
 type ObjectEvidence = {
   key: string;
@@ -40,10 +40,10 @@ function evidence(): Record<string, unknown> {
     status: "passed",
     commitSha: SHA,
     environment: "isolated-local-supabase-storage",
-    operatorIdentity: "chat-1-system",
+    operatorIdentity: "chat-system-recovery",
     rehearsalId: "11111111-1111-4111-8111-111111111111",
-    startedAt: "2026-10-21T00:00:00.000Z",
-    completedAt: "2026-10-21T00:00:02.000Z",
+    startedAt: "2026-10-24T00:00:00.000Z",
+    completedAt: "2026-10-24T00:00:02.000Z",
     snapshot: {
       manifestSha256: digest(objects),
       objectCount: 3,
@@ -63,6 +63,7 @@ function evidence(): Record<string, unknown> {
       byteSizesVerified: true,
       mimeTypesVerified: true,
       privatePolicyVerified: true,
+      storageApiDeleteVerified: true,
       restoredCount: 3,
       missingCount: 0,
       extraCount: 0,
@@ -157,6 +158,27 @@ describe("System V3 S11 Storage byte recovery evidence", () => {
     expect(assessment.errors).toContain("extraCount must be 0");
   });
 
+  it("rejects a rehearsal that did not prove Storage API deletion", () => {
+    const value = evidence();
+    const validation = value.validation as Record<string, unknown>;
+    validation.storageApiDeleteVerified = false;
+
+    const assessment = assessV3StorageRecoveryEvidence(value, SHA);
+    expect(assessment.status).toBe("invalid");
+    expect(assessment.errors).toContain("storageApiDeleteVerified must be true");
+  });
+
+  it("rejects passed evidence that still reports issues", () => {
+    const value = evidence();
+    value.issuesFound = ["Restored bytes did not match on the first attempt"];
+
+    const assessment = assessV3StorageRecoveryEvidence(value, SHA);
+    expect(assessment.status).toBe("invalid");
+    expect(assessment.errors).toContain(
+      "passed Storage recovery evidence must not contain issuesFound",
+    );
+  });
+
   it("rejects hosted/provider recovery claims from the local drill", () => {
     const value = evidence();
     value.achieved = {
@@ -175,8 +197,8 @@ describe("System V3 S11 Storage byte recovery evidence", () => {
   it("rejects non-local scope, stale timing and nonzero exercise data loss", () => {
     const value = evidence();
     value.scope = "hosted_production_storage";
-    value.startedAt = "2026-10-21T00:00:10.000Z";
-    value.completedAt = "2026-10-21T00:00:01.000Z";
+    value.startedAt = "2026-10-24T00:00:10.000Z";
+    value.completedAt = "2026-10-24T00:00:01.000Z";
     value.achieved = {
       exerciseRpoSeconds: 30,
       exerciseRtoMs: 2000,
@@ -192,17 +214,6 @@ describe("System V3 S11 Storage byte recovery evidence", () => {
     );
     expect(assessment.errors).toContain(
       "isolated Storage snapshot recovery must report exerciseRpoSeconds = 0",
-    );
-  });
-
-  it("rejects a passed artifact that still reports recovery issues", () => {
-    const value = evidence();
-    value.issuesFound = ["restored object manifest diverged"];
-
-    const assessment = assessV3StorageRecoveryEvidence(value, SHA);
-    expect(assessment.status).toBe("invalid");
-    expect(assessment.errors).toContain(
-      "passed Storage recovery evidence must not contain issuesFound",
     );
   });
 
