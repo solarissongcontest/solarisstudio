@@ -24,6 +24,7 @@ const SENSITIVE_INTEGRITY_ROUTES = [
   "src/routes/integrity/appeal.$caseId.tsx",
   "src/routes/integrity/recover.tsx",
   "src/routes/integrity/anonymous-appeal.tsx",
+  "src/routes/integrity/preclearance.tsx",
 ] as const;
 
 describe("Solaris V6 Rules and Trust depth harmonisation", () => {
@@ -46,7 +47,7 @@ describe("Solaris V6 Rules and Trust depth harmonisation", () => {
     }
   });
 
-  it("keeps sensitive case and appeal surfaces out of indexing and crawler link-following", () => {
+  it("keeps sensitive case, appeal and private-guidance surfaces out of indexing and crawler link-following", () => {
     for (const path of SENSITIVE_INTEGRITY_ROUTES) {
       expect(source(path), path).toContain(
         '{ name: "robots", content: "noindex, nofollow" }',
