@@ -6,6 +6,7 @@
   "main": ".output/server/index.mjs",
   "vars": {
     "NODE_ENV": "production",
+    "SOLARIS_RUNTIME_ENV": "production",
     "MAINTENANCE_HOD_ACCESS": "true",
     "SUPABASE_URL": "https://dkxmnvekiopyesuzggeu.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_88TCCj0swFjn6xESWLwqlQ_HVUpU7Fa"
