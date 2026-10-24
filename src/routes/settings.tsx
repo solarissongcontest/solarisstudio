@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   BellRing,
   Database,
   EyeOff,
   Info,
   MoonStar,
+  RefreshCw,
   Smartphone,
   Sun,
 } from "lucide-react";
@@ -56,7 +58,7 @@ function formatBytes(value: number | null) {
 function AppSettingsPage() {
   const app = useSolarisApp();
   const session = useFanSession();
-  const userId = session.isLoading ? undefined : session.data?.id ?? null;
+  const userId = session.isLoading || session.isError ? undefined : session.data?.id ?? null;
   const { preferences, update } = useAppExperiencePreferences();
   const [accessibility, setAccessibility] = useState({
     reducedMotion: false,
@@ -165,7 +167,31 @@ function AppSettingsPage() {
           </div>
         </Panel>
 
-        {userId ? (
+        {session.isError ? (
+          <Panel
+            className={app.isAppMode ? "solaris-app-settings-panel" : undefined}
+            title="Notifications"
+            description="Solaris could not verify which account owns these notification settings."
+          >
+            <div className="flex items-start gap-3 rounded-2xl border border-border/70 bg-background/35 p-4">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">Account state unavailable</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground" role="alert">
+                  Notification preferences stay locked until Solaris can confirm whether this browser is signed in. A failed session check is not treated as a signed-out account.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void session.refetch()}
+                  className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-xs font-semibold"
+                >
+                  <RefreshCw className="size-4" aria-hidden="true" />
+                  Retry account check
+                </button>
+              </div>
+            </div>
+          </Panel>
+        ) : userId ? (
           <MySolarisNotificationsPanel includeSpoilerFree={false} />
         ) : userId === null ? (
           <Panel
@@ -192,7 +218,7 @@ function AppSettingsPage() {
           </Panel>
         ) : (
           <Panel className={app.isAppMode ? "solaris-app-settings-panel" : undefined} title="Notifications" description="Checking your Solaris notification settings…">
-            <p className="text-sm text-muted-foreground">Loading account state…</p>
+            <p className="text-sm text-muted-foreground" aria-live="polite">Loading account state…</p>
           </Panel>
         )}
 
