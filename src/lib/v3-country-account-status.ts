@@ -7,6 +7,12 @@ const supabase = typedSupabase as any;
 
 export type CountryAccountStatus = "active" | "suspended";
 
+export type CountryAccountStatusOperationIdentity = {
+  operationId: string;
+  idempotencyKey: string;
+  correlationId: string;
+};
+
 export type CountryAccountStatusResult = {
   ok: boolean;
   operationId: string;
@@ -28,18 +34,45 @@ export type ApplyCountryAccountStatusInput = {
   currentUpdatedAt: string;
   targetStatus: CountryAccountStatus;
   reason?: string | null;
+  operationIdentity?: CountryAccountStatusOperationIdentity;
 };
+
+export function createCountryAccountStatusOperationIdentity(): CountryAccountStatusOperationIdentity {
+  const operationId = crypto.randomUUID();
+  return {
+    operationId,
+    idempotencyKey: operationId,
+    correlationId: operationId,
+  };
+}
+
+function resolveOperationIdentity(
+  identity: CountryAccountStatusOperationIdentity | undefined,
+): CountryAccountStatusOperationIdentity {
+  const resolved = identity ?? createCountryAccountStatusOperationIdentity();
+  if (
+    !resolved.operationId?.trim() ||
+    !resolved.idempotencyKey?.trim() ||
+    !resolved.correlationId?.trim()
+  ) {
+    throw new Error("Country-account access command requires a stable operation identity.");
+  }
+  return resolved;
+}
 
 /**
  * Apply a reviewed country-account access transition through the canonical V3
  * operation boundary. The caller must pass the exact updated_at value that was
  * reviewed. A transport failure is reconciled once by immutable operation id;
- * the mutation itself is never blindly retried.
+ * the mutation itself is never blindly retried. Callers that expose a human
+ * retry surface must retain and resupply operationIdentity so an unresolved
+ * mutation/reconciliation outage cannot allocate a second official operation.
  */
 export async function applyCountryAccountStatusV3(
   input: ApplyCountryAccountStatusInput,
 ): Promise<SystemReceipt<SystemJsonValue>> {
   const reason = input.targetStatus === "suspended" ? input.reason?.trim() || null : null;
+  const operationIdentity = resolveOperationIdentity(input.operationIdentity);
   const commandName =
     input.targetStatus === "suspended" ? "delegation.suspend" : "delegation.restore";
   const command = createOrganisationCommand({
@@ -55,6 +88,9 @@ export async function applyCountryAccountStatusV3(
       reason,
       expectedUpdatedAt: input.currentUpdatedAt,
     },
+    operationId: operationIdentity.operationId,
+    idempotencyKey: operationIdentity.idempotencyKey,
+    correlationId: operationIdentity.correlationId,
   });
 
   const mutation = await supabase.rpc("studio2_set_country_account_status_v3", {
