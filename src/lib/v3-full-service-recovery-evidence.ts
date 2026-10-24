@@ -28,16 +28,27 @@ export type V3S11FullServiceRecoveryStatus =
   | "rehearsal_incomplete"
   | "ready_for_qa_review";
 
+/**
+ * Component assessors remain independently owned by their S11 slices. The
+ * full-service composer embeds their actual assessment JSON unchanged and adds
+ * only provenance for the retained assessment artifact.
+ */
 export type V3S11ComponentEvidence = {
   component: V3S11RecoveryComponent;
-  commitSha: string;
-  status: "ready_for_qa_review";
-  rehearsalId: string;
   observedAt: string;
   artifactPath: string;
   artifactSha256: string;
-  certificationClaim: false;
-  qaReviewRequired: true;
+  assessment: {
+    status: "ready_for_qa_review";
+    expectedCommitSha: string | null;
+    evidenceCommitSha: string | null;
+    rehearsalId: string | null;
+    errors: readonly string[];
+    certificationClaim: false;
+    qaReviewRequired: true;
+    fullServiceRecoveryClaim?: false;
+    [key: string]: unknown;
+  };
 };
 
 export type V3S11FullServiceRecoveryManifest = {
@@ -189,17 +200,37 @@ export function assessV3FullServiceRecoveryEvidence(
       }
       componentsById.set(typedComponent, component);
 
-      const commitSha = exactSha(component.commitSha);
-      if (!commitSha) {
-        errors.push(`${typedComponent} component commitSha must be an exact SHA`);
-      } else if (candidateSha && commitSha !== candidateSha) {
-        errors.push(`${typedComponent} component commitSha does not match candidateSha`);
+      const assessment = asRecord(component.assessment);
+      if (!assessment) {
+        errors.push(`${typedComponent} component assessment must be an object`);
+        continue;
       }
-      if (component.status !== "ready_for_qa_review") {
+
+      const assessmentExpectedSha = exactSha(assessment.expectedCommitSha);
+      const evidenceCommitSha = exactSha(assessment.evidenceCommitSha);
+      if (!assessmentExpectedSha) {
+        errors.push(`${typedComponent} assessment expectedCommitSha must be an exact SHA`);
+      } else if (candidateSha && assessmentExpectedSha !== candidateSha) {
+        errors.push(`${typedComponent} assessment expectedCommitSha does not match candidateSha`);
+      }
+      if (!evidenceCommitSha) {
+        errors.push(`${typedComponent} assessment evidenceCommitSha must be an exact SHA`);
+      } else if (candidateSha && evidenceCommitSha !== candidateSha) {
+        errors.push(`${typedComponent} assessment evidenceCommitSha does not match candidateSha`);
+      }
+      if (assessment.status !== "ready_for_qa_review") {
         errors.push(`${typedComponent} component is not ready_for_qa_review`);
       }
-      if (!nonEmptyString(component.rehearsalId)) {
-        errors.push(`${typedComponent} component rehearsalId is required`);
+      if (!nonEmptyString(assessment.rehearsalId)) {
+        errors.push(`${typedComponent} assessment rehearsalId is required`);
+      }
+      const assessmentErrors = Array.isArray(assessment.errors)
+        ? assessment.errors
+        : null;
+      if (!assessmentErrors) {
+        errors.push(`${typedComponent} assessment errors must be an array`);
+      } else if (assessmentErrors.length > 0) {
+        errors.push(`${typedComponent} assessment still contains errors`);
       }
       if (!validIsoTimestamp(component.observedAt)) {
         errors.push(`${typedComponent} component observedAt must be an ISO timestamp`);
@@ -210,11 +241,17 @@ export function assessV3FullServiceRecoveryEvidence(
       if (!sha256(component.artifactSha256)) {
         errors.push(`${typedComponent} component artifactSha256 must be a SHA-256 digest`);
       }
-      if (component.certificationClaim !== false) {
+      if (assessment.certificationClaim !== false) {
         errors.push(`${typedComponent} component must not claim release certification`);
       }
-      if (component.qaReviewRequired !== true) {
+      if (assessment.qaReviewRequired !== true) {
         errors.push(`${typedComponent} component must require QA review`);
+      }
+      if (
+        typedComponent === "deployment"
+        && assessment.fullServiceRecoveryClaim !== false
+      ) {
+        errors.push("deployment component must not claim full-service recovery");
       }
     }
   }
@@ -265,9 +302,9 @@ export function assessV3FullServiceRecoveryEvidence(
 
     const componentRehearsalIds = asRecord(rehearsal.componentRehearsalIds);
     for (const componentId of V3_S11_RECOVERY_COMPONENTS) {
-      const expectedRehearsalId = nonEmptyString(
-        componentsById.get(componentId)?.rehearsalId,
-      );
+      const component = componentsById.get(componentId);
+      const componentAssessment = asRecord(component?.assessment);
+      const expectedRehearsalId = nonEmptyString(componentAssessment?.rehearsalId);
       const composedRehearsalId = nonEmptyString(componentRehearsalIds?.[componentId]);
       if (!composedRehearsalId) {
         errors.push(`full-service rehearsal is missing ${componentId} component rehearsal identity`);
