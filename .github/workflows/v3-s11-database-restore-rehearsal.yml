@@ -1,0 +1,136 @@
+name: V3 S11 database restore rehearsal
+
+on:
+  pull_request:
+    paths:
+      - ".github/scripts/v3-s11-database-restore-rehearsal.sh"
+      - ".github/workflows/v3-s11-database-restore-rehearsal.yml"
+      - "docs/runbooks/database-restore.md"
+      - "src/lib/v3-database-restore-evidence.ts"
+      - "src/lib/v3-database-restore-evidence.test.ts"
+      - "src/lib/v3-s11-database-restore-evidence.contract.test.ts"
+      - "src/lib/v3-s11-database-restore-workflow.contract.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s11-database-restore-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database-restore:
+    name: Isolated database dump + restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Resolve exact source SHA
+        id: source
+        shell: bash
+        env:
+          EVENT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s' "$EVENT_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Cannot resolve exact source SHA for database restore rehearsal"
+            exit 1
+          fi
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Database restore checkout is $actual, expected exact source SHA $expected"
+            exit 1
+          fi
+          echo "sha=$expected" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        run: supabase start
+
+      - name: Rebuild isolated database from complete migration chain
+        run: supabase db reset --local --no-seed
+
+      - name: Resolve loopback database URL
+        id: local
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          : "${DB_URL:?local Supabase DB_URL missing}"
+          case "$DB_URL" in
+            postgres://postgres:postgres@127.0.0.1:*/*|postgresql://postgres:postgres@127.0.0.1:*/*|postgresql://postgres:postgres@localhost:*/*) ;;
+            *) echo "::error::Refusing non-loopback DB_URL: $DB_URL"; exit 1 ;;
+          esac
+          echo "db_url=$DB_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Rehearse dump and isolated restore
+        shell: bash
+        env:
+          DB_URL: ${{ steps.local.outputs.db_url }}
+          V3_RECOVERY_EVIDENCE_SHA: ${{ steps.source.outputs.sha }}
+          V3_RECOVERY_EVIDENCE_OPERATOR: github-actions-s11-database
+          V3_RECOVERY_EVIDENCE_ENVIRONMENT: isolated-github-actions-local-supabase
+          V3_RECOVERY_EVIDENCE_OUTPUT: /tmp/v3-s11-database-restore.json
+        run: |
+          set -euo pipefail
+          bash .github/scripts/v3-s11-database-restore-rehearsal.sh
+
+      - name: Verify retained database recovery evidence boundary
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python3 - "$EXPECTED_SHA" /tmp/v3-s11-database-restore.json <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          expected, evidence_path = sys.argv[1:]
+          evidence = json.loads(Path(evidence_path).read_text(encoding="utf-8"))
+          assert evidence["commitSha"] == expected
+          assert evidence["kind"] == "database_restore_rehearsal"
+          assert evidence["scope"] == "isolated_local_supabase"
+          assert evidence["status"] == "passed"
+          assert evidence["issuesFound"] == []
+          assert evidence["snapshot"]["format"] == "pg_dump_custom"
+          assert len(evidence["snapshot"]["sha256"]) == 64
+          assert evidence["snapshot"]["bytes"] > 0
+          assert evidence["achieved"]["exerciseRpoSeconds"] == 0
+          assert evidence["achieved"]["providerRpoClaim"] is False
+          assert evidence["achieved"]["providerRtoClaim"] is False
+          validation = evidence["validation"]
+          assert validation["sentinelVerified"] is True
+          assert validation["migrationHeadVerified"] is True
+          assert validation["operationReceiptsPresent"] is True
+          assert validation["domainEventsPresent"] is True
+          assert validation["domainEventOutboxPresent"] is True
+          assert len(validation["criticalRelationFingerprints"]) == 9
+          assert evidence["certificationClaim"] is False
+          assert evidence["qaReviewRequired"] is True
+          PY
+
+      - name: Upload exact-head database restore evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s11-database-restore-evidence
+          path: /tmp/v3-s11-database-restore.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
