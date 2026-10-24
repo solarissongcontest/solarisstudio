@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { buildV3FollowingSavedProjection } from "./v3-following-saved";
+import {
+  buildV3FollowingSavedProjection,
+  v3FollowPreferenceMatches,
+} from "./v3-following-saved";
 
 const follows = [
   {
@@ -79,5 +82,53 @@ describe("V3 Following and Saved projection", () => {
 
     expect(projection.scoped).toBe(false);
     expect(projection.items).toEqual([]);
+  });
+
+  it("confirms saved, notification-level and removal intents only from refreshed server rows", () => {
+    expect(
+      v3FollowPreferenceMatches({
+        viewerId: "viewer-1",
+        follows,
+        entityType: "country",
+        entityId: "country-1",
+        following: true,
+        notificationLevel: "important",
+      }),
+    ).toBe(true);
+
+    expect(
+      v3FollowPreferenceMatches({
+        viewerId: "viewer-1",
+        follows,
+        entityType: "country",
+        entityId: "country-1",
+        following: true,
+        notificationLevel: "all",
+      }),
+    ).toBe(false);
+
+    expect(
+      v3FollowPreferenceMatches({
+        viewerId: "viewer-1",
+        follows: follows.filter((follow) => follow.entity_id !== "country-1"),
+        entityType: "country",
+        entityId: "country-1",
+        following: false,
+        notificationLevel: "important",
+      }),
+    ).toBe(true);
+  });
+
+  it("refuses reconciliation against cross-profile state", () => {
+    expect(
+      v3FollowPreferenceMatches({
+        viewerId: "viewer-1",
+        follows: [{ ...follows[0]!, profile_id: "viewer-2" }],
+        entityType: "country",
+        entityId: "country-1",
+        following: true,
+        notificationLevel: "important",
+      }),
+    ).toBe(false);
   });
 });
