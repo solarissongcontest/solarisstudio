@@ -4,154 +4,158 @@ export function renderMaintenanceDesktopV2Style() {
   @media (min-width: 1100px) {
     body {
       background:
-        radial-gradient(circle at 72% 5%, rgba(62, 135, 190, .10), transparent 32rem),
+        radial-gradient(circle at 74% 8%, rgba(62, 135, 190, .11), transparent 31rem),
         #000;
     }
 
     .site-nav {
-      width: min(calc(100% - 6rem), 1240px);
+      width: min(calc(100% - 6rem), 1240px) !important;
+      top: max(22px, env(safe-area-inset-top)) !important;
     }
 
     #terraos-release-local-nav {
       display: none !important;
     }
 
-    /*
-     * The release choreography stylesheet is installed after the static page and
-     * deliberately uses higher-specificity html[data-*] selectors. Desktop is a
-     * different composition, so its structural geometry must explicitly outrank
-     * those mobile-first scroll-scene rules while leaving the mobile choreography
-     * untouched.
-     */
+    /* Desktop owns its geometry from first paint. Do not depend on the
+     * choreography runtime adding data attributes before the first layout. */
+    .hero,
     html[data-terraos-release-choreography="v2"] .hero {
-      min-height: clamp(620px, 76svh, 700px) !important;
+      min-height: 700px !important;
+      height: auto !important;
+      grid-template-columns: minmax(400px, 480px) minmax(520px, 650px) !important;
+      grid-template-rows: 1fr !important;
+      align-content: center !important;
+      align-items: center !important;
+      justify-content: center !important;
+      justify-items: stretch !important;
+      column-gap: clamp(3rem, 5vw, 5.5rem) !important;
+      padding: max(6.1rem, calc(env(safe-area-inset-top) + 5.25rem)) clamp(3rem, 5vw, 5rem) 2.5rem !important;
+      overflow: hidden;
     }
 
+    .hero::before {
+      background:
+        radial-gradient(circle at 71% 44%, rgba(74,167,210,.17), transparent 25rem),
+        radial-gradient(circle at 25% 40%, rgba(35,78,125,.10), transparent 28rem),
+        linear-gradient(180deg, #03070b, #000 82%) !important;
+    }
+
+    .hero::after {
+      top: 49% !important;
+      left: 71% !important;
+      width: min(650px, 44vw) !important;
+    }
+
+    .hero-copy,
     html[data-terraos-release-choreography="v2"] .hero-copy,
+    .hero-stage,
     html[data-terraos-release-choreography="v2"] .hero-stage {
       position: relative !important;
       top: auto !important;
     }
 
-    .hero {
-      grid-template-columns: minmax(420px, 500px) minmax(520px, 640px);
-      grid-template-rows: 1fr;
-      align-content: center;
-      align-items: center;
-      justify-content: center;
-      justify-items: stretch;
-      column-gap: clamp(2.5rem, 4.5vw, 5.25rem);
-      padding: max(6.5rem, calc(env(safe-area-inset-top) + 5.5rem)) clamp(3rem, 5vw, 5rem) 3.25rem;
-    }
-
-    .hero::before {
-      background:
-        radial-gradient(circle at 70% 42%, rgba(74,167,210,.16), transparent 25rem),
-        radial-gradient(circle at 27% 38%, rgba(35,78,125,.10), transparent 28rem),
-        linear-gradient(180deg, #03070b, #000 78%);
-    }
-
-    .hero::after {
-      top: 52%;
-      left: 70%;
-      width: min(680px, 46vw);
-    }
-
     .hero-copy {
-      grid-column: 1;
-      grid-row: 1;
-      justify-self: end;
-      align-self: center;
-      width: 100%;
-      max-width: 500px;
-      text-align: left;
-      transform-origin: 0 30%;
+      grid-column: 1 !important;
+      grid-row: 1 !important;
+      justify-self: end !important;
+      align-self: center !important;
+      width: 100% !important;
+      max-width: 480px !important;
+      text-align: left !important;
+      transform-origin: 0 30% !important;
     }
 
     .hero h1 {
-      font-size: clamp(5.1rem, 6vw, 7rem);
-      line-height: .87;
-      text-align: left;
+      margin: 0 !important;
+      font-size: clamp(4.8rem, 5.5vw, 6.5rem) !important;
+      line-height: .88 !important;
+      text-align: left !important;
     }
 
     .tagline {
-      margin: 1rem 0 0;
-      font-size: clamp(1.2rem, 1.45vw, 1.5rem);
+      margin: .9rem 0 0 !important;
+      font-size: clamp(1.15rem, 1.35vw, 1.42rem) !important;
     }
 
     .launch {
-      width: 100%;
-      margin: clamp(1.7rem, 2.7vh, 2.35rem) 0 0;
-      justify-items: start;
-      gap: .5rem;
+      width: 100% !important;
+      margin: clamp(1.55rem, 2.4vh, 2rem) 0 0 !important;
+      justify-items: start !important;
+      gap: .42rem !important;
     }
 
     .countdown {
-      max-width: 470px;
-      margin-left: 0;
-      justify-content: flex-start;
+      max-width: 440px !important;
+      margin-left: 0 !important;
+      justify-content: flex-start !important;
+      gap: clamp(.45rem, .9vw, .9rem) !important;
     }
 
     .countdown-value {
-      font-size: clamp(2.7rem, 3.25vw, 3.55rem);
+      font-size: clamp(2.55rem, 3vw, 3.35rem) !important;
     }
 
     .hero-stage {
-      grid-column: 2;
-      grid-row: 1;
-      justify-self: start;
-      align-self: center;
-      width: min(620px, 42vw);
-      height: 520px;
-      margin-top: 0;
-      transform-origin: 50% 50%;
+      grid-column: 2 !important;
+      grid-row: 1 !important;
+      justify-self: start !important;
+      align-self: center !important;
+      width: min(640px, 43vw) !important;
+      height: 460px !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      overflow: visible !important;
+      transform-origin: 50% 50% !important;
     }
 
     .phone {
-      width: 232px;
-      height: 502px;
-      border-radius: 36px;
+      width: 218px !important;
+      height: 472px !important;
+      border-radius: 34px !important;
     }
 
     .phone-preview {
-      transform: scale(.59487);
+      transform: scale(.55897) !important;
     }
 
     .phone.center {
-      transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%) !important;
     }
 
     .phone.left {
-      transform: translate(calc(-146% - var(--hero-side-spread)), -42%) rotateY(16deg) rotateZ(-4deg) scale(.82);
+      transform: translate(calc(-148% - var(--hero-side-spread)), -42%) rotateY(15deg) rotateZ(-4deg) scale(.82) !important;
     }
 
     .phone.right {
-      transform: translate(calc(46% + var(--hero-side-spread)), -42%) rotateY(-16deg) rotateZ(4deg) scale(.82);
+      transform: translate(calc(48% + var(--hero-side-spread)), -42%) rotateY(-15deg) rotateZ(4deg) scale(.82) !important;
     }
 
     .hod-portal {
-      width: min(calc(100% - 6rem), 1160px);
-      margin-top: 1.25rem;
-      margin-bottom: clamp(4rem, 6vw, 5.5rem);
-      padding: clamp(1.7rem, 2.4vw, 2.25rem);
-      gap: clamp(2.5rem, 4.5vw, 4.5rem);
-      border-radius: 1.35rem;
+      width: min(calc(100% - 6rem), 1160px) !important;
+      margin-top: 1rem !important;
+      margin-bottom: clamp(3.75rem, 5vw, 5rem) !important;
+      padding: clamp(1.6rem, 2.25vw, 2.15rem) !important;
+      gap: clamp(2.25rem, 4vw, 4rem) !important;
+      border-radius: 1.3rem !important;
     }
 
     .hod-portal h2 {
-      font-size: clamp(1.8rem, 2.15vw, 2.3rem);
+      font-size: clamp(1.8rem, 2.05vw, 2.25rem) !important;
     }
 
     .product-story {
       border-top: 1px solid rgba(255,255,255,.065);
       background:
-        radial-gradient(circle at 78% 10%, rgba(45, 103, 164, .07), transparent 28rem),
+        radial-gradient(circle at 78% 10%, rgba(45,103,164,.07), transparent 28rem),
         #000;
     }
 
-    .product-story > .story {
-      width: min(calc(100% - 6rem), 1240px);
-      padding: clamp(4.5rem, 6vw, 6.25rem) 0;
+    .product-story > .story,
+    .product-story > .story:first-child {
+      width: min(calc(100% - 6rem), 1240px) !important;
+      margin-inline: auto !important;
+      padding: clamp(4rem, 5vw, 5.5rem) 0 !important;
     }
 
     .product-story > .story + .story {
@@ -160,54 +164,54 @@ export function renderMaintenanceDesktopV2Style() {
 
     .product-story .story h2 {
       max-width: 8.5ch;
-      font-size: clamp(3.45rem, 4.4vw, 5rem);
-      line-height: .91;
+      font-size: clamp(3.25rem, 4vw, 4.7rem) !important;
+      line-height: .92 !important;
     }
 
     .product-story > .story:first-child {
-      display: grid;
-      width: min(calc(100% - 6rem), 1240px);
-      grid-template-columns: minmax(300px, .68fr) minmax(590px, 1.32fr);
-      align-items: center;
-      gap: clamp(3rem, 5vw, 5.5rem);
-      padding: clamp(4.75rem, 6vw, 6.5rem) 0;
+      display: grid !important;
+      grid-template-columns: minmax(290px, .68fr) minmax(560px, 1.32fr) !important;
+      align-items: center !important;
+      gap: clamp(3rem, 5vw, 5.25rem) !important;
     }
 
     .product-story > .story:first-child > .story-heading {
-      align-self: center;
-      padding-top: 0;
+      align-self: center !important;
+      padding-top: 0 !important;
     }
 
     .product-story > .story:first-child > .story-heading h2 {
       max-width: 7.5ch;
-      font-size: clamp(3.7rem, 4.65vw, 5.25rem);
-      line-height: .9;
+      font-size: clamp(3.45rem, 4.2vw, 4.9rem) !important;
+      line-height: .91 !important;
     }
 
+    .first-look,
     html[data-terraos-release-choreography="v2"] [data-terra-first-look="true"] .first-look {
-      min-height: 500px !important;
+      min-height: 470px !important;
     }
 
+    .preview-device,
     html[data-terraos-release-choreography="v2"] [data-terra-first-look="true"] .preview-device {
-      width: min(310px, 20.5vw, 100%) !important;
+      width: min(268px, 18vw, 100%) !important;
+      max-height: min(600px, 78svh) !important;
     }
 
     .product-story > .story:first-child .first-look {
-      display: grid;
-      min-height: 500px;
-      grid-template-columns: minmax(230px, .8fr) minmax(280px, 1fr);
-      gap: clamp(1.75rem, 3vw, 3.25rem);
-      padding: clamp(1.8rem, 2.5vw, 2.5rem);
-      border-radius: 1.85rem;
+      display: grid !important;
+      grid-template-columns: minmax(220px, .82fr) minmax(250px, 1fr) !important;
+      gap: clamp(1.6rem, 2.8vw, 3rem) !important;
+      padding: clamp(1.65rem, 2.3vw, 2.35rem) !important;
+      border-radius: 1.7rem !important;
       background:
         radial-gradient(circle at 78% 32%, rgba(52,123,205,.24), transparent 42%),
-        linear-gradient(145deg, #0d1522, #07090d 72%);
+        linear-gradient(145deg, #0d1522, #07090d 72%) !important;
       box-shadow: 0 28px 80px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.035);
     }
 
     .product-story > .story:first-child .first-look-copy h3 {
-      font-size: clamp(2.4rem, 2.8vw, 3.2rem);
-      line-height: .95;
+      font-size: clamp(2.25rem, 2.65vw, 3rem) !important;
+      line-height: .96 !important;
     }
 
     .product-story > .story:first-child .first-look-copy p {
@@ -216,121 +220,90 @@ export function renderMaintenanceDesktopV2Style() {
     }
 
     .product-story > .story:first-child .preview-device {
-      justify-self: end;
+      justify-self: end !important;
     }
 
+    .story-touch,
+    .participation-story .story-grid {
+      display: grid !important;
+      grid-template-columns: minmax(290px, .7fr) minmax(560px, 1.3fr) !important;
+      gap: clamp(3rem, 5vw, 5.25rem) !important;
+      align-items: start !important;
+      text-align: left !important;
+    }
+
+    .story-touch[data-terra-scroll-scene="true"],
     html[data-terraos-release-choreography="v2"] .story-touch[data-terra-scroll-scene="true"] {
-      min-height: 180svh !important;
+      min-height: 155svh !important;
     }
 
-    html[data-terraos-release-choreography="v2"] .story-touch[data-terra-scroll-scene="true"] .interactive-device {
+    .story-touch .story-heading,
+    .participation-story .sticky-heading {
       position: sticky !important;
-      top: max(6rem, 12svh) !important;
+      top: 18svh !important;
+      align-self: start !important;
+    }
+
+    .story-touch .interactive-device,
+    html[data-terraos-release-choreography="v2"] .story-touch[data-terra-scroll-scene="true"] .interactive-device,
+    .participation-device,
+    html[data-terraos-release-choreography="v2"] .participation-story[data-terra-scroll-scene="true"] .participation-device {
+      position: sticky !important;
+      top: max(5.5rem, 10svh) !important;
+      width: 100% !important;
+      max-width: 640px !important;
       margin-top: 0 !important;
-    }
-
-    .story-touch {
-      display: grid;
-      grid-template-columns: minmax(300px, .7fr) minmax(590px, 1.3fr);
-      gap: clamp(3rem, 5vw, 5.5rem);
-      align-items: start;
-      text-align: left;
-    }
-
-    .story-touch .story-heading {
-      position: sticky;
-      top: 20svh;
-      align-self: start;
-    }
-
-    .story-touch .interactive-device {
-      width: 100%;
-      max-width: 650px;
-      margin: 0;
-      justify-self: end;
+      justify-self: end !important;
+      align-self: start !important;
     }
 
     .story-touch .interactive-screen {
-      min-height: 540px;
+      min-height: 520px !important;
     }
 
     .story-touch .touch-hint {
       grid-column: 2;
-      margin: -1.25rem 0 0;
+      margin: -1.1rem 0 0;
       text-align: left;
     }
 
+    .participation-story[data-terra-scroll-scene="true"],
     html[data-terraos-release-choreography="v2"] .participation-story[data-terra-scroll-scene="true"] {
-      min-height: 165svh !important;
-    }
-
-    html[data-terraos-release-choreography="v2"] .participation-story[data-terra-scroll-scene="true"] .story-grid {
       min-height: 150svh !important;
     }
 
-    html[data-terraos-release-choreography="v2"] .participation-story[data-terra-scroll-scene="true"] .participation-device {
-      position: sticky !important;
-      top: max(6rem, 12svh) !important;
-      align-self: start !important;
+    .participation-story[data-terra-scroll-scene="true"] .story-grid,
+    html[data-terraos-release-choreography="v2"] .participation-story[data-terra-scroll-scene="true"] .story-grid {
+      min-height: 138svh !important;
     }
 
-    .participation-story .story-grid {
-      display: grid;
-      grid-template-columns: minmax(300px, .7fr) minmax(590px, 1.3fr);
-      gap: clamp(3rem, 5vw, 5.5rem);
-      align-items: start;
-    }
-
-    .participation-story .sticky-heading {
-      position: sticky;
-      top: 20svh;
-      align-self: start;
-    }
-
-    .participation-device {
-      width: 100%;
-      max-width: 650px;
-      justify-self: end;
-    }
-
+    .results-story[data-terra-scroll-scene="true"],
     html[data-terraos-release-choreography="v2"] .results-story[data-terra-scroll-scene="true"] {
-      min-height: 190svh !important;
-    }
-
-    html[data-terraos-release-choreography="v2"] .results-story[data-terra-scroll-scene="true"] .story-heading {
-      top: max(5.5rem, 11svh) !important;
-    }
-
-    html[data-terraos-release-choreography="v2"] .results-story[data-terra-scroll-scene="true"] .results-reveal {
-      top: max(9.5rem, 19svh) !important;
+      min-height: 165svh !important;
     }
 
     .results-story .story-heading,
     .final-countdown {
-      width: min(100%, 900px);
-      margin-inline: auto;
-      text-align: center;
+      width: min(100%, 900px) !important;
+      margin-inline: auto !important;
+      text-align: center !important;
     }
 
     .results-story .story-heading h2 {
-      margin-inline: auto;
+      margin-inline: auto !important;
     }
 
     .results-reveal {
-      width: min(820px, 76vw);
-      min-height: 600px;
-      margin-top: 2.5rem;
+      width: min(800px, 72vw) !important;
+      min-height: 570px !important;
+      margin-top: 2rem !important;
     }
 
     .interface-details {
-      width: min(980px, 100%);
-      margin: 1rem auto 0;
+      width: min(960px, 100%) !important;
+      margin: 1rem auto 0 !important;
     }
 
-    /* Keep the existing accessibility contract authoritative. The desktop
-     * animation geometry above is intentionally disabled when the runtime has
-     * selected Reduced Motion, matching the host choreography's static fallback.
-     */
     html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .hero,
     html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .story-touch[data-terra-scroll-scene="true"],
     html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .participation-story[data-terra-scroll-scene="true"],
@@ -352,19 +325,47 @@ export function renderMaintenanceDesktopV2Style() {
     }
 
     footer {
-      width: min(calc(100% - 6rem), 1240px);
+      width: min(calc(100% - 6rem), 1240px) !important;
     }
   }
 
   @media (min-width: 1500px) {
-    .hero {
-      grid-template-columns: 500px 640px;
-      column-gap: 5.5rem;
+    .hero,
+    html[data-terraos-release-choreography="v2"] .hero {
+      min-height: 720px !important;
+      grid-template-columns: 480px 650px !important;
+      column-gap: 5.5rem !important;
     }
 
     .product-story > .story,
     .product-story > .story:first-child {
-      width: min(calc(100% - 10rem), 1320px);
+      width: min(calc(100% - 10rem), 1320px) !important;
+    }
+  }
+
+  @media (min-width: 1100px) and (max-height: 820px) {
+    .hero,
+    html[data-terraos-release-choreography="v2"] .hero {
+      min-height: 620px !important;
+      padding-top: 5.5rem !important;
+      padding-bottom: 1.75rem !important;
+    }
+
+    .hero h1 {
+      font-size: clamp(4.25rem, 5vw, 5.6rem) !important;
+    }
+
+    .hero-stage {
+      height: 410px !important;
+    }
+
+    .phone {
+      width: 194px !important;
+      height: 420px !important;
+    }
+
+    .phone-preview {
+      transform: scale(.49762) !important;
     }
   }
 </style>`;
