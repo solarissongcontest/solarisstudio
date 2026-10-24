@@ -9,27 +9,132 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { publicBreadcrumbsForPath } from "@/lib/public-breadcrumbs";
-import { useAllShows, useCountries, useEditions } from "@/lib/data";
+import {
+  publicBreadcrumbsForPath,
+  type PublicBreadcrumbContext,
+} from "@/lib/public-breadcrumbs";
+import { useCountries, useEditions, useShow } from "@/lib/data";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 
+type BreadcrumbDataTarget =
+  | { kind: "country" }
+  | { kind: "edition" }
+  | { kind: "show"; showId: string }
+  | { kind: "static" };
+
+function breadcrumbDataTarget(pathname: string): BreadcrumbDataTarget {
+  if (/^\/(?:countries|wiki)\/[^/]+\/?$/i.test(pathname)) {
+    return { kind: "country" };
+  }
+
+  if (/^\/(?:editions|stories)\/[^/]+\/?$/i.test(pathname)) {
+    return { kind: "edition" };
+  }
+
+  const showMatch = pathname.match(/^\/shows\/([^/]+)\/?$/i);
+  if (showMatch) {
+    return { kind: "show", showId: decodeURIComponent(showMatch[1]) };
+  }
+
+  return { kind: "static" };
+}
+
 export function PublicBreadcrumbs({ pathname }: { pathname: string }) {
-  const { data: countries = [] } = useCountries();
-  const { data: editions = [] } = useEditions();
-  const { data: shows = [] } = useAllShows();
   const [hydrated, setHydrated] = useState(false);
+  const target = useMemo(() => breadcrumbDataTarget(pathname), [pathname]);
 
   useEffect(() => setHydrated(true), []);
 
-  const crumbs = useMemo(
-    () =>
-      publicBreadcrumbsForPath(pathname, {
-        countries: hydrated ? countries : [],
-        editions: hydrated ? editions : [],
-        shows: hydrated ? shows : [],
-      }),
-    [countries, editions, hydrated, pathname, shows],
+  if (target.kind === "country") {
+    return <CountryBreadcrumbs pathname={pathname} hydrated={hydrated} />;
+  }
+
+  if (target.kind === "edition") {
+    return <EditionBreadcrumbs pathname={pathname} hydrated={hydrated} />;
+  }
+
+  if (target.kind === "show") {
+    return (
+      <ShowBreadcrumbs
+        pathname={pathname}
+        showId={target.showId}
+        hydrated={hydrated}
+      />
+    );
+  }
+
+  return <BreadcrumbView pathname={pathname} />;
+}
+
+function CountryBreadcrumbs({
+  pathname,
+  hydrated,
+}: {
+  pathname: string;
+  hydrated: boolean;
+}) {
+  const { data: countries = [] } = useCountries();
+
+  return (
+    <BreadcrumbView
+      pathname={pathname}
+      context={{ countries: hydrated ? countries : [] }}
+    />
   );
+}
+
+function EditionBreadcrumbs({
+  pathname,
+  hydrated,
+}: {
+  pathname: string;
+  hydrated: boolean;
+}) {
+  const { data: editions = [] } = useEditions();
+
+  return (
+    <BreadcrumbView
+      pathname={pathname}
+      context={{ editions: hydrated ? editions : [] }}
+    />
+  );
+}
+
+function ShowBreadcrumbs({
+  pathname,
+  showId,
+  hydrated,
+}: {
+  pathname: string;
+  showId: string;
+  hydrated: boolean;
+}) {
+  const { data: show } = useShow(showId);
+  const { data: editions = [] } = useEditions();
+
+  return (
+    <BreadcrumbView
+      pathname={pathname}
+      context={{
+        editions: hydrated ? editions : [],
+        shows: hydrated && show ? [show] : [],
+      }}
+    />
+  );
+}
+
+function BreadcrumbView({
+  pathname,
+  context = {},
+}: {
+  pathname: string;
+  context?: PublicBreadcrumbContext;
+}) {
+  const crumbs = useMemo(
+    () => publicBreadcrumbsForPath(pathname, context),
+    [context, pathname],
+  );
+
   if (!crumbs.length) return null;
 
   return (
