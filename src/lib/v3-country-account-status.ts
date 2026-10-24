@@ -60,6 +60,38 @@ function resolveOperationIdentity(
   return resolved;
 }
 
+function requireSucceededReceipt(
+  receipt: SystemReceipt<SystemJsonValue> | null,
+  operationId: string,
+): SystemReceipt<SystemJsonValue> {
+  if (!receipt || receipt.operationId !== operationId) {
+    throw new Error("Country-account access command returned an invalid operation receipt.");
+  }
+  if (receipt.status === "succeeded") return receipt;
+
+  if (receipt.status === "failed") {
+    const failure = new Error(
+      receipt.error?.message ?? "Country-account access command failed authoritatively.",
+    );
+    Object.assign(failure, {
+      code: receipt.error?.code ?? "UNKNOWN",
+      operationId,
+      status: receipt.status,
+    });
+    throw failure;
+  }
+
+  const unresolved = new Error(
+    "Country-account access command outcome is not confirmed. Reconcile the same operation before retrying.",
+  );
+  Object.assign(unresolved, {
+    code: receipt.error?.code ?? "TIMEOUT",
+    operationId,
+    status: receipt.status,
+  });
+  throw unresolved;
+}
+
 /**
  * Apply a reviewed country-account access transition through the canonical V3
  * operation boundary. The caller must pass the exact updated_at value that was
@@ -105,23 +137,19 @@ export async function applyCountryAccountStatusV3(
   });
 
   if (!mutation.error) {
-    const receipt = normalizeSystemReceipt(mutation.data);
-    if (!receipt || receipt.operationId !== command.operationId || receipt.status !== "succeeded") {
-      throw new Error("Country-account access command returned an invalid operation receipt.");
-    }
-    return receipt;
+    return requireSucceededReceipt(normalizeSystemReceipt(mutation.data), command.operationId);
   }
 
   // Do not retry the mutation after an uncertain response. Reconcile the stable
-  // operation identity exactly once. Deterministic pre-commit failures roll the
-  // claim back, so reconciliation will simply fail and the original error wins.
+  // operation identity exactly once. A valid authoritative receipt wins over
+  // the transport error, including a durable failed receipt with its real code.
   const reconciliation = await supabase.rpc("studio2_reconcile_operation", {
     p_operation_id: command.operationId,
   });
   if (!reconciliation.error) {
     const receipt = normalizeSystemReceipt(reconciliation.data);
-    if (receipt?.operationId === command.operationId && receipt.status === "succeeded") {
-      return receipt;
+    if (receipt?.operationId === command.operationId) {
+      return requireSucceededReceipt(receipt, command.operationId);
     }
   }
 
