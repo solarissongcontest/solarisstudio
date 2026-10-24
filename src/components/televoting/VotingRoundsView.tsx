@@ -18,15 +18,18 @@ import {
 } from "@/components/admin/AdminUI";
 import { Input } from "@/components/ui/input";
 import {
+  applyMergedTelevotingRoundDelete,
   createMergedTelevotingRound,
-  deleteMergedTelevotingRound,
   getMergedTelevotingRoundsPage,
+  previewMergedTelevotingRoundDelete,
   previewMergedTelevotingRoundStatus,
   renameMergedTelevotingRound,
   setMergedTelevotingRoundStatus,
   type MergedAdminRound,
+  type MergedRoundDeletePreview,
   type MergedRoundStatusPreview,
 } from "@/integrations/televoting/rounds.functions";
+import { resolveSolarisV6OperationRecovery } from "@/lib/solaris-v6-operation-recovery";
 
 type PendingRoundStatusChange = {
   round: MergedAdminRound;
@@ -34,6 +37,14 @@ type PendingRoundStatusChange = {
   preview: MergedRoundStatusPreview;
   operationId: string;
   idempotencyKey: string;
+};
+
+type PendingRoundDelete = {
+  round: MergedAdminRound;
+  preview: MergedRoundDeletePreview;
+  operationId: string;
+  idempotencyKey: string;
+  attempted: boolean;
 };
 
 export function VotingRoundsView() {
@@ -44,13 +55,14 @@ export function VotingRoundsView() {
   const renameRound = useServerFn(renameMergedTelevotingRound);
   const previewStatus = useServerFn(previewMergedTelevotingRoundStatus);
   const setStatus = useServerFn(setMergedTelevotingRoundStatus);
-  const deleteRound = useServerFn(deleteMergedTelevotingRound);
+  const previewDelete = useServerFn(previewMergedTelevotingRoundDelete);
+  const applyDelete = useServerFn(applyMergedTelevotingRoundDelete);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [editing, setEditing] = useState<MergedAdminRound | null>(null);
   const [editingName, setEditingName] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<MergedAdminRound | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PendingRoundDelete | null>(null);
   const [pendingStatus, setPendingStatus] = useState<PendingRoundStatusChange | null>(null);
   const [statusBusy, setStatusBusy] = useState<string | null>(null);
 
@@ -150,16 +162,60 @@ export function VotingRoundsView() {
     }
   }
 
-  async function removeRound() {
-    if (!deleteTarget) return;
-    const target = deleteTarget;
+  async function requestRoundDelete(round: MergedAdminRound) {
+    setStatusBusy(round.id);
     try {
-      await deleteRound({ data: { id: target.id } });
-      toast.success("Round deleted");
-      setDeleteTarget(null);
+      const preview = await previewDelete({ data: { id: round.id } });
+      if (!preview.canDelete || preview.blockers.length) {
+        throw new Error(preview.blockers.join(" ") || "This draft round cannot be deleted safely.");
+      }
+      setPendingDelete({
+        round,
+        preview,
+        operationId: crypto.randomUUID(),
+        idempotencyKey: crypto.randomUUID(),
+        attempted: false,
+      });
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Round deletion impact could not be loaded");
+    } finally {
+      setStatusBusy(null);
+    }
+  }
+
+  async function confirmRoundDelete() {
+    if (!pendingDelete) return;
+    const pending = { ...pendingDelete, attempted: true };
+    setPendingDelete(pending);
+    setStatusBusy(pending.round.id);
+    try {
+      const receipt = await applyDelete({
+        data: {
+          id: pending.round.id,
+          operationId: pending.operationId,
+          idempotencyKey: pending.idempotencyKey,
+          expectedGlobalVersion: pending.preview.expectedGlobalVersion,
+          expectedRoundVersion: pending.preview.expectedRoundVersion,
+        },
+      });
+      toast.success(`${receipt.roundName} deleted · operation ${receipt.operationId} · system v${receipt.globalVersion}`);
+      setPendingDelete(null);
       await refresh();
     } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Round could not be deleted");
+      const recovery = resolveSolarisV6OperationRecovery(caught, {
+        online: typeof navigator === "undefined" ? true : navigator.onLine,
+        stableOperationIdentity: Boolean(pending.operationId),
+      });
+      if (recovery.keepOperationOpen) {
+        setPendingDelete(pending);
+        toast.error(`${recovery.title}. ${recovery.description}`);
+      } else {
+        setPendingDelete(null);
+        if (recovery.shouldRefreshCanonical) await refresh();
+        toast.error(`${recovery.title}. ${recovery.description}`);
+      }
+    } finally {
+      setStatusBusy(null);
     }
   }
 
@@ -273,7 +329,7 @@ export function VotingRoundsView() {
                         <AdminActionItem icon={Edit3} title="Rename round" description="Change the organizer-facing round name." onClick={() => { setEditing(round); setEditingName(round.name); }} />
                         {round.status === "closed" ? <AdminActionItem icon={Radio} title="Reopen voting" description="Accept ballots again. Existing ballots stay stored." disabled={!canOpen || busy} onClick={() => void requestStatusChange(round, "open")} /> : null}
                         {round.status !== "draft" ? <AdminActionItem icon={Layers3} title="Move to draft" description="Take the round out of active/closed workflow state." disabled={busy} onClick={() => void requestStatusChange(round, "draft")} /> : null}
-                        <AdminActionItem icon={Trash2} title="Delete round" description={round.status === "draft" ? "Permanently remove this unused draft round." : "Only draft rounds can be deleted."} tone="danger" disabled={round.status !== "draft"} onClick={() => setDeleteTarget(round)} />
+                        <AdminActionItem icon={Trash2} title="Delete round" description={round.status === "draft" ? "Review canonical dependencies before permanently deleting this unused draft." : "Only draft rounds can be deleted."} tone="danger" disabled={round.status !== "draft" || busy} onClick={() => void requestRoundDelete(round)} />
                       </div>
                     </AdminMoreMenu>
                   </div>
@@ -351,14 +407,17 @@ export function VotingRoundsView() {
       />
 
       <AdminConfirmSheet
-        open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={removeRound}
-        title={deleteTarget ? `Delete ${deleteTarget.name}?` : "Delete round?"}
-        description="This permanently removes the draft voting round. Only draft rounds can be deleted; backend protections remain in force."
-        confirmLabel="Delete round"
-        confirmationText={deleteTarget?.name}
-        confirmationHint={deleteTarget ? `Type ${deleteTarget.name} to confirm` : undefined}
+        open={Boolean(pendingDelete)}
+        onClose={() => {
+          if (!statusBusy) setPendingDelete(null);
+        }}
+        onConfirm={confirmRoundDelete}
+        title={pendingDelete?.attempted ? "Retry the same round deletion operation?" : pendingDelete ? `Delete ${pendingDelete.round.name}?` : "Delete round?"}
+        description={pendingDelete ? <TelevoteRoundDeleteImpactPreview pending={pendingDelete} /> : "Review the canonical deletion impact before continuing."}
+        confirmLabel={pendingDelete?.attempted ? "Retry same operation" : "Delete reviewed round"}
+        confirmationText={pendingDelete?.round.name}
+        confirmationHint={pendingDelete ? `Type ${pendingDelete.round.name} to confirm this R2 permanent deletion` : undefined}
+        busy={Boolean(statusBusy)}
         danger
       />
     </div>
@@ -402,6 +461,32 @@ function TelevoteRoundImpactPreview({ pending }: { pending: PendingRoundStatusCh
       <p className="text-xs leading-5 text-muted-foreground">
         Expected system version v{preview.expectedGlobalVersion} and round version v{preview.expectedRoundVersion}.
         Any concurrent round-state or line-up change makes this preview stale. Retrying this confirmation replays the same operation receipt.
+      </p>
+    </div>
+  );
+}
+
+function TelevoteRoundDeleteImpactPreview({ pending }: { pending: PendingRoundDelete }) {
+  const preview = pending.preview;
+  return (
+    <div className="space-y-3">
+      <p>
+        This is a <strong className="text-foreground">Risk R2 permanent deletion</strong> for{" "}
+        <strong className="text-foreground">{pending.round.name}</strong>. The server has verified the round is still a deletable draft.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <RoundImpactMetric label="Round" value={preview.currentStatus} />
+        <RoundImpactMetric label="Entries removed" value={preview.affected.entries} />
+        <RoundImpactMetric label="Bindings removed" value={preview.affected.bindings} />
+        <RoundImpactMetric label="Stored ballots" value={preview.ballotCount} />
+      </div>
+      <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3 text-xs leading-5 text-muted-foreground">
+        <strong className="text-foreground">Results:</strong> {preview.resultsStatus} · calculation v{preview.calculationVersion}<br />
+        <strong className="text-foreground">Reviewed versions:</strong> system v{preview.expectedGlobalVersion} · round v{preview.expectedRoundVersion}<br />
+        <strong className="text-foreground">Operation:</strong> {pending.operationId}
+      </div>
+      <p className="text-xs leading-5 text-muted-foreground">
+        Any persisted ballot history or calculated/non-draft Results state blocks deletion. The command revalidates this review under lock. If the response is lost after commit, retrying this sheet uses the same operation identity so Solaris can replay the durable receipt.
       </p>
     </div>
   );
