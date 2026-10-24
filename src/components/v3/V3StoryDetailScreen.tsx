@@ -118,6 +118,16 @@ export function V3StoryDetailScreen({
           description={story.introduction ?? undefined}
           editorial
         />
+        {bundle.artwork ? (
+          <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025]">
+            <img
+              src={bundle.artwork.src}
+              alt={bundle.artwork.alt}
+              className="aspect-[16/9] w-full object-cover"
+              decoding="async"
+            />
+          </div>
+        ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {story.subtitle ? <V3StatusChip tone="neutral">{story.subtitle}</V3StatusChip> : null}
           <span className="text-xs text-white/38">

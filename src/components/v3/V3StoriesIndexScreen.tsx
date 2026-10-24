@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { BookOpen, CalendarDays } from "lucide-react";
 
-import type { V3StoriesIndexBundle } from "@/lib/v3-stories";
+import type { V3StoriesIndexBundle, V3StorySummary } from "@/lib/v3-stories";
 import {
   V3Screen,
   V3ScreenHeader,
@@ -20,6 +20,7 @@ export function V3StoriesIndexScreen({
 }) {
   const [revealed, setRevealed] = useState(false);
   const protectedView = hideSpoilers && !revealed;
+  const hasClassifiedStories = Boolean(bundle.currentStory) || bundle.historicalStories.length > 0;
 
   return (
     <V3Screen>
@@ -111,56 +112,88 @@ export function V3StoriesIndexScreen({
             )}
           </V3Section>
 
-          <V3Section title="Edition stories" meta={`${bundle.stories.length} published`}>
-            {bundle.stories.length ? (
+          {bundle.currentStory ? (
+            <V3Section
+              title="Current edition story"
+              meta={
+                bundle.currentStory.editionNumber != null
+                  ? `SSC ${bundle.currentStory.editionNumber}`
+                  : bundle.currentStory.editionName
+              }
+            >
+              <div className="max-w-3xl">
+                <StoryCard story={bundle.currentStory} />
+              </div>
+            </V3Section>
+          ) : null}
+
+          {bundle.historicalStories.length ? (
+            <V3Section title="Story archive" meta={`${bundle.historicalStories.length} historical`}>
               <div className="grid gap-4 md:grid-cols-2">
-                {bundle.stories.map((story) => (
-                  <Link
-                    key={story.editionId}
-                    to="/stories/$editionSlug"
-                    params={{ editionSlug: story.editionSlug }}
-                    className="block rounded-[var(--v3-radius-xl)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-                  >
-                    <V3Surface level="raised" className="h-full p-5 transition hover:bg-white/[0.045]">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-[0.65rem] font-bold uppercase tracking-[0.13em] text-primary">
-                          {story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}
-                        </span>
-                        <span className="text-xs text-white/38">{story.itemCount} moments</span>
-                      </div>
-                      <h3 className="mt-3 text-2xl font-black tracking-[-0.03em]">{story.title}</h3>
-                      {story.subtitle ? (
-                        <p className="mt-1 text-sm font-semibold text-white/70">{story.subtitle}</p>
-                      ) : null}
-                      <p className="mt-3 line-clamp-3 text-sm leading-6 text-white/48">
-                        {story.introduction ?? story.heroMoment?.summary ?? "Open the reviewed edition timeline."}
-                      </p>
-                      {story.heroMoment ? (
-                        <div className="mt-5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                          <p className="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white/35">
-                            Defining moment
-                          </p>
-                          <p className="mt-1 text-sm font-semibold">{story.heroMoment.headline}</p>
-                        </div>
-                      ) : null}
-                    </V3Surface>
-                  </Link>
+                {bundle.historicalStories.map((story) => (
+                  <StoryCard key={story.editionId} story={story} />
                 ))}
               </div>
-            ) : (
-              <V3Surface className="p-6">
-                <div role="status" className="text-center">
-                  <BookOpen className="mx-auto size-5 text-white/32" aria-hidden="true" />
-                  <p className="mt-3 text-sm font-semibold">No edition stories published yet</p>
-                  <p className="mx-auto mt-1 max-w-lg text-xs leading-5 text-white/45">
-                    Drafts remain private until organizers explicitly publish them.
-                  </p>
+            </V3Section>
+          ) : null}
+
+          {!hasClassifiedStories ? (
+            <V3Section title="Edition stories" meta={`${bundle.stories.length} published`}>
+              {bundle.stories.length ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {bundle.stories.map((story) => (
+                    <StoryCard key={story.editionId} story={story} />
+                  ))}
                 </div>
-              </V3Surface>
-            )}
-          </V3Section>
+              ) : (
+                <V3Surface className="p-6">
+                  <div role="status" className="text-center">
+                    <BookOpen className="mx-auto size-5 text-white/32" aria-hidden="true" />
+                    <p className="mt-3 text-sm font-semibold">No edition stories published yet</p>
+                    <p className="mx-auto mt-1 max-w-lg text-xs leading-5 text-white/45">
+                      Drafts remain private until organizers explicitly publish them.
+                    </p>
+                  </div>
+                </V3Surface>
+              )}
+            </V3Section>
+          ) : null}
         </>
       )}
     </V3Screen>
+  );
+}
+
+function StoryCard({ story }: { story: V3StorySummary }) {
+  return (
+    <Link
+      to="/stories/$editionSlug"
+      params={{ editionSlug: story.editionSlug }}
+      className="block rounded-[var(--v3-radius-xl)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+    >
+      <V3Surface level="raised" className="h-full p-5 transition hover:bg-white/[0.045]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[0.65rem] font-bold uppercase tracking-[0.13em] text-primary">
+            {story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}
+          </span>
+          <span className="text-xs text-white/38">{story.itemCount} moments</span>
+        </div>
+        <h3 className="mt-3 text-2xl font-black tracking-[-0.03em]">{story.title}</h3>
+        {story.subtitle ? (
+          <p className="mt-1 text-sm font-semibold text-white/70">{story.subtitle}</p>
+        ) : null}
+        <p className="mt-3 line-clamp-3 text-sm leading-6 text-white/48">
+          {story.introduction ?? story.heroMoment?.summary ?? "Open the reviewed edition timeline."}
+        </p>
+        {story.heroMoment ? (
+          <div className="mt-5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+            <p className="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white/35">
+              Defining moment
+            </p>
+            <p className="mt-1 text-sm font-semibold">{story.heroMoment.headline}</p>
+          </div>
+        ) : null}
+      </V3Surface>
+    </Link>
   );
 }
