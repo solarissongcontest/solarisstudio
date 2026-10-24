@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getRequestHeader } from "@tanstack/react-start/server";
 
 import type { Database } from "./types";
+import { assertNonProductionSupabaseTarget } from "@/lib/supabase-target-safety";
 
 export type SolarisOrganizer = {
   id: string;
@@ -22,6 +23,11 @@ export function getSolarisPublicConfig() {
   if (!url || !publishableKey) {
     throw new Error("Solaris authentication is not configured on this deployment.");
   }
+
+  assertNonProductionSupabaseTarget(
+    url,
+    import.meta.env.MODE || process.env.NODE_ENV || "development",
+  );
 
   return { url, publishableKey };
 }
