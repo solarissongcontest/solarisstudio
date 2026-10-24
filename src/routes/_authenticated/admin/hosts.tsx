@@ -67,11 +67,19 @@ export const Route = createFileRoute('/_authenticated/admin/hosts')({
 
 type HostView = 'overview' | 'bids' | 'evaluation' | 'selected' | 'operations';
 
-type PendingOperation = {
+type HostReviewCandidate = {
   action: HostOperationAction;
   bidId?: string | null;
-  expectedRevision?: number | null;
   payload?: Record<string, unknown>;
+};
+
+type PendingOperation = HostReviewCandidate & {
+  editionId: string;
+  executionId: string;
+  commandReason: string | null;
+  attempted: boolean;
+  reviewFingerprint: string;
+  expectedRevision?: number | null;
   title: string;
   description: string;
   confirmationText: string;
@@ -144,6 +152,69 @@ const criterionLabels: Record<HostEvaluationCriterion, string> = {
   sustainability: 'Sustainability',
 };
 
+function hostReviewFingerprint(snapshot: HostManagementSnapshot, operation: HostReviewCandidate): string {
+  const bid = operation.bidId
+    ? snapshot.bids.find((item) => item.id === operation.bidId) ?? null
+    : null;
+  const showId = operation.action === 'set_show_host' && typeof operation.payload?.showId === 'string'
+    ? operation.payload.showId
+    : null;
+  const show = showId
+    ? snapshot.shows.find((item) => item.showId === showId) ?? null
+    : null;
+  const operationsRelevant = ['update_operations', 'set_show_host', 'sync_show_hosts'].includes(operation.action);
+  const syncShows = operation.action === 'sync_show_hosts';
+  const selectedBid = syncShows
+    ? snapshot.bids.find((item) => item.status === 'selected') ?? null
+    : null;
+
+  return JSON.stringify({
+    edition: {
+      id: snapshot.edition.id,
+      hostCountryId: snapshot.edition.hostCountryId,
+      hostCity: snapshot.edition.hostCity,
+    },
+    bid: bid ? {
+      id: bid.id,
+      status: bid.status,
+      revision: bid.revision,
+      updatedAt: bid.updatedAt,
+      selectedAt: bid.selectedAt,
+    } : null,
+    operations: operationsRelevant && snapshot.operations ? {
+      editionId: snapshot.operations.editionId,
+      selectedBidId: snapshot.operations.selectedBidId,
+      revision: snapshot.operations.revision,
+      readiness: snapshot.operations.readiness,
+      notes: snapshot.operations.notes,
+      updatedAt: snapshot.operations.updatedAt,
+    } : null,
+    show: show ? {
+      showId: show.showId,
+      hostCountryId: show.hostCountryId,
+      hostCity: show.hostCity,
+      effectiveCountryId: show.effectiveCountryId,
+      effectiveCity: show.effectiveCity,
+    } : null,
+    selectedBid: selectedBid ? {
+      id: selectedBid.id,
+      revision: selectedBid.revision,
+      updatedAt: selectedBid.updatedAt,
+    } : null,
+    shows: syncShows
+      ? snapshot.shows
+          .map((item) => ({
+            showId: item.showId,
+            hostCountryId: item.hostCountryId,
+            hostCity: item.hostCity,
+            effectiveCountryId: item.effectiveCountryId,
+            effectiveCity: item.effectiveCity,
+          }))
+          .sort((a, b) => a.showId.localeCompare(b.showId))
+      : null,
+  });
+}
+
 function HostManagementPage() {
   const { editionId } = useAdminContext();
   const queryClient = useQueryClient();
@@ -214,6 +285,7 @@ function HostManagementPage() {
     mutationFn: (input: {
       action: HostOperationAction;
       reason: string;
+      executionId: string;
       bidId?: string | null;
       expectedRevision?: number | null;
       payload?: Record<string, unknown>;
@@ -242,7 +314,7 @@ function HostManagementPage() {
         editionId: resolvedEditionId,
         action: input.action,
         reason: input.reason,
-        executionId: crypto.randomUUID(),
+        executionId: input.executionId,
         bidId: input.bidId,
         expectedRevision: input.expectedRevision,
         payload: input.payload,
@@ -257,7 +329,10 @@ function HostManagementPage() {
       ]);
       toast.success(`${hostOperationLabel(execution.action)} completed.`);
     },
-    onError: (error) => toast.error(errorText(error)),
+    onError: async (error) => {
+      await queryClient.invalidateQueries({ queryKey: ['studio2-host-management', resolvedEditionId] });
+      toast.error(errorText(error));
+    },
   });
 
   function openCreateBid() {
@@ -286,6 +361,7 @@ function HostManagementPage() {
     await mutation.mutateAsync({
       action: bidSheet.mode === 'create' ? 'create_bid' : 'update_bid',
       reason: bidReason,
+      executionId: crypto.randomUUID(),
       bidId: bidSheet.bid?.id,
       expectedRevision: bidSheet.bid?.revision,
       payload,
@@ -296,6 +372,10 @@ function HostManagementPage() {
   }
 
   function requestBidAction(bid: HostBid, action: HostOperationAction) {
+    if (!snapshot || !resolvedEditionId) {
+      toast.error('Host Management state is unavailable. Refresh the selected edition before reviewing this operation.');
+      return;
+    }
     const descriptions: Partial<Record<HostOperationAction, string>> = {
       submit_bid: 'Submit this bid for formal eligibility review. Bid details remain editable until a terminal decision.',
       mark_eligible: 'Confirm that this bid meets the minimum hosting requirements and may proceed to evaluation.',
@@ -304,10 +384,15 @@ function HostManagementPage() {
       withdraw_bid: 'Withdraw this bid from the active host process. The historical record is preserved.',
       select_bid: 'Select this bid as the canonical edition host. Edition host country and city will update immediately; show-level overrides are preserved until explicitly synchronized.',
     };
+    const reviewCandidate: HostReviewCandidate = { action, bidId: bid.id };
     setPendingReason('');
     setPending({
-      action,
-      bidId: bid.id,
+      ...reviewCandidate,
+      editionId: resolvedEditionId,
+      executionId: crypto.randomUUID(),
+      commandReason: null,
+      attempted: false,
+      reviewFingerprint: hostReviewFingerprint(snapshot, reviewCandidate),
       expectedRevision: bid.revision,
       title: hostOperationLabel(action),
       description: descriptions[action] ?? 'Confirm this host management operation.',
@@ -318,17 +403,52 @@ function HostManagementPage() {
 
   async function confirmPending() {
     if (!pending) return;
-    if (pendingReason.trim().length < 5) {
+    const commandReason = pending.commandReason ?? pendingReason.trim();
+    if (commandReason.length < 5) {
       toast.error('Add an audit reason of at least 5 characters.');
       return;
     }
-    const action = pending.action;
+
+    let operation: PendingOperation = pending.commandReason
+      ? pending
+      : { ...pending, commandReason };
+    if (!pending.commandReason) setPending(operation);
+
+    if (
+      !editionId ||
+      !resolvedEditionId ||
+      operation.editionId !== editionId ||
+      operation.editionId !== resolvedEditionId
+    ) {
+      toast.error('Edition context changed after this Host operation was reviewed. Reopen the operation in the selected edition.');
+      return;
+    }
+
+    if (!operation.attempted) {
+      try {
+        const freshSnapshot = await loadStudio2HostManagement(operation.editionId);
+        if (hostReviewFingerprint(freshSnapshot, operation) !== operation.reviewFingerprint) {
+          await queryClient.invalidateQueries({ queryKey: ['studio2-host-management', operation.editionId] });
+          toast.error('Host Management changed while this review was open. Refresh and review the current authoritative state before applying it.');
+          return;
+        }
+      } catch (error) {
+        await queryClient.invalidateQueries({ queryKey: ['studio2-host-management', operation.editionId] });
+        toast.error(errorText(error));
+        return;
+      }
+    }
+
+    operation = { ...operation, attempted: true };
+    setPending(operation);
+    const action = operation.action;
     await mutation.mutateAsync({
       action,
-      reason: pendingReason,
-      bidId: pending.bidId,
-      expectedRevision: pending.expectedRevision,
-      payload: pending.payload,
+      reason: operation.commandReason ?? commandReason,
+      executionId: operation.executionId,
+      bidId: operation.bidId,
+      expectedRevision: operation.expectedRevision,
+      payload: operation.payload,
     });
     if (action === 'update_operations') setOperationsReason('');
     if (action === 'set_show_host') {
@@ -363,6 +483,7 @@ function HostManagementPage() {
     await mutation.mutateAsync({
       action: 'evaluate_bid',
       reason: evaluationReason,
+      executionId: crypto.randomUUID(),
       bidId: evaluationTarget.id,
       expectedRevision: evaluationTarget.revision,
       payload: { criterion: evaluationCriterion, score, comment: evaluationComment.trim() || null },
@@ -371,7 +492,7 @@ function HostManagementPage() {
   }
 
   async function requestSaveOperations() {
-    if (!snapshot?.operations || !readiness) return;
+    if (!snapshot?.operations || !readiness || !resolvedEditionId) return;
     if (operationsReason.trim().length < 5) {
       toast.error('Add an audit reason of at least 5 characters.');
       return;
@@ -385,11 +506,17 @@ function HostManagementPage() {
       return;
     }
     const contextLabel = edition ? editionLabel(edition) : snapshot.edition.name;
+    const payload = { ...readiness, notes: nextNotes };
+    const reviewCandidate: HostReviewCandidate = { action: 'update_operations', payload };
     setPendingReason(operationsReason);
     setPending({
-      action: 'update_operations',
+      ...reviewCandidate,
+      editionId: resolvedEditionId,
+      executionId: crypto.randomUUID(),
+      commandReason: null,
+      attempted: false,
+      reviewFingerprint: hostReviewFingerprint(snapshot, reviewCandidate),
       expectedRevision: operations.revision,
-      payload: { ...readiness, notes: nextNotes },
       title: 'Review operational readiness',
       description: `Apply this exact readiness snapshot to ${contextLabel}. The command is bound to operations revision ${operations.revision}; if another Organizer changes Host Management first, the server rejects this reviewed snapshot instead of overwriting newer state.`,
       confirmationText: contextLabel,
@@ -401,10 +528,16 @@ function HostManagementPage() {
   }
 
   function requestSyncShows() {
-    if (!snapshot?.operations || !selectedBid) return;
+    if (!snapshot?.operations || !selectedBid || !resolvedEditionId) return;
+    const reviewCandidate: HostReviewCandidate = { action: 'sync_show_hosts' };
     setPendingReason('');
     setPending({
-      action: 'sync_show_hosts',
+      ...reviewCandidate,
+      editionId: resolvedEditionId,
+      executionId: crypto.randomUUID(),
+      commandReason: null,
+      attempted: false,
+      reviewFingerprint: hostReviewFingerprint(snapshot, reviewCandidate),
       expectedRevision: snapshot.operations.revision,
       title: 'Use selected host for every show',
       description: `This replaces every show-level host override in ${edition ? editionLabel(edition) : 'this edition'} with ${selectedBid.city}, ${selectedBid.countryName}. Split-host assignments will be lost unless you set them again afterwards.`,
@@ -421,7 +554,7 @@ function HostManagementPage() {
   }
 
   async function requestSaveShowHost() {
-    if (!showTarget || !snapshot?.operations) return;
+    if (!showTarget || !snapshot?.operations || !resolvedEditionId) return;
     if (showReason.trim().length < 5) {
       toast.error('Add an audit reason of at least 5 characters.');
       return;
@@ -439,11 +572,17 @@ function HostManagementPage() {
     const proposedCountry = nextCountryId ? countries.find((item) => item.id === nextCountryId)?.name ?? 'Unknown country' : editionHostCountry;
     const proposedCity = nextCity ?? snapshot.edition.hostCity ?? selectedBid?.city ?? 'City TBC';
     const proposedHost = `${proposedCountry} · ${proposedCity}${nextCountryId || nextCity ? ' (show override)' : ' (inherit edition host)'}`;
+    const payload = { showId: showTarget.showId, countryId: nextCountryId, city: nextCity };
+    const reviewCandidate: HostReviewCandidate = { action: 'set_show_host', payload };
     setPendingReason(showReason);
     setPending({
-      action: 'set_show_host',
+      ...reviewCandidate,
+      editionId: resolvedEditionId,
+      executionId: crypto.randomUUID(),
+      commandReason: null,
+      attempted: false,
+      reviewFingerprint: hostReviewFingerprint(snapshot, reviewCandidate),
       expectedRevision: operations.revision,
-      payload: { showId: showTarget.showId, countryId: nextCountryId, city: nextCity },
       title: `Review ${showTarget.showName} host`,
       description: `Change the canonical show-level host assignment for ${showTarget.showName}. The command is bound to operations revision ${operations.revision}; stale reviewed state is rejected by the Host Management command instead of silently replacing a newer assignment.`,
       confirmationText: showTarget.showName,
@@ -474,6 +613,21 @@ function HostManagementPage() {
             </div>
           ) : undefined}
         />
+
+        {edition ? (
+          <AdminCard className="!p-3" data-v3-organizer-host-context-lock>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="admin-section-label">Edition context</p>
+                <p className="mt-1 text-xs text-muted-foreground">Every Host read and reviewed operation on this page is bound to the shell-owned Organizer edition.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <AdminStatus tone="info">{editionLabel(edition)}</AdminStatus>
+                <span className="font-mono text-[10px] text-muted-foreground">{edition.id}</span>
+              </div>
+            </div>
+          </AdminCard>
+        ) : null}
 
         {edition ? <HostTabs view={view} onChange={setView} /> : null}
 
@@ -594,6 +748,10 @@ function HostManagementPage() {
           title={pending?.title ?? 'Host operation'}
           description={pending ? (
             <div className="space-y-4">
+              <div className="rounded-xl border border-sky-300/15 bg-sky-300/[0.04] p-3">
+                <p className="text-[9px] font-black uppercase tracking-[.1em] text-sky-100">Edition context</p>
+                <p className="mt-1 text-xs font-semibold text-foreground">{edition ? editionLabel(edition) : pending.editionId}</p>
+              </div>
               <p>{pending.description}</p>
               {pending.reviewLines?.length ? (
                 <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3" data-v3-organizer-host-review-snapshot>
@@ -604,7 +762,16 @@ function HostManagementPage() {
                   {pending.expectedRevision != null ? <p className="mt-3 font-mono text-[10px] text-sky-100">Expected revision: {pending.expectedRevision}</p> : null}
                 </div>
               ) : null}
-              <AuditReason value={pendingReason} onChange={setPendingReason} disabled={mutation.isPending} />
+              {pending.attempted ? (
+                <p className="rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-3 text-xs leading-5 text-amber-100">
+                  This operation has already crossed the command boundary. Retry uses the exact same reviewed reason and operation identity; edit the state only after the authoritative result is known.
+                </p>
+              ) : null}
+              <AuditReason
+                value={pending.commandReason ?? pendingReason}
+                onChange={setPendingReason}
+                disabled={mutation.isPending || pending.attempted}
+              />
             </div>
           ) : null}
           confirmLabel={pending?.title ?? 'Confirm'}
