@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const server = readFileSync("src/integrations/televoting/entries.server.ts", "utf8");
+const overview = readFileSync("src/integrations/televoting/admin-data.functions.ts", "utf8");
 const routeMap = readFileSync("src/lib/permission-route-map.ts", "utf8");
 const rls = readFileSync(
   "supabase/migrations/20260918192731_permission_engine_v2_televoting_rls_cutover.sql",
@@ -15,8 +16,8 @@ function section(start: string, end?: string) {
   return server.slice(startIndex, endIndex < 0 ? undefined : endIndex);
 }
 
-describe("Organizer Televote round-entry authorization", () => {
-  it("requires voting.read before the privileged configuration reader", () => {
+describe("Organizer Televote configuration authorization", () => {
+  it("requires voting.read before the privileged round-entry configuration reader", () => {
     const helper = section(
       "async function requireRoundEntriesReadServer()",
       "async function requireRoundEntriesManageServer()",
@@ -31,6 +32,19 @@ describe("Organizer Televote round-entry authorization", () => {
       .toBeGreaterThan(helper.indexOf("requireSolarisCapabilityServer"));
     expect(reader.indexOf("requireRoundEntriesReadServer()"))
       .toBeLessThan(reader.indexOf("televotingAdmin"));
+  });
+
+  it("requires voting.read in the selected Organizer edition before the overview service RPC", () => {
+    const capability = overview.indexOf(
+      'await requireSolarisCapabilityServer("voting.read", data.editionId);',
+    );
+    const compatibility = overview.indexOf("await requireMergedTelevotingAdminServer();");
+    const privilegedRpc = overview.indexOf('televotingAdmin.rpc(\n      "admin_overview_summary"');
+
+    expect(capability).toBeGreaterThan(-1);
+    expect(compatibility).toBeGreaterThan(capability);
+    expect(privilegedRpc).toBeGreaterThan(compatibility);
+    expect(overview).toContain("p_solaris_edition_id: data.editionId");
   });
 
   it("requires voting.manage before every participant/configuration mutation", () => {
