@@ -54,7 +54,7 @@ describe("System V3 S11 recovery guardrails", () => {
     expect(scoped.maxMutations).toBe(1);
   });
 
-  it("fails closed when the canonical registry has only foundation repair evidence", () => {
+  it("keeps canonical Confirmation lifecycle recovery blocked while surfacing the bounded invariant-repair path", () => {
     const confirmationProjection = projectionForDomain("confirmation");
     const plan = planV3ProjectionRecovery(confirmationProjection, {
       editionId: "33333333-3333-4333-8333-333333333333",
@@ -62,7 +62,8 @@ describe("System V3 S11 recovery guardrails", () => {
 
     expect(plan.status).toBe("blocked");
     expect(plan.blockedReason).toBe("canonical_rebuild_contract_missing");
-    expect(plan.canonicalPath).toBeNull();
+    expect(plan.canonicalPath).toContain("studio2_reconcile_confirmation_requirements");
+    expect(plan.verificationPath).toContain("studio2_verify_confirmation_requirements");
     expect(plan.maxMutations).toBe(0);
   });
 
