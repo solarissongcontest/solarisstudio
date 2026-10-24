@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const PRIVATE_VOTING_ROUTES = [
   "src/routes/televoting/admin/rounds.tsx",
   "src/routes/televoting/admin/results.tsx",
+  "src/routes/televoting/admin/audit-log.tsx",
   "src/routes/televoting/admin/accounts.tsx",
   "src/routes/televoting/admin/sign-in.tsx",
 ] as const;
