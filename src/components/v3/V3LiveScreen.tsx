@@ -7,6 +7,7 @@ import {
   Vote,
 } from "lucide-react";
 
+import { formatEventDateTime } from "@/lib/public-time";
 import type { V3LiveExperience, V3PublicShowState } from "@/lib/v3-live";
 import {
   V3ActionCard,
@@ -28,6 +29,9 @@ export type V3LiveScreenProps = {
   refreshing?: boolean;
   degraded?: boolean;
 };
+
+const ISO_INSTANT_PATTERN =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?Z$/;
 
 function showStatePresentation(
   state: V3PublicShowState,
@@ -54,23 +58,41 @@ function showStatePresentation(
   }
 }
 
-function freshnessLabel(iso: string) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "Authoritative snapshot";
-  return `Updated ${date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+function validSnapshotMoment(value: string | null): value is string {
+  if (typeof value !== "string") return false;
+  const match = ISO_INSTANT_PATTERN.exec(value);
+  if (!match) return false;
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  const millisecond = Number((match[7] ?? "").padEnd(3, "0") || "0");
+
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day &&
+    parsed.getUTCHours() === hour &&
+    parsed.getUTCMinutes() === minute &&
+    parsed.getUTCSeconds() === second &&
+    parsed.getUTCMilliseconds() === millisecond
+  );
 }
 
-function liveMomentLabel(iso: string) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString([], {
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function canonicalSnapshotLabel(iso: string) {
+  if (!validSnapshotMoment(iso)) return null;
+  return formatEventDateTime(iso, { locale: "en-GB" });
+}
+
+function freshnessLabel(iso: string) {
+  const canonical = canonicalSnapshotLabel(iso);
+  return canonical ? `Updated ${canonical}` : "Authoritative snapshot";
 }
 
 function liveTimingRows(experience: V3LiveExperience) {
@@ -83,7 +105,7 @@ function liveTimingRows(experience: V3LiveExperience) {
     { label: "Show ended", value: experience.timing.endedAt },
   ].filter(
     (row): row is { label: string; value: string } =>
-      typeof row.value === "string" && row.value.length > 0,
+      validSnapshotMoment(row.value),
   );
 }
 
@@ -347,15 +369,19 @@ export function V3LiveScreen({
                   className="flex min-h-14 items-center justify-between gap-4 px-4 py-3"
                 >
                   <dt className="text-xs font-medium text-white/48">{row.label}</dt>
-                  <dd className="text-right text-sm font-semibold text-white/80">
-                    {liveMomentLabel(row.value)}
+                  <dd className="min-w-0 text-right text-white/80">
+                    <time
+                      dateTime={row.value}
+                      className="block text-sm font-semibold"
+                    >
+                      {canonicalSnapshotLabel(row.value)}
+                    </time>
                   </dd>
                 </div>
               ))}
             </dl>
             <p className="border-t border-white/[0.06] px-4 py-3 text-[0.7rem] leading-5 text-white/38">
-              Times are displayed from the server snapshot. They do not independently advance
-              show, voting or result state in this browser.
+              Times are displayed from the server snapshot in canonical Solaris time. They do not independently advance show, voting or result state in this browser.
             </p>
           </V3Surface>
         </V3Section>
