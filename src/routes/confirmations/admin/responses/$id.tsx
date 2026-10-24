@@ -2,24 +2,23 @@ import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
 import { assertDisplayedEntryVersion } from "@/lib/v3-entry-review-preview";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
   Copy,
   ExternalLink,
-  Link2,
   RefreshCw,
   RotateCcw,
   Settings2,
   Shield,
-  Trash2,
   Trophy,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmationAccessSettingsSheet } from "@/components/admin/ConfirmationAccessSettingsSheet";
+import { ConfirmationResponseRecoveryControls } from "@/components/admin/ConfirmationResponseRecoveryControls";
 import {
   AdminActionItem,
   AdminCard,
@@ -445,9 +444,7 @@ function EntryReviewCard({
               </h3>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              {typeof entry.position === "number" ? (
-                <span>Running order {entry.position}</span>
-              ) : null}
+              {typeof entry.position === "number" ? <span>Running order {entry.position}</span> : null}
               {entry.song_url ? (
                 <a
                   href={entry.song_url}
@@ -490,9 +487,7 @@ function EntryReviewCard({
               {receipt.operationId}
             </p>
             {receipt.replayed ? (
-              <p className="mt-1 text-muted-foreground">
-                Recovered from the canonical operation ledger.
-              </p>
+              <p className="mt-1 text-muted-foreground">Recovered from the canonical operation ledger.</p>
             ) : null}
           </div>
         ) : null}
@@ -617,14 +612,9 @@ function ResponseDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [technicalError, setTechnicalError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [deleteReviewOpen, setDeleteReviewOpen] = useState(false);
   const [solarisSync, setSolarisSync] = useState<ConfirmationSolarisSyncResult | null>(null);
   const [solarisSyncError, setSolarisSyncError] = useState<string | null>(null);
   const [syncingSolaris, setSyncingSolaris] = useState(false);
-  const [linkType, setLinkType] = useState<"reusable" | "one_time">("reusable");
-  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
-  const [creatingLink, setCreatingLink] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const syncSnapshot = useCallback(
     async (detail: ResponseDetail) => {
@@ -637,8 +627,7 @@ function ResponseDetailPage() {
         return result;
       } catch (caught) {
         setSolarisSync(null);
-        const message =
-          caught instanceof Error ? caught.message : "Could not sync this response to Solaris.";
+        const message = caught instanceof Error ? caught.message : "Could not sync this response to Solaris.";
         setSolarisSyncError(message);
         throw caught;
       } finally {
@@ -652,9 +641,7 @@ function ResponseDetailPage() {
     setTechnicalError(null);
     const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
       "admin_confirmation_technical",
-      {
-        _submission_id: id,
-      },
+      { _submission_id: id },
     );
     if (rpcError) {
       setTechnicalError(rpcError.message);
@@ -673,9 +660,7 @@ function ResponseDetailPage() {
 
     const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
       "admin_confirmation_response",
-      {
-        _submission_id: id,
-      },
+      { _submission_id: id },
     );
 
     if (rpcError) {
@@ -713,10 +698,7 @@ function ResponseDetailPage() {
       },
     );
     if (previewError) throw previewError;
-    const preview = previewData as {
-      expectedVersion?: number;
-      currentVersionId?: string | null;
-    } | null;
+    const preview = previewData as { expectedVersion?: number; currentVersionId?: string | null } | null;
     if (!preview || typeof preview.expectedVersion !== "number") {
       throw new Error("National Final winner preview did not return a version.");
     }
@@ -789,77 +771,10 @@ function ResponseDetailPage() {
     }
   }
 
-  async function createEditLink() {
-    if (!data) return;
-    setCreatingLink(true);
-    try {
-      const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
-        "admin_confirmation_create_edit_token",
-        {
-          _submission_id: data.id,
-          _token_type: linkType,
-          _expires_in_hours: null,
-        },
-      );
-      if (rpcError) throw rpcError;
-      const token = (result as { token?: string } | null)?.token;
-      if (!token) throw new Error("The edit token was not returned.");
-      const url = `${window.location.origin}/confirmations/edit/${token}`;
-      setGeneratedLink(url);
-      await navigator.clipboard.writeText(url);
-      toast.success("Edit link generated and copied");
-      await loadTechnical();
-    } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Could not create the edit link.");
-    } finally {
-      setCreatingLink(false);
-    }
-  }
-
-  async function revokeToken(tokenId: string) {
-    const { error: rpcError } = await confirmationsSupabase.rpc(
-      "admin_confirmation_revoke_edit_token",
-      {
-        _token_id: tokenId,
-      },
-    );
-    if (rpcError) {
-      toast.error(rpcError.message);
-      return;
-    }
-    if (generatedLink) setGeneratedLink(null);
-    toast.success("Edit link revoked");
-    await loadTechnical();
-  }
-
-  async function deleteResponse() {
-    if (!data || deleting) return;
-
-    setDeleting(true);
-    try {
-      const { error: rpcError } = await confirmationsSupabase.rpc(
-        "admin_confirmation_delete_response",
-        {
-          _submission_id: data.id,
-        },
-      );
-      if (rpcError) throw rpcError;
-      setDeleteReviewOpen(false);
-      toast.success("Confirmation deleted");
-      await navigate({ to: "/confirmations/admin/responses" });
-    } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Could not delete the response.");
-    } finally {
-      setDeleting(false);
-    }
-  }
-
   if (loading) {
     return (
       <div className="admin-page pb-5">
-        <AdminCard className="py-10 text-center text-sm text-muted-foreground">
-          Loading response…
-        </AdminCard>
+        <AdminCard className="py-10 text-center text-sm text-muted-foreground">Loading response…</AdminCard>
       </div>
     );
   }
@@ -877,22 +792,23 @@ function ResponseDetailPage() {
           }
         />
         <AdminCard>
-          <AdminEmptyState
-            title="Response not found"
-            description={error ?? "This response could not be loaded."}
-          />
+          <AdminEmptyState title="Response not found" description={error ?? "This response could not be loaded."} />
         </AdminCard>
       </div>
     );
   }
 
+  const editionId = data.edition?.id ?? null;
+  const editionLabel = data.edition
+    ? `SSC ${data.edition.edition_number} · ${data.edition.name}`
+    : "Edition unavailable";
+  const roundName = data.round?.name ?? "Confirmation";
   const activeNfEntries = (data.national_final?.entries ?? []).filter(
     (entry) => !entry.removed && entry.review_status !== "removed",
   );
   const entryCount = data.internal_entry ? 1 : activeNfEntries.length;
   const acceptedCount = [data.internal_entry, ...activeNfEntries].filter(
-    (entry): entry is ReviewEntry =>
-      Boolean(entry && !entry.removed && entry.review_status === "accepted"),
+    (entry): entry is ReviewEntry => Boolean(entry && !entry.removed && entry.review_status === "accepted"),
   ).length;
   const state = detailState(data);
   const copyArtists = activeNfEntries.map((entry) => entry.artist ?? "Unknown artist").join("\n");
@@ -900,12 +816,11 @@ function ResponseDetailPage() {
   const copyArtistSongs = activeNfEntries
     .map((entry) => `${entry.artist ?? "Unknown artist"} – ${entry.song_title ?? "Unknown song"}`)
     .join("\n");
-  const activeTokens = technical?.tokens.filter((token) => token.active) ?? [];
 
   return (
     <div className="admin-page pb-5">
       <AdminPageHeader
-        eyebrow={`${data.edition ? `SSC ${data.edition.edition_number}` : "Solaris Song Contest"} · ${data.round?.name ?? "Confirmation"}`}
+        eyebrow={`${data.edition ? `SSC ${data.edition.edition_number}` : "Solaris Song Contest"} · ${roundName}`}
         title={data.country}
         description={`@${data.instagram_username.replace(/^@/, "")} · submitted ${new Date(data.submitted_at).toLocaleString()}`}
         actions={
@@ -923,6 +838,7 @@ function ResponseDetailPage() {
                   icon={Settings2}
                   title="Response settings"
                   description="Editing access, lock state and private organiser notes."
+                  disabled={!editionId}
                   onClick={() => setSettingsOpen(true)}
                 />
                 <AdminActionItem
@@ -932,9 +848,7 @@ function ResponseDetailPage() {
                   disabled={syncingSolaris}
                   onClick={() => void manualSync()}
                   trailing={
-                    <AdminStatus
-                      tone={solarisSync?.ok ? "ready" : solarisSyncError ? "attention" : "neutral"}
-                    >
+                    <AdminStatus tone={solarisSync?.ok ? "ready" : solarisSyncError ? "attention" : "neutral"}>
                       {syncingSolaris ? "Syncing" : solarisSync?.ok ? "Linked" : "Check"}
                     </AdminStatus>
                   }
@@ -946,9 +860,7 @@ function ResponseDetailPage() {
       />
 
       {error ? (
-        <AdminCard className="mb-4 border-rose-200/20 bg-rose-200/[0.045] text-sm text-rose-100">
-          {error}
-        </AdminCard>
+        <AdminCard className="mb-4 border-rose-200/20 bg-rose-200/[0.045] text-sm text-rose-100">{error}</AdminCard>
       ) : null}
 
       <div className="space-y-4">
@@ -1024,7 +936,7 @@ function ResponseDetailPage() {
             <EntryReviewCard
               entry={data.internal_entry}
               targetType="internal"
-              editionId={data.edition?.id}
+              editionId={editionId}
               submissionId={data.id}
               onChanged={load}
             />
@@ -1040,8 +952,7 @@ function ResponseDetailPage() {
               action={
                 data.national_final.winning_entry_id ? (
                   <AdminStatus tone="ready">Winner set</AdminStatus>
-                ) : activeNfEntries.length &&
-                  activeNfEntries.every((entry) => entry.review_status === "accepted") ? (
+                ) : activeNfEntries.length && activeNfEntries.every((entry) => entry.review_status === "accepted") ? (
                   <AdminStatus tone="neutral">Waiting for winner</AdminStatus>
                 ) : (
                   <AdminStatus tone="attention">Review in progress</AdminStatus>
@@ -1053,25 +964,13 @@ function ResponseDetailPage() {
               <div className="mb-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
                 <p className="admin-section-label">Copy National Final entries</p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                  <button
-                    type="button"
-                    onClick={() => void copyValue(copyArtists, "Artists")}
-                    className="admin-action-secondary"
-                  >
+                  <button type="button" onClick={() => void copyValue(copyArtists, "Artists")} className="admin-action-secondary">
                     <Copy className="size-4" /> Artists
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => void copyValue(copySongs, "Songs")}
-                    className="admin-action-secondary"
-                  >
+                  <button type="button" onClick={() => void copyValue(copySongs, "Songs")} className="admin-action-secondary">
                     <Copy className="size-4" /> Songs
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => void copyValue(copyArtistSongs, "Artist – song list")}
-                    className="admin-action-secondary"
-                  >
+                  <button type="button" onClick={() => void copyValue(copyArtistSongs, "Artist – song list")} className="admin-action-secondary">
                     <Copy className="size-4" /> Artist – song
                   </button>
                 </div>
@@ -1084,105 +983,37 @@ function ResponseDetailPage() {
                   key={entry.id}
                   entry={entry}
                   targetType="national_final"
-                  editionId={data.edition?.id}
+                  editionId={editionId}
                   submissionId={data.id}
                   winner={data.national_final?.winning_entry_id === entry.id}
                   onChanged={load}
                   onWinner={(reason) => setWinner(entry, reason)}
-                  onClearWinner={
-                    data.national_final?.winning_entry_id === entry.id ? clearWinner : undefined
-                  }
+                  onClearWinner={data.national_final?.winning_entry_id === entry.id ? clearWinner : undefined}
                 />
               ))}
             </div>
           </AdminCard>
         ) : null}
 
-        <AdminCard>
-          <AdminCardHeader
-            eyebrow="Edit access"
-            title="Private participant edit link"
-            description="Generate a reusable or one-time link for the delegation. Creating a new link revokes the previous active link."
+        {editionId ? (
+          <ConfirmationResponseRecoveryControls
+            editionId={editionId}
+            submissionId={data.id}
+            country={data.country}
+            editionLabel={editionLabel}
+            roundName={roundName}
+            submittedAt={data.submitted_at}
+            onChanged={load}
+            onDeleted={() => navigate({ to: "/confirmations/admin/responses" })}
           />
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setLinkType("reusable")}
-              className={
-                linkType === "reusable" ? "admin-action-primary" : "admin-action-secondary"
-              }
-            >
-              Reusable
-            </button>
-            <button
-              type="button"
-              onClick={() => setLinkType("one_time")}
-              className={
-                linkType === "one_time" ? "admin-action-primary" : "admin-action-secondary"
-              }
-            >
-              One-time
-            </button>
-          </div>
-          <button
-            type="button"
-            disabled={creatingLink}
-            onClick={() => void createEditLink()}
-            className="admin-action-primary mt-3 w-full"
-          >
-            <Link2 className="size-4" /> {creatingLink ? "Generating…" : "Generate edit link"}
-          </button>
-
-          {generatedLink ? (
-            <div className="mt-3 rounded-xl border border-sky-200/15 bg-sky-200/[0.035] p-3">
-              <p className="break-all text-xs text-muted-foreground">{generatedLink}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => void copyValue(generatedLink, "Edit link")}
-                  className="admin-action-secondary"
-                >
-                  <Copy className="size-4" /> Copy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.open(generatedLink, "_blank", "noopener,noreferrer")}
-                  className="admin-action-secondary"
-                >
-                  <ExternalLink className="size-4" /> Open
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {activeTokens.length ? (
-            <div className="mt-4 space-y-2 border-t border-white/[0.07] pt-4">
-              <p className="admin-section-label">Active link</p>
-              {activeTokens.map((token) => (
-                <div
-                  key={token.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"
-                >
-                  <div className="min-w-0 text-xs">
-                    <p className="font-semibold capitalize">
-                      {token.token_type.replaceAll("_", " ")}
-                    </p>
-                    <p className="mt-1 text-muted-foreground">
-                      Used {token.use_count} {token.use_count === 1 ? "time" : "times"}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void revokeToken(token.id)}
-                    className="admin-action-secondary !min-h-9 !px-3 text-xs"
-                  >
-                    Revoke
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </AdminCard>
+        ) : (
+          <AdminCard>
+            <AdminEmptyState
+              title="Response access unavailable"
+              description="This response is not bound to an exact Solaris edition, so Organizer refuses recovery-link and destructive response operations."
+            />
+          </AdminCard>
+        )}
 
         <AdminCard>
           <AdminCardHeader
@@ -1214,16 +1045,12 @@ function ResponseDetailPage() {
                       className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] p-3 text-xs last:border-0"
                     >
                       <span className="font-mono">{item.ip_address}</span>
-                      <span className="text-muted-foreground">
-                        Last seen {new Date(item.last_seen_at).toLocaleString()}
-                      </span>
+                      <span className="text-muted-foreground">Last seen {new Date(item.last_seen_at).toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">
-                  No stored IP history for this response.
-                </p>
+                <p className="text-xs text-muted-foreground">No stored IP history for this response.</p>
               )}
             </div>
           )}
@@ -1243,16 +1070,12 @@ function ResponseDetailPage() {
                     <span className="block text-sm font-semibold">
                       {item.artist ? `${item.artist} — ${item.song_title ?? ""}` : "Entry"}
                     </span>
-                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                      {item.reason}
-                    </span>
+                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{item.reason}</span>
                     <span className="mt-1 block text-[11px] text-muted-foreground/70">
                       {new Date(item.created_at).toLocaleString()}
                     </span>
                   </span>
-                  <AdminStatus tone={reviewTone(item.action)}>
-                    {item.action.replaceAll("_", " ")}
-                  </AdminStatus>
+                  <AdminStatus tone={reviewTone(item.action)}>{item.action.replaceAll("_", " ")}</AdminStatus>
                 </div>
               ))}
             </div>
@@ -1270,78 +1093,28 @@ function ResponseDetailPage() {
               <RefreshCw className="mt-0.5 size-4 shrink-0 text-amber-200" />
               <div>
                 <p className="text-sm font-semibold">Solaris sync needs attention</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {solarisSyncError}
-                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{solarisSyncError}</p>
               </div>
             </div>
           </AdminCard>
         ) : null}
-
-        <AdminCard className="border-rose-300/15 bg-rose-300/[0.025]">
-          <AdminCardHeader
-            eyebrow="Danger zone"
-            title="Delete response"
-            description="Permanently delete this confirmation and its related data. This cannot be undone."
-          />
-          <button
-            type="button"
-            disabled={deleting}
-            onClick={() => setDeleteReviewOpen(true)}
-            className="admin-action-danger w-full"
-          >
-            <Trash2 className="size-4" /> {deleting ? "Deleting…" : "Review permanent deletion"}
-          </button>
-        </AdminCard>
       </div>
 
-      <ConfirmationAccessSettingsSheet
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onApplied={load}
-        submissionId={data.id}
-        country={data.country}
-        editionLabel={
-          data.edition
-            ? `SSC ${data.edition.edition_number} · ${data.edition.name}`
-            : "Edition unavailable"
-        }
-        roundName={data.round?.name ?? "Confirmation"}
-        editingAllowed={data.editing_allowed}
-        locked={data.locked}
-        adminNotes={data.admin_notes}
-      />
-
-      <AdminConfirmSheet
-        open={deleteReviewOpen}
-        onClose={() => setDeleteReviewOpen(false)}
-        onConfirm={deleteResponse}
-        title={`Delete ${data.country}'s confirmation?`}
-        description={
-          <div className="space-y-2">
-            <p>
-              This permanently deletes <strong className="text-foreground">{data.country}</strong>&apos;s
-              Confirmation response and the related Confirmation-side data handled by the existing delete
-              authority. Organizer cannot undo this action.
-            </p>
-            <p>
-              Context: {data.edition ? `SSC ${data.edition.edition_number} · ${data.edition.name}` : "edition unavailable"}
-              {" · "}{data.round?.name ?? "Confirmation"}{" · submitted "}
-              {new Date(data.submitted_at).toLocaleString()}.
-            </p>
-            <p>
-              This is still the legacy Confirmation delete authority, not a versioned rollback operation. If
-              canonical Solaris state needs recovery afterward, that must be handled separately rather than by
-              repeating this deletion.
-            </p>
-          </div>
-        }
-        confirmLabel="Delete response permanently"
-        confirmationText={data.country}
-        confirmationHint={`Type ${data.country} exactly to confirm permanent deletion`}
-        busy={deleting}
-        danger
-      />
+      {editionId ? (
+        <ConfirmationAccessSettingsSheet
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          onApplied={load}
+          editionId={editionId}
+          submissionId={data.id}
+          country={data.country}
+          editionLabel={editionLabel}
+          roundName={roundName}
+          editingAllowed={data.editing_allowed}
+          locked={data.locked}
+          adminNotes={data.admin_notes}
+        />
+      ) : null}
     </div>
   );
 }
