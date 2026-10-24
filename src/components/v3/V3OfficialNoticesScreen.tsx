@@ -10,6 +10,7 @@ import {
 
 import type { NoticeInboxState } from "@/lib/official-communications";
 import { noticeTypeLabel } from "@/lib/official-communications";
+import { formatEventWallTime } from "@/lib/public-time";
 import type { Studio2NoticeInboxItem } from "@/lib/studio2-communications";
 import {
   V3_OFFICIAL_NOTICE_FILTER_STATES,
@@ -45,13 +46,7 @@ function formatTimestamp(value: string | null | undefined) {
   if (!value) return "Not recorded";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Not recorded";
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatEventWallTime(date, { locale: "en-GB" });
 }
 
 function stateLabel(state: NoticeInboxState) {

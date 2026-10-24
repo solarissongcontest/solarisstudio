@@ -72,6 +72,14 @@ describe("V3 official delegation notices", () => {
     expect(source).toContain('data-v3-official-notice-detail={notice.id}');
   });
 
+  it("renders notice and receipt timestamps in canonical Solaris time", () => {
+    const source = screen();
+
+    expect(source).toContain('import { formatEventWallTime } from "@/lib/public-time"');
+    expect(source).toContain('formatEventWallTime(date, { locale: "en-GB" })');
+    expect(source).not.toContain("new Intl.DateTimeFormat(undefined");
+  });
+
   it("handles stale notice deep links without inventing a successful state", () => {
     const source = screen();
 
