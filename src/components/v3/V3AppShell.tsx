@@ -36,7 +36,7 @@ import {
   V3LiquidTabBar,
   type V3LiquidTabDestination,
 } from "./V3LiquidTabBar";
-import { V3TopLevelSwipeSurface } from "./V3TopLevelSwipeSurface";
+import { V3TopLevelNavigationViewport } from "./V3TopLevelNavigationViewport";
 
 export type V3Area = "home" | "explore" | "participate" | "results" | "me";
 
@@ -90,7 +90,7 @@ export type V3TopLevelSwipePreviewRenderer = (
  * inventing preview data, mounting all five applications, or starting hidden
  * network graphs merely to make the gesture look complete.
  */
-export type V3TopLevelSwipePreviews = {
+export type V3TopLevelNavigationPreviews = {
   ready: boolean;
   previous?: V3TopLevelSwipePreviewRenderer;
   next?: V3TopLevelSwipePreviewRenderer;
@@ -146,7 +146,7 @@ export type V3AppShellProps = {
   activeArea?: V3Area;
   topActions?: ReactNode;
   className?: string;
-  swipePreviewSurfaces?: V3TopLevelSwipePreviews;
+  topLevelSwipePreviews?: V3TopLevelNavigationPreviews;
 };
 
 /**
@@ -176,7 +176,7 @@ export function V3AppShell({
   activeArea,
   topActions,
   className,
-  swipePreviewSurfaces,
+  topLevelSwipePreviews,
 }: V3AppShellProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
@@ -326,16 +326,16 @@ export function V3AppShell({
   const previousSwipeTarget = resolveDestinationTarget(activeDestinationIndex - 1);
   const nextSwipeTarget = resolveDestinationTarget(activeDestinationIndex + 1);
   const previousSwipeSurface =
-    previousSwipeTarget && swipePreviewSurfaces?.previous
-      ? swipePreviewSurfaces.previous(previousSwipeTarget)
+    previousSwipeTarget && topLevelSwipePreviews?.previous
+      ? topLevelSwipePreviews.previous(previousSwipeTarget)
       : null;
   const nextSwipeSurface =
-    nextSwipeTarget && swipePreviewSurfaces?.next
-      ? swipePreviewSurfaces.next(nextSwipeTarget)
+    nextSwipeTarget && topLevelSwipePreviews?.next
+      ? topLevelSwipePreviews.next(nextSwipeTarget)
       : null;
   const swipePreviewReady =
-    navigationIdentityReady && swipePreviewSurfaces?.ready === true;
-  const swipeInteractionKey = `${navigationInteractionKey}:${swipePreviewSurfaces?.generation ?? "default"}`;
+    navigationIdentityReady && topLevelSwipePreviews?.ready === true;
+  const swipeInteractionKey = `${navigationInteractionKey}:${topLevelSwipePreviews?.generation ?? "default"}`;
 
   const selectDestination = (destination: V3LiquidTabDestination) => {
     const id = destination.id as V3PublicTabId;
@@ -429,8 +429,8 @@ export function V3AppShell({
       </>
     ) : undefined;
 
-  const content = swipePreviewSurfaces ? (
-    <V3TopLevelSwipeSurface
+  const content = topLevelSwipePreviews ? (
+    <V3TopLevelNavigationViewport
       pathname={pathname}
       searchStr={searchStr}
       activeIndex={activeDestinationIndex >= 0 ? activeDestinationIndex : 0}
@@ -442,7 +442,7 @@ export function V3AppShell({
       onCommit={commitSwipeDestination}
     >
       {children}
-    </V3TopLevelSwipeSurface>
+    </V3TopLevelNavigationViewport>
   ) : (
     children
   );
