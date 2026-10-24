@@ -1,4 +1,4 @@
-import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 
 export type MergedTelevotingEditionLink = {
@@ -32,7 +32,7 @@ async function solarisDb() {
 export async function listMergedTelevotingEditionLinksServer(): Promise<
   MergedTelevotingEditionLink[]
 > {
-  await requireMergedTelevotingAdminServer();
+  await requireSolarisCapabilityServer("voting.read");
   const db = await solarisDb();
 
   const [solarisResult, linkResult, remoteResult] = await Promise.all([
