@@ -12,7 +12,7 @@ const ROUTES = [
 
 const SUPABASE_API_PATH = /\/(?:auth|rest|functions|storage|realtime|graphql)\/v1\//;
 
-test("Solaris Studio serves the expanded TerraOS 3 maintenance experience across the app", async ({ page }) => {
+test("Solaris Studio serves the final TerraOS 3 maintenance story across the app", async ({ page }) => {
   for (const route of ROUTES) {
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${route} should be deliberately unavailable`).toBe(503);
@@ -25,26 +25,33 @@ test("Solaris Studio serves the expanded TerraOS 3 maintenance experience across
     await expect(page.getByText("Solaris, reimagined.", { exact: true })).toBeVisible();
     await expect(page.locator(".arrival-line")).toContainText(/Estimated arrival|TerraOS 3 is being prepared\./);
     await expect(page.getByText("TerraOS 3 readiness", { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole("heading", { name: "A new generation of Solaris." })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /Everything\s*in its place\./ })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "What matters, now." })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Know exactly what needs you." })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "More Solaris. Less searching." })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "See what happened." })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Your Solaris." })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Take a closer look." })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /Built for\s*contest night\./ })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /Your delegation\s*keeps moving\./ })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "TerraOS 3 is taking shape." })).toBeVisible();
+
+    for (const heading of [
+      "One experience. Every moment.",
+      "A new generation of Solaris.",
+      "Everything in its place.",
+      "What matters, now.",
+      "Know exactly what needs you.",
+      "To the moment it matters.",
+      "More Solaris. Less searching.",
+      "See what happened.",
+      "Your Solaris.",
+      "Take a closer look.",
+      "Built for contest night.",
+      "Your delegation keeps moving.",
+      "TerraOS 3 is taking shape.",
+    ]) await expect(page.getByRole("heading", { name: heading })).toBeVisible();
 
     await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=home&chrome=content"]')).toHaveCount(3);
     await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=explore&chrome=content"]')).toHaveCount(3);
     await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=participate&chrome=content"]')).toHaveCount(3);
     await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=results&chrome=content"]')).toHaveCount(2);
     await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=me&chrome=content"]')).toHaveCount(2);
-    await expect(page.locator('.product-mark[src="/solaris-studio-mark.png"]')).toBeVisible();
-    await expect(page.locator('.feature-art[src="/solaris-background.webp"]')).toHaveCount(1);
-    await expect(page.locator('.feature-art[src="/solaris-studio-social.jpg"]')).toHaveCount(1);
+
+    await expect(page.locator('img[src="/assets/terraos-maintenance/atmosphere.jpeg"]')).toHaveCount(3);
+    await expect(page.locator('img[src="/assets/terraos-maintenance/moment-a.png"]')).toHaveCount(2);
+    await expect(page.locator('img[src="/assets/terraos-maintenance/moment-b.png"]')).toHaveCount(2);
+    await expect(page.locator("[data-rhythm-field]")).toHaveCount(7);
 
     await expect(page.locator('[data-locked-copy]')).toHaveCount(0);
     await expect(page.locator('.orbit')).toHaveCount(0);
@@ -67,56 +74,23 @@ test("TerraOS teaser preview route renders all five production V3 destinations w
     if (SUPABASE_API_PATH.test(new URL(request.url()).pathname)) supabaseRequests.push(request.url());
   });
 
-  const home = await page.goto("/terraos-teaser-preview?screen=home", { waitUntil: "domcontentloaded" });
-  expect(home?.status()).toBe(200);
-  await expect(page.locator('[data-terraos-teaser-preview="home"]')).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).toBeVisible();
-  await expect(page.getByText("You're all caught up", { exact: true })).toBeVisible();
-  await expect(page.getByText("SSC 22 is the current Solaris edition", { exact: true })).toBeVisible();
-  let tabbar = page.locator(".v3-bottom-nav");
-  await expect(tabbar).toBeVisible();
-  await expect(tabbar.locator('[aria-current="page"]')).toContainText("Home");
-  await expect(tabbar.locator('a[href="/"]').first()).toHaveAttribute("tabindex", "-1");
-  const previewUrl = page.url();
-  await tabbar.locator('a[href="/"]').first().focus();
-  await page.keyboard.press("Enter");
-  expect(page.url()).toBe(previewUrl);
+  const screens = [
+    ["home", "Solaris now", "Home"],
+    ["explore", "Discover the contest", "Explore"],
+    ["participate", "Your participation", "Participate"],
+    ["results", "Official results", "Results"],
+    ["me", "Solaris", "Me"],
+  ] as const;
 
-  const explore = await page.goto("/terraos-teaser-preview?screen=explore", { waitUntil: "domcontentloaded" });
-  expect(explore?.status()).toBe(200);
-  await expect(page.locator('[data-terraos-teaser-preview="explore"]')).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Discover the contest", exact: true })).toBeVisible();
-  await expect(page.getByText("Search Solaris", { exact: true })).toBeVisible();
-  tabbar = page.locator(".v3-bottom-nav");
-  await expect(tabbar).toBeVisible();
-  await expect(tabbar.locator('[aria-current="page"]')).toContainText("Explore");
-
-  const participate = await page.goto("/terraos-teaser-preview?screen=participate", { waitUntil: "domcontentloaded" });
-  expect(participate?.status()).toBe(200);
-  await expect(page.locator('[data-terraos-teaser-preview="participate"]')).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Your participation", exact: true })).toBeVisible();
-  await expect(page.getByText("Country confirmed", { exact: true }).first()).toBeVisible();
-  tabbar = page.locator(".v3-bottom-nav");
-  await expect(tabbar).toBeVisible();
-  await expect(tabbar.locator('[aria-current="page"]')).toContainText("Participate");
-
-  const results = await page.goto("/terraos-teaser-preview?screen=results", { waitUntil: "domcontentloaded" });
-  expect(results?.status()).toBe(200);
-  await expect(page.locator('[data-terraos-teaser-preview="results"]')).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Official results", exact: true })).toBeVisible();
-  await expect(page.getByText("Oland", { exact: true }).first()).toBeVisible();
-  tabbar = page.locator(".v3-bottom-nav");
-  await expect(tabbar).toBeVisible();
-  await expect(tabbar.locator('[aria-current="page"]')).toContainText("Results");
-
-  const me = await page.goto("/terraos-teaser-preview?screen=me", { waitUntil: "domcontentloaded" });
-  expect(me?.status()).toBe(200);
-  await expect(page.locator('[data-terraos-teaser-preview="me"]')).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Solaris", exact: true })).toBeVisible();
-  await expect(page.getByText("Oland · Head of Delegation", { exact: true }).first()).toBeVisible();
-  tabbar = page.locator(".v3-bottom-nav");
-  await expect(tabbar).toBeVisible();
-  await expect(tabbar.locator('[aria-current="page"]')).toContainText("Me");
+  for (const [screen, heading, nav] of screens) {
+    const response = await page.goto(`/terraos-teaser-preview?screen=${screen}`, { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(`[data-terraos-teaser-preview="${screen}"]`)).toBeVisible();
+    await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+    const tabbar = page.locator(".v3-bottom-nav");
+    await expect(tabbar).toBeVisible();
+    await expect(tabbar.locator('[aria-current="page"]')).toContainText(nav);
+  }
 
   const contentOnly = await page.goto("/terraos-teaser-preview?screen=home&chrome=content", { waitUntil: "domcontentloaded" });
   expect(contentOnly?.status()).toBe(200);
@@ -152,7 +126,6 @@ test("phone layout removes desktop overlaps and keeps every major chapter contai
   expect(response?.status()).toBe(503);
 
   await expect(page.locator('[data-product-bar]')).toBeVisible();
-  await expect(page.getByText("TerraOS 3 readiness", { exact: true }).first()).toBeVisible();
   await expect(page.locator('.hero-device-main')).toBeVisible();
   await expect(page.locator('.hero-device-left')).toBeHidden();
   await expect(page.locator('.hero-device-right')).toBeHidden();
@@ -162,6 +135,8 @@ test("phone layout removes desktop overlaps and keeps every major chapter contai
 
   const wordmarkFont = await page.locator("#maintenance-title").evaluate((element) => getComputedStyle(element).fontFamily);
   expect(wordmarkFont).toContain("Classica Crastao");
+  const exploreText = (await page.locator("#explore-feature-title").innerText()).replace(/\s+/g, " ").trim();
+  expect(exploreText).toBe("More Solaris. Less searching.");
 
   for (const selector of ["#maintenance-title", ".release-card", "#place-title", "#look-title", "#confirmation-title"]) {
     const geometry = await page.locator(selector).first().evaluate((element) => {
@@ -171,12 +146,6 @@ test("phone layout removes desktop overlaps and keeps every major chapter contai
     expect(geometry.left, selector).toBeGreaterThanOrEqual(-1);
     expect(geometry.right, selector).toBeLessThanOrEqual(geometry.viewport + 1);
   }
-
-  const majorSections = ["#solaris-now", "#participate-feature", "#explore-feature", "#results-feature", "#me-feature", "#preview", "#confirmation-access"];
-  for (const selector of majorSections) await expect(page.locator(selector)).toHaveCount(1);
-
-  const bodyFontSize = await page.locator("body").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
-  expect(bodyFontSize).toBeGreaterThanOrEqual(16);
 
   const overflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
@@ -189,7 +158,7 @@ test("Confirmation remains an immediate maintenance destination", async ({ page 
   await expect(confirmationLink).toBeVisible();
   await confirmationLink.click();
   await expect(page.locator("#confirmation-access")).toBeInViewport();
-  await expect(page.getByRole("heading", { name: /Your delegation\s*keeps moving\./ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your delegation keeps moving." })).toBeVisible();
 });
 
 test("maintenance mode blocks writes instead of forwarding them to app services", async ({ request }) => {

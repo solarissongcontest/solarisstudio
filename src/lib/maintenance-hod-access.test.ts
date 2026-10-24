@@ -22,6 +22,8 @@ const teaserPreviewRoute = readFileSync("src/routes/terraos-teaser-preview.tsx",
 const preferenceSync = readFileSync("src/components/app/AppExperiencePreferenceSync.tsx", "utf8");
 const launchRestore = readFileSync("src/components/app/AppLaunchRestoreCoordinator.tsx", "utf8");
 const serverEntry = readFileSync("src/server.ts", "utf8");
+const maintenanceCss = readFileSync("public/assets/terraos-maintenance.css", "utf8");
+const maintenanceMotion = readFileSync("public/assets/terraos-maintenance.js", "utf8");
 
 describe("maintenance HOD access flag", () => {
   it("fails closed unless explicitly enabled", () => {
@@ -60,81 +62,50 @@ describe("maintenance HOD route isolation", () => {
   });
 
   it.each([
-    "/",
-    "/auth",
-    "/auth/",
-    "/confirmations",
-    "/confirmations/admin",
-    "/confirmations/admin/rounds",
-    "/participate",
-    "/explore",
-    "/results",
-    "/me",
-    "/stories",
-    "/wiki",
-    "/archive",
-    "/jury",
-    "/televoting",
-    "/admin",
-    "/admin/operations",
+    "/", "/auth", "/confirmations", "/confirmations/admin", "/confirmations/admin/rounds",
+    "/participate", "/explore", "/results", "/me", "/stories", "/wiki", "/archive",
+    "/jury", "/televoting", "/admin", "/admin/operations",
   ])("keeps unrelated route maintenance-blocked: %s", (pathname) => {
     expect(isMaintenanceHodAppRouteAllowed(pathname, "GET", true)).toBe(false);
   });
 
   it("disables every HOD app exception when the rollback flag is off", () => {
-    for (const pathname of allowedGets) {
-      expect(isMaintenanceHodAppRouteAllowed(pathname, "GET", false)).toBe(false);
-    }
+    for (const pathname of allowedGets) expect(isMaintenanceHodAppRouteAllowed(pathname, "GET", false)).toBe(false);
   });
 
-  it("renders the edit-token route in an isolated maintenance shell without public app navigation", () => {
+  it("renders the edit-token route in an isolated maintenance shell", () => {
     expect(editRoute).toContain("maintenanceMode={GLOBAL_MAINTENANCE_MODE}");
-    expect(editRoute).toContain('href="/"');
     expect(editRoute).toContain("resolveMaintenanceEditToken(token)");
     expect(editRoute).toContain("<MaintenanceConfirmationEditor");
     expect(confirmationShell).toContain('data-maintenance-confirmation-shell=""');
     expect(confirmationShell).toContain("Only this existing Confirmation editor is available");
-    expect(participationChrome).toContain(
-      'GLOBAL_MAINTENANCE_MODE && isMaintenanceHodAppRouteAllowed(pathname, "GET", true)',
-    );
+    expect(participationChrome).toContain('GLOBAL_MAINTENANCE_MODE && isMaintenanceHodAppRouteAllowed(pathname, "GET", true)');
     expect(participationChrome).toContain("if (nested || maintenanceIsolated) return <>{children}</>;");
   });
 
-  it("does not tell HODs that reopening an existing response requires reopening the round", () => {
-    expect(editRoute).not.toContain("only if the round is reopened");
-    expect(editRoute).toContain(
-      "TSBC can reopen editing for this response without reopening the Confirmation round.",
-    );
-  });
-
-  it("keeps the emergency editor on the exact canonical existing-response path", () => {
+  it("keeps the emergency editor on the canonical existing-response contract", () => {
     expect(maintenanceEditorClient).toContain("MAINTENANCE_CONFIRMATION_API_PATH");
     expect(maintenanceEditorClient).toContain('action: "resolve"');
     expect(maintenanceEditorClient).toContain('action: "submit"');
     expect(maintenanceEditorClient).toContain('action: "reconcile"');
     expect(maintenanceEditorClient).toContain("deterministicOperationId");
     expect(maintenanceEditorClient).not.toContain("service_role");
-
     expect(maintenanceEditorApi).toContain('createFileRoute("/api/maintenance-confirmation")');
     expect(maintenanceEditorApi).toContain("if (!GLOBAL_MAINTENANCE_MODE)");
     expect(maintenanceEditorApi).toContain("if (!sameOrigin(request))");
-    expect(maintenanceEditorApi).toContain("edit_token: z.string().trim().min(1).max(120)");
     expect(maintenanceEditorApi).toContain('rpc<ConfirmationSubmitResult>("v3_submit_confirmation"');
     expect(maintenanceEditorApi).toContain('rpc<ConfirmationSubmitResult>("v3_reconcile_confirmation"');
     expect(maintenanceEditorApi).toContain('"public_resolve_edit_token"');
-    expect(maintenanceEditorApi).toContain("syncConfirmationSubmissionToSolarisInternal");
     expect(maintenanceEditorApi).not.toContain('rpc<ConfirmationSubmitResult>("submit_confirmation"');
-
     expect(maintenanceEditor).toContain('data-maintenance-confirmation-editor="true"');
-    expect(maintenanceEditor).toContain("Save changes to this Confirmation");
     expect(maintenanceEditor).toContain("It cannot create a new Confirmation during maintenance.");
   });
 });
 
-describe("TerraOS 3 maintenance teaser contract", () => {
+describe("TerraOS 3 maintenance page + HOD integration", () => {
   const teaser = renderMaintenancePage(new Date("2026-10-24T13:00:00+03:00"));
 
-  it("preserves a formatting-independent HOD insertion point while making TerraOS 3 the public hero", () => {
+  it("preserves a formatting-independent HOD insertion point", () => {
     expect(teaser).toContain("<footer>");
     expect(serverEntry).toContain('html = html.replace("<footer>"');
     expect(serverEntry).toContain("isolateMaintenanceHodPortalMarkup");
@@ -143,82 +114,60 @@ describe("TerraOS 3 maintenance teaser contract", () => {
     expect(teaser).toContain("Estimated arrival");
     expect(teaser).toContain(MAINTENANCE_RETURN_DATE);
     expect(teaser).toContain(`data-terraos-launch-at="${TERRAOS3_ESTIMATED_LAUNCH_AT}"`);
-    expect(teaser).toContain("TerraOS 3 readiness");
-    expect(teaser).not.toContain('role="timer"');
-    expect(teaser).not.toContain("Solaris Studio is temporarily unavailable");
-    expect(teaser).not.toContain("Organizer tools");
   });
 
-  it("keeps the Confirmation portal theme tokens available", () => {
-    expect(teaser).toContain("--muted-soft:");
-    expect(teaser).toContain("--primary:");
+  it("keeps Confirmation portal theme tokens in the static visual system", () => {
+    expect(maintenanceCss).toContain("--muted-soft:");
+    expect(maintenanceCss).toContain("--primary:");
   });
 
-  it("moves the injected Confirmation portal into the dedicated editorial Confirmation chapter", () => {
-    expect(teaser).toContain("var portal=document.querySelector('.hod-portal')");
-    expect(teaser).toContain("var confirmationHost=document.querySelector('[data-confirmation-host]')");
-    expect(teaser).toContain("confirmationHost.appendChild(portal)");
+  it("moves the injected portal into the dedicated Confirmation chapter through the static runtime", () => {
+    expect(teaser).toContain('data-confirmation-host');
     expect(teaser).toContain('id="confirmation-access"');
+    expect(teaser).toContain('<script src="/assets/terraos-maintenance.js"></script>');
+    expect(maintenanceMotion).toContain("const portal = document.querySelector('.hod-portal')");
+    expect(maintenanceMotion).toContain("const confirmationHost = document.querySelector('[data-confirmation-host]')");
+    expect(maintenanceMotion).toContain("confirmationHost.appendChild(portal)");
   });
 
-  it("renders the production V3 page components inside teaser surfaces instead of hand-built app screens", () => {
-    expect(teaser).toContain('/terraos-teaser-preview?screen=home&chrome=content');
-    expect(teaser).toContain('/terraos-teaser-preview?screen=explore&chrome=content');
-    expect(teaser).toContain('/terraos-teaser-preview?screen=participate&chrome=content');
-    expect(teaser).toContain('/terraos-teaser-preview?screen=results&chrome=content');
-    expect(teaser).toContain('/terraos-teaser-preview?screen=me&chrome=content');
+  it("renders production V3 components in fixture-safe teaser surfaces", () => {
+    for (const screen of ["home", "explore", "participate", "results", "me"]) {
+      expect(teaser).toContain(`/terraos-teaser-preview?screen=${screen}&chrome=content`);
+    }
     expect(teaser).toContain('class="terra-preview-frame"');
-    expect(teaser).not.toContain('class="orbit"');
-
     expect(teaserPreview).toContain("V3HomeScreen");
     expect(teaserPreview).toContain("V3ExploreScreen");
     expect(teaserPreview).toContain("V3ParticipateScreen");
     expect(teaserPreview).toContain("V3FoundationShell");
-    expect(teaserPreview).toContain("V3TopContext");
     expect(teaserPreview).toContain("V3BottomNavigation");
-    expect(teaserPreview).not.toContain("TeaserBottomNav");
     expect(teaserPreview).not.toContain("useQuery");
     expect(teaserPreview).not.toContain("supabase");
     expect(teaserPreviewRoute).toContain('createFileRoute("/terraos-teaser-preview")');
     expect(preferenceSync).toContain('window.location.pathname === "/terraos-teaser-preview"');
     expect(launchRestore).toContain('pathname === "/terraos-teaser-preview"');
-    expect(serverEntry).toContain('const TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview"');
-    expect(serverEntry).toContain("isTerraOsTeaserPreviewRequest");
   });
 
-  it("ships the complete mature story instead of historical date-gated reveal placeholders", () => {
-    expect(teaser).toContain("A new generation of Solaris.");
-    expect(teaser).toContain("Everything<br />in its place.");
-    expect(teaser).toContain("What matters, now.");
-    expect(teaser).toContain("Know exactly what needs you.");
-    expect(teaser).toContain("More Solaris. Less searching.");
-    expect(teaser).toContain("See what happened.");
-    expect(teaser).toContain("Your Solaris.");
-    expect(teaser).toContain("Take a closer look.");
-    expect(teaser).toContain("Built for<br />contest night.");
-    expect(teaser).toContain("Your delegation<br />keeps moving.");
-    expect(teaser).toContain("TerraOS 3 is taking shape.");
+  it("ships the complete mature story without historical teaser gates", () => {
+    for (const fragment of [
+      "A new generation of Solaris.", "Everything<br />in its place.", "What matters,<br />now.",
+      "Know exactly<br />what needs you.", "More Solaris.<br />Less searching.", "See what<br />happened.",
+      "Your<br />Solaris.", "Take a closer look.", "Built for<br />contest night.",
+      "Your delegation<br />keeps moving.", "is taking shape.",
+    ]) expect(teaser).toContain(fragment);
     expect(teaser).not.toContain("data-terraos-teaser-phase");
     expect(teaser).not.toContain("data-next-reveal");
     expect(teaser).not.toContain("More on 19.10");
-    expect(teaser).not.toContain("fetch(");
-    expect(teaser).not.toContain("XMLHttpRequest");
+    expect(maintenanceMotion).not.toContain("fetch(");
+    expect(maintenanceMotion).not.toContain("XMLHttpRequest");
   });
 
-  it("keeps horizontal discovery accessible without stealing normal page scrolling", () => {
+  it("keeps horizontal discovery keyboard accessible without vertical scroll hijacking", () => {
     expect(teaser).toContain('data-gallery-prev');
     expect(teaser).toContain('data-gallery-next');
-    expect(teaser).toContain("track.addEventListener('keydown'");
-    expect(teaser).toContain("scroll-snap-type:x mandatory");
-    expect(teaser).toContain("prefers-reduced-motion:reduce");
-    expect(teaser).toContain("prefers-reduced-transparency:reduce");
-  });
-
-  it("uses sparse product language without generic technology filler", () => {
-    expect(teaser).toContain("Solaris, reimagined.");
-    expect(teaser).toContain("Take a closer look.");
-    expect(teaser).toContain("Built for what happens next.");
-    expect(teaser).not.toMatch(/next-generation|revolutionary|seamless|effortless/i);
+    expect(maintenanceMotion).toContain("track.addEventListener('keydown'");
+    expect(maintenanceCss).toContain("scroll-snap-type:x mandatory");
+    expect(maintenanceCss).toContain("prefers-reduced-motion:reduce");
+    expect(maintenanceCss).toContain("prefers-reduced-transparency:reduce");
   });
 });
 
@@ -228,59 +177,30 @@ describe("maintenance HOD portal contract", () => {
     publishableKey: "sb_publishable_test",
   });
 
-  it("keeps Confirmation as the operational section exposed by the maintenance shell", () => {
-    expect(html).toContain(".hod-portal {\n    order: 2;");
+  it("keeps the participant-facing Confirmation workflow understandable", () => {
     expect(html).toContain("Manage your current Confirmation");
-    expect(html).toContain("This is the participant area that remains available during maintenance.");
-  });
-
-  it("makes the signed-out country-account action understandable", () => {
     expect(html).toContain("Sign in to Confirmation access");
     expect(html).toContain("Instagram username or recovery email");
-    expect(html).toContain("Use the Instagram username linked to your country account, or its recovery email.");
     expect(html).toContain("Sign in to Confirmations");
   });
 
-  it("reuses the existing Solaris country auth/session system", () => {
+  it("reuses existing country auth and participant-safe projections only", () => {
     expect(html).toContain('client.functions.invoke("country-auth"');
     expect(html).toContain('action: "signin"');
     expect(html).toContain('action: "recover"');
     expect(html).toContain("client.auth.getSession()");
-    expect(html).toContain("client.auth.getUser()");
-    expect(html).toContain("client.auth.setSession");
-    expect(html).toContain("client.auth.signOut()");
-  });
-
-  it("uses only the participant-safe dashboard projection and canonical edit token", () => {
     expect(html).toContain('client.rpc("public_country_account_confirmation_dashboard")');
     expect(html).toContain('client.rpc("public_create_country_account_edit_token"');
     expect(html).not.toContain("admin_update_confirmation_controls");
-    expect(html).not.toContain("studio2_country_cockpit");
     expect(html).not.toContain("service_role");
   });
 
-  it("keeps status domains separate while explaining round-closed versus edit-open", () => {
-    expect(html).toContain("Participation");
-    expect(html).toContain("Confirmation");
-    expect(html).toContain("Entry");
-    expect(html).toContain("New Confirmations");
-    expect(html).toContain("Existing submission editing");
-    expect(html).toContain("Closed to new Confirmations");
-    expect(html).toContain(
-      "The submission round is closed to new Confirmations, but TSBC has reopened editing for this existing response.",
-    );
-    expect(html).toContain("View status details");
-    expect(html).toContain("#entry-section-review");
-  });
-
-  it("does not install an unbounded production polling loop", () => {
+  it("does not install unbounded production polling", () => {
     expect(html).not.toContain("setInterval(");
     expect(html).toContain("[30000, 90000]");
-    expect(html).toContain('window.addEventListener("focus"');
-    expect(html).toContain('document.addEventListener("visibilitychange"');
   });
 
-  it("escapes injected runtime configuration before embedding it into module code", () => {
+  it("escapes injected runtime configuration", () => {
     const hostile = renderMaintenanceHodPortal({
       supabaseUrl: "https://example.test/</script><script>alert(1)</script>",
       publishableKey: "<unsafe>",

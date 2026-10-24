@@ -1,28 +1,40 @@
 import { readFileSync } from "node:fs";
-
 import { describe, expect, it } from "vitest";
 
 const page = readFileSync("src/lib/maintenance-page.ts", "utf8");
+const css = readFileSync("public/assets/terraos-maintenance.css", "utf8");
+const motion = readFileSync("public/assets/terraos-maintenance.js", "utf8");
 const server = readFileSync("src/server.ts", "utf8");
 
-describe("TerraOS maintenance artwork routing", () => {
-  it("keeps only explicitly shipped editorial artwork reachable through the maintenance asset allowlist", () => {
+describe("TerraOS maintenance visual asset routing", () => {
+  it("keeps the final image-led experience entirely inside the already-approved /assets prefix", () => {
     for (const asset of [
-      "/solaris-background.webp",
-      "/solaris-studio-social.jpg",
-      "/terraos-maintenance/blue-motion.svg",
-      "/terraos-maintenance/live-stage.svg",
-      "/terraos-maintenance/purple-tunnel.svg",
-    ]) {
-      expect(page).toContain(asset);
-      expect(server).toContain(`"${asset}"`);
-    }
+      "/assets/terraos-maintenance/atmosphere.jpeg",
+      "/assets/terraos-maintenance/moment-a.png",
+      "/assets/terraos-maintenance/moment-b.png",
+      "/assets/terraos-maintenance.css",
+      "/assets/terraos-maintenance.js",
+    ]) expect(page).toContain(asset);
 
-    expect(server).not.toContain('"/terraos-maintenance/",');
+    expect(server).toContain('const MAINTENANCE_APP_ASSET_PREFIXES = ["/_build/", "/assets/", "/build/", "/fonts/"] as const;');
+    expect(server).not.toContain('"/assets/terraos-maintenance/",');
   });
 
-  it("does not hotlink third-party photography from the maintenance renderer", () => {
-    expect(page).not.toContain("images.unsplash.com");
-    expect(page).not.toContain("images.pexels.com");
+  it("requires multiple obvious image moments and locally hosted photo layers", () => {
+    expect(page.match(/data-photo-kind=\"photo\"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(page.match(/data-photo-parallax=/g)?.length ?? 0).toBeGreaterThanOrEqual(7);
+    expect(page.match(/class=\"photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(css).toContain(".photo-chapter{");
+    expect(css).toContain(".live-art{");
+  });
+
+  it("does not hotlink photography or load visual data through runtime fetches", () => {
+    for (const host of ["images.unsplash.com", "images.pexels.com", "upload.wikimedia.org"]) {
+      expect(page).not.toContain(host);
+      expect(css).not.toContain(host);
+      expect(motion).not.toContain(host);
+    }
+    expect(motion).not.toContain("fetch(");
+    expect(motion).not.toContain("XMLHttpRequest");
   });
 });
