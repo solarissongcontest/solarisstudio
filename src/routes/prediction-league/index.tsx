@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -6,9 +5,12 @@ import { AppShell, Panel } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PredictionWorkspaceHeader } from "@/components/predictions/PredictionWorkspaceHeader";
 import { PublicResponsiveDataView, type PublicDataColumn } from "@/components/public/PublicResponsiveDataView";
-import { supabase } from "@/integrations/supabase/client";
 import { editionLabel, useEditions } from "@/lib/data";
-import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
+import {
+  useV3PredictionLeagueEnabled,
+  useV3PredictionLeagueStandings,
+  type V3PredictionStanding,
+} from "@/lib/v3-predictions-runtime";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 export const Route = createFileRoute("/prediction-league/")({
@@ -21,16 +23,7 @@ export const Route = createFileRoute("/prediction-league/")({
   component: PredictionLeaguePage,
 });
 
-type Standing = {
-  profileId: string;
-  displayName: string;
-  score: number;
-  rounds: number;
-  position: number;
-  lastScoredAt: string | null;
-};
-
-const standingColumns: readonly PublicDataColumn<Standing>[] = [
+const standingColumns: readonly PublicDataColumn<V3PredictionStanding>[] = [
   {
     key: "position",
     header: "#",
@@ -85,22 +78,11 @@ function LegacyPredictionLeaguePage() {
   const { data: editions = [] } = useEditions();
   const published = editions.filter((edition) => edition.published);
   const [editionId, setEditionId] = useState<string>("all");
-  const feature = useQuery({
-    queryKey: ["studio2-feature", "prediction_league"],
-    queryFn: () => isStudio2FeatureEnabled("prediction_league"),
-    staleTime: 30_000,
-  });
-  const standings = useQuery({
-    enabled: feature.data === true,
-    queryKey: ["prediction-league", editionId],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("prediction_league_leaderboard", {
-        _edition_id: editionId === "all" ? null : editionId,
-      });
-      if (error) throw error;
-      return (data ?? []) as Standing[];
-    },
-  });
+  const feature = useV3PredictionLeagueEnabled(true);
+  const standings = useV3PredictionLeagueStandings(
+    feature.data === true,
+    editionId === "all" ? null : editionId,
+  );
 
   return (
     <AppShell>
