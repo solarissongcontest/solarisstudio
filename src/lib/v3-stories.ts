@@ -45,6 +45,8 @@ export type V3StoriesAnniversary = {
 export type V3StoriesIndexBundle = {
   shell: { editionLabel: string; phaseLabel: string };
   stories: V3StorySummary[];
+  currentStory: V3StorySummary | null;
+  historicalStories: V3StorySummary[];
   anniversary: V3StoriesAnniversary;
   generatedAt: string;
 };
