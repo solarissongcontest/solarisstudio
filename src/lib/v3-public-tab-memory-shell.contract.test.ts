@@ -38,10 +38,16 @@ describe("V3 public N10 tab memory shell integration", () => {
     expect(shell).toContain('runAppViewTransition(alreadyActive ? "pop" : "tab"');
   });
 
-  it("keeps whole-page swipe fail-closed until route owners supply live adjacent surfaces", () => {
+  it("uses the same viewer-scoped remembered destination for swipe preview and commit", () => {
     const shell = source("src/components/v3/V3AppShell.tsx");
 
-    expect(shell).not.toContain("V3TopLevelSwipeSurface");
-    expect(shell).not.toContain("swipePreviewSurfaces");
+    expect(shell).toContain("V3TopLevelNavigationViewport");
+    expect(shell).toContain("const resolveDestinationTarget =");
+    expect(shell).toContain("getV3PublicTabDestination(");
+    expect(shell).toContain("topLevelSwipePreviews.previous(previousSwipeTarget)");
+    expect(shell).toContain("topLevelSwipePreviews.next(nextSwipeTarget)");
+    expect(shell).toContain("markV3PublicNavigationRestore(target.entry");
+    expect(shell).toContain("void navigate({ to: target.href as any })");
+    expect(shell).toContain("const content = topLevelSwipePreviews ? (");
   });
 });

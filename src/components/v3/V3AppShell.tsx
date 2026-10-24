@@ -24,6 +24,7 @@ import {
   resetV3PublicTabToRoot,
   updateV3PublicScrollPosition,
   v3PublicEntryHref,
+  type V3PublicHistoryEntry,
   type V3PublicTabId,
 } from "@/lib/v3-public-navigation";
 import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
@@ -35,6 +36,7 @@ import {
   V3LiquidTabBar,
   type V3LiquidTabDestination,
 } from "./V3LiquidTabBar";
+import { V3TopLevelNavigationViewport } from "./V3TopLevelNavigationViewport";
 
 export type V3Area = "home" | "explore" | "participate" | "results" | "me";
 
@@ -66,6 +68,33 @@ const ACTIVE_NAV_STYLE: CSSProperties = {
 export type V3BottomNavigationProps = {
   activeArea: V3Area | null;
   participateAttentionCount?: number;
+};
+
+export type V3TopLevelSwipeTarget = {
+  tabId: V3Area;
+  entry: V3PublicHistoryEntry;
+  href: string;
+};
+
+export type V3TopLevelSwipePreviewRenderer = (
+  target: V3TopLevelSwipeTarget,
+) => ReactNode | null;
+
+/**
+ * Route owners may opt a canonical top-level screen into whole-page swipe by
+ * supplying live adjacent React surfaces. The shell owns target resolution,
+ * route memory and commit. Renderers only decide whether they can safely render
+ * the exact adjacent target from data already owned by that route boundary.
+ *
+ * A renderer returning null keeps swipe disabled. This prevents the shell from
+ * inventing preview data, mounting all five applications, or starting hidden
+ * network graphs merely to make the gesture look complete.
+ */
+export type V3TopLevelNavigationPreviews = {
+  ready: boolean;
+  previous?: V3TopLevelSwipePreviewRenderer;
+  next?: V3TopLevelSwipePreviewRenderer;
+  generation?: string;
 };
 
 /**
@@ -117,6 +146,7 @@ export type V3AppShellProps = {
   activeArea?: V3Area;
   topActions?: ReactNode;
   className?: string;
+  topLevelSwipePreviews?: V3TopLevelNavigationPreviews;
 };
 
 /**
@@ -126,9 +156,11 @@ export type V3AppShellProps = {
  * The Liquid bar provides direct manipulation as progressive enhancement, but
  * every destination remains a semantic link and this shell never invents a
  * second URL/state model. Per-tab memory is viewer-scoped and rejects focused,
- * immersive and critical-task routes. Whole-page swipe remains deliberately
- * disabled until route owners provide safe live adjacent DOM surfaces rather
- * than screenshots or duplicate data graphs.
+ * immersive and critical-task routes. Whole-page swipe is fail-closed and only
+ * arms when the current route owner explicitly supplies the required live
+ * adjacent DOM surfaces for the exact remembered tab targets. Screenshots,
+ * shell-owned data fetching and permanently mounted five-tab applications are
+ * not accepted as preview substitutes.
  *
  * Notifications, Search and Rules guidance are server-gated. Search reuses the
  * existing installed-app PublicCommandPalette. Rules guidance links into the
@@ -144,6 +176,7 @@ export function V3AppShell({
   activeArea,
   topActions,
   className,
+  topLevelSwipePreviews,
 }: V3AppShellProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
@@ -268,6 +301,42 @@ export function V3AppShell({
     }),
   );
 
+  const navigationStorage = navigationIdentityReady ? undefined : null;
+  const resolveDestinationTarget = (index: number): V3TopLevelSwipeTarget | null => {
+    if (!navigationIdentityReady || index < 0 || index >= V3_SHELL_DESTINATIONS.length) {
+      return null;
+    }
+    const destination = V3_SHELL_DESTINATIONS[index];
+    if (!destination) return null;
+    const entry = getV3PublicTabDestination(
+      destination.id,
+      navigationStorage,
+      navigationScope,
+    );
+    return {
+      tabId: destination.id,
+      entry,
+      href: v3PublicEntryHref(entry),
+    };
+  };
+
+  const activeDestinationIndex = publicArea
+    ? V3_SHELL_DESTINATIONS.findIndex((destination) => destination.id === publicArea)
+    : -1;
+  const previousSwipeTarget = resolveDestinationTarget(activeDestinationIndex - 1);
+  const nextSwipeTarget = resolveDestinationTarget(activeDestinationIndex + 1);
+  const previousSwipeSurface =
+    previousSwipeTarget && topLevelSwipePreviews?.previous
+      ? topLevelSwipePreviews.previous(previousSwipeTarget)
+      : null;
+  const nextSwipeSurface =
+    nextSwipeTarget && topLevelSwipePreviews?.next
+      ? topLevelSwipePreviews.next(nextSwipeTarget)
+      : null;
+  const swipePreviewReady =
+    navigationIdentityReady && topLevelSwipePreviews?.ready === true;
+  const swipeInteractionKey = `${navigationInteractionKey}:${topLevelSwipePreviews?.generation ?? "default"}`;
+
   const selectDestination = (destination: V3LiquidTabDestination) => {
     const id = destination.id as V3PublicTabId;
     const alreadyActive = publicArea === id;
@@ -286,7 +355,6 @@ export function V3AppShell({
     // Until viewer identity resolves, semantic navigation still works but uses
     // canonical roots only. Passing null storage avoids reading/writing the
     // anonymous memory bucket with an identity we do not yet know is anonymous.
-    const navigationStorage = navigationIdentityReady ? undefined : null;
     const target = alreadyActive
       ? resetV3PublicTabToRoot(id, navigationStorage, navigationScope)
       : getV3PublicTabDestination(id, navigationStorage, navigationScope);
@@ -297,6 +365,25 @@ export function V3AppShell({
     void runAppViewTransition(alreadyActive ? "pop" : "tab", () =>
       navigate({ to: v3PublicEntryHref(target) as any }),
     );
+  };
+
+  const commitSwipeDestination = (targetIndex: number) => {
+    if (!navigationIdentityReady || targetIndex === activeDestinationIndex) return;
+    // Commit the exact target snapshot whose live DOM surface the user dragged
+    // toward. Do not re-read tab memory after the gesture because another tab or
+    // storage event could otherwise make the route differ from the preview.
+    const target =
+      targetIndex === activeDestinationIndex - 1
+        ? previousSwipeTarget
+        : targetIndex === activeDestinationIndex + 1
+          ? nextSwipeTarget
+          : null;
+    if (!target) return;
+
+    markV3PublicNavigationRestore(target.entry, undefined, navigationScope);
+    // The page and Liquid lens are already settling as one continuous gesture.
+    // A second View Transition here would create a competing animation owner.
+    void navigate({ to: target.href as any });
   };
 
   const shellActions =
@@ -342,6 +429,24 @@ export function V3AppShell({
       </>
     ) : undefined;
 
+  const content = topLevelSwipePreviews ? (
+    <V3TopLevelNavigationViewport
+      pathname={pathname}
+      searchStr={searchStr}
+      activeIndex={activeDestinationIndex >= 0 ? activeDestinationIndex : 0}
+      itemCount={V3_SHELL_DESTINATIONS.length}
+      previousSurface={previousSwipeSurface}
+      nextSurface={nextSwipeSurface}
+      previewReady={swipePreviewReady}
+      interactionKey={swipeInteractionKey}
+      onCommit={commitSwipeDestination}
+    >
+      {children}
+    </V3TopLevelNavigationViewport>
+  ) : (
+    children
+  );
+
   return (
     <V3FoundationShell>
       <div className={cn("min-h-dvh", className)}>
@@ -350,7 +455,7 @@ export function V3AppShell({
           destinations={navigationDestinations}
           onSelect={selectDestination}
         />
-        {children}
+        {content}
       </div>
 
       <V3LiquidTabBar
