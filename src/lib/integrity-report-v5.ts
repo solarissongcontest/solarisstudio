@@ -52,6 +52,7 @@ const SEMANTIC_DRAFT_KEYS = [
 ] as const satisfies ReadonlyArray<keyof IntegrityReportV5Draft>;
 
 let memorySubmissionIdentity: IntegrityReportV5SubmissionIdentity | null = null;
+let memoryDraft: IntegrityReportV5Draft | null = null;
 let memoryReceipt: IntegrityReportV5Receipt | null = null;
 
 export const EMPTY_INTEGRITY_REPORT_V5: IntegrityReportV5Draft = {
@@ -161,17 +162,21 @@ export function clearIntegrityReportV5SubmissionIdentity() {
 export function readIntegrityReportV5Draft(): IntegrityReportV5Draft {
   try {
     const raw = session()?.getItem(DRAFT_KEY);
-    if (!raw) return { ...EMPTY_INTEGRITY_REPORT_V5 };
-    const parsed = JSON.parse(raw) as Partial<IntegrityReportV5Draft>;
-    return {
-      ...EMPTY_INTEGRITY_REPORT_V5,
-      ...parsed,
-      category: (parsed.category ?? "") as IntegrityReportV5Draft["category"],
-      identityMode: (parsed.identityMode ?? "") as IntegrityReportV5Draft["identityMode"],
-    };
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<IntegrityReportV5Draft>;
+      const next: IntegrityReportV5Draft = {
+        ...EMPTY_INTEGRITY_REPORT_V5,
+        ...parsed,
+        category: (parsed.category ?? "") as IntegrityReportV5Draft["category"],
+        identityMode: (parsed.identityMode ?? "") as IntegrityReportV5Draft["identityMode"],
+      };
+      memoryDraft = next;
+      return { ...next };
+    }
   } catch {
-    return { ...EMPTY_INTEGRITY_REPORT_V5 };
+    // Fall through to the in-memory draft for this page lifetime.
   }
+  return memoryDraft ? { ...memoryDraft } : { ...EMPTY_INTEGRITY_REPORT_V5 };
 }
 
 export function writeIntegrityReportV5Draft(patch: Partial<IntegrityReportV5Draft>) {
@@ -188,15 +193,17 @@ export function writeIntegrityReportV5Draft(patch: Partial<IntegrityReportV5Draf
     createdAt: current.createdAt || now,
     updatedAt: now,
   };
+  memoryDraft = next;
   try {
     session()?.setItem(DRAFT_KEY, JSON.stringify(next));
   } catch {
-    // Sensitive drafts remain session-only by design and may be memory-only if storage is unavailable.
+    // Sensitive drafts remain session-only by design and memory-backed if storage is unavailable.
   }
-  return next;
+  return { ...next };
 }
 
 export function clearIntegrityReportV5Draft() {
+  memoryDraft = null;
   clearIntegrityReportV5SubmissionIdentity();
   try {
     session()?.removeItem(DRAFT_KEY);
