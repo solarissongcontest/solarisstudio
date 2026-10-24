@@ -6,7 +6,7 @@ import { evaluateWorkflow, type WorkflowSummary } from "./workflow-engine";
 import { entrySubmissionWorkflow } from "./workflow-templates";
 
 describe("HOD workspace model", () => {
-  it("treats a missing HOD as the jury blocker", () => {
+  it("routes a missing HOD to the real HOD-history action surface", () => {
     const eligibility = evaluateEntryEligibility({
       countryConfirmed: true,
       artistName: "",
@@ -56,7 +56,7 @@ describe("HOD workspace model", () => {
     );
     expect(model.actions.find((action) => action.id === "jury-hod")).toMatchObject({
       label: "Confirm HOD assignment",
-      href: "/my-solaris/tasks",
+      href: "/my-solaris/history",
     });
     expect(model.actions.find((action) => action.id === "official-notices")?.href).toBe(
       "/my-solaris/notices",
@@ -64,6 +64,64 @@ describe("HOD workspace model", () => {
     expect(model.outstandingAcknowledgements).toBe(1);
     expect(model.readiness).toBe(operationalReadiness.score);
     expect(model.readinessState).toBe("blocked");
+  });
+
+  it("routes overdue delegation responsibilities to canonical Participate", () => {
+    const eligibility = evaluateEntryEligibility({
+      countryConfirmed: true,
+      artistName: "Artist",
+      songTitle: "Song",
+      videoUrl: "https://example.com/video",
+      artworkUrl: "https://example.com/artwork.jpg",
+      broadcasterApproved: true,
+    });
+    const workflow = {
+      tasks: [],
+      complete: true,
+      progress: 100,
+      blockedCount: 0,
+      overdueCount: 0,
+      nextTaskIds: [],
+    } satisfies WorkflowSummary;
+    const operationalReadiness = getCountryOperationalReadiness({
+      participationConfirmed: true,
+      entryPresent: true,
+      entryEligibility: eligibility,
+      entryApproved: true,
+      mediaAvailable: true,
+      juryComplete: true,
+      deadlines: [
+        {
+          id: "deadline-1",
+          label: "Final delegation requirement",
+          dueAt: "2026-10-20T18:00:00.000Z",
+          completedAt: null,
+        },
+      ],
+      unresolvedOrganizerIssues: 0,
+      now: new Date("2026-10-21T18:00:00.000Z"),
+    });
+
+    const model = buildHodWorkspaceModel({
+      editionId: "ssc21",
+      editionName: "SSC 21",
+      countryId: "oland",
+      countryName: "Oland",
+      confirmationComplete: true,
+      entryEligibility: eligibility,
+      entryWorkflow: workflow,
+      juryMembersRequired: 1,
+      juryMembersAssigned: 1,
+      juryBallotSubmitted: false,
+      notices: [],
+      operationalReadiness,
+    });
+
+    expect(model.actions.find((action) => action.id === "overdue-deadlines")).toMatchObject({
+      href: "/participate",
+      priority: "critical",
+    });
+    expect(model.actions.some((action) => action.href === "/my-solaris/tasks")).toBe(false);
   });
 
   it("keeps ballot submission as status until a real jury voting window makes it actionable", () => {
