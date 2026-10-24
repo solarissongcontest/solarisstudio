@@ -6,8 +6,15 @@ const route = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/admin/country-accounts.tsx"),
   "utf8",
 );
-
-const accountService = readFileSync(
+const adapter = readFileSync(
+  resolve(process.cwd(), "src/lib/v3-organizer-country-account-status.ts"),
+  "utf8",
+);
+const systemClient = readFileSync(
+  resolve(process.cwd(), "src/lib/v3-country-account-status.ts"),
+  "utf8",
+);
+const legacyAccountService = readFileSync(
   resolve(process.cwd(), "src/lib/country-account.ts"),
   "utf8",
 );
@@ -21,7 +28,7 @@ describe("V3 Organizer country account moderation review", () => {
     expect(route).not.toContain('onClick={() => void restore()}');
   });
 
-  it("freezes exact account identity, revision and before-to-after access state", () => {
+  it("freezes exact account identity, revision, operation identity and before-to-after access state", () => {
     expect(route).toContain("userId: target.user_id");
     expect(route).toContain("countryId: target.country_id");
     expect(route).toContain("countryName: target.country_name");
@@ -29,16 +36,24 @@ describe("V3 Organizer country account moderation review", () => {
     expect(route).toContain("currentStatus: target.status");
     expect(route).toContain("currentSuspensionReason: target.suspension_reason");
     expect(route).toContain("currentUpdatedAt: target.updated_at");
+    expect(route).toContain("operationIdentity: createCountryAccountStatusOperationIdentity()");
+    expect(route).toContain("outcomeUnconfirmed: false");
     expect(route).toContain("targetStatus");
     expect(route).toContain("pendingReview.currentStatus");
     expect(route).toContain("pendingReview.targetStatus");
+    expect(route).toContain("Reviewed revision:");
+    expect(route).toContain("Operation:");
+    expect(route).not.toContain("crypto.randomUUID()");
   });
 
-  it("forces a fresh directory read and fails closed if account state changed while review was open", () => {
+  it("forces a fresh directory read before the first command and fails closed on reviewed-state drift", () => {
+    expect(route).toContain("if (!review.outcomeUnconfirmed) {");
     expect(route).toContain("const refreshed = await refetchAccounts()");
     expect(route).toContain("const refreshedData = refreshed.data");
     expect(route).toContain("refreshed.error || !refreshedData?.schemaReady");
-    expect(route).toContain("refreshedData.accounts.find((account) => account.user_id === review.userId)");
+    expect(route).toContain(
+      "refreshedData.accounts.find((account) => account.user_id === review.userId)",
+    );
     expect(route).toContain("liveAccount.country_id !== review.countryId");
     expect(route).toContain("liveAccount.country_name !== review.countryName");
     expect(route).toContain("liveAccount.email !== review.email");
@@ -46,7 +61,37 @@ describe("V3 Organizer country account moderation review", () => {
     expect(route).toContain("liveAccount.suspension_reason !== review.currentSuspensionReason");
     expect(route).toContain("liveAccount.updated_at !== review.currentUpdatedAt");
     expect(route).toContain("Nothing was changed");
-    expect(route).not.toContain("data?.accounts.find((account) => account.user_id === review.userId)");
+    expect(route).not.toContain(
+      "data?.accounts.find((account) => account.user_id === review.userId)",
+    );
+  });
+
+  it("reuses the exact reviewed operation after an unconfirmed outcome instead of preflighting into a false drift", () => {
+    expect(route).toContain("systemErrorCodeFromUnknown");
+    expect(route).toContain("reviewInvalidatingErrorCode(errorCode)");
+    expect(route).toContain("operationIdentity: review.operationIdentity");
+    expect(adapter).toContain("operationIdentity: input.operationIdentity");
+    expect(systemClient).toContain("operationIdentity?: CountryAccountStatusOperationIdentity");
+    expect(systemClient).toContain("must retain and resupply operationIdentity");
+    expect(route).toContain("outcomeUnconfirmed: true");
+    expect(route).toContain("Reconcile same operation");
+    expect(route).toContain("same frozen operation identity");
+    expect(route).toContain("!pendingReview?.outcomeUnconfirmed");
+  });
+
+  it("invalidates the human review on deterministic auth, validation and concurrency failures", () => {
+    for (const code of [
+      "AUTHENTICATION",
+      "AUTHORIZATION",
+      "VALIDATION",
+      "STATE_CHANGED",
+      "VERSION_CONFLICT",
+      "IDEMPOTENCY_CONFLICT",
+    ]) {
+      expect(route).toContain(`code === "${code}"`);
+    }
+    expect(route).toContain("setPendingReview(null)");
+    expect(route).toContain("Review the current account state before trying again.");
   });
 
   it("requires typing the exact country before either access change", () => {
@@ -54,12 +99,32 @@ describe("V3 Organizer country account moderation review", () => {
     expect(route).toContain("Type ${pendingReview.countryName} to confirm the access change");
   });
 
-  it("keeps the existing server RPC as the only account-status mutation authority and states the remaining race", () => {
-    expect(route).toContain("await setStatus.mutateAsync({");
-    expect(accountService).toContain('supabase.rpc("admin_set_country_account_status"');
+  it("cuts the Organizer consumer over to the canonical version-bound R2 command", () => {
+    expect(route).toContain("useAdminSetCountryAccountStatusV3");
+    expect(route).toContain("countryId: review.countryId");
+    expect(route).toContain("currentUpdatedAt: review.currentUpdatedAt");
+    expect(route).toContain("targetStatus: review.targetStatus");
+    expect(adapter).toContain("applyCountryAccountStatusV3");
+    expect(systemClient).toContain('supabase.rpc("studio2_set_country_account_status_v3"');
+    expect(systemClient).toContain('riskClass: "R2"');
+    expect(systemClient).toContain("p_expected_updated_at: input.currentUpdatedAt");
+    expect(systemClient).toContain('supabase.rpc("studio2_reconcile_operation"');
     expect(route).not.toContain('supabase.rpc("admin_set_country_account_status"');
-    expect(route).not.toContain('.from("country_accounts")');
-    expect(route).toContain("not a version-bound/idempotent V3 command");
-    expect(route).toContain("a narrow race remains");
+    expect(route).not.toContain("not a version-bound/idempotent V3 command");
+    expect(route).not.toContain("a narrow race remains");
+  });
+
+  it("keeps the legacy writer only as compatibility code outside the Organizer cutover", () => {
+    expect(legacyAccountService).toContain('supabase.rpc("admin_set_country_account_status"');
+    expect(route).not.toContain("useAdminSetCountryAccountStatus,");
+    expect(route).toContain("canonical R2 command");
+    expect(route).toContain("same operation receipt");
+  });
+
+  it("surfaces durable operation identity after authoritative success or an unresolved outcome", () => {
+    expect(route).toContain("const receipt = await setStatus.mutateAsync");
+    expect(route).toContain("setLastOperationId(receipt.operationId)");
+    expect(route).toContain("setLastOperationId(review.operationIdentity.operationId)");
+    expect(route).toContain("Operation {lastOperationId}");
   });
 });
