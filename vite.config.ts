@@ -39,6 +39,13 @@ export default defineConfig({
       : undefined,
   },
   tanstackStart: {
+    router: {
+      // Keep route components and other non-critical route configuration out of
+      // the initial browser chunk. Solaris has a large route inventory and the
+      // default is false, which otherwise drags specialist Organizer/results/
+      // analytics UI (including charting dependencies) into the launch graph.
+      autoCodeSplitting: true,
+    },
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
