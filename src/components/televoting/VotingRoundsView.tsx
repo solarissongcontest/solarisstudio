@@ -89,8 +89,7 @@ export function VotingRoundsView() {
       else toast.success("Voting round created as draft");
       await refresh();
     },
-    onError: (caught) =>
-      toast.error(caught instanceof Error ? caught.message : "Round could not be created"),
+    onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Round could not be created"),
   });
 
   const renameMutation = useMutation({
@@ -101,8 +100,7 @@ export function VotingRoundsView() {
       toast.success("Round renamed");
       await refresh();
     },
-    onError: (caught) =>
-      toast.error(caught instanceof Error ? caught.message : "Round could not be renamed"),
+    onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Round could not be renamed"),
   });
 
   async function requestStatusChange(
@@ -116,7 +114,9 @@ export function VotingRoundsView() {
         toast.message(`${round.name} is already ${status}.`);
         return;
       }
-      if (preview.blockers.length) throw new Error(preview.blockers.join(" "));
+      if (preview.blockers.length) {
+        throw new Error(preview.blockers.join(" "));
+      }
       setPendingStatus({
         round,
         status,
@@ -125,9 +125,7 @@ export function VotingRoundsView() {
         idempotencyKey: crypto.randomUUID(),
       });
     } catch (caught) {
-      toast.error(
-        caught instanceof Error ? caught.message : "Round status impact could not be loaded",
-      );
+      toast.error(caught instanceof Error ? caught.message : "Round status impact could not be loaded");
     } finally {
       setStatusBusy(null);
     }
@@ -179,9 +177,7 @@ export function VotingRoundsView() {
         attempted: false,
       });
     } catch (caught) {
-      toast.error(
-        caught instanceof Error ? caught.message : "Round deletion impact could not be loaded",
-      );
+      toast.error(caught instanceof Error ? caught.message : "Round deletion impact could not be loaded");
     } finally {
       setStatusBusy(null);
     }
@@ -202,9 +198,7 @@ export function VotingRoundsView() {
           expectedRoundVersion: pending.preview.expectedRoundVersion,
         },
       });
-      toast.success(
-        `${receipt.roundName} deleted · operation ${receipt.operationId} · system v${receipt.globalVersion}`,
-      );
+      toast.success(`${receipt.roundName} deleted · operation ${receipt.operationId} · system v${receipt.globalVersion}`);
       setPendingDelete(null);
       await refresh();
     } catch (caught) {
@@ -255,9 +249,7 @@ export function VotingRoundsView() {
           </p>
           <details className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-3 text-xs text-rose-100/65">
             <summary className="cursor-pointer font-semibold">Technical details</summary>
-            <p className="mt-2 break-words">
-              {error instanceof Error ? error.message : "Unknown voting-round error"}
-            </p>
+            <p className="mt-2 break-words">{error instanceof Error ? error.message : "Unknown voting-round error"}</p>
           </details>
         </AdminCard>
       ) : pageData && !pageData.linked ? (
@@ -286,42 +278,21 @@ export function VotingRoundsView() {
                 <div className="p-4 sm:p-5">
                   <div className="flex min-w-0 items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <h2 className="truncate text-base font-bold tracking-[-.02em] sm:text-lg">
-                        {round.name}
-                      </h2>
+                      <h2 className="truncate text-base font-bold tracking-[-.02em] sm:text-lg">{round.name}</h2>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {round.entry_count} entries · {humanMode(round.participant_mode)}
                       </p>
                     </div>
-                    <AdminStatus
-                      tone={
-                        round.status === "open"
-                          ? "ready"
-                          : round.status === "draft"
-                            ? "attention"
-                            : "neutral"
-                      }
-                    >
-                      {round.status === "open"
-                        ? "Voting open"
-                        : round.status === "closed"
-                          ? "Closed"
-                          : "Draft"}
+                    <AdminStatus tone={round.status === "open" ? "ready" : round.status === "draft" ? "attention" : "neutral"}>
+                      {round.status === "open" ? "Voting open" : round.status === "closed" ? "Closed" : "Draft"}
                     </AdminStatus>
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    <Info
-                      label="Self voting"
-                      value={round.self_voting_mode.replaceAll("_", " ")}
-                    />
+                    <Info label="Self voting" value={round.self_voting_mode.replaceAll("_", " ")} />
                     <Info
                       label="Line-up"
-                      value={
-                        validEntryCount
-                          ? `${round.entry_count} ready`
-                          : `${round.entry_count} · needs 2–50`
-                      }
+                      value={validEntryCount ? `${round.entry_count} ready` : `${round.entry_count} · needs 2–50`}
                       tone={validEntryCount ? "normal" : "attention"}
                     />
                   </div>
@@ -336,93 +307,29 @@ export function VotingRoundsView() {
 
                   <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
                     {round.status === "open" ? (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void requestStatusChange(round, "closed")}
-                        className="admin-action-primary w-full"
-                      >
+                      <button type="button" disabled={busy} onClick={() => void requestStatusChange(round, "closed")} className="admin-action-primary w-full">
                         <Lock className="size-4" /> {busy ? "Working…" : "Close voting"}
                       </button>
                     ) : canOpen ? (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void requestStatusChange(round, "open")}
-                        className="admin-action-primary w-full"
-                      >
+                      <button type="button" disabled={busy} onClick={() => void requestStatusChange(round, "open")} className="admin-action-primary w-full">
                         <Radio className="size-4" /> {busy ? "Working…" : "Open voting"}
                       </button>
                     ) : (
-                      <Link
-                        to="/televoting/admin/rounds/$id/entries"
-                        params={{ id: round.id }}
-                        className="admin-action-primary w-full"
-                      >
+                      <Link to="/televoting/admin/rounds/$id/entries" params={{ id: round.id }} className="admin-action-primary w-full">
                         <Layers3 className="size-4" /> Fix line-up
                       </Link>
                     )}
 
-                    <AdminMoreMenu
-                      label={`${round.name} actions`}
-                      title={round.name}
-                      description="Round setup and lower-frequency controls."
-                    >
+                    <AdminMoreMenu label={`${round.name} actions`} title={round.name} description="Round setup and lower-frequency controls.">
                       <div className="divide-y divide-white/[0.07]">
-                        <Link
-                          to="/televoting/admin/rounds/$id/entries"
-                          params={{ id: round.id }}
-                          className="admin-action-row"
-                        >
-                          <span className="admin-action-row-icon">
-                            <Layers3 className="size-4" />
-                          </span>
-                          <span className="min-w-0 flex-1 text-left">
-                            <span className="block text-sm font-semibold">Manage entries</span>
-                            <span className="mt-1 block text-xs text-muted-foreground">
-                              Countries, custom entries, order and self-voting rules.
-                            </span>
-                          </span>
+                        <Link to="/televoting/admin/rounds/$id/entries" params={{ id: round.id }} className="admin-action-row">
+                          <span className="admin-action-row-icon"><Layers3 className="size-4" /></span>
+                          <span className="min-w-0 flex-1 text-left"><span className="block text-sm font-semibold">Manage entries</span><span className="mt-1 block text-xs text-muted-foreground">Countries, custom entries, order and self-voting rules.</span></span>
                         </Link>
-                        <AdminActionItem
-                          icon={Edit3}
-                          title="Rename round"
-                          description="Change the organizer-facing round name."
-                          onClick={() => {
-                            setEditing(round);
-                            setEditingName(round.name);
-                          }}
-                        />
-                        {round.status === "closed" ? (
-                          <AdminActionItem
-                            icon={Radio}
-                            title="Reopen voting"
-                            description="Accept ballots again. Existing ballots stay stored."
-                            disabled={!canOpen || busy}
-                            onClick={() => void requestStatusChange(round, "open")}
-                          />
-                        ) : null}
-                        {round.status !== "draft" ? (
-                          <AdminActionItem
-                            icon={Layers3}
-                            title="Move to draft"
-                            description="Take the round out of active/closed workflow state."
-                            disabled={busy}
-                            onClick={() => void requestStatusChange(round, "draft")}
-                          />
-                        ) : null}
-                        <AdminActionItem
-                          icon={Trash2}
-                          title="Delete round"
-                          description={
-                            round.status === "draft"
-                              ? "Review canonical dependencies before permanently deleting this unused draft."
-                              : "Only draft rounds can be deleted."
-                          }
-                          tone="danger"
-                          disabled={round.status !== "draft" || busy}
-                          onClick={() => void requestRoundDelete(round)}
-                        />
+                        <AdminActionItem icon={Edit3} title="Rename round" description="Change the organizer-facing round name." onClick={() => { setEditing(round); setEditingName(round.name); }} />
+                        {round.status === "closed" ? <AdminActionItem icon={Radio} title="Reopen voting" description="Accept ballots again. Existing ballots stay stored." disabled={!canOpen || busy} onClick={() => void requestStatusChange(round, "open")} /> : null}
+                        {round.status !== "draft" ? <AdminActionItem icon={Layers3} title="Move to draft" description="Take the round out of active/closed workflow state." disabled={busy} onClick={() => void requestStatusChange(round, "draft")} /> : null}
+                        <AdminActionItem icon={Trash2} title="Delete round" description={round.status === "draft" ? "Review canonical dependencies before permanently deleting this unused draft." : "Only draft rounds can be deleted."} tone="danger" disabled={round.status !== "draft" || busy} onClick={() => void requestRoundDelete(round)} />
                       </div>
                     </AdminMoreMenu>
                   </div>
@@ -436,91 +343,28 @@ export function VotingRoundsView() {
           <AdminEmptyState
             icon={Radio}
             title="No voting rounds yet"
-            description={
-              edition
-                ? `Create a draft round for ${edition.name}, configure its entries, then open voting when the line-up is ready.`
-                : "Create a draft round, configure its entries, then open voting when the line-up is ready."
-            }
-            action={
-              <button
-                type="button"
-                disabled={!remoteEditionId}
-                onClick={() => setCreateOpen(true)}
-                className="admin-action-primary"
-              >
-                <Plus className="size-4" /> Create round
-              </button>
-            }
+            description={edition ? `Create a draft round for ${edition.name}, configure its entries, then open voting when the line-up is ready.` : "Create a draft round, configure its entries, then open voting when the line-up is ready."}
+            action={<button type="button" disabled={!remoteEditionId} onClick={() => setCreateOpen(true)} className="admin-action-primary"><Plus className="size-4" /> Create round</button>}
           />
         </AdminCard>
       )}
 
-      <AdminSheet
-        open={createOpen}
-        onClose={() => !createMutation.isPending && setCreateOpen(false)}
-        title="Create voting round"
-        description="The round starts as a draft. Configure its entries before opening voting."
-      >
+      <AdminSheet open={createOpen} onClose={() => !createMutation.isPending && setCreateOpen(false)} title="Create voting round" description="The round starts as a draft. Configure its entries before opening voting.">
         <div className="space-y-4">
-          <label className="block">
-            <span className="text-xs font-semibold">Round name</span>
-            <Input
-              value={newName}
-              onChange={(event) => setNewName(event.target.value)}
-              placeholder="Grand Final"
-              className="mt-2 min-h-11"
-            />
-          </label>
+          <label className="block"><span className="text-xs font-semibold">Round name</span><Input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Grand Final" className="mt-2 min-h-11" /></label>
           <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2">
-            <button
-              type="button"
-              disabled={createMutation.isPending}
-              onClick={() => setCreateOpen(false)}
-              className="admin-action-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={!remoteEditionId || !newName.trim() || createMutation.isPending}
-              onClick={() => createMutation.mutate()}
-              className="admin-action-primary w-full"
-            >
-              {createMutation.isPending ? "Creating…" : "Create draft round"}
-            </button>
+            <button type="button" disabled={createMutation.isPending} onClick={() => setCreateOpen(false)} className="admin-action-secondary">Cancel</button>
+            <button type="button" disabled={!remoteEditionId || !newName.trim() || createMutation.isPending} onClick={() => createMutation.mutate()} className="admin-action-primary w-full">{createMutation.isPending ? "Creating…" : "Create draft round"}</button>
           </div>
         </div>
       </AdminSheet>
 
-      <AdminSheet
-        open={Boolean(editing)}
-        onClose={() => !renameMutation.isPending && setEditing(null)}
-        title="Rename voting round"
-        description="This changes the round name without touching entries, ballots or results."
-      >
+      <AdminSheet open={Boolean(editing)} onClose={() => !renameMutation.isPending && setEditing(null)} title="Rename voting round" description="This changes the round name without touching entries, ballots or results.">
         <div className="space-y-4">
-          <Input
-            value={editingName}
-            onChange={(event) => setEditingName(event.target.value)}
-            className="min-h-11"
-          />
+          <Input value={editingName} onChange={(event) => setEditingName(event.target.value)} className="min-h-11" />
           <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2">
-            <button
-              type="button"
-              disabled={renameMutation.isPending}
-              onClick={() => setEditing(null)}
-              className="admin-action-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={!editingName.trim() || renameMutation.isPending}
-              onClick={() => renameMutation.mutate()}
-              className="admin-action-primary w-full"
-            >
-              {renameMutation.isPending ? "Saving…" : "Save name"}
-            </button>
+            <button type="button" disabled={renameMutation.isPending} onClick={() => setEditing(null)} className="admin-action-secondary">Cancel</button>
+            <button type="button" disabled={!editingName.trim() || renameMutation.isPending} onClick={() => renameMutation.mutate()} className="admin-action-primary w-full">{renameMutation.isPending ? "Saving…" : "Save name"}</button>
           </div>
         </div>
       </AdminSheet>
@@ -568,27 +412,11 @@ export function VotingRoundsView() {
           if (!statusBusy) setPendingDelete(null);
         }}
         onConfirm={confirmRoundDelete}
-        title={
-          pendingDelete?.attempted
-            ? "Retry the same round deletion operation?"
-            : pendingDelete
-              ? `Delete ${pendingDelete.round.name}?`
-              : "Delete round?"
-        }
-        description={
-          pendingDelete ? (
-            <TelevoteRoundDeleteImpactPreview pending={pendingDelete} />
-          ) : (
-            "Review the canonical deletion impact before continuing."
-          )
-        }
+        title={pendingDelete?.attempted ? "Retry the same round deletion operation?" : pendingDelete ? `Delete ${pendingDelete.round.name}?` : "Delete round?"}
+        description={pendingDelete ? <TelevoteRoundDeleteImpactPreview pending={pendingDelete} /> : "Review the canonical deletion impact before continuing."}
         confirmLabel={pendingDelete?.attempted ? "Retry same operation" : "Delete reviewed round"}
         confirmationText={pendingDelete?.round.name}
-        confirmationHint={
-          pendingDelete
-            ? `Type ${pendingDelete.round.name} to confirm this R2 permanent deletion`
-            : undefined
-        }
+        confirmationHint={pendingDelete ? `Type ${pendingDelete.round.name} to confirm this R2 permanent deletion` : undefined}
         busy={Boolean(statusBusy)}
         danger
       />
@@ -606,10 +434,7 @@ function TelevoteRoundImpactPreview({ pending }: { pending: PendingRoundStatusCh
       </p>
 
       <div className="grid grid-cols-2 gap-2">
-        <RoundImpactMetric
-          label="Current → requested"
-          value={`${preview.currentStatus} → ${preview.requestedStatus}`}
-        />
+        <RoundImpactMetric label="Current → requested" value={`${preview.currentStatus} → ${preview.requestedStatus}`} />
         <RoundImpactMetric label="Entries" value={preview.entryCount} />
         <RoundImpactMetric label="Stored ballots" value={preview.ballotCount} />
         <RoundImpactMetric label="Suspicious ballots" value={preview.suspiciousBallotCount} />
@@ -634,9 +459,8 @@ function TelevoteRoundImpactPreview({ pending }: { pending: PendingRoundStatusCh
       ) : null}
 
       <p className="text-xs leading-5 text-muted-foreground">
-        Expected system version v{preview.expectedGlobalVersion} and round version v
-        {preview.expectedRoundVersion}. Any concurrent round-state or line-up change makes this
-        preview stale. Retrying this confirmation replays the same operation receipt.
+        Expected system version v{preview.expectedGlobalVersion} and round version v{preview.expectedRoundVersion}.
+        Any concurrent round-state or line-up change makes this preview stale. Retrying this confirmation replays the same operation receipt.
       </p>
     </div>
   );
@@ -648,8 +472,7 @@ function TelevoteRoundDeleteImpactPreview({ pending }: { pending: PendingRoundDe
     <div className="space-y-3">
       <p>
         This is a <strong className="text-foreground">Risk R2 permanent deletion</strong> for{" "}
-        <strong className="text-foreground">{pending.round.name}</strong>. The server has verified
-        the round is still a deletable draft.
+        <strong className="text-foreground">{pending.round.name}</strong>. The server has verified the round is still a deletable draft.
       </p>
       <div className="grid grid-cols-2 gap-2">
         <RoundImpactMetric label="Round" value={preview.currentStatus} />
@@ -658,18 +481,12 @@ function TelevoteRoundDeleteImpactPreview({ pending }: { pending: PendingRoundDe
         <RoundImpactMetric label="Stored ballots" value={preview.ballotCount} />
       </div>
       <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3 text-xs leading-5 text-muted-foreground">
-        <strong className="text-foreground">Results:</strong> {preview.resultsStatus} · calculation v
-        {preview.calculationVersion}
-        <br />
-        <strong className="text-foreground">Reviewed versions:</strong> system v
-        {preview.expectedGlobalVersion} · round v{preview.expectedRoundVersion}
-        <br />
+        <strong className="text-foreground">Results:</strong> {preview.resultsStatus} · calculation v{preview.calculationVersion}<br />
+        <strong className="text-foreground">Reviewed versions:</strong> system v{preview.expectedGlobalVersion} · round v{preview.expectedRoundVersion}<br />
         <strong className="text-foreground">Operation:</strong> {pending.operationId}
       </div>
       <p className="text-xs leading-5 text-muted-foreground">
-        Any persisted ballot history or calculated/non-draft Results state blocks deletion. The
-        command revalidates this review under lock. If the response is lost after commit, retrying
-        this sheet uses the same operation identity so Solaris can replay the durable receipt.
+        Any persisted ballot history or calculated/non-draft Results state blocks deletion. The command revalidates this review under lock. If the response is lost after commit, retrying this sheet uses the same operation identity so Solaris can replay the durable receipt.
       </p>
     </div>
   );
@@ -678,43 +495,17 @@ function TelevoteRoundDeleteImpactPreview({ pending }: { pending: PendingRoundDe
 function RoundImpactMetric({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-lg border border-white/[0.08] bg-black/10 p-2.5">
-      <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        {label}
-      </span>
+      <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
       <strong className="mt-1 block text-xs text-foreground">{value}</strong>
     </div>
   );
 }
 
-function Info({
-  label,
-  value,
-  tone = "normal",
-}: {
-  label: string;
-  value: string;
-  tone?: "normal" | "attention";
-}) {
+function Info({ label, value, tone = "normal" }: { label: string; value: string; tone?: "normal" | "attention" }) {
   return (
-    <div
-      className={
-        tone === "attention"
-          ? "rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-2.5"
-          : "rounded-xl border border-white/[0.06] bg-white/[0.018] p-2.5"
-      }
-    >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        {label}
-      </p>
-      <p
-        className={
-          tone === "attention"
-            ? "mt-1 truncate text-xs font-semibold text-amber-100"
-            : "mt-1 truncate text-xs font-semibold"
-        }
-      >
-        {value}
-      </p>
+    <div className={tone === "attention" ? "rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-2.5" : "rounded-xl border border-white/[0.06] bg-white/[0.018] p-2.5"}>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
+      <p className={tone === "attention" ? "mt-1 truncate text-xs font-semibold text-amber-100" : "mt-1 truncate text-xs font-semibold"}>{value}</p>
     </div>
   );
 }
