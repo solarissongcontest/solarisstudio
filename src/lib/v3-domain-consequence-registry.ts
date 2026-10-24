@@ -64,6 +64,7 @@ const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = 
   "notification.failed": ["notification.delivery_failed"],
   "prediction.changed": [],
   "prediction.scored": [],
+  "fantasy.scored": [],
 };
 
 const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
@@ -102,6 +103,11 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
   "entry.changes_requested": [
     "supabase/migrations/20261015201221_v3_s5_entry_consequences.sql",
     ".github/scripts/v3-s5-entry-consequences-rehearsal.sh",
+  ],
+  "fantasy.scored": [
+    "supabase/migrations/20261024200500_v3_fantasy_scoring_authority.sql",
+    "src/lib/v3-s5-fantasy-score-consequences.test.ts",
+    ".github/scripts/v3-s5-fantasy-score-consequences-rehearsal.sh",
   ],
   "media.reviewed": [
     "supabase/migrations/20261016050000_v3_s5_media_review_consequences.sql",
