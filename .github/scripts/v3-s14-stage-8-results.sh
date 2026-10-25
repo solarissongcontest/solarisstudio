@@ -172,11 +172,11 @@ recover_results_worker_after_crash() {
   event_id="$(db_scalar "select id::text from private.v3_domain_events where operation_id='$operation_id'::uuid and event_type='results.calculated';")"
   [[ -n "$event_id" ]] || fail "Results worker-crash injection has no calculated DomainEvent"
 
-  first_claim="$(service_value "select event_id::text from public.studio2_claim_domain_event_deliveries('results.tasks','s14-crash-worker',100,1);")"
+  first_claim="$(service_value "select event_id::text from public.studio2_claim_domain_event_deliveries('results.tasks','s14-crash-worker',100,5);")"
   printf '%s\n' "$first_claim" | grep -Fxq "$event_id" || fail "crash worker did not lease Results event $event_id"
   # Deliberately do not process the lease. This models a worker dying after
   # claim. After expiry, the same durable outbox row must become claimable.
-  sleep 2
+  sleep 6
   second_claim="$(service_value "select event_id::text from public.studio2_claim_domain_event_deliveries('results.tasks','s14-recovery-worker',100,60);")"
   printf '%s\n' "$second_claim" | grep -Fxq "$event_id" || fail "expired Results lease was not reclaimable after worker crash"
   while IFS= read -r claimed; do

@@ -26,6 +26,22 @@ const resultsAdapter = source("scripts/v3-s14-materialize-televote-results.ts");
 const readiness = source("scripts/check-v3-s14-rehearsal-readiness.ts");
 
 describe("S14 stateful full-contest harness", () => {
+  it("models worker death with a legal lease and waits for canonical expiry", () => {
+    const claimContract = source("supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql");
+    const bounds = claimContract.match(/p_lease_seconds not between (\d+) and (\d+)/);
+    const lease = stage8.match(/'s14-crash-worker',100,(\d+)/);
+    const wait = stage8.match(/sleep (\d+)\n  second_claim=/);
+    expect(bounds).not.toBeNull();
+    expect(lease).not.toBeNull();
+    expect(wait).not.toBeNull();
+    expect(Number(lease![1])).toBeGreaterThanOrEqual(Number(bounds![1]));
+    expect(Number(lease![1])).toBeLessThanOrEqual(Number(bounds![2]));
+    expect(Number(wait![1])).toBeGreaterThan(Number(lease![1]));
+    expect(stage8).toContain("expired Results lease was not reclaimable after worker crash");
+    expect(stage8).toContain("recovered Results delivery has no consumer receipt");
+    expect(stage8).not.toMatch(/update\s+private\.v3_domain_event_outbox/i);
+  });
+
   it("keeps one bounded 66-delegation contest instead of copying production", () => {
     expect(V3_S14_SEED_CONTRACT.editionCount).toBe(1);
     expect(V3_S14_SEED_CONTRACT.delegationCount).toBe(66);
