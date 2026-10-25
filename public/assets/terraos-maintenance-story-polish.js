@@ -13,7 +13,7 @@
     title.textContent = 'TerraOS\u00a03';
     title.style.maxWidth = 'none';
     title.style.whiteSpace = 'nowrap';
-    title.style.fontSize = 'clamp(2.6rem, 14vw, 9.8rem)';
+    title.style.fontSize = 'clamp(3.35rem, 18vw, 10.5rem)';
   }
 
   function installConfirmationContrastStyle() {
@@ -141,8 +141,8 @@
   }
 
   // The maintenance hero is intentionally one indivisible brand lockup. Use a
-  // non-breaking space in the actual text node, then scale it to fit narrow
-  // phones instead of depending on wrapping rules alone.
+  // non-breaking space in the actual text node while keeping the oversized hero
+  // scale that gives the product mark its intended visual presence.
   lockHeroWordmarkToSingleLine();
 
   // Confirmation remains available during maintenance, so the dark card must
