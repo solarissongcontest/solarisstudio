@@ -76,6 +76,8 @@ describe("S14 canonical qualifier-to-final preparation", () => {
 
   it("promotes qualifiers through the actual Organizer lineup action instead of privileged QA writes", () => {
     expect(lineup).toContain("addQualifiers");
+    expect(lineup).toContain("resolveLineupShowSelection");
+    expect(lineup).toContain("loading: loadingEdition || loadingShows");
     expect(lineup).toContain("Add semi-final qualifiers");
     expect(finalLeg).toContain("playwright.s14-grand-final.config.ts");
     expect(browser).toContain('/admin/entries/${editionSlug}?show=');

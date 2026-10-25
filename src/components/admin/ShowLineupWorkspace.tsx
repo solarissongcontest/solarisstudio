@@ -46,6 +46,7 @@ import {
 } from "@/lib/data";
 import { DEFAULT_ACCENT, entityDisplayMap, type ContestEntityRow } from "@/lib/entities";
 import { reportSupabaseError } from "@/lib/errors";
+import { resolveLineupShowSelection } from "@/lib/show-lineup-selection";
 
 type LineupStage = "lineup" | "allocation" | "running_order";
 type Allocation = "first_half" | "second_half" | "producer_choice";
@@ -114,16 +115,14 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   const [runningOrderDirty, setRunningOrderDirty] = useState(false);
 
   useEffect(() => {
-    if (!orderedShows.length) {
-      setShowId("");
-      return;
-    }
-    if (initialShow && orderedShows.some((show) => show.id === initialShow) && showId !== initialShow) {
-      setShowId(initialShow);
-      return;
-    }
-    if (!orderedShows.some((show) => show.id === showId)) setShowId(orderedShows[0].id);
-  }, [orderedShows, initialShow, showId]);
+    const nextShowId = resolveLineupShowSelection({
+      selected: showId,
+      initial: initialShow,
+      shows: orderedShows,
+      loading: loadingEdition || loadingShows,
+    });
+    if (nextShowId !== showId) setShowId(nextShowId);
+  }, [orderedShows, initialShow, showId, loadingEdition, loadingShows]);
 
   const displayMap = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
   const lifecycleParticipants = showParticipants as LifecycleParticipant[];

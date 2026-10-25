@@ -14,6 +14,10 @@ on:
       - "scripts/check-v3-s15-*.ts"
       - "scripts/build-v3-s15-zero-orphan-evidence.ts"
       - "src/lib/v3-s14-*.test.ts"
+      - "src/components/admin/ShowLineupWorkspace.tsx"
+      - "src/lib/show-lineup-selection*"
+      - "playwright.s14-grand-final.config.ts"
+      - "e2e/v3-s14-grand-final-runtime.e2e.ts"
       - "src/lib/v3-s15-*.test.ts"
   workflow_dispatch:
 
@@ -98,8 +102,8 @@ jobs:
 
       - name: Verify focused qualifier and Grand Final contracts
         run: |
-          bunx vitest run src/lib/v3-s14-grand-final-prep.contract.test.ts
-          bunx eslint src/lib/v3-s14-grand-final-prep.contract.test.ts
+          bunx vitest run src/lib/v3-s14-grand-final-prep.contract.test.ts src/lib/show-lineup-selection.test.ts
+          bunx eslint src/lib/v3-s14-grand-final-prep.contract.test.ts src/lib/show-lineup-selection.ts src/lib/show-lineup-selection.test.ts
 
       - name: Run complete one-state S14 contest lifecycle
         id: rehearsal
