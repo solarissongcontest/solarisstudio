@@ -10,9 +10,10 @@
   function lockHeroWordmarkToSingleLine() {
     const title = document.getElementById('maintenance-title');
     if (!(title instanceof HTMLElement)) return;
+    title.textContent = 'TerraOS\u00a03';
     title.style.maxWidth = 'none';
     title.style.whiteSpace = 'nowrap';
-    title.style.fontSize = 'clamp(3rem, 16vw, 9.8rem)';
+    title.style.fontSize = 'clamp(2.6rem, 14vw, 9.8rem)';
   }
 
   function installConfirmationContrastStyle() {
@@ -127,8 +128,9 @@
     return true;
   }
 
-  // The maintenance hero is intentionally a single brand lockup. Scale it with
-  // the viewport instead of allowing the trailing version number to wrap.
+  // The maintenance hero is intentionally one indivisible brand lockup. Use a
+  // non-breaking space in the actual text node, then scale it to fit narrow
+  // phones instead of depending on wrapping rules alone.
   lockHeroWordmarkToSingleLine();
 
   // Confirmation remains available during maintenance, so its explanatory copy
