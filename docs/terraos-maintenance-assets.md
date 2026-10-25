@@ -2,7 +2,7 @@
 
 These local assets are used only by the temporary TerraOS 3 maintenance/product-story surface.
 
-The three photographic/image-led assets below are **existing Solaris Studio project assets** reused inside the same repository and product. This maintenance change does not introduce a new third-party image source, hotlink, or external licensing dependency. Any underlying ownership/licensing record for the original project asset remains authoritative; this document records the maintenance-page reuse rather than inventing a new license claim.
+The maintenance experience deliberately serves its runtime visual assets locally. It does not hotlink third-party photography or depend on a remote image CDN.
 
 ## atmosphere.jpeg
 
@@ -15,21 +15,23 @@ The three photographic/image-led assets below are **existing Solaris Studio proj
 
 ## moment-a.png
 
-- Source: existing Solaris Studio repository asset `public/IMG_6171.png`
-- Reuse/licensing status: existing project asset; reused within Solaris Studio under the source asset's existing rights/permissions
-- Storage: copied by Git blob identity into `public/assets/terraos-maintenance/moment-a.png`
+- Source artwork: original Solaris Studio artwork `public/terraos-maintenance/blue-motion.svg`
+- Storage: rendered locally into `public/assets/terraos-maintenance/moment-a.png`
 - Runtime use: immersive blue chapter and Me atmosphere
 - Runtime hosting: local `/assets/` path; no third-party hotlink
-- Transformation: filename/location only; source bytes unchanged
+- Visual intent: luminous blue motion field with soft silhouettes; replaces the previous blank/incorrect project-image reuse
 
 ## moment-b.png
 
-- Source: existing Solaris Studio repository asset `public/IMG_9177.png`
-- Reuse/licensing status: existing project asset; reused within Solaris Studio under the source asset's existing rights/permissions
-- Storage: copied by Git blob identity into `public/assets/terraos-maintenance/moment-b.png`
+- Source artwork: original Solaris Studio artwork `public/terraos-maintenance/live-stage.svg`
+- Storage: rendered locally into `public/assets/terraos-maintenance/moment-b.png`
 - Runtime use: mid-story visual transition and Explore atmosphere
 - Runtime hosting: local `/assets/` path; no third-party hotlink
-- Transformation: filename/location only; source bytes unchanged
+- Visual intent: dark contest-stage environment with cyan/violet beams and a silhouetted audience; replaces the previous unrelated TSBC-logo reuse
+
+## Licensed-photo candidates
+
+The earlier visual review also identified optional Unsplash photography for the blue-motion and live-stage chapters. Those sources remain documented in `public/terraos-maintenance/ASSETS.md`, but they are not hotlinked or shipped by this fix. The locally rendered Solaris artwork remains the production-safe source until an approved photographic binary is deliberately added to the repository.
 
 ## Presentation assets
 
