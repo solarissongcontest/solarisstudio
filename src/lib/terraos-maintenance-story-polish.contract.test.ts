@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const page = readFileSync("src/lib/maintenance-page.ts", "utf8");
 const baseCss = readFileSync("public/assets/terraos-maintenance.css", "utf8");
 const polish = readFileSync("public/assets/terraos-maintenance-story-polish.js", "utf8");
+const storyData = readFileSync("src/lib/terraos-maintenance-stories.ts", "utf8");
 
 describe("TerraOS maintenance Story interaction polish", () => {
   it("loads the small interaction layer after the canonical Story runtime", () => {
@@ -30,6 +31,7 @@ describe("TerraOS maintenance Story interaction polish", () => {
     expect(polish).toContain("Entry ready");
     expect(polish).toContain("✓ Complete");
     expect(polish).toContain("data-participate-ready");
+    expect(storyData).toContain("No scavenger hunts. Just the next step.");
   });
 
   it("extends Me into a continuous SSC 19 through SSC 22 fixture timeline", () => {
@@ -38,6 +40,19 @@ describe("TerraOS maintenance Story interaction polish", () => {
       expect(polish).toContain(edition);
     }
     expect(polish).toContain("data-me-timeline-ready");
+  });
+
+  it("finishes Me with the five-destination system and TerraOS brand lockup", () => {
+    expect(storyData).toContain("Five perspectives. One Solaris.");
+    expect(polish).toContain("data-me-finale-ready");
+    expect(polish).toContain("data-me-brand-finale");
+    expect(polish).toContain("TerraOS 3");
+    expect(polish).toContain("Solaris, reimagined.");
+    expect(polish).toContain("finale.insertBefore(destinations, heading)");
+  });
+
+  it("keeps the canonical Results finale", () => {
+    expect(storyData).toContain("See what happened. Understand why.");
   });
 
   it("binds enrichment lazily when the Story layer is first created", () => {
