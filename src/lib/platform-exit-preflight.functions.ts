@@ -77,17 +77,23 @@ export const runPlatformExitPreflight = createServerFn({ method: "POST" })
     return { targetMode: data.targetMode };
   })
   .handler(async ({ data }): Promise<PlatformExitPreflightReceipt> => {
-    const {
-      createSolarisAuthenticatedClientServer,
-      requireSolarisOrganizerServer,
-    } = await import("@/integrations/supabase/organizer.server");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { loadUnifiedSyncHealthServer } = await import(
-      "@/integrations/unified/sync-health.functions"
+    const { requireSolarisCapabilityServer } = await import(
+      "@/integrations/supabase/capabilities.server"
+    );
+    const { createSolarisAuthenticatedClientServer } = await import(
+      "@/integrations/supabase/organizer.server"
     );
 
-    const organizer = await requireSolarisOrganizerServer();
+    // This wrapper can reach service-role-only Storage and preflight recording.
+    // Prove the same canonical global capability required by the SQL authority
+    // before importing either privileged dependency.
+    const capability = await requireSolarisCapabilityServer("maintenance.manage");
     const authenticated = createSolarisAuthenticatedClientServer() as any;
+
+    const [{ supabaseAdmin }, { loadUnifiedSyncHealthServer }] = await Promise.all([
+      import("@/integrations/supabase/client.server"),
+      import("@/integrations/unified/sync-health.functions"),
+    ]);
 
     const { data: databaseChecks, error: databaseError } = await authenticated.rpc(
       "studio2_platform_exit_database_preflight",
@@ -171,7 +177,7 @@ export const runPlatformExitPreflight = createServerFn({ method: "POST" })
     const { data: recorded, error: recordError } = await (supabaseAdmin as any).rpc(
       "studio2_record_platform_exit_preflight",
       {
-        p_actor_id: organizer.id,
+        p_actor_id: capability.userId,
         p_target_mode: data.targetMode,
         p_database_checks: databaseChecks,
         p_external_checks: externalChecks,

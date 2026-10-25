@@ -11,6 +11,7 @@ export const SOLARIS_CAPABILITIES = [
   'entry.edit',
   'entry.approve',
   'entry.publish',
+  'next_in_line.manage',
   'voting.read',
   'voting.manage',
   'jury.ballots.read',
@@ -38,6 +39,7 @@ export const SOLARIS_CAPABILITIES = [
   'broadcast.read',
   'broadcast.control',
   'broadcast.manage',
+  'maintenance.manage',
   'system.read',
   'system.manage',
   'community.read',
@@ -91,4 +93,3 @@ export function requireCapability(
     throw new Error(`Missing Solaris capability: ${capability}`);
   }
 }
-

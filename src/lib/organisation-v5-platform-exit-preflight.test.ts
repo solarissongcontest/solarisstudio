@@ -12,6 +12,7 @@ describe("Organisation OS V5 Maintenance exit preflight", () => {
     "supabase/migrations/20261003210000_organisation_os_v5_read_only_enforcement.sql",
   );
   const server = source("src/lib/platform-exit-preflight.functions.ts");
+  const permissions = source("src/lib/permissions-v2.ts");
   const syncHealth = source("src/integrations/unified/sync-health.functions.ts");
   const client = source("src/lib/platform-operational-mode.ts");
   const system = source("src/routes/_authenticated/admin/system.tsx");
@@ -50,18 +51,33 @@ describe("Organisation OS V5 Maintenance exit preflight", () => {
     expect(migration).toContain("p_exit_preflight_id uuid");
   });
 
-  it("keeps the cross-service attestation server-only", () => {
+  it("keeps the cross-service attestation server-only and capability-bound", () => {
     expect(migration).toContain("studio2_record_platform_exit_preflight");
-    expect(migration).toContain(
-      "from public, anon, authenticated",
-    );
+    expect(migration).toContain("from public, anon, authenticated");
     expect(migration).toContain("to service_role");
-    expect(server).toContain("requireSolarisOrganizerServer");
+    expect(migration).toContain("studio2_access_allowed('maintenance.manage', null, false)");
+    expect(migration).toContain(
+      "private.studio2_user_has_capability(p_actor_id, 'maintenance.manage', null)",
+    );
+
+    expect(permissions).toContain("'maintenance.manage'");
+    expect(server).toContain('requireSolarisCapabilityServer("maintenance.manage")');
+    expect(server).not.toContain("requireSolarisOrganizerServer");
+    expect(server).toContain("p_actor_id: capability.userId");
     expect(server).toContain("loadUnifiedSyncHealthServer");
     expect(server).toContain("storage.listBuckets");
     expect(server).toContain("staleTelevotingBindings");
     expect(server).toContain("studio2_record_platform_exit_preflight");
     expect(syncHealth).toContain("export async function loadUnifiedSyncHealthServer");
+
+    const authorizationIndex = server.indexOf(
+      'requireSolarisCapabilityServer("maintenance.manage")',
+    );
+    const serviceRoleImportIndex = server.indexOf(
+      'import("@/integrations/supabase/client.server")',
+    );
+    expect(authorizationIndex).toBeGreaterThanOrEqual(0);
+    expect(serviceRoleImportIndex).toBeGreaterThan(authorizationIndex);
   });
 
   it("rechecks database-critical health at the actual mode mutation", () => {
