@@ -3,6 +3,11 @@ import {
   MAINTENANCE_RETURN_DATE,
   TERRAOS3_ESTIMATED_LAUNCH_AT,
 } from "./maintenance";
+import {
+  serializeTerraOsMaintenanceStories,
+  TERRAOS_MAINTENANCE_STORIES,
+  type TerraOsStoryId,
+} from "./terraos-maintenance-stories";
 import { getTerraOsPublicReadiness } from "./terraos-release-readiness";
 
 function escapeHtml(value: string) {
@@ -14,15 +19,7 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#039;");
 }
 
-const PREVIEW_SCREENS = [
-  ["home", "Home", "What matters now."],
-  ["explore", "Explore", "Discover Solaris."],
-  ["participate", "Participate", "Know what needs you."],
-  ["results", "Results", "See what happened."],
-  ["me", "Me", "Your Solaris."],
-] as const;
-
-type PreviewScreen = (typeof PREVIEW_SCREENS)[number][0];
+type PreviewScreen = TerraOsStoryId;
 type FeatureTone = "now" | "participate" | "explore" | "results" | "me";
 
 const ATMOSPHERE_PHOTO = "/assets/terraos-maintenance/atmosphere.jpeg";
@@ -48,16 +45,17 @@ function rhythmFieldMarkup(className = "", strength = 1, direction = 1) {
 }
 
 function galleryMarkup() {
-  return PREVIEW_SCREENS.map(
-    ([screen, title, description], index) => `
-      <article class="look-card look-card-${screen}" data-look-card>
+  return TERRAOS_MAINTENANCE_STORIES.map(
+    (story) => `
+      <article class="look-card look-card-${story.id}" data-look-card data-story-card="${story.id}" data-story-view="${story.id}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Explore ${escapeHtml(story.title)} story">
         <div class="look-copy">
-          <span class="look-index">0${index + 1}</span>
-          <h3>${title}</h3>
-          <p>${description}</p>
+          <span class="look-index">0${story.number}</span>
+          <h3>${escapeHtml(story.title)}</h3>
+          <p>${escapeHtml(story.eyebrow)}.</p>
+          <span class="look-story-button" data-story-card-cta aria-hidden="true">Explore ${escapeHtml(story.title)} →</span>
         </div>
         <div class="look-preview" aria-hidden="true">
-          ${previewFrame(screen, `TerraOS ${title} preview`)}
+          ${previewFrame(story.id, `TerraOS ${story.title} preview`)}
         </div>
       </article>`,
   ).join("");
@@ -107,6 +105,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
   const arrivalMarkup = estimateStillFuture
     ? `<span class="arrival-label">Estimated arrival</span><strong>${returnDate}</strong>`
     : `<strong>TerraOS 3 is being prepared.</strong>`;
+  const storyData = serializeTerraOsMaintenanceStories();
 
   return `<!doctype html>
 <html lang="en" data-terraos-launch-at="${launchAt}" data-terraos-readiness="${readiness.percent}">
@@ -126,6 +125,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=img2340-20260929" sizes="180x180" />
   <link rel="manifest" href="/site.webmanifest?v=img2340-20260929" />
   <link rel="stylesheet" href="/assets/terraos-maintenance.css" />
+  <link rel="stylesheet" href="/assets/terraos-maintenance-story.css" data-terraos-story-styles="true" />
   <title>TerraOS 3 — Solaris Studio</title>
 </head>
 <body>
@@ -188,7 +188,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
 
     <section class="look" id="preview" aria-labelledby="look-title">
       ${rhythmFieldMarkup("gallery-rhythm", 0.62, 1)}
-      <div class="look-head scroll-in"><div><p class="section-kicker">TerraOS 3</p><h2 class="display-heading" id="look-title">Take a closer look.</h2></div><div class="look-controls" aria-label="Preview gallery controls"><button class="look-control" type="button" data-gallery-prev aria-label="Previous preview">←</button><button class="look-control" type="button" data-gallery-next aria-label="Next preview">→</button></div></div><div class="look-track" data-look-track tabindex="0" aria-label="TerraOS 3 destinations">${galleryMarkup()}</div>
+      <div class="look-head scroll-in"><div><p class="section-kicker">TerraOS 3</p><h2 class="display-heading" id="look-title">Take a closer look.</h2></div><div class="look-controls" aria-label="Preview gallery controls"><button class="look-control" type="button" data-gallery-prev aria-label="Previous preview">←</button><button class="look-control" type="button" data-gallery-next aria-label="Next preview">→</button></div></div><div class="look-track" data-look-track tabindex="0" aria-label="TerraOS 3 destinations">${galleryMarkup()}</div><div class="look-mobile-progress" data-story-carousel-progress aria-live="polite" aria-atomic="true">1 / ${TERRAOS_MAINTENANCE_STORIES.length}</div>
     </section>
 
     <section class="live" aria-labelledby="live-title" data-live-section data-photo-section>
@@ -205,7 +205,9 @@ export function renderMaintenancePage(now: Date = new Date()): string {
 
   <footer><div><strong>Terra Solaris Broadcasting Coalition</strong>Solaris Studio · TerraOS 3</div><div>Maintenance notice updated ${updated} · HTTP 503</div></footer>
 </div>
+<script id="terraos-story-data" type="application/json">${storyData}</script>
 <script src="/assets/terraos-maintenance.js"></script>
+<script src="/assets/terraos-maintenance-story.js" data-terraos-story-script="true"></script>
 </body>
 </html>`;
 }
