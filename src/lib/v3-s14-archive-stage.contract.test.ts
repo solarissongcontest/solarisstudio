@@ -109,7 +109,8 @@ describe("S14 Stage 10 archive certification against current canonical V3 System
     expect(archive).toContain("replay exact archive operation");
     expect(archive).toContain("archive exact retry replays durable receipt");
     expect(archive).toContain("studio2_reconcile_operation");
-    expect(archive).toContain("archive operation cannot be reconciled from its durable receipt");
+    expect(archive).toContain('expect_json "Archive recovered operation" operationId "$S14_ARCHIVE_OPERATION_ID"');
+    expect(archive).toContain('expect_json "Archive recovered status" status succeeded');
     expect(archiveMigration).toContain("studio2_claim_operation");
     expect(archiveMigration).toContain("'replayed', true");
     expect(transitionConflictMigration).toContain("PT409");

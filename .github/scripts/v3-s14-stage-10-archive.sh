@@ -210,8 +210,12 @@ run_s14_stage_10_archive() {
   [[ "$(db_scalar "select count(*) from public.studio2_contest_events where edition_id='$EDITION_ID'::uuid and type='edition.archived';")" == "$legacy_event_count_before_replay" ]] || \
     fail "archive exact retry duplicated legacy audit evidence"
 
-  reconciled_archive_status="$(db_scalar "select public.studio2_reconcile_operation('$S14_ARCHIVE_OPERATION_ID'::uuid)->>'status';")"
-  [[ "$reconciled_archive_status" == "succeeded" ]] || fail "archive operation cannot be reconciled from its durable receipt"
+  # Receipt recovery is actor-scoped, including when the caller is a service.
+  rpc_request "$ORGANIZER_A_TOKEN" studio2_reconcile_operation \
+    "{\"p_operation_id\":\"$S14_ARCHIVE_OPERATION_ID\"}"
+  expect_success "recover Archive through authenticated receipt RPC"
+  expect_json "Archive recovered operation" operationId "$S14_ARCHIVE_OPERATION_ID"
+  expect_json "Archive recovered status" status succeeded
 
   claimed_archive_events="$(db_scalar "select coalesce(string_agg(event_id::text,',' order by event_id::text),'') from public.studio2_claim_domain_event_deliveries('edition.tasks','$S14_ARCHIVE_WORKER_ID',100,60);")"
   printf '%s' "$claimed_archive_events" | tr ',' '\n' | grep -Fxq "$archive_event_id" || \

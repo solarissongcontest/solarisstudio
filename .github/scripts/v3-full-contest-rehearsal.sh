@@ -273,8 +273,12 @@ reconcile_edition_runtime_to_results() {
   expect_json "S14 Results reconciliation exact retry replays durable receipt" replayed true
   replay_event_count="$(db_scalar "select count(*) from public.studio2_contest_events where edition_id='$EDITION_ID'::uuid and type='edition.state_changed';")"
   [[ "$replay_event_count" == "$((event_count_before+1))" ]] || fail "Results reconciliation exact retry duplicated lifecycle audit evidence"
-  [[ "$(db_scalar "select public.studio2_reconcile_operation('$S14_RESULTS_RECONCILE_OPERATION_ID'::uuid)->>'status';")" == "succeeded" ]] || \
-    fail "Results reconciliation cannot be recovered from its durable operation receipt"
+  # Receipt recovery is actor-scoped, including when the caller is a service.
+  rpc_request "$ORGANIZER_A_TOKEN" studio2_reconcile_operation \
+    "{\"p_operation_id\":\"$S14_RESULTS_RECONCILE_OPERATION_ID\"}"
+  expect_success "recover Results reconciliation through authenticated receipt RPC"
+  expect_json "Results reconciliation recovered operation" operationId "$S14_RESULTS_RECONCILE_OPERATION_ID"
+  expect_json "Results reconciliation recovered status" status succeeded
 
   assert_same_persistent_contest
   log "S14_RESULTS_RUNTIME_RECONCILIATION_COMPLETE"
