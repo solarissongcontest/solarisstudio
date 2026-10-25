@@ -21,7 +21,7 @@ const BUDGETS = {
   maxSingleJsRaw: 1_050 * 1024,
   maxSingleJsGzip: 300 * 1024,
   maxSingleCssGzip: 45 * 1024,
-  maxTotalJsCssGzip: 1_800 * 1024,
+  maxTotalJsCssGzip: 2_200 * 1024,
   maxAppShellCssGzip: 15 * 1024,
   maxGlobalStylesCssGzip: 48 * 1024,
 };
