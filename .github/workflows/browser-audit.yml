@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: browser-audit-${{ github.event.workflow_run.head_branch || github.ref }}
