@@ -26,6 +26,29 @@ const resultsAdapter = source("scripts/v3-s14-materialize-televote-results.ts");
 const readiness = source("scripts/check-v3-s14-rehearsal-readiness.ts");
 
 describe("S14 stateful full-contest harness", () => {
+  it("returns only anonymous snapshot JSON when HTTP success is logged", () => {
+    const helpers = stage9.slice(0, stage9.indexOf("immutable_result_snapshot()"));
+    const success = runtime.slice(runtime.indexOf("expect_success()"), runtime.indexOf("expect_failure()"));
+    const script = `
+${helpers}
+${success}
+log() { printf 'PASS: %s\\n' "$*"; }
+fail() { exit 1; }
+API_URL=http://127.0.0.1:54321
+ANON_KEY=local-test
+SNAPSHOT_BODY="$1"
+request() { HTTP_STATUS=200; HTTP_BODY="$SNAPSHOT_BODY"; }
+anonymous_result_snapshot local-show
+`;
+    for (const payload of [[], [{ id: "current-result", total_points: 12 }]]) {
+      const output = execFileSync("bash", ["-c", script, "snapshot-test", JSON.stringify(payload)], {
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      expect(JSON.parse(output)).toEqual(payload);
+    }
+  });
+
   it("models worker death with a legal lease and waits for canonical expiry", () => {
     const claimContract = source("supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql");
     const bounds = claimContract.match(/p_lease_seconds not between (\d+) and (\d+)/);
