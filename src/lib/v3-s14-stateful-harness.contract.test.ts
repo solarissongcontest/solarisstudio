@@ -30,7 +30,7 @@ describe("S14 stateful full-contest harness", () => {
     const claimContract = source("supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql");
     const bounds = claimContract.match(/p_lease_seconds not between (\d+) and (\d+)/);
     const lease = stage8.match(/'s14-crash-worker',100,(\d+)/);
-    const wait = stage8.match(/sleep (\d+)\n  second_claim=/);
+    const wait = stage8.match(/sleep (\d+)\n {2}second_claim=/);
     expect(bounds).not.toBeNull();
     expect(lease).not.toBeNull();
     expect(wait).not.toBeNull();
@@ -190,7 +190,11 @@ describe("S14 stateful full-contest harness", () => {
     expect(driver).toContain('execute_result_action "$show_id" unlock');
     expect(driver).toContain('execute_result_action "$show_id" calculate');
     expect(driver).toContain("v1.result_rows = v2.result_rows");
-    expect(driver).toContain('lifecycle" == "2:2:2:2"');
+    expect(driver).toContain("next_version=$((base_version+1))");
+    expect(driver).toContain('v1.version=$base_version');
+    expect(driver).toContain('v2.version=$next_version');
+    expect(driver).toContain('SEMI_ONE_RESULT_VERSION="$next_version"');
+    expect(driver).toContain('lifecycle" == "$next_version:$next_version:$next_version:$next_version"');
     expect(driver).toContain("S14_RESULTS_VERSION_2_COMPLETE");
     expect(resultsAdapter).toContain("convertRound");
     expect(resultsAdapter).toContain("refusing non-local Supabase URL");

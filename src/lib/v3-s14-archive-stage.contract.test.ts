@@ -80,7 +80,7 @@ describe("S14 Stage 10 archive certification against current canonical V3 System
   it("refuses Archive unless the completed contest is honestly at Results with exact public result provenance", () => {
     expect(archive).toContain("requires canonical edition runtime state=results");
     expect(archive).toContain("result_row_count>0");
-    expect(archive).toContain("source_result_version=2");
+    expect(archive).toContain("source_result_version=(case show_id");
     expect(archive).toContain("private.v3_edition_final_results_ready");
     expect(archive).toContain("studio2_normalise_publication_config(frozen_config)");
     expect(readinessMigration).toContain("private.v3_edition_final_results_ready");

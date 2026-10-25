@@ -131,10 +131,10 @@ run_s14_stage_10_archive() {
   runtime_state="$(db_scalar "select state from public.studio2_edition_runtime where edition_id='$EDITION_ID'::uuid;")"
   [[ "$runtime_state" == "results" ]] || fail "S14 Stage 10 requires canonical edition runtime state=results, got '$runtime_state'"
 
-  [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid) and version=2 and result_row_count>0;")" == "3" ]] || \
-    fail "Stage 10 requires non-empty immutable result version 2 for all three shows"
-  [[ "$(db_scalar "select count(*) from public.studio2_show_publication_controls where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid) and state='public' and source_result_version=2 and coalesce((private.studio2_normalise_publication_config(frozen_config)->>'results')::boolean,false);")" == "3" ]] || \
-    fail "Stage 10 requires all three Results layers publicly bound to result version 2"
+  [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid) and version=(case show_id when '$SEMI_ONE_ID'::uuid then $SEMI_ONE_RESULT_VERSION when '$SEMI_TWO_ID'::uuid then $SEMI_TWO_RESULT_VERSION else 2 end) and result_row_count>0;")" == "3" ]] || \
+    fail "Stage 10 requires non-empty immutable result captured versions for all three shows"
+  [[ "$(db_scalar "select count(*) from public.studio2_show_publication_controls where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid) and state='public' and source_result_version=(case show_id when '$SEMI_ONE_ID'::uuid then $SEMI_ONE_RESULT_VERSION when '$SEMI_TWO_ID'::uuid then $SEMI_TWO_RESULT_VERSION else 2 end) and coalesce((private.studio2_normalise_publication_config(frozen_config)->>'results')::boolean,false);")" == "3" ]] || \
+    fail "Stage 10 requires all three Results layers publicly bound to exact captured result versions"
   [[ "$(db_scalar "select private.v3_edition_final_results_ready('$EDITION_ID'::uuid)::text;")" == "true" ]] || \
     fail "Stage 10 requires canonical final-results readiness before Archive"
 
