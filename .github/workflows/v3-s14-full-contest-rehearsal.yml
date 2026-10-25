@@ -48,6 +48,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install Chromium for canonical Organizer promotion
+        run: bunx playwright install --with-deps chromium
+
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
@@ -237,7 +240,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: v3-s14-stateful-${{ github.event.pull_request.head.sha || github.sha }}
-          path: v3-release-evidence/
+          path: |
+            v3-release-evidence/
+            test-results/v3-s14-grand-final/
+            playwright-s14-grand-final-summary.json
           if-no-files-found: error
           retention-days: 30
 

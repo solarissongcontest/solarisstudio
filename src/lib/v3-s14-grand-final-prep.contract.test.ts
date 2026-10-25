@@ -13,6 +13,15 @@ const qualification = readFileSync(
 const lineup = readFileSync("src/components/admin/ShowLineupWorkspace.tsx", "utf8");
 
 describe("S14 canonical qualifier-to-final preparation", () => {
+  it("provisions the pinned browser runner before invoking canonical promotion", () => {
+    const manifest = JSON.parse(readFileSync("package.json", "utf8"));
+    expect(manifest.devDependencies["@playwright/test"]).toBe("1.55.0");
+    const workflow = readFileSync(".github/workflows/v3-s14-full-contest-rehearsal.yml", "utf8");
+    expect(workflow).toContain("bunx playwright install --with-deps chromium");
+    expect(workflow.indexOf("Install Chromium")).toBeLessThan(workflow.indexOf("Run complete one-state S14"));
+    expect(workflow).toContain("test-results/v3-s14-grand-final/");
+  });
+
   it("reconciles missing eligible source identities in the qualification owner", () => {
     const repair = readFileSync("supabase/migrations/20261025113648_reconcile_semifinal_qualification_flags.sql", "utf8");
     expect(repair).toContain("public.refresh_edition_qualifications");
