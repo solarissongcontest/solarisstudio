@@ -21,11 +21,23 @@
     const style = document.createElement('style');
     style.id = 'terraos-confirmation-contrast';
     style.textContent = `
+      .hod-portal {
+        color: #ffffff !important;
+      }
+
+      .hod-portal h2,
+      .hod-portal .hod-country,
+      .hod-portal .hod-summary strong,
+      .hod-portal .hod-entry-title,
+      .hod-portal .hod-signin-intro strong {
+        color: #ffffff !important;
+      }
+
       .hod-portal .hod-portal-copy,
       .hod-portal .hod-checking,
       .hod-portal .hod-note,
       .hod-portal .hod-summary span {
-        color: rgba(248, 252, 255, .94) !important;
+        color: #ffffff !important;
       }
 
       .hod-portal .hod-muted,
@@ -36,7 +48,7 @@
       .hod-portal .hod-status-row span:first-child,
       .hod-portal .hod-round-explainer,
       .hod-portal .hod-last-update {
-        color: rgba(238, 247, 251, .80) !important;
+        color: rgba(255, 255, 255, .88) !important;
       }
     `;
     document.head.appendChild(style);
@@ -133,9 +145,9 @@
   // phones instead of depending on wrapping rules alone.
   lockHeroWordmarkToSingleLine();
 
-  // Confirmation remains available during maintenance, so its explanatory copy
-  // must stay legible against the dark card instead of inheriting overly faint
-  // global muted tokens.
+  // Confirmation remains available during maintenance, so the dark card must
+  // own its own foreground palette instead of inheriting black/grey text from
+  // the surrounding light section.
   installConfirmationContrastStyle();
 
   // The base Story runtime has already resolved the initial hash by the time
