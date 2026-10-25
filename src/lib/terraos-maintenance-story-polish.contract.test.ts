@@ -27,12 +27,12 @@ describe("TerraOS maintenance Story interaction polish", () => {
     expect(baseCss).toContain("pointer-events:none");
   });
 
-  it("makes the TerraOS 3 hero brand lockup structurally unbreakable", () => {
+  it("makes the TerraOS 3 hero brand lockup structurally unbreakable without shrinking away its hero scale", () => {
     expect(polish).toContain("lockHeroWordmarkToSingleLine");
     expect(polish).toContain("title.textContent = 'TerraOS\\u00a03'");
     expect(polish).toContain("title.style.maxWidth = 'none'");
     expect(polish).toContain("title.style.whiteSpace = 'nowrap'");
-    expect(polish).toContain("title.style.fontSize = 'clamp(2.6rem, 14vw, 9.8rem)'");
+    expect(polish).toContain("title.style.fontSize = 'clamp(3.35rem, 18vw, 10.5rem)'");
   });
 
   it("owns the full Confirmation card foreground palette on the dark maintenance surface", () => {
