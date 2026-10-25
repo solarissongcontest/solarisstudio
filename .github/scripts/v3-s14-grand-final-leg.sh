@@ -26,54 +26,6 @@ prepare_s14_grand_final_from_qualifiers() {
   sign_in 's14-organizer-a@solaris.invalid'
   ORGANIZER_A_TOKEN="$LAST_TOKEN"
 
-  # Temporary read-only diagnostic before the exact canonical qualifier guard.
-  log "S14_QUALIFIER_DIAGNOSTIC $(db_scalar "
-with semis as (
-  select s.*, coalesce(case when (s.voting_config->>'qualifiers') ~ '^[0-9]+$'
-    then (s.voting_config->>'qualifiers')::integer end,s.qualifier_count,0) cutoff
-  from public.shows s where s.edition_id='$EDITION_ID'::uuid
-    and s.id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid)
-), ranked as (
-  select p.show_id,p.id participant_id,p.country_id,p.contest_entity_id,
-    p.participation_status,p.qualified,r.id result_id,r.final_rank,s.cutoff,
-    coalesce(p.participation_status,'confirmed')='confirmed'
-      and r.final_rank between 1 and s.cutoff expected
-  from public.participants p join semis s on s.id=p.show_id
-  left join public.results r on r.show_id=p.show_id
-    and coalesce(r.country_id,r.contest_entity_id)=coalesce(p.country_id,p.contest_entity_id)
-  where p.edition_id='$EDITION_ID'::uuid
-), flags as (select * from ranked where qualified is true),
-expected as (select * from ranked where expected is true),
-automatic as (
-  select p.country_id from public.participants p where p.show_id='$FINAL_ID'::uuid
-    and not exists(select 1 from ranked r where r.country_id=p.country_id)
-)
-select jsonb_build_object(
- 'editionId','$EDITION_ID','finalId','$FINAL_ID',
- 'source','public.participants.qualified via public.refresh_edition_qualifications(uuid); current public.results',
- 'actualQualifierCount',(select count(*) from flags),
- 'qualifierCountryIds',(select coalesce(jsonb_agg(country_id order by country_id),'[]') from flags),
- 'rankDerivedQualifierCount',(select count(*) from expected),
- 'missingExpectedCountryIds',(select coalesce(jsonb_agg(country_id order by country_id),'[]') from expected where qualified is not true),
- 'staleFlagCountryIds',(select coalesce(jsonb_agg(country_id order by country_id),'[]') from flags where expected is not true),
- 'nonCurrentFlagCountryIds',(select coalesce(jsonb_agg(country_id order by country_id),'[]') from flags where coalesce(participation_status,'confirmed')<>'confirmed'),
- 'duplicateCountryIds',(select coalesce(jsonb_agg(country_id order by country_id),'[]') from (select country_id from flags group by country_id having count(*)>1) d),
- 'automaticFinalistIds',(select coalesce(jsonb_agg(country_id order by country_id),'[]') from automatic),
- 'automaticInQualifierIds',(select coalesce(jsonb_agg(f.country_id order by f.country_id),'[]') from flags f join automatic a using(country_id)),
- 'resultingFieldWithAutomatic',(select count(distinct country_id) from (select country_id from flags union select country_id from automatic) f),
- 'shows',(select jsonb_agg(jsonb_build_object(
-   'showId',s.id,'kind',s.kind,'cutoff',s.cutoff,'expectedFixtureCutoff',10,
-   'votingConfig',s.voting_config,'qualifierCountColumn',s.qualifier_count,
-   'flagCount',(select count(*) from flags f where f.show_id=s.id),
-   'flagCountryIds',(select coalesce(jsonb_agg(country_id order by country_id),'[]') from flags f where f.show_id=s.id),
-   'calculationVersion',(select calculation_version from public.studio2_result_operations o where o.show_id=s.id),
-   'publication',(select to_jsonb(c) from public.studio2_show_publication_controls c where c.show_id=s.id),
-   'immutableVersions',(select jsonb_agg(jsonb_build_array(version,result_row_count) order by version) from private.v3_result_versions v where v.show_id=s.id),
-   'rankedRows',(select jsonb_agg(to_jsonb(r) order by final_rank nulls last,country_id) from ranked r where r.show_id=s.id),
-   'cutoffBoundary',(select jsonb_agg(to_jsonb(r) order by final_rank,country_id) from ranked r where r.show_id=s.id and r.final_rank between s.cutoff-1 and s.cutoff+1)
- ) order by s.id) from semis s)
-)::text;")"
-
   # Qualification is not a QA choice. The canonical result-rank trigger must
   # already have marked exactly the configured top ten from each semi-final.
   [[ "$(db_scalar "select count(*) from public.participants where edition_id='$EDITION_ID'::uuid and show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and qualified is true;")" == "20" ]] || fail "grand-final preparation requires exactly 20 canonical semi-final qualifiers"

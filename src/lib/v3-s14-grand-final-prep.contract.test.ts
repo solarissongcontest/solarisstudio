@@ -13,6 +13,17 @@ const qualification = readFileSync(
 const lineup = readFileSync("src/components/admin/ShowLineupWorkspace.tsx", "utf8");
 
 describe("S14 canonical qualifier-to-final preparation", () => {
+  it("reconciles missing eligible source identities in the qualification owner", () => {
+    const repair = readFileSync("supabase/migrations/20261025113648_reconcile_semifinal_qualification_flags.sql", "utf8");
+    expect(repair).toContain("public.refresh_edition_qualifications");
+    expect(repair).toContain("current_participant.participation_status, 'confirmed') = 'confirmed'");
+    expect(repair).toContain("select 1 from ranked_semis ranked");
+    expect(repair).toContain("s.kind = 'semi-final'");
+    expect(repair).not.toMatch(/delete from|update private\.v3_result_versions/i);
+    const workflow = readFileSync(".github/workflows/v3-s14-full-contest-rehearsal.yml", "utf8");
+    expect(workflow.indexOf("v3-s14-qualification-regression.sh")).toBeLessThan(workflow.indexOf("Run complete one-state S14"));
+  });
+
   it("requires real result-ranked qualification before creating final appearances", () => {
     expect(finalLeg).toContain("exactly 20 canonical semi-final qualifiers");
     expect(finalLeg).toContain("ten canonical qualifiers from each semi-final");

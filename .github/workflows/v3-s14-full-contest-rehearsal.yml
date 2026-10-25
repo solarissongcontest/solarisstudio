@@ -85,6 +85,14 @@ jobs:
       - name: Regress canonical Results lineup before full rehearsal
         run: bash .github/scripts/v3-s14-results-lineup-regression.sh
 
+      - name: Regress canonical semi-final qualification before full rehearsal
+        run: bash .github/scripts/v3-s14-qualification-regression.sh
+
+      - name: Verify focused qualifier and Grand Final contracts
+        run: |
+          bunx vitest run src/lib/v3-s14-grand-final-prep.contract.test.ts
+          bunx eslint src/lib/v3-s14-grand-final-prep.contract.test.ts
+
       - name: Run complete one-state S14 contest lifecycle
         id: rehearsal
         shell: bash
