@@ -61,7 +61,7 @@
 
   function updateMotion() {
     frame = 0;
-    if (productBar) productBar.setAttribute('data-scrolled', window.scrollY > 28 ? 'true' : 'false');
+    if (productBar) productBar.setAttribute('data-scrolled', window.scrollY > 56 ? 'true' : 'false');
 
     if (reduceMotion.matches) {
       resetMotion();
