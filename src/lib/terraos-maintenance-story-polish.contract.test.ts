@@ -3,13 +3,21 @@ import { describe, expect, it } from "vitest";
 
 const page = readFileSync("src/lib/maintenance-page.ts", "utf8");
 const baseCss = readFileSync("public/assets/terraos-maintenance.css", "utf8");
-const polish = readFileSync("public/assets/terraos-maintenance-story-polish.js", "utf8");
-const storyData = readFileSync("src/lib/terraos-maintenance-stories.ts", "utf8");
+const polish = readFileSync(
+  "public/assets/terraos-maintenance-story-polish.js",
+  "utf8",
+);
+const storyData = readFileSync(
+  "src/lib/terraos-maintenance-stories.ts",
+  "utf8",
+);
 
 describe("TerraOS maintenance Story interaction polish", () => {
   it("loads the small interaction layer after the canonical Story runtime", () => {
     const runtimeIndex = page.indexOf("/assets/terraos-maintenance-story.js");
-    const polishIndex = page.indexOf("/assets/terraos-maintenance-story-polish.js");
+    const polishIndex = page.indexOf(
+      "/assets/terraos-maintenance-story-polish.js",
+    );
     expect(runtimeIndex).toBeGreaterThan(-1);
     expect(polishIndex).toBeGreaterThan(runtimeIndex);
   });
@@ -59,7 +67,9 @@ describe("TerraOS maintenance Story interaction polish", () => {
     expect(polish).toContain("MutationObserver");
     expect(polish).toContain("bindLayerEnhancer");
     expect(polish).toContain("attributeFilter: ['data-story']");
-    expect(polish).toContain("bodyObserver.observe(document.body, { childList: true })");
+    expect(polish).toContain(
+      "bodyObserver.observe(document.body, { childList: true })",
+    );
   });
 
   it("uses transform-only FLIP movement for Results perspective reordering", () => {
