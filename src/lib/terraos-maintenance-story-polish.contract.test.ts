@@ -34,6 +34,15 @@ describe("TerraOS maintenance Story interaction polish", () => {
     expect(polish).toContain("title.style.fontSize = 'clamp(3rem, 16vw, 9.8rem)'");
   });
 
+  it("keeps Confirmation card copy high-contrast on the dark maintenance surface", () => {
+    expect(polish).toContain("installConfirmationContrastStyle");
+    expect(polish).toContain("terraos-confirmation-contrast");
+    expect(polish).toContain(".hod-portal .hod-portal-copy");
+    expect(polish).toContain(".hod-portal .hod-summary span");
+    expect(polish).toContain("color: rgba(248, 252, 255, .94) !important");
+    expect(polish).toContain("color: rgba(238, 247, 251, .80) !important");
+  });
+
   it("gives direct Story deep links an intentional accessible focus target", () => {
     expect(polish).toContain("focusDirectDeepLink");
     expect(polish).toContain("[data-story-close]");
