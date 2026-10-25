@@ -64,8 +64,13 @@ export const TERRAOS_MAINTENANCE_STORIES: readonly TerraOsMaintenanceStory[] = [
     intro:
       "Explore brings editions, countries, songs, artists, shows, stories and archive discovery into one editorial place without replacing precise search.",
     legacySummary:
-      "Solaris already exposed rich discovery through dedicated edition, country, story, archive and reference routes. TerraOS keeps those capabilities while giving them a single discovery hierarchy.",
-    legacyItems: ["Editions", "Countries", "Stories", "Archive / reference"],
+      "Solaris already exposed rich discovery through dedicated edition, country, artist, song, story, Wiki and archive routes. TerraOS keeps those capabilities while giving them a single discovery hierarchy.",
+    legacyItems: [
+      "Editions · Countries",
+      "Artists · Songs",
+      "Stories · Shows",
+      "Wiki · Archive",
+    ],
     newItems: ["Search Solaris", "Current edition", "Discover", "Archive"],
     keyChanges: [
       "Search is first-class rather than requiring route memory.",
@@ -89,7 +94,12 @@ export const TERRAOS_MAINTENANCE_STORIES: readonly TerraOsMaintenanceStory[] = [
     legacySummary:
       "Confirmation, Entry and voting already worked as specialist destinations, including participant work inside MySolaris. TerraOS preserves those workflows while adding one responsibility-first layer above them.",
     legacyItems: ["Confirmation", "Entry", "Jury", "Televote"],
-    newItems: ["Your responsibilities", "Available participation", "Completed"],
+    newItems: [
+      "Your responsibilities",
+      "✓ Country confirmed",
+      "✓ Entry ready",
+      "Voting · Jury · Televote",
+    ],
     keyChanges: [
       "Required and optional participation are visibly different concepts.",
       "The next valid action comes from canonical workflow state.",
@@ -101,7 +111,7 @@ export const TERRAOS_MAINTENANCE_STORIES: readonly TerraOsMaintenanceStory[] = [
       "participate_voting",
     ],
     statement: "The workflow existed. The journey didn't.",
-    finale: "No scavenger hunts. Just the next step.",
+    finale: "You shouldn't need to remember where your responsibilities live.",
     nextStory: "results",
     nextLabel: "Continue to Results",
   },
@@ -115,7 +125,7 @@ export const TERRAOS_MAINTENANCE_STORIES: readonly TerraOsMaintenanceStory[] = [
       "The published outcome remains the hero. Jury, Televote and deeper analysis stay available as perspectives on the same canonical result rather than competing with the reveal.",
     legacySummary:
       "Solaris already offered official Results plus specialist products such as Scorecharts, Records, Relationships and Result Lab. TerraOS keeps those analytical capabilities while making the official published outcome the unmistakable starting point.",
-    legacyItems: ["Official Results", "Scorecharts", "Records", "Relationships / Result Lab"],
+    legacyItems: ["Official Results", "Scorecharts", "Records", "Relationships · Result Lab"],
     newItems: ["Official result", "Combined", "Jury", "Televote"],
     keyChanges: [
       "Published official truth is visually distinct from analysis.",
@@ -124,7 +134,7 @@ export const TERRAOS_MAINTENANCE_STORIES: readonly TerraOsMaintenanceStory[] = [
     ],
     fixtures: ["results_combined", "results_jury", "results_televote"],
     statement: "One result. Every perspective.",
-    finale: "See what happened. Understand why.",
+    finale: "The result is the story. Analysis comes after.",
     nextStory: "me",
     nextLabel: "Continue to Me",
   },
@@ -137,9 +147,14 @@ export const TERRAOS_MAINTENANCE_STORIES: readonly TerraOsMaintenanceStory[] = [
     intro:
       "Me brings identity, current delegation, history, activity and account context together so the user's Solaris story continues beyond the current task or edition.",
     legacySummary:
-      "Authenticated personal information already existed across MySolaris sections such as Account, Activity, History and other participant workspaces. TerraOS makes identity and continuity the primary Me concept while current responsibilities belong to Participate.",
-    legacyItems: ["Account", "Activity", "History", "Participant workspaces"],
-    newItems: ["Identity", "Current", "History", "Activity"],
+      "Authenticated personal information already existed across MySolaris sections such as Account, Activity, History, Notices, Saved, Voting, Entry and Theme. TerraOS makes identity and continuity the primary Me concept while current responsibilities belong to Participate.",
+    legacyItems: [
+      "Account · Activity",
+      "History · Notices",
+      "Saved · Voting",
+      "Entry · Theme",
+    ],
+    newItems: ["Identity", "Current delegation", "Participation history", "Activity"],
     keyChanges: [
       "Identity and current delegation context are immediately visible.",
       "Current responsibilities move to Participate instead of competing with identity.",
@@ -147,7 +162,7 @@ export const TERRAOS_MAINTENANCE_STORIES: readonly TerraOsMaintenanceStory[] = [
     ],
     fixtures: ["me_current", "me_history"],
     statement: "Solaris doesn't start over every edition.",
-    finale: "Five perspectives. One Solaris.",
+    finale: "Solaris, reimagined.",
     nextStory: null,
     nextLabel: "Return to TerraOS 3",
   },
