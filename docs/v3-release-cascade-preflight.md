@@ -33,7 +33,7 @@ flowchart LR
   E --> F[Browser Audit]
 ```
 
-Static and focused jobs have no dependency on one another. The full S14 job requires both and the combined summary to pass. It retains one database, one edition, every canonical stage, immediate failure on invalid state, all failure injections and the original exact-SHA evidence validator. S15 evidence is generated only after successful exact-head S14; its builder also independently verifies that prerequisite. Release-related Browser Audit runs after successful certification, or on an explicit final manual invocation/main push. Ordinary UI-only PRs retain their existing audits; the lightweight browser gate reads the canonical S14 path inventory instead of copying it. Discovery does not publish S15 release evidence.
+Static and focused jobs have no dependency on one another. The full S14 job requires both and the combined summary to pass. It retains one database, one edition, every canonical stage, immediate failure on invalid state, all failure injections and the original exact-SHA evidence validator. S15 evidence is generated only after successful exact-head S14; its builder also independently verifies that prerequisite. Release-related Browser Audit is called as a reusable workflow after successful same-head S14/S15 certification and validates those artifacts; it does not depend on a trigger being installed on main. It also runs or on an explicit final manual invocation/main push. Ordinary UI-only PRs retain their existing audits; the lightweight browser gate reads the canonical S14 path inventory instead of copying it. Discovery does not publish S15 release evidence.
 
 ## Initial discovery matrix
 

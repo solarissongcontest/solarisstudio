@@ -452,9 +452,20 @@ jobs:
           path: v3-release-evidence/
           if-no-files-found: error
 
+  browser-certification:
+    name: Browser verification after exact-head S14 and S15
+    needs: [s15-certification]
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: ./.github/workflows/browser-audit.yml
+    with:
+      certified_candidate_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
   certification-gate:
     name: One-state contest lifecycle through Archive + S15 zero-orphan
-    needs: [static-preflight, focused-preflight, discovery-summary, stateful-rehearsal, s15-certification]
+    needs: [static-preflight, focused-preflight, discovery-summary, stateful-rehearsal, s15-certification, browser-certification]
     if: always()
     runs-on: ubuntu-latest
     steps:

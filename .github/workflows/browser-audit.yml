@@ -5,17 +5,20 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_run:
-    workflows: ["V3 S14 stateful full-contest rehearsal"]
-    types: [completed]
+  workflow_call:
+    inputs:
+      certified_candidate_sha:
+        required: true
+        type: string
   workflow_dispatch:
 
 permissions:
   contents: read
   pull-requests: read
+  actions: read
 
 concurrency:
-  group: browser-audit-${{ github.event.workflow_run.head_branch || github.ref }}
+  group: browser-audit-${{ inputs.certified_candidate_sha || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -28,14 +31,30 @@ jobs:
       - name: Checkout exact source for release path discovery
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ inputs.certified_candidate_sha || github.event.pull_request.head.sha || github.sha }}
+      - name: Download late exact-SHA cascade evidence
+        if: inputs.certified_candidate_sha != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: v3-s15-certified-${{ inputs.certified_candidate_sha }}
+          path: v3-release-evidence/
       - name: Preserve ordinary UI audits and defer release candidates
         id: gate
+        env:
+          CERTIFIED_CANDIDATE_SHA: ${{ inputs.certified_candidate_sha }}
         uses: actions/github-script@v7
         with:
           script: |
-            if (context.eventName === 'workflow_run') {
-              core.setOutput('run_audit', context.payload.workflow_run.conclusion === 'success' && context.payload.workflow_run.head_repository.full_name === context.repo.owner + '/' + context.repo.repo);
+            const certified = process.env.CERTIFIED_CANDIDATE_SHA;
+            if (certified) {
+              const fs = require('fs');
+              const actual = require('child_process').execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim();
+              const s14 = JSON.parse(fs.readFileSync('v3-release-evidence/s14-full-contest.json', 'utf8'));
+              const s15 = JSON.parse(fs.readFileSync('v3-release-evidence/s15-zero-orphan.json', 'utf8'));
+              if (!/^[0-9a-f]{40}$/.test(certified) || actual !== certified || s14.candidateSha !== certified || s15.candidateSha !== certified || s14.passed !== true || s14.partial !== false || s14.runtimeFailure !== false || s14.lifecycle?.finalState !== 'archived' || (s15.schemaVersion ?? 0) < 4 || s15.zeroOrphans !== true || s15.findings.length !== 0 || s15.physicalOwnership?.zeroOwnershipConflicts !== true) {
+                throw new Error('Browser certification requires successful exact-head S14/S15 artifacts');
+              }
+              core.setOutput('run_audit', true);
               return;
             }
             if (context.eventName !== 'pull_request') {
@@ -68,7 +87,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ inputs.certified_candidate_sha || github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

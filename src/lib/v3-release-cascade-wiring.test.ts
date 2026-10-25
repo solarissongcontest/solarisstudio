@@ -26,16 +26,17 @@ describe("release cascade certification boundaries", () => {
   it("defers browser certification and checks out the exact certified source", () => {
     expect(browser).toContain("needs: [release-gate]");
     expect(browser).toContain("Release changes require successful exact-head cascade/S14/S15 before browsers.");
-    expect(browser).toContain("workflows: [\"V3 S14 stateful full-contest rehearsal\"]");
-    expect(browser).toContain("context.payload.workflow_run.conclusion === 'success'");
-    expect(browser).toContain("ref: ${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || github.sha }}");
+    expect(browser).toContain("  workflow_call:");
+    expect(workflow).toContain("uses: ./.github/workflows/browser-audit.yml");
+    expect(browser).toContain("Browser certification requires successful exact-head S14/S15 artifacts");
+    expect(browser).toContain("ref: ${{ inputs.certified_candidate_sha || github.event.pull_request.head.sha || github.sha }}");
   });
   it("defers backend release changes while retaining ordinary UI audits", async () => {
     const marker = "          script: |\n";
     const script = browser.slice(browser.indexOf(marker) + marker.length).split("\n  # Browser CI")[0]
       .split("\n").map((line) => line.replace(/^ {12}/, "")).join("\n");
     const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
-    const gate = new AsyncFunction("context", "core", "github", "require", script);
+    const gate = new AsyncFunction("context", "core", "github", "require", "process", script);
     for (const [filename, expected] of [["supabase/migrations/new.sql", false], ["src/components/public/OrdinaryCard.tsx", true]] as const) {
       let output: unknown;
       await gate(
@@ -43,13 +44,31 @@ describe("release cascade certification boundaries", () => {
         { setOutput: (_name: string, value: unknown) => { output = value; }, info: () => {} },
         { paginate: async () => [{ filename }], rest: { pulls: { listFiles: null } } },
         () => ({ readFileSync: () => workflow }),
+        { env: {} },
       );
       expect(output).toBe(expected);
     }
-    let output: unknown;
-    await gate({ eventName: "workflow_run", repo: { owner: "owner", repo: "repo" }, payload: { workflow_run: { conclusion: "failure", head_repository: { full_name: "owner/repo" } } } },
-      { setOutput: (_name: string, value: unknown) => { output = value; } }, {}, () => ({}));
-    expect(output).toBe(false);
+
+  });
+
+  it("requires matching completed certificates before reusable browser verification", async () => {
+    const marker = "          script: |\n";
+    const script = browser.slice(browser.indexOf(marker) + marker.length).split("\n  # Browser CI")[0]
+      .split("\n").map((line) => line.replace(/^ {12}/, "")).join("\n");
+    const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
+    const gate = new AsyncFunction("context", "core", "github", "require", "process", script);
+    const sha = "a".repeat(40);
+    for (const stale of [false, true]) {
+      let output: unknown;
+      const run = () => gate({}, { setOutput: (_name: string, value: unknown) => { output = value; } }, {}, (name: string) => name === "child_process"
+        ? { execFileSync: () => sha }
+        : { readFileSync: (path: string) => JSON.stringify(path.includes("s14-")
+          ? { candidateSha: stale ? "b".repeat(40) : sha, passed: true, partial: false, runtimeFailure: false, lifecycle: { finalState: "archived" } }
+          : { candidateSha: sha, schemaVersion: 4, zeroOrphans: true, findings: [], physicalOwnership: { zeroOwnershipConflicts: true } }) },
+        { env: { CERTIFIED_CANDIDATE_SHA: sha } });
+      if (stale) await expect(run()).rejects.toThrow("successful exact-head S14/S15 artifacts");
+      else { await run(); expect(output).toBe(true); }
+    }
   });
 
 });
