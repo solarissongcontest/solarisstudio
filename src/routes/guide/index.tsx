@@ -45,10 +45,11 @@ const SECTIONS = [
         question: "Where should I start?",
         answer: (
           <>
-            Use <Link to="/editions" className="font-semibold text-primary">Editions</Link> to choose a contest
-            edition, <Link to="/countries" className="font-semibold text-primary">Countries</Link> to find a
-            country, or <Link to="/shows" className="font-semibold text-primary">Shows</Link> to find a semi-final
-            or final.
+            Open <Link to="/explore" className="font-semibold text-primary">Explore</Link> when you want to browse
+            Solaris. It brings editions, countries, songs, artists, shows, stories and archive material into one
+            discovery area. Use <Link to="/participate" className="font-semibold text-primary">Participate</Link>
+            when Solaris needs something from you, and <Link to="/me" className="font-semibold text-primary">Me</Link>
+            for your own identity, history and account.
           </>
         ),
       },
@@ -271,12 +272,16 @@ const SECTIONS = [
         ),
       },
       {
-        question: "What is MySolaris?",
+        question: "Where are my responsibilities, history and account settings?",
         answer: (
           <>
-            <Link to="/my-solaris" className="font-semibold text-primary">MySolaris</Link> is your HOD home base.
-            It has separate sections for the current edition, entries, country tools, HOD and country history,
-            personal activity and your account settings.
+            <Link to="/participate" className="font-semibold text-primary">Participate</Link> owns the things you
+            are responsible for during a contest, such as confirmation, entry, media and jury work. <Link
+              to="/me"
+              className="font-semibold text-primary"
+            >Me</Link> owns your Solaris identity, current membership, history, activity, saved content,
+            preferences and account settings. Older MySolaris links may still open compatibility screens while the
+            V3 migration is being completed, but MySolaris is not a separate primary area you need to choose.
           </>
         ),
       },
@@ -284,8 +289,10 @@ const SECTIONS = [
         question: "How do I edit my country page?",
         answer: (
           <>
-            Sign in to the country account, open MySolaris, then open Country. From there you can open the public
-            page, Wiki, country workspace, page and media editor or Appearance.
+            Sign in to the country account and open <Link to="/me" className="font-semibold text-primary">Me</Link>
+            for your current delegation and account context. Country-management tools can still open a compatibility
+            MySolaris workspace while those specialist screens are migrated; that does not create a separate place
+            for your normal participation responsibilities.
           </>
         ),
       },
@@ -293,8 +300,9 @@ const SECTIONS = [
         question: "Can I add or change my email later?",
         answer: (
           <>
-            Yes. Open MySolaris and choose Account. You can add a recovery email to an account that does not have
-            one, or replace the existing recovery email. Your Instagram username still works for sign-in.
+            Yes. Open <Link to="/me" className="font-semibold text-primary">Me</Link> and then Account. You can add
+            a recovery email to an account that does not have one, or replace the existing recovery email. Your
+            Instagram username still works for sign-in.
           </>
         ),
       },
@@ -304,7 +312,7 @@ const SECTIONS = [
           <>
             If your country account has a recovery email, use Forgot password on the sign-in page. Solaris Studio
             sends a link so you can choose a new password. If you did not add an email when creating the account,
-            you can add one later from MySolaris → Account while you are signed in.
+            you can add one later from Me → Account while you are signed in.
           </>
         ),
       },
@@ -326,7 +334,7 @@ function PublicGuidePage() {
         <HelpRoute to="/rules" icon={BookOpen} title="Rules" description="Read and search the official SSC rulebook." />
         <HelpRoute to="/participate" icon={Flag} title="Participation help" description="Confirm a country or understand the current participation step." />
         <HelpRoute to="/televoting/how-to-vote" icon={Vote} title="Voting help" description="Read jury and public voting guidance." />
-        <HelpRoute to="/my-solaris" icon={User} title="Account & MySolaris" description="Open your tasks, country tools and account settings." />
+        <HelpRoute to="/me" icon={User} title="Account & Me" description="Open your identity, history, preferences and account settings." />
         <HelpRoute to="/integrity" icon={ShieldCheck} title="Report a concern" description="Use Trust & Integrity for reports, protected cases and decisions." />
         <HelpRoute to="/site-directory" icon={ListTree} title="All Solaris pages" description="Browse the complete searchable directory when you know a page exists but not where it lives." />
       </section>
