@@ -8,6 +8,10 @@ const storyCss = readFileSync("public/assets/terraos-maintenance-story.css", "ut
 const storyRuntime = readFileSync("public/assets/terraos-maintenance-story.js", "utf8");
 const storyData = readFileSync("src/lib/terraos-maintenance-stories.ts", "utf8");
 const server = readFileSync("src/server.ts", "utf8");
+const momentA = readFileSync("public/assets/terraos-maintenance/moment-a.png");
+const momentB = readFileSync("public/assets/terraos-maintenance/moment-b.png");
+const legacyMomentA = readFileSync("public/IMG_6171.png");
+const legacyMomentB = readFileSync("public/IMG_9177.png");
 
 describe("TerraOS maintenance visual asset routing", () => {
   it("keeps the final image-led experience entirely inside the already-approved /assets prefix", () => {
@@ -31,6 +35,16 @@ describe("TerraOS maintenance visual asset routing", () => {
     expect(page.match(/class=\"photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(css).toContain(".photo-chapter{");
     expect(css).toContain(".live-art{");
+  });
+
+  it("uses real dedicated moment artwork instead of recycling the blank and TSBC legacy files", () => {
+    const pngSignature = "89504e470d0a1a0a";
+    expect(momentA.subarray(0, 8).toString("hex")).toBe(pngSignature);
+    expect(momentB.subarray(0, 8).toString("hex")).toBe(pngSignature);
+    expect(momentA.length).toBeGreaterThan(5_000);
+    expect(momentB.length).toBeGreaterThan(5_000);
+    expect(momentA.equals(legacyMomentA)).toBe(false);
+    expect(momentB.equals(legacyMomentB)).toBe(false);
   });
 
   it("keeps Story copy centralized and provides every canonical fixture state", () => {
