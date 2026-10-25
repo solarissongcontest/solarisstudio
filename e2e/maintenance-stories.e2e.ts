@@ -129,7 +129,10 @@ for (const viewport of [
     const preview = layer.locator(".story-real-preview-frame");
     await preview.scrollIntoViewIfNeeded();
     await expect(preview).toBeVisible();
-    const previewRect = await preview.evaluate((element) => element.getBoundingClientRect());
+    const previewRect = await preview.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { left: rect.left, right: rect.right };
+    });
     expect(previewRect.left).toBeGreaterThanOrEqual(-1);
     expect(previewRect.right).toBeLessThanOrEqual(viewport.width + 1);
 
