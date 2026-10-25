@@ -33,6 +33,7 @@ jobs:
       V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
       V3_S14_ALLOW_PARTIAL: "0"
       V3_S14_REQUIRE_COMPLETE: "1"
+      LOCAL_SUPABASE_URL: http://127.0.0.1:54321
     steps:
       - name: Checkout exact feature head
         uses: actions/checkout@v4
@@ -67,6 +68,10 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(supabase status -o env)"
+          if [[ "$API_URL" != "$LOCAL_SUPABASE_URL" ]]; then
+            echo "::error::Refusing audit server with hosted Supabase URL: $API_URL"
+            exit 1
+          fi
           case "$API_URL" in
             http://127.0.0.1:*|http://localhost:*) ;;
             *) echo "::error::Refusing S14 against non-local Supabase API_URL=$API_URL"; exit 1 ;;
@@ -240,11 +245,19 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: v3-s14-stateful-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload exact-SHA Organizer promotion browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s14-promotion-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
-            v3-release-evidence/
             test-results/v3-s14-grand-final/
             playwright-s14-grand-final-summary.json
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 30
 
       - name: Stop isolated local Supabase

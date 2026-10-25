@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const driver = readFileSync(".github/scripts/v3-full-contest-rehearsal.sh", "utf8");
@@ -13,6 +15,36 @@ const qualification = readFileSync(
 const lineup = readFileSync("src/components/admin/ShowLineupWorkspace.tsx", "utf8");
 
 describe("S14 canonical qualifier-to-final preparation", () => {
+  it("keeps promotion maintenance access local and authenticates the Organizer normally", () => {
+    const compiled = ts.transpileModule(browserConfig, {
+      compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+    }).outputText;
+    const local = {
+      VITE_SUPABASE_URL: "http://127.0.0.1:54321",
+      SUPABASE_URL: "http://127.0.0.1:54321",
+      E2E_SUPABASE_URL: "http://127.0.0.1:54321",
+      VITE_CONFIRMATIONS_SUPABASE_URL: "http://127.0.0.1:54321",
+      CONFIRMATIONS_SUPABASE_URL: "http://127.0.0.1:54321",
+    };
+    function load(env: Record<string, string | undefined>) {
+      const exports: Record<string, unknown> = {};
+      runInNewContext(compiled, {
+        exports, URL, process: { env },
+        require: () => ({ defineConfig: (config: unknown) => config, devices: { "Desktop Chrome": {} } }),
+      });
+      return exports.default;
+    }
+    expect(load(local)).toMatchObject({
+      webServer: { url: "http://127.0.0.1:4177/assets/terraos-maintenance.css", timeout: 120_000 },
+      use: { storageState: { cookies: [{ name: "solaris_e2e_maintenance_bypass", domain: "127.0.0.1" }] } },
+    });
+    expect(() => load({ ...local, E2E_BASE_URL: "https://hosted.invalid" })).toThrow();
+    expect(() => load({ ...local, E2E_SUPABASE_URL: "https://hosted.invalid" })).toThrow();
+    expect(() => load({ ...local, SUPABASE_URL: undefined })).toThrow();
+    expect(browser).toContain("auth/v1/token?grant_type=password");
+    expect(browser).toContain("seedOrganizerBrowserSession");
+  });
+
   it("provisions the pinned browser runner before invoking canonical promotion", () => {
     const manifest = JSON.parse(readFileSync("package.json", "utf8"));
     expect(manifest.devDependencies["@playwright/test"]).toBe("1.55.0");
