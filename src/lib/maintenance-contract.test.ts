@@ -99,6 +99,8 @@ describe("TerraOS 3 final visual production contract", () => {
     expect(rendered).toContain('/assets/terraos-maintenance/atmosphere.jpeg');
     expect(rendered).toContain('/assets/terraos-maintenance/moment-a.png');
     expect(rendered).toContain('/assets/terraos-maintenance/moment-b.png');
+    expect(page).toContain('SOLARIS_VISUAL_REVISION = "20261025-real-visuals"');
+    expect(rendered.match(/\?v=20261025-real-visuals/g)?.length ?? 0).toBe(4);
     expect(rendered.match(/data-photo-kind=\"photo\"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     expect(rendered.match(/class=\"photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(rendered.match(/data-photo-parallax=/g)?.length ?? 0).toBe(7);
