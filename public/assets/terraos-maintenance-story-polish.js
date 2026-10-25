@@ -3,6 +3,9 @@
   if (!root) return;
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let observedLayer = null;
+  let layerObserver = null;
+  let bodyObserver = null;
 
   function focusDirectDeepLink() {
     if (!window.location.hash.startsWith('#story-')) return;
@@ -12,10 +15,93 @@
     if (back instanceof HTMLElement) back.focus({ preventScroll: true });
   }
 
+  function enrichParticipateStory(layer) {
+    if (layer.getAttribute('data-story') !== 'participate') return;
+    const groups = layer.querySelector('.participate-groups');
+    if (!groups || groups.querySelector('[data-participate-ready]')) return;
+
+    const country = document.createElement('article');
+    country.setAttribute('data-participate-ready', 'country');
+    country.innerHTML = '<small>Ready</small><strong>Country confirmed</strong><span>✓ Complete</span>';
+
+    const entry = document.createElement('article');
+    entry.setAttribute('data-participate-ready', 'entry');
+    entry.innerHTML = '<small>Ready</small><strong>Entry ready</strong><span>✓ Complete</span>';
+
+    groups.insertBefore(entry, groups.firstChild);
+    groups.insertBefore(country, groups.firstChild);
+  }
+
+  function enrichMeStory(layer) {
+    if (layer.getAttribute('data-story') !== 'me') return;
+    const list = layer.querySelector('.me-history ol');
+    if (!list || list.hasAttribute('data-me-timeline-ready')) return;
+
+    list.setAttribute('data-me-timeline-ready', 'true');
+    list.innerHTML = [
+      ['SSC 22', 'Current'],
+      ['SSC 21', 'Delegation'],
+      ['SSC 20', 'Delegation'],
+      ['SSC 19', 'Delegation'],
+    ]
+      .map(([edition, state]) => `<li><strong>${edition}</strong><span>${state}</span></li>`)
+      .join('');
+  }
+
+  function enrichRenderedStory() {
+    const layer = document.querySelector('[data-story-layer]');
+    if (!layer || layer.hidden) return;
+    enrichParticipateStory(layer);
+    enrichMeStory(layer);
+  }
+
+  function bindLayerEnhancer() {
+    const layer = document.querySelector('[data-story-layer]');
+    if (!layer) return false;
+
+    if (observedLayer !== layer) {
+      if (layerObserver) layerObserver.disconnect();
+      observedLayer = layer;
+      layerObserver = new MutationObserver(enrichRenderedStory);
+      layerObserver.observe(layer, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['data-story'],
+      });
+    }
+
+    enrichRenderedStory();
+    return true;
+  }
+
   // The base Story runtime has already resolved the initial hash by the time
   // this script executes. Give direct deep links an intentional focus target
   // without changing the natural focus restoration used for card launches.
-  window.requestAnimationFrame(focusDirectDeepLink);
+  window.requestAnimationFrame(() => {
+    focusDirectDeepLink();
+    bindLayerEnhancer();
+  });
+
+  // On the normal maintenance page the Story layer is created only after the
+  // first card is opened. Observe body additions until that single layer
+  // exists, then switch to the much narrower layer observer.
+  if (!document.querySelector('[data-story-layer]')) {
+    bodyObserver = new MutationObserver(() => {
+      if (!bindLayerEnhancer()) return;
+      bodyObserver.disconnect();
+      bodyObserver = null;
+    });
+    bodyObserver.observe(document.body, { childList: true });
+  }
+
+  window.addEventListener('hashchange', () => {
+    window.requestAnimationFrame(() => {
+      bindLayerEnhancer();
+      focusDirectDeepLink();
+    });
+  });
+  window.addEventListener('popstate', () => window.requestAnimationFrame(bindLayerEnhancer));
 
   // Capture result-row geometry before the base click handler swaps fixture
   // rows, then animate the new rows from their previous positions. This keeps
