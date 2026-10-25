@@ -26,8 +26,8 @@ declare
         select 1 from public.participants p
         where p.show_id = p_show_id
           and coalesce(p.participation_status, 'confirmed') = 'confirmed'
-          and p.country_id is not distinct from r.country_id
-          and p.contest_entity_id is not distinct from r.contest_entity_id
+          and coalesce(p.country_id, p.contest_entity_id)
+              = coalesce(r.country_id, r.contest_entity_id)
       );
 $body$;
 begin
