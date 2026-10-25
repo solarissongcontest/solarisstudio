@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Abstract blue motion artwork</title>
+  <desc id="desc">Original Solaris artwork with luminous blue ribbons and soft silhouettes.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#03111f"/>
+      <stop offset="0.42" stop-color="#062e62"/>
+      <stop offset="1" stop-color="#09031d"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#52d8ff" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#52d8ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#7d63ff" stop-opacity=".74"/>
+      <stop offset="1" stop-color="#7d63ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ribbon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#62e4ff" stop-opacity=".05"/>
+      <stop offset=".45" stop-color="#62e4ff" stop-opacity=".74"/>
+      <stop offset="1" stop-color="#786cff" stop-opacity=".08"/>
+    </linearGradient>
+    <filter id="blur40"><feGaussianBlur stdDeviation="40"/></filter>
+    <filter id="blur70"><feGaussianBlur stdDeviation="70"/></filter>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <ellipse cx="1260" cy="280" rx="520" ry="420" fill="url(#glowA)" filter="url(#blur70)" opacity=".7"/>
+  <ellipse cx="320" cy="770" rx="460" ry="360" fill="url(#glowB)" filter="url(#blur70)" opacity=".64"/>
+  <path d="M-120 760 C 210 420 450 390 690 560 S 1130 850 1720 310" fill="none" stroke="url(#ribbon)" stroke-width="120" stroke-linecap="round" filter="url(#blur40)" opacity=".78"/>
+  <path d="M-80 870 C 230 610 510 585 780 670 S 1220 810 1670 520" fill="none" stroke="#3bcaff" stroke-width="12" stroke-linecap="round" opacity=".24"/>
+  <path d="M180 1090 C 440 690 610 470 870 330 S 1280 180 1510 -30" fill="none" stroke="#8d6cff" stroke-width="20" stroke-linecap="round" opacity=".18"/>
+  <g opacity=".28" fill="#d9f8ff">
+    <circle cx="210" cy="250" r="2"/><circle cx="300" cy="330" r="4"/><circle cx="430" cy="190" r="3"/><circle cx="580" cy="290" r="2"/><circle cx="690" cy="180" r="5"/><circle cx="830" cy="280" r="2"/><circle cx="1030" cy="160" r="4"/><circle cx="1160" cy="390" r="3"/><circle cx="1360" cy="220" r="5"/><circle cx="1450" cy="420" r="2"/>
+  </g>
+  <g opacity=".3">
+    <ellipse cx="1010" cy="700" rx="110" ry="225" fill="#021426"/>
+    <ellipse cx="1190" cy="735" rx="95" ry="205" fill="#031326"/>
+    <ellipse cx="1370" cy="760" rx="78" ry="180" fill="#02101e"/>
+  </g>
+  <rect y="760" width="1600" height="240" fill="url(#bg)" opacity=".34"/>
+</svg>
