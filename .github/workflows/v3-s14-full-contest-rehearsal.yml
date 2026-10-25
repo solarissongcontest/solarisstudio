@@ -102,6 +102,9 @@ jobs:
       - name: Regress canonical semi-final qualification before full rehearsal
         run: bash .github/scripts/v3-s14-qualification-regression.sh
 
+      - name: Regress shared integration runtime permissions
+        run: bash .github/scripts/v3-s14-integration-runtime-regression.sh
+
       - name: Verify focused qualifier and Grand Final contracts
         run: |
           bunx vitest run src/lib/v3-s14-grand-final-prep.contract.test.ts src/lib/show-lineup-selection.test.ts
