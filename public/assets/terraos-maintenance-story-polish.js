@@ -7,6 +7,14 @@
   let layerObserver = null;
   let bodyObserver = null;
 
+  function lockHeroWordmarkToSingleLine() {
+    const title = document.getElementById('maintenance-title');
+    if (!(title instanceof HTMLElement)) return;
+    title.style.maxWidth = 'none';
+    title.style.whiteSpace = 'nowrap';
+    title.style.fontSize = 'clamp(3rem, 16vw, 9.8rem)';
+  }
+
   function focusDirectDeepLink() {
     if (!window.location.hash.startsWith('#story-')) return;
     const layer = document.querySelector('[data-story-layer]');
@@ -92,6 +100,10 @@
     enrichRenderedStory();
     return true;
   }
+
+  // The maintenance hero is intentionally a single brand lockup. Scale it with
+  // the viewport instead of allowing the trailing version number to wrap.
+  lockHeroWordmarkToSingleLine();
 
   // The base Story runtime has already resolved the initial hash by the time
   // this script executes. Give direct deep links an intentional focus target
