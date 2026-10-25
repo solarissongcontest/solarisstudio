@@ -25,6 +25,7 @@ type FeatureTone = "now" | "participate" | "explore" | "results" | "me";
 const ATMOSPHERE_PHOTO = "/assets/terraos-maintenance/atmosphere.jpeg";
 const SOLARIS_MOMENT_A = "/assets/terraos-maintenance/moment-a.png";
 const SOLARIS_MOMENT_B = "/assets/terraos-maintenance/moment-b.png";
+const SOLARIS_VISUAL_REVISION = "20261025-real-visuals";
 
 function previewFrame(screen: PreviewScreen, title: string, loading: "eager" | "lazy" = "lazy") {
   return `<iframe class="terra-preview-frame" src="/terraos-teaser-preview?screen=${screen}&chrome=content" title="${escapeHtml(title)}" tabindex="-1" loading="${loading}" scrolling="no" sandbox="allow-scripts allow-same-origin"></iframe>`;
@@ -74,7 +75,7 @@ function featureChapter(options: {
   rhythm?: boolean;
 }) {
   const art = options.art
-    ? `<img class="feature-art" src="${options.art}" alt="" aria-hidden="true" loading="lazy" data-photo-parallax=".11" />`
+    ? `<img class="feature-art" src="${options.art}" srcset="${options.art}?v=${SOLARIS_VISUAL_REVISION}" alt="" aria-hidden="true" loading="lazy" data-photo-parallax=".11" />`
     : "";
   const rhythm = options.rhythm ? rhythmFieldMarkup("feature-rhythm", 0.5, options.reverse ? -1 : 1) : "";
   return `
@@ -169,7 +170,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     <section class="manifesto" aria-labelledby="generation-title"><div class="manifesto-inner scroll-in"><p class="section-kicker">TerraOS 3</p><h2 class="display-heading" id="generation-title">A new generation of Solaris.</h2><p class="manifesto-lead">Solaris Studio is being rebuilt around the contest itself: what is happening, what matters to you, and what you need to do next.</p><div class="principles"><article class="principle"><strong>What matters now</strong><p>The important thing comes first instead of hiding behind a maze of competing screens.</p></article><article class="principle"><strong>Everything in its place</strong><p>Discover, participate, follow results and manage your Solaris identity through a clearer structure.</p></article><article class="principle"><strong>Built for the moment</strong><p>The experience can stay calm on ordinary days and become expressive when Solaris goes live.</p></article></div></div></section>
 
     <section class="immersive" aria-labelledby="place-title" data-photo-section>
-      <img class="immersive-art" src="${SOLARIS_MOMENT_A}" alt="" aria-hidden="true" loading="lazy" data-photo-parallax=".14" />
+      <img class="immersive-art" src="${SOLARIS_MOMENT_A}" srcset="${SOLARIS_MOMENT_A}?v=${SOLARIS_VISUAL_REVISION}" alt="" aria-hidden="true" loading="lazy" data-photo-parallax=".14" />
       ${rhythmFieldMarkup("immersive-rhythm", 0.85, -1)}
       <div class="immersive-inner"><div class="immersive-copy scroll-in"><p class="section-kicker">Designed around you</p><h2 class="display-heading" id="place-title">Everything<br />in its place.</h2><p>A calmer Solaris experience keeps the next important thing where you expect it, without turning every screen into a dashboard.</p></div><div class="immersive-stack" aria-hidden="true"><div class="immersive-status scroll-in"><small>Right now</small><strong>You're all caught up ✓</strong></div><div class="immersive-status scroll-in"><small>Participate</small><strong>1 thing needs attention</strong></div><div class="immersive-liquid scroll-in"><i></i><i></i><i></i><i></i><i></i></div></div></div>
     </section>
@@ -178,7 +179,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     ${featureChapter({ id:"participate-feature", screen:"participate", kicker:"Participate", titleHtml:"Know exactly<br />what needs you.", copy:"Confirmation, entries, Jury and other responsibilities become one clear journey instead of separate destinations you have to remember.", tone:"participate", reverse:true, variant:"wide", rhythm:true })}
 
     <section class="photo-chapter photo-chapter-secondary" aria-labelledby="preparation-title" data-photo-section>
-      <img src="${SOLARIS_MOMENT_B}" alt="" aria-hidden="true" loading="lazy" data-photo-parallax="-.10" />
+      <img src="${SOLARIS_MOMENT_B}" srcset="${SOLARIS_MOMENT_B}?v=${SOLARIS_VISUAL_REVISION}" alt="" aria-hidden="true" loading="lazy" data-photo-parallax="-.10" />
       <div class="photo-chapter-copy scroll-in"><p class="section-kicker">From preparation</p><h2 class="display-heading" id="preparation-title">To the moment<br />it matters.</h2></div>
     </section>
 
