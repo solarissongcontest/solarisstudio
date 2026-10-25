@@ -404,6 +404,7 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     targetRoute: "/",
     specificationStatus: "parity",
     acceptanceScenarioId: "public.v3-shell-five-root-navigation",
+    migrationEvidence: "src/lib/v3-app-shell.contract.test.ts; src/lib/v3-public-navigation.test.ts; src/lib/v3-shell-route-boundary.test.ts",
   },
   {
     id: "explore-root",
@@ -462,6 +463,7 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     targetRoute: "/search",
     specificationStatus: "parity",
     acceptanceScenarioId: "public.global-search-entity-routing",
+    migrationEvidence: "src/lib/v3-search-cutover.contract.test.ts; src/lib/public-search.test.ts; e2e/v3-search.e2e.ts",
   },
   {
     id: "scoreboard",

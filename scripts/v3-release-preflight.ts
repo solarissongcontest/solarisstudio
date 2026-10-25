@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { V3_PUBLIC_CAPABILITIES, V3_ORGANIZER_CAPABILITY_REGISTRY } from "../src/lib/v3-capability-registry";
+import { V3_PUBLIC_CAPABILITIES, V3_ORGANIZER_CAPABILITY_REGISTRY, V3_DOMAIN_CONSEQUENCE_REGISTRY } from "../src/lib/v3-capability-registry";
 import { execute, localSupabaseEnvironment, runSweep, staticEnvironment, type Check } from "./lib/v3-release-preflight";
 
 const group = process.argv.find((arg) => arg.startsWith("--group="))?.split("=")[1] ?? "static";
@@ -23,6 +23,7 @@ const scripts = [
 const checks: Check[] = group === "static" ? [
   { id: "productionIsolation", group: "static", command: [bun, "--env-file=/dev/null", "run", "scripts/check-v3-production-isolation.ts"] },
   { id: "s15ZeroOrphan", group: "static", command: [bun, "--env-file=/dev/null", "run", "scripts/check-v3-s15-zero-orphan-readiness.ts", "--json", "--require-zero"], json: true },
+  { id: "repositoryReleaseReadiness", group: "static", command: [bun, "--env-file=/dev/null", "run", "scripts/check-v3-release-integrity.ts", "--discovery", "--json"], json: true },
   { id: "physicalOwnership", group: "static", command: [bun, "--env-file=/dev/null", "run", "scripts/check-v3-s15-physical-ownership.ts", "--json", "--require-zero"], json: true },
   ...scripts.map(([id, path]): Check => ({ id, group: "static", command: [bun, "--env-file=/dev/null", "run", `scripts/${path}`] })),
   { id: "releaseContracts", group: "static", dependencies: ["productionIsolation"], command: [bun, "--env-file=/dev/null", "test", "src"] },
@@ -74,8 +75,13 @@ const audit = (s15?.findings ?? []).map((finding) => {
   };
 });
 mkdirSync(directory, { recursive: true });
+const consequenceAudit = group === "static" ? V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((row) => row.implementationState !== "event-backed").map((row) => ({
+  event: row.eventType, owner: row.ownerDomain, state: row.implementationState, consumers: row.consumers, evidence: row.evidence,
+  classification: "L_TRANSACTIONAL_EVENT_CONSUMER_PROOF_MISSING",
+  assessment: "Mapped ownership is not proof of transactional emission and executable consequence delivery. No implementation-state promotion is made without focused runtime evidence.",
+})) : [];
 const passed = Object.values(outcomes).every((outcome) => outcome.status === "pass");
-writeFileSync(resolve(directory, "preflight-summary.json"), `${JSON.stringify({ schemaVersion: 1, candidateSha, sourceClean: cleanBefore && cleanSource(), group, passed, catalog: checks, checks: outcomes, cutoverAudit: audit }, null, 2)}\n`);
+writeFileSync(resolve(directory, "preflight-summary.json"), `${JSON.stringify({ schemaVersion: 1, candidateSha, sourceClean: cleanBefore && cleanSource(), group, passed, catalog: checks, checks: outcomes, cutoverAudit: audit, consequenceAudit }, null, 2)}\n`);
 for (const [id, outcome] of Object.entries(outcomes)) console.log(`${id}: ${outcome.status.toUpperCase()}${outcome.findings.length ? ` (${outcome.findings.length} findings)` : ""}`);
 console.log(`Complete ${group} discovery: ${passed ? "PASS" : "FAIL"}; ${directory}/preflight-summary.json`);
 if (!passed) process.exitCode = 1;

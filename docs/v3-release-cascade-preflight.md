@@ -43,7 +43,8 @@ Starting source: `49c729cb8adc470a6a6e42a51323243545ce8072`. Fresh main: `06653e
 | --- | --- | --- | --- |
 | A | S15 readiness | FAIL: 124 cutovers (43 Public, 81 Organizer) | N: release cutover incomplete; ownership mapped |
 | A | Physical ownership | PASS: 149 tables, 10 explicit shared owners, no conflicts | No defect |
-| A | Capability/non-route/System registries; migration adoption; release integrity | PASS | No defect |
+| A | Capability/non-route/System registries; migration adoption; structural release integrity | PASS | Structural validity only |
+| A | Repository release-integrity blockers | FAIL: 40 declared-only consequences; three parity evidence references missing | L/D: unproven consequence implementation and missing metadata; previously non-fatal warnings |
 | A/C | Existing S14/S15/release contracts | PASS: 256 tests | No defect |
 | A | Quality, budget/type/lint | PASS on starting exact-head CI | No defect |
 | B | Results lineup, qualification, runtime ACL SQL | PASS: starting S14 job steps 10–12 | No defect; transactional fixtures |
@@ -206,3 +207,56 @@ Every row has a discovered capability and mapped canonical owner. Its recorded s
 Physical ownership findings: **none**. All other S15 finding categories: **zero** on the starting head. The runtime-generated audit also retains Public acceptance scenario IDs and every current status; it must be regenerated for a changed candidate.
 
 #1400 remains frozen. No Results residual code is extracted or promoted by this cascade work. Numeric performance budgets remain 1050 KiB raw JS, 300 KiB gzip JS, 45 KiB single CSS, 1800 KiB aggregate JS+CSS, 15 KiB app shell CSS and 48 KiB global CSS.
+
+## Additional repository release blockers exposed by strict discovery
+
+The original `check-v3-release-integrity.ts` default is deliberately structural. Its successful exit also prints non-fatal release blockers. The cascade now additionally runs `--discovery --json`: it fails on **repository-derived** blockers, preserves each exact finding, and lists late certificate requirements separately. Original `--release` / `--certified` behavior is unchanged. No missing runtime artifact is treated as early proof of failure or fabricated before S14.
+
+The initial three `PARITY_EVIDENCE_MISSING` warnings were `app-shell`, `global-search`, and `sitemap`. Their existing source/contract/browser coverage is now referenced by their canonical registry rows. Their status remains **parity**; they still appear among the 124 unresolved cutovers. This fixes missing evidence links, not a cutover claim.
+
+There are also **40** consequences without proven transactional emission plus executable delivery. Their owners/consumers are already declared. The registry explicitly forbids interpreting that as runtime implementation. Searching exact SQL references is triage, not a substitute for execution proof. For example, `edition.transitioned` is emitted, but its emission installs an empty consumer list; the edition worker accepts `edition.archived`. Promoting it to event-backed merely because the event exists would certify undeployed consequences. No such promotion is made.
+
+| Exact repository finding | Owner | Declared consumers | Exact SQL references (triage only) |
+| --- | --- | --- | --- |
+| `DOMAIN_CONSEQUENCE_DECLARED edition.changed` | `edition` | `public edition routes`, `Organizer edition workspace`, `task:edition.blocker` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED edition.transitioned` | `edition` | `public edition routes`, `Organizer edition workspace`, `task:edition.blocker` | `supabase/migrations/20261019112300_v3_s14_transition_http409.sql:41` |
+| `DOMAIN_CONSEQUENCE_DECLARED delegation.changed` | `delegation` | `country profile`, `Organizer delegation workspace`, `task:delegation.attention` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED participation.changed` | `participation` | `Participant View + delegation readiness`, `task:participation.blocker` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED selection.reviewed` | `national-selection` | `national final/public selection`, `Organizer Selection & Entry Review`, `task:selection.review_required` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED selection.winner_changed` | `national-selection` | `national final/public selection`, `Organizer Selection & Entry Review`, `task:selection.review_required` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED task.opened` | `task` | `Organizer Tasks` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED task.resolved` | `task` | `Organizer Tasks` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED country.identity_changed` | `country-identity` | `country/Wiki/results identity`, `Organizer Country` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED country_profile.changed` | `country-profile` | `Country/Wiki`, `Organizer Public Profile/Appearance`, `task:country_profile.moderation` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED media.verified` | `media` | `processed public assets`, `Organizer Media`, `task:media.review_required`, `task:media.processing_failed` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED rules.published` | `rules` | `Rules`, `Rules Manager`, `task:rules.compatibility_blocker` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED rules.interpreted` | `rules` | `Rules`, `Rules Manager`, `task:rules.compatibility_blocker` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED integrity.case_changed` | `integrity` | `Trust & Governance`, `task:integrity.review_required` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED integrity.appeal_changed` | `integrity` | `Trust & Governance`, `task:integrity.review_required` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED show.changed` | `live-show` | `Show Mode`, `Live Operations + Reveal Director`, `task:show.blocker` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED show.cue_changed` | `live-show` | `Show Mode`, `Live Operations + Reveal Director`, `task:show.blocker` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED incident.changed` | `incident` | `Incident Command`, `task:incident.response` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED next_in_line.changed` | `next-in-line` | `Organizer Next in Line`, `task:next_in_line.review_required` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED next_in_line.submitted` | `next-in-line` | `Organizer Next in Line`, `task:next_in_line.review_required` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED fantasy.changed` | `fantasy` | `Fantasy SSC`, `Organizer Fantasy`, `task:fantasy.operation_required` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED fantasy.scored` | `fantasy` | `Fantasy SSC`, `Organizer Fantasy`, `task:fantasy.operation_required` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED community_profile.moderated` | `community-profile` | `Prediction League/community identity`, `Community moderation`, `task:community_profile.moderation` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED activity.projected` | `activity` |  | none |
+| `DOMAIN_CONSEQUENCE_DECLARED public_ux.observed` | `public-ux` | `public Solaris`, `Public UX diagnostics` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED identity.authenticated` | `identity` | `authentication surfaces`, `Organizer access gate` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED identity.signed_out` | `identity` | `authentication surfaces`, `Organizer access gate` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED account.changed` | `account` | `Me / account settings`, `country-account support` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED session.changed` | `session` | `authentication`, `Me / security`, `access enforcement` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED session.revoked` | `session` | `authentication`, `Me / security`, `access enforcement` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED voting.configuration_changed` | `voting-configuration` | `voting eligibility and published voting rules`, `Organizer Voting`, `jury`, `televote`, `results` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED receipt.recorded` | `receipt` | `confirmation/entry/jury/televote receipts`, `operation receipt surfaces`, `reconciliation jobs` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED receipt.reconciled` | `receipt` | `confirmation/entry/jury/televote receipts`, `operation receipt surfaces`, `reconciliation jobs` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED audit.recorded` | `audit` | `Organizer recent changes`, `specialist audit tools`, `security and integrity review` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED rollout.changed` | `feature-rollout` | `feature boundaries`, `Feature rollout` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED job.started` | `system-job` | `Delivery & jobs`, `System health`, `notification`, `publication`, `media`, `reconciliation` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED job.completed` | `system-job` | `Delivery & jobs`, `System health`, `notification`, `publication`, `media`, `reconciliation` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED job.failed` | `system-job` | `Delivery & jobs`, `System health`, `notification`, `publication`, `media`, `reconciliation` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED story.changed` | `story` | `stories`, `archive`, `anniversary`, `Organizer Storytelling`, `publication` | none |
+| `DOMAIN_CONSEQUENCE_DECLARED story.published` | `story` | `stories`, `archive`, `anniversary`, `Organizer Storytelling`, `publication` | none |
+
+Late release prerequisites still include exact-head S14, S15 and `security-advisor-classification.json`; final certification additionally requires S16 evidence. Discovery reports these as pending certification, and the original strict release guard still enforces them. No hosted advisor scan is invoked by this preflight.

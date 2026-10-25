@@ -156,6 +156,7 @@ export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
     targetRoute: "/sitemap.xml",
     specificationStatus: "parity",
     acceptanceScenarioId: "public.sitemap-discovery-surface",
+    migrationEvidence: "src/routes/sitemap[.]xml.ts; e2e/public-routes.e2e.ts; .github/workflows/browser-audit.yml (local sitemap preflight)",
   },
   {
     id: "country-hub",

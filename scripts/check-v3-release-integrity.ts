@@ -12,6 +12,8 @@ import {
   validateV3WorkflowDependencyRegistry,
 } from "../src/lib/v3-capability-registry";
 
+const discovery = process.argv.includes("--discovery");
+const wantsJson = process.argv.includes("--json");
 const finalCertification = process.argv.includes("--certified");
 const strictRelease = process.argv.includes("--release") || finalCertification;
 const errors: string[] = [];
@@ -84,6 +86,16 @@ if (unfinishedOrganizer.length) blockers.push(`${unfinishedOrganizer.length} Org
 if (declarationOnly.length) blockers.push(`${declarationOnly.length} domain consequences not event-backed`);
 if (warnings.length) blockers.push(`${warnings.length} parity capabilities missing explicit migration evidence`);
 
+const repositoryBlockerCount = blockers.length;
+const repositoryFindings = [
+  ...errors.map((error) => `STRUCTURAL_INTEGRITY ${error}`),
+  ...pendingPhysical.map((domain) => `PHYSICAL_OWNER_PENDING ${domain.domain}`),
+  ...unfinishedPublic.map((capability) => `PUBLIC_CUTOVER_UNRESOLVED ${capability.id}:${capability.specificationStatus}`),
+  ...unfinishedOrganizer.map((capability) => `ORGANIZER_CUTOVER_UNRESOLVED ${capability.legacyId}:${capability.migrationStatus}`),
+  ...declarationOnly.map((consequence) => `DOMAIN_CONSEQUENCE_DECLARED ${consequence.eventType} owner=${consequence.ownerDomain}`),
+  ...warnings.map((warning) => `PARITY_EVIDENCE_MISSING ${warning}`),
+];
+
 const releaseEvidenceDir = resolve(process.env.V3_RELEASE_EVIDENCE_DIR?.trim() || "v3-release-evidence");
 const releasePrerequisiteEvidence = ["s14-full-contest.json", "s15-zero-orphan.json", "security-advisor-classification.json"] as const;
 const exactCandidateEvidence = finalCertification ? [...releasePrerequisiteEvidence, "s16-certification.json"] : [...releasePrerequisiteEvidence];
@@ -116,6 +128,18 @@ for (const filename of exactCandidateEvidence) {
   } catch {
     blockers.push(`${filename} is not valid JSON exact-candidate evidence`);
   }
+}
+
+if (discovery) {
+  const report = {
+    schemaVersion: 1, candidateSha: evidenceCandidateSha,
+    structuralPassed: errors.length === 0,
+    repositoryReady: repositoryFindings.length === 0,
+    findings: repositoryFindings,
+    pendingCertification: blockers.slice(repositoryBlockerCount),
+  };
+  process.stdout.write(wantsJson ? `${JSON.stringify(report, null, 2)}\n` : `${repositoryFindings.join("\n")}\n`);
+  process.exit(repositoryFindings.length ? 1 : 0);
 }
 
 for (const warning of warnings) process.stderr.write(`WARNING: ${warning}\n`);

@@ -115,13 +115,14 @@ export function runSweep(
 
 export type GroupReport = {
   candidateSha: string; group: string; passed: boolean; sourceClean: boolean;
-  checks: Record<string, Outcome>; cutoverAudit?: unknown[];
+  checks: Record<string, Outcome>; cutoverAudit?: unknown[]; consequenceAudit?: unknown[];
 };
 export function combineReports(reports: GroupReport[], candidateSha: string) {
   const checks: Record<string, Outcome> = {};
   const groups: Record<string, string> = {};
   const findings: string[] = [];
   const audit: unknown[] = [];
+  const consequenceAudit: unknown[] = [];
   for (const report of reports) {
     if (!report || !report.checks || Object.keys(report.checks).length === 0) { findings.push("INVALID_GROUP_REPORT"); continue; }
     if (!report.sourceClean) findings.push(`UNCLEAN_SOURCE ${report.group}`);
@@ -135,11 +136,18 @@ export function combineReports(reports: GroupReport[], candidateSha: string) {
       else checks[id] = result;
     }
     audit.push(...(report.cutoverAudit ?? []));
+    consequenceAudit.push(...(report.consequenceAudit ?? []));
   }
   for (const group of ["static", "database"]) if (!groups[group]) findings.push(`MISSING_DISCOVERY_GROUP ${group}`);
+  const uniqueFindings = [...new Set([...findings, ...Object.values(checks).flatMap((check) => check.findings)])].sort();
+  const findingCounts: Record<string, number> = {};
+  for (const finding of uniqueFindings) {
+    const category = finding.split(" ")[0];
+    findingCounts[category] = (findingCounts[category] ?? 0) + 1;
+  }
   return {
     schemaVersion: 1, candidateSha,
     passed: findings.length === 0 && Object.values(groups).every((status) => status === "pass"),
-    groups, checks, discoveryFindings: findings, cutoverAudit: audit,
+    groups, checks, discoveryFindings: findings, findings: uniqueFindings, findingCounts, cutoverAudit: audit, consequenceAudit,
   };
 }
