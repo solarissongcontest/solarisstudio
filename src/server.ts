@@ -12,6 +12,7 @@ import {
   isMaintenanceHodAppRouteAllowed,
   maintenanceHodAccessEnabled,
 } from "./lib/maintenance";
+import { renderMaintenanceDesktopV2Style } from "./lib/maintenance-desktop-v2";
 import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
 import { renderMaintenancePage } from "./lib/maintenance-page";
 
@@ -379,6 +380,13 @@ function maintenanceResponse(request: Request, env: unknown, includeHodPortal: b
         }));
         html = html.replace("<footer>", `${portal}\n<footer>`);
       }
+    }
+
+    if (request.method === "GET") {
+      html = html.replace(
+        "          <footer>",
+        `${renderMaintenanceDesktopV2Style()}\n          <footer>`,
+      );
     }
 
     return new Response(request.method === "HEAD" ? null : html, {
