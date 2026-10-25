@@ -1,4 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { ExternalLink, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -8,9 +10,13 @@ import {
   buildAdminNavigation,
   type AdminNavigationGroup,
 } from "@/components/admin/admin-navigation";
-import { AdminCard, AdminPageHeader } from "@/components/admin/AdminUI";
+import { AdminCard, AdminCardHeader, AdminPageHeader } from "@/components/admin/AdminUI";
 import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
 import { editionLabel, useEditions } from "@/lib/data";
+import {
+  getOrganizerMoreCapabilities,
+  resolveOrganizerMoreRouteAccess,
+} from "@/lib/v3-organizer-more-access";
 
 export const Route = createFileRoute("/_authenticated/admin/menu")({
   head: () => ({ meta: [{ title: "All pages — Solaris Organizer" }] }),
@@ -22,21 +28,73 @@ function OrganizerMenu() {
   const { data: editions = [], isLoading: editionsLoading } = useEditions();
   const [query, setQuery] = useState("");
   const activeEdition = selectOrganizerEdition(editions, editionId);
-  const domains = buildAdminDomainNavigation(
-    activeEdition?.slug,
-    activeEdition ? editionLabel(activeEdition) : "Current edition",
+  const getCapabilities = useServerFn(getOrganizerMoreCapabilities);
+
+  const domainCandidates = useMemo(
+    () =>
+      buildAdminDomainNavigation(
+        activeEdition?.slug,
+        activeEdition ? editionLabel(activeEdition) : "Current edition",
+      ),
+    [activeEdition],
   );
-  const groups = useMemo(
-    () => filterGroups(buildAdminNavigation(activeEdition?.slug), query),
-    [activeEdition?.slug, query],
+  const directoryCandidates = useMemo(
+    () => buildAdminNavigation(activeEdition?.slug),
+    [activeEdition?.slug],
   );
+  const accessPaths = useMemo(
+    () => [
+      ...domainCandidates.flatMap((domain) =>
+        domain.availability === "ready" ? [domain.to] : [],
+      ),
+      ...directoryCandidates.flatMap((group) =>
+        group.items.flatMap((item) => (item.availability === "ready" ? [item.to] : [])),
+      ),
+    ],
+    [directoryCandidates, domainCandidates],
+  );
+
+  const access = useQuery({
+    queryKey: [
+      "v3-organizer-directory-access",
+      editionId ?? "global",
+      activeEdition?.slug ?? "no-edition",
+    ],
+    queryFn: async () => {
+      const capabilities = await getCapabilities({ data: { editionId: editionId ?? null } });
+      return resolveOrganizerMoreRouteAccess(accessPaths, capabilities);
+    },
+    enabled: !editionsLoading,
+    retry: false,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+  const accessByPath = access.data;
+
+  const domains = accessByPath
+    ? domainCandidates.filter(
+        (domain) => domain.availability === "ready" && accessByPath[domain.to] === true,
+      )
+    : [];
+  const groups = useMemo(() => {
+    if (!accessByPath) return [];
+    const allowed = directoryCandidates
+      .map((group) => ({
+        ...group,
+        items: group.items.filter(
+          (item) => item.availability === "ready" && accessByPath[item.to] === true,
+        ),
+      }))
+      .filter((group) => group.items.length > 0);
+    return filterGroups(allowed, query);
+  }, [accessByPath, directoryCandidates, query]);
 
   return (
     <div className="mx-auto max-w-5xl">
       <AdminPageHeader
         eyebrow="Solaris Organizer"
         title="Organizer menu"
-        description="Start with a work domain. The complete searchable specialist-page directory remains below when you need a specific tool."
+        description="Start with a work domain. The searchable specialist-page directory only shows destinations verified for your current Organizer context."
         actions={
           <Link to="/" target="_blank" className="admin-action-secondary">
             <ExternalLink className="size-4" /> Public site
@@ -53,131 +111,148 @@ function OrganizerMenu() {
         </AdminCard>
       ) : null}
 
-      <AdminCard className="mb-4 !p-3 sm:!p-4">
-        <div className="mb-3 px-1">
-          <h2 className="text-sm font-bold text-foreground">Work domains</h2>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            The same stable sections used by the desktop Organizer sidebar.
-          </p>
-        </div>
-        <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
-          {domains.map((domain) => {
-            const Icon = domain.icon;
-            if (domain.availability === "requires-edition") {
-              return (
-                <div
-                  key={domain.id}
-                  aria-disabled="true"
-                  className="admin-list-row !rounded-xl !border-0 !px-2.5 opacity-55"
-                >
-                  <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-sky-200/10 bg-sky-200/[0.055] text-sky-100">
-                    <Icon className="size-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-foreground">{domain.label}</span>
-                    <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-muted-foreground">
-                      {domain.unavailableReason}
-                    </span>
-                  </span>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Locked
-                  </span>
-                </div>
-              );
-            }
-            return (
-              <Link
-                key={domain.id}
-                to={domain.to as any}
-                className="admin-list-row group !rounded-xl !border-0 !px-2.5"
-              >
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-sky-200/10 bg-sky-200/[0.055] text-sky-100">
-                  <Icon className="size-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-foreground">{domain.label}</span>
-                  <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-muted-foreground">
-                    {domain.description}
-                  </span>
-                </span>
-                <span className="text-muted-foreground">›</span>
-              </Link>
-            );
-          })}
-        </div>
-      </AdminCard>
-
-      <div className="mb-2 px-1">
-        <h2 className="text-sm font-bold text-foreground">All specialist pages</h2>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          Search the complete Organizer directory without turning every tool into permanent navigation.
-        </p>
-      </div>
-      <label className="mb-4 flex min-h-12 items-center gap-3 rounded-xl border border-white/[0.1] bg-white/[0.03] px-3 focus-within:border-sky-200/30">
-        <Search className="size-4 shrink-0 text-sky-100" aria-hidden="true" />
-        <span className="sr-only">Search organizer pages</span>
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search pages or tasks…"
-          aria-label="Search organizer pages"
-          className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-        />
-      </label>
-
-      {groups.length ? (
-        <div className="space-y-4">
-          {groups.map((group) =>
-            group.quiet ? (
-              <details
-                key={group.label}
-                open={Boolean(query.trim()) || undefined}
-                className="admin-card group overflow-hidden"
-              >
-                <summary className="flex min-h-14 cursor-pointer list-none items-start justify-between gap-3 px-4 py-3">
-                  <span className="min-w-0">
-                    <span className="block text-sm font-bold text-foreground">{group.label}</span>
-                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{group.description}</span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    <span className="numeric rounded-full border border-white/[0.08] px-2 py-1 text-[10px] text-muted-foreground">
-                      {group.items.length}
-                    </span>
-                    <span className="text-xs text-muted-foreground transition group-open:rotate-90">›</span>
-                  </span>
-                </summary>
-                <div className="grid gap-1 border-t border-white/[0.07] p-3 sm:grid-cols-2">
-                  {group.items.map((item) => (
-                    <DirectoryItem key={`${item.id}:${item.label}`} item={item} />
-                  ))}
-                </div>
-              </details>
-            ) : (
-              <AdminCard key={group.label} className="!p-3 sm:!p-4">
-                <div className="mb-3 flex items-start justify-between gap-3 px-1">
-                  <div>
-                    <h2 className="text-sm font-bold text-foreground">{group.label}</h2>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{group.description}</p>
-                  </div>
-                  <span className="numeric rounded-full border border-white/[0.08] px-2 py-1 text-[10px] text-muted-foreground">
-                    {group.items.length}
-                  </span>
-                </div>
-                <div className="grid gap-1 sm:grid-cols-2">
-                  {group.items.map((item) => (
-                    <DirectoryItem key={`${item.id}:${item.label}`} item={item} />
-                  ))}
-                </div>
-              </AdminCard>
-            ),
-          )}
-        </div>
-      ) : (
-        <AdminCard className="py-10 text-center">
-          <h2 className="text-sm font-bold">No organizer page matches “{query.trim()}”</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Try the task, feature or page name.</p>
+      {editionsLoading || access.isPending ? (
+        <AdminCard>
+          <AdminCardHeader
+            title="Checking Organizer access"
+            description="Solaris is resolving the destinations available in your current Organizer context."
+          />
         </AdminCard>
+      ) : access.isError ? (
+        <AdminCard>
+          <AdminCardHeader
+            title="Organizer directory unavailable"
+            description="Solaris could not verify specialist access, so the directory is hidden until permissions can be checked safely."
+          />
+          <button
+            type="button"
+            className="admin-action-secondary w-full"
+            onClick={() => void access.refetch()}
+          >
+            Retry access check
+          </button>
+        </AdminCard>
+      ) : (
+        <>
+          <AdminCard className="mb-4 !p-3 sm:!p-4">
+            <div className="mb-3 px-1">
+              <h2 className="text-sm font-bold text-foreground">Work domains</h2>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                The same stable sections used by the desktop Organizer sidebar, filtered to verified access.
+              </p>
+            </div>
+            {domains.length ? (
+              <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                {domains.map((domain) => {
+                  const Icon = domain.icon;
+                  return (
+                    <Link
+                      key={domain.id}
+                      to={domain.to as any}
+                      className="admin-list-row group !rounded-xl !border-0 !px-2.5"
+                    >
+                      <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-sky-200/10 bg-sky-200/[0.055] text-sky-100">
+                        <Icon className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-foreground">{domain.label}</span>
+                        <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+                          {domain.description}
+                        </span>
+                      </span>
+                      <span className="text-muted-foreground">›</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="px-1 py-3 text-xs leading-5 text-muted-foreground">
+                No work domain is available in this Organizer context.
+              </p>
+            )}
+          </AdminCard>
+
+          <div className="mb-2 px-1">
+            <h2 className="text-sm font-bold text-foreground">All specialist pages</h2>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Search the specialist tools Solaris has verified you can access.
+            </p>
+          </div>
+          <label className="mb-4 flex min-h-12 items-center gap-3 rounded-xl border border-white/[0.1] bg-white/[0.03] px-3 focus-within:border-sky-200/30">
+            <Search className="size-4 shrink-0 text-sky-100" aria-hidden="true" />
+            <span className="sr-only">Search organizer pages</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search pages or tasks…"
+              aria-label="Search organizer pages"
+              className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+          </label>
+
+          {groups.length ? (
+            <div className="space-y-4">
+              {groups.map((group) =>
+                group.quiet ? (
+                  <details
+                    key={group.label}
+                    open={Boolean(query.trim()) || undefined}
+                    className="admin-card group overflow-hidden"
+                  >
+                    <summary className="flex min-h-14 cursor-pointer list-none items-start justify-between gap-3 px-4 py-3">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-bold text-foreground">{group.label}</span>
+                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">{group.description}</span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2">
+                        <span className="numeric rounded-full border border-white/[0.08] px-2 py-1 text-[10px] text-muted-foreground">
+                          {group.items.length}
+                        </span>
+                        <span className="text-xs text-muted-foreground transition group-open:rotate-90">›</span>
+                      </span>
+                    </summary>
+                    <div className="grid gap-1 border-t border-white/[0.07] p-3 sm:grid-cols-2">
+                      {group.items.map((item) => (
+                        <DirectoryItem key={`${item.id}:${item.label}`} item={item} />
+                      ))}
+                    </div>
+                  </details>
+                ) : (
+                  <AdminCard key={group.label} className="!p-3 sm:!p-4">
+                    <div className="mb-3 flex items-start justify-between gap-3 px-1">
+                      <div>
+                        <h2 className="text-sm font-bold text-foreground">{group.label}</h2>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">{group.description}</p>
+                      </div>
+                      <span className="numeric rounded-full border border-white/[0.08] px-2 py-1 text-[10px] text-muted-foreground">
+                        {group.items.length}
+                      </span>
+                    </div>
+                    <div className="grid gap-1 sm:grid-cols-2">
+                      {group.items.map((item) => (
+                        <DirectoryItem key={`${item.id}:${item.label}`} item={item} />
+                      ))}
+                    </div>
+                  </AdminCard>
+                ),
+              )}
+            </div>
+          ) : (
+            <AdminCard className="py-10 text-center">
+              <h2 className="text-sm font-bold">
+                {query.trim()
+                  ? `No accessible organizer page matches “${query.trim()}”`
+                  : "No specialist pages are available in this Organizer context"}
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {query.trim()
+                  ? "Try another task, feature or page name."
+                  : "Your verified capabilities do not expose a specialist destination here."}
+              </p>
+            </AdminCard>
+          )}
+        </>
       )}
     </div>
   );
@@ -201,27 +276,6 @@ function filterGroups(groups: AdminNavigationGroup[], query: string) {
 
 function DirectoryItem({ item }: { item: ReturnType<typeof buildAdminNavigation>[number]["items"][number] }) {
   const Icon = item.icon;
-  if (item.availability === "requires-edition") {
-    return (
-      <div
-        aria-disabled="true"
-        className="admin-list-row !rounded-xl !border-0 !px-2.5 opacity-55"
-      >
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-sky-100">
-          <Icon className="size-4" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-foreground">{item.label}</span>
-          <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
-            {item.unavailableReason}
-          </span>
-        </span>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          Locked
-        </span>
-      </div>
-    );
-  }
   return (
     <Link
       to={item.to as any}
