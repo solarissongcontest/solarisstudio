@@ -5,13 +5,15 @@ import { describe, expect, it } from "vitest";
 const BROWSER_SOURCE_ROOT = join(process.cwd(), "src");
 
 /**
- * These tables carry contest lifecycle, official outcome, or voting identity
- * state. New browser writes to them must use canonical System commands instead
- * of growing the legacy direct-CRUD surface.
+ * These tables carry contest lifecycle, official participation/line-up,
+ * official outcome, or voting identity state. New browser writes to them must
+ * use canonical System commands instead of growing the legacy direct-CRUD
+ * surface.
  */
 const CRITICAL_CANONICAL_TABLES = new Set([
   "editions",
   "shows",
+  "participants",
   "results",
   "voters",
   "jury_votes",
@@ -32,7 +34,8 @@ const CRITICAL_CANONICAL_TABLES = new Set([
  */
 const KNOWN_DIRECT_WRITE_DEBT: Readonly<Record<string, readonly string[]>> = {
   "src/components/EditionPublicDesignPanel.tsx": ["editions"],
-  "src/components/admin/ShowLineupWorkspace.tsx": ["shows"],
+  "src/components/admin/HeatProgressionSyncPanel.tsx": ["participants"],
+  "src/components/admin/ShowLineupWorkspace.tsx": ["participants", "shows"],
   "src/components/studio/EditionArtworkControl.tsx": ["editions"],
   "src/lib/visual-theme.ts": ["editions"],
   "src/routes/_authenticated/admin/anniversary-dates.tsx": ["editions"],
