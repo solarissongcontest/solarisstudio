@@ -18,7 +18,11 @@ export function V3ScorechartsScreen({
 }) {
   const groups = new Map<
     string,
-    { editionName: string; items: V3ScorechartIndexItem[] }
+    {
+      editionName: string;
+      editionSlug: string;
+      items: V3ScorechartIndexItem[];
+    }
   >();
 
   for (const item of items) {
@@ -26,7 +30,11 @@ export function V3ScorechartsScreen({
     if (existing) {
       existing.items.push(item);
     } else {
-      groups.set(item.editionId, { editionName: item.editionName, items: [item] });
+      groups.set(item.editionId, {
+        editionName: item.editionName,
+        editionSlug: item.editionSlug,
+        items: [item],
+      });
     }
   }
 
@@ -80,12 +88,22 @@ export function V3ScorechartsScreen({
           <div className="grid gap-5">
             {[...groups.entries()].map(([editionId, group]) => (
               <section key={editionId} aria-labelledby={`scorecharts-${editionId}`}>
-                <h3
-                  id={`scorecharts-${editionId}`}
-                  className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-white/48"
-                >
-                  {group.editionName}
-                </h3>
+                <div className="mb-2 flex min-h-11 items-center justify-between gap-3">
+                  <h3
+                    id={`scorecharts-${editionId}`}
+                    className="text-xs font-bold uppercase tracking-[0.12em] text-white/48"
+                  >
+                    {group.editionName}
+                  </h3>
+                  <Link
+                    to="/editions/$slug"
+                    params={{ slug: group.editionSlug }}
+                    className="inline-flex min-h-11 shrink-0 items-center rounded-xl px-3 text-xs font-semibold text-[var(--v3-text-secondary)] transition hover:bg-white/[0.04] hover:text-[var(--v3-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+                    aria-label={`Open ${group.editionName} edition hub`}
+                  >
+                    Edition overview →
+                  </Link>
+                </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {group.items.map((item) => (
                     <Link
@@ -94,6 +112,7 @@ export function V3ScorechartsScreen({
                       params={{ showId: item.showId }}
                       search={{ tab: "matrix", from: "results" }}
                       className="block rounded-[var(--v3-radius-xl)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+                      aria-label={`Open ${item.editionName} ${item.showName} published voting matrix`}
                     >
                       <V3Surface
                         level="raised"
