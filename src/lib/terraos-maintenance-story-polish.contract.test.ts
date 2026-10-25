@@ -27,6 +27,13 @@ describe("TerraOS maintenance Story interaction polish", () => {
     expect(baseCss).toContain("pointer-events:none");
   });
 
+  it("keeps the TerraOS 3 hero brand lockup on a single responsive line", () => {
+    expect(polish).toContain("lockHeroWordmarkToSingleLine");
+    expect(polish).toContain("title.style.maxWidth = 'none'");
+    expect(polish).toContain("title.style.whiteSpace = 'nowrap'");
+    expect(polish).toContain("title.style.fontSize = 'clamp(3rem, 16vw, 9.8rem)'");
+  });
+
   it("gives direct Story deep links an intentional accessible focus target", () => {
     expect(polish).toContain("focusDirectDeepLink");
     expect(polish).toContain("[data-story-close]");
