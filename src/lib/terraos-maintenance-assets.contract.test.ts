@@ -39,7 +39,7 @@ describe("TerraOS maintenance visual asset routing", () => {
 
   it("keeps Story copy centralized and provides every canonical fixture state", () => {
     for (const id of ["home", "explore", "participate", "results", "me"]) {
-      expect(storyData).toContain(`id: \"${id}\"`);
+      expect(storyData).toContain(`id: "${id}"`);
     }
     for (const fixture of [
       "home_caught_up",
@@ -57,14 +57,14 @@ describe("TerraOS maintenance visual asset routing", () => {
     ]) expect(storyData).toContain(fixture);
 
     expect(page).toContain("serializeTerraOsMaintenanceStories");
-    expect(page).toContain('id=\"terraos-story-data\"');
+    expect(page).toContain('id="terraos-story-data"');
     expect(storyData).toContain('.replaceAll("<", "\\\\u003c")');
   });
 
   it("makes the five existing carousel cards the Story entry points rather than adding a second runway", () => {
-    expect(page).toContain('data-story-card=\"${story.id}\"');
-    expect(page).toContain('data-story-view=\"${story.id}\"');
-    expect(page).toContain('role=\"button\" tabindex=\"0\" aria-haspopup=\"dialog\"');
+    expect(page).toContain('data-story-card="${story.id}"');
+    expect(page).toContain('data-story-view="${story.id}"');
+    expect(page).toContain('role="button" tabindex="0" aria-haspopup="dialog"');
     expect(page).toContain("data-story-carousel-progress");
     expect(storyRuntime).not.toContain("story-showcase");
     expect(storyCss).toContain("flex: 0 0 84vw !important");
@@ -87,7 +87,7 @@ describe("TerraOS maintenance visual asset routing", () => {
     expect(storyRuntime).toContain("data-comparison-tab=\"before\"");
     expect(storyRuntime).toContain("data-comparison-tab=\"after\"");
     for (const demo of ["home", "explore", "participate", "results", "me"]) {
-      expect(storyRuntime).toContain(`data-story-demo=\"${demo}\"`);
+      expect(storyRuntime).toContain(`data-story-demo="${demo}"`);
     }
     expect(storyRuntime).toContain("data-home-toggle");
     expect(storyRuntime).toContain("data-explore-query");

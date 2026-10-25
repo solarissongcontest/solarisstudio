@@ -18,7 +18,7 @@ function collectHostedSupabaseRequests(page: Page) {
   return hosted;
 }
 
-async function useStoryDemo(layer: Locator, id: (typeof STORIES)[number]["id"]) {
+async function exerciseStoryDemo(layer: Locator, id: (typeof STORIES)[number]["id"]) {
   if (id === "home") {
     await layer.locator("[data-home-toggle]").click();
     await expect(layer.locator("[data-home-demo-title]")).toHaveText("1 thing needs attention");
@@ -65,7 +65,7 @@ test("all five Take a Closer Look cards complete the canonical Story journey", a
     await expect(layer.locator("[data-story-comparison]")).toHaveCount(1);
     await expect(layer.locator(`[data-story-demo="${story.id}"]`)).toHaveCount(1);
 
-    await useStoryDemo(layer, story.id);
+    await exerciseStoryDemo(layer, story.id);
 
     if (story.next) {
       await layer.locator(`[data-story-next="${story.next}"]`).click();
