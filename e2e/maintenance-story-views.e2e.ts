@@ -85,7 +85,7 @@ test("Story history uses hashes, browser Back and exact card restoration", async
   expect(hostedSupabase).toEqual([]);
 });
 
-test("direct Story deep links are safe and invalid Story IDs fall back to maintenance", async ({ page }) => {
+test("direct Story deep links are safe, focused and invalid Story IDs fall back to maintenance", async ({ page }) => {
   const hostedSupabase = collectHostedSupabaseRequests(page);
 
   const response = await page.goto("/#story-results", { waitUntil: "domcontentloaded" });
@@ -93,6 +93,7 @@ test("direct Story deep links are safe and invalid Story IDs fall back to mainte
   await expect(page.locator("[data-story-layer]")).toBeVisible();
   await expect(page.locator("[data-story-layer]")).toHaveAttribute("data-story", "results");
   await expect(page.locator("#story-view-title")).toContainText("Start with");
+  await expect(page.locator("[data-story-close]")).toBeFocused();
 
   await page.locator('[data-result-tab="jury"]').click();
   await expect(page.locator("[data-result-fixture]")).toHaveText("results_jury");
@@ -131,6 +132,9 @@ test("all five Story Views contain a comparison and a working fixture demo", asy
       await expect(layer.locator("[data-explore-archive]")).toBeVisible();
     }
     if (key === "participate") {
+      await expect(layer.locator("[data-participate-ready]")).toHaveCount(2);
+      await expect(layer.locator('[data-participate-ready="country"]')).toContainText("Country confirmed");
+      await expect(layer.locator('[data-participate-ready="entry"]')).toContainText("Entry ready");
       await layer.locator("[data-participate-next]").click();
       await expect(layer.locator("[data-participate-status]")).toHaveText("Editing reopened");
       await layer.locator("[data-participate-next]").click();
@@ -146,7 +150,10 @@ test("all five Story Views contain a comparison and a working fixture demo", asy
     if (key === "me") {
       await layer.locator("[data-me-history-toggle]").click();
       await expect(layer.locator("[data-me-history]")).toBeVisible();
-      await expect(layer.locator("[data-me-history]")).toContainText("SSC 20");
+      for (const edition of ["SSC 19", "SSC 20", "SSC 21", "SSC 22"]) {
+        await expect(layer.locator("[data-me-history]")).toContainText(edition);
+      }
+      await expect(layer.locator("[data-me-history]")).toContainText("Current");
     }
   }
 
