@@ -61,7 +61,7 @@
 
   function updateMotion() {
     frame = 0;
-    if (productBar) productBar.setAttribute('data-scrolled', window.scrollY > 28 ? 'true' : 'false');
+    if (productBar) productBar.setAttribute('data-scrolled', window.scrollY > 56 ? 'true' : 'false');
 
     if (reduceMotion.matches) {
       resetMotion();
@@ -159,5 +159,22 @@
     document.querySelectorAll('.scroll-in').forEach((node) => observer.observe(node));
   } else {
     document.querySelectorAll('.scroll-in').forEach((node) => node.classList.add('seen'));
+  }
+
+  if (root) {
+    if (!document.querySelector('link[data-terraos-story-styles]')) {
+      const styles = document.createElement('link');
+      styles.rel = 'stylesheet';
+      styles.href = '/assets/terraos-maintenance-story.css';
+      styles.setAttribute('data-terraos-story-styles', 'true');
+      document.head.appendChild(styles);
+    }
+    if (!document.querySelector('script[data-terraos-story-script]')) {
+      const script = document.createElement('script');
+      script.src = '/assets/terraos-maintenance-story.js';
+      script.defer = true;
+      script.setAttribute('data-terraos-story-script', 'true');
+      document.body.appendChild(script);
+    }
   }
 })();

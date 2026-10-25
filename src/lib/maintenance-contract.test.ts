@@ -146,8 +146,8 @@ describe("TerraOS 3 final visual production contract", () => {
   });
 
   it("keeps truthful arrival copy and immediate Confirmation access", () => {
-    expect(config).toContain('MAINTENANCE_RETURN_DATE = "25 October 2026"');
-    expect(config).toContain('TERRAOS3_ESTIMATED_LAUNCH_AT = "2026-10-25T20:00:00+02:00"');
+    expect(config).toContain('MAINTENANCE_RETURN_DATE = "15 November 2026"');
+    expect(config).toContain('TERRAOS3_ESTIMATED_LAUNCH_AT = "2026-11-15T20:00:00+02:00"');
     expect(rendered).toContain("Estimated arrival");
     expect(page).toContain("TerraOS 3 is being prepared.");
     expect(rendered).toContain('href="#confirmation-access"');
