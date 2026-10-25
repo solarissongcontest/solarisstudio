@@ -287,19 +287,19 @@ reconcile_edition_runtime_to_results() {
 write_final_evidence() {
   assert_same_persistent_contest
 
-  local result_hash publication_hash receipt_count archive_event_id archive_outbox_id archive_consumer_receipt_count
+  local result_hash publication_hash receipt_count archive_event_id archive_outbox_key archive_consumer_receipt_count
   result_hash="$(s14_result_evidence_hash)"
   publication_hash="$(s14_publication_evidence_hash)"
   receipt_count="$(db_scalar "select count(*) from public.studio2_operation_receipts;")"
   archive_event_id="$(db_scalar "select id::text from private.v3_domain_events where operation_id='$S14_ARCHIVE_OPERATION_ID'::uuid and event_type='edition.archived' limit 1;")"
-  archive_outbox_id="$(db_scalar "select id::text from private.v3_domain_event_outbox where event_id='$archive_event_id'::uuid and consumer_key='edition.tasks' limit 1;")"
+  archive_outbox_key="$(db_scalar "select event_id::text || ':' || consumer_key from private.v3_domain_event_outbox where event_id='$archive_event_id'::uuid and consumer_key='edition.tasks' and status='completed' limit 1;")"
   archive_consumer_receipt_count="$(db_scalar "select count(*) from private.v3_domain_event_consumer_receipts where event_id='$archive_event_id'::uuid and consumer_key='edition.tasks';")"
 
-  [[ -n "$result_hash" && -n "$publication_hash" && -n "$archive_event_id" && -n "$archive_outbox_id" ]] || \
+  [[ -n "$result_hash" && -n "$publication_hash" && -n "$archive_event_id" && -n "$archive_outbox_key" ]] || \
     fail "release-grade S14 evidence is missing retained Results/publication/Archive provenance"
   [[ "$archive_consumer_receipt_count" == "1" ]] || fail "release-grade S14 evidence requires exactly one Archive consequence consumer receipt"
 
-  python3 - "$FINAL_PATH" "$CANDIDATE_SHA" "$S14_RUN_ID" "$EDITION_ID" "$DATABASE_FINGERPRINT" "$result_hash" "$publication_hash" "$receipt_count" "$S14_RESULTS_RECONCILE_OPERATION_ID" "$S14_POST_EDITION_OPERATION_ID" "$S14_ARCHIVE_OPERATION_ID" "$archive_event_id" "$archive_outbox_id" <<'PY'
+  python3 - "$FINAL_PATH" "$CANDIDATE_SHA" "$S14_RUN_ID" "$EDITION_ID" "$DATABASE_FINGERPRINT" "$result_hash" "$publication_hash" "$receipt_count" "$S14_RESULTS_RECONCILE_OPERATION_ID" "$S14_POST_EDITION_OPERATION_ID" "$S14_ARCHIVE_OPERATION_ID" "$archive_event_id" "$archive_outbox_key" <<'PY'
 import json, sys
 (
     path,
@@ -314,7 +314,7 @@ import json, sys
     post_edition_operation_id,
     archive_operation_id,
     archive_event_id,
-    archive_outbox_id,
+    archive_outbox_key,
 ) = sys.argv[1:]
 payload = {
     "schemaVersion": 3,
@@ -384,7 +384,9 @@ payload = {
     },
     "archive": {
         "eventId": archive_event_id,
-        "outboxId": archive_outbox_id,
+        # Keep the legacy evidence field as a serialized natural identity.
+        "outboxId": archive_outbox_key,
+        "outboxKey": {"eventId": archive_event_id, "consumerKey": "edition.tasks"},
         "consequenceConsumerReceiptCount": 1,
     },
 }
