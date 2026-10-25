@@ -217,17 +217,17 @@ run_s14_stage_10_archive() {
   expect_json "Archive recovered operation" operationId "$S14_ARCHIVE_OPERATION_ID"
   expect_json "Archive recovered status" status succeeded
 
-  claimed_archive_events="$(db_scalar "select coalesce(string_agg(event_id::text,',' order by event_id::text),'') from public.studio2_claim_domain_event_deliveries('edition.tasks','$S14_ARCHIVE_WORKER_ID',100,60);")"
+  claimed_archive_events="$(service_value "select coalesce(string_agg(event_id::text,',' order by event_id::text),'') from public.studio2_claim_domain_event_deliveries('edition.tasks','$S14_ARCHIVE_WORKER_ID',100,60);")"
   printf '%s' "$claimed_archive_events" | tr ',' '\n' | grep -Fxq "$archive_event_id" || \
     fail "archive edition.tasks consequence was not claimable"
-  db_scalar "select public.studio2_process_edition_domain_event('$archive_event_id'::uuid,'edition.tasks','$S14_ARCHIVE_WORKER_ID')::text;" >/dev/null
+  service_value "select public.studio2_process_edition_domain_event('$archive_event_id'::uuid,'edition.tasks','$S14_ARCHIVE_WORKER_ID')::text;" >/dev/null
   [[ "$(db_scalar "select status from private.v3_domain_event_outbox where event_id='$archive_event_id'::uuid and consumer_key='edition.tasks';")" == "completed" ]] || \
     fail "archive edition.tasks consequence did not complete"
   [[ "$(db_scalar "select count(*) from private.v3_domain_event_consumer_receipts where event_id='$archive_event_id'::uuid and consumer_key='edition.tasks';")" == "1" ]] || \
     fail "archive consequence consumer receipt is missing"
 
   resolved_task_evidence_before_reconcile="$(s14_resolved_task_evidence_hash)"
-  db_scalar "select private.v3_reconcile_resolved_task_notifications('$EDITION_ID'::uuid)::text;" >/dev/null
+  service_value "select private.v3_reconcile_resolved_task_notifications('$EDITION_ID'::uuid)::text;" >/dev/null
   resolved_task_evidence_after_reconcile="$(s14_resolved_task_evidence_hash)"
   [[ "$resolved_task_evidence_after_reconcile" == "$resolved_task_evidence_before_reconcile" ]] || \
     fail "resolved-task delivery reconciliation rewrote historical task resolution evidence"
@@ -280,8 +280,8 @@ where task.edition_id='$EDITION_ID'::uuid
   [[ "$publication_hash_after" == "$publication_hash_before" ]] || fail "archive mutated exact publication provenance"
   assert_receipts_retained "$receipt_ids_before" "$receipt_ids_after"
 
-  assert_anonymous_result_matches_version "$SEMI_ONE_ID" 2
-  assert_anonymous_result_matches_version "$SEMI_TWO_ID" 2
+  assert_anonymous_result_matches_version "$SEMI_ONE_ID" "$SEMI_ONE_RESULT_VERSION"
+  assert_anonymous_result_matches_version "$SEMI_TWO_ID" "$SEMI_TWO_RESULT_VERSION"
   assert_anonymous_result_matches_version "$FINAL_ID" "$FINAL_RESULT_VERSION"
 
   run_s14_supabase_outage_injection
