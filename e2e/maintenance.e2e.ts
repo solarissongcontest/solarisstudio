@@ -77,8 +77,8 @@ test("Solaris Studio serves the final TerraOS 3 maintenance story across the app
     await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=me&chrome=content"]')).toHaveCount(2);
 
     await expect(page.locator('img[src="/assets/terraos-maintenance/atmosphere.jpeg"]')).toHaveCount(3);
-    await expect(page.locator('img[src="/assets/terraos-maintenance/moment-a.png"]')).toHaveCount(2);
-    await expect(page.locator('img[src="/assets/terraos-maintenance/moment-b.png"]')).toHaveCount(2);
+    await expect(page.locator('img[src^="/assets/terraos-maintenance/moment-a.svg?v="]')).toHaveCount(2);
+    await expect(page.locator('img[src^="/assets/terraos-maintenance/moment-b.svg?v="]')).toHaveCount(2);
     await expect(page.locator("[data-rhythm-field]")).toHaveCount(7);
 
     await expect(page.locator('[data-locked-copy]')).toHaveCount(0);

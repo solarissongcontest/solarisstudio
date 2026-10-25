@@ -23,8 +23,9 @@ type PreviewScreen = TerraOsStoryId;
 type FeatureTone = "now" | "participate" | "explore" | "results" | "me";
 
 const ATMOSPHERE_PHOTO = "/assets/terraos-maintenance/atmosphere.jpeg";
-const SOLARIS_MOMENT_A = "/assets/terraos-maintenance/moment-a.png";
-const SOLARIS_MOMENT_B = "/assets/terraos-maintenance/moment-b.png";
+const SOLARIS_VISUAL_REVISION = "20261025-crisp-vectors";
+const SOLARIS_MOMENT_A = `/assets/terraos-maintenance/moment-a.svg?v=${SOLARIS_VISUAL_REVISION}`;
+const SOLARIS_MOMENT_B = `/assets/terraos-maintenance/moment-b.svg?v=${SOLARIS_VISUAL_REVISION}`;
 
 function previewFrame(screen: PreviewScreen, title: string, loading: "eager" | "lazy" = "lazy") {
   return `<iframe class="terra-preview-frame" src="/terraos-teaser-preview?screen=${screen}&chrome=content" title="${escapeHtml(title)}" tabindex="-1" loading="${loading}" scrolling="no" sandbox="allow-scripts allow-same-origin"></iframe>`;

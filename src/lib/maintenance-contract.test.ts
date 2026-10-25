@@ -97,8 +97,12 @@ describe("TerraOS 3 final visual production contract", () => {
 
   it("uses obvious locally hosted image-led chapters", () => {
     expect(rendered).toContain('/assets/terraos-maintenance/atmosphere.jpeg');
-    expect(rendered).toContain('/assets/terraos-maintenance/moment-a.png');
-    expect(rendered).toContain('/assets/terraos-maintenance/moment-b.png');
+    expect(rendered).toContain('/assets/terraos-maintenance/moment-a.svg');
+    expect(rendered).toContain('/assets/terraos-maintenance/moment-b.svg');
+    expect(rendered).not.toContain('/assets/terraos-maintenance/moment-a.png');
+    expect(rendered).not.toContain('/assets/terraos-maintenance/moment-b.png');
+    expect(page).toContain('SOLARIS_VISUAL_REVISION = "20261025-crisp-vectors"');
+    expect(rendered.match(/\?v=20261025-crisp-vectors/g)?.length ?? 0).toBe(4);
     expect(rendered.match(/data-photo-kind="photo"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     expect(rendered.match(/class="photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(rendered.match(/data-photo-parallax=/g)?.length ?? 0).toBe(7);
