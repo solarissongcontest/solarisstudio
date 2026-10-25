@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const ROUTES = [
   "/",
@@ -10,7 +10,35 @@ const ROUTES = [
   "/admin",
 ] as const;
 
+const MAINTENANCE_VIEWPORTS = [
+  { width: 320, height: 568 },
+  { width: 375, height: 812 },
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+  { width: 768, height: 1024 },
+  { width: 1024, height: 768 },
+  { width: 1366, height: 768 },
+  { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+] as const;
+
 const SUPABASE_API_PATH = /\/(?:auth|rest|functions|storage|realtime|graphql)\/v1\//;
+const HOSTED_SUPABASE = /https:\/\/[^/]+\.supabase\.co\b/i;
+
+function collectHostedSupabaseRequests(page: Page) {
+  const hosted: string[] = [];
+  page.on("request", (request) => {
+    if (HOSTED_SUPABASE.test(request.url())) hosted.push(request.url());
+  });
+  return hosted;
+}
+
+async function expectNoHorizontalOverflow(page: Page) {
+  const overflow = await page.evaluate(
+    () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+}
 
 test("Solaris Studio serves the final TerraOS 3 maintenance story across the app", async ({ page }) => {
   for (const route of ROUTES) {
@@ -61,10 +89,7 @@ test("Solaris Studio serves the final TerraOS 3 maintenance story across the app
     await expect(page.getByText(/All Solaris Studio services are temporarily unavailable/i)).toHaveCount(0);
     await expect(page.getByText(/deployment|commit|pull request|supabase/i)).toHaveCount(0);
 
-    const overflow = await page.evaluate(
-      () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
-    );
-    expect(overflow, `${route} should not overflow horizontally`).toBeLessThanOrEqual(1);
+    await expectNoHorizontalOverflow(page);
   }
 });
 
@@ -147,9 +172,73 @@ test("phone layout removes desktop overlaps and keeps every major chapter contai
     expect(geometry.right, selector).toBeLessThanOrEqual(geometry.viewport + 1);
   }
 
-  const overflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth);
-  expect(overflow).toBeLessThanOrEqual(1);
+  await expectNoHorizontalOverflow(page);
 });
+
+for (const viewport of MAINTENANCE_VIEWPORTS) {
+  test(`maintenance composition passes the ${viewport.width}x${viewport.height} acceptance matrix`, async ({ page }) => {
+    const hostedSupabase = collectHostedSupabaseRequests(page);
+    await page.setViewportSize(viewport);
+    const response = await page.goto("/", { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(503);
+
+    const productBar = page.locator("[data-product-bar]");
+    await expect(productBar).toHaveAttribute("data-scrolled", "false");
+    await page.evaluate(() => window.scrollTo(0, 40));
+    await expect(productBar).toHaveAttribute("data-scrolled", "false");
+    await page.evaluate(() => window.scrollTo(0, 80));
+    await expect(productBar).toHaveAttribute("data-scrolled", "true");
+
+    if (viewport.width <= 430) {
+      const barHeight = await productBar.evaluate((element) => element.getBoundingClientRect().height);
+      expect(barHeight).toBeGreaterThanOrEqual(48);
+      expect(barHeight).toBeLessThanOrEqual(54);
+      await expect(page.locator(".hero-device-main")).toBeVisible();
+      await expect(page.locator(".hero-device-left")).toBeHidden();
+      await expect(page.locator(".hero-device-right")).toBeHidden();
+      await expect(page.locator(".live-copy")).toHaveCSS("position", "static");
+    }
+
+    const imagesLoaded = await page.locator('[data-photo-kind="photo"]').evaluateAll((images) =>
+      images.every((image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0),
+    );
+    expect(imagesLoaded).toBe(true);
+
+    for (const selector of [
+      ".hero-device-main",
+      "#solaris-now .feature-preview-shell",
+      "#participate-feature .feature-preview-shell",
+      "#explore-feature .feature-preview-shell",
+      "#results-feature .feature-preview-shell",
+      "#me-feature .feature-preview-shell",
+    ]) {
+      const geometry = await page.locator(selector).first().evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, viewport: window.innerWidth };
+      });
+      expect(geometry.left, selector).toBeGreaterThanOrEqual(-1);
+      expect(geometry.right, selector).toBeLessThanOrEqual(geometry.viewport + 1);
+    }
+
+    await page.locator("#explore-feature").evaluate((element) => element.scrollIntoView());
+    await page.waitForTimeout(50);
+    const obstruction = await page.evaluate(() => {
+      const bar = document.querySelector("[data-product-bar]")?.getBoundingClientRect();
+      const heading = document.querySelector("#explore-feature-title")?.getBoundingClientRect();
+      if (!bar || !heading) return null;
+      return { barBottom: bar.bottom, headingTop: heading.top };
+    });
+    expect(obstruction).not.toBeNull();
+    expect(obstruction!.headingTop).toBeGreaterThanOrEqual(obstruction!.barBottom - 1);
+
+    await expect(page.locator(".readiness-chapter")).toBeVisible();
+    await expect(page.locator(".finale")).toBeVisible();
+    const exploreText = (await page.locator("#explore-feature-title").innerText()).replace(/\s+/g, " ").trim();
+    expect(exploreText).toBe("More Solaris. Less searching.");
+    await expectNoHorizontalOverflow(page);
+    expect(hostedSupabase).toEqual([]);
+  });
+}
 
 test("Confirmation remains an immediate maintenance destination", async ({ page }) => {
   const response = await page.goto("/", { waitUntil: "domcontentloaded" });
