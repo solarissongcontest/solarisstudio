@@ -16,7 +16,8 @@ const lineup = readFileSync("src/components/admin/ShowLineupWorkspace.tsx", "utf
 
 describe("S14 canonical qualifier-to-final preparation", () => {
   it("keeps promotion maintenance access local and authenticates the Organizer normally", () => {
-    const compiled = ts.transpileModule(browserConfig, {
+    for (const [config, port] of [[browserConfig, 4177], [readFileSync("playwright.s14-grand-final-results.config.ts", "utf8"), 4178]] as const) {
+    const compiled = ts.transpileModule(config, {
       compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
     }).outputText;
     const local = {
@@ -35,12 +36,13 @@ describe("S14 canonical qualifier-to-final preparation", () => {
       return exports.default;
     }
     expect(load(local)).toMatchObject({
-      webServer: { url: "http://127.0.0.1:4177/assets/terraos-maintenance.css", timeout: 120_000 },
+      webServer: { url: `http://127.0.0.1:${port}/assets/terraos-maintenance.css`, timeout: 120_000 },
       use: { contextOptions: { reducedMotion: "reduce" }, storageState: { cookies: [{ name: "solaris_e2e_maintenance_bypass", domain: "127.0.0.1" }] } },
     });
     expect(() => load({ ...local, E2E_BASE_URL: "https://hosted.invalid" })).toThrow();
     expect(() => load({ ...local, E2E_SUPABASE_URL: "https://hosted.invalid" })).toThrow();
     expect(() => load({ ...local, SUPABASE_URL: undefined })).toThrow();
+    }
     expect(browser).toContain("auth/v1/token?grant_type=password");
     expect(browser).toContain("seedOrganizerBrowserSession");
   });

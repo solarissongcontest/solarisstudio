@@ -17,6 +17,8 @@ on:
       - "src/components/admin/ShowLineupWorkspace.tsx"
       - "src/lib/show-lineup-selection*"
       - "playwright.s14-grand-final.config.ts"
+      - "playwright.s14-grand-final-results.config.ts"
+      - "e2e/v3-s14-grand-final-results-runtime.e2e.ts"
       - "e2e/v3-s14-grand-final-runtime.e2e.ts"
       - "src/lib/v3-s15-*.test.ts"
   workflow_dispatch:
@@ -260,7 +262,9 @@ jobs:
           name: v3-s14-promotion-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             test-results/v3-s14-grand-final/
+            test-results/v3-s14-grand-final-results/
             playwright-s14-grand-final-summary.json
+            playwright-s14-grand-final-results-summary.json
           if-no-files-found: ignore
           retention-days: 30
 
