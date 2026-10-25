@@ -19,6 +19,7 @@ const PRESENTATION_ASSETS = [
   ["/assets/terraos-maintenance.js", "javascript"],
   ["/assets/terraos-maintenance-story.css", "text/css"],
   ["/assets/terraos-maintenance-story.js", "javascript"],
+  ["/assets/terraos-maintenance-story-polish.js", "javascript"],
 ] as const;
 
 test("TerraOS editorial assets remain available while the app is maintenance-gated", async ({ request }) => {
