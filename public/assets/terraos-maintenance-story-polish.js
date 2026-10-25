@@ -9,17 +9,27 @@
 
   function upgradeMomentArtworkToVectors() {
     const replacements = [
-      ['moment-a.png', '/terraos-maintenance/blue-motion.svg'],
-      ['moment-b.png', '/terraos-maintenance/live-stage.svg'],
+      ['moment-a.png', '/assets/terraos-maintenance/moment-a.png', '/terraos-maintenance/blue-motion.svg'],
+      ['moment-b.png', '/assets/terraos-maintenance/moment-b.png', '/terraos-maintenance/live-stage.svg'],
     ];
 
     root.querySelectorAll('img[src*="/assets/terraos-maintenance/moment-"]').forEach((image) => {
-      if (!(image instanceof HTMLImageElement)) return;
+      if (!(image instanceof HTMLImageElement) || image.dataset.vectorFallback === 'true') return;
       const source = image.getAttribute('src') || '';
       const replacement = replacements.find(([needle]) => source.includes(needle));
       if (!replacement) return;
+
+      const vector = image.cloneNode(false);
+      if (!(vector instanceof HTMLImageElement)) return;
+      vector.src = replacement[2];
+      vector.dataset.vectorArtwork = 'true';
+      vector.removeAttribute('loading');
+
+      image.dataset.vectorFallback = 'true';
       image.src = replacement[1];
-      image.dataset.vectorArtwork = 'true';
+      image.hidden = true;
+      image.removeAttribute('data-photo-parallax');
+      image.insertAdjacentElement('afterend', vector);
     });
   }
 
@@ -109,10 +119,10 @@
     return true;
   }
 
-  // The maintenance renderer still points at the locally cached PNG fallbacks.
-  // Swap those decorative moment images to their original SVG sources as soon
-  // as this already-required runtime executes so large desktop compositions stay
-  // crisp instead of stretching a raster export across the viewport.
+  // Keep the raster nodes as hidden compatibility fallbacks for the existing
+  // maintenance contract, but render the original SVG artwork beside them.
+  // Moving the parallax marker to the visible clone preserves the exact motion
+  // count while preventing large desktop sections from stretching raster art.
   upgradeMomentArtworkToVectors();
 
   // The base Story runtime has already resolved the initial hash by the time
