@@ -24,6 +24,29 @@ describe("TerraOS maintenance Story interaction polish", () => {
     expect(polish).toContain("focus({ preventScroll: true })");
   });
 
+  it("completes the Participate responsibility story without changing workflow authority", () => {
+    expect(polish).toContain("enrichParticipateStory");
+    expect(polish).toContain("Country confirmed");
+    expect(polish).toContain("Entry ready");
+    expect(polish).toContain("✓ Complete");
+    expect(polish).toContain("data-participate-ready");
+  });
+
+  it("extends Me into a continuous SSC 19 through SSC 22 fixture timeline", () => {
+    expect(polish).toContain("enrichMeStory");
+    for (const edition of ["SSC 19", "SSC 20", "SSC 21", "SSC 22"]) {
+      expect(polish).toContain(edition);
+    }
+    expect(polish).toContain("data-me-timeline-ready");
+  });
+
+  it("binds enrichment lazily when the Story layer is first created", () => {
+    expect(polish).toContain("MutationObserver");
+    expect(polish).toContain("bindLayerEnhancer");
+    expect(polish).toContain("attributeFilter: ['data-story']");
+    expect(polish).toContain("bodyObserver.observe(document.body, { childList: true })");
+  });
+
   it("uses transform-only FLIP movement for Results perspective reordering", () => {
     expect(polish).toContain("getBoundingClientRect()");
     expect(polish).toContain("translate3d(${deltaX}px, ${deltaY}px, 0)");
