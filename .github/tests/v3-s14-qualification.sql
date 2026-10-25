@@ -103,4 +103,116 @@ begin
  raise notice 'PASS: twenty distinct qualifiers, rank boundary, withdrawal/disqualification, automatic finalist separation, immutable history and idempotency';
 end
 $test$;
+-- Optional boundary suite reuses the same fixture and all existing assertions.
+-- It obtains fresh authentication from local GoTrue, never fabricates R3 state.
+\if :{?handoff_claims}
+select set_config('request.jwt.claims', :'handoff_claims', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', (:'handoff_claims'::jsonb->>'sub'), true);
+insert into public.studio2_role_assignments(user_id,role_key,edition_id,expires_at,assigned_by)
+values (auth.uid(),'organizer',null,null,null)
+on conflict on constraint studio2_role_assignments_scope_unique do nothing;
+
+do $handoff$
+declare
+ v_show uuid;
+ v_version bigint;
+ v_preview jsonb;
+ v_operation uuid;
+ v_config jsonb := '{"results":true,"participants":true,"qualifiers":true}'::jsonb;
+begin
+ for v_show in select unnest(array['26000000-0000-4000-8000-000000000911'::uuid,'26000000-0000-4000-8000-000000000912'::uuid]) loop
+   select calculation_version into strict v_version from public.studio2_result_operations where show_id=v_show;
+   perform public.studio2_execute_result_operation(v_show,'review','Handoff review current Results',gen_random_uuid(),v_version);
+   perform public.studio2_execute_result_operation(v_show,'lock','Handoff lock current Results',gen_random_uuid(),v_version);
+   perform public.studio2_execute_result_operation(v_show,'mark_reveal_ready','Handoff approve current Results',gen_random_uuid(),v_version);
+   if not exists(select 1 from public.studio2_result_operations where show_id=v_show
+     and calculation_version=v_version and reviewed_version=v_version and locked_version=v_version and reveal_ready_version=v_version)
+     or not exists(select 1 from private.v3_result_versions where show_id=v_show and version=v_version and result_row_count=11) then
+     raise exception 'Stage 8 handoff lacks exact finalized immutable Results';
+   end if;
+   v_preview := public.studio2_show_publication_change_preview(v_show,'public',v_config,null);
+   v_operation := gen_random_uuid();
+   perform public.studio2_apply_show_publication_change(v_show,'public',v_config,null,v_operation,'handoff-publish-'||v_show,(v_preview->>'expectedVersion')::bigint);
+   if not exists(select 1 from public.studio2_show_publication_controls where show_id=v_show and state='public' and source_result_version=v_version) then
+     raise exception 'Semi-final publication does not bind exact Stage 8 version';
+   end if;
+ end loop;
+ -- Exact bridge predicate, now exercised after real publication as in S14.
+ if (select count(*) from public.participants where edition_id='26000000-0000-4000-8000-000000000902'
+   and show_id in ('26000000-0000-4000-8000-000000000911','26000000-0000-4000-8000-000000000912') and qualified is true)<>20
+   or (select count(distinct country_id) from public.participants where edition_id='26000000-0000-4000-8000-000000000902'
+   and show_id in ('26000000-0000-4000-8000-000000000911','26000000-0000-4000-8000-000000000912') and qualified is true)<>20 then
+   raise exception 'Published Results handoff did not satisfy exact twenty-country bridge';
+ end if;
+end
+$handoff$;
+
+-- Same authenticated participant insertion used by Organizer addQualifiers.
+-- Automatic finalist already exists separately and is never among these twenty.
+set local role authenticated;
+insert into public.participants(edition_id,show_id,country_id,contest_entity_id,artist,song,semi_final)
+select p.edition_id,'26000000-0000-4000-8000-000000000913',p.country_id,p.contest_entity_id,p.artist,p.song,'grand-final'
+from public.participants p
+where p.edition_id='26000000-0000-4000-8000-000000000902'
+  and p.show_id in ('26000000-0000-4000-8000-000000000911','26000000-0000-4000-8000-000000000912')
+  and p.qualified is true and coalesce(p.participation_status,'confirmed')='confirmed';
+reset role;
+
+do $handoff$
+declare
+ v_edition uuid := '26000000-0000-4000-8000-000000000902';
+ v_final uuid := '26000000-0000-4000-8000-000000000913';
+ v_version bigint;
+ v_preview jsonb;
+ v_operation uuid;
+ v_state text;
+ v_history text;
+ v_publication text;
+ v_event uuid;
+ v_config jsonb := '{"results":true,"participants":true}'::jsonb;
+begin
+ if (select count(*) from public.participants where show_id=v_final)<>21
+    or (select count(distinct country_id) from public.participants where show_id=v_final)<>21 then
+   raise exception 'Grand Final assembly did not preserve twenty qualifiers plus one separate automatic finalist';
+ end if;
+ select coalesce((select calculation_version from public.studio2_result_operations where show_id=v_final),0) into v_version;
+ perform public.studio2_execute_result_operation(v_final,'calculate','Calculate assembled final handoff',gen_random_uuid(),v_version);
+ select calculation_version into strict v_version from public.studio2_result_operations where show_id=v_final;
+ perform public.studio2_execute_result_operation(v_final,'review','Review assembled final handoff',gen_random_uuid(),v_version);
+ perform public.studio2_execute_result_operation(v_final,'lock','Lock assembled final handoff',gen_random_uuid(),v_version);
+ perform public.studio2_execute_result_operation(v_final,'mark_reveal_ready','Approve assembled final handoff',gen_random_uuid(),v_version);
+ v_preview := public.studio2_show_publication_change_preview(v_final,'public',v_config,null);
+ v_operation := gen_random_uuid();
+ perform public.studio2_apply_show_publication_change(v_final,'public',v_config,null,v_operation,'handoff-publish-final',(v_preview->>'expectedVersion')::bigint);
+ if not exists(select 1 from public.studio2_show_publication_controls where show_id=v_final and source_result_version=v_version and state='public')
+    or not private.v3_edition_final_results_ready(v_edition) then
+   raise exception 'Grand Final publication did not establish exact canonical Archive readiness';
+ end if;
+ select md5(jsonb_agg(to_jsonb(v) order by show_id,version)::text) into v_history from private.v3_result_versions v where edition_id=v_edition;
+ select md5(jsonb_agg(to_jsonb(c)-'updated_at' order by show_id)::text) into v_publication from public.studio2_show_publication_controls c where edition_id=v_edition;
+ for v_state in select unnest(array['results','post_edition','archived']) loop
+   select version into strict v_version from public.studio2_edition_runtime where edition_id=v_edition;
+   v_operation := gen_random_uuid();
+   perform public.studio2_transition_edition_v3(v_edition,v_state,'Focused canonical publication handoff',null,v_version,v_operation,'handoff-'||v_state);
+   if public.studio2_reconcile_operation(v_operation)->>'status'<>'succeeded' then raise exception 'Handoff receipt could not be recovered by actor'; end if;
+ end loop;
+ if (select state from public.studio2_edition_runtime where edition_id=v_edition)<>'archived'
+   or (select md5(jsonb_agg(to_jsonb(v) order by show_id,version)::text) from private.v3_result_versions v where edition_id=v_edition) is distinct from v_history
+   or (select md5(jsonb_agg(to_jsonb(c)-'updated_at' order by show_id)::text) from public.studio2_show_publication_controls c where edition_id=v_edition) is distinct from v_publication then
+   raise exception 'Archive handoff changed immutable Results or exact publication truth';
+ end if;
+ select id into strict v_event from private.v3_domain_events where operation_id=v_operation and event_type='edition.archived';
+ perform set_config('request.jwt.claim.role','service_role',true);
+ perform set_config('request.jwt.claims','{"role":"service_role"}',true);
+ perform public.studio2_claim_domain_event_deliveries('edition.tasks','handoff-worker',100,60);
+ perform public.studio2_process_edition_domain_event(v_event,'edition.tasks','handoff-worker');
+ if not exists(select 1 from private.v3_domain_event_outbox where event_id=v_event and consumer_key='edition.tasks' and status='completed')
+   or (select count(*) from private.v3_domain_event_consumer_receipts where event_id=v_event and consumer_key='edition.tasks')<>1 then
+   raise exception 'Archived handoff lacks canonical composite-key outbox/consumer evidence';
+ end if;
+ raise notice 'PASS: Stage8 exact-version publication -> qualifiers -> final assembly -> final publication -> Archive -> composite evidence';
+end
+$handoff$;
+\endif
 rollback;

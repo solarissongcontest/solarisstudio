@@ -81,64 +81,36 @@ jobs:
       - name: Verify production isolation
         run: bun run scripts/check-v3-production-isolation.ts
 
-      - name: Run canonical registry guards
+      - name: Discover every independent static release failure
+        run: bun --env-file=/dev/null run scripts/v3-release-preflight.ts --group=static
+
+      - name: Generate exact-SHA discovery dashboard
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
-          bun run certify:v3-registry
-          bun run scripts/check-v3-non-route-capabilities.ts
-          bun run scripts/check-v3-system-s1-registries.ts
-          echo "V3_REGISTRY_GUARDS_PASSED=1" >> "$GITHUB_ENV"
-
-      - name: Run structural release-integrity guard
-        run: bun run scripts/check-v3-release-integrity.ts
-
-      - name: Generate exact-SHA preflight evidence
-        shell: bash
-        run: |
-          set -euo pipefail
-          expected="$(printf '%s' "$V3_CANDIDATE_SHA" | tr '[:upper:]' '[:lower:]')"
+          expected="$V3_CANDIDATE_SHA"
           mkdir -p v3-release-preflight
           GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts > v3-release-preflight/completion-dashboard.md
           GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts --json > v3-release-preflight/completion-dashboard.json
-          bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > v3-release-preflight/s14-readiness.json
-          bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > v3-release-preflight/s15-readiness.json
-          V3_RELEASE_EVIDENCE_DIR=v3-release-preflight bun run scripts/build-v3-s15-zero-orphan-evidence.ts
-          git rev-parse HEAD > v3-release-preflight/exact-sha.txt
-          dashboard_sha="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-release-preflight/completion-dashboard.json","utf8")).candidateSha)')"
-          s15_sha="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-release-preflight/s15-zero-orphan.json","utf8")).candidateSha)')"
-          checkout_sha="$(cat v3-release-preflight/exact-sha.txt)"
-          if [ "$dashboard_sha" != "$expected" ] || [ "$s15_sha" != "$expected" ] || [ "$checkout_sha" != "$expected" ]; then
-            echo "::error::release evidence identity mismatch: dashboard=$dashboard_sha s15=$s15_sha checkout=$checkout_sha expected=$expected"
+          dashboard_sha="$(node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync("v3-release-preflight/completion-dashboard.json","utf8")).candidateSha)')"
+          if [ "$dashboard_sha" != "$expected" ]; then
+            echo "::error::release evidence identity mismatch: dashboard=$dashboard_sha expected=$expected"
             exit 1
           fi
+          echo "Discovery is not an S16 certificate; final runtime artifacts remain mandatory."
 
-      - name: Enforce release-strict preconditions
+      - name: Retain strict external release evidence requirements
+        if: always()
         env:
           V3_RELEASE_EVIDENCE_DIR: v3-release-preflight
         run: bun run scripts/check-v3-release-integrity.ts --release
 
-      - name: Upload exact-SHA preflight evidence
+      - name: Upload exact-SHA discovery summary
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: v3-release-preflight-${{ inputs.candidate_sha }}
           path: v3-release-preflight/
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 30
-
-      - name: Publish preflight summary
-        if: always()
-        shell: bash
-        run: |
-          {
-            echo "## V3 exact-SHA release preflight"
-            echo
-            echo "Requested candidate: \`${{ inputs.candidate_sha }}\`"
-            echo
-            echo "This workflow is a fail-closed preflight, not an S16 certificate. It must remain red while S14, S15, cutover, security-classification, or other release prerequisites are incomplete."
-            if [ -s v3-release-preflight/completion-dashboard.md ]; then
-              echo
-              cat v3-release-preflight/completion-dashboard.md
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"

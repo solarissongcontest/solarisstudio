@@ -38,3 +38,6 @@ src/routeTree.gen.ts
 .env
 .env.local
 .env.*.local
+
+# Generated release discovery logs and summaries (not release certification)
+/v3-release-preflight/

@@ -17,8 +17,8 @@ describe("TerraOS maintenance visual asset routing", () => {
   it("keeps the final image-led experience entirely inside the already-approved /assets prefix", () => {
     for (const asset of [
       "/assets/terraos-maintenance/atmosphere.jpeg",
-      "/assets/terraos-maintenance/moment-a.png",
-      "/assets/terraos-maintenance/moment-b.png",
+      "/assets/terraos-maintenance/moment-a.svg",
+      "/assets/terraos-maintenance/moment-b.svg",
       "/assets/terraos-maintenance.css",
       "/assets/terraos-maintenance.js",
       "/assets/terraos-maintenance-story.css",

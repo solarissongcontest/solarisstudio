@@ -9,6 +9,8 @@ on:
       - ".github/scripts/v3-s14-*.sh"
       - ".github/scripts/v3-full-contest-rehearsal.sh"
       - ".github/workflows/v3-s14-full-contest-rehearsal.yml"
+      - ".github/workflows/browser-audit.yml"
+      - ".github/workflows/v3-release-candidate-preflight.yml"
       - "scripts/v3-s14-full-contest-spec.ts"
       - "scripts/check-v3-s14-rehearsal-readiness.ts"
       - "scripts/check-v3-s15-*.ts"
@@ -21,18 +23,172 @@ on:
       - "e2e/v3-s14-grand-final-results-runtime.e2e.ts"
       - "e2e/v3-s14-grand-final-runtime.e2e.ts"
       - "src/lib/v3-s15-*.test.ts"
+      - "scripts/v3-release-preflight.ts"
+      - "scripts/merge-v3-release-preflight.ts"
+      - "scripts/lib/v3-release-preflight.ts"
+      - "scripts/lib/v3-s14-certification.ts"
+      - "scripts/v3-s14-publication-handoff-regression.ts"
+      - "src/lib/v3-release-*.test.ts"
+      - ".github/tests/v3-s14-*.sql"
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: v3-s14-stateful-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  static-preflight:
+    name: Static release cascade preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Discover every independent static release failure
+        run: bun --env-file=/dev/null run scripts/v3-release-preflight.ts --group=static
+
+      - name: Upload complete static discovery and cutover audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-release-preflight-static-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-preflight/static/
+          if-no-files-found: error
+
+  focused-preflight:
+    name: Focused local Supabase cascade preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
+      V3_S14_ALLOW_PARTIAL: "0"
+      V3_S14_REQUIRE_COMPLETE: "1"
+      LOCAL_SUPABASE_URL: http://127.0.0.1:54321
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        run: supabase start
+
+      - name: Verify production isolation before destructive rehearsal
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          if [[ "$API_URL" != "$LOCAL_SUPABASE_URL" ]]; then
+            echo "::error::Refusing audit server with hosted Supabase URL: $API_URL"
+            exit 1
+          fi
+          case "$API_URL" in
+            http://127.0.0.1:*|http://localhost:*) ;;
+            *) echo "::error::Refusing S14 against non-local Supabase API_URL=$API_URL"; exit 1 ;;
+          esac
+          export VITE_SUPABASE_URL="$API_URL"
+          export SUPABASE_URL="$API_URL"
+          export E2E_SUPABASE_URL="$API_URL"
+          export VITE_CONFIRMATIONS_SUPABASE_URL="$API_URL"
+          export CONFIRMATIONS_SUPABASE_URL="$API_URL"
+          export DATABASE_URL="$DB_URL"
+          export SUPABASE_PROJECT_ID=local
+          export SUPABASE_PROJECT_REF=local
+          export E2E_SUPABASE_PROJECT_ID=local
+          export E2E_SUPABASE_PROJECT_REF=local
+          export VITE_SUPABASE_PROJECT_ID=local
+          export VITE_SUPABASE_PROJECT_REF=local
+          bun run scripts/check-v3-production-isolation.ts
+
+      - name: Rebuild exact migration chain locally
+        run: supabase db reset --local --no-seed
+
+      - name: Discover every independent focused and handoff failure
+        run: bun --env-file=/dev/null run scripts/v3-release-preflight.ts --group=database
+
+      - name: Upload complete focused discovery
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-release-preflight-database-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-preflight/database/
+          if-no-files-found: error
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  discovery-summary:
+    name: Combined release failure matrix
+    needs: [static-preflight, focused-preflight]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - name: Download static discovery report
+        if: always()
+        uses: actions/download-artifact@v4
+        with:
+          name: v3-release-preflight-static-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-preflight/discovery-inputs/static/
+      - name: Download focused discovery report
+        if: always()
+        uses: actions/download-artifact@v4
+        with:
+          name: v3-release-preflight-database-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-preflight/discovery-inputs/database/
+      - name: Merge all observable failures without losing failed groups
+        if: always()
+        run: bun --env-file=/dev/null run scripts/merge-v3-release-preflight.ts
+      - name: Upload combined exact-head failure matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-release-preflight-summary-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-preflight/preflight-summary.json
+          if-no-files-found: error
+
   stateful-rehearsal:
-    name: One-state contest lifecycle through Archive + S15 zero-orphan
+    name: One-state contest lifecycle through Archive
+    needs: [static-preflight, focused-preflight, discovery-summary]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -66,9 +222,6 @@ jobs:
       - name: Start isolated local Supabase
         run: supabase start
 
-      - name: Rebuild exact migration chain locally
-        run: supabase db reset --local --no-seed
-
       - name: Verify production isolation before destructive rehearsal
         shell: bash
         run: |
@@ -96,19 +249,8 @@ jobs:
           export VITE_SUPABASE_PROJECT_REF=local
           bun run scripts/check-v3-production-isolation.ts
 
-      - name: Regress canonical Results lineup before full rehearsal
-        run: bash .github/scripts/v3-s14-results-lineup-regression.sh
-
-      - name: Regress canonical semi-final qualification before full rehearsal
-        run: bash .github/scripts/v3-s14-qualification-regression.sh
-
-      - name: Regress shared integration runtime permissions
-        run: bash .github/scripts/v3-s14-integration-runtime-regression.sh
-
-      - name: Verify focused qualifier and Grand Final contracts
-        run: |
-          bunx vitest run src/lib/v3-s14-final-evidence.test.ts src/lib/v3-s14-archive-worker-context.test.ts src/lib/v3-s14-receipt-recovery.test.ts src/lib/v3-s14-grand-final-version.test.ts src/lib/v3-s14-grand-final-results.contract.test.ts src/lib/v3-s14-grand-final-publication.contract.test.ts src/lib/v3-s14-grand-final-prep.contract.test.ts src/lib/show-lineup-selection.test.ts
-          bunx eslint src/lib/v3-s14-final-evidence.test.ts src/lib/v3-s14-archive-worker-context.test.ts src/lib/v3-s14-receipt-recovery.test.ts src/lib/v3-s14-grand-final-version.test.ts src/lib/v3-s14-grand-final-prep.contract.test.ts src/lib/show-lineup-selection.ts src/lib/show-lineup-selection.test.ts
+      - name: Rebuild exact migration chain locally
+        run: supabase db reset --local --no-seed
 
       - name: Run complete one-state S14 contest lifecycle
         id: rehearsal
@@ -229,26 +371,6 @@ jobs:
               raise SystemExit(f"unexpected rehearsal step outcome: {outcome!r}")
           PY
 
-      - name: Build exact-SHA S15 zero-orphan evidence
-        if: steps.rehearsal.outcome == 'success'
-        shell: bash
-        run: |
-          set -euo pipefail
-          export V3_CANDIDATE_SHA="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
-          bun run scripts/check-v3-s15-zero-orphan-readiness.ts --require-zero
-          bun run scripts/build-v3-s15-zero-orphan-evidence.ts --require-zero
-          node - <<'NODE'
-          const fs = require("fs");
-          const cp = require("child_process");
-          const evidence = JSON.parse(fs.readFileSync("v3-release-evidence/s15-zero-orphan.json", "utf8"));
-          const sha = cp.execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim().toLowerCase();
-          if (evidence.candidateSha !== sha) throw new Error(`S15 candidate mismatch: ${evidence.candidateSha} != ${sha}`);
-          if (evidence.zeroOrphans !== true) throw new Error("S15 did not prove zeroOrphans=true");
-          if (!Array.isArray(evidence.findings) || evidence.findings.length !== 0) throw new Error("S15 retained orphan findings");
-          if ((evidence.schemaVersion ?? 0) < 4) throw new Error("S15 evidence predates physical-ownership proof");
-          if (evidence.physicalOwnership?.zeroOwnershipConflicts !== true) throw new Error("S15 physical ownership is not conflict-free");
-          NODE
-
       - name: Upload exact-SHA S14 and S15 evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -274,3 +396,77 @@ jobs:
       - name: Stop isolated local Supabase
         if: always()
         run: supabase stop --no-backup || true
+
+  s15-certification:
+    name: Exact-SHA S15 certification after S14
+    needs: [stateful-rehearsal]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Download successful exact-SHA S14 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: v3-s14-stateful-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-evidence/
+
+      - name: Build exact-SHA S15 zero-orphan evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          export V3_CANDIDATE_SHA="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          bun run scripts/check-v3-s15-zero-orphan-readiness.ts --require-zero
+          bun run scripts/build-v3-s15-zero-orphan-evidence.ts --require-zero
+          node - <<'NODE'
+          const fs = require("fs");
+          const cp = require("child_process");
+          const evidence = JSON.parse(fs.readFileSync("v3-release-evidence/s15-zero-orphan.json", "utf8"));
+          const sha = cp.execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim().toLowerCase();
+          if (evidence.candidateSha !== sha) throw new Error(`S15 candidate mismatch: ${evidence.candidateSha} != ${sha}`);
+          if (evidence.zeroOrphans !== true) throw new Error("S15 did not prove zeroOrphans=true");
+          if (!Array.isArray(evidence.findings) || evidence.findings.length !== 0) throw new Error("S15 retained orphan findings");
+          if ((evidence.schemaVersion ?? 0) < 4) throw new Error("S15 evidence predates physical-ownership proof");
+          if (evidence.physicalOwnership?.zeroOwnershipConflicts !== true) throw new Error("S15 physical ownership is not conflict-free");
+          NODE
+
+      - name: Upload late exact-SHA S15 release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s15-certified-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-evidence/
+          if-no-files-found: error
+
+  certification-gate:
+    name: One-state contest lifecycle through Archive + S15 zero-orphan
+    needs: [static-preflight, focused-preflight, discovery-summary, stateful-rehearsal, s15-certification]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every exact-head release gate
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          results = json.loads(os.environ['RESULTS'])
+          failures = [name for name, result in results.items() if result['result'] != 'success']
+          if failures:
+              raise SystemExit('Release certification blocked: ' + ', '.join(failures))
+          print('Every exact-head cascade, one-state S14 and late S15 gate passed.')
+          PY

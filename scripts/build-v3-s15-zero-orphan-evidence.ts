@@ -1,5 +1,6 @@
+import { assertS14Certification } from "./lib/v3-s14-certification";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const requireZero = process.argv.includes("--require-zero");
@@ -19,6 +20,9 @@ if (requestedCandidateSha !== checkedOutSha) {
     `V3_CANDIDATE_SHA ${requestedCandidateSha} does not match checked-out SHA ${checkedOutSha}`,
   );
 }
+
+const certifiedS14Path = resolve(process.env.V3_RELEASE_EVIDENCE_DIR?.trim() || "v3-release-evidence", "s14-full-contest.json");
+assertS14Certification(JSON.parse(readFileSync(certifiedS14Path, "utf8")), requestedCandidateSha);
 
 const readinessRaw = execFileSync(
   "bun",

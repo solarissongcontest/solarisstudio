@@ -64,7 +64,8 @@ describe("S14 canonical qualifier-to-final preparation", () => {
     expect(repair).toContain("s.kind = 'semi-final'");
     expect(repair).not.toMatch(/delete from|update private\.v3_result_versions/i);
     const workflow = readFileSync(".github/workflows/v3-s14-full-contest-rehearsal.yml", "utf8");
-    expect(workflow.indexOf("v3-s14-qualification-regression.sh")).toBeLessThan(workflow.indexOf("Run complete one-state S14"));
+    expect(workflow).toContain("needs: [static-preflight, focused-preflight, discovery-summary]");
+    expect(readFileSync("scripts/v3-release-preflight.ts", "utf8")).toContain("v3-s14-qualification-regression.sh");
   });
 
   it("requires real result-ranked qualification before creating final appearances", () => {
