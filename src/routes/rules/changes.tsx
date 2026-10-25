@@ -9,6 +9,10 @@ import {
   type RulebookChange,
   type RulebookRelease,
 } from "@/lib/rules-governance";
+import {
+  formatRulebookHistoryDate,
+  resolveRulebookHistoryRuleTarget,
+} from "@/lib/v3-rulebook-history";
 
 export const Route = createFileRoute("/rules/changes")({
   head: () => ({
@@ -79,7 +83,7 @@ function ReleaseSection({ release }: { release: RulebookRelease }) {
           </span>
         ) : null}
         <span className="text-xs text-muted-foreground">
-          Effective {formatDate(release.effective_from ?? release.published_at)}
+          Effective {formatRulebookHistoryDate(release.effective_from ?? release.published_at)}
         </span>
       </div>
 
@@ -94,7 +98,11 @@ function ReleaseSection({ release }: { release: RulebookRelease }) {
       {changes.length ? (
         <div className="mt-4 divide-y divide-border/60 border-y border-border/60">
           {changes.map((change) => (
-            <ChangeRow key={change.id ?? release.version + "-" + change.rule_id} change={change} />
+            <ChangeRow
+              key={change.id ?? release.version + "-" + change.rule_id}
+              change={change}
+              isCurrentRelease={release.is_current === true}
+            />
           ))}
         </div>
       ) : (
@@ -106,24 +114,45 @@ function ReleaseSection({ release }: { release: RulebookRelease }) {
   );
 }
 
-function ChangeRow({ change }: { change: RulebookChange }) {
+function ChangeRow({
+  change,
+  isCurrentRelease,
+}: {
+  change: RulebookChange;
+  isCurrentRelease: boolean;
+}) {
   const beforeTitle = change.before_snapshot?.title;
   const afterTitle = change.after_snapshot?.title;
   const afterSummary = change.after_snapshot?.summary;
+  const currentRuleTarget = resolveRulebookHistoryRuleTarget(isCurrentRelease, change.rule_id);
 
   return (
     <div className="py-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Link
-          to="/rules/$ruleId"
-          params={{ ruleId: change.rule_id }}
-          className="font-mono text-xs font-black text-primary"
-        >
-          Rule {change.rule_id}
-        </Link>
+        {currentRuleTarget ? (
+          <Link
+            to={currentRuleTarget.to}
+            params={currentRuleTarget.params}
+            className="font-mono text-xs font-black text-primary"
+          >
+            Rule {change.rule_id}
+          </Link>
+        ) : (
+          <span
+            className="font-mono text-xs font-black text-primary"
+            aria-label={`Rule ${change.rule_id}, historical snapshot`}
+          >
+            Rule {change.rule_id}
+          </span>
+        )}
         <span className="text-[11px] font-semibold capitalize text-muted-foreground">
           {change.change_kind}
         </span>
+        {!isCurrentRelease ? (
+          <span className="text-[11px] font-semibold text-muted-foreground">
+            Historical snapshot
+          </span>
+        ) : null}
       </div>
       <h3 className="mt-1 text-sm font-bold">
         {afterTitle ?? beforeTitle ?? "Rule " + change.rule_id}
@@ -171,16 +200,4 @@ function EmptyState() {
       </Link>
     </div>
   );
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return "not recorded";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
 }

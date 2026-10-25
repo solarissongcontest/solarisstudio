@@ -7,6 +7,10 @@ import {
   type RuleInterpretation,
 } from "@/lib/rule-interpretations";
 import { cn } from "@/lib/utils";
+import {
+  formatRulebookHistoryDate,
+  resolveRulebookHistoryRuleTarget,
+} from "@/lib/v3-rulebook-history";
 
 export function RuleInterpretationsPanel({ ruleId }: { ruleId: string }) {
   const query = useQuery({
@@ -84,7 +88,7 @@ function InterpretationCard({ item, historical = false }: { item: RuleInterpreta
           <span className="font-mono text-[11px] font-black text-violet-100">{item.code}</span>
         </div>
         <span className="text-[10px] uppercase tracking-[.08em] text-muted-foreground">
-          {historical ? "superseded" : item.effective_from ? `effective ${new Date(item.effective_from).toLocaleDateString()}` : "published"}
+          {historical ? "superseded" : item.effective_from ? `effective ${formatRulebookHistoryDate(item.effective_from)}` : "published"}
         </span>
       </div>
       <h3 className="mt-3 text-sm font-black">{item.title}</h3>
@@ -95,11 +99,27 @@ function InterpretationCard({ item, historical = false }: { item: RuleInterpreta
       <p className="mt-3 text-sm font-semibold leading-6 text-slate-100">{item.interpretation}</p>
       <p className="mt-3 text-xs leading-5 text-muted-foreground">{item.rationale}</p>
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {item.rule_ids.map((ruleId) => (
-          <Link key={ruleId} to="/rules/$ruleId" params={{ ruleId }} className="rounded-md border border-white/[0.06] bg-white/[0.025] px-2 py-1 text-[10px] font-bold text-sky-200">
-            Rule {ruleId}
-          </Link>
-        ))}
+        {item.rule_ids.map((ruleId) => {
+          const currentRuleTarget = resolveRulebookHistoryRuleTarget(!historical, ruleId);
+          return currentRuleTarget ? (
+            <Link
+              key={ruleId}
+              to={currentRuleTarget.to}
+              params={currentRuleTarget.params}
+              className="rounded-md border border-white/[0.06] bg-white/[0.025] px-2 py-1 text-[10px] font-bold text-sky-200"
+            >
+              Rule {ruleId}
+            </Link>
+          ) : (
+            <span
+              key={ruleId}
+              className="rounded-md border border-white/[0.06] bg-white/[0.025] px-2 py-1 text-[10px] font-bold text-muted-foreground"
+              aria-label={`Rule ${ruleId}, historical reference`}
+            >
+              Rule {ruleId}
+            </span>
+          );
+        })}
       </div>
     </article>
   );

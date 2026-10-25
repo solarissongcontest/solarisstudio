@@ -5,7 +5,14 @@ import { useMemo, useState } from "react";
 
 import { RulesRouteShell } from "@/components/rules/RulesRouteShell";
 import { GovernanceDepthLayout } from "@/components/SolarisDepth";
-import { getPublicRuleInterpretations } from "@/lib/rule-interpretations";
+import {
+  getPublicRuleInterpretations,
+  type RuleInterpretation,
+} from "@/lib/rule-interpretations";
+import {
+  formatRulebookHistoryDate,
+  resolveRulebookHistoryRuleTarget,
+} from "@/lib/v3-rulebook-history";
 
 export const Route = createFileRoute("/rules/interpretations")({
   head: () => ({
@@ -101,63 +108,7 @@ function InterpretationsIndex() {
           ) : filtered.length ? (
             <div className="divide-y divide-border/65 border-y border-border/65">
               {filtered.map((item) => (
-                <article key={item.id} className="py-5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <BadgeCheck
-                      className={
-                        item.status === "superseded"
-                          ? "size-4 text-muted-foreground"
-                          : "size-4 text-primary"
-                      }
-                    />
-                    <span className="font-mono text-[11px] font-black text-primary">
-                      {item.code}
-                    </span>
-                    <span className="text-[11px] font-semibold text-muted-foreground">
-                      {item.status === "superseded"
-                        ? "Superseded"
-                        : item.effective_from
-                          ? "Effective " + new Date(item.effective_from).toLocaleDateString()
-                          : "Published"}
-                    </span>
-                  </div>
-
-                  <h2 className="mt-2 text-lg font-bold">{item.title}</h2>
-
-                  <div className="mt-4 border-l-2 border-border pl-4">
-                    <p className="text-xs font-black uppercase tracking-[0.1em] text-muted-foreground">
-                      Question
-                    </p>
-                    <p className="mt-1 text-sm leading-6">{item.question}</p>
-                  </div>
-
-                  <div className="mt-4">
-                    <p className="text-xs font-black uppercase tracking-[0.1em] text-primary/80">
-                      Official answer
-                    </p>
-                    <p className="mt-1 text-base font-semibold leading-7">{item.interpretation}</p>
-                  </div>
-
-                  <div className="mt-4">
-                    <p className="text-xs font-black uppercase tracking-[0.1em] text-muted-foreground">
-                      Why
-                    </p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.rationale}</p>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {item.rule_ids.map((ruleId) => (
-                      <Link
-                        key={ruleId}
-                        to="/rules/$ruleId"
-                        params={{ ruleId }}
-                        className="inline-flex min-h-9 items-center rounded-lg border border-border px-2.5 font-mono text-xs font-bold text-primary"
-                      >
-                        Rule {ruleId}
-                      </Link>
-                    ))}
-                  </div>
-                </article>
+                <InterpretationArticle key={item.id} item={item} />
               ))}
             </div>
           ) : (
@@ -169,5 +120,78 @@ function InterpretationsIndex() {
         </section>
       </GovernanceDepthLayout>
     </RulesRouteShell>
+  );
+}
+
+function InterpretationArticle({ item }: { item: RuleInterpretation }) {
+  const historical = item.status === "superseded";
+
+  return (
+    <article className="py-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <BadgeCheck
+          className={
+            historical ? "size-4 text-muted-foreground" : "size-4 text-primary"
+          }
+        />
+        <span className="font-mono text-[11px] font-black text-primary">
+          {item.code}
+        </span>
+        <span className="text-[11px] font-semibold text-muted-foreground">
+          {historical
+            ? "Superseded"
+            : item.effective_from
+              ? "Effective " + formatRulebookHistoryDate(item.effective_from)
+              : "Published"}
+        </span>
+      </div>
+
+      <h2 className="mt-2 text-lg font-bold">{item.title}</h2>
+
+      <div className="mt-4 border-l-2 border-border pl-4">
+        <p className="text-xs font-black uppercase tracking-[0.1em] text-muted-foreground">
+          Question
+        </p>
+        <p className="mt-1 text-sm leading-6">{item.question}</p>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-xs font-black uppercase tracking-[0.1em] text-primary/80">
+          Official answer
+        </p>
+        <p className="mt-1 text-base font-semibold leading-7">{item.interpretation}</p>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-xs font-black uppercase tracking-[0.1em] text-muted-foreground">
+          Why
+        </p>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.rationale}</p>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {item.rule_ids.map((ruleId) => {
+          const currentRuleTarget = resolveRulebookHistoryRuleTarget(!historical, ruleId);
+          return currentRuleTarget ? (
+            <Link
+              key={ruleId}
+              to={currentRuleTarget.to}
+              params={currentRuleTarget.params}
+              className="inline-flex min-h-9 items-center rounded-lg border border-border px-2.5 font-mono text-xs font-bold text-primary"
+            >
+              Rule {ruleId}
+            </Link>
+          ) : (
+            <span
+              key={ruleId}
+              className="inline-flex min-h-9 items-center rounded-lg border border-border px-2.5 font-mono text-xs font-bold text-muted-foreground"
+              aria-label={`Rule ${ruleId}, historical reference`}
+            >
+              Rule {ruleId}
+            </span>
+          );
+        })}
+      </div>
+    </article>
   );
 }
