@@ -86,6 +86,20 @@ function enforce(label, actual, limit, file) {
   );
 }
 
+function escapeWorkflowCommand(value) {
+  return String(value)
+    .replaceAll("%", "%25")
+    .replaceAll("\r", "%0D")
+    .replaceAll("\n", "%0A");
+}
+
+function emitWorkflowAnnotation(level, title, message) {
+  if (!process.env.GITHUB_ACTIONS) return;
+  console.log(
+    `::${level} title=${escapeWorkflowCommand(title)}::${escapeWorkflowCommand(message)}`,
+  );
+}
+
 enforce(
   "Largest JS raw",
   largestJsRaw?.raw ?? 0,
@@ -122,6 +136,19 @@ if (globalStyles) {
   );
 }
 
+const diagnosticSummary = [
+  `root=${assetRoot}`,
+  `generated=${files.length}`,
+  `passthrough=${publicPassthrough.length}`,
+  `passthrough_gzip=${kb(passthroughGzip)} KiB`,
+  `largest_js_raw=${largestJsRaw?.name ?? "n/a"}:${kb(largestJsRaw?.raw ?? 0)} KiB`,
+  `largest_js_gzip=${largestJsGzip?.name ?? "n/a"}:${kb(largestJsGzip?.gzip ?? 0)} KiB`,
+  `largest_css_gzip=${largestCssGzip?.name ?? "n/a"}:${kb(largestCssGzip?.gzip ?? 0)} KiB`,
+  `total_gzip=${kb(totalGzip)} KiB`,
+  `app_shell_gzip=${appShell ? `${kb(appShell.gzip)} KiB` : "n/a"}`,
+  `global_styles_gzip=${globalStyles ? `${kb(globalStyles.gzip)} KiB` : "n/a"}`,
+].join("; ");
+
 console.log("Solaris Studio client performance budget");
 console.log(`  generated assets: ${files.length} from ${assetRoot}`);
 if (publicPassthrough.length) {
@@ -145,7 +172,13 @@ if (globalStyles) console.log(`  global styles CSS gzip: ${kb(globalStyles.gzip)
 if (failures.length) {
   console.error("\nClient performance budget exceeded:");
   for (const failure of failures) console.error(`  - ${failure}`);
+  emitWorkflowAnnotation(
+    "error",
+    "Client performance budget exceeded",
+    `${failures.join(" | ")} | ${diagnosticSummary}`,
+  );
   process.exit(1);
 }
 
+emitWorkflowAnnotation("notice", "Client performance budget", diagnosticSummary);
 console.log("Client performance budget passed.");
