@@ -82,6 +82,9 @@ jobs:
           export VITE_SUPABASE_PROJECT_REF=local
           bun run scripts/check-v3-production-isolation.ts
 
+      - name: Regress canonical Results lineup before full rehearsal
+        run: bash .github/scripts/v3-s14-results-lineup-regression.sh
+
       - name: Run complete one-state S14 contest lifecycle
         id: rehearsal
         shell: bash

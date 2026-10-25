@@ -244,36 +244,6 @@ run_s14_stage_8_results() {
     lock_id="14000000-0000-4008-8500-$(printf '%012d' "$show_ordinal")"
     reveal_id="14000000-0000-4008-8600-$(printf '%012d' "$show_ordinal")"
 
-    # Temporary exact-head diagnostic: read-only snapshot before calculation.
-    log "S14_RESULTS_PRECALCULATE $(service_value "
-with current_participants as (
-  select * from public.participants where show_id='$show_id'::uuid
-    and coalesce(participation_status,'confirmed')='confirmed'
-), result_rows as (
-  select * from public.results where show_id='$show_id'::uuid
-), stale as (
-  select r.* from result_rows r where not exists (
-    select 1 from current_participants p
-    where p.country_id is not distinct from r.country_id
-      and p.contest_entity_id is not distinct from r.contest_entity_id
-  )
-)
-select jsonb_build_object(
-  'showId','$show_id','editionId','$EDITION_ID',
-  'participantCount',(select count(*) from current_participants),
-  'participantCountryIds',(select coalesce(jsonb_agg(country_id order by country_id),'[]') from current_participants),
-  'nonCurrentCountryIds',(select coalesce(jsonb_agg(country_id order by country_id),'[]') from public.participants where show_id='$show_id'::uuid and coalesce(participation_status,'confirmed')<>'confirmed'),
-  'resultCount',(select count(*) from result_rows),
-  'resultCountryIds',(select coalesce(jsonb_agg(country_id order by country_id),'[]') from result_rows),
-  'nonCurrentResultRows',(select coalesce(jsonb_agg(to_jsonb(stale) order by country_id),'[]') from stale),
-  'missingCountries',(select coalesce(jsonb_agg(p.country_id order by p.country_id),'[]') from current_participants p where not exists(select 1 from result_rows r where r.country_id is not distinct from p.country_id and r.contest_entity_id is not distinct from p.contest_entity_id)),
-  'unexpectedCountries',(select coalesce(jsonb_agg(country_id order by country_id),'[]') from stale),
-  'jurySourceCountryCount',(select count(distinct j.voter_country_id) from public.jury_votes j where j.show_id='$show_id'::uuid and (j.ballot_submission_id is null or exists(select 1 from public.jury_ballot_submissions b where b.id=j.ballot_submission_id and b.status='valid'))),
-  'televoteSourceCountryCount',(select count(distinct country_id) from public.televote_votes where show_id='$show_id'::uuid),
-  'operations',(select to_jsonb(o) from public.studio2_result_operations o where o.show_id='$show_id'::uuid),
-  'preconditions',private.studio2_result_preconditions('$show_id'::uuid)
-)::text;")"
-
     execute_result_action "$show_id" calculate "$calculate_id" "$version" "S14 calculate reconciled official show result"
     version="$(printf '%s' "$HTTP_BODY" | json_value calculationVersion)"
     [[ "$version" =~ ^[1-9][0-9]*$ ]] || fail "Results calculate returned invalid version for $show_id"
