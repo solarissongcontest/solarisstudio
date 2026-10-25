@@ -55,7 +55,7 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "off",
-    reducedMotion: "reduce",
+    contextOptions: { reducedMotion: "reduce" },
     colorScheme: "dark",
   },
   webServer: process.env.E2E_BASE_URL

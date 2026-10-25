@@ -36,7 +36,7 @@ describe("S14 canonical qualifier-to-final preparation", () => {
     }
     expect(load(local)).toMatchObject({
       webServer: { url: "http://127.0.0.1:4177/assets/terraos-maintenance.css", timeout: 120_000 },
-      use: { storageState: { cookies: [{ name: "solaris_e2e_maintenance_bypass", domain: "127.0.0.1" }] } },
+      use: { contextOptions: { reducedMotion: "reduce" }, storageState: { cookies: [{ name: "solaris_e2e_maintenance_bypass", domain: "127.0.0.1" }] } },
     });
     expect(() => load({ ...local, E2E_BASE_URL: "https://hosted.invalid" })).toThrow();
     expect(() => load({ ...local, E2E_SUPABASE_URL: "https://hosted.invalid" })).toThrow();
