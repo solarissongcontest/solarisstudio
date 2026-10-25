@@ -199,10 +199,15 @@ for (const viewport of MAINTENANCE_VIEWPORTS) {
       await expect(page.locator(".live-copy")).toHaveCSS("position", "static");
     }
 
-    const imagesLoaded = await page.locator('[data-photo-kind="photo"]').evaluateAll((images) =>
-      images.every((image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0),
-    );
-    expect(imagesLoaded).toBe(true);
+    const photos = page.locator('[data-photo-kind="photo"]');
+    await expect(photos).toHaveCount(3);
+    for (let index = 0; index < 3; index += 1) {
+      const photo = photos.nth(index);
+      await photo.scrollIntoViewIfNeeded();
+      await expect.poll(() => photo.evaluate((image) =>
+        image instanceof HTMLImageElement && image.complete ? image.naturalWidth : 0,
+      )).toBeGreaterThan(0);
+    }
 
     for (const selector of [
       ".hero-device-main",
@@ -220,8 +225,11 @@ for (const viewport of MAINTENANCE_VIEWPORTS) {
       expect(geometry.right, selector).toBeLessThanOrEqual(geometry.viewport + 1);
     }
 
-    await page.locator("#explore-feature").evaluate((element) => element.scrollIntoView());
-    await page.waitForTimeout(50);
+    await page.locator("#explore-feature").evaluate((element) => {
+      document.documentElement.style.scrollBehavior = "auto";
+      element.scrollIntoView({ block: "start" });
+    });
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
     const obstruction = await page.evaluate(() => {
       const bar = document.querySelector("[data-product-bar]")?.getBoundingClientRect();
       const heading = document.querySelector("#explore-feature-title")?.getBoundingClientRect();
