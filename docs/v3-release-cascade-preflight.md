@@ -264,3 +264,9 @@ Late release prerequisites still include exact-head S14, S15 and `security-advis
 ## Source-integrity diagnostics
 
 Preflight reports include exact Git status paths before/after checks and generated CLI cache filenames. A source mutation fails its group and the combined gate, even if every functional regression passes. Only `/supabase/.temp/` (CLI-generated version/container metadata) is ignored; the regression proves untracked `supabase/migrations/*.sql` and `supabase/config.toml` remain visible. No source assertion is relaxed.
+
+## Focused discovery tooling failures minimized
+
+Run `40233559549` on `69a8ad0d58313ac88568a5aeaaa6257ddfc2de72` passed all six database/handoff checks, but correctly rejected its source-integrity check: `?? supabase/.branches/_current_branch`. The CLI writes this disposable local branch pointer during startup/reset. Only this exact generated filename and the CLI `.temp/` directory are ignored. The temporary Git regression first reproduces the dirty result, then proves that these metadata files are excluded while new migrations, config changes, and other `.branches/` files remain visible. Reports retain the generated metadata filenames for audit.
+
+The same head's independent televote influence ACL workflow exposed a concrete infrastructure failure in its current-main-upgrade mode: Inbucket could not bind `0.0.0.0:54324` (`address already in use`), before executing the permission assertions. Clean replay passed. Its disposable config now reserves mail UI port `55324`, following the existing Results consequence rehearsal approach. A regression executes the actual configurator against missing/present Inbucket sections and verifies idempotency plus preservation of unrelated DB/SMTP settings. Both local API and DB targets are checked before reset/migration and again before SQL. No runtime ACL, migration, or authorization assertion changes.

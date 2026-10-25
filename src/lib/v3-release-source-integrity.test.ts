@@ -11,18 +11,24 @@ describe("release source integrity with local CLI metadata", () => {
     const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, encoding: "utf8" });
     try {
       git("init", "-q");
-      writeFileSync(join(dir, ".gitignore"), ignore.replace("/supabase/.temp/", ""));
+      writeFileSync(join(dir, ".gitignore"), ignore.replace("/supabase/.temp/", "").replace("/supabase/.branches/_current_branch", ""));
       git("add", ".gitignore");
       git("-c", "user.name=Fixture", "-c", "user.email=fixture@local.invalid", "commit", "-qm", "Source fixture");
       mkdirSync(join(dir, "supabase/.temp"), { recursive: true });
       mkdirSync(join(dir, "supabase/migrations"), { recursive: true });
+      mkdirSync(join(dir, "supabase/.branches"), { recursive: true });
+      writeFileSync(join(dir, "supabase/.branches/_current_branch"), "main");
+      writeFileSync(join(dir, "supabase/.branches/source.sql"), "select 1;");
       writeFileSync(join(dir, "supabase/.temp/cli-latest"), "2.113.0");
       writeFileSync(join(dir, "supabase/migrations/new.sql"), "select 1;");
       writeFileSync(join(dir, "supabase/config.toml"), 'project_id="local"\n');
       expect(git("status", "--porcelain", "--untracked-files=all")).toContain("supabase/.temp/cli-latest");
+      expect(git("status", "--porcelain", "--untracked-files=all")).toContain("supabase/.branches/_current_branch");
       writeFileSync(join(dir, ".gitignore"), ignore);
       const status = git("status", "--porcelain", "--untracked-files=all");
       expect(status).not.toContain("supabase/.temp/cli-latest");
+      expect(status).not.toContain("supabase/.branches/_current_branch");
+      expect(status).toContain("supabase/.branches/source.sql");
       expect(status).toContain("supabase/migrations/new.sql");
       expect(status).toContain("supabase/config.toml");
     } finally { rmSync(dir, { recursive: true, force: true }); }

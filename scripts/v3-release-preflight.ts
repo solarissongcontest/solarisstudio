@@ -81,7 +81,10 @@ const consequenceAudit = group === "static" ? V3_DOMAIN_CONSEQUENCE_REGISTRY.fil
   assessment: "Mapped ownership is not proof of transactional emission and executable consequence delivery. No implementation-state promotion is made without focused runtime evidence.",
 })) : [];
 const changesAfter = sourceChanges();
-const generatedToolCaches = existsSync("supabase/.temp") ? readdirSync("supabase/.temp").sort().map((name) => `supabase/.temp/${name}`) : [];
+const generatedToolCaches = [
+  ...(existsSync("supabase/.temp") ? readdirSync("supabase/.temp").sort().map((name) => `supabase/.temp/${name}`) : []),
+  ...(existsSync("supabase/.branches/_current_branch") ? ["supabase/.branches/_current_branch"] : []),
+];
 const changedPaths = [...new Set([...changesBefore, ...changesAfter])].sort();
 outcomes[`${group}SourceIntegrity`] = {
   status: changedPaths.length ? "fail" : "pass", exitCode: null,
