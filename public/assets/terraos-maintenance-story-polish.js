@@ -7,6 +7,40 @@
   let layerObserver = null;
   let bodyObserver = null;
 
+  function lockHeroWordmarkToSingleLine() {
+    const title = document.getElementById('maintenance-title');
+    if (!(title instanceof HTMLElement)) return;
+    title.style.maxWidth = 'none';
+    title.style.whiteSpace = 'nowrap';
+    title.style.fontSize = 'clamp(3rem, 16vw, 9.8rem)';
+  }
+
+  function installConfirmationContrastStyle() {
+    if (document.getElementById('terraos-confirmation-contrast')) return;
+    const style = document.createElement('style');
+    style.id = 'terraos-confirmation-contrast';
+    style.textContent = `
+      .hod-portal .hod-portal-copy,
+      .hod-portal .hod-checking,
+      .hod-portal .hod-note,
+      .hod-portal .hod-summary span {
+        color: rgba(248, 252, 255, .94) !important;
+      }
+
+      .hod-portal .hod-muted,
+      .hod-portal .hod-signin-intro span,
+      .hod-portal .hod-field-help,
+      .hod-portal .hod-edition,
+      .hod-portal .hod-entry-label,
+      .hod-portal .hod-status-row span:first-child,
+      .hod-portal .hod-round-explainer,
+      .hod-portal .hod-last-update {
+        color: rgba(238, 247, 251, .80) !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   function focusDirectDeepLink() {
     if (!window.location.hash.startsWith('#story-')) return;
     const layer = document.querySelector('[data-story-layer]');
@@ -92,6 +126,15 @@
     enrichRenderedStory();
     return true;
   }
+
+  // The maintenance hero is intentionally a single brand lockup. Scale it with
+  // the viewport instead of allowing the trailing version number to wrap.
+  lockHeroWordmarkToSingleLine();
+
+  // Confirmation remains available during maintenance, so its explanatory copy
+  // must stay legible against the dark card instead of inheriting overly faint
+  // global muted tokens.
+  installConfirmationContrastStyle();
 
   // The base Story runtime has already resolved the initial hash by the time
   // this script executes. Give direct deep links an intentional focus target
