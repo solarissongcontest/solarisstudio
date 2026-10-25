@@ -34,18 +34,36 @@
 
   function enrichMeStory(layer) {
     if (layer.getAttribute('data-story') !== 'me') return;
-    const list = layer.querySelector('.me-history ol');
-    if (!list || list.hasAttribute('data-me-timeline-ready')) return;
 
-    list.setAttribute('data-me-timeline-ready', 'true');
-    list.innerHTML = [
-      ['SSC 22', 'Current'],
-      ['SSC 21', 'Delegation'],
-      ['SSC 20', 'Delegation'],
-      ['SSC 19', 'Delegation'],
-    ]
-      .map(([edition, state]) => `<li><strong>${edition}</strong><span>${state}</span></li>`)
-      .join('');
+    const list = layer.querySelector('.me-history ol');
+    if (list && !list.hasAttribute('data-me-timeline-ready')) {
+      list.setAttribute('data-me-timeline-ready', 'true');
+      list.innerHTML = [
+        ['SSC 22', 'Current'],
+        ['SSC 21', 'Delegation'],
+        ['SSC 20', 'Delegation'],
+        ['SSC 19', 'Delegation'],
+      ]
+        .map(([edition, state]) => `<li><strong>${edition}</strong><span>${state}</span></li>`)
+        .join('');
+    }
+
+    const finale = layer.querySelector('.story-finale');
+    if (!finale || finale.hasAttribute('data-me-finale-ready')) return;
+    const destinations = finale.querySelector('.story-five-places');
+    const heading = finale.querySelector('h3');
+    const oldKicker = finale.querySelector('.story-kicker');
+    const next = finale.querySelector('[data-story-finish]');
+    if (!destinations || !heading || !next) return;
+
+    finale.setAttribute('data-me-finale-ready', 'true');
+    if (oldKicker) oldKicker.remove();
+    finale.insertBefore(destinations, heading);
+
+    const brand = document.createElement('div');
+    brand.setAttribute('data-me-brand-finale', 'true');
+    brand.innerHTML = '<p class="story-kicker">TerraOS 3</p><strong>Solaris, reimagined.</strong>';
+    heading.insertAdjacentElement('afterend', brand);
   }
 
   function enrichRenderedStory() {
