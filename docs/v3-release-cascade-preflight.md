@@ -260,3 +260,7 @@ There are also **40** consequences without proven transactional emission plus ex
 | `DOMAIN_CONSEQUENCE_DECLARED story.published` | `story` | `stories`, `archive`, `anniversary`, `Organizer Storytelling`, `publication` | none |
 
 Late release prerequisites still include exact-head S14, S15 and `security-advisor-classification.json`; final certification additionally requires S16 evidence. Discovery reports these as pending certification, and the original strict release guard still enforces them. No hosted advisor scan is invoked by this preflight.
+
+## Source-integrity diagnostics
+
+Preflight reports include exact Git status paths before/after checks and generated CLI cache filenames. A source mutation fails its group and the combined gate, even if every functional regression passes. Only `/supabase/.temp/` (CLI-generated version/container metadata) is ignored; the regression proves untracked `supabase/migrations/*.sql` and `supabase/config.toml` remain visible. No source assertion is relaxed.

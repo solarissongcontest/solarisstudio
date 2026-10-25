@@ -41,3 +41,6 @@ src/routeTree.gen.ts
 
 # Generated release discovery logs and summaries (not release certification)
 /v3-release-preflight/
+
+# Supabase CLI local version/container metadata; source migrations remain visible
+/supabase/.temp/

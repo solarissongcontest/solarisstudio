@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { V3_PUBLIC_CAPABILITIES, V3_ORGANIZER_CAPABILITY_REGISTRY, V3_DOMAIN_CONSEQUENCE_REGISTRY } from "../src/lib/v3-capability-registry";
 import { execute, localSupabaseEnvironment, runSweep, staticEnvironment, type Check } from "./lib/v3-release-preflight";
@@ -8,8 +8,8 @@ const group = process.argv.find((arg) => arg.startsWith("--group="))?.split("=")
 if (!["static", "database"].includes(group)) throw new Error("Use --group=static or --group=database");
 const directory = resolve(process.env.V3_PREFLIGHT_DIR ?? `v3-release-preflight/${group}`);
 const candidateSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-const cleanSource = () => execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim() === "";
-const cleanBefore = cleanSource();
+const sourceChanges = () => execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" }).trim().split("\n").filter(Boolean);
+const changesBefore = sourceChanges();
 const requested = process.env.V3_CANDIDATE_SHA;
 if (requested && requested !== candidateSha) throw new Error("Preflight candidate differs from checked-out exact SHA");
 const bun = process.execPath;
@@ -80,8 +80,16 @@ const consequenceAudit = group === "static" ? V3_DOMAIN_CONSEQUENCE_REGISTRY.fil
   classification: "L_TRANSACTIONAL_EVENT_CONSUMER_PROOF_MISSING",
   assessment: "Mapped ownership is not proof of transactional emission and executable consequence delivery. No implementation-state promotion is made without focused runtime evidence.",
 })) : [];
+const changesAfter = sourceChanges();
+const generatedToolCaches = existsSync("supabase/.temp") ? readdirSync("supabase/.temp").sort().map((name) => `supabase/.temp/${name}`) : [];
+const changedPaths = [...new Set([...changesBefore, ...changesAfter])].sort();
+outcomes[`${group}SourceIntegrity`] = {
+  status: changedPaths.length ? "fail" : "pass", exitCode: null,
+  findings: changedPaths.map((path) => `SOURCE_MUTATION ${path}`),
+};
+if (changedPaths.length) console.error(`Source integrity failed: ${changedPaths.join(", ")}`);
 const passed = Object.values(outcomes).every((outcome) => outcome.status === "pass");
-writeFileSync(resolve(directory, "preflight-summary.json"), `${JSON.stringify({ schemaVersion: 1, candidateSha, sourceClean: cleanBefore && cleanSource(), group, passed, catalog: checks, checks: outcomes, cutoverAudit: audit, consequenceAudit }, null, 2)}\n`);
+writeFileSync(resolve(directory, "preflight-summary.json"), `${JSON.stringify({ schemaVersion: 1, candidateSha, sourceClean: changesBefore.length === 0 && changesAfter.length === 0, sourceChanges: { before: changesBefore, after: changesAfter }, generatedToolCaches, group, passed, catalog: checks, checks: outcomes, cutoverAudit: audit, consequenceAudit }, null, 2)}\n`);
 for (const [id, outcome] of Object.entries(outcomes)) console.log(`${id}: ${outcome.status.toUpperCase()}${outcome.findings.length ? ` (${outcome.findings.length} findings)` : ""}`);
 console.log(`Complete ${group} discovery: ${passed ? "PASS" : "FAIL"}; ${directory}/preflight-summary.json`);
 if (!passed) process.exitCode = 1;
