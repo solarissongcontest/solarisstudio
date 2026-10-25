@@ -131,7 +131,7 @@ publish_s14_final_televote_result_through_app() {
 }
 
 run_s14_grand_final_results() {
-  log "Grand-final results: review Jury truth, publish Televote truth, calculate reproducibly and finalize immutable version 2"
+  log "Grand-final results: review Jury truth, publish Televote truth, calculate reproducibly and finalize the exact immutable recalculation version"
 
   for helper in service_value execute_result_action result_snapshot result_snapshot_value execute_result_operation immutable_result_snapshot_hash current_result_snapshot_hash; do
     declare -F "$helper" >/dev/null || fail "Grand Final results require canonical helper '$helper' to be sourced first"
@@ -160,37 +160,46 @@ run_s14_grand_final_results() {
   [[ "$televote_ready" == "true" && "$calculation_ready" == "true" ]] || fail "S14 Grand Final published Televote source did not satisfy canonical Studio result readiness"
   assert_s14_final_televote_source_parity
 
-  execute_result_operation "$FINAL_ID" calculate 0 '14000000-0000-4011-8200-000000000001' 'S14 Grand Final calculate canonical result'
-  expect_json "Grand Final first result calculation version" calculationVersion 1
-  assert_s14_final_televote_source_parity
-  final_v1_hash="$(immutable_result_snapshot_hash "$FINAL_ID" 1)"
-  [[ -n "$final_v1_hash" ]] || fail "Grand Final first result calculation did not persist immutable version 1"
-  [[ "$(db_scalar "select result_row_count from private.v3_result_versions where show_id='$FINAL_ID'::uuid and version=1;")" == "20" ]] || fail "Grand Final immutable result version 1 does not contain 20 rows"
+  # Governed Jury review recalculates Results. Start from persisted canonical
+  # state, then require exactly two new immutable versions for identical inputs.
+  local base_version
+  base_version="$(result_snapshot_value "$FINAL_ID" calculationVersion)"
+  [[ "$base_version" =~ ^[0-9]+$ ]] || fail "Grand Final persisted calculation version is invalid"
+  FINAL_FIRST_RESULT_VERSION=$((base_version + 1))
+  FINAL_RESULT_VERSION=$((FINAL_FIRST_RESULT_VERSION + 1))
+  log "Grand Final calculation versions: base=$base_version first=$FINAL_FIRST_RESULT_VERSION final=$FINAL_RESULT_VERSION"
 
-  execute_result_operation "$FINAL_ID" calculate 1 '14000000-0000-4011-8200-000000000002' 'S14 Grand Final reproducibility recalculation'
-  expect_json "Grand Final second result calculation version" calculationVersion 2
+  execute_result_operation "$FINAL_ID" calculate "$base_version" '14000000-0000-4011-8200-000000000001' 'S14 Grand Final calculate canonical result'
+  expect_json "Grand Final first result calculation version" calculationVersion "$FINAL_FIRST_RESULT_VERSION"
   assert_s14_final_televote_source_parity
-  final_v2_hash="$(immutable_result_snapshot_hash "$FINAL_ID" 2)"
+  final_v1_hash="$(immutable_result_snapshot_hash "$FINAL_ID" "$FINAL_FIRST_RESULT_VERSION")"
+  [[ -n "$final_v1_hash" ]] || fail "Grand Final first result calculation did not persist first immutable calculation version"
+  [[ "$(db_scalar "select result_row_count from private.v3_result_versions where show_id='$FINAL_ID'::uuid and version=$FINAL_FIRST_RESULT_VERSION;")" == "20" ]] || fail "Grand Final first immutable result version does not contain 20 rows"
+
+  execute_result_operation "$FINAL_ID" calculate "$FINAL_FIRST_RESULT_VERSION" '14000000-0000-4011-8200-000000000002' 'S14 Grand Final reproducibility recalculation'
+  expect_json "Grand Final second result calculation version" calculationVersion "$FINAL_RESULT_VERSION"
+  assert_s14_final_televote_source_parity
+  final_v2_hash="$(immutable_result_snapshot_hash "$FINAL_ID" "$FINAL_RESULT_VERSION")"
   final_current_hash="$(current_result_snapshot_hash "$FINAL_ID")"
   [[ -n "$final_v2_hash" && -n "$final_current_hash" ]] || fail "Grand Final second result calculation lacks immutable/current evidence"
   [[ "$final_v1_hash" == "$final_v2_hash" ]] || fail "Grand Final immutable v1/v2 snapshots differ for identical inputs"
-  [[ "$final_v2_hash" == "$final_current_hash" ]] || fail "Grand Final current result rows do not equal immutable result version 2"
-  [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id='$FINAL_ID'::uuid and version in (1,2);")" == "2" ]] || fail "Grand Final recalculation did not retain both immutable versions"
+  [[ "$final_v2_hash" == "$final_current_hash" ]] || fail "Grand Final current result rows do not equal exact immutable recalculation version"
+  [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id='$FINAL_ID'::uuid and version in ($FINAL_FIRST_RESULT_VERSION,$FINAL_RESULT_VERSION);")" == "2" ]] || fail "Grand Final recalculation did not retain both immutable versions"
 
-  execute_result_operation "$FINAL_ID" review 2 '14000000-0000-4011-8300-000000000001' 'S14 Grand Final review canonical result'
-  execute_result_operation "$FINAL_ID" lock 2 '14000000-0000-4011-8400-000000000001' 'S14 Grand Final lock canonical result'
-  execute_result_operation "$FINAL_ID" mark_reveal_ready 2 '14000000-0000-4011-8500-000000000001' 'S14 Grand Final mark result reveal ready'
+  execute_result_operation "$FINAL_ID" review "$FINAL_RESULT_VERSION" '14000000-0000-4011-8300-000000000001' 'S14 Grand Final review canonical result'
+  execute_result_operation "$FINAL_ID" lock "$FINAL_RESULT_VERSION" '14000000-0000-4011-8400-000000000001' 'S14 Grand Final lock canonical result'
+  execute_result_operation "$FINAL_ID" mark_reveal_ready "$FINAL_RESULT_VERSION" '14000000-0000-4011-8500-000000000001' 'S14 Grand Final mark result reveal ready'
 
   [[ "$(db_scalar "select count(*) from public.results where show_id='$FINAL_ID'::uuid;")" == "20" ]] || fail "Grand Final does not retain exactly 20 finalized result rows"
   [[ "$(db_scalar "select count(*) from public.results where show_id='$FINAL_ID'::uuid and final_rank is null;")" == "0" ]] || fail "Grand Final has incomplete final ranks"
   [[ "$(db_scalar "select count(*) from public.results where show_id='$FINAL_ID'::uuid and total_points <> jury_points + televote_points;")" == "0" ]] || fail "Grand Final result totals do not reconcile"
-  [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id='$FINAL_ID'::uuid and version=2 and result_row_count=20;")" == "1" ]] || fail "Grand Final immutable result version 2 is missing or incomplete"
+  [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id='$FINAL_ID'::uuid and version=$FINAL_RESULT_VERSION and result_row_count=20;")" == "1" ]] || fail "Grand Final exact immutable recalculation version is missing or incomplete"
 
   result_snapshot "$FINAL_ID"
-  [[ "$(result_snapshot_value "$FINAL_ID" calculationVersion)" == "2" ]] || fail "Grand Final calculation version is not 2"
-  [[ "$(result_snapshot_value "$FINAL_ID" reviewedVersion)" == "2" ]] || fail "Grand Final current result version is not reviewed"
-  [[ "$(result_snapshot_value "$FINAL_ID" lockedVersion)" == "2" ]] || fail "Grand Final current result version is not locked"
-  [[ "$(result_snapshot_value "$FINAL_ID" revealReadyVersion)" == "2" ]] || fail "Grand Final current result version is not reveal-ready"
+  [[ "$(result_snapshot_value "$FINAL_ID" calculationVersion)" == "$FINAL_RESULT_VERSION" ]] || fail "Grand Final calculation version does not match exact recalculation"
+  [[ "$(result_snapshot_value "$FINAL_ID" reviewedVersion)" == "$FINAL_RESULT_VERSION" ]] || fail "Grand Final current result version is not reviewed"
+  [[ "$(result_snapshot_value "$FINAL_ID" lockedVersion)" == "$FINAL_RESULT_VERSION" ]] || fail "Grand Final current result version is not locked"
+  [[ "$(result_snapshot_value "$FINAL_ID" revealReadyVersion)" == "$FINAL_RESULT_VERSION" ]] || fail "Grand Final current result version is not reveal-ready"
   [[ "$(result_snapshot_value "$FINAL_ID" preconditions.resultReady)" == "true" ]] || fail "Grand Final result truth is not reconciled"
   assert_s14_final_televote_source_parity
 

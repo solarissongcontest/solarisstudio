@@ -20,18 +20,20 @@ assert_anonymous_result_matches_version() {
 }
 
 run_s14_grand_final_publication() {
-  log "Grand-final publication: publish exact immutable result version 2 and verify anonymous public truth"
+  log "Grand-final publication: publish the exact immutable recalculation version and verify anonymous public truth"
 
   for helper in anonymous_result_snapshot immutable_result_snapshot publication_preview assert_anonymous_result_matches_version; do
     declare -F "$helper" >/dev/null || fail "Grand Final publication requires canonical helper '$helper' to be sourced first"
   done
 
+  [[ "${FINAL_RESULT_VERSION:-}" =~ ^[1-9][0-9]*$ ]] || fail "Grand Final publication requires an exact canonical result version"
+
   sign_in 's14-organizer-a@solaris.invalid'
   ORGANIZER_A_TOKEN="$LAST_TOKEN"
 
-  [[ "$(db_scalar "select calculation_version::text from public.studio2_result_operations where show_id='$FINAL_ID'::uuid;")" == "2" ]] || fail "Grand Final publication requires calculation version 2"
-  [[ "$(db_scalar "select (reviewed_version=2 and locked_version=2 and reveal_ready_version=2)::text from public.studio2_result_operations where show_id='$FINAL_ID'::uuid;")" == "true" ]] || fail "Grand Final publication requires reviewed/locked/reveal-ready result version 2"
-  [[ "$(db_scalar "select result_row_count::text from private.v3_result_versions where show_id='$FINAL_ID'::uuid and version=2;")" == "20" ]] || fail "Grand Final immutable result version 2 is missing or incomplete"
+  [[ "$(db_scalar "select calculation_version::text from public.studio2_result_operations where show_id='$FINAL_ID'::uuid;")" == "$FINAL_RESULT_VERSION" ]] || fail "Grand Final publication requires exact recalculation version"
+  [[ "$(db_scalar "select (reviewed_version=$FINAL_RESULT_VERSION and locked_version=$FINAL_RESULT_VERSION and reveal_ready_version=$FINAL_RESULT_VERSION)::text from public.studio2_result_operations where show_id='$FINAL_ID'::uuid;")" == "true" ]] || fail "Grand Final publication requires reviewed/locked/reveal-ready exact recalculation version"
+  [[ "$(db_scalar "select result_row_count::text from private.v3_result_versions where show_id='$FINAL_ID'::uuid and version=$FINAL_RESULT_VERSION;")" == "20" ]] || fail "Grand Final exact immutable recalculation version is missing or incomplete"
   [[ "$(db_scalar "select published::text from public.shows where id='$FINAL_ID'::uuid;")" == "false" ]] || fail "Grand Final must still be non-public before exact outcome publication"
 
   outcome_config='{"participants":true,"artists":true,"songs":true,"semi_split":false,"running_order":true,"qualifiers":false,"results":true,"jury_results":true,"televote_results":true,"detailed_voting":true}'
@@ -42,7 +44,7 @@ run_s14_grand_final_publication() {
   sign_in 's14-organizer-a@solaris.invalid'
   ORGANIZER_A_TOKEN="$LAST_TOKEN"
   publication_preview "$FINAL_ID" public "$outcome_config"
-  expect_json "Grand Final publication exact source version" sourceResultVersion 2
+  expect_json "Grand Final publication exact source version" sourceResultVersion "$FINAL_RESULT_VERSION"
   expect_json "Grand Final publication release readiness" resultReleaseReady true
   expect_json "Grand Final publication integrity readiness" integrityClear true
   expect_json "Grand Final publication risk" riskClass R3
@@ -52,12 +54,12 @@ run_s14_grand_final_publication() {
   operation_id='14000000-0000-4012-8100-000000000001'
 
   rpc_request "$ORGANIZER_A_TOKEN" studio2_apply_show_publication_change \
-    "{\"p_show_id\":\"$FINAL_ID\",\"p_target_state\":\"public\",\"p_config\":$outcome_config,\"p_scheduled_for\":null,\"p_operation_id\":\"$operation_id\",\"p_idempotency_key\":\"s14-final-publish-results-v2\",\"p_expected_version\":$expected_version}"
+    "{\"p_show_id\":\"$FINAL_ID\",\"p_target_state\":\"public\",\"p_config\":$outcome_config,\"p_scheduled_for\":null,\"p_operation_id\":\"$operation_id\",\"p_idempotency_key\":\"s14-final-publish-results-exact\",\"p_expected_version\":$expected_version}"
   expect_success "publish exact Grand Final result version"
   expect_json "Grand Final publication is public" state public
 
   [[ "$(db_scalar "select count(*) from public.studio2_operation_receipts where operation_id='$operation_id'::uuid and command='publication.show.change' and status='succeeded';")" == "1" ]] || fail "Grand Final R3 publication receipt is missing"
-  [[ "$(db_scalar "select source_result_version::text from public.studio2_show_publication_controls where show_id='$FINAL_ID'::uuid;")" == "2" ]] || fail "Grand Final public projection is not bound to immutable result version 2"
+  [[ "$(db_scalar "select source_result_version::text from public.studio2_show_publication_controls where show_id='$FINAL_ID'::uuid;")" == "$FINAL_RESULT_VERSION" ]] || fail "Grand Final public projection is not bound to exact immutable recalculation version"
   [[ "$(db_scalar "select (state='public' and frozen_config->>'results'='true' and frozen_config->>'jury_results'='true' and frozen_config->>'televote_results'='true' and frozen_config->>'detailed_voting'='true')::text from public.studio2_show_publication_controls where show_id='$FINAL_ID'::uuid;")" == "true" ]] || fail "Grand Final publication does not expose the intended result layers"
   [[ "$(db_scalar "select count(*) from private.v3_domain_events where operation_id='$operation_id'::uuid and event_type='publication.changed' and aggregate_id='$FINAL_ID';")" == "1" ]] || fail "Grand Final publication.changed DomainEvent is missing"
 
@@ -69,15 +71,15 @@ run_s14_grand_final_publication() {
   expect_json "anonymous Grand Final Televote layer" '0.publication_config.televote_results' true
   expect_json "anonymous Grand Final detailed voting layer" '0.publication_config.detailed_voting' true
 
-  assert_anonymous_result_matches_version "$FINAL_ID" 2
+  assert_anonymous_result_matches_version "$FINAL_ID" "$FINAL_RESULT_VERSION"
 
   # Exact-version publication freezes semantic truth. A later recalculation must
-  # not silently move the current result version while Public still references v2.
+  # not silently move the current result version while Public still references the exact recalculation.
   rpc_request "$ORGANIZER_A_TOKEN" studio2_execute_result_operation \
-    "{\"p_show_id\":\"$FINAL_ID\",\"p_action\":\"calculate\",\"p_reason\":\"S14 Grand Final stale public result mutation probe\",\"p_execution_id\":\"14000000-0000-4012-8200-000000000001\",\"p_expected_version\":2}"
+    "{\"p_show_id\":\"$FINAL_ID\",\"p_action\":\"calculate\",\"p_reason\":\"S14 Grand Final stale public result mutation probe\",\"p_execution_id\":\"14000000-0000-4012-8200-000000000001\",\"p_expected_version\":$FINAL_RESULT_VERSION}"
   expect_failure "post-publication Grand Final result recalculation"
-  [[ "$(db_scalar "select calculation_version::text from public.studio2_result_operations where show_id='$FINAL_ID'::uuid;")" == "2" ]] || fail "failed post-publication mutation moved Grand Final away from public result version 2"
-  [[ "$(db_scalar "select source_result_version::text from public.studio2_show_publication_controls where show_id='$FINAL_ID'::uuid;")" == "2" ]] || fail "failed post-publication mutation moved Grand Final publication pointer"
+  [[ "$(db_scalar "select calculation_version::text from public.studio2_result_operations where show_id='$FINAL_ID'::uuid;")" == "$FINAL_RESULT_VERSION" ]] || fail "failed post-publication mutation moved Grand Final away from public exact recalculation version"
+  [[ "$(db_scalar "select source_result_version::text from public.studio2_show_publication_controls where show_id='$FINAL_ID'::uuid;")" == "$FINAL_RESULT_VERSION" ]] || fail "failed post-publication mutation moved Grand Final publication pointer"
 
   log "S14_GRAND_FINAL_PUBLICATION_EXACT_VERSION_COMPLETE"
 }

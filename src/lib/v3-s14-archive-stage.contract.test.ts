@@ -187,7 +187,7 @@ describe("S14 Stage 10 archive certification against current canonical V3 System
     expect(archive).toContain("assert_receipts_retained");
     expect(archive).toContain("archive mutated immutable result-version history");
     expect(archive).toContain("archive mutated exact publication provenance");
-    expect(archive).toContain('assert_anonymous_result_matches_version "$FINAL_ID" 2');
+    expect(archive).toContain('assert_anonymous_result_matches_version "$FINAL_ID" "$FINAL_RESULT_VERSION"');
     expect(archiveMigration).toContain("public.editions.status");
   });
 

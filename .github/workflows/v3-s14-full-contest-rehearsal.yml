@@ -107,8 +107,8 @@ jobs:
 
       - name: Verify focused qualifier and Grand Final contracts
         run: |
-          bunx vitest run src/lib/v3-s14-grand-final-prep.contract.test.ts src/lib/show-lineup-selection.test.ts
-          bunx eslint src/lib/v3-s14-grand-final-prep.contract.test.ts src/lib/show-lineup-selection.ts src/lib/show-lineup-selection.test.ts
+          bunx vitest run src/lib/v3-s14-grand-final-version.test.ts src/lib/v3-s14-grand-final-results.contract.test.ts src/lib/v3-s14-grand-final-publication.contract.test.ts src/lib/v3-s14-grand-final-prep.contract.test.ts src/lib/show-lineup-selection.test.ts
+          bunx eslint src/lib/v3-s14-grand-final-version.test.ts src/lib/v3-s14-grand-final-prep.contract.test.ts src/lib/show-lineup-selection.ts src/lib/show-lineup-selection.test.ts
 
       - name: Run complete one-state S14 contest lifecycle
         id: rehearsal
