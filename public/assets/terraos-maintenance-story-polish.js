@@ -7,6 +7,22 @@
   let layerObserver = null;
   let bodyObserver = null;
 
+  function upgradeMomentArtworkToVectors() {
+    const replacements = [
+      ['moment-a.png', '/terraos-maintenance/blue-motion.svg'],
+      ['moment-b.png', '/terraos-maintenance/live-stage.svg'],
+    ];
+
+    root.querySelectorAll('img[src*="/assets/terraos-maintenance/moment-"]').forEach((image) => {
+      if (!(image instanceof HTMLImageElement)) return;
+      const source = image.getAttribute('src') || '';
+      const replacement = replacements.find(([needle]) => source.includes(needle));
+      if (!replacement) return;
+      image.src = replacement[1];
+      image.dataset.vectorArtwork = 'true';
+    });
+  }
+
   function focusDirectDeepLink() {
     if (!window.location.hash.startsWith('#story-')) return;
     const layer = document.querySelector('[data-story-layer]');
@@ -92,6 +108,12 @@
     enrichRenderedStory();
     return true;
   }
+
+  // The maintenance renderer still points at the locally cached PNG fallbacks.
+  // Swap those decorative moment images to their original SVG sources as soon
+  // as this already-required runtime executes so large desktop compositions stay
+  // crisp instead of stretching a raster export across the viewport.
+  upgradeMomentArtworkToVectors();
 
   // The base Story runtime has already resolved the initial hash by the time
   // this script executes. Give direct deep links an intentional focus target
