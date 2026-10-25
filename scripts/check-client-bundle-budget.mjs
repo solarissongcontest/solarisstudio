@@ -7,6 +7,7 @@ const ROOTS = [
   "dist/client/assets",
   "dist/assets",
 ];
+const PUBLIC_ASSET_ROOT = "public/assets";
 
 const assetRoot = ROOTS.find((root) => existsSync(root));
 if (!assetRoot) {
@@ -25,20 +26,40 @@ const BUDGETS = {
   maxGlobalStylesCssGzip: 48 * 1024,
 };
 
-const files = readdirSync(assetRoot)
+function measureAsset(name, bytes) {
+  return {
+    name,
+    type: name.endsWith(".js") ? "js" : "css",
+    raw: bytes.byteLength,
+    gzip: gzipSync(bytes, { level: 9 }).byteLength,
+  };
+}
+
+function isPublicPassthrough(name, outputBytes) {
+  const sourcePath = join(PUBLIC_ASSET_ROOT, name);
+  if (!existsSync(sourcePath)) return false;
+
+  const sourceBytes = readFileSync(sourcePath);
+  return sourceBytes.equals(outputBytes);
+}
+
+const measuredAssets = readdirSync(assetRoot)
   .filter((name) => /\.(?:js|css)$/.test(name))
   .map((name) => {
     const bytes = readFileSync(join(assetRoot, name));
     return {
-      name,
-      type: name.endsWith(".js") ? "js" : "css",
-      raw: bytes.byteLength,
-      gzip: gzipSync(bytes, { level: 9 }).byteLength,
+      ...measureAsset(name, bytes),
+      publicPassthrough: isPublicPassthrough(name, bytes),
     };
   });
 
+const publicPassthrough = measuredAssets.filter((file) => file.publicPassthrough);
+const files = measuredAssets.filter((file) => !file.publicPassthrough);
+
 if (!files.length) {
-  console.error(`Solaris client budget: no JS/CSS assets found in ${assetRoot}.`);
+  console.error(
+    `Solaris client budget: no generated JS/CSS assets found in ${assetRoot}.`,
+  );
   process.exit(1);
 }
 
@@ -48,6 +69,10 @@ const largestJsRaw = [...js].sort((a, b) => b.raw - a.raw)[0];
 const largestJsGzip = [...js].sort((a, b) => b.gzip - a.gzip)[0];
 const largestCssGzip = [...css].sort((a, b) => b.gzip - a.gzip)[0];
 const totalGzip = files.reduce((sum, file) => sum + file.gzip, 0);
+const passthroughGzip = publicPassthrough.reduce(
+  (sum, file) => sum + file.gzip,
+  0,
+);
 const appShell = css.find((file) => /^app-shell-.*\.css$/.test(file.name));
 const globalStyles = css.find((file) => /^styles-.*\.css$/.test(file.name));
 
@@ -98,7 +123,12 @@ if (globalStyles) {
 }
 
 console.log("Solaris Studio client performance budget");
-console.log(`  assets: ${files.length} from ${assetRoot}`);
+console.log(`  generated assets: ${files.length} from ${assetRoot}`);
+if (publicPassthrough.length) {
+  console.log(
+    `  public passthrough assets: ${publicPassthrough.length} excluded · ${kb(passthroughGzip)} KiB gzip`,
+  );
+}
 console.log(
   `  largest JS raw: ${largestJsRaw?.name ?? "n/a"} · ${kb(largestJsRaw?.raw ?? 0)} KiB`,
 );
