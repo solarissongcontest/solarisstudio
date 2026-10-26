@@ -11,11 +11,16 @@ const responseDetail = source("src/routes/confirmations/admin/responses/$id.tsx"
 const recovery = source("src/routes/confirmations/admin/recovery-codes.tsx");
 const syncRoute = source("src/routes/confirmations/admin/sync.tsx");
 const lineupServer = source("src/lib/admin-lineup.functions.ts");
+const editionBindings = source("src/integrations/confirmations/edition-bindings.ts");
+const editionBindingRoute = source("src/routes/confirmations/admin/editions.tsx");
 const responseMigration = source(
   "supabase/migrations/20261019212000_v3_confirmation_review_projection.sql",
 );
 const recoveryMigration = source(
   "supabase/migrations/20261019212100_v3_confirmation_recovery_projection.sql",
+);
+const bindingMigration = source(
+  "supabase/migrations/20261026210600_v3_confirmation_edition_binding_r3_fresh_auth.sql",
 );
 
 function capability(id: string) {
@@ -96,11 +101,26 @@ describe("V3 Organizer exact-edition Confirmation projection cutovers", () => {
     expect(lineupServer).not.toContain('.from("participants").update');
   });
 
+  it("uses governed edition binding authority instead of browser integration_links writes", () => {
+    expect(editionBindingRoute).toContain("loadConfirmationEditionBinding");
+    expect(editionBindingRoute).toContain("previewConfirmationEditionBindingChange");
+    expect(editionBindingRoute).toContain("applyConfirmationEditionBindingChange");
+    expect(editionBindingRoute).toContain("reconcileSystemOperation");
+    expect(editionBindingRoute).not.toContain('from("integration_links")');
+    expect(editionBindings).toContain('"studio2_confirmation_edition_binding"');
+    expect(editionBindings).toContain('"studio2_confirmation_edition_binding_preview"');
+    expect(editionBindings).toContain('"studio2_apply_confirmation_edition_binding_change"');
+    expect(bindingMigration).toContain("studio2_access_allowed('delegation.manage', p_edition_id, true)");
+    expect(bindingMigration).toContain("private.studio2_require_fresh_auth(300)");
+    expect(bindingMigration).toContain("VERSION_CONFLICT");
+    expect(bindingMigration).toContain("private.studio2_complete_operation");
+  });
+
   it("promotes only consumers whose canonical backend is now present", () => {
     expect(capability("delegation-confirmation-responses")?.migrationStatus).toBe("cutover");
     expect(capability("delegation-access")?.migrationStatus).toBe("cutover");
     expect(capability("delegation-sync")?.migrationStatus).toBe("cutover");
+    expect(capability("delegation-edition-links")?.migrationStatus).toBe("cutover");
     expect(capability("delegation-submission-history")?.migrationStatus).toBe("building");
-    expect(capability("delegation-edition-links")?.migrationStatus).toBe("building");
   });
 });
