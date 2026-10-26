@@ -131,9 +131,9 @@ export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
     classification: "contextualize",
     targetArea: "contextual",
     targetRoute: "/taste-dna",
-    specificationStatus: "discovered",
+    specificationStatus: "mapped",
     acceptanceScenarioId: "public.taste-dna-voting-dna-overlap-audit",
-    migrationEvidence: "Route discovery only. Meaning and overlap with Voting DNA remain unresolved by the canonical Public V3 plan and must be audited before a merge/redesign decision.",
+    migrationEvidence: "src/lib/v3-taste-dna-ownership.contract.test.ts; canonical write owner is personal-preference through caller-owned public.fan_taste_ballots; Results/Jury are read-only published analytical inputs; Country Voting DNA is a separate country analytics product. Public consumer gap remains: /taste-dna still reaches mutable public.results through useResults instead of v3_public_published_result_snapshot, so this capability is not cutover.",
   },
   {
     id: "records",
