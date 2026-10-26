@@ -5,6 +5,8 @@ import { editionLabel, useCountries, useEditions } from "@/lib/data";
 import {
   useOwnedHodClaims,
   useOwnedHodHistory,
+  useSetOwnedHodAutoAssign,
+  useSetOwnedHodEditionStatus,
   type OwnedHodEditionStatus,
 } from "@/lib/hod-self-history";
 import {
@@ -22,6 +24,12 @@ function membershipLabel(status: OwnedHodEditionStatus) {
   return "HOD unknown";
 }
 
+const HOD_STATUS_OPTIONS: Array<{ value: OwnedHodEditionStatus; label: string }> = [
+  { value: "mine", label: "I was the HOD" },
+  { value: "other", label: "Another HOD" },
+  { value: "unknown", label: "HOD unknown" },
+];
+
 type HistoricalMembership = {
   countryId: string;
   editionId: string;
@@ -38,6 +46,11 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
       ? workspace.countryAccount
       : null;
   const activeCountryId = countryAccount?.country?.id ?? null;
+  const canManageCurrentDelegation = Boolean(
+    activeCountryId &&
+      workspace.permissions.canManageCountry &&
+      workspace.permissions.countryStatus === "active",
+  );
   const editions = useEditions();
   const countries = useCountries();
   const currentHistory = useOwnedHodHistory(
@@ -45,6 +58,8 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
     viewerId,
   );
   const historicalClaims = useOwnedHodClaims(viewerId, ownsIdentity);
+  const setStatus = useSetOwnedHodEditionStatus();
+  const setAutoAssign = useSetOwnedHodAutoAssign();
 
   const currentHistoryPending = Boolean(activeCountryId) && currentHistory.isPending;
   if (
@@ -135,6 +150,10 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
   );
   const editionById = new Map((editions.data ?? []).map((edition) => [edition.id, edition]));
   const countryById = new Map((countries.data ?? []).map((country) => [country.id, country]));
+  const editableCurrentEditionIds = new Set(
+    (currentHistory.data?.editions ?? []).map((edition) => edition.edition_id),
+  );
+  const mutationError = setStatus.error ?? setAutoAssign.error;
 
   return (
     <V3Screen>
@@ -143,6 +162,47 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
         title="Delegation history"
         description="Past editions, delegations and HOD roles from caller-scoped Solaris history."
       />
+
+      {canManageCurrentDelegation && currentHistory.data ? (
+        <V3Section title="HOD identity" meta={<V3StatusChip>Current delegation</V3StatusChip>}>
+          <V3Surface level="raised" className="p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold">Automatically add future editions</p>
+                <p className="mt-1 max-w-2xl text-xs leading-5 text-white/48">
+                  Keep this enabled while you remain HOD. Solaris will attach newly confirmed
+                  editions to your HOD identity using the existing server-owned assignment rule.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={setAutoAssign.isPending}
+                onClick={() =>
+                  void setAutoAssign
+                    .mutateAsync(!(currentHistory.data?.auto_assign_future ?? true))
+                    .catch(() => undefined)
+                }
+                className="min-h-11 shrink-0 rounded-xl border border-white/10 bg-white/[0.055] px-4 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {setAutoAssign.isPending
+                  ? "Saving…"
+                  : currentHistory.data.auto_assign_future !== false
+                    ? "On · I am still HOD"
+                    : "Off · I am no longer HOD"}
+              </button>
+            </div>
+          </V3Surface>
+        </V3Section>
+      ) : null}
+
+      {mutationError ? (
+        <V3Surface className="border border-red-400/20 p-4" role="alert">
+          <p className="text-sm font-semibold">HOD history was not changed</p>
+          <p className="mt-1 text-xs leading-5 text-white/48">
+            {mutationError instanceof Error ? mutationError.message : "Solaris rejected the update."}
+          </p>
+        </V3Surface>
+      ) : null}
 
       <V3Section
         title="Recorded memberships"
@@ -166,21 +226,52 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
                 country?.name ??
                 (item.countryId === activeCountryId ? countryAccount?.country?.name : null) ??
                 "Historical delegation";
+              const editable =
+                canManageCurrentDelegation &&
+                item.countryId === activeCountryId &&
+                editableCurrentEditionIds.has(item.editionId);
 
               return (
-                <V3ActionCard
-                  key={`${item.countryId}:${item.editionId}`}
-                  title={canonicalEditionLabel}
-                  description={countryLabel}
-                  icon={Archive}
-                  tone="neutral"
-                  to={href}
-                  meta={
-                    <V3StatusChip tone={mine ? "success" : "neutral"}>
-                      {membershipLabel(item.status)}
-                    </V3StatusChip>
-                  }
-                />
+                <div key={`${item.countryId}:${item.editionId}`} className="space-y-2">
+                  <V3ActionCard
+                    title={canonicalEditionLabel}
+                    description={countryLabel}
+                    icon={Archive}
+                    tone="neutral"
+                    to={href}
+                    meta={
+                      <V3StatusChip tone={mine ? "success" : "neutral"}>
+                        {membershipLabel(item.status)}
+                      </V3StatusChip>
+                    }
+                  />
+                  {editable ? (
+                    <label className="block rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                      <span className="mb-2 block text-xs font-semibold text-white/62">
+                        Your HOD role in this edition
+                      </span>
+                      <select
+                        value={item.status}
+                        disabled={setStatus.isPending}
+                        onChange={(event) =>
+                          void setStatus
+                            .mutateAsync({
+                              editionId: item.editionId,
+                              status: event.target.value as OwnedHodEditionStatus,
+                            })
+                            .catch(() => undefined)
+                        }
+                        className="min-h-11 w-full rounded-lg border border-white/10 bg-black/25 px-3 text-sm font-semibold text-white disabled:opacity-50"
+                      >
+                        {HOD_STATUS_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
+                </div>
               );
             })}
           </div>
@@ -201,6 +292,12 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
             description="Identity, activity, following and account settings"
             tone="neutral"
             to="/my-solaris"
+          />
+          <V3ActionCard
+            title="Country profile and historical identity"
+            description="Manage the delegation's retained country-profile and historical presentation tools"
+            tone="neutral"
+            to="/my-solaris/country"
           />
           <V3ActionCard
             title="Explore editions"
