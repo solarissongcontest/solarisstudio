@@ -13,6 +13,7 @@ export const EDITION_STATES = [
   'results',
   'post_edition',
   'archived',
+  'cancelled',
 ] as const;
 
 export type EditionState = (typeof EDITION_STATES)[number];
@@ -58,6 +59,7 @@ const NEXT_STATES: Record<EditionState, readonly EditionState[]> = {
   results: ['post_edition', 'vote_verification'],
   post_edition: ['archived', 'results'],
   archived: [],
+  cancelled: [],
 };
 
 const CRITICAL_TRANSITIONS = new Set<string>([
@@ -129,6 +131,9 @@ export function normalizeLegacyEditionStatus(status: string | null | undefined):
       return 'post_edition';
     case 'archived':
       return 'archived';
+    case 'cancelled':
+    case 'canceled':
+      return 'cancelled';
     default:
       return 'planning';
   }
@@ -143,6 +148,20 @@ export function defaultSubsystemStatesForEdition(state: EditionState): EditionSu
     results: 'not_started',
     predictions: 'not_started',
   };
+
+  // Cancellation is terminal but does not imply that any workflow completed or
+  // that Results were published. Keep every inferred subsystem non-actionable;
+  // publication/readability remains owned by its own canonical domain.
+  if (state === 'cancelled') {
+    return {
+      confirmations: 'locked',
+      submissions: 'locked',
+      juryVoting: 'locked',
+      televoting: 'locked',
+      results: 'locked',
+      predictions: 'locked',
+    };
+  }
 
   const set = (key: EditionSubsystem, value: SubsystemState) => {
     defaults[key] = value;

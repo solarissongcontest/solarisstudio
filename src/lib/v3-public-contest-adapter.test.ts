@@ -80,6 +80,28 @@ describe("V3 transitional public contest adapter", () => {
     expect(projectV3Experience(published).mode).toBe("results");
   });
 
+  it("projects cancellation as terminal without inventing completed voting or published results", () => {
+    const domain = v3ContestDomainFromPublicState(state("post_edition", "cancelled"));
+    const experience = projectV3Experience(domain);
+
+    expect(domain).toEqual({
+      edition: "cancelled",
+      confirmationWindow: "cancelled",
+      submissionWindow: "cancelled",
+      show: "cancelled",
+      jury: "closed",
+      televote: "closed",
+      results: "hidden",
+      publication: null,
+    });
+    expect(experience).toEqual({
+      mode: "cancelled",
+      live: false,
+      votingOpen: false,
+      resultsPublic: false,
+    });
+  });
+
   it("keeps between-edition state sparse rather than inventing workflow windows", () => {
     const domain = v3ContestDomainFromPublicState(state("between_editions", null));
 
