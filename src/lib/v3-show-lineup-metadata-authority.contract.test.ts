@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(
-  "supabase/migrations/20261026193000_v3_show_lineup_metadata_authority.sql",
+  "supabase/migrations/20261026192900_v3_show_lineup_metadata_authority.sql",
   "utf8",
 );
 const server = readFileSync("src/lib/admin-lineup-metadata.functions.ts", "utf8");
