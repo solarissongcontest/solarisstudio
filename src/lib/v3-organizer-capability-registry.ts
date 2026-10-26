@@ -140,6 +140,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "live-review-reveal-director" ||
     id === "live-review-simulation-lab" ||
     id === "live-review-time-machine" ||
+    id === "delegation-confirmation-responses" ||
+    id === "delegation-access" ||
     id === "workspace-administration" ||
     id === "workspace-organizer-guide" ||
     id === "workspace-community-moderation" ||
@@ -168,12 +170,10 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "live-review-voting-lab" ||
     id === "delegation-confirmation-overview" ||
     id === "delegation-confirmation-requirements" ||
-    id === "delegation-confirmation-responses" ||
     id === "delegation-next-in-line" ||
     id === "delegation-responses-by-country" ||
     id === "delegation-submission-rounds" ||
     id === "delegation-calendar" ||
-    id === "delegation-access" ||
     id === "delegation-submission-history" ||
     id === "delegation-edition-links" ||
     id === "delegation-sync" ||
