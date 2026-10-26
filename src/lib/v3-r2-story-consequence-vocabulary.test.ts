@@ -64,8 +64,8 @@ describe("Worker 3 R2 Story consequence vocabulary", () => {
 
   it("keeps public Story visibility derived from canonical published storyline state", () => {
     expect(storytelling).toContain("create or replace function public.studio2_public_storyline(");
-    expect(storytelling).toContain("story.status = 'published'");
-    expect(storytelling).toContain("edition.status = 'published'");
+    expect(storytelling).toContain("where e.slug = p_edition_slug and e.published and s.status = 'published'");
+    expect(storytelling).toContain("where s.status = 'published' and e.published");
   });
 
   it("uses canonical storyline events for projection invalidation and never the obsolete aliases", () => {
