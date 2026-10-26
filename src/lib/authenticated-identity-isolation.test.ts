@@ -11,6 +11,21 @@ function fixture() {
 }
 
 describe("server identity isolation across account lifecycle", () => {
+  it("prevents a delayed getSession read from overwriting a newer SDK session event", async () => {
+    const { client, apply } = fixture();
+    let resolveA!: (user: { id: string }) => void;
+    try {
+      const oldSession = client.fetchQuery({
+        queryKey: ["fan-session"],
+        queryFn: () => new Promise<{ id: string }>((resolve) => { resolveA = resolve; }),
+      }).catch(() => undefined);
+      apply({ id: "B" });
+      resolveA({ id: "A" });
+      await oldSession;
+      expect(client.getQueryData(["fan-session"])).toEqual({ id: "B" });
+    } finally { client.clear(); }
+  });
+
   it("removes the verified identity on sign-out and preserves public cache", () => {
     const { client, apply } = fixture();
     try {
