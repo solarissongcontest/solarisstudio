@@ -70,6 +70,7 @@ jobs:
           src/lib/v3-organizer-host-context.contract.test.ts
           src/lib/v3-organizer-storytelling-context.contract.test.ts
           src/lib/v3-organizer-time-machine-context.contract.test.ts
+          src/lib/v3-organizer-edition-links-explicit-mutations.contract.test.ts
           src/lib/v3-show-lineup-command-authority.contract.test.ts
           src/lib/v3-show-lineup-membership-authority.contract.test.ts
           src/lib/v3-show-lineup-metadata-authority.contract.test.ts
@@ -155,6 +156,9 @@ jobs:
 
       - name: Rebuild complete migration chain locally
         run: supabase db reset --local --no-seed
+
+      - name: Rehearse Confirmation edition binding operations
+        run: bash .github/scripts/v3-confirmation-edition-binding-rehearsal.sh
 
       - name: Rehearse Reveal Director lifecycle
         run: bash .github/scripts/v3-reveal-director-lifecycle-rehearsal.sh
