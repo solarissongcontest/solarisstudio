@@ -1,3 +1,4 @@
+import { isResolvedV3DomainConsequence } from "../src/lib/v3-domain-consequence-registry";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -24,6 +25,8 @@ const checks: Check[] = group === "static" ? [
   { id: "productionIsolation", group: "static", command: [bun, "--env-file=/dev/null", "run", "scripts/check-v3-production-isolation.ts"] },
   { id: "s15ZeroOrphan", group: "static", command: [bun, "--env-file=/dev/null", "run", "scripts/check-v3-s15-zero-orphan-readiness.ts", "--json", "--require-zero"], json: true },
   { id: "repositoryReleaseReadiness", group: "static", command: [bun, "--env-file=/dev/null", "run", "scripts/check-v3-release-integrity.ts", "--discovery", "--json"], json: true },
+  { id: "burndownAudit", group: "static", command: [bun, "--env-file=/dev/null", "run", "scripts/check-v3-s15-burndown.ts"], json: true },
+  { id: "regressionProvenance", group: "static", dependencies: ["productionIsolation"], command: ["bash", ".github/scripts/v3-s15-regression-provenance.sh"] },
   { id: "physicalOwnership", group: "static", command: [bun, "--env-file=/dev/null", "run", "scripts/check-v3-s15-physical-ownership.ts", "--json", "--require-zero"], json: true },
   ...scripts.map(([id, path]): Check => ({ id, group: "static", command: [bun, "--env-file=/dev/null", "run", `scripts/${path}`] })),
   { id: "releaseContracts", group: "static", dependencies: ["productionIsolation"], command: [bun, "--env-file=/dev/null", "test", "src"] },
@@ -38,6 +41,7 @@ const checks: Check[] = group === "static" ? [
   { id: "resultsQualificationPublicationHandoff", group: "handoff", command: ["bash", ".github/scripts/v3-s14-publication-handoff-regression.sh"] },
   { id: "votingResultTruth", group: "database", resetBefore: true, command: ["bash", ".github/scripts/v3-s14-televote-result-truth-rehearsal.sh"] },
   { id: "archiveRegression", group: "database", resetBefore: true, command: ["bash", ".github/scripts/v3-s14-archive-system-rehearsal.sh"] },
+  { id: "receiptReadReplacement", group: "database", resetBefore: true, command: ["bash", ".github/scripts/v3-operation-receipt-rehearsal.sh"] },
 ];
 const outcomes = runSweep(checks, directory, (check) => {
   if (group === "database") {
@@ -75,7 +79,7 @@ const audit = (s15?.findings ?? []).map((finding) => {
   };
 });
 mkdirSync(directory, { recursive: true });
-const consequenceAudit = group === "static" ? V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((row) => row.implementationState !== "event-backed").map((row) => ({
+const consequenceAudit = group === "static" ? V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((row) => !isResolvedV3DomainConsequence(row)).map((row) => ({
   event: row.eventType, owner: row.ownerDomain, state: row.implementationState, consumers: row.consumers, evidence: row.evidence,
   classification: "L_TRANSACTIONAL_EVENT_CONSUMER_PROOF_MISSING",
   assessment: "Mapped ownership is not proof of transactional emission and executable consequence delivery. No implementation-state promotion is made without focused runtime evidence.",
