@@ -23,6 +23,7 @@ export type ConfirmationProjectionPage<T> = {
 type JsonRecord = Record<string, unknown>;
 
 type ConfirmationResponseScope = {
+  id?: string;
   editions?: { id?: string | null } | null;
 };
 
@@ -125,6 +126,65 @@ export async function loadConfirmationResponsesPage<T extends ConfirmationRespon
     }),
     editionId,
     (row) => row.editions?.id ?? null,
+  );
+}
+
+/**
+ * Operational consumers such as line-up sync need the complete selected-edition
+ * response set before impact review. Read it through bounded server pages and
+ * refuse to assemble a batch from multiple canonical state versions.
+ */
+export async function loadAllConfirmationResponsesForEdition<
+  T extends ConfirmationResponseScope,
+>(
+  editionId: string,
+  maxPages = 25,
+): Promise<{ rows: T[]; stateVersion: string; totalCount: number }> {
+  if (!editionId) throw new Error("Select an exact Organizer edition before loading responses.");
+  if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 50) {
+    throw new Error("Invalid Confirmation projection page budget.");
+  }
+
+  let cursor: ConfirmationProjectionCursor | null = null;
+  let stateVersion: string | null = null;
+  let totalCount = 0;
+  const rows = new Map<string, T>();
+
+  for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
+    const page = await loadConfirmationResponsesPage<T>(editionId, cursor, 200);
+    if (!page.stateVersion) {
+      throw new Error("Confirmation projection did not return a canonical state version.");
+    }
+    if (stateVersion && page.stateVersion !== stateVersion) {
+      throw Object.assign(
+        new Error("Confirmation responses changed while the reviewed batch was loading. Reload and review the current edition again."),
+        { status: 409 },
+      );
+    }
+    stateVersion = page.stateVersion;
+    totalCount = page.totalCount;
+    for (const row of page.rows) {
+      if (!row.id) throw new Error("Confirmation projection row is missing its submission identity.");
+      rows.set(row.id, row);
+    }
+
+    if (!page.page.hasMore) {
+      if (rows.size !== totalCount) {
+        throw Object.assign(
+          new Error("Confirmation response count changed while the batch was loading. Reload before applying changes."),
+          { status: 409 },
+        );
+      }
+      return { rows: [...rows.values()], stateVersion, totalCount };
+    }
+    if (!page.page.nextCursor) {
+      throw new Error("Confirmation projection pagination ended without a continuation cursor.");
+    }
+    cursor = page.page.nextCursor;
+  }
+
+  throw new Error(
+    `Confirmation response batch exceeded the bounded ${maxPages * 200}-row operational read budget. Narrow the operation before continuing.`,
   );
 }
 
