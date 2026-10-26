@@ -45,6 +45,8 @@ jobs:
         run: bash -n .github/scripts/v3-confirmation-edition-binding-rehearsal.sh
       - name: Run focused System #702 contract
         run: bunx vitest run src/lib/v3-organizer-edition-links-explicit-mutations.contract.test.ts
+      - name: Generate route types through the canonical production build
+        run: bun run build
       - name: TypeScript exact-head check
         run: bun run typecheck
 
