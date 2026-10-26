@@ -96,6 +96,7 @@ describe("System V3 S1 registries", () => {
       .map((item) => item.eventType)
       .sort();
     expect(replacements).toEqual([
+      "activity.projected",
       "audit.recorded",
       "job.completed",
       "job.failed",
@@ -103,12 +104,15 @@ describe("System V3 S1 registries", () => {
       "public_ux.observed",
       "receipt.recorded",
       "receipt.reconciled",
+      "story.changed",
+      "story.published",
       "task.opened",
       "task.resolved",
     ]);
-    expect(v3DomainConsequence("receipt.reconciled")?.replacement?.operation).toBe(
-      "public.studio2_reconcile_operation(uuid)",
-    );
+    expect(v3DomainConsequence("receipt.reconciled")?.replacement).toMatchObject({
+      kind: "canonical-read",
+      operation: "public.studio2_reconcile_operation(uuid)",
+    });
     expect(v3DomainConsequence("task.opened")?.replacement?.kind).toBe(
       "canonical-derived-projection",
     );
@@ -118,6 +122,11 @@ describe("System V3 S1 registries", () => {
     expect(v3DomainConsequence("job.failed")?.replacement?.kind).toBe(
       "canonical-derived-projection",
     );
+    expect(v3DomainConsequence("activity.projected")?.replacement?.kind).toBe(
+      "canonical-derived-projection",
+    );
+    expect(v3DomainConsequence("story.changed")?.replacement?.kind).toBe("canonical-event");
+    expect(v3DomainConsequence("story.published")?.replacement?.kind).toBe("canonical-event");
     const migrated = new Set([...eventBacked, ...replacements]);
     expect(
       V3_DOMAIN_CONSEQUENCE_REGISTRY
