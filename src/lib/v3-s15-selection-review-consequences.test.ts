@@ -10,9 +10,6 @@ function source(path: string) {
 const migration = source(
   "supabase/migrations/20261026193000_v3_s15_selection_review_consequences.sql",
 );
-const taskTimestampFix = source(
-  "supabase/migrations/20261026193100_v3_s15_selection_review_task_timestamp_fix.sql",
-);
 const reviewAuthority = source(
   "supabase/migrations/20261018024500_v3_entry_review_conflict_http409.sql",
 );
@@ -51,19 +48,19 @@ describe("System V3 S15 selection review consequences", () => {
   });
 
   it("derives selection.review_required from canonical pending review rows", () => {
-    expect(taskTimestampFix).toContain("private.studio2_reconcile_selection_review_tasks");
-    expect(taskTimestampFix).toContain("entry.review_status = 'pending'");
-    expect(taskTimestampFix).toContain("submission.selection_method = 'internal'");
-    expect(taskTimestampFix).toContain("submission.selection_method = 'national_final'");
-    expect(taskTimestampFix).toContain("'selection.review_required'");
-    expect(taskTimestampFix).toContain("'confirmation.manage'");
-    expect(taskTimestampFix).toContain("'/confirmations/admin/responses/' || submission.id::text");
+    expect(migration).toContain("private.studio2_reconcile_selection_review_tasks");
+    expect(migration).toContain("entry.review_status = 'pending'");
+    expect(migration).toContain("submission.selection_method = 'internal'");
+    expect(migration).toContain("submission.selection_method = 'national_final'");
+    expect(migration).toContain("'selection.review_required'");
+    expect(migration).toContain("'confirmation.manage'");
+    expect(migration).toContain("'/confirmations/admin/responses/' || submission.id::text");
   });
 
   it("uses the canonical submission timestamp instead of nonexistent entry timestamps", () => {
-    expect(taskTimestampFix).toContain("coalesce(submission.submitted_at, now())");
-    expect(taskTimestampFix).not.toContain("entry.created_at");
-    expect(taskTimestampFix).not.toContain("submission.created_at");
+    expect(migration).toContain("coalesce(submission.submitted_at, now())");
+    expect(migration).not.toContain("entry.created_at");
+    expect(migration).not.toContain("submission.created_at");
   });
 
   it("registers selection review in the aggregate reconciliation and Archive invariant", () => {
