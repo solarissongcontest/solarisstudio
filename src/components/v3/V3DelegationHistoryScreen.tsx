@@ -1,10 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
 import { Archive, ShieldCheck } from "lucide-react";
 
 import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import { editionLabel, useEditions } from "@/lib/data";
-import { getV3MeSummary } from "@/lib/v3-me.functions";
-import { isScopedV3MeSummary } from "@/lib/v3-me-summary";
+import { useOwnedHodHistory, type OwnedHodEditionStatus } from "@/lib/hod-self-history";
 import {
   V3ActionCard,
   V3Screen,
@@ -14,6 +12,12 @@ import {
   V3Surface,
 } from "./V3Foundation";
 
+function membershipLabel(status: OwnedHodEditionStatus) {
+  if (status === "mine") return "You were HOD";
+  if (status === "other") return "Another HOD";
+  return "HOD unknown";
+}
+
 export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
   const workspace = useMySolaris();
   const ownsIdentity = workspace.user?.id === viewerId;
@@ -21,17 +25,11 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
     ownsIdentity && workspace.countryAccount?.access.userId === viewerId
       ? workspace.countryAccount
       : null;
+  const countryId = countryAccount?.country?.id ?? null;
   const editions = useEditions();
-  const summary = useQuery({
-    queryKey: ["v3-me-summary", viewerId],
-    enabled: ownsIdentity && Boolean(countryAccount?.country?.id),
-    queryFn: () => getV3MeSummary(),
-    staleTime: 15_000,
-    refetchOnWindowFocus: true,
-    retry: false,
-  });
+  const history = useOwnedHodHistory(ownsIdentity && Boolean(countryId), viewerId);
 
-  if (workspace.isLoading || (ownsIdentity && summary.isPending)) {
+  if (workspace.isLoading || (ownsIdentity && history.isPending)) {
     return (
       <V3Screen>
         <V3ScreenHeader
@@ -62,7 +60,7 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
     );
   }
 
-  if (!countryAccount?.country) {
+  if (!countryAccount?.country || !countryId) {
     return (
       <V3Screen>
         <V3ScreenHeader
@@ -80,12 +78,10 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
     );
   }
 
-  const summaryData = summary.data;
-  const scoped =
-    !summary.isError &&
-    isScopedV3MeSummary(summaryData, viewerId, countryAccount.country.id);
+  const historyData = history.data;
+  const scoped = !history.isError && historyData?.country_id === countryId;
 
-  if (!scoped || !summaryData) {
+  if (!scoped || !historyData) {
     return (
       <V3Screen>
         <V3ScreenHeader
@@ -99,8 +95,8 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
             <div>
               <p className="text-sm font-semibold">Private data stayed closed</p>
               <p className="mt-1 text-xs leading-5 text-white/48">
-                History is only rendered when the server response matches both the active viewer and
-                the viewer&apos;s delegation.
+                History is only rendered when the authenticated viewer and returned delegation both
+                match the active account.
               </p>
             </div>
           </div>
@@ -109,8 +105,8 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
     );
   }
 
-  const history = [...summaryData.history].sort(
-    (a, b) => b.edition_number - a.edition_number,
+  const rows = [...historyData.editions].sort(
+    (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
   );
   const editionById = new Map((editions.data ?? []).map((edition) => [edition.id, edition]));
 
@@ -119,35 +115,40 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
       <V3ScreenHeader
         kicker="Me · History"
         title={`${countryAccount.country.name} history`}
-        description="Your private delegation participation history, sourced from Solaris server state rather than the legacy country editor."
+        description="Your private delegation participation and HOD history from Solaris's caller-scoped history source."
       />
 
       <V3Section
         title="Recorded editions"
         meta={
-          history.length ? (
+          rows.length ? (
             <V3StatusChip tone="success">
-              {history.length} {history.length === 1 ? "edition" : "editions"}
+              {rows.length} {rows.length === 1 ? "edition" : "editions"}
             </V3StatusChip>
           ) : undefined
         }
       >
-        {history.length ? (
+        {rows.length ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            {history.map((item) => {
+            {rows.map((item) => {
               const edition = editionById.get(item.edition_id);
               const canonicalLabel = edition ? editionLabel(edition) : item.edition_name;
               const href = edition?.slug ? `/editions/${edition.slug}` : "/editions";
+              const mine = item.status === "mine";
 
               return (
                 <V3ActionCard
                   key={item.edition_id}
                   title={canonicalLabel}
-                  description="Recorded delegation participation"
+                  description="Confirmed delegation participation"
                   icon={Archive}
                   tone="neutral"
                   to={href}
-                  meta="Open edition archive"
+                  meta={
+                    <V3StatusChip tone={mine ? "success" : "neutral"}>
+                      {membershipLabel(item.status)}
+                    </V3StatusChip>
+                  }
                 />
               );
             })}
@@ -156,7 +157,7 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
           <V3Surface className="p-4">
             <p className="text-sm font-semibold">No recorded delegation editions</p>
             <p className="mt-1 text-xs leading-5 text-white/48">
-              Solaris has no caller-scoped historical delegation records for this account yet.
+              Solaris has no confirmed edition participation for this delegation yet.
             </p>
           </V3Surface>
         )}
