@@ -21,6 +21,7 @@ import {
   applyConfirmationEditionBindingChange,
   loadConfirmationEditionBinding,
   previewConfirmationEditionBindingChange,
+  reauthenticateConfirmationEditionR3,
   type ConfirmationEditionBindingChangeKind,
   type ConfirmationEditionBindingPreview,
   type ConfirmationEditionBindingProjection,
@@ -69,6 +70,7 @@ function EditionsPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<PendingChange | null>(null);
+  const [reauthPassword, setReauthPassword] = useState("");
   const [receipt, setReceipt] = useState<ConfirmationEditionBindingReceipt | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,9 +80,15 @@ function EditionsPage() {
     return current;
   }, []);
 
+  const closePending = useCallback(() => {
+    setPending(null);
+    setReauthPassword("");
+  }, []);
+
   useEffect(() => {
     let alive = true;
     setPending(null);
+    setReauthPassword("");
     setReceipt(null);
     setError(null);
 
@@ -152,6 +160,7 @@ function EditionsPage() {
         payload: { editionId, changeKind: kind, enabled },
       });
 
+      setReauthPassword("");
       setPending({
         kind,
         enabled,
@@ -172,10 +181,16 @@ function EditionsPage() {
   async function applyPendingChange() {
     if (!pending || !editionId || busy || pending.preview.blockers.length > 0) return;
     const current = pending;
+    let commandAttempted = false;
     setBusy(true);
     setError(null);
 
     try {
+      if (current.preview.riskClass === "R3") {
+        await reauthenticateConfirmationEditionR3(reauthPassword);
+      }
+
+      commandAttempted = true;
       const operationReceipt = await applyConfirmationEditionBindingChange({
         editionId,
         kind: current.kind,
@@ -187,26 +202,28 @@ function EditionsPage() {
       });
 
       setReceipt(operationReceipt);
-      setPending(null);
+      closePending();
       await refresh(editionId);
 
       if (current.kind === "bind") toast.success("Delegation edition binding reconciled.");
       else if (current.kind === "remove") toast.success("Delegation edition binding removed.");
       else toast.success(current.enabled ? "Response editing opened." : "Response editing closed.");
     } catch (caught) {
-      // The request may have committed even if the browser lost the response.
-      // Reconcile the exact operation before offering a retry with the same key.
-      try {
-        const reconciled = await reconcileOperation({ data: { operationId: current.operationId } });
-        if (reconciled.ok && reconciled.receipt.status === "succeeded") {
-          setPending(null);
-          await refresh(editionId);
-          toast.success("Edition operation completed and was reconciled after the response was lost.");
-          return;
+      // Only reconcile an operation after the mutation RPC was actually attempted.
+      // Reauthentication failures happen before the server command exists.
+      if (commandAttempted) {
+        try {
+          const reconciled = await reconcileOperation({ data: { operationId: current.operationId } });
+          if (reconciled.ok && reconciled.receipt.status === "succeeded") {
+            closePending();
+            await refresh(editionId);
+            toast.success("Edition operation completed and was reconciled after the response was lost.");
+            return;
+          }
+        } catch {
+          // Preserve the original operation envelope in `pending`; a retry remains
+          // idempotent and cannot duplicate the canonical mutation.
         }
-      } catch {
-        // Preserve the original operation envelope in `pending`; a retry remains
-        // idempotent and cannot duplicate the canonical mutation.
       }
 
       const message = caught instanceof Error ? caught.message : "Edition change could not be applied.";
@@ -218,6 +235,7 @@ function EditionsPage() {
   }
 
   const exactBindingAvailable = projection?.bindingState === "linked" || projection?.bindingState === "stale";
+  const pendingNeedsReauth = pending?.preview.riskClass === "R3";
 
   return (
     <AdminPage>
@@ -326,7 +344,7 @@ function EditionsPage() {
 
         <AdminConfirmSheet
           open={Boolean(pending)}
-          onClose={busy ? () => undefined : () => setPending(null)}
+          onClose={busy ? () => undefined : closePending}
           onConfirm={applyPendingChange}
           title={pending ? (
             pending.kind === "bind"
@@ -334,22 +352,39 @@ function EditionsPage() {
               : `${pending.enabled ? "Open" : "Close"} existing-response editing for SSC ${projection?.editionNumber ?? ""}?`
           ) : "Review edition operation"}
           description={pending ? (
-            <div className="space-y-2">
-              <p><strong className="text-foreground">{projection?.name ?? "Selected edition"}</strong></p>
-              <p>Expected state version: <strong className="text-foreground">{pending.preview.expectedVersion}</strong>. The server rechecks the edition, capability, binding identity and version after acquiring its lock.</p>
-              {pending.kind === "bind" ? (
-                <p>This creates or refreshes only the exact canonical binding. A conflicting Solaris or Confirmation identity fails closed instead of being deleted or silently rebound.</p>
-              ) : (
-                <p>Existing-response editing: <strong className="text-foreground">{pending.preview.editingEnabled ? "Open" : "Closed"}</strong> → <strong className="text-foreground">{pending.enabled ? "Open" : "Closed"}</strong>.</p>
-              )}
-              <p>Risk class: <strong className="text-foreground">{pending.preview.riskClass}</strong>. Retries reuse the same operation identity and idempotency key.</p>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <p><strong className="text-foreground">{projection?.name ?? "Selected edition"}</strong></p>
+                <p>Expected state version: <strong className="text-foreground">{pending.preview.expectedVersion}</strong>. The server rechecks the edition, capability, binding identity and version after acquiring its lock.</p>
+                {pending.kind === "bind" ? (
+                  <p>This creates or refreshes only the exact canonical binding. A conflicting Solaris or Confirmation identity fails closed instead of being deleted or silently rebound.</p>
+                ) : (
+                  <p>Existing-response editing: <strong className="text-foreground">{pending.preview.editingEnabled ? "Open" : "Closed"}</strong> → <strong className="text-foreground">{pending.enabled ? "Open" : "Closed"}</strong>.</p>
+                )}
+                <p>Risk class: <strong className="text-foreground">{pending.preview.riskClass}</strong>. Retries reuse the same operation identity and idempotency key.</p>
+              </div>
+
+              {pendingNeedsReauth ? (
+                <label className="block rounded-xl border border-rose-200/15 bg-black/10 p-3">
+                  <span className="text-xs font-semibold text-foreground">Current Solaris password</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">R3 operations require fresh authentication immediately before the authoritative command.</span>
+                  <input
+                    type="password"
+                    value={reauthPassword}
+                    onChange={(event) => setReauthPassword(event.target.value)}
+                    autoComplete="current-password"
+                    className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30"
+                  />
+                </label>
+              ) : null}
             </div>
           ) : "Review the current authoritative state before applying."}
           confirmLabel={pending?.kind === "bind" ? "Apply binding reconciliation" : pending?.enabled ? "Open response editing" : "Close response editing"}
           confirmationText={pending?.kind === "editing" && pending.enabled ? `SSC ${projection?.editionNumber ?? ""}` : undefined}
           confirmationHint={pending?.kind === "editing" && pending.enabled ? `Type SSC ${projection?.editionNumber ?? ""} exactly to confirm wider editing access` : undefined}
           busy={busy}
-          danger={Boolean(pending?.kind === "editing" && pending.enabled)}
+          danger={Boolean(pending?.preview.riskClass === "R3")}
+          confirmDisabled={Boolean(pendingNeedsReauth && !reauthPassword)}
         />
       </div>
     </AdminPage>
