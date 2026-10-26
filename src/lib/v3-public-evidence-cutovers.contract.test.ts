@@ -63,16 +63,22 @@ const EVIDENCE_ONLY_PUBLIC_CUTOVERS = [
 ] as const;
 
 describe("Public V3 evidence-only cutover proof", () => {
-  it("keeps every claimed evidence-only capability in the canonical discovered registry", () => {
-    const ids = new Set(V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES.map((item) => item.id));
+  it("binds every claimed capability to cutover status and executable proof", () => {
     for (const evidence of EVIDENCE_ONLY_PUBLIC_CUTOVERS) {
-      expect(ids.has(evidence.id), evidence.id).toBe(true);
-    }
-  });
+      const capability = V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES.find(
+        (item) => item.id === evidence.id,
+      );
+      expect(capability, evidence.id).toBeDefined();
+      expect(capability?.specificationStatus, evidence.id).toBe("cutover");
 
-  it("binds every claimed cutover to executable focused proof", () => {
-    for (const evidence of EVIDENCE_ONLY_PUBLIC_CUTOVERS) {
+      const migrationEvidence =
+        capability && "migrationEvidence" in capability
+          ? capability.migrationEvidence
+          : undefined;
+      expect(migrationEvidence, evidence.id).toBeTruthy();
+
       for (const proofFile of evidence.proofFiles) {
+        expect(migrationEvidence, `${evidence.id}:${proofFile}`).toContain(proofFile);
         const proof = read(proofFile);
         expect(proof.length, `${evidence.id}:${proofFile}`).toBeGreaterThan(100);
         expect(proof, `${evidence.id}:${proofFile}`).toMatch(/\b(?:describe|test)\s*\(/);
