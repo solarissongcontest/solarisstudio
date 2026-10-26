@@ -89,7 +89,7 @@ begin
     )
   );
 
-  v_replay := coalesce((v_claim ->> 'replay')::boolean, false);
+  v_replay := coalesce((v_claim ->> 'replayed')::boolean, false);
   if v_replay then
     return public.studio2_reconcile_operation(p_operation_id)
       || jsonb_build_object('replayed', true);

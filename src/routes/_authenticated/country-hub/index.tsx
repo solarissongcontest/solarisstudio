@@ -7,8 +7,14 @@ export const Route = createFileRoute("/_authenticated/country-hub/")({
     country: typeof search.country === "string" ? search.country : undefined,
   }),
   beforeLoad: ({ search }) => {
-    throw redirect({ to: NAV_TARGETS.mySolarisCountry, search, replace: true });
+    // Country Hub is no longer a standalone V3 mental model. Normal HOD entry
+    // lands in canonical Me; the explicit country selector remains a legacy
+    // Organizer inspection context and must not be confused with caller state.
+    if (search.country) {
+      throw redirect({ to: NAV_TARGETS.mySolarisCountry, search, replace: true });
+    }
+    throw redirect({ to: NAV_TARGETS.mySolaris, replace: true });
   },
-  head: () => ({ meta: [{ title: "Country workspace — Solaris Studio" }] }),
+  head: () => ({ meta: [{ title: "Delegation — Solaris Studio" }] }),
   component: () => null,
 });

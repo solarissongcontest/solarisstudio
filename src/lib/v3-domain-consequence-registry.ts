@@ -21,8 +21,7 @@ export type V3RealtimeEffect = {
   projection: string;
 };
 
-export type V3ReadOnlyConsequenceReplacement = {
-  kind: "canonical-read";
+type V3ConsequenceReplacementBase = {
   ownerDomain: string;
   operation: string;
   projection: string;
@@ -30,6 +29,18 @@ export type V3ReadOnlyConsequenceReplacement = {
   rationale: string;
   evidence: readonly string[];
 };
+
+export type V3ReadOnlyConsequenceReplacement = V3ConsequenceReplacementBase & {
+  kind: "canonical-read";
+};
+
+export type V3DerivedProjectionConsequenceReplacement = V3ConsequenceReplacementBase & {
+  kind: "canonical-derived-projection";
+};
+
+export type V3ConsequenceReplacement =
+  | V3ReadOnlyConsequenceReplacement
+  | V3DerivedProjectionConsequenceReplacement;
 
 export type V3DomainConsequence = {
   eventType: string;
@@ -47,8 +58,12 @@ export type V3DomainConsequence = {
    * transactional event/outbox consumers; `declared` must not be mistaken for
    * proof that an event bus already executes these effects.
    */
-  implementationState: "declared" | "event-backed" | "replaced-by-read";
-  replacement: V3ReadOnlyConsequenceReplacement | null;
+  implementationState:
+    | "declared"
+    | "event-backed"
+    | "replaced-by-read"
+    | "replaced-by-derived-projection";
+  replacement: V3ConsequenceReplacement | null;
   evidence: readonly string[];
 };
 
@@ -220,12 +235,27 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
 };
 
 /**
- * A reconciliation read is not a mutating domain event. Keep the old logical
- * catalog identity traceable, but replace its invented side-effect contract with
- * the existing bounded, actor-scoped canonical read. This must never turn an
- * unimplemented mutation into an implemented consequence.
+ * A canonical read/record can own an observational consequence without adding
+ * a second DomainEvent solely to narrate the same durable fact. Replacements
+ * remain strict, bounded, authorization-safe and evidence-backed.
  */
 const READ_ONLY_REPLACEMENTS: Readonly<Record<string, V3ReadOnlyConsequenceReplacement>> = {
+  "receipt.recorded": {
+    kind: "canonical-read",
+    ownerDomain: "receipt",
+    operation: "public.studio2_reconcile_operation(uuid)",
+    projection: "actor-scoped canonical operation receipt",
+    boundedBy: "one operation id per invocation",
+    rationale:
+      "The receipt write is already the durable canonical fact. Receipt surfaces and lost-response recovery reread that exact actor-owned record; emitting a second receipt.recorded event would add no required write-side effect and would only duplicate the ledger.",
+    evidence: [
+      "supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql",
+      "src/lib/system-operation-reconciliation.server.ts",
+      "src/lib/system-operation-reconciliation.server.test.ts",
+      ".github/scripts/v3-operation-receipt-rehearsal.sh",
+      "src/lib/v3-non-event-consequence-replacements.test.ts",
+    ],
+  },
   "receipt.reconciled": {
     kind: "canonical-read",
     ownerDomain: "receipt",
@@ -242,6 +272,154 @@ const READ_ONLY_REPLACEMENTS: Readonly<Record<string, V3ReadOnlyConsequenceRepla
       "src/lib/v3-receipt-reconciliation-consequence.test.ts",
     ],
   },
+  "audit.recorded": {
+    kind: "canonical-read",
+    ownerDomain: "audit",
+    operation: "authorized bounded admin_audit_log reads",
+    projection: "Organizer recent changes and specialist audit history",
+    boundedBy: "8 edition-scoped rows for V3 recent changes; 1-100 rows for the specialist audit view",
+    rationale:
+      "The append-only audit row is already the durable evidence. Organizer and specialist audit surfaces read that canonical table through RLS-protected bounded queries; emitting audit.recorded would make the audit log depend on a second event about the audit itself and risks recursive audit semantics.",
+    evidence: [
+      "supabase/migrations/20260914173633_canonical_admin_audit_log.sql",
+      "supabase/migrations/20260914174742_permission_engine_v2_core_rls_cutover.sql",
+      "src/integrations/supabase/admin-audit.server.ts",
+      "src/lib/organizer-v3-projection.server.ts",
+      "src/lib/admin-ops.ts",
+      "src/lib/v3-non-event-consequence-replacements.test.ts",
+    ],
+  },
+  "public_ux.observed": {
+    kind: "canonical-read",
+    ownerDomain: "public-ux",
+    operation: "privacy-bounded public_ux_events + public.admin_public_ux_metrics(timestamptz)",
+    projection: "aggregate public UX diagnostics",
+    boundedBy:
+      "maximum 180-day server-side aggregate horizon; constrained event payloads; top-destination/group result caps; no raw event rows returned to ordinary Public clients",
+    rationale:
+      "public_ux.observed is the privacy-minimized telemetry record itself, not a contest mutation requiring a second outbox fact. The canonical table constrains event vocabulary and metadata, browser collection is best-effort and disabled for automated browsers, and authorized diagnostics consume server-side aggregates without making telemetry contest-state authority.",
+    evidence: [
+      "supabase/migrations/20260919112555_public_ux_telemetry.sql",
+      "src/lib/public-ux-events.ts",
+      "src/lib/public-ux-metrics.ts",
+      "src/lib/v3-public-ux-diagnostics.contract.test.ts",
+      "src/lib/v3-beta-feedback-privacy.contract.test.ts",
+      "src/lib/v3-derived-observation-consequence-replacements.test.ts",
+    ],
+  },
+};
+
+/**
+ * Projection-state labels are not a second canonical workflow. These cases are
+ * reconstructed from their authoritative source and reconciled automatically;
+ * emitting synthetic DomainEvents would create competing truth rather than
+ * preserving it.
+ */
+const DERIVED_PROJECTION_REPLACEMENTS: Readonly<
+  Record<string, V3DerivedProjectionConsequenceReplacement>
+> = {
+  "task.opened": {
+    kind: "canonical-derived-projection",
+    ownerDomain: "task",
+    operation:
+      "tasksFromHodWorkspace(snapshot) + private.studio2_reconcile_all_organizer_tasks(uuid)",
+    projection: "participant and Organizer task projections derived from canonical domain state",
+    boundedBy:
+      "one participant edition+country workspace snapshot and one Organizer edition per reconciliation invocation",
+    rationale:
+      "Task visibility is derived from canonical workflow conditions. Participant tasks are computed from the HOD workspace snapshot, while Organizer tasks use unique source keys and reconciliation to upsert active conditions and resolve stale ones. A task.opened event would duplicate projection state rather than own it.",
+    evidence: [
+      "src/lib/solaris-v6-runtime-authority.ts",
+      "src/lib/participation-os.ts",
+      "src/lib/participation-os-hod.test.ts",
+      "src/components/mysolaris/modules/MySolarisTasksModule.tsx",
+      "supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql",
+      "supabase/migrations/20261003154000_organisation_os_v5_r3_permission_tasks.sql",
+      "supabase/migrations/20261004230000_organizer_task_runtime_reconciliation.sql",
+      "supabase/migrations/20261021161000_v3_s14_task_reconciliation_service_boundary.sql",
+      "src/lib/admin-tasks-v5.ts",
+      "src/lib/organisation-task-runtime-reconciliation.contract.test.ts",
+      "src/lib/v3-non-event-consequence-replacements.test.ts",
+    ],
+  },
+  "task.resolved": {
+    kind: "canonical-derived-projection",
+    ownerDomain: "task",
+    operation:
+      "tasksFromHodWorkspace(snapshot) + private.studio2_reconcile_all_organizer_tasks(uuid)",
+    projection: "participant and Organizer task projections derived from canonical domain state",
+    boundedBy:
+      "one participant edition+country workspace snapshot and one Organizer edition per reconciliation invocation",
+    rationale:
+      "Task resolution follows canonical domain truth. Participant actions disappear when the HOD snapshot no longer requires them, and Organizer reconciliation marks derived task rows resolved when their source condition is gone. A task.resolved event would create competing task truth instead of preserving automatic resolution.",
+    evidence: [
+      "src/lib/solaris-v6-runtime-authority.ts",
+      "src/lib/participation-os.ts",
+      "src/lib/participation-os-hod.test.ts",
+      "src/components/mysolaris/modules/MySolarisTasksModule.tsx",
+      "supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql",
+      "supabase/migrations/20261003154000_organisation_os_v5_r3_permission_tasks.sql",
+      "supabase/migrations/20261004230000_organizer_task_runtime_reconciliation.sql",
+      "supabase/migrations/20261021161000_v3_s14_task_reconciliation_service_boundary.sql",
+      "src/lib/admin-tasks-v5.ts",
+      "src/lib/organisation-task-runtime-reconciliation.contract.test.ts",
+      "src/lib/v3-non-event-consequence-replacements.test.ts",
+    ],
+  },
+  "job.started": {
+    kind: "canonical-derived-projection",
+    ownerDomain: "system-job",
+    operation:
+      "pg_cron job/run state + private.studio2_reconcile_system_job_tasks() + public.admin_system_runtime_health(integer)",
+    projection: "Organizer job health, retry diagnostics and failure tasks",
+    boundedBy:
+      "Solaris-owned pg_cron jobs only; latest completed run plus at most three recent runs per job for recovery classification; recent delivery diagnostics capped at 1-100",
+    rationale:
+      "Scheduler lifecycle is already authoritative in pg_cron. Solaris derives health and retry state from that source instead of creating a second job ledger; start is observational scheduler state and has no independent downstream write-side consequence to emit.",
+    evidence: [
+      "supabase/migrations/20261003161000_organisation_os_v5_system_job_recovery.sql",
+      "src/lib/organisation-v5-system-job-recovery.test.ts",
+      "docs/organisation-os-v5/state-transition-inventory.yml",
+      "src/routes/_authenticated/admin/system-operations.tsx",
+      "src/lib/v3-derived-observation-consequence-replacements.test.ts",
+    ],
+  },
+  "job.completed": {
+    kind: "canonical-derived-projection",
+    ownerDomain: "system-job",
+    operation:
+      "pg_cron job/run state + private.studio2_reconcile_system_job_tasks() + public.admin_system_runtime_health(integer)",
+    projection: "Organizer job health, retry diagnostics and failure-task reconciliation",
+    boundedBy:
+      "Solaris-owned pg_cron jobs only; latest completed run plus at most three recent runs per job for recovery classification; recent delivery diagnostics capped at 1-100",
+    rationale:
+      "A successful scheduler run is already durable scheduler history. Reconciliation resolves any stale system-job failure task only after authoritative scheduler recovery, so a synthetic job.completed DomainEvent would duplicate the state that owns recovery.",
+    evidence: [
+      "supabase/migrations/20261003161000_organisation_os_v5_system_job_recovery.sql",
+      "src/lib/organisation-v5-system-job-recovery.test.ts",
+      "docs/organisation-os-v5/state-transition-inventory.yml",
+      "src/routes/_authenticated/admin/system-operations.tsx",
+      "src/lib/v3-derived-observation-consequence-replacements.test.ts",
+    ],
+  },
+  "job.failed": {
+    kind: "canonical-derived-projection",
+    ownerDomain: "system-job",
+    operation:
+      "pg_cron job/run state + private.studio2_reconcile_system_job_tasks() + public.admin_system_runtime_health(integer)",
+    projection: "Organizer job health, bounded retry/dead-letter diagnostics and canonical failure tasks",
+    boundedBy:
+      "Solaris-owned pg_cron jobs only; latest completed run plus at most three recent runs per job for recovery classification; recent delivery diagnostics capped at 1-100",
+    rationale:
+      "Failed/inactive Solaris jobs already project deterministically from pg_cron into one unique source-key Organizer task, with repeated failures classified as dead-letter attention and success resolving the task. That is the required consequence; a parallel job.failed event ledger would create duplicate retry truth.",
+    evidence: [
+      "supabase/migrations/20261003161000_organisation_os_v5_system_job_recovery.sql",
+      "src/lib/organisation-v5-system-job-recovery.test.ts",
+      "docs/organisation-os-v5/state-transition-inventory.yml",
+      "src/routes/_authenticated/admin/system-operations.tsx",
+      "src/lib/v3-derived-observation-consequence-replacements.test.ts",
+    ],
+  },
 };
 
 export function v3DomainConsequenceImplementationErrors(consequence: V3DomainConsequence) {
@@ -250,41 +428,85 @@ export function v3DomainConsequenceImplementationErrors(consequence: V3DomainCon
   }
   if (consequence.implementationState === "event-backed") {
     const evidence = EVENT_BACKED_CONSEQUENCES[consequence.eventType];
-    return evidence?.length && evidence.every((path) => consequence.evidence.includes(path)) && !consequence.replacement
+    return evidence?.length &&
+      evidence.every((path) => consequence.evidence.includes(path)) &&
+      !consequence.replacement
       ? []
       : ["event-backed consequence lacks its canonical implementation evidence"];
   }
-  if (consequence.implementationState !== "replaced-by-read") return ["unknown consequence implementation state"];
 
-  const expected = READ_ONLY_REPLACEMENTS[consequence.eventType];
   const actual = consequence.replacement;
+  const expected =
+    consequence.implementationState === "replaced-by-read"
+      ? READ_ONLY_REPLACEMENTS[consequence.eventType]
+      : consequence.implementationState === "replaced-by-derived-projection"
+        ? DERIVED_PROJECTION_REPLACEMENTS[consequence.eventType]
+        : null;
   if (!expected || !actual || consequence.ownerDomain !== expected.ownerDomain) {
-    return ["unknown read-only replacement or mismatched owner"];
+    return ["unknown consequence replacement or mismatched owner"];
   }
-  for (const key of ["kind", "ownerDomain", "operation", "projection", "boundedBy", "rationale"] as const) {
-    if (actual[key] !== expected[key]) return ["read-only replacement differs from its canonical contract"];
+  for (const key of [
+    "kind",
+    "ownerDomain",
+    "operation",
+    "projection",
+    "boundedBy",
+    "rationale",
+  ] as const) {
+    if (actual[key] !== expected[key]) {
+      return ["consequence replacement differs from its canonical contract"];
+    }
   }
-  if (!Array.isArray(actual.evidence) || !Array.isArray(consequence.evidence) ||
-      actual.evidence.length !== expected.evidence.length ||
-      !expected.evidence.every((path) => actual.evidence.includes(path) && consequence.evidence.includes(path))) {
-    return ["read-only replacement lacks its implementation and behavioral evidence"];
+  if (
+    !Array.isArray(actual.evidence) ||
+    !Array.isArray(consequence.evidence) ||
+    actual.evidence.length !== expected.evidence.length ||
+    !expected.evidence.every(
+      (path) => actual.evidence.includes(path) && consequence.evidence.includes(path),
+    )
+  ) {
+    return ["consequence replacement lacks its implementation and behavioral evidence"];
   }
-  if (consequence.taskEffects.length || consequence.notificationEffects.length ||
-      consequence.publicationEffects.length || consequence.realtimeEffects.length ||
-      consequence.analyticsEffects.length || consequence.auditRequired) {
-    return ["a canonical read replacement must not invent mutating or delivery effects"];
+  if (
+    consequence.taskEffects.length ||
+    consequence.notificationEffects.length ||
+    consequence.publicationEffects.length ||
+    consequence.realtimeEffects.length ||
+    consequence.analyticsEffects.length ||
+    consequence.auditRequired
+  ) {
+    return ["a canonical consequence replacement must not retain invented event delivery effects"];
   }
   return [];
 }
 
-/** Resolved includes an explicitly replaced read; it never fabricates an event bus. */
+/** Resolved replacements preserve the catalog identity without fabricating an event bus. */
 export function isResolvedV3DomainConsequence(consequence: V3DomainConsequence) {
-  return consequence.implementationState !== "declared" &&
-    v3DomainConsequenceImplementationErrors(consequence).length === 0;
+  return (
+    consequence.implementationState !== "declared" &&
+    v3DomainConsequenceImplementationErrors(consequence).length === 0
+  );
 }
 
 export function isV3ReadOnlyConsequenceReplacement(consequence: V3DomainConsequence) {
-  return consequence.implementationState === "replaced-by-read" && isResolvedV3DomainConsequence(consequence);
+  return (
+    consequence.implementationState === "replaced-by-read" &&
+    isResolvedV3DomainConsequence(consequence)
+  );
+}
+
+export function isV3DerivedConsequenceReplacement(consequence: V3DomainConsequence) {
+  return (
+    consequence.implementationState === "replaced-by-derived-projection" &&
+    isResolvedV3DomainConsequence(consequence)
+  );
+}
+
+export function isV3NonEventConsequenceReplacement(consequence: V3DomainConsequence) {
+  return (
+    isV3ReadOnlyConsequenceReplacement(consequence) ||
+    isV3DerivedConsequenceReplacement(consequence)
+  );
 }
 
 const providerIds: ReadonlySet<string> = new Set(
@@ -307,7 +529,8 @@ function unique(values: readonly string[]) {
  * `implementationState: declared` means ownership is documented but the
  * owning command has not yet proven transactional S4 emission plus executable
  * consequence consumers. Only events with concrete migration/rehearsal evidence
- * may be marked `event-backed`.
+ * may be marked `event-backed`. A non-event replacement is allowed only through
+ * the strict allowlists above with bounded, inspectable runtime evidence.
  */
 export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
   V3_SYSTEM_DOMAIN_REGISTRY.flatMap((domain) =>
@@ -328,31 +551,47 @@ export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
         ...taskTypes.map((taskType) => `task:${taskType}`),
       ]);
       const eventBackedEvidence = EVENT_BACKED_CONSEQUENCES[eventType];
-      const replacement = READ_ONLY_REPLACEMENTS[eventType] ?? null;
+      const readReplacement = READ_ONLY_REPLACEMENTS[eventType] ?? null;
+      const derivedReplacement = DERIVED_PROJECTION_REPLACEMENTS[eventType] ?? null;
+      const replacement = readReplacement ?? derivedReplacement ?? null;
 
       return {
         eventType,
         ownerDomain: domain.domain,
         projections: domain.projections,
-        taskEffects: replacement ? [] : taskTypes.map((taskType) => ({ effect: "re-evaluate", taskType } as const)),
-        notificationEffects: replacement ? [] : notificationProviders.map((providerId) => ({
-          effect: "evaluate-provider",
-          providerId,
-        } as const)),
-        publicationEffects: replacement ? [] : publicProjections.map((projection) => ({
-          effect: "re-evaluate-visibility",
-          projection,
-        } as const)),
-        realtimeEffects: replacement ? [] : domain.projections.map((projection) => ({
-          effect: "invalidate-projection",
-          projection,
-        } as const)),
+        taskEffects: replacement
+          ? []
+          : taskTypes.map((taskType) => ({ effect: "re-evaluate", taskType } as const)),
+        notificationEffects: replacement
+          ? []
+          : notificationProviders.map((providerId) => ({
+              effect: "evaluate-provider",
+              providerId,
+            } as const)),
+        publicationEffects: replacement
+          ? []
+          : publicProjections.map((projection) => ({
+              effect: "re-evaluate-visibility",
+              projection,
+            } as const)),
+        realtimeEffects: replacement
+          ? []
+          : domain.projections.map((projection) => ({
+              effect: "invalidate-projection",
+              projection,
+            } as const)),
         analyticsEffects: replacement ? [] : [`domain-event:${eventType}`],
         auditRequired:
-          !replacement && (domain.sensitivityClass !== "public" ||
-          domain.mutationCommands.length > 0),
+          !replacement &&
+          (domain.sensitivityClass !== "public" || domain.mutationCommands.length > 0),
         consumers,
-        implementationState: replacement ? "replaced-by-read" : eventBackedEvidence ? "event-backed" : "declared",
+        implementationState: readReplacement
+          ? "replaced-by-read"
+          : derivedReplacement
+            ? "replaced-by-derived-projection"
+            : eventBackedEvidence
+              ? "event-backed"
+              : "declared",
         replacement,
         evidence: replacement
           ? unique([...domain.ownershipEvidence, ...replacement.evidence])
@@ -398,13 +637,17 @@ export function validateV3DomainConsequenceRegistry() {
     }
     for (const notification of consequence.notificationEffects) {
       if (!providerIds.has(notification.providerId)) {
-        errors.push(`${consequence.eventType} references unknown notification provider ${notification.providerId}`);
+        errors.push(
+          `${consequence.eventType} references unknown notification provider ${notification.providerId}`,
+        );
       }
     }
     if (consequence.implementationState === "event-backed") {
       const evidence = EVENT_BACKED_CONSEQUENCES[consequence.eventType];
       if (!evidence?.length) {
-        errors.push(`${consequence.eventType} claims event-backed consequences without implementation evidence`);
+        errors.push(
+          `${consequence.eventType} claims event-backed consequences without implementation evidence`,
+        );
       }
     }
   }

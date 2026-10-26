@@ -1,4 +1,8 @@
-import { V3_DOMAIN_CONSEQUENCE_REGISTRY, isV3ReadOnlyConsequenceReplacement, v3DomainConsequence } from "./v3-domain-consequence-registry";
+import {
+  V3_DOMAIN_CONSEQUENCE_REGISTRY,
+  isV3NonEventConsequenceReplacement,
+  v3DomainConsequence,
+} from "./v3-domain-consequence-registry";
 import { V3_SYSTEM_DOMAIN_REGISTRY } from "./v3-system-domain-registry";
 
 export type V3ProjectionFreshnessClass = "static" | "normal" | "operational" | "live";
@@ -203,7 +207,7 @@ export const V3_PROJECTION_RECONCILIATION_REGISTRY: readonly V3ProjectionReconci
           .flatMap((domain) => domain.eventTypes)
           .filter((eventType) => {
             const consequence = v3DomainConsequence(eventType);
-            return !consequence || !isV3ReadOnlyConsequenceReplacement(consequence);
+            return !consequence || !isV3NonEventConsequenceReplacement(consequence);
           }),
       );
       return {
@@ -222,7 +226,7 @@ export function v3ProjectionReconciliation(projection: string) {
 
 export function v3ProjectionsInvalidatedByEvent(eventType: string) {
   const consequence = V3_DOMAIN_CONSEQUENCE_REGISTRY.find((item) => item.eventType === eventType);
-  if (!consequence || isV3ReadOnlyConsequenceReplacement(consequence)) return [] as V3ProjectionReconciliation[];
+  if (!consequence || isV3NonEventConsequenceReplacement(consequence)) return [] as V3ProjectionReconciliation[];
 
   const declared = new Set([
     ...consequence.projections,

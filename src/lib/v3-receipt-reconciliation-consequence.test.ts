@@ -54,7 +54,7 @@ describe("canonical receipt reconciliation read replaces a phantom mutation even
     expect(receiptProjections.length).toBeGreaterThan(0);
     for (const projection of receiptProjections) {
       expect(projection.invalidatingEvents).not.toContain("receipt.reconciled");
-      expect(projection.invalidatingEvents).toContain("receipt.recorded");
+      expect(projection.invalidatingEvents).not.toContain("receipt.recorded");
       expect(projection.repair.rebuildPath).toContain("studio2_reconcile_operation");
     }
   });
@@ -63,7 +63,7 @@ describe("canonical receipt reconciliation read replaces a phantom mutation even
     const declared = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((row) => row.implementationState === "declared");
     expect(declared.length).toBeGreaterThan(0);
     expect(declared.every((row) => !isResolvedV3DomainConsequence(row))).toBe(true);
-    for (const event of ["receipt.recorded", "edition.changed", "identity.signed_out"]) {
+    for (const event of ["edition.changed", "identity.signed_out"]) {
       const row = v3DomainConsequence(event);
       expect(row?.implementationState).toBe("declared");
       expect(row && isResolvedV3DomainConsequence(row)).toBe(false);

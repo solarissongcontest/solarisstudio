@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Check, ClipboardCheck, ListOrdered, RefreshCw } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { FlagChip } from "@/components/FlagChip";
@@ -27,6 +27,7 @@ function LineupSyncPage() {
   const { data: participants = [] } = useParticipants(edition?.id);
   const { data: countries = [] } = useCountries();
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const operationIdsRef = useRef(new Map<string, string>());
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
   const canonical = useMemo(
@@ -54,12 +55,26 @@ function LineupSyncPage() {
 
   async function addMany(showId: string, countryIds: string[], key: string) {
     if (!edition || !countryIds.length) return;
+    const operationId = operationIdsRef.current.get(key) ?? crypto.randomUUID();
+    operationIdsRef.current.set(key, operationId);
     setBusyKey(key);
     try {
-      const result = await addToShow({ data: { editionId: edition.id, showId, countryIds } });
-      toast.success(`${result.added} added to ${result.showName}${result.refreshed ? ` · ${result.refreshed} refreshed` : ""}`);
+      const result = await addToShow({
+        data: {
+          editionId: edition.id,
+          showId,
+          countryIds,
+          operationId,
+          idempotencyKey: `show-lineup-sync:${operationId}`,
+        },
+      });
+      operationIdsRef.current.delete(key);
+      toast.success(`${result.added} added to ${result.showName}${result.refreshed ? ` · ${result.refreshed} refreshed` : ""}${result.replayed ? " · reconciled" : ""}`);
       await refresh();
     } catch (caught) {
+      // Keep this operation identity for a retry. The server reconciles a
+      // completed receipt before running another preflight, so an ambiguous
+      // network outcome cannot create a second write.
       toast.error(caught instanceof Error ? caught.message : "Line-up could not be updated.");
     } finally {
       setBusyKey(null);

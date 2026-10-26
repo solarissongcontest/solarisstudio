@@ -72,6 +72,37 @@ describe("public contest state", () => {
     expect(selected?.edition_number).toBe(22);
   });
 
+  it("never promotes a newer cancelled edition over an older active edition", () => {
+    const selected = resolveCurrentPublicEdition([
+      edition({ status: "cancelled" }),
+      edition({
+        id: "edition-21",
+        edition_number: 21,
+        slug: "ssc-21",
+        status: "active",
+      }),
+    ]);
+
+    expect(selected?.id).toBe("edition-21");
+  });
+
+  it("returns no current edition when every published edition is cancelled", () => {
+    const cancelled = edition({ status: "cancelled" });
+
+    expect(resolveCurrentPublicEdition([cancelled])).toBeNull();
+
+    const state = resolvePublicContestState({
+      editions: [cancelled],
+      shows: [show({ status: "live" })],
+      results: [result()],
+    });
+
+    expect(state.edition).toBeNull();
+    expect(state.phase).toBe("between_editions");
+    expect(state.primaryAction?.to).toBe("/explore");
+    expect(state.primaryAction?.to).not.toBe("/participate");
+  });
+
   it("resolves an individual edition without recursion", () => {
     const state = resolvePublicEditionState({
       edition: edition({ status: "active" }),
@@ -153,6 +184,38 @@ describe("public contest state", () => {
 
     expect(state.phase).toBe("post_edition");
     expect(state.statusLabel).toBe("Completed");
+  });
+
+  it("makes cancellation outrank stale live and result decoration without reopening participation", () => {
+    const state = resolvePublicEditionState({
+      edition: edition({ status: "cancelled" }),
+      shows: [
+        show({
+          status: "live",
+          publication_config: {
+            participants: true,
+            artists: true,
+            songs: true,
+            semi_split: true,
+            running_order: true,
+            qualifiers: true,
+            results: true,
+            jury_results: true,
+            televote_results: true,
+            detailed_voting: true,
+          },
+        }),
+      ],
+      results: [result()],
+    });
+
+    expect(state.lifecycle).toBe("cancelled");
+    expect(state.phase).toBe("post_edition");
+    expect(state.statusKey).toBe("closed");
+    expect(state.statusLabel).toBe("Cancelled");
+    expect(state.headline).toContain("was cancelled");
+    expect(state.primaryAction?.to).toBe("/editions/ssc-22");
+    expect(state.primaryAction?.to).not.toBe("/participate");
   });
 
   it("returns a useful between-editions state when no edition is public", () => {
