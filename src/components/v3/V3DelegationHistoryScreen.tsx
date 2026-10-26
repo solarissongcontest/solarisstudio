@@ -196,11 +196,13 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
       ) : null}
 
       {mutationError ? (
-        <V3Surface className="border border-red-400/20 p-4" role="alert">
-          <p className="text-sm font-semibold">HOD history was not changed</p>
-          <p className="mt-1 text-xs leading-5 text-white/48">
-            {mutationError instanceof Error ? mutationError.message : "Solaris rejected the update."}
-          </p>
+        <V3Surface className="border border-red-400/20 p-4">
+          <div role="alert">
+            <p className="text-sm font-semibold">HOD history was not changed</p>
+            <p className="mt-1 text-xs leading-5 text-white/48">
+              {mutationError instanceof Error ? mutationError.message : "Solaris rejected the update."}
+            </p>
+          </div>
         </V3Surface>
       ) : null}
 
