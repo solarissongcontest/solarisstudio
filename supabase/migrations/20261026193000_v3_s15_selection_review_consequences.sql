@@ -133,7 +133,7 @@ begin
       'field', 'review_status',
       'resolvedWhen', jsonb_build_array('accepted', 'declined')
     ),
-    coalesce(entry.created_at, submission.submitted_at, submission.created_at, now()),
+    coalesce(submission.submitted_at, now()),
     null,
     now(),
     now()
@@ -195,7 +195,7 @@ begin
       'field', 'review_status',
       'resolvedWhen', jsonb_build_array('accepted', 'declined', 'removed')
     ),
-    coalesce(entry.created_at, submission.submitted_at, submission.created_at, now()),
+    coalesce(submission.submitted_at, now()),
     null,
     now(),
     now()
