@@ -1,0 +1,2120 @@
+{
+  "schemaVersion": 1,
+  "candidateSha": "96b76574b86f24c6f9ed5089ec853759683d7ab6",
+  "auditStatus": "complete working source classification; not certification",
+  "scope": "All40 current declared-only consequences. Existing synchronous behavior inspected independently from S4 event declarations. No readiness status changed.",
+  "totals": {
+    "implemented_evidence_missing": 0,
+    "partially_implemented": 39,
+    "not_implemented": 0,
+    "obsolete_replaced": 1,
+    "false_positive": 0
+  },
+  "classificationCaveat": "Partial means actual owner behavior exists but full declared effects are not proven; it does not assert every feature is absent. Generated realtime/analytics/publication claims require proof or an explicit tested replacement contract. Runtime acceptance remains pending.",
+  "findings": [
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED edition.changed owner=edition",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "edition.changed",
+      "route": null,
+      "surface": "public edition routes, Organizer edition workspace, task:edition.blocker",
+      "domain": "edition",
+      "expectedOwner": "edition",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261019112300_v3_s14_transition_http409.sql",
+        "src/lib/edition-state.ts"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261019112300_v3_s14_transition_http409.sql"
+      ],
+      "apiCommandOwner": "studio2_transition_edition",
+      "testEvidence": [
+        "src/lib/v3-s14-transition-http409.contract.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Canonical edition lifecycle transition normalizes HTTP409 and emits edition.transitioned; lifecycle state itself is server-owned.",
+      "trigger": "edition.changed; owning command path: studio2_transition_edition",
+      "expectedConsequence": "public edition routes, Organizer edition workspace, task:edition.blocker",
+      "persistenceMechanism": [
+        "supabase/migrations/20261019112300_v3_s14_transition_http409.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "studio2_transition_edition",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "-- 40001 as retryable, so keeping 40001 here can replay a command that is known",
+          "on conflict (migration_key) do nothing;",
+          "-- a genuine retry/serialization condition and must remain 40001.",
+          "do $assert_worker_retry_semantics$",
+          "'Edition DomainEvent lease conflict no longer retains genuine serialization retry semantics';",
+          "$assert_worker_retry_semantics$;"
+        ]
+      },
+      "requiredRepair": [
+        "Transition event currently has no delivery consumer; prove task reevaluation/public readback and replace broad generic effect claims only where canonical read truth proves them obsolete.",
+        "Execute focused behavioral coverage for edition.changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261019112300_v3_s14_transition_http409.sql, src/lib/edition-state.ts. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Transition event currently has no delivery consumer; prove task reevaluation/public readback and replace broad generic effect claims only where canonical read truth proves them obsolete.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED edition.transitioned owner=edition",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "edition.transitioned",
+      "route": null,
+      "surface": "public edition routes, Organizer edition workspace, task:edition.blocker",
+      "domain": "edition",
+      "expectedOwner": "edition",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261019112300_v3_s14_transition_http409.sql",
+        "src/lib/edition-state.ts"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261019112300_v3_s14_transition_http409.sql"
+      ],
+      "apiCommandOwner": "studio2_transition_edition",
+      "testEvidence": [
+        "src/lib/v3-s14-transition-http409.contract.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Canonical edition lifecycle transition normalizes HTTP409 and emits edition.transitioned; lifecycle state itself is server-owned.",
+      "trigger": "edition.transitioned; owning command path: studio2_transition_edition",
+      "expectedConsequence": "public edition routes, Organizer edition workspace, task:edition.blocker",
+      "persistenceMechanism": [
+        "supabase/migrations/20261019112300_v3_s14_transition_http409.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "studio2_transition_edition",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "-- 40001 as retryable, so keeping 40001 here can replay a command that is known",
+          "on conflict (migration_key) do nothing;",
+          "-- a genuine retry/serialization condition and must remain 40001.",
+          "do $assert_worker_retry_semantics$",
+          "'Edition DomainEvent lease conflict no longer retains genuine serialization retry semantics';",
+          "$assert_worker_retry_semantics$;"
+        ]
+      },
+      "requiredRepair": [
+        "Transition event currently has no delivery consumer; prove task reevaluation/public readback and replace broad generic effect claims only where canonical read truth proves them obsolete.",
+        "Execute focused behavioral coverage for edition.transitioned, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261019112300_v3_s14_transition_http409.sql, src/lib/edition-state.ts. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Transition event currently has no delivery consumer; prove task reevaluation/public readback and replace broad generic effect claims only where canonical read truth proves them obsolete.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED delegation.changed owner=delegation",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "delegation.changed",
+      "route": null,
+      "surface": "country profile, Organizer delegation workspace, task:delegation.attention",
+      "domain": "delegation",
+      "expectedOwner": "delegation",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/lib/country-account.ts"
+      ],
+      "migrationOwner": [],
+      "apiCommandOwner": "country-account domain RPCs",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Country account/delegation ownership and participant-facing readback exist through the canonical country-account client.",
+      "trigger": "delegation.changed; owning command path: country-account domain RPCs",
+      "expectedConsequence": "country profile, Organizer delegation workspace, task:delegation.attention",
+      "persistenceMechanism": [],
+      "idempotencyStrategy": "Not proven by inspected source; focused operation/recovery proof required",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "country-account domain RPCs",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": []
+      },
+      "requiredRepair": [
+        "Trace assignment/suspend/restore transaction to actual delegation.attention/task and public-profile invalidation; existing ownership calls alone do not prove all declared consequences.",
+        "Execute focused behavioral coverage for delegation.changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/lib/country-account.ts. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Trace assignment/suspend/restore transaction to actual delegation.attention/task and public-profile invalidation; existing ownership calls alone do not prove all declared consequences.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED participation.changed owner=participation",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "participation.changed",
+      "route": null,
+      "surface": "Participant View + delegation readiness, task:participation.blocker",
+      "domain": "participation",
+      "expectedOwner": "participation",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261003015000_organisation_os_v5_participation_status_operations.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261003015000_organisation_os_v5_participation_status_operations.sql"
+      ],
+      "apiCommandOwner": "studio2_apply_participation_status",
+      "testEvidence": [
+        "src/lib/organisation-participation-status-v5.test.ts",
+        "src/lib/v3-s14-stage4-canonical-sync.contract.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Governed preview/apply uses current edition/country status versions, operation identity, and canonical participant state; S14 regression drives withdrawal.",
+      "trigger": "participation.changed; owning command path: studio2_apply_participation_status",
+      "expectedConsequence": "Participant View + delegation readiness, task:participation.blocker",
+      "persistenceMechanism": [
+        "supabase/migrations/20261003015000_organisation_os_v5_participation_status_operations.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "studio2_apply_participation_status",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict (edition_id, subject_key) do update",
+          "on conflict (edition_id, subject_key) do update",
+          "p_idempotency_key text,",
+          "p_idempotency_key,",
+          "if coalesce((v_claim ->> 'replayed')::boolean, false) then",
+          "perform pg_advisory_xact_lock("
+        ]
+      },
+      "requiredRepair": [
+        "Prove participation.blocker repair and participant-readiness/readback for status override through an explicit effect implementation manifest.",
+        "Execute focused behavioral coverage for participation.changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261003015000_organisation_os_v5_participation_status_operations.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove participation.blocker repair and participant-readiness/readback for status override through an explicit effect implementation manifest.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED selection.reviewed owner=national-selection",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "selection.reviewed",
+      "route": null,
+      "surface": "national final/public selection, Organizer Selection & Entry Review, task:selection.review_required",
+      "domain": "national-selection",
+      "expectedOwner": "national-selection",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql"
+      ],
+      "apiCommandOwner": "selection review/winner transition RPCs",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Server-authoritative replay-safe selection review and current accepted winner transitions exist and guard submission review versions.",
+      "trigger": "selection.reviewed; owning command path: selection review/winner transition RPCs",
+      "expectedConsequence": "national final/public selection, Organizer Selection & Entry Review, task:selection.review_required",
+      "persistenceMechanism": [
+        "supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "selection review/winner transition RPCs",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "-- replay-safe operations bound to one canonical submission review version.",
+          "on conflict (submission_id) do nothing;",
+          "on conflict (submission_id)",
+          "p_idempotency_key text,",
+          "for update;",
+          "p_idempotency_key,",
+          "if coalesce((v_claim ->> 'replayed')::boolean, false) then",
+          "p_idempotency_key text,",
+          "for update;",
+          "for update;",
+          "p_idempotency_key,",
+          "if coalesce((v_claim ->> 'replayed')::boolean, false) then"
+        ]
+      },
+      "requiredRepair": [
+        "Prove selection.review_required task open/resolve plus public accepted winner readback for each exact review/winner action.",
+        "Execute focused behavioral coverage for selection.reviewed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove selection.review_required task open/resolve plus public accepted winner readback for each exact review/winner action.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED selection.winner_changed owner=national-selection",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "selection.winner_changed",
+      "route": null,
+      "surface": "national final/public selection, Organizer Selection & Entry Review, task:selection.review_required",
+      "domain": "national-selection",
+      "expectedOwner": "national-selection",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql"
+      ],
+      "apiCommandOwner": "selection review/winner transition RPCs",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Server-authoritative replay-safe selection review and current accepted winner transitions exist and guard submission review versions.",
+      "trigger": "selection.winner_changed; owning command path: selection review/winner transition RPCs",
+      "expectedConsequence": "national final/public selection, Organizer Selection & Entry Review, task:selection.review_required",
+      "persistenceMechanism": [
+        "supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "selection review/winner transition RPCs",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "-- replay-safe operations bound to one canonical submission review version.",
+          "on conflict (submission_id) do nothing;",
+          "on conflict (submission_id)",
+          "p_idempotency_key text,",
+          "for update;",
+          "p_idempotency_key,",
+          "if coalesce((v_claim ->> 'replayed')::boolean, false) then",
+          "p_idempotency_key text,",
+          "for update;",
+          "for update;",
+          "p_idempotency_key,",
+          "if coalesce((v_claim ->> 'replayed')::boolean, false) then"
+        ]
+      },
+      "requiredRepair": [
+        "Prove selection.review_required task open/resolve plus public accepted winner readback for each exact review/winner action.",
+        "Execute focused behavioral coverage for selection.winner_changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove selection.review_required task open/resolve plus public accepted winner readback for each exact review/winner action.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED task.opened owner=task",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "task.opened",
+      "route": null,
+      "surface": "Organizer Tasks",
+      "domain": "task",
+      "expectedOwner": "task",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql"
+      ],
+      "apiCommandOwner": "admin_organizer_tasks / private.studio2_reconcile_organizer_tasks",
+      "testEvidence": [
+        "src/lib/organisation-v5-review-hardening.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Canonical Task Engine derives organizer task rows and audience/capability projections; S14 delivery repair migrations exist.",
+      "trigger": "task.opened; owning command path: admin_organizer_tasks / private.studio2_reconcile_organizer_tasks",
+      "expectedConsequence": "Organizer Tasks",
+      "persistenceMechanism": [
+        "supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "admin_organizer_tasks / private.studio2_reconcile_organizer_tasks",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "-- resolved: reconciliation derives state from the authoritative source tables.",
+          "create or replace function private.studio2_reconcile_organizer_tasks(",
+          "on conflict (source_key) do update set",
+          "on conflict (source_key) do update set",
+          "on conflict (source_key) do update set",
+          "on conflict (source_key) do update set",
+          "on conflict (source_key) do update set",
+          "on conflict (source_key) do update set",
+          "revoke all on function private.studio2_reconcile_organizer_tasks(uuid)",
+          "perform private.studio2_reconcile_organizer_tasks(p_edition_id);",
+          "perform private.studio2_reconcile_organizer_tasks(p_edition_id);"
+        ]
+      },
+      "requiredRepair": [
+        "Map opened/resolved catalog labels to actual activation/version delivery and prove no stale notifications, amplification, or undelivered declared realtime effects.",
+        "Execute focused behavioral coverage for task.opened, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Map opened/resolved catalog labels to actual activation/version delivery and prove no stale notifications, amplification, or undelivered declared realtime effects.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED task.resolved owner=task",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "task.resolved",
+      "route": null,
+      "surface": "Organizer Tasks",
+      "domain": "task",
+      "expectedOwner": "task",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql"
+      ],
+      "apiCommandOwner": "admin_organizer_tasks / private.studio2_reconcile_organizer_tasks",
+      "testEvidence": [
+        "src/lib/organisation-v5-review-hardening.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Canonical Task Engine derives organizer task rows and audience/capability projections; S14 delivery repair migrations exist.",
+      "trigger": "task.resolved; owning command path: admin_organizer_tasks / private.studio2_reconcile_organizer_tasks",
+      "expectedConsequence": "Organizer Tasks",
+      "persistenceMechanism": [
+        "supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "admin_organizer_tasks / private.studio2_reconcile_organizer_tasks",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "-- resolved: reconciliation derives state from the authoritative source tables.",
+          "create or replace function private.studio2_reconcile_organizer_tasks(",
+          "on conflict (source_key) do update set",
+          "on conflict (source_key) do update set",
+          "on conflict (source_key) do update set",
+          "on conflict (source_key) do update set",
+          "on conflict (source_key) do update set",
+          "on conflict (source_key) do update set",
+          "revoke all on function private.studio2_reconcile_organizer_tasks(uuid)",
+          "perform private.studio2_reconcile_organizer_tasks(p_edition_id);",
+          "perform private.studio2_reconcile_organizer_tasks(p_edition_id);"
+        ]
+      },
+      "requiredRepair": [
+        "Map opened/resolved catalog labels to actual activation/version delivery and prove no stale notifications, amplification, or undelivered declared realtime effects.",
+        "Execute focused behavioral coverage for task.resolved, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Map opened/resolved catalog labels to actual activation/version delivery and prove no stale notifications, amplification, or undelivered declared realtime effects.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED country.identity_changed owner=country-identity",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "country.identity_changed",
+      "route": null,
+      "surface": "country/Wiki/results identity, Organizer Country",
+      "domain": "country-identity",
+      "expectedOwner": "country-identity",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/lib/country-history.ts",
+        "supabase/migrations/20260823160500_historical_country_identities.sql",
+        "supabase/migrations/20260823161500_historical_identity_voter_labels.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260823160500_historical_country_identities.sql",
+        "supabase/migrations/20260823161500_historical_identity_voter_labels.sql"
+      ],
+      "apiCommandOwner": "country history ownership RPCs",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Current country UUID and edition-specific historical presentation identities are separate canonical read models.",
+      "trigger": "country.identity_changed; owning command path: country history ownership RPCs",
+      "expectedConsequence": "country/Wiki/results identity, Organizer Country",
+      "persistenceMechanism": [
+        "supabase/migrations/20260823160500_historical_country_identities.sql",
+        "supabase/migrations/20260823161500_historical_identity_voter_labels.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "country history ownership RPCs",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict(country_id, edition_id)"
+        ]
+      },
+      "requiredRepair": [
+        "Prove governed identity mutation updates/requeries country/Wiki/results labels while preserving competitive voting identity and immutable historical snapshots.",
+        "Execute focused behavioral coverage for country.identity_changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/lib/country-history.ts, supabase/migrations/20260823160500_historical_country_identities.sql, supabase/migrations/20260823161500_historical_identity_voter_labels.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove governed identity mutation updates/requeries country/Wiki/results labels while preserving competitive voting identity and immutable historical snapshots.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED country_profile.changed owner=country-profile",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "country_profile.changed",
+      "route": null,
+      "surface": "Country/Wiki, Organizer Public Profile/Appearance, task:country_profile.moderation",
+      "domain": "country-profile",
+      "expectedOwner": "country-profile",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20260811183000_country_accounts_and_terra_solaris_profiles.sql",
+        "supabase/migrations/20260915182035_permission_engine_v2_delegation_confirmation_rls.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260811183000_country_accounts_and_terra_solaris_profiles.sql",
+        "supabase/migrations/20260915182035_permission_engine_v2_delegation_confirmation_rls.sql"
+      ],
+      "apiCommandOwner": "country profile owner/capability policies",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Country profile storage and owner/capability write policies exist; current surfaces consume that canonical storage.",
+      "trigger": "country_profile.changed; owning command path: country profile owner/capability policies",
+      "expectedConsequence": "Country/Wiki, Organizer Public Profile/Appearance, task:country_profile.moderation",
+      "persistenceMechanism": [
+        "supabase/migrations/20260811183000_country_accounts_and_terra_solaris_profiles.sql",
+        "supabase/migrations/20260915182035_permission_engine_v2_delegation_confirmation_rls.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "country profile owner/capability policies",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict (id) do update",
+          "for update"
+        ]
+      },
+      "requiredRepair": [
+        "Prove publish/hide/restore exact-version semantics and moderation task/publication consequences; storage RLS alone does not establish this lifecycle.",
+        "Execute focused behavioral coverage for country_profile.changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20260811183000_country_accounts_and_terra_solaris_profiles.sql, supabase/migrations/20260915182035_permission_engine_v2_delegation_confirmation_rls.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove publish/hide/restore exact-version semantics and moderation task/publication consequences; storage RLS alone does not establish this lifecycle.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED media.verified owner=media",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "media.verified",
+      "route": null,
+      "surface": "processed public assets, Organizer Media, task:media.review_required, task:media.processing_failed",
+      "domain": "media",
+      "expectedOwner": "media",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/functions/solaris-upload-finalize/index.ts",
+        "supabase/migrations/20261003211000_organisation_os_v5_unified_upload_quarantine.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261003211000_organisation_os_v5_unified_upload_quarantine.sql"
+      ],
+      "apiCommandOwner": "solaris-upload-finalize / quarantine verification",
+      "testEvidence": [
+        "src/lib/v3-s5-media-consequences.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Shared upload pipeline verifies MIME/signature/quarantine, processes public assets, and returns canonical verified token evidence.",
+      "trigger": "media.verified; owning command path: solaris-upload-finalize / quarantine verification",
+      "expectedConsequence": "processed public assets, Organizer Media, task:media.review_required, task:media.processing_failed",
+      "persistenceMechanism": [
+        "supabase/functions/solaris-upload-finalize/index.ts",
+        "supabase/migrations/20261003211000_organisation_os_v5_unified_upload_quarantine.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "solaris-upload-finalize / quarantine verification",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "replayed: true,",
+          "return json({ error: \"Upload expiration could not be confirmed. Retry finalization.\" }, 503);",
+          "return json({ error: \"Quarantined upload could not be checked. Retry finalization.\" }, 503);",
+          "return json({ error: \"Upload rejection could not be confirmed. Retry finalization.\" }, 503);",
+          "return json({ error: \"Upload rejection could not be confirmed. Retry finalization.\" }, 503);",
+          "replayed: false,",
+          "on conflict (id) do update"
+        ]
+      },
+      "requiredRepair": [
+        "Review consequences of verification separately from implemented media.reviewed S5 behavior; prove verification publication eligibility and review/processing-failure tasks with replay and rejection tests.",
+        "Execute focused behavioral coverage for media.verified, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/functions/solaris-upload-finalize/index.ts, supabase/migrations/20261003211000_organisation_os_v5_unified_upload_quarantine.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Review consequences of verification separately from implemented media.reviewed S5 behavior; prove verification publication eligibility and review/processing-failure tasks with replay and rejection tests.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED rules.published owner=rules",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "rules.published",
+      "route": null,
+      "surface": "Rules, Rules Manager, task:rules.compatibility_blocker",
+      "domain": "rules",
+      "expectedOwner": "rules",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20260910214000_rulebook_governance.sql",
+        "supabase/migrations/20260910215000_rulebook_release_validation.sql",
+        "supabase/migrations/20260911161800_rule_interpretation_case_sources.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260910214000_rulebook_governance.sql",
+        "supabase/migrations/20260910215000_rulebook_release_validation.sql",
+        "supabase/migrations/20260911161800_rule_interpretation_case_sources.sql"
+      ],
+      "apiCommandOwner": "rulebook release / interpretation RPCs",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Versioned rulebook governance, compatibility validation, and interpretation source records exist.",
+      "trigger": "rules.published; owning command path: rulebook release / interpretation RPCs",
+      "expectedConsequence": "Rules, Rules Manager, task:rules.compatibility_blocker",
+      "persistenceMechanism": [
+        "supabase/migrations/20260910214000_rulebook_governance.sql",
+        "supabase/migrations/20260910215000_rulebook_release_validation.sql",
+        "supabase/migrations/20260911161800_rule_interpretation_case_sources.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "rulebook release / interpretation RPCs",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "select status into v_status from public.ssc_rulebook_releases where id = _release_id for update;",
+          "on conflict (release_id, rule_id) do update set",
+          "select status into v_status from public.ssc_rulebook_releases where id = _release_id for update;",
+          "select status, version into v_status, v_version from public.ssc_rulebook_releases where id = _release_id for update;",
+          "select is_current into v_current from public.ssc_rulebook_releases where id = _release_id for update;",
+          "for update;"
+        ]
+      },
+      "requiredRepair": [
+        "Bind effective rules and compatibility-blocker task state to exact published release/interpretation and prove derived tooling refresh/retry behavior.",
+        "Execute focused behavioral coverage for rules.published, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20260910214000_rulebook_governance.sql, supabase/migrations/20260910215000_rulebook_release_validation.sql, supabase/migrations/20260911161800_rule_interpretation_case_sources.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Bind effective rules and compatibility-blocker task state to exact published release/interpretation and prove derived tooling refresh/retry behavior.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED rules.interpreted owner=rules",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "rules.interpreted",
+      "route": null,
+      "surface": "Rules, Rules Manager, task:rules.compatibility_blocker",
+      "domain": "rules",
+      "expectedOwner": "rules",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20260910214000_rulebook_governance.sql",
+        "supabase/migrations/20260910215000_rulebook_release_validation.sql",
+        "supabase/migrations/20260911161800_rule_interpretation_case_sources.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260910214000_rulebook_governance.sql",
+        "supabase/migrations/20260910215000_rulebook_release_validation.sql",
+        "supabase/migrations/20260911161800_rule_interpretation_case_sources.sql"
+      ],
+      "apiCommandOwner": "rulebook release / interpretation RPCs",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Versioned rulebook governance, compatibility validation, and interpretation source records exist.",
+      "trigger": "rules.interpreted; owning command path: rulebook release / interpretation RPCs",
+      "expectedConsequence": "Rules, Rules Manager, task:rules.compatibility_blocker",
+      "persistenceMechanism": [
+        "supabase/migrations/20260910214000_rulebook_governance.sql",
+        "supabase/migrations/20260910215000_rulebook_release_validation.sql",
+        "supabase/migrations/20260911161800_rule_interpretation_case_sources.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "rulebook release / interpretation RPCs",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "select status into v_status from public.ssc_rulebook_releases where id = _release_id for update;",
+          "on conflict (release_id, rule_id) do update set",
+          "select status into v_status from public.ssc_rulebook_releases where id = _release_id for update;",
+          "select status, version into v_status, v_version from public.ssc_rulebook_releases where id = _release_id for update;",
+          "select is_current into v_current from public.ssc_rulebook_releases where id = _release_id for update;",
+          "for update;"
+        ]
+      },
+      "requiredRepair": [
+        "Bind effective rules and compatibility-blocker task state to exact published release/interpretation and prove derived tooling refresh/retry behavior.",
+        "Execute focused behavioral coverage for rules.interpreted, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20260910214000_rulebook_governance.sql, supabase/migrations/20260910215000_rulebook_release_validation.sql, supabase/migrations/20260911161800_rule_interpretation_case_sources.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Bind effective rules and compatibility-blocker task state to exact published release/interpretation and prove derived tooling refresh/retry behavior.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED integrity.case_changed owner=integrity",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "integrity.case_changed",
+      "route": null,
+      "surface": "Trust & Governance, task:integrity.review_required",
+      "domain": "integrity",
+      "expectedOwner": "integrity",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20260910213000_integrity_core.sql",
+        "supabase/migrations/20260910213200_integrity_case_governance.sql",
+        "supabase/migrations/20260911160300_integrity_appeal_queue.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260910213000_integrity_core.sql",
+        "supabase/migrations/20260910213200_integrity_case_governance.sql",
+        "supabase/migrations/20260911160300_integrity_appeal_queue.sql"
+      ],
+      "apiCommandOwner": "integrity governance / appeal RPCs",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Governed integrity case storage, case-event audit, protected projections, and appeal queue exist.",
+      "trigger": "integrity.case_changed; owning command path: integrity governance / appeal RPCs",
+      "expectedConsequence": "Trust & Governance, task:integrity.review_required",
+      "persistenceMechanism": [
+        "supabase/migrations/20260910213000_integrity_core.sql",
+        "supabase/migrations/20260910213200_integrity_case_governance.sql",
+        "supabase/migrations/20260911160300_integrity_appeal_queue.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "integrity governance / appeal RPCs",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "select status into v_old from public.integrity_cases where id = _case_id for update;",
+          "on conflict (case_id, rule_id) do update set relevance = excluded.relevance, note = excluded.note, added_by = excluded.added_by, updated_at = now();",
+          "on conflict (case_id, rule_id) do update set relevance = excluded.relevance, added_by = excluded.added_by, updated_at = now();",
+          "on conflict (case_id, user_id, review_role) do update set assigned_by = excluded.assigned_by, assigned_at = now(), recused_at = null, recusal_reason = null;",
+          "on conflict (case_id, related_case_id, relation_type) do update set note = excluded.note;"
+        ]
+      },
+      "requiredRepair": [
+        "Prove capability-scoped case/appeal transition emits or synchronously repairs integrity.review_required tasks and protected readback without information disclosure or duplicate consequences.",
+        "Execute focused behavioral coverage for integrity.case_changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20260910213000_integrity_core.sql, supabase/migrations/20260910213200_integrity_case_governance.sql, supabase/migrations/20260911160300_integrity_appeal_queue.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove capability-scoped case/appeal transition emits or synchronously repairs integrity.review_required tasks and protected readback without information disclosure or duplicate consequences.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED integrity.appeal_changed owner=integrity",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "integrity.appeal_changed",
+      "route": null,
+      "surface": "Trust & Governance, task:integrity.review_required",
+      "domain": "integrity",
+      "expectedOwner": "integrity",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20260910213000_integrity_core.sql",
+        "supabase/migrations/20260910213200_integrity_case_governance.sql",
+        "supabase/migrations/20260911160300_integrity_appeal_queue.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260910213000_integrity_core.sql",
+        "supabase/migrations/20260910213200_integrity_case_governance.sql",
+        "supabase/migrations/20260911160300_integrity_appeal_queue.sql"
+      ],
+      "apiCommandOwner": "integrity governance / appeal RPCs",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Governed integrity case storage, case-event audit, protected projections, and appeal queue exist.",
+      "trigger": "integrity.appeal_changed; owning command path: integrity governance / appeal RPCs",
+      "expectedConsequence": "Trust & Governance, task:integrity.review_required",
+      "persistenceMechanism": [
+        "supabase/migrations/20260910213000_integrity_core.sql",
+        "supabase/migrations/20260910213200_integrity_case_governance.sql",
+        "supabase/migrations/20260911160300_integrity_appeal_queue.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "integrity governance / appeal RPCs",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "select status into v_old from public.integrity_cases where id = _case_id for update;",
+          "on conflict (case_id, rule_id) do update set relevance = excluded.relevance, note = excluded.note, added_by = excluded.added_by, updated_at = now();",
+          "on conflict (case_id, rule_id) do update set relevance = excluded.relevance, added_by = excluded.added_by, updated_at = now();",
+          "on conflict (case_id, user_id, review_role) do update set assigned_by = excluded.assigned_by, assigned_at = now(), recused_at = null, recusal_reason = null;",
+          "on conflict (case_id, related_case_id, relation_type) do update set note = excluded.note;"
+        ]
+      },
+      "requiredRepair": [
+        "Prove capability-scoped case/appeal transition emits or synchronously repairs integrity.review_required tasks and protected readback without information disclosure or duplicate consequences.",
+        "Execute focused behavioral coverage for integrity.appeal_changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20260910213000_integrity_core.sql, supabase/migrations/20260910213200_integrity_case_governance.sql, supabase/migrations/20260911160300_integrity_appeal_queue.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove capability-scoped case/appeal transition emits or synchronously repairs integrity.review_required tasks and protected readback without information disclosure or duplicate consequences.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED show.changed owner=live-show",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "show.changed",
+      "route": null,
+      "surface": "Show Mode, Live Operations + Reveal Director, task:show.blocker",
+      "domain": "live-show",
+      "expectedOwner": "live-show",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/lib/studio2-control-room.ts",
+        "src/lib/v3-organizer-shows-scope.contract.test.ts"
+      ],
+      "migrationOwner": [],
+      "apiCommandOwner": "current show CRUD / cue owners",
+      "testEvidence": [
+        "src/lib/v3-organizer-shows-scope.contract.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Current show/control-room read models exist. The scope contract explicitly retains direct CRUD and excludes a fabricated studio2_execute_show_operation.",
+      "trigger": "show.changed; owning command path: current show CRUD / cue owners",
+      "expectedConsequence": "Show Mode, Live Operations + Reveal Director, task:show.blocker",
+      "persistenceMechanism": [],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "current show CRUD / cue owners",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "idempotencyKey?: string | null;",
+          "// retry; today's default path already reconciles uncertain transport once.",
+          "idempotencyKey: request.idempotencyKey ?? `edition-transition:${operationId}`,"
+        ]
+      },
+      "requiredRepair": [
+        "Implement/prove actual governed show/cue lifecycle operation and show.blocker/readback consequences rather than marking a nonexistent operation event-backed.",
+        "Execute focused behavioral coverage for show.changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/lib/studio2-control-room.ts, src/lib/v3-organizer-shows-scope.contract.test.ts. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Implement/prove actual governed show/cue lifecycle operation and show.blocker/readback consequences rather than marking a nonexistent operation event-backed.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED show.cue_changed owner=live-show",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "show.cue_changed",
+      "route": null,
+      "surface": "Show Mode, Live Operations + Reveal Director, task:show.blocker",
+      "domain": "live-show",
+      "expectedOwner": "live-show",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/lib/studio2-control-room.ts",
+        "src/lib/v3-organizer-shows-scope.contract.test.ts"
+      ],
+      "migrationOwner": [],
+      "apiCommandOwner": "current show CRUD / cue owners",
+      "testEvidence": [
+        "src/lib/v3-organizer-shows-scope.contract.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Current show/control-room read models exist. The scope contract explicitly retains direct CRUD and excludes a fabricated studio2_execute_show_operation.",
+      "trigger": "show.cue_changed; owning command path: current show CRUD / cue owners",
+      "expectedConsequence": "Show Mode, Live Operations + Reveal Director, task:show.blocker",
+      "persistenceMechanism": [],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "current show CRUD / cue owners",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "idempotencyKey?: string | null;",
+          "// retry; today's default path already reconciles uncertain transport once.",
+          "idempotencyKey: request.idempotencyKey ?? `edition-transition:${operationId}`,"
+        ]
+      },
+      "requiredRepair": [
+        "Implement/prove actual governed show/cue lifecycle operation and show.blocker/readback consequences rather than marking a nonexistent operation event-backed.",
+        "Execute focused behavioral coverage for show.cue_changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/lib/studio2-control-room.ts, src/lib/v3-organizer-shows-scope.contract.test.ts. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Implement/prove actual governed show/cue lifecycle operation and show.blocker/readback consequences rather than marking a nonexistent operation event-backed.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED incident.changed owner=incident",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "incident.changed",
+      "route": null,
+      "surface": "Incident Command, task:incident.response",
+      "domain": "incident",
+      "expectedOwner": "incident",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/lib/studio2-incidents.ts",
+        "src/routes/_authenticated/admin/incidents.tsx",
+        "supabase/migrations/20261003190000_organisation_os_v5_incident_lifecycle.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261003190000_organisation_os_v5_incident_lifecycle.sql"
+      ],
+      "apiCommandOwner": "incident lifecycle preview/apply RPCs",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Explicit incident lifecycle with allowed transitions and capability-protected Incident Command exists.",
+      "trigger": "incident.changed; owning command path: incident lifecycle preview/apply RPCs",
+      "expectedConsequence": "Incident Command, task:incident.response",
+      "persistenceMechanism": [
+        "supabase/migrations/20261003190000_organisation_os_v5_incident_lifecycle.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "incident lifecycle preview/apply RPCs",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "new Error('Edition context changed before the incident command. Reload Incident Command before retrying.'),",
+          "for update;"
+        ]
+      },
+      "requiredRepair": [
+        "Prove incident.response task derivation and control-room/realtime readback for create, assign, transition and retry through exact operation receipts.",
+        "Execute focused behavioral coverage for incident.changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/lib/studio2-incidents.ts, src/routes/_authenticated/admin/incidents.tsx, supabase/migrations/20261003190000_organisation_os_v5_incident_lifecycle.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove incident.response task derivation and control-room/realtime readback for create, assign, transition and retry through exact operation receipts.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED next_in_line.changed owner=next-in-line",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "next_in_line.changed",
+      "route": null,
+      "surface": "Organizer Next in Line, task:next_in_line.review_required",
+      "domain": "next-in-line",
+      "expectedOwner": "next-in-line",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261003183000_organisation_os_v5_next_in_line_runtime.sql",
+        "supabase/migrations/20261016150000_v3_s7_next_in_line_authorization.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261003183000_organisation_os_v5_next_in_line_runtime.sql",
+        "supabase/migrations/20261016150000_v3_s7_next_in_line_authorization.sql"
+      ],
+      "apiCommandOwner": "studio2_next_in_line window/submission RPCs",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Distinct canonical competition window, server eligibility, versioned submissions and scoped authorization exist.",
+      "trigger": "next_in_line.changed; owning command path: studio2_next_in_line window/submission RPCs",
+      "expectedConsequence": "Organizer Next in Line, task:next_in_line.review_required",
+      "persistenceMechanism": [
+        "supabase/migrations/20261003183000_organisation_os_v5_next_in_line_runtime.sql",
+        "supabase/migrations/20261016150000_v3_s7_next_in_line_authorization.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "studio2_next_in_line window/submission RPCs",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict (key) do update set",
+          "on conflict do nothing;",
+          "p_idempotency_key text,",
+          "for update;",
+          "p_idempotency_key,",
+          "if coalesce((v_claim ->> 'replayed')::boolean, false) then",
+          "perform pg_advisory_xact_lock(",
+          "for update;",
+          "for update;",
+          "-- rules. This migration also folds in the still-unmerged S8 replay/resource",
+          "p_idempotency_key text",
+          "perform pg_advisory_xact_lock(",
+          "for update;",
+          "p_idempotency_key,",
+          "if coalesce((v_claim ->> 'replayed')::boolean, false) then",
+          "|| jsonb_build_object('replayed', true);"
+        ]
+      },
+      "requiredRepair": [
+        "Prove review_required task/readback for window and submission changes, including retries, stale revisions and rejected out-of-scope submissions.",
+        "Execute focused behavioral coverage for next_in_line.changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261003183000_organisation_os_v5_next_in_line_runtime.sql, supabase/migrations/20261016150000_v3_s7_next_in_line_authorization.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove review_required task/readback for window and submission changes, including retries, stale revisions and rejected out-of-scope submissions.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED next_in_line.submitted owner=next-in-line",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "next_in_line.submitted",
+      "route": null,
+      "surface": "Organizer Next in Line, task:next_in_line.review_required",
+      "domain": "next-in-line",
+      "expectedOwner": "next-in-line",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261003183000_organisation_os_v5_next_in_line_runtime.sql",
+        "supabase/migrations/20261016150000_v3_s7_next_in_line_authorization.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261003183000_organisation_os_v5_next_in_line_runtime.sql",
+        "supabase/migrations/20261016150000_v3_s7_next_in_line_authorization.sql"
+      ],
+      "apiCommandOwner": "studio2_next_in_line window/submission RPCs",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Distinct canonical competition window, server eligibility, versioned submissions and scoped authorization exist.",
+      "trigger": "next_in_line.submitted; owning command path: studio2_next_in_line window/submission RPCs",
+      "expectedConsequence": "Organizer Next in Line, task:next_in_line.review_required",
+      "persistenceMechanism": [
+        "supabase/migrations/20261003183000_organisation_os_v5_next_in_line_runtime.sql",
+        "supabase/migrations/20261016150000_v3_s7_next_in_line_authorization.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "studio2_next_in_line window/submission RPCs",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict (key) do update set",
+          "on conflict do nothing;",
+          "p_idempotency_key text,",
+          "for update;",
+          "p_idempotency_key,",
+          "if coalesce((v_claim ->> 'replayed')::boolean, false) then",
+          "perform pg_advisory_xact_lock(",
+          "for update;",
+          "for update;",
+          "-- rules. This migration also folds in the still-unmerged S8 replay/resource",
+          "p_idempotency_key text",
+          "perform pg_advisory_xact_lock(",
+          "for update;",
+          "p_idempotency_key,",
+          "if coalesce((v_claim ->> 'replayed')::boolean, false) then",
+          "|| jsonb_build_object('replayed', true);"
+        ]
+      },
+      "requiredRepair": [
+        "Prove review_required task/readback for window and submission changes, including retries, stale revisions and rejected out-of-scope submissions.",
+        "Execute focused behavioral coverage for next_in_line.submitted, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261003183000_organisation_os_v5_next_in_line_runtime.sql, supabase/migrations/20261016150000_v3_s7_next_in_line_authorization.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove review_required task/readback for window and submission changes, including retries, stale revisions and rejected out-of-scope submissions.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED fantasy.changed owner=fantasy",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "fantasy.changed",
+      "route": null,
+      "surface": "Fantasy SSC, Organizer Fantasy, task:fantasy.operation_required",
+      "domain": "fantasy",
+      "expectedOwner": "fantasy",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/routes/_authenticated/admin/fantasy.tsx",
+        "supabase/migrations/20260920105233_fantasy_entity_identity_fix.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260920105233_fantasy_entity_identity_fix.sql"
+      ],
+      "apiCommandOwner": "studio2_save_fantasy_game / score_fantasy_game",
+      "testEvidence": [
+        "src/lib/v3-organizer-fantasy-context.contract.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Scoped Fantasy configuration and canonical entity-aware scoring exist.",
+      "trigger": "fantasy.changed; owning command path: studio2_save_fantasy_game / score_fantasy_game",
+      "expectedConsequence": "Fantasy SSC, Organizer Fantasy, task:fantasy.operation_required",
+      "persistenceMechanism": [
+        "supabase/migrations/20260920105233_fantasy_entity_identity_fix.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "studio2_save_fantasy_game / score_fantasy_game",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict (id) do update",
+          "for update;"
+        ]
+      },
+      "requiredRepair": [
+        "Existing contract explicitly leaves building while System #630 owns the V3 operation envelope. Finish/prove receipts/versioning and fantasy.operation_required task/readback; scoring must consume canonical published result version.",
+        "Execute focused behavioral coverage for fantasy.changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/routes/_authenticated/admin/fantasy.tsx, supabase/migrations/20260920105233_fantasy_entity_identity_fix.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Existing contract explicitly leaves building while System #630 owns the V3 operation envelope. Finish/prove receipts/versioning and fantasy.operation_required task/readback; scoring must consume canonical published result version.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED fantasy.scored owner=fantasy",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "fantasy.scored",
+      "route": null,
+      "surface": "Fantasy SSC, Organizer Fantasy, task:fantasy.operation_required",
+      "domain": "fantasy",
+      "expectedOwner": "fantasy",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/routes/_authenticated/admin/fantasy.tsx",
+        "supabase/migrations/20260920105233_fantasy_entity_identity_fix.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260920105233_fantasy_entity_identity_fix.sql"
+      ],
+      "apiCommandOwner": "studio2_save_fantasy_game / score_fantasy_game",
+      "testEvidence": [
+        "src/lib/v3-organizer-fantasy-context.contract.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Scoped Fantasy configuration and canonical entity-aware scoring exist.",
+      "trigger": "fantasy.scored; owning command path: studio2_save_fantasy_game / score_fantasy_game",
+      "expectedConsequence": "Fantasy SSC, Organizer Fantasy, task:fantasy.operation_required",
+      "persistenceMechanism": [
+        "supabase/migrations/20260920105233_fantasy_entity_identity_fix.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "studio2_save_fantasy_game / score_fantasy_game",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict (id) do update",
+          "for update;"
+        ]
+      },
+      "requiredRepair": [
+        "Existing contract explicitly leaves building while System #630 owns the V3 operation envelope. Finish/prove receipts/versioning and fantasy.operation_required task/readback; scoring must consume canonical published result version.",
+        "Execute focused behavioral coverage for fantasy.scored, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/routes/_authenticated/admin/fantasy.tsx, supabase/migrations/20260920105233_fantasy_entity_identity_fix.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Existing contract explicitly leaves building while System #630 owns the V3 operation envelope. Finish/prove receipts/versioning and fantasy.operation_required task/readback; scoring must consume canonical published result version.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED community_profile.moderated owner=community-profile",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "community_profile.moderated",
+      "route": null,
+      "surface": "Prediction League/community identity, Community moderation, task:community_profile.moderation",
+      "domain": "community-profile",
+      "expectedOwner": "community-profile",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql",
+        "supabase/migrations/20261002203000_organisation_os_v5_operation_contract.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql",
+        "supabase/migrations/20261002203000_organisation_os_v5_operation_contract.sql"
+      ],
+      "apiCommandOwner": "admin_set_fan_profile_moderation",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Server-owned fan identity moderation updates hidden/reason state and scopes public leaderboard identity independently from competition scores.",
+      "trigger": "community_profile.moderated; owning command path: admin_set_fan_profile_moderation",
+      "expectedConsequence": "Prediction League/community identity, Community moderation, task:community_profile.moderation",
+      "persistenceMechanism": [
+        "supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql",
+        "supabase/migrations/20261002203000_organisation_os_v5_operation_contract.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "admin_set_fan_profile_moderation",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict (key) do update set",
+          "on conflict do nothing;",
+          "for update;",
+          "-- High-impact commands can retry safely by reusing an operation/idempotency",
+          "idempotency_key text not null,",
+          "unique (actor_id, command, idempotency_key)",
+          "p_idempotency_key text,",
+          "v_key text := nullif(btrim(coalesce(p_idempotency_key, '')), '');",
+          "raise exception 'Operation id, idempotency key and command are required'",
+          "idempotency_key,",
+          "on conflict do nothing;",
+          "and idempotency_key = v_key",
+          "for update;",
+          "or v_receipt.idempotency_key <> v_key then",
+          "'replayed', true,",
+          "'replayed', false,"
+        ]
+      },
+      "requiredRepair": [
+        "Prove exact moderation operation replay/receipt and moderation task/public identity projections while preserving prediction entries, score and historical competition rows.",
+        "Execute focused behavioral coverage for community_profile.moderated, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql, supabase/migrations/20261002203000_organisation_os_v5_operation_contract.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove exact moderation operation replay/receipt and moderation task/public identity projections while preserving prediction entries, score and historical competition rows.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED activity.projected owner=activity",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "activity.projected",
+      "route": null,
+      "surface": "",
+      "domain": "activity",
+      "expectedOwner": "activity",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/lib/engagement-data.ts",
+        "supabase/migrations/20260811160000_phase_3_solaris_pulse.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260811160000_phase_3_solaris_pulse.sql"
+      ],
+      "apiCommandOwner": "content_events / mark_content_events_read",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Activity is a recipient read projection over canonical content_events with unique dedupe_key and per-viewer read state.",
+      "trigger": "activity.projected; owning command path: content_events / mark_content_events_read",
+      "expectedConsequence": "",
+      "persistenceMechanism": [
+        "supabase/migrations/20260811160000_phase_3_solaris_pulse.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "content_events / mark_content_events_read",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict (id) do nothing;",
+          "on conflict (profile_id, event_id)",
+          "on conflict (dedupe_key)",
+          "on conflict (dedupe_key)",
+          "on conflict (dedupe_key)",
+          "on conflict (dedupe_key)",
+          "on conflict (dedupe_key)",
+          "on conflict (dedupe_key)",
+          "on conflict (dedupe_key)",
+          "on conflict (round_id, snapshot_hash) do nothing;"
+        ]
+      },
+      "requiredRepair": [
+        "Map logical activity.projected to actual source-event insert/projection behavior; prove replay dedupe and visibility/read ownership instead of inventing a writable activity authority.",
+        "Execute focused behavioral coverage for activity.projected, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/lib/engagement-data.ts, supabase/migrations/20260811160000_phase_3_solaris_pulse.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Map logical activity.projected to actual source-event insert/projection behavior; prove replay dedupe and visibility/read ownership instead of inventing a writable activity authority.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED public_ux.observed owner=public-ux",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "public_ux.observed",
+      "route": null,
+      "surface": "public Solaris, Public UX diagnostics",
+      "domain": "public-ux",
+      "expectedOwner": "public-ux",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/lib/public-ux-events.ts",
+        "supabase/migrations/20260919112555_public_ux_telemetry.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260919112555_public_ux_telemetry.sql"
+      ],
+      "apiCommandOwner": "privacy-bounded telemetry insert",
+      "testEvidence": [
+        "src/lib/v3-public-ux-diagnostics.contract.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Optional bounded telemetry sanitizes paths/targets and disables writes after failure; privacy-constrained table and diagnostics exist.",
+      "trigger": "public_ux.observed; owning command path: privacy-bounded telemetry insert",
+      "expectedConsequence": "public Solaris, Public UX diagnostics",
+      "persistenceMechanism": [
+        "supabase/migrations/20260919112555_public_ux_telemetry.sql"
+      ],
+      "idempotencyStrategy": "Not proven by inspected source; focused operation/recovery proof required",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "privacy-bounded telemetry insert",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": []
+      },
+      "requiredRepair": [
+        "Prove aggregate readback and consent/privacy constraints. Generic publication/realtime/domain-event analytics side effects may be over-declared for optional telemetry; encode only a proven replacement, never bypass optional failure semantics.",
+        "Execute focused behavioral coverage for public_ux.observed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/lib/public-ux-events.ts, supabase/migrations/20260919112555_public_ux_telemetry.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove aggregate readback and consent/privacy constraints. Generic publication/realtime/domain-event analytics side effects may be over-declared for optional telemetry; encode only a proven replacement, never bypass optional failure semantics.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED identity.authenticated owner=identity",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "identity.authenticated",
+      "route": null,
+      "surface": "authentication surfaces, Organizer access gate",
+      "domain": "identity",
+      "expectedOwner": "identity",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/routes/_authenticated/route.tsx",
+        "src/components/app/AccountCacheIsolation.tsx",
+        "src/lib/account-cache-isolation.ts",
+        "src/lib/account-session.ts"
+      ],
+      "migrationOwner": [],
+      "apiCommandOwner": "Supabase Auth sign-in / sign-out + account isolation",
+      "testEvidence": [
+        "src/lib/auth-lifecycle-regression.test.ts",
+        ".github/scripts/v3-account-session-management-rehearsal.sh"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Real Auth session lifecycle and Auth-state cache isolation exist; scoped session rehearsal proves real sign-in/sign-out.",
+      "trigger": "identity.authenticated; owning command path: Supabase Auth sign-in / sign-out + account isolation",
+      "expectedConsequence": "authentication surfaces, Organizer access gate",
+      "persistenceMechanism": [],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "Supabase Auth sign-in / sign-out + account isolation",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "retry: false,",
+          "// cancelQueries cancels retryers synchronously, before its promise resolves."
+        ]
+      },
+      "requiredRepair": [
+        "Found real cache gap: authenticated-identity-gate is not classified private and can retain previous identity. Add actual QueryClient regression and clear exact gate on account switch/sign-out; then prove full identity consumer/readback semantics.",
+        "Execute focused behavioral coverage for identity.authenticated, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/routes/_authenticated/route.tsx, src/components/app/AccountCacheIsolation.tsx, src/lib/account-cache-isolation.ts, src/lib/account-session.ts. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Found real cache gap: authenticated-identity-gate is not classified private and can retain previous identity. Add actual QueryClient regression and clear exact gate on account switch/sign-out; then prove full identity consumer/readback semantics.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED identity.signed_out owner=identity",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "identity.signed_out",
+      "route": null,
+      "surface": "authentication surfaces, Organizer access gate",
+      "domain": "identity",
+      "expectedOwner": "identity",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/routes/_authenticated/route.tsx",
+        "src/components/app/AccountCacheIsolation.tsx",
+        "src/lib/account-cache-isolation.ts",
+        "src/lib/account-session.ts"
+      ],
+      "migrationOwner": [],
+      "apiCommandOwner": "Supabase Auth sign-in / sign-out + account isolation",
+      "testEvidence": [
+        "src/lib/auth-lifecycle-regression.test.ts",
+        ".github/scripts/v3-account-session-management-rehearsal.sh"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Real Auth session lifecycle and Auth-state cache isolation exist; scoped session rehearsal proves real sign-in/sign-out.",
+      "trigger": "identity.signed_out; owning command path: Supabase Auth sign-in / sign-out + account isolation",
+      "expectedConsequence": "authentication surfaces, Organizer access gate",
+      "persistenceMechanism": [],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "Supabase Auth sign-in / sign-out + account isolation",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "retry: false,",
+          "// cancelQueries cancels retryers synchronously, before its promise resolves."
+        ]
+      },
+      "requiredRepair": [
+        "Found real cache gap: authenticated-identity-gate is not classified private and can retain previous identity. Add actual QueryClient regression and clear exact gate on account switch/sign-out; then prove full identity consumer/readback semantics.",
+        "Execute focused behavioral coverage for identity.signed_out, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/routes/_authenticated/route.tsx, src/components/app/AccountCacheIsolation.tsx, src/lib/account-cache-isolation.ts, src/lib/account-session.ts. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Found real cache gap: authenticated-identity-gate is not classified private and can retain previous identity. Add actual QueryClient regression and clear exact gate on account switch/sign-out; then prove full identity consumer/readback semantics.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED account.changed owner=account",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "account.changed",
+      "route": null,
+      "surface": "Me / account settings, country-account support",
+      "domain": "account",
+      "expectedOwner": "account",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/lib/country-account.ts",
+        "src/components/v3/V3AccountSettingsRouteShell.tsx"
+      ],
+      "migrationOwner": [],
+      "apiCommandOwner": "authenticated account/profile owner APIs",
+      "testEvidence": [
+        "src/lib/v3-account-settings-cutover.contract.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Authenticated account/profile projection and V3 settings shell compose canonical country account/provider state.",
+      "trigger": "account.changed; owning command path: authenticated account/profile owner APIs",
+      "expectedConsequence": "Me / account settings, country-account support",
+      "persistenceMechanism": [],
+      "idempotencyStrategy": "Not proven by inspected source; focused operation/recovery proof required",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "authenticated account/profile owner APIs",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": []
+      },
+      "requiredRepair": [
+        "Trace each actual account update to owner-scoped canonical readback and consumer invalidation; do not infer account.changed consequences merely from the settings shell.",
+        "Execute focused behavioral coverage for account.changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/lib/country-account.ts, src/components/v3/V3AccountSettingsRouteShell.tsx. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Trace each actual account update to owner-scoped canonical readback and consumer invalidation; do not infer account.changed consequences merely from the settings shell.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED session.changed owner=session",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "session.changed",
+      "route": null,
+      "surface": "authentication, Me / security, access enforcement",
+      "domain": "session",
+      "expectedOwner": "session",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261016163000_v3_account_session_management.sql",
+        "supabase/migrations/20261016163100_v3_account_session_management_hardening.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261016163000_v3_account_session_management.sql",
+        "supabase/migrations/20261016163100_v3_account_session_management_hardening.sql"
+      ],
+      "apiCommandOwner": "v3_my_sessions / v3_revoke_session / Supabase Auth",
+      "testEvidence": [
+        "src/lib/v3-account-session-management.contract.test.ts",
+        ".github/scripts/v3-account-session-management-rehearsal.sh"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Atomic tombstone, auth.sessions deletion with refresh-token cascade, fresh-auth enforcement, semantic receipt replay, already-revoked reconciliation, and actor-scoped projection are implemented and rehearsed.",
+      "trigger": "session.changed; owning command path: v3_my_sessions / v3_revoke_session / Supabase Auth",
+      "expectedConsequence": "authentication, Me / security, access enforcement",
+      "persistenceMechanism": [
+        "supabase/migrations/20261016163000_v3_account_session_management.sql",
+        "supabase/migrations/20261016163100_v3_account_session_management_hardening.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "v3_my_sessions / v3_revoke_session / Supabase Auth",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "check (reason in ('user_revoked', 'reconciled')),",
+          "hint = 'Re-enter your Solaris account password, then retry the exact reviewed operation.';",
+          "'system.push.retry_failed',",
+          "p_idempotency_key text",
+          "or nullif(btrim(coalesce(p_idempotency_key, '')), '') is null then",
+          "-- Exact succeeded retries reconcile before requiring another fresh-auth step.",
+          "and receipt.idempotency_key = nullif(btrim(coalesce(p_idempotency_key, '')), '')",
+          "|| jsonb_build_object('replayed', true);",
+          "for update;",
+          "p_idempotency_key,",
+          "if coalesce((v_claim ->> 'replayed')::boolean, false) then",
+          "|| jsonb_build_object('replayed', true);",
+          "'replayed', true,",
+          "'replayed', false",
+          "on conflict (auth_session_id) do update set",
+          "'replayed', false"
+        ]
+      },
+      "requiredRepair": [
+        "Runtime revoke effect is real and tested. Registry still auto-claims generic realtime/domain-event analytics not executed under session.revoked. Declare a complete strict synchronous effect contract or implement required missing effects; no false event-backed label.",
+        "Execute focused behavioral coverage for session.changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261016163000_v3_account_session_management.sql, supabase/migrations/20261016163100_v3_account_session_management_hardening.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Runtime revoke effect is real and tested. Registry still auto-claims generic realtime/domain-event analytics not executed under session.revoked. Declare a complete strict synchronous effect contract or implement required missing effects; no false event-backed label.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED session.revoked owner=session",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "session.revoked",
+      "route": null,
+      "surface": "authentication, Me / security, access enforcement",
+      "domain": "session",
+      "expectedOwner": "session",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261016163000_v3_account_session_management.sql",
+        "supabase/migrations/20261016163100_v3_account_session_management_hardening.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261016163000_v3_account_session_management.sql",
+        "supabase/migrations/20261016163100_v3_account_session_management_hardening.sql"
+      ],
+      "apiCommandOwner": "v3_my_sessions / v3_revoke_session / Supabase Auth",
+      "testEvidence": [
+        "src/lib/v3-account-session-management.contract.test.ts",
+        ".github/scripts/v3-account-session-management-rehearsal.sh"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Atomic tombstone, auth.sessions deletion with refresh-token cascade, fresh-auth enforcement, semantic receipt replay, already-revoked reconciliation, and actor-scoped projection are implemented and rehearsed.",
+      "trigger": "session.revoked; owning command path: v3_my_sessions / v3_revoke_session / Supabase Auth",
+      "expectedConsequence": "authentication, Me / security, access enforcement",
+      "persistenceMechanism": [
+        "supabase/migrations/20261016163000_v3_account_session_management.sql",
+        "supabase/migrations/20261016163100_v3_account_session_management_hardening.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "v3_my_sessions / v3_revoke_session / Supabase Auth",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "check (reason in ('user_revoked', 'reconciled')),",
+          "hint = 'Re-enter your Solaris account password, then retry the exact reviewed operation.';",
+          "'system.push.retry_failed',",
+          "p_idempotency_key text",
+          "or nullif(btrim(coalesce(p_idempotency_key, '')), '') is null then",
+          "-- Exact succeeded retries reconcile before requiring another fresh-auth step.",
+          "and receipt.idempotency_key = nullif(btrim(coalesce(p_idempotency_key, '')), '')",
+          "|| jsonb_build_object('replayed', true);",
+          "for update;",
+          "p_idempotency_key,",
+          "if coalesce((v_claim ->> 'replayed')::boolean, false) then",
+          "|| jsonb_build_object('replayed', true);",
+          "'replayed', true,",
+          "'replayed', false",
+          "on conflict (auth_session_id) do update set",
+          "'replayed', false"
+        ]
+      },
+      "requiredRepair": [
+        "Runtime revoke effect is real and tested. Registry still auto-claims generic realtime/domain-event analytics not executed under session.revoked. Declare a complete strict synchronous effect contract or implement required missing effects; no false event-backed label.",
+        "Execute focused behavioral coverage for session.revoked, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261016163000_v3_account_session_management.sql, supabase/migrations/20261016163100_v3_account_session_management_hardening.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Runtime revoke effect is real and tested. Registry still auto-claims generic realtime/domain-event analytics not executed under session.revoked. Declare a complete strict synchronous effect contract or implement required missing effects; no false event-backed label.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED voting.configuration_changed owner=voting-configuration",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "voting.configuration_changed",
+      "route": null,
+      "surface": "voting eligibility and published voting rules, Organizer Voting, jury, televote, results",
+      "domain": "voting-configuration",
+      "expectedOwner": "voting-configuration",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/lib/voting-declaration-admin.ts",
+        "supabase/migrations/20261003200000_organisation_os_v5_voting_declaration_lifecycle.sql",
+        "supabase/migrations/20261018122500_v3_voting_declaration_expected_edition_scope.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261003200000_organisation_os_v5_voting_declaration_lifecycle.sql",
+        "supabase/migrations/20261018122500_v3_voting_declaration_expected_edition_scope.sql"
+      ],
+      "apiCommandOwner": "voting declaration preview/apply / configuration owner RPCs",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Scoped versioned voting declaration policy and invalidation operations exist; Jury/Televote consume effective policy.",
+      "trigger": "voting.configuration_changed; owning command path: voting declaration preview/apply / configuration owner RPCs",
+      "expectedConsequence": "voting eligibility and published voting rules, Organizer Voting, jury, televote, results",
+      "persistenceMechanism": [
+        "supabase/migrations/20261003200000_organisation_os_v5_voting_declaration_lifecycle.sql",
+        "supabase/migrations/20261018122500_v3_voting_declaration_expected_edition_scope.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "voting declaration preview/apply / configuration owner RPCs",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "idempotencyKey?: string;",
+          "idempotencyKey: input.idempotencyKey,",
+          "p_idempotency_key: command.idempotencyKey,",
+          "on conflict (singleton) do nothing;",
+          "p_idempotency_key text,",
+          "for update;",
+          "p_idempotency_key,",
+          "if coalesce((v_claim ->> 'replayed')::boolean, false) then",
+          "p_idempotency_key text,",
+          "for update;",
+          "p_idempotency_key,",
+          "if coalesce((v_claim ->> 'replayed')::boolean, false) then"
+        ]
+      },
+      "requiredRepair": [
+        "Prove all configuration consumers (jury, televote, results) use matching version and stale/replayed config changes cannot leave readiness or eligibility stale.",
+        "Execute focused behavioral coverage for voting.configuration_changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/lib/voting-declaration-admin.ts, supabase/migrations/20261003200000_organisation_os_v5_voting_declaration_lifecycle.sql, supabase/migrations/20261018122500_v3_voting_declaration_expected_edition_scope.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove all configuration consumers (jury, televote, results) use matching version and stale/replayed config changes cannot leave readiness or eligibility stale.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED receipt.recorded owner=receipt",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "receipt.recorded",
+      "route": null,
+      "surface": "confirmation/entry/jury/televote receipts, operation receipt surfaces, reconciliation jobs",
+      "domain": "receipt",
+      "expectedOwner": "receipt",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql"
+      ],
+      "apiCommandOwner": "studio2_claim_operation / complete / fail / mark_uncertain / studio2_reconcile_operation",
+      "testEvidence": [
+        "src/lib/v3-system-operation-receipts.test.ts",
+        ".github/scripts/v3-operation-receipt-rehearsal.sh"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Canonical actor/command/key/fingerprint claim and deterministic terminal result/recovery exist; actual local API rehearsal proves semantic replay/conflict and actor-only readback.",
+      "trigger": "receipt.recorded; owning command path: studio2_claim_operation / complete / fail / mark_uncertain / studio2_reconcile_operation",
+      "expectedConsequence": "confirmation/entry/jury/televote receipts, operation receipt surfaces, reconciliation jobs",
+      "persistenceMechanism": [
+        "supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "studio2_claim_operation / complete / fail / mark_uncertain / studio2_reconcile_operation",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "-- cross-surface idempotency and reconciliation record. This is intentionally",
+          "'IDEMPOTENCY_CONFLICT',",
+          "p_idempotency_key text,",
+          "v_key text := nullif(btrim(coalesce(p_idempotency_key, '')), '');",
+          "and receipt.idempotency_key = v_key",
+          "for update;",
+          "or v_receipt.idempotency_key is distinct from v_key",
+          "message = 'IDEMPOTENCY_CONFLICT',",
+          "hint = 'Use the original semantic request or a new idempotency key.';",
+          "'replayed', true,",
+          "idempotency_key,",
+          "on conflict do nothing;",
+          "and receipt.idempotency_key = v_key",
+          "for update;",
+          "or v_receipt.idempotency_key is distinct from v_key",
+          "message = 'IDEMPOTENCY_CONFLICT',"
+        ]
+      },
+      "requiredRepair": [
+        "receipt.recorded synchronous ledger behavior is proven, but generic realtime/analytics declarations are not. receipt.reconciled is a STABLE read-only RPC, not a mutation; explicitly encode/prove replacement relationship before resolving a phantom mutation event.",
+        "Execute focused behavioral coverage for receipt.recorded, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. receipt.recorded synchronous ledger behavior is proven, but generic realtime/analytics declarations are not. receipt.reconciled is a STABLE read-only RPC, not a mutation; explicitly encode/prove replacement relationship before resolving a phantom mutation event.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED receipt.reconciled owner=receipt",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "receipt.reconciled",
+      "route": null,
+      "surface": "confirmation/entry/jury/televote receipts, operation receipt surfaces, reconciliation jobs",
+      "domain": "receipt",
+      "expectedOwner": "receipt",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql"
+      ],
+      "apiCommandOwner": "studio2_claim_operation / complete / fail / mark_uncertain / studio2_reconcile_operation",
+      "testEvidence": [
+        "src/lib/v3-system-operation-receipts.test.ts",
+        ".github/scripts/v3-operation-receipt-rehearsal.sh"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "obsolete_replaced",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Canonical actor/command/key/fingerprint claim and deterministic terminal result/recovery exist; actual local API rehearsal proves semantic replay/conflict and actor-only readback.",
+      "trigger": "actor-scoped STABLE read-only reconciliation query",
+      "expectedConsequence": "confirmation/entry/jury/televote receipts, operation receipt surfaces, reconciliation jobs",
+      "persistenceMechanism": [
+        "supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "studio2_claim_operation / complete / fail / mark_uncertain / studio2_reconcile_operation",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "-- cross-surface idempotency and reconciliation record. This is intentionally",
+          "'IDEMPOTENCY_CONFLICT',",
+          "p_idempotency_key text,",
+          "v_key text := nullif(btrim(coalesce(p_idempotency_key, '')), '');",
+          "and receipt.idempotency_key = v_key",
+          "for update;",
+          "or v_receipt.idempotency_key is distinct from v_key",
+          "message = 'IDEMPOTENCY_CONFLICT',",
+          "hint = 'Use the original semantic request or a new idempotency key.';",
+          "'replayed', true,",
+          "idempotency_key,",
+          "on conflict do nothing;",
+          "and receipt.idempotency_key = v_key",
+          "for update;",
+          "or v_receipt.idempotency_key is distinct from v_key",
+          "message = 'IDEMPOTENCY_CONFLICT',"
+        ]
+      },
+      "requiredRepair": [
+        "receipt.recorded synchronous ledger behavior is proven, but generic realtime/analytics declarations are not. receipt.reconciled is a STABLE read-only RPC, not a mutation; explicitly encode/prove replacement relationship before resolving a phantom mutation event.",
+        "Execute focused behavioral coverage for receipt.reconciled, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql. The named event is replaced by stable actor-scoped read-only operation reconciliation; it is not a mutating event that can truthfully be marked event-backed. receipt.recorded synchronous ledger behavior is proven, but generic realtime/analytics declarations are not. receipt.reconciled is a STABLE read-only RPC, not a mutation; explicitly encode/prove replacement relationship before resolving a phantom mutation event.",
+      "replacement": {
+        "canonicalOwner": "receipt",
+        "canonicalOperation": "public.studio2_reconcile_operation(uuid)",
+        "kind": "stable read-only canonical projection",
+        "proof": "SQL language plpgsql STABLE; SELECT actor-scoped receipt; no DML in function body",
+        "requiredEncoding": "Explicit catalog replacement relationship and regression; do not silently delete event or waive mutating consequence checks"
+      }
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED audit.recorded owner=audit",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "audit.recorded",
+      "route": null,
+      "surface": "Organizer recent changes, specialist audit tools, security and integrity review",
+      "domain": "audit",
+      "expectedOwner": "audit",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/integrations/supabase/admin-audit.server.ts",
+        "supabase/migrations/20260914173633_canonical_admin_audit_log.sql",
+        "src/lib/admin-ops.ts"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260914173633_canonical_admin_audit_log.sql"
+      ],
+      "apiCommandOwner": "writeAdminAuditServer / canonical audit insert + read",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Canonical privileged audit log and Organizer-server writer/read projection exist.",
+      "trigger": "audit.recorded; owning command path: writeAdminAuditServer / canonical audit insert + read",
+      "expectedConsequence": "Organizer recent changes, specialist audit tools, security and integrity review",
+      "persistenceMechanism": [
+        "supabase/migrations/20260914173633_canonical_admin_audit_log.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "writeAdminAuditServer / canonical audit insert + read",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "throw new Error(\"Custom reminder state could not be reconciled after the update.\");"
+        ]
+      },
+      "requiredRepair": [
+        "Verify command transaction coupling, failure behavior, immutable history and retry dedupe for the audit consequence; standalone server insert is not proof of every declared consumer/analytics effect.",
+        "Execute focused behavioral coverage for audit.recorded, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/integrations/supabase/admin-audit.server.ts, supabase/migrations/20260914173633_canonical_admin_audit_log.sql, src/lib/admin-ops.ts. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Verify command transaction coupling, failure behavior, immutable history and retry dedupe for the audit consequence; standalone server insert is not proof of every declared consumer/analytics effect.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED rollout.changed owner=feature-rollout",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "rollout.changed",
+      "route": null,
+      "surface": "feature boundaries, Feature rollout",
+      "domain": "feature-rollout",
+      "expectedOwner": "feature-rollout",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "src/routes/_authenticated/admin/feature-rollout.tsx",
+        "supabase/migrations/20260910221000_studio2_feature_flag_persistence.sql",
+        "supabase/migrations/20260914140500_permission_engine_v2_strict_dual_guards.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260910221000_studio2_feature_flag_persistence.sql",
+        "supabase/migrations/20260914140500_permission_engine_v2_strict_dual_guards.sql"
+      ],
+      "apiCommandOwner": "strict dual-guarded feature rollout mutation / rollout probe",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Persistent scoped flags, strict capability guards and effective rollout probe exist.",
+      "trigger": "rollout.changed; owning command path: strict dual-guarded feature rollout mutation / rollout probe",
+      "expectedConsequence": "feature boundaries, Feature rollout",
+      "persistenceMechanism": [
+        "supabase/migrations/20260910221000_studio2_feature_flag_persistence.sql",
+        "supabase/migrations/20260914140500_permission_engine_v2_strict_dual_guards.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "strict dual-guarded feature rollout mutation / rollout probe",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "Solaris re-reads the complete flag row immediately before apply and recomputes dependency legality from that fresh rollout state. The existing server RPC still serializes writes and enforces rollout permissions, but it does not accept the reviewed revision, idempotency identity, or return a durable operation receipt. System #1178 owns that canonical command gap, so a narrow read-to-RPC race and ambiguous network outcome remain until it lands.",
+          "'results_replay', 'voting_lab', 'edition_simulator', 'rules_engine',",
+          "('results_replay'),",
+          "on conflict (key) do nothing;",
+          "on conflict (key) do update set"
+        ]
+      },
+      "requiredRepair": [
+        "Prove audited versioned rollout operation and effective feature-boundary invalidation; a persisted flag update does not prove rollout.changed analytics/realtime effects.",
+        "Execute focused behavioral coverage for rollout.changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: src/routes/_authenticated/admin/feature-rollout.tsx, supabase/migrations/20260910221000_studio2_feature_flag_persistence.sql, supabase/migrations/20260914140500_permission_engine_v2_strict_dual_guards.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Prove audited versioned rollout operation and effective feature-boundary invalidation; a persisted flag update does not prove rollout.changed analytics/realtime effects.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED job.started owner=system-job",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "job.started",
+      "route": null,
+      "surface": "Delivery & jobs, System health, notification, publication, media, reconciliation",
+      "domain": "system-job",
+      "expectedOwner": "system-job",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql"
+      ],
+      "apiCommandOwner": "domain-owned claim/complete/fail/retry workers",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "S4 outbox provides durable delivery claim/retry/complete/fail ownership; physical registry additionally maps cron/net runtime job history.",
+      "trigger": "job.started; owning command path: domain-owned claim/complete/fail/retry workers",
+      "expectedConsequence": "Delivery & jobs, System health, notification, publication, media, reconciliation",
+      "persistenceMechanism": [
+        "supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "domain-owned claim/complete/fail/retry workers",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict (operation_id, event_type, aggregate_type, aggregate_id, aggregate_version)",
+          "raise exception 'IDEMPOTENCY_CONFLICT: canonical domain event semantics changed'",
+          "on conflict (event_id, consumer_key) do nothing;",
+          "for update skip locked",
+          "v_replayed boolean := false;",
+          "for update;",
+          "v_replayed := true;",
+          "'replayed', v_replayed,",
+          "p_retry_after_seconds integer default 30,",
+          "or p_retry_after_seconds not between 0 and 86400",
+          "for update;",
+          "else now() + make_interval(secs => p_retry_after_seconds)",
+          "raise exception 'Invalid dead-letter replay parameters' using errcode = '22023';",
+          "'Per-consumer transactional outbox delivery state with retry leases and dead-letter lifecycle.';",
+          "'Immutable consumer idempotency receipts keyed by canonical event and consumer.';"
+        ]
+      },
+      "requiredRepair": [
+        "job.* logical catalog events are not evidenced as actual worker events. Map exact native worker/job lifecycle state and health projections, or implement missing effects/recovery; do not add empty job consumers or duplicate job truth.",
+        "Execute focused behavioral coverage for job.started, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. job.* logical catalog events are not evidenced as actual worker events. Map exact native worker/job lifecycle state and health projections, or implement missing effects/recovery; do not add empty job consumers or duplicate job truth.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED job.completed owner=system-job",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "job.completed",
+      "route": null,
+      "surface": "Delivery & jobs, System health, notification, publication, media, reconciliation",
+      "domain": "system-job",
+      "expectedOwner": "system-job",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql"
+      ],
+      "apiCommandOwner": "domain-owned claim/complete/fail/retry workers",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "S4 outbox provides durable delivery claim/retry/complete/fail ownership; physical registry additionally maps cron/net runtime job history.",
+      "trigger": "job.completed; owning command path: domain-owned claim/complete/fail/retry workers",
+      "expectedConsequence": "Delivery & jobs, System health, notification, publication, media, reconciliation",
+      "persistenceMechanism": [
+        "supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "domain-owned claim/complete/fail/retry workers",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict (operation_id, event_type, aggregate_type, aggregate_id, aggregate_version)",
+          "raise exception 'IDEMPOTENCY_CONFLICT: canonical domain event semantics changed'",
+          "on conflict (event_id, consumer_key) do nothing;",
+          "for update skip locked",
+          "v_replayed boolean := false;",
+          "for update;",
+          "v_replayed := true;",
+          "'replayed', v_replayed,",
+          "p_retry_after_seconds integer default 30,",
+          "or p_retry_after_seconds not between 0 and 86400",
+          "for update;",
+          "else now() + make_interval(secs => p_retry_after_seconds)",
+          "raise exception 'Invalid dead-letter replay parameters' using errcode = '22023';",
+          "'Per-consumer transactional outbox delivery state with retry leases and dead-letter lifecycle.';",
+          "'Immutable consumer idempotency receipts keyed by canonical event and consumer.';"
+        ]
+      },
+      "requiredRepair": [
+        "job.* logical catalog events are not evidenced as actual worker events. Map exact native worker/job lifecycle state and health projections, or implement missing effects/recovery; do not add empty job consumers or duplicate job truth.",
+        "Execute focused behavioral coverage for job.completed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. job.* logical catalog events are not evidenced as actual worker events. Map exact native worker/job lifecycle state and health projections, or implement missing effects/recovery; do not add empty job consumers or duplicate job truth.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED job.failed owner=system-job",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "job.failed",
+      "route": null,
+      "surface": "Delivery & jobs, System health, notification, publication, media, reconciliation",
+      "domain": "system-job",
+      "expectedOwner": "system-job",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql"
+      ],
+      "apiCommandOwner": "domain-owned claim/complete/fail/retry workers",
+      "testEvidence": [],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "S4 outbox provides durable delivery claim/retry/complete/fail ownership; physical registry additionally maps cron/net runtime job history.",
+      "trigger": "job.failed; owning command path: domain-owned claim/complete/fail/retry workers",
+      "expectedConsequence": "Delivery & jobs, System health, notification, publication, media, reconciliation",
+      "persistenceMechanism": [
+        "supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "domain-owned claim/complete/fail/retry workers",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict (operation_id, event_type, aggregate_type, aggregate_id, aggregate_version)",
+          "raise exception 'IDEMPOTENCY_CONFLICT: canonical domain event semantics changed'",
+          "on conflict (event_id, consumer_key) do nothing;",
+          "for update skip locked",
+          "v_replayed boolean := false;",
+          "for update;",
+          "v_replayed := true;",
+          "'replayed', v_replayed,",
+          "p_retry_after_seconds integer default 30,",
+          "or p_retry_after_seconds not between 0 and 86400",
+          "for update;",
+          "else now() + make_interval(secs => p_retry_after_seconds)",
+          "raise exception 'Invalid dead-letter replay parameters' using errcode = '22023';",
+          "'Per-consumer transactional outbox delivery state with retry leases and dead-letter lifecycle.';",
+          "'Immutable consumer idempotency receipts keyed by canonical event and consumer.';"
+        ]
+      },
+      "requiredRepair": [
+        "job.* logical catalog events are not evidenced as actual worker events. Map exact native worker/job lifecycle state and health projections, or implement missing effects/recovery; do not add empty job consumers or duplicate job truth.",
+        "Execute focused behavioral coverage for job.failed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. job.* logical catalog events are not evidenced as actual worker events. Map exact native worker/job lifecycle state and health projections, or implement missing effects/recovery; do not add empty job consumers or duplicate job truth.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED story.changed owner=story",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "story.changed",
+      "route": null,
+      "surface": "stories, archive, anniversary, Organizer Storytelling, publication",
+      "domain": "story",
+      "expectedOwner": "story",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql",
+        "src/lib/studio2-storytelling.ts"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql"
+      ],
+      "apiCommandOwner": "studio2_execute_story_operation / studio2_public_storyline / studio2_anniversary_engine",
+      "testEvidence": [
+        "src/lib/studio2-storytelling-integration.test.ts",
+        "src/lib/v3-stories.contract.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Explicit versioned editorial operations use advisory lock, execution-id replay, immutable receipts, legacy canonical contest-event audit and narrow published story/anniversary projections.",
+      "trigger": "story.changed; owning command path: studio2_execute_story_operation / studio2_public_storyline / studio2_anniversary_engine",
+      "expectedConsequence": "stories, archive, anniversary, Organizer Storytelling, publication",
+      "persistenceMechanism": [
+        "supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "studio2_execute_story_operation / studio2_public_storyline / studio2_anniversary_engine",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict (user_id, capability, edition_id)",
+          "perform pg_advisory_xact_lock(hashtextextended('studio2-story:' || p_edition_id::text, 0));",
+          "return v_existing.payload || jsonb_build_object('idempotentReplay', true);",
+          "for update;",
+          "for update;",
+          "'idempotentReplay', false",
+          "idempotentReplay: boolean;",
+          "// the first execution identity for the exact semantic command so a retry asks",
+          "idempotentReplay: boolValue(row.idempotentReplay, 'story execution replay state'),",
+          "// Retire a pending retry identity only after an authoritative receipt proves",
+          "// leave the identity available for a safe replay attempt."
+        ]
+      },
+      "requiredRepair": [
+        "Logical story.changed/published differ from implemented storyline.updated/published event vocabulary. Prove explicit replacement/mapping and exact published projection/readback, keeping generation/edit draft and immutable history intact.",
+        "Execute focused behavioral coverage for story.changed, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql, src/lib/studio2-storytelling.ts. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Logical story.changed/published differ from implemented storyline.updated/published event vocabulary. Prove explicit replacement/mapping and exact published projection/readback, keeping generation/edit draft and immutable history intact.",
+      "replacement": null
+    },
+    {
+      "exactFinding": "DOMAIN_CONSEQUENCE_DECLARED story.published owner=story",
+      "category": "DOMAIN_CONSEQUENCE_DECLARED",
+      "id": "story.published",
+      "route": null,
+      "surface": "stories, archive, anniversary, Organizer Storytelling, publication",
+      "domain": "story",
+      "expectedOwner": "story",
+      "currentDeclaredStatus": "declared",
+      "implementationPaths": [
+        "supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql",
+        "src/lib/studio2-storytelling.ts"
+      ],
+      "migrationOwner": [
+        "supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql"
+      ],
+      "apiCommandOwner": "studio2_execute_story_operation / studio2_public_storyline / studio2_anniversary_engine",
+      "testEvidence": [
+        "src/lib/studio2-storytelling-integration.test.ts",
+        "src/lib/v3-stories.contract.test.ts"
+      ],
+      "currentCutoverState": "declared; source audit is not runtime certification",
+      "classification": "partially_implemented",
+      "classificationScope": "entire declared consequence contract, including generated effects; an existing command alone is not complete consequence proof",
+      "implementedBehavior": "Explicit versioned editorial operations use advisory lock, execution-id replay, immutable receipts, legacy canonical contest-event audit and narrow published story/anniversary projections.",
+      "trigger": "story.published; owning command path: studio2_execute_story_operation / studio2_public_storyline / studio2_anniversary_engine",
+      "expectedConsequence": "stories, archive, anniversary, Organizer Storytelling, publication",
+      "persistenceMechanism": [
+        "supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql"
+      ],
+      "idempotencyStrategy": "Source mechanisms recorded below; must execute focused owner regression before acceptance",
+      "retryStrategy": "Use existing canonical operation identity and reconciliation where implemented; missing/undeclared effects require bounded replay-safe owner execution, not duplicate domain truth",
+      "failureBehavior": "Existing command/auth guards remain authoritative; no findings suppressed. Full effect failure contract requires focused proof before readiness promotion",
+      "reconciliationPath": "studio2_execute_story_operation / studio2_public_storyline / studio2_anniversary_engine",
+      "recoveryProof": {
+        "level": "source inspection; existing test paths checked for existence; tests not executed in this audit",
+        "sourceSnippets": [
+          "on conflict (user_id, capability, edition_id)",
+          "perform pg_advisory_xact_lock(hashtextextended('studio2-story:' || p_edition_id::text, 0));",
+          "return v_existing.payload || jsonb_build_object('idempotentReplay', true);",
+          "for update;",
+          "for update;",
+          "'idempotentReplay', false",
+          "idempotentReplay: boolean;",
+          "// the first execution identity for the exact semantic command so a retry asks",
+          "idempotentReplay: boolValue(row.idempotentReplay, 'story execution replay state'),",
+          "// Retire a pending retry identity only after an authoritative receipt proves",
+          "// leave the identity available for a safe replay attempt."
+        ]
+      },
+      "requiredRepair": [
+        "Logical story.changed/published differ from implemented storyline.updated/published event vocabulary. Prove explicit replacement/mapping and exact published projection/readback, keeping generation/edit draft and immutable history intact.",
+        "Execute focused behavioral coverage for story.published, assert persisted canonical projection/effects and retry/idempotency, then link implementation/evidence without claiming nonexistent S4 delivery."
+      ],
+      "rationale": "The actual owner implementation is present: supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql, src/lib/studio2-storytelling.ts. The declared effect contract is broader than the concrete command/storage proof currently referenced by the consequence registry. Logical story.changed/published differ from implemented storyline.updated/published event vocabulary. Prove explicit replacement/mapping and exact published projection/readback, keeping generation/edit draft and immutable history intact.",
+      "replacement": null
+    }
+  ]
+}
