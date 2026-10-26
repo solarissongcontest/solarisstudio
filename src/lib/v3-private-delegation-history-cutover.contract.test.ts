@@ -18,51 +18,67 @@ describe("V3 private delegation-history cutover", () => {
     expect(route).toContain('return <MySolarisCountryModule section="history" />');
   });
 
-  it("uses the existing caller-owned HOD history instead of the legacy archive/editor graph", () => {
+  it("composes current and historical memberships without the legacy archive/editor graph", () => {
     const screen = read("src/components/v3/V3DelegationHistoryScreen.tsx");
     const history = read("src/lib/hod-self-history.ts");
 
     expect(screen).toContain("useOwnedHodHistory");
-    expect(screen).toContain("useOwnedHodHistory(ownsIdentity && Boolean(countryId), viewerId)");
+    expect(screen).toContain("useOwnedHodClaims");
     expect(screen).toContain("workspace.user?.id === viewerId");
     expect(screen).toContain("workspace.countryAccount?.access.userId === viewerId");
-    expect(screen).toContain("historyData?.country_id === countryId");
+    expect(screen).toContain("currentHistory.data?.country_id === activeCountryId");
+    expect(screen).toContain("claim.country_id");
+    expect(screen).toContain("claim.edition_id");
+    expect(screen).toContain("countryById.get(item.countryId)");
     expect(history).toContain('["owned-hod-edition-history", viewerId ?? "current-viewer"]');
+    expect(history).toContain('["owned-hod-edition-claims", viewerId ?? "no-viewer"]');
     expect(history).toContain('supabase.rpc("owned_hod_edition_history")');
+    expect(history).toContain('.from("country_hod_edition_claims")');
+    expect(history).toContain('.eq("user_id", viewerId!)');
     expect(screen).not.toContain("useAllParticipants");
     expect(screen).not.toContain("useAllContestEntities");
     expect(screen).not.toContain("useSaveCountryEntry");
     expect(screen).not.toContain("MySolarisCountryModule");
   });
 
-  it("proves the existing history RPC is caller-owned confirmed participation", () => {
-    const migration = read("supabase/migrations/20260822001000_finalize_hod_release_hardening.sql");
+  it("proves the existing history sources are caller-owned and RLS-bound", () => {
+    const finalHistoryMigration = read("supabase/migrations/20260822001000_finalize_hod_release_hardening.sql");
+    const claimsMigration = read("supabase/migrations/20260821234500_country_hod_self_history.sql");
 
-    expect(migration).toContain("create or replace function public.owned_hod_edition_history()");
-    expect(migration).toContain("v_user uuid := auth.uid()");
-    expect(migration).toContain("where user_id=v_user and status='active'");
-    expect(migration).toContain("where p.country_id=v_country and p.participation_status='confirmed'");
-    expect(migration).toContain("revoke all on function public.owned_hod_edition_history() from public, anon");
-    expect(migration).toContain("grant execute on function public.owned_hod_edition_history() to authenticated");
+    expect(finalHistoryMigration).toContain("create or replace function public.owned_hod_edition_history()");
+    expect(finalHistoryMigration).toContain("v_user uuid := auth.uid()");
+    expect(finalHistoryMigration).toContain("where user_id=v_user and status='active'");
+    expect(finalHistoryMigration).toContain("where p.country_id=v_country and p.participation_status='confirmed'");
+    expect(finalHistoryMigration).toContain("revoke all on function public.owned_hod_edition_history() from public, anon");
+    expect(finalHistoryMigration).toContain("grant execute on function public.owned_hod_edition_history() to authenticated");
+
+    expect(claimsMigration).toContain('create policy "country hod claims own read"');
+    expect(claimsMigration).toContain("using (user_id = (select auth.uid())");
+    expect(claimsMigration).toContain("primary key (user_id, country_id, edition_id)");
   });
 
-  it("shows historical membership status and preserves canonical archive identity", () => {
+  it("shows past countries, editions and roles with canonical archive identity", () => {
     const screen = read("src/components/v3/V3DelegationHistoryScreen.tsx");
 
     expect(screen).toContain('status === "mine"');
     expect(screen).toContain('return "You were HOD"');
-    expect(screen).toContain("editionById.get(item.edition_id)");
+    expect(screen).toContain("country?.name");
+    expect(screen).toContain("editionById.get(item.editionId)");
     expect(screen).toContain("edition?.slug");
     expect(screen).toContain("`/editions/${edition.slug}`");
+    expect(screen).toContain("Past editions, delegations and HOD roles");
     expect(screen).not.toContain("slugify(");
-    expect(screen).not.toContain("item.edition_name.toLowerCase");
+    expect(screen).not.toContain("item.editionName.toLowerCase");
   });
 
   it("keeps organizer country overrides out of caller-private V3 history", () => {
     const route = read("src/routes/_authenticated/my-solaris/history.tsx");
+    const history = read("src/lib/hod-self-history.ts");
 
     expect(route).toContain("platformResolved && isAppMode && !country");
     expect(route).toContain("!country &&");
     expect(route).toContain("explicit Organizer country override");
+    expect(history).toContain("The explicit user filter");
+    expect(history).toContain('.eq("user_id", viewerId!)');
   });
 });
