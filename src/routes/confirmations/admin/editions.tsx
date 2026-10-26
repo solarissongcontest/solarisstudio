@@ -236,6 +236,23 @@ function EditionsPage() {
 
   const exactBindingAvailable = projection?.bindingState === "linked" || projection?.bindingState === "stale";
   const pendingNeedsReauth = pending?.preview.riskClass === "R3";
+  const pendingNeedsTypedConfirmation = pending?.preview.riskClass === "R3";
+
+  const pendingTitle = pending
+    ? pending.kind === "bind"
+      ? `Reconcile SSC ${projection?.editionNumber ?? ""} Confirmation binding?`
+      : pending.kind === "remove"
+        ? `Remove SSC ${projection?.editionNumber ?? ""} Confirmation binding?`
+        : `${pending.enabled ? "Open" : "Close"} existing-response editing for SSC ${projection?.editionNumber ?? ""}?`
+    : "Review edition operation";
+
+  const pendingConfirmLabel = pending?.kind === "bind"
+    ? "Apply binding reconciliation"
+    : pending?.kind === "remove"
+      ? "Remove Confirmation binding"
+      : pending?.enabled
+        ? "Open response editing"
+        : "Close response editing";
 
   return (
     <AdminPage>
@@ -252,6 +269,13 @@ function EditionsPage() {
                 description="Create or refresh the canonical Confirmation binding without silently rebinding another edition."
                 disabled={busy || loading || !editionId || projection?.bindingState === "conflict"}
                 onClick={() => void prepareChange("bind")}
+              />
+              <AdminActionItem
+                icon={Link2}
+                title="Review removing Confirmation binding"
+                description="Remove only this exact edition binding. The edition and its Confirmation data remain intact. This is an R3 operation."
+                disabled={busy || loading || !editionId || !exactBindingAvailable}
+                onClick={() => void prepareChange("remove")}
               />
             </AdminMoreMenu>
           }
@@ -346,11 +370,7 @@ function EditionsPage() {
           open={Boolean(pending)}
           onClose={busy ? () => undefined : closePending}
           onConfirm={applyPendingChange}
-          title={pending ? (
-            pending.kind === "bind"
-              ? `Reconcile SSC ${projection?.editionNumber ?? ""} Confirmation binding?`
-              : `${pending.enabled ? "Open" : "Close"} existing-response editing for SSC ${projection?.editionNumber ?? ""}?`
-          ) : "Review edition operation"}
+          title={pendingTitle}
           description={pending ? (
             <div className="space-y-3">
               <div className="space-y-2">
@@ -358,6 +378,8 @@ function EditionsPage() {
                 <p>Expected state version: <strong className="text-foreground">{pending.preview.expectedVersion}</strong>. The server rechecks the edition, capability, binding identity and version after acquiring its lock.</p>
                 {pending.kind === "bind" ? (
                   <p>This creates or refreshes only the exact canonical binding. A conflicting Solaris or Confirmation identity fails closed instead of being deleted or silently rebound.</p>
+                ) : pending.kind === "remove" ? (
+                  <p>This removes only the exact Confirmation integration binding for this edition. It does not delete the edition, rounds, responses or historical data.</p>
                 ) : (
                   <p>Existing-response editing: <strong className="text-foreground">{pending.preview.editingEnabled ? "Open" : "Closed"}</strong> → <strong className="text-foreground">{pending.enabled ? "Open" : "Closed"}</strong>.</p>
                 )}
@@ -379,9 +401,9 @@ function EditionsPage() {
               ) : null}
             </div>
           ) : "Review the current authoritative state before applying."}
-          confirmLabel={pending?.kind === "bind" ? "Apply binding reconciliation" : pending?.enabled ? "Open response editing" : "Close response editing"}
-          confirmationText={pending?.kind === "editing" && pending.enabled ? `SSC ${projection?.editionNumber ?? ""}` : undefined}
-          confirmationHint={pending?.kind === "editing" && pending.enabled ? `Type SSC ${projection?.editionNumber ?? ""} exactly to confirm wider editing access` : undefined}
+          confirmLabel={pendingConfirmLabel}
+          confirmationText={pendingNeedsTypedConfirmation ? `SSC ${projection?.editionNumber ?? ""}` : undefined}
+          confirmationHint={pendingNeedsTypedConfirmation ? `Type SSC ${projection?.editionNumber ?? ""} exactly to confirm this R3 edition operation` : undefined}
           busy={busy}
           danger={Boolean(pending?.preview.riskClass === "R3")}
           confirmDisabled={Boolean(pendingNeedsReauth && !reauthPassword)}
