@@ -4,8 +4,8 @@
   "auditKind": "complete-source-classification-not-release-evidence",
   "total": 81,
   "classificationTotals": {
-    "implemented_evidence_missing": 66,
-    "partially_implemented": 15,
+    "implemented_evidence_missing": 61,
+    "partially_implemented": 20,
     "not_implemented": 0,
     "obsolete_replaced": 0,
     "false_positive": 0
@@ -979,7 +979,8 @@
         "src/lib/results-reveal-model.test.ts",
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-building-status-evidence.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/results-reveal",
@@ -2024,7 +2025,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-building-status-evidence.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/control",
@@ -2034,12 +2036,12 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/jury/$slug.tsx implements Manage jury rosters, ballots and completion for the selected edition. through the existing route/component authority. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "Canonical DNV and submitted-ballot review are implemented, but the full roster/manual-score configuration path remains a merged partial: route uses direct voter configuration writes and assign_jury_vote/clear_jury_point outside the newer reviewed lifecycle. Existing building-status evidence contract explicitly forbids parity/cutover until the remaining owner contract is proven.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Canonical DNV and submitted-ballot review are implemented, but the full roster/manual-score configuration path remains a merged partial: route uses direct voter configuration writes and assign_jury_vote/clear_jury_point outside the newer reviewed lifecycle. Existing building-status evidence contract explicitly forbids parity/cutover until the remaining owner contract is proven.",
+        "Minimize the partial authority into focused owner-level regression including stale version, idempotent retry, uncertain-outcome recovery and authorization checks; fix owning command without weakening the existing partial-status contract.",
+        "Complete and prove the shared cutover only after this item's canonical operation is implemented; do not promote from registry/source evidence alone."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -2071,7 +2073,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-building-status-evidence.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/control",
@@ -2081,12 +2084,12 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/voting-system/$slug.tsx implements Configure the voting system and point rules for the selected edition. through the existing route/component authority. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "Voting configuration still uses direct client persistence for reviewed show configuration rather than a canonical versioned/idempotent configuration command and receipt. Existing building-status evidence contract explicitly forbids parity/cutover.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Voting configuration still uses direct client persistence for reviewed show configuration rather than a canonical versioned/idempotent configuration command and receipt. Existing building-status evidence contract explicitly forbids parity/cutover.",
+        "Minimize the partial authority into focused owner-level regression including stale version, idempotent retry, uncertain-outcome recovery and authorization checks; fix owning command without weakening the existing partial-status contract.",
+        "Complete and prove the shared cutover only after this item's canonical operation is implemented; do not promote from registry/source evidence alone."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -2167,7 +2170,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-building-status-evidence.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/control",
@@ -2250,7 +2254,9 @@
       "expectedOwner": "results.preview",
       "currentDeclaredStatus": "building",
       "implementationPaths": [
-        "src/routes/televoting/admin/results.tsx"
+        "src/routes/televoting/admin/results.tsx",
+        "src/components/televoting/VotingResultsView.tsx",
+        "src/integrations/televoting/conversion.server.ts"
       ],
       "migrationOwner": "voting-results",
       "migrationEvidence": [],
@@ -2261,7 +2267,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-building-status-evidence.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/control",
@@ -2271,12 +2278,12 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/televoting/admin/results.tsx implements Calculate and review the public-vote result. through the existing route/component authority. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "VotingResultsWorkspace -> VotingResultsView -> conversion.server.ts still deletes result/influence rows, inserts replacements and updates round version/status in separate calls. Canonical atomic official Televote calculation is frozen #1400 Results residual, not shared infrastructure; must not absorb it into this burn-down. Existing building-status contract forbids parity/cutover.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "VotingResultsWorkspace -> VotingResultsView -> conversion.server.ts still deletes result/influence rows, inserts replacements and updates round version/status in separate calls. Canonical atomic official Televote calculation is frozen #1400 Results residual, not shared infrastructure; must not absorb it into this burn-down. Existing building-status contract forbids parity/cutover.",
+        "Minimize the partial authority into focused owner-level regression including stale version, idempotent retry, uncertain-outcome recovery and authorization checks; fix owning command without weakening the existing partial-status contract.",
+        "Complete and prove the shared cutover only after this item's canonical operation is implemented; do not promote from registry/source evidence alone."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -2285,7 +2292,13 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": null,
+      "frozenOwnerConflict": {
+        "pr": 1400,
+        "head": "93760e5fd1923adea35688bd0e0ffe69dffbcaeb",
+        "scope": "atomic official Televote calculation",
+        "assessment": "Results-specific residual; not a demonstrated shared prerequisite. Remains frozen."
+      }
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED voting-intelligence:building",
@@ -2449,7 +2462,8 @@
       "implementationPaths": [
         "src/routes/televoting/admin/result-integrity.tsx",
         "src/integrations/televoting/result-integrity.functions.ts",
-        "src/integrations/televoting/rounds.functions.ts"
+        "src/integrations/televoting/rounds.functions.ts",
+        "src/integrations/televoting/result-integrity.server.ts"
       ],
       "migrationOwner": "voting-results",
       "migrationEvidence": [],
@@ -2462,7 +2476,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-building-status-evidence.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/televoting/admin/result-integrity",
@@ -2472,12 +2487,12 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/televoting/admin/result-integrity.tsx implements Test result sensitivity and support concentration. through src/integrations/televoting/result-integrity.functions.ts, src/integrations/televoting/rounds.functions.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "result-integrity.server.ts recompute deletes round_influence_results then inserts replacement rows non-atomically. Existing building-status evidence contract explicitly keeps this partial; canonical version/receipt/recovery proof is not supplied by route presence.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "result-integrity.server.ts recompute deletes round_influence_results then inserts replacement rows non-atomically. Existing building-status evidence contract explicitly keeps this partial; canonical version/receipt/recovery proof is not supplied by route presence.",
+        "Minimize the partial authority into focused owner-level regression including stale version, idempotent retry, uncertain-outcome recovery and authorization checks; fix owning command without weakening the existing partial-status contract.",
+        "Complete and prove the shared cutover only after this item's canonical operation is implemented; do not promote from registry/source evidence alone."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -2552,7 +2567,8 @@
         "src/integrations/televoting/admin-auth.functions.ts",
         "src/integrations/televoting/edition-links.functions.ts",
         "src/integrations/televoting/edition-links.server.ts",
-        "src/integrations/televoting/solaris-sync.functions.ts"
+        "src/integrations/televoting/solaris-sync.functions.ts",
+        "src/integrations/televoting/solaris-sync.server.ts"
       ],
       "migrationOwner": "voting-results",
       "migrationEvidence": [],
@@ -2563,7 +2579,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-building-status-evidence.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/televoting/admin/editions",
@@ -2573,12 +2590,12 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/televoting/admin/editions.tsx implements Inspect the voting projection of Solaris editions. through src/integrations/televoting/admin-auth.functions.ts, src/integrations/televoting/edition-links.functions.ts, src/integrations/televoting/edition-links.server.ts, src/integrations/televoting/solaris-sync.functions.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "solaris-sync.server.ts synchronizes catalog and integration bindings through multiple updates/inserts/deletes rather than one atomic versioned/idempotent receipted command. Existing building-status contract forbids parity/cutover.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "solaris-sync.server.ts synchronizes catalog and integration bindings through multiple updates/inserts/deletes rather than one atomic versioned/idempotent receipted command. Existing building-status contract forbids parity/cutover.",
+        "Minimize the partial authority into focused owner-level regression including stale version, idempotent retry, uncertain-outcome recovery and authorization checks; fix owning command without weakening the existing partial-status contract.",
+        "Complete and prove the shared cutover only after this item's canonical operation is implemented; do not promote from registry/source evidence alone."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
