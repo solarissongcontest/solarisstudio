@@ -59,7 +59,7 @@ describe("Public V3 main-registry evidence-only cutovers", () => {
         expect(evidence, `${claim.id}:${proofFile}`).toContain(proofFile);
         const proof = read(proofFile);
         expect(proof.length, `${claim.id}:${proofFile}`).toBeGreaterThan(100);
-        expect(proof, `${claim.id}:${proofFile}`).toMatch(/\b(?:describe|test)\s*\(/);
+        expect(proof, `${claim.id}:${proofFile}`).toMatch(/\b(?:describe|it|test)\s*\(/);
         expect(proof, `${claim.id}:${proofFile}`).toContain("expect(");
       }
     }
