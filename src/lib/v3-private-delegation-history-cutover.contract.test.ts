@@ -12,7 +12,8 @@ describe("V3 private delegation-history cutover", () => {
     expect(route).toContain("MySolarisProvider");
     expect(route).toContain("editionId={rollout.data.editionId}");
     expect(route).toContain("useV3RolloutProbe");
-    expect(route).toContain("rollout.data?.meEnabled === true");
+    expect(route).toContain("rollout.data?.enabled === true");
+    expect(route).toContain("rollout.data.meEnabled === true");
     expect(route).toContain("viewerId={rollout.data.userId}");
     expect(route).toContain("!country &&");
     expect(route).toContain('return <MySolarisCountryModule section="history" />');
