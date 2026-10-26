@@ -1,7 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-const PUBLIC_PATH = "src/lib/v3-public-capability-registry.ts";
+const PUBLIC_PATHS = [
+  "src/lib/v3-public-capability-registry.ts",
+  "src/lib/v3-public-capability-supplements.ts",
+] as const;
 const ORGANIZER_PATH = "src/lib/v3-organizer-capability-registry.ts";
 
 const PUBLIC_RANK = {
@@ -159,9 +162,9 @@ if (!baseRef) {
 }
 
 try {
-  const basePublic = gitShow(baseRef, PUBLIC_PATH);
+  const basePublic = PUBLIC_PATHS.map((path) => gitShow(baseRef, path)).join("\n");
   const baseOrganizer = gitShow(baseRef, ORGANIZER_PATH);
-  const currentPublic = readFileSync(PUBLIC_PATH, "utf8");
+  const currentPublic = PUBLIC_PATHS.map((path) => readFileSync(path, "utf8")).join("\n");
   const currentOrganizer = readFileSync(ORGANIZER_PATH, "utf8");
   const errors = [
     ...comparePublic(basePublic, currentPublic),

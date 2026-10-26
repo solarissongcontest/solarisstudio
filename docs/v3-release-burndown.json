@@ -5,10 +5,11 @@
   "executionStatus": "Workspace unavailable; source references inspected through GitHub; no new runtime test execution claimed.",
   "total": 164,
   "classificationTotals": {
-    "implemented_evidence_missing": 96,
-    "partially_implemented": 64,
+    "implemented_evidence_missing": 78,
+    "partially_implemented": 82,
+    "not_implemented": 1,
     "obsolete_replaced": 3,
-    "not_implemented": 1
+    "false_positive": 0
   },
   "publicCutovers": [
     {
@@ -1742,7 +1743,7 @@
         "src/lib/organisation-backend-contract.ts",
         "src/lib/admin-tasks-v5.ts"
       ],
-      "migrationOwner": "tasks-operations",
+      "migrationOwner": "task",
       "migrationEvidence": [
         "supabase/migrations/20261004221500_runtime_release_contract.sql",
         "supabase/migrations/20261003154000_organisation_os_v5_r3_permission_tasks.sql"
@@ -1760,7 +1761,8 @@
         "src/lib/admin-tasks-v5.test.ts",
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-tasks-operational-state.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/tasks",
@@ -1770,12 +1772,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/tasks.tsx implements Every unresolved organizer action, blocker and due item. through src/lib/organisation-backend-contract.ts, src/lib/admin-tasks-v5.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "The Tasks UI implements canonical legacy queue reads but the required rich operational-state projection is incomplete: unresolved open tasks without operationalState remain unclassified; actionable, blocked, failed and overdue metrics/filters intentionally display Unknown rather than deriving workflow truth from priority or browser time. No task operationalState JSON contract is emitted by the current task migrations. This is missing server behavior, not just cutover evidence.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Implement domain-evidence-backed operationalState in the canonical task projection, preserving waiting/resolved semantics and all task lifecycle/reconciliation invariants. Add cases for each rich state and mixed legacy/modern rows; do not fabricate workflow state from priority or browser deadlines.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -1784,7 +1785,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": null,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED current-edition-delegations:building",
@@ -2685,9 +2687,10 @@
       "implementationPaths": [
         "src/routes/_authenticated/admin/broadcast-rundown.tsx",
         "src/lib/broadcast-rundown.ts",
-        "src/lib/studio2-broadcast-rundown.ts"
+        "src/lib/studio2-broadcast-rundown.ts",
+        "supabase/migrations/20260912141000_studio2_advanced_broadcast_workflows.sql"
       ],
-      "migrationOwner": "live-production",
+      "migrationOwner": "production",
       "migrationEvidence": [],
       "apiCommandOwner": {
         "capability": "broadcast.read",
@@ -2703,7 +2706,8 @@
         "src/lib/studio2-broadcast-rundown.test.ts",
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/studio2-broadcast-rundown-integration.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/control-room",
@@ -2713,12 +2717,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/broadcast-rundown.tsx implements Build the live show rundown and cue sequence. through src/lib/broadcast-rundown.ts, src/lib/studio2-broadcast-rundown.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "The rundown RPCs do enforce expected revision and row locking, but save/lock/production segment transitions have no stable operation identity, durable operation receipt or retry replay. The latest definitions in 20260912141000 accept show ID/revision/action/reason only; a successful mutation with a lost response cannot replay its canonical receipt. Existing server CAS is real, but does not complete the required V3 operation envelope.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Add the missing stable idempotency/receipt/recovery envelope around existing atomic revision-guarded rundown commands without weakening locks or transition rules. Regress lost-response replay, stale revision and no duplicate production transition.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -2727,7 +2730,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": null,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED live-review-simulation-lab:building",
@@ -3033,9 +3037,11 @@
       "implementationPaths": [
         "src/routes/confirmations/admin/responses.tsx",
         "src/integrations/confirmations/admin.ts",
-        "src/integrations/confirmations/client.ts"
+        "src/integrations/confirmations/client.ts",
+        "src/components/admin/ConfirmationAccessSettingsSheet.tsx",
+        "src/routes/confirmations/admin/responses/$id.tsx"
       ],
-      "migrationOwner": "delegations",
+      "migrationOwner": "confirmation",
       "migrationEvidence": [],
       "apiCommandOwner": {
         "capability": "confirmation.read",
@@ -3063,7 +3069,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-confirmation-access-review.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/control",
@@ -3073,12 +3080,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/confirmations/admin/responses.tsx implements Review submitted delegation confirmations and entry details. through src/integrations/confirmations/admin.ts, src/integrations/confirmations/client.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "The queue and governed Entry/Selection review are implemented, but its response-detail controls still expose legacy editing and deletion boundaries. ConfirmationAccessSettingsSheet explicitly states its control RPC lacks canonical CAS/idempotency/receipt parity; responses/$id.tsx deletion explicitly is not a versioned rollback operation.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Implement canonical response-access and deletion/rollback commands with expected version, stable idempotency, durable receipts and operation readback; preserve immutable entry/review history and restrict rollback effects. Regress stale review, duplicate retry and ambiguous response outcomes.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -3087,7 +3093,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": null,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED delegation-next-in-line:building",
@@ -3348,7 +3355,7 @@
       "implementationPaths": [
         "src/routes/confirmations/admin/recovery-codes.tsx"
       ],
-      "migrationOwner": "delegations",
+      "migrationOwner": "confirmation",
       "migrationEvidence": [],
       "apiCommandOwner": {
         "capability": "confirmation.read",
@@ -3357,7 +3364,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-confirmation-secondary-context.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/confirmations/admin/recovery-codes",
@@ -3367,12 +3375,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/confirmations/admin/recovery-codes.tsx implements Manage recovery codes and confirmation access. through the existing route/component authority. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "Recovery Access is fail-closed even after selecting an edition because the legacy recovery-code RPC cannot accept exact edition scope. The route deliberately never calls loadConfirmationRecoveryCodes and displays that a server update is required. Correct isolation exists, but the required scoped recovery read is missing.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Implement an exact-edition authorized recovery-credential read on the server, then load only that edition on the route. Regress cross-edition hostile reads, no-edition denial and no browser caching of unrelated credentials; never remove the current fail-closed guard.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -3381,7 +3388,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": null,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED delegation-submission-history:building",
@@ -3395,9 +3403,10 @@
       "implementationPaths": [
         "src/routes/_authenticated/admin/submission-versions.tsx",
         "src/integrations/confirmations/client.ts",
-        "src/lib/submission-versioning.ts"
+        "src/lib/submission-versioning.ts",
+        "src/components/admin/ConfirmationVersionHistory.tsx"
       ],
-      "migrationOwner": "delegations",
+      "migrationOwner": "confirmation",
       "migrationEvidence": [],
       "apiCommandOwner": {
         "capability": "delegation.read",
@@ -3411,7 +3420,8 @@
         "src/lib/submission-versioning.test.ts",
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-submission-restore-review.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/submission-versions",
@@ -3421,12 +3431,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/submission-versions.tsx implements Inspect confirmation versions and restoration history. through src/integrations/confirmations/client.ts, src/lib/submission-versioning.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "Version browsing exists and the client rechecks history before restore, but ConfirmationVersionHistory explicitly says the legacy restore authority has no canonical idempotency key or operation receipt. Its final read-to-restore window and uncertain outcome cannot be certified by source visibility alone.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Implement a version-bound idempotent restore command returning durable receipt and canonical new history version. Preserve the rule that Entry review decisions are not restored and changed songs return to pending review. Regress newer-version conflict, replay and lost-response recovery.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -3435,7 +3444,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": null,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED delegation-edition-links:building",
@@ -3631,9 +3641,12 @@
       "expectedOwner": "voting.read",
       "currentDeclaredStatus": "building",
       "implementationPaths": [
-        "src/routes/televoting/admin/rounds.tsx"
+        "src/routes/televoting/admin/rounds.tsx",
+        "src/components/televoting/VotingRoundsView.tsx",
+        "src/integrations/televoting/rounds.server.ts",
+        "src/integrations/televoting/entries.server.ts"
       ],
-      "migrationOwner": "voting-results",
+      "migrationOwner": "voting-results / integration",
       "migrationEvidence": [],
       "apiCommandOwner": {
         "capability": "voting.read",
@@ -3642,7 +3655,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-voting-rounds-context.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/control",
@@ -3652,12 +3666,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/televoting/admin/rounds.tsx implements Create, schedule and manage public voting rounds and their eligible entries. through the existing route/component authority. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "Round status preview/apply is genuinely versioned/idempotent/receipted, but create/rename/delete and entry configuration are not covered by that proof. rounds.server.ts inserts a draft, upserts its binding, then separately synchronizes participants; deletion checks draft state then deletes the round and binding in separate calls. Those commands lack reviewed versions/stable operation identity and can leave partial state or race a status change. entries.server.ts likewise performs consequential membership/reordering writes separately. Therefore the whole Rounds & Entries capability remains partial despite correct window-transition authority.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Implement canonical atomic create/rename/delete and entry-membership commands with exact edition/round binding, reviewed versions, stable idempotency, durable receipts and readback; preserve the existing governed status preview/apply path and draft-only deletion guard.",
+        "Regress lost response after draft insert/before binding, concurrent draft-to-open versus delete, partial membership update, replay and hostile edition/round substitution. Complete focused capability acceptance before promoting cutover."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -3666,7 +3679,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": null,
+      "classificationAudit": "Deepened after filesystem restoration: server CRUD and membership authority inspected separately from the already governed status-transition path."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED voting-jury:building",
@@ -3874,9 +3888,10 @@
       "expectedOwner": "voting.read",
       "currentDeclaredStatus": "building",
       "implementationPaths": [
-        "src/routes/televoting/admin/integrity.tsx"
+        "src/routes/televoting/admin/integrity.tsx",
+        "src/components/televoting/IntegrityReviewView.tsx"
       ],
-      "migrationOwner": "voting-results",
+      "migrationOwner": "System #686",
       "migrationEvidence": [],
       "apiCommandOwner": {
         "capability": "voting.read",
@@ -3885,7 +3900,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-ballot-moderation-review.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/televoting/admin/integrity",
@@ -3895,12 +3911,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/televoting/admin/integrity.tsx implements Review flagged public ballots and organizer moderation decisions. through the existing route/component authority. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "IntegrityReviewView explicitly acknowledges that exact Solaris-edition binding, atomic compare-and-set and operation receipts remain System-owned under #686. Its client review is implemented but is not those missing server guarantees.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Complete System #686 with canonical edition-scoped ballot moderation commands, CAS, idempotency and receipts. Regress cross-edition target substitution, changed reviewed ballots and same-operation replay without deleting ballot evidence.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -3909,7 +3924,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": 686,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED voting-public-results:building",
@@ -4078,7 +4094,8 @@
         "src/integrations/televoting/combined.functions.ts",
         "src/integrations/televoting/combined-math.ts",
         "src/integrations/televoting/entries.functions.ts",
-        "src/integrations/televoting/rounds.functions.ts"
+        "src/integrations/televoting/rounds.functions.ts",
+        "src/integrations/televoting/combined.server.ts"
       ],
       "migrationOwner": "voting-results",
       "migrationEvidence": [],
@@ -4091,7 +4108,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-combined-read-purity.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/televoting/admin/combined",
@@ -4101,12 +4119,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/televoting/admin/combined.tsx implements Inspect how jury and public voting are combined. through src/integrations/televoting/admin-auth.functions.ts, src/integrations/televoting/combined.functions.ts, src/integrations/televoting/combined-math.ts, src/integrations/televoting/entries.functions.ts, src/integrations/televoting/rounds.functions.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "Combined reads were made observational, but the mutable aggregation commands are still a legacy global authority. The executable source contract explicitly confirms combined.functions.ts has no expectedAggregationVersion or idempotencyKey; participant synchronization, recalculation and status operations remain consequential multi-step calls.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Implement exact-edition versioned/idempotent Combined aggregation commands and receipts around existing canonical participant derivation; preserve read purity. Regress stale aggregation/config version, atomic recalculation/publication, duplicate replay and uncertain-outcome readback.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -4115,7 +4132,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": null,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED voting-result-integrity:building",
@@ -4379,9 +4397,11 @@
       "currentDeclaredStatus": "building",
       "implementationPaths": [
         "src/routes/_authenticated/admin/integrity-investigations.tsx",
-        "src/lib/integrity.ts"
+        "src/lib/integrity.ts",
+        "src/components/admin/IntegrityFindingPublicationReview.tsx",
+        "src/components/admin/IntegrityResolutionDecisionReview.tsx"
       ],
-      "migrationOwner": "governance",
+      "migrationOwner": "System #1102",
       "migrationEvidence": [],
       "apiCommandOwner": {
         "capability": "integrity.read",
@@ -4392,7 +4412,9 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-trust-investigations-building-evidence.contract.test.ts",
+        "src/lib/v3-organizer-integrity-resolution-review.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/more",
@@ -4402,12 +4424,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/integrity-investigations.tsx implements Triage reports, review cases and record findings. through src/lib/integrity.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "The triage/read workspaces exist, but formal finding/precedent publication still needs System #1102 CAS, stable idempotency, operation receipts and uncertain-outcome recovery. Resolution/sanction/appeal decision reviews likewise retain missing canonical authority under #960. Existing client fingerprint revalidation is not atomic server command authority.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Implement the #1102 finding/publication and #960 resolution command boundaries with reviewed snapshot/version binding, required independence/fresh-auth checks, stable idempotency and receipts. Preserve immutable evidence, appeal and reporter-visibility rules; regress races, replay and uncertain outcomes.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -4416,7 +4437,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": 1102,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED trust-rule-rulings:building",
@@ -4532,9 +4554,10 @@
       "currentDeclaredStatus": "building",
       "implementationPaths": [
         "src/routes/_authenticated/admin/integrity-evidence.tsx",
-        "src/lib/integrity-evidence.ts"
+        "src/lib/integrity-evidence.ts",
+        "supabase/functions/integrity-evidence-lifecycle/index.ts"
       ],
-      "migrationOwner": "governance",
+      "migrationOwner": "integrity",
       "migrationEvidence": [],
       "apiCommandOwner": {
         "capability": "integrity.read",
@@ -4549,7 +4572,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-evidence-deletion-confirmation.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/integrity-evidence",
@@ -4559,12 +4583,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/integrity-evidence.tsx implements Manage evidence access, retention and deletion lifecycle. through src/lib/integrity-evidence.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "Evidence deletion has deliberate typed Tier 4 UI confirmation, but the current integrity-evidence-lifecycle Edge Function uses service.storage and admin_finalize_integrity_evidence_deletion without studio2_require_fresh_auth or studio2_claim_operation. The regression explicitly prevents representing this as canonical Tier 4 command authority.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Implement canonical Tier 4 evidence deletion authorization/preflight, fresh-auth and durable command identity/receipt across storage deletion and DB finalization, with recoverable partial failure. Preserve retention, disclosure, audit and dependency invariants; regress lost responses and retries without repeated destructive action.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -4573,7 +4596,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": null,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED trust-disclosure:building",
@@ -4645,7 +4669,7 @@
         "src/lib/integrity-identity.ts",
         "src/lib/integrity.ts"
       ],
-      "migrationOwner": "governance",
+      "migrationOwner": "integrity",
       "migrationEvidence": [],
       "apiCommandOwner": {
         "capability": "integrity.read",
@@ -4658,7 +4682,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-identity-break-glass.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/integrity-identity",
@@ -4668,12 +4693,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/integrity-identity.tsx implements Control sealed-identity break-glass access. through src/lib/integrity-identity.ts, src/lib/integrity.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "The legacy sealed-identity flow has requester/second-person/expiry/one-time boundaries, but its regression explicitly says it is not canonical V3 fresh-auth authority: the API has neither studio2_require_fresh_auth nor studio2_claim_operation. The typed client review does not supply that missing server contract.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Implement fresh-auth-bound Tier 4 identity disclosure commands and durable operation receipts while retaining requester separation, second-person approval, exact case purpose, expiry and one-time access. Regress stale/expired approvals, actor substitution, replay and uncertain outcome without a second disclosure.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -4682,7 +4706,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": null,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED trust-rules-manager:building",
@@ -4695,9 +4720,10 @@
       "currentDeclaredStatus": "building",
       "implementationPaths": [
         "src/routes/_authenticated/admin/rules-manager.tsx",
-        "src/lib/rules-governance.ts"
+        "src/lib/rules-governance.ts",
+        "src/components/admin/RulebookPublicationManifest.tsx"
       ],
-      "migrationOwner": "governance",
+      "migrationOwner": "System #953",
       "migrationEvidence": [],
       "apiCommandOwner": {
         "capability": "rules.read",
@@ -4715,7 +4741,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-rulebook-publication-manifest.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/more",
@@ -4725,12 +4752,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/rules-manager.tsx implements Draft, validate and publish governed rulebook releases. through src/lib/rules-governance.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "The exact rulebook manifest and legacy draft/base-current/no-empty-release invariants exist, but RulebookPublicationManifest states that canonical manifest-bound preflight, stale-state protection, idempotency and receipt remain System #953 work. Its review component is deliberately observational rather than a new publication authority.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Implement #953 as canonical manifest/snapshot-bound versioned rulebook publication with idempotency and receipt. Preserve immutable releases, current base/version constraints, recorded changes and publication audit; regress reviewed-manifest drift and retry.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -4739,7 +4765,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": 953,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED trust-interpretations:building",
@@ -4752,9 +4779,11 @@
       "currentDeclaredStatus": "building",
       "implementationPaths": [
         "src/routes/_authenticated/admin/rule-interpretations.tsx",
-        "src/lib/rule-interpretations.ts"
+        "src/lib/rule-interpretations.ts",
+        "src/components/admin/RuleInterpretationPublicationReview.tsx",
+        "src/components/admin/RuleInterpretationSupersessionReview.tsx"
       ],
-      "migrationOwner": "governance",
+      "migrationOwner": "System #956",
       "migrationEvidence": [],
       "apiCommandOwner": {
         "capability": "rules.read",
@@ -4766,7 +4795,9 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-rule-interpretation-publication-review.contract.test.ts",
+        "src/lib/v3-organizer-interpretation-supersession-review.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/more",
@@ -4776,12 +4807,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/rule-interpretations.tsx implements Publish official rule clarifications and precedent. through src/lib/rule-interpretations.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "Official interpretation publication and supersession review exist, but both review components explicitly leave snapshot-bound preflight, stale-state protection, idempotency and receipts to System #956. Existing legacy RPCs apply immediately after UI confirmation.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Implement #956 canonical versioned publish/supersede commands bound to exact current/replacement snapshots, stable idempotency and receipt. Preserve draft-only publication and immutable historical interpretations; regress stale replacement, duplicate replay and public pointer correctness.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -4790,7 +4820,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": 956,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED trust-public-rules:building",
@@ -5113,9 +5144,10 @@
       "currentDeclaredStatus": "building",
       "implementationPaths": [
         "src/routes/_authenticated/admin/country-accounts.tsx",
-        "src/lib/country-account.ts"
+        "src/lib/country-account.ts",
+        "src/components/admin/AdminCountryPasswordPanel.tsx"
       ],
-      "migrationOwner": "delegations",
+      "migrationOwner": "account",
       "migrationEvidence": [
         "supabase/migrations/20260811183000_country_accounts_and_terra_solaris_profiles.sql",
         "supabase/migrations/20260919092023_security_definer_internal_helper_hardening.sql",
@@ -5136,7 +5168,9 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-country-account-moderation-review.contract.test.ts",
+        "src/lib/v3-organizer-country-password-review-boundary.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/country-accounts",
@@ -5146,12 +5180,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/country-accounts.tsx implements Manage the sign-in account for each delegation. through src/lib/country-account.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "Country status review reloads the exact directory row, but the route explicitly says the status RPC is not version-bound/idempotent and still has a narrow race. AdminCountryPasswordPanel also states replacement neither revokes existing sessions nor provides a versioned/idempotent credential-change receipt. These are implementation gaps, not missing metadata.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Implement canonical version-bound account-access and credential replacement commands with durable receipts, idempotency and the required session-revocation policy. Preserve exact country/actor scope and secrecy; regress status race, repeated password command, foreign-account targeting and ambiguous response.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -5160,7 +5193,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": null,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED workspace-flag-qa:building",
@@ -5174,7 +5208,7 @@
       "implementationPaths": [
         "src/routes/_authenticated/admin/flag-audit.tsx"
       ],
-      "migrationOwner": "product-qa",
+      "migrationOwner": "country-identity",
       "migrationEvidence": [],
       "apiCommandOwner": {
         "capability": "edition.read",
@@ -5183,7 +5217,9 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-flag-qa-building-evidence.contract.test.ts",
+        "src/lib/v3-organizer-flag-crop-review-boundary.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/flag-audit",
@@ -5193,12 +5229,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/flag-audit.tsx implements Review originals and adjust the shared 3:2 country flag crop. through the existing route/component authority. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "The flag crop review checks exact source identity but explicitly retains the legacy direct country metadata write and does not claim a versioned, idempotent or receipted System operation. Its building-evidence and crop-review contracts record that boundary.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Add the canonical exact-source/version flag-crop command with stable idempotency, receipt and readback around existing metadata authority. Preserve shared crop/clamping behavior and original asset identity; regress changed flag source, concurrent crop and replay.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -5207,7 +5242,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": null,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED workspace-hod-history:building",
@@ -5385,9 +5421,10 @@
       "currentDeclaredStatus": "building",
       "implementationPaths": [
         "src/routes/_authenticated/admin/fantasy.tsx",
-        "src/lib/studio2-feature-flags.ts"
+        "src/lib/studio2-feature-flags.ts",
+        "supabase/migrations/20260920105233_fantasy_entity_identity_fix.sql"
       ],
-      "migrationOwner": "engagement-editorial",
+      "migrationOwner": "System #630",
       "migrationEvidence": [],
       "apiCommandOwner": {
         "capability": "edition.read",
@@ -5400,7 +5437,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-fantasy-context.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/fantasy",
@@ -5410,12 +5448,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/fantasy.tsx implements Configure roster costs, budget, lock window and result scoring. through src/lib/studio2-feature-flags.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "Exact edition/show context and current SQL row locks are implemented, but the owner contract explicitly leaves the V3 operation envelope to System #630. studio2_save_fantasy_game and score_fantasy_game remain the existing save/score authority rather than reviewed version/idempotency/receipt commands.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Complete #630 around existing Fantasy save/score authority with exact reviewed version, stable idempotency and receipt/recovery. Preserve canonical entity identity, roster lock/budget rules, result source and scoring semantics; regress stale game/config/result and repeated scoring.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -5424,7 +5461,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": 630,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED workspace-command-assistant:building",
@@ -5586,9 +5624,11 @@
       "currentDeclaredStatus": "building",
       "implementationPaths": [
         "src/routes/_authenticated/admin/public-ux.tsx",
-        "src/lib/public-ux-metrics.ts"
+        "src/lib/public-ux-metrics.ts",
+        "src/components/admin/PublicUxActionability.tsx",
+        "src/lib/public-ux-findings.ts"
       ],
-      "migrationOwner": "product-qa",
+      "migrationOwner": "System #753",
       "migrationEvidence": [
         "supabase/migrations/20260919201129_public_web_vitals_telemetry.sql"
       ],
@@ -5603,7 +5643,8 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-public-ux-actionability.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/public-ux",
@@ -5613,12 +5654,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/public-ux.tsx implements Review public navigation, search and task-completion telemetry. through src/lib/public-ux-metrics.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "Aggregate navigation/search/task-completion dashboards exist, but canonical backtracking, dead-end, workflow-abandonment and error-class signals are still absent. PublicUxActionability explicitly labels them Unknown and points to System request #753; the partial projection cannot be accepted by changing readiness metadata.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Implement #753 privacy-bounded canonical aggregate signals, schemas and query contracts, then wire actionability to real data. Preserve no-raw-query/session exposure and Unknown on unavailable signals. Regress missing versus true-zero and exact aggregate definitions.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -5627,7 +5667,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": 753,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     },
     {
       "exactFinding": "ORGANIZER_CUTOVER_UNRESOLVED workspace-beta-3-feedback:building",
@@ -5989,7 +6030,7 @@
         "src/lib/platform-operational-mode.ts",
         "src/lib/platform-exit-preflight.functions.ts"
       ],
-      "migrationOwner": "platform",
+      "migrationOwner": "System #1074",
       "migrationEvidence": [
         "supabase/migrations/20261018031000_v3_http409_deterministic_conflicts.sql",
         "supabase/migrations/20261017194000_confirmation_maintenance_readonly_gate.sql",
@@ -6008,7 +6049,9 @@
       "testEvidence": [
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/v3-organizer-system-reminder-scope.contract.test.ts",
+        "src/lib/v3-organizer-o14-registry-evidence.contract.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/system",
@@ -6018,12 +6061,11 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/system.tsx implements Manage deadlines, audit history and maintenance controls. through src/lib/admin-ops.ts, src/lib/admin-schedule.ts, src/lib/platform-operational-mode.ts, src/lib/platform-exit-preflight.functions.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "Platform operating-mode commands are governed, but the custom reminder part remains compatibility CRUD. v3-organizer-system-reminder-scope.contract.test.ts explicitly confirms no studio2_admin_deadline_preview or studio2_apply_admin_deadline; exact-edition read/recheck safety does not close System #1074.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Complete #1074 canonical reminder preview/apply with exact edition, reviewed prior state/version, stable idempotency and durable receipt/readback. Preserve operating-mode controls and canonical domain Tasks; regress scope drift, concurrent completion and uncertain response.",
+        "Execute focused owner regression and exact-edition/capability acceptance before claiming cutover; do not replace the missing server behavior with client checks or metadata promotion."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
@@ -6032,7 +6074,8 @@
         "src/lib/v3-organizer.ts"
       ],
       "validationState": "Source audit only; no hosted query or automated DB execution; common tests identified, not newly run.",
-      "openOwnerIssue": null
+      "openOwnerIssue": 1074,
+      "classificationAudit": "Deepened after filesystem restoration: explicit owner implementation gaps verified against route/component, current SQL or server adapter, and the existing boundary regressions. Source snapshot remains the original candidate."
     }
   ],
   "consequences": [

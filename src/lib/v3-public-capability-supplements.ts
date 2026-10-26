@@ -213,8 +213,8 @@ export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
     classification: "restrict",
     targetArea: "contextual",
     targetRoute: "/terraos-teaser-preview",
-    specificationStatus: "parity",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.terraos-teaser-real-v3-render",
-    migrationEvidence: "Maintenance-only, noindex/nofollow, fixture-backed visual renderer for the TerraOS teaser. It reuses the production V3 Home, Explore and Participate screen components without querying Supabase, reading account state or exposing mutations. Normal product routes remain maintenance-blocked.",
+    migrationEvidence: "src/routes/terraos-teaser-preview.tsx; src/lib/terraos-teaser-preview-access.test.ts; scripts/check-v3-teaser-cutover.ts; src/lib/terraos-teaser-preview.contract.test.ts",
   },
 ] as const satisfies readonly PublicCapabilityMigration[];

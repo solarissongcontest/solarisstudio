@@ -31,6 +31,7 @@ const checks: Check[] = group === "static" ? [
   ...scripts.map(([id, path]): Check => ({ id, group: "static", command: [bun, "--env-file=/dev/null", "run", `scripts/${path}`] })),
   { id: "releaseContracts", group: "static", dependencies: ["productionIsolation"], command: [bun, "--env-file=/dev/null", "test", "src"] },
   { id: "productionBuild", group: "static", dependencies: ["productionIsolation"], command: [bun, "--env-file=/dev/null", "run", "build"] },
+  { id: "teaserRestrictedCutover", group: "static", dependencies: ["productionIsolation", "productionBuild"], command: [bun, "--env-file=/dev/null", "run", "scripts/check-v3-teaser-cutover.ts"], json: true },
   { id: "clientBudget", group: "static", dependencies: ["productionBuild"], command: [bun, "--env-file=/dev/null", "run", "budget:client"] },
   { id: "typecheck", group: "static", dependencies: ["productionBuild"], command: [bun, "--env-file=/dev/null", "x", "tsc", "--noEmit"] },
   { id: "lint", group: "static", command: [bun, "--env-file=/dev/null", "run", "lint:ci"] },
