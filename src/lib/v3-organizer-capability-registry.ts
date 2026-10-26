@@ -133,7 +133,7 @@ function targetDomainFor(id: string) {
 }
 
 function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStatus"] {
-  if (id === "workspace-anniversary-settings") return "cutover";
+  if (id === "workspace-anniversary-settings" || id === "operations-communications") return "cutover";
 
   if (
     id === "current-edition-overview" ||
