@@ -142,7 +142,10 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-administration" ||
     id === "workspace-organizer-guide" ||
     id === "workspace-community-moderation" ||
-    id === "workspace-command-assistant"
+    id === "workspace-command-assistant" ||
+    id === "workspace-beta-3-feedback" ||
+    id === "workspace-beta-2-feedback" ||
+    id === "workspace-beta-1-archive"
   ) {
     return "parity";
   }
@@ -213,9 +216,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-fantasy" ||
     id === "workspace-anniversary-settings" ||
     id === "workspace-anniversary-dates" ||
-    id === "workspace-beta-3-feedback" ||
-    id === "workspace-beta-2-feedback" ||
-    id === "workspace-beta-1-archive" ||
+    id === "workspace-acceptance-test" ||
+    id === "workspace-beta-coverage" ||
     id === "workspace-system-health" ||
     id === "workspace-delivery-jobs" ||
     id === "workspace-system-settings"

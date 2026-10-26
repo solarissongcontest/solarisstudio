@@ -83,6 +83,9 @@ describe("V3 Organizer item-specific release evidence", () => {
       "workspace-organizer-guide",
       "workspace-community-moderation",
       "workspace-command-assistant",
+      "workspace-beta-3-feedback",
+      "workspace-beta-2-feedback",
+      "workspace-beta-1-archive",
     ]);
 
     for (const evidence of V3_ORGANIZER_EVIDENCE_CUTOVERS) {

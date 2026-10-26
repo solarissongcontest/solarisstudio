@@ -5,12 +5,14 @@ export type V3OrganizerEvidenceCutover = {
     | "edition.read"
     | "host.read"
     | "story.read"
-    | "community.read";
+    | "community.read"
+    | "rollout.manage";
   proofKind:
     | "canonical-read"
     | "isolated-simulation"
     | "static-context"
-    | "governed-operation";
+    | "governed-operation"
+    | "replacement-read";
   implementationPaths: readonly string[];
   authorityPaths: readonly string[];
   acceptanceTests: readonly string[];
@@ -18,10 +20,11 @@ export type V3OrganizerEvidenceCutover = {
 
 /**
  * Item-specific evidence for Organizer capabilities that are already implemented
- * and can be accepted without inventing a new owner. Mutation-heavy rows are
- * included only where the existing server path proves a stricter manage/action
- * capability, version or operation identity where required, and authoritative
- * readback. Rows whose route-map capability is only shadow metadata stay out.
+ * and can be accepted at parity without inventing a new owner. Mutation-heavy
+ * rows are included only where the existing server path proves a stricter
+ * manage/action capability, version or operation identity where required, and
+ * authoritative readback. Rows whose route-map capability is only shadow
+ * metadata stay out. Production rollout/cutover is tracked separately.
  */
 export const V3_ORGANIZER_EVIDENCE_CUTOVERS = [
   {
@@ -190,6 +193,60 @@ export const V3_ORGANIZER_EVIDENCE_CUTOVERS = [
     acceptanceTests: [
       "src/lib/solaris-command-assistant.test.ts",
       "src/lib/solaris-command-assistant-insights.test.ts",
+      "src/lib/v3-organizer-evidence-cutover.contract.test.ts",
+    ],
+  },
+  {
+    id: "workspace-beta-3-feedback",
+    route: "/admin/beta3-feedback",
+    ownerCapability: "rollout.manage",
+    proofKind: "replacement-read",
+    implementationPaths: [
+      "src/routes/_authenticated/admin/feedback-studies.tsx",
+      "src/routes/_authenticated/admin/beta3-feedback.tsx",
+      "src/lib/public-ux-metrics.ts",
+    ],
+    authorityPaths: [
+      "supabase/migrations/20260919112558_beta3_navigation_feedback.sql",
+      "supabase/migrations/20260919131748_beta3_first_click_evidence.sql",
+    ],
+    acceptanceTests: [
+      "src/lib/v3-organizer-product-qa.contract.test.ts",
+      "src/lib/beta3-release-evidence-contract.test.ts",
+      "src/lib/v3-organizer-evidence-cutover.contract.test.ts",
+    ],
+  },
+  {
+    id: "workspace-beta-2-feedback",
+    route: "/admin/beta2-feedback",
+    ownerCapability: "rollout.manage",
+    proofKind: "replacement-read",
+    implementationPaths: [
+      "src/routes/_authenticated/admin/feedback-studies.tsx",
+      "src/routes/_authenticated/admin/beta2-feedback.tsx",
+    ],
+    authorityPaths: [
+      "supabase/migrations/20260918192719_permission_engine_v2_public_legacy_rls_cutover.sql",
+    ],
+    acceptanceTests: [
+      "src/lib/v3-organizer-product-qa.contract.test.ts",
+      "src/lib/v3-organizer-evidence-cutover.contract.test.ts",
+    ],
+  },
+  {
+    id: "workspace-beta-1-archive",
+    route: "/admin/beta1-feedback",
+    ownerCapability: "rollout.manage",
+    proofKind: "replacement-read",
+    implementationPaths: [
+      "src/routes/_authenticated/admin/feedback-studies.tsx",
+      "src/routes/_authenticated/admin/beta1-feedback.tsx",
+    ],
+    authorityPaths: [
+      "supabase/migrations/20260918192719_permission_engine_v2_public_legacy_rls_cutover.sql",
+    ],
+    acceptanceTests: [
+      "src/lib/v3-organizer-product-qa.contract.test.ts",
       "src/lib/v3-organizer-evidence-cutover.contract.test.ts",
     ],
   },
