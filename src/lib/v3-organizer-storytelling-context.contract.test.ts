@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
+
 const storytelling = readFileSync("src/routes/_authenticated/admin/storytelling.tsx", "utf8");
-const registry = readFileSync("src/lib/v3-organizer-capability-registry.ts", "utf8");
 
 describe("V3 Organizer Storytelling edition context", () => {
   it("never substitutes the newest edition for missing Organizer scope", () => {
@@ -26,7 +27,12 @@ describe("V3 Organizer Storytelling edition context", () => {
     expect(storytelling).toContain("enabled: Boolean(resolvedEditionId) && view === 'anniversary'");
   });
 
-  it("records Storytelling as building without claiming parity or cutover", () => {
-    expect(registry).toContain('id === "current-edition-storytelling"');
+  it("accepts Storytelling only after story.read ownership and cutover evidence are explicit", () => {
+    const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
+      (item) => item.legacyId === "current-edition-storytelling",
+    );
+    expect(capability).toBeDefined();
+    expect(capability?.ownerCapability).toBe("story.read");
+    expect(capability?.migrationStatus).toBe("cutover");
   });
 });

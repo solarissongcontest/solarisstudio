@@ -30,8 +30,6 @@ const systemSettingsSafety = readFileSync(
 );
 
 const IMPLEMENTED_WORKSPACE_CAPABILITIES = [
-  "workspace-administration",
-  "workspace-organizer-guide",
   "workspace-hod-history",
   "workspace-system-health",
   "workspace-delivery-jobs",
@@ -39,7 +37,7 @@ const IMPLEMENTED_WORKSPACE_CAPABILITIES = [
 ] as const;
 
 describe("V3 Organizer implemented workspace building evidence", () => {
-  it("reports the implemented workspace surfaces as building without parity inflation", () => {
+  it("keeps workspace slices with unresolved implementation boundaries at building", () => {
     const byId = new Map(
       V3_ORGANIZER_CAPABILITY_REGISTRY.map((item) => [item.legacyId, item]),
     );
@@ -52,7 +50,12 @@ describe("V3 Organizer implemented workspace building evidence", () => {
     }
   });
 
-  it("keeps Administration and Organizer Guide contextual and observational", () => {
+  it("records Administration and Organizer Guide as accepted contextual cutovers", () => {
+    const byId = new Map(
+      V3_ORGANIZER_CAPABILITY_REGISTRY.map((item) => [item.legacyId, item]),
+    );
+    expect(byId.get("workspace-administration")?.migrationStatus).toBe("cutover");
+    expect(byId.get("workspace-organizer-guide")?.migrationStatus).toBe("cutover");
     expect(administration).toContain('title="More"');
     expect(administration).toContain("All Organizer tools");
     expect(administration).not.toContain("useMutation(");

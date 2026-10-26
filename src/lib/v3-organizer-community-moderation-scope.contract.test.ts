@@ -1,11 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
+
 const route = readFileSync(
   "src/routes/_authenticated/admin/community-moderation.tsx",
   "utf8",
 );
-const registry = readFileSync("src/lib/v3-organizer-capability-registry.ts", "utf8");
 
 describe("V3 Organizer Community Moderation scope", () => {
   it("labels Community identity as a global public-identity scope", () => {
@@ -34,7 +35,12 @@ describe("V3 Organizer Community Moderation scope", () => {
     expect(route).toContain("The Organizer decision is written to the canonical audit log.");
   });
 
-  it("records the capability as building without claiming parity", () => {
-    expect(registry).toContain('id === "workspace-community-moderation"');
+  it("accepts the capability only after community.read ownership and governed mutation evidence are explicit", () => {
+    const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
+      (item) => item.legacyId === "workspace-community-moderation",
+    );
+    expect(capability).toBeDefined();
+    expect(capability?.ownerCapability).toBe("community.read");
+    expect(capability?.migrationStatus).toBe("cutover");
   });
 });
