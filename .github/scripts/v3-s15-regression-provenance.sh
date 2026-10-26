@@ -33,7 +33,7 @@ directory = Path(sys.argv[1])
 identity = (directory / "identity-before.log").read_text()
 receipt = (directory / "receipt-before.log").read_text()
 for output, count in [(identity, 3), (receipt, 2)]:
-    if not re.search(rf"\\b{count} fail\\b", output):
+    if not re.search(rf"(?<![0-9]){count} fail(?![a-z])", output):
         raise SystemExit("Historical proof failed for an unexpected reason; inspect stored logs")
     if any(marker in output for marker in ["Cannot find module", "Cannot find package", "SyntaxError", "is not a function"]):
         raise SystemExit("Historical proof encountered a tooling failure")
