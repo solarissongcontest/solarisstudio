@@ -1,9 +1,9 @@
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
-import {
-  authenticatedIdentityQueryKey,
-  createAccountCacheIsolationHandler,
-} from "./account-cache-isolation";
+import * as isolation from "./account-cache-isolation";
+const { createAccountCacheIsolationHandler } = isolation;
+// The historical route used this exact unscoped key. Keep the regression executable on its baseline.
+const authenticatedIdentityQueryKey = isolation.authenticatedIdentityQueryKey ?? (() => ["authenticated-identity-gate"] as const);
 
 function fixture() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
