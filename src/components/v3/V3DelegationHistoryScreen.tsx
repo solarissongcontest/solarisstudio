@@ -1,8 +1,12 @@
 import { Archive, ShieldCheck } from "lucide-react";
 
 import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
-import { editionLabel, useEditions } from "@/lib/data";
-import { useOwnedHodHistory, type OwnedHodEditionStatus } from "@/lib/hod-self-history";
+import { editionLabel, useCountries, useEditions } from "@/lib/data";
+import {
+  useOwnedHodClaims,
+  useOwnedHodHistory,
+  type OwnedHodEditionStatus,
+} from "@/lib/hod-self-history";
 import {
   V3ActionCard,
   V3Screen,
@@ -18,6 +22,14 @@ function membershipLabel(status: OwnedHodEditionStatus) {
   return "HOD unknown";
 }
 
+type HistoricalMembership = {
+  countryId: string;
+  editionId: string;
+  status: OwnedHodEditionStatus;
+  editionNumber: number | null;
+  editionName: string;
+};
+
 export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
   const workspace = useMySolaris();
   const ownsIdentity = workspace.user?.id === viewerId;
@@ -25,11 +37,20 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
     ownsIdentity && workspace.countryAccount?.access.userId === viewerId
       ? workspace.countryAccount
       : null;
-  const countryId = countryAccount?.country?.id ?? null;
+  const activeCountryId = countryAccount?.country?.id ?? null;
   const editions = useEditions();
-  const history = useOwnedHodHistory(ownsIdentity && Boolean(countryId), viewerId);
+  const countries = useCountries();
+  const currentHistory = useOwnedHodHistory(
+    ownsIdentity && Boolean(activeCountryId),
+    viewerId,
+  );
+  const historicalClaims = useOwnedHodClaims(viewerId, ownsIdentity);
 
-  if (workspace.isLoading || (ownsIdentity && history.isPending)) {
+  const currentHistoryPending = Boolean(activeCountryId) && currentHistory.isPending;
+  if (
+    workspace.isLoading ||
+    (ownsIdentity && (historicalClaims.isPending || currentHistoryPending))
+  ) {
     return (
       <V3Screen>
         <V3ScreenHeader
@@ -60,28 +81,10 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
     );
   }
 
-  if (!countryAccount?.country || !countryId) {
-    return (
-      <V3Screen>
-        <V3ScreenHeader
-          kicker="Me · History"
-          title="No delegation history"
-          description="This account is not currently bound to a Solaris delegation."
-        />
-        <V3ActionCard
-          title="Back to Me"
-          description="Open your Solaris identity and account overview"
-          tone="neutral"
-          to="/my-solaris"
-        />
-      </V3Screen>
-    );
-  }
-
-  const historyData = history.data;
-  const scoped = !history.isError && historyData?.country_id === countryId;
-
-  if (!scoped || !historyData) {
+  const currentHistoryScoped =
+    !activeCountryId ||
+    (!currentHistory.isError && currentHistory.data?.country_id === activeCountryId);
+  if (historicalClaims.isError || !currentHistoryScoped) {
     return (
       <V3Screen>
         <V3ScreenHeader
@@ -96,7 +99,7 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
               <p className="text-sm font-semibold">Private data stayed closed</p>
               <p className="mt-1 text-xs leading-5 text-white/48">
                 History is only rendered when the authenticated viewer and returned delegation both
-                match the active account.
+                match the active account. Organizer access never widens this Me projection.
               </p>
             </div>
           </div>
@@ -105,25 +108,48 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
     );
   }
 
-  const rows = [...historyData.editions].sort(
-    (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
+  const membershipByKey = new Map<string, HistoricalMembership>();
+  for (const item of currentHistory.data?.editions ?? []) {
+    if (!activeCountryId) continue;
+    membershipByKey.set(`${activeCountryId}:${item.edition_id}`, {
+      countryId: activeCountryId,
+      editionId: item.edition_id,
+      status: item.status,
+      editionNumber: item.edition_number,
+      editionName: item.edition_name,
+    });
+  }
+  for (const claim of historicalClaims.data ?? []) {
+    const edition = (editions.data ?? []).find((item) => item.id === claim.edition_id);
+    membershipByKey.set(`${claim.country_id}:${claim.edition_id}`, {
+      countryId: claim.country_id,
+      editionId: claim.edition_id,
+      status: claim.status,
+      editionNumber: edition?.edition_number ?? null,
+      editionName: edition ? editionLabel(edition) : "Historical edition",
+    });
+  }
+
+  const rows = [...membershipByKey.values()].sort(
+    (a, b) => (b.editionNumber ?? -1) - (a.editionNumber ?? -1),
   );
   const editionById = new Map((editions.data ?? []).map((edition) => [edition.id, edition]));
+  const countryById = new Map((countries.data ?? []).map((country) => [country.id, country]));
 
   return (
     <V3Screen>
       <V3ScreenHeader
         kicker="Me · History"
-        title={`${countryAccount.country.name} history`}
-        description="Your private delegation participation and HOD history from Solaris's caller-scoped history source."
+        title="Delegation history"
+        description="Past editions, delegations and HOD roles from caller-scoped Solaris history."
       />
 
       <V3Section
-        title="Recorded editions"
+        title="Recorded memberships"
         meta={
           rows.length ? (
             <V3StatusChip tone="success">
-              {rows.length} {rows.length === 1 ? "edition" : "editions"}
+              {rows.length} {rows.length === 1 ? "membership" : "memberships"}
             </V3StatusChip>
           ) : undefined
         }
@@ -131,16 +157,21 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
         {rows.length ? (
           <div className="grid gap-3 sm:grid-cols-2">
             {rows.map((item) => {
-              const edition = editionById.get(item.edition_id);
-              const canonicalLabel = edition ? editionLabel(edition) : item.edition_name;
+              const edition = editionById.get(item.editionId);
+              const country = countryById.get(item.countryId);
+              const canonicalEditionLabel = edition ? editionLabel(edition) : item.editionName;
               const href = edition?.slug ? `/editions/${edition.slug}` : "/editions";
               const mine = item.status === "mine";
+              const countryLabel =
+                country?.name ??
+                (item.countryId === activeCountryId ? countryAccount?.country?.name : null) ??
+                "Historical delegation";
 
               return (
                 <V3ActionCard
-                  key={item.edition_id}
-                  title={canonicalLabel}
-                  description="Confirmed delegation participation"
+                  key={`${item.countryId}:${item.editionId}`}
+                  title={canonicalEditionLabel}
+                  description={countryLabel}
                   icon={Archive}
                   tone="neutral"
                   to={href}
@@ -155,9 +186,9 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
           </div>
         ) : (
           <V3Surface className="p-4">
-            <p className="text-sm font-semibold">No recorded delegation editions</p>
+            <p className="text-sm font-semibold">No recorded delegation memberships</p>
             <p className="mt-1 text-xs leading-5 text-white/48">
-              Solaris has no confirmed edition participation for this delegation yet.
+              Solaris has no caller-linked delegation history for this account yet.
             </p>
           </V3Surface>
         )}
