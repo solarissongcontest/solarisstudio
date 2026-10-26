@@ -158,6 +158,12 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "src/lib/v3-s15-community-profile-moderation-consequence.test.ts",
     ".github/scripts/v3-s15-community-profile-moderation-consequence-rehearsal.sh",
   ],
+  "incident.changed": [
+    "supabase/migrations/20261019221400_v3_incident_command_authority.sql",
+    "supabase/migrations/20261019221430_v3_incident_task_reconciliation.sql",
+    "src/lib/v3-s15-incident-consequence-runtime.test.ts",
+    ".github/scripts/v3-s15-incident-consequence-rehearsal.sh",
+  ],
   "media.reviewed": [
     "supabase/migrations/20261016050000_v3_s5_media_review_consequences.sql",
     "src/lib/v3-s5-media-consequences.test.ts",
