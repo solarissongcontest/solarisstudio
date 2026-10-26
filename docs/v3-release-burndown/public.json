@@ -1,0 +1,1680 @@
+{
+  "schemaVersion": 1,
+  "candidateSha": "96b76574b86f24c6f9ed5089ec853759683d7ab6",
+  "lane": "public",
+  "completeInventory": true,
+  "total": 43,
+  "classificationTotals": {
+    "implemented_evidence_missing": 36,
+    "partially_implemented": 4,
+    "obsolete_replaced": 2,
+    "not_implemented": 1
+  },
+  "executionLimitation": "Managed workspace unavailable during initial audit. No hosted DB/read/test was contacted; readiness remains unchanged. Native runtime source presence is distinct from cutover acceptance.",
+  "findings": [
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED participant-view:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "participant-view",
+      "route": "/participate",
+      "domain": "participation",
+      "expectedOwners": [
+        "participation",
+        "task"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/components/v3/V3PrimaryRouteGate.tsx",
+        "src/components/v3/V3ParticipateScreen.tsx",
+        "src/integrations/v3/primary-surface-source.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "participation",
+          "task"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "getV3PrimarySurfaceBundle; server bootstrap participation/task projection",
+      "testEvidence": [
+        "src/lib/v3-primary-route-cutover.integration.test.ts",
+        "src/lib/v3-participant-voting-overview.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Installed-app Participate renders a server bundle and responsibility progress; SSR/public-web/rollout-failure legacy paths are deliberate rollback, not a second domain authority.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED entry:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "entry",
+      "route": "/participate",
+      "domain": "entry",
+      "expectedOwners": [
+        "entry",
+        "media"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/_authenticated/my-solaris/entry.tsx",
+        "src/components/v3/V3EntryRouteGate.tsx",
+        "src/integrations/v3/entry-actions.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "entry",
+          "media"
+        ],
+        "implementationMigration": "supabase/migrations/20261014050000_v3_entry_cutover.sql"
+      },
+      "apiCommandOwner": "getV3EntryBundle; canonical versioned entry actions",
+      "testEvidence": [
+        "src/lib/v3-entry-cutover.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "The real entry route mounts V3EntryRouteGate, delegates edit/review/correction to server actions, and retains legacy rollback.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED participant-voting-overview:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "participant-voting-overview",
+      "route": "/participate",
+      "domain": "jury",
+      "expectedOwners": [
+        "jury",
+        "televote",
+        "participation"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/components/v3/V3ParticipateScreen.tsx",
+        "src/integrations/v3/primary-surface-source.server.ts",
+        "src/routes/_authenticated/my-solaris/voting.tsx"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "jury",
+          "televote",
+          "participation"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "getV3PrimarySurfaceBundle; canonical jury/televote responsibility sources",
+      "testEvidence": [
+        "src/lib/v3-participant-voting-overview-cutover.contract.test.ts",
+        "src/lib/v3-participant-voting-overview.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Merged responsibility overview exists on Participate; the old voting workspace remains a compatibility path rather than owning the V3 responsibility projection.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED official-notices:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "official-notices",
+      "route": "/notifications",
+      "domain": "notice",
+      "expectedOwners": [
+        "notice",
+        "notification"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/_authenticated/my-solaris/notices.tsx",
+        "src/components/v3/V3OfficialNoticesRouteContent.tsx",
+        "src/components/v3/V3OfficialNoticesScreen.tsx"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "notice",
+          "notification"
+        ],
+        "implementationMigration": "supabase/migrations/20261016062000_v3_s5_notice_consequences.sql"
+      },
+      "apiCommandOwner": "loadStudio2RecipientNoticeInbox; canonical acknowledgement operations",
+      "testEvidence": [
+        "src/lib/v3-official-notices.contract.test.ts",
+        "src/lib/v3-official-notices.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "V3 official notice presentation preserves canonical notice state and acknowledgement ownership; publication/delivery consequence implementation exists separately.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED country-profile:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "country-profile",
+      "route": "/countries/:country",
+      "domain": "country-profile",
+      "expectedOwners": [
+        "country-profile",
+        "country-identity"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/countries/$code.tsx",
+        "src/components/v3/V3DelegationRouteGate.tsx",
+        "src/integrations/v3/delegation-source.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "country-profile",
+          "country-identity"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "getV3DelegationBundle",
+      "testEvidence": [
+        "src/lib/v3-delegation-cutover.contract.test.ts",
+        "src/lib/v3-delegation-history-links.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Native country/delegation gate and bounded server source exist; it does not mount the legacy archive graph when V3 owns the route.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED delegation-history:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "delegation-history",
+      "route": "/my-solaris/history",
+      "domain": "delegation",
+      "expectedOwners": [
+        "delegation",
+        "activity"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "partially_implemented",
+      "implementationPaths": [
+        "src/routes/_authenticated/my-solaris/history.tsx",
+        "src/components/mysolaris/modules/MySolarisCountryModule.tsx",
+        "src/components/v3/V3MeScreen.tsx"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "delegation",
+          "activity"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "MySolarisCountryModule; canonical delegation/history sources",
+      "testEvidence": [
+        "src/lib/v3-me-architecture.contract.test.ts",
+        "src/lib/v3-delegation-history-links.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "The exact private target still renders MySolarisCountryModule. V3 country-detail participation history is public entity history, not proof of private Me participation-history cutover.",
+      "replacement": null,
+      "requiredRepair": [
+        "Implement/compose a caller-scoped V3 private participation-history target using existing canonical history source.",
+        "Prove authenticated viewer changes, historical membership visibility, archive links and legacy-route continuity; then accept cutover."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED participant-activity:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "participant-activity",
+      "route": "/my-solaris/activity",
+      "domain": "activity",
+      "expectedOwners": [
+        "activity"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "partially_implemented",
+      "implementationPaths": [
+        "src/routes/_authenticated/my-solaris/activity.tsx",
+        "src/components/v3/V3ParticipantActivityScreen.tsx",
+        "src/integrations/v3/participant-activity.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "activity"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "System activity projection v3_my_participant_activity(p_before,p_limit), caller-bound by auth.uid(); existing adapter cannot substitute content/notification feeds.",
+      "testEvidence": [
+        "src/lib/v3-participant-activity.contract.test.ts",
+        "src/lib/v3-participant-activity.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "The actual route/screen exist, but its server adapter explicitly implements SYSTEM CONTRACT REQUEST #605 as a missing-contract-tolerant RPC call. 42883/PGRST202 yields an unavailable projection; current contract tests assert this fail-closed placeholder. A screen and caller stub do not prove the System RPC exists.",
+      "replacement": null,
+      "requiredRepair": [
+        "Locate or implement actual System-owned recipient-scoped activity projection/RPC using canonical domain events/receipts, with actor/edition/country visibility and historical identity preserved.",
+        "Prove cross-user denial, no organizer-widened disclosure, keyset pagination, superseded/reconciliation state and current-source event identity in local SQL regression.",
+        "Wire existing adapter to proven contract and replace unavailable-placeholder-only acceptance with behavioral runtime proof before readiness promotion."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED predictions:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "predictions",
+      "route": "/predictions",
+      "domain": "prediction",
+      "expectedOwners": [
+        "prediction",
+        "community-profile"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/predictions/index.tsx",
+        "src/components/v3/V3PredictionsRouteContent.tsx",
+        "src/components/v3/V3PredictionsScreen.tsx",
+        "src/lib/prediction-league-data.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "prediction",
+          "community-profile"
+        ],
+        "implementationMigration": "supabase/migrations/20261017113000_v3_s5_prediction_round_consequences.sql"
+      },
+      "apiCommandOwner": "prediction_league_leaderboard; useMyPredictionHistory; existing prediction operation owner",
+      "testEvidence": [
+        "src/lib/v3-predictions-merge.contract.test.ts",
+        "src/lib/v3-predictions.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Merged product is real: legacy League/My predictions redirect to /predictions under rollout, private history must resolve before round-state projection, scoring/version state remains canonical.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED saved-items:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "saved-items",
+      "route": "/my-solaris/saved",
+      "domain": "personal-preference",
+      "expectedOwners": [
+        "personal-preference"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/_authenticated/my-solaris/saved.tsx",
+        "src/components/v3/V3FollowingSavedScreen.tsx",
+        "src/lib/v3-following-saved.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "personal-preference"
+        ],
+        "implementationMigration": "supabase/migrations/20261017103000_v3_s5_preference_consequences.sql"
+      },
+      "apiCommandOwner": "caller-scoped preference writer and canonical following/saved projection",
+      "testEvidence": [
+        "src/lib/v3-following-saved.contract.test.ts",
+        "src/lib/v3-following-saved.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Actual installed-app saved route renders V3FollowingSavedScreen with resolved viewer ID and reuses the canonical preference writer.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED country-account:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "country-account",
+      "route": "/my-solaris/account",
+      "domain": "delegation",
+      "expectedOwners": [
+        "delegation",
+        "identity",
+        "session"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/_authenticated/my-solaris/account.tsx",
+        "src/components/v3/V3AccountSettingsRouteShell.tsx",
+        "src/lib/account-session.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "delegation",
+          "identity",
+          "session"
+        ],
+        "implementationMigration": "supabase/migrations/20261016163000_v3_account_session_management.sql"
+      },
+      "apiCommandOwner": "canonical country-account/session operations; server-authoritative session management",
+      "testEvidence": [
+        "src/lib/v3-account-settings-cutover.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Account/settings uses one V3 route shell around existing account/password/notification owners instead of introducing a second credentials authority.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED confirmations:parity",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "confirmations",
+      "route": "/participate",
+      "domain": "confirmation",
+      "expectedOwners": [
+        "confirmation",
+        "participation"
+      ],
+      "currentDeclaredStatus": "parity",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/confirmations/index.tsx",
+        "src/components/v3/V3ConfirmationRouteShell.tsx",
+        "src/lib/v3-confirmation.functions.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "confirmation",
+          "participation"
+        ],
+        "implementationMigration": "supabase/migrations/20261012010000_v3_confirmation_authority.sql"
+      },
+      "apiCommandOwner": "canonical V3 confirmation submit/edit/receipt server operations",
+      "testEvidence": [
+        "src/lib/v3-confirmation-route-cutover.contract.test.ts",
+        "src/lib/v3-confirmation-authority.contract.test.ts",
+        "src/lib/v3-confirmation-authority-hardening.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Production route has the V3 shell and canonical authority/receipt path, with separate maintenance isolation and security rehearsals.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED jury:parity",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "jury",
+      "route": "/participate",
+      "domain": "jury",
+      "expectedOwners": [
+        "jury",
+        "participation"
+      ],
+      "currentDeclaredStatus": "parity",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/jury-voting.tsx",
+        "src/integrations/v3/jury-actions.server.ts",
+        "src/lib/v3-jury.functions.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "jury",
+          "participation"
+        ],
+        "implementationMigration": "supabase/migrations/20261014132819_v3_jury_reliability_foundation.sql"
+      },
+      "apiCommandOwner": "loadV3JuryDraft/saveV3JuryDraft/submitV3JuryBallot/reconcileV3JurySubmission/lookupV3JuryReceipt",
+      "testEvidence": [
+        "src/lib/v3-s7-jury-ballot-authorization.contract.test.ts",
+        "src/lib/v3-s3-jury-invariants.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Live voting route invokes real V3 server draft/CAS/receipt/reconciliation operations; it explicitly refuses to manufacture V3 receipts for legacy ballots.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED televote:parity",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "televote",
+      "route": "/participate",
+      "domain": "televote",
+      "expectedOwners": [
+        "televote"
+      ],
+      "currentDeclaredStatus": "parity",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/televoting/index.tsx",
+        "src/components/televoting/TelevotingBoothWithReceipt.tsx",
+        "src/lib/v3-televote-reconciliation.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "televote"
+        ],
+        "implementationMigration": "supabase/migrations/20261014010000_v3_televote_receipt_reconciliation.sql"
+      },
+      "apiCommandOwner": "canonical merged televote status, exact-ballot submit/receipt/reconciliation owner",
+      "testEvidence": [
+        "src/lib/v3-s14-televote-result-truth.contract.test.ts",
+        "src/lib/v3-s14-televote-authority-arbitration.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Actual public voting route uses the receipt-backed booth and canonical server status; V3 reconciliation is not merely a registry declaration.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED next-in-line:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "next-in-line",
+      "route": "/next-in-line",
+      "domain": "next-in-line",
+      "expectedOwners": [
+        "next-in-line"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/next-in-line.tsx",
+        "src/components/NextInLineCompetition.tsx",
+        "src/components/ParticipationServiceShell.tsx",
+        "src/lib/confirmation-next-in-line.functions.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "next-in-line"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "canonical next-in-line server operations; focused participation chrome",
+      "testEvidence": [
+        "src/lib/v3-s7-next-in-line-authorization.contract.test.ts",
+        "src/lib/v3-s7-next-in-line-window-authorization.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Contextual retained surface reuses the domain operation owner. Shared ParticipationServiceShell owns V3 focused chrome without becoming status authority.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED integrity-report:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "integrity-report",
+      "route": "/integrity/report",
+      "domain": "integrity",
+      "expectedOwners": [
+        "integrity"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/integrity/report/index.tsx",
+        "src/routes/integrity/report/review.tsx",
+        "src/routes/integrity/report/receipt.tsx"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "integrity"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "canonical Integrity reporting/receipt service (existing protected workflow)",
+      "testEvidence": [],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Restricted contextual Integrity reporting is an existing dedicated workflow; it must not be merged into generic Me or expose protected report identity.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute existing Integrity security rehearsal and route privacy tests under isolated local targets.",
+        "Add explicit acceptance evidence for the retained restricted report workflow; preserve its dedicated authority."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED rules:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "rules",
+      "route": "/rules",
+      "domain": "rules",
+      "expectedOwners": [
+        "rules"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/rules/index.tsx",
+        "src/components/v3/V3RulesRouteGate.tsx",
+        "src/components/rules/RulesHomeV5.tsx"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "rules"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "published versioned rulebook owner reused by V3 route/guidance",
+      "testEvidence": [
+        "src/lib/v3-rules-family-cutover.contract.test.ts",
+        "src/lib/v3-rules-guidance-cutover.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "V3 Rules family gate reuses the canonical versioned rulebook rather than creating a second rule corpus or browser-owned guidance authority.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED results:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "results",
+      "route": "/results",
+      "domain": "results",
+      "expectedOwners": [
+        "results",
+        "publication"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/results/index.tsx",
+        "src/components/v3/V3ResultsRootGate.tsx",
+        "src/integrations/v3/results-source.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "results",
+          "publication"
+        ],
+        "implementationMigration": "supabase/migrations/20261024170500_v3_public_published_result_snapshot.sql"
+      },
+      "apiCommandOwner": "getV3ResultsBundle; canonical published immutable Results snapshot",
+      "testEvidence": [
+        "src/lib/v3-results-cutover.contract.test.ts",
+        "src/lib/v3-public-published-result-snapshot.contract.test.ts",
+        "src/lib/v3-results-source-subscore-publication.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Native Results root is downstream of published server truth and exact snapshot/subscore publication boundaries, not mutable organizer calculation rows.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED live-show:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "live-show",
+      "route": "/show-mode",
+      "domain": "live-show",
+      "expectedOwners": [
+        "live-show",
+        "publication"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/show-mode/route.tsx",
+        "src/components/v3/V3LiveRouteGate.tsx",
+        "src/integrations/v3/live-source.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "live-show",
+          "publication"
+        ],
+        "implementationMigration": "supabase/migrations/20261019013000_v3_public_live_rollout_flag.sql"
+      },
+      "apiCommandOwner": "canonical V3 live bundle/publication source",
+      "testEvidence": [
+        "src/lib/v3-live-cutover.contract.test.ts",
+        "src/lib/v3-public-live-rollout.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "The /show-mode parent mounts V3LiveRouteGate with the legacy Outlet only as rollback; server-evaluated live rollout and publication source own state.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED fantasy:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "fantasy",
+      "route": "/fantasy",
+      "domain": "fantasy",
+      "expectedOwners": [
+        "fantasy",
+        "results"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/fantasy/index.tsx",
+        "src/components/v3/V3FantasyScreen.tsx",
+        "src/lib/v3-fantasy.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "fantasy",
+          "results"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "submit_fantasy_team; RLS-scoped fantasy_teams/fantasy_team_entries; canonical scoring",
+      "testEvidence": [
+        "src/lib/v3-fantasy.contract.test.ts",
+        "src/lib/v3-fantasy.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Native V3 Fantasy restores saved roster from canonical rows, invokes the existing server writer and explicitly leaves lock/budget/scoring authority on the server.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED fan-public-identity:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "fan-public-identity",
+      "route": "/my-solaris",
+      "domain": "community-profile",
+      "expectedOwners": [
+        "community-profile"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/components/v3/V3MeRoot.tsx",
+        "src/components/v3/V3MeScreen.tsx",
+        "src/integrations/v3/me-summary.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "community-profile"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "caller-bound Me summary and canonical community profile owner",
+      "testEvidence": [
+        "src/lib/v3-me-architecture.contract.test.ts",
+        "src/lib/v3-me-summary.test.ts",
+        "src/lib/v3-prediction-league-privacy.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Canonical Me projection and opt-in leaderboard identity owners already exist; evidence must distinguish fan public identity from country-account authority.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED push-delivery:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "push-delivery",
+      "route": "/notifications",
+      "domain": "notification",
+      "expectedOwners": [
+        "notification"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/_authenticated/notifications.tsx",
+        "src/components/mysolaris/MySolarisNotificationsPanel.tsx",
+        "src/lib/engagement-data.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "notification"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "canonical notification preferences/push subscription/delivery owners",
+      "testEvidence": [
+        "src/lib/v3-notifications-cutover.contract.test.ts",
+        "src/lib/v3-beta-feedback-privacy.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "V3 inbox reads canonical recipient notice state and shared notification preferences; account preference panel retains one existing delivery-settings owner.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED public-ux-diagnostics:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "public-ux-diagnostics",
+      "route": "/",
+      "domain": "public-ux",
+      "expectedOwners": [
+        "public-ux"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/lib/public-ux-events.ts",
+        "src/lib/public-ux-privacy.ts",
+        "src/lib/public-ux-metrics.ts",
+        "src/components/public/PublicPrimaryAction.tsx"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "public-ux"
+        ],
+        "implementationMigration": "supabase/migrations/20260919112555_public_ux_telemetry.sql"
+      },
+      "apiCommandOwner": "bounded telemetry insert and aggregate public UX diagnostics",
+      "testEvidence": [
+        "src/lib/v3-public-ux-diagnostics.contract.test.ts",
+        "src/lib/v3-beta-feedback-privacy.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Instrumentation uses allowlisted metadata, sanitizes route identity, honors privacy signals, and excludes raw queries/votes/form contents.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED app-shell:parity",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "app-shell",
+      "route": "/",
+      "domain": "public-ux",
+      "expectedOwners": [
+        "public-ux"
+      ],
+      "currentDeclaredStatus": "parity",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/components/v3/V3AppShell.tsx",
+        "src/components/v3/V3PrimaryRouteGate.tsx",
+        "src/lib/v3-shell-route-boundary.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "public-ux"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "server-owned V3 rollout/bootstrap; TanStack canonical routing",
+      "testEvidence": [
+        "src/lib/v3-app-shell.contract.test.ts",
+        "src/lib/v3-public-navigation.test.ts",
+        "src/lib/v3-shell-route-boundary.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Five-root V3 shell, viewer-scoped route memory, accessible links, and server-gated Search/Notifications/Rules are implemented; browser state does not enable rollout.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED explore-root:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "explore-root",
+      "route": "/explore",
+      "domain": "edition",
+      "expectedOwners": [
+        "edition",
+        "country-profile",
+        "results"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/explore/index.tsx",
+        "src/components/v3/V3ExploreRouteGate.tsx",
+        "src/integrations/v3/explore-source.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "edition",
+          "country-profile",
+          "results"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "getV3ExploreBundle",
+      "testEvidence": [
+        "src/lib/v3-explore-cutover.contract.test.ts",
+        "src/lib/v3-explore-archive-results.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Real /explore route enters the V3 gate; bounded server projection and source-safe archive disclosure exist with explicit legacy rollback.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED edition-hub:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "edition-hub",
+      "route": "/editions/:edition",
+      "domain": "edition",
+      "expectedOwners": [
+        "edition",
+        "publication"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/editions/$slug.tsx",
+        "src/components/v3/V3EditionRouteGate.tsx",
+        "src/integrations/v3/edition-source.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "edition",
+          "publication"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "getV3EditionBundle",
+      "testEvidence": [
+        "src/lib/v3-edition-cutover.contract.test.ts",
+        "src/lib/v3-edition-outcome-hierarchy.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Native edition gate avoids mounting the legacy archive graph and projects public edition phase/publication truth through the server source.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED global-search:parity",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "global-search",
+      "route": "/search",
+      "domain": "public-ux",
+      "expectedOwners": [
+        "public-ux",
+        "edition",
+        "country-profile",
+        "results"
+      ],
+      "currentDeclaredStatus": "parity",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "obsolete_replaced",
+      "implementationPaths": [
+        "src/components/v3/V3AppShell.tsx",
+        "src/components/public/PublicCommandPalette.tsx"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "public-ux",
+          "edition",
+          "country-profile",
+          "results"
+        ],
+        "implementationMigration": "supabase/migrations/20261013140000_v3_search_cutover.sql"
+      },
+      "apiCommandOwner": "solaris_public_search",
+      "testEvidence": [
+        "src/lib/v3-search-cutover.contract.test.ts",
+        "src/lib/public-search.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "The legacy/target /search registry route is not the implemented surface. Actual V3 Search is the shell-owned fullscreen canonical palette, with bounded safe server RPC and de-duplicated search owners.",
+      "replacement": "Canonical installed-app PublicCommandPalette opened from V3AppShell; no standalone /search file route exists.",
+      "requiredRepair": [
+        "Encode the palette replacement explicitly rather than falsely claiming a /search route cutover.",
+        "Run Search behavior/privacy/route-return regressions and link the real source/migration proof before resolving the obsolete standalone route concept."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED scoreboard:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "scoreboard",
+      "route": "/results",
+      "domain": "results",
+      "expectedOwners": [
+        "results",
+        "publication"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "obsolete_replaced",
+      "implementationPaths": [
+        "src/components/ScoreboardStage.tsx",
+        "src/components/v3/V3ScoreboardPresentation.tsx",
+        "src/routes/shows/$showId.tsx"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "results",
+          "publication"
+        ],
+        "implementationMigration": "supabase/migrations/20261013010000_v3_scoreboard_rollout_flag.sql"
+      },
+      "apiCommandOwner": "canonical Standing projection consumed by ScoreboardStage; no new calculation authority",
+      "testEvidence": [
+        "src/lib/v3-scoreboard-cutover.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Actual scoreboard cutover is a presentation slice on show detail, not a standalone /scoreboard route or a new Results calculator. Contract proves exact route scope and authoritative tied/qualified state.",
+      "replacement": "V3ScoreboardPresentation on installed-app /shows/:showId, downstream of canonical standings.",
+      "requiredRepair": [
+        "Encode show-detail scoreboard replacement instead of presenting obsolete /scoreboard aliases as an implemented standalone route.",
+        "Execute tie/qualification/publication regressions and preserve canonical ranking source and fail-closed fallback."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED delegation-detail:building",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "delegation-detail",
+      "route": "/countries/:country",
+      "domain": "delegation",
+      "expectedOwners": [
+        "delegation",
+        "country-profile"
+      ],
+      "currentDeclaredStatus": "building",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/countries/$code.tsx",
+        "src/components/v3/V3DelegationRouteGate.tsx",
+        "src/integrations/v3/delegation-source.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "delegation",
+          "country-profile"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "getV3DelegationBundle",
+      "testEvidence": [
+        "src/lib/v3-delegation-cutover.contract.test.ts",
+        "src/lib/v3-delegation-history-links.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "The existing country/delegation entity gate supplies public archive/history/identity links with canonical code and publication-safe source.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED authentication:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "authentication",
+      "route": "/auth",
+      "domain": "identity",
+      "expectedOwners": [
+        "identity",
+        "session"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-registry.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/auth/index.tsx",
+        "src/lib/v3-auth-return-intent.ts",
+        "src/lib/country-account.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "identity",
+          "session"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "canonical country-account Auth/session owner; resolveV3AuthReturnPath",
+      "testEvidence": [
+        "src/lib/v3-auth-return-intent.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Actual Auth route uses the canonical account/session owner and hardened V3 return intent rather than a duplicate V3 identity store.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED prediction-league:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "prediction-league",
+      "route": "/predictions",
+      "domain": "prediction",
+      "expectedOwners": [
+        "prediction",
+        "community-profile"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/prediction-league/index.tsx",
+        "src/routes/predictions/index.tsx",
+        "src/components/v3/V3PredictionsRouteContent.tsx"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "prediction",
+          "community-profile"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "prediction_league_leaderboard; canonical opt-in scoring basis",
+      "testEvidence": [
+        "src/lib/v3-predictions-merge.contract.test.ts",
+        "src/lib/v3-prediction-league-privacy.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Real route redirects installed-app V3 users to the canonical merged Predictions product; rollout/public fallbacks remain reversible and private history remains authoritative.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED result-lab:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "result-lab",
+      "route": "/results",
+      "domain": "results",
+      "expectedOwners": [
+        "results",
+        "publication"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/result-lab/index.tsx",
+        "src/components/v3/V3ResultLabGate.tsx",
+        "src/integrations/v3/result-lab-source.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "results",
+          "publication"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "getV3ResultLabBundle",
+      "testEvidence": [
+        "src/lib/v3-result-lab-p28.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Native V3 Result Lab gate/server source exist as an analysis consumer; the surface does not become official calculation/publication authority.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED broadcast-intelligence:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "broadcast-intelligence",
+      "route": "/broadcast-intelligence/jury",
+      "domain": "results",
+      "expectedOwners": [
+        "results",
+        "jury"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/broadcast-intelligence/jury.tsx",
+        "src/components/v3/V3BroadcastIntelligenceGate.tsx",
+        "src/integrations/v3/broadcast-intelligence-source.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "results",
+          "jury"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "V3 broadcast-intelligence canonical public source",
+      "testEvidence": [
+        "src/lib/v3-broadcast-intelligence-p27.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Contextual Jury analysis exists as a V3 presentation gate over canonical server data, separate from official Jury ballot operations.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED result-relationships:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "result-relationships",
+      "route": "/results",
+      "domain": "results",
+      "expectedOwners": [
+        "results"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/relationships/index.tsx",
+        "src/routes/relationships/$pair.tsx",
+        "src/components/v3/V3RelationshipsGate.tsx",
+        "src/integrations/v3/relationships-source.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "results"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "canonical public relationships source",
+      "testEvidence": [
+        "src/lib/v3-relationships-p26.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "V3 list/detail relationship surfaces and server source exist; entity identity and published history remain owned by canonical data.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED stories:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "stories",
+      "route": "/explore",
+      "domain": "story",
+      "expectedOwners": [
+        "story",
+        "edition",
+        "publication"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/stories/index.tsx",
+        "src/routes/stories/$editionSlug.tsx",
+        "src/components/v3/V3StoriesGates.tsx",
+        "src/integrations/v3/stories-source.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "story",
+          "edition",
+          "publication"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "canonical published edition/story source",
+      "testEvidence": [
+        "src/lib/v3-stories.contract.test.ts",
+        "src/lib/v3-stories-detail-continuity.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "V3 story index/detail gates preserve published edition identity and detail continuity, with legacy fallback rather than duplicate story publication state.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED scorecharts:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "scorecharts",
+      "route": "/results",
+      "domain": "results",
+      "expectedOwners": [
+        "results"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/scorecharts/index.tsx",
+        "src/components/v3/V3ScorechartsGate.tsx",
+        "src/integrations/v3/scorecharts-source.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "results"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "canonical published scorecharts source",
+      "testEvidence": [
+        "src/lib/v3-scorecharts-p25.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Native V3 Scorecharts gate/source exists and is downstream of published Results; it does not calculate official Results.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED pulse:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "pulse",
+      "route": "/pulse",
+      "domain": "activity",
+      "expectedOwners": [
+        "activity",
+        "notification",
+        "personal-preference",
+        "prediction",
+        "public-ux"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "partially_implemented",
+      "implementationPaths": [
+        "src/routes/pulse/index.tsx",
+        "src/lib/v3-pulse.ts",
+        "src/lib/engagement-data.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "activity",
+          "notification",
+          "personal-preference",
+          "prediction",
+          "public-ux"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "useContentEvents and canonical read/follow state; missing safe public event projection",
+      "testEvidence": [
+        "src/lib/v3-pulse.contract.test.ts",
+        "src/lib/v3-pulse.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "V3 Pulse pure projection exists, but route still uses legacy feed. Registry and contract explicitly require a System-owned public event projection so Organizer privileges cannot widen disclosure to future/unpublished events.",
+      "replacement": null,
+      "requiredRepair": [
+        "Implement server-owned public Pulse event source with publication/time predicate, independent of caller Organizer privileges.",
+        "Wire installed-app Pulse to that source and native presentation; preserve event IDs, caller-bound reads/follows and source-owner retry semantics.",
+        "Add anonymous/Organizer future/unpublished exclusion regression plus viewer-state/clock-authority tests."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED taste-dna:discovered",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "taste-dna",
+      "route": "/taste-dna",
+      "domain": "personal-preference",
+      "expectedOwners": [
+        "personal-preference",
+        "results"
+      ],
+      "currentDeclaredStatus": "discovered",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "not_implemented",
+      "implementationPaths": [
+        "src/routes/taste-dna/index.tsx",
+        "src/lib/taste-data.ts",
+        "src/lib/taste-dna.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "personal-preference",
+          "results"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "legacy taste ballot owner; V3 replacement/overlap contract not defined",
+      "testEvidence": [],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Legacy functional taste ballots exist, but registry expressly says V3 meaning/overlap with Voting DNA is unresolved. No native V3 cutover or accepted replacement is proven.",
+      "replacement": null,
+      "requiredRepair": [
+        "Resolve documented Taste DNA versus Voting DNA product/domain boundary; do not silently merge or delete personal taste-ballot functionality.",
+        "Implement accepted V3 target with published official comparison source and caller-scoped ballot mutations, then behavioral/privacy/cutover evidence."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED records:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "records",
+      "route": "/results",
+      "domain": "results",
+      "expectedOwners": [
+        "results"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/records/index.tsx",
+        "src/components/v3/V3RecordsGate.tsx",
+        "src/integrations/v3/records-source.server.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "results"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "getV3RecordsBundle",
+      "testEvidence": [
+        "src/lib/v3-records-p24.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Native V3 Records gate/server source exists as a published historical Results consumer with canonical country/edition identities.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED sitemap:parity",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "sitemap",
+      "route": "/sitemap.xml",
+      "domain": "public-ux",
+      "expectedOwners": [
+        "public-ux",
+        "edition",
+        "country-profile",
+        "results"
+      ],
+      "currentDeclaredStatus": "parity",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/sitemap[.]xml.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "public-ux",
+          "edition",
+          "country-profile",
+          "results"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "server GET sitemap, published editions and public country code sources",
+      "testEvidence": [
+        "e2e/public-routes.e2e.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "The contextual XML surface is real, server-owned, cache-bounded, and enumerates published editions using public key; no second sitemap owner is needed.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED country-hub:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "country-hub",
+      "route": "/my-solaris",
+      "domain": "delegation",
+      "expectedOwners": [
+        "delegation",
+        "country-profile",
+        "media",
+        "notice"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "partially_implemented",
+      "implementationPaths": [
+        "src/routes/_authenticated/country-hub/index.tsx",
+        "src/routes/_authenticated/country-hub/hod.tsx",
+        "src/routes/_authenticated/my-solaris/index.tsx",
+        "src/components/v3/V3MeRoot.tsx"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "delegation",
+          "country-profile",
+          "media",
+          "notice"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "existing HOD/delegation workspace owner; native V3 Me summary",
+      "testEvidence": [
+        "src/lib/v3-me-architecture.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Country Hub has real legacy HOD tools, but the requested merge into /my-solaris is not proven for every HOD subroute/action; V3 Me summary is not automatically equivalent to the HOD workspace.",
+      "replacement": null,
+      "requiredRepair": [
+        "Inventory HOD subroute operations and merge/redirect each into the correct canonical Me/Participate contextual target without dropping page-builder/readiness/notice behavior.",
+        "Add HOD authorization, action continuity, canonical operation/readback and legacy URL regressions before cutover."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED me-route:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "me-route",
+      "route": "/my-solaris",
+      "domain": "identity",
+      "expectedOwners": [
+        "identity",
+        "participation",
+        "personal-preference"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/me/index.tsx",
+        "src/routes/_authenticated/my-solaris/index.tsx",
+        "src/components/v3/V3MeRoot.tsx"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "identity",
+          "participation",
+          "personal-preference"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "canonical Auth session and Me summary",
+      "testEvidence": [
+        "src/lib/v3-me-entry-route.contract.test.ts",
+        "src/lib/v3-me-architecture.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Actual /me compatibility route keeps signed-out entry and authenticated replace-navigation into canonical Me; this is an intentional alias, not a missing feature.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED beta-test-feedback:mapped",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "beta-test-feedback",
+      "route": "/beta-test",
+      "domain": "public-ux",
+      "expectedOwners": [
+        "public-ux"
+      ],
+      "currentDeclaredStatus": "mapped",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/beta-test/index.tsx",
+        "src/lib/public-beta-feedback-safety.ts",
+        "src/lib/beta-feedback-upload.ts"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "public-ux"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "existing beta3_test_submissions/storage intake; noindex restricted feedback route",
+      "testEvidence": [
+        "src/lib/v3-beta-feedback-privacy.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Restricted contextual Beta surface is implemented with noindex/nofollow, no normal discovery promotion, privacy-bounded payload/error behavior and existing intake owner.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    },
+    {
+      "exactFinding": "PUBLIC_CUTOVER_UNRESOLVED terraos-teaser-preview:parity",
+      "category": "PUBLIC_CUTOVER_UNRESOLVED",
+      "canonicalId": "terraos-teaser-preview",
+      "route": "/terraos-teaser-preview",
+      "domain": "public-ux",
+      "expectedOwners": [
+        "public-ux"
+      ],
+      "currentDeclaredStatus": "parity",
+      "registrySource": "src/lib/v3-public-capability-supplements.ts",
+      "classification": "implemented_evidence_missing",
+      "implementationPaths": [
+        "src/routes/terraos-teaser-preview.tsx",
+        "src/components/v3/TerraOSTeaserPreview.tsx"
+      ],
+      "migrationOwner": {
+        "domains": [
+          "public-ux"
+        ],
+        "implementationMigration": null
+      },
+      "apiCommandOwner": "fixture-only renderer; no domain mutation or Supabase source",
+      "testEvidence": [
+        "src/lib/terraos-teaser-preview.contract.test.ts"
+      ],
+      "currentCutoverState": "Unaccepted at exact candidate; server-controlled rollout/legacy compatibility retained. No status promoted by audit.",
+      "rationale": "Real preview is maintenance-only, noindex/nofollow, reuses production V3 screens, and throws notFound after maintenance ends; it must not become a live product surface.",
+      "replacement": null,
+      "requiredRepair": [
+        "Execute named focused contracts and owner behavior/security regressions in local-only environment.",
+        "Record inspectable acceptance proof for actual canonical route/surface and compatibility/rollback semantics before promoting readiness."
+      ],
+      "proofScope": "Source and exact-head repository tree inspected; tests cited are actual source files, not a claim of new runtime execution."
+    }
+  ]
+}
