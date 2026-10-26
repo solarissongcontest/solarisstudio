@@ -109,9 +109,10 @@ describe("System V3 S1 registries", () => {
       "task.opened",
       "task.resolved",
     ]);
-    expect(v3DomainConsequence("receipt.reconciled")?.replacement?.operation).toBe(
-      "public.studio2_reconcile_operation(uuid)",
-    );
+    expect(v3DomainConsequence("receipt.reconciled")?.replacement).toMatchObject({
+      kind: "canonical-read",
+      operation: "public.studio2_reconcile_operation(uuid)",
+    });
     expect(v3DomainConsequence("task.opened")?.replacement?.kind).toBe(
       "canonical-derived-projection",
     );
