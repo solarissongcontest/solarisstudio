@@ -62,7 +62,6 @@ else: print(value)
 
 EDITION_ID='19300000-0000-4000-8000-000000000001'
 ROUND_ID='19300000-0000-4000-8000-000000000002'
-USER_ID='19300000-0000-4000-8000-000000000003'
 INTERNAL_SUBMISSION='19300000-0000-4000-8000-000000000004'
 INTERNAL_ENTRY='19300000-0000-4000-8000-000000000005'
 NF_SUBMISSION='19300000-0000-4000-8000-000000000006'
@@ -72,16 +71,18 @@ INTERNAL_OPERATION='19300000-0000-4000-8000-000000000009'
 NF_REVIEW_OPERATION='19300000-0000-4000-8000-000000000010'
 WINNER_OPERATION='19300000-0000-4000-8000-000000000011'
 WORKER_ID='s15-selection-worker'
-EMAIL='s15-selection@solaris.invalid'
+EMAIL="s15-selection-$(date +%s)-$$@solaris.invalid"
 
 log "Create isolated local organizer identity"
-USER_BODY="$(python3 -c 'import json,sys; print(json.dumps({"id":sys.argv[2],"email":sys.argv[1],"email_confirm":True,"user_metadata":{"display_name":"S15 Selection Organizer"}}))' "$EMAIL" "$USER_ID")"
+USER_BODY="$(python3 -c 'import json,sys; print(json.dumps({"email":sys.argv[1],"email_confirm":True,"user_metadata":{"display_name":"S15 Selection Organizer"}}))' "$EMAIL")"
 HTTP_CODE="$(curl -sS -o /tmp/v3-s15-selection-user.json -w '%{http_code}' -X POST "$API_URL/auth/v1/admin/users" \
   -H "apikey: $SERVICE_ROLE_KEY" \
   -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
   -H 'Content-Type: application/json' \
   --data "$USER_BODY")"
-[[ "$HTTP_CODE" == '200' || "$HTTP_CODE" == '201' || "$HTTP_CODE" == '422' ]] || fail "local auth user creation failed: HTTP $HTTP_CODE"
+[[ "$HTTP_CODE" == '200' || "$HTTP_CODE" == '201' ]] || fail "local auth user creation failed: HTTP $HTTP_CODE"
+USER_ID="$(cat /tmp/v3-s15-selection-user.json | json_value id)"
+[[ -n "$USER_ID" ]] || fail "local auth user id missing"
 
 log "Seed internal and National Final selections"
 db_exec "
