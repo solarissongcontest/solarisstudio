@@ -47,6 +47,10 @@ function input(overrides: Partial<V3MeProjectionInput> = {}): V3MeProjectionInpu
       followedContentCount: 5,
       href: "/me/following",
     },
+    delegationLinks: [
+      { key: "country", label: "Country profile", href: "/my-solaris/country" },
+      { key: "responsibilities", label: "Responsibilities", href: "/participate" },
+    ],
     preferenceLinks: [
       { key: "notifications", label: "Notifications", href: "/settings/notifications" },
       { key: "appearance", label: "Appearance", href: "/settings/appearance" },
@@ -70,6 +74,7 @@ describe("V3 Me projection", () => {
       "history",
       "activity",
       "following",
+      "delegation",
       "preferences",
       "account",
     ]);
@@ -89,9 +94,43 @@ describe("V3 Me projection", () => {
       awaitingAuthoritativeReceiptCount: 1,
       href: "/me/activity",
     });
+    expect(projection.delegation).toEqual([
+      { key: "country", label: "Country profile", href: "/my-solaris/country" },
+      { key: "responsibilities", label: "Responsibilities", href: "/participate" },
+    ]);
     expect(projection).not.toHaveProperty("tasks");
     expect(projection).not.toHaveProperty("actions");
     expect(projection).not.toHaveProperty("responsibilities");
+  });
+
+  it("keeps delegation workspace links explicit instead of inferring them from display-role text", () => {
+    const roleOnly = buildV3MeProjection(
+      input({
+        delegationLinks: undefined,
+        identity: {
+          ...input().identity,
+          displayRole: "Head of Delegation",
+        },
+      }),
+    );
+
+    expect(roleOnly.delegation).toEqual([]);
+
+    const capabilityLinks = buildV3MeProjection(
+      input({
+        identity: {
+          ...input().identity,
+          displayRole: null,
+        },
+        delegationLinks: [
+          { key: "history", label: "HOD history", href: "/my-solaris/history" },
+        ],
+      }),
+    );
+
+    expect(capabilityLinks.delegation).toEqual([
+      { key: "history", label: "HOD history", href: "/my-solaris/history" },
+    ]);
   });
 
   it("uses explicit capability output for Organizer entry rather than display-role text", () => {
