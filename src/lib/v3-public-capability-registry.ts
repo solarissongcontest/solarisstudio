@@ -27,7 +27,15 @@ export type PublicCapabilityMigration = {
   authRequirement: "public" | "optional" | "authenticated" | "delegation" | "hod";
   classification: V3MigrationClassification;
   targetArea: "home" | "explore" | "participate" | "results" | "me" | "live" | "auth" | "contextual";
+  /** Actual route host, including patterns for embedded canonical surfaces. */
   targetRoute: string;
+  /** Explicit owner when a legacy route concept is replaced by non-route UI. */
+  replacementSurface?: {
+    kind: "shell-overlay" | "embedded-presentation";
+    ownerComponent: string;
+    hostRoute: string;
+    replacesLegacyRoutes: readonly string[];
+  };
   specificationStatus:
     | "discovered"
     | "mapped"
@@ -460,7 +468,13 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     authRequirement: "public",
     classification: "redesign",
     targetArea: "explore",
-    targetRoute: "/search",
+    targetRoute: "/",
+    replacementSurface: {
+      kind: "shell-overlay",
+      ownerComponent: "src/components/public/PublicCommandPalette.tsx",
+      hostRoute: "/",
+      replacesLegacyRoutes: ["/search"],
+    },
     specificationStatus: "parity",
     acceptanceScenarioId: "public.global-search-entity-routing",
     migrationEvidence: "src/lib/v3-search-cutover.contract.test.ts; src/lib/public-search.test.ts; e2e/v3-search.e2e.ts",
@@ -475,7 +489,13 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     authRequirement: "public",
     classification: "merge",
     targetArea: "results",
-    targetRoute: "/results",
+    targetRoute: "/shows/:showId",
+    replacementSurface: {
+      kind: "embedded-presentation",
+      ownerComponent: "src/components/v3/V3ScoreboardPresentation.tsx",
+      hostRoute: "/shows/:showId",
+      replacesLegacyRoutes: ["/scoreboard", "/scoreboard/*"],
+    },
     specificationStatus: "mapped",
     acceptanceScenarioId: "public.scoreboard-published-result-version",
   },
