@@ -133,6 +133,8 @@ function targetDomainFor(id: string) {
 }
 
 function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStatus"] {
+  if (id === "workspace-anniversary-settings") return "cutover";
+
   if (
     id === "current-edition-overview" ||
     id === "current-edition-host" ||
@@ -142,10 +144,9 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-administration" ||
     id === "workspace-organizer-guide" ||
     id === "workspace-community-moderation" ||
-    id === "workspace-command-assistant" ||
-    id === "workspace-anniversary-settings"
+    id === "workspace-command-assistant"
   ) {
-    return "cutover";
+    return "parity";
   }
   if (
     id === "current-edition-tasks" ||
