@@ -8,12 +8,18 @@ export const Route = createFileRoute("/_authenticated/country-hub/hod")({
   }),
   head: () => ({
     meta: [
-      { title: "Delegation workspace — Solaris Studio" },
-      { name: "robots", content: "noindex" },
+      { title: "Delegation responsibilities — Solaris Studio" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   beforeLoad: ({ search }) => {
-    throw redirect({ to: NAV_TARGETS.mySolarisTasks, search, replace: true });
+    // Required HOD work belongs to Participate in V3. An explicit country
+    // selector is an Organizer inspection context, so retain the proven legacy
+    // task workspace for that cross-country case instead of impersonating it.
+    if (search.country) {
+      throw redirect({ to: NAV_TARGETS.mySolarisTasks, search, replace: true });
+    }
+    throw redirect({ to: NAV_TARGETS.participate, replace: true });
   },
   component: () => null,
 });
