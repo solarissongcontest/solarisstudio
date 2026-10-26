@@ -1,3 +1,4 @@
+import { isResolvedV3DomainConsequence } from "../src/lib/v3-domain-consequence-registry";
 import { existsSync, readFileSync } from "node:fs";
 import {
   V3_DOMAIN_CONSEQUENCE_REGISTRY,
@@ -90,7 +91,7 @@ const consequencePrefixes = ["confirmation.", "entry.", "media.", "jury.", "tele
 const relevantConsequences = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((item) =>
   consequencePrefixes.some((prefix) => item.eventType.startsWith(prefix)),
 );
-const declarationOnly = relevantConsequences.filter((item) => item.implementationState !== "event-backed");
+const declarationOnly = relevantConsequences.filter((item) => !isResolvedV3DomainConsequence(item));
 if (declarationOnly.length) {
   blockers.push(`${declarationOnly.length}/${relevantConsequences.length} critical lifecycle consequences are still declaration-only`);
 }
