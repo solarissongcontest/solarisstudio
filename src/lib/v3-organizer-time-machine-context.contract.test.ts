@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
+
 const route = readFileSync("src/routes/_authenticated/admin/time-machine.tsx", "utf8");
-const registry = readFileSync("src/lib/v3-organizer-capability-registry.ts", "utf8");
 
 describe("V3 Organizer Time Machine", () => {
   it("fails closed without an exact Organizer edition", () => {
@@ -30,7 +31,11 @@ describe("V3 Organizer Time Machine", () => {
     expect(route).not.toContain(".delete(");
   });
 
-  it("records Time Machine as building without claiming historical completeness", () => {
-    expect(registry).toContain('id === "live-review-time-machine"');
+  it("records the proven read-only Time Machine surface at parity while rollout remains dark", () => {
+    const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
+      (item) => item.legacyId === "live-review-time-machine",
+    );
+    expect(capability?.ownerCapability).toBe("edition.read");
+    expect(capability?.migrationStatus).toBe("parity");
   });
 });
