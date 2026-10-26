@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, CheckCircle2, History, Plus, RefreshCw, Save, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
@@ -41,7 +41,26 @@ const PREVIEWS = [
   { href: "/records?anniversary=active", title: "Records archive", description: "Preview the record book with anniversary styling and historical context." },
 ] as const;
 
-type PublicationAction = "publish_storyline" | "unpublish_storyline" | null;
+type StoryAction = Parameters<typeof executeStudio2StoryOperation>[0]["action"];
+
+type PendingPublication = {
+  action: "publish_storyline" | "unpublish_storyline";
+  editionId: string;
+  editionLabel: string;
+  contextVersion: number;
+  expectedRevision: number;
+  reason: string;
+};
+
+type StoryCommandInput = {
+  action: StoryAction;
+  editionId: string;
+  contextVersion: number;
+  expectedRevision: number | null;
+  reason: string;
+  itemId?: string | null;
+  payload?: Record<string, unknown>;
+};
 
 type MilestoneDraft = {
   id: string | null;
@@ -66,7 +85,7 @@ function AnniversarySettingsPage() {
   const queryClient = useQueryClient();
   const [auditReason, setAuditReason] = useState("");
   const [draft, setDraft] = useState<MilestoneDraft>(EMPTY_MILESTONE);
-  const [publicationAction, setPublicationAction] = useState<PublicationAction>(null);
+  const [pendingPublication, setPendingPublication] = useState<PendingPublication | null>(null);
   const [lastReceipt, setLastReceipt] = useState<StoryOperationExecution | null>(null);
 
   const storyQuery = useQuery({
@@ -85,48 +104,65 @@ function AnniversarySettingsPage() {
     [story?.items],
   );
 
-  const mutation = useMutation({
-    mutationFn: async (input: {
-      action: Parameters<typeof executeStudio2StoryOperation>[0]["action"];
-      itemId?: string | null;
-      expectedRevision?: number | null;
-      payload?: Record<string, unknown>;
-    }) => {
-      const reviewedEditionId = editionId;
-      const reviewedContextVersion = contextVersion;
-      const reason = auditReason.trim();
-      if (!reviewedEditionId) throw new Error("Select an Organizer edition before changing Anniversary settings.");
-      if (reason.length < 5) throw new Error("Add an audit reason of at least 5 characters.");
+  useEffect(() => {
+    setAuditReason("");
+    setDraft(EMPTY_MILESTONE);
+    setPendingPublication(null);
+    setLastReceipt(null);
+  }, [editionId, contextVersion]);
 
-      // Do not let a delayed click apply reviewed content after the shell changed
-      // edition/context. The server still owns authorization and revision checks.
-      if (reviewedEditionId !== editionId || reviewedContextVersion !== contextVersion) {
-        throw Object.assign(new Error("Organizer context changed. Reload this edition and review the Anniversary change again."), { status: 409 });
+  const mutation = useMutation({
+    mutationFn: async (input: StoryCommandInput) => {
+      if (!input.editionId) throw new Error("Select an Organizer edition before changing Anniversary settings.");
+      if (input.reason.trim().length < 5) throw new Error("Add an audit reason of at least 5 characters.");
+      if (input.editionId !== editionId || input.contextVersion !== contextVersion) {
+        throw Object.assign(
+          new Error("Organizer context changed. Reload this edition and review the Anniversary change again."),
+          { status: 409 },
+        );
       }
 
       return executeStudio2StoryOperation({
-        editionId: reviewedEditionId,
+        editionId: input.editionId,
         action: input.action,
-        reason,
+        reason: input.reason.trim(),
         executionId: crypto.randomUUID(),
-        expectedRevision: input.expectedRevision ?? story?.revision ?? null,
+        expectedRevision: input.expectedRevision,
         itemId: input.itemId ?? null,
         payload: input.payload ?? {},
       });
     },
     onSuccess: async (execution) => {
-      setLastReceipt(execution);
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["studio2-storytelling", editionId] }),
+        queryClient.invalidateQueries({ queryKey: ["studio2-storytelling", execution.editionId] }),
         queryClient.invalidateQueries({ queryKey: ["studio2-anniversary-engine"] }),
       ]);
+      if (execution.editionId === editionId) setLastReceipt(execution);
       toast.success(`${storyOperationLabel(execution.action)} completed.`);
     },
     onError: (error) => toast.error(operationErrorText(error)),
   });
 
+  function currentCommand(input: Omit<StoryCommandInput, "editionId" | "contextVersion" | "reason">): StoryCommandInput | null {
+    const reason = auditReason.trim();
+    if (!editionId) {
+      toast.error("Select an Organizer edition first.");
+      return null;
+    }
+    if (reason.length < 5) {
+      toast.error("Add an audit reason of at least 5 characters.");
+      return null;
+    }
+    return {
+      ...input,
+      editionId,
+      contextVersion,
+      reason,
+    };
+  }
+
   async function ensureStoryline() {
-    await mutation.mutateAsync({
+    const command = currentCommand({
       action: "generate_storyline",
       expectedRevision: story?.revision ?? null,
       payload: story
@@ -136,6 +172,7 @@ function AnniversarySettingsPage() {
             introduction: `A verified timeline of the moments that shaped ${editionLabel || "this edition"}, assembled from the canonical Solaris Studio event stream.`,
           },
     });
+    if (command) await mutation.mutateAsync(command);
   }
 
   function editMilestone(item: StorylineItem) {
@@ -172,22 +209,50 @@ function AnniversarySettingsPage() {
     };
     if (!draft.id && draft.occurredAt) payload.occurredAt = new Date(draft.occurredAt).toISOString();
 
-    await mutation.mutateAsync({
+    const command = currentCommand({
       action: draft.id ? "update_item" : "create_manual_item",
       itemId: draft.id,
       expectedRevision: story.revision,
       payload,
     });
+    if (!command) return;
+    await mutation.mutateAsync(command);
     setDraft(EMPTY_MILESTONE);
   }
 
-  async function applyPublication() {
-    if (!publicationAction || !story) return;
-    await mutation.mutateAsync({
-      action: publicationAction,
+  function reviewPublication(action: PendingPublication["action"]) {
+    const reason = auditReason.trim();
+    if (!editionId || !story) return;
+    if (reason.length < 5) {
+      toast.error("Add an audit reason of at least 5 characters before reviewing publication.");
+      return;
+    }
+    setPendingPublication({
+      action,
+      editionId,
+      editionLabel: editionLabel || snapshot?.edition.name || "Selected edition",
+      contextVersion,
       expectedRevision: story.revision,
+      reason,
     });
-    setPublicationAction(null);
+  }
+
+  async function applyPublication() {
+    if (!pendingPublication) return;
+    const reviewed = pendingPublication;
+    if (reviewed.editionId !== editionId || reviewed.contextVersion !== contextVersion) {
+      setPendingPublication(null);
+      toast.error("Organizer context changed after publication review. Review the operation again in the selected edition.");
+      return;
+    }
+    await mutation.mutateAsync({
+      action: reviewed.action,
+      editionId: reviewed.editionId,
+      contextVersion: reviewed.contextVersion,
+      expectedRevision: reviewed.expectedRevision,
+      reason: reviewed.reason,
+    });
+    setPendingPublication(null);
   }
 
   const loading = storyQuery.isLoading;
@@ -232,7 +297,7 @@ function AnniversarySettingsPage() {
                   ? `Revision ${story.revision}. Anniversary milestones below are manual Storytelling items and publish only with the edition storyline.`
                   : "Create the canonical edition storyline before adding Anniversary milestones. This uses the existing server-authoritative Storytelling operation rather than a second Anniversary database writer."}
                 action={story ? (
-                  <AdminStatus tone={story.status === "published" ? "success" : "attention"}>
+                  <AdminStatus tone={story.status === "published" ? "ready" : "attention"}>
                     {story.status === "published" ? "Published" : "Draft"}
                   </AdminStatus>
                 ) : undefined}
@@ -246,7 +311,7 @@ function AnniversarySettingsPage() {
                     type="button"
                     className="admin-action-secondary"
                     disabled={mutation.isPending}
-                    onClick={() => setPublicationAction(story.status === "published" ? "unpublish_storyline" : "publish_storyline")}
+                    onClick={() => reviewPublication(story.status === "published" ? "unpublish_storyline" : "publish_storyline")}
                   >
                     <Save className="size-4" /> {story.status === "published" ? "Review unpublish" : "Review publication"}
                   </button>
@@ -332,7 +397,7 @@ function AnniversarySettingsPage() {
                           <span className="block text-sm font-semibold text-foreground">{item.headline}</span>
                           <span className="mt-1 block text-xs text-muted-foreground">{new Date(item.occurredAt).toLocaleString()} · importance {item.importance}</span>
                         </span>
-                        <AdminStatus tone={item.included ? "success" : "neutral"}>{item.included ? "Included" : "Excluded"}</AdminStatus>
+                        <AdminStatus tone={item.included ? "ready" : "neutral"}>{item.included ? "Included" : "Excluded"}</AdminStatus>
                       </button>
                     ))}
                   </div>
@@ -348,7 +413,7 @@ function AnniversarySettingsPage() {
                   eyebrow="Operation receipt"
                   title={storyOperationLabel(lastReceipt.action)}
                   description="The server acknowledged this exact Storytelling operation. If the original response was lost and replayed, Solaris reuses the same execution identity instead of duplicating the mutation."
-                  action={<AdminStatus tone="success"><CheckCircle2 className="mr-1 size-3" /> Acknowledged</AdminStatus>}
+                  action={<AdminStatus tone="ready"><CheckCircle2 className="mr-1 size-3" /> Acknowledged</AdminStatus>}
                 />
                 <dl className="grid gap-2 text-xs sm:grid-cols-2">
                   <div><dt className="text-muted-foreground">Execution</dt><dd className="mt-1 break-all font-mono text-foreground">{lastReceipt.executionId}</dd></div>
@@ -390,16 +455,16 @@ function AnniversarySettingsPage() {
       </div>
 
       <AdminConfirmSheet
-        open={Boolean(publicationAction)}
-        onClose={() => setPublicationAction(null)}
+        open={Boolean(pendingPublication)}
+        onClose={() => setPendingPublication(null)}
         onConfirm={() => void applyPublication()}
-        title={publicationAction === "publish_storyline" ? "Publish Anniversary editorial state?" : "Unpublish Anniversary editorial state?"}
-        description={publicationAction === "publish_storyline"
-          ? `Publish revision ${story?.revision ?? "?"} for ${editionLabel || "the selected edition"}. The server rechecks the expected revision before making it public.`
-          : `Remove revision ${story?.revision ?? "?"} from public Storytelling for ${editionLabel || "the selected edition"}. Historical operation evidence remains.`}
-        confirmLabel={publicationAction === "publish_storyline" ? "Publish reviewed revision" : "Unpublish reviewed revision"}
+        title={pendingPublication?.action === "publish_storyline" ? "Publish Anniversary editorial state?" : "Unpublish Anniversary editorial state?"}
+        description={pendingPublication?.action === "publish_storyline"
+          ? `Publish reviewed revision ${pendingPublication.expectedRevision} for ${pendingPublication.editionLabel}. The server rechecks that exact revision before making it public.`
+          : `Remove reviewed revision ${pendingPublication?.expectedRevision ?? "?"} from public Storytelling for ${pendingPublication?.editionLabel ?? "the selected edition"}. Historical operation evidence remains.`}
+        confirmLabel={pendingPublication?.action === "publish_storyline" ? "Publish reviewed revision" : "Unpublish reviewed revision"}
         busy={mutation.isPending}
-        danger={publicationAction === "unpublish_storyline"}
+        danger={pendingPublication?.action === "unpublish_storyline"}
       />
     </AdminPage>
   );
