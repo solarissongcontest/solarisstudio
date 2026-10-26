@@ -41,7 +41,10 @@ const ROUTE_CAPABILITY_RULES: RouteCapabilityRule[] = [
     "voting.read",
   ),
   rule(["/admin/broadcast-rundown", "/admin/design/", "/admin/edition-theme/"], "broadcast.read"),
-  rule(["/admin/storytelling"], "story.read"),
+  // Historical edition-date repair is a separate edition-owned capability.
+  // Keep this rule before the broader Anniversary editorial prefix.
+  rule(["/admin/anniversary-dates"], "edition.read"),
+  rule(["/admin/storytelling", "/admin/anniversary"], "story.read"),
   rule(["/admin/media-assets", "/admin/publication/"], "publishing.read"),
   rule(["/admin/hosts"], "host.read"),
   rule(["/admin/entries/"], "entry.read_private"),
