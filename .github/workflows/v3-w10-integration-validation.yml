@@ -1,0 +1,167 @@
+name: V3 Worker 10 integration validation
+
+on:
+  push:
+    branches:
+      - v3/burndown-w10-integration
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-w10-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-and-focused:
+    name: Static readiness + focused integration contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_v3_w10_local_only
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_v3_w10_local_only
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      VITE_SUPABASE_PROJECT_ID: local
+      VITE_SUPABASE_PROJECT_REF: local
+      V3_VERIFICATION_TARGET: local
+      V3_SEED_TARGET: local
+      V3_CLEANUP_TARGET: local
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_v3_w10_local_only
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_v3_w10_local_only
+    steps:
+      - name: Checkout exact integration head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact integration head
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          [[ "$actual" == "${{ github.sha }}" ]] || { echo "::error::Expected ${{ github.sha }}, checked out $actual"; exit 1; }
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify production isolation
+        run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Run focused integration contracts
+        run: >-
+          bunx vitest run
+          src/lib/v3-public-main-registry-evidence-cutovers.contract.test.ts
+          src/lib/v3-public-replacement-acceptance.contract.test.ts
+          src/lib/v3-organizer-evidence-cutover.contract.test.ts
+          src/lib/v3-organizer-anniversary-preview-evidence.contract.test.ts
+          src/lib/v3-organizer-community-moderation-scope.contract.test.ts
+          src/lib/v3-organizer-host-context.contract.test.ts
+          src/lib/v3-organizer-storytelling-context.contract.test.ts
+          src/lib/v3-organizer-time-machine-context.contract.test.ts
+          src/lib/v3-show-lineup-command-authority.contract.test.ts
+          src/lib/v3-show-lineup-membership-authority.contract.test.ts
+          src/lib/v3-s15-selection-review-consequences.test.ts
+          src/lib/v3-s15-participation-runtime-integration.test.ts
+          src/lib/v3-non-event-consequence-replacements.test.ts
+          src/lib/v3-derived-observation-consequence-replacements.test.ts
+          src/lib/v3-release-burndown.test.ts
+
+      - name: Regenerate S15 readiness from canonical sources
+        env:
+          V3_PREFLIGHT_DIR: v3-w10-validation/readiness
+        run: bun --env-file=/dev/null run scripts/check-v3-s15-burndown.ts > v3-w10-s15-output.json
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Lint
+        run: bun run lint:ci
+
+      - name: Build
+        run: bun run build
+
+      - name: Generate exact-head completion dashboard
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v3-w10-validation/dashboard
+          GITHUB_SHA="${{ github.sha }}" bun run scripts/generate-v3-completion-dashboard.ts > v3-w10-validation/dashboard/completion-dashboard.md
+          GITHUB_SHA="${{ github.sha }}" bun run scripts/generate-v3-completion-dashboard.ts --json > v3-w10-validation/dashboard/completion-dashboard.json
+          cp v3-w10-s15-output.json v3-w10-validation/readiness/stdout.json 2>/dev/null || true
+
+      - name: Upload static integration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-w10-static-${{ github.sha }}
+          path: v3-w10-validation/
+          if-no-files-found: error
+          retention-days: 14
+
+  local-supabase:
+    name: Full local migration chain + focused rehearsals
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      V3_VERIFICATION_TARGET: local
+      V3_SEED_TARGET: local
+      V3_CLEANUP_TARGET: local
+    steps:
+      - name: Checkout exact integration head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact integration head
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          [[ "$actual" == "${{ github.sha }}" ]] || { echo "::error::Expected ${{ github.sha }}, checked out $actual"; exit 1; }
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        run: supabase start
+
+      - name: Rebuild complete migration chain locally
+        run: supabase db reset --local --no-seed
+
+      - name: Rehearse Reveal Director lifecycle
+        run: bash .github/scripts/v3-reveal-director-lifecycle-rehearsal.sh
+
+      - name: Rehearse shared consequence task runtime
+        run: bash .github/scripts/v3-s15-shared-task-consequence-rehearsal.sh
+
+      - name: Rehearse selection review consequences
+        run: bash .github/scripts/v3-s15-selection-review-consequence-rehearsal.sh
+
+      - name: Rehearse participation consequences
+        run: bash .github/scripts/v3-s15-participation-consequence-rehearsal.sh
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
