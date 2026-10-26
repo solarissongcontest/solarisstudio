@@ -35,12 +35,12 @@ describe("V3 Organizer Community Moderation scope", () => {
     expect(route).toContain("The Organizer decision is written to the canonical audit log.");
   });
 
-  it("accepts the capability only after community.read ownership and governed mutation evidence are explicit", () => {
+  it("accepts the capability at parity only after community.read and governed mutation evidence are explicit", () => {
     const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "workspace-community-moderation",
     );
     expect(capability).toBeDefined();
     expect(capability?.ownerCapability).toBe("community.read");
-    expect(capability?.migrationStatus).toBe("cutover");
+    expect(capability?.migrationStatus).toBe("parity");
   });
 });

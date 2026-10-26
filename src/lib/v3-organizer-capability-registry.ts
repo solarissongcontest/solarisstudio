@@ -144,7 +144,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-community-moderation" ||
     id === "workspace-command-assistant"
   ) {
-    return "cutover";
+    return "parity";
   }
   if (
     id === "current-edition-tasks" ||

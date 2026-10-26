@@ -64,12 +64,12 @@ describe("V3 Organizer Host Management edition context", () => {
     expect(source).toContain("open={Boolean(edition && showTarget)}");
   });
 
-  it("accepts Host Management only after host.read ownership and cutover evidence are explicit", () => {
+  it("accepts Host Management at parity only after host.read ownership evidence is explicit", () => {
     const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "current-edition-host",
     );
     expect(capability).toBeDefined();
     expect(capability?.ownerCapability).toBe("host.read");
-    expect(capability?.migrationStatus).toBe("cutover");
+    expect(capability?.migrationStatus).toBe("parity");
   });
 });
