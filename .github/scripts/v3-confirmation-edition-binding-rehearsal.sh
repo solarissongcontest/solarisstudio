@@ -12,12 +12,12 @@ eval "$(supabase status -o env)"
 : "${DB_URL:?missing local Supabase DB_URL}"
 : "${ANON_KEY:?missing local Supabase ANON_KEY}"
 : "${SERVICE_ROLE_KEY:?missing local Supabase SERVICE_ROLE_KEY}"
-case "$API_URL" in http://127.0.0.1:*|http://localhost:*|http://\[::1\]:*) ;; *) fail "Refusing hosted Supabase rehearsal ($API_URL)" ;; esac
-case "$DB_URL" in postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*|postgresql://postgres:postgres@\[::1\]:*) ;; *) fail "Refusing non-local database rehearsal" ;; esac
 
 PASSWORD='V3ConfirmationBinding2026!'
 EDITION_A='00000000-0000-4000-8000-000000007201'
 EDITION_B='00000000-0000-4000-8000-000000007202'
+ROUND_A='00000000-0000-4000-8000-000000007211'
+SUBMISSION_A='00000000-0000-4000-8000-000000007221'
 RUN_ID="$(python3 -c 'import uuid; print(uuid.uuid4().hex[:12])')"
 HTTP_STATUS=''
 HTTP_BODY=''
@@ -147,15 +147,19 @@ rpc "$USER_B_TOKEN" studio2_confirmation_edition_binding "{\"p_edition_id\":\"$E
 expect_failure "wrong-edition organizer read" "AUTHORIZATION"
 rpc "$USER_HOD_TOKEN" studio2_confirmation_edition_binding "{\"p_edition_id\":\"$EDITION_A\"}"
 expect_failure "delegation actor without delegation.manage" "AUTHORIZATION"
+WRONG_OPERATION="$(uuid4)"; WRONG_CORRELATION="$(uuid4)"
+apply_change "$USER_B_TOKEN" "$EDITION_A" bind null "$WRONG_OPERATION" "w7-wrong-$RUN_ID" 0 "$WRONG_CORRELATION"
+expect_failure "wrong-edition organizer mutation" "AUTHORIZATION"
 
-log "Rejecting direct authenticated Confirmation integration-link DML"
+log "Rejecting direct authenticated Confirmation integration-link INSERT"
 request POST "$API_URL/rest/v1/integration_links" "$USER_A_TOKEN" "$ANON_KEY" "{\"service\":\"confirmations\",\"entity_type\":\"edition\",\"solaris_id\":\"$EDITION_A\",\"remote_id\":\"$EDITION_A\",\"edition_id\":\"$EDITION_A\",\"sync_status\":\"linked\"}"
 expect_failure "direct Confirmation binding insert"
-[[ "$(db_value "select count(*) from public.integration_links where service='confirmations' and entity_type='edition' and solaris_id='$EDITION_A';")" == '0' ]] || fail "direct browser DML created a Confirmation binding"
+[[ "$(db_value "select count(*) from public.integration_links where service='confirmations' and entity_type='edition' and solaris_id='$EDITION_A';")" == '0' ]] || fail "direct browser INSERT created a Confirmation binding"
 
 BIND_OPERATION="$(uuid4)"; BIND_CORRELATION="$(uuid4)"; BIND_KEY="w7-bind-$RUN_ID"
 UPDATE_OPERATION="$(uuid4)"; UPDATE_CORRELATION="$(uuid4)"; UPDATE_KEY="w7-update-$RUN_ID"
-EDIT_OPERATION="$(uuid4)"; EDIT_CORRELATION="$(uuid4)"; EDIT_KEY="w7-edit-$RUN_ID"
+EDIT_CLOSE_OPERATION="$(uuid4)"; EDIT_CLOSE_CORRELATION="$(uuid4)"; EDIT_CLOSE_KEY="w7-edit-close-$RUN_ID"
+EDIT_OPEN_OPERATION="$(uuid4)"; EDIT_OPEN_CORRELATION="$(uuid4)"; EDIT_OPEN_KEY="w7-edit-open-$RUN_ID"
 REMOVE_OPERATION="$(uuid4)"; REMOVE_CORRELATION="$(uuid4)"; REMOVE_KEY="w7-remove-$RUN_ID"
 STALE_OPERATION="$(uuid4)"; STALE_CORRELATION="$(uuid4)"; STALE_KEY="w7-stale-$RUN_ID"
 REUSED_OPERATION="$(uuid4)"; REUSED_CORRELATION="$(uuid4)"
@@ -182,10 +186,19 @@ log "Rejecting an idempotency key reused for different semantics"
 apply_change "$USER_A_TOKEN" "$EDITION_A" remove null "$REUSED_OPERATION" "$BIND_KEY" "$VERSION_1" "$REUSED_CORRELATION"
 expect_failure "changed request with reused idempotency key" "IDEMPOTENCY_CONFLICT"
 
+log "Rejecting direct authenticated Confirmation integration-link UPDATE and DELETE"
+request PATCH "$API_URL/rest/v1/integration_links?service=eq.confirmations&entity_type=eq.edition&solaris_id=eq.$EDITION_A" "$USER_A_TOKEN" "$ANON_KEY" '{"sync_status":"error"}'
+(( HTTP_STATUS >= 200 && HTTP_STATUS < 300 )) || fail "direct Confirmation binding update returned unexpected HTTP $HTTP_STATUS: $HTTP_BODY"
+[[ "$(db_value "select sync_status from public.integration_links where service='confirmations' and entity_type='edition' and solaris_id='$EDITION_A';")" == 'linked' ]] || fail "direct browser UPDATE changed the Confirmation binding"
+request DELETE "$API_URL/rest/v1/integration_links?service=eq.confirmations&entity_type=eq.edition&solaris_id=eq.$EDITION_A" "$USER_A_TOKEN" "$ANON_KEY"
+(( HTTP_STATUS >= 200 && HTTP_STATUS < 300 )) || fail "direct Confirmation binding delete returned unexpected HTTP $HTTP_STATUS: $HTTP_BODY"
+[[ "$(db_value "select count(*) from public.integration_links where service='confirmations' and entity_type='edition' and solaris_id='$EDITION_A';")" == '1' ]] || fail "direct browser DELETE removed the Confirmation binding"
+log "PASS: direct Confirmation UPDATE/DELETE had zero write effect"
+
 log "Repairing stale binding metadata through the governed update path"
 db_value "
   update public.integration_links
-  set sync_status='stale', metadata='{}'::jsonb, last_synced_at=null, updated_at=now()
+  set sync_status='pending', metadata='{}'::jsonb, last_synced_at=null, updated_at=now()
   where service='confirmations' and entity_type='edition' and solaris_id='$EDITION_A';
 " >/dev/null
 preview "$USER_A_TOKEN" "$EDITION_A" bind null
@@ -202,46 +215,90 @@ log "Rejecting a stale expected version"
 apply_change "$USER_A_TOKEN" "$EDITION_A" editing false "$STALE_OPERATION" "$STALE_KEY" "$VERSION_1" "$STALE_CORRELATION"
 expect_failure "stale expected version" "VERSION_CONFLICT"
 
-log "Changing existing-response editing with the exact binding/version"
+log "Closing existing-response editing through the R2 path"
 preview "$USER_A_TOKEN" "$EDITION_A" editing false
-expect_success "editing change preview"
-expect_json "editing preview current state" editingEnabled true
-EDIT_VERSION="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
-apply_change "$USER_A_TOKEN" "$EDITION_A" editing false "$EDIT_OPERATION" "$EDIT_KEY" "$EDIT_VERSION" "$EDIT_CORRELATION"
-expect_success "editing change"
-expect_json "editing change receipt" status succeeded
-expect_json "editing change result" result.editingEnabled false
+expect_success "editing close preview"
+expect_json "editing close preview current state" editingEnabled true
+EDIT_CLOSE_VERSION="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
+apply_change "$USER_A_TOKEN" "$EDITION_A" editing false "$EDIT_CLOSE_OPERATION" "$EDIT_CLOSE_KEY" "$EDIT_CLOSE_VERSION" "$EDIT_CLOSE_CORRELATION"
+expect_success "editing close"
+expect_json "editing close receipt" status succeeded
+expect_json "editing close result" result.editingEnabled false
 VERSION_3="$(printf '%s' "$HTTP_BODY" | json_value result.version)"
-[[ "$VERSION_3" -gt "$VERSION_2" ]] || fail "editing change did not advance the durable state version"
+[[ "$VERSION_3" -gt "$VERSION_2" ]] || fail "editing close did not advance the durable state version"
+
+log "Reauthenticating immediately before the R3 editing expansion"
+sign_in "w7-binding-a-$RUN_ID@solaris.invalid"; USER_A_TOKEN="$LAST_TOKEN"
+preview "$USER_A_TOKEN" "$EDITION_A" editing true
+expect_success "editing reopen preview"
+expect_json "editing reopen preview risk" riskClass R3
+EDIT_OPEN_VERSION="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
+apply_change "$USER_A_TOKEN" "$EDITION_A" editing true "$EDIT_OPEN_OPERATION" "$EDIT_OPEN_KEY" "$EDIT_OPEN_VERSION" "$EDIT_OPEN_CORRELATION"
+expect_success "editing reopen"
+expect_json "editing reopen receipt" status succeeded
+expect_json "editing reopen result" result.editingEnabled true
+VERSION_4="$(printf '%s' "$HTTP_BODY" | json_value result.version)"
+[[ "$VERSION_4" -gt "$VERSION_3" ]] || fail "editing reopen did not advance the durable state version"
+[[ "$(db_value "select case when actor_session_id is not null and coalesce((auth_freshness_evidence->>'fresh')::boolean,false) then 1 else 0 end from public.studio2_operation_receipts where operation_id='$EDIT_OPEN_OPERATION';")" == '1' ]] || fail "R3 editing reopen receipt lacks fresh-auth/session evidence"
+log "PASS: R3 editing reopen stored fresh-auth evidence"
+
+log "Creating historical Confirmation data that binding removal must preserve"
+db_value "
+  insert into public.submission_rounds (id, edition_id, name, status, editing_enabled)
+  values ('$ROUND_A', '$EDITION_A', 'W7 historical round', 'draft', true);
+
+  insert into public.submissions (
+    id, edition_id, round_id, instagram_username, country, recovery_code
+  ) values (
+    '$SUBMISSION_A', '$EDITION_A', '$ROUND_A', 'w7_fixture', 'W7 Fixtureland', upper('W7R-$RUN_ID')
+  );
+" >/dev/null
 
 log "Reading canonical state and reconciling the durable receipt"
 rpc "$USER_A_TOKEN" studio2_confirmation_edition_binding "{\"p_edition_id\":\"$EDITION_A\"}"
 expect_success "canonical binding readback"
 expect_json "canonical readback binding" bindingState linked
-expect_json "canonical readback editing" editingEnabled false
-expect_json "canonical readback version" version "$VERSION_3"
-rpc "$USER_A_TOKEN" studio2_reconcile_operation "{\"p_operation_id\":\"$EDIT_OPERATION\"}"
+expect_json "canonical readback editing" editingEnabled true
+expect_json "canonical readback version" version "$VERSION_4"
+expect_json "canonical readback round count" roundCount 1
+expect_json "canonical readback response count" responseCount 1
+rpc "$USER_A_TOKEN" studio2_reconcile_operation "{\"p_operation_id\":\"$EDIT_OPEN_OPERATION\"}"
 expect_success "operation receipt reconciliation"
 expect_json "reconciled operation status" status succeeded
 expect_json "reconciled operation edition" result.editionId "$EDITION_A"
 
-log "Removing the exact binding"
+log "Reauthenticating immediately before R3 binding removal"
+sign_in "w7-binding-a-$RUN_ID@solaris.invalid"; USER_A_TOKEN="$LAST_TOKEN"
 preview "$USER_A_TOKEN" "$EDITION_A" remove null
 expect_success "binding remove preview"
+expect_json "binding remove preview risk" riskClass R3
+expect_json "binding remove preview round count" roundCount 1
+expect_json "binding remove preview response count" responseCount 1
 REMOVE_VERSION="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
 apply_change "$USER_A_TOKEN" "$EDITION_A" remove null "$REMOVE_OPERATION" "$REMOVE_KEY" "$REMOVE_VERSION" "$REMOVE_CORRELATION"
 expect_success "binding remove"
 expect_json "binding remove receipt" status succeeded
 expect_json "binding remove state" result.bindingState missing
-VERSION_4="$(printf '%s' "$HTTP_BODY" | json_value result.version)"
-[[ "$VERSION_4" -gt "$VERSION_3" ]] || fail "binding removal did not advance the durable state version"
+VERSION_5="$(printf '%s' "$HTTP_BODY" | json_value result.version)"
+[[ "$VERSION_5" -gt "$VERSION_4" ]] || fail "binding removal did not advance the durable state version"
+[[ "$(db_value "select case when actor_session_id is not null and coalesce((auth_freshness_evidence->>'fresh')::boolean,false) then 1 else 0 end from public.studio2_operation_receipts where operation_id='$REMOVE_OPERATION';")" == '1' ]] || fail "R3 binding removal receipt lacks fresh-auth/session evidence"
+[[ "$(db_value "select count(*) from public.submission_rounds where id='$ROUND_A' and edition_id='$EDITION_A';")" == '1' ]] || fail "binding removal deleted historical submission round"
+[[ "$(db_value "select count(*) from public.submissions where id='$SUBMISSION_A' and edition_id='$EDITION_A';")" == '1' ]] || fail "binding removal deleted historical submission"
+[[ "$(db_value "select count(*) from public.editions where id='$EDITION_A';")" == '1' ]] || fail "binding removal deleted canonical edition"
+log "PASS: R3 removal preserved edition/round/response history"
+
+log "Replaying the successful R3 remove after current state changed"
+apply_change "$USER_A_TOKEN" "$EDITION_A" remove null "$REMOVE_OPERATION" "$REMOVE_KEY" "$REMOVE_VERSION" "$REMOVE_CORRELATION"
+expect_success "binding remove replay"
+expect_json "binding remove replay status" status succeeded
+expect_json "binding remove replay marker" replayed true
 
 log "Rejecting an ABA stale create after removal"
 ABA_OPERATION="$(uuid4)"; ABA_CORRELATION="$(uuid4)"; ABA_KEY="w7-aba-$RUN_ID"
 apply_change "$USER_A_TOKEN" "$EDITION_A" bind null "$ABA_OPERATION" "$ABA_KEY" "$VERSION_2" "$ABA_CORRELATION"
 expect_failure "ABA stale create" "VERSION_CONFLICT"
 
-log "Failing closed on conflicting forward/reverse identity"
+log "Failing closed on a conflicting forward identity"
 db_value "
   insert into public.integration_links (
     service, entity_type, solaris_id, remote_id, edition_id, sync_status, metadata, last_synced_at, updated_at
@@ -250,34 +307,67 @@ db_value "
   );
 " >/dev/null
 rpc "$USER_A_TOKEN" studio2_confirmation_edition_binding "{\"p_edition_id\":\"$EDITION_A\"}"
-expect_success "conflicting binding readback"
-expect_json "conflicting binding surfaced" bindingState conflict
-CONFLICT_OPERATION="$(uuid4)"; CONFLICT_CORRELATION="$(uuid4)"; CONFLICT_KEY="w7-conflict-$RUN_ID"
+expect_success "forward-conflicting binding readback"
+expect_json "forward conflict surfaced" bindingState conflict
+FORWARD_CONFLICT_OPERATION="$(uuid4)"; FORWARD_CONFLICT_CORRELATION="$(uuid4)"; FORWARD_CONFLICT_KEY="w7-forward-conflict-$RUN_ID"
 preview "$USER_A_TOKEN" "$EDITION_A" bind null
-expect_success "conflicting binding preview"
-CONFLICT_VERSION="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
-apply_change "$USER_A_TOKEN" "$EDITION_A" bind null "$CONFLICT_OPERATION" "$CONFLICT_KEY" "$CONFLICT_VERSION" "$CONFLICT_CORRELATION"
-expect_failure "conflicting binding apply" "BINDING_CONFLICT"
+expect_success "forward-conflicting binding preview"
+FORWARD_CONFLICT_VERSION="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
+apply_change "$USER_A_TOKEN" "$EDITION_A" bind null "$FORWARD_CONFLICT_OPERATION" "$FORWARD_CONFLICT_KEY" "$FORWARD_CONFLICT_VERSION" "$FORWARD_CONFLICT_CORRELATION"
+expect_failure "forward conflicting binding apply" "BINDING_CONFLICT"
+[[ "$(db_value "select remote_id from public.integration_links where service='confirmations' and entity_type='edition' and solaris_id='$EDITION_A';")" == "$EDITION_B" ]] || fail "forward conflict was silently rebound"
 db_value "delete from public.integration_links where service='confirmations' and entity_type='edition' and solaris_id='$EDITION_A';" >/dev/null
+
+log "Failing closed on a conflicting reverse identity"
+db_value "
+  insert into public.integration_links (
+    service, entity_type, solaris_id, remote_id, edition_id, sync_status, metadata, last_synced_at, updated_at
+  ) values (
+    'confirmations', 'edition', '$EDITION_B', '$EDITION_A', '$EDITION_B', 'linked', '{}'::jsonb, now(), now()
+  );
+" >/dev/null
+rpc "$USER_A_TOKEN" studio2_confirmation_edition_binding "{\"p_edition_id\":\"$EDITION_A\"}"
+expect_success "reverse-conflicting binding readback"
+expect_json "reverse conflict surfaced" bindingState conflict
+REVERSE_CONFLICT_OPERATION="$(uuid4)"; REVERSE_CONFLICT_CORRELATION="$(uuid4)"; REVERSE_CONFLICT_KEY="w7-reverse-conflict-$RUN_ID"
+preview "$USER_A_TOKEN" "$EDITION_A" bind null
+expect_success "reverse-conflicting binding preview"
+REVERSE_CONFLICT_VERSION="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
+apply_change "$USER_A_TOKEN" "$EDITION_A" bind null "$REVERSE_CONFLICT_OPERATION" "$REVERSE_CONFLICT_KEY" "$REVERSE_CONFLICT_VERSION" "$REVERSE_CONFLICT_CORRELATION"
+expect_failure "reverse conflicting binding apply" "BINDING_CONFLICT"
+[[ "$(db_value "select solaris_id::text from public.integration_links where service='confirmations' and entity_type='edition' and remote_id='$EDITION_A';")" == "$EDITION_B" ]] || fail "reverse conflict was silently rebound"
+db_value "delete from public.integration_links where service='confirmations' and entity_type='edition' and solaris_id='$EDITION_B';" >/dev/null
 
 log "Verifying successful mutations emitted transactional DomainEvent/outbox evidence"
 EVENT_COUNT="$(db_value "
   select count(*)
   from private.v3_domain_events event
-  where event.operation_id in ('$BIND_OPERATION'::uuid, '$UPDATE_OPERATION'::uuid, '$EDIT_OPERATION'::uuid, '$REMOVE_OPERATION'::uuid)
+  where event.operation_id in (
+    '$BIND_OPERATION'::uuid,
+    '$UPDATE_OPERATION'::uuid,
+    '$EDIT_CLOSE_OPERATION'::uuid,
+    '$EDIT_OPEN_OPERATION'::uuid,
+    '$REMOVE_OPERATION'::uuid
+  )
     and event.event_type='confirmation.window_changed'
     and event.aggregate_type='confirmation_edition'
     and event.edition_id='$EDITION_A'::uuid;
 ")"
-[[ "$EVENT_COUNT" == '4' ]] || fail "expected 4 Confirmation edition DomainEvents, found $EVENT_COUNT"
+[[ "$EVENT_COUNT" == '5' ]] || fail "expected 5 Confirmation edition DomainEvents, found $EVENT_COUNT"
 OUTBOX_COUNT="$(db_value "
   select count(*)
   from private.v3_domain_event_outbox delivery
   join private.v3_domain_events event on event.id=delivery.event_id
-  where event.operation_id in ('$BIND_OPERATION'::uuid, '$UPDATE_OPERATION'::uuid, '$EDIT_OPERATION'::uuid, '$REMOVE_OPERATION'::uuid)
+  where event.operation_id in (
+    '$BIND_OPERATION'::uuid,
+    '$UPDATE_OPERATION'::uuid,
+    '$EDIT_CLOSE_OPERATION'::uuid,
+    '$EDIT_OPEN_OPERATION'::uuid,
+    '$REMOVE_OPERATION'::uuid
+  )
     and delivery.consumer_key in ('confirmation.tasks','confirmation.notifications');
 ")"
-[[ "$OUTBOX_COUNT" == '8' ]] || fail "expected 8 Confirmation edition outbox deliveries, found $OUTBOX_COUNT"
+[[ "$OUTBOX_COUNT" == '10' ]] || fail "expected 10 Confirmation edition outbox deliveries, found $OUTBOX_COUNT"
 log "PASS: DomainEvent and outbox evidence"
 
 log "Confirmation edition binding rehearsal passed"
