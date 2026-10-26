@@ -41,6 +41,8 @@ export function createAccountCacheIsolationHandler(
       clearPrivateAccountQueries(client);
       resetAttention();
     }
+    // An older getSession retryer must not overwrite this newer SDK event.
+    void client.cancelQueries({ queryKey: ["fan-session"], exact: true });
     client.setQueryData(["fan-session"], user ?? null);
   };
 }
