@@ -7,18 +7,22 @@ const migration = readFileSync(
   "supabase/migrations/20261026210500_v3_confirmation_edition_binding_operations.sql",
   "utf8",
 );
+const r3Migration = readFileSync(
+  "supabase/migrations/20261026210600_v3_confirmation_edition_binding_r3_fresh_auth.sql",
+  "utf8",
+);
 const rehearsal = readFileSync(
   ".github/scripts/v3-confirmation-edition-binding-rehearsal.sh",
   "utf8",
 );
 
-function functionBody(name: string) {
+function functionBody(source: string, name: string) {
   const marker = `create or replace function ${name}`;
-  const start = migration.indexOf(marker);
+  const start = source.indexOf(marker);
   expect(start).toBeGreaterThanOrEqual(0);
-  const end = migration.indexOf("\nrevoke all on function", start);
+  const end = source.indexOf("\nrevoke all on function", start);
   expect(end).toBeGreaterThan(start);
-  return migration.slice(start, end);
+  return source.slice(start, end);
 }
 
 describe("V3 Organizer Confirmation edition binding operations", () => {
@@ -49,7 +53,7 @@ describe("V3 Organizer Confirmation edition binding operations", () => {
   });
 
   it("keeps integration_links canonical and refuses silent identity rebinding", () => {
-    const apply = functionBody("public.studio2_apply_confirmation_edition_binding_change");
+    const apply = functionBody(r3Migration, "public.studio2_apply_confirmation_edition_binding_change");
     expect(apply).toContain("from public.integration_links");
     expect(apply).toContain("insert into public.integration_links");
     expect(apply).toContain("update public.integration_links");
@@ -60,22 +64,40 @@ describe("V3 Organizer Confirmation edition binding operations", () => {
     expect(apply).not.toContain("limit 1");
   });
 
-  it("resolves idempotent replay before mutable current-state validation", () => {
-    const apply = functionBody("public.studio2_apply_confirmation_edition_binding_change");
+  it("resolves idempotent replay before fresh-auth and mutable current-state validation", () => {
+    const apply = functionBody(r3Migration, "public.studio2_apply_confirmation_edition_binding_change");
     const claim = apply.indexOf("private.studio2_claim_operation");
     const replay = apply.indexOf("if v_replay then");
+    const freshAuth = apply.indexOf("private.studio2_require_fresh_auth(300)");
     const preview = apply.indexOf("v_preview := public.studio2_confirmation_edition_binding_preview");
     const versionCheck = apply.indexOf("v_before_version is distinct from p_expected_version");
 
     expect(claim).toBeGreaterThanOrEqual(0);
     expect(replay).toBeGreaterThan(claim);
-    expect(preview).toBeGreaterThan(replay);
+    expect(freshAuth).toBeGreaterThan(replay);
+    expect(preview).toBeGreaterThan(freshAuth);
     expect(versionCheck).toBeGreaterThan(preview);
     expect(apply).toContain("return public.studio2_reconcile_operation(p_operation_id)");
   });
 
+  it("enforces the established R3 password + signed server freshness contract", () => {
+    expect(client).toContain("reauthenticateConfirmationEditionR3");
+    expect(client).toContain("confirmationsSupabase.auth.getUser()");
+    expect(client).toContain("confirmationsSupabase.auth.signInWithPassword");
+    expect(route).toContain('current.preview.riskClass === "R3"');
+    expect(route).toContain("reauthenticateConfirmationEditionR3(reauthPassword)");
+    expect(route).toContain('autoComplete="current-password"');
+    expect(route).toContain("confirmDisabled={Boolean(pendingNeedsReauth && !reauthPassword)}");
+
+    const apply = functionBody(r3Migration, "public.studio2_apply_confirmation_edition_binding_change");
+    expect(apply).toContain("if v_risk_class = 'R3' then");
+    expect(apply).toContain("private.studio2_require_fresh_auth(300)");
+    expect(apply).toContain("actor_session_id = v_auth_freshness ->> 'sessionId'");
+    expect(apply).toContain("auth_freshness_evidence = v_auth_freshness");
+  });
+
   it("enforces exact edition capability, lock and expected version", () => {
-    const apply = functionBody("public.studio2_apply_confirmation_edition_binding_change");
+    const apply = functionBody(r3Migration, "public.studio2_apply_confirmation_edition_binding_change");
     expect(apply).toContain("studio2_access_allowed('delegation.manage', p_edition_id, true)");
     expect(apply).toContain("pg_advisory_xact_lock");
     expect(apply).toContain("for update");
@@ -86,15 +108,16 @@ describe("V3 Organizer Confirmation edition binding operations", () => {
   });
 
   it("persists a monotonic edition state revision across create/update/remove/editing", () => {
-    const apply = functionBody("public.studio2_apply_confirmation_edition_binding_change");
+    const apply = functionBody(r3Migration, "public.studio2_apply_confirmation_edition_binding_change");
     expect(apply).toContain("v_before_version := v_edition.data_revision");
     expect(apply).toContain("data_revision = edition.data_revision + 1");
     expect(apply).toContain("if v_kind in ('bind', 'remove') and v_changed then");
     expect(migration).not.toContain("confirmation_edition_binding_versions");
+    expect(r3Migration).not.toContain("confirmation_edition_binding_versions");
   });
 
   it("emits completed facts into the existing Confirmation DomainEvent/outbox consumers", () => {
-    const emit = functionBody("private.v3_emit_confirmation_edition_operation_event");
+    const emit = functionBody(migration, "private.v3_emit_confirmation_edition_operation_event");
     expect(emit).toContain("private.v3_emit_domain_event");
     expect(emit).toContain("'confirmation.window_changed'");
     expect(emit).toContain("'confirmation_edition'");
