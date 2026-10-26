@@ -92,11 +92,21 @@ describe("System V3 S1 registries", () => {
     ]);
 
     const replacements = V3_DOMAIN_CONSEQUENCE_REGISTRY
-      .filter((item) => item.implementationState === "replaced-by-read")
-      .map((item) => item.eventType);
-    expect(replacements).toEqual(["receipt.reconciled"]);
+      .filter((item) => item.implementationState.startsWith("replaced-by-"))
+      .map((item) => item.eventType)
+      .sort();
+    expect(replacements).toEqual([
+      "audit.recorded",
+      "receipt.recorded",
+      "receipt.reconciled",
+      "task.opened",
+      "task.resolved",
+    ]);
     expect(v3DomainConsequence("receipt.reconciled")?.replacement?.operation).toBe(
       "public.studio2_reconcile_operation(uuid)",
+    );
+    expect(v3DomainConsequence("task.opened")?.replacement?.kind).toBe(
+      "canonical-derived-projection",
     );
     const migrated = new Set([...eventBacked, ...replacements]);
     expect(
