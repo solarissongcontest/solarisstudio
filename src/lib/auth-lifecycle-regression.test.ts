@@ -27,8 +27,8 @@ describe("auth lifecycle generations", () => {
   it("keeps private-cache purge ordering across A, sign-out and B and ignores delayed A", () => {
     const events: string[] = [];
     const client = {
-      cancelQueries: vi.fn(() => {
-        events.push("cancel-private");
+      cancelQueries: vi.fn((filters: { queryKey?: readonly unknown[] }) => {
+        events.push(filters.queryKey?.[0] === "fan-session" ? "cancel-session" : "cancel-private");
         return Promise.resolve();
       }),
       removeQueries: vi.fn(() => events.push("remove-private")),
@@ -63,6 +63,7 @@ describe("auth lifecycle generations", () => {
       "cancel-private",
       "remove-private",
       "reset-attention",
+      "cancel-session",
       "fan:A",
       "cancel-private",
       "remove-private",
