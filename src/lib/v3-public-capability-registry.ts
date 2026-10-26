@@ -475,9 +475,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
       hostRoute: "/",
       replacesLegacyRoutes: ["/search"],
     },
-    specificationStatus: "parity",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.global-search-entity-routing",
-    migrationEvidence: "src/lib/v3-search-cutover.contract.test.ts; src/lib/public-search.test.ts; e2e/v3-search.e2e.ts",
+    migrationEvidence: "src/lib/v3-public-replacement-acceptance.contract.test.ts; src/lib/v3-search-cutover.contract.test.ts; src/lib/public-search.test.ts; e2e/v3-search.e2e.ts; shell-owned PublicCommandPalette replaces standalone /search with bounded solaris_public_search authority",
   },
   {
     id: "scoreboard",
@@ -496,8 +496,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
       hostRoute: "/shows/:showId",
       replacesLegacyRoutes: ["/scoreboard", "/scoreboard/*"],
     },
-    specificationStatus: "mapped",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.scoreboard-published-result-version",
+    migrationEvidence: "src/lib/v3-public-replacement-acceptance.contract.test.ts; src/lib/v3-scoreboard-cutover.contract.test.ts; src/routes/shows/$showId.tsx; V3ScoreboardPresentation is embedded in publication-gated show detail and consumes canonical standings without Results mutation or browser tie-break authority",
   },
   {
     id: "delegation-detail",
