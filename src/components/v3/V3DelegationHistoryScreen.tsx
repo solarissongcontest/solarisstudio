@@ -80,11 +80,12 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
     );
   }
 
+  const summaryData = summary.data;
   const scoped =
     !summary.isError &&
-    isScopedV3MeSummary(summary.data, viewerId, countryAccount.country.id);
+    isScopedV3MeSummary(summaryData, viewerId, countryAccount.country.id);
 
-  if (!scoped) {
+  if (!scoped || !summaryData) {
     return (
       <V3Screen>
         <V3ScreenHeader
@@ -108,7 +109,7 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
     );
   }
 
-  const history = [...summary.data.history].sort(
+  const history = [...summaryData.history].sort(
     (a, b) => b.edition_number - a.edition_number,
   );
   const editionById = new Map((editions.data ?? []).map((edition) => [edition.id, edition]));
@@ -146,7 +147,7 @@ export function V3DelegationHistoryScreen({ viewerId }: { viewerId: string }) {
                   icon={Archive}
                   tone="neutral"
                   to={href}
-                  meta={edition?.slug ? "Open edition archive" : "Open edition archive"}
+                  meta="Open edition archive"
                 />
               );
             })}
