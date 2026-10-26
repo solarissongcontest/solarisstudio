@@ -6,8 +6,9 @@ import { auditReleaseBurndown, type ReleaseBurndown } from "../src/lib/v3-releas
 const matrix = JSON.parse(readFileSync("docs/v3-release-burndown.json", "utf8")) as ReleaseBurndown;
 const scan = spawnSync(process.execPath, ["--env-file=/dev/null", "run", "scripts/check-v3-release-integrity.ts", "--discovery", "--json"], { encoding: "utf8", env: process.env });
 if (scan.error) throw scan.error;
-const readiness = JSON.parse(scan.stdout) as { findings: string[] };
+const readiness = JSON.parse(scan.stdout) as { findings: string[]; repositoryReady: boolean };
 if (!Array.isArray(readiness.findings) || ![0, 1].includes(scan.status ?? -1)) throw new Error("Canonical readiness scanner failed");
+if (scan.status !== (readiness.findings.length ? 1 : 0) || readiness.repositoryReady !== (readiness.findings.length === 0)) throw new Error("Canonical readiness exit status and findings disagree");
 const audit = auditReleaseBurndown(matrix, readiness.findings, existsSync);
 const directory = process.env.V3_PREFLIGHT_DIR ?? "v3-release-preflight/static";
 mkdirSync(directory, { recursive: true });

@@ -68,10 +68,12 @@ describe("auth lifecycle generations", () => {
       "cancel-private",
       "remove-private",
       "reset-attention",
+      "cancel-session",
       "fan:signed-out",
       "cancel-private",
       "remove-private",
       "reset-attention",
+      "cancel-session",
       "fan:B",
     ]);
   });

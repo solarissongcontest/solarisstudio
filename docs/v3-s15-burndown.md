@@ -6,14 +6,14 @@ Initial classification totals: 96 implementation-present/evidence-missing; 64 pa
 
 ## Implemented repairs
 
-- Authenticated route identity is scoped to the active fan-session user, verified through server `getUser`, and purged on account change. The identity query no longer shares a cached server identity across A, sign-out and B. Actual QueryClient/QueryObserver tests cover private/public cache isolation and delayed A reads.
+- Authenticated route identity is scoped to the active fan-session user, verified through server `getUser`, and purged on account change. The identity query no longer shares a cached server identity across A, sign-out and B. Actual QueryClient/QueryObserver tests cover private/public cache isolation, delayed A identity reads and delayed getSession reads that could overwrite a newer SDK session event.
 - Contest edition roots are owned by Organizer Control in the actual routing helper, including discovery placeholders; malformed/unknown routes retain More ownership.
 - Search and Scoreboard now point to their real shell-overlay and embedded show-detail owners. Explicit former-route relationships remain. Their feature cutovers are not falsely accepted.
 - `receipt.reconciled` is explicitly replaced by the existing bounded, actor-scoped, STABLE canonical receipt read. It remains in the catalog and is never called event-backed. Reading a receipt does not fabricate a second mutation, analytics event or invalidation. A strict manifest rejects forged replacements and leaves all genuine declared mutations blocked. The local receipt rehearsal checks repeated own reads, foreign denial, server volatility, unchanged canonical receipts, and unchanged DomainEvent/outbox cardinality.
 
 ## Validation and progress
 
-The managed execution environment failed provisioning before any local execution. Source edits are batched on an isolated GitHub branch and then fast-forwarded to PR #1629; no published history is rewritten.
+The managed execution environment initially failed provisioning. Source edits were batched on an isolated GitHub branch; after the workspace was restored, narrow tests and historical before/after reproductions were executed locally before further publication. Stateful database validation continues in isolated GitHub Actions; the full local Docker rehearsal is not retried. No published history is rewritten.
 
 Cascade discovery validates the complete audit and emits `v3-release-preflight/static/s15-burndown.json` alongside live canonical findings. The audit can pass while readiness is red; it never promotes readiness. It rejects unclassified live findings, duplicate rows, invalid classifications, unexplained work and missing implementation/test references.
 

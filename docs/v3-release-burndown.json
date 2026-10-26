@@ -2234,7 +2234,7 @@
         "src/routes/_authenticated/admin/design.$slug.tsx",
         "src/lib/theme.ts",
         "src/lib/broadcast.ts",
-        "src/lib/scoreboard.ts"
+        "src/lib/scoreboard/index.ts"
       ],
       "migrationOwner": "System #625",
       "migrationEvidence": [],

@@ -34,16 +34,18 @@ describe("Organizer authentication authority", () => {
     expect(authenticatedRoute).not.toContain("throw redirect");
     expect(identityGateStart).toBeGreaterThanOrEqual(0);
     expect(identityGate).toContain("useQuery<User | null>({");
-    expect(identityGate).toContain('queryKey: ["authenticated-identity-gate"]');
+    expect(identityGate).toContain('queryKey: authenticatedIdentityQueryKey(sessionUserId)');
     expect(identityGate).toContain("await supabase.auth.getUser()");
     expect(identityGate).toContain("retry: false");
+    expect(identityGate).toContain("data.user.id !== sessionUserId");
+    expect(identityGate).toContain("enabled: Boolean(sessionUserId)");
     expect(identityGate).toContain("useEffect(() =>");
-    expect(identityGate).toContain("if (identity.isPending || identity.data) return");
+    expect(identityGate).toContain("if (checkingIdentity || authenticatedUser) return");
     expect(identityGate).toContain('to: "/auth"');
     expect(identityGate).not.toContain("useState(");
     expect(identityGate).not.toContain("setState(");
     expect(authenticatedRoute).toContain("<AuthenticatedIdentityGate>");
-    expect(authenticatedRoute).toContain("<AuthenticatedUserProvider user={identity.data}>");
+    expect(authenticatedRoute).toContain("<AuthenticatedUserProvider user={authenticatedUser}>");
     expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
 
     expect(adminRoute).not.toContain("beforeLoad:");

@@ -150,7 +150,8 @@ describe("production Organizer audit regressions", () => {
     const mySolaris = source("src/routes/_authenticated/my-solaris/index.tsx");
 
     expect(authenticatedRoute).toContain("function AuthenticatedIdentityGate");
-    expect(authenticatedRoute).toContain("<AuthenticatedUserProvider user={identity.data}>");
+    expect(authenticatedRoute).toContain("data.user.id !== sessionUserId");
+    expect(authenticatedRoute).toContain("<AuthenticatedUserProvider user={authenticatedUser}>");
     expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
     expect(authenticatedRoute).not.toContain("beforeLoad:");
     expect(adminRoute).toContain("function OrganizerAccessGate");

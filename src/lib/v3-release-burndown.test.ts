@@ -21,12 +21,13 @@ describe("complete release burn-down classification", () => {
 
   it("rejects duplicate, unexplained, misclassified and missing-source items", () => {
     const matrix = snapshot();
+    matrix.schemaVersion = 99;
     const original = matrix.publicCutovers[0];
     matrix.publicCutovers[1] = { ...original, rationale: "", requiredRepair: [],
       classification: "done", implementationPaths: ["src/no-such-proof.ts"] };
     const report = auditReleaseBurndown(matrix, [original.exactFinding], existsSync);
     expect(report.auditPassed).toBe(false);
-    for (const code of ["BURNDOWN_DUPLICATE", "BURNDOWN_UNEXPLAINED", "BURNDOWN_UNKNOWN_CLASSIFICATION", "BURNDOWN_MISSING_REFERENCE", "BURNDOWN_CLASSIFICATION_TOTAL_DRIFT"]) {
+    for (const code of ["BURNDOWN_UNSUPPORTED_SCHEMA", "BURNDOWN_DUPLICATE", "BURNDOWN_UNEXPLAINED", "BURNDOWN_UNKNOWN_CLASSIFICATION", "BURNDOWN_MISSING_REFERENCE", "BURNDOWN_CLASSIFICATION_TOTAL_DRIFT"]) {
       expect(report.findings.some((finding) => finding.startsWith(code))).toBe(true);
     }
   });

@@ -30,6 +30,7 @@ export function auditReleaseBurndown(
   const classifications: Record<string, number> = {};
   const entries = [...matrix.publicCutovers, ...matrix.organizerCutovers, ...matrix.consequences];
   const seen = new Set<string>();
+  if (matrix.schemaVersion !== 1) findings.push("BURNDOWN_UNSUPPORTED_SCHEMA");
   if (matrix.kind !== "source-classification-not-release-evidence") findings.push("BURNDOWN_INVALID_KIND");
   if (!/^[0-9a-f]{40}$/.test(matrix.sourceCandidateSha)) findings.push("BURNDOWN_INVALID_SOURCE_SHA");
   if (entries.length !== matrix.total) findings.push("BURNDOWN_INCOMPLETE_TOTAL");
