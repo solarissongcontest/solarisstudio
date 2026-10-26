@@ -6,8 +6,8 @@ import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminCard, AdminCardHeader, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
-import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { syncConfirmationSubmissionToSolaris } from "@/integrations/confirmations/sync-submission.functions";
+import { loadAllConfirmationResponsesForEdition } from "@/integrations/confirmations/v3-projections";
 import {
   addCountriesToShow,
   getSolarisEditionSyncTargets,
@@ -63,6 +63,7 @@ type PendingLineupSyncReview = {
   showId: string;
   showName: string;
   responseIds: string[];
+  responseStateVersion: string;
   countries: string[];
   operationId: string;
 };
@@ -79,6 +80,7 @@ function ConfirmationSyncPage() {
   const getTargets = useServerFn(getSolarisEditionSyncTargets);
   const addToShow = useServerFn(addCountriesToShow);
   const [rows, setRows] = useState<ResponseRow[]>([]);
+  const [responseStateVersion, setResponseStateVersion] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,25 +104,28 @@ function ConfirmationSyncPage() {
     setTargets(null);
     setShowId("");
     setRoundId("");
+    setRows([]);
+    setResponseStateVersion("");
 
     if (!organizerEditionId) {
-      setRows([]);
       setLoading(false);
       return () => { alive = false; };
     }
 
     setLoading(true);
     void (async () => {
-      const { data, error: loadError } = await confirmationsSupabase.rpc("admin_confirmation_responses");
-      if (!alive) return;
-      if (loadError) {
-        setError(loadError.message);
+      try {
+        const batch = await loadAllConfirmationResponsesForEdition<ResponseRow>(organizerEditionId);
+        if (!alive) return;
+        setRows(batch.rows);
+        setResponseStateVersion(batch.stateVersion);
+      } catch (caught) {
+        if (!alive) return;
+        setError(caught instanceof Error ? caught.message : "Could not load the selected Confirmation edition.");
         setRows([]);
-      } else {
-        const responseRows = Array.isArray(data) ? (data as unknown as ResponseRow[]) : [];
-        setRows(responseRows.filter((row) => row.editions?.id === organizerEditionId));
+      } finally {
+        if (alive) setLoading(false);
       }
-      setLoading(false);
     })();
     return () => { alive = false; };
   }, [organizerEditionId]);
@@ -145,9 +150,7 @@ function ConfirmationSyncPage() {
   }, [organizerEditionId, rows]);
 
   useEffect(() => {
-    if (!rounds.some((round) => round.id === roundId)) {
-      setRoundId(rounds[0]?.id ?? "");
-    }
+    if (!rounds.some((round) => round.id === roundId)) setRoundId(rounds[0]?.id ?? "");
   }, [roundId, rounds]);
 
   const selectedRound = rounds.find((round) => round.id === roundId) ?? null;
@@ -191,7 +194,7 @@ function ConfirmationSyncPage() {
   }, [getTargets, organizerEditionId, selectedRound]);
 
   function openSyncReview() {
-    if (!organizerEditionId || !selectedRound || !targets || !selectedShow || !selectedRows.length || busy) return;
+    if (!organizerEditionId || !selectedRound || !targets || !selectedShow || !selectedRows.length || !responseStateVersion || busy) return;
     if (selectedRound.editionId !== organizerEditionId || targets.editionId !== organizerEditionId) {
       const message = "Edition context changed before the line-up review. Refresh the selected edition and choose the target again.";
       setError(message);
@@ -208,6 +211,7 @@ function ConfirmationSyncPage() {
       showId: selectedShow.id,
       showName: selectedShow.name,
       responseIds: selectedRows.map((row) => row.id).sort(),
+      responseStateVersion,
       countries: selectedRows.map((row) => row.country).sort((a, b) => a.localeCompare(b)),
       operationId: crypto.randomUUID(),
     });
@@ -228,16 +232,18 @@ function ConfirmationSyncPage() {
     setBusy(true);
     setError(null);
     try {
-      const currentResponses = await confirmationsSupabase.rpc("admin_confirmation_responses");
-      if (currentResponses.error) throw currentResponses.error;
+      const currentBatch = await loadAllConfirmationResponsesForEdition<ResponseRow>(review.editionId);
       if (organizerEditionIdRef.current !== review.editionId) {
         throw new Error("Organizer edition changed while the reviewed sync was being revalidated. Nothing was applied.");
       }
+      if (currentBatch.stateVersion !== review.responseStateVersion) {
+        throw Object.assign(
+          new Error("Confirmation state changed after this line-up review. Nothing was applied. Review the current round again."),
+          { status: 409 },
+        );
+      }
 
-      const currentRows = Array.isArray(currentResponses.data)
-        ? (currentResponses.data as unknown as ResponseRow[])
-        : [];
-      const liveRows = currentRows.filter((row) =>
+      const liveRows = currentBatch.rows.filter((row) =>
         row.participating &&
         row.editions?.id === review.editionId &&
         row.submission_rounds?.id === review.roundId,
@@ -247,9 +253,7 @@ function ConfirmationSyncPage() {
         liveResponseIds.length !== review.responseIds.length ||
         liveResponseIds.some((id, index) => id !== review.responseIds[index])
       ) {
-        throw new Error(
-          "The participating Confirmation responses changed while this review was open. Nothing was applied. Review the current round again.",
-        );
+        throw new Error("The participating Confirmation responses changed while this review was open. Nothing was applied. Review the current round again.");
       }
 
       const liveTargets = await getTargets({ data: { editionNumber: review.editionNumber } });
@@ -266,12 +270,9 @@ function ConfirmationSyncPage() {
 
       const countryIds: string[] = [];
       const failures: string[] = [];
-
       for (const row of liveRows) {
         if (organizerEditionIdRef.current !== review.editionId) {
-          throw new Error(
-            "Organizer edition changed during the submission-sync phase. Some earlier submission syncs may already have completed; reconcile the selected edition before retrying.",
-          );
+          throw new Error("Organizer edition changed during the submission-sync phase. Some earlier submission syncs may already have completed; reconcile the selected edition before retrying.");
         }
         try {
           const result = await syncSubmission({ data: { submissionId: row.id } });
@@ -284,9 +285,7 @@ function ConfirmationSyncPage() {
 
       if (!countryIds.length) throw new Error(failures[0] ?? "No countries could be synced.");
       if (organizerEditionIdRef.current !== review.editionId) {
-        throw new Error(
-          "Organizer edition changed before show membership could be applied. Submission syncs may already have completed; reconcile before retrying.",
-        );
+        throw new Error("Organizer edition changed before show membership could be applied. Submission syncs may already have completed; reconcile before retrying.");
       }
 
       const showResult = await addToShow({
@@ -299,10 +298,15 @@ function ConfirmationSyncPage() {
         },
       });
       setPendingSyncReview(null);
-      toast.success(
-        `${countryIds.length} countries synced · ${showResult.added} added to ${showResult.showName}${showResult.refreshed ? ` · ${showResult.refreshed} refreshed` : ""}${showResult.replayed ? " · reconciled" : ""}`,
-      );
+      toast.success(`${countryIds.length} countries synced · ${showResult.added} added to ${showResult.showName}${showResult.refreshed ? ` · ${showResult.refreshed} refreshed` : ""}${showResult.replayed ? " · reconciled" : ""}`);
       if (failures.length) setError(`${failures.length} response${failures.length === 1 ? "" : "s"} need attention: ${failures.join(" | ")}`);
+
+      // Refresh only this exact edition after the successful governed write.
+      const refreshed = await loadAllConfirmationResponsesForEdition<ResponseRow>(review.editionId);
+      if (organizerEditionIdRef.current === review.editionId) {
+        setRows(refreshed.rows);
+        setResponseStateVersion(refreshed.stateVersion);
+      }
     } catch (caught) {
       // Keep the reviewed operation identity after an ambiguous failure. A retry
       // first reconciles its receipt before any fresh line-up preflight/write.
@@ -319,21 +323,19 @@ function ConfirmationSyncPage() {
       <AdminPageHeader
         eyebrow="Confirmations → Solaris"
         title="Sync line-ups"
-        description="Import a confirmation wave from the exact Organizer edition and place those same canonical entries into one of that edition's shows."
+        description="Import a confirmation wave from the exact Organizer edition and place those same canonical entries into one of that edition's shows. The reviewed batch is read from the bounded exact-edition projection and revalidated against its canonical state version immediately before apply."
         actions={<Link to="/confirmations/admin" className="admin-action-secondary"><ArrowLeft className="size-4" /> Delegations</Link>}
       />
 
       {!organizerEditionId ? (
-        <AdminCard>
-          <AdminEmptyState
-            title="Select an edition"
-            description="Line-up sync is edition-scoped operational work. Select the exact Organizer edition first; Solaris will not choose the newest confirmation round or another edition automatically."
-          />
-        </AdminCard>
-      ) : loading ? <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading confirmation rounds…</p></AdminCard>
-      : error && !rows.length ? <AdminCard><AdminEmptyState title="Sync data unavailable" description={error} /></AdminCard>
-      : !rounds.length ? <AdminCard><AdminEmptyState title="No confirmation rounds to sync" description="There are no submitted participating delegations in the selected Organizer edition yet." /></AdminCard>
-      : (
+        <AdminCard><AdminEmptyState title="Select an edition" description="Line-up sync is edition-scoped operational work. Select the exact Organizer edition first; Solaris will not choose the newest confirmation round or another edition automatically." /></AdminCard>
+      ) : loading ? (
+        <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading exact-edition confirmation rounds…</p></AdminCard>
+      ) : error && !rows.length ? (
+        <AdminCard><AdminEmptyState title="Sync data unavailable" description={error} /></AdminCard>
+      ) : !rounds.length ? (
+        <AdminCard><AdminEmptyState title="No confirmation rounds to sync" description="There are no submitted participating delegations in the selected Organizer edition yet." /></AdminCard>
+      ) : (
         <>
           <AdminCard strong className="mb-4">
             <AdminCardHeader
@@ -358,7 +360,7 @@ function ConfirmationSyncPage() {
               </label>
             </div>
 
-            <button type="button" disabled={busy || !selectedShow || !selectedRows.length} onClick={openSyncReview} className="admin-action-primary mt-4 w-full">
+            <button type="button" disabled={busy || !selectedShow || !selectedRows.length || !responseStateVersion} onClick={openSyncReview} className="admin-action-primary mt-4 w-full">
               <RefreshCw className={busy ? "size-4 animate-spin" : "size-4"} />
               {busy ? "Syncing countries and entries…" : `Review ${selectedRows.length} → ${selectedShow?.name ?? "show"}`}
             </button>
@@ -373,12 +375,7 @@ function ConfirmationSyncPage() {
             </div>
           </AdminCard>
 
-          {targets?.editionSlug ? (
-            <Link to="/admin/lineup-sync/$slug" params={{ slug: targets.editionSlug }} className="admin-action-secondary w-full">
-              Open one-click show manager <ArrowRight className="size-4" />
-            </Link>
-          ) : null}
-
+          {targets?.editionSlug ? <Link to="/admin/lineup-sync/$slug" params={{ slug: targets.editionSlug }} className="admin-action-secondary w-full">Open one-click show manager <ArrowRight className="size-4" /></Link> : null}
           {error ? <div className="mt-4 rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 text-xs leading-relaxed text-amber-100">{error}</div> : null}
         </>
       )}
@@ -395,17 +392,11 @@ function ConfirmationSyncPage() {
               <p className="mt-1"><span className="font-semibold text-foreground">Confirmation round:</span> {pendingSyncReview.roundName}</p>
               <p className="mt-1"><span className="font-semibold text-foreground">Target show:</span> {pendingSyncReview.showName}</p>
               <p className="mt-1"><span className="font-semibold text-foreground">Responses:</span> {pendingSyncReview.responseIds.length}</p>
+              <p className="mt-1 break-all text-muted-foreground"><span className="font-semibold text-foreground">Confirmation state:</span> {pendingSyncReview.responseStateVersion}</p>
             </div>
-            <div className="max-h-44 overflow-y-auto rounded-xl border border-white/[0.08] bg-black/10 p-3">
-              <p className="font-semibold text-foreground">Countries in this reviewed batch</p>
-              <p className="mt-2 leading-5 text-muted-foreground">{pendingSyncReview.countries.join(" · ")}</p>
-            </div>
-            <p className="leading-5 text-muted-foreground">
-              Organizer re-fetches the participating responses and Solaris target immediately before apply and refuses the operation if the batch, edition or target show changed while this review was open.
-            </p>
-            <p className="rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 leading-5 text-amber-50/90">
-              Submission-to-edition synchronization still runs one response at a time, so a failure there may leave earlier submission syncs complete. The final show-membership write now uses the governed System line-up command: it is exact-edition scoped, atomic, version-checked, idempotent and receipted, and an ambiguous retry reuses this review's operation identity before any new write.
-            </p>
+            <div className="max-h-44 overflow-y-auto rounded-xl border border-white/[0.08] bg-black/10 p-3"><p className="font-semibold text-foreground">Countries in this reviewed batch</p><p className="mt-2 leading-5 text-muted-foreground">{pendingSyncReview.countries.join(" · ")}</p></div>
+            <p className="leading-5 text-muted-foreground">Organizer re-fetches the exact-edition response projection and Solaris target immediately before apply and refuses the operation if the canonical Confirmation state, batch, edition or target show changed while this review was open.</p>
+            <p className="rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 leading-5 text-amber-50/90">Submission-to-edition synchronization still runs one response at a time, so a failure there may leave earlier submission syncs complete. The final show-membership write uses the governed System line-up command: exact-edition scoped, atomic, version-checked, idempotent and receipted. An ambiguous retry reuses this review's operation identity before any new write.</p>
           </div>
         ) : null}
         confirmLabel="Sync reviewed batch"
