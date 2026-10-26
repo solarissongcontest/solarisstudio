@@ -4,8 +4,8 @@
   "auditKind": "complete-source-classification-not-release-evidence",
   "total": 81,
   "classificationTotals": {
-    "implemented_evidence_missing": 61,
-    "partially_implemented": 20,
+    "implemented_evidence_missing": 60,
+    "partially_implemented": 21,
     "not_implemented": 0,
     "obsolete_replaced": 0,
     "false_positive": 0
@@ -760,7 +760,8 @@
         "src/lib/studio2-persistence.test.ts",
         "src/lib/v3-organizer-cutover.contract.test.ts",
         "src/lib/v3-organizer-control-context.contract.test.ts",
-        "e2e/v3-organizer.e2e.ts"
+        "e2e/v3-organizer.e2e.ts",
+        "src/lib/studio2-persistence.test.ts"
       ],
       "currentCutoverState": {
         "targetRoute": "/admin/control-room",
@@ -770,12 +771,12 @@
         "activation": "Existing persisted migration starts Organizer flag disabled and Organizer-only; shared server probe gates V3 shell. No hosted-state assumption.",
         "legacyCompatibility": "Existing authoritative specialist route is retained intentionally by contextualize/restrict/merge architecture."
       },
-      "classification": "implemented_evidence_missing",
-      "rationale": "src/routes/_authenticated/admin/incidents.tsx implements Open, command and resolve operational incidents. through src/lib/studio2-incidents.ts, src/lib/studio2-feature-flags.ts, src/lib/studio2-persistence.ts. This is not merely a registry declaration. V3 Control is intentionally a presentation router over these owners, not a second mutation engine. Item-specific final cutover/acceptance and production-default activation remain unproven; no status promotion is justified by this source audit alone.",
+      "classification": "partially_implemented",
+      "rationale": "The incident UI resolves an incident using two sequential commands: studio2Persistence.updateIncident({resolution}) followed by transitionIncident('resolved'). Its underlying RPC wrappers pass incident ID/action fields without an expected version or stable execution/idempotency identity. A failure between calls can persist a resolution without the requested transition; a reviewed client state is not atomic server authority.",
       "requiredRepair": [
-        "Run item-specific route/control acceptance over the existing owner path with correct selected edition and restricted capability; source presence/common shell tests are not final acceptance.",
-        "Add independently inspectable per-item canonical route/operation/readback evidence to the registry's acceptance model.",
-        "After all dependent owner gaps are complete and accepted, implement tested forward-only shared root/Organizer rollout activation with rollback retained, then update this item's cutover declaration."
+        "Introduce one canonical reviewed incident command for resolve (and its governed transition family) with explicit expected version, stable idempotency, durable receipt and atomic resolution/status/event update.",
+        "Reproduce the two-call partial-progress window and stale reviewed state in focused SQL/runtime regression; verify replay and authorization.",
+        "Retain current state-machine rules and user reasons, then complete cutover acceptance; do not merely promote building."
       ],
       "sourceAuthority": [
         "src/components/admin/AdminShell.tsx",
