@@ -105,6 +105,30 @@ export async function previewConfirmationEditionBindingChange(input: {
   return asObject<ConfirmationEditionBindingPreview>(data, "Confirmation edition preview");
 }
 
+export async function reauthenticateConfirmationEditionR3(password: string): Promise<void> {
+  if (!password) {
+    throw new Error("Enter your current Solaris password to authorize this R3 edition change.");
+  }
+
+  const { data: current, error: currentError } = await confirmationsSupabase.auth.getUser();
+  if (currentError) throw currentError;
+  const user = current.user;
+  if (!user?.id || !user.email) {
+    throw new Error("This organizer account cannot be reauthenticated with a password.");
+  }
+
+  const originalUserId = user.id;
+  const { data: signedIn, error: signInError } = await confirmationsSupabase.auth.signInWithPassword({
+    email: user.email,
+    password,
+  });
+  if (signInError) throw signInError;
+  if (!signedIn.user || signedIn.user.id !== originalUserId) {
+    await confirmationsSupabase.auth.signOut();
+    throw new Error("Fresh authentication returned a different Solaris account.");
+  }
+}
+
 export async function applyConfirmationEditionBindingChange(input: {
   editionId: string;
   kind: ConfirmationEditionBindingChangeKind;
