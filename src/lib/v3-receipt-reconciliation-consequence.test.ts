@@ -2,6 +2,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import * as consequenceRegistry from "./v3-domain-consequence-registry";
 import type { V3DomainConsequence } from "./v3-domain-consequence-registry";
+import {
+  V3_PROJECTION_RECONCILIATION_REGISTRY,
+  v3ProjectionsInvalidatedByEvent,
+} from "./v3-projection-reconciliation-registry";
+
 const {
   V3_DOMAIN_CONSEQUENCE_REGISTRY,
   isResolvedV3DomainConsequence,
@@ -9,10 +14,6 @@ const {
   v3DomainConsequence,
   v3DomainConsequenceImplementationErrors,
 } = consequenceRegistry;
-import {
-  V3_PROJECTION_RECONCILIATION_REGISTRY,
-  v3ProjectionsInvalidatedByEvent,
-} from "./v3-projection-reconciliation-registry";
 
 function reconciliation() {
   const row = v3DomainConsequence("receipt.reconciled");
