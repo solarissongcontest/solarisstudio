@@ -17,6 +17,13 @@ function functionBody(source: string, name: string) {
 }
 
 describe("System #633 governed anniversary edition-date operation", () => {
+  it("registers the non-trivial migration with the S13 adoption framework", () => {
+    const sql = migration();
+    expect(sql).toContain("public.v3_register_migration_contract(");
+    expect(sql).toContain("'v3.storytelling.anniversary-date-operation'");
+    expect(sql).toContain("'forward_fix_only'");
+  });
+
   it("makes every event-date mutation advance the canonical edition CAS token", () => {
     const sql = migration();
     const body = functionBody(sql, "private.v3_bump_edition_anniversary_date_revision");
