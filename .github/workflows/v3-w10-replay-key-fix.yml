@@ -1,0 +1,49 @@
+name: V3 Worker 10 replay-key fix
+
+on:
+  push:
+    branches:
+      - v3/burndown-w10-integration
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: ${{ !contains(github.event.head_commit.message, '[V3-INTEGRATION] Canonical replay-key fix applied') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v3/burndown-w10-integration
+          fetch-depth: 0
+
+      - name: Replace legacy replay key and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            supabase/migrations/20261026210500_v3_confirmation_edition_binding_operations.sql
+            supabase/migrations/20261026210600_v3_confirmation_edition_binding_r3_fresh_auth.sql
+          )
+          before="$(grep -h -F "v_claim ->> 'replay'" "${files[@]}" | wc -l | tr -d ' ')"
+          [[ "$before" == "2" ]] || { echo "::error::Expected exactly 2 legacy replay-key reads, found $before"; exit 1; }
+          sed -i "s/v_claim ->> 'replay'/v_claim ->> 'replayed'/g" "${files[@]}"
+          remaining="$(grep -h -F "v_claim ->> 'replay'" "${files[@]}" | wc -l | tr -d ' ')"
+          [[ "$remaining" == "0" ]] || { echo "::error::Legacy replay-key read remains"; exit 1; }
+          corrected="$(grep -h -F "v_claim ->> 'replayed'" "${files[@]}" | wc -l | tr -d ' ')"
+          [[ "$corrected" -ge "2" ]] || { echo "::error::Canonical replay-key reads not present"; exit 1; }
+          rm .github/workflows/v3-w10-replay-key-fix.yml
+
+      - name: Commit exact correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Solaris V3 Worker 10"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add supabase/migrations/20261026210500_v3_confirmation_edition_binding_operations.sql \
+                  supabase/migrations/20261026210600_v3_confirmation_edition_binding_r3_fresh_auth.sql \
+                  .github/workflows/v3-w10-replay-key-fix.yml
+          git commit -m "[V3-INTEGRATION] Canonical replay-key fix applied"
+          git push origin HEAD:v3/burndown-w10-integration
