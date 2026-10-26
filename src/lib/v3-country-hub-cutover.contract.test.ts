@@ -14,14 +14,35 @@ describe("V3 Country Hub cutover", () => {
     expect(route).toContain("replace: true");
   });
 
-  it("moves HOD identity/history to Me while preserving cross-country organizer inspection", () => {
+  it("moves participant HOD responsibilities to Participate while preserving organizer inspection", () => {
     const route = read("src/routes/_authenticated/country-hub/hod.tsx");
+    const tasks = read("src/components/mysolaris/modules/MySolarisTasksModule.tsx");
+
+    expect(route).toContain("if (search.country)");
+    expect(route).toContain("NAV_TARGETS.mySolarisTasks");
+    expect(route).toContain("NAV_TARGETS.participate");
+    expect(route).toContain("search, replace: true");
+    expect(route).toContain("read-only MySolaris task surface");
+
+    // The legacy HOD URL used to own all of these responsibilities. Organizer
+    // country inspection remains on the proven task surface while the signed-in
+    // participant enters the V3 Participate owner.
+    expect(tasks).toContain("loadStudio2HodWorkspace");
+    expect(tasks).toContain("listStudio2EligibilityOverrides");
+    expect(tasks).toContain("acknowledgeStudio2Notice");
+    expect(tasks).toContain("organizerInspection");
+    expect(tasks).toContain("Participant View · read-only");
+    expect(tasks).toContain("Country jury");
+    expect(tasks).toContain("Submission review history");
+    expect(tasks).toContain("Official notices");
+  });
+
+  it("keeps HOD identity/history in Me without mixing organizer country overrides into private history", () => {
+    const root = read("src/components/v3/V3MeRoot.tsx");
     const historyRoute = read("src/routes/_authenticated/my-solaris/history.tsx");
     const historyScreen = read("src/components/v3/V3DelegationHistoryScreen.tsx");
 
-    expect(route).toContain("NAV_TARGETS.mySolarisHistory");
-    expect(route).toContain("search.country ? search : undefined");
-    expect(route).toContain("Organizer inspection");
+    expect(root).toContain("NAV_TARGETS.mySolarisHistory");
     expect(historyRoute).toContain("isAppMode && !country");
     expect(historyRoute).toContain('return <MySolarisCountryModule section="history" />');
     expect(historyScreen).toContain("useSetOwnedHodEditionStatus");
