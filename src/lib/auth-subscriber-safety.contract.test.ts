@@ -34,7 +34,10 @@ describe("auth subscriber lifecycle audit", () => {
     expect(authenticatedRoute).not.toContain("onAuthStateChange");
     expect(authenticatedRoute).toContain("useQuery<User | null>");
     expect(authenticatedRoute).toContain("await supabase.auth.getUser()");
-    expect(authenticatedRoute).toContain('queryKey: ["authenticated-identity-gate"]');
+    expect(authenticatedRoute).toContain("queryKey: authenticatedIdentityQueryKey(sessionUserId)");
+    expect(authenticatedRoute).toContain("const session = useFanSession()");
+    expect(authenticatedRoute).toContain("data.user.id !== sessionUserId");
+    expect(authenticatedRoute).toContain("enabled: Boolean(sessionUserId)");
     expect(authenticatedRoute).toContain("retry: false");
   });
 });
