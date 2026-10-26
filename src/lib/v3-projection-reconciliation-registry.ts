@@ -1,5 +1,6 @@
 import {
   V3_DOMAIN_CONSEQUENCE_REGISTRY,
+  isV3CanonicalEventConsequenceReplacement,
   isV3NonEventConsequenceReplacement,
   v3DomainConsequence,
 } from "./v3-domain-consequence-registry";
@@ -188,6 +189,19 @@ function repairFor(domains: readonly string[]): V3ProjectionRepairContract {
   };
 }
 
+function canonicalInvalidatingEvents(eventType: string) {
+  const consequence = v3DomainConsequence(eventType);
+  if (!consequence) return [eventType];
+  if (isV3NonEventConsequenceReplacement(consequence)) return [] as string[];
+  if (
+    isV3CanonicalEventConsequenceReplacement(consequence) &&
+    consequence.replacement?.kind === "canonical-event"
+  ) {
+    return [...consequence.replacement.canonicalEvents];
+  }
+  return [eventType];
+}
+
 const projectionOwners = new Map<string, Set<string>>();
 for (const domain of V3_SYSTEM_DOMAIN_REGISTRY) {
   for (const projection of domain.projections) {
@@ -205,10 +219,7 @@ export const V3_PROJECTION_RECONCILIATION_REGISTRY: readonly V3ProjectionReconci
         V3_SYSTEM_DOMAIN_REGISTRY
           .filter((domain) => canonicalDomains.includes(domain.domain))
           .flatMap((domain) => domain.eventTypes)
-          .filter((eventType) => {
-            const consequence = v3DomainConsequence(eventType);
-            return !consequence || !isV3NonEventConsequenceReplacement(consequence);
-          }),
+          .flatMap(canonicalInvalidatingEvents),
       );
       return {
         projection,
@@ -225,8 +236,23 @@ export function v3ProjectionReconciliation(projection: string) {
 }
 
 export function v3ProjectionsInvalidatedByEvent(eventType: string) {
-  const consequence = V3_DOMAIN_CONSEQUENCE_REGISTRY.find((item) => item.eventType === eventType);
-  if (!consequence || isV3NonEventConsequenceReplacement(consequence)) return [] as V3ProjectionReconciliation[];
+  const consequence = V3_DOMAIN_CONSEQUENCE_REGISTRY.find((item) => {
+    if (item.eventType === eventType) return true;
+    return (
+      isV3CanonicalEventConsequenceReplacement(item) &&
+      item.replacement?.kind === "canonical-event" &&
+      item.replacement.canonicalEvents.includes(eventType)
+    );
+  });
+  if (!consequence || isV3NonEventConsequenceReplacement(consequence)) {
+    return [] as V3ProjectionReconciliation[];
+  }
+  if (
+    consequence.eventType === eventType &&
+    isV3CanonicalEventConsequenceReplacement(consequence)
+  ) {
+    return [] as V3ProjectionReconciliation[];
+  }
 
   const declared = new Set([
     ...consequence.projections,
@@ -240,7 +266,15 @@ export function v3ProjectionsInvalidatedByEvent(eventType: string) {
 export function validateV3ProjectionReconciliationRegistry() {
   const errors: string[] = [];
   const knownDomains = new Set(V3_SYSTEM_DOMAIN_REGISTRY.map((domain) => domain.domain));
-  const knownEvents = new Set(V3_SYSTEM_DOMAIN_REGISTRY.flatMap((domain) => domain.eventTypes));
+  const knownEvents = new Set([
+    ...V3_SYSTEM_DOMAIN_REGISTRY.flatMap((domain) => domain.eventTypes),
+    ...V3_DOMAIN_CONSEQUENCE_REGISTRY.flatMap((consequence) =>
+      isV3CanonicalEventConsequenceReplacement(consequence) &&
+      consequence.replacement?.kind === "canonical-event"
+        ? consequence.replacement.canonicalEvents
+        : [],
+    ),
+  ]);
   const expectedProjections = new Set(V3_SYSTEM_DOMAIN_REGISTRY.flatMap((domain) => domain.projections));
   const seen = new Set<string>();
 
