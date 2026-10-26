@@ -135,10 +135,13 @@ function targetDomainFor(id: string) {
 function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStatus"] {
   if (
     id === "current-edition-overview" ||
+    id === "current-edition-host" ||
+    id === "current-edition-storytelling" ||
     id === "live-review-simulation-lab" ||
     id === "live-review-time-machine" ||
     id === "workspace-administration" ||
     id === "workspace-organizer-guide" ||
+    id === "workspace-community-moderation" ||
     id === "workspace-command-assistant"
   ) {
     return "cutover";
@@ -150,11 +153,9 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "operations-incidents" ||
     id === "current-edition-delegations" ||
     id === "current-edition-contest" ||
-    id === "current-edition-host" ||
     id === "current-edition-voting" ||
     id === "current-edition-voting-declarations" ||
     id === "current-edition-results" ||
-    id === "current-edition-storytelling" ||
     id === "current-edition-publish" ||
     id === "current-edition-broadcast" ||
     id === "operations-eligibility" ||
@@ -208,7 +209,6 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-acceptance-test" ||
     id === "workspace-beta-coverage" ||
     id === "workspace-public-ux" ||
-    id === "workspace-community-moderation" ||
     id === "workspace-predictions" ||
     id === "workspace-fantasy" ||
     id === "workspace-anniversary-settings" ||

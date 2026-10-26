@@ -1,12 +1,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
+
 const source = readFileSync(
   "src/routes/_authenticated/admin/hosts.tsx",
   "utf8",
 );
 const service = readFileSync("src/lib/studio2-host-management.ts", "utf8");
-const registry = readFileSync("src/lib/v3-organizer-capability-registry.ts", "utf8");
 
 describe("V3 Organizer Host Management edition context", () => {
   it("requires the exact selected Organizer edition and never substitutes the newest edition", () => {
@@ -63,7 +64,12 @@ describe("V3 Organizer Host Management edition context", () => {
     expect(source).toContain("open={Boolean(edition && showTarget)}");
   });
 
-  it("records Host Management as building without claiming parity or cutover", () => {
-    expect(registry).toContain('id === "current-edition-host"');
+  it("accepts Host Management only after host.read ownership and cutover evidence are explicit", () => {
+    const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
+      (item) => item.legacyId === "current-edition-host",
+    );
+    expect(capability).toBeDefined();
+    expect(capability?.ownerCapability).toBe("host.read");
+    expect(capability?.migrationStatus).toBe("cutover");
   });
 });

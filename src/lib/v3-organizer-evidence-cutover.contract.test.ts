@@ -23,6 +23,38 @@ const timeMachineSecurity = readFileSync(
   "src/lib/completion-products-security.integration.test.ts",
   "utf8",
 );
+const hostRoute = readFileSync("src/routes/_authenticated/admin/hosts.tsx", "utf8");
+const hostClient = readFileSync("src/lib/studio2-host-management.ts", "utf8");
+const hostMigration = readFileSync(
+  "supabase/migrations/20260912171500_studio2_host_management.sql",
+  "utf8",
+);
+const storytellingRoute = readFileSync(
+  "src/routes/_authenticated/admin/storytelling.tsx",
+  "utf8",
+);
+const storytellingClient = readFileSync("src/lib/studio2-storytelling.ts", "utf8");
+const storytellingMigration = readFileSync(
+  "supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql",
+  "utf8",
+);
+const communityRoute = readFileSync(
+  "src/routes/_authenticated/admin/community-moderation.tsx",
+  "utf8",
+);
+const communityMigration = readFileSync(
+  "supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql",
+  "utf8",
+);
+const operationContract = readFileSync(
+  "supabase/migrations/20261002203000_organisation_os_v5_operation_contract.sql",
+  "utf8",
+);
+const permissionRouteMap = readFileSync("src/lib/permission-route-map.ts", "utf8");
+const televoteAdminSession = readFileSync(
+  "src/integrations/televoting/admin-session.server.ts",
+  "utf8",
+);
 const administration = readFileSync("src/routes/_authenticated/admin/more.tsx", "utf8");
 const guide = readFileSync("src/routes/_authenticated/admin/guide.tsx", "utf8");
 const assistant = readFileSync(
@@ -48,10 +80,13 @@ describe("V3 Organizer evidence-only cutovers", () => {
 
     expect(EVIDENCE_IDS).toEqual([
       "current-edition-overview",
+      "current-edition-host",
+      "current-edition-storytelling",
       "live-review-simulation-lab",
       "live-review-time-machine",
       "workspace-administration",
       "workspace-organizer-guide",
+      "workspace-community-moderation",
       "workspace-command-assistant",
     ]);
 
@@ -88,6 +123,33 @@ describe("V3 Organizer evidence-only cutovers", () => {
     expect(overview).toContain('data-organizer-context-lock=""');
     expect(overviewServer).toContain('requireSolarisCapabilityServer("edition.read", editionId)');
     expectNoCanonicalMutation(overview);
+  });
+
+  it("accepts Host Management only with separate read/manage authority and replay-safe versioned commands", () => {
+    expect(hostRoute).toContain("const edition = editions.find((item) => item.id === editionId) ?? null;");
+    expect(hostRoute).toContain("resolvedEditionId !== editionId");
+    expect(hostClient).toContain("rpc('studio2_host_management_snapshot'");
+    expect(hostClient).toContain("rpc('studio2_execute_host_operation'");
+    expect(hostClient).toContain("expectedRevision");
+    expect(hostClient).toContain("pendingHostExecutionIds");
+    expect(hostClient).toContain("validateHostOperationExecution");
+    expect(hostMigration).toContain("private.studio2_can_read_host");
+    expect(hostMigration).toContain("'Missing Solaris capability: host.read'");
+    expect(hostMigration).toContain("private.studio2_can_manage_host");
+    expect(hostMigration).toContain("'Missing Solaris capability: host.manage'");
+    expect(hostMigration).toContain("pg_advisory_xact_lock");
+  });
+
+  it("accepts Storytelling only with separate read/manage authority, expected revision and receipt replay", () => {
+    expect(storytellingRoute).toContain("resolvedEditionId");
+    expect(storytellingClient).toContain("pendingStoryExecutionIds");
+    expect(storytellingClient).toContain("expectedRevision");
+    expect(storytellingClient).toContain("validateStoryOperationExecution");
+    expect(storytellingMigration).toContain("private.studio2_can_read_storytelling");
+    expect(storytellingMigration).toContain("'Missing Solaris capability: story.read'");
+    expect(storytellingMigration).toContain("private.studio2_can_manage_storytelling");
+    expect(storytellingMigration).toContain("'Missing Solaris capability: story.manage'");
+    expect(storytellingMigration).toContain("pg_advisory_xact_lock");
   });
 
   it("accepts Simulation Lab only as an isolated local rehearsal seeded by an authorized read", () => {
@@ -140,6 +202,19 @@ describe("V3 Organizer evidence-only cutovers", () => {
     expectNoCanonicalMutation(guide);
   });
 
+  it("accepts Community Moderation only because read and mutation authority are explicit and replay-safe", () => {
+    expect(communityMigration).toContain("studio2_access_allowed('community.read', null, false)");
+    expect(communityMigration).toContain("'Missing Solaris capability: community.read'");
+    expect(operationContract).toContain("studio2_access_allowed('community.moderate', null, false)");
+    expect(operationContract).toContain("'Missing Solaris capability: community.moderate'");
+    expect(operationContract).toContain("'community.fan_identity.moderate'");
+    expect(operationContract).toContain("private.studio2_claim_operation");
+    expect(operationContract).toContain("private.studio2_complete_operation");
+    expect(communityRoute).toContain("p_operation_id: operationId");
+    expect(communityRoute).toContain("p_idempotency_key: idempotencyKey");
+    expect(communityRoute).toContain("resolveSolarisV6OperationRecovery");
+  });
+
   it("accepts Command Assistant only as a fixed read-only registry over the canonical projection", () => {
     expect(assistant).toContain("matchSolarisAssistantCommands");
     expect(assistant).toContain("useV3OrganizerProjection(resolvedEditionId || null)");
@@ -148,5 +223,30 @@ describe("V3 Organizer evidence-only cutovers", () => {
     expect(assistant).toContain("Read-only navigation");
     expect(assistant).not.toContain("integrations/supabase/client");
     expectNoCanonicalMutation(assistant);
+  });
+
+  it("refuses evidence inflation where the declared owner is not the real server authority", () => {
+    const permissions = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
+      (item) => item.legacyId === "workspace-access-permissions",
+    );
+    expect(permissions?.ownerCapability).toBe("permissions.read");
+    expect(permissions?.migrationStatus).toBe("building");
+    expect(permissionFoundation).toContain("create or replace function public.studio2_access_users()");
+    expect(permissionFoundation).toContain("private.studio2_can_manage_permissions(v_actor)");
+
+    expect(permissionRouteMap).toContain('rule(["/televoting/admin"], "voting.read")');
+    expect(televoteAdminSession).toContain("requireSolarisOrganizerServer()");
+    expect(televoteAdminSession).not.toContain("voting.read");
+    for (const id of [
+      "voting-intelligence",
+      "voting-analytics",
+      "voting-audit-log",
+      "voting-result-backtest",
+      "voting-anti-abuse",
+    ]) {
+      const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find((item) => item.legacyId === id);
+      expect(capability?.migrationStatus).toBe("building");
+      expect(EVIDENCE_IDS).not.toContain(id);
+    }
   });
 });

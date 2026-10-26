@@ -1,19 +1,27 @@
 export type V3OrganizerEvidenceCutover = {
   id: string;
   route: string;
-  ownerCapability: "edition.read";
-  proofKind: "canonical-read" | "isolated-simulation" | "static-context";
+  ownerCapability:
+    | "edition.read"
+    | "host.read"
+    | "story.read"
+    | "community.read";
+  proofKind:
+    | "canonical-read"
+    | "isolated-simulation"
+    | "static-context"
+    | "governed-operation";
   implementationPaths: readonly string[];
   authorityPaths: readonly string[];
   acceptanceTests: readonly string[];
 };
 
 /**
- * Evidence-only Organizer cutovers accepted by the S15 burndown worker.
- *
- * These rows are deliberately limited to controls that already have a complete
- * read/isolation authority story. Mutation-heavy controls stay out of this
- * registry until their canonical command/version/receipt contracts are proven.
+ * Item-specific evidence for Organizer capabilities that are already implemented
+ * and can be accepted without inventing a new owner. Mutation-heavy rows are
+ * included only where the existing server path proves a stricter manage/action
+ * capability, version or operation identity where required, and authoritative
+ * readback. Rows whose route-map capability is only shadow metadata stay out.
  */
 export const V3_ORGANIZER_EVIDENCE_CUTOVERS = [
   {
@@ -35,6 +43,45 @@ export const V3_ORGANIZER_EVIDENCE_CUTOVERS = [
     acceptanceTests: [
       "src/lib/v3-organizer-projection.test.ts",
       "src/lib/v3-organizer-projection.contract.test.ts",
+      "src/lib/v3-organizer-evidence-cutover.contract.test.ts",
+    ],
+  },
+  {
+    id: "current-edition-host",
+    route: "/admin/hosts",
+    ownerCapability: "host.read",
+    proofKind: "governed-operation",
+    implementationPaths: [
+      "src/routes/_authenticated/admin/hosts.tsx",
+      "src/lib/studio2-host-management.ts",
+    ],
+    authorityPaths: [
+      "supabase/migrations/20260912171500_studio2_host_management.sql",
+      "supabase/migrations/20260915185524_permission_engine_v2_private_helper_cutover.sql",
+    ],
+    acceptanceTests: [
+      "src/lib/studio2-host-management-integration.test.ts",
+      "src/lib/v3-organizer-host-context.contract.test.ts",
+      "src/lib/v3-organizer-evidence-cutover.contract.test.ts",
+    ],
+  },
+  {
+    id: "current-edition-storytelling",
+    route: "/admin/storytelling",
+    ownerCapability: "story.read",
+    proofKind: "governed-operation",
+    implementationPaths: [
+      "src/routes/_authenticated/admin/storytelling.tsx",
+      "src/lib/studio2-storytelling.ts",
+    ],
+    authorityPaths: [
+      "supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql",
+      "supabase/migrations/20260912194200_studio2_storytelling_hardening.sql",
+      "supabase/migrations/20260915185524_permission_engine_v2_private_helper_cutover.sql",
+    ],
+    acceptanceTests: [
+      "src/lib/studio2-storytelling-integration.test.ts",
+      "src/lib/v3-organizer-storytelling-context.contract.test.ts",
       "src/lib/v3-organizer-evidence-cutover.contract.test.ts",
     ],
   },
@@ -106,6 +153,21 @@ export const V3_ORGANIZER_EVIDENCE_CUTOVERS = [
     ],
     acceptanceTests: [
       "src/lib/v3-organizer-workspace-building-evidence.contract.test.ts",
+      "src/lib/v3-organizer-evidence-cutover.contract.test.ts",
+    ],
+  },
+  {
+    id: "workspace-community-moderation",
+    route: "/admin/community-moderation",
+    ownerCapability: "community.read",
+    proofKind: "governed-operation",
+    implementationPaths: ["src/routes/_authenticated/admin/community-moderation.tsx"],
+    authorityPaths: [
+      "supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql",
+      "supabase/migrations/20261002203000_organisation_os_v5_operation_contract.sql",
+    ],
+    acceptanceTests: [
+      "src/lib/v3-organizer-community-moderation-scope.contract.test.ts",
       "src/lib/v3-organizer-evidence-cutover.contract.test.ts",
     ],
   },
