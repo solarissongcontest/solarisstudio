@@ -13,7 +13,7 @@ const migration = readFileSync(
 describe("V3 governed show line-up command authority", () => {
   it("registers the post-S13 migration contract and remains additive", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
-    expect(migration).toContain("20261019210500_v3_show_lineup_command_authority");
+    expect(migration).toContain("v3.show-lineup-command-authority");
     expect(migration).toContain("'forward_fix_only'");
     expect(migration).not.toMatch(/drop\s+(table|column|function)/i);
   });

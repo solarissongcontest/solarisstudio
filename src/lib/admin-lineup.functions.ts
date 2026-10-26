@@ -53,6 +53,7 @@ type LineupPreflight = {
 type LineupOperationEnvelope = {
   operationId?: string;
   replayed?: boolean;
+  status?: string;
   result?: {
     ok?: boolean;
     showId?: string;
@@ -76,6 +77,32 @@ function optionalId(value: unknown) {
 function describeBlockers(blockers: unknown) {
   if (!Array.isArray(blockers) || blockers.length === 0) return "The line-up operation is currently blocked.";
   return blockers.filter((value): value is string => typeof value === "string").join(", ");
+}
+
+function completedSyncResult(
+  envelope: LineupOperationEnvelope,
+  fallbackOperationId: string,
+  countryIds: string[],
+  replayed: boolean,
+): AddCountriesToShowResult {
+  const result = envelope.result ?? {};
+  const canonicalOperationId = envelope.operationId ?? fallbackOperationId;
+  if (!result.ok || !result.showId || !result.showName || !result.stateVersion) {
+    throw new Error("The canonical line-up command returned an incomplete receipt.");
+  }
+
+  return {
+    ok: true,
+    showId: result.showId,
+    showName: result.showName,
+    added: result.added ?? 0,
+    refreshed: result.refreshed ?? 0,
+    skipped: result.skipped ?? 0,
+    countryIds,
+    operationId: canonicalOperationId,
+    stateVersion: result.stateVersion,
+    replayed,
+  };
 }
 
 export const getSolarisEditionSyncTargets = createServerFn({ method: "POST" })
@@ -130,6 +157,28 @@ export const addCountriesToShow = createServerFn({ method: "POST" })
     // loops are deliberately not an authorization substitute anymore.
     const client = createSolarisAuthenticatedClientServer() as any;
     const payload = { countryIds: data.countryIds };
+    const operationId = data.operationId ?? crypto.randomUUID();
+    const idempotencyKey = data.idempotencyKey ?? `show-lineup-sync:${operationId}`;
+
+    // Lost-response recovery must happen before a fresh preflight. A successful
+    // first request advances canonical state, so preflighting first would produce
+    // a different state-version fingerprint and turn a safe replay into an
+    // IDEMPOTENCY_CONFLICT.
+    if (data.operationId) {
+      const reconciliation = await client.rpc("studio2_reconcile_operation", {
+        p_operation_id: operationId,
+      });
+      if (!reconciliation.error) {
+        const envelope = (reconciliation.data ?? {}) as LineupOperationEnvelope;
+        if (envelope.status === "succeeded") {
+          return completedSyncResult(envelope, operationId, data.countryIds, true);
+        }
+        throw new Error(`The existing line-up operation is ${envelope.status ?? "not complete"}. Reconcile it before starting another write.`);
+      }
+      if (reconciliation.error.code !== "P0002") {
+        throw new Error(reconciliation.error.message);
+      }
+    }
 
     const preflightResponse = await client.rpc("v3_show_lineup_preflight", {
       p_edition_id: data.editionId,
@@ -144,8 +193,6 @@ export const addCountriesToShow = createServerFn({ method: "POST" })
       throw new Error(describeBlockers(preflight.blockers));
     }
 
-    const operationId = data.operationId ?? crypto.randomUUID();
-    const idempotencyKey = data.idempotencyKey ?? `show-lineup-sync:${operationId}`;
     const operationResponse = await client.rpc("v3_execute_show_lineup_operation", {
       p_edition_id: data.editionId,
       p_show_id: data.showId,
@@ -160,22 +207,5 @@ export const addCountriesToShow = createServerFn({ method: "POST" })
     if (operationResponse.error) throw new Error(operationResponse.error.message);
 
     const envelope = (operationResponse.data ?? {}) as LineupOperationEnvelope;
-    const result = envelope.result ?? {};
-    const canonicalOperationId = envelope.operationId ?? operationId;
-    if (!result.ok || !result.showId || !result.showName || !result.stateVersion) {
-      throw new Error("The canonical line-up command returned an incomplete receipt.");
-    }
-
-    return {
-      ok: true,
-      showId: result.showId,
-      showName: result.showName,
-      added: result.added ?? 0,
-      refreshed: result.refreshed ?? 0,
-      skipped: result.skipped ?? 0,
-      countryIds: data.countryIds,
-      operationId: canonicalOperationId,
-      stateVersion: result.stateVersion,
-      replayed: Boolean(envelope.replayed),
-    };
+    return completedSyncResult(envelope, operationId, data.countryIds, Boolean(envelope.replayed));
   });
