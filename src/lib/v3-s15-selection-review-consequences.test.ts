@@ -88,11 +88,17 @@ describe("System V3 S15 selection review consequences", () => {
     expect(migration).toContain("Public readback remains");
   });
 
-  it("registers both selection events as event-backed only with this runtime evidence", () => {
-    expect(v3DomainConsequence("selection.reviewed")?.implementationState).toBe("event-backed");
-    expect(v3DomainConsequence("selection.winner_changed")?.implementationState).toBe("event-backed");
-    expect(v3DomainConsequence("selection.reviewed")?.taskEffects).toEqual([
-      { effect: "re-evaluate", taskType: "selection.review_required" },
-    ]);
+  it("keeps selection events declared until every registry-declared effect has runtime evidence", () => {
+    const reviewed = v3DomainConsequence("selection.reviewed");
+    const winnerChanged = v3DomainConsequence("selection.winner_changed");
+
+    expect(reviewed?.implementationState).toBe("declared");
+    expect(winnerChanged?.implementationState).toBe("declared");
+    expect(reviewed?.taskEffects).toContainEqual({
+      effect: "re-evaluate",
+      taskType: "selection.review_required",
+    });
+    expect(reviewed?.realtimeEffects.length ?? 0).toBeGreaterThan(0);
+    expect(winnerChanged?.realtimeEffects.length ?? 0).toBeGreaterThan(0);
   });
 });
