@@ -23,17 +23,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          files=(
-            supabase/migrations/20261026210500_v3_confirmation_edition_binding_operations.sql
-            supabase/migrations/20261026210600_v3_confirmation_edition_binding_r3_fresh_auth.sql
-          )
-          before="$(grep -h -F "v_claim ->> 'replay'" "${files[@]}" | wc -l | tr -d ' ')"
-          [[ "$before" == "2" ]] || { echo "::error::Expected exactly 2 legacy replay-key reads, found $before"; exit 1; }
-          sed -i "s/v_claim ->> 'replay'/v_claim ->> 'replayed'/g" "${files[@]}"
-          remaining="$(grep -h -F "v_claim ->> 'replay'" "${files[@]}" | wc -l | tr -d ' ')"
-          [[ "$remaining" == "0" ]] || { echo "::error::Legacy replay-key read remains"; exit 1; }
-          corrected="$(grep -h -F "v_claim ->> 'replayed'" "${files[@]}" | wc -l | tr -d ' ')"
-          [[ "$corrected" -ge "2" ]] || { echo "::error::Canonical replay-key reads not present"; exit 1; }
+          python3 - <<'PY'
+          from pathlib import Path
+
+          paths = [
+              Path('supabase/migrations/20261026210500_v3_confirmation_edition_binding_operations.sql'),
+              Path('supabase/migrations/20261026210600_v3_confirmation_edition_binding_r3_fresh_auth.sql'),
+          ]
+          old = "v_claim ->> 'replay'"
+          new = "v_claim ->> 'replayed'"
+          for path in paths:
+              text = path.read_text()
+              count = text.count(old)
+              if count < 1:
+                  raise SystemExit(f'{path}: expected at least one legacy replay-key read, found {count}')
+              text = text.replace(old, new)
+              if old in text:
+                  raise SystemExit(f'{path}: legacy replay-key read remains after replacement')
+              if new not in text:
+                  raise SystemExit(f'{path}: canonical replay-key read missing after replacement')
+              path.write_text(text)
+              print(f'{path}: corrected {count} replay-key read(s)')
+          PY
           rm .github/workflows/v3-w10-replay-key-fix.yml
 
       - name: Commit exact correction
