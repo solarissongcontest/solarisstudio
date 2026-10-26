@@ -24,6 +24,15 @@ export type V3LiveVotingState = {
   closedAt: string | null;
 };
 
+export type V3LiveRevealState = {
+  state: "hidden" | "live" | "complete";
+  version: number | null;
+  currentStep: number;
+  totalSteps: number;
+  lastRevealedId: string | null;
+  updatedAt: string | null;
+};
+
 export type V3LiveTiming = {
   scheduledStart: string | null;
   liveStartedAt: string | null;
@@ -58,6 +67,7 @@ export type V3LiveExperience = {
   };
   runningOrder: V3LiveEntrySummary[];
   voting: V3LiveVotingState;
+  reveal: V3LiveRevealState;
   timing: V3LiveTiming;
   resultsPublished: boolean;
   broadcast?: {
@@ -73,6 +83,14 @@ export type V3LiveExperience = {
 };
 
 const STARTING_SOON_WINDOW_MS = 30 * 60 * 1000;
+const HIDDEN_REVEAL: V3LiveRevealState = {
+  state: "hidden",
+  version: null,
+  currentStep: 0,
+  totalSteps: 0,
+  lastRevealedId: null,
+  updatedAt: null,
+};
 
 function normalizedShowStatus(show: Pick<Show, "status">) {
   return show.status.trim().toLowerCase().replaceAll("-", "_");
@@ -166,6 +184,7 @@ function projectionStateVersion(input: {
   round: ShowModeTelevoteRound | null;
   state: V3PublicShowState;
   resultsPublished: boolean;
+  reveal: V3LiveRevealState;
 }) {
   return [
     input.show.id,
@@ -174,6 +193,9 @@ function projectionStateVersion(input: {
     input.round?.id ?? "no-round",
     input.round?.status ?? "none",
     input.resultsPublished ? "results-public" : "results-hidden",
+    `reveal-${input.reveal.state}`,
+    input.reveal.version ?? "no-reveal-version",
+    input.reveal.currentStep,
   ].join(":");
 }
 
@@ -184,14 +206,15 @@ function projectionStateVersion(input: {
  * Consequently this projector intentionally leaves current/next/progress absent
  * instead of inferring them from wall-clock time or the running order.
  *
- * Scheduled and transition timestamps are presentation context only. They never
- * advance the official show/voting/result state in the browser; that state still
- * comes from the authoritative Show and linked voting-round snapshot.
+ * Reveal progress is also server-supplied. Before the lifecycle reaches Live,
+ * the source supplies only the hidden projection, so an Armed sequence cannot
+ * leak future result order through Public Live.
  */
 export function projectV3LiveExperience(input: {
   show: Show;
   televoteRound: ShowModeTelevoteRound | null;
   runningOrder: V3LiveEntrySummary[];
+  reveal?: V3LiveRevealState;
   serverTime: string;
   generatedAt: string;
 }): V3LiveExperience {
@@ -205,6 +228,7 @@ export function projectV3LiveExperience(input: {
     serverTime: input.serverTime,
   });
   const youtubeUrl = safeShowModeYoutubeUrl(companion.config.youtubeUrl);
+  const reveal = input.reveal ?? HIDDEN_REVEAL;
 
   return {
     show: {
@@ -221,6 +245,7 @@ export function projectV3LiveExperience(input: {
         (b.runningOrder ?? Number.MAX_SAFE_INTEGER),
     ),
     voting: votingState(input.televoteRound),
+    reveal,
     timing: {
       scheduledStart: companion.config.scheduledStart,
       liveStartedAt: companion.config.liveStartedAt,
@@ -238,6 +263,7 @@ export function projectV3LiveExperience(input: {
         round: input.televoteRound,
         state,
         resultsPublished: companion.resultsPublished,
+        reveal,
       }),
       updatedAt: input.generatedAt,
       serverTime: input.serverTime,
