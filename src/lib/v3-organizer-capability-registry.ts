@@ -133,8 +133,20 @@ function targetDomainFor(id: string) {
 }
 
 function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStatus"] {
-  if (id === "workspace-anniversary-settings") return "cutover";
-  if (id === "current-edition-overview") return "parity";
+  if (
+    id === "current-edition-overview" ||
+    id === "current-edition-host" ||
+    id === "current-edition-storytelling" ||
+    id === "live-review-simulation-lab" ||
+    id === "live-review-time-machine" ||
+    id === "workspace-administration" ||
+    id === "workspace-organizer-guide" ||
+    id === "workspace-community-moderation" ||
+    id === "workspace-command-assistant" ||
+    id === "workspace-anniversary-settings"
+  ) {
+    return "cutover";
+  }
   if (
     id === "current-edition-tasks" ||
     id === "operations-control-room" ||
@@ -142,11 +154,9 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "operations-incidents" ||
     id === "current-edition-delegations" ||
     id === "current-edition-contest" ||
-    id === "current-edition-host" ||
     id === "current-edition-voting" ||
     id === "current-edition-voting-declarations" ||
     id === "current-edition-results" ||
-    id === "current-edition-storytelling" ||
     id === "current-edition-publish" ||
     id === "current-edition-broadcast" ||
     id === "operations-eligibility" ||
@@ -154,8 +164,6 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "operations-communications" ||
     id === "live-review-reveal-director" ||
     id === "live-review-broadcast-rundown" ||
-    id === "live-review-simulation-lab" ||
-    id === "live-review-time-machine" ||
     id === "live-review-voting-lab" ||
     id === "delegation-confirmation-overview" ||
     id === "delegation-confirmation-requirements" ||
@@ -194,20 +202,16 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "trust-interpretations" ||
     id === "trust-public-rules" ||
     id === "workspace-access-permissions" ||
-    id === "workspace-administration" ||
     id === "workspace-feature-rollout" ||
     id === "workspace-all-editions" ||
-    id === "workspace-organizer-guide" ||
     id === "workspace-country-accounts" ||
     id === "workspace-flag-qa" ||
     id === "workspace-hod-history" ||
     id === "workspace-acceptance-test" ||
     id === "workspace-beta-coverage" ||
     id === "workspace-public-ux" ||
-    id === "workspace-community-moderation" ||
     id === "workspace-predictions" ||
     id === "workspace-fantasy" ||
-    id === "workspace-command-assistant" ||
     id === "workspace-anniversary-dates" ||
     id === "workspace-beta-3-feedback" ||
     id === "workspace-beta-2-feedback" ||
