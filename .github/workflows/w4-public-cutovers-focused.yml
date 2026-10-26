@@ -17,6 +17,11 @@ jobs:
     name: Focused public cutover checks
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_w4_ci_local_only
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_w4_ci_local_only
     steps:
       - name: Checkout exact worker head
         uses: actions/checkout@v4
@@ -39,6 +44,9 @@ jobs:
           src/lib/v3-me.test.ts
           src/lib/v3-me-screen.contract.test.ts
           src/lib/v3-me-screen.test.tsx
+
+      - name: Generate route types with production build
+        run: bun run build
 
       - name: TypeScript
         run: bun run typecheck
