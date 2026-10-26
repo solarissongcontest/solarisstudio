@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { isContestEventType } from "./contest-events";
 import {
   isV3CanonicalEventConsequenceReplacement,
   v3DomainConsequence,
@@ -40,6 +41,8 @@ describe("Worker 3 R2 Story consequence vocabulary", () => {
       "storyline.unpublished",
     ]);
     expect(published.replacement.canonicalEvents).toEqual(["storyline.published"]);
+    expect(changed.replacement.canonicalEvents.every(isContestEventType)).toBe(true);
+    expect(published.replacement.canonicalEvents.every(isContestEventType)).toBe(true);
     expect(changed.replacement.ownerDomain).toBe("story");
     expect(changed.replacement.aggregateType).toBe("storyline");
     expect(published.replacement.aggregateType).toBe("storyline");
@@ -76,7 +79,7 @@ describe("Worker 3 R2 Story consequence vocabulary", () => {
     expect(v3ProjectionsInvalidatedByEvent("storyline.published").length).toBeGreaterThan(0);
   });
 
-  it("rejects arbitrary aliases, wrong owners, producers, effect parity and duplicate runtime effects", () => {
+  it("rejects arbitrary aliases, missing events, wrong owners, producers, effect parity and duplicate runtime effects", () => {
     const published = canonicalReplacement("story.published");
     const baseReplacement = published.replacement;
 
@@ -89,6 +92,12 @@ describe("Worker 3 R2 Story consequence vocabulary", () => {
       replacement: { ...baseReplacement, ...replacementPatch },
     });
 
+    expect(isContestEventType("storyline.does_not_exist")).toBe(false);
+    expect(
+      v3DomainConsequenceImplementationErrors(
+        mutation({}, { canonicalEvents: ["storyline.does_not_exist"] }),
+      ),
+    ).not.toEqual([]);
     expect(
       v3DomainConsequenceImplementationErrors(
         mutation({}, { canonicalEvents: ["storyline.updated"] }),
