@@ -1,4 +1,4 @@
-import { V3_DOMAIN_CONSEQUENCE_REGISTRY } from "./v3-domain-consequence-registry";
+import { V3_DOMAIN_CONSEQUENCE_REGISTRY, isResolvedV3DomainConsequence } from "./v3-domain-consequence-registry";
 import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
 import { V3_PUBLIC_CAPABILITY_REGISTRY, type PublicCapabilityMigration } from "./v3-public-capability-registry";
 import { V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES } from "./v3-public-capability-supplements";
@@ -132,12 +132,12 @@ export function getTerraOsPublicReadiness(): TerraOsPublicReadiness {
       domain.physicalAuditStatus === "verified" ? 1 : 0,
     ),
   );
-  const eventBackedConsequences = average(
+  const resolvedConsequences = average(
     V3_DOMAIN_CONSEQUENCE_REGISTRY.map((consequence) =>
-      consequence.implementationState === "event-backed" ? 1 : 0,
+      isResolvedV3DomainConsequence(consequence) ? 1 : 0,
     ),
   );
-  const reliability = average([verifiedDomains, eventBackedConsequences]);
+  const reliability = average([verifiedDomains, resolvedConsequences]);
 
   // V3 parity is defined as product parity, not merely component existence, so
   // the proportion at parity-or-beyond is a conservative proxy for the polish

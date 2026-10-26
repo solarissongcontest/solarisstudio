@@ -39,6 +39,8 @@ on:
       - "src/routes/terraos-teaser-preview.tsx"
       - "scripts/check-v3-teaser-cutover.ts"
       - "scripts/check-v3-capability-status-transitions.ts"
+      - "scripts/generate-v3-completion-dashboard.ts"
+      - "src/lib/v3-consequence-dashboard-truth.test.ts"
       - "src/lib/v3-public-supplement-transitions.test.ts"
       - "src/routes/_authenticated/route.tsx"
       - "src/lib/authenticated-identity-isolation.test.ts"

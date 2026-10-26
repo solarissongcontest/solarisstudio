@@ -17,6 +17,8 @@ Initial classification totals: 78 implementation-present/evidence-missing; 82 pa
 
 The managed execution environment initially failed provisioning. Source edits were batched on an isolated GitHub branch; after the workspace was restored, narrow tests and historical before/after reproductions were executed locally before further publication. Stateful database validation continues in isolated GitHub Actions; the full local Docker rehearsal is not retried. No published history is rewritten.
 
+Completion and sanitized public-readiness projections use the same validated consequence predicate as the release guard. The dashboard separately reports event-backed delivery, read replacements and genuinely unresolved effects; a canonical read is not mislabeled as either a delivered event or an unimplemented mutation.
+
 Status-history validation now covers supplementary Public capabilities as well as the primary registry, rejecting backward transitions and silent removals while preserving canonical row moves.
 
 Cascade discovery validates the complete audit and emits `v3-release-preflight/static/s15-burndown.json` alongside live canonical findings. The audit can pass while readiness is red; it never promotes readiness. It rejects unclassified live findings, duplicate rows, invalid classifications, unexplained work and missing implementation/test references.
@@ -33,7 +35,7 @@ Every unresolved ID/owner and required repair is retained in the machine invento
 | --- | --- |
 | `participant-activity` | Participation/activity: caller-scoped `v3_my_participant_activity` System #605 projection/RPC remains unavailable. |
 | `pulse` | Public activity: System-owned event projection must exclude future/unpublished/private content. |
-| `taste-dna` | Identity/community product owner: V3 replacement and overlap with Voting DNA remain undefined. |
+| `taste-dna` | Personal-preference / Results: V3 replacement and overlap with Voting DNA remain undefined. |
 | `live-review-reveal-director` | Reveal/broadcast: governed Armed/Live operation lifecycle is explicitly unavailable. |
 | `delegation-edition-links` | Delegation System #702: canonical versioned/idempotent binding edit is absent. |
 | `current-edition-broadcast` | Broadcast System #625: direct multiwrite path lacks atomic CAS/receipt authority. |
