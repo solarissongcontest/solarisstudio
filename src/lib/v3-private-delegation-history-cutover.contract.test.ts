@@ -18,30 +18,44 @@ describe("V3 private delegation-history cutover", () => {
     expect(route).toContain('return <MySolarisCountryModule section="history" />');
   });
 
-  it("uses the existing caller-bound Me summary instead of the legacy archive/editor graph", () => {
+  it("uses the existing caller-owned HOD history instead of the legacy archive/editor graph", () => {
     const screen = read("src/components/v3/V3DelegationHistoryScreen.tsx");
+    const history = read("src/lib/hod-self-history.ts");
 
-    expect(screen).toContain("getV3MeSummary");
-    expect(screen).toContain("isScopedV3MeSummary");
-    expect(screen).toContain('["v3-me-summary", viewerId]');
+    expect(screen).toContain("useOwnedHodHistory");
+    expect(screen).toContain("useOwnedHodHistory(ownsIdentity && Boolean(countryId), viewerId)");
     expect(screen).toContain("workspace.user?.id === viewerId");
     expect(screen).toContain("workspace.countryAccount?.access.userId === viewerId");
+    expect(screen).toContain("historyData?.country_id === countryId");
+    expect(history).toContain('["owned-hod-edition-history", viewerId ?? "current-viewer"]');
+    expect(history).toContain('supabase.rpc("owned_hod_edition_history")');
     expect(screen).not.toContain("useAllParticipants");
     expect(screen).not.toContain("useAllContestEntities");
     expect(screen).not.toContain("useSaveCountryEntry");
     expect(screen).not.toContain("MySolarisCountryModule");
   });
 
-  it("fails closed on viewer/delegation mismatch and preserves canonical archive identity", () => {
+  it("proves the existing history RPC is caller-owned confirmed participation", () => {
+    const migration = read("supabase/migrations/20260822001000_finalize_hod_release_hardening.sql");
+
+    expect(migration).toContain("create or replace function public.owned_hod_edition_history()");
+    expect(migration).toContain("v_user uuid := auth.uid()");
+    expect(migration).toContain("where user_id=v_user and status='active'");
+    expect(migration).toContain("where p.country_id=v_country and p.participation_status='confirmed'");
+    expect(migration).toContain("revoke all on function public.owned_hod_edition_history() from public, anon");
+    expect(migration).toContain("grant execute on function public.owned_hod_edition_history() to authenticated");
+  });
+
+  it("shows historical membership status and preserves canonical archive identity", () => {
     const screen = read("src/components/v3/V3DelegationHistoryScreen.tsx");
 
-    expect(screen).toContain("Private data stayed closed");
+    expect(screen).toContain('status === "mine"');
+    expect(screen).toContain('return "You were HOD"');
     expect(screen).toContain("editionById.get(item.edition_id)");
     expect(screen).toContain("edition?.slug");
     expect(screen).toContain("`/editions/${edition.slug}`");
     expect(screen).not.toContain("slugify(");
     expect(screen).not.toContain("item.edition_name.toLowerCase");
-    expect(screen).not.toContain("replaceAll(\" \", \"-\")");
   });
 
   it("keeps organizer country overrides out of caller-private V3 history", () => {
