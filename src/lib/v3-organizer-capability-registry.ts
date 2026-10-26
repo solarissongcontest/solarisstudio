@@ -133,7 +133,16 @@ function targetDomainFor(id: string) {
 }
 
 function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStatus"] {
-  if (id === "current-edition-overview") return "parity";
+  if (
+    id === "current-edition-overview" ||
+    id === "live-review-simulation-lab" ||
+    id === "live-review-time-machine" ||
+    id === "workspace-administration" ||
+    id === "workspace-organizer-guide" ||
+    id === "workspace-command-assistant"
+  ) {
+    return "cutover";
+  }
   if (
     id === "current-edition-tasks" ||
     id === "operations-control-room" ||
@@ -153,8 +162,6 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "operations-communications" ||
     id === "live-review-reveal-director" ||
     id === "live-review-broadcast-rundown" ||
-    id === "live-review-simulation-lab" ||
-    id === "live-review-time-machine" ||
     id === "live-review-voting-lab" ||
     id === "delegation-confirmation-overview" ||
     id === "delegation-confirmation-requirements" ||
@@ -193,10 +200,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "trust-interpretations" ||
     id === "trust-public-rules" ||
     id === "workspace-access-permissions" ||
-    id === "workspace-administration" ||
     id === "workspace-feature-rollout" ||
     id === "workspace-all-editions" ||
-    id === "workspace-organizer-guide" ||
     id === "workspace-country-accounts" ||
     id === "workspace-flag-qa" ||
     id === "workspace-hod-history" ||
@@ -206,7 +211,6 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-community-moderation" ||
     id === "workspace-predictions" ||
     id === "workspace-fantasy" ||
-    id === "workspace-command-assistant" ||
     id === "workspace-anniversary-settings" ||
     id === "workspace-anniversary-dates" ||
     id === "workspace-beta-3-feedback" ||
