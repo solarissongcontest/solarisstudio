@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pure unit regressions only. The caller supplies loopback-only static environment;
+# Bun must never load a workspace .env while reproducing the historical defects.
+root="$(git rev-parse --show-toplevel)"
+baseline="96b76574b86f24c6f9ed5089ec853759683d7ab6"
+proof_dir="${V3_PREFLIGHT_DIR:-$root/v3-release-preflight/static}/regression-provenance"
+mkdir -p "$proof_dir"
+proof_dir="$(cd "$proof_dir" && pwd)"
+checkout="$(mktemp -d "${RUNNER_TEMP:-/tmp}/s15-baseline.XXXXXX")"
+rmdir "$checkout"
+cleanup() { git -C "$root" worktree remove --force "$checkout" >/dev/null 2>&1 || true; }
+trap cleanup EXIT
+git worktree add --detach "$checkout" "$baseline" >/dev/null
+ln -s "$root/node_modules" "$checkout/node_modules"
+for file in authenticated-identity-isolation.test.ts v3-receipt-reconciliation-consequence.test.ts; do
+  cp "$root/src/lib/$file" "$checkout/src/lib/$file"
+done
+
+set +e
+(cd "$checkout" && bun --env-file=/dev/null test src/lib/authenticated-identity-isolation.test.ts) >"$proof_dir/identity-before.log" 2>&1
+identity_status=$?
+(cd "$checkout" && bun --env-file=/dev/null test src/lib/v3-receipt-reconciliation-consequence.test.ts -t 'preserves the catalog identity|does not publish or invalidate') >"$proof_dir/receipt-before.log" 2>&1
+receipt_status=$?
+set -e
+[[ "$identity_status" -eq 1 && "$receipt_status" -eq 1 ]] || { echo "Historical regression did not fail as expected" >&2; exit 1; }
+python3 - "$proof_dir" <<'PY'
+from pathlib import Path
+import re
+import sys
+directory = Path(sys.argv[1])
+identity = (directory / "identity-before.log").read_text()
+receipt = (directory / "receipt-before.log").read_text()
+for output, count in [(identity, 3), (receipt, 2)]:
+    if not re.search(rf"\\b{count} fail\\b", output):
+        raise SystemExit("Historical proof failed for an unexpected reason; inspect stored logs")
+    if any(marker in output for marker in ["Cannot find module", "Cannot find package", "SyntaxError", "is not a function"]):
+        raise SystemExit("Historical proof encountered a tooling failure")
+if "toBeUndefined" not in identity or "replaced-by-read" not in receipt or "declared" not in receipt:
+    raise SystemExit("Expected owner defects were not observed")
+print("PASS: original identity cache and phantom receipt mutation regressions reproduced")
+PY
+cd "$root"
+bun --env-file=/dev/null test src/lib/authenticated-identity-isolation.test.ts src/lib/v3-receipt-reconciliation-consequence.test.ts >"$proof_dir/after.log" 2>&1
+echo "PASS: both owner regressions pass on the current candidate"
