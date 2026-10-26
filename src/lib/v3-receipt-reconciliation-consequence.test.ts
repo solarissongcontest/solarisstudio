@@ -1,13 +1,14 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import {
+import * as consequenceRegistry from "./v3-domain-consequence-registry";
+import type { V3DomainConsequence } from "./v3-domain-consequence-registry";
+const {
   V3_DOMAIN_CONSEQUENCE_REGISTRY,
   isResolvedV3DomainConsequence,
   isV3ReadOnlyConsequenceReplacement,
   v3DomainConsequence,
   v3DomainConsequenceImplementationErrors,
-  type V3DomainConsequence,
-} from "./v3-domain-consequence-registry";
+} = consequenceRegistry;
 import {
   V3_PROJECTION_RECONCILIATION_REGISTRY,
   v3ProjectionsInvalidatedByEvent,
