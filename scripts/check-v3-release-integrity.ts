@@ -1,3 +1,4 @@
+import { isResolvedV3DomainConsequence } from "../src/lib/v3-domain-consequence-registry";
 import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, resolve } from "node:path";
@@ -79,11 +80,11 @@ for (const consequence of V3_DOMAIN_CONSEQUENCE_REGISTRY) {
 const pendingPhysical = V3_SYSTEM_DOMAIN_REGISTRY.filter((item) => item.physicalAuditStatus === "pending");
 const unfinishedPublic = V3_PUBLIC_CAPABILITIES.filter((item) => !["cutover", "retired"].includes(item.specificationStatus));
 const unfinishedOrganizer = V3_ORGANIZER_CAPABILITY_REGISTRY.filter((item) => !["cutover", "retired"].includes(item.migrationStatus));
-const declarationOnly = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((item) => item.implementationState !== "event-backed");
+const declarationOnly = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((item) => !isResolvedV3DomainConsequence(item));
 if (pendingPhysical.length) blockers.push(`${pendingPhysical.length} System physical ownership audits pending`);
 if (unfinishedPublic.length) blockers.push(`${unfinishedPublic.length} Public capabilities not cutover/retired`);
 if (unfinishedOrganizer.length) blockers.push(`${unfinishedOrganizer.length} Organizer capabilities not cutover/retired`);
-if (declarationOnly.length) blockers.push(`${declarationOnly.length} domain consequences not event-backed`);
+if (declarationOnly.length) blockers.push(`${declarationOnly.length} domain consequences lack implementation or canonical replacement proof`);
 if (warnings.length) blockers.push(`${warnings.length} parity capabilities missing explicit migration evidence`);
 
 const repositoryBlockerCount = blockers.length;
