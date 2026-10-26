@@ -12,10 +12,19 @@ const tasteDna = () => {
   if (!capability) throw new Error("Missing Taste DNA Public capability");
   return capability;
 };
+const migrationEvidenceOf = () => {
+  const capability = tasteDna();
+  expect("migrationEvidence" in capability).toBe(true);
+  if (!("migrationEvidence" in capability)) {
+    throw new Error("Taste DNA has no migration evidence");
+  }
+  return capability.migrationEvidence;
+};
 
 describe("Public V3 Taste DNA ownership", () => {
   it("owns saved Taste DNA state in personal-preference rather than Results or Country Voting DNA", () => {
     const capability = tasteDna();
+    const evidence = migrationEvidenceOf();
     const route = read("src/routes/taste-dna/index.tsx");
     const data = read("src/lib/taste-data.ts");
     const migration = read(
@@ -29,9 +38,7 @@ describe("Public V3 Taste DNA ownership", () => {
     expect(capability.backendOwners).toEqual(["personal-preference", "results"]);
     expect(capability.authRequirement).toBe("optional");
     expect(capability.specificationStatus).toBe("mapped");
-    expect(capability.migrationEvidence).toContain(
-      "src/lib/v3-taste-dna-ownership.contract.test.ts",
-    );
+    expect(evidence).toContain("src/lib/v3-taste-dna-ownership.contract.test.ts");
 
     expect(route).toContain("useFanSession");
     expect(route).toContain("useTasteBallots");
@@ -89,14 +96,13 @@ describe("Public V3 Taste DNA ownership", () => {
 
   it("does not claim cutover while Taste DNA still consumes mutable public Results rows", () => {
     const capability = tasteDna();
+    const evidence = migrationEvidenceOf();
     const route = read("src/routes/taste-dna/index.tsx");
     const legacyData = read("src/lib/data.ts");
 
     expect(capability.specificationStatus).not.toBe("cutover");
-    expect(capability.migrationEvidence).toContain(
-      "v3_public_published_result_snapshot",
-    );
-    expect(capability.migrationEvidence).toContain("Public consumer gap");
+    expect(evidence).toContain("v3_public_published_result_snapshot");
+    expect(evidence).toContain("Public consumer gap");
     expect(route).toContain("useResults(showId || undefined)");
     expect(legacyData).toMatch(/all<ResultRow>\(\s*"results"/s);
   });
