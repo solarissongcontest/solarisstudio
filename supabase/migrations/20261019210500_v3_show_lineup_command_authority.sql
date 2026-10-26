@@ -5,7 +5,7 @@ begin;
 -- rows remain public.shows + public.participants; this migration adds an opaque
 -- state-version projection and one transactional command envelope over them.
 select public.v3_register_migration_contract(
-  '20261019210500_v3_show_lineup_command_authority',
+  'v3.show-lineup-command-authority',
   1,
   'forward_fix_only',
   false,

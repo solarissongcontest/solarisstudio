@@ -16,7 +16,7 @@ describe("V3 Organizer Confirmation line-up sync", () => {
     expect(syncRoute).toContain("will not choose the newest confirmation round or another edition automatically");
   });
 
-  it("rejects stale edition targets before applying the reviewed legacy line-up sync", () => {
+  it("rejects stale edition targets before applying the reviewed line-up sync", () => {
     expect(syncRoute).toContain("result.editionId !== organizerEditionId");
     expect(syncRoute).toContain("selectedRound.editionId !== organizerEditionId");
     expect(syncRoute).toContain("targets.editionId !== organizerEditionId");
@@ -27,12 +27,16 @@ describe("V3 Organizer Confirmation line-up sync", () => {
     expect(syncRoute).toContain("editionId: review.editionId, showId: review.showId, countryIds");
   });
 
-  it("keeps the remaining line-up mutation recognizable as legacy System-owned authority", () => {
+  it("routes show membership through System #598 governed command authority", () => {
     expect(syncRoute).toContain("addCountriesToShow");
-    expect(syncRoute).toContain("System #598 remains the blocker");
     expect(lineupServer).toContain("export const addCountriesToShow");
     expect(lineupServer).toContain("requireSolarisOrganizerServer()");
-    expect(lineupServer).toContain('.from("participants").update');
-    expect(lineupServer).toContain('.from("participants").insert');
+    expect(lineupServer).toContain("createSolarisAuthenticatedClientServer()");
+    expect(lineupServer).toContain('rpc("v3_show_lineup_preflight"');
+    expect(lineupServer).toContain('rpc("v3_execute_show_lineup_operation"');
+    expect(lineupServer).toContain('p_action: "sync_confirmed_countries"');
+    expect(lineupServer).toContain("p_expected_state_version: preflight.stateVersion");
+    expect(lineupServer).not.toContain('.from("participants").update');
+    expect(lineupServer).not.toContain('.from("participants").insert');
   });
 });
