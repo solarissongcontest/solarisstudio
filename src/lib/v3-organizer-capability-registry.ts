@@ -133,7 +133,17 @@ function targetDomainFor(id: string) {
 }
 
 function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStatus"] {
-  if (id === "workspace-anniversary-settings") return "cutover";
+  if (
+    id === "workspace-anniversary-settings" ||
+    id === "workspace-anniversary-dates" ||
+    id === "live-review-reveal-director" ||
+    id === "delegation-confirmation-responses" ||
+    id === "delegation-access" ||
+    id === "delegation-edition-links" ||
+    id === "delegation-sync"
+  ) {
+    return "cutover";
+  }
 
   if (
     id === "current-edition-overview" ||
@@ -163,20 +173,15 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "operations-eligibility" ||
     id === "operations-media-assets" ||
     id === "operations-communications" ||
-    id === "live-review-reveal-director" ||
     id === "live-review-broadcast-rundown" ||
     id === "live-review-voting-lab" ||
     id === "delegation-confirmation-overview" ||
     id === "delegation-confirmation-requirements" ||
-    id === "delegation-confirmation-responses" ||
     id === "delegation-next-in-line" ||
     id === "delegation-responses-by-country" ||
     id === "delegation-submission-rounds" ||
     id === "delegation-calendar" ||
-    id === "delegation-access" ||
     id === "delegation-submission-history" ||
-    id === "delegation-edition-links" ||
-    id === "delegation-sync" ||
     id === "delegation-settings" ||
     id === "voting-rounds-entries" ||
     id === "voting-jury" ||
@@ -213,7 +218,6 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-public-ux" ||
     id === "workspace-predictions" ||
     id === "workspace-fantasy" ||
-    id === "workspace-anniversary-dates" ||
     id === "workspace-beta-3-feedback" ||
     id === "workspace-beta-2-feedback" ||
     id === "workspace-beta-1-archive" ||
