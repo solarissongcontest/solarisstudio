@@ -9,6 +9,10 @@ on:
       - "src/lib/results-reveal-lifecycle.ts"
       - "src/lib/results-reveal-lifecycle.test.ts"
       - "src/lib/v3-reveal-director-lifecycle.contract.test.ts"
+      - "src/lib/v3-public-reveal-lifecycle.contract.test.ts"
+      - "src/lib/v3-live.ts"
+      - "src/integrations/v3/live-source.server.ts"
+      - "src/components/v3/V3LiveScreen.tsx"
       - "src/routes/_authenticated/admin/results-reveal.tsx"
   workflow_dispatch:
 
@@ -46,7 +50,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run focused reveal tests
-        run: bunx vitest run src/lib/results-reveal-lifecycle.test.ts src/lib/v3-reveal-director-lifecycle.contract.test.ts
+        run: bunx vitest run src/lib/results-reveal-lifecycle.test.ts src/lib/v3-reveal-director-lifecycle.contract.test.ts src/lib/v3-public-reveal-lifecycle.contract.test.ts
 
       - name: Typecheck
         run: bun run typecheck
