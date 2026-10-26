@@ -295,17 +295,6 @@ begin
       using errcode = '42501';
   end if;
 
-  v_preview := public.studio2_confirmation_edition_binding_preview(
-    p_edition_id,
-    v_kind,
-    p_enabled
-  );
-
-  if jsonb_array_length(coalesce(v_preview -> 'blockers', '[]'::jsonb)) > 0 then
-    raise exception 'BINDING_CONFLICT: %', v_preview -> 'blockers'
-      using errcode = '23505';
-  end if;
-
   v_command := case v_kind
     when 'bind' then 'confirmation.edition_binding.bind'
     when 'remove' then 'confirmation.edition_binding.remove'
@@ -316,8 +305,9 @@ begin
     v_risk_class := 'R3';
   end if;
 
-  -- Claim before the mutable-state CAS. A lost response can therefore replay
-  -- the durable result even when the edition version has advanced afterward.
+  -- Idempotency is resolved before mutable current-state validation. A client
+  -- that lost a successful response must receive the durable original receipt
+  -- even when the binding or edition changed afterward.
   v_claim := private.studio2_claim_operation(
     p_operation_id,
     p_idempotency_key,
@@ -336,6 +326,17 @@ begin
   if v_replay then
     return public.studio2_reconcile_operation(p_operation_id)
       || jsonb_build_object('replayed', true);
+  end if;
+
+  v_preview := public.studio2_confirmation_edition_binding_preview(
+    p_edition_id,
+    v_kind,
+    p_enabled
+  );
+
+  if jsonb_array_length(coalesce(v_preview -> 'blockers', '[]'::jsonb)) > 0 then
+    raise exception 'BINDING_CONFLICT: %', v_preview -> 'blockers'
+      using errcode = '23505';
   end if;
 
   perform pg_advisory_xact_lock(
@@ -596,10 +597,7 @@ create policy "integration links organizer read"
 on public.integration_links
 for select
 to authenticated
-using (
-  public.studio2_access_allowed('edition.manage', edition_id, false)
-  or public.studio2_access_allowed('delegation.manage', edition_id, false)
-);
+using (public.studio2_access_allowed('edition.manage', edition_id, false));
 
 create policy "integration links organizer insert non-confirmations"
 on public.integration_links
