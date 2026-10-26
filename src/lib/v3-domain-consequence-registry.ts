@@ -38,9 +38,22 @@ export type V3DerivedProjectionConsequenceReplacement = V3ConsequenceReplacement
   kind: "canonical-derived-projection";
 };
 
+export type V3CanonicalEventConsequenceReplacement = {
+  kind: "canonical-event";
+  declaredEvent: string;
+  ownerDomain: string;
+  canonicalEvents: readonly string[];
+  aggregateType: string;
+  producer: string;
+  consumerParity: string;
+  rationale: string;
+  evidence: readonly string[];
+};
+
 export type V3ConsequenceReplacement =
   | V3ReadOnlyConsequenceReplacement
-  | V3DerivedProjectionConsequenceReplacement;
+  | V3DerivedProjectionConsequenceReplacement
+  | V3CanonicalEventConsequenceReplacement;
 
 export type V3DomainConsequence = {
   eventType: string;
@@ -61,6 +74,7 @@ export type V3DomainConsequence = {
   implementationState:
     | "declared"
     | "event-backed"
+    | "replaced-by-canonical-event"
     | "replaced-by-read"
     | "replaced-by-derived-projection";
   replacement: V3ConsequenceReplacement | null;
@@ -232,6 +246,57 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "supabase/migrations/20261016043000_v3_s5_televote_consequences.sql",
     "src/lib/v3-s5-televote-consequences.test.ts",
   ],
+};
+
+/**
+ * Some legacy registry labels predate the canonical event vocabulary that the
+ * authoritative producer already persists. These mappings are deliberately
+ * exact and allowlisted: they may reconcile vocabulary, never invent a second
+ * event or hide a missing producer/consumer effect.
+ */
+const CANONICAL_EVENT_REPLACEMENTS: Readonly<
+  Record<string, V3CanonicalEventConsequenceReplacement>
+> = {
+  "story.changed": {
+    kind: "canonical-event",
+    declaredEvent: "story.changed",
+    ownerDomain: "story",
+    canonicalEvents: ["storyline.updated", "storyline.unpublished"],
+    aggregateType: "storyline",
+    producer:
+      "public.studio2_execute_story_operation(uuid,text,text,uuid,bigint,uuid,jsonb)",
+    consumerParity:
+      "Storyline edits and unpublication synchronously update canonical storyline state before appending the precise contest event; Organizer snapshots and Public/Archive/Anniversary reads derive from that state, so no independent story.changed delivery effect remains.",
+    rationale:
+      "story.changed is an obsolete umbrella label. Canonical Storytelling distinguishes ordinary edits as storyline.updated and visibility removal as storyline.unpublished; emitting story.changed as well would duplicate the same mutation under a broader vocabulary.",
+    evidence: [
+      "supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql",
+      "supabase/migrations/20260912194200_studio2_storytelling_hardening.sql",
+      "src/lib/contest-events.ts",
+      "src/lib/studio2-storytelling-integration.test.ts",
+      "src/lib/v3-r2-story-consequence-vocabulary.test.ts",
+    ],
+  },
+  "story.published": {
+    kind: "canonical-event",
+    declaredEvent: "story.published",
+    ownerDomain: "story",
+    canonicalEvents: ["storyline.published"],
+    aggregateType: "storyline",
+    producer:
+      "public.studio2_execute_story_operation(uuid,text,text,uuid,bigint,uuid,jsonb)",
+    consumerParity:
+      "Publishing synchronously marks the canonical storyline published and appends storyline.published in the same operation; public Story/Archive/Anniversary readers expose only that published canonical state, leaving no separate story.published delivery effect.",
+    rationale:
+      "The authoritative Storytelling vocabulary is storyline.published. A second story.published event would describe the same aggregate transition twice and create competing event truth.",
+    evidence: [
+      "supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql",
+      "supabase/migrations/20260912194200_studio2_storytelling_hardening.sql",
+      "src/lib/contest-events.ts",
+      "src/lib/studio2-storytelling-integration.test.ts",
+      "src/lib/v3-r2-story-consequence-vocabulary.test.ts",
+    ],
+  },
 };
 
 /**
@@ -420,6 +485,23 @@ const DERIVED_PROJECTION_REPLACEMENTS: Readonly<
       "src/lib/v3-derived-observation-consequence-replacements.test.ts",
     ],
   },
+  "activity.projected": {
+    kind: "canonical-derived-projection",
+    ownerDomain: "activity",
+    operation: "public.v3_my_participant_activity(timestamptz,integer,uuid)",
+    projection:
+      "recipient-scoped participant activity reconstructed from canonical completed operations",
+    boundedBy:
+      "authenticated actor only; allowlisted operation families; 1-50 rows per page with a stable timestamp+operation cursor",
+    rationale:
+      "Activity has no independent mutable authority. The STABLE recipient-scoped RPC reconstructs it from succeeded operation receipts and the canonical jury operation ledger, then derives current/superseded/unavailable state from canonical domain rows. Emitting activity.projected would only narrate a deterministic read projection.",
+    evidence: [
+      "supabase/migrations/20261019213500_v3_participant_activity_projection.sql",
+      "src/integrations/v3/participant-activity.server.ts",
+      "src/lib/v3-participant-activity-system.contract.test.ts",
+      "src/lib/v3-r2-activity-consequence-replacement.test.ts",
+    ],
+  },
 };
 
 export function v3DomainConsequenceImplementationErrors(consequence: V3DomainConsequence) {
@@ -435,6 +517,65 @@ export function v3DomainConsequenceImplementationErrors(consequence: V3DomainCon
       : ["event-backed consequence lacks its canonical implementation evidence"];
   }
 
+  if (consequence.implementationState === "replaced-by-canonical-event") {
+    const actual = consequence.replacement;
+    const expected = CANONICAL_EVENT_REPLACEMENTS[consequence.eventType];
+    if (
+      !expected ||
+      !actual ||
+      actual.kind !== "canonical-event" ||
+      consequence.ownerDomain !== expected.ownerDomain
+    ) {
+      return ["unknown canonical-event replacement or mismatched owner"];
+    }
+    for (const key of [
+      "kind",
+      "declaredEvent",
+      "ownerDomain",
+      "aggregateType",
+      "producer",
+      "consumerParity",
+      "rationale",
+    ] as const) {
+      if (actual[key] !== expected[key]) {
+        return ["canonical-event replacement differs from its allowlisted contract"];
+      }
+    }
+    if (actual.declaredEvent !== consequence.eventType) {
+      return ["canonical-event replacement must name the exact declared consequence"];
+    }
+    if (
+      !actual.canonicalEvents.length ||
+      actual.canonicalEvents.includes(consequence.eventType) ||
+      new Set(actual.canonicalEvents).size !== actual.canonicalEvents.length ||
+      actual.canonicalEvents.length !== expected.canonicalEvents.length ||
+      !expected.canonicalEvents.every(
+        (eventType, index) => actual.canonicalEvents[index] === eventType,
+      )
+    ) {
+      return ["canonical-event replacement has invalid or unrelated canonical vocabulary"];
+    }
+    if (
+      actual.evidence.length !== expected.evidence.length ||
+      !expected.evidence.every(
+        (path) => actual.evidence.includes(path) && consequence.evidence.includes(path),
+      )
+    ) {
+      return ["canonical-event replacement lacks producer/consumer behavioral evidence"];
+    }
+    if (
+      consequence.taskEffects.length ||
+      consequence.notificationEffects.length ||
+      consequence.publicationEffects.length ||
+      consequence.realtimeEffects.length ||
+      consequence.analyticsEffects.length ||
+      consequence.auditRequired
+    ) {
+      return ["canonical-event replacement must not retain obsolete alias delivery effects"];
+    }
+    return [];
+  }
+
   const actual = consequence.replacement;
   const expected =
     consequence.implementationState === "replaced-by-read"
@@ -442,7 +583,12 @@ export function v3DomainConsequenceImplementationErrors(consequence: V3DomainCon
       : consequence.implementationState === "replaced-by-derived-projection"
         ? DERIVED_PROJECTION_REPLACEMENTS[consequence.eventType]
         : null;
-  if (!expected || !actual || consequence.ownerDomain !== expected.ownerDomain) {
+  if (
+    !expected ||
+    !actual ||
+    actual.kind === "canonical-event" ||
+    consequence.ownerDomain !== expected.ownerDomain
+  ) {
     return ["unknown consequence replacement or mismatched owner"];
   }
   for (const key of [
@@ -502,6 +648,13 @@ export function isV3DerivedConsequenceReplacement(consequence: V3DomainConsequen
   );
 }
 
+export function isV3CanonicalEventConsequenceReplacement(consequence: V3DomainConsequence) {
+  return (
+    consequence.implementationState === "replaced-by-canonical-event" &&
+    isResolvedV3DomainConsequence(consequence)
+  );
+}
+
 export function isV3NonEventConsequenceReplacement(consequence: V3DomainConsequence) {
   return (
     isV3ReadOnlyConsequenceReplacement(consequence) ||
@@ -529,8 +682,9 @@ function unique(values: readonly string[]) {
  * `implementationState: declared` means ownership is documented but the
  * owning command has not yet proven transactional S4 emission plus executable
  * consequence consumers. Only events with concrete migration/rehearsal evidence
- * may be marked `event-backed`. A non-event replacement is allowed only through
- * the strict allowlists above with bounded, inspectable runtime evidence.
+ * may be marked `event-backed`. Canonical-event vocabulary replacements and
+ * non-event replacements are allowed only through the strict allowlists above
+ * with inspectable producer/consumer or bounded projection evidence.
  */
 export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
   V3_SYSTEM_DOMAIN_REGISTRY.flatMap((domain) =>
@@ -551,9 +705,10 @@ export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
         ...taskTypes.map((taskType) => `task:${taskType}`),
       ]);
       const eventBackedEvidence = EVENT_BACKED_CONSEQUENCES[eventType];
+      const canonicalEventReplacement = CANONICAL_EVENT_REPLACEMENTS[eventType] ?? null;
       const readReplacement = READ_ONLY_REPLACEMENTS[eventType] ?? null;
       const derivedReplacement = DERIVED_PROJECTION_REPLACEMENTS[eventType] ?? null;
-      const replacement = readReplacement ?? derivedReplacement ?? null;
+      const replacement = canonicalEventReplacement ?? readReplacement ?? derivedReplacement ?? null;
 
       return {
         eventType,
@@ -585,13 +740,15 @@ export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
           !replacement &&
           (domain.sensitivityClass !== "public" || domain.mutationCommands.length > 0),
         consumers,
-        implementationState: readReplacement
-          ? "replaced-by-read"
-          : derivedReplacement
-            ? "replaced-by-derived-projection"
-            : eventBackedEvidence
-              ? "event-backed"
-              : "declared",
+        implementationState: canonicalEventReplacement
+          ? "replaced-by-canonical-event"
+          : readReplacement
+            ? "replaced-by-read"
+            : derivedReplacement
+              ? "replaced-by-derived-projection"
+              : eventBackedEvidence
+                ? "event-backed"
+                : "declared",
         replacement,
         evidence: replacement
           ? unique([...domain.ownershipEvidence, ...replacement.evidence])
