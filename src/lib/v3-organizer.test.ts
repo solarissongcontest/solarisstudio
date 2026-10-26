@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
+
 import {
   getV3OrganizerTabDestination,
   readV3OrganizerNavigationState,
@@ -69,6 +71,25 @@ describe("V3 Organizer information architecture", () => {
     expect(v3OrganizerTabForPath("/admin/control-room")).toBe("live");
     expect(v3OrganizerTabForPath("/admin/broadcast-rundown")).toBe("live");
     expect(v3OrganizerTabForPath("/admin/access-permissions")).toBe("more");
+  });
+
+  it("keeps the Contest edition root and discovered migration target under Control", () => {
+    for (const path of ["/admin/ssc-22", "/admin/ssc22", "/admin/SSC-22", "/admin/:editionSlug", "/admin/__edition__"]) {
+      expect(v3OrganizerTabForPath(path), path).toBe("control");
+    }
+    const contest = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
+      (item) => item.legacyId === "current-edition-contest",
+    );
+    expect(contest?.legacyRoutes).toEqual(["/admin/:editionSlug"]);
+    expect(contest?.targetRoute).toBe("/admin/control");
+    // Correct routing is not proof of accepted release cutover.
+    expect(contest?.migrationStatus).toBe("building");
+  });
+
+  it("does not classify unrelated or malformed specialist routes as Contest", () => {
+    for (const path of ["/admin/guide", "/admin/editions", "/admin/unknown", "/admin/ssc-22bad", "/admin/ssc-22/unknown"]) {
+      expect(v3OrganizerTabForPath(path), path).toBe("more");
+    }
   });
 
   it("builds Control from canonical operational domains and fails closed without edition context", () => {
