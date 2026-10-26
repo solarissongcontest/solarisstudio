@@ -113,9 +113,10 @@ describe("Public V3 main-registry evidence-only cutovers", () => {
     expect(pushOwner).toContain("push_subscriptions");
   });
 
-  it("keeps known implementation or ownership gaps unresolved instead of laundering them through evidence", () => {
+  it("keeps remaining implementation or ownership gaps unresolved instead of laundering them through evidence", () => {
+    // delegation-history is intentionally absent here: Worker 4 supplied a
+    // concrete caller-bound V3 cutover after this evidence branch was created.
     for (const id of [
-      "delegation-history",
       "participant-activity",
       "results",
     ]) {
