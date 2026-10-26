@@ -27,12 +27,12 @@ describe("V3 Organizer Storytelling edition context", () => {
     expect(storytelling).toContain("enabled: Boolean(resolvedEditionId) && view === 'anniversary'");
   });
 
-  it("accepts Storytelling only after story.read ownership and cutover evidence are explicit", () => {
+  it("accepts Storytelling at parity only after story.read ownership evidence is explicit", () => {
     const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "current-edition-storytelling",
     );
     expect(capability).toBeDefined();
     expect(capability?.ownerCapability).toBe("story.read");
-    expect(capability?.migrationStatus).toBe("cutover");
+    expect(capability?.migrationStatus).toBe("parity");
   });
 });

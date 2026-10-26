@@ -31,11 +31,11 @@ describe("V3 Organizer Time Machine", () => {
     expect(route).not.toContain(".delete(");
   });
 
-  it("records the proven read-only Time Machine surface as cut over without claiming historical completeness", () => {
+  it("records the proven read-only Time Machine surface at parity while rollout remains dark", () => {
     const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "live-review-time-machine",
     );
     expect(capability?.ownerCapability).toBe("edition.read");
-    expect(capability?.migrationStatus).toBe("cutover");
+    expect(capability?.migrationStatus).toBe("parity");
   });
 });

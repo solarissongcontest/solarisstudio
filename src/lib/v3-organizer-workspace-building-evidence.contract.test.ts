@@ -50,12 +50,12 @@ describe("V3 Organizer implemented workspace building evidence", () => {
     }
   });
 
-  it("records Administration and Organizer Guide as accepted contextual cutovers", () => {
+  it("records Administration and Organizer Guide at evidence-backed parity without faking rollout cutover", () => {
     const byId = new Map(
       V3_ORGANIZER_CAPABILITY_REGISTRY.map((item) => [item.legacyId, item]),
     );
-    expect(byId.get("workspace-administration")?.migrationStatus).toBe("cutover");
-    expect(byId.get("workspace-organizer-guide")?.migrationStatus).toBe("cutover");
+    expect(byId.get("workspace-administration")?.migrationStatus).toBe("parity");
+    expect(byId.get("workspace-organizer-guide")?.migrationStatus).toBe("parity");
     expect(administration).toContain('title="More"');
     expect(administration).toContain("All Organizer tools");
     expect(administration).not.toContain("useMutation(");
