@@ -55,7 +55,7 @@ export function V3MeRoot({ viewerId, editionId }: { viewerId: string; editionId:
     historyAvailable: scoped,
     history: scoped ? [...summary.data!.history].filter((item) => item.edition_id !== editionId).sort((a,b) => b.edition_number-a.edition_number).map((item) => ({ editionId: item.edition_id, editionName: item.edition_name, roleLabel: "Recorded delegation confirmation", completed: false, href: NAV_TARGETS.mySolarisHistory })) : [],
     activity: { verifiedReceiptCount: scoped ? summary.data!.receipt_count : null, awaitingAuthoritativeReceiptCount: null, href: NAV_TARGETS.mySolarisActivity },
-    following: { followedCountryCount: following ? following.filter((item) => item.entity_type === "country").length : null, followedContentCount: following ? following.filter((item) => item.entity_type !== "country").length : null, href: NAV_TARGETS.mySolarisSaved },
+    following: { followedCountryCount: following ? following.filter((item) => item.entity_type === "country").length : null, followedContentCount: following ? following.filter((item) => item.entity_type !== "country").length : null, href: NAV_TARGETS.mySolarisActivity },
     delegationLinks: canManageDelegation ? [
       { key: "country", label: "Country profile", href: NAV_TARGETS.mySolarisCountry },
       { key: "responsibilities", label: "Responsibilities", href: NAV_TARGETS.participate },
