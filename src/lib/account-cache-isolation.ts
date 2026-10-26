@@ -2,9 +2,14 @@ import type { QueryClient } from "@tanstack/react-query";
 
 type AccountUser = { id: string } | null | undefined;
 
+/** Server identity results are scoped to the current UI session, never shared across accounts. */
+export function authenticatedIdentityQueryKey(userId: string | null) {
+  return ["authenticated-identity-gate", userId] as const;
+}
+
 export function isPrivateAccountQuery(key: readonly unknown[]) {
   const root = String(key[0] ?? "");
-  return /^(edition-selection|user-prefs|user-country-ownership|mysolaris-|my-solaris-|my-country-|owned-|country-confirmation-|country-jury-|home-personal-attention|participate-jury-|participate-confirmation-access|admin-|studio2-|organisation-backend-contract|v3-rollout-probe|v3-primary-surface-bundle)/.test(
+  return /^(authenticated-identity-gate|edition-selection|user-prefs|user-country-ownership|mysolaris-|my-solaris-|my-country-|owned-|country-confirmation-|country-jury-|home-personal-attention|participate-jury-|participate-confirmation-access|admin-|studio2-|organisation-backend-contract|v3-rollout-probe|v3-primary-surface-bundle)/.test(
     root,
   );
 }
