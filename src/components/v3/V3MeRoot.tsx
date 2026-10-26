@@ -58,6 +58,7 @@ export function V3MeRoot({ viewerId, editionId }: { viewerId: string; editionId:
     following: { followedCountryCount: following ? following.filter((item) => item.entity_type === "country").length : null, followedContentCount: following ? following.filter((item) => item.entity_type !== "country").length : null, href: NAV_TARGETS.mySolarisActivity },
     delegationLinks: canManageDelegation ? [
       { key: "country", label: "Country profile", href: NAV_TARGETS.mySolarisCountry },
+      { key: "hod-history", label: "HOD history", href: NAV_TARGETS.mySolarisHistory },
       { key: "responsibilities", label: "Responsibilities", href: NAV_TARGETS.participate },
       { key: "entry", label: "Entry and readiness", href: NAV_TARGETS.mySolarisEntry },
       { key: "notices", label: "Official notices", href: NAV_TARGETS.mySolarisNotices },
