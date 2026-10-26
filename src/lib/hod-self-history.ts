@@ -19,10 +19,10 @@ export type OwnedHodHistory = {
   editions: OwnedHodEdition[];
 };
 
-export function useOwnedHodHistory(enabled = true) {
+export function useOwnedHodHistory(enabled = true, viewerId?: string | null) {
   return useQuery({
     enabled,
-    queryKey: ["owned-hod-edition-history"],
+    queryKey: ["owned-hod-edition-history", viewerId ?? "current-viewer"],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("owned_hod_edition_history");
       if (error) throw error;
