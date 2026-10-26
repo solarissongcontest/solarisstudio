@@ -44,7 +44,9 @@ describe("V3 private delegation-history cutover", () => {
 
   it("proves the existing history sources are caller-owned and RLS-bound", () => {
     const finalHistoryMigration = read("supabase/migrations/20260822001000_finalize_hod_release_hardening.sql");
-    const claimsMigration = read("supabase/migrations/20260821234500_country_hod_self_history.sql");
+    const claimsSchemaMigration = read("supabase/migrations/20260821234500_country_hod_self_history.sql");
+    const currentClaimsRls = read("supabase/migrations/20260915182035_permission_engine_v2_delegation_confirmation_rls.sql");
+    const client = read("src/lib/hod-self-history.ts");
 
     expect(finalHistoryMigration).toContain("create or replace function public.owned_hod_edition_history()");
     expect(finalHistoryMigration).toContain("v_user uuid := auth.uid()");
@@ -53,9 +55,14 @@ describe("V3 private delegation-history cutover", () => {
     expect(finalHistoryMigration).toContain("revoke all on function public.owned_hod_edition_history() from public, anon");
     expect(finalHistoryMigration).toContain("grant execute on function public.owned_hod_edition_history() to authenticated");
 
-    expect(claimsMigration).toContain('create policy "country hod claims own read"');
-    expect(claimsMigration).toContain("using (user_id = (select auth.uid())");
-    expect(claimsMigration).toContain("primary key (user_id, country_id, edition_id)");
+    expect(claimsSchemaMigration).toContain("primary key (user_id, country_id, edition_id)");
+    expect(currentClaimsRls).toContain('create policy "country hod claims self or capability read"');
+    expect(currentClaimsRls).toContain("user_id = (select auth.uid())");
+    expect(currentClaimsRls).toContain("studio2_access_allowed('delegation.read', edition_id, false)");
+    // Organizer/delegation capability may widen the table policy, so the Me
+    // consumer independently restricts the projection back to its viewer.
+    expect(client).toContain('.eq("user_id", viewerId!)');
+    expect(client).toContain("row.user_id === viewerId");
   });
 
   it("shows past countries, editions and roles with canonical archive identity", () => {
