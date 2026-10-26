@@ -42,7 +42,7 @@ export type V3MeProjectionInput = {
   historyAvailable?: boolean;
   activity: V3MeActivitySummary;
   following: V3MeFollowingSummary;
-  delegationLinks: readonly V3MeLink[];
+  delegationLinks?: readonly V3MeLink[];
   preferenceLinks: readonly V3MeLink[];
   accountLinks: readonly V3MeLink[];
   canEnterOrganizer: boolean;
@@ -73,7 +73,7 @@ export function buildV3MeProjection(input: V3MeProjectionInput): V3MeProjection 
     history: input.history.map((item) => ({ ...item })),
     activity: { ...input.activity },
     following: { ...input.following },
-    delegation: input.delegationLinks.map((link) => ({ ...link })),
+    delegation: (input.delegationLinks ?? []).map((link) => ({ ...link })),
     preferences: input.preferenceLinks.map((link) => ({ ...link })),
     account: input.accountLinks.map((link) => ({ ...link })),
     organizerAction: input.canEnterOrganizer
