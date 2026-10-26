@@ -127,6 +127,11 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "supabase/migrations/20261026193000_v3_s15_selection_review_consequences.sql",
     "src/lib/v3-s15-selection-review-consequences.test.ts",
   ],
+  "participation.changed": [
+    "supabase/migrations/20261003015000_organisation_os_v5_participation_status_operations.sql",
+    "supabase/migrations/20261026194500_v3_s15_participation_consequences.sql",
+    "src/lib/v3-s15-participation-consequences.test.ts",
+  ],
   "media.reviewed": [
     "supabase/migrations/20261016050000_v3_s5_media_review_consequences.sql",
     "src/lib/v3-s5-media-consequences.test.ts",
