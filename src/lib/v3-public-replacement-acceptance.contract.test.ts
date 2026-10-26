@@ -11,12 +11,19 @@ const capability = (id: string) => {
   return value;
 };
 
+function replacementSurfaceOf(id: string) {
+  const value = capability(id);
+  expect("replacementSurface" in value, `${id}:replacementSurface`).toBe(true);
+  if (!("replacementSurface" in value)) throw new Error(`${id} has no replacement surface`);
+  return value.replacementSurface;
+}
+
 describe("Public V3 replacement acceptance", () => {
   it("accepts Global Search as the shell-owned canonical replacement for /search", () => {
     const search = capability("global-search");
     expect(search.specificationStatus).toBe("cutover");
     expect(search.targetRoute).toBe("/");
-    expect(search.replacementSurface).toEqual({
+    expect(replacementSurfaceOf("global-search")).toEqual({
       kind: "shell-overlay",
       ownerComponent: "src/components/public/PublicCommandPalette.tsx",
       hostRoute: "/",
@@ -54,7 +61,7 @@ describe("Public V3 replacement acceptance", () => {
     const scoreboard = capability("scoreboard");
     expect(scoreboard.specificationStatus).toBe("cutover");
     expect(scoreboard.targetRoute).toBe("/shows/:showId");
-    expect(scoreboard.replacementSurface).toEqual({
+    expect(replacementSurfaceOf("scoreboard")).toEqual({
       kind: "embedded-presentation",
       ownerComponent: "src/components/v3/V3ScoreboardPresentation.tsx",
       hostRoute: "/shows/:showId",
