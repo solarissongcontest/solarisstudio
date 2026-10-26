@@ -7,6 +7,10 @@ const migration = readFileSync(
   "supabase/migrations/20261026210500_v3_confirmation_edition_binding_operations.sql",
   "utf8",
 );
+const rehearsal = readFileSync(
+  ".github/scripts/v3-confirmation-edition-binding-rehearsal.sh",
+  "utf8",
+);
 
 function functionBody(name: string) {
   const marker = `create or replace function ${name}`;
@@ -56,19 +60,29 @@ describe("V3 Organizer Confirmation edition binding operations", () => {
     expect(apply).not.toContain("limit 1");
   });
 
-  it("enforces exact edition capability, lock, expected version and idempotency", () => {
+  it("resolves idempotent replay before mutable current-state validation", () => {
+    const apply = functionBody("public.studio2_apply_confirmation_edition_binding_change");
+    const claim = apply.indexOf("private.studio2_claim_operation");
+    const replay = apply.indexOf("if v_replay then");
+    const preview = apply.indexOf("v_preview := public.studio2_confirmation_edition_binding_preview");
+    const versionCheck = apply.indexOf("v_before_version is distinct from p_expected_version");
+
+    expect(claim).toBeGreaterThanOrEqual(0);
+    expect(replay).toBeGreaterThan(claim);
+    expect(preview).toBeGreaterThan(replay);
+    expect(versionCheck).toBeGreaterThan(preview);
+    expect(apply).toContain("return public.studio2_reconcile_operation(p_operation_id)");
+  });
+
+  it("enforces exact edition capability, lock and expected version", () => {
     const apply = functionBody("public.studio2_apply_confirmation_edition_binding_change");
     expect(apply).toContain("studio2_access_allowed('delegation.manage', p_edition_id, true)");
-    expect(apply).toContain("private.studio2_claim_operation");
     expect(apply).toContain("pg_advisory_xact_lock");
     expect(apply).toContain("for update");
     expect(apply).toContain("v_before_version is distinct from p_expected_version");
     expect(apply).toContain("VERSION_CONFLICT");
     expect(apply).toContain("private.studio2_complete_operation");
     expect(apply).toContain("public.studio2_reconcile_operation");
-    expect(apply.indexOf("private.studio2_claim_operation")).toBeLessThan(
-      apply.indexOf("v_before_version is distinct from p_expected_version"),
-    );
   });
 
   it("persists a monotonic edition state revision across create/update/remove/editing", () => {
@@ -88,14 +102,32 @@ describe("V3 Organizer Confirmation edition binding operations", () => {
     expect(emit).toContain("if not v_changed then");
   });
 
-  it("removes direct authenticated Confirmation binding DML without breaking other integration services", () => {
+  it("removes direct authenticated Confirmation binding DML without widening raw reads", () => {
     expect(migration).toContain('drop policy if exists "integration links organizer only"');
     expect(migration).toContain('create policy "integration links organizer read"');
     expect(migration).toContain('create policy "integration links organizer insert non-confirmations"');
     expect(migration).toContain('create policy "integration links organizer update non-confirmations"');
     expect(migration).toContain('create policy "integration links organizer delete non-confirmations"');
+    expect(migration).toContain("using (public.studio2_access_allowed('edition.manage', edition_id, false));");
     expect(migration).toContain("service <> 'confirmations'");
     expect(migration).not.toContain("revoke insert, update, delete on public.integration_links from authenticated");
+  });
+
+  it("keeps the stateful rehearsal loopback-only and covers the requested hostile paths", () => {
+    expect(rehearsal).toContain("Refusing hosted Supabase rehearsal");
+    expect(rehearsal).toContain("wrong-edition organizer read");
+    expect(rehearsal).toContain("delegation actor without delegation.manage");
+    expect(rehearsal).toContain("direct Confirmation binding insert");
+    expect(rehearsal).toContain("binding create replay");
+    expect(rehearsal).toContain("IDEMPOTENCY_CONFLICT");
+    expect(rehearsal).toContain("stale binding update");
+    expect(rehearsal).toContain("stale expected version");
+    expect(rehearsal).toContain("canonical binding readback");
+    expect(rehearsal).toContain("operation receipt reconciliation");
+    expect(rehearsal).toContain("binding remove");
+    expect(rehearsal).toContain("ABA stale create");
+    expect(rehearsal).toContain("conflicting binding apply");
+    expect(rehearsal).toContain("DomainEvent and outbox evidence");
   });
 
   it("exposes typed failures instead of silently repairing conflicts", () => {
