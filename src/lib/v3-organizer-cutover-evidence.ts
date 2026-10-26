@@ -5,8 +5,7 @@ export type V3OrganizerEvidenceCutover = {
     | "edition.read"
     | "host.read"
     | "story.read"
-    | "community.read"
-    | "communications.read";
+    | "community.read";
   proofKind:
     | "canonical-read"
     | "isolated-simulation"
@@ -191,29 +190,6 @@ export const V3_ORGANIZER_EVIDENCE_CUTOVERS = [
     acceptanceTests: [
       "src/lib/solaris-command-assistant.test.ts",
       "src/lib/solaris-command-assistant-insights.test.ts",
-      "src/lib/v3-organizer-evidence-cutover.contract.test.ts",
-    ],
-  },
-  {
-    id: "operations-communications",
-    route: "/admin/communications",
-    ownerCapability: "communications.read",
-    proofKind: "governed-operation",
-    implementationPaths: [
-      "src/routes/_authenticated/admin/communications.tsx",
-      "src/lib/v3-organizer-communications-operations.ts",
-      "src/lib/v3-official-communications-commands.ts",
-      "src/lib/v3-official-communications-draft-commands.ts",
-    ],
-    authorityPaths: [
-      "src/routes/_authenticated/admin/route.tsx",
-      "supabase/migrations/20260914035152_permission_engine_v2_foundation.sql",
-      "supabase/migrations/20261024235910_v3_official_communications_command_authority.sql",
-      "supabase/migrations/20261024235920_v3_official_communications_draft_authority.sql",
-    ],
-    acceptanceTests: [
-      "src/lib/v3-organizer-communications-operations.contract.test.ts",
-      "src/lib/v3-organizer-communications-route-cutover.contract.test.ts",
       "src/lib/v3-organizer-evidence-cutover.contract.test.ts",
     ],
   },
