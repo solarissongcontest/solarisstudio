@@ -137,13 +137,15 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "current-edition-overview" ||
     id === "current-edition-host" ||
     id === "current-edition-storytelling" ||
+    id === "live-review-reveal-director" ||
     id === "live-review-simulation-lab" ||
     id === "live-review-time-machine" ||
     id === "workspace-administration" ||
     id === "workspace-organizer-guide" ||
     id === "workspace-community-moderation" ||
     id === "workspace-command-assistant" ||
-    id === "workspace-anniversary-settings"
+    id === "workspace-anniversary-settings" ||
+    id === "workspace-anniversary-dates"
   ) {
     return "cutover";
   }
@@ -162,7 +164,6 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "operations-eligibility" ||
     id === "operations-media-assets" ||
     id === "operations-communications" ||
-    id === "live-review-reveal-director" ||
     id === "live-review-broadcast-rundown" ||
     id === "live-review-voting-lab" ||
     id === "delegation-confirmation-overview" ||
@@ -212,7 +213,6 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-public-ux" ||
     id === "workspace-predictions" ||
     id === "workspace-fantasy" ||
-    id === "workspace-anniversary-dates" ||
     id === "workspace-beta-3-feedback" ||
     id === "workspace-beta-2-feedback" ||
     id === "workspace-beta-1-archive" ||
