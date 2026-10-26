@@ -142,6 +142,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "live-review-time-machine" ||
     id === "delegation-confirmation-responses" ||
     id === "delegation-access" ||
+    id === "delegation-sync" ||
     id === "workspace-administration" ||
     id === "workspace-organizer-guide" ||
     id === "workspace-community-moderation" ||
@@ -176,7 +177,6 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "delegation-calendar" ||
     id === "delegation-submission-history" ||
     id === "delegation-edition-links" ||
-    id === "delegation-sync" ||
     id === "delegation-settings" ||
     id === "voting-rounds-entries" ||
     id === "voting-jury" ||
