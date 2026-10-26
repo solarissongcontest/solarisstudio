@@ -9,6 +9,8 @@ const client = source("src/integrations/confirmations/v3-projections.ts");
 const responses = source("src/routes/confirmations/admin/responses.tsx");
 const responseDetail = source("src/routes/confirmations/admin/responses/$id.tsx");
 const recovery = source("src/routes/confirmations/admin/recovery-codes.tsx");
+const syncRoute = source("src/routes/confirmations/admin/sync.tsx");
+const lineupServer = source("src/lib/admin-lineup.functions.ts");
 const responseMigration = source(
   "supabase/migrations/20261019212000_v3_confirmation_review_projection.sql",
 );
@@ -70,9 +72,35 @@ describe("V3 Organizer exact-edition Confirmation projection cutovers", () => {
     expect(recoveryMigration).toContain("least(greatest(coalesce(p_limit, 100), 1), 200)");
   });
 
-  it("promotes only the two consumers whose exact-edition backend is now present", () => {
+  it("builds Confirmation sync batches from one bounded canonical state version", () => {
+    expect(syncRoute).toContain("loadAllConfirmationResponsesForEdition<ResponseRow>");
+    expect(syncRoute).toContain("responseStateVersion");
+    expect(syncRoute).toContain("currentBatch.stateVersion !== review.responseStateVersion");
+    expect(syncRoute).not.toContain('rpc("admin_confirmation_responses")');
+    expect(client).toContain("maxPages = 25");
+    expect(client).toContain("loadConfirmationResponsesPage<T>(editionId, cursor, 200)");
+    expect(client).toContain("page.stateVersion !== stateVersion");
+    expect(client).toContain("rows.size !== totalCount");
+    expect(client).toContain("maxPages * 200");
+  });
+
+  it("keeps the final show-membership mutation on canonical System line-up authority", () => {
+    expect(syncRoute).toContain("addCountriesToShow");
+    expect(syncRoute).toContain("operationId: review.operationId");
+    expect(syncRoute).toContain("idempotencyKey: `show-lineup-sync:${review.operationId}`");
+    expect(lineupServer).toContain('rpc("v3_show_lineup_preflight"');
+    expect(lineupServer).toContain('rpc("v3_execute_show_lineup_operation"');
+    expect(lineupServer).toContain('rpc("studio2_reconcile_operation"');
+    expect(lineupServer).toContain("p_expected_state_version: preflight.stateVersion");
+    expect(lineupServer).not.toContain('.from("participants").insert');
+    expect(lineupServer).not.toContain('.from("participants").update');
+  });
+
+  it("promotes only consumers whose canonical backend is now present", () => {
     expect(capability("delegation-confirmation-responses")?.migrationStatus).toBe("cutover");
     expect(capability("delegation-access")?.migrationStatus).toBe("cutover");
+    expect(capability("delegation-sync")?.migrationStatus).toBe("cutover");
     expect(capability("delegation-submission-history")?.migrationStatus).toBe("building");
+    expect(capability("delegation-edition-links")?.migrationStatus).toBe("building");
   });
 });
