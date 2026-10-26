@@ -65,21 +65,26 @@ describe("Public V3 main-registry evidence-only cutovers", () => {
     }
   });
 
-  it("accepts Public Televote submission without absorbing frozen Results calculation authority", () => {
+  it("accepts Public Televote submit/receipt/reconciliation without absorbing frozen Results calculation authority", () => {
     const evidence = migrationEvidenceOf("televote");
     const route = read("src/routes/televoting/index.tsx");
-    const booth = read("src/components/televoting/TelevotingBoothWithReceipt.tsx");
+    const receiptShell = read("src/components/televoting/TelevotingBoothWithReceipt.tsx");
+    const booth = read("src/components/televoting/TelevotingBooth.tsx");
+    const functions = read("src/integrations/televoting/vote.functions.ts");
     const reconciliation = read("src/lib/v3-televote-reconciliation.ts");
-    const combined = `${route}\n${booth}\n${reconciliation}`;
+    const combined = `${route}\n${receiptShell}\n${booth}\n${functions}\n${reconciliation}`;
 
     expect(evidence).toContain(META_PROOF);
-    expect(evidence).toContain("src/lib/v3-televote-reconciliation.ts");
+    expect(evidence).toContain("src/integrations/televoting/vote.functions.ts");
     expect(route).toContain("<TelevotingBoothWithReceipt");
-    expect(booth).toContain("submitTelevoteWithReceiptV3");
-    expect(booth).toContain("reconcileTelevoteSubmissionV3");
-    expect(reconciliation).toContain('rpc("submit_televote_ballot_v3"');
-    expect(reconciliation).toContain('action', "televote.submit");
-    expect(reconciliation).toContain("operationId");
+    expect(receiptShell).toContain("reconcileMergedTelevotingRecoveryCookie");
+    expect(booth).toContain("submitMergedTelevotingVote");
+    expect(booth).toContain("reconcileMergedTelevotingVote");
+    expect(booth).toContain("recoverTelevoteTransportResponse");
+    expect(functions).toContain('createServerFn({ method: "POST" })');
+    expect(functions).toContain("submitMergedTelevotingVoteServer");
+    expect(functions).toContain("reconcileMergedTelevotingVoteServer");
+    expect(reconciliation).toContain("Recover only when the entire server-function response was lost in transit");
 
     for (const forbidden of [
       "studio2_execute_result_operation",
