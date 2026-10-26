@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { MySolarisProvider } from "@/components/mysolaris/MySolarisContext";
 import { MySolarisCountryModule } from "@/components/mysolaris/modules/MySolarisCountryModule";
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3DelegationHistoryScreen } from "@/components/v3/V3DelegationHistoryScreen";
@@ -41,9 +42,11 @@ function HistoryPage() {
     rollout.data.userId
   ) {
     return (
-      <V3AppShell editionLabel="Solaris Studio" phaseLabel="History" activeArea="me">
-        <V3DelegationHistoryScreen viewerId={rollout.data.userId} />
-      </V3AppShell>
+      <MySolarisProvider editionId={rollout.data.editionId}>
+        <V3AppShell editionLabel="Solaris Studio" phaseLabel="History" activeArea="me">
+          <V3DelegationHistoryScreen viewerId={rollout.data.userId} />
+        </V3AppShell>
+      </MySolarisProvider>
     );
   }
 
