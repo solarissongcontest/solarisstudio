@@ -72,6 +72,12 @@ jobs:
           src/lib/v3-organizer-time-machine-context.contract.test.ts
           src/lib/v3-show-lineup-command-authority.contract.test.ts
           src/lib/v3-show-lineup-membership-authority.contract.test.ts
+          src/lib/v3-show-lineup-metadata-authority.contract.test.ts
+          src/lib/v3-official-communications-command-authority.contract.test.ts
+          src/lib/v3-official-communications-draft-commands.contract.test.ts
+          src/lib/current-contest-state.test.ts
+          src/lib/edition-state.test.ts
+          src/lib/v3-public-contest-adapter.test.ts
           src/lib/v3-s15-selection-review-consequences.test.ts
           src/lib/v3-s15-participation-runtime-integration.test.ts
           src/lib/v3-non-event-consequence-replacements.test.ts
