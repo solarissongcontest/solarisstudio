@@ -5,6 +5,14 @@ begin;
 -- Historical edition dates are canonical contest history. Keep the existing
 -- editions.event_date store, but move Organizer writes behind the V3 operation
 -- contract so the browser can no longer own authorization, CAS or retry truth.
+select public.v3_register_migration_contract(
+  'v3.storytelling.anniversary-date-operation',
+  1,
+  'forward_fix_only',
+  false,
+  null,
+  'Governed exact-edition anniversary date mutation with CAS and immutable history'
+);
 
 create table if not exists public.studio2_anniversary_date_history (
   operation_id uuid primary key
