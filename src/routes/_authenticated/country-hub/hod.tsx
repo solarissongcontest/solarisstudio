@@ -8,18 +8,20 @@ export const Route = createFileRoute("/_authenticated/country-hub/hod")({
   }),
   head: () => ({
     meta: [
-      { title: "Delegation responsibilities — Solaris Studio" },
+      { title: "HOD history — Solaris Studio" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   beforeLoad: ({ search }) => {
-    // Required HOD work belongs to Participate in V3. An explicit country
-    // selector is an Organizer inspection context, so retain the proven legacy
-    // task workspace for that cross-country case instead of impersonating it.
-    if (search.country) {
-      throw redirect({ to: NAV_TARGETS.mySolarisTasks, search, replace: true });
-    }
-    throw redirect({ to: NAV_TARGETS.participate, replace: true });
+    // HOD identity/history is a Me -> Delegation job in V3. The same legacy URL
+    // remains valid for Organizer inspection: an explicit country override is
+    // preserved and the target history route deliberately stays on its proven
+    // legacy inspection surface instead of impersonating the signed-in viewer.
+    throw redirect({
+      to: NAV_TARGETS.mySolarisHistory,
+      search: search.country ? search : undefined,
+      replace: true,
+    });
   },
   component: () => null,
 });
