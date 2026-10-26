@@ -44,10 +44,10 @@ describe("Worker 3 R2 participant Activity consequence", () => {
     expect(migration).toContain("stable");
     expect(migration).toContain("v_actor uuid := auth.uid()");
     expect(migration).toContain("from public.studio2_operation_receipts receipt");
-    expect(migration).toContain("from private.v3_jury_operations jury_operation");
+    expect(migration).toContain("from private.v3_jury_operations jury_op");
     expect(migration).toContain("receipt.status = 'succeeded'");
     expect(migration).toContain("receipt.actor_id = v_actor");
-    expect(migration).toContain("jury_operation.actor_id = v_actor");
+    expect(migration).toContain("jury_op.user_id = v_actor");
     expect(migration).toContain("confirmation.submit");
     expect(migration).toContain("entry.submit");
     expect(migration).toContain("televote.submit");
@@ -64,8 +64,8 @@ describe("Worker 3 R2 participant Activity consequence", () => {
     expect(migration).toContain("grant execute on function public.v3_my_participant_activity");
     expect(migration).toContain("to authenticated");
     expect(server).toContain('rpc("v3_my_participant_activity"');
-    expect(server).toContain("p_limit: limit");
-    expect(server).toContain("p_before_operation_id");
+    expect(server).toContain("p_limit: input.limit ?? 30");
+    expect(server).toContain("p_before_operation_id: input.beforeOperationId ?? null");
   });
 
   it("does not fabricate a projection-invalidating activity.projected event", () => {
