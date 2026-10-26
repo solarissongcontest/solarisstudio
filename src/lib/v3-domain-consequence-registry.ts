@@ -235,10 +235,9 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
 };
 
 /**
- * A reconciliation read is not a mutating domain event. Keep the old logical
- * catalog identity traceable, but replace its invented side-effect contract with
- * the existing bounded, actor-scoped canonical read. This must never turn an
- * unimplemented mutation into an implemented consequence.
+ * A canonical read/record can own an observational consequence without adding
+ * a second DomainEvent solely to narrate the same durable fact. Replacements
+ * remain strict, bounded, authorization-safe and evidence-backed.
  */
 const READ_ONLY_REPLACEMENTS: Readonly<Record<string, V3ReadOnlyConsequenceReplacement>> = {
   "receipt.recorded": {
@@ -290,14 +289,31 @@ const READ_ONLY_REPLACEMENTS: Readonly<Record<string, V3ReadOnlyConsequenceRepla
       "src/lib/v3-non-event-consequence-replacements.test.ts",
     ],
   },
+  "public_ux.observed": {
+    kind: "canonical-read",
+    ownerDomain: "public-ux",
+    operation: "privacy-bounded public_ux_events + public.admin_public_ux_metrics(timestamptz)",
+    projection: "aggregate public UX diagnostics",
+    boundedBy:
+      "maximum 180-day server-side aggregate horizon; constrained event payloads; top-destination/group result caps; no raw event rows returned to ordinary Public clients",
+    rationale:
+      "public_ux.observed is the privacy-minimized telemetry record itself, not a contest mutation requiring a second outbox fact. The canonical table constrains event vocabulary and metadata, browser collection is best-effort and disabled for automated browsers, and authorized diagnostics consume server-side aggregates without making telemetry contest-state authority.",
+    evidence: [
+      "supabase/migrations/20260919112555_public_ux_telemetry.sql",
+      "src/lib/public-ux-events.ts",
+      "src/lib/public-ux-metrics.ts",
+      "src/lib/v3-public-ux-diagnostics.contract.test.ts",
+      "src/lib/v3-beta-feedback-privacy.contract.test.ts",
+      "src/lib/v3-derived-observation-consequence-replacements.test.ts",
+    ],
+  },
 };
 
 /**
- * Task open/resolved are projection state, not a second canonical workflow.
- * Participant tasks are derived from the bounded HOD workspace snapshot and
- * Organizer tasks are deterministically reconciled from domain truth. Keep the
- * old catalog names traceable while explicitly proving that no DomainEvent is
- * required merely to describe a derived task appearing or disappearing.
+ * Projection-state labels are not a second canonical workflow. These cases are
+ * reconstructed from their authoritative source and reconciled automatically;
+ * emitting synthetic DomainEvents would create competing truth rather than
+ * preserving it.
  */
 const DERIVED_PROJECTION_REPLACEMENTS: Readonly<
   Record<string, V3DerivedProjectionConsequenceReplacement>
@@ -348,6 +364,60 @@ const DERIVED_PROJECTION_REPLACEMENTS: Readonly<
       "src/lib/admin-tasks-v5.ts",
       "src/lib/organisation-task-runtime-reconciliation.contract.test.ts",
       "src/lib/v3-non-event-consequence-replacements.test.ts",
+    ],
+  },
+  "job.started": {
+    kind: "canonical-derived-projection",
+    ownerDomain: "system-job",
+    operation:
+      "pg_cron job/run state + private.studio2_reconcile_system_job_tasks() + public.admin_system_runtime_health(integer)",
+    projection: "Organizer job health, retry diagnostics and failure tasks",
+    boundedBy:
+      "Solaris-owned pg_cron jobs only; latest completed run plus at most three recent runs per job for recovery classification; recent delivery diagnostics capped at 1-100",
+    rationale:
+      "Scheduler lifecycle is already authoritative in pg_cron. Solaris derives health and retry state from that source instead of creating a second job ledger; start is observational scheduler state and has no independent downstream write-side consequence to emit.",
+    evidence: [
+      "supabase/migrations/20261003161000_organisation_os_v5_system_job_recovery.sql",
+      "src/lib/organisation-v5-system-job-recovery.test.ts",
+      "docs/organisation-os-v5/state-transition-inventory.yml",
+      "src/routes/_authenticated/admin/system-operations.tsx",
+      "src/lib/v3-derived-observation-consequence-replacements.test.ts",
+    ],
+  },
+  "job.completed": {
+    kind: "canonical-derived-projection",
+    ownerDomain: "system-job",
+    operation:
+      "pg_cron job/run state + private.studio2_reconcile_system_job_tasks() + public.admin_system_runtime_health(integer)",
+    projection: "Organizer job health, retry diagnostics and failure-task reconciliation",
+    boundedBy:
+      "Solaris-owned pg_cron jobs only; latest completed run plus at most three recent runs per job for recovery classification; recent delivery diagnostics capped at 1-100",
+    rationale:
+      "A successful scheduler run is already durable scheduler history. Reconciliation resolves any stale system-job failure task only after authoritative scheduler recovery, so a synthetic job.completed DomainEvent would duplicate the state that owns recovery.",
+    evidence: [
+      "supabase/migrations/20261003161000_organisation_os_v5_system_job_recovery.sql",
+      "src/lib/organisation-v5-system-job-recovery.test.ts",
+      "docs/organisation-os-v5/state-transition-inventory.yml",
+      "src/routes/_authenticated/admin/system-operations.tsx",
+      "src/lib/v3-derived-observation-consequence-replacements.test.ts",
+    ],
+  },
+  "job.failed": {
+    kind: "canonical-derived-projection",
+    ownerDomain: "system-job",
+    operation:
+      "pg_cron job/run state + private.studio2_reconcile_system_job_tasks() + public.admin_system_runtime_health(integer)",
+    projection: "Organizer job health, bounded retry/dead-letter diagnostics and canonical failure tasks",
+    boundedBy:
+      "Solaris-owned pg_cron jobs only; latest completed run plus at most three recent runs per job for recovery classification; recent delivery diagnostics capped at 1-100",
+    rationale:
+      "Failed/inactive Solaris jobs already project deterministically from pg_cron into one unique source-key Organizer task, with repeated failures classified as dead-letter attention and success resolving the task. That is the required consequence; a parallel job.failed event ledger would create duplicate retry truth.",
+    evidence: [
+      "supabase/migrations/20261003161000_organisation_os_v5_system_job_recovery.sql",
+      "src/lib/organisation-v5-system-job-recovery.test.ts",
+      "docs/organisation-os-v5/state-transition-inventory.yml",
+      "src/routes/_authenticated/admin/system-operations.tsx",
+      "src/lib/v3-derived-observation-consequence-replacements.test.ts",
     ],
   },
 };
@@ -489,23 +559,31 @@ export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
         eventType,
         ownerDomain: domain.domain,
         projections: domain.projections,
-        taskEffects: replacement ? [] : taskTypes.map((taskType) => ({ effect: "re-evaluate", taskType } as const)),
-        notificationEffects: replacement ? [] : notificationProviders.map((providerId) => ({
-          effect: "evaluate-provider",
-          providerId,
-        } as const)),
-        publicationEffects: replacement ? [] : publicProjections.map((projection) => ({
-          effect: "re-evaluate-visibility",
-          projection,
-        } as const)),
-        realtimeEffects: replacement ? [] : domain.projections.map((projection) => ({
-          effect: "invalidate-projection",
-          projection,
-        } as const)),
+        taskEffects: replacement
+          ? []
+          : taskTypes.map((taskType) => ({ effect: "re-evaluate", taskType } as const)),
+        notificationEffects: replacement
+          ? []
+          : notificationProviders.map((providerId) => ({
+              effect: "evaluate-provider",
+              providerId,
+            } as const)),
+        publicationEffects: replacement
+          ? []
+          : publicProjections.map((projection) => ({
+              effect: "re-evaluate-visibility",
+              projection,
+            } as const)),
+        realtimeEffects: replacement
+          ? []
+          : domain.projections.map((projection) => ({
+              effect: "invalidate-projection",
+              projection,
+            } as const)),
         analyticsEffects: replacement ? [] : [`domain-event:${eventType}`],
         auditRequired:
-          !replacement && (domain.sensitivityClass !== "public" ||
-          domain.mutationCommands.length > 0),
+          !replacement &&
+          (domain.sensitivityClass !== "public" || domain.mutationCommands.length > 0),
         consumers,
         implementationState: readReplacement
           ? "replaced-by-read"
@@ -559,13 +637,17 @@ export function validateV3DomainConsequenceRegistry() {
     }
     for (const notification of consequence.notificationEffects) {
       if (!providerIds.has(notification.providerId)) {
-        errors.push(`${consequence.eventType} references unknown notification provider ${notification.providerId}`);
+        errors.push(
+          `${consequence.eventType} references unknown notification provider ${notification.providerId}`,
+        );
       }
     }
     if (consequence.implementationState === "event-backed") {
       const evidence = EVENT_BACKED_CONSEQUENCES[consequence.eventType];
       if (!evidence?.length) {
-        errors.push(`${consequence.eventType} claims event-backed consequences without implementation evidence`);
+        errors.push(
+          `${consequence.eventType} claims event-backed consequences without implementation evidence`,
+        );
       }
     }
   }
