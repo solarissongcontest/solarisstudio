@@ -75,6 +75,10 @@ const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = 
   "notification.failed": ["notification.delivery_failed"],
   "prediction.changed": [],
   "prediction.scored": [],
+  // A successful moderation event is the completed decision, not a report or
+  // unresolved moderation request. Do not create a self-perpetuating task from
+  // the act that already resolved the moderation work.
+  "community_profile.moderated": [],
 };
 
 const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
@@ -131,6 +135,13 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "supabase/migrations/20261003015000_organisation_os_v5_participation_status_operations.sql",
     "supabase/migrations/20261026194500_v3_s15_participation_consequences.sql",
     "src/lib/v3-s15-participation-consequences.test.ts",
+  ],
+  "community_profile.moderated": [
+    "supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql",
+    "supabase/migrations/20261002203000_organisation_os_v5_operation_contract.sql",
+    "supabase/migrations/20261026202000_v3_s15_community_profile_moderation_consequence.sql",
+    "src/lib/v3-s15-community-profile-moderation-consequence.test.ts",
+    ".github/scripts/v3-s15-community-profile-moderation-consequence-rehearsal.sh",
   ],
   "media.reviewed": [
     "supabase/migrations/20261016050000_v3_s5_media_review_consequences.sql",
