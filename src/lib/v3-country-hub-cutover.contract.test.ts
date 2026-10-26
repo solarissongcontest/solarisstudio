@@ -14,13 +14,20 @@ describe("V3 Country Hub cutover", () => {
     expect(route).toContain("replace: true");
   });
 
-  it("moves ordinary HOD responsibilities to Participate while preserving organizer inspection", () => {
+  it("moves HOD identity/history to Me while preserving cross-country organizer inspection", () => {
     const route = read("src/routes/_authenticated/country-hub/hod.tsx");
+    const historyRoute = read("src/routes/_authenticated/my-solaris/history.tsx");
+    const historyScreen = read("src/components/v3/V3DelegationHistoryScreen.tsx");
 
-    expect(route).toContain("if (search.country)");
-    expect(route).toContain("NAV_TARGETS.mySolarisTasks");
-    expect(route).toContain("NAV_TARGETS.participate");
-    expect(route).toContain("Organizer inspection context");
+    expect(route).toContain("NAV_TARGETS.mySolarisHistory");
+    expect(route).toContain("search.country ? search : undefined");
+    expect(route).toContain("Organizer inspection");
+    expect(historyRoute).toContain("isAppMode && !country");
+    expect(historyRoute).toContain('return <MySolarisCountryModule section="history" />');
+    expect(historyScreen).toContain("useSetOwnedHodEditionStatus");
+    expect(historyScreen).toContain("useSetOwnedHodAutoAssign");
+    expect(historyScreen).toContain("Automatically add future editions");
+    expect(historyScreen).toContain("Your HOD role in this edition");
   });
 
   it("keeps every retained Country Hub specialist URL mapped to its canonical owner", () => {
@@ -48,13 +55,14 @@ describe("V3 Country Hub cutover", () => {
     expect(root).toContain('workspace.permissions.countryStatus === "active"');
     expect(root).toContain("delegationLinks: canManageDelegation");
     expect(root).toContain("NAV_TARGETS.mySolarisCountry");
+    expect(root).toContain("NAV_TARGETS.mySolarisHistory");
     expect(root).toContain("NAV_TARGETS.participate");
     expect(root).toContain("NAV_TARGETS.mySolarisEntry");
     expect(root).toContain("NAV_TARGETS.mySolarisNotices");
     expect(root).toContain("NAV_TARGETS.mySolarisPageBuilder");
     expect(root).toContain("NAV_TARGETS.mySolarisTheme");
     expect(screen).toContain("projection.delegation.length");
-    expect(projection).toContain("delegationLinks: readonly V3MeLink[]");
+    expect(projection).toContain("delegationLinks?: readonly V3MeLink[]");
     expect(projection).not.toMatch(/displayRole\s*===|displayRole\s*!==/);
   });
 });
