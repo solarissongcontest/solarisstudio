@@ -13,6 +13,8 @@ describe("Organizer permission shadow routing", () => {
     ["/admin/jury/ssc-21", "voting.read"],
     ["/admin/broadcast-rundown", "broadcast.read"],
     ["/admin/storytelling", "story.read"],
+    ["/admin/anniversary", "story.read"],
+    ["/admin/anniversary-dates", "edition.read"],
     ["/admin/media-assets", "publishing.read"],
     ["/admin/hosts", "host.read"],
     ["/admin/entries/ssc-21", "entry.read_private"],
