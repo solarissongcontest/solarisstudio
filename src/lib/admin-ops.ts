@@ -115,14 +115,15 @@ export function useEditionAdminDeadlines(editionId?: string | null) {
 }
 
 export function useAdminAudit(limit = 30) {
+  const boundedLimit = Math.min(100, Math.max(1, Math.trunc(limit)));
   return useQuery({
-    queryKey: ["admin-audit", limit],
+    queryKey: ["admin-audit", boundedLimit],
     queryFn: async () => {
       const { data, error } = await adminDb
         .from("admin_audit_log")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(limit);
+        .limit(boundedLimit);
 
       if (error) {
         if (missingSchema(error)) return [] as AdminAuditRow[];
