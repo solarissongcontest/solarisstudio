@@ -8,6 +8,22 @@ const route = readFileSync(
   resolve(process.cwd(), 'src/routes/_authenticated/admin/communications.tsx'),
   'utf8',
 );
+const lifecycle = readFileSync(
+  resolve(process.cwd(), 'src/lib/v3-official-communications-commands.ts'),
+  'utf8',
+);
+const drafts = readFileSync(
+  resolve(process.cwd(), 'src/lib/v3-official-communications-draft-commands.ts'),
+  'utf8',
+);
+const lifecycleMigration = readFileSync(
+  resolve(process.cwd(), 'supabase/migrations/20261024235910_v3_official_communications_command_authority.sql'),
+  'utf8',
+);
+const draftMigration = readFileSync(
+  resolve(process.cwd(), 'supabase/migrations/20261024235920_v3_official_communications_draft_authority.sql'),
+  'utf8',
+);
 
 describe('V3 Organizer Official Communications route cutover', () => {
   it('remounts route-local state when shell-owned edition context changes', () => {
@@ -38,7 +54,8 @@ describe('V3 Organizer Official Communications route cutover', () => {
   it('keeps compatibility reads while removing legacy mutation authority from the route', () => {
     expect(route).toContain('loadStudio2Notices');
     expect(route).toContain('loadStudio2NoticeRevisions');
-    expect(route).not.toContain('from \'@/lib/studio2-communications\';\nimport {\n  archiveStudio2Communication');
+    expect(route).not.toContain("archiveStudio2Communication,");
+    expect(route).not.toContain("publishStudio2Notice,");
   });
 
   it('freezes the editor base revision instead of silently adopting a background query refresh', () => {
@@ -88,10 +105,24 @@ describe('V3 Organizer Official Communications route cutover', () => {
     expect(route).toContain('The same frozen edition, notice revision and operation identity will be used for commit.');
   });
 
-  it('keeps the capability below parity while the stacked System and Organizer authorities are still landing', () => {
+  it('is backed by the landed versioned, idempotent and reconcilable System command authority', () => {
+    expect(lifecycle).toContain('"v3_preflight_notice_lifecycle"');
+    expect(lifecycle).toContain('"v3_execute_notice_lifecycle"');
+    expect(lifecycle).toContain('"studio2_reconcile_operation"');
+    expect(lifecycle).toContain('p_idempotency_key: operationId');
+    expect(drafts).toContain('"v3_create_notice_draft"');
+    expect(drafts).toContain('"v3_update_notice_draft"');
+    expect(drafts).toContain('"v3_create_superseding_notice_draft"');
+    expect(lifecycleMigration).toContain("message = 'VERSION_CONFLICT'");
+    expect(lifecycleMigration).toContain('private.studio2_claim_operation(');
+    expect(draftMigration).toContain("message = 'VERSION_CONFLICT'");
+    expect(draftMigration).toContain('private.studio2_claim_operation(');
+  });
+
+  it('promotes the capability only after the governed consumer and System authority are both present', () => {
     const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === 'operations-communications',
     );
-    expect(capability?.migrationStatus).toBe('building');
+    expect(capability?.migrationStatus).toBe('cutover');
   });
 });
