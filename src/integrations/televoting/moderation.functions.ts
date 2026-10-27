@@ -33,22 +33,24 @@ export type MergedModerationSubmission = {
   }>;
 };
 
-type ModerationEnvelope = {
+type ModerationEnvelopeInput = {
   id: string;
-  expectedVersion: number;
-  operationId: string;
-  idempotencyKey: string;
+  expectedVersion?: number;
+  operationId?: string;
+  idempotencyKey?: string;
 };
 
-function validateEnvelope<T extends ModerationEnvelope>(data: T) {
+function validateEnvelope<T extends ModerationEnvelopeInput>(data: T) {
   if (!data?.id) throw new Error("Missing vote id");
-  if (!Number.isInteger(data.expectedVersion) || data.expectedVersion < 0) {
+  if (data.expectedVersion !== undefined && (!Number.isInteger(data.expectedVersion) || data.expectedVersion < 0)) {
     throw new Error("Invalid ballot version");
   }
-  if (!data.operationId || !data.idempotencyKey) {
-    throw new Error("Missing moderation operation identity");
-  }
-  return data;
+  return {
+    ...data,
+    expectedVersion: data.expectedVersion,
+    operationId: data.operationId || crypto.randomUUID(),
+    idempotencyKey: data.idempotencyKey || crypto.randomUUID(),
+  };
 }
 
 export const listMergedModerationSubmissions = createServerFn({ method: "POST" })
@@ -61,10 +63,9 @@ export const listMergedModerationSubmissions = createServerFn({ method: "POST" }
   });
 
 export const setMergedSubmissionStatus = createServerFn({ method: "POST" })
-  .inputValidator((data: ModerationEnvelope & { status: "active" | "suspicious" | "verified"; reason?: string }) => {
-    validateEnvelope(data);
+  .inputValidator((data: ModerationEnvelopeInput & { status: "active" | "suspicious" | "verified"; reason?: string }) => {
     if (!["active", "suspicious", "verified"].includes(data.status)) throw new Error("Invalid status");
-    return { ...data, reason: data.reason?.trim() || undefined };
+    return { ...validateEnvelope(data), reason: data.reason?.trim() || undefined };
   })
   .handler(async ({ data }) => {
     const { setMergedSubmissionStatusServer } = await import(
@@ -74,12 +75,11 @@ export const setMergedSubmissionStatus = createServerFn({ method: "POST" })
   });
 
 export const softDeleteMergedSubmission = createServerFn({ method: "POST" })
-  .inputValidator((data: ModerationEnvelope & { reason: string }) => {
-    validateEnvelope(data);
+  .inputValidator((data: ModerationEnvelopeInput & { reason: string }) => {
     const reason = String(data.reason ?? "").trim();
     if (!reason) throw new Error("A reason is required to delete a vote");
     if (reason.length > 2000) throw new Error("Reason is too long");
-    return { ...data, reason };
+    return { ...validateEnvelope(data), reason };
   })
   .handler(async ({ data }) => {
     const { softDeleteMergedSubmissionServer } = await import(
@@ -89,10 +89,10 @@ export const softDeleteMergedSubmission = createServerFn({ method: "POST" })
   });
 
 export const restoreMergedSubmission = createServerFn({ method: "POST" })
-  .inputValidator((data: ModerationEnvelope & { reason?: string }) => {
-    validateEnvelope(data);
-    return { ...data, reason: data.reason?.trim() || undefined };
-  })
+  .inputValidator((data: ModerationEnvelopeInput & { reason?: string }) => ({
+    ...validateEnvelope(data),
+    reason: data.reason?.trim() || undefined,
+  }))
   .handler(async ({ data }) => {
     const { restoreMergedSubmissionServer } = await import(
       "@/integrations/televoting/moderation.server"
@@ -101,10 +101,10 @@ export const restoreMergedSubmission = createServerFn({ method: "POST" })
   });
 
 export const updateMergedSubmissionNote = createServerFn({ method: "POST" })
-  .inputValidator((data: ModerationEnvelope & { note: string }) => {
-    validateEnvelope(data);
-    return { ...data, note: String(data.note ?? "").slice(0, 4000) };
-  })
+  .inputValidator((data: ModerationEnvelopeInput & { note: string }) => ({
+    ...validateEnvelope(data),
+    note: String(data.note ?? "").slice(0, 4000),
+  }))
   .handler(async ({ data }) => {
     const { updateMergedSubmissionNoteServer } = await import(
       "@/integrations/televoting/moderation.server"
@@ -113,11 +113,10 @@ export const updateMergedSubmissionNote = createServerFn({ method: "POST" })
   });
 
 export const editMergedSubmissionEntries = createServerFn({ method: "POST" })
-  .inputValidator((data: ModerationEnvelope & {
+  .inputValidator((data: ModerationEnvelopeInput & {
     entries: Array<{ target_country_code: string; points: number }>;
     reason: string;
   }) => {
-    validateEnvelope(data);
     const reason = String(data.reason ?? "").trim();
     if (!reason) throw new Error("A reason is required to edit a ballot");
     if (!Array.isArray(data.entries)) throw new Error("Invalid ballot entries");
@@ -133,7 +132,7 @@ export const editMergedSubmissionEntries = createServerFn({ method: "POST" })
     }
     const total = data.entries.reduce((sum, entry) => sum + entry.points, 0);
     if (total !== 20) throw new Error(`Total points must equal 20 (got ${total})`);
-    return { ...data, entries: data.entries, reason };
+    return { ...validateEnvelope(data), entries: data.entries, reason };
   })
   .handler(async ({ data }) => {
     const { editMergedSubmissionEntriesServer } = await import(
