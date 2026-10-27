@@ -38,9 +38,21 @@ function ResolvingEntrySurface() {
   );
 }
 
+function UnavailableEntrySurface() {
+  return (
+    <V3FocusedTaskShell chrome={ENTRY_FOCUSED_CHROME}>
+      <div className="mx-auto max-w-3xl px-4 py-10" role="alert">
+        <h1 className="text-2xl font-bold">Entry unavailable</h1>
+        <p>Your current Entry could not be loaded. Please try again shortly.</p>
+      </div>
+    </V3FocusedTaskShell>
+  );
+}
+
 /**
  * Installed-app participant Entry cutover. Organizer country inspection and
- * every disabled/error state preserve the canonical legacy module. The V3
+ * an explicit disabled rollout preserve the compatibility module. Errors never
+ * authorize a fallback to another private Entry source. The V3
  * private bundle is not requested until the server has authorized the slice and
  * identified an authenticated viewer. Installed-app Entry owns focused chrome
  * from the resolving render onward so global navigation cannot flash into a
@@ -70,8 +82,8 @@ export function V3EntryRouteGate({
 
   if (organizerInspection || !isAppMode) return <>{legacy}</>;
   if (!platformResolved || rollout.isLoading) return <ResolvingEntrySurface />;
+  if (rollout.isError || !rollout.data) return <UnavailableEntrySurface />;
   if (
-    rollout.isError ||
     rollout.data?.enabled !== true ||
     rollout.data?.entryEnabled !== true ||
     !rollout.data.userId
@@ -79,7 +91,7 @@ export function V3EntryRouteGate({
     return <>{legacy}</>;
   }
   if (bundle.isLoading) return <ResolvingEntrySurface />;
-  if (bundle.isError || !bundle.data) return <>{legacy}</>;
+  if (bundle.isError || !bundle.data) return <UnavailableEntrySurface />;
 
   return (
     <V3FocusedTaskShell
