@@ -6,10 +6,10 @@ import { scanV3S16StaticAuthority } from "./v3-s16-mutation-authority";
 const read = (path: string) => readFileSync(path, "utf8");
 const observationalIdentity = [
   "identity.authenticated",
-  "identity.signed_out",
 ];
 const remainingIntegrity = [
   "account.changed",
+  "identity.signed_out",
   "session.changed",
   "session.revoked",
   "edition.changed",
