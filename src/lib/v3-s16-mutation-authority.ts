@@ -1,4 +1,4 @@
-export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-3" as const;
+export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-4" as const;
 
 export type V3S16Risk = "integrity_critical" | "security_critical";
 
@@ -174,8 +174,6 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     canonicalTables: ["public.studio2_upload_authorizations"],
     canonicalOwner: "media upload authorization and finalization commands",
     canonicalCommands: ["public.studio2_prepare_upload", "public.v3_finalize_media_upload"],
-    // This evidence factory is private-by-privilege; the SQL negative tests
-    // reject anon/authenticated/service-role invocation of the helper itself.
     sanctionedInternalWriters: ["private.studio2_create_evidence_upload_authorization"],
   },
   {
@@ -185,11 +183,50 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "public.integrity_cases",
       "public.integrity_case_events",
       "public.integrity_case_appeals",
-      "public.integrity_case_evidence",
+      "public.integrity_case_findings",
+      "public.integrity_case_sanctions",
+      "public.integrity_adjudication_history",
     ],
-    canonicalOwner: "integrity governance",
-    // The legacy RPC surface requires authority review before it is sanctioned.
-    canonicalCommands: [],
+    canonicalOwner: "Integrity case and appeal adjudication authority",
+    canonicalCommands: [
+      "public.v3_public_create_anonymous_integrity_case",
+      "public.v3_create_protected_integrity_case",
+      "public.studio2_integrity_case_transition",
+      "public.studio2_integrity_assign_case_reviewer",
+      "public.studio2_integrity_set_case_priority",
+      "public.studio2_integrity_reply_case",
+      "public.studio2_integrity_record_finding",
+      "public.studio2_integrity_record_sanction",
+      "public.v3_submit_integrity_appeal",
+      "public.v3_public_submit_anonymous_integrity_appeal",
+      "public.studio2_integrity_assign_appeal_reviewer",
+      "public.studio2_integrity_resolve_appeal",
+      "public.studio2_integrity_grant_appeal_extension",
+    ],
+    sanctionedInternalWriters: [
+      "public.public_create_anonymous_integrity_case_impl",
+      "public.create_protected_integrity_case_impl",
+      "public.v3_public_create_anonymous_integrity_case_impl",
+      "public.v3_create_protected_integrity_case_impl",
+      "public.reporter_submit_integrity_appeal_impl",
+      "public.public_submit_anonymous_integrity_appeal_impl",
+      "public.admin_set_integrity_priority_impl",
+      "public.admin_reply_integrity_case_impl",
+      "public.admin_record_integrity_finding_impl",
+      "public.admin_record_integrity_sanction_impl",
+      "private.v3_integrity_case_changed_event",
+      "private.v3_integrity_appeal_changed_event",
+    ],
+    sanctionedWriteTriggers: [
+      "v3_integrity_case_before_update",
+      "v3_integrity_case_changed_event",
+      "v3_integrity_appeal_before_update",
+      "v3_integrity_appeal_changed_event",
+      "v3_integrity_history_immutable",
+    ],
+    knownLegacyWriterPatterns: [
+      { id: "legacy-direct-integrity-table-write", pattern: /\.from\(\s*["'`](?:integrity_cases|integrity_case_appeals|integrity_case_findings|integrity_case_sanctions)["'`]\s*\)\s*\.(?:insert|update|upsert|delete)\s*\(/ },
+    ],
   },
   {
     id: "results",
