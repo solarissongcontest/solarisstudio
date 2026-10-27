@@ -131,15 +131,17 @@ describe("accepted Organizer specialist family", () => {
     expect(beta3Route).toContain('from("beta3_test_submissions"');
   });
 
-  it("accepts QA Coverage as read-only evidence while explicitly keeping the submission form blocked", () => {
+  it("accepts QA Coverage as read-only evidence while keeping governed submission pending runtime promotion", () => {
     expect(qaCoverage).toContain('from("admin_beta_test_submissions"');
     expect(qaCoverage).toContain(".select(");
     expect(qaCoverage).toContain("createSignedUrl");
     expect(qaCoverage).not.toContain(".insert(");
     expect(qaCoverage).not.toContain(".update(");
     expect(qaCoverage).not.toContain(".delete(");
-    expect(acceptanceTest).toContain('from("admin_beta_test_submissions"');
-    expect(acceptanceTest).toContain(".insert(payload as never)");
+    expect(acceptanceTest).toContain("submitOrganizerAcceptanceEvidence");
+    expect(acceptanceTest).toContain("submissionOperationRef");
+    expect(acceptanceTest).not.toContain('from("admin_beta_test_submissions"');
+    expect(acceptanceTest).not.toContain(".insert(");
     expect(V3_ORGANIZER_CAPABILITY_REGISTRY.find((row) => row.legacyId === "workspace-acceptance-test")?.migrationStatus).toBe("building");
   });
 
