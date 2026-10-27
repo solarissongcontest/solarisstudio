@@ -184,8 +184,6 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     canonicalTables: ["public.studio2_upload_authorizations"],
     canonicalOwner: "media upload authorization and finalization commands",
     canonicalCommands: ["public.studio2_prepare_upload", "public.v3_finalize_media_upload"],
-    // This evidence factory is private-by-privilege; the SQL negative tests
-    // reject anon/authenticated/service-role invocation of the helper itself.
     sanctionedInternalWriters: ["private.studio2_create_evidence_upload_authorization"],
   },
   {
@@ -198,7 +196,6 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "public.integrity_case_evidence",
     ],
     canonicalOwner: "integrity governance",
-    // The legacy RPC surface requires authority review before it is sanctioned.
     canonicalCommands: [],
   },
   {
@@ -244,9 +241,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "v3_submit_jury_ballot",
       "studio2_apply_jury_voting_status",
     ],
-    sanctionedInternalWriters: [
-      "submit_country_jury_ballot",
-    ],
+    sanctionedInternalWriters: ["submit_country_jury_ballot"],
   },
   {
     id: "confirmation",
@@ -265,10 +260,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "studio2_apply_confirmation_round_change",
       "admin_update_confirmation_controls",
     ],
-    sanctionedInternalWriters: [
-      "v3_submit_confirmation_core",
-      "submit_confirmation",
-    ],
+    sanctionedInternalWriters: ["v3_submit_confirmation_core", "submit_confirmation"],
     sanctionedWriteTriggers: [
       "v3_bridge_confirmation_submission_operation",
       "revoke_confirmation_tokens_on_submission_close",
@@ -313,7 +305,17 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "public.studio2_permission_subject_versions",
     ],
     canonicalOwner: "permission engine",
-    canonicalCommands: [],
+    canonicalCommands: ["public.studio2_apply_permission_change_r3"],
+    sanctionedInternalWriters: [
+      "public.studio2_apply_permission_change",
+      "private.studio2_touch_permission_subject_version",
+    ],
+    sanctionedWriteTriggers: [
+      "studio2_role_assignment_version_bump",
+      "studio2_capability_grant_version_bump",
+      "studio2_role_assignments_touch_subject_version",
+      "studio2_capability_grants_touch_subject_version",
+    ],
   },
   {
     id: "contest-lifecycle",
