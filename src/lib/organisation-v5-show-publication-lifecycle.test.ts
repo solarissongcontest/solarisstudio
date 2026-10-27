@@ -9,6 +9,7 @@ describe("Organisation OS V5 show publication lifecycle", () => {
     "supabase/migrations/20261003203000_organisation_os_v5_show_publication_lifecycle.sql",
   );
   const client = source("src/lib/show-publication-lifecycle.ts");
+  const reauth = source("src/lib/reauthenticate-solaris-account.ts");
   const publication = source("src/routes/_authenticated/admin/publication/$slug.tsx");
   const shows = source("src/routes/_authenticated/admin/shows/$slug.tsx");
   const editions = source("src/routes/_authenticated/admin/editions.tsx");
@@ -69,7 +70,9 @@ describe("Organisation OS V5 show publication lifecycle", () => {
     expect(migration).toContain("'publication.show.change'");
     expect(migration).toContain("private.studio2_require_fresh_auth(300)");
     expect(client).toContain("reauthenticateShowPublicationR3");
-    expect(client).toContain("supabase.auth.signInWithPassword");
+    expect(client).toContain("reauthenticateCurrentSolarisAccount");
+    expect(reauth).toContain("supabase.auth.signInWithPassword");
+    expect(reauth).toContain("runSolarisAuthMutation");
     expect(client).toContain("operationId: input.operationId");
     expect(client).toContain("idempotencyKey: input.idempotencyKey");
   });

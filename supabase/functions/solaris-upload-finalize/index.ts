@@ -347,7 +347,6 @@ function stripPngMetadata(bytes: Uint8Array) {
   const parts: Uint8Array[] = [bytes.slice(0, 8)];
   const dropped = new Set(["eXIf", "tEXt", "zTXt", "iTXt", "tIME"]);
   let offset = 8;
-
   while (offset + 12 <= bytes.length) {
     const length = be32(bytes, offset);
     const end = offset + 12 + length;
@@ -627,20 +626,6 @@ function declaredTypeMatches(
   return false;
 }
 
-async function callerUserId(
-  supabaseUrl: string,
-  serviceRoleKey: string,
-  authorization: string | null,
-) {
-  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
-  if (!token) return null;
-  const service = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data, error } = await service.auth.getUser(token);
-  return error ? null : data.user?.id ?? null;
-}
-
 function callerSessionId(authorization: string | null): string | null {
   try {
     const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
@@ -649,6 +634,34 @@ function callerSessionId(authorization: string | null): string | null {
     const claims = JSON.parse(atob(body.replace(/-/g, "+").replace(/_/g, "/")));
     return typeof claims.session_id === "string" ? claims.session_id : null;
   } catch { return null; }
+}
+
+async function callerIdentity(
+  supabaseUrl: string,
+  anonKey: string,
+  authorization: string | null,
+) {
+  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) return { userId: null as string | null, sessionId: null as string | null, revoked: false };
+
+  const authenticated = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await authenticated.auth.getUser(token);
+  if (error || !data.user) {
+    // Anonymous SDK calls may carry a non-user bearer. Preserve the existing
+    // capability flow; an actor-bound authorization still fails the actor check.
+    return { userId: null as string | null, sessionId: null as string | null, revoked: false };
+  }
+
+  const sessionId = callerSessionId(authorization);
+  const { data: active, error: activeError } = await authenticated.rpc("v3_assert_active_session");
+  if (activeError || active !== true) {
+    return { userId: data.user.id, sessionId, revoked: true };
+  }
+
+  return { userId: data.user.id, sessionId, revoked: false };
 }
 
 async function persistFinalization(
@@ -668,8 +681,9 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
     return json({ error: "Upload finalizer is not configured." }, 503);
   }
 
@@ -683,6 +697,14 @@ Deno.serve(async (request) => {
   if (!input.token_id || !input.upload_secret) {
     return json({ error: "Upload token and secret are required." }, 400);
   }
+
+  const authorization = request.headers.get("authorization");
+  const caller = await callerIdentity(supabaseUrl, anonKey, authorization);
+  if (caller.revoked) {
+    return json({ error: "Your Solaris session is no longer active. Sign in again." }, 401);
+  }
+  const callerId = caller.userId;
+  const callerSession = caller.sessionId;
 
   const service = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -703,11 +725,6 @@ Deno.serve(async (request) => {
   if (!authorizationRow) return json({ error: "Upload authorization not found." }, 404);
 
   const row = authorizationRow as UploadAuthorization;
-  const callerId = await callerUserId(
-    supabaseUrl,
-    serviceRoleKey,
-    request.headers.get("authorization"),
-  );
 
   if (row.actor_id && row.actor_id !== callerId) {
     return json({ error: "This upload authorization belongs to another account." }, 403);
@@ -756,7 +773,7 @@ Deno.serve(async (request) => {
   }
 
   if (new Date(row.expires_at).getTime() <= Date.now()) {
-    const { data: expired, error: expiryError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSessionId(request.headers.get("authorization")), {
+    const { data: expired, error: expiryError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSession, {
         status: "expired",
         rejection_reason: "Upload authorization expired before finalization.",
       });
@@ -817,7 +834,7 @@ Deno.serve(async (request) => {
 
   if (rejection) {
     await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
-    const { data: rejected, error: rejectionError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSessionId(request.headers.get("authorization")), {
+    const { data: rejected, error: rejectionError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSession, {
         status: "rejected",
         rejection_reason: rejection,
         verified_metadata: {
@@ -875,7 +892,7 @@ Deno.serve(async (request) => {
         ? processingError.message
         : "Server-side file processing failed.";
     await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
-    const { data: rejected, error: rejectionError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSessionId(request.headers.get("authorization")), {
+    const { data: rejected, error: rejectionError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSession, {
         status: "rejected",
         rejection_reason: message,
         verified_metadata: {
@@ -983,7 +1000,7 @@ Deno.serve(async (request) => {
   // A Storage write does not establish a verified authorization. Require the
   // conditional canonical receipt write to return its row before acknowledging
   // success, and retain quarantine bytes if that write fails or loses a race.
-  const { data: verified, error: updateError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSessionId(request.headers.get("authorization")), {
+  const { data: verified, error: updateError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSession, {
       status: "verified",
       detected_mime: detected!.mime,
       verified_metadata: metadata,

@@ -31,6 +31,7 @@ async function finalizer(
     updatedRowMissing?: boolean;
     invalidBytes?: boolean;
     validEvidence?: boolean;
+    revokedSession?: boolean;
     duplicatePublish?: "same" | "different" | "wrong-size" | "unavailable";
   } = {},
 ) {
@@ -62,30 +63,37 @@ async function finalizer(
         : null,
     error: options.storageStatus ? { status: options.storageStatus } : null,
   });
-  const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+  const activeSessionRpc = vi.fn(async () => ({
+    data: options.revokedSession ? false : true,
+    error: options.revokedSession ? { code: "42501", message: "SESSION_REVOKED" } : null,
+  }));
+  const rpc = vi.fn(async (name: string, args?: Record<string, unknown>) => {
+    if (name === "v3_assert_active_session") return activeSessionRpc();
     expect(name).toBe("v3_finalize_media_upload");
+    expect(args).toBeDefined();
     update({
-      status: args.p_status,
-      detected_mime: args.p_detected_mime,
-      verified_metadata: args.p_metadata,
-      rejection_reason: args.p_rejection_reason,
+      status: args!.p_status,
+      detected_mime: args!.p_detected_mime,
+      verified_metadata: args!.p_metadata,
+      rejection_reason: args!.p_rejection_reason,
     });
     return {
       data: options.updatedRowMissing ? null : { id: row.id },
       error: options.updateError ? { code: "25006" } : null,
     };
   });
+  const from = vi.fn((table: string) => ({
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: async () => ({
+      data: table === "studio2_upload_authorizations" ? row : { mode: "normal" },
+      error: null,
+    }),
+  }));
   const service = {
     rpc,
     auth: { getUser: async () => ({ data: { user: { id: "actor-1" } }, error: null }) },
-    from: (table: string) => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      maybeSingle: async () => ({
-        data: table === "studio2_upload_authorizations" ? row : { mode: "normal" },
-        error: null,
-      }),
-    }),
+    from,
     storage: {
       from: (bucket: string) => ({
         download:
@@ -115,7 +123,11 @@ async function finalizer(
     Deno: {
       env: {
         get: (name: string) =>
-          name === "SUPABASE_URL" ? "http://127.0.0.1:54321" : "test-service-key",
+          name === "SUPABASE_URL"
+            ? "http://127.0.0.1:54321"
+            : name === "SUPABASE_ANON_KEY"
+              ? "test-anon-key"
+              : "test-service-key",
       },
       readFile: async () => new Uint8Array(),
       serve: (callback: typeof handler) => {
@@ -140,10 +152,20 @@ async function finalizer(
         body: JSON.stringify({ token_id: row.id, upload_secret: row.authorization_secret }),
       }),
     );
-  return { request, update, remove, download, rpc };
+  return { request, update, remove, download, rpc, activeSessionRpc, from };
 }
 
 describe("Media finalizer authoritative recovery evidence", () => {
+  it("rejects a revoked actor session before any service-role authorization read or Storage effect", async () => {
+    const { request, activeSessionRpc, from, download, remove } = await finalizer({ revokedSession: true });
+    const response = await request();
+    expect(response.status).toBe(401);
+    expect(activeSessionRpc).toHaveBeenCalledTimes(1);
+    expect(from).not.toHaveBeenCalled();
+    expect(download).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
   it("reports confirmed missing quarantine bytes explicitly", async () => {
     const { request } = await finalizer({ storageStatus: 404 });
     const response = await request();
