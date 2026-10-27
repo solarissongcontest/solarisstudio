@@ -4,6 +4,8 @@ set -euo pipefail
 log() { printf '\n[v3-account-session-authority] %s\n' "$*"; }
 fail() { printf '\n[v3-account-session-authority] FAIL: %s\n' "$*" >&2; exit 1; }
 
+SOURCE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
 eval "$(supabase status -o env)"
 : "${API_URL:?missing local Supabase API_URL}"
 : "${DB_URL:?missing local Supabase DB_URL}"
@@ -75,7 +77,7 @@ PY
 }
 
 log "Rehearsing database-enforced account/session writer authority"
-psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-account-session-authority.sql
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$SOURCE_ROOT/.github/tests/v3-account-session-authority.sql"
 log "PASS: canonical account/session SQL authority contract"
 
 log "Creating one disposable viewer with independent target/current Auth sessions"
