@@ -54,6 +54,21 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
     ],
   },
   {
+    domain: "confirmation",
+    canonicalCommands: [
+      "public.v3_submit_confirmation",
+      "public.studio2_apply_confirmation_round_change",
+      "public.admin_update_confirmation_controls",
+    ],
+    evidence: [
+      "supabase/migrations/20261012010000_v3_confirmation_authority.sql",
+      "supabase/migrations/20261003018000_organisation_os_v5_confirmation_round_operations.sql",
+      "supabase/migrations/20261017143000_confirmation_maintenance_hotfix.sql",
+      "supabase/migrations/20261017194000_confirmation_maintenance_readonly_gate.sql",
+      "src/integrations/confirmations/admin.ts",
+    ],
+  },
+  {
     domain: "publication",
     canonicalCommands: [
       "public.studio2_apply_show_publication_change",
