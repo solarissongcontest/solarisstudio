@@ -94,7 +94,7 @@ describe("System V3 S1 registries", () => {
     const replacements = V3_DOMAIN_CONSEQUENCE_REGISTRY
       .filter((item) => item.implementationState === "replaced-by-read")
       .map((item) => item.eventType);
-    expect(replacements).toEqual(["receipt.reconciled"]);
+    expect([...replacements].sort()).toEqual(["activity.projected", "receipt.reconciled"]);
     expect(v3DomainConsequence("receipt.reconciled")?.replacement?.operation).toBe(
       "public.studio2_reconcile_operation(uuid)",
     );

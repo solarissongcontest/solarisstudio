@@ -226,6 +226,24 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
  * unimplemented mutation into an implemented consequence.
  */
 const READ_ONLY_REPLACEMENTS: Readonly<Record<string, V3ReadOnlyConsequenceReplacement>> = {
+  "activity.projected": {
+    kind: "canonical-read",
+    ownerDomain: "activity",
+    operation: "public.v3_my_participant_activity(timestamptz,integer,uuid)",
+    projection: "recipient-scoped participant activity from canonical completed operations",
+    boundedBy: "authenticated recipient; at most 50 rows per keyset page",
+    rationale:
+      "The Activity domain has no mutation commands: its specification requires reconstruction from canonical source events. The STABLE recipient RPC derives safe history from completed operation ledgers without a separate writable feed or a new activity event on every read.",
+    evidence: [
+      "src/lib/solaris-v6-domain-registry.ts",
+      "supabase/migrations/20261019213500_v3_participant_activity_projection.sql",
+      "src/integrations/v3/participant-activity.server.ts",
+      "src/lib/v3-participant-activity-adapter.test.ts",
+      ".github/scripts/v3-participant-activity-regression.sh",
+      ".github/tests/v3-participant-activity.sql",
+      "src/lib/v3-activity-projection-consequence.test.ts",
+    ],
+  },
   "receipt.reconciled": {
     kind: "canonical-read",
     ownerDomain: "receipt",
