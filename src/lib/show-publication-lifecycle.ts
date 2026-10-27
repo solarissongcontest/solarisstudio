@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
+import { reauthenticateCurrentSolarisAccount } from "@/lib/reauthenticate-solaris-account";
 import type { PublicationConfig } from "@/lib/publication";
 
 export type ShowPublicationState = "draft" | "scheduled" | "public" | "hidden";
@@ -181,21 +182,10 @@ export async function previewShowPublicationChange(input: {
 }
 
 export async function reauthenticateShowPublicationR3(password: string) {
-  if (!password) throw new Error("Enter your current Solaris password for this R3 publication.");
-  const { data: current, error: currentError } = await supabase.auth.getUser();
-  if (currentError) throw currentError;
-  const user = current.user;
-  if (!user?.id || !user.email) throw new Error("This Organizer account cannot be reauthenticated with a password.");
-  const originalId = user.id;
-  const { data: signedIn, error } = await supabase.auth.signInWithPassword({
-    email: user.email,
-    password,
+  return reauthenticateCurrentSolarisAccount(password, {
+    missingPassword: "Enter your current Solaris password for this R3 publication.",
+    unavailable: "This Organizer account cannot be reauthenticated with a password.",
   });
-  if (error) throw error;
-  if (!signedIn.user || signedIn.user.id !== originalId) {
-    await supabase.auth.signOut();
-    throw new Error("Fresh authentication returned a different Solaris account.");
-  }
 }
 
 export async function applyShowPublicationChange(input: {
