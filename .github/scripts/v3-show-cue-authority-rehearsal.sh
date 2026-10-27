@@ -24,8 +24,13 @@ LOCK_TEST="$ROOT/.github/tests/v3-show-cue-lock-contract.sql"
 [[ -f "$AUTHORITY_TEST" ]] || fail "Missing authority contract $AUTHORITY_TEST"
 [[ -f "$LOCK_TEST" ]] || fail "Missing lock contract $LOCK_TEST"
 
+# Keep SQLSTATE/source diagnostics visible. Authority failures are intentionally
+# actionable; hiding the surfaced condition code turns one broken assertion into
+# several rounds of interpretive dance with PostgreSQL.
+PSQL=(psql "$DB_URL" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose)
+
 log "Running show lifecycle/cue authority contract against disposable local Supabase"
-psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$AUTHORITY_TEST"
+"${PSQL[@]}" -f "$AUTHORITY_TEST"
 log "Running show cue lock/recovery contract against disposable local Supabase"
-psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$LOCK_TEST"
+"${PSQL[@]}" -f "$LOCK_TEST"
 log "PASS: canonical show lifecycle/cue authority, race, retry, authorization and lock recovery contracts"
