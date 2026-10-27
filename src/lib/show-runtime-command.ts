@@ -1,7 +1,19 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { ShowModeManualPhase } from "@/lib/broadcast";
 
+export type ShowLifecycleState =
+  | "scheduled"
+  | "preparing"
+  | "delayed"
+  | "live"
+  | "paused"
+  | "ended"
+  | "cancelled";
+
+export type ShowRuntimeTarget = ShowLifecycleState | "results_in_progress";
+
 export type ShowRuntimeSnapshot = {
+  lifecycle: ShowLifecycleState;
   revision: number;
   phase: ShowModeManualPhase;
   scheduledStart: string | null;
@@ -14,7 +26,9 @@ type ShowRuntimeCommandResult = {
   showId: string;
   editionId: string;
   revision: number;
-  previousPhase: ShowModeManualPhase;
+  previousState: ShowRuntimeTarget;
+  state: ShowRuntimeTarget;
+  lifecycleStatus: ShowLifecycleState;
   runtime: Record<string, unknown>;
 };
 
@@ -23,6 +37,59 @@ type RpcClient = {
 };
 
 const client = supabase as unknown as RpcClient;
+
+const LIFECYCLE_ALIASES: Readonly<Record<string, ShowLifecycleState>> = {
+  draft: "scheduled",
+  scheduled: "scheduled",
+  upcoming: "scheduled",
+  planned: "scheduled",
+  planning: "scheduled",
+  announced: "scheduled",
+  ready: "preparing",
+  preparing: "preparing",
+  rehearsal: "preparing",
+  rehearsals: "preparing",
+  delayed: "delayed",
+  live: "live",
+  on_air: "live",
+  "on-air": "live",
+  active: "live",
+  open: "live",
+  in_progress: "live",
+  "in-progress": "live",
+  paused: "paused",
+  hold: "paused",
+  held: "paused",
+  ended: "ended",
+  complete: "ended",
+  completed: "ended",
+  closed: "ended",
+  cancelled: "cancelled",
+  canceled: "cancelled",
+};
+
+export function canonicalShowLifecycle(status: string): ShowLifecycleState {
+  const normalized = LIFECYCLE_ALIASES[status.trim().toLowerCase()];
+  if (!normalized) throw new Error(`Unknown show lifecycle state: ${status}`);
+  return normalized;
+}
+
+export function showRuntimeTargetFromStored(
+  status: string,
+  phase: ShowModeManualPhase,
+): ShowRuntimeTarget {
+  const lifecycle = canonicalShowLifecycle(status);
+  return lifecycle === "live" && phase === "results_in_progress"
+    ? "results_in_progress"
+    : lifecycle;
+}
+
+export function companionPhaseForTarget(target: ShowRuntimeTarget): ShowModeManualPhase {
+  if (target === "results_in_progress") return "results_in_progress";
+  if (target === "live" || target === "paused") return "live";
+  if (target === "ended" || target === "cancelled") return "ended";
+  return "scheduled";
+}
 
 export function showRuntimeRevision(broadcastConfig: unknown) {
   if (!broadcastConfig || typeof broadcastConfig !== "object" || Array.isArray(broadcastConfig)) return 0;
@@ -48,19 +115,24 @@ function parseResult(value: unknown): ShowRuntimeCommandResult {
     typeof result.revision !== "number" ||
     !Number.isInteger(result.revision) ||
     result.revision < 1 ||
+    typeof result.previousState !== "string" ||
+    typeof result.state !== "string" ||
+    typeof result.lifecycleStatus !== "string" ||
     !result.runtime ||
     typeof result.runtime !== "object" ||
     Array.isArray(result.runtime)
   ) {
     throw new Error("Show runtime command returned inconsistent canonical evidence. Reload before retrying.");
   }
+  canonicalShowLifecycle(result.lifecycleStatus);
   return result as unknown as ShowRuntimeCommandResult;
 }
 
 export async function applyShowRuntimeChange(input: {
   showId: string;
+  expectedStatus: ShowLifecycleState;
   expectedRevision: number;
-  phase: ShowModeManualPhase;
+  targetState: ShowRuntimeTarget;
   scheduledStart: string | null;
   youtubeUrl: string;
   televoteRoundId: string | null;
@@ -69,8 +141,9 @@ export async function applyShowRuntimeChange(input: {
   const operationId = globalThis.crypto.randomUUID();
   const args = {
     p_show_id: input.showId,
+    p_expected_status: input.expectedStatus,
     p_expected_revision: input.expectedRevision,
-    p_phase: input.phase,
+    p_target_state: input.targetState,
     p_scheduled_start: input.scheduledStart,
     p_youtube_url: input.youtubeUrl,
     p_televote_round_id: input.televoteRoundId,
@@ -87,7 +160,11 @@ export async function applyShowRuntimeChange(input: {
   }
   if (response.error) throw response.error;
   const result = parseResult(response.data);
-  if (result.showId !== input.showId || result.revision !== input.expectedRevision + 1) {
+  if (
+    result.showId !== input.showId ||
+    result.lifecycleStatus !== (input.targetState === "results_in_progress" ? "live" : input.targetState) ||
+    result.revision !== input.expectedRevision + 1
+  ) {
     throw new Error("Show runtime command returned stale or cross-show evidence. Reload before retrying.");
   }
   return result;
