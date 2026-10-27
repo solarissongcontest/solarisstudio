@@ -84,6 +84,18 @@ jobs:
       - name: Discover every independent static release failure
         run: bun --env-file=/dev/null run scripts/v3-release-preflight.ts --group=static
 
+      - name: Report S16 static mutation authority
+        if: always()
+        env:
+          V3_PREFLIGHT_DIR: v3-release-preflight/static
+        run: bun --env-file=/dev/null run scripts/check-v3-s16-mutation-authority.ts --static
+
+      - name: Verify shared Results integration contract
+        if: always()
+        env:
+          V3_RELEASE_EVIDENCE_DIR: v3-release-preflight
+        run: bun --env-file=/dev/null run scripts/check-v3-results-integration.ts
+
       - name: Generate exact-SHA discovery dashboard
         if: always()
         shell: bash
@@ -98,13 +110,21 @@ jobs:
             echo "::error::release evidence identity mismatch: dashboard=$dashboard_sha expected=$expected"
             exit 1
           fi
-          echo "Discovery is not an S16 certificate; final runtime artifacts remain mandatory."
+          echo "Discovery is not a release certificate; exact-SHA runtime artifacts remain mandatory."
 
       - name: Retain strict external release evidence requirements
         if: always()
         env:
           V3_RELEASE_EVIDENCE_DIR: v3-release-preflight
         run: bun run scripts/check-v3-release-integrity.ts --release
+
+      - name: Generate fail-closed exact-SHA release manifest
+        if: always()
+        env:
+          V3_RELEASE_EVIDENCE_DIR: v3-release-preflight
+          V3_RELEASE_RISK_REPORT: v3-release-preflight/static/s15-burndown.json
+          V3_RELEASE_MANIFEST_DIR: v3-release-preflight
+        run: bun run scripts/build-v3-release-manifest.ts
 
       - name: Upload exact-SHA discovery summary
         if: always()

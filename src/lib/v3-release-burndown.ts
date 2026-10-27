@@ -1,3 +1,5 @@
+import { buildV3ReleaseRiskReport } from "./v3-release-risk";
+
 export const RELEASE_BURNDOWN_CLASSIFICATIONS = [
   "implemented_evidence_missing", "partially_implemented", "not_implemented",
   "obsolete_replaced", "false_positive",
@@ -10,6 +12,9 @@ type Item = {
   testEvidence: string[];
   requiredRepair: string[];
   rationale: string;
+  canonicalId?: string;
+  domain?: string;
+  replacement?: unknown;
 };
 export type ReleaseBurndown = {
   schemaVersion: number;
@@ -58,13 +63,21 @@ export function auditReleaseBurndown(
       findings.push(`BURNDOWN_CLASSIFICATION_TOTAL_DRIFT ${classification}`);
     }
   }
-  for (const finding of new Set(currentFindings)) {
-    if (!seen.has(finding)) findings.push(`BURNDOWN_UNCLASSIFIED ${finding}`);
+  const current = [...new Set(currentFindings)];
+  for (const finding of current) {
+    if (!seen.has(finding) && !finding.startsWith("STRUCTURAL_INTEGRITY ") && !finding.startsWith("PHYSICAL_OWNER_PENDING ") && !finding.startsWith("PARITY_EVIDENCE_MISSING ")) {
+      findings.push(`BURNDOWN_UNCLASSIFIED ${finding}`);
+    }
   }
+  const releaseRisk = buildV3ReleaseRiskReport(current, entries);
   return {
-    schemaVersion: 1, auditPassed: findings.length === 0, findings,
+    schemaVersion: 2,
+    auditPassed: findings.length === 0,
+    findings,
     classificationTotals: classifications,
-    currentReadinessFindingCount: new Set(currentFindings).size,
+    currentReadinessFindingCount: current.length,
+    releaseRisk,
+    releaseRiskTotals: releaseRisk.totals,
     // Observation only: actual acceptance remains owned by canonical scanners and tests.
     noLongerReported: [...seen].filter((finding) => !currentFindings.includes(finding)).sort(),
   };

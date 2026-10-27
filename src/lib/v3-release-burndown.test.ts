@@ -6,7 +6,7 @@ const snapshot = () => JSON.parse(readFileSync("docs/v3-release-burndown.json", 
 const entries = (matrix: ReleaseBurndown) => [...matrix.publicCutovers, ...matrix.organizerCutovers, ...matrix.consequences];
 
 describe("complete release burn-down classification", () => {
-  it("accounts for all original findings with inspectable paths without accepting their cutovers", () => {
+  it("accounts for all original findings and adds deterministic release risk without deleting inventory", () => {
     const matrix = snapshot();
     expect(matrix.publicCutovers).toHaveLength(43);
     expect(matrix.organizerCutovers).toHaveLength(81);
@@ -17,6 +17,8 @@ describe("complete release burn-down classification", () => {
     expect(report.auditPassed).toBe(true);
     expect(report.currentReadinessFindingCount).toBe(164);
     expect(report.noLongerReported).toEqual([]);
+    expect(Object.values(report.releaseRiskTotals).reduce((sum, value) => sum + value, 0)).toBe(164);
+    expect(report.releaseRisk.releaseRiskClassified).toBe(true);
   });
 
   it("rejects duplicate, unexplained, misclassified and missing-source items", () => {
@@ -32,7 +34,7 @@ describe("complete release burn-down classification", () => {
     }
   });
 
-  it("requires newly discovered blockers to be classified and treats disappearance only as an observation", () => {
+  it("requires newly discovered migration findings to be inventoried and treats disappearance only as an observation", () => {
     const matrix = snapshot();
     const old = entries(matrix).map((row) => row.exactFinding);
     const current = old.filter((finding) => !finding.includes("receipt.reconciled"));
@@ -42,5 +44,6 @@ describe("complete release burn-down classification", () => {
     expect(report.noLongerReported).toEqual(old.filter((finding) => finding.includes("receipt.reconciled")));
     const added = auditReleaseBurndown(matrix, [...current, "PUBLIC_CUTOVER_UNRESOLVED new-owner:building"], existsSync);
     expect(added.findings).toContain("BURNDOWN_UNCLASSIFIED PUBLIC_CUTOVER_UNRESOLVED new-owner:building");
+    expect(added.releaseRisk.findings.find((item) => item.finding.includes("new-owner"))?.releaseRisk).toBe("hard_blocker");
   });
 });
