@@ -70,10 +70,10 @@ begin
       or item->>'route' <> '/participate' or item->>'source_event_type' <> 'entry.version_changed' then
      raise exception 'Actor-owned historical identity or canonical route was replaced';
    end if;
-   if item->>'reconciliation_state' <> case item->>'id'
+   if item->>'reconciliation_state' <> (case item->>'id'
        when '26000000-0000-4000-8605-000000000001' then 'superseded'
        when '26000000-0000-4000-8605-000000000002' then 'current'
-       else 'unavailable' end then
+       else 'unavailable' end) then
      raise exception 'Activity reconciliation disagrees with canonical version truth: %',item;
    end if;
  end loop;
