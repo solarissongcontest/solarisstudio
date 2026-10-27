@@ -1,4 +1,14 @@
 export const V3_ORGANIZER_ACCEPTED_SPECIALIST_CUTOVERS = {
+  "current-edition-delegations": {
+    owner: "delegation.read",
+    route: "/admin/countries",
+    kind: "exact-edition-country-cockpit",
+  },
+  "current-edition-voting": {
+    owner: "voting.read",
+    route: "/televoting/admin",
+    kind: "exact-edition-voting-overview",
+  },
   "operations-eligibility": {
     owner: "delegation.read",
     route: "/admin/eligibility",
@@ -27,4 +37,4 @@ export const V3_ORGANIZER_ACCEPTED_SPECIALIST_CUTOVERS = {
 } as const;
 
 export const V3_ORGANIZER_ACCEPTED_SPECIALIST_EVIDENCE =
-  "src/lib/v3-organizer-specialist-acceptance.contract.test.ts; src/lib/studio2-eligibility-integration.test.ts; src/lib/studio2-media-assets.test.ts; src/lib/v3-organizer-cutover.contract.test.ts; src/lib/v3-organizer-control-context.contract.test.ts; src/lib/v3-organizer-confirmation-calendar.test.ts; .github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh; .github/workflows/v3-confirmation-maintenance-edit-rehearsal.yml";
+  "src/lib/v3-organizer-specialist-acceptance.contract.test.ts; src/lib/studio2-country-cockpit-integration.test.ts; src/lib/v3-confirmation-maintenance-hotfix.contract.test.ts; src/integrations/televoting/admin-data.functions.ts; src/lib/studio2-eligibility-integration.test.ts; src/lib/studio2-media-assets.test.ts; src/lib/v3-organizer-cutover.contract.test.ts; src/lib/v3-organizer-control-context.contract.test.ts; src/lib/v3-organizer-confirmation-calendar.test.ts; .github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh; .github/workflows/v3-confirmation-maintenance-edit-rehearsal.yml";

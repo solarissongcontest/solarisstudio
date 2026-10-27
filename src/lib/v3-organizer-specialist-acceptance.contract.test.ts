@@ -4,6 +4,10 @@ import { capabilityForOrganizerPath } from "./permission-route-map";
 import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
 import { V3_ORGANIZER_ACCEPTED_SPECIALIST_CUTOVERS } from "./v3-organizer-accepted-specialist-cutovers";
 
+const countriesRoute = readFileSync("src/routes/_authenticated/admin/countries.tsx", "utf8");
+const countryCockpit = readFileSync("src/lib/studio2-country-cockpit.ts", "utf8");
+const votingRoute = readFileSync("src/routes/televoting/admin/index.tsx", "utf8");
+const votingOverview = readFileSync("src/integrations/televoting/admin-data.functions.ts", "utf8");
 const eligibilityRoute = readFileSync("src/routes/_authenticated/admin/eligibility.tsx", "utf8");
 const eligibilityModel = readFileSync("src/lib/studio2-eligibility.ts", "utf8");
 const mediaRoute = readFileSync("src/routes/_authenticated/admin/media-assets.tsx", "utf8");
@@ -23,6 +27,27 @@ describe("accepted Organizer specialist family", () => {
       expect(registry?.migrationStatus).toBe("cutover");
       expect(registry?.migrationEvidence).toContain("v3-organizer-specialist-acceptance.contract.test.ts");
     }
+  });
+
+  it("accepts Delegations only as an exact-edition cockpit projection", () => {
+    expect(countriesRoute).toContain("selectOrganizerEdition(editions, editionId)");
+    expect(countriesRoute).toContain("['studio2-country-cockpit', resolvedEditionId || 'none']");
+    expect(countriesRoute).toContain("loadStudio2CountryCockpit(resolvedEditionId)");
+    expect(countriesRoute).not.toContain("useMutation(");
+    expect(countryCockpit).toContain("Country cockpit requires an explicit edition scope.");
+    expect(countryCockpit).toContain("p_edition_id: normalizedEditionId");
+    expect(countryCockpit).toContain("row.context.editionId !== normalizedEditionId");
+    expect(countryCockpit).toContain("duplicate country rows for the selected edition");
+  });
+
+  it("accepts Voting overview only through server authorization and exact Organizer edition scope", () => {
+    expect(votingRoute).toContain("const { editionId, editionSlug } = useAdminContext()");
+    expect(votingRoute).toContain('["merged-televoting-admin-overview", editionId ?? "none"]');
+    expect(votingRoute).toContain("getOverview({ data: { editionId: editionId! } })");
+    expect(votingRoute).not.toContain("useMutation(");
+    expect(votingOverview).toContain("await requireMergedTelevotingAdminServer()");
+    expect(votingOverview).toContain('"admin_overview_summary"');
+    expect(votingOverview).toContain("p_solaris_edition_id: data.editionId");
   });
 
   it("accepts Eligibility only because browser writes are absent and governed R2 preview/apply owns mutation", () => {
