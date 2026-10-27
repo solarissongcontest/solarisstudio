@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminConfirmSheet, AdminPageHeader } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
+import { applyEditionMetadataChange } from "@/lib/edition-authority";
 import { editionLabel, useEditions, type Edition } from "@/lib/data";
 import { reportSupabaseError } from "@/lib/errors";
 
@@ -23,8 +24,7 @@ export const Route = createFileRoute("/_authenticated/admin/anniversary-dates")(
   component: AnniversaryDatesPage,
 });
 
-type DatedEdition = Edition & { event_date?: string | null };
-
+type DatedEdition = Edition & { event_date?: string | null; data_revision?: number | null };
 type PendingDateReview = {
   editionId: string;
   editionLabel: string;
@@ -63,10 +63,8 @@ function AnniversaryDatesPage() {
 
   useEffect(() => {
     if (isLoading || !search.edition) return;
-
     const row = document.getElementById(`edition-date-${search.edition}`);
     if (!row) return;
-
     row.scrollIntoView({ behavior: "smooth", block: "center" });
     const input = row.querySelector<HTMLInputElement>('input[type="date"]');
     const timer = window.setTimeout(() => input?.focus(), 250);
@@ -77,7 +75,6 @@ function AnniversaryDatesPage() {
     const currentDate = dateFor(edition) || null;
     const nextDate = drafts[edition.id] ?? dateFor(edition);
     const nextYear = nextDate ? yearFromDate(nextDate) : edition.year ?? null;
-
     setMessage(null);
     setError(null);
     setPendingReview({
@@ -94,7 +91,6 @@ function AnniversaryDatesPage() {
 
   const applyReviewedDate = async () => {
     if (!pendingReview) return;
-
     setSavingId(pendingReview.editionId);
     setMessage(null);
     setError(null);
@@ -102,7 +98,7 @@ function AnniversaryDatesPage() {
     try {
       const { data: live, error: readError } = await (supabase as any)
         .from("editions")
-        .select("id, edition_number, name, event_date, year")
+        .select("id,edition_number,name,event_date,year,data_revision")
         .eq("id", pendingReview.editionId)
         .maybeSingle();
 
@@ -115,59 +111,32 @@ function AnniversaryDatesPage() {
         );
         return;
       }
-
       if (
         !live ||
         live.id !== pendingReview.editionId ||
         (live.edition_number ?? null) !== pendingReview.editionNumber ||
         live.name !== pendingReview.editionName ||
         (live.event_date ?? null) !== pendingReview.baselineDate ||
-        (live.year ?? null) !== pendingReview.baselineYear
+        (live.year ?? null) !== pendingReview.baselineYear ||
+        !Number.isInteger(Number(live.data_revision))
       ) {
         setPendingReview(null);
         setError(
-          `${pendingReview.editionLabel} changed while this review was open. Nothing was changed. Refresh the edition state and review the date again.`,
+          `${pendingReview.editionLabel} changed while this review was open. Nothing was changed. Refresh and review the current edition state again.`,
         );
         await qc.invalidateQueries({ queryKey: ["editions"] });
         return;
       }
 
-      let update = (supabase as any)
-        .from("editions")
-        .update({
+      const receipt = await applyEditionMetadataChange({
+        editionId: pendingReview.editionId,
+        expectedRevision: Number(live.data_revision),
+        patch: {
           event_date: pendingReview.nextDate,
           year: pendingReview.nextYear,
-        })
-        .eq("id", pendingReview.editionId);
-
-      update = pendingReview.baselineDate
-        ? update.eq("event_date", pendingReview.baselineDate)
-        : update.is("event_date", null);
-      update =
-        pendingReview.baselineYear !== null
-          ? update.eq("year", pendingReview.baselineYear)
-          : update.is("year", null);
-
-      const { data: updated, error: updateError } = await update.select("id").maybeSingle();
-
-      if (updateError) {
-        setError(
-          reportSupabaseError(
-            updateError,
-            `Could not save the date for ${pendingReview.editionLabel}.`,
-          ),
-        );
-        return;
-      }
-
-      if (!updated) {
-        setPendingReview(null);
-        setError(
-          `${pendingReview.editionLabel} changed immediately before apply, so the reviewed date was not written. Refresh and review it again.`,
-        );
-        await qc.invalidateQueries({ queryKey: ["editions"] });
-        return;
-      }
+        },
+        reason: "Apply reviewed historical edition event date",
+      });
 
       setDrafts((current) => {
         const next = { ...current };
@@ -177,7 +146,13 @@ function AnniversaryDatesPage() {
       setPendingReview(null);
       await qc.invalidateQueries({ queryKey: ["editions"] });
       setMessage(
-        `${pendingReview.editionLabel} date saved${pendingReview.nextDate ? ` as ${pendingReview.nextDate}` : " as unknown"}.`,
+        `${pendingReview.editionLabel} date saved${pendingReview.nextDate ? ` as ${pendingReview.nextDate}` : " as unknown"} · revision ${receipt.edition.data_revision}.`,
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : `Could not save the date for ${pendingReview.editionLabel}.`,
       );
     } finally {
       setSavingId(null);
@@ -190,7 +165,7 @@ function AnniversaryDatesPage() {
         <AdminPageHeader
           eyebrow="Historical archive"
           title="Edition dates"
-          description="Enter the Grand Final or main event date for every SSC edition. Anniversary-year statistics use these exact dates to determine whether an edition happened before or after 17 September."
+          description="Enter the Grand Final or main event date for every SSC edition. These edition-owned metadata changes use the same versioned canonical authority as other edition metadata."
           actions={
             <Link to="/admin/anniversary" className="admin-action-secondary">
               Anniversary preview
@@ -211,15 +186,11 @@ function AnniversaryDatesPage() {
 
         <div className="mb-4 grid grid-cols-2 gap-3">
           <AdminCard className="!p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
-              Exact dates
-            </p>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Exact dates</p>
             <p className="mt-1 text-2xl font-black">{datedCount}</p>
           </AdminCard>
           <AdminCard className="!p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
-              Still missing
-            </p>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Still missing</p>
             <p className="mt-1 text-2xl font-black">{Math.max(0, sorted.length - datedCount)}</p>
           </AdminCard>
         </div>
@@ -228,8 +199,7 @@ function AnniversaryDatesPage() {
           <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 text-sm leading-relaxed text-amber-50/85">
             <CircleAlert className="mt-0.5 size-4 shrink-0" />
             <p>
-              Use the actual Grand Final date. If an edition had no Grand Final, use its main event
-              date. Do not estimate from the year or edition number.
+              Use the actual Grand Final date. If an edition had no Grand Final, use its main event date. Solaris re-checks identity and revision before the governed write, so a stale editor cannot silently replace a newer date.
             </p>
           </div>
 
@@ -243,7 +213,6 @@ function AnniversaryDatesPage() {
                 const changed = value !== current;
                 const saving = savingId === edition.id;
                 const focused = search.edition === edition.id;
-
                 return (
                   <div
                     id={`edition-date-${edition.id}`}
@@ -262,24 +231,18 @@ function AnniversaryDatesPage() {
                         <p className="font-semibold">{editionLabel(edition)}</p>
                       </div>
                       <p className="mt-1 truncate text-xs text-muted-foreground">
-                        {edition.name}
-                        {edition.year ? ` · ${edition.year}` : " · year unknown"}
+                        {edition.name}{edition.year ? ` · ${edition.year}` : " · year unknown"}
                       </p>
                     </div>
-
                     <input
                       type="date"
                       value={value}
                       onChange={(event) =>
-                        setDrafts((currentDrafts) => ({
-                          ...currentDrafts,
-                          [edition.id]: event.target.value,
-                        }))
+                        setDrafts((currentDrafts) => ({ ...currentDrafts, [edition.id]: event.target.value }))
                       }
                       className="min-h-10 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-primary/50"
                       aria-label={`${editionLabel(edition)} event date`}
                     />
-
                     <button
                       type="button"
                       onClick={() => prepareDateReview(edition)}
@@ -297,59 +260,34 @@ function AnniversaryDatesPage() {
 
         <AdminConfirmSheet
           open={Boolean(pendingReview)}
-          onClose={() => {
-            if (!savingId) setPendingReview(null);
-          }}
+          onClose={() => { if (!savingId) setPendingReview(null); }}
           onConfirm={applyReviewedDate}
           title="Apply historical edition date?"
           description={
             pendingReview ? (
               <div className="space-y-3 text-sm leading-6">
-                <p>
-                  Review the exact archive change for <strong>{pendingReview.editionLabel}</strong>.
-                  Anniversary statistics and historical date-based views consume this value.
-                </p>
+                <p>Review the exact archive change for <strong>{pendingReview.editionLabel}</strong>.</p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
-                    <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                      Before
-                    </span>
-                    <strong className="mt-1 block text-foreground">
-                      {pendingReview.baselineDate ?? "Unknown date"}
-                    </strong>
-                    <span className="text-xs text-muted-foreground">
-                      Stored year: {pendingReview.baselineYear ?? "unknown"}
-                    </span>
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Before</span>
+                    <strong className="mt-1 block text-foreground">{pendingReview.baselineDate ?? "Unknown date"}</strong>
+                    <span className="text-xs text-muted-foreground">Stored year: {pendingReview.baselineYear ?? "unknown"}</span>
                   </div>
                   <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
-                    <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                      After
-                    </span>
-                    <strong className="mt-1 block text-foreground">
-                      {pendingReview.nextDate ?? "Unknown date"}
-                    </strong>
-                    <span className="text-xs text-muted-foreground">
-                      Stored year: {pendingReview.nextYear ?? "unknown"}
-                    </span>
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">After</span>
+                    <strong className="mt-1 block text-foreground">{pendingReview.nextDate ?? "Unknown date"}</strong>
+                    <span className="text-xs text-muted-foreground">Stored year: {pendingReview.nextYear ?? "unknown"}</span>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Solaris re-reads this exact edition immediately before apply and the legacy write
-                  is conditional on the reviewed date/year still matching. If either changes, the
-                  write fails closed. System #633 still owns the canonical versioned, idempotent
-                  anniversary-date command and durable operation receipt; this legacy table write
-                  does not claim that parity.
+                  Apply performs a row-lock + revision compare-and-swap. The same semantic request has a stable operation receipt, so an uncertain network retry cannot duplicate the change.
                 </p>
               </div>
-            ) : (
-              "Review the exact edition date change before applying it."
-            )
+            ) : "Review the exact edition date change before applying it."
           }
           confirmLabel="Apply reviewed date"
           confirmationText={pendingReview?.editionLabel}
-          confirmationHint={
-            pendingReview ? `Type ${pendingReview.editionLabel} to confirm this historical date change` : undefined
-          }
+          confirmationHint={pendingReview ? `Type ${pendingReview.editionLabel} to confirm this historical date change` : undefined}
           busy={Boolean(savingId)}
           danger
         />
