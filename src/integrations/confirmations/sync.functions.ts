@@ -382,6 +382,39 @@ async function syncConfirmationSnapshotToSolarisInternal(
     entity = inserted.data;
   }
 
+  // Entry owns canonical artist/song/lifecycle truth. Resolve that authority
+  // before mutating participant compatibility state so a stale Confirmation
+  // cannot partially change Solaris and only then discover a canonical conflict.
+  const entrySyncRpc = await db.rpc("v3_sync_confirmation_entry", {
+    p_submission_id: snapshot.id,
+  });
+  if (entrySyncRpc.error) throw new Error(entrySyncRpc.error.message);
+  const entrySync = parseCanonicalEntrySyncResult(entrySyncRpc.data);
+
+  if (entrySync.ok !== true) {
+    const status = entrySync.status;
+    if (status === "canonical_owned" || status === "canonical_newer" || status === "unmatched_country") {
+      const result: ConfirmationSolarisSyncResult = {
+        ok: false,
+        status,
+        editionId: entrySync.editionId ?? edition.id,
+        countryId: entrySync.countryId ?? country.id,
+        entryId: entrySync.entryId,
+        message:
+          status === "canonical_owned"
+            ? "Solaris already owns this canonical entry outside Confirmations. Automatic reconciliation was stopped instead of overwriting it."
+            : status === "canonical_newer"
+              ? "Solaris has a newer final participation state than this Confirmation response. Automatic reconciliation was stopped to avoid reversing a later organizer decision."
+              : `No Solaris country matches “${snapshot.country}”.`,
+      };
+      await recordSyncEvent(db, snapshot, result, result.message);
+      return result;
+    }
+    throw new Error(`Canonical Entry sync failed with status ${String(status ?? "unknown")}.`);
+  }
+
+  if (!entrySync.entryId) throw new Error("Canonical Entry sync did not return an Entry id.");
+
   const participationStatus = snapshot.participating ? "confirmed" : "withdrawn";
   const participantLookup = await db
     .from("participants")
@@ -446,39 +479,6 @@ async function syncConfirmationSnapshotToSolarisInternal(
   if (!participant.publication_overridden) statusQuery = statusQuery.eq("publication_overridden", false);
   const { error: statusError } = await statusQuery;
   if (statusError) throw new Error(statusError.message);
-
-  // Confirmation is not an Entry writer.  It asks the canonical Entry domain
-  // to derive and apply the projection from the immutable submission identity.
-  const entrySyncRpc = await db.rpc("v3_sync_confirmation_entry", {
-    p_submission_id: snapshot.id,
-  });
-  if (entrySyncRpc.error) throw new Error(entrySyncRpc.error.message);
-  const entrySync = parseCanonicalEntrySyncResult(entrySyncRpc.data);
-
-  if (entrySync.ok !== true) {
-    const status = entrySync.status;
-    if (status === "canonical_owned" || status === "canonical_newer" || status === "unmatched_country") {
-      const result: ConfirmationSolarisSyncResult = {
-        ok: false,
-        status,
-        editionId: entrySync.editionId ?? edition.id,
-        countryId: entrySync.countryId ?? country.id,
-        participantId: participant.id,
-        entryId: entrySync.entryId,
-        message:
-          status === "canonical_owned"
-            ? "Solaris already owns this canonical entry outside Confirmations. Automatic reconciliation was stopped instead of overwriting it."
-            : status === "canonical_newer"
-              ? "Solaris has a newer final participation state than this Confirmation response. Automatic reconciliation was stopped to avoid reversing a later organizer decision."
-              : `No Solaris country matches “${snapshot.country}”.`,
-      };
-      await recordSyncEvent(db, snapshot, result, result.message);
-      return result;
-    }
-    throw new Error(`Canonical Entry sync failed with status ${String(status ?? "unknown")}.`);
-  }
-
-  if (!entrySync.entryId) throw new Error("Canonical Entry sync did not return an Entry id.");
 
   const { error: compatibilityError } = await db
     .from("participants")
