@@ -21,3 +21,10 @@ describe("risk-tiered consequence maturity", () => {
     expect(requiredConsequenceMaturity("observational_or_pure_read")).toEqual(["canonical_source", "no_mutation_authority"]);
   });
 });
+
+it("fails closed for unknown consequence identities rather than silently assigning debt", () => {
+  for (const event of ["new_security.access_changed", "analytics.updated", "", "unknown.event"]) {
+    expect(classifyV3ConsequenceRelease(event)).toBe("integrity_critical");
+  }
+  expect(classifyV3ConsequenceRelease("public_ux.observed")).toBe("derived");
+});

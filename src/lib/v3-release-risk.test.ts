@@ -16,9 +16,9 @@ describe("V3 release-risk classification", () => {
     const report = buildV3ReleaseRiskReport(current, inventory);
     expect(report.unresolvedTotal).toBe(5);
     expect(report.totals).toEqual({
-      hard_blocker: 2,
+      hard_blocker: 3,
       conditional_blocker: 0,
-      tracked_migration_debt: 2,
+      tracked_migration_debt: 1,
       obsolete_or_replaced: 1,
     });
     expect(report.releaseRiskClassified).toBe(true);
