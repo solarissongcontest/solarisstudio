@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { classifyV3ConsequenceRelease } from "./v3-consequence-release-classification";
 import { classifyV3ReleaseFinding } from "./v3-release-risk";
+import { V3_S16_CRITICAL_DOMAINS } from "./v3-s16-mutation-authority";
 
 const migration = readFileSync(
   "supabase/migrations/20261027184517_v3_account_session_canonical_authority.sql",
@@ -57,6 +58,24 @@ describe("V3 account/session canonical authority", () => {
     expect(legacyStatus).toContain("public.v3_set_country_account_status(");
     const legacyAuto = migration.slice(migration.indexOf("create or replace function public.set_owned_hod_auto_assign(_enabled boolean)"));
     expect(legacyAuto).toContain("public.v3_set_owned_hod_auto_assign(");
+  });
+
+  it("makes S16 inspect the actual account/session security stores and writers", () => {
+    const domain = V3_S16_CRITICAL_DOMAINS.find((entry) => entry.id === "account-session");
+    expect(domain).toBeDefined();
+    expect(domain?.canonicalTables).toEqual([
+      "auth.sessions",
+      "public.country_accounts",
+      "public.studio2_account_session_revocations",
+    ]);
+    expect(domain?.canonicalCommands).toEqual(expect.arrayContaining([
+      "public.v3_claim_country_account",
+      "public.v3_set_country_account_status",
+      "public.v3_set_owned_hod_auto_assign",
+      "public.v3_revoke_session",
+    ]));
+    expect(domain?.sanctionedInternalWriters).toContain("public.claim_country_from_signup");
+    expect(domain?.sanctionedWriteTriggers).toContain("v3_guard_country_account_writer");
   });
 
   it("keeps account/session security synchronous while demoting only the exact derived events", () => {
