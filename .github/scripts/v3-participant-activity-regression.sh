@@ -35,9 +35,9 @@ expect_json "Activity historical Jury country" items.0.country_id "$COUNTRY_A"
 expect_json "Activity Jury domain source" items.0.source_event_type jury.ballot_submitted
 expect_json "Activity Jury kind" items.0.kind jury_participation
 [[ "$(printf '%s' "$HTTP_BODY" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["items"]))')" == 1 ]] || fail 'Jury activity duplicated its shared receipt or admitted legacy unreceipted votes'
-if printf '%s' "$HTTP_BODY" | rg -q 'request_hash|request_fingerprint|ballot_submission_id|target_country_id|rankings|idempotency_key'; then
-  fail 'Jury activity exposed ballot or operation internals'
-fi
+# This must be a required command: a missing tool or malformed JSON must fail,
+# never become a false negative inside a shell `if` condition.
+printf '%s' "$HTTP_BODY" | python3 .github/scripts/check-v3-activity-response.py
 rpc_request "$USER_B_TOKEN" v3_my_participant_activity '{"p_before":null,"p_limit":50,"p_before_operation_id":null}'
 expect_success "other participant reads only their own Activity"
 [[ "$(printf '%s' "$HTTP_BODY" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["items"]))')" == 0 ]] || fail 'Other participant received foreign Jury activity or fabricated legacy history'
