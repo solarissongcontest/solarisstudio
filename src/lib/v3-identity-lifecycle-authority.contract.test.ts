@@ -114,29 +114,33 @@ describe("identity authentication and sign-out authority", () => {
     expect(maintenance).toContain("Sign out did not complete. Your Solaris session is still active.");
   });
 
-  it("treats identity.authenticated as observational consequence debt", () => {
-    expect(classifyV3ConsequenceRelease("identity.authenticated")).toBe(
-      "observational_or_pure_read",
-    );
-    expect(
-      classifyV3ReleaseFinding(
-        "DOMAIN_CONSEQUENCE_DECLARED identity.authenticated owner=identity",
-      ).releaseRisk,
-    ).toBe("tracked_migration_debt");
-  });
-
-  it("keeps identity.signed_out hard until every privileged boundary rejects revoked JWTs before effects", () => {
-    expect(classifyV3ConsequenceRelease("identity.signed_out")).toBe("integrity_critical");
-    expect(
-      classifyV3ReleaseFinding(
-        "DOMAIN_CONSEQUENCE_DECLARED identity.signed_out owner=identity",
-      ).releaseRisk,
-    ).toBe("hard_blocker");
-
+  it("rejects revoked media actors before service-role reads or Storage publication", () => {
     const finalizer = read("supabase/functions/solaris-upload-finalize/index.ts");
-    const publish = finalizer.indexOf('.from(row.final_bucket)\n    .upload(row.final_path');
-    const terminalSessionCheck = finalizer.indexOf("persistFinalization(", publish);
-    expect(publish).toBeGreaterThan(-1);
-    expect(terminalSessionCheck).toBeGreaterThan(publish);
+    const handler = finalizer.slice(finalizer.indexOf("Deno.serve(async (request) =>"));
+    const identityProof = handler.indexOf("await callerIdentity(supabaseUrl, anonKey, authorization)");
+    const revokedReject = handler.indexOf("if (caller.revoked)");
+    const serviceClient = handler.indexOf("createClient(supabaseUrl, serviceRoleKey");
+    const authorizationRead = handler.indexOf('.from("studio2_upload_authorizations")');
+    const publish = handler.indexOf(".upload(row.final_path, finalBlob");
+    expect(identityProof).toBeGreaterThan(-1);
+    expect(revokedReject).toBeGreaterThan(identityProof);
+    expect(serviceClient).toBeGreaterThan(revokedReject);
+    expect(authorizationRead).toBeGreaterThan(serviceClient);
+    expect(publish).toBeGreaterThan(authorizationRead);
+
+    const identityStart = finalizer.indexOf("async function callerIdentity(");
+    const persistStart = finalizer.indexOf("async function persistFinalization(");
+    const identity = finalizer.slice(identityStart, persistStart);
+    expect(identity).toContain('authenticated.rpc("v3_assert_active_session")');
   });
+
+  it.each(["identity.authenticated", "identity.signed_out"])(
+    "treats %s as observational consequence debt rather than authentication authority",
+    (event) => {
+      expect(classifyV3ConsequenceRelease(event)).toBe("observational_or_pure_read");
+      expect(
+        classifyV3ReleaseFinding(`DOMAIN_CONSEQUENCE_DECLARED ${event} owner=identity`).releaseRisk,
+      ).toBe("tracked_migration_debt");
+    },
+  );
 });
