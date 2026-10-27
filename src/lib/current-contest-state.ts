@@ -2,6 +2,7 @@ import type { Edition, ResultRow, Show } from "./data";
 import { normalizeLegacyEditionStatus, type EditionState } from "./edition-state";
 import { resolveShowPublication } from "./publication";
 import type { PublicStatusKey } from "./public-status";
+import { showModeConfig } from "./show-mode";
 
 export type PublicContestPhase =
   | "between_editions"
@@ -32,8 +33,6 @@ export type PublicContestState = {
   primaryAction: PublicContestAction | null;
 };
 
-const LIVE_SHOW_STATUSES = new Set(["live", "on_air", "on-air", "in_progress", "in-progress"]);
-
 function editionNumber(edition: Edition) {
   return edition.edition_number ?? -1;
 }
@@ -59,7 +58,10 @@ export function resolveCurrentPublicEdition(
 }
 
 function exactLiveShow(shows: readonly Show[]) {
-  return shows.find((show) => LIVE_SHOW_STATUSES.has(show.status.trim().toLowerCase())) ?? null;
+  return shows.find((show) => {
+    const phase = showModeConfig(show).phase;
+    return phase === "live" || phase === "results_in_progress";
+  }) ?? null;
 }
 
 function finalResultPublished(

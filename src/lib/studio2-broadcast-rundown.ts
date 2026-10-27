@@ -255,10 +255,34 @@ function requireReason(reason: string, label = 'Broadcast rundown') {
   return normalized;
 }
 
+function operationArgs(kind: 'configure' | 'lock' | 'transition') {
+  const operationId = globalThis.crypto.randomUUID();
+  return {
+    p_operation_id: operationId,
+    p_idempotency_key: `show-cue:${kind}:${operationId}`,
+  };
+}
+
+function retryableTransportError(error: unknown) {
+  return Boolean(error && typeof error === 'object' && !('code' in error));
+}
+
 async function rpc(name: string, args: Record<string, unknown>) {
   const { data, error } = await client.rpc(name, args);
   if (error) throw error;
   return data;
+}
+
+async function mutationRpc(name: string, args: Record<string, unknown>) {
+  let response = await client.rpc(name, args);
+  if (response.error && retryableTransportError(response.error)) {
+    // The same operation/idempotency identity is intentionally reused. If the
+    // first request committed but its response was lost, the server returns the
+    // canonical receipt result instead of applying the cue mutation twice.
+    response = await client.rpc(name, args);
+  }
+  if (response.error) throw response.error;
+  return response.data;
 }
 
 export async function loadStudio2BroadcastRundown(showId: string): Promise<Studio2BroadcastRundownConfig | null> {
@@ -274,12 +298,13 @@ export async function saveStudio2BroadcastRundown(
 ): Promise<Studio2BroadcastRundownConfig> {
   await requireEnabled();
   validateStudio2BroadcastRundown(config);
-  const data = await rpc('studio2_save_broadcast_rundown', {
+  const data = await mutationRpc('v3_save_show_rundown', {
     p_show_id: requireShowId(showId),
     p_expected_revision: config.revision,
     p_start_at: config.startAt,
     p_segments: config.segments,
     p_reason: requireReason(reason),
+    ...operationArgs('configure'),
   });
   return validateStudio2BroadcastCommandResult(data, config.revision, 'increment');
 }
@@ -292,11 +317,12 @@ export async function setStudio2BroadcastRundownLock(
 ): Promise<Studio2BroadcastRundownConfig> {
   await requireEnabled();
   validateStudio2BroadcastRundown(config);
-  const data = await rpc('studio2_set_broadcast_rundown_lock', {
+  const data = await mutationRpc('v3_set_show_rundown_lock', {
     p_show_id: requireShowId(showId),
     p_expected_revision: config.revision,
     p_locked: locked,
     p_reason: requireReason(reason, 'Broadcast rundown lock'),
+    ...operationArgs('lock'),
   });
   return validateStudio2BroadcastCommandResult(data, config.revision, 'same-or-increment');
 }
@@ -314,12 +340,13 @@ export async function transitionStudio2BroadcastSegment(
   validateStudio2BroadcastRundown(config);
   const normalizedSegmentId = segmentId.trim();
   if (!normalizedSegmentId) throw new Error('Rundown segment is required.');
-  const data = await rpc('studio2_transition_broadcast_segment', {
+  const data = await mutationRpc('v3_transition_show_cue', {
     p_show_id: requireShowId(showId),
     p_expected_revision: config.revision,
     p_segment_id: normalizedSegmentId,
     p_to_status: nextStatus,
     p_reason: requireReason(reason, 'Broadcast segment transition'),
+    ...operationArgs('transition'),
   });
   return validateStudio2BroadcastCommandResult(data, config.revision, 'increment');
 }
