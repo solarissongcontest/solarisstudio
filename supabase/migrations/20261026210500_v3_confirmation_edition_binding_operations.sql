@@ -1,4 +1,7 @@
 begin;
+select public.v3_register_migration_contract(
+  'v3.confirmation.edition-binding.operations',1,'forward_fix_only',false,null,
+  'Governed edition binding authority; additive operations and fresh-auth enforcement');
 
 -- V3 Worker 7 / System #702
 --
@@ -322,7 +325,7 @@ begin
     )
   );
 
-  v_replay := coalesce((v_claim ->> 'replay')::boolean, false);
+  v_replay := coalesce((v_claim ->> 'replayed')::boolean, false);
   if v_replay then
     return public.studio2_reconcile_operation(p_operation_id)
       || jsonb_build_object('replayed', true);

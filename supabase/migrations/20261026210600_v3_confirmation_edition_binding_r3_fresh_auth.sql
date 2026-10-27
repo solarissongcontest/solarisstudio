@@ -1,4 +1,7 @@
 begin;
+select public.v3_register_migration_contract(
+  'v3.confirmation.edition-binding.fresh-auth',1,'forward_fix_only',false,null,
+  'Governed edition binding authority; additive operations and fresh-auth enforcement');
 
 -- System #702 follow-up: use the existing Organisation OS R3 freshness
 -- primitive at the authoritative command boundary. Client password UX is not
@@ -89,7 +92,7 @@ begin
     )
   );
 
-  v_replay := coalesce((v_claim ->> 'replay')::boolean, false);
+  v_replay := coalesce((v_claim ->> 'replayed')::boolean, false);
   if v_replay then
     return public.studio2_reconcile_operation(p_operation_id)
       || jsonb_build_object('replayed', true);

@@ -26,6 +26,22 @@ function functionBody(source: string, name: string) {
 }
 
 describe("V3 Organizer Confirmation edition binding operations", () => {
+  it("consumes the real S2 replay flag in both definitions before mutable checks", () => {
+    const claim = readFileSync("supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql", "utf8");
+    expect(claim).toContain("'replayed', true");
+    for (const sql of [migration, r3Migration]) {
+      const apply = functionBody(sql, "public.studio2_apply_confirmation_edition_binding_change");
+      expect(apply).toContain("v_claim ->> 'replayed'");
+      expect(apply).not.toContain("v_claim ->> 'replay'");
+      expect(apply.indexOf("if v_replay then")).toBeLessThan(apply.indexOf("v_preview :="));
+      expect(apply.indexOf("if v_replay then")).toBeLessThan(apply.indexOf("v_before_version :="));
+    }
+    const repair = readFileSync("supabase/migrations/20261027054545_repair_confirmation_binding_replay_contract.sql", "utf8");
+    expect(repair).toContain("pg_get_functiondef(");
+    expect(repair).toContain("execute definition");
+    expect(repair).not.toMatch(/(?:update|delete from) public\.(?:integration_links|studio2_operation_receipts)/i);
+  });
+
   it("cuts the Organizer route over from browser-managed integration_links writes", () => {
     expect(route).toContain("loadConfirmationEditionBinding");
     expect(route).toContain("previewConfirmationEditionBindingChange");
