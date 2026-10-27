@@ -1,3 +1,4 @@
+import { V3ResultReadUnavailable } from "./V3ResultReadUnavailable";
 import { V3ResultCoverageNotice } from "./V3ResultCoverageNotice";
 import { type ReactNode, useEffect, useState } from "react";
 
@@ -48,11 +49,10 @@ export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
     );
   }
 
-  // Records is a derived Results surface. It adopts V3 only when canonical
-  // Results rollout authority is resolved and enabled; every other state keeps
-  // the established route available as a reversible fallback.
+  // Canonical read failures must not select mutable legacy result truth.
+  // Only an explicit server-disabled rollout permits the compatibility path.
   if (bundle.isError || !bundle.data || rollout.isError || !rollout.data) {
-    return <>{fallback}</>;
+    return <V3ResultReadUnavailable />;
   }
 
   if (rollout.data.enabled !== true || rollout.data.resultsEnabled !== true) {

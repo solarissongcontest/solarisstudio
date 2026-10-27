@@ -1,3 +1,4 @@
+import { V3ResultReadUnavailable } from "./V3ResultReadUnavailable";
 import { useRouterState } from "@tanstack/react-router";
 import { useRef, type ReactNode } from "react";
 
@@ -34,8 +35,8 @@ function ResolvingExploreSurface() {
 }
 
 /**
- * Reversible installed-app cutover for Explore. Public web and every failed or
- * disabled server decision keep the existing route. The V3 data graph is not
+ * Reversible installed-app cutover for Explore. Public web and an explicit disabled
+ * server decision keep the existing route. Failed enabled reads stay unavailable. The V3 data graph is not
  * started until the server-authoritative Explore slice flag evaluates true.
  */
 export function V3ExploreRouteGate({ legacy }: { legacy: ReactNode }) {
@@ -57,15 +58,15 @@ export function V3ExploreRouteGate({ legacy }: { legacy: ReactNode }) {
   if (!platformResolved) return <ResolvingExploreSurface />;
   if (!isAppMode) return <>{legacy}</>;
   if (rollout.isLoading) return <ResolvingExploreSurface />;
+  if (rollout.isError || !rollout.data) return <V3ResultReadUnavailable />;
   if (
-    rollout.isError ||
     rollout.data?.enabled !== true ||
     rollout.data?.exploreEnabled !== true
   ) {
     return <>{legacy}</>;
   }
   if (bundleQuery.isLoading) return <ResolvingExploreSurface />;
-  if (bundleQuery.isError || !bundleQuery.data) return <>{legacy}</>;
+  if (bundleQuery.isError || !bundleQuery.data) return <V3ResultReadUnavailable />;
 
   const shell = decideV3ShellForRoute({
     pathname,

@@ -1,3 +1,4 @@
+import { V3ResultReadUnavailable } from "./V3ResultReadUnavailable";
 import { V3ResultCoverageNotice } from "./V3ResultCoverageNotice";
 import { useRouterState } from "@tanstack/react-router";
 import { type ReactNode } from "react";
@@ -39,8 +40,8 @@ function ResolvingEditionSurface() {
 
 /**
  * Reversible installed-app cutover for public Edition detail. Public web and
- * every disabled, unavailable, unpublished or malformed state keep the legacy
- * route. The legacy archive hooks are children and therefore do not mount while
+ * an explicit disabled decision keep the legacy route. Unavailable published
+ * reads fail closed once V3 owns the route. The legacy archive hooks are children and therefore do not mount while
  * this gate owns the route.
  */
 export function V3EditionRouteGate({
@@ -70,8 +71,8 @@ export function V3EditionRouteGate({
   if (!platformResolved) return <ResolvingEditionSurface />;
   if (!isAppMode) return <>{legacy}</>;
   if (rollout.isLoading) return <ResolvingEditionSurface />;
+  if (rollout.isError || !rollout.data) return <V3ResultReadUnavailable />;
   if (
-    rollout.isError ||
     rollout.data?.enabled !== true ||
     rollout.data?.exploreEnabled !== true ||
     rollout.data?.editionHubEnabled !== true
@@ -79,7 +80,7 @@ export function V3EditionRouteGate({
     return <>{legacy}</>;
   }
   if (bundleQuery.isLoading) return <ResolvingEditionSurface />;
-  if (bundleQuery.isError || !bundleQuery.data) return <>{legacy}</>;
+  if (bundleQuery.isError || !bundleQuery.data) return <V3ResultReadUnavailable />;
 
   const shell = decideV3ShellForRoute({
     pathname,

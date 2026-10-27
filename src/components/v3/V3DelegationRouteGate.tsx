@@ -1,3 +1,4 @@
+import { V3ResultReadUnavailable } from "./V3ResultReadUnavailable";
 import { useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -38,7 +39,7 @@ function ResolvingDelegationSurface({ code }: { code: string }) {
 
 /**
  * Reversible installed-app cutover for public country/delegation detail. The
- * legacy route remains the public-web and fail-closed fallback. Its archive-wide
+ * legacy route remains the public-web and explicit disabled-rollout fallback. Its archive-wide
  * hooks are passed as children, so they never mount while V3 owns the route.
  */
 export function V3DelegationRouteGate({
@@ -73,8 +74,8 @@ export function V3DelegationRouteGate({
   if (!platformResolved) return <ResolvingDelegationSurface code={code} />;
   if (!isAppMode) return <>{legacy}</>;
   if (rollout.isLoading) return <ResolvingDelegationSurface code={code} />;
+  if (rollout.isError || !rollout.data) return <V3ResultReadUnavailable />;
   if (
-    rollout.isError ||
     rollout.data?.enabled !== true ||
     rollout.data?.exploreEnabled !== true ||
     rollout.data?.delegationEnabled !== true
@@ -82,7 +83,7 @@ export function V3DelegationRouteGate({
     return <>{legacy}</>;
   }
   if (bundleQuery.isLoading) return <ResolvingDelegationSurface code={code} />;
-  if (bundleQuery.isError || !bundleQuery.data) return <>{legacy}</>;
+  if (bundleQuery.isError || !bundleQuery.data) return <V3ResultReadUnavailable />;
 
   const shell = decideV3ShellForRoute({
     pathname,

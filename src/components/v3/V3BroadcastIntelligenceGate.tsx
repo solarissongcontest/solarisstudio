@@ -1,3 +1,4 @@
+import { V3ResultReadUnavailable } from "./V3ResultReadUnavailable";
 import { V3ResultCoverageNotice } from "./V3ResultCoverageNotice";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -51,7 +52,7 @@ export function V3BroadcastIntelligenceGate({
   }
 
   if (bundle.isError || !bundle.data || rollout.isError || !rollout.data) {
-    return <>{fallback}</>;
+    return <V3ResultReadUnavailable />;
   }
 
   if (rollout.data.enabled !== true || rollout.data.resultsEnabled !== true) {
