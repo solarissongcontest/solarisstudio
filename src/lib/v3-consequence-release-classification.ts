@@ -13,12 +13,17 @@ const PURE_READ_EVENTS = new Set([
   "receipt.reconciled",
 ]);
 
-// Authentication authority is synchronous Supabase Auth/session state. These
-// lifecycle labels may support telemetry/audit, but delivery of an application
-// event must never create or preserve authenticated authority.
+// Authentication authority is synchronous Supabase Auth/session state. The
+// authenticated lifecycle label may support telemetry/audit, but delivery of
+// an application event must never create authenticated authority.
+//
+// identity.signed_out intentionally remains on the integrity-critical identity
+// prefix for now. A revoked-but-unexpired JWT can still enter the media
+// finalizer and reach service-role Storage publication before its terminal DB
+// command rechecks auth.sessions. Do not demote sign-out while that cross-domain
+// boundary remains unfenced.
 const OBSERVATIONAL_IDENTITY_LIFECYCLE_EVENTS = new Set([
   "identity.authenticated",
-  "identity.signed_out",
 ]);
 
 // Preserve the existing catalog decisions explicitly; new identities require
