@@ -32,6 +32,7 @@ describe("V3 Organizer Confirmation edition binding operations", () => {
     for (const sql of [migration, r3Migration]) {
       const apply = functionBody(sql, "public.studio2_apply_confirmation_edition_binding_change");
       expect(apply).toContain("v_claim ->> 'replayed'");
+      expect(apply).toContain("studio2_reconcile_operation((v_claim ->> 'operationId')::uuid)");
       expect(apply).not.toContain("v_claim ->> 'replay'");
       expect(apply.indexOf("if v_replay then")).toBeLessThan(apply.indexOf("v_preview :="));
       expect(apply.indexOf("if v_replay then")).toBeLessThan(apply.indexOf("v_before_version :="));

@@ -183,8 +183,20 @@ expect_json "binding replay status" status succeeded
 expect_json "binding replay marker" replayed true
 
 log "Rejecting an idempotency key reused for different semantics"
-apply_change "$USER_A_TOKEN" "$EDITION_A" remove null "$REUSED_OPERATION" "$BIND_KEY" "$VERSION_1" "$REUSED_CORRELATION"
+# S2 keys are actor+command scoped. Change the version within the SAME command.
+apply_change "$USER_A_TOKEN" "$EDITION_A" bind null "$REUSED_OPERATION" "$BIND_KEY" "$VERSION_1" "$REUSED_CORRELATION"
 expect_failure "changed request with reused idempotency key" "IDEMPOTENCY_CONFLICT"
+log "Rejecting a globally reused operation ID across commands"
+apply_change "$USER_A_TOKEN" "$EDITION_A" remove null "$BIND_OPERATION" "$BIND_KEY" "$VERSION_1" "$BIND_CORRELATION"
+expect_failure "operation ID reused across command namespaces" "IDEMPOTENCY_CONFLICT"
+
+log "Replaying an exact semantic key through a replacement request ID"
+ALIAS_OPERATION="$(uuid4)"
+apply_change "$USER_A_TOKEN" "$EDITION_A" bind null "$ALIAS_OPERATION" "$BIND_KEY" "$VERSION_0" "$BIND_CORRELATION"
+expect_success "binding idempotency alias replay"
+expect_json "alias recovers original operation identity" operationId "$BIND_OPERATION"
+expect_json "alias recovers original outcome" replayed true
+
 
 log "Rejecting direct authenticated Confirmation integration-link UPDATE and DELETE"
 request PATCH "$API_URL/rest/v1/integration_links?service=eq.confirmations&entity_type=eq.edition&solaris_id=eq.$EDITION_A" "$USER_A_TOKEN" "$ANON_KEY" '{"sync_status":"error"}'

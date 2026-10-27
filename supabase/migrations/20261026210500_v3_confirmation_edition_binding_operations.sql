@@ -327,7 +327,7 @@ begin
 
   v_replay := coalesce((v_claim ->> 'replayed')::boolean, false);
   if v_replay then
-    return public.studio2_reconcile_operation(p_operation_id)
+    return public.studio2_reconcile_operation((v_claim ->> 'operationId')::uuid)
       || jsonb_build_object('replayed', true);
   end if;
 

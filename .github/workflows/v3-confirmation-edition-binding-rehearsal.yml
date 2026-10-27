@@ -8,6 +8,7 @@ on:
       - "supabase/migrations/20261026210500_v3_confirmation_edition_binding_operations.sql"
       - "supabase/migrations/20261026210600_v3_confirmation_edition_binding_r3_fresh_auth.sql"
       - "supabase/migrations/*_repair_confirmation_binding_replay_contract.sql"
+      - "supabase/migrations/*_reconcile_binding_idempotency_alias.sql"
       - ".github/scripts/v3-confirmation-edition-binding-rehearsal.sh"
       - ".github/scripts/v3-copy-migration-delta.sh"
       - ".github/workflows/v3-confirmation-edition-binding-rehearsal.yml"
