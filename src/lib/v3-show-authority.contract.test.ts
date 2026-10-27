@@ -8,6 +8,7 @@ function source(path: string) {
 
 const lifecycle = source("supabase/migrations/20261027211500_v3_show_runtime_authority.sql");
 const definition = source("supabase/migrations/20261027213000_v3_show_definition_authority.sql");
+const replay = source("supabase/migrations/20261027215000_v3_show_operation_replay_order.sql");
 const grants = source("supabase/migrations/20261027214000_v3_show_writer_privilege_cutover.sql");
 const runtime = source("src/lib/show-runtime-command.ts");
 const companion = source("src/lib/show-mode.ts");
@@ -55,6 +56,18 @@ describe("V3 canonical show lifecycle authority", () => {
     expect(lifecycle).toContain("'lifecycle_transitioned'");
     expect(lifecycle).toContain("private.studio2_complete_operation(p_operation_id, v_result)");
     expect(runtime).toContain("response = await client.rpc(\"v3_apply_show_runtime_change\", args)");
+  });
+
+  it("claims stable operation identity before row-state CAS so response-lost retries reconcile", () => {
+    const runtimeClaim = replay.indexOf("v_claim := private.studio2_claim_operation(");
+    const runtimeLock = replay.indexOf("select show_row.*");
+    expect(runtimeClaim).toBeGreaterThan(0);
+    expect(runtimeLock).toBeGreaterThan(runtimeClaim);
+    expect(replay).toContain("if v_claim ->> 'status' = 'succeeded' then return v_claim -> 'result'; end if;");
+    expect(replay).toContain("'show.transition'");
+    expect(replay).toContain("'show.definition.update'");
+    expect(replay).toContain("'show.delete'");
+    expect(replay).toContain("jsonb_build_object('showId', p_show_id)");
   });
 
   it("removes API-role raw show create/delete/whole-row update authority", () => {
