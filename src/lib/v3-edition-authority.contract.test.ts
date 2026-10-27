@@ -10,6 +10,7 @@ describe("V3 canonical edition authority", () => {
   const authority = read("supabase/migrations/20261027204500_v3_edition_authority.sql");
   const theme = read("supabase/migrations/20261027205200_v3_edition_theme_authority.sql");
   const retirement = read("supabase/migrations/20261027210000_v3_retire_confirmation_round_legacy_writers.sql");
+  const internalCutover = read("supabase/migrations/20261027211000_v3_edition_internal_writer_cutover.sql");
 
   it("defines distinct governed commands per semantic edition operation", () => {
     for (const command of [
@@ -66,6 +67,16 @@ describe("V3 canonical edition authority", () => {
     );
   });
 
+  it("retires V2 lifecycle authority without reopening accepted V3 transition semantics", () => {
+    expect(internalCutover).toContain("function public.studio2_transition_edition_v2");
+    expect(internalCutover).toContain("LEGACY_RETIRED: use studio2_transition_edition_v3");
+    expect(internalCutover).toContain(
+      "revoke all on function public.studio2_transition_edition_v2(uuid,text,text,uuid)",
+    );
+    expect(read("supabase/migrations/20261019112100_v3_s14_archive_consequence_reconciliation.sql"))
+      .toContain("function public.studio2_transition_edition_v3");
+  });
+
   it("keeps sanctioned derived edition writers non-callable and pinned", () => {
     for (const fn of [
       "bump_edition_data_revision",
@@ -77,6 +88,11 @@ describe("V3 canonical edition authority", () => {
       expect(authority).toContain(`alter function public.${fn}() set search_path = pg_catalog, public, private`);
       expect(authority).toContain(`revoke all on function public.${fn}()`);
     }
+    expect(internalCutover).toContain("alter function public.sync_edition_design_to_shows() security definer");
+    expect(internalCutover).toContain(
+      "alter function public.sync_edition_design_to_shows()\n  set search_path = pg_catalog, public, private",
+    );
+    expect(internalCutover).toContain("revoke all on function public.sync_edition_design_to_shows()");
   });
 
   it("removes direct public.editions writers from the migrated Organizer surfaces", () => {
@@ -86,6 +102,22 @@ describe("V3 canonical edition authority", () => {
       "src/routes/_authenticated/admin/design.$slug.tsx",
       "src/components/EditionPublicDesignPanel.tsx",
       "src/lib/visual-theme.ts",
+    ]) {
+      const findings = scanV3S16StaticAuthority([{ path, source: read(path) }]);
+      expect(findings).not.toContainEqual(expect.objectContaining({
+        domain: "contest-lifecycle",
+        subject: "public.editions",
+        kind: "direct_application_writer",
+      }));
+    }
+  });
+
+  it("does not confuse explicitly configured televoting.editions with public.editions", () => {
+    const client = read("src/integrations/televoting/client.server.ts");
+    expect(client).toContain('schema: "televoting"');
+    for (const path of [
+      "src/integrations/televoting/editions.server.ts",
+      "src/integrations/televoting/solaris-sync.server.ts",
     ]) {
       const findings = scanV3S16StaticAuthority([{ path, source: read(path) }]);
       expect(findings).not.toContainEqual(expect.objectContaining({
