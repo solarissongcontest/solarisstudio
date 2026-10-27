@@ -628,6 +628,7 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
   let dashboardRequest = null;
   let signedIn = false;
   let boundedRefreshTimers = [];
+  let authGeneration = 0;
 
   function clearBoundedRefresh() {
     for (const timer of boundedRefreshTimers) window.clearTimeout(timer);
@@ -644,11 +645,17 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
   }
 
   async function loadDashboard(options = {}) {
-    if (!client || dashboardRequest) return dashboardRequest;
+    if (!client) return;
+    const requestGeneration = authGeneration;
+    if (dashboardRequest && dashboardRequest.generation === requestGeneration) {
+      return dashboardRequest.promise;
+    }
     if (!options.quiet) renderChecking(options.announce ? "Refreshing Confirmation status…" : undefined);
 
-    dashboardRequest = (async () => {
+    const promise = (async () => {
+      const isCurrent = () => requestGeneration === authGeneration;
       const sessionResult = await client.auth.getSession();
+      if (!isCurrent()) return;
       if (sessionResult.error) throw sessionResult.error;
       if (!sessionResult.data.session) {
         signedIn = false;
@@ -658,15 +665,19 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
       }
 
       const userResult = await client.auth.getUser();
+      if (!isCurrent()) return;
       if (userResult.error || !userResult.data.user) {
         signedIn = false;
         clearBoundedRefresh();
         await client.auth.signOut({ scope: "local" }).catch(() => undefined);
-        renderSignedOut("Your previous Solaris session has expired. Sign in again to continue.");
+        if (isCurrent()) {
+          renderSignedOut("Your previous Solaris session has expired. Sign in again to continue.");
+        }
         return;
       }
 
       const result = await client.rpc("public_country_account_confirmation_dashboard");
+      if (!isCurrent()) return;
       if (result.error) throw result.error;
       const data = result.data || {};
       if (!data.authenticated || !data.country) {
@@ -681,17 +692,23 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
       scheduleBoundedRefresh();
     })()
       .catch(async (error) => {
+        if (requestGeneration !== authGeneration) return;
         const message = await browserErrorMessage(error);
+        if (requestGeneration !== authGeneration) return;
         hodRoot.innerHTML = '<div class="hod-error" role="alert"><strong>Confirmation status could not load.</strong><br />' + escapeHtml(message) + '</div><div class="hod-dashboard-actions"><button id="hod-retry" class="hod-button" type="button">Try again</button></div>';
         document.getElementById("hod-retry").addEventListener("click", () => loadDashboard({ announce: true }));
       })
-      .finally(() => { dashboardRequest = null; });
+      .finally(() => {
+        if (dashboardRequest && dashboardRequest.promise === promise) dashboardRequest = null;
+      });
 
-    return dashboardRequest;
+    dashboardRequest = { generation: requestGeneration, promise };
+    return promise;
   }
 
   async function onSignIn(event) {
     event.preventDefault();
+    const generation = ++authGeneration;
     const form = event.currentTarget;
     const identifier = String(new FormData(form).get("identifier") || "").trim();
     const password = String(new FormData(form).get("password") || "");
@@ -703,8 +720,9 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
       const authResult = await client.functions.invoke("country-auth", {
         body: { action: "signin", identifier, password },
       });
+      if (generation !== authGeneration) return;
       if (authResult.error) throw authResult.error;
-      if (!authResult.data?.accessToken || !authResult.data?.refreshToken) {
+      if (!authResult.data?.accessToken || !authResult.data?.refreshToken || !authResult.data?.userId) {
         throw new Error("Solaris did not return a valid session.");
       }
       const sessionResult = await client.auth.setSession({
@@ -714,9 +732,26 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
       if (sessionResult.error || !sessionResult.data.session) {
         throw sessionResult.error || new Error("Could not start your Solaris Studio session.");
       }
+      if (sessionResult.data.session.user.id !== authResult.data.userId) {
+        await client.auth.signOut({ scope: "local" }).catch(() => undefined);
+        throw new Error("Solaris returned a session for a different account.");
+      }
+      const verified = await client.auth.getUser();
+      if (
+        verified.error ||
+        !verified.data.user ||
+        verified.data.user.id !== authResult.data.userId
+      ) {
+        await client.auth.signOut({ scope: "local" }).catch(() => undefined);
+        throw verified.error || new Error("Solaris could not verify the authenticated account.");
+      }
+      if (generation !== authGeneration) {
+        await client.auth.signOut({ scope: "local" }).catch(() => undefined);
+        return;
+      }
       await loadDashboard({ announce: true });
     } catch (error) {
-      renderSignedOut(await browserErrorMessage(error));
+      if (generation === authGeneration) renderSignedOut(await browserErrorMessage(error));
     }
   }
 
@@ -742,13 +777,22 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
   }
 
   async function onSignOut() {
-    signedIn = false;
+    const generation = ++authGeneration;
     clearBoundedRefresh();
-    renderSignedOut();
+    renderChecking("Signing out…");
     try {
-      await client.auth.signOut();
-    } catch {
-      // Local delegation state is already cleared. Protected RPCs still validate server-side auth.
+      const result = await client.auth.signOut({ scope: "global" });
+      if (result.error) throw result.error;
+      if (generation !== authGeneration) return;
+      signedIn = false;
+      renderSignedOut();
+    } catch (error) {
+      if (generation !== authGeneration) return;
+      signedIn = true;
+      await loadDashboard({ quiet: true });
+      if (generation !== authGeneration) return;
+      const message = await browserErrorMessage(error);
+      hodRoot.insertAdjacentHTML("beforeend", '<div class="hod-error" role="alert">Sign out did not complete. Your Solaris session is still active.<br />' + escapeHtml(message) + '</div>');
     }
   }
 
@@ -788,6 +832,7 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
       );
       client.auth.onAuthStateChange((event) => {
         if (event === "SIGNED_OUT") {
+          authGeneration += 1;
           signedIn = false;
           clearBoundedRefresh();
           renderSignedOut();
