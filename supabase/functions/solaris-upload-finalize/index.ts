@@ -963,14 +963,10 @@ Deno.serve(async (request) => {
     }
   }
 
-  const { error: cleanupError } = await service.storage
-    .from("solaris-upload-quarantine")
-    .remove([row.quarantine_path]);
-  if (cleanupError) {
-    console.error("[solaris-upload-finalize] quarantine cleanup failed", cleanupError);
-  }
-
-  const { error: updateError } = await service
+  // A Storage write does not establish a verified authorization. Require the
+  // conditional canonical receipt write to return its row before acknowledging
+  // success, and retain quarantine bytes if that write fails or loses a race.
+  const { data: verified, error: updateError } = await service
     .from("studio2_upload_authorizations")
     .update({
       status: "verified",
@@ -980,11 +976,26 @@ Deno.serve(async (request) => {
       finalized_at: new Date().toISOString(),
     })
     .eq("id", row.id)
-    .eq("status", "prepared");
+    .eq("status", "prepared")
+    .select("id")
+    .maybeSingle();
 
-  if (updateError) {
-    console.error("[solaris-upload-finalize] authorization finalization failed", updateError);
-    return json({ error: "Verified upload was published but receipt finalization failed." }, 500);
+  if (updateError || !verified) {
+    console.error("[solaris-upload-finalize] authorization finalization unconfirmed", updateError);
+    return json(
+      {
+        error:
+          "Verified upload was published but receipt finalization could not be confirmed. Retry finalization.",
+      },
+      503,
+    );
+  }
+
+  const { error: cleanupError } = await service.storage
+    .from("solaris-upload-quarantine")
+    .remove([row.quarantine_path]);
+  if (cleanupError) {
+    console.error("[solaris-upload-finalize] quarantine cleanup failed", cleanupError);
   }
 
   return json({

@@ -30,9 +30,11 @@ async function finalizer(
     updateError?: boolean;
     updatedRowMissing?: boolean;
     invalidBytes?: boolean;
+    validEvidence?: boolean;
   } = {},
 ) {
   let handler!: (request: Request) => Promise<Response>;
+  const evidenceBytes = new TextEncoder().encode("%PDF-1.7\n%%EOF");
   const row = {
     id: "token-1",
     actor_id: "actor-1",
@@ -45,14 +47,18 @@ async function finalizer(
     detected_mime: "image/png",
     verified_metadata: {},
     rejection_reason: null,
-    domain: "country_media",
-    declared_mime: "image/png",
-    expected_size: 3,
+    domain: options.validEvidence ? "integrity_evidence" : "country_media",
+    declared_mime: options.validEvidence ? "application/pdf" : "image/png",
+    expected_size: options.validEvidence ? evidenceBytes.length : 3,
   };
   const update = vi.fn();
   const remove = vi.fn().mockResolvedValue({ data: [], error: null });
   const download = vi.fn().mockResolvedValue({
-    data: options.invalidBytes ? new Blob([new Uint8Array([0, 1, 2])]) : null,
+    data: options.validEvidence
+      ? new Blob([evidenceBytes])
+      : options.invalidBytes
+        ? new Blob([new Uint8Array([0, 1, 2])])
+        : null,
     error: options.storageStatus ? { status: options.storageStatus } : null,
   });
   const service = {
@@ -81,7 +87,9 @@ async function finalizer(
       };
       return query;
     },
-    storage: { from: () => ({ download, remove }) },
+    storage: {
+      from: () => ({ download, remove, upload: vi.fn().mockResolvedValue({ error: null }) }),
+    },
   };
   await runInNewContext(`(async () => { ${compiled} })()`, {
     Deno: {
@@ -98,6 +106,8 @@ async function finalizer(
     mockResolve: () => "file:///mock/magick.js",
     initializeImageMagick: async () => {},
     URL,
+    Blob,
+    TextDecoder,
     Response,
     console: { error: vi.fn() },
   });
@@ -187,3 +197,25 @@ describe("Media finalizer authoritative recovery evidence", () => {
     },
   );
 });
+
+it("acknowledges publication only after the canonical verified receipt is persisted", async () => {
+  const { request, update, remove } = await finalizer({ validEvidence: true });
+  const response = await request();
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ ok: true, replayed: false });
+  expect(update).toHaveBeenCalledWith(expect.objectContaining({ status: "verified" }));
+  expect(update.mock.invocationCallOrder[0]).toBeLessThan(remove.mock.invocationCallOrder[0]);
+});
+
+it.each([{ updateError: true }, { updatedRowMissing: true }])(
+  "retains retry bytes and never invents verified success after unconfirmed receipt writes: %j",
+  async (options) => {
+    const { request, remove } = await finalizer({ ...options, validEvidence: true });
+    const response = await request();
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body.ok).toBeUndefined();
+    expect(body.code).toBeUndefined();
+    expect(remove).not.toHaveBeenCalled();
+  },
+);
