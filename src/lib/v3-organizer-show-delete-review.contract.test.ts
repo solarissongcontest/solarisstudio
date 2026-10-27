@@ -6,6 +6,14 @@ const route = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/admin/shows/$slug.tsx"),
   "utf8",
 );
+const adapter = readFileSync(
+  resolve(process.cwd(), "src/lib/show-definition-command.ts"),
+  "utf8",
+);
+const migration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20261027213000_v3_show_definition_authority.sql"),
+  "utf8",
+);
 
 describe("V3 Organizer destructive show deletion review", () => {
   it("freezes the exact show and dependent participant set when review opens", () => {
@@ -26,7 +34,7 @@ describe("V3 Organizer destructive show deletion review", () => {
     expect(route).toContain("Edition context changed while this show deletion review was open");
   });
 
-  it("re-reads exact show state and participant membership before delete", () => {
+  it("re-reads exact show state and participant membership before the governed command", () => {
     expect(route).toContain('.select("id,edition_id,name,kind,sort_order,published,publication_config,broadcast_config")');
     expect(route).toContain('.eq("id", review.showId)');
     expect(route).toContain('.eq("edition_id", review.editionId)');
@@ -34,30 +42,30 @@ describe("V3 Organizer destructive show deletion review", () => {
     expect(route).toContain('stableJson(liveShow.publication_config) !== review.publicationFingerprint');
     expect(route).toContain('stableJson(liveShow.broadcast_config) !== review.broadcastFingerprint');
     expect(route).toContain("if (!sameIdSet(review.participantIds, liveParticipantIds))");
+    expect(route).toContain("await deleteShowDefinition({");
+    expect(route).not.toContain('supabase.from("shows").delete()');
   });
 
-  it("constrains the final delete to the exact reviewed show and edition", () => {
-    const deleteIndex = route.indexOf('const { data: deleted, error } = await (supabase.from("shows") as any)');
-    const revalidationIndex = route.indexOf("if (!sameIdSet(review.participantIds, liveParticipantIds))");
-    expect(deleteIndex).toBeGreaterThan(revalidationIndex);
-    expect(route.slice(deleteIndex)).toContain('.eq("id", review.showId)');
-    expect(route.slice(deleteIndex)).toContain('.eq("edition_id", review.editionId)');
-    expect(route.slice(deleteIndex)).toContain('.select("id")');
-    expect(route.slice(deleteIndex)).toContain("if (!deleted)");
-    expect(route).not.toContain('supabase.from("shows").delete().eq("id", deleteTarget.id)');
+  it("uses a stable operation identity and server-side CAS/dependency guards", () => {
+    expect(adapter).toContain('governedRpc("v3_delete_show"');
+    expect(adapter).toContain('p_expected_name: input.current.name');
+    expect(adapter).toContain('p_expected_kind: input.current.kind');
+    expect(adapter).toContain('p_expected_sort_order: input.current.sortOrder');
+    expect(migration).toContain("'show.delete'");
+    expect(migration).toContain("using errcode = '40001', message = 'STATE_CHANGED'");
+    expect(migration).toContain("message = 'SHOW_HAS_DURABLE_HISTORY'");
+    expect(migration).toContain("exists (select 1 from public.results where show_id = v_show.id)");
+    expect(migration).toContain("exists (select 1 from public.jury_votes where show_id = v_show.id)");
+    expect(migration).toContain("exists (select 1 from public.televote_votes where show_id = v_show.id)");
+    expect(migration).toContain("exists (select 1 from private.v3_domain_events where show_id = v_show.id)");
   });
 
-  it("makes dependency/publication impact visible and requires exact-name typing", () => {
+  it("makes irreversible scope visible and requires exact-name typing", () => {
     expect(route).toContain("Dependent participants reviewed:");
     expect(route).toContain("Publication state:");
-    expect(route).toContain("This show was published when the deletion review opened");
+    expect(route).toContain("The governed delete command will refuse deletion");
     expect(route).toContain("confirmationText={deleteTarget?.showName}");
     expect(route).toContain("Type ${deleteTarget.showName} to confirm permanent deletion");
-  });
-
-  it("keeps System #581 as final show lifecycle authority", () => {
-    expect(route).toContain("System #581 owns authoritative version/CAS, idempotency, dependency handling and operation receipts");
-    expect(route).toContain("A concurrent dependency change after this final browser recheck remains outside this compatibility boundary");
-    expect(route).not.toContain("executeGovernedShowDelete");
+    expect(route).toContain("cannot use cascading foreign keys as a shortcut for erasing official history");
   });
 });
