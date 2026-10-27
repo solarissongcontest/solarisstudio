@@ -8,6 +8,7 @@ on:
     paths:
       - "supabase/migrations/**"
       - ".github/tests/v3-show-cue-authority.sql"
+      - ".github/tests/v3-show-cue-lock-contract.sql"
       - ".github/scripts/v3-show-cue-authority-rehearsal.sh"
       - ".github/workflows/v3-show-cue-authority-rehearsal.yml"
       - "src/lib/show-mode.ts"
