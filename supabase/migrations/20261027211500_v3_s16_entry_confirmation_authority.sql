@@ -1,5 +1,14 @@
 begin;
 
+select public.v3_register_migration_contract(
+  '20261027211500_v3_s16_entry_confirmation_authority',
+  1,
+  'forward_fix_only',
+  false,
+  null,
+  'S16 makes Confirmation-to-Entry projection one scoped canonical Entry command and revokes raw API-role Entry DML'
+);
+
 -- S16 Entry authority cutover.
 --
 -- Confirmation owns its response/review state, but public.entries is canonical
