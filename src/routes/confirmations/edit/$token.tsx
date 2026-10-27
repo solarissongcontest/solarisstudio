@@ -22,7 +22,7 @@ export const Route = createFileRoute("/confirmations/edit/$token")({
   head: () => ({
     meta: [
       { title: "Edit Confirmation — Solaris Studio" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: EditConfirmationPage,
