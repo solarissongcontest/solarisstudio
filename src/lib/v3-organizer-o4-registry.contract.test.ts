@@ -18,7 +18,6 @@ describe("V3 Organizer O4 capability registry", () => {
       "delegation-next-in-line",
       "delegation-responses-by-country",
       "delegation-submission-rounds",
-      "delegation-calendar",
       "delegation-access",
       "delegation-submission-history",
       "delegation-sync",
@@ -39,6 +38,17 @@ describe("V3 Organizer O4 capability registry", () => {
     // Governed binding does not certify separate sync/settings authorities.
     expect(capability("delegation-sync").migrationStatus).toBe("building");
     expect(capability("delegation-settings").migrationStatus).toBe("building");
+  });
+
+  it("accepts only the exact actor/edition Calendar projection after scoped SQL denial proof", () => {
+    const calendar = capability("delegation-calendar");
+    expect(calendar.migrationStatus).toBe("cutover");
+    expect(calendar.ownerCapability).toBe("confirmation.read");
+    expect(calendar.migrationEvidence).toContain("v3-organizer-confirmation-calendar.test.ts");
+    expect(calendar.migrationEvidence).toContain("v3-confirmation-maintenance-edit-rehearsal.sh");
+    expect(calendar.migrationEvidence).toContain("20261017201000_confirmation_maintenance_postgrest_path_and_reads.sql");
+    expect(capability("delegation-submission-history").migrationStatus).toBe("building");
+    expect(capability("delegation-confirmation-responses").migrationStatus).toBe("building");
   });
 
   it("keeps Eligibility in Contest instead of treating it as delegation authority", () => {

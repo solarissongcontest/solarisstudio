@@ -146,7 +146,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "live-review-voting-lab" ||
     id === "workspace-administration" ||
     id === "workspace-organizer-guide" ||
-    id === "delegation-edition-links"
+    id === "delegation-edition-links" ||
+    id === "delegation-calendar"
   ) {
     return "cutover";
   }
@@ -176,7 +177,6 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "delegation-next-in-line" ||
     id === "delegation-responses-by-country" ||
     id === "delegation-submission-rounds" ||
-    id === "delegation-calendar" ||
     id === "delegation-access" ||
     id === "delegation-submission-history" ||
     id === "delegation-sync" ||
@@ -257,6 +257,9 @@ export const V3_ORGANIZER_CAPABILITY_REGISTRY: readonly AdminCapabilityMigration
         targetRoute: targetRouteFor(item.to, classification),
         ownerCapability,
         migrationStatus: migrationStatusFor(item.id),
+        ...(item.id === "delegation-calendar" ? {
+          migrationEvidence: "src/lib/v3-organizer-confirmation-calendar.ts; src/lib/v3-organizer-confirmation-calendar.test.ts; scripts/fixtures/v3-organizer-confirmation-calendar-proof.tsx; src/routes/confirmations/admin/calendar.tsx; supabase/migrations/20261017201000_confirmation_maintenance_postgrest_path_and_reads.sql; .github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh; .github/workflows/v3-confirmation-maintenance-edit-rehearsal.yml",
+        } : {}),
         ...(item.id === "delegation-edition-links" ? {
           migrationEvidence: "src/lib/v3-organizer-edition-links-explicit-mutations.contract.test.ts; src/integrations/confirmations/edition-bindings.ts; src/routes/confirmations/admin/editions.tsx; supabase/migrations/20261026210600_v3_confirmation_edition_binding_r3_fresh_auth.sql; supabase/migrations/20261027055547_reconcile_binding_idempotency_alias.sql; supabase/migrations/20261027110823_binding_version_conflict_http_contract.sql; .github/scripts/v3-confirmation-edition-binding-rehearsal.sh; .github/workflows/v3-confirmation-edition-binding-rehearsal.yml",
         } : {}),
