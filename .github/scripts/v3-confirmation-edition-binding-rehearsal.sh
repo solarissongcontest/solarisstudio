@@ -226,6 +226,7 @@ VERSION_2="$(printf '%s' "$HTTP_BODY" | json_value result.version)"
 log "Rejecting a stale expected version"
 apply_change "$USER_A_TOKEN" "$EDITION_A" editing false "$STALE_OPERATION" "$STALE_KEY" "$VERSION_1" "$STALE_CORRELATION"
 expect_failure "stale expected version" "VERSION_CONFLICT"
+[[ "$HTTP_STATUS" == "409" ]] || fail "stale version must return a deterministic HTTP 409, got $HTTP_STATUS"
 
 log "Closing existing-response editing through the R2 path"
 preview "$USER_A_TOKEN" "$EDITION_A" editing false

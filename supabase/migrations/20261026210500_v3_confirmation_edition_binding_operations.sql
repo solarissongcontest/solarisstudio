@@ -367,7 +367,7 @@ begin
     raise exception 'VERSION_CONFLICT: expected edition state version %, current version %',
       p_expected_version,
       v_before_version
-      using errcode = '40001';
+      using errcode = 'PT409';
   end if;
 
   v_expected_remote_id := v_edition.id::text;

@@ -120,6 +120,8 @@ describe("V3 Organizer Confirmation edition binding operations", () => {
     expect(apply).toContain("for update");
     expect(apply).toContain("v_before_version is distinct from p_expected_version");
     expect(apply).toContain("VERSION_CONFLICT");
+    expect(apply).toContain("using errcode = 'PT409'");
+    expect(apply).not.toContain("using errcode = '40001'");
     expect(apply).toContain("private.studio2_complete_operation");
     expect(apply).toContain("public.studio2_reconcile_operation");
   });
