@@ -37,11 +37,28 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
   },
   {
     domain: "contest-lifecycle",
-    canonicalCommands: ["public.v3_apply_edition_visual_change"],
+    canonicalCommands: [
+      "public.v3_create_edition",
+      "public.v3_apply_edition_metadata_change",
+      "public.v3_apply_edition_editing_change",
+      "public.v3_apply_edition_theme_change",
+      "public.v3_apply_edition_visual_change",
+      "public.studio2_transition_edition_v3",
+      "public.studio2_execute_host_operation",
+    ],
     evidence: [
+      "supabase/migrations/20261027204500_v3_edition_authority.sql",
+      "supabase/migrations/20261027205200_v3_edition_theme_authority.sql",
+      "supabase/migrations/20261027210000_v3_retire_confirmation_round_legacy_writers.sql",
+      "supabase/migrations/20261027211000_v3_edition_internal_writer_cutover.sql",
       "supabase/migrations/20261027181504_v3_edition_visual_command.sql",
+      "supabase/migrations/20261019112100_v3_s14_archive_consequence_reconciliation.sql",
+      "supabase/migrations/20260912171500_studio2_host_management.sql",
+      ".github/tests/v3-edition-authority.sql",
       ".github/tests/v3-edition-visual-command.sql",
-      "src/lib/edition-visual-command.ts",
+      "src/lib/v3-edition-authority.contract.test.ts",
+      "src/lib/edition-authority.ts",
+      "src/lib/edition-theme-command.ts",
     ],
   },
   {
@@ -110,9 +127,6 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
 ];
 
 function classifyBaseFinding(finding: V3S16Finding): V3S16ClassifiedFinding {
-  // These domains are all integrity/security critical. An unreviewed service
-  // writer or trigger can change canonical truth just as a browser writer can.
-  // Keep unknown authority hard until executable owner evidence resolves it.
   return { ...finding, releaseRisk: "hard_blocker", rule: finding.kind };
 }
 
