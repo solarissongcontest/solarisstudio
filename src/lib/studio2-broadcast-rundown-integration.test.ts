@@ -10,8 +10,9 @@ const nav = source('src/components/admin/admin-navigation.ts');
 const route = source('src/routes/_authenticated/admin/broadcast-rundown.tsx');
 const adapter = source('src/lib/studio2-broadcast-rundown.ts');
 const timingEngine = source('src/lib/broadcast-rundown.ts');
-const migration = source('supabase/migrations/20260912141000_studio2_advanced_broadcast_workflows.sql');
+const legacyMigration = source('supabase/migrations/20260912141000_studio2_advanced_broadcast_workflows.sql');
 const liveLockGuard = source('supabase/migrations/20260912141100_studio2_broadcast_live_lock_guard.sql');
+const authority = source('supabase/migrations/20261027204500_v3_show_cue_authority.sql');
 
 describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
   it('extends the existing Organizer rundown surface and timing engine', () => {
@@ -22,28 +23,66 @@ describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
     expect(timingEngine).toContain("['planned', 'ready', 'live', 'completed', 'skipped']");
   });
 
-  it('replaces direct browser writes with narrow revision-aware server commands', () => {
+  it('routes browser cue mutations through the canonical V3 operation commands', () => {
     expect(adapter).toContain("'studio2_broadcast_rundown'");
-    expect(adapter).toContain("'studio2_save_broadcast_rundown'");
-    expect(adapter).toContain("'studio2_set_broadcast_rundown_lock'");
-    expect(adapter).toContain("'studio2_transition_broadcast_segment'");
+    expect(adapter).toContain("'v3_save_show_rundown'");
+    expect(adapter).toContain("'v3_set_show_rundown_lock'");
+    expect(adapter).toContain("'v3_transition_show_cue'");
+    expect(adapter).toContain('p_operation_id');
+    expect(adapter).toContain('p_idempotency_key');
+    expect(adapter).toContain("response = await client.rpc(name, args)");
     expect(adapter).not.toContain("from('shows')");
     expect(adapter).not.toContain('.update(');
     expect(route).not.toContain("from('shows')");
     expect(route).not.toContain('.update(');
-    expect(migration).toContain('p_expected_revision integer');
-    expect(migration).toContain('for update');
-    expect(migration).toContain("using errcode = '40001'");
   });
 
-  it('requires server authorization, reviewed reasons and an explicit rundown lock for live production', () => {
-    expect(migration).toContain("private.studio2_user_has_capability(p_user_id, 'edition.manage', p_edition_id)");
-    expect(migration).toContain("public.has_role(p_user_id, 'organizer'::public.app_role)");
-    expect(migration).toContain("length(v_reason) < 5");
+  it('keeps row locking, revision CAS, legal transitions and the live lock inside the server boundary', () => {
+    expect(legacyMigration).toContain('p_expected_revision integer');
+    expect(legacyMigration).toContain('for update');
+    expect(legacyMigration).toContain("using errcode = '40001'");
+    expect(legacyMigration).toContain("(v_from_status = 'planned' and p_to_status in ('ready', 'skipped'))");
+    expect(legacyMigration).toContain("(v_from_status = 'ready' and p_to_status in ('live', 'skipped'))");
+    expect(legacyMigration).toContain("(v_from_status = 'live' and p_to_status in ('completed', 'skipped'))");
     expect(liveLockGuard).toContain("segment ->> 'status' = 'live'");
     expect(liveLockGuard).toContain("nullif(v_rundown ->> 'lockedAt', '') is null");
     expect(liveLockGuard).toContain('Lock the broadcast rundown before taking a segment live');
     expect(liveLockGuard).toContain('before update of broadcast_config on public.shows');
+  });
+
+  it('cuts off the legacy peer RPCs and rejects raw cue-subtree updates including service-role DML', () => {
+    expect(authority).toContain('create trigger v3_guard_show_cue_authority');
+    expect(authority).toContain("message = 'SHOW_CUE_AUTHORITY'");
+    expect(authority).toContain("receipt.command in (\n        'show.cue.configure',\n        'show.cue.lock',\n        'show.cue.transition'");
+    expect(authority).toContain('revoke all on function public.studio2_save_broadcast_rundown');
+    expect(authority).toContain('from public, anon, authenticated, service_role');
+    expect(authority).toContain('revoke all on function public.v3_transition_show_cue');
+    expect(authority).toContain('from public, anon, service_role');
+    expect(authority).toContain('to authenticated;');
+  });
+
+  it('binds cue changes to durable operations and the canonical show.cue_changed fact', () => {
+    expect(authority).toContain("'show.cue.configure'");
+    expect(authority).toContain("'show.cue.lock'");
+    expect(authority).toContain("'show.cue.transition'");
+    expect(authority).toContain('private.studio2_claim_operation(');
+    expect(authority).toContain("'show.cue_changed'");
+    expect(authority).toContain('private.v3_emit_domain_event(');
+    expect(authority).toContain('private.studio2_complete_operation(p_operation_id, v_result)');
+    expect(authority).toContain("return v_claim -> 'result' -> 'rundown'");
+  });
+
+  it('preserves runtime-owned showMode and cue state when edition design inheritance runs', () => {
+    expect(authority).toContain("jsonb_build_object('showMode', show_row.broadcast_config -> 'showMode')");
+    expect(authority).toContain("jsonb_build_object('studio2Rundown', show_row.broadcast_config -> 'studio2Rundown')");
+    expect(authority).toContain('set search_path = pg_catalog, public');
+    expect(authority).toContain('revoke all on function public.sync_edition_design_to_shows()');
+  });
+
+  it('requires server authorization, reviewed reasons and an explicit rundown lock for live production', () => {
+    expect(legacyMigration).toContain("private.studio2_user_has_capability(p_user_id, 'edition.manage', p_edition_id)");
+    expect(legacyMigration).toContain("public.has_role(p_user_id, 'organizer'::public.app_role)");
+    expect(legacyMigration).toContain('length(v_reason) < 5');
     expect(route).toContain('Lock rundown');
     expect(route).toContain('AdminConfirmSheet');
     expect(route).not.toContain('window.confirm');
@@ -58,20 +97,8 @@ describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
     expect(route).toContain('Rehearsal mode never calls a production mutation.');
   });
 
-  it('audits production lifecycle changes through the canonical event vocabulary', () => {
-    expect(migration).toContain("'broadcast.segment_started'");
-    expect(migration).toContain("'broadcast.segment_completed'");
-    expect(migration).toContain("'rule.changed'");
-    expect(migration).toContain("'broadcast.rundown_updated'");
-    expect(migration).toContain("'broadcast.rundown_locked'");
-    expect(migration).toContain("'broadcast.rundown_unlocked'");
-    expect(migration).toContain('insert into public.studio2_contest_events');
-    expect(migration).not.toContain('studio2_contest_events_type_check');
-    expect(liveLockGuard).not.toContain('studio2_contest_events_type_check');
-  });
-
   it('does not create a parallel rundown table or duplicate the timing algorithm', () => {
-    expect(migration).not.toContain('create table');
+    expect(authority).not.toContain('create table');
     expect(liveLockGuard).not.toContain('create table');
     expect(adapter).toContain("from './broadcast-rundown'");
     expect(adapter).toContain('buildBroadcastRundown');
@@ -86,9 +113,11 @@ describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
     expect(route).toContain('Estimated broadcast clock');
   });
 
-  it('does not touch unrelated rules or friend-voting systems', () => {
+  it('does not touch unrelated rules, Televote authority or Results ownership', () => {
     expect(route).not.toContain('/rules');
     expect(route).not.toContain('friend-voting');
     expect(adapter).not.toContain('rules_engine');
+    expect(authority).not.toContain('televoting_round_bindings');
+    expect(authority).not.toContain('studio2_recalculate_results');
   });
 });

@@ -34,14 +34,6 @@ export type ShowCompanionState = {
   config: ShowModeConfig;
 };
 
-const LIVE_SHOW_STATUSES = new Set([
-  "live",
-  "on_air",
-  "on-air",
-  "in_progress",
-  "in-progress",
-]);
-
 function isValidDate(value: string | null) {
   if (!value) return false;
   return Number.isFinite(new Date(value).getTime());
@@ -51,11 +43,22 @@ export function showModeConfig(show: Pick<Show, "broadcast_config"> | null | und
   return show ? resolveBroadcast(show.broadcast_config).showMode : { ...DEFAULT_SHOW_MODE };
 }
 
+const LEGAL_SHOW_MODE_TRANSITIONS: Record<ShowModeManualPhase, readonly ShowModeManualPhase[]> = {
+  scheduled: ["live"],
+  live: ["results_in_progress", "ended"],
+  results_in_progress: ["ended"],
+  ended: [],
+};
+
 export function transitionShowModePhase(
   current: ShowModeConfig,
   phase: ShowModeManualPhase,
   now = new Date().toISOString(),
 ): ShowModeConfig {
+  if (phase !== current.phase && !LEGAL_SHOW_MODE_TRANSITIONS[current.phase].includes(phase)) {
+    throw new Error(`Invalid Show Mode transition: ${current.phase} → ${phase}`);
+  }
+
   if (phase === "scheduled") {
     return {
       ...current,
@@ -143,10 +146,7 @@ export function resolveShowCompanionState({
     phase = "voting_open";
   } else if (votingClosed) {
     phase = "voting_closed";
-  } else if (
-    config.phase === "live" ||
-    LIVE_SHOW_STATUSES.has(show.status.trim().toLowerCase())
-  ) {
+  } else if (config.phase === "live") {
     phase = "live";
   } else {
     phase = "scheduled";
@@ -220,7 +220,6 @@ function manualPriority(show: Show) {
   const config = showModeConfig(show);
   if (config.phase === "results_in_progress") return 0;
   if (config.phase === "live") return 1;
-  if (LIVE_SHOW_STATUSES.has(show.status.trim().toLowerCase())) return 1;
   if (config.phase === "scheduled") return 2;
   if (config.phase === "ended") return 4;
   return 3;
