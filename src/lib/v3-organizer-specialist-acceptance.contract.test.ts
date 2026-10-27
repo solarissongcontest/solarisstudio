@@ -19,9 +19,13 @@ const mediaRoute = readFileSync("src/routes/_authenticated/admin/media-assets.ts
 const mediaModel = readFileSync("src/lib/studio2-media-assets.ts", "utf8");
 const timeMachineRoute = readFileSync("src/routes/_authenticated/admin/time-machine.tsx", "utf8");
 const commandAssistantRoute = readFileSync("src/routes/_authenticated/admin/command-assistant.tsx", "utf8");
+const publicUxRoute = readFileSync("src/routes/_authenticated/admin/public-ux.tsx", "utf8");
+const publicUxMetrics = readFileSync("src/lib/public-ux-metrics.ts", "utf8");
 const beta3Route = readFileSync("src/routes/_authenticated/admin/beta3-feedback.tsx", "utf8");
 const beta2Route = readFileSync("src/routes/_authenticated/admin/beta2-feedback.tsx", "utf8");
 const beta1Route = readFileSync("src/routes/_authenticated/admin/beta1-feedback.tsx", "utf8");
+const qaCoverage = readFileSync("src/components/admin/AdminQaCoveragePage.tsx", "utf8");
+const acceptanceTest = readFileSync("src/routes/_authenticated/admin/beta-test.tsx", "utf8");
 const confirmationOverview = readFileSync("src/routes/confirmations/admin/index.tsx", "utf8");
 const confirmationRequirements = readFileSync("src/routes/confirmations/admin/requirements.tsx", "utf8");
 const confirmationSettings = readFileSync("src/routes/confirmations/admin/settings.tsx", "utf8");
@@ -102,6 +106,17 @@ describe("accepted Organizer specialist family", () => {
     expect(commandAssistantRoute).not.toContain("useMutation(");
   });
 
+  it("accepts Public UX only through bounded aggregate telemetry reads", () => {
+    expect(publicUxRoute).toContain('["admin-public-ux-metrics", days]');
+    expect(publicUxRoute).toContain('["admin-public-web-vitals", days]');
+    expect(publicUxRoute).not.toContain("useMutation(");
+    expect(publicUxMetrics).toContain('client.rpc("admin_public_ux_metrics"');
+    expect(publicUxMetrics).toContain('client.rpc("admin_public_web_vitals"');
+    expect(publicUxMetrics).toContain("Math.max(1, Math.min(180");
+    expect(publicUxMetrics).toContain("sanitizePublicUxPath");
+    expect(publicUxMetrics).toContain("sanitizePublicUxTarget");
+  });
+
   it("accepts historical Beta feedback surfaces only as read-only restricted analysis", () => {
     for (const source of [beta3Route, beta2Route, beta1Route]) {
       expect(source).toContain(".select(");
@@ -114,6 +129,18 @@ describe("accepted Organizer specialist family", () => {
     expect(beta1Route).toContain('.eq("form_version", 2)');
     expect(beta2Route).toContain('from("beta2_test_submissions"');
     expect(beta3Route).toContain('from("beta3_test_submissions"');
+  });
+
+  it("accepts QA Coverage as read-only evidence while explicitly keeping the submission form blocked", () => {
+    expect(qaCoverage).toContain('from("admin_beta_test_submissions"');
+    expect(qaCoverage).toContain(".select(");
+    expect(qaCoverage).toContain("createSignedUrl");
+    expect(qaCoverage).not.toContain(".insert(");
+    expect(qaCoverage).not.toContain(".update(");
+    expect(qaCoverage).not.toContain(".delete(");
+    expect(acceptanceTest).toContain('from("admin_beta_test_submissions"');
+    expect(acceptanceTest).toContain(".insert(payload as never)");
+    expect(V3_ORGANIZER_CAPABILITY_REGISTRY.find((row) => row.legacyId === "workspace-acceptance-test")?.migrationStatus).toBe("building");
   });
 
   it("accepts Eligibility only because browser writes are absent and governed R2 preview/apply owns mutation", () => {
@@ -166,6 +193,7 @@ describe("accepted Organizer specialist family", () => {
       "delegation-sync",
       "voting-rounds-entries",
       "voting-public-results",
+      "workspace-acceptance-test",
     ]) expect(V3_ORGANIZER_CAPABILITY_REGISTRY.find((row) => row.legacyId === id)?.migrationStatus).toBe("building");
   });
 });
