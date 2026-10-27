@@ -77,4 +77,27 @@ describe("auth lifecycle generations", () => {
       "fan:B",
     ]);
   });
+  it("resets attention for the exact next SDK identity before publishing its fan-session", () => {
+    const order: string[] = [];
+    const client = {
+      cancelQueries: () => Promise.resolve(),
+      removeQueries: () => {},
+      setQueryData: (_key: unknown, user: { id: string } | null) =>
+        order.push(`fan:${user?.id ?? "anonymous"}`),
+    } as unknown as QueryClient;
+    const apply = createAccountCacheIsolationHandler(client, (viewerId) => {
+      order.push(`attention:${viewerId ?? "anonymous"}`);
+    });
+    apply({ id: "A" });
+    apply({ id: "B" });
+    apply(null);
+    expect(order).toEqual([
+      "attention:A",
+      "fan:A",
+      "attention:B",
+      "fan:B",
+      "attention:anonymous",
+      "fan:anonymous",
+    ]);
+  });
 });

@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { createAccountCacheIsolationHandler } from "@/lib/account-cache-isolation";
-import { writeAppAttentionSummary } from "@/lib/app-attention";
+import { resetAppAttentionSummary } from "@/lib/app-attention";
 import { beginLifecycleGeneration } from "@/lib/lifecycle-generation";
 
 export function AccountCacheIsolation() {
@@ -17,7 +17,7 @@ export function AccountCacheIsolation() {
     const lifecycle = beginLifecycleGeneration(authGenerationRef);
     const applySession = createAccountCacheIsolationHandler(
       client,
-      () => writeAppAttentionSummary({ participate: 0, me: 0, osBadge: 0 }),
+      (viewerId) => resetAppAttentionSummary(viewerId),
       lifecycle.isCurrent,
     );
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {

@@ -25,7 +25,7 @@ export function clearPrivateAccountQueries(client: QueryClient) {
 
 export function createAccountCacheIsolationHandler(
   client: QueryClient,
-  resetAttention: () => void,
+  resetAttention: (viewerId: string | null) => void,
   isCurrent: () => boolean = () => true,
 ) {
   let previousUserId: string | null | undefined;
@@ -39,7 +39,7 @@ export function createAccountCacheIsolationHandler(
       // Security ordering is intentional: invalidate the previous account's
       // private observers before publishing the next fan-session namespace.
       clearPrivateAccountQueries(client);
-      resetAttention();
+      resetAttention(nextUserId);
     }
     // An older getSession retryer must not overwrite this newer SDK event.
     void client.cancelQueries({ queryKey: ["fan-session"], exact: true });
