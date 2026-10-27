@@ -21,6 +21,7 @@ import {
 } from "./participation-os";
 import { isShowPublic, showPublishesResults } from "./publication";
 import type { PublicRound } from "./confirmation-rounds.functions";
+import { showModeConfig } from "./show-mode";
 import type { V3ShowState } from "./v3-domain-state";
 import type {
   V3PrimaryActionProgress,
@@ -66,17 +67,8 @@ export type V3PrimarySurfaceReadModel = {
   hideResultSpoilers?: boolean;
 };
 
-const LIVE_STATUSES = new Set([
-  "live",
-  "on_air",
-  "on-air",
-  "in_progress",
-  "in-progress",
-]);
-
-// Home's Coming up rail is deliberately allow-listed. A show with a terminal
-// or unknown operational status must never be described as future merely
-// because its results have not been published yet.
+// Home's Coming up rail remains conservative about legacy configuration
+// statuses, but live authority is never read from shows.status.
 const UPCOMING_STATUSES = new Set([
   "scheduled",
   "upcoming",
@@ -99,9 +91,6 @@ export function countDistinctV3Delegations(rows: readonly V3ParticipantIdentityR
     const entityId = row.contest_entity_id?.trim() || null;
     if (countryId) countryIds.add(countryId);
     if (entityId) entityIds.add(entityId);
-    // Rows carrying both identifiers establish that the entity is an alias for
-    // that country delegation. This lets canonical, show-scoped and older rows
-    // deduplicate even when some of them carry only one side of the identity.
     if (countryId && entityId) entitiesLinkedToCountry.add(entityId);
   }
 
@@ -141,6 +130,11 @@ function nonNegativeInteger(value: number, label: string) {
 
 function normalizedStatus(show: Show) {
   return show.status.trim().toLowerCase();
+}
+
+function isCanonicalLiveShow(show: Show) {
+  const phase = showModeConfig(show).phase;
+  return phase === "live" || phase === "results_in_progress";
 }
 
 function currentOrRequestedEdition(
@@ -189,7 +183,7 @@ function latestItems(input: {
   headline: string;
   description: string;
 }): readonly V3PrimaryHomeListItem[] {
-  const live = input.shows.find((show) => LIVE_STATUSES.has(normalizedStatus(show)));
+  const live = input.shows.find(isCanonicalLiveShow);
   const completed = [...input.shows]
     .filter((show) => showHasPublishedResult(show, input.results))
     .sort((a, b) => b.sort_order - a.sort_order);
@@ -340,9 +334,7 @@ export function assembleV3PrimarySurfaceSnapshot(
     ? mergeTasks(participationTasks, input.additionalTasks ?? [])
     : [];
 
-  const liveShow = publicShows.find((show) =>
-    LIVE_STATUSES.has(normalizedStatus(show)),
-  );
+  const liveShow = publicShows.find(isCanonicalLiveShow);
   const runtimeEvidence = runtimeForOpenTelevote({
     edition,
     publicPhase: publicContest.phase,
