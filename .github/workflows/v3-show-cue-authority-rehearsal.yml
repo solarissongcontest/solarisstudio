@@ -18,6 +18,7 @@ on:
       - "src/lib/studio2-broadcast-rundown.ts"
       - "src/lib/v3-show-authority.contract.test.ts"
       - "src/lib/v3-show-event-authority.contract.test.ts"
+      - "src/lib/v3-show-permission-cutover.contract.test.ts"
       - "src/lib/v3-s16-mutation-authority.ts"
       - "src/lib/v3-s16-mutation-authority.test.ts"
       - ".github/scripts/prepare-archive-local-config.py"
