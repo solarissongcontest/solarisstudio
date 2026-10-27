@@ -187,3 +187,9 @@ expect_db_failure \
   'permission denied'
 
 log "System V3 S2 operation receipt rehearsal passed"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/v3-admin-beta-acceptance-rehearsal.sh" ]]; then
+  log "Rehearsing governed Organizer acceptance evidence on the same isolated local stack"
+  bash "$SCRIPT_DIR/v3-admin-beta-acceptance-rehearsal.sh"
+fi
