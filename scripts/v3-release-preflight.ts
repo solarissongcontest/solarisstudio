@@ -40,6 +40,7 @@ const checks: Check[] = group === "static" ? [
 ] : [
   { id: "s16Catalog", group: "database", command: [bun, "--env-file=/dev/null", "run", "scripts/collect-v3-s16-catalog-evidence.ts", `--out=${directory}/s16-catalog.json`] },
   { id: "s16Authority", group: "database", dependencies: ["s16Catalog"], command: [bun, "--env-file=/dev/null", "run", "scripts/check-v3-s16-mutation-authority.ts", `--catalog=${directory}/s16-catalog.json`, "--enforce"], json: true },
+  { id: "sharedWriterAuthority", group: "database", command: ["bash", ".github/scripts/v3-canonical-writer-rehearsal.sh"] },
   { id: "resultsRegression", group: "database", command: ["bash", ".github/scripts/v3-s14-results-lineup-regression.sh"] },
   { id: "qualificationRegression", group: "database", command: ["bash", ".github/scripts/v3-s14-qualification-regression.sh"] },
   { id: "integrationRuntime", group: "database", command: ["bash", ".github/scripts/v3-s14-integration-runtime-regression.sh"] },

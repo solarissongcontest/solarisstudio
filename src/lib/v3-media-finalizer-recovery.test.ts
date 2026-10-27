@@ -62,32 +62,30 @@ async function finalizer(
         : null,
     error: options.storageStatus ? { status: options.storageStatus } : null,
   });
+  const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+    expect(name).toBe("v3_finalize_media_upload");
+    update({
+      status: args.p_status,
+      detected_mime: args.p_detected_mime,
+      verified_metadata: args.p_metadata,
+      rejection_reason: args.p_rejection_reason,
+    });
+    return {
+      data: options.updatedRowMissing ? null : { id: row.id },
+      error: options.updateError ? { code: "25006" } : null,
+    };
+  });
   const service = {
+    rpc,
     auth: { getUser: async () => ({ data: { user: { id: "actor-1" } }, error: null }) },
-    from: (table: string) => {
-      let isUpdate = false;
-      const query = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        update: (...args: unknown[]) => {
-          isUpdate = true;
-          update(...args);
-          return query;
-        },
-        maybeSingle: async () => {
-          if (isUpdate)
-            return {
-              data: options.updatedRowMissing ? null : { id: row.id },
-              error: options.updateError ? { code: "25006" } : null,
-            };
-          return {
-            data: table === "studio2_upload_authorizations" ? row : { mode: "normal" },
-            error: null,
-          };
-        },
-      };
-      return query;
-    },
+    from: (table: string) => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: async () => ({
+        data: table === "studio2_upload_authorizations" ? row : { mode: "normal" },
+        error: null,
+      }),
+    }),
     storage: {
       from: (bucket: string) => ({
         download:
@@ -107,11 +105,9 @@ async function finalizer(
                 error: options.duplicatePublish === "unavailable" ? { status: 503 } : null,
               }),
         remove,
-        upload: vi
-          .fn()
-          .mockResolvedValue({
-            error: options.duplicatePublish ? { message: "The resource already exists" } : null,
-          }),
+        upload: vi.fn().mockResolvedValue({
+          error: options.duplicatePublish ? { message: "The resource already exists" } : null,
+        }),
       }),
     },
   };
@@ -132,6 +128,7 @@ async function finalizer(
     URL,
     Blob,
     TextDecoder,
+    atob,
     Response,
     console: { error: vi.fn() },
   });
@@ -143,7 +140,7 @@ async function finalizer(
         body: JSON.stringify({ token_id: row.id, upload_secret: row.authorization_secret }),
       }),
     );
-  return { request, update, remove, download };
+  return { request, update, remove, download, rpc };
 }
 
 describe("Media finalizer authoritative recovery evidence", () => {
@@ -265,3 +262,17 @@ it.each([
     expect(remove).not.toHaveBeenCalled();
   },
 );
+
+it("binds the governed finalization call to the verified caller and exact upload capability", async () => {
+  const { request, rpc } = await finalizer({ validEvidence: true });
+  expect((await request()).status).toBe(200);
+  expect(rpc).toHaveBeenCalledWith(
+    "v3_finalize_media_upload",
+    expect.objectContaining({
+      p_token_id: "token-1",
+      p_upload_secret: "test-capability",
+      p_actor_id: "actor-1",
+      p_status: "verified",
+    }),
+  );
+});

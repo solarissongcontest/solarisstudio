@@ -172,10 +172,11 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     id: "media-upload",
     risk: "security_critical",
     canonicalTables: ["public.studio2_upload_authorizations"],
-    canonicalOwner: "media upload verification",
-    // The Edge finalizer still writes with service-role credentials directly.
-    // Do not invent a sanctioned RPC or exempt this high-risk writer.
-    canonicalCommands: [],
+    canonicalOwner: "media upload authorization and finalization commands",
+    canonicalCommands: ["public.studio2_prepare_upload", "public.v3_finalize_media_upload"],
+    // This evidence factory is private-by-privilege; the SQL negative tests
+    // reject anon/authenticated/service-role invocation of the helper itself.
+    sanctionedInternalWriters: ["private.studio2_create_evidence_upload_authorization"],
   },
   {
     id: "integrity",

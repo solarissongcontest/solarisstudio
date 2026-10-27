@@ -27,6 +27,15 @@ export type V3S16AuthorityContract = {
 
 export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
   {
+    domain: "media-upload",
+    canonicalCommands: ["public.studio2_prepare_upload", "public.v3_finalize_media_upload"],
+    evidence: [
+      "supabase/migrations/20261027182223_v3_media_finalization_authority.sql",
+      ".github/tests/v3-media-finalization-authority.sql",
+      "src/lib/v3-media-finalizer-recovery.test.ts",
+    ],
+  },
+  {
     domain: "contest-lifecycle",
     canonicalCommands: ["public.v3_apply_edition_visual_change"],
     evidence: [

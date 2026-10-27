@@ -4,17 +4,23 @@ import { scanV3S16StaticAuthority, V3_S16_CRITICAL_DOMAINS } from "./v3-s16-muta
 import { classifyV3S16ReleaseAuthority } from "./v3-s16-release-risk";
 
 describe("S16 security consequence authority coverage", () => {
-  it("detects the actual service-role media finalizer as an unresolved canonical writer", () => {
+  it("requires the actual media finalizer to use the governed worker command instead of raw DML", () => {
     const path = "supabase/functions/solaris-upload-finalize/index.ts";
-    const findings = scanV3S16StaticAuthority([{ path, source: readFileSync(path, "utf8") }]);
-    expect(findings).toContainEqual(
-      expect.objectContaining({
-        domain: "media-upload",
-        subject: "public.studio2_upload_authorizations",
-        kind: "direct_application_writer",
-        releaseRisk: "hard_blocker",
-        path,
-      }),
+    const source = readFileSync(path, "utf8");
+    const findings = scanV3S16StaticAuthority([{ path, source }]);
+    expect(
+      findings.some(
+        (finding) =>
+          finding.domain === "media-upload" && finding.kind === "direct_application_writer",
+      ),
+    ).toBe(false);
+    expect(source).toContain('service.rpc("v3_finalize_media_upload"');
+    const migration = readFileSync(
+      "supabase/migrations/20261027182223_v3_media_finalization_authority.sql",
+      "utf8",
+    );
+    expect(migration).toContain(
+      "revoke insert,update,delete,truncate on public.studio2_upload_authorizations from service_role",
     );
   });
 
@@ -42,21 +48,21 @@ describe("S16 security consequence authority coverage", () => {
     expect(domain.canonicalCommands).toEqual([]);
   });
 
-  it("keeps media and integrity hard until the canonical command inventory is proven", () => {
+  it("keeps Integrity hard until its canonical command inventory is proven", () => {
     const result = classifyV3S16ReleaseAuthority({
       baseFindings: [],
       files: [],
       staticOnly: true,
-      domains: V3_S16_CRITICAL_DOMAINS.filter((domain) =>
-        ["media-upload", "integrity"].includes(domain.id),
-      ).map((domain) => ({
-        ...domain,
-        sanctionedInternalWriters: [],
-        sanctionedWriteTriggers: [],
-        ownerBoundary: "shared" as const,
-      })),
+      domains: V3_S16_CRITICAL_DOMAINS.filter((domain) => ["integrity"].includes(domain.id)).map(
+        (domain) => ({
+          ...domain,
+          sanctionedInternalWriters: [],
+          sanctionedWriteTriggers: [],
+          ownerBoundary: "shared" as const,
+        }),
+      ),
     });
-    for (const domain of ["media-upload", "integrity"]) {
+    for (const domain of ["integrity"]) {
       expect(result.findings).toContainEqual(
         expect.objectContaining({
           domain,
