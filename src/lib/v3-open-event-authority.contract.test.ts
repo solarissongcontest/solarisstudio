@@ -4,10 +4,12 @@ import { classifyV3ReleaseFinding } from "./v3-release-risk";
 import { V3_DOMAIN_CONSEQUENCE_REGISTRY } from "./v3-domain-consequence-registry";
 import { scanV3S16StaticAuthority } from "./v3-s16-mutation-authority";
 const read = (path: string) => readFileSync(path, "utf8");
-const original = [
-  "account.changed",
+const observationalIdentity = [
   "identity.authenticated",
   "identity.signed_out",
+];
+const remainingIntegrity = [
+  "account.changed",
   "session.changed",
   "session.revoked",
   "edition.changed",
@@ -18,8 +20,8 @@ const original = [
   "media.verified",
 ];
 
-describe("original eleven consequence authority boundaries", () => {
-  it.each(original)("retains %s until its critical authority evidence is complete", (event) => {
+describe("original consequence authority boundaries", () => {
+  it.each(remainingIntegrity)("retains %s until its critical authority evidence is complete", (event) => {
     const consequence = V3_DOMAIN_CONSEQUENCE_REGISTRY.find((item) => item.eventType === event);
     expect(consequence).toBeDefined();
     expect(
@@ -27,6 +29,17 @@ describe("original eleven consequence authority boundaries", () => {
         `DOMAIN_CONSEQUENCE_DECLARED ${event} owner=${consequence!.ownerDomain}`,
       ).releaseRisk,
     ).toBe("hard_blocker");
+    expect(read("docs/v3-open-event-authority.md")).toContain(`| ${event} |`);
+  });
+
+  it.each(observationalIdentity)("keeps %s visible as non-authoritative event debt", (event) => {
+    const consequence = V3_DOMAIN_CONSEQUENCE_REGISTRY.find((item) => item.eventType === event);
+    expect(consequence).toBeDefined();
+    const finding = classifyV3ReleaseFinding(
+      `DOMAIN_CONSEQUENCE_DECLARED ${event} owner=${consequence!.ownerDomain}`,
+    );
+    expect(finding.releaseRisk).toBe("tracked_migration_debt");
+    expect(finding.consequenceClass).toBe("observational_or_pure_read");
     expect(read("docs/v3-open-event-authority.md")).toContain(`| ${event} |`);
   });
 
@@ -49,7 +62,7 @@ describe("original eleven consequence authority boundaries", () => {
     expect(command.indexOf("delete from auth.sessions")).toBeLessThan(
       command.indexOf("return private.studio2_complete_operation"),
     );
-    expect(read("src/lib/account-session.ts")).toContain("await supabase.auth.signOut()");
+    expect(read("src/lib/account-session.ts")).toContain('supabase.auth.signOut({ scope: "global" })');
     expect(read("src/routes/_authenticated/route.tsx")).toContain("supabase.auth.getUser()");
   });
 

@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { createAccountCacheIsolationHandler } from "@/lib/account-cache-isolation";
+import { subscribeSolarisSignOutBoundary } from "@/lib/account-session";
 import { resetAppAttentionSummary } from "@/lib/app-attention";
 import { beginLifecycleGeneration } from "@/lib/lifecycle-generation";
 
@@ -20,11 +21,15 @@ export function AccountCacheIsolation() {
       (viewerId) => resetAppAttentionSummary(viewerId),
       lifecycle.isCurrent,
     );
+    const unsubscribeSignOutBoundary = subscribeSolarisSignOutBoundary(() => {
+      applySession(null);
+    });
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       applySession(session?.user);
     });
     return () => {
       lifecycle.deactivate();
+      unsubscribeSignOutBoundary();
       data.subscription.unsubscribe();
     };
   }, [client]);

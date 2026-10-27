@@ -29,10 +29,9 @@ export function AppExperiencePreferenceSync() {
 
     const lifecycle = beginLifecycleGeneration(authGenerationRef);
 
-    void supabase.auth.getUser().then(({ data }) => {
-      if (lifecycle.isCurrent()) setUserId(data.user?.id);
-    });
-
+    // Supabase emits INITIAL_SESSION when this subscriber is registered, so a
+    // second asynchronous getUser() restoration is both redundant and racy: an
+    // older response could otherwise overwrite a newer sign-out/account change.
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       if (lifecycle.isCurrent()) setUserId(session?.user?.id);
     });
