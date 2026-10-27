@@ -1,3 +1,4 @@
+import { candidateSnapshotFindings } from "../../scripts/lib/v3-release-preflight";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -33,4 +34,21 @@ describe("release source integrity with local CLI metadata", () => {
       expect(status).toContain("supabase/config.toml");
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
+});
+
+it("rejects a clean checkout that moved to a different commit during verification", () => {
+  const dir = mkdtempSync(join(tmpdir(), "release-commit-drift-"));
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
+  const commit = () => git("-c", "user.name=Fixture", "-c", "user.email=fixture@local.invalid", "commit", "-qm", "Fixture");
+  try {
+    git("init", "-q");
+    writeFileSync(join(dir, "source.txt"), "first"); git("add", "source.txt"); commit();
+    const before = git("rev-parse", "HEAD");
+    writeFileSync(join(dir, "source.txt"), "second"); git("add", "source.txt"); commit();
+    const after = git("rev-parse", "HEAD");
+    expect(git("status", "--porcelain")).toBe("");
+    expect(candidateSnapshotFindings(before, after, [])).toEqual([`CANDIDATE_CHANGED ${before} -> ${after}`]);
+    expect(candidateSnapshotFindings(after, after, [])).toEqual([]);
+    expect(candidateSnapshotFindings(after, after, [" M source.txt"])).toEqual(["SOURCE_MUTATION  M source.txt"]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

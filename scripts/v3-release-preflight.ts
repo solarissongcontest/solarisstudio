@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { V3_PUBLIC_CAPABILITIES, V3_ORGANIZER_CAPABILITY_REGISTRY, V3_DOMAIN_CONSEQUENCE_REGISTRY } from "../src/lib/v3-capability-registry";
-import { execute, localSupabaseEnvironment, runSweep, staticEnvironment, type Check } from "./lib/v3-release-preflight";
+import { candidateSnapshotFindings, execute, localSupabaseEnvironment, runSweep, staticEnvironment, type Check } from "./lib/v3-release-preflight";
 
 const group = process.argv.find((arg) => arg.startsWith("--group="))?.split("=")[1] ?? "static";
 if (!["static", "database"].includes(group)) throw new Error("Use --group=static or --group=database");
@@ -111,19 +111,22 @@ const consequenceAudit = group === "static" ? V3_DOMAIN_CONSEQUENCE_REGISTRY.fil
   };
 }) : [];
 const changesAfter = sourceChanges();
+const finalCandidateSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+const candidateStable = candidateSha === finalCandidateSha;
 const generatedToolCaches = [
   ...(existsSync("supabase/.temp") ? readdirSync("supabase/.temp").sort().map((name) => `supabase/.temp/${name}`) : []),
   ...(existsSync("supabase/.branches/_current_branch") ? ["supabase/.branches/_current_branch"] : []),
 ];
 const changedPaths = [...new Set([...changesBefore, ...changesAfter])].sort();
+const snapshotFindings = candidateSnapshotFindings(candidateSha, finalCandidateSha, changedPaths);
 outcomes[`${group}SourceIntegrity`] = {
-  status: changedPaths.length ? "fail" : "pass", exitCode: null,
-  findings: changedPaths.map((path) => `SOURCE_MUTATION ${path}`),
+  status: snapshotFindings.length ? "fail" : "pass", exitCode: null,
+  findings: snapshotFindings,
 };
 if (changedPaths.length) console.error(`Source integrity failed: ${changedPaths.join(", ")}`);
 const s14Execution = group === "static" ? assessS14Execution(candidateSha, outcomes, false) : null;
 const passed = Object.values(outcomes).every((outcome) => outcome.status === "pass");
-writeFileSync(resolve(directory, "preflight-summary.json"), `${JSON.stringify({ schemaVersion: 1, candidateSha, sourceClean: changesBefore.length === 0 && changesAfter.length === 0, sourceChanges: { before: changesBefore, after: changesAfter }, generatedToolCaches, group, passed, s14Execution, catalog: checks, checks: outcomes, cutoverAudit: audit, consequenceAudit }, null, 2)}\n`);
+writeFileSync(resolve(directory, "preflight-summary.json"), `${JSON.stringify({ schemaVersion: 1, candidateSha, finalCandidateSha, candidateStable, sourceClean: candidateStable && changesBefore.length === 0 && changesAfter.length === 0, sourceChanges: { before: changesBefore, after: changesAfter }, generatedToolCaches, group, passed, s14Execution, catalog: checks, checks: outcomes, cutoverAudit: audit, consequenceAudit }, null, 2)}\n`);
 for (const [id, outcome] of Object.entries(outcomes)) console.log(`${id}: ${outcome.status.toUpperCase()}${outcome.findings.length ? ` (${outcome.findings.length} findings)` : ""}`);
 console.log(`Complete ${group} discovery: ${passed ? "PASS" : "FAIL"}; ${directory}/preflight-summary.json`);
 if (group === "static" ? !s14Execution?.allowed : !passed) process.exitCode = 1;

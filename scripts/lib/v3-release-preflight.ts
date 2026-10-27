@@ -115,6 +115,14 @@ export function runSweep(
   return outcomes;
 }
 
+/** A clean working tree can still have moved to another commit mid-run. */
+export function candidateSnapshotFindings(beforeSha: string, afterSha: string, changedPaths: readonly string[]) {
+  return [
+    ...(beforeSha !== afterSha ? [`CANDIDATE_CHANGED ${beforeSha} -> ${afterSha}`] : []),
+    ...changedPaths.map((path) => `SOURCE_MUTATION ${path}`),
+  ];
+}
+
 export type GroupReport = {
   candidateSha: string; group: string; passed: boolean; sourceClean: boolean;
   checks: Record<string, Outcome>; cutoverAudit?: unknown[]; consequenceAudit?: unknown[];
