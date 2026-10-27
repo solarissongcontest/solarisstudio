@@ -300,7 +300,11 @@ export async function loadCurrentV3EntryBundle(): Promise<V3EntryServerBundle> {
     p_country_id: countryId,
   });
   throwIfError(hodResult.error, "Could not load your authoritative Entry workspace");
-  const workspace = buildStudio2HodWorkspaceSnapshot(mapStudio2HodContext(hodResult.data));
+  const hodContext = mapStudio2HodContext(hodResult.data);
+  if (hodContext.editionId !== edition.id || hodContext.countryId !== countryId) {
+    throw new Error("Canonical Entry workspace returned data outside the authorized edition or delegation.");
+  }
+  const workspace = buildStudio2HodWorkspaceSnapshot(hodContext);
 
   const responses = Array.isArray(access.responses) ? access.responses : [];
   const response = responses

@@ -92,8 +92,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "redesign",
     targetArea: "participate",
     targetRoute: "/participate",
-    specificationStatus: "building",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.entry-submit-review-correct",
+    migrationEvidence: "src/lib/v3-entry-owner-acceptance.test.ts; scripts/fixtures/v3-entry-owner-proof.ts; src/lib/v3-entry-fail-closed.test.tsx; src/lib/v3-entry-cutover.contract.test.ts; src/lib/v3-entry-submission-receipt.contract.test.ts; src/lib/v3-entry-restore-provenance.contract.test.ts; src/integrations/v3/entry-source.server.ts; src/integrations/v3/entry-actions.server.ts; supabase/migrations/20261014060000_v3_entry_submission_receipt.sql",
   },
   {
     id: "participant-voting-overview",
