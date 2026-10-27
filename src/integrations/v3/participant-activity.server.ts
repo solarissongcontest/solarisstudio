@@ -10,7 +10,7 @@ type RpcError = {
   message?: string;
 };
 
-type ActivityClient = {
+export type ActivityClient = {
   rpc(
     name: string,
     args?: Record<string, unknown>,
@@ -18,26 +18,25 @@ type ActivityClient = {
 };
 
 function missingParticipantActivityContract(error: RpcError | null) {
-  const message = error?.message?.toLowerCase() ?? "";
-  return (
-    error?.code === "42883" ||
-    error?.code === "PGRST202" ||
-    message.includes("v3_my_participant_activity")
-  );
+  return error?.code === "42883" || error?.code === "PGRST202";
 }
 
 /**
- * Read-only adapter for SYSTEM CONTRACT REQUEST #605.
+ * Read-only adapter for the canonical System #605 recipient projection.
  *
- * Activity is derived from canonical domain events. Until System owns the
- * recipient-scoped projection, Public V3 must fail closed rather than reuse
- * alternate feeds, browser history, or private infrastructure.
+ * Activity is derived from canonical completed operations. The missing-schema
+ * fallback remains fail-closed for compatibility during staged deployment; it
+ * never reconstructs private activity from alternate feeds or browser state.
  */
-export async function loadV3ParticipantActivity(): Promise<V3ParticipantActivityBundle> {
-  const client = createSolarisAuthenticatedClientServer() as unknown as ActivityClient;
+export async function loadV3ParticipantActivity(input: {
+  before?: string | null;
+  beforeOperationId?: string | null;
+  limit?: number;
+} = {}, client: ActivityClient = createSolarisAuthenticatedClientServer() as unknown as ActivityClient): Promise<V3ParticipantActivityBundle> {
   const { data, error } = await client.rpc("v3_my_participant_activity", {
-    p_before: null,
-    p_limit: 30,
+    p_before: input.before ?? null,
+    p_limit: input.limit ?? 30,
+    p_before_operation_id: input.beforeOperationId ?? null,
   });
 
   if (missingParticipantActivityContract(error)) {
