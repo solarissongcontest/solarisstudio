@@ -106,7 +106,8 @@ function bareFunctionName(value: string) {
 function functionNameMatches(inventoryName: string, catalogName: string) {
   const inventory = normalizeFunctionName(inventoryName);
   const catalog = normalizeFunctionName(catalogName);
-  return inventory === catalog || bareFunctionName(inventory) === bareFunctionName(catalog);
+  if (inventory.includes(".")) return inventory === catalog;
+  return inventory === catalog || inventory === bareFunctionName(catalog);
 }
 
 function sourceWritesTable(source: string, table: string) {
@@ -213,7 +214,20 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "private.v3_confirmation_operations",
     ],
     canonicalOwner: "confirmation domain",
-    canonicalCommands: [],
+    canonicalCommands: [
+      "v3_submit_confirmation",
+      "studio2_apply_confirmation_round_change",
+      "admin_update_confirmation_controls",
+    ],
+    sanctionedInternalWriters: [
+      "v3_submit_confirmation_core",
+      "submit_confirmation",
+    ],
+    sanctionedWriteTriggers: [
+      "v3_bridge_confirmation_submission_operation",
+      "revoke_confirmation_tokens_on_submission_close",
+      "revoke_confirmation_tokens_on_round_close",
+    ],
   },
   {
     id: "entry",
