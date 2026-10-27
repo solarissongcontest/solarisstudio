@@ -8,6 +8,11 @@ const countriesRoute = readFileSync("src/routes/_authenticated/admin/countries.t
 const countryCockpit = readFileSync("src/lib/studio2-country-cockpit.ts", "utf8");
 const votingRoute = readFileSync("src/routes/televoting/admin/index.tsx", "utf8");
 const votingOverview = readFileSync("src/integrations/televoting/admin-data.functions.ts", "utf8");
+const declarationsRoute = readFileSync("src/routes/televoting/admin/integrity-declarations.tsx", "utf8");
+const declarationAdmin = readFileSync("src/lib/voting-declaration-admin.ts", "utf8");
+const declarationMigration = readFileSync("supabase/migrations/20261018122500_v3_voting_declaration_expected_edition_scope.sql", "utf8");
+const juryIntegrityRoute = readFileSync("src/routes/_authenticated/admin/jury-integrity.tsx", "utf8");
+const juryIntegrityServer = readFileSync("src/integrations/jury-voting/jury-integrity-admin.server.ts", "utf8");
 const eligibilityRoute = readFileSync("src/routes/_authenticated/admin/eligibility.tsx", "utf8");
 const eligibilityModel = readFileSync("src/lib/studio2-eligibility.ts", "utf8");
 const mediaRoute = readFileSync("src/routes/_authenticated/admin/media-assets.tsx", "utf8");
@@ -48,6 +53,31 @@ describe("accepted Organizer specialist family", () => {
     expect(votingOverview).toContain("await requireMergedTelevotingAdminServer()");
     expect(votingOverview).toContain('"admin_overview_summary"');
     expect(votingOverview).toContain("p_solaris_edition_id: data.editionId");
+  });
+
+  it("accepts declaration evidence only with exact-edition read validation and governed R2 invalidation", () => {
+    expect(declarationsRoute).toContain('["merged-integrity-declarations", editionId]');
+    expect(declarationsRoute).toContain("row.canonical_edition_id !== editionId");
+    expect(declarationsRoute).toContain("operationId = crypto.randomUUID()");
+    expect(declarationAdmin).toContain('command: "integrity.declaration.invalidate"');
+    expect(declarationAdmin).toContain('riskClass: "R2"');
+    expect(declarationAdmin).toContain("expectedVersion: input.preview.declarationVersion");
+    expect(declarationAdmin).toContain("p_expected_edition_id: editionId");
+    expect(declarationMigration).toContain("v_actual_edition_id is distinct from p_expected_edition_id");
+    expect(declarationMigration).toContain("v_row.declaration_version is distinct from p_expected_version");
+    expect(declarationMigration).toContain("private.studio2_claim_operation(");
+    expect(declarationMigration).toContain("private.studio2_complete_operation(v_operation_id, v_result)");
+  });
+
+  it("accepts Jury integrity only as bounded server-authorized evidence for the exact edition", () => {
+    expect(juryIntegrityRoute).toContain('["jury-integrity-v5", editionId ?? "unscoped"]');
+    expect(juryIntegrityRoute).toContain("row.editionId !== editionId");
+    expect(juryIntegrityRoute).not.toContain("useMutation(");
+    expect(juryIntegrityServer).toContain("await requireMergedTelevotingAdminServer()");
+    expect(juryIntegrityServer).toContain('.eq("canonical_edition_id", scopedEditionId)');
+    expect(juryIntegrityServer).toContain('.limit(1000)');
+    expect(juryIntegrityServer).toContain("evidence outside the selected edition scope");
+    expect(juryIntegrityServer).toContain('.eq("edition_id", scopedEditionId).in("id", showIds)');
   });
 
   it("accepts Eligibility only because browser writes are absent and governed R2 preview/apply owns mutation", () => {
