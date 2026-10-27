@@ -22,6 +22,7 @@ export type MergedModerationSubmission = {
   edited_at: string | null;
   edited_by: string | null;
   created_at: string;
+  version: number;
   entries: Array<{
     target_country_code: string;
     points: number;
@@ -31,6 +32,24 @@ export type MergedModerationSubmission = {
     target_flag: string | null;
   }>;
 };
+
+type ModerationEnvelope = {
+  id: string;
+  expectedVersion: number;
+  operationId: string;
+  idempotencyKey: string;
+};
+
+function validateEnvelope<T extends ModerationEnvelope>(data: T) {
+  if (!data?.id) throw new Error("Missing vote id");
+  if (!Number.isInteger(data.expectedVersion) || data.expectedVersion < 0) {
+    throw new Error("Invalid ballot version");
+  }
+  if (!data.operationId || !data.idempotencyKey) {
+    throw new Error("Missing moderation operation identity");
+  }
+  return data;
+}
 
 export const listMergedModerationSubmissions = createServerFn({ method: "POST" })
   .inputValidator((data: { roundId?: string | null } = {}) => ({ roundId: data?.roundId ?? null }))
@@ -42,8 +61,8 @@ export const listMergedModerationSubmissions = createServerFn({ method: "POST" }
   });
 
 export const setMergedSubmissionStatus = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string; status: "active" | "suspicious" | "verified"; reason?: string }) => {
-    if (!data?.id) throw new Error("Missing vote id");
+  .inputValidator((data: ModerationEnvelope & { status: "active" | "suspicious" | "verified"; reason?: string }) => {
+    validateEnvelope(data);
     if (!["active", "suspicious", "verified"].includes(data.status)) throw new Error("Invalid status");
     return { ...data, reason: data.reason?.trim() || undefined };
   })
@@ -55,12 +74,12 @@ export const setMergedSubmissionStatus = createServerFn({ method: "POST" })
   });
 
 export const softDeleteMergedSubmission = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string; reason: string }) => {
-    if (!data?.id) throw new Error("Missing vote id");
+  .inputValidator((data: ModerationEnvelope & { reason: string }) => {
+    validateEnvelope(data);
     const reason = String(data.reason ?? "").trim();
     if (!reason) throw new Error("A reason is required to delete a vote");
     if (reason.length > 2000) throw new Error("Reason is too long");
-    return { id: data.id, reason };
+    return { ...data, reason };
   })
   .handler(async ({ data }) => {
     const { softDeleteMergedSubmissionServer } = await import(
@@ -70,9 +89,9 @@ export const softDeleteMergedSubmission = createServerFn({ method: "POST" })
   });
 
 export const restoreMergedSubmission = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string; reason?: string }) => {
-    if (!data?.id) throw new Error("Missing vote id");
-    return { id: data.id, reason: data.reason?.trim() || undefined };
+  .inputValidator((data: ModerationEnvelope & { reason?: string }) => {
+    validateEnvelope(data);
+    return { ...data, reason: data.reason?.trim() || undefined };
   })
   .handler(async ({ data }) => {
     const { restoreMergedSubmissionServer } = await import(
@@ -82,9 +101,9 @@ export const restoreMergedSubmission = createServerFn({ method: "POST" })
   });
 
 export const updateMergedSubmissionNote = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string; note: string }) => {
-    if (!data?.id) throw new Error("Missing vote id");
-    return { id: data.id, note: String(data.note ?? "").slice(0, 2000) };
+  .inputValidator((data: ModerationEnvelope & { note: string }) => {
+    validateEnvelope(data);
+    return { ...data, note: String(data.note ?? "").slice(0, 4000) };
   })
   .handler(async ({ data }) => {
     const { updateMergedSubmissionNoteServer } = await import(
@@ -94,16 +113,15 @@ export const updateMergedSubmissionNote = createServerFn({ method: "POST" })
   });
 
 export const editMergedSubmissionEntries = createServerFn({ method: "POST" })
-  .inputValidator((data: {
-    id: string;
+  .inputValidator((data: ModerationEnvelope & {
     entries: Array<{ target_country_code: string; points: number }>;
     reason: string;
   }) => {
-    if (!data?.id) throw new Error("Missing vote id");
+    validateEnvelope(data);
     const reason = String(data.reason ?? "").trim();
     if (!reason) throw new Error("A reason is required to edit a ballot");
     if (!Array.isArray(data.entries)) throw new Error("Invalid ballot entries");
-    if (data.entries.length < 5) throw new Error("At least 5 entries are required");
+    if (data.entries.length < 5 || data.entries.length > 20) throw new Error("Ballot must contain 5–20 entries");
     if (new Set(data.entries.map((entry) => entry.target_country_code)).size !== data.entries.length) {
       throw new Error("Duplicate entry in ballot");
     }
@@ -115,7 +133,7 @@ export const editMergedSubmissionEntries = createServerFn({ method: "POST" })
     }
     const total = data.entries.reduce((sum, entry) => sum + entry.points, 0);
     if (total !== 20) throw new Error(`Total points must equal 20 (got ${total})`);
-    return { id: data.id, entries: data.entries, reason };
+    return { ...data, entries: data.entries, reason };
   })
   .handler(async ({ data }) => {
     const { editMergedSubmissionEntriesServer } = await import(
