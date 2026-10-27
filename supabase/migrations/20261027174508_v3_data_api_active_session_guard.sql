@@ -1,5 +1,14 @@
 begin;
 
+select public.v3_register_migration_contract(
+  'v3.session.data-api-active-session-guard',
+  1,
+  'forward_fix_only',
+  false,
+  null,
+  'Require canonical active Auth sessions before authenticated Data API requests while preserving the existing operational-mode hook. No backfill; security recovery is forward-only.'
+);
+
 -- Auth access JWTs outlive auth.sessions deletion. R3 freshness already checks
 -- the canonical session row, but ordinary Data API reads/RPCs did not. Extend
 -- the existing pre-request hook before *any* operational-mode early return.
