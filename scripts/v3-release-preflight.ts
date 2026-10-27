@@ -54,11 +54,13 @@ const checks: Check[] = group === "static" ? [
 const outcomes = runSweep(checks, directory, (check) => {
   if (group === "database") {
     localSupabaseEnvironment();
+    const databaseEnvironment = { ...process.env, V3_CANDIDATE_SHA: candidateSha };
     if (check.resetBefore) {
-      const reset = execute(["supabase", "db", "reset", "--local", "--no-seed"]);
+      const reset = execute(["supabase", "db", "reset", "--local", "--no-seed"], databaseEnvironment);
       if (reset.status !== 0) return { ...reset, stderr: `ISOLATED_RESET_FAILED\n${reset.stderr}` };
       localSupabaseEnvironment();
     }
+    return execute(check.command, databaseEnvironment);
   }
   if (group === "static") {
     try { return execute(check.command, staticEnvironment()); }
