@@ -1,4 +1,4 @@
-export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-2" as const;
+export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-3" as const;
 
 export type V3S16Risk = "integrity_critical" | "security_critical";
 
@@ -161,6 +161,35 @@ function classifiedFunctionEvidence(
 }
 
 export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
+  {
+    id: "account-session",
+    risk: "security_critical",
+    canonicalTables: ["auth.sessions", "public.studio2_account_session_revocations"],
+    canonicalOwner: "Supabase Auth / account session recovery",
+    canonicalCommands: ["public.v3_revoke_session"],
+  },
+  {
+    id: "media-upload",
+    risk: "security_critical",
+    canonicalTables: ["public.studio2_upload_authorizations"],
+    canonicalOwner: "media upload verification",
+    // The Edge finalizer still writes with service-role credentials directly.
+    // Do not invent a sanctioned RPC or exempt this high-risk writer.
+    canonicalCommands: [],
+  },
+  {
+    id: "integrity",
+    risk: "integrity_critical",
+    canonicalTables: [
+      "public.integrity_cases",
+      "public.integrity_case_events",
+      "public.integrity_case_appeals",
+      "public.integrity_case_evidence",
+    ],
+    canonicalOwner: "integrity governance",
+    // The legacy RPC surface requires authority review before it is sanctioned.
+    canonicalCommands: [],
+  },
   {
     id: "results",
     risk: "integrity_critical",

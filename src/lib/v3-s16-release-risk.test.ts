@@ -65,7 +65,7 @@ describe("S16 release-risk classification", () => {
     ]));
   });
 
-  it("classifies service-role-only DML and unclassified trigger paths as conditional until their operational owner is proven", () => {
+  it("fails closed on unclassified service-role DML and trigger paths in critical domains", () => {
     const result = classifyV3S16ReleaseAuthority({
       baseFindings: [
         base("unexpected_direct_dml_role", "Direct DML remains granted to service_role."),
@@ -76,8 +76,8 @@ describe("S16 release-risk classification", () => {
       staticOnly: true,
     });
     expect(result.findings).toEqual(expect.arrayContaining([
-      expect.objectContaining({ kind: "unexpected_direct_dml_role", releaseRisk: "conditional_blocker" }),
-      expect.objectContaining({ kind: "unexpected_write_trigger", releaseRisk: "conditional_blocker" }),
+      expect.objectContaining({ kind: "unexpected_direct_dml_role", releaseRisk: "hard_blocker" }),
+      expect.objectContaining({ kind: "unexpected_write_trigger", releaseRisk: "hard_blocker" }),
     ]));
   });
 

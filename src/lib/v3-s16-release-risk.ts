@@ -27,6 +27,14 @@ export type V3S16AuthorityContract = {
 
 export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
   {
+    domain: "account-session",
+    canonicalCommands: ["public.v3_revoke_session"],
+    evidence: [
+      "supabase/migrations/20261016163100_v3_account_session_management_hardening.sql",
+      ".github/scripts/v3-account-session-management-rehearsal.sh",
+    ],
+  },
+  {
     domain: "results",
     canonicalCommands: [],
     ownerBoundary: "results_pr_1400",
@@ -83,37 +91,11 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
   },
 ];
 
-function browserFacingRole(detail: string) {
-  const normalized = detail.toLowerCase();
-  return ["anon", "authenticated", "public"].some((role) =>
-    new RegExp(`(?:^|[^a-z_])${role}(?:$|[^a-z_])`).test(normalized),
-  );
-}
-
 function classifyBaseFinding(finding: V3S16Finding): V3S16ClassifiedFinding {
-  if (
-    (finding.kind === "unexpected_direct_dml_role" || finding.kind === "unexpected_column_dml_role") &&
-    !browserFacingRole(finding.detail) &&
-    /service_role/i.test(finding.detail)
-  ) {
-    return {
-      ...finding,
-      releaseRisk: "conditional_blocker",
-      rule: "service_role_write_requires_explicit_operational_classification",
-    };
-  }
-  if (finding.kind === "unexpected_write_trigger") {
-    return {
-      ...finding,
-      releaseRisk: "conditional_blocker",
-      rule: "trigger_write_path_requires_owner_classification",
-    };
-  }
-  return {
-    ...finding,
-    releaseRisk: "hard_blocker",
-    rule: finding.kind,
-  };
+  // These domains are all integrity/security critical. An unreviewed service
+  // writer or trigger can change canonical truth just as a browser writer can.
+  // Keep unknown authority hard until executable owner evidence resolves it.
+  return { ...finding, releaseRisk: "hard_blocker", rule: finding.kind };
 }
 
 function productionFiles(files: readonly V3S16SourceFile[]) {
