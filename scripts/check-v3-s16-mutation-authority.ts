@@ -1,3 +1,4 @@
+import { resolveS16CandidateSha } from "../src/lib/v3-s16-candidate-sha";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
@@ -9,9 +10,11 @@ const SOURCE_ROOTS = ["src", "supabase/migrations", "supabase/functions", "worke
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".sql"]);
 
 function candidateSha() {
-  const env = process.env.V3_CANDIDATE_SHA?.trim().toLowerCase() || process.env.GITHUB_SHA?.trim().toLowerCase();
-  if (env && /^[0-9a-f]{40}$/.test(env)) return env;
-  return execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim().toLowerCase();
+  return resolveS16CandidateSha(
+    execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }),
+    process.env.V3_CANDIDATE_SHA,
+    process.env.GITHUB_SHA,
+  );
 }
 
 function collectFiles(root: string, output: V3S16SourceFile[]) {
