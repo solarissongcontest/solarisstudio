@@ -13,6 +13,19 @@ const PURE_READ_EVENTS = new Set([
   "receipt.reconciled",
 ]);
 
+// These identities describe invalidation/history consequences of security state
+// whose correctness is already enforced synchronously at the canonical boundary:
+// country_accounts governed commands for account state and auth.sessions for
+// session validity/revocation. Event delivery must never grant or preserve
+// authorization, so incomplete optional consumers are migration debt rather than
+// a security blocker. Keep this exact-name list deliberately narrow; unknown
+// account/session event identities still fail closed through INTEGRITY_PREFIXES.
+const CANONICAL_BOUNDARY_DERIVED_EVENTS = new Set([
+  "account.changed",
+  "session.changed",
+  "session.revoked",
+]);
+
 // Preserve the existing catalog decisions explicitly; new identities require
 // review rather than inheriting non-blocking debt from an unknown prefix.
 const CATALOG_DERIVED_EVENTS = new Set([
@@ -57,6 +70,7 @@ const INTEGRITY_PREFIXES = [
 export function classifyV3ConsequenceRelease(eventType: string): V3ConsequenceReleaseClass {
   if (eventType === V3_EDITION_TRANSITION_CONSEQUENCE.event) return V3_EDITION_TRANSITION_CONSEQUENCE.releaseClass;
   if (PURE_READ_EVENTS.has(eventType)) return "observational_or_pure_read";
+  if (CANONICAL_BOUNDARY_DERIVED_EVENTS.has(eventType)) return "derived";
   if (DELIVERY_PREFIXES.some((prefix) => eventType.startsWith(prefix))) return "delivery_critical";
   if (INTEGRITY_PREFIXES.some((prefix) => eventType.startsWith(prefix))) return "integrity_critical";
   return CATALOG_DERIVED_EVENTS.has(eventType) ? "derived" : "integrity_critical";
