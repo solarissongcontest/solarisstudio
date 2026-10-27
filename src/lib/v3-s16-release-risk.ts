@@ -53,6 +53,19 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
       },
     ],
   },
+  {
+    domain: "publication",
+    canonicalCommands: [
+      "public.studio2_apply_show_publication_change",
+      "public.studio2_publish_due_show_publications",
+    ],
+    evidence: [
+      "supabase/migrations/20261003203000_organisation_os_v5_show_publication_lifecycle.sql",
+      "supabase/migrations/20261015164100_v3_s3_publication_invariants.sql",
+      "supabase/migrations/20261016060000_v3_s5_publication_consequences.sql",
+      "src/lib/show-publication-lifecycle.ts",
+    ],
+  },
 ];
 
 function browserFacingRole(detail: string) {
