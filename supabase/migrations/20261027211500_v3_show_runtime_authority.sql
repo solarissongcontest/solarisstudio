@@ -2,11 +2,70 @@ begin;
 
 -- V3 live-show runtime authority.
 --
--- Canonical operational state is broadcast_config.showMode. The legacy
--- shows.status column is not used as a second live-state authority. This
--- command owns phase transitions and companion metadata with optimistic CAS,
--- durable idempotency, atomic show.changed persistence and lost-response
--- readback through the shared operation receipt.
+-- Canonical show lifecycle is public.shows.status and uses the V3 vocabulary:
+-- scheduled, preparing, delayed, live, paused, ended, cancelled.
+-- broadcast_config.showMode is companion/reveal metadata only. In particular,
+-- results_in_progress is a live-show subphase, not a second lifecycle truth.
+-- The governed command below advances both representations atomically.
+
+-- Normalize the historical free-text vocabulary before constraining it. Current
+-- production rows are all `draft`, but migration replay and older snapshots may
+-- contain the aliases below.
+update public.shows
+set status = case lower(btrim(status))
+  when 'draft' then 'scheduled'
+  when 'scheduled' then 'scheduled'
+  when 'upcoming' then 'scheduled'
+  when 'planned' then 'scheduled'
+  when 'planning' then 'scheduled'
+  when 'announced' then 'scheduled'
+  when 'ready' then 'preparing'
+  when 'preparing' then 'preparing'
+  when 'rehearsal' then 'preparing'
+  when 'rehearsals' then 'preparing'
+  when 'delayed' then 'delayed'
+  when 'live' then 'live'
+  when 'on_air' then 'live'
+  when 'on-air' then 'live'
+  when 'active' then 'live'
+  when 'open' then 'live'
+  when 'in_progress' then 'live'
+  when 'in-progress' then 'live'
+  when 'paused' then 'paused'
+  when 'hold' then 'paused'
+  when 'held' then 'paused'
+  when 'ended' then 'ended'
+  when 'complete' then 'ended'
+  when 'completed' then 'ended'
+  when 'closed' then 'ended'
+  when 'cancelled' then 'cancelled'
+  when 'canceled' then 'cancelled'
+  else status
+end;
+
+do $validate_show_lifecycle$
+declare
+  v_unknown text;
+begin
+  select string_agg(distinct status, ', ' order by status)
+  into v_unknown
+  from public.shows
+  where status not in ('scheduled','preparing','delayed','live','paused','ended','cancelled');
+
+  if v_unknown is not null then
+    raise exception using
+      errcode = '23514',
+      message = 'UNKNOWN_SHOW_LIFECYCLE_STATE',
+      detail = v_unknown,
+      hint = 'Map every historical shows.status value before enabling the V3 lifecycle constraint.';
+  end if;
+end
+$validate_show_lifecycle$;
+
+alter table public.shows alter column status set default 'scheduled';
+alter table public.shows drop constraint if exists shows_v3_lifecycle_status_check;
+alter table public.shows add constraint shows_v3_lifecycle_status_check
+  check (status in ('scheduled','preparing','delayed','live','paused','ended','cancelled'));
 
 create or replace function private.v3_show_runtime_operation_is_current(
   p_operation_id text
@@ -23,7 +82,7 @@ as $authority$
     where receipt.operation_id::text = nullif(btrim(coalesce(p_operation_id, '')), '')
       and receipt.actor_id = auth.uid()
       and receipt.status = 'processing'
-      and receipt.command = 'show.runtime.change'
+      and receipt.command = 'show.transition'
   );
 $authority$;
 
@@ -38,10 +97,13 @@ set search_path = pg_catalog, public, private, auth
 as $guard$
 declare
   v_marker text := current_setting('app.v3_show_runtime_operation_id', true);
+  v_lifecycle_changed boolean := new.status is distinct from old.status;
+  v_companion_changed boolean :=
+    coalesce(new.broadcast_config, '{}'::jsonb) -> 'showMode'
+      is distinct from
+    coalesce(old.broadcast_config, '{}'::jsonb) -> 'showMode';
 begin
-  if coalesce(new.broadcast_config, '{}'::jsonb) -> 'showMode'
-       is not distinct from
-     coalesce(old.broadcast_config, '{}'::jsonb) -> 'showMode' then
+  if not v_lifecycle_changed and not v_companion_changed then
     return new;
   end if;
 
@@ -49,7 +111,7 @@ begin
     raise exception using
       errcode = '42501',
       message = 'SHOW_RUNTIME_AUTHORITY',
-      hint = 'Mutate canonical live-show state through v3_apply_show_runtime_change.';
+      hint = 'Mutate canonical show lifecycle/runtime through v3_apply_show_runtime_change.';
   end if;
 
   return new;
@@ -61,13 +123,14 @@ revoke all on function private.v3_guard_show_runtime_authority()
 
 drop trigger if exists v3_guard_show_runtime_authority on public.shows;
 create trigger v3_guard_show_runtime_authority
-before update of broadcast_config on public.shows
+before update of status, broadcast_config on public.shows
 for each row execute function private.v3_guard_show_runtime_authority();
 
 create or replace function public.v3_apply_show_runtime_change(
   p_show_id uuid,
+  p_expected_status text,
   p_expected_revision integer,
-  p_phase text,
+  p_target_state text,
   p_scheduled_start timestamptz,
   p_youtube_url text,
   p_televote_round_id text,
@@ -86,7 +149,10 @@ declare
   v_config jsonb;
   v_current jsonb;
   v_current_phase text;
+  v_current_state text;
   v_current_revision integer;
+  v_next_status text;
+  v_next_phase text;
   v_next_revision integer;
   v_reason text := btrim(coalesce(p_reason, ''));
   v_youtube_url text := btrim(coalesce(p_youtube_url, ''));
@@ -101,7 +167,12 @@ begin
   if p_show_id is null or p_expected_revision is null or p_expected_revision < 0 then
     raise exception using errcode = '22023', message = 'VALIDATION';
   end if;
-  if p_phase not in ('scheduled', 'live', 'results_in_progress', 'ended') then
+  if p_expected_status not in ('scheduled','preparing','delayed','live','paused','ended','cancelled') then
+    raise exception using errcode = '22023', message = 'VALIDATION';
+  end if;
+  if p_target_state not in (
+    'scheduled','preparing','delayed','live','paused','results_in_progress','ended','cancelled'
+  ) then
     raise exception using errcode = '22023', message = 'VALIDATION';
   end if;
   if length(v_reason) < 5 then
@@ -126,12 +197,17 @@ begin
   if not private.studio2_can_manage_broadcast(v_actor, v_show.edition_id) then
     raise exception using errcode = '42501', message = 'AUTHORIZATION';
   end if;
+  if v_show.status <> p_expected_status then
+    raise exception using errcode = '40001', message = 'STATE_CHANGED';
+  end if;
 
   v_config := coalesce(v_show.broadcast_config, '{}'::jsonb);
   v_current := coalesce(v_config -> 'showMode', '{}'::jsonb);
   v_current_phase := case
     when v_current ->> 'phase' in ('scheduled', 'live', 'results_in_progress', 'ended')
       then v_current ->> 'phase'
+    when v_show.status in ('live','paused') then 'live'
+    when v_show.status in ('ended','cancelled') then 'ended'
     else 'scheduled'
   end;
 
@@ -147,18 +223,36 @@ begin
     raise exception using errcode = '40001', message = 'STATE_CHANGED';
   end if;
 
-  -- Metadata may be edited without changing phase, but phase progression itself
-  -- is one-way. A show can end directly from live when it has no results segment.
-  if p_phase <> v_current_phase and not (
-    (v_current_phase = 'scheduled' and p_phase = 'live')
-    or (v_current_phase = 'live' and p_phase in ('results_in_progress', 'ended'))
-    or (v_current_phase = 'results_in_progress' and p_phase = 'ended')
+  v_current_state := case
+    when v_show.status = 'live' and v_current_phase = 'results_in_progress'
+      then 'results_in_progress'
+    else v_show.status
+  end;
+
+  if p_target_state <> v_current_state and not (
+    (v_current_state = 'scheduled' and p_target_state in ('preparing','delayed','live','cancelled'))
+    or (v_current_state = 'preparing' and p_target_state in ('scheduled','delayed','live','cancelled'))
+    or (v_current_state = 'delayed' and p_target_state in ('scheduled','preparing','live','cancelled'))
+    or (v_current_state = 'live' and p_target_state in ('paused','results_in_progress','ended','cancelled'))
+    or (v_current_state = 'paused' and p_target_state in ('live','ended','cancelled'))
+    or (v_current_state = 'results_in_progress' and p_target_state in ('ended','cancelled'))
   ) then
     raise exception using
       errcode = '55000',
       message = 'ILLEGAL_SHOW_TRANSITION',
-      detail = format('%s -> %s', v_current_phase, p_phase);
+      detail = format('%s -> %s', v_current_state, p_target_state);
   end if;
+
+  v_next_status := case p_target_state
+    when 'results_in_progress' then 'live'
+    else p_target_state
+  end;
+  v_next_phase := case
+    when p_target_state in ('scheduled','preparing','delayed') then 'scheduled'
+    when p_target_state in ('live','paused') then 'live'
+    when p_target_state = 'results_in_progress' then 'results_in_progress'
+    else 'ended'
+  end;
 
   begin
     v_live_started_at := nullif(v_current ->> 'liveStartedAt', '')::timestamptz;
@@ -168,20 +262,23 @@ begin
     raise exception using errcode = '23514', message = 'INVALID_SHOW_RUNTIME_TIMESTAMP';
   end;
 
-  if p_phase = 'scheduled' then
+  if p_target_state in ('scheduled','preparing','delayed') then
     v_live_started_at := null;
     v_results_started_at := null;
     v_ended_at := null;
-  elsif p_phase = 'live' then
+  elsif p_target_state in ('live','paused') then
     v_live_started_at := coalesce(v_live_started_at, now());
     v_results_started_at := null;
     v_ended_at := null;
-  elsif p_phase = 'results_in_progress' then
+  elsif p_target_state = 'results_in_progress' then
     v_live_started_at := coalesce(v_live_started_at, now());
     v_results_started_at := coalesce(v_results_started_at, now());
     v_ended_at := null;
-  else
+  elsif p_target_state = 'ended' then
     v_live_started_at := coalesce(v_live_started_at, now());
+    v_ended_at := coalesce(v_ended_at, now());
+  else
+    -- Cancellation may occur before air; do not fabricate a live-start time.
     v_ended_at := coalesce(v_ended_at, now());
   end if;
 
@@ -189,13 +286,14 @@ begin
     p_operation_id,
     p_idempotency_key,
     p_operation_id,
-    'show.runtime.change',
+    'show.transition',
     'R2',
     jsonb_build_object('editionId', v_show.edition_id, 'showId', v_show.id),
     jsonb_build_object(
+      'expectedStatus', p_expected_status,
       'expectedRevision', p_expected_revision,
-      'fromPhase', v_current_phase,
-      'phase', p_phase,
+      'fromState', v_current_state,
+      'targetState', p_target_state,
       'scheduledStart', p_scheduled_start,
       'youtubeUrl', v_youtube_url,
       'televoteRoundId', v_televote_round_id,
@@ -213,7 +311,7 @@ begin
   v_next_revision := v_current_revision + 1;
   v_next := jsonb_build_object(
     'revision', v_next_revision,
-    'phase', p_phase,
+    'phase', v_next_phase,
     'scheduledStart', p_scheduled_start,
     'youtubeUrl', v_youtube_url,
     'televoteRoundId', v_televote_round_id,
@@ -225,7 +323,9 @@ begin
   perform set_config('app.v3_show_runtime_operation_id', p_operation_id::text, true);
 
   update public.shows
-  set broadcast_config = jsonb_set(v_config, '{showMode}', v_next, true)
+  set
+    status = v_next_status,
+    broadcast_config = jsonb_set(v_config, '{showMode}', v_next, true)
   where id = v_show.id;
 
   v_result := jsonb_build_object(
@@ -233,7 +333,9 @@ begin
     'showId', v_show.id,
     'editionId', v_show.edition_id,
     'revision', v_next_revision,
-    'previousPhase', v_current_phase,
+    'previousState', v_current_state,
+    'state', p_target_state,
+    'lifecycleStatus', v_next_status,
     'runtime', v_next
   );
 
@@ -246,9 +348,10 @@ begin
     v_show.edition_id,
     v_show.id,
     jsonb_build_object(
-      'changeKind', case when p_phase = v_current_phase then 'runtime_metadata_updated' else 'runtime_transitioned' end,
-      'previousPhase', v_current_phase,
-      'phase', p_phase,
+      'changeKind', case when p_target_state = v_current_state then 'runtime_metadata_updated' else 'lifecycle_transitioned' end,
+      'previousState', v_current_state,
+      'state', p_target_state,
+      'lifecycleStatus', v_next_status,
       'revision', v_next_revision,
       'reason', v_reason
     ),
@@ -261,13 +364,13 @@ begin
 end
 $command$;
 
-revoke all on function public.v3_apply_show_runtime_change(uuid, integer, text, timestamptz, text, text, text, uuid, text)
+revoke all on function public.v3_apply_show_runtime_change(uuid,text,integer,text,timestamptz,text,text,text,uuid,text)
   from public, anon, service_role;
-grant execute on function public.v3_apply_show_runtime_change(uuid, integer, text, timestamptz, text, text, text, uuid, text)
+grant execute on function public.v3_apply_show_runtime_change(uuid,text,integer,text,timestamptz,text,text,text,uuid,text)
   to authenticated;
 
-comment on function public.v3_apply_show_runtime_change(uuid, integer, text, timestamptz, text, text, text, uuid, text) is
-  'Canonical V3 live-show runtime command. Enforces scoped authorization, one-way phase transitions, CAS, idempotency, atomic show.changed persistence and receipt readback.';
+comment on function public.v3_apply_show_runtime_change(uuid,text,integer,text,timestamptz,text,text,text,uuid,text) is
+  'Canonical V3 show lifecycle/runtime command. shows.status owns lifecycle; showMode owns companion/reveal metadata. Enforces scope, legal transitions, CAS, idempotency, atomic show.changed persistence and receipt readback.';
 
 notify pgrst, 'reload schema';
 commit;
