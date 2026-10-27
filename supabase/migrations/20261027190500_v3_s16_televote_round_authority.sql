@@ -1,5 +1,14 @@
 begin;
 
+select public.v3_register_migration_contract(
+  '20261027190500_v3_s16_televote_round_authority',
+  1,
+  'forward_fix_only',
+  false,
+  null,
+  'S16 consolidates Televote round CRUD under scoped, versioned canonical commands'
+);
+
 -- S16 canonical mutation authority: Televote round configuration must not be
 -- mutated by application-side table DML. These commands reuse the canonical
 -- Solaris permission engine, operation ledger and the existing round revision
