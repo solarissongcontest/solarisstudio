@@ -9,6 +9,7 @@ export type MergedAdminRound = {
   closed_at: string | null;
   participant_mode: string;
   self_voting_mode: string;
+  version: number;
   entry_count: number;
 };
 
@@ -70,6 +71,7 @@ function parseRound(value: unknown): MergedAdminRound | null {
 
   const status = row.status === "open" || row.status === "closed" ? row.status : "draft";
   const count = Number(row.entry_count ?? 0);
+  const version = Number(row.version ?? 0);
 
   return {
     id,
@@ -80,6 +82,7 @@ function parseRound(value: unknown): MergedAdminRound | null {
     closed_at: asNullableString(row.closed_at),
     participant_mode: typeof row.participant_mode === "string" ? row.participant_mode : "countries",
     self_voting_mode: typeof row.self_voting_mode === "string" ? row.self_voting_mode : "country_match",
+    version: Number.isInteger(version) && version >= 0 ? version : 0,
     entry_count: Number.isFinite(count) ? count : 0,
   };
 }
@@ -144,11 +147,21 @@ export const getMergedTelevotingRounds = createServerFn({ method: "GET" }).handl
 });
 
 export const createMergedTelevotingRound = createServerFn({ method: "POST" })
-  .inputValidator((data: { editionId: string; name: string }) => {
+  .inputValidator((data: {
+    editionId: string;
+    name: string;
+    operationId?: string;
+    idempotencyKey?: string;
+  }) => {
     const name = String(data?.name ?? "").trim();
     if (!data?.editionId) throw new Error("Missing edition");
     if (!name) throw new Error("Round name required");
-    return { editionId: data.editionId, name };
+    return {
+      editionId: data.editionId,
+      name,
+      operationId: data.operationId || crypto.randomUUID(),
+      idempotencyKey: data.idempotencyKey || crypto.randomUUID(),
+    };
   })
   .handler(async ({ data }) => {
     const { createMergedTelevotingRoundServer } = await import(
@@ -158,11 +171,26 @@ export const createMergedTelevotingRound = createServerFn({ method: "POST" })
   });
 
 export const renameMergedTelevotingRound = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string; name: string }) => {
+  .inputValidator((data: {
+    id: string;
+    name: string;
+    expectedRoundVersion: number;
+    operationId?: string;
+    idempotencyKey?: string;
+  }) => {
     const name = String(data?.name ?? "").trim();
     if (!data?.id) throw new Error("Missing round");
     if (!name) throw new Error("Round name required");
-    return { id: data.id, name };
+    if (!Number.isInteger(data.expectedRoundVersion) || data.expectedRoundVersion < 0) {
+      throw new Error("Invalid round version");
+    }
+    return {
+      id: data.id,
+      name,
+      expectedRoundVersion: data.expectedRoundVersion,
+      operationId: data.operationId || crypto.randomUUID(),
+      idempotencyKey: data.idempotencyKey || crypto.randomUUID(),
+    };
   })
   .handler(async ({ data }) => {
     const { renameMergedTelevotingRoundServer } = await import(
@@ -212,9 +240,22 @@ export const setMergedTelevotingRoundStatus = createServerFn({ method: "POST" })
   });
 
 export const deleteMergedTelevotingRound = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string }) => {
+  .inputValidator((data: {
+    id: string;
+    expectedRoundVersion: number;
+    operationId?: string;
+    idempotencyKey?: string;
+  }) => {
     if (!data?.id) throw new Error("Missing round");
-    return data;
+    if (!Number.isInteger(data.expectedRoundVersion) || data.expectedRoundVersion < 0) {
+      throw new Error("Invalid round version");
+    }
+    return {
+      id: data.id,
+      expectedRoundVersion: data.expectedRoundVersion,
+      operationId: data.operationId || crypto.randomUUID(),
+      idempotencyKey: data.idempotencyKey || crypto.randomUUID(),
+    };
   })
   .handler(async ({ data }) => {
     const { deleteMergedTelevotingRoundServer } = await import(
