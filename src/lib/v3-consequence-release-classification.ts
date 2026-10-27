@@ -1,4 +1,6 @@
+import { V3_EDITION_CHANGE_CONSEQUENCE } from "./v3-edition-change-consequence";
 import { V3_EDITION_TRANSITION_CONSEQUENCE } from "./v3-edition-transition-consequence";
+
 export const V3_CONSEQUENCE_RELEASE_CLASSES = [
   "integrity_critical",
   "delivery_critical",
@@ -55,6 +57,7 @@ const INTEGRITY_PREFIXES = [
  * matrix. Unknown identities fail closed until their semantics are reviewed.
  */
 export function classifyV3ConsequenceRelease(eventType: string): V3ConsequenceReleaseClass {
+  if (eventType === V3_EDITION_CHANGE_CONSEQUENCE.event) return V3_EDITION_CHANGE_CONSEQUENCE.releaseClass;
   if (eventType === V3_EDITION_TRANSITION_CONSEQUENCE.event) return V3_EDITION_TRANSITION_CONSEQUENCE.releaseClass;
   if (PURE_READ_EVENTS.has(eventType)) return "observational_or_pure_read";
   if (DELIVERY_PREFIXES.some((prefix) => eventType.startsWith(prefix))) return "delivery_critical";
