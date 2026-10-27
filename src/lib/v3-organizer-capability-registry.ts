@@ -1,3 +1,4 @@
+import { V3_ORGANIZER_ACCEPTED_SPECIALIST_CUTOVERS, V3_ORGANIZER_ACCEPTED_SPECIALIST_EVIDENCE } from "./v3-organizer-accepted-specialist-cutovers";
 import { V3_ORGANIZER_OBSERVATIONAL_CUTOVERS, V3_ORGANIZER_OBSERVATIONAL_EVIDENCE } from "./v3-organizer-observational-cutovers";
 import { buildAdminNavigation } from "@/components/admin/admin-navigation";
 import { capabilityForOrganizerPath } from "./permission-route-map";
@@ -147,7 +148,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-administration" ||
     id === "workspace-organizer-guide" ||
     id === "delegation-edition-links" ||
-    id === "delegation-calendar"
+    id === "delegation-calendar" ||
+    Object.hasOwn(V3_ORGANIZER_ACCEPTED_SPECIALIST_CUTOVERS, id)
   ) {
     return "cutover";
   }
@@ -263,6 +265,8 @@ export const V3_ORGANIZER_CAPABILITY_REGISTRY: readonly AdminCapabilityMigration
         ...(item.id === "delegation-edition-links" ? {
           migrationEvidence: "src/lib/v3-organizer-edition-links-explicit-mutations.contract.test.ts; src/integrations/confirmations/edition-bindings.ts; src/routes/confirmations/admin/editions.tsx; supabase/migrations/20261026210600_v3_confirmation_edition_binding_r3_fresh_auth.sql; supabase/migrations/20261027055547_reconcile_binding_idempotency_alias.sql; supabase/migrations/20261027110823_binding_version_conflict_http_contract.sql; .github/scripts/v3-confirmation-edition-binding-rehearsal.sh; .github/workflows/v3-confirmation-edition-binding-rehearsal.yml",
         } : {}),
+        ...(Object.hasOwn(V3_ORGANIZER_ACCEPTED_SPECIALIST_CUTOVERS, item.id)
+          ? { migrationEvidence: V3_ORGANIZER_ACCEPTED_SPECIALIST_EVIDENCE } : {}),
         ...(Object.hasOwn(V3_ORGANIZER_OBSERVATIONAL_CUTOVERS, item.id)
           ? { migrationEvidence: V3_ORGANIZER_OBSERVATIONAL_EVIDENCE } : {}),
       },
