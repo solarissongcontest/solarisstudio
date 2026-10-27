@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type User } from "@supabase/supabase-js";
 import { getRequestHeader } from "@tanstack/react-start/server";
 
 import type { Database } from "./types";
@@ -34,9 +34,8 @@ export function getSolarisAccessTokenServer() {
   return token;
 }
 
-export function createSolarisAuthenticatedClientServer() {
+function createSolarisAuthenticatedClientForTokenServer(token: string) {
   const { url, publishableKey } = getSolarisPublicConfig();
-  const token = getSolarisAccessTokenServer();
   return createClient<Database>(url, publishableKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: {
@@ -47,18 +46,42 @@ export function createSolarisAuthenticatedClientServer() {
   });
 }
 
-export async function requireSolarisOrganizerServer(): Promise<SolarisOrganizer> {
-  const token = getSolarisAccessTokenServer();
-  const client = createSolarisAuthenticatedClientServer();
+export function createSolarisAuthenticatedClientServer() {
+  return createSolarisAuthenticatedClientForTokenServer(getSolarisAccessTokenServer());
+}
+
+/**
+ * Establishes current authenticated identity for a caller-supplied Solaris
+ * bearer token. Auth.getUser proves the signed JWT identity; the subsequent
+ * authenticated RPC proves that the JWT's session_id still exists in canonical
+ * auth.sessions, so a signed-out/revoked but unexpired JWT cannot cross into
+ * service-role server authority.
+ */
+export async function requireSolarisActiveUserForAccessTokenServer(token: string): Promise<User> {
+  if (!token) throw new Error("Not authenticated");
+  const client = createSolarisAuthenticatedClientForTokenServer(token);
 
   const { data: userData, error: userError } = await client.auth.getUser(token);
   if (userError || !userData.user) throw new Error("Not authenticated");
+
+  const { data: active, error: activeError } = await (client as any).rpc(
+    "v3_assert_active_session",
+  );
+  if (activeError || active !== true) throw new Error("Not authenticated");
+
+  return userData.user;
+}
+
+export async function requireSolarisOrganizerServer(): Promise<SolarisOrganizer> {
+  const token = getSolarisAccessTokenServer();
+  const client = createSolarisAuthenticatedClientServer();
+  const user = await requireSolarisActiveUserForAccessTokenServer(token);
 
   const now = new Date().toISOString();
   const { data: assignment, error: assignmentError } = await (client as any)
     .from("studio2_role_assignments")
     .select("role_key")
-    .eq("user_id", userData.user.id)
+    .eq("user_id", user.id)
     .in("role_key", ["organizer", "superadmin"])
     .is("edition_id", null)
     .or(`expires_at.is.null,expires_at.gt.${now}`)
@@ -69,7 +92,7 @@ export async function requireSolarisOrganizerServer(): Promise<SolarisOrganizer>
   if (!assignment) throw new Error("Organizer access required");
 
   return {
-    id: userData.user.id,
-    email: userData.user.email ?? null,
+    id: user.id,
+    email: user.email ?? null,
   };
 }
