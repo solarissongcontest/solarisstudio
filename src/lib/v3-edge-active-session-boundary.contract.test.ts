@@ -8,6 +8,7 @@ const migration = read(
 );
 const countryAuth = read("supabase/functions/country-auth/index.ts");
 const adminPassword = read("supabase/functions/admin-country-password/index.ts");
+const mediaFinalizer = read("supabase/functions/solaris-upload-finalize/index.ts");
 const organizerServer = read("src/integrations/supabase/organizer.server.ts");
 const juryBoundary = read("src/integrations/jury-voting/jury-voting.functions.ts");
 const mediaAuthority = read(
@@ -88,6 +89,43 @@ describe("V3 active-session identity boundary", () => {
     expect(identityProof).toBeGreaterThan(-1);
     expect(integrityImport).toBeGreaterThan(identityProof);
     expect(integrityCall).toBeGreaterThan(integrityImport);
+  });
+
+  it("proves actor liveness before the media finalizer reaches any service-role database or Storage authority", () => {
+    const handlerStart = mediaFinalizer.indexOf("Deno.serve(async (request) =>");
+    expect(handlerStart).toBeGreaterThan(-1);
+    const handler = mediaFinalizer.slice(handlerStart);
+    const identityProof = handler.indexOf("await callerIdentity(supabaseUrl, anonKey, authorization)");
+    const revokedReject = handler.indexOf("if (caller.revoked)");
+    const serviceClient = handler.indexOf("createClient(supabaseUrl, serviceRoleKey");
+    const authorizationRead = handler.indexOf('.from("studio2_upload_authorizations")');
+    const quarantineRead = handler.indexOf('.from("solaris-upload-quarantine")');
+    const finalPublish = handler.indexOf(".upload(row.final_path, finalBlob");
+
+    for (const offset of [
+      identityProof,
+      revokedReject,
+      serviceClient,
+      authorizationRead,
+      quarantineRead,
+      finalPublish,
+    ]) {
+      expect(offset).toBeGreaterThan(-1);
+    }
+    expect(identityProof).toBeLessThan(revokedReject);
+    expect(revokedReject).toBeLessThan(serviceClient);
+    expect(serviceClient).toBeLessThan(authorizationRead);
+    expect(authorizationRead).toBeLessThan(quarantineRead);
+    expect(quarantineRead).toBeLessThan(finalPublish);
+
+    const identityStart = mediaFinalizer.indexOf("async function callerIdentity(");
+    const persistStart = mediaFinalizer.indexOf("async function persistFinalization(");
+    expect(identityStart).toBeGreaterThan(-1);
+    expect(persistStart).toBeGreaterThan(identityStart);
+    const identity = mediaFinalizer.slice(identityStart, persistStart);
+    expect(identity).toContain("authenticated.auth.getUser(token)");
+    expect(identity).toContain('authenticated.rpc("v3_assert_active_session")');
+    expect(identity).toContain("activeError || active !== true");
   });
 
   it("keeps actor-bound media terminal authority tied to the same canonical session state", () => {
