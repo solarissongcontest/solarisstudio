@@ -1,5 +1,14 @@
 begin;
 
+select public.v3_register_migration_contract(
+  '20261027193000_v3_s16_televote_moderation_authority',
+  1,
+  'forward_fix_only',
+  false,
+  null,
+  'S16 introduces governed atomic Televote ballot moderation and revision tracking'
+);
+
 -- S16: moderation of a submitted public ballot is consequential Televote state,
 -- not generic admin CRUD. Give every ballot a revision and funnel all Organizer
 -- status/note/delete/restore/entry replacement mutations through one atomic,
