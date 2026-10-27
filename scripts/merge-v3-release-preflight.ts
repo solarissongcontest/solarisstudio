@@ -1,3 +1,4 @@
+import { assessS14Execution } from "./lib/v3-s14-execution-gate";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -18,8 +19,11 @@ const summary = combineReports(reports, sha);
 summary.discoveryFindings.push(...invalid);
 if (invalid.length) summary.passed = false;
 mkdirSync("v3-release-preflight", { recursive: true });
-writeFileSync("v3-release-preflight/preflight-summary.json", `${JSON.stringify(summary, null, 2)}\n`);
+const s14Execution = assessS14Execution(sha, summary.checks);
+if (summary.discoveryFindings.length) { s14Execution.allowed = false; s14Execution.blockers.push(...summary.discoveryFindings); }
+writeFileSync("v3-release-preflight/preflight-summary.json", `${JSON.stringify({ ...summary, s14Execution }, null, 2)}\n`);
 for (const [id, check] of Object.entries(summary.checks)) console.log(`${id}: ${check.status.toUpperCase()} (${check.findings.length} findings)`);
 for (const finding of summary.discoveryFindings) console.log(finding);
 console.log(`Combined cascade preflight: ${summary.passed ? "PASS" : "FAIL"} (${sha})`);
-if (!summary.passed) process.exitCode = 1;
+console.log(`S14 execution: ${s14Execution.allowed ? "ALLOWED" : "BLOCKED"}; release certification remains independent`);
+if (!s14Execution.allowed) process.exitCode = 1;

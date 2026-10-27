@@ -1,3 +1,4 @@
+import { assessS14Execution } from "./lib/v3-s14-execution-gate";
 import { isResolvedV3DomainConsequence } from "../src/lib/v3-domain-consequence-registry";
 import { classifyV3ConsequenceRelease, requiredConsequenceMaturity } from "../src/lib/v3-consequence-release-classification";
 import { execFileSync } from "node:child_process";
@@ -37,6 +38,8 @@ const checks: Check[] = group === "static" ? [
   { id: "typecheck", group: "static", dependencies: ["productionBuild"], command: [bun, "--env-file=/dev/null", "x", "tsc", "--noEmit"] },
   { id: "lint", group: "static", command: [bun, "--env-file=/dev/null", "run", "lint:ci"] },
 ] : [
+  { id: "s16Catalog", group: "database", command: [bun, "--env-file=/dev/null", "run", "scripts/collect-v3-s16-catalog-evidence.ts", `--out=${directory}/s16-catalog.json`] },
+  { id: "s16Authority", group: "database", dependencies: ["s16Catalog"], command: [bun, "--env-file=/dev/null", "run", "scripts/check-v3-s16-mutation-authority.ts", `--catalog=${directory}/s16-catalog.json`, "--enforce"], json: true },
   { id: "resultsRegression", group: "database", command: ["bash", ".github/scripts/v3-s14-results-lineup-regression.sh"] },
   { id: "qualificationRegression", group: "database", command: ["bash", ".github/scripts/v3-s14-qualification-regression.sh"] },
   { id: "integrationRuntime", group: "database", command: ["bash", ".github/scripts/v3-s14-integration-runtime-regression.sh"] },
@@ -118,8 +121,9 @@ outcomes[`${group}SourceIntegrity`] = {
   findings: changedPaths.map((path) => `SOURCE_MUTATION ${path}`),
 };
 if (changedPaths.length) console.error(`Source integrity failed: ${changedPaths.join(", ")}`);
+const s14Execution = group === "static" ? assessS14Execution(candidateSha, outcomes, false) : null;
 const passed = Object.values(outcomes).every((outcome) => outcome.status === "pass");
-writeFileSync(resolve(directory, "preflight-summary.json"), `${JSON.stringify({ schemaVersion: 1, candidateSha, sourceClean: changesBefore.length === 0 && changesAfter.length === 0, sourceChanges: { before: changesBefore, after: changesAfter }, generatedToolCaches, group, passed, catalog: checks, checks: outcomes, cutoverAudit: audit, consequenceAudit }, null, 2)}\n`);
+writeFileSync(resolve(directory, "preflight-summary.json"), `${JSON.stringify({ schemaVersion: 1, candidateSha, sourceClean: changesBefore.length === 0 && changesAfter.length === 0, sourceChanges: { before: changesBefore, after: changesAfter }, generatedToolCaches, group, passed, s14Execution, catalog: checks, checks: outcomes, cutoverAudit: audit, consequenceAudit }, null, 2)}\n`);
 for (const [id, outcome] of Object.entries(outcomes)) console.log(`${id}: ${outcome.status.toUpperCase()}${outcome.findings.length ? ` (${outcome.findings.length} findings)` : ""}`);
 console.log(`Complete ${group} discovery: ${passed ? "PASS" : "FAIL"}; ${directory}/preflight-summary.json`);
-if (!passed) process.exitCode = 1;
+if (group === "static" ? !s14Execution?.allowed : !passed) process.exitCode = 1;

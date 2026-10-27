@@ -26,6 +26,17 @@ describe("release cascade discovery", () => {
       expect(result.last.status).toBe("pass");
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
+  it("preserves structured authority findings as report evidence and mergeable strings", () => {
+    const dir = mkdtempSync(join(tmpdir(), "release-authority-"));
+    const finding = { domain: "media-upload", kind: "direct_application_writer" };
+    try {
+      const outcomes = runSweep([{ id: "s16Authority", group: "database", command: ["check"], json: true }], dir,
+        () => ({ status: 1, stdout: JSON.stringify({ findings: [finding] }), stderr: "" }));
+      expect(outcomes.s16Authority.findings).toEqual([`STRUCTURED_FINDING ${JSON.stringify(finding)}`]);
+      expect(outcomes.s16Authority.report).toEqual({ findings: [finding] });
+      expect(() => combineReports([{ candidateSha: "a".repeat(40), sourceClean: true, group: "database", passed: false, checks: outcomes }], "a".repeat(40))).not.toThrow();
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
   it.each(["127.0.0.1", "localhost", "[::1]"])("accepts explicit loopback targets %s", (host) => {
     expect(() => assertLocalTargets(`http://${host}:54321`, `postgresql://${host}:54322/postgres`)).not.toThrow();
   });

@@ -92,7 +92,9 @@ export function runSweep(
         try {
           report = JSON.parse(result.stdout);
           const parsed = report as { findings?: string[] };
-          if (Array.isArray(parsed.findings)) findings.push(...parsed.findings);
+          if (Array.isArray(parsed.findings)) findings.push(...parsed.findings.map((finding) =>
+            typeof finding === "string" ? finding : `STRUCTURED_FINDING ${JSON.stringify(finding)}`,
+          ));
         } catch { findings.push("INVALID_JSON_REPORT"); }
       }
       if (result.error) findings.push(`EXECUTION_ERROR ${result.error}`);
