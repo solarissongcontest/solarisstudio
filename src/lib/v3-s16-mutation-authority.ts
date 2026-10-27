@@ -280,7 +280,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     risk: "integrity_critical",
     canonicalTables: ["public.entries", "public.internal_entries"],
     canonicalOwner: "entry domain",
-    canonicalCommands: [],
+    canonicalCommands: ["public.v3_sync_confirmation_entry"],
   },
   {
     id: "publication",
