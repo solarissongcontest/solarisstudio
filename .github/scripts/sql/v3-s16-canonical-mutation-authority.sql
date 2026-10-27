@@ -36,7 +36,13 @@ with critical(table_schema, table_name) as (
     ('public','studio2_permission_state_versions'),
     ('public','editions'),
     ('public','shows'),
-    ('public','studio2_edition_runtime')
+    ('public','studio2_edition_runtime'),
+    ('public','integrity_cases'),
+    ('public','integrity_case_events'),
+    ('public','integrity_case_appeals'),
+    ('public','integrity_case_findings'),
+    ('public','integrity_case_sanctions'),
+    ('public','integrity_adjudication_history')
 ),
 table_evidence as (
   select jsonb_build_object(
