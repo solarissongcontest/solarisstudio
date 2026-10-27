@@ -1,4 +1,5 @@
 import { isResolvedV3DomainConsequence } from "../src/lib/v3-domain-consequence-registry";
+import { classifyV3ConsequenceRelease, requiredConsequenceMaturity } from "../src/lib/v3-consequence-release-classification";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -48,7 +49,6 @@ const checks: Check[] = group === "static" ? [
 ];
 const outcomes = runSweep(checks, directory, (check) => {
   if (group === "database") {
-    // Check both targets immediately before EVERY reset and fixture invocation.
     localSupabaseEnvironment();
     if (check.resetBefore) {
       const reset = execute(["supabase", "db", "reset", "--local", "--no-seed"]);
@@ -60,7 +60,7 @@ const outcomes = runSweep(checks, directory, (check) => {
     try { return execute(check.command, staticEnvironment()); }
     catch (error) {
       if (["productionIsolation", "productionBuild", "releaseContracts", "clientBudget", "typecheck"].includes(check.id)) throw error;
-      return execute(check.command); // Repository-only scanners/lint have no runtime I/O.
+      return execute(check.command);
     }
   }
   return execute(check.command);
@@ -82,11 +82,31 @@ const audit = (s15?.findings ?? []).map((finding) => {
   };
 });
 mkdirSync(directory, { recursive: true });
-const consequenceAudit = group === "static" ? V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((row) => !isResolvedV3DomainConsequence(row)).map((row) => ({
-  event: row.eventType, owner: row.ownerDomain, state: row.implementationState, consumers: row.consumers, evidence: row.evidence,
-  classification: "L_TRANSACTIONAL_EVENT_CONSUMER_PROOF_MISSING",
-  assessment: "Mapped ownership is not proof of transactional emission and executable consequence delivery. No implementation-state promotion is made without focused runtime evidence.",
-})) : [];
+const consequenceAudit = group === "static" ? V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((row) => !isResolvedV3DomainConsequence(row)).map((row) => {
+  const releaseClass = classifyV3ConsequenceRelease(row.eventType);
+  return {
+    event: row.eventType,
+    owner: row.ownerDomain,
+    state: row.implementationState,
+    consumers: row.consumers,
+    evidence: row.evidence,
+    releaseClass,
+    requiredMaturity: requiredConsequenceMaturity(releaseClass),
+    releaseRisk: releaseClass === "integrity_critical" || releaseClass === "delivery_critical"
+      ? "hard_blocker"
+      : "tracked_migration_debt",
+    classification: releaseClass === "integrity_critical"
+      ? "INTEGRITY_CRITICAL_CONSEQUENCE_PROOF_MISSING"
+      : releaseClass === "delivery_critical"
+        ? "DELIVERY_CRITICAL_CONSEQUENCE_PROOF_MISSING"
+        : "NON_CRITICAL_CONSEQUENCE_MATURITY_DEBT",
+    assessment: releaseClass === "integrity_critical"
+      ? "Official-state consequence maturity is incomplete; release remains blocked until transactional/reconciliation proof exists."
+      : releaseClass === "delivery_critical"
+        ? "Delivery consequence maturity is incomplete; release remains blocked until durable retry/failure evidence exists."
+        : "Derived or observational consequence maturity remains tracked without inventing integrity-grade event/outbox ceremony.",
+  };
+}) : [];
 const changesAfter = sourceChanges();
 const generatedToolCaches = [
   ...(existsSync("supabase/.temp") ? readdirSync("supabase/.temp").sort().map((name) => `supabase/.temp/${name}`) : []),
