@@ -17,10 +17,16 @@ describe("early repository release blockers", () => {
     expect(Array.isArray(report.pendingCertification)).toBe(true);
   });
 
-  it("keeps accepted read/discovery cutovers tied to concrete owner evidence", () => {
-    for (const id of ["app-shell", "global-search", "sitemap"]) {
+  it("keeps accepted read/discovery owners at their exact maturity with concrete evidence", () => {
+    const expectedStatuses = {
+      "app-shell": "parity",
+      "global-search": "parity",
+      sitemap: "cutover",
+    } as const;
+
+    for (const [id, expectedStatus] of Object.entries(expectedStatuses)) {
       const row = V3_PUBLIC_CAPABILITIES.find((capability) => capability.id === id)!;
-      expect(row.specificationStatus).toBe("cutover");
+      expect(row.specificationStatus).toBe(expectedStatus);
       const evidence = "migrationEvidence" in row ? row.migrationEvidence : "";
       expect(evidence).toBeTruthy();
       for (const path of evidence!.split("; ")) expect(existsSync(path.split(" (")[0])).toBe(true);
