@@ -77,6 +77,35 @@ export function validateV3ReleaseEvidence(
   return errors;
 }
 
+export type V3ReleaseRiskCounts = {
+  hard_blocker: number; conditional_blocker: number; tracked_migration_debt: number;
+  obsolete_or_replaced: number; unresolvedTotal: number;
+};
+
+function releaseRiskIssues(risk: V3ReleaseRiskCounts) {
+  const keys = ["hard_blocker", "conditional_blocker", "tracked_migration_debt", "obsolete_or_replaced", "unresolvedTotal"] as const;
+  if (keys.some((key) => !Number.isSafeInteger(risk?.[key]) || risk[key] < 0)) return ["release risk requires complete nonnegative integer counts"];
+  if (keys.slice(0, 4).reduce((sum, key) => sum + risk[key], 0) !== risk.unresolvedTotal) return ["release risk inventory total is inconsistent"];
+  return [];
+}
+
+export function parseV3ReleaseRiskEvidence(value: unknown, candidateSha: string): V3ReleaseRiskCounts {
+  if (!value || typeof value !== "object") throw new Error("Release risk evidence is missing");
+  const source = value as { candidateSha?: unknown; releaseRisk?: { totals?: Record<string, unknown>; unresolvedTotal?: unknown }; releaseRiskTotals?: Record<string, unknown>; currentReadinessFindingCount?: unknown };
+  if (source.candidateSha !== candidateSha) throw new Error("Release risk evidence does not match the checked-out candidate SHA");
+  const totals = source.releaseRisk?.totals ?? source.releaseRiskTotals;
+  const risk = {
+    hard_blocker: totals?.hard_blocker,
+    conditional_blocker: totals?.conditional_blocker,
+    tracked_migration_debt: totals?.tracked_migration_debt,
+    obsolete_or_replaced: totals?.obsolete_or_replaced,
+    unresolvedTotal: source.releaseRisk?.unresolvedTotal ?? source.currentReadinessFindingCount,
+  } as V3ReleaseRiskCounts;
+  const errors = releaseRiskIssues(risk);
+  if (errors.length) throw new Error(errors.join("; "));
+  return risk;
+}
+
 export function buildV3ReleaseManifest(input: {
   candidateSha: string;
   releaseRisk: {
@@ -90,7 +119,7 @@ export function buildV3ReleaseManifest(input: {
   requiredGates?: readonly string[];
 }): V3ReleaseManifest {
   const required = input.requiredGates ?? V3_REQUIRED_RELEASE_GATES;
-  const errors: string[] = [];
+  const errors: string[] = releaseRiskIssues(input.releaseRisk);
   const byGate = new Map<string, V3ReleaseEvidence>();
 
   if (!validSha(input.candidateSha)) errors.push("candidate SHA is not a full lowercase SHA");
