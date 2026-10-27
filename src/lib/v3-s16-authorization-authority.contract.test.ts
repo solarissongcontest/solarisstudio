@@ -39,11 +39,10 @@ describe("S16 canonical authorization mutation authority", () => {
     expect(migration).toContain("from public, anon, authenticated, service_role;");
   });
 
-  test("does not preserve the dead persistence wrapper as proof of authority", () => {
-    expect(persistence).toContain("studio2_grant_capability");
-    expect(persistence).toContain("studio2_revoke_capability");
-    expect(persistence).not.toMatch(/\.grantCapability\(/);
-    expect(persistence).not.toMatch(/\.revokeCapability\(/);
+  test("removes the dead persistence wrappers for retired RPCs", () => {
+    expect(persistence).not.toContain("studio2_grant_capability");
+    expect(persistence).not.toContain("studio2_revoke_capability");
+    expect(persistence).not.toContain("Studio2GrantCapabilityRequest");
   });
 
   test("registers migration adoption and protects the internal engine", () => {
