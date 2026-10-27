@@ -1,4 +1,4 @@
-export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-3" as const;
+export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-4" as const;
 
 export type V3S16Risk = "integrity_critical" | "security_critical";
 
@@ -137,9 +137,19 @@ function sourceWritesTable(source: string, table: string) {
 }
 
 function sourceDefinesCommand(source: string, command: string) {
-  const bare = command.split(".").at(-1) ?? command;
-  const escaped = bare.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+(?:public\\.|private\\.)?${escaped}\\s*\\(`, "i").test(source);
+  const normalized = normalizeFunctionName(command);
+  const parts = normalized.split(".");
+  const bare = parts.at(-1) ?? normalized;
+  const escapedBare = bare.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const explicitSchema = parts.length > 1 ? parts.slice(0, -1).join(".") : null;
+  const escapedSchema = explicitSchema?.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const qualified = escapedSchema
+    ? `${escapedSchema}\\s*\\.\\s*${escapedBare}`
+    : `(?:[a-z_][a-z0-9_$]*\\s*\\.\\s*)?${escapedBare}`;
+  return new RegExp(
+    `create\\s+(?:or\\s+replace\\s+)?function\\s+${qualified}\\s*\\(`,
+    "i",
+  ).test(source);
 }
 
 function pinnedSearchPath(value: string | null) {
@@ -212,7 +222,13 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "televoting.combined_televote_results",
     ],
     canonicalOwner: "televote domain",
-    canonicalCommands: [],
+    canonicalCommands: [
+      "televoting.v3_create_round",
+      "televoting.v3_rename_round",
+      "televoting.v3_delete_draft_round",
+      "televoting.studio2_apply_round_status_change",
+      "televoting.studio2_apply_round_deadline_change",
+    ],
   },
   {
     id: "jury",
