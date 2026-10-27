@@ -272,7 +272,17 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     risk: "integrity_critical",
     canonicalTables: ["public.entries", "public.internal_entries"],
     canonicalOwner: "entry domain",
-    canonicalCommands: ["public.v3_sync_confirmation_entry"],
+    canonicalCommands: [
+      "public.v3_sync_confirmation_entry",
+      "public.studio2_apply_confirmation_entry_review",
+    ],
+    // The public Confirmation command owns authentication/edit-window policy;
+    // these helpers are inaccessible directly and implement the participant
+    // content mutation inside that governed transaction.
+    sanctionedInternalWriters: [
+      "public.v3_submit_confirmation_core",
+      "public.submit_confirmation",
+    ],
   },
   {
     id: "publication",
