@@ -22,6 +22,15 @@ import { resolveBroadcast, type ShowModeManualPhase } from "@/lib/broadcast";
 import { editionLabel, useEdition, useParticipants, useShows, type Show } from "@/lib/data";
 import { DEFAULT_PUBLICATION_CONFIG, hasAnyPublicInformation, resolveShowPublication } from "@/lib/publication";
 import {
+  createShow,
+  deleteShowDefinition,
+  updateShowDefinition,
+} from "@/lib/show-definition-command";
+import {
+  applyShowRuntimeChange,
+  showRuntimeRevision,
+} from "@/lib/show-runtime-command";
+import {
   safeShowModeYoutubeUrl,
   transitionShowModePhase,
 } from "@/lib/show-mode";
@@ -57,6 +66,7 @@ type ShowModeDraft = {
 type ResolvedShowMode = ReturnType<typeof resolveBroadcast>["showMode"];
 
 type ShowModeSnapshot = {
+  revision: number;
   phase: ShowModeManualPhase;
   scheduledStart: string | null;
   youtubeUrl: string;
@@ -106,8 +116,9 @@ function localInputToIso(value: string) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-function showModeSnapshot(config: ResolvedShowMode): ShowModeSnapshot {
+function showModeSnapshot(config: ResolvedShowMode, revision: number): ShowModeSnapshot {
   return {
+    revision,
     phase: config.phase,
     scheduledStart: config.scheduledStart,
     youtubeUrl: config.youtubeUrl,
@@ -117,6 +128,7 @@ function showModeSnapshot(config: ResolvedShowMode): ShowModeSnapshot {
 
 function sameShowMode(left: ShowModeSnapshot, right: ShowModeSnapshot) {
   return (
+    left.revision === right.revision &&
     left.phase === right.phase &&
     left.scheduledStart === right.scheduledStart &&
     left.youtubeUrl === right.youtubeUrl &&
@@ -260,6 +272,7 @@ function ShowsWorkspace() {
 
     try {
       const current = resolveBroadcast(showModeTarget.broadcast_config).showMode;
+      const revision = showRuntimeRevision(showModeTarget.broadcast_config);
       const transitioned = transitionShowModePhase(current, showModeDraft.phase);
       const next: ResolvedShowMode = {
         ...transitioned,
@@ -272,8 +285,8 @@ function ShowsWorkspace() {
         editionId: edition.id,
         showId: showModeTarget.id,
         showName: showModeTarget.name,
-        before: showModeSnapshot(current),
-        after: showModeSnapshot(next),
+        before: showModeSnapshot(current, revision),
+        after: showModeSnapshot(next, revision),
       });
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : "Show Mode transition is not valid.");
@@ -308,31 +321,23 @@ function ShowsWorkspace() {
           ? liveShow.broadcast_config
           : {};
       const current = resolveBroadcast(raw).showMode;
-      if (!sameShowMode(showModeSnapshot(current), review.before)) {
+      const currentRevision = showRuntimeRevision(raw);
+      if (!sameShowMode(showModeSnapshot(current, currentRevision), review.before)) {
         throw new Error("Show Mode changed while this review was open. Nothing was applied. Reopen the review from the current state.");
       }
 
-      const transitioned = transitionShowModePhase(current, review.after.phase);
-      const nextShowMode: ResolvedShowMode = {
-        ...transitioned,
+      const result = await applyShowRuntimeChange({
+        showId: review.showId,
+        expectedRevision: review.before.revision,
+        phase: review.after.phase,
         scheduledStart: review.after.scheduledStart,
         youtubeUrl: review.after.youtubeUrl,
         televoteRoundId: review.after.televoteRoundId,
-      };
-
-      const { data: updated, error } = await (supabase.from("shows") as any)
-        .update({
-          broadcast_config: {
-            ...raw,
-            showMode: nextShowMode,
-          },
-        })
-        .eq("id", review.showId)
-        .eq("edition_id", review.editionId)
-        .select("id")
-        .maybeSingle();
-      if (error) throw error;
-      if (!updated) throw new Error("Show Mode was not updated because the exact reviewed show scope no longer matched.");
+        reason: "Organizer applied reviewed Show Mode change",
+      });
+      if (result.editionId !== review.editionId) {
+        throw new Error("Show runtime command returned cross-edition evidence. Reload before retrying.");
+      }
 
       toast.success("Show Mode companion updated");
       setPendingShowModeReview(null);
@@ -353,21 +358,26 @@ function ShowsWorkspace() {
       if (draft.id) {
         const target = shows.find((show) => show.id === draft.id) ?? null;
         if (!target || !assertEditionScope(target)) return;
-        const { error } = await (supabase.from("shows") as any)
-          .update({ name: draft.name.trim(), kind: draft.kind, sort_order: draft.sort_order })
-          .eq("id", draft.id);
-        if (error) throw error;
-        toast.success("Show updated");
-      } else {
-        const { error } = await supabase.from("shows").insert({
-          edition_id: edition.id,
+        await updateShowDefinition({
+          current: {
+            id: target.id,
+            name: target.name,
+            kind: target.kind,
+            sortOrder: target.sort_order,
+          },
           name: draft.name.trim(),
           kind: draft.kind,
-          sort_order: draft.sort_order,
-          published: false,
-          publication_config: DEFAULT_PUBLICATION_CONFIG,
+          sortOrder: draft.sort_order,
         });
-        if (error) throw error;
+        toast.success("Show updated");
+      } else {
+        await createShow({
+          editionId: edition.id,
+          name: draft.name.trim(),
+          kind: draft.kind,
+          sortOrder: draft.sort_order,
+          publicationConfig: DEFAULT_PUBLICATION_CONFIG as unknown as Record<string, unknown>,
+        });
         toast.success("Show created");
       }
       setSheetOpen(false);
@@ -432,16 +442,15 @@ function ShowsWorkspace() {
         throw Object.assign(new Error("Edition context changed during deletion revalidation. Nothing was deleted."), { status: 409 });
       }
 
-      const { data: deleted, error } = await (supabase.from("shows") as any)
-        .delete()
-        .eq("id", review.showId)
-        .eq("edition_id", review.editionId)
-        .select("id")
-        .maybeSingle();
-      if (error) throw error;
-      if (!deleted) {
-        throw Object.assign(new Error("The exact reviewed show no longer matched at deletion time. Refresh before retrying."), { status: 409 });
-      }
+      await deleteShowDefinition({
+        current: {
+          id: review.showId,
+          name: review.showName,
+          kind: review.kind,
+          sortOrder: review.sortOrder,
+        },
+        reason: "Organizer deleted reviewed setup-only show",
+      });
 
       toast.success(`${review.showName} deleted`);
       setDeleteTarget(null);
@@ -555,7 +564,7 @@ function ShowsWorkspace() {
           <Link to="/admin/voting-system/$slug" params={{ slug }} search={{ show: actionsTarget.id }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><Calculator className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Voting system</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Configure scales, weighting, qualifiers and tie-breaks.</span></span></Link>
           <Link to="/admin/publication/$slug" params={{ slug }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><Globe2 className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Publication</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Control which layers of this show are public.</span></span></Link>
           <Link to="/admin/design/$slug" params={{ slug }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><RadioTower className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Design & broadcast</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Theme, scoreboard and broadcast presentation.</span></span></Link>
-          <AdminActionItem icon={Trash2} tone="danger" title="Delete show" description="Permanently remove this show and dependent show data." onClick={() => { const show = actionsTarget; setActionsTarget(null); openDeleteReview(show); }} />
+          <AdminActionItem icon={Trash2} tone="danger" title="Delete show" description="Delete only a setup-only show that has no durable contest history." onClick={() => { const show = actionsTarget; setActionsTarget(null); openDeleteReview(show); }} />
         </div> : null}
       </AdminSheet>
 
@@ -695,6 +704,7 @@ function ShowsWorkspace() {
               <p className="mt-1">Show: {pendingShowModeReview.showName}</p>
               <p className="mt-1 break-all">Show ID: {pendingShowModeReview.showId}</p>
               <p className="mt-1 break-all">Edition ID: {pendingShowModeReview.editionId}</p>
+              <p className="mt-1">Runtime revision: {pendingShowModeReview.before.revision}</p>
             </div>
             <div className="overflow-hidden rounded-xl border border-white/[0.08]">
               <div className="grid grid-cols-[110px_1fr_1fr] gap-2 border-b border-white/[0.07] bg-white/[0.025] p-2 font-semibold text-foreground">
@@ -716,8 +726,8 @@ function ShowsWorkspace() {
             <p className="leading-5 text-muted-foreground">
               Organizer re-reads this exact show and refuses the save if its Show Mode state or edition changed while this review was open.
             </p>
-            <p className="rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 leading-5 text-amber-50/90">
-              This still uses the legacy browser-side broadcast configuration write. The recheck narrows stale-state risk but is not a server CAS, idempotency key or authoritative operation receipt. System #625 remains the blocker for the governed production-configuration command.
+            <p className="rounded-xl border border-emerald-200/15 bg-emerald-200/[0.045] p-3 leading-5 text-emerald-50/90">
+              Commit uses the canonical server command with show scope, legal lifecycle validation, runtime revision CAS, stable operation identity, idempotent retry, a durable receipt and atomic show.changed persistence.
             </p>
           </div>
         ) : null}
@@ -734,7 +744,7 @@ function ShowsWorkspace() {
         title={`Delete ${deleteTarget?.showName ?? "show"}?`}
         description={deleteTarget ? (
           <div className="space-y-3 text-left">
-            <p>This permanently removes <strong>{deleteTarget.showName}</strong> and dependent show data.</p>
+            <p>This permanently removes <strong>{deleteTarget.showName}</strong> only if it is still a setup-only show with no durable contest history.</p>
             <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3 text-xs text-muted-foreground">
               <p><strong className="text-foreground">Edition:</strong> {editionLabel(edition)}</p>
               <p className="mt-1"><strong className="text-foreground">Type:</strong> {deleteTarget.kind.replaceAll("-", " ")}</p>
@@ -743,13 +753,13 @@ function ShowsWorkspace() {
               <p className="mt-1"><strong className="text-foreground">Publication state:</strong> {deleteTarget.published ? "Published" : "Not published"}</p>
             </div>
             {deleteTarget.published ? (
-              <p className="text-amber-100">This show was published when the deletion review opened. Verify archived/public-result obligations before deleting it.</p>
+              <p className="text-amber-100">This show is published. The governed delete command will refuse deletion; retain it and use lifecycle/publication controls instead.</p>
             ) : null}
-            <p>Immediately before deletion, Organizer re-reads this exact show plus its participant membership. If identity, ordering, publication/broadcast configuration, or dependent participants changed, deletion is refused and must be reviewed again.</p>
-            <p className="rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 text-xs leading-5 text-amber-50/90"><strong>Legacy authority:</strong> the final delete is still the existing direct show delete, not the governed show-lifecycle command. System #581 owns authoritative version/CAS, idempotency, dependency handling and operation receipts. A concurrent dependency change after this final browser recheck remains outside this compatibility boundary.</p>
+            <p>Immediately before deletion, Organizer re-reads this exact show plus its participant membership. The server then locks the show, rechecks identity and refuses deletion if participants, votes, results, publication execution or runtime history exists.</p>
+            <p className="rounded-xl border border-emerald-200/15 bg-emerald-200/[0.045] p-3 text-xs leading-5 text-emerald-50/90"><strong>Governed authority:</strong> the final delete is a scoped, idempotent server command with durable operation evidence. It cannot use cascading foreign keys as a shortcut for erasing official history.</p>
           </div>
         ) : undefined}
-        confirmLabel="Delete reviewed show"
+        confirmLabel="Delete reviewed setup-only show"
         confirmationText={deleteTarget?.showName}
         confirmationHint={deleteTarget ? `Type ${deleteTarget.showName} to confirm permanent deletion` : undefined}
         busy={busy}
