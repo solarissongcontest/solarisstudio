@@ -182,8 +182,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "merge",
     targetArea: "contextual",
     targetRoute: "/predictions",
-    specificationStatus: "mapped",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.prediction-league",
+    migrationEvidence: "src/lib/v3-public-account-cutover-acceptance.test.ts; scripts/fixtures/v3-public-account-screen-proof.tsx; src/lib/v3-predictions-merge.contract.test.ts; src/lib/v3-predictions.test.ts; src/lib/v3-prediction-league-privacy.contract.test.ts",
   },
   {
     id: "saved-items",
@@ -197,9 +198,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "redesign",
     targetArea: "me",
     targetRoute: "/my-solaris/saved",
-    specificationStatus: "building",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.saved-and-followed-entities",
-    migrationEvidence: "V3 Following & Saved projection, caller-scoped preference writer, reversible installed-app route and focused regression coverage",
+    migrationEvidence: "src/lib/v3-public-account-cutover-acceptance.test.ts; scripts/fixtures/v3-public-account-screen-proof.tsx; src/lib/v3-following-saved.contract.test.ts; src/lib/v3-following-saved.test.ts; supabase/migrations/20261017103000_v3_s5_preference_consequences.sql",
   },
   {
     id: "country-account",
@@ -366,8 +367,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "merge",
     targetArea: "me",
     targetRoute: "/my-solaris",
-    specificationStatus: "mapped",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.community-display-identity",
+    migrationEvidence: "src/lib/v3-public-account-cutover-acceptance.test.ts; scripts/fixtures/v3-public-account-screen-proof.tsx; src/lib/v3-me-screen.test.tsx; src/lib/v3-me-summary.test.ts; src/lib/v3-me-architecture.contract.test.ts",
   },
   {
     id: "push-delivery",
@@ -396,8 +398,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "restrict",
     targetArea: "contextual",
     targetRoute: "/",
-    specificationStatus: "mapped",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.privacy-bounded-ux-telemetry",
+    migrationEvidence: "src/lib/v3-public-account-cutover-acceptance.test.ts; scripts/fixtures/v3-public-account-screen-proof.tsx; src/lib/public-ux-privacy.test.ts; src/lib/v3-public-ux-diagnostics.contract.test.ts",
   },
   {
     id: "app-shell",
@@ -524,8 +527,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "redesign",
     targetArea: "auth",
     targetRoute: "/auth",
-    specificationStatus: "mapped",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.identity-session-transition",
+    migrationEvidence: "src/lib/v3-public-account-cutover-acceptance.test.ts; scripts/fixtures/v3-public-account-screen-proof.tsx; src/lib/v3-auth-return-intent.test.ts; src/lib/authenticated-identity-isolation.test.ts; src/lib/country-auth-contract.test.ts",
   },
 ] as const satisfies readonly PublicCapabilityMigration[];
 
