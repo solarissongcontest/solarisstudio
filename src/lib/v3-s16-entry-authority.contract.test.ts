@@ -13,6 +13,13 @@ describe("S16 canonical Entry mutation authority", () => {
     expect(confirmationSync).toContain('db.rpc("v3_sync_confirmation_entry"');
   });
 
+  test("rejects Entry conflicts before participant compatibility writes", () => {
+    const command = confirmationSync.indexOf('db.rpc("v3_sync_confirmation_entry"');
+    const participantMutation = confirmationSync.indexOf('.from("participants")\n      .insert');
+    expect(command).toBeGreaterThan(-1);
+    expect(participantMutation).toBeGreaterThan(command);
+  });
+
   test("derives Entry scope and content from the Confirmation submission identity", () => {
     expect(migration).toContain("create or replace function public.v3_sync_confirmation_entry(");
     expect(migration).toContain("p_submission_id uuid");
@@ -20,7 +27,8 @@ describe("S16 canonical Entry mutation authority", () => {
     expect(migration).toContain("from public.internal_entries entry");
     expect(migration).toContain("from public.national_final_entries candidate");
     expect(migration).toContain("v_existing.source <> 'confirmations'");
-    expect(migration).toContain("v_existing.updated_at > v_submission.updated_at");
+    expect(migration).toContain("confirmation_submission_updated_at");
+    expect(migration).toContain("coalesce(v_existing_source_updated_at, v_existing.updated_at) > v_submission.updated_at");
     expect(migration).toContain("'status', 'canonical_owned'");
     expect(migration).toContain("'status', 'canonical_newer'");
   });
