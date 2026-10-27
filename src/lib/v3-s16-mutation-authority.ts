@@ -293,7 +293,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "public.studio2_capability_grants",
       "public.studio2_role_assignments",
       "public.studio2_role_capabilities",
-      "public.studio2_permission_state_versions",
+      "public.studio2_permission_subject_versions",
     ],
     canonicalOwner: "permission engine",
     canonicalCommands: [],

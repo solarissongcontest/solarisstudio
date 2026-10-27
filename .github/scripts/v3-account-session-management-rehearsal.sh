@@ -205,6 +205,32 @@ log "The active second session can use an ordinary Data API read before revocati
 request GET "$API_URL/rest/v1/countries?select=id&limit=1" "$TOKEN_A2" "$ANON_KEY"
 expect_success "active session ordinary Data API read"
 
+log "Canonical Data API gate permits only session recovery in protected operational modes"
+# Transactional fixture only: exercise the real hook in both modes, then roll
+# back the fixture. No persisted mode repair or alternative revoke writer.
+psql "$DB_URL" -v ON_ERROR_STOP=1 -v actor="$USER_A" -v session="$SESSION_A1" -qAt <<'SQL'
+begin;
+select set_config('request.jwt.claims', jsonb_build_object('sub', :'actor', 'role', 'authenticated', 'session_id', :'session')::text, true);
+select set_config('request.method', 'POST', true);
+do $test$
+declare v_mode text;
+begin
+  foreach v_mode in array array['read_only', 'maintenance'] loop
+    update public.studio2_platform_operational_state set mode = v_mode where singleton;
+    perform set_config('request.path', '/rest/v1/rpc/v3_revoke_session', true);
+    perform private.studio2_data_api_operational_gate();
+    perform set_config('request.path', '/rest/v1/rpc/admin_set_show_running_order', true);
+    begin
+      perform private.studio2_data_api_operational_gate();
+      raise exception 'Unrelated volatile mutation bypassed the protected mode';
+    exception when sqlstate '25006' then null;
+    end;
+  end loop;
+end
+$test$;
+rollback;
+SQL
+
 log "Fresh viewer A session revokes its other session and cascades refresh tokens"
 OP_ID='00000000-0000-4000-8000-00000000a615'
 rpc_revoke "$TOKEN_A1" "$OTHER_HANDLE" "$OP_ID" 'revoke-a2'

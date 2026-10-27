@@ -53,3 +53,17 @@ describe("canonical Data API session revocation boundary", () => {
     expect(rehearsal).toContain('[[ "$HTTP_BODY" == *"SESSION_REVOKED"* ]]');
   });
 });
+
+it("preserves narrow security recovery transport without allowing unrelated writes", () => {
+  const recovery = readFileSync(
+    "supabase/migrations/20261027175413_v3_session_recovery_data_api_modes.sql",
+    "utf8",
+  );
+  expect(recovery).toContain("v3_register_migration_contract(");
+  expect(recovery).toContain("v3_revoke_session");
+  expect(recovery).toContain("private.v3_require_active_auth_session()");
+  expect(recovery).not.toContain("return;");
+  expect(rehearsal).toContain("array['read_only', 'maintenance']");
+  expect(rehearsal).toContain("Unrelated volatile mutation bypassed the protected mode");
+  expect(rehearsal).toContain("rollback;");
+});
