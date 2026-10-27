@@ -8,8 +8,8 @@ contract. Results internals remain owned by PR #1400.
 | Event | Canonical state / command | Critical contract and event role | Required consumer / remaining gap | Risk |
 | --- | --- | --- | --- | --- |
 | account.changed | Account/profile state; no single proven `account.update` command | Actor-owned account mutation and audit; settings/preferences are not a new account authority | No proven canonical account command/event boundary; identify and govern all profile/security writers before accepting projections | Hard |
-| identity.authenticated | Supabase Auth identity + active `auth.sessions` session; sign-in/restore followed by server `getUser` at protected boundaries | Authentication authority is synchronous canonical Auth/session state. The lifecycle label may describe telemetry/audit but may not grant access or resurrect identity. | Protected route, Organizer, server and Edge boundaries verify Auth identity; Data API and authenticated Storage authority require a live canonical session. Remaining application-event/audit delivery is optional observational maturity. | Debt |
-| identity.signed_out | Supabase Auth global sign-out + active-session boundary | Canonical sign-out/session invalidation removes server authority without waiting for an event consumer; local private-cache cleanup is a derived presentation consequence. | Data API rejects inactive sessions; authenticated Storage reuses the same `auth.sessions` guard; Edge/server identity uses Auth `getUser`; explicit sign-out fences the current tab cache after successful Auth sign-out. | Debt |
+| identity.authenticated | Supabase Auth identity + active `auth.sessions` session; sign-in/restore followed by server identity verification and live-session proof before privileged authority | Authentication authority is synchronous canonical Auth/session state. The lifecycle label may describe telemetry/audit but may not grant access or resurrect identity. | Protected route and Organizer boundaries verify Auth identity; authenticated Data API and Storage require the canonical active-session guard; user-identity Edge paths that cross into service-role authority call `v3_assert_active_session`, which delegates to that same guard. Remaining application-event/audit delivery is optional observational maturity. | Debt |
+| identity.signed_out | Supabase Auth global sign-out + canonical active-session boundary | Canonical sign-out/session invalidation removes protected authority without waiting for an event consumer; local private-cache cleanup is a derived presentation consequence. | Data API and authenticated Storage reject inactive sessions; identity-owned service-role Edge paths re-prove `auth.sessions` liveness before privileged reads/Auth Admin mutation; explicit sign-out fences current-tab private queries after successful Auth sign-out. Other tabs follow Supabase propagation, while protected requests remain server-authoritative. | Debt |
 | session.changed | `auth.sessions`, `auth.refresh_tokens`; managed Auth refresh | Signed session ownership, expiry and refresh-token lifecycle are authoritative | Refresh/session-change provenance and all authorization boundaries remain unproven; do not fabricate an application event consumer as authority | Hard |
 | session.revoked | `auth.sessions` + `studio2_account_session_revocations`; `v3_revoke_session` | Actor-scoped noncurrent target, fresh auth, synchronous delete/tombstone/operation completion; no consumer may keep access alive | New shared Data API guard checks live session before operational-mode early returns; real HTTP proof pending; managed Auth, Edge/Storage and persisted event coverage remain | Hard |
 | edition.changed | `editions` and `studio2_edition_runtime`; transition RPC covers lifecycle only | Versioned transition does not prove all edition metadata writers | Direct application edition writers remain in S16; define mutation authority/CAS/audit for metadata before calling its projections derived | Hard |
@@ -25,8 +25,11 @@ contract. Results internals remain owned by PR #1400.
   integrity-critical identities and explicitly keeps the two identity lifecycle
   labels non-authoritative.
 - `src/lib/v3-identity-lifecycle-authority.contract.test.ts` proves the shared
-  server/Edge identity checks, authenticated Storage live-session boundary and
+  browser/server identity checks, authenticated Storage live-session boundary and
   explicit sign-out cache fence.
+- `src/lib/v3-edge-active-session-boundary.contract.test.ts` proves that identity-owned
+  Edge paths cannot turn a revoked-but-unexpired JWT into service-role account or
+  Auth Admin authority, and that the wrapper reuses `private.v3_require_active_auth_session()`.
 - `src/lib/v3-data-api-session-guard.contract.test.ts` and the extended
   `.github/scripts/v3-account-session-management-rehearsal.sh` cover the shared
   Data API revocation boundary. Contract tests are not a substitute for the HTTP rehearsal.
@@ -38,5 +41,8 @@ contract. Results internals remain owned by PR #1400.
 
 The local Supabase bootstrap failed extracting `supabase/postgres:17.6.1.158`
 with `no space left on device`. No stateful local catalog or full-contest proof
-was produced by that attempt. Isolated GitHub rehearsal results must be checked
-at the exact candidate SHA before accepting the new migration.
+was produced by that attempt. The identity lane PR targets the #1629 integration
+branch, while the existing account-session rehearsal is configured only for PRs
+targeting `main`; consequently no exact-head GitHub rehearsal is currently
+scheduled for this branch. Isolated exact-head rehearsal remains required before
+accepting the new migrations for integration.
