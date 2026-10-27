@@ -41,8 +41,16 @@ jobs:
           src/lib/v3-integrity-adjudication-writer-cutover.contract.test.ts
           src/lib/v3-integrity-reporter-response-authority.contract.test.ts
           src/lib/v3-integrity-remaining-case-writers.contract.test.ts
-          src/lib/v3-integrity-intake-compatibility.contract.test.ts
-          src/lib/v3-s16-integrity-authority-evidence.contract.test.ts
+          src/lib/v3-integrity-intake-compatibility-cutover.contract.test.ts
+          src/lib/v3-integrity-s16-authority.contract.test.ts
+
+      - name: Generate fresh TanStack route tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f src/routeTree.gen.ts
+          bun run build
+          test -s src/routeTree.gen.ts
 
       - name: TypeScript
         run: bun run typecheck
@@ -57,8 +65,8 @@ jobs:
           src/lib/v3-integrity-adjudication-writer-cutover.contract.test.ts
           src/lib/v3-integrity-reporter-response-authority.contract.test.ts
           src/lib/v3-integrity-remaining-case-writers.contract.test.ts
-          src/lib/v3-integrity-intake-compatibility.contract.test.ts
-          src/lib/v3-s16-integrity-authority-evidence.contract.test.ts
+          src/lib/v3-integrity-intake-compatibility-cutover.contract.test.ts
+          src/lib/v3-integrity-s16-authority.contract.test.ts
 
   local-database:
     name: Integrity clean local Supabase authority
