@@ -24,6 +24,11 @@ export const V3_ORGANIZER_ACCEPTED_SPECIALIST_CUTOVERS = {
     route: "/admin/media-assets",
     kind: "governed-media-review-operations",
   },
+  "live-review-time-machine": {
+    owner: "edition.read",
+    route: "/admin/time-machine",
+    kind: "bounded-historical-read",
+  },
   "delegation-confirmation-overview": {
     owner: "confirmation.read",
     route: "/confirmations/admin",
@@ -44,7 +49,27 @@ export const V3_ORGANIZER_ACCEPTED_SPECIALIST_CUTOVERS = {
     route: "/admin/jury-integrity",
     kind: "bounded-exact-edition-integrity-evidence",
   },
+  "workspace-command-assistant": {
+    owner: "edition.read",
+    route: "/admin/command-assistant",
+    kind: "bounded-read-only-assistant",
+  },
+  "workspace-beta-3-feedback": {
+    owner: "rollout.manage",
+    route: "/admin/beta3-feedback",
+    kind: "read-only-beta-feedback-analysis",
+  },
+  "workspace-beta-2-feedback": {
+    owner: "rollout.manage",
+    route: "/admin/beta2-feedback",
+    kind: "read-only-beta-feedback-analysis",
+  },
+  "workspace-beta-1-archive": {
+    owner: "rollout.manage",
+    route: "/admin/beta1-feedback",
+    kind: "closed-read-only-beta-archive",
+  },
 } as const;
 
 export const V3_ORGANIZER_ACCEPTED_SPECIALIST_EVIDENCE =
-  "src/lib/v3-organizer-specialist-acceptance.contract.test.ts; src/lib/studio2-country-cockpit-integration.test.ts; src/lib/v3-confirmation-maintenance-hotfix.contract.test.ts; src/integrations/televoting/admin-data.functions.ts; src/lib/organisation-v5-voting-declaration-lifecycle.test.ts; src/lib/v3-s7-voting-declaration-edition-binding.contract.test.ts; supabase/migrations/20261018122500_v3_voting_declaration_expected_edition_scope.sql; src/integrations/jury-voting/jury-integrity-admin.server.ts; src/lib/studio2-eligibility-integration.test.ts; src/lib/studio2-media-assets.test.ts; src/lib/v3-organizer-cutover.contract.test.ts; src/lib/v3-organizer-control-context.contract.test.ts; src/lib/v3-organizer-confirmation-calendar.test.ts; .github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh; .github/workflows/v3-confirmation-maintenance-edit-rehearsal.yml";
+  "src/lib/v3-organizer-specialist-acceptance.contract.test.ts; src/lib/studio2-country-cockpit-integration.test.ts; src/lib/v3-confirmation-maintenance-hotfix.contract.test.ts; src/integrations/televoting/admin-data.functions.ts; src/lib/organisation-v5-voting-declaration-lifecycle.test.ts; src/lib/v3-s7-voting-declaration-edition-binding.contract.test.ts; supabase/migrations/20261018122500_v3_voting_declaration_expected_edition_scope.sql; src/integrations/jury-voting/jury-integrity-admin.server.ts; src/routes/_authenticated/admin/time-machine.tsx; src/routes/_authenticated/admin/command-assistant.tsx; src/routes/_authenticated/admin/beta3-feedback.tsx; src/routes/_authenticated/admin/beta2-feedback.tsx; src/routes/_authenticated/admin/beta1-feedback.tsx; src/lib/studio2-eligibility-integration.test.ts; src/lib/studio2-media-assets.test.ts; src/lib/v3-organizer-cutover.contract.test.ts; src/lib/v3-organizer-control-context.contract.test.ts; src/lib/v3-organizer-confirmation-calendar.test.ts; .github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh; .github/workflows/v3-confirmation-maintenance-edit-rehearsal.yml";

@@ -11,11 +11,9 @@ export const V3_ORGANIZER_OBSERVATIONAL_CUTOVERS = {
   "voting-audit-log": { owner: "voting.read", route: "/televoting/admin/audit-log", kind: "bounded-read" },
   "voting-result-backtest": { owner: "voting.read", route: "/televoting/admin/backtest", kind: "read-only-simulation" },
   "live-review-simulation-lab": { owner: "edition.read", route: "/admin/edition-simulator", kind: "local-simulation" },
-  "live-review-time-machine": { owner: "edition.read", route: "/admin/time-machine", kind: "bounded-historical-read" },
   "live-review-voting-lab": { owner: "voting.read", route: "/admin/voting-lab", kind: "synthetic-simulation" },
   "workspace-administration": { owner: "edition.read", route: "/admin/more", kind: "presentation-directory" },
   "workspace-organizer-guide": { owner: "edition.read", route: "/admin/guide", kind: "presentation-guidance" },
-  "workspace-command-assistant": { owner: "edition.read", route: "/admin/command-assistant", kind: "bounded-read-only-assistant" },
 } as const;
 
 export const V3_ORGANIZER_OBSERVATIONAL_EVIDENCE =

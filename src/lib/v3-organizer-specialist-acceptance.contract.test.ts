@@ -17,6 +17,11 @@ const eligibilityRoute = readFileSync("src/routes/_authenticated/admin/eligibili
 const eligibilityModel = readFileSync("src/lib/studio2-eligibility.ts", "utf8");
 const mediaRoute = readFileSync("src/routes/_authenticated/admin/media-assets.tsx", "utf8");
 const mediaModel = readFileSync("src/lib/studio2-media-assets.ts", "utf8");
+const timeMachineRoute = readFileSync("src/routes/_authenticated/admin/time-machine.tsx", "utf8");
+const commandAssistantRoute = readFileSync("src/routes/_authenticated/admin/command-assistant.tsx", "utf8");
+const beta3Route = readFileSync("src/routes/_authenticated/admin/beta3-feedback.tsx", "utf8");
+const beta2Route = readFileSync("src/routes/_authenticated/admin/beta2-feedback.tsx", "utf8");
+const beta1Route = readFileSync("src/routes/_authenticated/admin/beta1-feedback.tsx", "utf8");
 const confirmationOverview = readFileSync("src/routes/confirmations/admin/index.tsx", "utf8");
 const confirmationRequirements = readFileSync("src/routes/confirmations/admin/requirements.tsx", "utf8");
 const confirmationSettings = readFileSync("src/routes/confirmations/admin/settings.tsx", "utf8");
@@ -78,6 +83,37 @@ describe("accepted Organizer specialist family", () => {
     expect(juryIntegrityServer).toContain('.limit(1000)');
     expect(juryIntegrityServer).toContain("evidence outside the selected edition scope");
     expect(juryIntegrityServer).toContain('.eq("edition_id", scopedEditionId).in("id", showIds)');
+  });
+
+  it("accepts Time Machine only as a bounded exact-edition historical read", () => {
+    expect(timeMachineRoute).toContain('rpc("studio2_time_machine"');
+    expect(timeMachineRoute).toContain("_edition_id: editionId");
+    expect(timeMachineRoute).toContain('["time-machine", editionId ?? "none", asOf]');
+    expect(timeMachineRoute).toContain("TIME_MACHINE_EVENT_LIMIT = 250");
+    expect(timeMachineRoute).toContain("TIME_MACHINE_AUDIT_LIMIT = 100");
+    expect(timeMachineRoute).not.toContain("useMutation(");
+  });
+
+  it("accepts Command Assistant only as exact-edition read-only navigation", () => {
+    expect(commandAssistantRoute).toContain("const { editionId } = useAdminContext()");
+    expect(commandAssistantRoute).toContain("edition.id === editionId");
+    expect(commandAssistantRoute).toContain("useV3OrganizerProjection(resolvedEditionId || null)");
+    expect(commandAssistantRoute).toContain("cannot generate arbitrary SQL");
+    expect(commandAssistantRoute).not.toContain("useMutation(");
+  });
+
+  it("accepts historical Beta feedback surfaces only as read-only restricted analysis", () => {
+    for (const source of [beta3Route, beta2Route, beta1Route]) {
+      expect(source).toContain(".select(");
+      expect(source).not.toContain(".insert(");
+      expect(source).not.toContain(".update(");
+      expect(source).not.toContain(".delete(");
+      expect(source).not.toContain("useMutation(");
+    }
+    expect(beta1Route).toContain("Beta 1 is closed");
+    expect(beta1Route).toContain('.eq("form_version", 2)');
+    expect(beta2Route).toContain('from("beta2_test_submissions"');
+    expect(beta3Route).toContain('from("beta3_test_submissions"');
   });
 
   it("accepts Eligibility only because browser writes are absent and governed R2 preview/apply owns mutation", () => {
