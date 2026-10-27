@@ -44,8 +44,21 @@ function isValidDate(value: string | null) {
   return Number.isFinite(new Date(value).getTime());
 }
 
-export function showModeConfig(show: Pick<Show, "broadcast_config"> | null | undefined) {
-  return show ? resolveBroadcast(show.broadcast_config).showMode : { ...DEFAULT_SHOW_MODE };
+/**
+ * Returns the companion metadata reconciled against canonical shows.status.
+ * Stored showMode.phase is never allowed to override lifecycle truth. The only
+ * extra runtime phase retained is results_in_progress while lifecycle is live.
+ */
+export function showModeConfig(
+  show: Pick<Show, "broadcast_config" | "status"> | null | undefined,
+): ShowModeConfig {
+  if (!show) return { ...DEFAULT_SHOW_MODE };
+  const config = resolveBroadcast(show.broadcast_config).showMode;
+  const lifecycle = canonicalShowLifecycle(show.status);
+  if (lifecycle === "live" && config.phase === "results_in_progress") return config;
+  if (lifecycle === "live" || lifecycle === "paused") return { ...config, phase: "live" };
+  if (lifecycle === "ended" || lifecycle === "cancelled") return { ...config, phase: "ended" };
+  return { ...config, phase: "scheduled" };
 }
 
 const LEGAL_SHOW_MODE_TRANSITIONS: Record<ShowModeManualPhase, readonly ShowModeManualPhase[]> = {
