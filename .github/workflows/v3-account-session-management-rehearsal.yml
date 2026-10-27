@@ -4,11 +4,17 @@ on:
   pull_request:
     branches:
       - main
+      - v3/nav-maintenance-desktop-budget-verify
     paths:
       - "supabase/migrations/**"
       - ".github/scripts/v3-account-session-management-rehearsal.sh"
+      - ".github/scripts/v3-account-session-authority-rehearsal.sh"
+      - ".github/tests/v3-account-session-authority.sql"
       - ".github/workflows/v3-account-session-management-rehearsal.yml"
       - "src/lib/v3-account-session-management.contract.test.ts"
+      - "src/lib/v3-account-session-authority.contract.test.ts"
+      - "src/lib/v3-consequence-release-classification.ts"
+      - "src/lib/v3-s16-mutation-authority.ts"
       - ".github/scripts/prepare-archive-local-config.py"
       - ".github/tests/test_prepare_archive_local_config.py"
   workflow_dispatch:
@@ -43,6 +49,8 @@ jobs:
         run: supabase db reset --local --no-seed
       - name: Rehearse account session contract
         run: bash .github/scripts/v3-account-session-management-rehearsal.sh
+      - name: Rehearse account session canonical authority
+        run: bash .github/scripts/v3-account-session-authority-rehearsal.sh
       - name: Stop isolated local Supabase
         if: always()
         run: supabase stop --no-backup || true
@@ -86,6 +94,12 @@ jobs:
           set -euo pipefail
           cd /tmp/solaris-account-session-main
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-account-session-management-rehearsal.sh"
+      - name: Rehearse canonical authority after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-account-session-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-account-session-authority-rehearsal.sh"
       - name: Stop isolated local Supabase
         if: always()
         shell: bash
