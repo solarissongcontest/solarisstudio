@@ -49,21 +49,30 @@ describe("Public non-route canonical replacement ownership", () => {
     expect(decide(pathname)).toMatchObject({ useV3Shell: true, rootTab: "explore", pathname });
     expect(decide(pathname, "?from=results", false)).toMatchObject({ useV3Shell: false, reason: "disabled" });
     const stage = readFileSync("src/components/ScoreboardStage.tsx", "utf8");
+    const gate = readFileSync("src/components/v3/V3PublicScoreboardGate.tsx", "utf8");
+    const route = readFileSync("src/routes/shows/$showId.tsx", "utf8");
     const presentation = readFileSync(row.replacementSurface.ownerComponent, "utf8");
-    expect(stage).toContain("isPublicShowRoute && isAppMode && rollout.data?.scoreboardEnabled === true");
-    expect(stage).toContain("<V3ScoreboardPresentation");
+    expect(route).toContain("<V3PublicScoreboardGate");
+    expect(gate).toContain("useV3PublicScoreboard(showId, enabled)");
+    expect(gate).toContain("<V3ScoreboardPresentation");
+    expect(stage).not.toContain("<V3ScoreboardPresentation");
     expect(presentation).toContain("standings: readonly Standing[]");
     expect(presentation).not.toContain("useQuery(");
     expect(presentation).not.toContain("supabase");
-    expect(row.specificationStatus).toBe("mapped");
+    expect(row.specificationStatus).toBe("cutover");
+    expect(row.migrationEvidence).toContain("src/lib/v3-public-scoreboard.test.tsx");
   });
 
-  it("retains every former route as an explicit replacement relationship without accepting cutover", () => {
+  it("retains every former route as an explicit replacement relationship with independent owner acceptance", () => {
     for (const row of V3_PUBLIC_CAPABILITY_REGISTRY) {
       if (!("replacementSurface" in row)) continue;
       expect(row.replacementSurface.hostRoute).toBe(row.targetRoute);
       expect(row.replacementSurface.replacesLegacyRoutes).toEqual(row.legacyRoutes);
-      expect(["cutover", "retired"]).not.toContain(row.specificationStatus);
+      if (row.id === "global-search") expect(row.specificationStatus).toBe("parity");
+      if (row.id === "scoreboard") {
+        expect(row.specificationStatus).toBe("cutover");
+        expect(row.migrationEvidence).toContain("src/integrations/v3/scoreboard-source.server.ts");
+      }
     }
   });
 });

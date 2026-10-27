@@ -46,10 +46,9 @@ describe("accepted Public immutable publication read family", () => {
     }
   });
 
-  it("keeps presentation-only, separately owned Stories, and participant write authority gaps visible", () => {
-    // The show-detail Scoreboard still receives legacy useResults standings;
-    // snapshot certification alone cannot close that separate consumer path.
-    expect(row("scoreboard").specificationStatus).toBe("mapped");
+  it("keeps separately owned Stories and participant write authority gaps visible", () => {
+    // Scoreboard has its separate exact-show transport/actual-gate proof;
+    // published Stories still needs independent owner certification.
     expect(row("stories").specificationStatus).toBe("mapped");
     for (const id of ["confirmations", "jury", "televote"]) {
       expect(row(id).specificationStatus, id).toBe("parity");

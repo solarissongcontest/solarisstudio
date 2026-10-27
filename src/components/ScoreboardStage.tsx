@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { useSolarisApp } from "@/components/app/AppRuntime";
 import { CountryCard } from "@/components/broadcast/CountryCard";
-import { V3ScoreboardPresentation } from "@/components/v3/V3ScoreboardPresentation";
 import type { Country, Participant } from "@/lib/data";
 import type { Standing } from "@/lib/analysis";
 import {
@@ -15,7 +13,6 @@ import {
 } from "@/lib/scoreboard";
 import type { ThemeConfig } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 type EditionPublicStyle = "cinematic" | "editorial" | "minimal" | "glass";
 
@@ -49,12 +46,6 @@ export function ScoreboardStage({
 }) {
   const rows = standings.slice(0, standings.length);
   const [editionStyle, setEditionStyle] = useState<EditionPublicStyle | null>(null);
-  const { isAppMode, platformResolved } = useSolarisApp();
-  const isPublicShowRoute =
-    typeof window !== "undefined" && /^\/shows\/[^/]+\/?$/.test(window.location.pathname);
-  const rollout = useV3RolloutProbe(
-    platformResolved && isAppMode && isPublicShowRoute,
-  );
 
   useEffect(() => {
     const read = () => {
@@ -131,16 +122,6 @@ export function ScoreboardStage({
     } as BroadcastRowData;
   });
 
-  if (isPublicShowRoute && isAppMode && rollout.data?.scoreboardEnabled === true) {
-    return (
-      <V3ScoreboardPresentation
-        standings={rows}
-        countries={countries}
-        participants={participants}
-        qualifiers={qualifiers}
-      />
-    );
-  }
 
   const perColumn = Math.ceil(broadcastRows.length / columns);
   const columnRows = Array.from({ length: columns }, (_, columnIndex) =>

@@ -54,6 +54,7 @@ export const V3_SYSTEM_INTEGRATION_REGISTRY: readonly V3SystemIntegrationRegistr
   { path: "src/integrations/v3/result-lab-source.server.ts", coordinatorDomain: "results", role: "composite-read-adapter" },
   { path: "src/integrations/v3/results-source.server.ts", coordinatorDomain: "results", role: "projection-adapter" },
   { path: "src/integrations/v3/rollout-probe.server.ts", coordinatorDomain: "feature-rollout", role: "rollout-probe" },
+  { path: "src/integrations/v3/scoreboard-source.server.ts", coordinatorDomain: "publication", role: "projection-adapter" },
   { path: "src/integrations/v3/scorecharts-source.server.ts", coordinatorDomain: "results", role: "composite-read-adapter" },
   { path: "src/integrations/v3/stories-source.server.ts", coordinatorDomain: "story", role: "projection-adapter" },
 ];

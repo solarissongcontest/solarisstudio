@@ -504,8 +504,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
       hostRoute: "/shows/:showId",
       replacesLegacyRoutes: ["/scoreboard", "/scoreboard/*"],
     },
-    specificationStatus: "mapped",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.scoreboard-published-result-version",
+    migrationEvidence: "src/components/v3/V3PublicScoreboardGate.tsx; src/integrations/v3/scoreboard-source.server.ts; src/lib/v3-public-scoreboard.functions.ts; src/lib/v3-public-scoreboard-runtime.ts; src/lib/v3-public-scoreboard.test.tsx; src/lib/v3-scoreboard-cutover.contract.test.ts; src/lib/v3-public-canonical-replacements.test.ts; scripts/rehearse-v3-public-result-snapshot.sh; supabase/migrations/20261024170500_v3_public_published_result_snapshot.sql; supabase/migrations/20261026170916_v3_public_result_snapshot_batch.sql",
   },
   {
     id: "delegation-detail",
