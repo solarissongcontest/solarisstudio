@@ -19,7 +19,7 @@ jobs:
   preflight:
     name: Exact-SHA V3 release preflight
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       VITE_SUPABASE_URL: http://127.0.0.1:54321
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_v3_release_local_only
@@ -90,6 +90,34 @@ jobs:
           V3_PREFLIGHT_DIR: v3-release-preflight/static
         run: bun --env-file=/dev/null run scripts/check-v3-s16-mutation-authority.ts --static
 
+      - name: Setup Supabase CLI for exact-SHA S16 catalog proof
+        if: always()
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase for S16
+        if: always()
+        run: supabase start
+
+      - name: Rebuild exact migration chain for S16
+        if: always()
+        run: supabase db reset --local --no-seed
+
+      - name: Collect exact-SHA S16 catalog evidence
+        if: always()
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          V3_S16_CATALOG_OUT: v3-release-preflight/s16/catalog-evidence.json
+        run: bun --env-file=/dev/null run scripts/collect-v3-s16-catalog-evidence.ts
+
+      - name: Enforce S16 against exact-SHA local catalog evidence
+        if: always()
+        env:
+          V3_PREFLIGHT_DIR: v3-release-preflight/s16
+          V3_RELEASE_EVIDENCE_DIR: v3-release-preflight
+        run: bun --env-file=/dev/null run scripts/check-v3-s16-mutation-authority.ts --catalog=v3-release-preflight/s16/catalog-evidence.json --enforce
+
       - name: Verify shared Results integration contract
         if: always()
         env:
@@ -125,6 +153,10 @@ jobs:
           V3_RELEASE_RISK_REPORT: v3-release-preflight/static/s15-burndown.json
           V3_RELEASE_MANIFEST_DIR: v3-release-preflight
         run: bun run scripts/build-v3-release-manifest.ts
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
 
       - name: Upload exact-SHA discovery summary
         if: always()
