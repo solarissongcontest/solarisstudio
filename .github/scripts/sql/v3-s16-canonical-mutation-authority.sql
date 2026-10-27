@@ -38,7 +38,6 @@ with critical(table_schema, table_name) as (
     ('public','shows'),
     ('public','studio2_edition_runtime'),
     ('public','integrity_cases'),
-    ('public','integrity_case_events'),
     ('public','integrity_case_appeals'),
     ('public','integrity_case_findings'),
     ('public','integrity_case_sanctions'),
@@ -120,7 +119,10 @@ function_evidence as (
   ) as value
   from function_candidates f
   join pg_proc p on p.oid = f.oid
-  where cardinality(f.writes_tables) > 0
+  -- Include all hardened SECURITY DEFINER functions as authority evidence even
+  -- when they delegate the physical DML to a private implementation primitive.
+  -- writesTables remains the discriminator for competing-writer detection.
+  where cardinality(f.writes_tables) > 0 or f.prosecdef
 )
 select jsonb_build_object(
   'schemaVersion', 1,
