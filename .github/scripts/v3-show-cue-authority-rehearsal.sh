@@ -19,9 +19,13 @@ case "$DB_URL" in
 esac
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-TEST="$ROOT/.github/tests/v3-show-cue-authority.sql"
-[[ -f "$TEST" ]] || fail "Missing authority contract $TEST"
+AUTHORITY_TEST="$ROOT/.github/tests/v3-show-cue-authority.sql"
+LOCK_TEST="$ROOT/.github/tests/v3-show-cue-lock-contract.sql"
+[[ -f "$AUTHORITY_TEST" ]] || fail "Missing authority contract $AUTHORITY_TEST"
+[[ -f "$LOCK_TEST" ]] || fail "Missing lock contract $LOCK_TEST"
 
 log "Running show lifecycle/cue authority contract against disposable local Supabase"
-psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$TEST"
-log "PASS: canonical show lifecycle/cue authority, race, retry and authorization contract"
+psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$AUTHORITY_TEST"
+log "Running show cue lock/recovery contract against disposable local Supabase"
+psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$LOCK_TEST"
+log "PASS: canonical show lifecycle/cue authority, race, retry, authorization and lock recovery contracts"
