@@ -51,4 +51,74 @@ describe("S16 canonical mutation authority", () => {
     }, sha, [domain]);
     expect(findings).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "unexpected_direct_dml_role" })]));
   });
+
+  it("accepts only explicitly sanctioned hardened internal writers and write triggers", () => {
+    const sha = "b".repeat(40);
+    const governedDomain: V3S16DomainDefinition = {
+      ...domain,
+      sanctionedInternalWriters: ["private.studio2_touch_jury_vote"],
+      sanctionedWriteTriggers: ["jury_guard"],
+    };
+    const findings = auditV3S16CatalogAuthority({
+      schemaVersion: 1,
+      candidateSha: sha,
+      tables: [{
+        table: "public.jury_votes",
+        owner: "postgres",
+        rlsEnabled: true,
+        dmlRoles: [],
+        columnDmlRoles: [],
+        writeTriggers: ["jury_guard"],
+        updatableViews: [],
+      }],
+      functions: [
+        {
+          name: "public.studio2_submit_jury_ballot",
+          owner: "postgres",
+          securityDefiner: true,
+          searchPath: "pg_catalog, public, private",
+          executeRoles: ["authenticated"],
+          writesTables: ["public.jury_votes"],
+        },
+        {
+          name: "private.studio2_touch_jury_vote",
+          owner: "postgres",
+          securityDefiner: true,
+          searchPath: "pg_catalog, public, private",
+          executeRoles: [],
+          writesTables: ["public.jury_votes"],
+        },
+      ],
+    }, sha, [governedDomain]);
+    expect(findings).toEqual([]);
+  });
+
+  it("still rejects an unclassified trigger beside a sanctioned one", () => {
+    const sha = "c".repeat(40);
+    const governedDomain: V3S16DomainDefinition = {
+      ...domain,
+      sanctionedWriteTriggers: ["jury_guard"],
+    };
+    const findings = auditV3S16CatalogAuthority({
+      schemaVersion: 1,
+      candidateSha: sha,
+      tables: [{
+        table: "public.jury_votes",
+        owner: "postgres",
+        rlsEnabled: true,
+        dmlRoles: [],
+        writeTriggers: ["jury_guard", "rogue_writer"],
+      }],
+      functions: [{
+        name: "public.studio2_submit_jury_ballot",
+        owner: "postgres",
+        securityDefiner: true,
+        searchPath: "pg_catalog, public",
+        executeRoles: ["authenticated"],
+      }],
+    }, sha, [governedDomain]);
+    expect(findings).toEqual([
+      expect.objectContaining({ kind: "unexpected_write_trigger", subject: "rogue_writer" }),
+    ]);
+  });
 });
