@@ -36,10 +36,23 @@ export type MergedModerationSubmission = {
 
 type ModerationCommandInput = {
   id: string;
-  expectedVersion: number;
+  expectedVersion?: number;
   operationId: string;
   idempotencyKey: string;
 };
+
+async function resolveSubmissionVersion(id: string, expectedVersion?: number) {
+  if (expectedVersion !== undefined) return expectedVersion;
+  const { data, error } = await televotingAdmin.rpc("admin_submission_versions", {
+    p_submission_ids: [id],
+  });
+  if (error) throw new Error(error.message);
+  const row = ((data ?? []) as Array<{ submission_id: string; version: number }>).find(
+    (candidate) => candidate.submission_id === id,
+  );
+  if (!row) throw new Error("Ballot revision is unavailable; refresh before editing");
+  return Number(row.version ?? 0);
+}
 
 async function applyModerationCommand(
   data: ModerationCommandInput,
@@ -48,12 +61,13 @@ async function applyModerationCommand(
   reason?: string,
 ) {
   await requireMergedTelevotingAdminServer();
+  const expectedVersion = await resolveSubmissionVersion(data.id, data.expectedVersion);
   const { data: result, error } = await televotingAdmin.rpc("v3_moderate_submission", {
     p_submission_id: data.id,
     p_action: action,
     p_payload: payload,
     p_reason: reason?.trim() || null,
-    p_expected_version: data.expectedVersion,
+    p_expected_version: expectedVersion,
     p_operation_id: data.operationId,
     p_idempotency_key: data.idempotencyKey,
     p_correlation_id: data.operationId,
