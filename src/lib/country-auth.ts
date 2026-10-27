@@ -1,4 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
+import {
+  beginSolarisAuthTransition,
+  runSolarisAuthMutation,
+  type SolarisAuthTransition,
+} from "@/lib/auth-transition-authority";
 
 type SessionPayload = {
   accessToken: string;
@@ -52,22 +57,54 @@ async function invokeCountryAuth<T>(body: Record<string, unknown>): Promise<T> {
   return invokeFunction<T>("country-auth", body);
 }
 
-async function installSession(payload: SessionPayload) {
-  const { data, error } = await supabase.auth.setSession({
-    access_token: payload.accessToken,
-    refresh_token: payload.refreshToken,
-  });
-  if (error || !data.session) throw error ?? new Error("Could not start your Solaris Studio session.");
-  return payload.userId;
+async function clearInstalledStaleSession() {
+  const { error } = await supabase.auth.signOut({ scope: "local" });
+  if (error) throw error;
+}
+
+async function installSession(payload: SessionPayload, transition: SolarisAuthTransition) {
+  return runSolarisAuthMutation(
+    transition,
+    async () => {
+      const { data, error } = await supabase.auth.setSession({
+        access_token: payload.accessToken,
+        refresh_token: payload.refreshToken,
+      });
+      if (error || !data.session) {
+        throw error ?? new Error("Could not start your Solaris Studio session.");
+      }
+
+      if (data.session.user.id !== payload.userId) {
+        await clearInstalledStaleSession();
+        throw new Error("Solaris returned an authentication session for a different account.");
+      }
+
+      // setSession proves SDK installation, while getUser revalidates the user
+      // against the Auth server before we let routing consume the identity.
+      const { data: verified, error: verifyError } = await supabase.auth.getUser();
+      if (verifyError || !verified.user || verified.user.id !== payload.userId) {
+        await clearInstalledStaleSession();
+        throw verifyError ?? new Error("Solaris could not verify the authenticated account.");
+      }
+
+      return verified.user.id;
+    },
+    async () => {
+      // The newer transition is queued behind this mutation, so local cleanup
+      // can safely remove the stale session without signing out other devices.
+      await clearInstalledStaleSession();
+    },
+  );
 }
 
 export async function signInSolarisAccount(identifier: string, password: string) {
+  const transition = beginSolarisAuthTransition();
   const payload = await invokeCountryAuth<SessionPayload>({
     action: "signin",
     identifier,
     password,
   });
-  return installSession(payload);
+  return installSession(payload, transition);
 }
 
 export async function createCountryAccount(input: {
@@ -77,11 +114,12 @@ export async function createCountryAccount(input: {
   password: string;
   email?: string;
 }) {
+  const transition = beginSolarisAuthTransition();
   const payload = await invokeCountryAuth<SessionPayload>({
     action: "signup",
     ...input,
   });
-  return installSession(payload);
+  return installSession(payload, transition);
 }
 
 export async function requestSolarisPasswordRecovery(identifier: string) {

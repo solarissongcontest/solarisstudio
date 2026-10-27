@@ -39,11 +39,12 @@ describe("server identity isolation across account lifecycle", () => {
     } finally { client.clear(); }
   });
 
-  it("purges participant, preference and fan caches when the account changes", () => {
+  it("purges participant, Me, integrity, preference and fan caches when the account changes", () => {
     const { client, apply } = fixture();
     try {
       apply({ id: "A" });
       const privateKeys = [
+        ["fan-profile", "profile-a"],
         ["fan-follows", "profile-a"],
         ["fan-event-reads", "profile-a"],
         ["fan-taste-ballots", "profile-a"],
@@ -53,14 +54,20 @@ describe("server identity isolation across account lifecycle", () => {
         ["fantasy-my-team", "game-a"],
         ["fantasy-my-team-entries", "team-a"],
         ["fantasy-admin-game", "edition-a"],
+        ["v3-me-summary", "A"],
+        ["integrity-user", "cases-v5"],
+        ["integrity-protected-cases", "appeals-v5"],
+        ["integrity-protected-case", "case-a"],
       ] as const;
       for (const key of privateKeys) client.setQueryData(key, { privateFor: "A" });
       client.setQueryData(["prediction-rounds", "show-a"], { public: true });
+      client.setQueryData(["integrity-public-stats", "v5"], { public: true });
 
       apply({ id: "B" });
 
       for (const key of privateKeys) expect(client.getQueryData(key)).toBeUndefined();
       expect(client.getQueryData(["prediction-rounds", "show-a"])).toEqual({ public: true });
+      expect(client.getQueryData(["integrity-public-stats", "v5"])).toEqual({ public: true });
     } finally { client.clear(); }
   });
 

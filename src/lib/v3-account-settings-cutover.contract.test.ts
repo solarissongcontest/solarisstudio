@@ -117,7 +117,7 @@ describe("V3 Account + Settings cutover", () => {
     expect(notifications).not.toContain('queryKey: ["mysolaris-notification-user"]');
   });
 
-  it("keeps sign out canonical, presentation-only and hidden for anonymous settings", () => {
+  it("keeps sign out canonical, globally authoritative and hidden for anonymous settings", () => {
     const source = shell();
     const session = accountSession();
 
@@ -127,7 +127,9 @@ describe("V3 Account + Settings cutover", () => {
     expect(source).toContain('window.location.href = "/"');
     expect(source).not.toContain("integrations/supabase");
     expect(source).not.toContain("supabase.auth.signOut");
-    expect(session).toContain("supabase.auth.signOut()");
+    expect(session).toContain('supabase.auth.signOut({ scope: "global" })');
+    expect(session).toContain("runSolarisAuthMutation(transition");
+    expect(session).toContain("publishSolarisSignOutBoundary()");
   });
 
   it("does not expose a browser-controlled rollout escape hatch", () => {

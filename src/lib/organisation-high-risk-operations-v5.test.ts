@@ -15,6 +15,7 @@ describe("Organisation OS V5 high-risk operation contracts", () => {
     "supabase/migrations/20261003151000_organisation_os_v5_r3_permission_approvals.sql",
   );
   const permissionClient = source("src/lib/permission-engine-admin.ts");
+  const reauth = source("src/lib/reauthenticate-solaris-account.ts");
   const permissionRoute = source(
     "src/routes/_authenticated/admin/access-permissions.tsx",
   );
@@ -101,7 +102,9 @@ describe("Organisation OS V5 high-risk operation contracts", () => {
     expect(r3FreshAuthMigration).toContain("v_existing.operation_id is not null");
 
     expect(permissionClient).toContain("reauthenticatePermissionR3");
-    expect(permissionClient).toContain("supabase.auth.signInWithPassword");
+    expect(permissionClient).toContain("reauthenticateCurrentSolarisAccount");
+    expect(reauth).toContain("supabase.auth.signInWithPassword");
+    expect(reauth).toContain("runSolarisAuthMutation");
     expect(permissionRoute).toContain("Fresh authentication required");
     expect(permissionRoute).toContain('type="password"');
     expect(permissionRoute).toContain('autoComplete="current-password"');

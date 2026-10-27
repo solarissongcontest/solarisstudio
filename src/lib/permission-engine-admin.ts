@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { reauthenticateCurrentSolarisAccount } from "@/lib/reauthenticate-solaris-account";
 
 import { SOLARIS_CAPABILITIES, type SolarisCapability } from "./permissions-v2";
 
@@ -489,26 +490,10 @@ export async function approvePermissionChangeApproval(
 }
 
 export async function reauthenticatePermissionR3(password: string): Promise<void> {
-  if (!password) throw new Error("Enter your current Solaris password to authorize this R3 change.");
-  const secret = password;
-
-  const { data: current, error: currentError } = await supabase.auth.getUser();
-  if (currentError) throw currentError;
-  const user = current.user;
-  if (!user?.id || !user.email) {
-    throw new Error("This organizer account cannot be reauthenticated with a password.");
-  }
-
-  const originalUserId = user.id;
-  const { data: signedIn, error: signInError } = await supabase.auth.signInWithPassword({
-    email: user.email,
-    password: secret,
+  return reauthenticateCurrentSolarisAccount(password, {
+    missingPassword: "Enter your current Solaris password to authorize this R3 change.",
+    unavailable: "This organizer account cannot be reauthenticated with a password.",
   });
-  if (signInError) throw signInError;
-  if (!signedIn.user || signedIn.user.id !== originalUserId) {
-    await supabase.auth.signOut();
-    throw new Error("Fresh authentication returned a different Solaris account.");
-  }
 }
 
 export async function applyPermissionChange(

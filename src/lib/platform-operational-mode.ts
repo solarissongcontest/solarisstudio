@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
+import { reauthenticateCurrentSolarisAccount } from "@/lib/reauthenticate-solaris-account";
 
 export type PlatformOperationalMode = "normal" | "degraded" | "read_only" | "maintenance";
 
@@ -150,27 +151,10 @@ export async function previewPlatformModeChange(input: {
 }
 
 export async function reauthenticatePlatformR3(password: string): Promise<void> {
-  if (!password) {
-    throw new Error("Enter your current Solaris password to authorize this R3 mode change.");
-  }
-
-  const { data: current, error: currentError } = await supabase.auth.getUser();
-  if (currentError) throw currentError;
-  const user = current.user;
-  if (!user?.id || !user.email) {
-    throw new Error("This organizer account cannot be reauthenticated with a password.");
-  }
-
-  const originalUserId = user.id;
-  const { data: signedIn, error: signInError } = await supabase.auth.signInWithPassword({
-    email: user.email,
-    password,
+  return reauthenticateCurrentSolarisAccount(password, {
+    missingPassword: "Enter your current Solaris password to authorize this R3 mode change.",
+    unavailable: "This organizer account cannot be reauthenticated with a password.",
   });
-  if (signInError) throw signInError;
-  if (!signedIn.user || signedIn.user.id !== originalUserId) {
-    await supabase.auth.signOut();
-    throw new Error("Fresh authentication returned a different Solaris account.");
-  }
 }
 
 export async function applyPlatformModeChange(input: {

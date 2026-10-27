@@ -17,7 +17,7 @@ import {
   requireConfirmationsAdmin,
   type ConfirmationEdition,
 } from "@/integrations/confirmations/admin";
-import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { signOutSolarisAccount } from "@/lib/account-session";
 
 export const Route = createFileRoute("/confirmations/admin/settings")({
   head: () => ({ meta: [{ title: "Delegation Settings — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
@@ -62,7 +62,7 @@ function SettingsPage() {
   const publicUrl = typeof window !== "undefined" ? `${window.location.origin}/confirmations` : "/confirmations";
 
   async function signOut() {
-    await confirmationsSupabase.auth.signOut();
+    await signOutSolarisAccount();
     await navigate({ to: "/auth" });
   }
 
