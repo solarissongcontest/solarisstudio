@@ -12,6 +12,8 @@ on:
       - ".github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh"
       - ".github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh"
       - ".github/workflows/v3-s14-archive-system-rehearsal.yml"
+      - ".github/scripts/prepare-archive-local-config.py"
+      - ".github/tests/test_prepare_archive_local_config.py"
       - "src/lib/solaris-v6-domain-registry.ts"
       - "src/lib/v3-domain-consequence-registry.ts"
       - "src/lib/v3-projection-reconciliation-registry.ts"
@@ -28,6 +30,11 @@ on:
       - "src/lib/v3-edition-transition-client.test.ts"
       - "src/lib/studio2-control-room.ts"
   workflow_dispatch:
+
+# Use the mirror already proven available in this workflow's failed ECR pulls.
+# SUPABASE_INTERNAL_IMAGE_REGISTRY is supported by the pinned CLI.
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
 
 permissions:
   contents: read
@@ -66,6 +73,11 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: 2.113.0
+
+      - name: Prepare independent local project and host ports
+        run: |
+          python3 .github/tests/test_prepare_archive_local_config.py
+          python3 .github/scripts/prepare-archive-local-config.py supabase/config.toml "archive-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-clean"
 
       - name: Start isolated local Supabase
         run: supabase start
@@ -160,6 +172,7 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-s14-main
+          python3 "$GITHUB_WORKSPACE/.github/scripts/prepare-archive-local-config.py" supabase/config.toml "archive-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-upgrade"
           supabase start
           supabase db reset --local --no-seed
 
