@@ -42,6 +42,7 @@ const checks: Check[] = group === "static" ? [
   { id: "resultsQualificationPublicationHandoff", group: "handoff", command: ["bash", ".github/scripts/v3-s14-publication-handoff-regression.sh"] },
   { id: "votingResultTruth", group: "database", resetBefore: true, command: ["bash", ".github/scripts/v3-s14-televote-result-truth-rehearsal.sh"] },
   { id: "archiveRegression", group: "database", resetBefore: true, command: ["bash", ".github/scripts/v3-s14-archive-system-rehearsal.sh"] },
+  { id: "participantActivityProjection", group: "database", resetBefore: true, command: ["bash", ".github/scripts/v3-participant-activity-regression.sh"] },
   { id: "publicPublishedSnapshot", group: "database", resetBefore: true, command: ["bash", "scripts/rehearse-v3-public-result-snapshot.sh"] },
   { id: "receiptReadReplacement", group: "database", resetBefore: true, command: ["bash", ".github/scripts/v3-operation-receipt-rehearsal.sh"] },
 ];
