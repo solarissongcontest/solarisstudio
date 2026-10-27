@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
 import { buildV3S16MutationAuthorityReport, scanV3S16StaticAuthority, V3_S16_CRITICAL_DOMAINS, V3_S16_POLICY_VERSION, type V3S16CatalogEvidence, type V3S16SourceFile } from "../src/lib/v3-s16-mutation-authority";
+import { classifyV3S16ReleaseAuthority } from "../src/lib/v3-s16-release-risk";
 import { V3_RELEASE_POLICY_VERSION } from "../src/lib/v3-release-evidence";
 
 const SOURCE_ROOTS = ["src", "supabase/migrations", "supabase/functions", "workers", "functions"];
@@ -37,14 +38,25 @@ const catalog = catalogFile && existsSync(catalogFile)
   ? JSON.parse(readFileSync(catalogFile, "utf8")) as V3S16CatalogEvidence
   : null;
 
-const full = buildV3S16MutationAuthorityReport({ candidateSha: sha, files, catalog });
-const report = staticOnly ? {
-  ...full,
-  catalogAuditPassed: false,
-  s16Passed: false,
-  findings: scanV3S16StaticAuthority(files, V3_S16_CRITICAL_DOMAINS),
-  catalogStatus: "not_evaluated_in_static_mode",
-} : full;
+const baseReport = buildV3S16MutationAuthorityReport({ candidateSha: sha, files, catalog });
+const baseFindings = staticOnly
+  ? scanV3S16StaticAuthority(files, V3_S16_CRITICAL_DOMAINS)
+  : baseReport.findings;
+const assessment = classifyV3S16ReleaseAuthority({
+  baseFindings,
+  domains: baseReport.domains,
+  files,
+  catalog,
+  staticOnly,
+});
+const report = {
+  ...baseReport,
+  catalogAuditPassed: staticOnly ? false : baseReport.catalogAuditPassed,
+  s16Passed: assessment.s16Passed,
+  findings: assessment.findings,
+  riskTotals: assessment.riskTotals,
+  ...(staticOnly ? { catalogStatus: "not_evaluated_in_static_mode" as const } : {}),
+};
 
 const directory = process.env.V3_PREFLIGHT_DIR ?? "v3-release-preflight/static";
 mkdirSync(directory, { recursive: true });
@@ -67,6 +79,7 @@ if (!staticOnly && catalog) {
     check_version: V3_S16_POLICY_VERSION,
     s16Passed: report.s16Passed,
     findingCount: report.findings.length,
+    riskTotals: report.riskTotals,
   };
   writeFileSync(join(evidenceDirectory, "s16-mutation-authority.json"), JSON.stringify(evidence, null, 2) + "\n");
 }
