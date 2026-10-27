@@ -26,7 +26,7 @@ function sqlLiteral(value: string) {
 }
 
 function query(dbUrl: string, sql: string) {
-  return execFileSync("psql", [dbUrl, "-X", "-v", "ON_ERROR_STOP=1", "-Atq", "-c", sql], { encoding: "utf8" }).trim();
+  return execFileSync("psql", [dbUrl, "-X", "-v", "ON_ERROR_STOP=1", "-Atq", "-c", sql], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 }).trim();
 }
 
 function queryJson<T>(dbUrl: string, sql: string): T {

@@ -303,7 +303,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     risk: "integrity_critical",
     canonicalTables: ["public.editions", "public.shows", "public.studio2_edition_runtime"],
     canonicalOwner: "edition/live-show domains",
-    canonicalCommands: [],
+    canonicalCommands: ["public.v3_apply_edition_visual_change"],
   },
 ];
 

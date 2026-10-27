@@ -27,6 +27,15 @@ export type V3S16AuthorityContract = {
 
 export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
   {
+    domain: "contest-lifecycle",
+    canonicalCommands: ["public.v3_apply_edition_visual_change"],
+    evidence: [
+      "supabase/migrations/20261027181504_v3_edition_visual_command.sql",
+      ".github/tests/v3-edition-visual-command.sql",
+      "src/lib/edition-visual-command.ts",
+    ],
+  },
+  {
     domain: "account-session",
     canonicalCommands: ["public.v3_revoke_session"],
     evidence: [

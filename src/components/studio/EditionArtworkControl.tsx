@@ -47,6 +47,7 @@ type ArtworkBaseline = {
   artworkUrl: string | null;
   artworkStoragePath: string | null;
   themeColorsFingerprint: string;
+  themeColors: unknown;
   shows: ArtworkShowSnapshot[];
   themes: ArtworkThemeSnapshot[];
 };
@@ -128,6 +129,7 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
       artworkUrl: activeEdition.artwork_url ?? null,
       artworkStoragePath: activeEdition.artwork_storage_path ?? null,
       themeColorsFingerprint: stableFingerprint(activeEdition.theme_colors ?? null),
+      themeColors: cloneForReview(activeEdition.theme_colors ?? null),
       shows: showSnapshots,
       themes: themeSnapshots,
     };
@@ -249,18 +251,20 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
         const asset = await uploadEditionArtwork(review.baseline.editionId, review.file);
         await saveEditionVisualTheme({
           editionId: review.baseline.editionId,
+          expected: {
+            artwork_url: review.baseline.artworkUrl, artwork_storage_path: review.baseline.artworkStoragePath,
+            theme_colors: review.baseline.themeColors, logo: review.baseline.logo,
+            theme_id: review.baseline.editionThemeId,
+          },
           artworkUrl: asset.publicUrl,
           artworkStoragePath: asset.storagePath,
           theme: review.theme,
           palette: review.palette,
           generatedFromArtwork: true,
+          logoUrl: asset.publicUrl,
         });
         await synchroniseReviewedScoreboardThemes(review.theme, review.baseline.themes);
-        const { error: compatibilityError } = await supabase
-          .from("editions")
-          .update({ logo: asset.publicUrl })
-          .eq("id", review.baseline.editionId);
-        if (compatibilityError) throw compatibilityError;
+
         setThemeDraft(review.theme);
         setSavedTheme(review.theme);
         setPalette(review.palette);
@@ -268,6 +272,11 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
       } else {
         await saveEditionVisualTheme({
           editionId: review.baseline.editionId,
+          expected: {
+            artwork_url: review.baseline.artworkUrl, artwork_storage_path: review.baseline.artworkStoragePath,
+            theme_colors: review.baseline.themeColors, logo: review.baseline.logo,
+            theme_id: review.baseline.editionThemeId,
+          },
           artworkUrl: review.baseline.artworkUrl,
           artworkStoragePath: review.baseline.artworkStoragePath,
           theme: review.theme,
@@ -387,7 +396,7 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
               Solaris re-reads the edition artwork fields, edition/show theme bindings and every linked theme configuration immediately before apply. If any reviewed source changed, the operation fails closed before upload or save.
             </p>
             <p className="text-xs leading-relaxed text-amber-100/85">
-              The verified upload pipeline remains authoritative for artwork bytes, but artwork metadata, compatibility logo and theme synchronisation still span multiple legacy operations and are not atomic. System #625 owns canonical version/CAS, idempotency, receipts and uncertain-outcome recovery for Production design mutations.
+              Artwork details and the compatibility logo save together. Uploads and linked scoreboard theme updates can finish separately; refresh canonical state if the operation is interrupted.
             </p>
           </div>
         ) : null}
