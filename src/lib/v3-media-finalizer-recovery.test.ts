@@ -31,6 +31,7 @@ async function finalizer(
     updatedRowMissing?: boolean;
     invalidBytes?: boolean;
     validEvidence?: boolean;
+    duplicatePublish?: "same" | "different" | "wrong-size" | "unavailable";
   } = {},
 ) {
   let handler!: (request: Request) => Promise<Response>;
@@ -88,7 +89,30 @@ async function finalizer(
       return query;
     },
     storage: {
-      from: () => ({ download, remove, upload: vi.fn().mockResolvedValue({ error: null }) }),
+      from: (bucket: string) => ({
+        download:
+          bucket === "solaris-upload-quarantine"
+            ? download
+            : vi.fn().mockResolvedValue({
+                data:
+                  options.duplicatePublish === "unavailable"
+                    ? null
+                    : new Blob([
+                        options.duplicatePublish === "different"
+                          ? new TextEncoder().encode("%PDF-1.6\n%%EOF")
+                          : options.duplicatePublish === "wrong-size"
+                            ? new Uint8Array([1])
+                            : evidenceBytes,
+                      ]),
+                error: options.duplicatePublish === "unavailable" ? { status: 503 } : null,
+              }),
+        remove,
+        upload: vi
+          .fn()
+          .mockResolvedValue({
+            error: options.duplicatePublish ? { message: "The resource already exists" } : null,
+          }),
+      }),
     },
   };
   await runInNewContext(`(async () => { ${compiled} })()`, {
@@ -216,6 +240,28 @@ it.each([{ updateError: true }, { updatedRowMissing: true }])(
     const body = await response.json();
     expect(body.ok).toBeUndefined();
     expect(body.code).toBeUndefined();
+    expect(remove).not.toHaveBeenCalled();
+  },
+);
+
+it("reconciles duplicate publication only when persisted bytes match the verified payload", async () => {
+  const { request, update } = await finalizer({ validEvidence: true, duplicatePublish: "same" });
+  expect((await request()).status).toBe(200);
+  expect(update).toHaveBeenCalledWith(expect.objectContaining({ status: "verified" }));
+});
+
+it.each([
+  ["different", 409],
+  ["wrong-size", 409],
+  ["unavailable", 503],
+] as const)(
+  "never certifies a duplicate object with %s readback",
+  async (duplicatePublish, status) => {
+    const { request, update, remove } = await finalizer({ validEvidence: true, duplicatePublish });
+    const response = await request();
+    expect(response.status).toBe(status);
+    expect((await response.json()).ok).toBeUndefined();
+    expect(update).not.toHaveBeenCalled();
     expect(remove).not.toHaveBeenCalled();
   },
 );

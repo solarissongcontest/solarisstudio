@@ -946,6 +946,22 @@ Deno.serve(async (request) => {
       console.error("[solaris-upload-finalize] final publish failed", publishError);
       return json({ error: "Verified file could not be published." }, 500);
     }
+    // A pre-existing object is an ambiguous retry, not proof that these
+    // verified bytes were published. Read the exact bounded destination back
+    // before advancing the canonical receipt; never overwrite another object.
+    const { data: existing, error: readbackError } = await service.storage
+      .from(row.final_bucket)
+      .download(row.final_path);
+    if (readbackError || !existing) {
+      return json({ error: "Published upload could not be reconciled. Retry finalization." }, 503);
+    }
+    if (existing.size !== publishBytes.byteLength) {
+      return json({ error: "Published upload does not match the verified bytes." }, 409);
+    }
+    const existingBytes = new Uint8Array(await existing.arrayBuffer());
+    if (!existingBytes.every((value, index) => value === publishBytes[index])) {
+      return json({ error: "Published upload does not match the verified bytes." }, 409);
+    }
   }
 
   if (thumbnailBytes && thumbnailPath) {
