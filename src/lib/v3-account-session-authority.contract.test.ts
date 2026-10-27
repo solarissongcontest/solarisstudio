@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { V3_ACCOUNT_SESSION_EVENT_AUTHORITY, v3AccountSessionEventAuthority } from "./v3-account-session-event-authority";
 import { classifyV3ConsequenceRelease } from "./v3-consequence-release-classification";
 import { classifyV3ReleaseFinding } from "./v3-release-risk";
 import { V3_S16_CRITICAL_DOMAINS } from "./v3-s16-mutation-authority";
@@ -76,6 +77,29 @@ describe("V3 account/session canonical authority", () => {
     ]));
     expect(domain?.sanctionedInternalWriters).toContain("public.claim_country_from_signup");
     expect(domain?.sanctionedWriteTriggers).toContain("v3_guard_country_account_writer");
+  });
+
+  it("encodes canonical mutation, consumers, reconciliation and failure impact for all three events", () => {
+    expect(V3_ACCOUNT_SESSION_EVENT_AUTHORITY.map((entry) => entry.eventType)).toEqual([
+      "account.changed",
+      "session.changed",
+      "session.revoked",
+    ]);
+
+    for (const event of V3_ACCOUNT_SESSION_EVENT_AUTHORITY) {
+      expect(event.eventPersistence).toBe("tracked_optional_consequence");
+      expect(event.canonicalState.length).toBeGreaterThan(0);
+      expect(event.canonicalMutations.length).toBeGreaterThan(0);
+      expect(event.synchronousSecurityBoundary.length).toBeGreaterThan(0);
+      expect(event.consumers.length).toBeGreaterThan(0);
+      expect(event.requiredConsequences.length).toBeGreaterThan(0);
+      expect(event.idempotency).toBeTruthy();
+      expect(event.reconciliation).toBeTruthy();
+      expect(event.failureImpact).toBeTruthy();
+    }
+
+    expect(v3AccountSessionEventAuthority("session.revoked")?.failureImpact).toContain("cannot preserve access");
+    expect(v3AccountSessionEventAuthority("other.event")).toBeNull();
   });
 
   it("keeps account/session security synchronous while demoting only the exact derived events", () => {
