@@ -12,6 +12,9 @@ import { capabilityForOrganizerPath } from "./permission-route-map";
 import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
 import { V3_ORGANIZER_OBSERVATIONAL_CUTOVERS } from "./v3-organizer-observational-cutovers";
 
+const timeMachineSource = readFileSync("src/routes/_authenticated/admin/time-machine.tsx", "utf8");
+const commandAssistantSource = readFileSync("src/routes/_authenticated/admin/command-assistant.tsx", "utf8");
+
 async function renderProductionPage(path: string, component: ComponentType) {
   const root = createRootRoute({ component: Outlet });
   const page = createRoute({ getParentRoute: () => root, path, component: () => createElement(component) });
@@ -28,7 +31,6 @@ function redirectTarget(route: typeof IntelligenceAlias | typeof AntiAbuseAlias)
 
 describe("accepted canonical Organizer observational family", () => {
   it("executes all real server read owners with denied/authorized callers and zero writes or network", () => {
-    // Child-process isolation prevents transport mocks leaking into any application test.
     const report = JSON.parse(execFileSync(process.execPath, ["--env-file=/dev/null", "run", "scripts/fixtures/v3-organizer-observational-proof.ts"], {
       encoding: "utf8", env: process.env,
     }));
@@ -47,6 +49,30 @@ describe("accepted canonical Organizer observational family", () => {
       encoding: "utf8", env: process.env,
     }));
     expect(report).toEqual({ passed: true, deniedBeforeRead: true, selectedEdition: true, crossEditionRejected: true, unverifiableScheduleRejected: true, productionRouteCases: 2, networkAttempts: 0 });
+  });
+
+  it("keeps Time Machine bounded, exact-edition and read-only", () => {
+    expect(timeMachineSource).toContain('rpc("studio2_time_machine"');
+    expect(timeMachineSource).toContain("_edition_id: editionId");
+    expect(timeMachineSource).toContain('["time-machine", editionId ?? "none", asOf]');
+    expect(timeMachineSource).toContain("TIME_MACHINE_EVENT_LIMIT = 250");
+    expect(timeMachineSource).toContain("TIME_MACHINE_AUDIT_LIMIT = 100");
+    expect(timeMachineSource).not.toContain("useMutation(");
+    expect(timeMachineSource).not.toContain(".insert(");
+    expect(timeMachineSource).not.toContain(".update(");
+    expect(timeMachineSource).not.toContain(".delete(");
+  });
+
+  it("keeps Command Assistant exact-edition and incapable of inventing a write path", () => {
+    expect(commandAssistantSource).toContain("const { editionId } = useAdminContext()");
+    expect(commandAssistantSource).toContain("edition.id === editionId");
+    expect(commandAssistantSource).toContain("useV3OrganizerProjection(resolvedEditionId || null)");
+    expect(commandAssistantSource).toContain("fixed command registry");
+    expect(commandAssistantSource).toContain("cannot generate arbitrary SQL");
+    expect(commandAssistantSource).not.toContain("useMutation(");
+    expect(commandAssistantSource).not.toContain(".insert(");
+    expect(commandAssistantSource).not.toContain(".update(");
+    expect(commandAssistantSource).not.toContain(".delete(");
   });
 
   it("resolves both retained specialist aliases to one canonical evidence owner with the same read capability", () => {
@@ -85,7 +111,7 @@ describe("accepted canonical Organizer observational family", () => {
       expect(capability?.migrationStatus).toBe("cutover");
       expect(capability?.migrationEvidence).toContain("v3-organizer-private-read-isolation.test.ts");
     }
-    for (const id of ["voting-public-results", "voting-combined-results", "voting-result-integrity", "workspace-hod-history", "workspace-system-settings"]) {
+    for (const id of ["voting-public-results", "voting-combined-results", "voting-result-integrity", "workspace-hod-history", "workspace-system-settings", "operations-communications", "live-review-broadcast-rundown"]) {
       expect(V3_ORGANIZER_CAPABILITY_REGISTRY.find((row) => row.legacyId === id)?.migrationStatus).toBe("building");
     }
   });
