@@ -39,6 +39,31 @@ describe("server identity isolation across account lifecycle", () => {
     } finally { client.clear(); }
   });
 
+  it("purges participant, preference and fan caches when the account changes", () => {
+    const { client, apply } = fixture();
+    try {
+      apply({ id: "A" });
+      const privateKeys = [
+        ["fan-follows", "profile-a"],
+        ["fan-event-reads", "profile-a"],
+        ["fan-taste-ballots", "profile-a"],
+        ["notification-preferences", "profile-a"],
+        ["prediction-history", "profile-a"],
+        ["my-prediction", "round-a", "profile-a"],
+        ["fantasy-my-team", "game-a"],
+        ["fantasy-my-team-entries", "team-a"],
+        ["fantasy-admin-game", "edition-a"],
+      ] as const;
+      for (const key of privateKeys) client.setQueryData(key, { privateFor: "A" });
+      client.setQueryData(["prediction-rounds", "show-a"], { public: true });
+
+      apply({ id: "B" });
+
+      for (const key of privateKeys) expect(client.getQueryData(key)).toBeUndefined();
+      expect(client.getQueryData(["prediction-rounds", "show-a"])).toEqual({ public: true });
+    } finally { client.clear(); }
+  });
+
   it("changes an active identity observer's namespace when the current account changes", () => {
     const { client, apply } = fixture();
     apply({ id: "A" });

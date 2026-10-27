@@ -8,8 +8,8 @@ contract. Results internals remain owned by PR #1400.
 | Event | Canonical state / command | Critical contract and event role | Required consumer / remaining gap | Risk |
 | --- | --- | --- | --- | --- |
 | account.changed | Account/profile state; no single proven `account.update` command | Actor-owned account mutation and audit; settings/preferences are not a new account authority | No proven canonical account command/event boundary; identify and govern all profile/security writers before accepting projections | Hard |
-| identity.authenticated | Supabase Auth identity/session; Auth sign-in + server `getUser` | Signed identity must match the active user/session; UI/cache is derived | Prove lifecycle audit/event provenance and live-session checks across server/Edge/Storage boundaries; cache isolation alone does not prove authorization | Hard |
-| identity.signed_out | Supabase Auth; `signOutSolarisAccount` -> Auth sign-out | Auth session removal must deny subsequent authorization without delivery | New Data API hook covers ordinary requests; real HTTP rehearsal pending; remaining server/Edge/Storage authorization requires proof | Hard |
+| identity.authenticated | Supabase Auth identity + active `auth.sessions` session; sign-in/restore followed by server `getUser` at protected boundaries | Authentication authority is synchronous canonical Auth/session state. The lifecycle label may describe telemetry/audit but may not grant access or resurrect identity. | Protected route, Organizer, server and Edge boundaries verify Auth identity; Data API and authenticated Storage authority require a live canonical session. Remaining application-event/audit delivery is optional observational maturity. | Debt |
+| identity.signed_out | Supabase Auth global sign-out + active-session boundary | Canonical sign-out/session invalidation removes server authority without waiting for an event consumer; local private-cache cleanup is a derived presentation consequence. | Data API rejects inactive sessions; authenticated Storage reuses the same `auth.sessions` guard; Edge/server identity uses Auth `getUser`; explicit sign-out fences the current tab cache after successful Auth sign-out. | Debt |
 | session.changed | `auth.sessions`, `auth.refresh_tokens`; managed Auth refresh | Signed session ownership, expiry and refresh-token lifecycle are authoritative | Refresh/session-change provenance and all authorization boundaries remain unproven; do not fabricate an application event consumer as authority | Hard |
 | session.revoked | `auth.sessions` + `studio2_account_session_revocations`; `v3_revoke_session` | Actor-scoped noncurrent target, fresh auth, synchronous delete/tombstone/operation completion; no consumer may keep access alive | New shared Data API guard checks live session before operational-mode early returns; real HTTP proof pending; managed Auth, Edge/Storage and persisted event coverage remain | Hard |
 | edition.changed | `editions` and `studio2_edition_runtime`; transition RPC covers lifecycle only | Versioned transition does not prove all edition metadata writers | Direct application edition writers remain in S16; define mutation authority/CAS/audit for metadata before calling its projections derived | Hard |
@@ -21,11 +21,15 @@ contract. Results internals remain owned by PR #1400.
 
 ## Executable evidence
 
-- `src/lib/v3-open-event-authority.contract.test.ts` preserves the eleven identities,
-  their hard classification and the concrete existing synchronous safeguards.
+- `src/lib/v3-open-event-authority.contract.test.ts` preserves the remaining
+  integrity-critical identities and explicitly keeps the two identity lifecycle
+  labels non-authoritative.
+- `src/lib/v3-identity-lifecycle-authority.contract.test.ts` proves the shared
+  server/Edge identity checks, authenticated Storage live-session boundary and
+  explicit sign-out cache fence.
 - `src/lib/v3-data-api-session-guard.contract.test.ts` and the extended
-  `.github/scripts/v3-account-session-management-rehearsal.sh` cover the new
-  revocation boundary. Contract tests are not a substitute for the HTTP rehearsal.
+  `.github/scripts/v3-account-session-management-rehearsal.sh` cover the shared
+  Data API revocation boundary. Contract tests are not a substitute for the HTTP rehearsal.
 - `src/lib/v3-media-finalizer-recovery.test.ts` executes the actual finalizer with
   failed/raced receipt writes and equal, unequal, wrong-size or unavailable
   duplicate-object readback. It does not certify a database/Storage transaction.
