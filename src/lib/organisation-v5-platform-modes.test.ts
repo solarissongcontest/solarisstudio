@@ -11,6 +11,7 @@ describe("Organisation OS V5 platform operational modes", () => {
   const emergencyServer = source("src/server.ts");
   const emergencyConfig = source("src/lib/maintenance.ts");
   const client = source("src/lib/platform-operational-mode.ts");
+  const reauth = source("src/lib/reauthenticate-solaris-account.ts");
   const systemRoute = source("src/routes/_authenticated/admin/system.tsx");
   const platformPermissionEnforcement = source(
     "supabase/migrations/20261003212000_organisation_os_v5_platform_permission_enforcement.sql",
@@ -110,7 +111,9 @@ describe("Organisation OS V5 platform operational modes", () => {
     expect(client).toContain("studio2_platform_mode_change_preview");
     expect(client).toContain("studio2_apply_platform_mode_change");
     expect(client).toContain("reauthenticatePlatformR3");
-    expect(client).toContain("supabase.auth.signInWithPassword");
+    expect(client).toContain("reauthenticateCurrentSolarisAccount");
+    expect(reauth).toContain("supabase.auth.signInWithPassword");
+    expect(reauth).toContain("runSolarisAuthMutation");
     expect(client).toContain("operationId: input.operationId");
     expect(client).toContain("idempotencyKey: input.idempotencyKey");
   });

@@ -24,6 +24,20 @@ describe("identity authentication and sign-out authority", () => {
     expect(accountAuth).toContain("beginSolarisAuthTransition()");
     expect(accountAuth).toContain("runSolarisAuthMutation(");
 
+    const reauth = read("src/lib/reauthenticate-solaris-account.ts");
+    expect(reauth).toContain("beginSolarisAuthTransition()");
+    expect(reauth).toContain("runSolarisAuthMutation(");
+    expect(reauth).toContain("before.user.id !== originalUserId");
+    expect(reauth).toContain("verified.user.id !== originalUserId");
+    for (const path of [
+      "src/lib/platform-operational-mode.ts",
+      "src/lib/show-publication-lifecycle.ts",
+      "src/lib/permission-engine-admin.ts",
+    ]) {
+      expect(read(path)).toContain("reauthenticateCurrentSolarisAccount");
+      expect(read(path)).not.toContain("supabase.auth.signInWithPassword");
+    }
+
     for (const path of [
       "src/integrations/supabase/organizer.server.ts",
       "src/integrations/v3/entry-actions.server.ts",
