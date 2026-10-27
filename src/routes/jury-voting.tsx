@@ -393,15 +393,6 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
 
   const submitMutation = useMutation({
     mutationFn: async (token: string) => {
-      if (!v3ReliabilityEnabled) {
-        const { error } = await supabase.rpc("submit_country_jury_ballot", {
-          _show_id: round.show_id,
-          _entries: ballot,
-          _preflight_id: token,
-        });
-        if (error) throw error;
-        return null;
-      }
       const fingerprint = JSON.stringify(ballot);
       const prepared = prepareV3JuryOperation({
         existing: readV3JuryOperation(round.show_id),
@@ -454,7 +445,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
       }
     },
     onSuccess: (receipt) => {
-      if (v3ReliabilityEnabled) clearV3JuryOperation(round.show_id);
+      clearV3JuryOperation(round.show_id);
       setSubmissionReceipt(receipt);
       setGovernanceReceipt(captureGovernanceSnapshot("jury.vote"));
       try {
