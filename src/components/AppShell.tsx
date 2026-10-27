@@ -27,6 +27,7 @@ import { PublicMobileSectionNav } from "@/components/public/PublicMobileSectionN
 import { PublicSectionNav } from "@/components/public/PublicSectionNav";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
+import { signOutSolarisAccount } from "@/lib/account-session";
 import { getSolarisAnniversary } from "@/lib/anniversary";
 import { getAnniversaryPreviewPhase } from "@/lib/anniversary-preview";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
@@ -104,33 +105,39 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let alive = true;
+    let authGeneration = 0;
 
-    const refresh = async (userId?: string | null, userEmail?: string | null) => {
-      if (!alive) return;
-      setEmail(userEmail ?? null);
+    const refresh = async (
+      userId: string | null,
+      userEmail: string | null,
+      generation: number,
+    ) => {
+      if (!alive || generation !== authGeneration) return;
 
-      if (!userId) {
-        setAccess(EMPTY_ACCESS);
-        return;
-      }
+      // Clear the previous account before any new account-scoped read starts.
+      // This prevents A-private chrome from remaining visible while B resolves.
+      setEmail(userEmail);
+      setAccess(EMPTY_ACCESS);
+      if (!userId) return;
 
       const next = await getCurrentAccountAccess(userId);
-      if (alive) setAccess(next);
+      if (alive && generation === authGeneration) setAccess(next);
     };
 
-    void supabase.auth
-      .getUser()
-      .then(({ data }) => refresh(data.user?.id ?? null, data.user?.email ?? null));
-
+    // onAuthStateChange emits INITIAL_SESSION, so a competing getUser restore is
+    // unnecessary here. The protected route/Organizer boundaries still verify
+    // identity server-side; this listener only owns presentation state.
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      const generation = ++authGeneration;
       window.setTimeout(
-        () => void refresh(session?.user?.id ?? null, session?.user?.email ?? null),
+        () => void refresh(session?.user?.id ?? null, session?.user?.email ?? null, generation),
         0,
       );
     });
 
     return () => {
       alive = false;
+      authGeneration += 1;
       subscription.subscription.unsubscribe();
     };
   }, []);
@@ -226,7 +233,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (pathname.startsWith("/admin")) return <>{children}</>;
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await signOutSolarisAccount();
+    setEmail(null);
+    setAccess(EMPTY_ACCESS);
     window.location.href = "/";
   };
 
