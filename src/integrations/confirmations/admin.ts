@@ -1,6 +1,7 @@
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase as solarisSupabase } from "@/integrations/supabase/client";
+import { applyEditionEditingChange } from "@/lib/edition-authority";
 
 export type ConfirmationRound = {
   id: string;
@@ -163,21 +164,47 @@ export async function saveConfirmationEdition(payload: {
   return data as string;
 }
 
-export async function deleteConfirmationEdition(id: string) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_delete_edition", {
-    _id: id,
-  });
-  if (error) throw error;
-  return data === true;
+export async function deleteConfirmationEdition(_id: string) {
+  throw new Error(
+    "Permanent edition deletion is retired. Use canonical edition lifecycle/archive state instead.",
+  );
 }
 
 export async function setConfirmationEditionEditing(id: string, enabled: boolean) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_set_edition_editing", {
-    _id: id,
-    _enabled: enabled,
+  const editions = await loadConfirmationEditions();
+  const edition = editions.find((item) => item.id === id);
+  if (!edition) throw new Error("Edition not found in the current Confirmation scope.");
+
+  const receipt = await applyEditionEditingChange({
+    editionId: id,
+    expectedEnabled: edition.editing_enabled,
+    enabled,
+    reason: enabled
+      ? "Open reviewed edition-wide Confirmation editing"
+      : "Close reviewed edition-wide Confirmation editing",
   });
-  if (error) throw error;
-  return data === true;
+  return receipt.edition.editing_enabled === enabled;
+}
+
+async function runConfirmationRoundChange(input: {
+  roundId?: string | null;
+  kind: ConfirmationRoundChangeKind;
+  payload?: ConfirmationRoundChangePayload;
+}) {
+  const preview = await previewConfirmationRoundChange(input);
+  if (preview.blockers.length) throw new Error(preview.blockers.join(" "));
+  if (preview.alreadyApplied && input.kind !== "delete") {
+    return { preview, receipt: null as ConfirmationRoundChangeReceipt | null };
+  }
+
+  const operationId = crypto.randomUUID();
+  const receipt = await applyConfirmationRoundChange({
+    ...input,
+    operationId,
+    idempotencyKey: operationId,
+    expectedVersion: preview.expectedVersion,
+  });
+  return { preview, receipt };
 }
 
 export async function saveConfirmationRound(payload: {
@@ -190,40 +217,64 @@ export async function saveConfirmationRound(payload: {
   response_limit: number | null;
   editing_enabled: boolean;
 }) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_save_round", {
-    _payload: payload,
+  if (payload.status === "auto_closed") {
+    throw new Error("Auto-closed is a system state and cannot be selected as an Organizer save target.");
+  }
+
+  const kind: ConfirmationRoundChangeKind = payload.id ? "update" : "create";
+  const base = await runConfirmationRoundChange({
+    roundId: payload.id ?? null,
+    kind,
+    payload: {
+      editionId: payload.edition_id,
+      name: payload.name,
+      opensAt: payload.opens_at,
+      closesAt: payload.closes_at,
+      responseLimit: payload.response_limit,
+      editingEnabled: payload.editing_enabled,
+    },
   });
-  if (error) throw error;
-  return data as string;
+  const roundId = base.receipt?.roundId ?? base.preview.roundId;
+  if (!roundId) throw new Error("Confirmation round save returned no canonical round id.");
+
+  const currentStatus = base.receipt?.status ?? base.preview.currentStatus ?? "draft";
+  if (payload.status !== "draft" && payload.status !== currentStatus) {
+    await runConfirmationRoundChange({
+      roundId,
+      kind: "status",
+      payload: { status: payload.status },
+    });
+  }
+  return roundId;
 }
 
 export async function deleteConfirmationRound(id: string) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_delete_round", {
-    _id: id,
-  });
-  if (error) throw error;
-  return data === true;
+  await runConfirmationRoundChange({ roundId: id, kind: "delete" });
+  return true;
 }
 
 export async function setConfirmationRoundStatus(
   id: string,
   status: ConfirmationRound["status"],
 ) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_set_round_status", {
-    _id: id,
-    _status: status,
+  if (status !== "open" && status !== "closed") {
+    throw new Error("Organizer status changes may only target open or closed.");
+  }
+  const result = await runConfirmationRoundChange({
+    roundId: id,
+    kind: "status",
+    payload: { status },
   });
-  if (error) throw error;
-  return data === true;
+  return (result.receipt?.status ?? result.preview.targetStatus) === status;
 }
 
 export async function setConfirmationRoundEditing(id: string, enabled: boolean) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_set_round_editing", {
-    _id: id,
-    _enabled: enabled,
+  const result = await runConfirmationRoundChange({
+    roundId: id,
+    kind: "editing",
+    payload: { enabled },
   });
-  if (error) throw error;
-  return data === true;
+  return (result.receipt?.editingEnabled ?? result.preview.targetEditingEnabled) === enabled;
 }
 
 export async function previewConfirmationRoundChange(input: {
