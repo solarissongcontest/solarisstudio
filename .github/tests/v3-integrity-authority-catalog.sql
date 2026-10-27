@@ -83,6 +83,7 @@ begin
     select p.oid,
            p.proname,
            p.prosecdef,
+           p.proacl,
            coalesce(array_to_string(p.proconfig, ','), '') as proconfig
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
@@ -96,7 +97,11 @@ begin
        or position('pg_catalog' in lower(v_fn.proconfig)) = 0 then
       raise exception 'Canonical Integrity function % lacks a pinned pg_catalog search_path: %', v_fn.proname, v_fn.proconfig;
     end if;
-    if has_function_privilege('public', v_fn.oid, 'EXECUTE') then
+    if exists (
+      select 1
+      from aclexplode(coalesce(v_fn.proacl, acldefault('f', (select proowner from pg_proc where oid = v_fn.oid)))) acl
+      where acl.grantee = 0 and acl.privilege_type = 'EXECUTE'
+    ) then
       raise exception 'Canonical Integrity function % remains executable by PUBLIC', v_fn.proname;
     end if;
   end loop;
@@ -112,13 +117,20 @@ begin
   end if;
 
   for v_fn in
-    select p.oid, p.proname
+    select p.oid, p.proname, p.proacl, p.proowner
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
       and p.proname = any(v_internal_functions)
   loop
-    foreach v_role in array array['public','anon','authenticated','service_role'] loop
+    if exists (
+      select 1
+      from aclexplode(coalesce(v_fn.proacl, acldefault('f', v_fn.proowner))) acl
+      where acl.grantee = 0 and acl.privilege_type = 'EXECUTE'
+    ) then
+      raise exception 'Internal Integrity writer % remains executable by PUBLIC', v_fn.proname;
+    end if;
+    foreach v_role in array array['anon','authenticated','service_role'] loop
       if has_function_privilege(v_role, v_fn.oid, 'EXECUTE') then
         raise exception 'Internal Integrity writer % remains executable by %', v_fn.proname, v_role;
       end if;
