@@ -116,7 +116,9 @@ begin
       '[{"id":"opening","label":"Changed","status":"planned","plannedDurationSeconds":60}]'::jsonb,
       'Stale rundown fixture','27270000-0000-4000-8000-000000000122','show-cue:stale');
     raise exception 'Stale rundown revision unexpectedly succeeded';
-  exception when serialization_failure then null; end;
+  exception when others then
+    if sqlstate <> '40001' then raise; end if;
+  end;
 end $test$;
 select public.v3_set_show_rundown_lock(current_setting('test.show_id')::uuid,1,true,'Lock authority rundown',
   '27270000-0000-4000-8000-000000000123','show-cue:lock');
