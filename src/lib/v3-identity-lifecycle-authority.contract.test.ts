@@ -18,6 +18,12 @@ describe("identity authentication and sign-out authority", () => {
       expect(source).toContain("user.id !== sessionUserId");
     }
 
+    const accountAuth = read("src/lib/country-auth.ts");
+    expect(accountAuth).toContain("data.session.user.id !== payload.userId");
+    expect(accountAuth).toContain("verified.user.id !== payload.userId");
+    expect(accountAuth).toContain("beginSolarisAuthTransition()");
+    expect(accountAuth).toContain("runSolarisAuthMutation(");
+
     for (const path of [
       "src/integrations/supabase/organizer.server.ts",
       "src/integrations/v3/entry-actions.server.ts",
@@ -50,11 +56,13 @@ describe("identity authentication and sign-out authority", () => {
     }
   });
 
-  it("makes explicit sign-out global and synchronously fences private client cache after success", () => {
+  it("makes explicit sign-out global, serialized, and synchronously fences private client cache", () => {
     const signOut = read("src/lib/account-session.ts");
     const isolation = read("src/components/app/AccountCacheIsolation.tsx");
     expect(signOut).toContain('supabase.auth.signOut({ scope: "global" })');
-    expect(signOut.indexOf("if (error) throw error")).toBeLessThan(
+    expect(signOut).toContain("beginSolarisAuthTransition()");
+    expect(signOut).toContain("runSolarisAuthMutation(transition");
+    expect(signOut.indexOf("runSolarisAuthMutation")).toBeLessThan(
       signOut.indexOf("publishSolarisSignOutBoundary()"),
     );
     expect(isolation).toContain("subscribeSolarisSignOutBoundary");

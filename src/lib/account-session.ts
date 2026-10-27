@@ -1,4 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
+import {
+  beginSolarisAuthTransition,
+  runSolarisAuthMutation,
+} from "@/lib/auth-transition-authority";
 
 type SignOutBoundaryListener = () => void;
 
@@ -26,7 +30,10 @@ function publishSolarisSignOutBoundary() {
  * own auth-state propagation; their protected requests are server-authoritative.
  */
 export async function signOutSolarisAccount() {
-  const { error } = await supabase.auth.signOut({ scope: "global" });
-  if (error) throw error;
+  const transition = beginSolarisAuthTransition();
+  await runSolarisAuthMutation(transition, async () => {
+    const { error } = await supabase.auth.signOut({ scope: "global" });
+    if (error) throw error;
+  });
   publishSolarisSignOutBoundary();
 }
