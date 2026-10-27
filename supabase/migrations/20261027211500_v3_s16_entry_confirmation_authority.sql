@@ -10,13 +10,9 @@ select public.v3_register_migration_contract(
 );
 
 -- S16 Entry authority cutover.
---
 -- Confirmation owns its response/review state, but public.entries is canonical
--- Entry state.  The old server integration was a peer writer because it used
--- service-role INSERT/UPDATE directly against public.entries.  This command is
--- deliberately narrow: the caller supplies only the Confirmation submission
--- identity.  Edition, country, source entry, content and lifecycle are derived
--- again inside the authoritative transaction.
+-- Entry state. The caller supplies only the Confirmation submission identity;
+-- scope and content are re-derived inside the authoritative transaction.
 create or replace function public.v3_sync_confirmation_entry(
   p_submission_id uuid
 )
@@ -30,6 +26,7 @@ declare
   v_country_id uuid;
   v_entity_id uuid;
   v_existing public.entries%rowtype;
+  v_existing_source_updated_at timestamptz;
   v_entry_id uuid;
   v_source_ref text;
   v_artist text;
@@ -99,20 +96,31 @@ begin
     );
   end if;
 
-  v_status := case when v_submission.participating then 'confirmed' else 'withdrawn' end;
+  -- Compare source revisions, not the projection row's own updated_at. A retry
+  -- of the same submission must remain idempotent after the first sync updates
+  -- the projection timestamp.
+  if v_existing.id is not null then
+    begin
+      v_existing_source_updated_at := nullif(
+        v_existing.metadata ->> 'confirmation_submission_updated_at',
+        ''
+      )::timestamptz;
+    exception when others then
+      v_existing_source_updated_at := null;
+    end;
 
-  if v_existing.id is not null
-     and v_existing.status in ('confirmed', 'withdrawn')
-     and v_existing.status <> v_status
-     and v_existing.updated_at > v_submission.updated_at then
-    return jsonb_build_object(
-      'ok', false,
-      'status', 'canonical_newer',
-      'editionId', v_submission.edition_id,
-      'countryId', v_country_id,
-      'entryId', v_existing.id
-    );
+    if coalesce(v_existing_source_updated_at, v_existing.updated_at) > v_submission.updated_at then
+      return jsonb_build_object(
+        'ok', false,
+        'status', 'canonical_newer',
+        'editionId', v_submission.edition_id,
+        'countryId', v_country_id,
+        'entryId', v_existing.id
+      );
+    end if;
   end if;
+
+  v_status := case when v_submission.participating then 'confirmed' else 'withdrawn' end;
 
   if lower(coalesce(v_submission.selection_method, '')) = 'internal' then
     select
@@ -163,6 +171,7 @@ begin
     v_metadata := jsonb_build_object(
       'confirmation_submission_id', v_submission.id,
       'confirmation_edition_id', v_submission.edition_id,
+      'confirmation_submission_updated_at', v_submission.updated_at,
       'national_final_id', v_national_final_id,
       'national_final_name', v_national_final_name,
       'reveal_date_type', v_submission.reveal_date_type,
@@ -181,6 +190,7 @@ begin
     v_metadata := jsonb_build_object(
       'confirmation_submission_id', v_submission.id,
       'confirmation_edition_id', v_submission.edition_id,
+      'confirmation_submission_updated_at', v_submission.updated_at,
       'awaiting_official_entry', true,
       'reveal_date_type', v_submission.reveal_date_type,
       'reveal_exact_date', v_submission.reveal_exact_date,
@@ -261,9 +271,6 @@ grant execute on function public.v3_sync_confirmation_entry(uuid)
 comment on function public.v3_sync_confirmation_entry(uuid) is
   'Canonical S16 Entry projection command for Confirmation-owned submissions. Derives Entry scope and content server-side; service_role cannot supply arbitrary Entry payloads.';
 
--- public.entries is now mutated through governed SECURITY DEFINER operations.
--- Read access remains unchanged.  API roles, including service_role, no longer
--- receive a raw peer writer simply by possessing a database client.
 revoke insert, update, delete on table public.entries
   from anon, authenticated, service_role;
 
