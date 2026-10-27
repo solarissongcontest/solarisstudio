@@ -6,6 +6,11 @@ import {
   MagickFormat,
 } from "npm:@imagemagick/magick-wasm@0.0.30";
 import woff2 from "npm:wawoff2@2.0.1";
+import {
+  sha256Hex,
+  validSha256,
+  verifyPublishedBlob,
+} from "../_shared/media-byte-identity.ts";
 
 const magickWasm = await Deno.readFile(
   new URL(
@@ -648,18 +653,48 @@ function callerSessionId(authorization: string | null): string | null {
     if (!body) return null;
     const claims = JSON.parse(atob(body.replace(/-/g, "+").replace(/_/g, "/")));
     return typeof claims.session_id === "string" ? claims.session_id : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 async function persistFinalization(
-  service: ReturnType<typeof createClient>, row: UploadAuthorization,
-  secret: string, actorId: string | null, sessionId: string | null,
-  outcome: { status: string; detected_mime?: string; verified_metadata?: Record<string, unknown>; rejection_reason: string | null },
+  service: ReturnType<typeof createClient>,
+  row: UploadAuthorization,
+  secret: string,
+  actorId: string | null,
+  sessionId: string | null,
+  outcome: {
+    status: string;
+    detected_mime?: string;
+    verified_metadata?: Record<string, unknown>;
+    rejection_reason: string | null;
+  },
 ) {
   return service.rpc("v3_finalize_media_upload", {
-    p_token_id: row.id, p_upload_secret: secret, p_actor_id: actorId, p_actor_session_id: sessionId,
-    p_status: outcome.status, p_detected_mime: outcome.detected_mime ?? null,
-    p_metadata: outcome.verified_metadata ?? {}, p_rejection_reason: outcome.rejection_reason,
+    p_token_id: row.id,
+    p_upload_secret: secret,
+    p_actor_id: actorId,
+    p_actor_session_id: sessionId,
+    p_status: outcome.status,
+    p_detected_mime: outcome.detected_mime ?? null,
+    p_metadata: outcome.verified_metadata ?? {},
+    p_rejection_reason: outcome.rejection_reason,
+  });
+}
+
+async function readFinalizationReceipt(
+  service: ReturnType<typeof createClient>,
+  row: UploadAuthorization,
+  secret: string,
+  actorId: string | null,
+  sessionId: string | null,
+) {
+  return service.rpc("v3_read_media_finalization_receipt", {
+    p_token_id: row.id,
+    p_upload_secret: secret,
+    p_actor_id: actorId,
+    p_actor_session_id: sessionId,
   });
 }
 
@@ -703,11 +738,9 @@ Deno.serve(async (request) => {
   if (!authorizationRow) return json({ error: "Upload authorization not found." }, 404);
 
   const row = authorizationRow as UploadAuthorization;
-  const callerId = await callerUserId(
-    supabaseUrl,
-    serviceRoleKey,
-    request.headers.get("authorization"),
-  );
+  const authorization = request.headers.get("authorization");
+  const callerId = await callerUserId(supabaseUrl, serviceRoleKey, authorization);
+  const sessionId = callerSessionId(authorization);
 
   if (row.actor_id && row.actor_id !== callerId) {
     return json({ error: "This upload authorization belongs to another account." }, 403);
@@ -720,13 +753,71 @@ Deno.serve(async (request) => {
   }
 
   if (row.status === "verified") {
+    const metadata = row.verified_metadata ?? {};
+    const publishedSha256 = metadata.publishedSha256;
+    const publishedSize = Number(metadata.publishedSize);
+    if (!validSha256(publishedSha256) || !Number.isSafeInteger(publishedSize) || publishedSize < 0) {
+      return json(
+        {
+          error: "Verified media receipt is not bound to an exact published byte identity.",
+          code: "verified_receipt_unbound",
+        },
+        503,
+      );
+    }
+
+    const { data: published, error: publishedError } = await service.storage
+      .from(row.final_bucket)
+      .download(row.final_path);
+    if (publishedError || !published) {
+      return json(
+        {
+          error: "Verified media publication could not be read back. Retry finalization.",
+          code: "verified_publication_unconfirmed",
+        },
+        503,
+      );
+    }
+    if (!(await verifyPublishedBlob(published, { size: publishedSize, sha256: publishedSha256 }))) {
+      return json(
+        {
+          error: "Verified media publication no longer matches its canonical receipt.",
+          code: "verified_publication_conflict",
+        },
+        409,
+      );
+    }
+
+    const { data: receipt, error: receiptError } = await readFinalizationReceipt(
+      service,
+      row,
+      input.upload_secret,
+      callerId,
+      sessionId,
+    );
+    if (receiptError || !receipt) {
+      return json(
+        {
+          error: "Verified media receipt could not be reconciled. Retry finalization.",
+          code: "verified_receipt_unconfirmed",
+        },
+        503,
+      );
+    }
+
+    const receiptRow = receipt as Record<string, unknown>;
+    const receiptMetadata =
+      receiptRow.metadata && typeof receiptRow.metadata === "object" && !Array.isArray(receiptRow.metadata)
+        ? (receiptRow.metadata as Record<string, unknown>)
+        : metadata;
     return json({
       ok: true,
       token_id: row.id,
       bucket: row.final_bucket,
       object_path: row.final_path,
       detected_mime: row.detected_mime,
-      metadata: row.verified_metadata ?? {},
+      metadata: receiptMetadata,
+      operation_id: receiptRow.operationId ?? null,
       replayed: true,
     });
   }
@@ -756,10 +847,17 @@ Deno.serve(async (request) => {
   }
 
   if (new Date(row.expires_at).getTime() <= Date.now()) {
-    const { data: expired, error: expiryError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSessionId(request.headers.get("authorization")), {
+    const { data: expired, error: expiryError } = await persistFinalization(
+      service,
+      row,
+      input.upload_secret,
+      callerId,
+      sessionId,
+      {
         status: "expired",
         rejection_reason: "Upload authorization expired before finalization.",
-      });
+      },
+    );
     if (expiryError || !expired) {
       return json({ error: "Upload expiration could not be confirmed. Retry finalization." }, 503);
     }
@@ -817,7 +915,13 @@ Deno.serve(async (request) => {
 
   if (rejection) {
     await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
-    const { data: rejected, error: rejectionError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSessionId(request.headers.get("authorization")), {
+    const { data: rejected, error: rejectionError } = await persistFinalization(
+      service,
+      row,
+      input.upload_secret,
+      callerId,
+      sessionId,
+      {
         status: "rejected",
         rejection_reason: rejection,
         verified_metadata: {
@@ -826,7 +930,8 @@ Deno.serve(async (request) => {
           signatureVerified: false,
           malwareScan: "not_available_in_current_runtime",
         },
-      });
+      },
+    );
     if (rejectionError || !rejected) {
       return json({ error: "Upload rejection could not be confirmed. Retry finalization." }, 503);
     }
@@ -875,7 +980,13 @@ Deno.serve(async (request) => {
         ? processingError.message
         : "Server-side file processing failed.";
     await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
-    const { data: rejected, error: rejectionError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSessionId(request.headers.get("authorization")), {
+    const { data: rejected, error: rejectionError } = await persistFinalization(
+      service,
+      row,
+      input.upload_secret,
+      callerId,
+      sessionId,
+      {
         status: "rejected",
         rejection_reason: message,
         verified_metadata: {
@@ -886,16 +997,20 @@ Deno.serve(async (request) => {
           malwareScan: "not_available_in_current_runtime",
           moderationDecision: "rejected",
         },
-      });
+      },
+    );
     if (rejectionError || !rejected) {
       return json({ error: "Upload rejection could not be confirmed. Retry finalization." }, 503);
     }
     return json({ error: message, code: "authorization_rejected" }, 422);
   }
 
+  const publishedSha256 = await sha256Hex(publishBytes);
   const metadata = {
     originalSize: bytes.byteLength,
     publishedSize: publishBytes.byteLength,
+    publishedSha256,
+    hashAlgorithm: "sha256",
     kind: detected!.kind,
     format: detected!.format,
     width: processedWidth,
@@ -929,6 +1044,8 @@ Deno.serve(async (request) => {
       "safe_transform_applied",
       "moderation_decided",
       "published",
+      "published_bytes_read_back",
+      "published_sha256_bound",
     ],
   };
 
@@ -941,28 +1058,26 @@ Deno.serve(async (request) => {
       cacheControl: row.domain === "integrity_evidence" ? "0" : "31536000",
     });
 
-  if (publishError) {
-    const duplicate = /already exists|duplicate/i.test(publishError.message || "");
-    if (!duplicate) {
-      console.error("[solaris-upload-finalize] final publish failed", publishError);
-      return json({ error: "Verified file could not be published." }, 500);
-    }
-    // A pre-existing object is an ambiguous retry, not proof that these
-    // verified bytes were published. Read the exact bounded destination back
-    // before advancing the canonical receipt; never overwrite another object.
-    const { data: existing, error: readbackError } = await service.storage
-      .from(row.final_bucket)
-      .download(row.final_path);
-    if (readbackError || !existing) {
-      return json({ error: "Published upload could not be reconciled. Retry finalization." }, 503);
-    }
-    if (existing.size !== publishBytes.byteLength) {
-      return json({ error: "Published upload does not match the verified bytes." }, 409);
-    }
-    const existingBytes = new Uint8Array(await existing.arrayBuffer());
-    if (!existingBytes.every((value, index) => value === publishBytes[index])) {
-      return json({ error: "Published upload does not match the verified bytes." }, 409);
-    }
+  if (publishError && !/already exists|duplicate/i.test(publishError.message || "")) {
+    console.error("[solaris-upload-finalize] final publish failed", publishError);
+    return json({ error: "Verified file could not be published." }, 500);
+  }
+
+  // Storage and Postgres cannot commit atomically. A successful upload response
+  // or a duplicate-path response is therefore not sufficient evidence. Read the
+  // exact destination bytes back and bind their SHA-256 before committing the
+  // canonical verified receipt. This also reconciles same-byte retries safely.
+  const { data: published, error: readbackError } = await service.storage
+    .from(row.final_bucket)
+    .download(row.final_path);
+  if (readbackError || !published) {
+    return json({ error: "Published upload could not be reconciled. Retry finalization." }, 503);
+  }
+  if (!(await verifyPublishedBlob(published, {
+    size: publishBytes.byteLength,
+    sha256: publishedSha256,
+  }))) {
+    return json({ error: "Published upload does not match the verified bytes." }, 409);
   }
 
   if (thumbnailBytes && thumbnailPath) {
@@ -983,12 +1098,19 @@ Deno.serve(async (request) => {
   // A Storage write does not establish a verified authorization. Require the
   // conditional canonical receipt write to return its row before acknowledging
   // success, and retain quarantine bytes if that write fails or loses a race.
-  const { data: verified, error: updateError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSessionId(request.headers.get("authorization")), {
+  const { data: verified, error: updateError } = await persistFinalization(
+    service,
+    row,
+    input.upload_secret,
+    callerId,
+    sessionId,
+    {
       status: "verified",
       detected_mime: detected!.mime,
       verified_metadata: metadata,
       rejection_reason: null,
-    });
+    },
+  );
 
   if (updateError || !verified) {
     console.error("[solaris-upload-finalize] authorization finalization unconfirmed", updateError);
@@ -1000,6 +1122,32 @@ Deno.serve(async (request) => {
       503,
     );
   }
+
+  // Read the durable receipt back through the governed command before returning
+  // success. If the response is lost after commit, the next request performs
+  // the same byte readback and arrives here through the verified replay branch.
+  const { data: canonicalReceipt, error: receiptError } = await readFinalizationReceipt(
+    service,
+    row,
+    input.upload_secret,
+    callerId,
+    sessionId,
+  );
+  if (receiptError || !canonicalReceipt) {
+    return json(
+      {
+        error:
+          "Verified upload committed but canonical receipt readback is uncertain. Retry finalization.",
+      },
+      503,
+    );
+  }
+
+  const receiptRow = canonicalReceipt as Record<string, unknown>;
+  const receiptMetadata =
+    receiptRow.metadata && typeof receiptRow.metadata === "object" && !Array.isArray(receiptRow.metadata)
+      ? (receiptRow.metadata as Record<string, unknown>)
+      : metadata;
 
   const { error: cleanupError } = await service.storage
     .from("solaris-upload-quarantine")
@@ -1014,7 +1162,8 @@ Deno.serve(async (request) => {
     bucket: row.final_bucket,
     object_path: row.final_path,
     detected_mime: detected!.mime,
-    metadata,
+    metadata: receiptMetadata,
+    operation_id: receiptRow.operationId ?? null,
     replayed: false,
   });
 });
