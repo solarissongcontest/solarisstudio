@@ -68,6 +68,7 @@ const NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT: Readonly<Record<string, readonly st
  */
 const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = {
   "acknowledgement.recorded": [],
+  "media.verified": [],
   "notice.published": [],
   "notice.superseded": [],
   "notification.queued": [],
@@ -113,6 +114,12 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
   "entry.changes_requested": [
     "supabase/migrations/20261015201221_v3_s5_entry_consequences.sql",
     ".github/scripts/v3-s5-entry-consequences-rehearsal.sh",
+  ],
+  "media.verified": [
+    "supabase/migrations/20261027211500_v3_media_verified_byte_identity.sql",
+    "src/lib/v3-media-finalizer-recovery.test.ts",
+    ".github/tests/v3-media-finalization-authority.sql",
+    "src/lib/v3-s5-media-consequences.test.ts",
   ],
   "media.reviewed": [
     "supabase/migrations/20261016050000_v3_s5_media_review_consequences.sql",
@@ -218,6 +225,14 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "src/lib/v3-s5-televote-consequences.test.ts",
   ],
 };
+
+/**
+ * `media.verified` is committed transactionally with the canonical media row and
+ * operation receipt. No downstream mutation is required for verification to be
+ * correct: consumers may re-read canonical media state, and optional projection
+ * or analytics work may lag without becoming another verification authority.
+ */
+const EVENTS_WITHOUT_REQUIRED_ASYNC_CONSEQUENCES = new Set(["media.verified"]);
 
 /**
  * A reconciliation read is not a mutating domain event. Keep the old logical
@@ -339,12 +354,15 @@ export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
       );
       const notificationProviders = NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT[eventType] ?? [];
       const publicProjections = domain.publicConsumers.filter(Boolean);
-      const consumers = unique([
-        ...domain.publicConsumers,
-        ...domain.organizerConsumers,
-        ...nonTaskBackgroundConsumers,
-        ...taskTypes.map((taskType) => `task:${taskType}`),
-      ]);
+      const noRequiredAsyncConsequences = EVENTS_WITHOUT_REQUIRED_ASYNC_CONSEQUENCES.has(eventType);
+      const consumers = noRequiredAsyncConsequences
+        ? []
+        : unique([
+            ...domain.publicConsumers,
+            ...domain.organizerConsumers,
+            ...nonTaskBackgroundConsumers,
+            ...taskTypes.map((taskType) => `task:${taskType}`),
+          ]);
       const eventBackedEvidence = EVENT_BACKED_CONSEQUENCES[eventType];
       const replacement = READ_ONLY_REPLACEMENTS[eventType] ?? null;
 
@@ -352,19 +370,31 @@ export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
         eventType,
         ownerDomain: domain.domain,
         projections: domain.projections,
-        taskEffects: replacement ? [] : taskTypes.map((taskType) => ({ effect: "re-evaluate", taskType } as const)),
-        notificationEffects: replacement ? [] : notificationProviders.map((providerId) => ({
-          effect: "evaluate-provider",
-          providerId,
-        } as const)),
-        publicationEffects: replacement ? [] : publicProjections.map((projection) => ({
-          effect: "re-evaluate-visibility",
-          projection,
-        } as const)),
-        realtimeEffects: replacement ? [] : domain.projections.map((projection) => ({
-          effect: "invalidate-projection",
-          projection,
-        } as const)),
+        taskEffects:
+          replacement || noRequiredAsyncConsequences
+            ? []
+            : taskTypes.map((taskType) => ({ effect: "re-evaluate", taskType } as const)),
+        notificationEffects:
+          replacement || noRequiredAsyncConsequences
+            ? []
+            : notificationProviders.map((providerId) => ({
+                effect: "evaluate-provider",
+                providerId,
+              } as const)),
+        publicationEffects:
+          replacement || noRequiredAsyncConsequences
+            ? []
+            : publicProjections.map((projection) => ({
+                effect: "re-evaluate-visibility",
+                projection,
+              } as const)),
+        realtimeEffects:
+          replacement || noRequiredAsyncConsequences
+            ? []
+            : domain.projections.map((projection) => ({
+                effect: "invalidate-projection",
+                projection,
+              } as const)),
         analyticsEffects: replacement ? [] : [`domain-event:${eventType}`],
         auditRequired:
           !replacement && (domain.sensitivityClass !== "public" ||
