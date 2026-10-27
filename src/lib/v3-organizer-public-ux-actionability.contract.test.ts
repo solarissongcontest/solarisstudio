@@ -43,11 +43,13 @@ describe("V3 Organizer Public UX actionability", () => {
     expect(findings).not.toContain("sessionEvents");
   });
 
-  it("advances Public UX only to building", () => {
+  it("retains Public UX as an accepted bounded observational cutover", () => {
     const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "workspace-public-ux",
     );
     expect(capability?.targetDomain).toBe("product-qa");
-    expect(capability?.migrationStatus).toBe("building");
+    expect(capability?.migrationStatus).toBe("cutover");
+    expect(capability?.migrationEvidence).toContain("v3-organizer-specialist-acceptance.contract.test.ts");
+    expect(capability?.migrationEvidence).toContain("public-ux-metrics.ts");
   });
 });

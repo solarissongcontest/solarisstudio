@@ -39,11 +39,13 @@ describe("V3 Organizer canonical domain ownership", () => {
     expect(domain("workspace-beta-1-archive")).toBe("product-qa");
   });
 
-  it("preserves current Product QA capability ownership and migration evidence", () => {
+  it("preserves accepted Product QA ownership and inspectable cutover evidence", () => {
     const coverage = capability("workspace-beta-coverage");
 
     expect(coverage.ownerCapability).toBe("rollout.manage");
-    expect(coverage.migrationStatus).toBe("building");
+    expect(coverage.migrationStatus).toBe("cutover");
+    expect(coverage.migrationEvidence).toContain("v3-organizer-specialist-acceptance.contract.test.ts");
+    expect(coverage.migrationEvidence).toContain("AdminQaCoveragePage.tsx");
   });
 
   it("keeps publication with voting/results and production configuration separate from live review", () => {

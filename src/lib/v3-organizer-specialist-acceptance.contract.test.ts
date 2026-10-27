@@ -157,9 +157,8 @@ describe("accepted Organizer specialist family", () => {
   });
 
   it("accepts Media assets only through its canonical review owner and without route-level table writes", () => {
-    expect(mediaRoute).not.toContain(".insert(");
-    expect(mediaRoute).not.toContain(".update(");
-    expect(mediaRoute).not.toContain(".delete(");
+    expect(mediaRoute).not.toContain(".from(");
+    expect(mediaRoute).not.toContain("supabase");
     expect(mediaModel).toContain("studio2_media_asset_reviews");
     expect(mediaModel).toContain("studio2_review_media_assets");
   });

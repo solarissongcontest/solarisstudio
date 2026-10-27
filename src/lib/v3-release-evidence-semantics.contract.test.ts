@@ -16,8 +16,10 @@ describe("V3 exact-candidate release evidence semantics", () => {
     expect(source).toContain('filename === "security-advisor-classification.json" && evidence.releaseReady !== true');
   });
 
-  it("requires an affirmative S16 certificate only in final certification mode", () => {
-    expect(source).toContain('filename === "s16-certification.json" && evidence.certified !== true');
-    expect(source).toContain('finalCertification ? [...releasePrerequisiteEvidence, "s16-certification.json"]');
+  it("requires affirmative exact-SHA S16 mutation-authority evidence for release certification", () => {
+    expect(source).toContain('"s16-mutation-authority.json"');
+    expect(source).toContain('filename === "s16-mutation-authority.json" && evidence.s16Passed !== true');
+    expect(source).toContain("const strictRelease = process.argv.includes(\"--release\") || finalCertification");
+    expect(source).toContain("strictRelease && (releaseRiskBlockers.length || certificationBlockers.length)");
   });
 });

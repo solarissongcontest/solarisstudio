@@ -16,10 +16,11 @@ describe("early repository release blockers", () => {
     expect(report.findings.some((finding: string) => finding.includes("missing exact-candidate runtime evidence"))).toBe(false);
     expect(Array.isArray(report.pendingCertification)).toBe(true);
   });
-  it("retains parity and points its missing evidence references to actual owner coverage", () => {
+
+  it("keeps accepted read/discovery cutovers tied to concrete owner evidence", () => {
     for (const id of ["app-shell", "global-search", "sitemap"]) {
       const row = V3_PUBLIC_CAPABILITIES.find((capability) => capability.id === id)!;
-      expect(row.specificationStatus).toBe("parity");
+      expect(row.specificationStatus).toBe("cutover");
       const evidence = "migrationEvidence" in row ? row.migrationEvidence : "";
       expect(evidence).toBeTruthy();
       for (const path of evidence!.split("; ")) expect(existsSync(path.split(" (")[0])).toBe(true);

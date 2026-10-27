@@ -9,11 +9,18 @@ function capability(id: string) {
 }
 
 describe("V3 Organizer O4 capability registry", () => {
-  it("marks implemented Delegations and Confirmation slices building, never parity", () => {
+  it("separates accepted Delegations/Confirmation cutovers from still-building slices", () => {
     for (const id of [
       "current-edition-delegations",
       "delegation-confirmation-overview",
       "delegation-confirmation-requirements",
+      "delegation-settings",
+    ]) {
+      expect(capability(id).migrationStatus).toBe("cutover");
+      expect(capability(id).migrationEvidence).toBeTruthy();
+    }
+
+    for (const id of [
       "delegation-confirmation-responses",
       "delegation-next-in-line",
       "delegation-responses-by-country",
@@ -21,23 +28,24 @@ describe("V3 Organizer O4 capability registry", () => {
       "delegation-access",
       "delegation-submission-history",
       "delegation-sync",
-      "delegation-settings",
     ]) {
       expect(capability(id).migrationStatus).toBe("building");
       expect(["parity", "cutover", "retired"]).not.toContain(capability(id).migrationStatus);
     }
   });
 
-  it("accepts only the governed edition-binding authority after clean and upgrade runtime proof", () => {
+  it("accepts governed edition-binding authority without promoting separate sync authority", () => {
     const binding = capability("delegation-edition-links");
     expect(binding.migrationStatus).toBe("cutover");
     expect(binding.ownerCapability).toBe("confirmation.read"); // Route read; mutation separately requires delegation.manage.
     expect(binding.migrationEvidence).toContain("v3-confirmation-edition-binding-rehearsal.sh");
     expect(binding.migrationEvidence).toContain("v3-organizer-edition-links-explicit-mutations.contract.test.ts");
     expect(binding.migrationEvidence).toContain("20261027110823_binding_version_conflict_http_contract.sql");
-    // Governed binding does not certify separate sync/settings authorities.
     expect(capability("delegation-sync").migrationStatus).toBe("building");
-    expect(capability("delegation-settings").migrationStatus).toBe("building");
+
+    const settings = capability("delegation-settings");
+    expect(settings.migrationStatus).toBe("cutover");
+    expect(settings.migrationEvidence).toContain("v3-organizer-specialist-acceptance.contract.test.ts");
   });
 
   it("accepts only the exact actor/edition Calendar projection after scoped SQL denial proof", () => {
