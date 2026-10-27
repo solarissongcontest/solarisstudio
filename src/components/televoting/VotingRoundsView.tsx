@@ -69,7 +69,14 @@ export function VotingRoundsView() {
     queryClient.invalidateQueries({ queryKey: ["merged-televoting-rounds-page", editionId] });
 
   const createMutation = useMutation({
-    mutationFn: () => createRound({ data: { editionId: remoteEditionId, name: newName.trim() } }),
+    mutationFn: () => createRound({
+      data: {
+        editionId: remoteEditionId,
+        name: newName.trim(),
+        operationId: crypto.randomUUID(),
+        idempotencyKey: crypto.randomUUID(),
+      },
+    }),
     onSuccess: async (result) => {
       setNewName("");
       setCreateOpen(false);
@@ -81,7 +88,15 @@ export function VotingRoundsView() {
   });
 
   const renameMutation = useMutation({
-    mutationFn: () => renameRound({ data: { id: editing!.id, name: editingName.trim() } }),
+    mutationFn: () => renameRound({
+      data: {
+        id: editing!.id,
+        name: editingName.trim(),
+        expectedRoundVersion: editing!.version,
+        operationId: crypto.randomUUID(),
+        idempotencyKey: crypto.randomUUID(),
+      },
+    }),
     onSuccess: async () => {
       setEditing(null);
       setEditingName("");
@@ -154,7 +169,14 @@ export function VotingRoundsView() {
     if (!deleteTarget) return;
     const target = deleteTarget;
     try {
-      await deleteRound({ data: { id: target.id } });
+      await deleteRound({
+        data: {
+          id: target.id,
+          expectedRoundVersion: target.version,
+          operationId: crypto.randomUUID(),
+          idempotencyKey: crypto.randomUUID(),
+        },
+      });
       toast.success("Round deleted");
       setDeleteTarget(null);
       await refresh();

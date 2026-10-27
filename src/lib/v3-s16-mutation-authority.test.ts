@@ -41,6 +41,42 @@ describe("S16 canonical mutation authority", () => {
     expect(findings).toEqual([]);
   });
 
+  it("recognizes canonical commands outside public/private schemas", () => {
+    const televoteDomain: V3S16DomainDefinition = {
+      id: "televote",
+      risk: "integrity_critical",
+      canonicalTables: ["televoting.rounds"],
+      canonicalOwner: "televote",
+      canonicalCommands: ["televoting.v3_create_round"],
+    };
+    const findings = scanV3S16StaticAuthority([
+      {
+        path: "supabase/migrations/20261027190500_v3_s16_televote_round_authority.sql",
+        source: `create or replace function televoting.v3_create_round() returns void language plpgsql security definer set search_path = pg_catalog, televoting as $$ begin null; end $$;`,
+      },
+    ], [televoteDomain]);
+    expect(findings).toEqual([]);
+  });
+
+  it("does not let a same-named function in the wrong schema satisfy an explicit command", () => {
+    const televoteDomain: V3S16DomainDefinition = {
+      id: "televote",
+      risk: "integrity_critical",
+      canonicalTables: ["televoting.rounds"],
+      canonicalOwner: "televote",
+      canonicalCommands: ["televoting.v3_create_round"],
+    };
+    const findings = scanV3S16StaticAuthority([
+      {
+        path: "supabase/migrations/20261027190500_wrong_schema.sql",
+        source: `create or replace function public.v3_create_round() returns void language plpgsql security definer set search_path = pg_catalog, public as $$ begin null; end $$;`,
+      },
+    ], [televoteDomain]);
+    expect(findings).toEqual([
+      expect.objectContaining({ kind: "missing_canonical_command_definition", subject: "televoting.v3_create_round" }),
+    ]);
+  });
+
   it("uses exact-SHA catalog evidence to reject direct role grants", () => {
     const sha = "a".repeat(40);
     const findings = auditV3S16CatalogAuthority({
@@ -107,7 +143,9 @@ describe("S16 canonical mutation authority", () => {
         owner: "postgres",
         rlsEnabled: true,
         dmlRoles: [],
+        columnDmlRoles: [],
         writeTriggers: ["jury_guard", "rogue_writer"],
+        updatableViews: [],
       }],
       functions: [{
         name: "public.studio2_submit_jury_ballot",
