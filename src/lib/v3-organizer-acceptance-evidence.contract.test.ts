@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const route = readFileSync("src/routes/_authenticated/admin/beta-test.tsx", "utf8");
-const client = readFileSync("src/lib/v3-organizer-acceptance-evidence.ts", "utf8");
+const client = readFileSync("src/integrations/v3/organizer-acceptance-evidence.ts", "utf8");
+const compatibilityExport = readFileSync("src/lib/v3-organizer-acceptance-evidence.ts", "utf8");
 const migration = readFileSync("supabase/migrations/20261027153000_v3_admin_beta_acceptance_submission.sql", "utf8");
 const rehearsal = readFileSync(".github/scripts/v3-admin-beta-acceptance-rehearsal.sh", "utf8");
 
@@ -13,9 +14,14 @@ describe("V3 governed Organizer acceptance evidence", () => {
     expect(route).toContain("idempotencyKey");
     expect(route).not.toContain('.from("admin_beta_test_submissions"');
     expect(route).not.toContain(".insert(payload as never)");
+    expect(compatibilityExport).toContain("@/integrations/v3/organizer-acceptance-evidence");
+    expect(compatibilityExport).not.toContain("integrations/supabase");
   });
 
-  it("authorizes and scopes the command on the server", () => {
+  it("authorizes, scopes and classifies the migration contract on the server", () => {
+    expect(migration).toContain("v3_register_migration_contract(");
+    expect(migration).toContain("'v3.organizer.admin-beta-acceptance-submission'");
+    expect(migration).toContain("'forward_fix_only'");
     expect(migration).toContain("studio2_access_allowed('rollout.manage', p_edition_id, false)");
     expect(migration).toContain("p_answers ->> 'organizerEditionId'");
     expect(migration).toContain("edition_id uuid references public.editions");

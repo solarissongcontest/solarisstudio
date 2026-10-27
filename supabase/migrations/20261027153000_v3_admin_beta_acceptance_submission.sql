@@ -1,5 +1,17 @@
 begin;
 
+-- S13 migration contract: additive schema plus an intentional privilege cutover.
+-- No bulk backfill is performed. Once the governed submit RPC is deployed the
+-- old browser INSERT authority must remain retired, so recovery is forward-only.
+select public.v3_register_migration_contract(
+  'v3.organizer.admin-beta-acceptance-submission',
+  1,
+  'forward_fix_only',
+  false,
+  null,
+  'Govern Organizer acceptance evidence through exact-edition authorization, idempotency and operation receipts while retiring direct authenticated INSERT authority.'
+);
+
 -- V3 Organizer acceptance evidence is a governed rollout-management command.
 -- Keep the historical table as the canonical store, but remove browser INSERT
 -- authority and bind every new submission to the exact selected edition and a
