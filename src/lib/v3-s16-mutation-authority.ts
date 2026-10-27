@@ -1,4 +1,4 @@
-export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-1" as const;
+export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-2" as const;
 
 export type V3S16Risk = "integrity_critical" | "security_critical";
 
@@ -8,6 +8,8 @@ export type V3S16DomainDefinition = {
   canonicalTables: readonly string[];
   canonicalOwner: string;
   canonicalCommands: readonly string[];
+  sanctionedInternalWriters?: readonly string[];
+  sanctionedWriteTriggers?: readonly string[];
   resultsFrozenOwner?: boolean;
   knownLegacyWriterPatterns?: readonly { id: string; pattern: RegExp }[];
 };
@@ -79,6 +81,8 @@ export type V3S16Report = {
     canonicalOwner: string;
     canonicalTables: readonly string[];
     canonicalCommands: readonly string[];
+    sanctionedInternalWriters: readonly string[];
+    sanctionedWriteTriggers: readonly string[];
     ownerBoundary: "shared" | "results_pr_1400";
   }[];
 };
@@ -89,6 +93,20 @@ const SCHEMA_CALL = /\.schema\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
 
 function normalizeTable(value: string) {
   return value.replace(/^public\./, "");
+}
+
+function normalizeFunctionName(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function bareFunctionName(value: string) {
+  return normalizeFunctionName(value).split(".").at(-1) ?? normalizeFunctionName(value);
+}
+
+function functionNameMatches(inventoryName: string, catalogName: string) {
+  const inventory = normalizeFunctionName(inventoryName);
+  const catalog = normalizeFunctionName(catalogName);
+  return inventory === catalog || bareFunctionName(inventory) === bareFunctionName(catalog);
 }
 
 function sourceWritesTable(source: string, table: string) {
@@ -118,7 +136,8 @@ function sourceWritesTable(source: string, table: string) {
 }
 
 function sourceDefinesCommand(source: string, command: string) {
-  const escaped = command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const bare = command.split(".").at(-1) ?? command;
+  const escaped = bare.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+(?:public\\.|private\\.)?${escaped}\\s*\\(`, "i").test(source);
 }
 
@@ -126,6 +145,18 @@ function pinnedSearchPath(value: string | null) {
   if (!value) return false;
   const normalized = value.toLowerCase().replace(/\s+/g, "");
   return normalized.includes("pg_catalog") && !normalized.includes("$user");
+}
+
+function isClassifiedWriter(domain: V3S16DomainDefinition, functionName: string) {
+  return [...domain.canonicalCommands, ...(domain.sanctionedInternalWriters ?? [])]
+    .some((name) => functionNameMatches(name, functionName));
+}
+
+function classifiedFunctionEvidence(
+  catalog: V3S16CatalogEvidence,
+  functionName: string,
+) {
+  return catalog.functions.find((fn) => functionNameMatches(functionName, fn.name));
 }
 
 export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
@@ -162,7 +193,13 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "public.studio2_jury_window_versions",
     ],
     canonicalOwner: "jury domain",
-    canonicalCommands: [],
+    canonicalCommands: [
+      "v3_submit_jury_ballot",
+      "studio2_apply_jury_voting_status",
+    ],
+    sanctionedInternalWriters: [
+      "submit_country_jury_ballot",
+    ],
   },
   {
     id: "confirmation",
@@ -190,7 +227,21 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     risk: "integrity_critical",
     canonicalTables: ["public.studio2_show_publication_controls", "public.studio2_show_publication_executions"],
     canonicalOwner: "publication domain",
-    canonicalCommands: [],
+    canonicalCommands: [
+      "studio2_apply_show_publication_change",
+      "studio2_publish_due_show_publications",
+    ],
+    sanctionedInternalWriters: [
+      "studio2_create_show_publication_control",
+      "studio2_ensure_show_publication_control",
+    ],
+    sanctionedWriteTriggers: [
+      "v3_validate_publication_control",
+      "v3_validate_publication_execution",
+      "v3_reject_publication_execution_mutation",
+      "v3_validate_publication_projection_from_control",
+      "v3_emit_scheduled_publication_event",
+    ],
   },
   {
     id: "authorization",
@@ -242,6 +293,7 @@ export function scanV3S16StaticAuthority(
         });
       }
       for (const legacy of domain.knownLegacyWriterPatterns ?? []) {
+        legacy.pattern.lastIndex = 0;
         if (!legacy.pattern.test(file.source)) continue;
         findings.push({
           domain: domain.id,
@@ -290,11 +342,11 @@ export function auditV3S16CatalogAuthority(
 
   const findings: V3S16Finding[] = [];
   const tableByName = new Map(catalog.tables.map((table) => [table.table, table]));
-  const functionByName = new Map(catalog.functions.map((fn) => [fn.name, fn]));
   const directDmlRoles = new Set(["anon", "authenticated", "service_role", "public"]);
 
   for (const domain of domains) {
     const ownerBoundary = domain.resultsFrozenOwner ? "results_pr_1400" : "shared";
+    const sanctionedTriggers = new Set(domain.sanctionedWriteTriggers ?? []);
     for (const table of domain.canonicalTables) {
       const evidence = tableByName.get(table);
       if (!evidence) {
@@ -306,36 +358,37 @@ export function auditV3S16CatalogAuthority(
       const columnRoles = (evidence.columnDmlRoles ?? []).filter((role) => directDmlRoles.has(role.toLowerCase()));
       if (columnRoles.length) findings.push({ domain: domain.id, kind: "unexpected_column_dml_role", subject: table, detail: `Column-level DML remains granted to ${columnRoles.join(", ")}.`, releaseRisk: "hard_blocker", ownerBoundary });
       if (evidence.rlsEnabled === false && !table.startsWith("private.")) findings.push({ domain: domain.id, kind: "rls_not_enabled", subject: table, detail: "RLS is disabled on an API-visible critical table.", releaseRisk: "hard_blocker", ownerBoundary });
-      for (const trigger of evidence.writeTriggers ?? []) findings.push({ domain: domain.id, kind: "unexpected_write_trigger", subject: trigger, detail: `Write trigger ${trigger} can mutate or redirect critical state and must be explicitly sanctioned.`, releaseRisk: "hard_blocker", ownerBoundary });
+      for (const trigger of evidence.writeTriggers ?? []) {
+        if (sanctionedTriggers.has(trigger)) continue;
+        findings.push({ domain: domain.id, kind: "unexpected_write_trigger", subject: trigger, detail: `Write trigger ${trigger} can mutate or redirect critical state and must be explicitly sanctioned.`, releaseRisk: "hard_blocker", ownerBoundary });
+      }
       for (const view of evidence.updatableViews ?? []) findings.push({ domain: domain.id, kind: "unexpected_updatable_view", subject: view, detail: `Updatable view ${view} exposes an alternative write path to critical state.`, releaseRisk: "hard_blocker", ownerBoundary });
     }
 
     const tableSet = new Set(domain.canonicalTables);
     for (const fn of catalog.functions) {
       const writesCritical = (fn.writesTables ?? []).some((table) => tableSet.has(table));
-      if (!writesCritical) continue;
-      const bareName = fn.name.split(".").at(-1) ?? fn.name;
-      if (domain.canonicalCommands.includes(fn.name) || domain.canonicalCommands.includes(bareName)) continue;
+      if (!writesCritical || isClassifiedWriter(domain, fn.name)) continue;
       findings.push({
         domain: domain.id,
         kind: "competing_legacy_writer",
         subject: fn.name,
-        detail: `Database function ${fn.name} writes critical ${domain.id} state but is not classified as a sanctioned canonical command.`,
+        detail: `Database function ${fn.name} writes critical ${domain.id} state but is not classified as a sanctioned mutation authority.`,
         releaseRisk: "hard_blocker",
         ownerBoundary,
       });
     }
 
     if (domain.resultsFrozenOwner) continue;
-    for (const command of domain.canonicalCommands) {
-      const fn = functionByName.get(command) ?? functionByName.get(`public.${command}`) ?? functionByName.get(`private.${command}`);
+    for (const writer of [...domain.canonicalCommands, ...(domain.sanctionedInternalWriters ?? [])]) {
+      const fn = classifiedFunctionEvidence(catalog, writer);
       if (!fn) {
-        findings.push({ domain: domain.id, kind: "canonical_function_missing", subject: command, detail: "Canonical mutation function is absent from catalog evidence.", releaseRisk: "hard_blocker", ownerBoundary });
+        findings.push({ domain: domain.id, kind: "canonical_function_missing", subject: writer, detail: "Classified mutation function is absent from catalog evidence.", releaseRisk: "hard_blocker", ownerBoundary });
         continue;
       }
-      if (!fn.securityDefiner) findings.push({ domain: domain.id, kind: "canonical_function_not_security_definer", subject: command, detail: "Canonical mutation function is not SECURITY DEFINER and cannot own a revoked-table boundary as specified.", releaseRisk: "hard_blocker", ownerBoundary });
-      if (!pinnedSearchPath(fn.searchPath)) findings.push({ domain: domain.id, kind: "canonical_function_unpinned_search_path", subject: command, detail: "SECURITY DEFINER function lacks a pinned safe search_path containing pg_catalog.", releaseRisk: "hard_blocker", ownerBoundary });
-      if (fn.executeRoles.some((role) => role.toLowerCase() === "public")) findings.push({ domain: domain.id, kind: "canonical_function_public_execute", subject: command, detail: "Canonical mutation function is executable by PUBLIC.", releaseRisk: "hard_blocker", ownerBoundary });
+      if (!fn.securityDefiner) findings.push({ domain: domain.id, kind: "canonical_function_not_security_definer", subject: writer, detail: "Classified mutation function is not SECURITY DEFINER and cannot own or safely support a revoked-table boundary.", releaseRisk: "hard_blocker", ownerBoundary });
+      if (!pinnedSearchPath(fn.searchPath)) findings.push({ domain: domain.id, kind: "canonical_function_unpinned_search_path", subject: writer, detail: "SECURITY DEFINER mutation function lacks a pinned safe search_path containing pg_catalog.", releaseRisk: "hard_blocker", ownerBoundary });
+      if (fn.executeRoles.some((role) => role.toLowerCase() === "public")) findings.push({ domain: domain.id, kind: "canonical_function_public_execute", subject: writer, detail: "Classified mutation function is executable by PUBLIC.", releaseRisk: "hard_blocker", ownerBoundary });
     }
   }
   return findings;
@@ -364,6 +417,8 @@ export function buildV3S16MutationAuthorityReport(input: {
       canonicalOwner: domain.canonicalOwner,
       canonicalTables: domain.canonicalTables,
       canonicalCommands: domain.canonicalCommands,
+      sanctionedInternalWriters: domain.sanctionedInternalWriters ?? [],
+      sanctionedWriteTriggers: domain.sanctionedWriteTriggers ?? [],
       ownerBoundary: domain.resultsFrozenOwner ? "results_pr_1400" : "shared",
     })),
   };
