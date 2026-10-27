@@ -11,6 +11,8 @@ on:
       - ".github/tests/v3-show-cue-lock-contract.sql"
       - ".github/scripts/v3-show-cue-authority-rehearsal.sh"
       - ".github/workflows/v3-show-cue-authority-rehearsal.yml"
+      - "docs/v3-show-cue-authority.md"
+      - "docs/v3-show-cue-lock-semantics.md"
       - "src/lib/show-mode.ts"
       - "src/lib/show-runtime-command.ts"
       - "src/lib/studio2-broadcast-rundown.ts"
