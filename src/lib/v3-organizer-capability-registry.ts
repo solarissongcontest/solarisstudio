@@ -145,7 +145,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "live-review-simulation-lab" ||
     id === "live-review-voting-lab" ||
     id === "workspace-administration" ||
-    id === "workspace-organizer-guide"
+    id === "workspace-organizer-guide" ||
+    id === "delegation-edition-links"
   ) {
     return "cutover";
   }
@@ -178,7 +179,6 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "delegation-calendar" ||
     id === "delegation-access" ||
     id === "delegation-submission-history" ||
-    id === "delegation-edition-links" ||
     id === "delegation-sync" ||
     id === "delegation-settings" ||
     id === "voting-rounds-entries" ||
@@ -257,6 +257,9 @@ export const V3_ORGANIZER_CAPABILITY_REGISTRY: readonly AdminCapabilityMigration
         targetRoute: targetRouteFor(item.to, classification),
         ownerCapability,
         migrationStatus: migrationStatusFor(item.id),
+        ...(item.id === "delegation-edition-links" ? {
+          migrationEvidence: "src/lib/v3-organizer-edition-links-explicit-mutations.contract.test.ts; src/integrations/confirmations/edition-bindings.ts; src/routes/confirmations/admin/editions.tsx; supabase/migrations/20261026210600_v3_confirmation_edition_binding_r3_fresh_auth.sql; supabase/migrations/20261027055547_reconcile_binding_idempotency_alias.sql; supabase/migrations/20261027110823_binding_version_conflict_http_contract.sql; .github/scripts/v3-confirmation-edition-binding-rehearsal.sh; .github/workflows/v3-confirmation-edition-binding-rehearsal.yml",
+        } : {}),
         ...(Object.hasOwn(V3_ORGANIZER_OBSERVATIONAL_CUTOVERS, item.id)
           ? { migrationEvidence: V3_ORGANIZER_OBSERVATIONAL_EVIDENCE } : {}),
       },
