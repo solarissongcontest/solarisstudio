@@ -8,11 +8,13 @@ const migration = read(
 );
 const countryAuth = read("supabase/functions/country-auth/index.ts");
 const adminPassword = read("supabase/functions/admin-country-password/index.ts");
+const organizerServer = read("src/integrations/supabase/organizer.server.ts");
+const juryBoundary = read("src/integrations/jury-voting/jury-voting.functions.ts");
 const mediaAuthority = read(
   "supabase/migrations/20261027182223_v3_media_finalization_authority.sql",
 );
 
-describe("V3 Edge active-session identity boundary", () => {
+describe("V3 active-session identity boundary", () => {
   it("exposes only a narrow authenticated wrapper around canonical auth.sessions authority", () => {
     expect(migration).toContain("create or replace function public.v3_assert_active_session()");
     expect(migration).toContain("perform private.v3_require_active_auth_session();");
@@ -57,6 +59,35 @@ describe("V3 Edge active-session identity boundary", () => {
     expect(roleRead).toBeGreaterThan(assertActive);
     expect(authMutation).toBeGreaterThan(roleRead);
     expect(adminPassword).toContain("if (activeSessionError || activeSession !== true)");
+  });
+
+  it("centralizes server identity proof and fences jury service-role reads at the request boundary", () => {
+    const helperStart = organizerServer.indexOf(
+      "export async function requireSolarisActiveUserForAccessTokenServer",
+    );
+    const organizerStart = organizerServer.indexOf(
+      "export async function requireSolarisOrganizerServer",
+    );
+    expect(helperStart).toBeGreaterThan(-1);
+    expect(organizerStart).toBeGreaterThan(helperStart);
+
+    const helper = organizerServer.slice(helperStart, organizerStart);
+    const getUser = helper.indexOf("client.auth.getUser(token)");
+    const assertActive = helper.indexOf('"v3_assert_active_session"');
+    expect(getUser).toBeGreaterThan(-1);
+    expect(assertActive).toBeGreaterThan(getUser);
+    expect(helper).toContain("if (activeError || active !== true)");
+
+    const identityProof = juryBoundary.indexOf(
+      "await requireSolarisActiveUserForAccessTokenServer(data.accessToken)",
+    );
+    const integrityImport = juryBoundary.indexOf(
+      '"@/integrations/jury-voting/jury-integrity-v5.server"',
+    );
+    const integrityCall = juryBoundary.indexOf("runJuryIntegrityPreflightV5Server(data)");
+    expect(identityProof).toBeGreaterThan(-1);
+    expect(integrityImport).toBeGreaterThan(identityProof);
+    expect(integrityCall).toBeGreaterThan(integrityImport);
   });
 
   it("keeps actor-bound media terminal authority tied to the same canonical session state", () => {
