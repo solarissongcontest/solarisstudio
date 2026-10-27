@@ -38,6 +38,8 @@ jobs:
     steps:
       - name: Checkout exact feature head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -64,6 +66,8 @@ jobs:
     steps:
       - name: Checkout exact feature head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
@@ -86,6 +90,7 @@ jobs:
       - name: Checkout exact feature head
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1

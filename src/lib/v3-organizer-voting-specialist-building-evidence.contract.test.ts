@@ -34,8 +34,8 @@ const SPECIALIST_CAPABILITIES = [
   "voting-anti-abuse",
 ] as const;
 
-describe("V3 Organizer read-only voting specialist building evidence", () => {
-  it("reports the implemented specialist surfaces as building without claiming parity", () => {
+describe("V3 Organizer read-only voting specialist acceptance evidence", () => {
+  it("accepts the observational specialists after executable authority/readback/isolation proof", () => {
     const byId = new Map(
       V3_ORGANIZER_CAPABILITY_REGISTRY.map((item) => [item.legacyId, item]),
     );
@@ -43,8 +43,8 @@ describe("V3 Organizer read-only voting specialist building evidence", () => {
     for (const id of SPECIALIST_CAPABILITIES) {
       const capability = byId.get(id);
       expect(capability, `${id} must remain in the Organizer registry`).toBeDefined();
-      expect(capability?.migrationStatus).toBe("building");
-      expect(["parity", "cutover", "retired"]).not.toContain(capability?.migrationStatus);
+      expect(capability?.migrationStatus).toBe("cutover");
+      expect(capability?.migrationEvidence).toContain("v3-organizer-observational-acceptance.test.tsx");
     }
   });
 

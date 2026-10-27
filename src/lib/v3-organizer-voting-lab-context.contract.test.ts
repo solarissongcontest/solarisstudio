@@ -33,7 +33,7 @@ describe("V3 Organizer Voting Lab scope", () => {
     expect(votingLab).not.toContain(".delete(");
   });
 
-  it("records Voting Lab as building without turning synthetic output into official state", () => {
+  it("records the accepted local Voting Lab without turning synthetic output into official state", () => {
     expect(registry).toContain('id === "live-review-voting-lab"');
   });
 });

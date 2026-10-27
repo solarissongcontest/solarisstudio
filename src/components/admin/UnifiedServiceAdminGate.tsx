@@ -7,6 +7,7 @@ import { DatabaseZap, ShieldCheck } from "lucide-react";
 import { AuthenticatedUserProvider } from "@/components/auth/AuthenticatedUserContext";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase } from "@/integrations/supabase/client";
+import { useFanSession } from "@/lib/prediction-data";
 import { getMergedTelevotingServerStatus } from "@/integrations/televoting/status.functions";
 import { AdminShell, AdminPage } from "./AdminShell";
 import { AdminCard, AdminPageHeader, AdminStatus } from "./AdminUI";
@@ -35,15 +36,24 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const getTelevotingStatus = useServerFn(getMergedTelevotingServerStatus);
   const [state, setState] = useState<GateState>({ status: "checking", user: null });
+  const session = useFanSession();
+  const sessionUserId = session.data?.id ?? null;
+  // A previous allowed result must never authorize the next SDK session.
+  const currentState: GateState = state.user?.id === sessionUserId
+    ? state
+    : { status: "checking", user: null };
 
   useEffect(() => {
     let alive = true;
     setState({ status: "checking", user: null });
 
+    if (session.isPending) return;
+
     void (async () => {
       const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (!alive) return;
 
-      if (userError || !userData.user) {
+      if (userError || !userData.user || userData.user.id !== sessionUserId) {
         if (alive) setState({ status: "redirecting", user: null });
         await navigate({ to: "/auth", search: { redirect: pathname }, replace: true });
         return;
@@ -56,6 +66,7 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
         isOrganizer = false;
       }
 
+      if (!alive) return;
       if (!isOrganizer) {
         if (alive) setState({ status: "redirecting", user: null });
         await navigate({ to: "/my-solaris", replace: true });
@@ -87,11 +98,11 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, [getTelevotingStatus, navigate, pathname]);
+  }, [getTelevotingStatus, navigate, pathname, session.isPending, sessionUserId]);
 
-  if (state.status === "backend-missing") {
+  if (currentState.status === "backend-missing") {
     return (
-      <ServiceAdminShell user={state.user}>
+      <ServiceAdminShell user={currentState.user}>
         <AdminPage>
           <div className="mx-auto max-w-2xl">
             <AdminPageHeader
@@ -136,7 +147,7 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (state.status !== "allowed") {
+  if (currentState.status !== "allowed") {
     return (
       <section
         role="status"
@@ -152,7 +163,7 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
             </span>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground">
-                {state.status === "checking" ? "Checking organizer access…" : "Opening sign in…"}
+                {currentState.status === "checking" ? "Checking organizer access…" : "Opening sign in…"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Solaris is verifying the current organizer session.
@@ -164,5 +175,5 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
     );
   }
 
-  return <ServiceAdminShell user={state.user}>{children}</ServiceAdminShell>;
+  return <ServiceAdminShell user={currentState.user}>{children}</ServiceAdminShell>;
 }

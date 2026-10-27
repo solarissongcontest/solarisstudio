@@ -1,3 +1,4 @@
+import { V3_ORGANIZER_OBSERVATIONAL_CUTOVERS, V3_ORGANIZER_OBSERVATIONAL_EVIDENCE } from "./v3-organizer-observational-cutovers";
 import { buildAdminNavigation } from "@/components/admin/admin-navigation";
 import { capabilityForOrganizerPath } from "./permission-route-map";
 import type { SolarisFeatureFlag } from "./feature-flags";
@@ -12,6 +13,7 @@ export type AdminCapabilityMigration = {
   targetRoute: string;
   ownerCapability: string;
   migrationStatus: "planned" | "building" | "parity" | "cutover" | "retired";
+  migrationEvidence?: string;
 };
 
 /**
@@ -133,7 +135,20 @@ function targetDomainFor(id: string) {
 }
 
 function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStatus"] {
-  if (id === "current-edition-overview") return "parity";
+  if (
+    id === "current-edition-overview" ||
+    id === "voting-intelligence" ||
+    id === "voting-analytics" ||
+    id === "voting-audit-log" ||
+    id === "voting-result-backtest" ||
+    id === "voting-anti-abuse" ||
+    id === "live-review-simulation-lab" ||
+    id === "live-review-voting-lab" ||
+    id === "workspace-administration" ||
+    id === "workspace-organizer-guide"
+  ) {
+    return "cutover";
+  }
   if (
     id === "current-edition-tasks" ||
     id === "operations-control-room" ||
@@ -153,9 +168,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "operations-communications" ||
     id === "live-review-reveal-director" ||
     id === "live-review-broadcast-rundown" ||
-    id === "live-review-simulation-lab" ||
     id === "live-review-time-machine" ||
-    id === "live-review-voting-lab" ||
     id === "delegation-confirmation-overview" ||
     id === "delegation-confirmation-requirements" ||
     id === "delegation-confirmation-responses" ||
@@ -175,14 +188,9 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "voting-televote-totals" ||
     id === "voting-integrity-review" ||
     id === "voting-public-results" ||
-    id === "voting-intelligence" ||
-    id === "voting-analytics" ||
     id === "voting-combined-results" ||
     id === "voting-result-integrity" ||
-    id === "voting-audit-log" ||
     id === "voting-edition-links" ||
-    id === "voting-result-backtest" ||
-    id === "voting-anti-abuse" ||
     id === "trust-investigations" ||
     id === "trust-rule-rulings" ||
     id === "trust-appeals" ||
@@ -193,10 +201,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "trust-interpretations" ||
     id === "trust-public-rules" ||
     id === "workspace-access-permissions" ||
-    id === "workspace-administration" ||
     id === "workspace-feature-rollout" ||
     id === "workspace-all-editions" ||
-    id === "workspace-organizer-guide" ||
     id === "workspace-country-accounts" ||
     id === "workspace-flag-qa" ||
     id === "workspace-hod-history" ||
@@ -251,6 +257,8 @@ export const V3_ORGANIZER_CAPABILITY_REGISTRY: readonly AdminCapabilityMigration
         targetRoute: targetRouteFor(item.to, classification),
         ownerCapability,
         migrationStatus: migrationStatusFor(item.id),
+        ...(Object.hasOwn(V3_ORGANIZER_OBSERVATIONAL_CUTOVERS, item.id)
+          ? { migrationEvidence: V3_ORGANIZER_OBSERVATIONAL_EVIDENCE } : {}),
       },
     ];
   });

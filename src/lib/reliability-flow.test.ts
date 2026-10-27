@@ -56,7 +56,9 @@ describe("archive readiness", () => {
     expect(gate).toContain('{ status: "backend-missing"; user: User }');
     expect(gate).toContain('<AuthenticatedUserProvider user={user}>');
     expect(gate).toContain('<AdminShell>{children}</AdminShell>');
-    expect(gate.match(/<ServiceAdminShell user=\{state\.user\}>/g)).toHaveLength(2);
+    expect(gate.match(/<ServiceAdminShell user=\{currentState\.user\}>/g)).toHaveLength(2);
+    expect(gate).toContain("state.user?.id === sessionUserId");
+    expect(gate).toContain("userData.user.id !== sessionUserId");
     expect(gate).not.toContain("return <AdminShell>{children}</AdminShell>;");
   });
 
