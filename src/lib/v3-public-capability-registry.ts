@@ -168,8 +168,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "merge",
     targetArea: "me",
     targetRoute: "/my-solaris/activity",
-    specificationStatus: "building",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.private-activity-feed",
+    migrationEvidence: "src/lib/v3-public-activity-cutover-acceptance.test.ts; src/integrations/v3/participant-activity.server.ts; src/lib/v3-participant-activity-runtime.ts; src/lib/v3-participant-activity-adapter.test.ts; src/lib/v3-participant-activity-system.contract.test.ts; src/lib/v3-participant-activity.contract.test.ts; src/lib/v3-participant-activity-response.test.ts; .github/scripts/v3-participant-activity-regression.sh; .github/scripts/check-v3-activity-response.py; .github/tests/v3-participant-activity.sql; supabase/migrations/20261019213500_v3_participant_activity_projection.sql",
   },
   {
     id: "predictions",
