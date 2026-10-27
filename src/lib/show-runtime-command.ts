@@ -128,22 +128,35 @@ function parseResult(value: unknown): ShowRuntimeCommandResult {
   return result as unknown as ShowRuntimeCommandResult;
 }
 
+async function loadExpectedLifecycle(showId: string): Promise<ShowLifecycleState> {
+  const { data, error } = await (supabase.from("shows") as any)
+    .select("status")
+    .eq("id", showId)
+    .single();
+  if (error) throw error;
+  return canonicalShowLifecycle(String(data?.status ?? ""));
+}
+
 export async function applyShowRuntimeChange(input: {
   showId: string;
-  expectedStatus: ShowLifecycleState;
   expectedRevision: number;
-  targetState: ShowRuntimeTarget;
+  expectedStatus?: ShowLifecycleState;
+  targetState?: ShowRuntimeTarget;
+  /** Compatibility for the existing reviewed Show Mode surface. */
+  phase?: ShowModeManualPhase;
   scheduledStart: string | null;
   youtubeUrl: string;
   televoteRoundId: string | null;
   reason: string;
 }) {
+  const targetState: ShowRuntimeTarget = input.targetState ?? input.phase ?? "scheduled";
+  const expectedStatus = input.expectedStatus ?? await loadExpectedLifecycle(input.showId);
   const operationId = globalThis.crypto.randomUUID();
   const args = {
     p_show_id: input.showId,
-    p_expected_status: input.expectedStatus,
+    p_expected_status: expectedStatus,
     p_expected_revision: input.expectedRevision,
-    p_target_state: input.targetState,
+    p_target_state: targetState,
     p_scheduled_start: input.scheduledStart,
     p_youtube_url: input.youtubeUrl,
     p_televote_round_id: input.televoteRoundId,
@@ -162,7 +175,7 @@ export async function applyShowRuntimeChange(input: {
   const result = parseResult(response.data);
   if (
     result.showId !== input.showId ||
-    result.lifecycleStatus !== (input.targetState === "results_in_progress" ? "live" : input.targetState) ||
+    result.lifecycleStatus !== (targetState === "results_in_progress" ? "live" : targetState) ||
     result.revision !== input.expectedRevision + 1
   ) {
     throw new Error("Show runtime command returned stale or cross-show evidence. Reload before retrying.");
