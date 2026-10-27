@@ -1,3 +1,4 @@
+import { V3ResultCoverageNotice } from "./V3ResultCoverageNotice";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -56,6 +57,7 @@ export function V3ResultLabGate({ fallback }: { fallback: ReactNode }) {
       phaseLabel={bundle.data.shell.phaseLabel}
       activeArea="results"
     >
+      <V3ResultCoverageNotice coverage={bundle.data.resultCoverage} />
       <V3ResultLabScreen
         bundle={bundle.data}
         onShowChange={setSelectedShowId}

@@ -1,3 +1,4 @@
+import { V3ResultCoverageNotice } from "./V3ResultCoverageNotice";
 import type { ReactNode } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
@@ -54,6 +55,7 @@ export function V3ScorechartsGate({ fallback }: { fallback: ReactNode }) {
       phaseLabel={bundle.data.shell.phaseLabel}
       activeArea="results"
     >
+      <V3ResultCoverageNotice coverage={bundle.data.resultCoverage} />
       <V3ScorechartsScreen
         items={bundle.data.items}
         generatedAt={bundle.data.generatedAt}

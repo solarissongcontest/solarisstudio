@@ -1,3 +1,4 @@
+import type { PublicResultCoverage } from "./v3-public-result-snapshots";
 import type { FanRecord } from "./fan-records";
 
 export type V3RecordsBundle = {
@@ -12,5 +13,6 @@ export type V3RecordsBundle = {
   archivedFinalEditions: number;
   spoilerSafeArchivedFinalEditions: number;
   currentEditionAffectsRecords: boolean;
+  resultCoverage?: PublicResultCoverage;
   generatedAt: string;
 };

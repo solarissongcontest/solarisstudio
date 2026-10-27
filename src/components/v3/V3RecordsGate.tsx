@@ -1,3 +1,4 @@
+import { V3ResultCoverageNotice } from "./V3ResultCoverageNotice";
 import { type ReactNode, useEffect, useState } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
@@ -77,6 +78,7 @@ export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
       phaseLabel={bundle.data.shell.phaseLabel}
       activeArea="results"
     >
+      <V3ResultCoverageNotice coverage={bundle.data.resultCoverage} />
       <V3RecordsScreen
         key={`${bundle.data.currentEditionId ?? "none"}:${spoilerProtected}`}
         records={spoilerProtected ? bundle.data.spoilerSafeRecords : bundle.data.records}

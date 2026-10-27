@@ -79,10 +79,12 @@ describe("V3 Edition production cutover", () => {
 
   it("does not query result rows until the canonical show publication gate opens", () => {
     const server = source();
-    const resultGate = server.indexOf("if (resultShow)");
-    const resultRead = server.indexOf('.from("results")');
+    const resultGate = server.indexOf("const candidateResultShow");
+    const resultRead = server.indexOf("await loadPublicResultSnapshots");
     expect(resultGate).toBeGreaterThan(0);
     expect(resultRead).toBeGreaterThan(resultGate);
+    expect(server).toContain("snapshot?.editionId === edition.id");
+    expect(server).not.toContain('.from("results")');
     expect(server).toContain("resolveShowPublication(show).results");
   });
 

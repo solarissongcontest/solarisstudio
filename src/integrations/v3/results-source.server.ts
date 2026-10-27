@@ -1,3 +1,4 @@
+import { loadPublicResultSnapshots, loadPublicResultSnapshotHeaders, type PublicResultCoverage } from "@/lib/v3-public-result-snapshots";
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import type { Country, Edition, ResultRow, Show } from "@/lib/data";
 import { entityDisplayMap, entityKeyOf, type ContestEntityRow } from "@/lib/entities";
@@ -10,8 +11,6 @@ import type {
 const EDITION_COLUMNS = "id,edition_number,name,slug,published";
 const SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,qualifier_count,theme_id,voting_config,broadcast_config,publication_config";
-const RESULT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 const ENTITY_COLUMNS =
   "id,edition_id,entity_type,country_id,display_name,abbreviation,flag_image,region,historical_identity_override";
 const COUNTRY_COLUMNS =
@@ -25,12 +24,6 @@ type ResultsSourceClient = {
   }>;
 };
 
-type PublicParticipantState = {
-  edition_id: string;
-  country_id: string;
-  participation_status?: string | null;
-};
-
 export type V3ResultsServerBundle = {
   editionSlug: string | null;
   options: V3ResultShowOption[];
@@ -40,6 +33,7 @@ export type V3ResultsServerBundle = {
   };
   input: V3ResultProjectionInput;
   countries: Country[];
+  resultCoverage?: PublicResultCoverage;
   generatedAt: string;
 };
 
@@ -59,38 +53,6 @@ function editionLabel(edition: Pick<Edition, "edition_number" | "name"> | null) 
   return edition.edition_number == null
     ? edition.name
     : `SSC ${edition.edition_number} · ${edition.name}`;
-}
-
-function parseParticipantStates(value: unknown): PublicParticipantState[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((candidate) => {
-    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
-    const row = candidate as Record<string, unknown>;
-    if (typeof row.edition_id !== "string" || typeof row.country_id !== "string") return [];
-    return [{
-      edition_id: row.edition_id,
-      country_id: row.country_id,
-      participation_status:
-        typeof row.participation_status === "string" ? row.participation_status : null,
-    }];
-  });
-}
-
-function filterNonCompetingRows(
-  rows: readonly ResultRow[],
-  participants: readonly PublicParticipantState[],
-) {
-  const excluded = new Set(
-    participants
-      .filter(
-        (participant) =>
-          participant.participation_status === "withdrawn" ||
-          participant.participation_status === "disqualified",
-      )
-      .map((participant) => `${participant.edition_id}:${participant.country_id}`),
-  );
-  if (!excluded.size) return [...rows];
-  return rows.filter((row) => !excluded.has(`${row.edition_id}:${row.country_id}`));
 }
 
 function emptyInput(edition: Pick<Edition, "id" | "name" | "edition_number"> | null): V3ResultProjectionInput {
@@ -121,8 +83,9 @@ function emptyInput(edition: Pick<Edition, "id" | "name" | "edition_number"> | n
  */
 export async function loadV3ResultsBundle(
   requestedShowId?: string | null,
+  client: ResultsSourceClient = createConfirmationPublicRuntimeClient() as unknown as ResultsSourceClient,
 ): Promise<V3ResultsServerBundle> {
-  const client = createConfirmationPublicRuntimeClient() as unknown as ResultsSourceClient;
+  let resultCoverage: PublicResultCoverage = { includedShows: 0, unavailableShows: 0 };
 
   const editionsResult = await client
     .from("editions")
@@ -140,6 +103,7 @@ export async function loadV3ResultsBundle(
       shell: { editionLabel: "Solaris Studio", phaseLabel: null },
       input: emptyInput(null),
       countries: [],
+      resultCoverage,
       generatedAt: new Date().toISOString(),
     };
   }
@@ -156,7 +120,7 @@ export async function loadV3ResultsBundle(
     .in("kind", ["grand-final", "final"]);
   throwIfError(showsResult.error, "Could not load public final shows for Results");
 
-  const resultShows = ((showsResult.data ?? []) as Show[])
+  const candidateShows = ((showsResult.data ?? []) as Show[])
     .filter((show) => isShowPublic(show) && resolveShowPublication(show).results)
     .sort((a, b) => {
       const editionDifference =
@@ -168,6 +132,14 @@ export async function loadV3ResultsBundle(
       if (aGrandFinal !== bGrandFinal) return aGrandFinal ? -1 : 1;
       return b.sort_order - a.sort_order || a.id.localeCompare(b.id);
     });
+
+  const snapshots = await loadPublicResultSnapshotHeaders(client, candidateShows.map((show) => show.id));
+  const resultShows = candidateShows.filter((show) => {
+    const snapshot = snapshots.get(show.id);
+    return snapshot?.editionId === show.edition_id;
+  });
+
+  resultCoverage = { includedShows: resultShows.length, unavailableShows: candidateShows.length - resultShows.length };
 
   const options = resultShows.flatMap((show) => {
     const edition = editionById.get(show.edition_id);
@@ -196,35 +168,26 @@ export async function loadV3ResultsBundle(
       shell: { editionLabel: editionLabel(selectedEdition), phaseLabel: null },
       input: emptyInput(selectedEdition),
       countries: [],
+      resultCoverage,
       generatedAt: new Date().toISOString(),
     };
   }
 
-  const [resultsResult, participantsResult, entitiesResult] = await Promise.all([
-    client
-      .from("results")
-      .select(RESULT_COLUMNS)
-      .eq("show_id", selectedShow.id)
-      .not("final_rank", "is", null)
-      .order("final_rank", { ascending: true }),
-    client.rpc("public_safe_participants", {
-      _edition_id: selectedEdition.id,
-      _show_id: null,
-    }),
+  const snapshot = (await loadPublicResultSnapshots(client, [selectedShow.id])).get(selectedShow.id);
+  if (!snapshot || snapshot.editionId !== selectedEdition.id
+      || snapshot.resultVersion !== snapshots.get(selectedShow.id)!.resultVersion
+      || snapshot.publicationVersion !== snapshots.get(selectedShow.id)!.publicationVersion) {
+    throw new Error("Published results changed during this read. Refresh to load the current publication.");
+  }
+  const [entitiesResult] = await Promise.all([
     client
       .from("contest_entities")
       .select(ENTITY_COLUMNS)
       .eq("edition_id", selectedEdition.id),
   ]);
-  throwIfError(resultsResult.error, "Could not load selected public result");
-  throwIfError(participantsResult.error, "Could not load public participant state for Results");
   throwIfError(entitiesResult.error, "Could not load public result identities");
 
-  const participants = parseParticipantStates(participantsResult.data);
-  const rows = filterNonCompetingRows(
-    (resultsResult.data ?? []) as ResultRow[],
-    participants,
-  );
+  const rows = snapshot.rows;
   const entities = (entitiesResult.data ?? []) as ContestEntityRow[];
 
   const countryIds = new Set<string>();
@@ -245,7 +208,7 @@ export async function loadV3ResultsBundle(
     countries = (countriesResult.data ?? []) as Country[];
   }
 
-  const publication = resolveShowPublication(selectedShow);
+  const publication = { jury_results: snapshot.availability.jury, televote_results: snapshot.availability.televote };
   const displayMap = entityDisplayMap(entities, countries);
   const resultCountries = new Map<string, Country>();
   const projectedRows = rows.flatMap((row) => {
@@ -307,6 +270,7 @@ export async function loadV3ResultsBundle(
       ],
     },
     countries: [...resultCountries.values()],
+    resultCoverage,
     generatedAt: new Date().toISOString(),
   };
 }

@@ -1,3 +1,4 @@
+import { loadPublicResultSnapshots, loadPublicResultSnapshotHeaders, type PublicResultCoverage } from "@/lib/v3-public-result-snapshots";
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import {
   broadcastEntriesFromResults,
@@ -15,8 +16,6 @@ import type {
 const EDITION_COLUMNS = "id,edition_number,name,slug,published";
 const SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,publication_config";
-const RESULT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 const ENTITY_COLUMNS =
   "id,edition_id,entity_type,country_id,display_name,abbreviation,flag_image,region,historical_identity_override";
 const COUNTRY_COLUMNS =
@@ -28,12 +27,6 @@ type BroadcastSourceClient = {
     data: unknown;
     error: unknown;
   }>;
-};
-
-type PublicParticipantState = {
-  edition_id: string;
-  country_id: string;
-  participation_status?: string | null;
 };
 
 function throwIfError(error: unknown, label: string) {
@@ -58,54 +51,6 @@ function emptyIntelligence() {
   return buildBroadcastIntelligence([]);
 }
 
-function parseParticipantStates(value: unknown): PublicParticipantState[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((candidate) => {
-    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
-      return [];
-    }
-    const row = candidate as Record<string, unknown>;
-    if (
-      typeof row.edition_id !== "string" ||
-      typeof row.country_id !== "string"
-    ) {
-      return [];
-    }
-    return [
-      {
-        edition_id: row.edition_id,
-        country_id: row.country_id,
-        participation_status:
-          typeof row.participation_status === "string"
-            ? row.participation_status
-            : null,
-      },
-    ];
-  });
-}
-
-function filterNonCompetingRows(
-  rows: readonly ResultRow[],
-  participants: readonly PublicParticipantState[],
-) {
-  const excluded = new Set(
-    participants
-      .filter(
-        (participant) =>
-          participant.participation_status === "withdrawn" ||
-          participant.participation_status === "disqualified",
-      )
-      .map(
-        (participant) =>
-          `${participant.edition_id}:${participant.country_id}`,
-      ),
-  );
-  if (!excluded.size) return [...rows];
-  return rows.filter(
-    (row) => !excluded.has(`${row.edition_id}:${row.country_id}`),
-  );
-}
-
 /**
  * Publication-safe, show-scoped source for Broadcast Intelligence.
  *
@@ -115,8 +60,9 @@ function filterNonCompetingRows(
  */
 export async function loadV3BroadcastIntelligenceBundle(
   requestedShowId?: string | null,
+  client: BroadcastSourceClient = createConfirmationPublicRuntimeClient() as unknown as BroadcastSourceClient,
 ): Promise<V3BroadcastIntelligenceBundle> {
-  const client = createConfirmationPublicRuntimeClient() as unknown as BroadcastSourceClient;
+  let resultCoverage: PublicResultCoverage = { includedShows: 0, unavailableShows: 0 };
 
   const editionsResult = await client
     .from("editions")
@@ -142,6 +88,7 @@ export async function loadV3BroadcastIntelligenceBundle(
       entries: [],
       intelligence: emptyIntelligence(),
       identities: [],
+      resultCoverage,
       generatedAt: new Date().toISOString(),
     };
   }
@@ -167,7 +114,7 @@ export async function loadV3BroadcastIntelligenceBundle(
     "Could not load public shows for Broadcast Intelligence",
   );
 
-  const eligibleShows = ((showsResult.data ?? []) as Show[])
+  const candidateShows = ((showsResult.data ?? []) as Show[])
     .filter((show) => {
       if (!isShowPublic(show)) return false;
       const publication = resolveShowPublication(show);
@@ -184,6 +131,14 @@ export async function loadV3BroadcastIntelligenceBundle(
       if (editionDifference !== 0) return editionDifference;
       return a.sort_order - b.sort_order || a.id.localeCompare(b.id);
     });
+
+  const snapshots = await loadPublicResultSnapshotHeaders(client, candidateShows.map((show) => show.id));
+  const eligibleShows = candidateShows.filter((show) => {
+    const snapshot = snapshots.get(show.id);
+    return snapshot?.editionId === show.edition_id && snapshot.availability.jury && snapshot.availability.televote;
+  });
+
+  resultCoverage = { includedShows: eligibleShows.length, unavailableShows: candidateShows.length - eligibleShows.length };
 
   const options = eligibleShows.flatMap((show) => {
     const edition = editionMap.get(show.edition_id);
@@ -221,44 +176,29 @@ export async function loadV3BroadcastIntelligenceBundle(
       entries: [],
       intelligence: emptyIntelligence(),
       identities: [],
+      resultCoverage,
       generatedAt: new Date().toISOString(),
     };
   }
 
-  const [resultsResult, entitiesResult, participantsResult] = await Promise.all([
-    client
-      .from("results")
-      .select(RESULT_COLUMNS)
-      .eq("show_id", selectedShow.id)
-      .not("final_rank", "is", null)
-      .order("final_rank", { ascending: true }),
+  const snapshot = (await loadPublicResultSnapshots(client, [selectedShow.id])).get(selectedShow.id);
+  if (!snapshot || snapshot.editionId !== selectedEdition.id
+      || snapshot.resultVersion !== snapshots.get(selectedShow.id)!.resultVersion
+      || snapshot.publicationVersion !== snapshots.get(selectedShow.id)!.publicationVersion) {
+    throw new Error("Published results changed during this read. Refresh to load the current publication.");
+  }
+  const [entitiesResult] = await Promise.all([
     client
       .from("contest_entities")
       .select(ENTITY_COLUMNS)
       .eq("edition_id", selectedEdition.id),
-    client.rpc("public_safe_participants", {
-      _edition_id: selectedEdition.id,
-      _show_id: null,
-    }),
   ]);
-  throwIfError(
-    resultsResult.error,
-    "Could not load published Broadcast Intelligence result",
-  );
   throwIfError(
     entitiesResult.error,
     "Could not load public Broadcast Intelligence identities",
   );
-  throwIfError(
-    participantsResult.error,
-    "Could not load public participant state for Broadcast Intelligence",
-  );
 
-  const participantStates = parseParticipantStates(participantsResult.data);
-  const rows = filterNonCompetingRows(
-    (resultsResult.data ?? []) as ResultRow[],
-    participantStates,
-  );
+  const rows = snapshot.rows;
   const entities = (entitiesResult.data ?? []) as ContestEntityRow[];
   const countryIds = new Set<string>();
   for (const entity of entities) {
@@ -317,6 +257,7 @@ export async function loadV3BroadcastIntelligenceBundle(
     entries,
     intelligence,
     identities,
+    resultCoverage,
     generatedAt: new Date().toISOString(),
   };
 }

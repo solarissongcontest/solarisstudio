@@ -1,3 +1,4 @@
+import { V3ResultCoverageNotice } from "./V3ResultCoverageNotice";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 
@@ -79,6 +80,7 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
       phaseLabel={bundle.data.shell.phaseLabel ?? "Results"}
       activeArea="results"
     >
+      <V3ResultCoverageNotice coverage={bundle.data.resultCoverage} />
       <V3ResultsScreen
         key={`${rollout.data.userId ?? "anonymous"}:${bundle.data.input.showId || "none"}:${hideSpoilers}`}
         countries={countries}

@@ -1,3 +1,4 @@
+import type { PublicResultCoverage } from "./v3-public-result-snapshots";
 import type { CountryRelationship, HeadToHead } from "./stats";
 
 export type V3RelationshipCountry = {
@@ -29,6 +30,7 @@ export type V3RelationshipsIndexBundle = {
     phaseLabel: string;
   };
   pairs: V3RelationshipPairSummary[];
+  resultCoverage?: PublicResultCoverage;
   generatedAt: string;
 };
 
@@ -50,5 +52,6 @@ export type V3RelationshipDetailBundle = {
   relationship: CountryRelationship;
   headToHead: HeadToHead;
   sharedEditions: V3RelationshipSharedEdition[];
+  resultCoverage?: PublicResultCoverage;
   generatedAt: string;
 } | null;

@@ -85,7 +85,7 @@ function qualificationSegments(
 }
 
 function buildQualificationRecordOverrides(
-  input: Parameters<typeof buildFanRecords>[0],
+  input: Parameters<typeof buildFanRecords>[0] & { publishedResultVersions?: ReadonlyMap<string, number> },
 ): FanRecord[] {
   const archive = buildPublicCountryArchive({
     editions: input.editions,
@@ -94,6 +94,7 @@ function buildQualificationRecordOverrides(
     results: input.results,
     jury: input.jury,
     televote: [],
+    publishedResultVersions: input.publishedResultVersions,
   });
   const histories = new Map<string, Map<number, boolean>>();
   const countryMap = new Map(input.countries.map((country) => [country.id, country]));
@@ -204,8 +205,18 @@ function buildQualificationRecordOverrides(
   return records;
 }
 
+const COMPONENT_RECORD_IDS = new Set([
+  "highest-jury", "highest-tele", "televote-rescue", "post-jury-collapse",
+  "jury-tele-gap", "jury-winner-low", "tele-winner-low",
+]);
+
 export function buildCanonicalFanRecords(
-  input: Parameters<typeof buildFanRecords>[0],
+  input: Parameters<typeof buildFanRecords>[0] & {
+    /** When provided by Public V3's frozen Publication projection, split-based
+     * records must not interpret redacted component fields as zero scores. */
+    publishedComponentShowIds?: ReadonlySet<string>;
+    publishedResultVersions?: ReadonlyMap<string, number>;
+  },
 ): FanRecord[] {
   // Records are public analytics too. Apply the same publication gates used by
   // country history so draft/prepared rows never become public records.
@@ -216,8 +227,9 @@ export function buildCanonicalFanRecords(
     results: input.results,
     jury: input.jury,
     televote: [],
+    publishedResultVersions: input.publishedResultVersions,
   });
-  const safeInput: Parameters<typeof buildFanRecords>[0] = {
+  const safeInput: Parameters<typeof buildFanRecords>[0] & { publishedResultVersions?: ReadonlyMap<string, number> } = {
     ...input,
     editions: archive.editions,
     shows: archive.shows,
@@ -229,7 +241,16 @@ export function buildCanonicalFanRecords(
   const overrides = new Map(
     buildQualificationRecordOverrides(safeInput).map((record) => [record.id, record]),
   );
-  const base = buildFanRecords(safeInput);
+  const allRecords = buildFanRecords(safeInput);
+  const componentRecords = input.publishedComponentShowIds
+    ? buildFanRecords({ ...safeInput, results: safeInput.results.filter((row) => row.show_id && input.publishedComponentShowIds!.has(row.show_id)) })
+    : allRecords;
+  const componentById = new Map(componentRecords.map((record) => [record.id, record]));
+  const base = allRecords.flatMap((record) => {
+    if (!COMPONENT_RECORD_IDS.has(record.id)) return [record];
+    const published = componentById.get(record.id);
+    return published ? [published] : [];
+  });
   const seen = new Set<string>();
   const records = base.map((record) => {
     seen.add(record.id);

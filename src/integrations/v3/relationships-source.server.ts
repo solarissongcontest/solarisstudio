@@ -1,3 +1,4 @@
+import { loadPublicResultSnapshots, type PublicResultSnapshotClient, type PublicResultCoverage } from "@/lib/v3-public-result-snapshots";
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import { computeCanonicalHeadToHead } from "@/lib/canonical-head-to-head";
 import type {
@@ -28,19 +29,19 @@ const COUNTRY_COLUMNS =
   "id,name,native_name,short_code,flag_image,region,accent_color,description,first_participation";
 const PARTICIPANT_COLUMNS =
   "id,edition_id,show_id,country_id,contest_entity_id,artist,song,running_order,semi_final,qualified,notes,publication_status,scheduled_publish_at,participation_status";
-const RESULT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 const JURY_COLUMNS =
   "id,edition_id,show_id,voter_country_id,voter_id,voter_entity_id,receiving_country_id,receiving_entity_id,points";
 const TELEVOTE_COLUMNS =
   "id,edition_id,show_id,country_id,contest_entity_id,points";
 
-type RelationshipsSourceClient = {
+type RelationshipsSourceClient = PublicResultSnapshotClient & {
   from(table: string): any;
 };
 
 type SafeRelationshipArchive = ReturnType<typeof buildPublicCountryArchive> & {
+  resultCoverage: PublicResultCoverage;
   countries: Country[];
+  publishedResultVersions?: ReadonlyMap<string, number>;
   latestEdition: Edition | null;
 };
 
@@ -127,8 +128,7 @@ function pairParam(a: Country, b: Country) {
   return `${a.short_code}-vs-${b.short_code}`.toUpperCase();
 }
 
-async function loadSafeArchive(includeTelevote: boolean): Promise<SafeRelationshipArchive> {
-  const client = createConfirmationPublicRuntimeClient() as unknown as RelationshipsSourceClient;
+async function loadSafeArchive(includeTelevote: boolean, client: RelationshipsSourceClient): Promise<SafeRelationshipArchive> {
 
   const editions = await fetchPaged<Edition>(
     client,
@@ -152,6 +152,7 @@ async function loadSafeArchive(includeTelevote: boolean): Promise<SafeRelationsh
       televote: [],
       countries: [],
       latestEdition: null,
+      resultCoverage: { includedShows: 0, unavailableShows: 0 },
     };
   }
 
@@ -170,25 +171,19 @@ async function loadSafeArchive(includeTelevote: boolean): Promise<SafeRelationsh
   const resultShowIds = publicShows
     .filter((show) => resolveShowPublication(show).results === true)
     .map((show) => show.id);
-  const detailedShowIds = publicShows
-    .filter((show) => resolveShowPublication(show).detailed_voting === true)
+  const snapshots = await loadPublicResultSnapshots(client, resultShowIds);
+  const publishedResultVersions = new Map([...snapshots].map(([id, snapshot]) => [id, snapshot.resultVersion]));
+  const versionedShows = publicShows.filter((show) => snapshots.get(show.id)?.editionId === show.edition_id);
+  const detailedShowIds = versionedShows
+    .filter((show) => snapshots.get(show.id)!.availability.detailedVoting)
     .map((show) => show.id);
-
-  const [results, jury, televote] = await Promise.all([
-    resultShowIds.length
-      ? fetchPaged<ResultRow>(client, "results", RESULT_COLUMNS, (query) =>
-          query.in("show_id", resultShowIds),
-        )
-      : Promise.resolve([] as ResultRow[]),
+  const results = versionedShows.flatMap((show) => snapshots.get(show.id)!.rows);
+  const [jury, televote] = await Promise.all([
     detailedShowIds.length
-      ? fetchPaged<JuryVote>(client, "jury_votes", JURY_COLUMNS, (query) =>
-          query.in("show_id", detailedShowIds),
-        )
+      ? fetchPaged<JuryVote>(client, "jury_votes", JURY_COLUMNS, (query) => query.in("show_id", detailedShowIds))
       : Promise.resolve([] as JuryVote[]),
     includeTelevote && detailedShowIds.length
-      ? fetchPaged<Televote>(client, "televote_votes", TELEVOTE_COLUMNS, (query) =>
-          query.in("show_id", detailedShowIds),
-        )
+      ? fetchPaged<Televote>(client, "televote_votes", TELEVOTE_COLUMNS, (query) => query.in("show_id", detailedShowIds))
       : Promise.resolve([] as Televote[]),
   ]);
 
@@ -199,6 +194,7 @@ async function loadSafeArchive(includeTelevote: boolean): Promise<SafeRelationsh
       .map(canonicalParticipant)
       .filter((row) => Boolean(row.country_id)),
     results: results.map(canonicalResult).filter((row) => Boolean(row.country_id)),
+    publishedResultVersions,
     jury: jury
       .map(canonicalJuryVote)
       .filter(
@@ -211,6 +207,8 @@ async function loadSafeArchive(includeTelevote: boolean): Promise<SafeRelationsh
 
   return {
     ...safe,
+    resultCoverage: { includedShows: versionedShows.length, unavailableShows: resultShowIds.length - versionedShows.length },
+    publishedResultVersions,
     countries,
     latestEdition,
   };
@@ -226,8 +224,8 @@ function sharedEditionSets(participants: readonly Participant[]) {
   return map;
 }
 
-export async function loadV3RelationshipsIndexBundle(): Promise<V3RelationshipsIndexBundle> {
-  const archive = await loadSafeArchive(false);
+export async function loadV3RelationshipsIndexBundle(client: RelationshipsSourceClient = createConfirmationPublicRuntimeClient() as unknown as RelationshipsSourceClient): Promise<V3RelationshipsIndexBundle> {
+  const archive = await loadSafeArchive(false, client);
   const countryMap = new Map(archive.countries.map((country) => [country.id, country]));
   const editionSets = sharedEditionSets(archive.participants);
   const participatingCountries = [...editionSets.keys()]
@@ -277,14 +275,16 @@ export async function loadV3RelationshipsIndexBundle(): Promise<V3RelationshipsI
       phaseLabel: "Relationships",
     },
     pairs,
+    resultCoverage: archive.resultCoverage,
     generatedAt: new Date().toISOString(),
   };
 }
 
 export async function loadV3RelationshipDetailBundle(
   pair: string,
+  client: RelationshipsSourceClient = createConfirmationPublicRuntimeClient() as unknown as RelationshipsSourceClient,
 ): Promise<V3RelationshipDetailBundle> {
-  const archive = await loadSafeArchive(true);
+  const archive = await loadSafeArchive(true, client);
   const [codeA, codeB] = pair.trim().toUpperCase().split("-VS-");
   if (!codeA || !codeB || codeA === codeB) return null;
 
@@ -309,6 +309,7 @@ export async function loadV3RelationshipDetailBundle(
     results: archive.results,
     jury: archive.jury,
     televote: archive.televote,
+    publishedResultVersions: archive.publishedResultVersions,
   });
 
   const aEditions = new Set(
@@ -349,6 +350,7 @@ export async function loadV3RelationshipDetailBundle(
     relationship,
     headToHead,
     sharedEditions,
+    resultCoverage: archive.resultCoverage,
     generatedAt: new Date().toISOString(),
   };
 }

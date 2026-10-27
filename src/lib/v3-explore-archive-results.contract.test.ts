@@ -23,7 +23,9 @@ describe("V3 Explore combined archive and chronology source", () => {
     expect(text).toContain("const publishedEditionIds = editions.map");
     expect(text).toContain('.in("edition_id", publishedEditionIds)');
     expect(text).toContain('.eq("published", true)');
-    expect(text).toContain('.eq("final_rank", 1)');
+    expect(text).toContain("await loadPublicResultSnapshotHeaders(client,");
+    expect(text).toContain("snapshot.winners");
+    expect(text).not.toContain('.from("results")');
     expect(text).toContain("resultsPublished: finalResultsPublished(editionShows, editionWinners)");
     expect(text).toContain('resultsPublication: resultsPublished ? "published" : "hidden"');
     expect(text).not.toContain('.from("participants")');

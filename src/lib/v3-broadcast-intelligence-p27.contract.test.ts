@@ -22,16 +22,18 @@ describe("Public V3 P27 Broadcast Intelligence", () => {
     expect(source).toContain("publication.jury_results === true");
     expect(source).toContain("publication.televote_results === true");
     expect(source).toContain("eligibleShows.find((show) => show.id === requestedShowId)");
-    expect(source).toContain('.eq("show_id", selectedShow.id)');
+    expect(source).toContain("await loadPublicResultSnapshots(client, [selectedShow.id])");
+    expect(source).toContain("snapshot.publicationVersion !== snapshots.get(selectedShow.id)!.publicationVersion");
+    expect(source).toContain("snapshot.rows");
+    expect(source).not.toContain('.from("results")');
   });
 
-  it("filters withdrawn and disqualified participant placeholders consistently with Results", () => {
+  it("uses the immutable published participant set instead of re-filtering historical truth by the current lineup", () => {
     const source = read("src/integrations/v3/broadcast-intelligence-source.server.ts");
-
-    expect(source).toContain('client.rpc("public_safe_participants"');
-    expect(source).toContain('participant.participation_status === "withdrawn"');
-    expect(source).toContain('participant.participation_status === "disqualified"');
-    expect(source).toContain("filterNonCompetingRows(");
+    expect(source).toContain("const rows = snapshot.rows");
+    expect(source).toContain("snapshot?.editionId === show.edition_id");
+    expect(source).not.toContain('client.rpc("public_safe_participants"');
+    expect(source).not.toContain("filterNonCompetingRows(");
   });
 
   it("keeps the source show-scoped and read-only", () => {

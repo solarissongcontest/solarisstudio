@@ -1,3 +1,4 @@
+import { V3ResultCoverageNotice } from "./V3ResultCoverageNotice";
 import { useRouterState } from "@tanstack/react-router";
 import { type ReactNode } from "react";
 
@@ -116,6 +117,7 @@ export function V3EditionRouteGate({
         ) : undefined
       }
     >
+      <V3ResultCoverageNotice coverage={bundle.resultCoverage} />
       <V3EditionSpoilerSafeScreen
         key={`${rollout.data.userId ?? "anonymous"}:${slug}:${hideSpoilers}`}
         projection={bundle.projection}

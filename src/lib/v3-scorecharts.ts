@@ -1,3 +1,4 @@
+import type { PublicResultCoverage } from "./v3-public-result-snapshots";
 export type V3ScorechartIndexItem = {
   showId: string;
   showName: string;
@@ -15,5 +16,6 @@ export type V3ScorechartsBundle = {
     phaseLabel: string;
   };
   items: V3ScorechartIndexItem[];
+  resultCoverage?: PublicResultCoverage;
   generatedAt: string;
 };

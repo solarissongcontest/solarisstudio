@@ -9,6 +9,7 @@ type Options = {
   results: ResultRow[];
   jury: JuryVote[];
   televote: Televote[];
+  publishedResultVersions?: ReadonlyMap<string, number>;
 };
 
 const average = (values: number[]) =>

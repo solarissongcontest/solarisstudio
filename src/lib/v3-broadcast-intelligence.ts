@@ -1,3 +1,4 @@
+import type { PublicResultCoverage } from "./v3-public-result-snapshots";
 import type {
   BroadcastEntry,
   BroadcastIntelligence,
@@ -32,5 +33,6 @@ export type V3BroadcastIntelligenceBundle = {
   entries: BroadcastEntry[];
   intelligence: BroadcastIntelligence;
   identities: V3BroadcastIdentity[];
+  resultCoverage?: PublicResultCoverage;
   generatedAt: string;
 };

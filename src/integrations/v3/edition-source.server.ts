@@ -1,3 +1,4 @@
+import { loadPublicResultSnapshots, type PublicResultCoverage } from "@/lib/v3-public-result-snapshots";
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import {
   resolvePublicEditionState,
@@ -34,8 +35,6 @@ const ENTITY_COLUMNS =
   "id,edition_id,entity_type,country_id,display_name,abbreviation,flag_image,region,historical_identity_override";
 const COUNTRY_COLUMNS =
   "id,name,native_name,short_code,flag_image,region,accent_color,description,first_participation";
-const RESULT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 
 type EditionSourceClient = {
   from(table: string): any;
@@ -63,6 +62,7 @@ export type V3EditionServerBundle = {
     editionLabel: string;
     phaseLabel: string | null;
   };
+  resultCoverage?: PublicResultCoverage;
   generatedAt: string;
 };
 
@@ -280,11 +280,11 @@ function shellEditionLabel(edition: Edition) {
  */
 export async function loadV3EditionBundle(input: {
   slug: string;
-}): Promise<V3EditionServerBundle | null> {
+}, client: EditionSourceClient = createConfirmationPublicRuntimeClient() as unknown as EditionSourceClient): Promise<V3EditionServerBundle | null> {
+  let resultCoverage: PublicResultCoverage = { includedShows: 0, unavailableShows: 0 };
   const slug = input.slug.trim();
   if (!slug) return null;
 
-  const client = createConfirmationPublicRuntimeClient() as unknown as EditionSourceClient;
   const editionResult = await client
     .from("editions")
     .select(EDITION_COLUMNS)
@@ -324,24 +324,18 @@ export async function loadV3EditionBundle(input: {
     .sort((a, b) => a.sort_order - b.sort_order);
   const participants = parseSafeParticipants(participantsResult.data);
   const entities = (entitiesResult.data ?? []) as ContestEntityRow[];
-  const resultShow =
+  const candidateResultShow =
     shows.find(
       (show) =>
         (show.kind === "grand-final" || show.kind === "final") &&
         resolveShowPublication(show).results,
     ) ?? null;
 
-  let resultRows: ResultRow[] = [];
-  if (resultShow) {
-    const result = await client
-      .from("results")
-      .select(RESULT_COLUMNS)
-      .eq("show_id", resultShow.id)
-      .not("final_rank", "is", null)
-      .order("final_rank", { ascending: true });
-    throwIfError(result.error, "Could not load official published Edition result");
-    resultRows = (result.data ?? []) as ResultRow[];
-  }
+  const snapshots = await loadPublicResultSnapshots(client, candidateResultShow ? [candidateResultShow.id] : []);
+  const snapshot = candidateResultShow ? snapshots.get(candidateResultShow.id) : null;
+  const resultShow = snapshot?.editionId === edition.id ? candidateResultShow : null;
+  const resultRows = resultShow ? snapshot!.rows : [];
+  resultCoverage = { includedShows: resultShow ? 1 : 0, unavailableShows: candidateResultShow && !resultShow ? 1 : 0 };
 
   const countryIds = new Set<string>();
   for (const entity of entities) {
@@ -415,6 +409,7 @@ export async function loadV3EditionBundle(input: {
     story,
     resultShowHref: resultShow ? `/shows/${resultShow.id}?from=results` : null,
     results: resultProjection,
+    publishedResultSource: snapshot ? { resultVersion: snapshot.resultVersion, publicationVersion: snapshot.publicationVersion } : undefined,
   });
 
   if (!projection) return null;
@@ -425,6 +420,7 @@ export async function loadV3EditionBundle(input: {
       editionLabel: shellEditionLabel(edition),
       phaseLabel: experience.phaseLabel,
     },
+    resultCoverage,
     generatedAt: new Date().toISOString(),
   };
 }

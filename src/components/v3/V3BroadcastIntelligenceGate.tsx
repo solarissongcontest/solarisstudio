@@ -1,3 +1,4 @@
+import { V3ResultCoverageNotice } from "./V3ResultCoverageNotice";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -63,6 +64,7 @@ export function V3BroadcastIntelligenceGate({
       phaseLabel={bundle.data.shell.phaseLabel}
       activeArea="results"
     >
+      <V3ResultCoverageNotice coverage={bundle.data.resultCoverage} />
       <V3BroadcastIntelligenceScreen
         bundle={bundle.data}
         onShowChange={setSelectedShowId}
