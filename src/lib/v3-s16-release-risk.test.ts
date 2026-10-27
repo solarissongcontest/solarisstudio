@@ -8,20 +8,35 @@ const domains: V3S16Report["domains"] = [
     canonicalOwner: "Results / PR #1400",
     canonicalTables: ["public.results"],
     canonicalCommands: [],
+    sanctionedInternalWriters: [],
+    sanctionedWriteTriggers: [],
     ownerBoundary: "results_pr_1400",
   },
   {
     id: "jury",
     canonicalOwner: "jury",
     canonicalTables: ["public.jury_votes"],
-    canonicalCommands: [],
+    canonicalCommands: ["v3_submit_jury_ballot", "studio2_apply_jury_voting_status"],
+    sanctionedInternalWriters: ["submit_country_jury_ballot"],
+    sanctionedWriteTriggers: [],
     ownerBoundary: "shared",
   },
   {
     id: "publication",
     canonicalOwner: "publication",
     canonicalTables: ["public.studio2_show_publication_controls"],
+    canonicalCommands: ["studio2_apply_show_publication_change", "studio2_publish_due_show_publications"],
+    sanctionedInternalWriters: ["studio2_create_show_publication_control", "studio2_ensure_show_publication_control"],
+    sanctionedWriteTriggers: ["v3_validate_publication_control"],
+    ownerBoundary: "shared",
+  },
+  {
+    id: "entry",
+    canonicalOwner: "entry",
+    canonicalTables: ["public.entries"],
     canonicalCommands: [],
+    sanctionedInternalWriters: [],
+    sanctionedWriteTriggers: [],
     ownerBoundary: "shared",
   },
 ];
@@ -50,7 +65,7 @@ describe("S16 release-risk classification", () => {
     ]));
   });
 
-  it("classifies service-role-only DML and trigger paths as conditional until their operational owner is proven", () => {
+  it("classifies service-role-only DML and unclassified trigger paths as conditional until their operational owner is proven", () => {
     const result = classifyV3S16ReleaseAuthority({
       baseFindings: [
         base("unexpected_direct_dml_role", "Direct DML remains granted to service_role."),
@@ -75,15 +90,16 @@ describe("S16 release-risk classification", () => {
     });
     expect(result.findings).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        domain: "publication",
+        domain: "entry",
         kind: "canonical_command_inventory_missing",
         releaseRisk: "hard_blocker",
       }),
     ]));
+    expect(result.findings.some((finding) => finding.domain === "publication" && finding.kind === "canonical_command_inventory_missing")).toBe(false);
     expect(result.findings.some((finding) => finding.domain === "results" && finding.kind === "canonical_command_inventory_missing")).toBe(false);
   });
 
-  it("detects the still-reachable Jury browser legacy writer while accepting the declared Jury command inventory", () => {
+  it("detects the Jury browser legacy writer while accepting the declared Jury command inventory", () => {
     const result = classifyV3S16ReleaseAuthority({
       baseFindings: [],
       domains: domains.slice(0, 2),
@@ -135,6 +151,39 @@ describe("S16 release-risk classification", () => {
     });
     expect(result.findings).toEqual([]);
     expect(result.riskTotals).toEqual({ hard_blocker: 0, conditional_blocker: 0 });
+    expect(result.s16Passed).toBe(true);
+  });
+
+  it("accepts the interactive and scheduled Publication writers as one explicit authority inventory", () => {
+    const sha = "b".repeat(40);
+    const result = classifyV3S16ReleaseAuthority({
+      baseFindings: [],
+      domains: [domains[2]],
+      files: [],
+      catalog: {
+        schemaVersion: 1,
+        candidateSha: sha,
+        tables: [],
+        functions: [
+          {
+            name: "public.studio2_apply_show_publication_change",
+            owner: "postgres",
+            securityDefiner: true,
+            searchPath: "pg_catalog, public, private",
+            executeRoles: ["authenticated", "service_role"],
+          },
+          {
+            name: "public.studio2_publish_due_show_publications",
+            owner: "postgres",
+            securityDefiner: true,
+            searchPath: "pg_catalog, public, private",
+            executeRoles: ["service_role"],
+          },
+        ],
+      },
+      staticOnly: false,
+    });
+    expect(result.findings).toEqual([]);
     expect(result.s16Passed).toBe(true);
   });
 });
