@@ -21,6 +21,7 @@ import { EditionArtworkControl } from "@/components/studio/EditionArtworkControl
 import { ScoreboardEditor } from "@/components/studio/ScoreboardEditor";
 import { ThemeEditor } from "@/components/studio/ThemeEditor";
 import { supabase } from "@/integrations/supabase/client";
+import { applyEditionThemeChange } from "@/lib/edition-theme-command";
 import { reportSupabaseError } from "@/lib/errors";
 import {
   editionLabel,
@@ -408,11 +409,12 @@ function EditionDesignPage() {
       themeId = createdTheme.id;
     }
 
-    const { error: editionError } = await supabase
-      .from("editions")
-      .update({ theme_id: themeId })
-      .eq("id", review.editionId);
-    if (editionError) throw new Error(reportSupabaseError(editionError, "Could not attach the saved theme to this edition."));
+    await applyEditionThemeChange({
+      editionId: review.editionId,
+      expectedThemeId: review.editionThemeId,
+      themeId,
+      reason: "Attach reviewed edition default theme",
+    });
 
     for (const show of review.shows) {
       const showScoreboard = normalizeScoreboard(cleanBase, show.participantCount);
@@ -490,7 +492,7 @@ function EditionDesignPage() {
       const detail = caught instanceof Error ? caught.message : "Could not apply the reviewed Production change.";
       setError(
         mutationStarted
-          ? `${detail} This legacy Production save spans direct table writes and is not atomic. Refresh canonical state before retrying because partial progress may exist.`
+          ? `${detail} Edition theme attachment is receipted, but this Production save still spans legacy show writes owned by the show/cue authority lane. Refresh canonical state before retrying because partial show progress may exist.`
           : detail,
       );
       await refresh();
@@ -608,7 +610,7 @@ function EditionDesignPage() {
         <button type="button" disabled={saving || !previewShow || organizerEditionId !== edition.id} onClick={openSaveReview} className="admin-action-primary min-h-12 w-full">
           <Save className="size-4" /> {saving ? "Saving…" : scope === "edition" ? `Review default for all ${editionShows.length} show${editionShows.length === 1 ? "" : "s"}` : `Review ${selectedShow?.name ?? "show"} override`}
         </button>
-        {scope === "edition" ? <p className="mt-2 px-2 text-center text-xs leading-relaxed text-muted-foreground">The theme is shared at edition level. Broadcast and scoreboard settings are normalized and copied to each show after explicit review.</p> : null}
+        {scope === "edition" ? <p className="mt-2 px-2 text-center text-xs leading-relaxed text-muted-foreground">The edition theme attachment is governed and receipted. Broadcast and scoreboard settings are normalized and copied to each show after explicit review.</p> : null}
       </WorkspaceActionBar>
 
       <AdminConfirmSheet
@@ -634,10 +636,10 @@ function EditionDesignPage() {
               ))}
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Before apply, Solaris re-reads the exact edition, any theme being overwritten or inherited, every affected show's theme/broadcast configuration, any separate show supplying the inherited broadcast default, and participant counts. If that reviewed basis changed, the operation fails closed and nothing is written from this review.
+              Before apply, Solaris re-reads the exact edition, any theme being overwritten or inherited, every affected show's theme/broadcast configuration, any separate show supplying the inherited broadcast default, and participant counts. If that reviewed basis changed, the operation fails closed.
             </p>
             <p className="text-xs leading-relaxed text-amber-100/85">
-              Current Design & Broadcast persistence still uses legacy direct table writes. Edition-wide and override saves can span several writes and are not atomic. System #625 owns canonical expected-version/CAS, idempotency, durable operation receipts and uncertain-outcome recovery. This review does not pretend those server guarantees already exist.
+              Edition default-theme attachment now uses the canonical edition command with CAS, operation receipt and edition.changed persistence. The remaining direct show design/broadcast writes belong to the show/cue authority lane and are not treated as edition authority.
             </p>
           </div>
         ) : null}

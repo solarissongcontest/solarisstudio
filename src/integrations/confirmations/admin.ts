@@ -1,6 +1,7 @@
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase as solarisSupabase } from "@/integrations/supabase/client";
+import { applyEditionEditingChange } from "@/lib/edition-authority";
 
 export type ConfirmationRound = {
   id: string;
@@ -163,21 +164,26 @@ export async function saveConfirmationEdition(payload: {
   return data as string;
 }
 
-export async function deleteConfirmationEdition(id: string) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_delete_edition", {
-    _id: id,
-  });
-  if (error) throw error;
-  return data === true;
+export async function deleteConfirmationEdition(_id: string) {
+  throw new Error(
+    "Permanent edition deletion is retired. Use canonical edition lifecycle/archive state instead.",
+  );
 }
 
 export async function setConfirmationEditionEditing(id: string, enabled: boolean) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_set_edition_editing", {
-    _id: id,
-    _enabled: enabled,
+  const editions = await loadConfirmationEditions();
+  const edition = editions.find((item) => item.id === id);
+  if (!edition) throw new Error("Edition not found in the current Confirmation scope.");
+
+  const receipt = await applyEditionEditingChange({
+    editionId: id,
+    expectedEnabled: edition.editing_enabled,
+    enabled,
+    reason: enabled
+      ? "Open reviewed edition-wide Confirmation editing"
+      : "Close reviewed edition-wide Confirmation editing",
   });
-  if (error) throw error;
-  return data === true;
+  return receipt.edition.editing_enabled === enabled;
 }
 
 export async function saveConfirmationRound(payload: {
@@ -218,12 +224,24 @@ export async function setConfirmationRoundStatus(
 }
 
 export async function setConfirmationRoundEditing(id: string, enabled: boolean) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_set_round_editing", {
-    _id: id,
-    _enabled: enabled,
+  const preview = await previewConfirmationRoundChange({
+    roundId: id,
+    kind: "editing",
+    payload: { enabled },
   });
-  if (error) throw error;
-  return data === true;
+  if (preview.blockers.length) throw new Error(preview.blockers.join(" "));
+  if (preview.alreadyApplied) return true;
+
+  const operationId = crypto.randomUUID();
+  const receipt = await applyConfirmationRoundChange({
+    roundId: id,
+    kind: "editing",
+    payload: { enabled },
+    operationId,
+    idempotencyKey: operationId,
+    expectedVersion: preview.expectedVersion,
+  });
+  return receipt.editingEnabled === enabled;
 }
 
 export async function previewConfirmationRoundChange(input: {
