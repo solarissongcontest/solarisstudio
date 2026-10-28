@@ -34,7 +34,10 @@ describe("V3 Organizer platform and anniversary capability evidence", () => {
     expect(route).toContain("prepareEditionLifecycleReview");
     expect(route).toContain("revalidateEditionLifecycleReview");
     expect(route).toContain("Edition state changed after this review opened");
-    expect(route).toContain("System #1068 still owns the canonical edition lifecycle command");
+    expect(route).toContain("await applyReviewedEditionPublication(review, applyShowPublicationChange)");
+    expect(route).toContain("This multi-show batch is not atomic; partial progress may exist");
+    expect(route).not.toMatch(/\.from\("editions"\)\s*\.(?:update|delete)/);
+    expect(reviewContract).toContain("prohibits permanent edition deletion");
     expect(reviewContract).toContain("re-reads exact edition dependencies and fails closed on review drift");
   });
 
@@ -45,9 +48,14 @@ describe("V3 Organizer platform and anniversary capability evidence", () => {
     expect(statusFor("workspace-anniversary-dates")).toBe("building");
     expect(route).toContain("prepareDateReview(edition)");
     expect(route).toContain("applyReviewedDate");
-    expect(route).toContain("changed immediately before apply, so the reviewed date was not written");
-    expect(route).toContain("System #633 still owns the canonical versioned, idempotent");
-    expect(reviewContract).toContain("guards the legacy write against a race after the live read");
+    // Preserve reviewed, edition-bound date persistence. The canonical command
+    // now owns CAS/receipt recovery instead of a conditional browser UPDATE.
+    expect(route).toContain("await applyEditionMetadataChange({");
+    expect(route).toContain("editionId: pendingReview.editionId");
+    expect(route).toContain("expectedRevision: Number(live.data_revision)");
+    expect(route).toContain("receipt.edition.data_revision");
+    expect(reviewContract).toContain("uses the canonical metadata command with exact reviewed scope and server CAS");
+    expect(route).not.toMatch(/\.from\("editions"\)\s*\.update/);
   });
 
   it("reports System Settings as building from the merged exact-edition reminder boundary", () => {

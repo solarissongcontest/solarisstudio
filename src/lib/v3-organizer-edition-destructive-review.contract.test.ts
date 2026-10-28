@@ -11,7 +11,11 @@ describe("V3 Organizer edition destructive review boundary", () => {
   it("prepares an exact reviewed edition scope instead of mutating from the action menu", () => {
     expect(source).toContain("prepareEditionLifecycleReview");
     expect(source).toContain('prepareEditionLifecycleReview(edition, "private")');
-    expect(source).toContain('prepareEditionLifecycleReview(edition, "delete")');
+    expect(source).toContain('intent: "private"');
+    expect(source).toContain("<AdminConfirmSheet");
+    expect(source).toContain("confirmationText={lifecycleReview?.editionName}");
+    expect(source).toContain("commands.push({ preview, operationId: crypto.randomUUID() })");
+    expect(source).not.toMatch(/onClick=\{.*makePrivate\(edition\)/);
     expect(source).toContain("editionLifecycleFingerprint");
     expect(source).toContain("showLifecycleFingerprint");
     expect(source).toContain("publicationControlFingerprints");
@@ -21,30 +25,46 @@ describe("V3 Organizer edition destructive review boundary", () => {
 
   it("re-reads exact edition dependencies and fails closed on review drift", () => {
     expect(source).toContain("revalidateEditionLifecycleReview");
-    expect(source).toContain('supabase.from("editions").select("*").eq("id", review.editionId).maybeSingle()');
-    expect(source).toContain('supabase.from("shows").select("*").eq("edition_id", review.editionId)');
-    expect(source).toContain('supabase.from("participants").select("id").eq("edition_id", review.editionId)');
-    expect(source).toContain("loadShowPublicationControls(review.editionId)");
+    expect(source).toContain('supabase.from("editions").select("*").eq("id", editionId).maybeSingle()');
+    expect(source).toContain('supabase.from("shows").select("*").eq("edition_id", editionId)');
+    expect(source).toContain('supabase.from("participants").select("id").eq("edition_id", editionId)');
+    expect(source).toContain("loadShowPublicationControls(editionId)");
     expect(source).toContain("Edition state changed after this review opened");
     expect(source).toContain("Nothing was applied");
+    expect(source).toContain("await readEditionLifecycleScope(review.editionId)");
+    for (const fingerprint of ["review.editionLifecycleFingerprint", "review.showLifecycleFingerprint", "review.participantFingerprint", "review.publicationControlFingerprints"]) expect(source).toContain(fingerprint);
+    const apply = source.slice(source.indexOf("const makePrivate = async"));
+    expect(apply.indexOf("await revalidateEditionLifecycleReview(review)")).toBeLessThan(apply.indexOf("await applyReviewedEditionPublication(review, applyShowPublicationChange)"));
+    expect(source).toContain("if (!review.attempted) await revalidateEditionLifecycleReview(review)");
   });
 
-  it("keeps deletion Tier-4 deliberate with a reason and exact-name confirmation", () => {
-    expect(source).toContain("Reason for permanent deletion");
-    expect(source).toContain("Why is permanent deletion required instead of archive?");
-    expect(source).toContain("lifecycleReview.reason.trim().length < 5");
-    expect(source).toContain("confirmationText");
-    expect(source).toContain("to confirm permanent deletion");
-    expect(source).toContain("Archive is safer when historical truth must remain available");
+  it("prohibits permanent edition deletion instead of exposing an irreversible action", () => {
+    // Original invariant: never allow casual irreversible deletion. Retirement
+    // now prohibits that action in both UI and API; archive preserves history.
+    expect(source).toContain("Permanent deletion is intentionally not offered here");
+    expect(source).toContain("canonical lifecycle/archive authority");
+    expect(source).not.toContain('prepareEditionLifecycleReview(edition, "delete")');
+    expect(source).not.toMatch(/\.delete\(/);
+    const authority = readFileSync("supabase/migrations/20261027204500_v3_edition_authority.sql", "utf8");
+    expect(authority).toContain("revoke all on function public.admin_confirmation_delete_edition(uuid)");
+    expect(authority).toContain("from public, anon, authenticated, service_role");
+    const proof = readFileSync(".github/tests/v3-edition-authority.sql", "utf8");
+    expect(proof).toContain("has_function_privilege('service_role','public.admin_confirmation_delete_edition(uuid)','EXECUTE')");
   });
 
-  it("preserves existing authorities and does not pretend System #1068 is solved", () => {
+  it("preserves canonical publication and edition authorities without claiming cross-show atomicity", () => {
     expect(source).toContain("previewShowPublicationChange");
-    expect(source).toContain("applyShowPublicationChange");
-    expect(source).toContain('.from("editions")\n          .delete()');
-    expect(source).toContain("System #1068 still owns the canonical edition lifecycle command");
-    expect(source).toContain("no edition CAS, durable operation receipt or atomic cross-domain preflight");
-    expect(source).toContain("Do not treat this");
-    expect(source).toContain("review as V3 lifecycle parity");
+    expect(source).toContain("applyReviewedEditionPublication(review, applyShowPublicationChange)");
+    expect(source).toContain("await createEdition({");
+    expect(source).not.toMatch(/\.from\("editions"\)\s*\.(?:update|delete)/);
+    expect(source).toContain("This multi-show batch is not atomic; partial progress may exist");
+    expect(source).toContain("Retry this same review to recover its exact operation receipts");
+    expect(source).toContain("Official lifecycle and historical results remain governed by their separate authorities");
+    const apply = readFileSync("src/lib/edition-publication-review.ts", "utf8");
+    expect(apply).toContain("command.preview.editionId !== review.editionId");
+    expect(apply).toContain('command.preview.targetState !== "hidden"');
+    expect(apply).toContain("idempotencyKey: command.operationId");
+    expect(apply).toContain("another publication is active");
+    expect(apply).not.toContain('.from("results")');
   });
 });

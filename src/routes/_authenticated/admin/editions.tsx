@@ -3,8 +3,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, EyeOff, MapPin, Plus, RadioTower, Settings2 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
-import { AdminCard, AdminStatus, WorkspaceHeader } from "@/components/admin/AdminUI";
+import { AdminCard, AdminConfirmSheet, AdminStatus, WorkspaceHeader } from "@/components/admin/AdminUI";
 import { MetricStrip, WorkspaceActionBar } from "@/components/admin/AdminWorkspacePrimitives";
+import { supabase } from "@/integrations/supabase/client";
+import { applyReviewedEditionPublication } from "@/lib/edition-publication-review";
 import { createEdition } from "@/lib/edition-authority";
 import {
   editionLabel,
@@ -23,6 +25,7 @@ import {
   applyShowPublicationChange,
   loadShowPublicationControls,
   previewShowPublicationChange,
+  type ShowPublicationPreview,
 } from "@/lib/show-publication-lifecycle";
 
 export const Route = createFileRoute("/_authenticated/admin/editions")({
@@ -53,6 +56,42 @@ function derivedEditionStatus(edition: Edition, editionShows: Show[]) {
   };
 }
 
+type EditionLifecycleScope = {
+  edition: Edition;
+  shows: Show[];
+  participantIds: string[];
+  controls: Awaited<ReturnType<typeof loadShowPublicationControls>>;
+};
+type EditionLifecycleReview = {
+  editionId: string;
+  editionName: string;
+  editionLifecycleFingerprint: string;
+  showLifecycleFingerprint: string;
+  participantFingerprint: string;
+  publicationControlFingerprints: string;
+  commands: Array<{ preview: ShowPublicationPreview; operationId: string }>;
+  attempted: boolean;
+};
+function editionLifecycleFingerprint(edition: Edition) {
+  return JSON.stringify([edition.id, edition.name, edition.edition_number, edition.status, edition.published]);
+}
+function showLifecycleFingerprint(shows: Show[]) {
+  return JSON.stringify([...shows].sort((a,b) => a.id.localeCompare(b.id)).map((show) => [show.id,show.edition_id,show.name,show.kind,show.published,show.publication_config]));
+}
+function publicationControlFingerprints(controls: EditionLifecycleScope["controls"]) {
+  return JSON.stringify([...controls].sort((a,b) => a.showId.localeCompare(b.showId)).map((control) => [control.showId,control.editionId,control.state,control.version,control.frozenConfig,control.scheduledFor]));
+}
+async function readEditionLifecycleScope(editionId: string): Promise<EditionLifecycleScope> {
+  const [edition, shows, participants, controls] = await Promise.all([
+    supabase.from("editions").select("*").eq("id", editionId).maybeSingle(),
+    supabase.from("shows").select("*").eq("edition_id", editionId),
+    supabase.from("participants").select("id").eq("edition_id", editionId),
+    loadShowPublicationControls(editionId),
+  ]);
+  if (edition.error || shows.error || participants.error || !edition.data) throw new Error("Could not re-read the exact edition publication scope. Nothing was applied.");
+  return { edition: edition.data as Edition, shows: shows.data as Show[], participantIds: (participants.data ?? []).map((row) => row.id).sort(), controls };
+}
+
 function EditionsPage() {
   const { data: editions = [], isLoading } = useEditions();
   const { data: countries = [] } = useCountries();
@@ -76,6 +115,7 @@ function EditionsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lifecycleReview, setLifecycleReview] = useState<EditionLifecycleReview | null>(null);
 
   useEffect(() => {
     if (!numberTouched && form.edition_number === "") {
@@ -139,45 +179,69 @@ function EditionsPage() {
     }
   };
 
-  const makePrivate = async (edition: Edition) => {
-    if (busy) return;
+  const prepareEditionLifecycleReview = async (edition: Edition, intent: "private") => {
+    if (busy || intent !== "private") return;
     setBusy(`private:${edition.id}`);
     setError(null);
     setMessage(null);
     try {
-      const controls = await loadShowPublicationControls(edition.id);
-      const showById = new Map(
-        shows.filter((show) => show.edition_id === edition.id).map((show) => [show.id, show] as const),
-      );
-
-      for (const control of controls) {
+      const scope = await readEditionLifecycleScope(edition.id);
+      if (editionLifecycleFingerprint(scope.edition) !== editionLifecycleFingerprint(edition)) throw new Error("Edition state changed before review. Nothing was applied.");
+      const showById = new Map(scope.shows.map((show) => [show.id, show]));
+      const commands: EditionLifecycleReview["commands"] = [];
+      for (const control of scope.controls) {
+        if (control.editionId !== edition.id) throw new Error("Publication control belongs to another edition.");
         if (control.state !== "public" && control.state !== "scheduled") continue;
         const show = showById.get(control.showId);
         if (!show) throw new Error(`Publication control ${control.showId} has no matching show.`);
-        const preview = await previewShowPublicationChange({
-          showId: show.id,
-          targetState: "hidden",
-          config: resolveShowPublication(show),
-          scheduledFor: null,
-        });
-        if (preview.alreadyApplied) continue;
-        const operationId = crypto.randomUUID();
-        await applyShowPublicationChange({
-          preview,
-          operationId,
-          idempotencyKey: operationId,
-        });
+        const preview = await previewShowPublicationChange({ showId: show.id, targetState: "hidden", config: resolveShowPublication(show), scheduledFor: null });
+        if (preview.editionId !== edition.id || preview.showId !== show.id) throw new Error("Publication preview scope mismatch.");
+        if (!preview.alreadyApplied) commands.push({ preview, operationId: crypto.randomUUID() });
       }
+      setLifecycleReview({
+        editionId: edition.id, editionName: editionLabel(scope.edition),
+        editionLifecycleFingerprint: editionLifecycleFingerprint(scope.edition),
+        showLifecycleFingerprint: showLifecycleFingerprint(scope.shows),
+        participantFingerprint: JSON.stringify(scope.participantIds),
+        publicationControlFingerprints: publicationControlFingerprints(scope.controls),
+        commands, attempted: false,
+      });
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not prepare the publication review."); }
+    finally { setBusy(null); }
+  };
 
-      // public.editions.published/status are compatibility projections maintained
-      // by the show-publication trigger. This page deliberately does not write
-      // them a second time.
-      setMessage(`${editionLabel(edition)} publication is hidden. Canonical show state owns the projection.`);
-      await refresh();
+  const revalidateEditionLifecycleReview = async (review: EditionLifecycleReview) => {
+    const scope = await readEditionLifecycleScope(review.editionId);
+    if (editionLifecycleFingerprint(scope.edition) !== review.editionLifecycleFingerprint ||
+        showLifecycleFingerprint(scope.shows) !== review.showLifecycleFingerprint ||
+        JSON.stringify(scope.participantIds) !== review.participantFingerprint ||
+        publicationControlFingerprints(scope.controls) !== review.publicationControlFingerprints) {
+      throw new Error("Edition state changed after this review opened. Nothing was applied. Refresh and review again.");
+    }
+  };
+
+  const makePrivate = async () => {
+    const review = lifecycleReview;
+    if (!review || busy) return;
+    setBusy(`private:${review.editionId}`);
+    setError(null);
+    let mutationStarted = review.attempted;
+    try {
+      if (!review.attempted) await revalidateEditionLifecycleReview(review);
+      // Retain the reviewed operation IDs after ambiguity. Retrying replays
+      // committed commands and CAS-checks any remaining commands, without
+      // inventing new writes for already-committed publication changes.
+      mutationStarted = true;
+      setLifecycleReview({ ...review, attempted: true });
+      await applyReviewedEditionPublication(review, applyShowPublicationChange);
+      setLifecycleReview(null);
+      setMessage(`${review.editionName} publication is hidden. Canonical show state owns the projection.`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not hide edition publication.");
+      if (!mutationStarted) setLifecycleReview(null);
+      const message = cause instanceof Error ? cause.message : "Could not hide edition publication.";
+      setError(mutationStarted ? `${message} This multi-show batch is not atomic; partial progress may exist. Retry this same review to recover its exact operation receipts, or refresh and review canonical state.` : message);
     } finally {
-      setBusy(null);
+      try { await refresh(); } finally { setBusy(null); }
     }
   };
 
@@ -351,7 +415,7 @@ function EditionsPage() {
                       <button
                         type="button"
                         className="admin-action-secondary"
-                        onClick={() => void makePrivate(edition)}
+                        onClick={() => void prepareEditionLifecycleReview(edition, "private")}
                         disabled={Boolean(busy)}
                       >
                         <EyeOff className="size-4" /> {hiding ? "Hiding…" : "Hide publication"}
@@ -366,6 +430,17 @@ function EditionsPage() {
             );
           })}
       </section>
+      <AdminConfirmSheet
+        open={Boolean(lifecycleReview)}
+        onClose={() => !busy && setLifecycleReview(null)}
+        onConfirm={makePrivate}
+        title="Hide reviewed edition publication"
+        description={<div className="space-y-2"><p>Hide {lifecycleReview?.commands.length ?? 0} reviewed show publications for {lifecycleReview?.editionName}.</p><p>Each show uses its own scoped canonical command and version. This multi-show batch is not atomic; partial progress may exist if a later command fails. A retry keeps the exact reviewed operation identities.</p><p>Official lifecycle and historical results remain governed by their separate authorities. Permanent deletion is unavailable.</p></div>}
+        confirmLabel={lifecycleReview?.attempted ? "Recover reviewed changes" : "Hide reviewed publication"}
+        confirmationText={lifecycleReview?.editionName}
+        busy={Boolean(busy)}
+        danger
+      />
     </div>
   );
 }
