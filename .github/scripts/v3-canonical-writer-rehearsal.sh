@@ -13,4 +13,5 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-evidence-writ
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-recovery.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-publication-writer-cutover.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-confirmation-final-review-guard.sql
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-jury-writer-cutover.sql
 bash .github/scripts/v3-account-session-authority-rehearsal.sh
