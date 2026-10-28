@@ -177,13 +177,29 @@ describe("accepted Organizer specialist family", () => {
     }
     for (const rpc of [
       "admin_confirmation_save_edition",
-      "admin_confirmation_set_edition_editing",
-      "admin_confirmation_save_round",
-      "admin_confirmation_set_round_status",
-      "admin_confirmation_set_round_editing",
       "studio2_confirmation_round_change_preview",
       "studio2_apply_confirmation_round_change",
     ]) expect(`${confirmationSettings}\n${confirmationAdmin}\n${confirmationClient}`).toContain(rpc);
+    // Preserve the original no-browser-DML invariant, and prove each retired
+    // RPC's exact semantic replacement rather than accepting any RPC call.
+    const editionEditing = confirmationAdmin.slice(confirmationAdmin.indexOf("export async function setConfirmationEditionEditing"), confirmationAdmin.indexOf("async function runConfirmationRoundChange"));
+    expect(editionEditing).toContain("applyEditionEditingChange({");
+    expect(editionEditing).toContain("editionId: id");
+    expect(editionEditing).toContain("expectedEnabled: edition.editing_enabled");
+    expect(editionEditing).toContain("receipt.edition.editing_enabled === enabled");
+    const roundCommand = confirmationAdmin.slice(confirmationAdmin.indexOf("async function runConfirmationRoundChange"), confirmationAdmin.indexOf("export async function saveConfirmationRound"));
+    for (const guard of ["await previewConfirmationRoundChange(input)", "preview.blockers.length", "await applyConfirmationRoundChange({", "idempotencyKey: operationId", "expectedVersion: preview.expectedVersion"]) expect(roundCommand).toContain(guard);
+    const saveRound = confirmationAdmin.slice(confirmationAdmin.indexOf("export async function saveConfirmationRound"), confirmationAdmin.indexOf("export async function deleteConfirmationRound"));
+    expect(saveRound).toContain('payload.id ? "update" : "create"');
+    expect(saveRound).toContain("editionId: payload.edition_id");
+    expect(saveRound).toContain('payload.status === "auto_closed"');
+    const status = confirmationAdmin.slice(confirmationAdmin.indexOf("export async function setConfirmationRoundStatus"), confirmationAdmin.indexOf("export async function setConfirmationRoundEditing"));
+    expect(status).toContain('status !== "open" && status !== "closed"');
+    expect(status).toContain('kind: "status"');
+    const editing = confirmationAdmin.slice(confirmationAdmin.indexOf("export async function setConfirmationRoundEditing"), confirmationAdmin.indexOf("export async function previewConfirmationRoundChange"));
+    expect(editing).toContain('kind: "editing"');
+    expect(editing).toContain("payload: { enabled }");
+
   });
 
   it("does not promote known mutation-gap families through this acceptance set", () => {
