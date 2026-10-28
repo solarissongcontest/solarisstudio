@@ -11,7 +11,7 @@ values
  ('28111146-0000-4000-8000-000000000022','EVIDENCE-BOUNDARY-B','conduct','Boundary fixture B','Evidence boundary fixture details',now()+interval '2 years','anonymous',null);
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"28111146-0000-4000-8000-000000000001","session_id":"28111146-0000-4000-8000-000000000011"}',true);
 set local role authenticated;
-select public.admin_register_integrity_evidence('28111146-0000-4000-8000-000000000021','text','Governed evidence fixture','A concrete statement',null,false);
+select public.studio2_integrity_register_evidence('28111146-0000-4000-8000-000000000021','text','Governed evidence fixture','A concrete statement',null,false,1,'28111146-0000-4000-8000-000000000101','evidence-boundary:register');
 reset role;
 do $invariants$
 declare

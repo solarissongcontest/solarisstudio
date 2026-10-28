@@ -122,6 +122,7 @@ jobs:
             *) echo 'Refusing non-local Integrity recovery proof' >&2; exit 1 ;;
           esac
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-evidence-write-boundary.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-register-evidence-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-recovery.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-case-relation-authority.sql
           bash .github/scripts/v3-integrity-appeal-race-rehearsal.sh
@@ -205,6 +206,7 @@ jobs:
             *) echo 'Refusing non-local Integrity recovery proof' >&2; exit 1 ;;
           esac
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-evidence-write-boundary.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-register-evidence-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-recovery.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-case-relation-authority.sql
           bash .github/scripts/v3-integrity-appeal-race-rehearsal.sh

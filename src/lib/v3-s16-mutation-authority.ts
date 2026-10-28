@@ -374,6 +374,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "public.studio2_integrity_reply_case",
       "public.studio2_integrity_add_case_note",
       "public.studio2_integrity_link_cases",
+      "public.studio2_integrity_register_evidence",
       "public.studio2_integrity_record_preclearance_ruling",
       "public.studio2_integrity_record_finding",
       "public.studio2_integrity_record_sanction",

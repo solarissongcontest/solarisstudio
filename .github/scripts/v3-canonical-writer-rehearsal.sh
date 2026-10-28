@@ -10,6 +10,7 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-media-finalization-auth
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-canonical-truncate-authority.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-intake-delegation.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-evidence-write-boundary.sql
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-register-evidence-authority.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-recovery.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-publication-writer-cutover.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-confirmation-final-review-guard.sql

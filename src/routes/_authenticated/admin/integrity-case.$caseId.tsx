@@ -416,16 +416,23 @@ function EvidencePanel({ detail, refresh }: { detail: CaseDetail; refresh: () =>
     queryKey: ["integrity-evidence-access-log", detail.case.id],
     queryFn: () => getEvidenceAccessLog(detail.case.id),
   });
+  const pendingEvidenceOperation = useRef<{ fingerprint: string; args: Record<string, unknown> } | null>(null);
   const addMutation = useMutation({
-    mutationFn: () => rpc("admin_register_integrity_evidence", {
-      _case_id: detail.case.id,
-      _evidence_type: type,
-      _title: title,
-      _description: description || null,
-      _external_url: url || null,
-      _visible_to_reporter: visible,
-    }),
+    mutationFn: () => {
+      const fingerprint = JSON.stringify([detail.case.id, type, title.trim(), description.trim() || null, url.trim() || null, visible]);
+      if (pendingEvidenceOperation.current?.fingerprint !== fingerprint) {
+        const operationId = crypto.randomUUID();
+        pendingEvidenceOperation.current = { fingerprint, args: {
+          p_case_id: detail.case.id, p_evidence_type: type, p_title: title.trim(),
+          p_description: description.trim() || null, p_external_url: url.trim() || null,
+          p_visible_to_reporter: visible, p_expected_case_version: detail.case.version,
+          p_operation_id: operationId, p_idempotency_key: operationId,
+        } };
+      }
+      return rpc("studio2_integrity_register_evidence", pendingEvidenceOperation.current.args);
+    },
     onSuccess: async () => {
+      pendingEvidenceOperation.current = null;
       setTitle("");
       setDescription("");
       setUrl("");
