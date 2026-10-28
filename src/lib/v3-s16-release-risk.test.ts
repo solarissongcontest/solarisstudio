@@ -96,13 +96,13 @@ describe("S16 release-risk classification", () => {
   it("fails closed when a critical domain has no explicit canonical command inventory", () => {
     const result = classifyV3S16ReleaseAuthority({
       baseFindings: [],
-      domains,
+      domains: [...domains, { ...domains[3], id: "unknown-critical-domain" }],
       files: [],
       staticOnly: true,
     });
     expect(result.findings).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        domain: "entry",
+        domain: "unknown-critical-domain",
         kind: "canonical_command_inventory_missing",
         releaseRisk: "hard_blocker",
       }),

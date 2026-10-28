@@ -48,7 +48,7 @@ describe("S16 security consequence authority coverage", () => {
     expect(domain.canonicalCommands).toEqual(["public.studio2_apply_permission_change_r3"]);
   });
 
-  it("keeps Integrity hard until its canonical command inventory is proven", () => {
+  it("keeps an unknown critical authority hard despite a known domain-shaped inventory", () => {
     const result = classifyV3S16ReleaseAuthority({
       baseFindings: [],
       files: [],
@@ -56,6 +56,7 @@ describe("S16 security consequence authority coverage", () => {
       domains: V3_S16_CRITICAL_DOMAINS.filter((domain) => ["integrity"].includes(domain.id)).map(
         (domain) => ({
           ...domain,
+          id: "unknown-critical-authority",
           canonicalCommands: [],
           sanctionedInternalWriters: [],
           sanctionedWriteTriggers: [],
@@ -66,7 +67,7 @@ describe("S16 security consequence authority coverage", () => {
         }),
       ),
     });
-    for (const domain of ["integrity"]) {
+    for (const domain of ["unknown-critical-authority"]) {
       expect(result.findings).toContainEqual(
         expect.objectContaining({
           domain,

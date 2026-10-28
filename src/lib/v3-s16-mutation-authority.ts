@@ -353,6 +353,8 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     risk: "integrity_critical",
     canonicalTables: [
       "public.integrity_cases",
+      "public.integrity_case_events",
+      "public.integrity_case_evidence",
       "public.integrity_case_appeals",
       "public.integrity_case_findings",
       "public.integrity_case_sanctions",
@@ -419,7 +421,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
   {
     id: "results",
     risk: "integrity_critical",
-    canonicalTables: ["public.results", "public.studio2_result_operations", "public.studio2_result_operation_executions"],
+    canonicalTables: ["public.results", "public.studio2_result_operations", "public.studio2_result_operation_executions", "public.televoting_round_bindings"],
     canonicalOwner: "Results / PR #1400 frozen mutation owner",
     canonicalCommands: [],
     resultsFrozenOwner: true,
@@ -429,8 +431,9 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     risk: "integrity_critical",
     canonicalTables: [
       "public.televote_votes",
-      "public.televoting_round_bindings",
       "televoting.rounds",
+      "televoting.round_entries",
+      "televoting.round_countries",
       "televoting.vote_submissions",
       "televoting.vote_entries",
       "televoting.televote_aggregations",
@@ -443,6 +446,11 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "televoting.v3_delete_draft_round",
       "televoting.studio2_apply_round_status_change",
       "televoting.studio2_apply_round_deadline_change",
+      "televoting.v3_moderate_submission",
+      "televoting.v3_configure_round",
+      "televoting.v3_sync_round_lineup",
+      "televoting.submit_vote_checked",
+      "public.studio2_update_televote_aggregate_totals",
     ],
   },
   {

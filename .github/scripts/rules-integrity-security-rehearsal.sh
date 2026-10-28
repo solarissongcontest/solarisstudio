@@ -262,8 +262,10 @@ rpc_request "$PARTICIPANT_TOKEN" admin_confirmation_delete_edition "{\"_id\":\"$
 expect_failure "delegation management is not edition deletion permission"
 assert_db_eq "denied calls preserve canonical edition" "select count(*) from public.editions where id='$DELETE_EDITION_ID';" "1"
 rpc_request "$ORGANIZER_A_TOKEN" admin_confirmation_delete_edition "{\"_id\":\"$DELETE_EDITION_ID\"}"
-expect_success "Organizer can delete the empty canonical edition"
-assert_db_eq "authorized deletion removes only target edition" "select count(*) from public.editions where id='$DELETE_EDITION_ID';" "0"
+expect_failure "Organizer cannot invoke retired legacy edition deletion"
+rpc_request "$SERVICE_ROLE_KEY" admin_confirmation_delete_edition "{\"_id\":\"$DELETE_EDITION_ID\"}"
+expect_failure "service role cannot invoke retired legacy edition deletion"
+assert_db_eq "retired deletion preserves canonical edition" "select count(*) from public.editions where id='$DELETE_EDITION_ID';" "1"
 
 log "PR450 durable signup limiter boundaries"
 for attempt in $(seq 1 6); do

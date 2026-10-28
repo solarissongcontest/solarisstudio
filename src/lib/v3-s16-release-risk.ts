@@ -63,11 +63,57 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
   },
   {
     domain: "account-session",
-    canonicalCommands: ["public.v3_revoke_session"],
+    canonicalCommands: ["public.v3_revoke_session", "public.v3_claim_country_account", "public.v3_set_country_account_status", "public.v3_set_owned_hod_auto_assign"],
     evidence: [
       "supabase/migrations/20261016163100_v3_account_session_management_hardening.sql",
       ".github/scripts/v3-account-session-management-rehearsal.sh",
+      ".github/tests/v3-account-session-authority.sql",
     ],
+  },
+  {
+    domain: "show-lifecycle",
+    canonicalCommands: [
+      "public.v3_create_show", "public.v3_update_show_definition", "public.v3_delete_show",
+      "public.v3_apply_show_runtime_change", "public.v3_save_show_rundown",
+      "public.v3_set_show_rundown_lock", "public.v3_transition_show_cue",
+    ],
+    evidence: [".github/tests/v3-show-cue-authority.sql", ".github/tests/v3-show-cue-lock-contract.sql"],
+  },
+  {
+    domain: "entry",
+    canonicalCommands: ["public.v3_sync_confirmation_entry", "public.studio2_apply_confirmation_entry_review"],
+    evidence: ["supabase/migrations/20261027211501_v3_s16_entry_confirmation_authority.sql", "src/lib/v3-s16-entry-authority.contract.test.ts"],
+  },
+  {
+    domain: "authorization",
+    canonicalCommands: ["public.studio2_apply_permission_change_r3"],
+    evidence: ["supabase/migrations/20261027213001_v3_s16_authorization_authority.sql", ".github/tests/v3-canonical-truncate-authority.sql"],
+  },
+  {
+    domain: "televote",
+    canonicalCommands: [
+      "televoting.v3_create_round", "televoting.v3_rename_round", "televoting.v3_delete_draft_round",
+      "televoting.studio2_apply_round_status_change", "televoting.studio2_apply_round_deadline_change",
+      "televoting.v3_moderate_submission", "televoting.v3_configure_round", "televoting.v3_sync_round_lineup",
+      "televoting.submit_vote_checked", "public.studio2_update_televote_aggregate_totals",
+    ],
+    evidence: ["src/lib/v3-s16-televote-round-authority.contract.test.ts", "src/lib/v3-s16-televote-moderation-authority.contract.test.ts", "src/lib/studio2-televote-aggregate-cutover.test.ts"],
+  },
+  {
+    domain: "integrity",
+    canonicalCommands: [
+      "public.v3_public_create_anonymous_integrity_case", "public.v3_create_protected_integrity_case",
+      "public.v3_reporter_reply_integrity_case", "public.v3_public_reply_anonymous_integrity_case",
+      "public.studio2_integrity_case_transition", "public.studio2_integrity_assign_case_reviewer",
+      "public.studio2_integrity_recuse_case_reviewer", "public.studio2_integrity_set_case_priority",
+      "public.studio2_integrity_reply_case", "public.studio2_integrity_add_case_note",
+      "public.studio2_integrity_record_preclearance_ruling", "public.studio2_integrity_record_finding",
+      "public.studio2_integrity_record_sanction", "public.studio2_integrity_set_case_retention",
+      "public.v3_submit_integrity_appeal", "public.v3_public_submit_anonymous_integrity_appeal",
+      "public.studio2_integrity_assign_appeal_reviewer", "public.studio2_integrity_resolve_appeal",
+      "public.studio2_integrity_grant_appeal_extension",
+    ],
+    evidence: [".github/tests/v3-integrity-authority-catalog.sql", ".github/scripts/run-rules-integrity-security-rehearsal.sh"],
   },
   {
     domain: "results",

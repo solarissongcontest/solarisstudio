@@ -7,4 +7,5 @@ case "${DB_URL:-}" in postgres://postgres:postgres@127.0.0.1:*|postgresql://post
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-visual-command.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-authority.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-media-finalization-authority.sql
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-canonical-truncate-authority.sql
 bash .github/scripts/v3-account-session-authority-rehearsal.sh
