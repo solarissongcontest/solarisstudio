@@ -94,7 +94,7 @@ describe("remaining consequence authority boundaries", () => {
     expect(read("src/routes/_authenticated/route.tsx")).toContain("supabase.auth.getUser()");
   });
 
-  it("does not confuse resolved edition authority with remaining show writers", () => {
+  it("does not confuse governed edition writes or bounded show compatibility with unknown show writers", () => {
     expect(scanV3S16StaticAuthority([{
       path: "src/routes/_authenticated/admin/editions.tsx",
       source: read("src/routes/_authenticated/admin/editions.tsx"),
@@ -107,8 +107,15 @@ describe("remaining consequence authority boundaries", () => {
     expect(scanV3S16StaticAuthority([{
       path: "src/components/admin/ShowLineupWorkspace.tsx",
       source: read("src/components/admin/ShowLineupWorkspace.tsx"),
+    }])).not.toContainEqual(expect.objectContaining({
+      domain: "show-lifecycle",
+      kind: "direct_application_writer",
+    }));
+    expect(scanV3S16StaticAuthority([{
+      path: "src/unregistered-show-writer.ts",
+      source: 'client.from("shows").update({ status: "live" });',
     }])).toContainEqual(expect.objectContaining({
-      domain: "contest-lifecycle",
+      domain: "show-lifecycle",
       subject: "public.shows",
       kind: "direct_application_writer",
       releaseRisk: "hard_blocker",

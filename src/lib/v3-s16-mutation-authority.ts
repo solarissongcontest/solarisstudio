@@ -136,7 +136,7 @@ const SCHEMA_CALL = /\.schema\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
 /**
  * These are database client namespaces, not sanctioned writers. S16 must not
  * mistake `televoting.editions` for `public.editions` merely because Supabase
- * clients express a configured schema separately from `.from("editions")`.
+ * clients express a configured schema separately from their table selection.
  * The corresponding client configuration is regression-tested independently.
  */
 const KNOWN_CLIENT_SCHEMA_BY_RECEIVER: Readonly<Record<string, string>> = {
