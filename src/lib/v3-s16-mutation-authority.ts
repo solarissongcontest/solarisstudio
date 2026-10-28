@@ -174,9 +174,28 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
   {
     id: "account-session",
     risk: "security_critical",
-    canonicalTables: ["auth.sessions", "public.studio2_account_session_revocations"],
-    canonicalOwner: "Supabase Auth / account session recovery",
-    canonicalCommands: ["public.v3_revoke_session"],
+    canonicalTables: [
+      "auth.sessions",
+      "public.country_accounts",
+      "public.studio2_account_session_revocations",
+    ],
+    canonicalOwner: "Supabase Auth plus governed Solaris account/session commands",
+    canonicalCommands: [
+      "public.v3_claim_country_account",
+      "public.v3_set_country_account_status",
+      "public.v3_set_owned_hod_auto_assign",
+      "public.v3_revoke_session",
+    ],
+    // The auth.users AFTER INSERT trigger is the only account writer before an
+    // authenticated Solaris session exists. It is private-by-privilege and the
+    // account table guard requires the same internal write marker as commands.
+    sanctionedInternalWriters: ["public.claim_country_from_signup"],
+    sanctionedWriteTriggers: [
+      "ensure_country_account_hod_role",
+      "studio2_platform_direct_write_guard",
+      "touch_country_accounts_updated_at",
+      "v3_guard_country_account_writer",
+    ],
   },
   {
     id: "media-upload",

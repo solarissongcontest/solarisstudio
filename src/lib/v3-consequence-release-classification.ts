@@ -13,12 +13,16 @@ const PURE_READ_EVENTS = new Set([
   "receipt.reconciled",
 ]);
 
-// Authentication authority is synchronous Supabase Auth/session state. These
-// lifecycle labels may support telemetry/audit, but delivery of an application
-// event must never create or preserve authenticated authority.
+// Optional lifecycle consequences never create or preserve canonical authority.
 const OBSERVATIONAL_IDENTITY_LIFECYCLE_EVENTS = new Set([
   "identity.authenticated",
   "identity.signed_out",
+]);
+const CANONICAL_BOUNDARY_DERIVED_EVENTS = new Set([
+  "account.changed",
+  "session.changed",
+  "session.revoked",
+
 ]);
 
 // Preserve the existing catalog decisions explicitly; new identities require
@@ -66,6 +70,7 @@ export function classifyV3ConsequenceRelease(eventType: string): V3ConsequenceRe
   if (eventType === V3_EDITION_TRANSITION_CONSEQUENCE.event) return V3_EDITION_TRANSITION_CONSEQUENCE.releaseClass;
   if (PURE_READ_EVENTS.has(eventType)) return "observational_or_pure_read";
   if (OBSERVATIONAL_IDENTITY_LIFECYCLE_EVENTS.has(eventType)) return "observational_or_pure_read";
+  if (CANONICAL_BOUNDARY_DERIVED_EVENTS.has(eventType)) return "derived";
   if (DELIVERY_PREFIXES.some((prefix) => eventType.startsWith(prefix))) return "delivery_critical";
   if (INTEGRITY_PREFIXES.some((prefix) => eventType.startsWith(prefix))) return "integrity_critical";
   return CATALOG_DERIVED_EVENTS.has(eventType) ? "derived" : "integrity_critical";
