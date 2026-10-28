@@ -6,6 +6,8 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 
 const publicFunctions = source("src/lib/public.functions.ts");
 const sync = source("src/integrations/confirmations/sync.functions.ts");
+const entryAuthority = source("supabase/migrations/20261027211501_v3_s16_entry_confirmation_authority.sql");
+const finalReviewGuard = source("supabase/migrations/20261028112937_v3_confirmation_preserve_final_entry_review.sql");
 
 describe("confirmation canonical reconciliation", () => {
   it("reconciles a successful participant save using the server-returned submission id", () => {
@@ -35,16 +37,18 @@ describe("confirmation canonical reconciliation", () => {
   });
 
   it("does not let an older Confirmation reverse a newer final canonical lifecycle decision", () => {
-    expect(sync).toContain('status: "canonical_newer"');
-    expect(sync).toContain("canonicalUpdatedAt > snapshotUpdatedAt");
-    expect(sync).toContain("canonicalHasFinalLifecycle");
-    expect(sync).toContain("canonicalGuard.data.status !== intendedCanonicalStatus");
+    expect(sync).toContain('db.rpc("v3_sync_confirmation_entry"');
+    expect(entryAuthority).toContain("'status', 'canonical_newer'");
+    expect(finalReviewGuard).toContain("v_existing.status in ('withdrawn','disqualified')");
+    expect(finalReviewGuard).toContain("v_existing.status is distinct from v_status");
+    expect(finalReviewGuard).toContain("v_existing.updated_at > v_submission.updated_at");
   });
 
   it("does not overwrite a canonical entry owned outside Confirmations", () => {
-    expect(sync).toContain('canonicalGuard.data.source !== "confirmations"');
-    expect(sync).toContain('status: "canonical_owned"');
-    expect(sync).toContain("Automatic reconciliation was stopped instead of overwriting it");
+    expect(entryAuthority).toContain("v_existing.source <> 'confirmations'");
+    expect(entryAuthority).toContain("'status', 'canonical_owned'");
+    expect(entryAuthority).toContain("for update;");
+    expect(sync).not.toMatch(/\.from\("entries"\)\s*\.(?:update|insert|upsert)/);
   });
 
   it("fails closed when publication-event emission fails and retries the idempotent event on the next sync", () => {

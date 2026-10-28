@@ -69,9 +69,11 @@ describe("runtime read consistency", () => {
     expect(confirmationSync).toContain(
       '"id,artist,song_title,song_url,review_status,removed"',
     );
-    expect(confirmationSync).toContain(
-      "song_url: cleanText(officialEntry.song_url)",
-    );
+    const entryAuthority = source("supabase/migrations/20261027211501_v3_s16_entry_confirmation_authority.sql");
+    expect(confirmationSync).toContain('db.rpc("v3_sync_confirmation_entry"');
+    expect(entryAuthority).toContain("nullif(btrim(entry.song_url), '')");
+    expect(entryAuthority).toContain("nullif(btrim(candidate.song_url), '')");
+    expect(entryAuthority).toContain("song_url = excluded.song_url");
     expect(hodWorkspace).toContain(
       "'entry.media': completed(\n      pendingConfirmationEntry || Boolean(entry?.songUrl?.trim()),",
     );

@@ -29,7 +29,6 @@ const directTables = [
   "national_final_entries",
   "editions",
   "countries",
-  "entries",
   "contest_entities",
   "participants",
   "integration_links",
@@ -70,6 +69,13 @@ function extractDirectTables(source: string) {
 }
 
 describe("System V3 canonical Confirmation sync service-role privileges", () => {
+  it("retires raw Entry writes after the canonical command cutover", () => {
+    const cutover=readFileSync(resolve(process.cwd(),"supabase/migrations/20261027211501_v3_s16_entry_confirmation_authority.sql"),"utf8");
+    expect(cutover).toContain("revoke insert, update, delete on table public.entries");
+    expect(cutover).toContain("from anon, authenticated, service_role");
+    expect(cutover).toContain("grant execute on function public.v3_sync_confirmation_entry(uuid)");
+    expect(syncSource).toContain('db.rpc("v3_sync_confirmation_entry"');
+  });
   it("covers the complete table inventory directly accessed by the server synchronization path", () => {
     expect(extractDirectTables(syncSource)).toEqual([...directTables].sort());
     for (const table of directTables) {

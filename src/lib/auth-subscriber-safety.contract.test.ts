@@ -22,8 +22,9 @@ describe("auth subscriber lifecycle audit", () => {
     expect(accountIsolation).toContain("lifecycle.deactivate()");
     expect(accountCache).toContain('client.setQueryData(["fan-session"]');
     expect(accountCache).toContain("clearPrivateAccountQueries(client)");
-    expect(appShell).toContain("if (!alive) return;");
-    expect(appShell).toContain("if (alive) setAccess(next);");
+    expect(appShell).toContain("if (!alive || generation !== authGeneration) return;");
+    expect(appShell).toContain("if (alive && generation === authGeneration) setAccess(next);");
+    expect(appShell.indexOf("setAccess(EMPTY_ACCESS)")).toBeLessThan(appShell.indexOf("await getCurrentAccountAccess(userId)"));
     expect(settings).toContain("useFanSession");
     expect(settings).not.toContain("supabase.auth.onAuthStateChange");
     expect(settings).not.toContain("supabase.auth.getUser");

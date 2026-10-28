@@ -12,7 +12,7 @@ describe("edition date discoverability", () => {
 
   it("links to the date editor directly from the Editions page", () => {
     expect(editions).toContain('to="/admin/anniversary-dates"');
-    expect(editions).toContain("Edition dates");
+    expect(editions).toContain('<CalendarDays className="size-4" /> Date');
   });
 
   it("keeps Edition dates discoverable from Administration", () => {
@@ -21,7 +21,7 @@ describe("edition date discoverability", () => {
   });
 
   it("offers an edition-specific historical date shortcut", () => {
-    expect(editions).toContain("Edit historical date");
+    expect(editions).toContain('<CalendarDays className="size-4" /> Date');
     expect(editions).toContain("search={{ edition: edition.id }}");
     expect(dateEditor).toContain("validateSearch");
     expect(dateEditor).toContain('edition-date-${edition.id}');

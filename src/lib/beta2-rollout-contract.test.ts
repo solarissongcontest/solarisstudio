@@ -163,7 +163,10 @@ describe("Beta 2 hardened rollout contract", () => {
 
     expect(schema).toContain("entry_type in ('country','custom')");
     expect(entries).toContain('entry_type: "country" | "custom"');
-    expect(entries).toContain('entry_type: "custom"');
+    expect(entries).toContain('configureRound(data, "save_custom"');
+    const authority = source("supabase/migrations/20261027202500_v3_s16_televote_round_entry_authority.sql");
+    expect(authority).toContain("'custom'");
+    expect(authority).toContain("insert into televoting.round_entries");
     expect(route).toContain("entry_type: entry.entry_type");
     expect(route).toContain("TelevotingBoothWithReceipt");
   });
