@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - v3/integrity-authority-chat5
+      - v3/1629-integration-chat8
   workflow_dispatch:
 
 permissions:
