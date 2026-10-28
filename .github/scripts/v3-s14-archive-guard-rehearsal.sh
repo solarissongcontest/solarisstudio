@@ -78,6 +78,27 @@ expect_service_failure() {
   log "PASS: $label failed closed"
 }
 
+
+# Prove both layers independently: API roles cannot reach table DML at all;
+# the database owner can reach it, but cannot bypass the Archive invariant.
+expect_runtime_authority_failure() {
+  local label="$1" expected="$2" sql="$3" output
+  expect_service_failure "$label (service privilege boundary)" "permission denied for table studio2_edition_runtime" "$sql"
+  output="$(mktemp)"
+  if psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "$sql" >"$output" 2>&1; then
+    cat "$output" >&2
+    rm -f "$output"
+    fail "$label bypassed the Archive invariant as database owner"
+  fi
+  grep -Fq "$expected" "$output" || {
+    cat "$output" >&2
+    rm -f "$output"
+    fail "$label did not expose the specific Archive invariant"
+  }
+  rm -f "$output"
+  log "PASS: $label denied independently by privilege and Archive invariant"
+}
+
 json_value() {
   local path="$1"
   python3 -c '
@@ -222,12 +243,12 @@ expect_user_failure "$AUTHORIZED_ID" "results directly to archived" "STATE_CHANG
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_B'::uuid;")" == 'results' ]] || fail "invalid archive source changed runtime"
 
 log "Unguarded direct runtime Archive SQL fails closed"
-expect_service_failure "direct runtime archive mutation" "Archive transition must use the canonical V3 lifecycle command" \
+expect_runtime_authority_failure "direct runtime archive mutation" "Archive transition must use the canonical V3 lifecycle command" \
   "update public.studio2_edition_runtime set state='archived' where edition_id='$EDITION_B'::uuid;"
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_B'::uuid;")" == 'results' ]] || fail "direct SQL bypassed archive guard"
 
 log "Caller-controlled settings cannot forge canonical Archive authority"
-expect_service_failure "caller-controlled archive guard setting" "Archive transition must use the canonical V3 lifecycle command" \
+expect_runtime_authority_failure "caller-controlled archive guard setting" "Archive transition must use the canonical V3 lifecycle command" \
   "begin; select set_config('solaris.v3_archive_command','allowed',true); update public.studio2_edition_runtime set state='archived' where edition_id='$EDITION_B'::uuid; commit;"
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_B'::uuid;")" == 'results' ]] || fail "caller-controlled setting bypassed archive guard"
 
@@ -242,11 +263,11 @@ as_service "select private.studio2_reconcile_all_organizer_tasks('$EDITION_A'::u
 [[ "$(db_value "select count(*) from public.studio2_incidents where id='$INCIDENT_ID'::uuid and status='detected';")" == '1' ]] || fail "archive mutated incident history/state"
 
 log "Archived runtime cannot be directly moved back into active lifecycle state"
-expect_service_failure "direct archived runtime reversal" "Archived edition runtime is read-only" \
+expect_runtime_authority_failure "direct archived runtime reversal" "Archived edition runtime is read-only" \
   "update public.studio2_edition_runtime set state='post_edition' where edition_id='$EDITION_A'::uuid;"
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_A'::uuid;")" == 'archived' ]] || fail "direct SQL reversed an archived runtime"
 
-expect_service_failure "archived runtime metadata rewrite" "Archived edition runtime is read-only" \
+expect_runtime_authority_failure "archived runtime metadata rewrite" "Archived edition runtime is read-only" \
   "update public.studio2_edition_runtime set updated_by='$UNAUTHORIZED_ID'::uuid where edition_id='$EDITION_A'::uuid;"
 
 ARCHIVED_TASK_RESOLVED_AT="$(db_value "select resolved_at::text from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")"
