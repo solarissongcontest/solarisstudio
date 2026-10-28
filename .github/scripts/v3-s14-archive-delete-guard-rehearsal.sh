@@ -291,9 +291,9 @@ SELECT pg_temp.assert_true(
 SET ROLE service_role;
 SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
 SELECT pg_temp.assert_archive_guard(
-  'Archive runtime DELETE',
+  'Archive runtime DELETE service privilege boundary',
   '42501',
-  'Archived edition runtime is irreversible.',
+  'permission denied for table studio2_edition_runtime',
   format(
     'delete from public.studio2_edition_runtime where edition_id=%L::uuid',
     :'EDITION_A'
@@ -301,6 +301,11 @@ SELECT pg_temp.assert_archive_guard(
   'public.studio2_edition_runtime'::regclass
 );
 RESET ROLE;
+SELECT pg_temp.assert_archive_guard(
+  'Archive runtime DELETE', '42501', 'Archived edition runtime is irreversible.',
+  format('delete from public.studio2_edition_runtime where edition_id=%L::uuid', :'EDITION_A'),
+  'public.studio2_edition_runtime'::regclass
+);
 
 SELECT pg_temp.assert_true(
   'Archive runtime DELETE preserves the archived fact',
@@ -317,9 +322,9 @@ SELECT pg_temp.assert_true(
 SET ROLE service_role;
 SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
 SELECT pg_temp.assert_archive_guard(
-  'Forged Archive INSERT after runtime DELETE',
+  'Forged Archive INSERT service privilege boundary',
   '42501',
-  'Archive transition must use the canonical V3 lifecycle command.',
+  'permission denied for table studio2_edition_runtime',
   format(
     'with deleted as (delete from public.studio2_edition_runtime where edition_id=%L::uuid returning edition_id,subsystems) insert into public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by) select edition_id,''archived'',subsystems,6,null from deleted',
     :'EDITION_B'
@@ -327,6 +332,11 @@ SELECT pg_temp.assert_archive_guard(
   'public.studio2_edition_runtime'::regclass
 );
 RESET ROLE;
+SELECT pg_temp.assert_archive_guard(
+  'Forged Archive INSERT after runtime DELETE', '42501', 'Archive transition must use the canonical V3 lifecycle command.',
+  format('with deleted as (delete from public.studio2_edition_runtime where edition_id=%L::uuid returning edition_id,subsystems) insert into public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by) select edition_id,''archived'',subsystems,6,null from deleted', :'EDITION_B'),
+  'public.studio2_edition_runtime'::regclass
+);
 
 SELECT pg_temp.assert_true(
   'Rejected forged Archive INSERT rolls back its preceding DELETE atomically',
@@ -341,7 +351,7 @@ SELECT pg_temp.assert_true(
 
 \echo '[v3-s14-archive-delete-guard] Assert archived show/result/legacy lifecycle guards'
 -- Exercise the workflow-freeze trigger boundary as the database owner. The
--- runtime authority assertions above intentionally stay service_role tests;
+-- runtime authority assertions above separately prove service grants and owner invariants;
 -- workflow tables do not all grant direct DML to service_role, and a table
 -- permission denial would prevent PostgreSQL from ever reaching these triggers.
 SELECT pg_temp.assert_archive_guard(

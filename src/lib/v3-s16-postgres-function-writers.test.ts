@@ -17,7 +17,7 @@ it("handles nested comments and quoted SQL without losing a later real EXECUTE",
  const sql = fn("/* outer /* execute */ still comment */ perform $sql$execute$sql$; EXECUTE format('select * from public.results');");
  expect(containsPostgresExecute(sql)).toBe(true);
  expect(definitionWritesTable(sql,"public.results")).toBe(true);
- expect(containsPostgresExecute(fn("perform E'escaped\\\' execute'; perform 1;"))).toBe(false);
+ expect(containsPostgresExecute(fn("perform E'escaped\\' execute'; perform 1;"))).toBe(false);
 });
 
 it("does not hide a real EXECUTE after a standard-conforming string ending in a backslash", () => {

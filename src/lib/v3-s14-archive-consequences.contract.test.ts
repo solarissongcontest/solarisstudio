@@ -215,19 +215,14 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(rehearsal).toContain("'edition.transition'");
     expect(rehearsal).toContain("'edition.archive'");
     expect(workflow).toContain('supabase db reset --local --no-seed');
-    for (const migrationName of [
-      '20261019112100_v3_s14_archive_consequence_reconciliation.sql',
-      '20261019112200_v3_s14_final_results_readiness_hardening.sql',
-      '20261019112300_v3_s14_transition_http409.sql',
-      '20261019112400_v3_s14_archive_task_registry_alignment.sql',
-      '20261019112500_v3_s14_resolved_task_notification_invariant.sql',
-      '20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql',
-      '20261020130000_v3_s14_archive_invariant_forward_fixes.sql',
-    ]) {
-      expect(workflow).toContain(migrationName);
-    }
-    expect(workflow).toContain('for migration in');
-    expect(workflow).toContain('"$GITHUB_WORKSPACE/supabase/migrations/$migration"');
+    // The upgrade must now include every candidate migration, not only the
+    // original Archive list: later grant cutovers are part of runtime authority.
+    expect(workflow).toContain('bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" /tmp/solaris-s14-main origin/main');
+    const delta = readFileSync('.github/scripts/v3-copy-migration-delta.sh', 'utf8');
+    expect(delta).toContain('diff --name-only --diff-filter=AM "$BASE_REF"...HEAD');
+    expect(delta).toContain("'supabase/migrations/*.sql'");
+    expect(delta).toContain('feature branch deletes migration files; upgrade rehearsal refuses destructive migration history');
+    expect(delta).toContain('cmp -s "$source_path" "$target_path"');
     expect(workflow).toContain('supabase migration up --local --include-all');
     expect(workflow).not.toContain('rsync');
     expect(workflow).toContain('.github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh');
