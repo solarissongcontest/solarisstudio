@@ -1,3 +1,4 @@
+import { definitionWritesTable } from "../src/lib/v3-s16-postgres-function-writers";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -114,20 +115,6 @@ function functionInventory(dbUrl: string): FunctionInventoryRow[] {
       where ns.nspname in ('public','private','televoting') and p.prokind in ('f','p')
     ) rows;
   `);
-}
-
-function regexEscape(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function definitionWritesTable(definition: string, table: string) {
-  const [schema, name] = table.includes(".") ? table.split(".", 2) : ["public", table];
-  const schemaPattern = `(?:["']?${regexEscape(schema)}["']?\\s*\\.\\s*)?`;
-  const tablePattern = `["']?${regexEscape(name)}["']?`;
-  const direct = new RegExp(`\\b(?:insert\\s+into|update|delete\\s+from|merge\\s+into)\\s+${schemaPattern}${tablePattern}\\b`, "i");
-  if (direct.test(definition)) return true;
-  const dynamic = /\bexecute\b/i.test(definition) && new RegExp(`\\b${regexEscape(name)}\\b`, "i").test(definition);
-  return dynamic;
 }
 
 const sha = candidateSha();
