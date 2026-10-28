@@ -71,6 +71,7 @@ describe("System V3 S1 registries", () => {
       "jury.closed",
       "jury.opened",
       "media.reviewed",
+      "media.verified",
       "membership.changed",
       "notice.published",
       "notice.superseded",
@@ -98,7 +99,10 @@ describe("System V3 S1 registries", () => {
     expect(v3DomainConsequence("receipt.reconciled")?.replacement?.operation).toBe(
       "public.studio2_reconcile_operation(uuid)",
     );
-    const migrated = new Set([...eventBacked, ...replacements]);
+    const observational = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((item) => item.implementationState === "persisted-observational");
+    expect(observational.map((item) => item.eventType).sort()).toEqual(["show.changed", "show.cue_changed"]);
+    for (const item of observational) expect(item.evidence.length).toBeGreaterThan(0);
+    const migrated = new Set([...eventBacked, ...replacements, ...observational.map((item) => item.eventType)]);
     expect(
       V3_DOMAIN_CONSEQUENCE_REGISTRY
         .filter((item) => !migrated.has(item.eventType))

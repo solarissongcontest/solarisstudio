@@ -42,10 +42,14 @@ describe("System V3 S6 Confirmation -> Entry reconciliation", () => {
   });
 
   it("keeps canonical ownership and newer final lifecycle guards in the delegated writer", () => {
-    expect(canonicalSync).toContain('canonicalGuard.data.source !== "confirmations"');
-    expect(canonicalSync).toContain('status: "canonical_owned"');
-    expect(canonicalSync).toContain("canonicalUpdatedAt > snapshotUpdatedAt");
-    expect(canonicalSync).toContain('status: "canonical_newer"');
+    const command = source("supabase/migrations/20261027211501_v3_s16_entry_confirmation_authority.sql");
+    const finalGuard = source("supabase/migrations/20261028112937_v3_confirmation_preserve_final_entry_review.sql");
+    expect(canonicalSync).toContain('db.rpc("v3_sync_confirmation_entry"');
+    expect(canonicalSync).not.toMatch(/\.from\("entries"\)\s*\.(?:update|insert|upsert)/);
+    expect(command).toContain("v_existing.source <> 'confirmations'");
+    expect(command).toContain("'status', 'canonical_owned'");
+    expect(finalGuard).toContain("v_existing.updated_at > v_submission.updated_at");
+    expect(finalGuard).toContain("'status','canonical_newer'");
   });
 
   it("provides an independent read-only edition verifier with an explicit diagnostic ceiling", () => {

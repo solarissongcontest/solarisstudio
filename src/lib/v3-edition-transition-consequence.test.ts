@@ -26,6 +26,7 @@ it("retains the separately required Archive consumer and persisted event/audit v
 });
 it("moves only remaining derived transition maturity to debt without resolving or suppressing inventory",()=>{
  expect(classifyV3ConsequenceRelease(trace.event)).toBe("derived");
+ for (const event of ["edition.changed", "session.revoked"]) expect(classifyV3ConsequenceRelease(event)).toBe("derived");
  expect(classifyV3ReleaseFinding("DOMAIN_CONSEQUENCE_DECLARED edition.transitioned owner=edition").releaseRisk).toBe("tracked_migration_debt");
- for(const event of ["edition.changed","edition.archived","session.revoked","integrity.case_changed","show.changed"]) expect(classifyV3ConsequenceRelease(event)).toBe("integrity_critical");
+ for(const event of ["edition.archived","integrity.case_changed","show.changed","unknown.critical_state"]) expect(classifyV3ConsequenceRelease(event)).toBe("integrity_critical");
 });

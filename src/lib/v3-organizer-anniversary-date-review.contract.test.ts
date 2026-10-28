@@ -30,26 +30,28 @@ describe("V3 Organizer anniversary date review boundary", () => {
   });
 
   it("re-reads exact edition state immediately before apply and fails closed on drift", () => {
-    expect(route).toContain('.select("id, edition_number, name, event_date, year")');
+    expect(route).toContain('.select("id,edition_number,name,event_date,year,data_revision")');
     expect(route).toContain('(live.event_date ?? null) !== pendingReview.baselineDate');
     expect(route).toContain('(live.year ?? null) !== pendingReview.baselineYear');
     expect(route).toContain("changed while this review was open. Nothing was changed");
     expect(route).toContain('await qc.invalidateQueries({ queryKey: ["editions"] })');
   });
 
-  it("guards the legacy write against a race after the live read", () => {
-    expect(route).toContain('update.eq("event_date", pendingReview.baselineDate)');
-    expect(route).toContain('update.is("event_date", null)');
-    expect(route).toContain('update.eq("year", pendingReview.baselineYear)');
-    expect(route).toContain('update.is("year", null)');
-    expect(route).toContain('update.select("id").maybeSingle()');
-    expect(route).toContain("changed immediately before apply, so the reviewed date was not written");
+  it("uses the canonical metadata command with exact reviewed scope and server CAS", () => {
+    expect(route).toContain("applyEditionMetadataChange({");
+    expect(route).toContain("editionId: pendingReview.editionId");
+    expect(route).toContain("expectedRevision: Number(live.data_revision)");
+    expect(route).toContain("event_date: pendingReview.nextDate");
+    expect(route).toContain("year: pendingReview.nextYear");
+    expect(route).not.toMatch(/\.from\("editions"\)\s*\.update/);
+    const authority = source("src/lib/edition-authority.ts");
+    expect(authority).toContain("expectedRevision");
+    expect(authority).toContain("operationId");
   });
 
-  it("states the remaining System authority gap instead of claiming parity", () => {
-    expect(route).toContain("System #633 still owns the canonical versioned, idempotent");
-    expect(route).toContain("durable operation receipt");
-    expect(route).toContain("legacy table write");
-    expect(route).toContain("does not claim that parity");
+  it("reports canonical metadata ownership and the committed revision", () => {
+    expect(route).toContain("same versioned canonical authority as other edition metadata");
+    expect(route).toContain("receipt.edition.data_revision");
+    expect(route).not.toContain("legacy table write");
   });
 });
