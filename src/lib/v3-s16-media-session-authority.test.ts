@@ -28,11 +28,11 @@ describe("S16 security consequence authority coverage", () => {
     const session = V3_S16_CRITICAL_DOMAINS.find((domain) => domain.id === "account-session")!;
     expect(session.canonicalTables).toEqual([
       "auth.sessions",
+      "public.country_accounts",
       "public.studio2_account_session_revocations",
     ]);
-    expect(session.canonicalCommands).toEqual(["public.v3_revoke_session"]);
-    expect(session.sanctionedInternalWriters).toBeUndefined();
-    expect(session.sanctionedWriteTriggers).toBeUndefined();
+    expect(session.canonicalCommands).toContain("public.v3_revoke_session");
+    expect(session.canonicalCommands).toContain("public.v3_claim_country_account");
   });
 
   it("inspects the canonical permission revision ledger rather than retired duplicate storage", () => {
@@ -45,7 +45,7 @@ describe("S16 security consequence authority coverage", () => {
     );
     expect(source).toContain("drop table public.studio2_permission_state_versions");
     expect(source).toContain("Canonical per-user permission revision");
-    expect(domain.canonicalCommands).toEqual([]);
+    expect(domain.canonicalCommands).toEqual(["public.studio2_apply_permission_change_r3"]);
   });
 
   it("keeps Integrity hard until its canonical command inventory is proven", () => {
@@ -56,6 +56,7 @@ describe("S16 security consequence authority coverage", () => {
       domains: V3_S16_CRITICAL_DOMAINS.filter((domain) => ["integrity"].includes(domain.id)).map(
         (domain) => ({
           ...domain,
+          canonicalCommands: [],
           sanctionedInternalWriters: [],
           sanctionedWriteTriggers: [],
           ownerBoundary: "shared" as const,

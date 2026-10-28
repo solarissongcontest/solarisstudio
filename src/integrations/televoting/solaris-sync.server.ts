@@ -1,6 +1,5 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
-import { saveMergedRoundCountriesServer } from "@/integrations/televoting/entries.server";
 
 function normalize(value: unknown) {
   return String(value ?? "").trim().toLocaleLowerCase();
@@ -25,6 +24,10 @@ async function solarisDb() {
   return supabaseAdmin as any;
 }
 
+/**
+ * Explicit catalog reconciliation. This remains a deliberate mutation action;
+ * ordinary Televote reads below never invoke it implicitly.
+ */
 export async function ensureCanonicalTelevotingEditionsServer(): Promise<CanonicalTelevotingEdition[]> {
   await requireMergedTelevotingAdminServer();
   const db = await solarisDb();
@@ -56,7 +59,6 @@ export async function ensureCanonicalTelevotingEditionsServer(): Promise<Canonic
   );
   const claimedRemoteIds = new Set<string>();
 
-  // Canonical Solaris status owns which Televoting projection is active.
   const { error: deactivateError } = await televotingAdmin
     .from("editions")
     .update({ is_active: false })
@@ -135,6 +137,7 @@ export async function ensureCanonicalTelevotingEditionsServer(): Promise<Canonic
       .eq("remote_id", remote.id)
       .neq("solaris_id", edition.id);
 
+    const now = new Date().toISOString();
     const link = await db.from("integration_links").upsert(
       {
         service: "televoting",
@@ -144,8 +147,8 @@ export async function ensureCanonicalTelevotingEditionsServer(): Promise<Canonic
         edition_id: edition.id,
         sync_status: "linked",
         metadata: { edition_number: editionNumber },
-        last_synced_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        last_synced_at: now,
+        updated_at: now,
       },
       { onConflict: "service,entity_type,remote_id" },
     );
@@ -164,10 +167,48 @@ export async function ensureCanonicalTelevotingEditionsServer(): Promise<Canonic
   return projections.sort((a, b) => b.edition_number - a.edition_number);
 }
 
+async function readCanonicalTelevotingEditionsServer(): Promise<CanonicalTelevotingEdition[]> {
+  const db = await solarisDb();
+  const [solarisResult, remoteResult, linkResult] = await Promise.all([
+    db
+      .from("editions")
+      .select("id,name,edition_number,status")
+      .not("edition_number", "is", null),
+    televotingAdmin
+      .from("editions")
+      .select("id,name,is_active,is_archived"),
+    db
+      .from("integration_links")
+      .select("solaris_id,remote_id")
+      .eq("service", "televoting")
+      .eq("entity_type", "edition"),
+  ]);
+  if (solarisResult.error) throw new Error(solarisResult.error.message);
+  if (remoteResult.error) throw new Error(remoteResult.error.message);
+  if (linkResult.error) throw new Error(linkResult.error.message);
+
+  const solarisById = new Map((solarisResult.data ?? []).map((edition: any) => [String(edition.id), edition]));
+  const remoteById = new Map((remoteResult.data ?? []).map((edition: any) => [String(edition.id), edition]));
+
+  return (linkResult.data ?? []).flatMap((link: any) => {
+    const solaris = solarisById.get(String(link.solaris_id)) as any;
+    const remote = remoteById.get(String(link.remote_id)) as any;
+    if (!solaris || !remote) return [];
+    const editionNumber = Number(solaris.edition_number);
+    if (!Number.isInteger(editionNumber)) return [];
+    return [{
+      id: String(remote.id),
+      solaris_id: String(solaris.id),
+      name: String(solaris.name),
+      edition_number: editionNumber,
+      is_active: remote.is_active === true,
+      is_archived: remote.is_archived === true,
+    }];
+  }).sort((a: CanonicalTelevotingEdition, b: CanonicalTelevotingEdition) => b.edition_number - a.edition_number);
+}
+
 async function resolveRoundSource(roundId: string) {
   const db = await solarisDb();
-  const editions = await ensureCanonicalTelevotingEditionsServer();
-
   const { data: round, error: roundError } = await televotingAdmin
     .from("rounds")
     .select("id,name,status,edition_id")
@@ -176,6 +217,7 @@ async function resolveRoundSource(roundId: string) {
   if (roundError) throw new Error(roundError.message);
   if (!round) throw new Error("Round not found");
 
+  const editions = await readCanonicalTelevotingEditionsServer();
   const edition = editions.find((candidate) => candidate.id === round.edition_id);
   if (!edition) throw new Error("This Televoting round is not linked to a canonical Solaris edition");
 
@@ -237,16 +279,22 @@ export async function syncMergedRoundFromSolarisServer(data: {
   roundId: string;
   showId?: string | null;
   sourceMode?: "edition" | "show";
+  expectedRoundVersion?: number;
+  operationId?: string;
+  idempotencyKey?: string;
 }) {
-  const actor = await requireMergedTelevotingAdminServer();
+  await requireMergedTelevotingAdminServer();
+
+  // Explicit sync may repair/create edition projection links. Ordinary source
+  // reads above are pure and never invoke this mutation path.
+  await ensureCanonicalTelevotingEditionsServer();
   const source = await resolveRoundSource(data.roundId);
 
   if (source.round.status === "open") {
     throw new Error("Close the voting round before syncing its Solaris line-up");
   }
 
-  const explicitMode = data.sourceMode;
-  const sourceMode = explicitMode ?? source.binding?.source_mode ?? "edition";
+  const sourceMode = data.sourceMode ?? source.binding?.source_mode ?? "edition";
   const showId = sourceMode === "show"
     ? (data.showId ?? source.binding?.show_id ?? null)
     : null;
@@ -262,7 +310,6 @@ export async function syncMergedRoundFromSolarisServer(data: {
     .select("id,country_id,running_order,created_at")
     .eq("edition_id", source.edition.solaris_id)
     .eq("participation_status", "confirmed");
-
   participantsQuery = sourceMode === "show"
     ? participantsQuery.eq("show_id", showId)
     : participantsQuery.is("show_id", null);
@@ -271,16 +318,11 @@ export async function syncMergedRoundFromSolarisServer(data: {
   if (participantError) throw new Error(participantError.message);
 
   const countryIds = [...new Set((participants ?? []).map((row: any) => row.country_id).filter(Boolean))];
-  if (countryIds.length < 2) {
-    throw new Error("The selected Solaris source has fewer than two confirmed participants");
-  }
+  if (countryIds.length < 2) throw new Error("The selected Solaris source has fewer than two confirmed participants");
   if (countryIds.length > 50) throw new Error("Televoting supports at most 50 entries per round");
 
   const [countriesResult, entriesResult] = await Promise.all([
-    source.db
-      .from("countries")
-      .select("id,name,short_code,flag_image")
-      .in("id", countryIds),
+    source.db.from("countries").select("id,name,short_code,flag_image").in("id", countryIds),
     source.db
       .from("entries")
       .select("id,country_id,artist,song_title,status")
@@ -292,17 +334,11 @@ export async function syncMergedRoundFromSolarisServer(data: {
 
   const countryById = new Map((countriesResult.data ?? []).map((row: any) => [row.id, row]));
   const entryByCountry = new Map((entriesResult.data ?? []).map((row: any) => [row.country_id, row]));
-
   const lineup = (participants ?? [])
     .map((participant: any) => {
       const country = countryById.get(participant.country_id) as any;
       if (!country) return null;
-      const entry = entryByCountry.get(participant.country_id) as any;
-      return {
-        participant,
-        country,
-        entry,
-      };
+      return { participant, country, entry: entryByCountry.get(participant.country_id) as any };
     })
     .filter(Boolean)
     .sort((a: any, b: any) => {
@@ -312,105 +348,44 @@ export async function syncMergedRoundFromSolarisServer(data: {
       return String(a.country.name).localeCompare(String(b.country.name));
     });
 
-  const codes = lineup.map((row: any) => String(row.country.short_code));
-  if (new Set(codes).size !== codes.length) throw new Error("Solaris contains duplicate country short codes in this line-up");
-
-  const { data: existingCountries, error: existingCountryError } = await televotingAdmin
-    .from("countries")
-    .select("code,name,flag,flag_url")
-    .in("code", codes);
-  if (existingCountryError) throw new Error(existingCountryError.message);
-  const existingByCode = new Map((existingCountries ?? []).map((row) => [row.code, row]));
-
-  for (const row of lineup as any[]) {
-    const code = String(row.country.short_code);
-    const existing = existingByCode.get(code);
-    if (existing) {
-      const { error } = await televotingAdmin
-        .from("countries")
-        .update({ name: row.country.name, flag_url: row.country.flag_image ?? existing.flag_url })
-        .eq("code", code);
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await televotingAdmin.from("countries").insert({
-        code,
-        name: row.country.name,
-        flag: "✦",
-        flag_url: row.country.flag_image ?? null,
-      });
-      if (error) throw new Error(error.message);
-    }
+  const countryPayload = lineup.map((row: any) => ({
+    code: String(row.country.short_code),
+    name: String(row.country.name),
+    flagUrl: row.country.flag_image ?? null,
+    subtitle: row.entry?.status === "confirmed" && row.entry?.artist && row.entry?.song_title
+      ? `${row.entry.artist} · ${row.entry.song_title}`
+      : "Official entry pending",
+  }));
+  const codes = countryPayload.map((row) => row.code);
+  if (new Set(codes).size !== codes.length) {
+    throw new Error("Solaris contains duplicate country short codes in this line-up");
   }
 
-  await saveMergedRoundCountriesServer({ roundId: data.roundId, countryCodes: codes });
-
-  const { data: remoteEntries, error: remoteEntryError } = await televotingAdmin
-    .from("round_entries")
-    .select("id,country_code")
-    .eq("round_id", data.roundId)
-    .eq("entry_type", "country");
-  if (remoteEntryError) throw new Error(remoteEntryError.message);
-
-  const lineupByCode = new Map(lineup.map((row: any) => [String(row.country.short_code), row]));
-  for (const remoteEntry of remoteEntries ?? []) {
-    if (!remoteEntry.country_code) continue;
-    const canonical = lineupByCode.get(remoteEntry.country_code) as any;
-    if (!canonical) continue;
-    const subtitle = canonical.entry?.status === "confirmed" && canonical.entry?.artist && canonical.entry?.song_title
-      ? `${canonical.entry.artist} · ${canonical.entry.song_title}`
-      : "Official entry pending";
-    const { error } = await televotingAdmin
-      .from("round_entries")
-      .update({ subtitle })
-      .eq("id", remoteEntry.id);
-    if (error) throw new Error(error.message);
+  let expectedRoundVersion = data.expectedRoundVersion;
+  if (expectedRoundVersion === undefined) {
+    const { data: snapshot, error: snapshotError } = await televotingAdmin.rpc("v3_round_config_snapshot", {
+      p_round_id: data.roundId,
+    });
+    if (snapshotError) throw new Error(snapshotError.message);
+    expectedRoundVersion = Number((snapshot as any)?.version ?? -1);
+  }
+  if (!Number.isInteger(expectedRoundVersion) || expectedRoundVersion < 0) {
+    throw new Error("Canonical round revision is unavailable; refresh before syncing");
   }
 
-  const now = new Date().toISOString();
-  const binding = await source.db.from("televoting_round_bindings").upsert(
-    {
-      remote_round_id: data.roundId,
-      remote_edition_id: source.round.edition_id,
-      edition_id: source.edition.solaris_id,
-      show_id: showId,
-      source_mode: sourceMode,
-      last_synced_at: now,
-      frozen_at: null,
-      updated_at: now,
-    },
-    { onConflict: "remote_round_id" },
-  );
-  if (binding.error) throw new Error(binding.error.message);
-
-  await source.db.from("integration_events").insert({
-    service: "televoting",
-    event_type: "round.lineup.synced",
-    entity_type: "round",
-    remote_id: data.roundId,
-    payload: {
-      solaris_edition_id: source.edition.solaris_id,
-      show_id: showId,
-      source_mode: sourceMode,
-      countries: codes,
-    },
-    status: "completed",
-    attempts: 1,
-    completed_at: now,
+  const operationId = data.operationId || crypto.randomUUID();
+  const idempotencyKey = data.idempotencyKey || crypto.randomUUID();
+  const { data: receipt, error: syncError } = await televotingAdmin.rpc("v3_sync_round_lineup", {
+    p_round_id: data.roundId,
+    p_source_mode: sourceMode,
+    p_show_id: showId,
+    p_countries: countryPayload,
+    p_expected_round_version: expectedRoundVersion,
+    p_operation_id: operationId,
+    p_idempotency_key: idempotencyKey,
+    p_correlation_id: operationId,
   });
-
-  await televotingAdmin.from("admin_audit_log").insert({
-    actor_admin_id: actor.id,
-    actor_username: actor.username,
-    action: "sync_round_from_solaris",
-    target_type: "round",
-    target_id: data.roundId,
-    new_values: {
-      solaris_edition_id: source.edition.solaris_id,
-      show_id: showId,
-      source_mode: sourceMode,
-      country_codes: codes,
-    },
-  });
+  if (syncError) throw new Error(syncError.message);
 
   return {
     ok: true,
@@ -420,5 +395,7 @@ export async function syncMergedRoundFromSolarisServer(data: {
     participant_count: lineup.length,
     confirmed_entry_count: lineup.filter((row: any) => row.entry?.status === "confirmed").length,
     pending_entry_count: lineup.filter((row: any) => row.entry?.status !== "confirmed").length,
+    round_version: Number((receipt as any)?.roundVersion ?? expectedRoundVersion),
+    operation_id: String((receipt as any)?.operationId ?? operationId),
   };
 }

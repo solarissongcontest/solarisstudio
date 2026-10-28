@@ -16,6 +16,13 @@ export type MergedRoundEntry = {
   country?: { code: string; name: string; flag: string | null; flag_url: string | null } | null;
 };
 
+type RoundMutationEnvelope = {
+  roundId: string;
+  expectedRoundVersion?: number;
+  operationId?: string;
+  idempotencyKey?: string;
+};
+
 function cleanOptionalText(value: unknown, maxLength: number) {
   const text = String(value ?? "").trim();
   if (!text) return null;
@@ -36,6 +43,18 @@ function cleanImageUrl(value: unknown) {
   return parsed.toString();
 }
 
+function envelope<T extends RoundMutationEnvelope>(data: T) {
+  if (!data?.roundId) throw new Error("Missing round");
+  if (data.expectedRoundVersion !== undefined && (!Number.isInteger(data.expectedRoundVersion) || data.expectedRoundVersion < 0)) {
+    throw new Error("Invalid round version");
+  }
+  return {
+    ...data,
+    operationId: data.operationId || crypto.randomUUID(),
+    idempotencyKey: data.idempotencyKey || crypto.randomUUID(),
+  };
+}
+
 export const getMergedRoundEntries = createServerFn({ method: "POST" })
   .inputValidator((data: { roundId: string }) => {
     if (!data?.roundId) throw new Error("Missing round");
@@ -49,13 +68,12 @@ export const getMergedRoundEntries = createServerFn({ method: "POST" })
   });
 
 export const saveMergedRoundCountries = createServerFn({ method: "POST" })
-  .inputValidator((data: { roundId: string; countryCodes: string[] }) => {
-    if (!data?.roundId) throw new Error("Missing round");
+  .inputValidator((data: RoundMutationEnvelope & { countryCodes: string[] }) => {
     if (!Array.isArray(data.countryCodes)) throw new Error("Invalid countries");
     if (data.countryCodes.length < 2 || data.countryCodes.length > 50) throw new Error("Pick between 2 and 50 countries");
     const clean = data.countryCodes.map((code) => String(code).trim()).filter(Boolean);
     if (new Set(clean).size !== clean.length) throw new Error("Duplicate country in selection");
-    return { roundId: data.roundId, countryCodes: clean };
+    return envelope({ ...data, countryCodes: clean });
   })
   .handler(async ({ data }) => {
     const { saveMergedRoundCountriesServer } = await import(
@@ -65,8 +83,7 @@ export const saveMergedRoundCountries = createServerFn({ method: "POST" })
   });
 
 export const saveMergedCustomRoundEntry = createServerFn({ method: "POST" })
-  .inputValidator((data: {
-    roundId: string;
+  .inputValidator((data: RoundMutationEnvelope & {
     id?: string | null;
     customName: string;
     shortName?: string | null;
@@ -75,12 +92,11 @@ export const saveMergedCustomRoundEntry = createServerFn({ method: "POST" })
     imageUrl?: string | null;
     description?: string | null;
   }) => {
-    if (!data?.roundId) throw new Error("Missing round");
     const customName = String(data.customName ?? "").trim();
     if (!customName) throw new Error("Display name is required");
     if (customName.length > 120) throw new Error("Display name is too long");
-    return {
-      roundId: data.roundId,
+    return envelope({
+      ...data,
       id: data.id || null,
       customName,
       shortName: cleanOptionalText(data.shortName, 60),
@@ -88,7 +104,7 @@ export const saveMergedCustomRoundEntry = createServerFn({ method: "POST" })
       subtitle: cleanOptionalText(data.subtitle, 120),
       imageUrl: cleanImageUrl(data.imageUrl),
       description: cleanOptionalText(data.description, 1000),
-    };
+    });
   })
   .handler(async ({ data }) => {
     const { saveMergedCustomRoundEntryServer } = await import(
@@ -98,9 +114,9 @@ export const saveMergedCustomRoundEntry = createServerFn({ method: "POST" })
   });
 
 export const deleteMergedCustomRoundEntry = createServerFn({ method: "POST" })
-  .inputValidator((data: { roundId: string; entryId: string }) => {
-    if (!data?.roundId || !data?.entryId) throw new Error("Missing round or entry");
-    return data;
+  .inputValidator((data: RoundMutationEnvelope & { entryId: string }) => {
+    if (!data?.entryId) throw new Error("Missing round or entry");
+    return envelope(data);
   })
   .handler(async ({ data }) => {
     const { deleteMergedCustomRoundEntryServer } = await import(
@@ -110,10 +126,10 @@ export const deleteMergedCustomRoundEntry = createServerFn({ method: "POST" })
   });
 
 export const reorderMergedRoundEntries = createServerFn({ method: "POST" })
-  .inputValidator((data: { roundId: string; entryIds: string[] }) => {
-    if (!data?.roundId || !Array.isArray(data.entryIds)) throw new Error("Invalid entry order");
+  .inputValidator((data: RoundMutationEnvelope & { entryIds: string[] }) => {
+    if (!Array.isArray(data.entryIds)) throw new Error("Invalid entry order");
     if (new Set(data.entryIds).size !== data.entryIds.length) throw new Error("Duplicate entry in order");
-    return data;
+    return envelope(data);
   })
   .handler(async ({ data }) => {
     const { reorderMergedRoundEntriesServer } = await import(
@@ -123,15 +139,13 @@ export const reorderMergedRoundEntries = createServerFn({ method: "POST" })
   });
 
 export const setMergedRoundSelfVotingMode = createServerFn({ method: "POST" })
-  .inputValidator((data: {
-    roundId: string;
+  .inputValidator((data: RoundMutationEnvelope & {
     mode: "country_match" | "linked_identity" | "disabled" | "unrestricted";
   }) => {
-    if (!data?.roundId) throw new Error("Missing round");
     if (!["country_match", "linked_identity", "disabled", "unrestricted"].includes(data.mode)) {
       throw new Error("Invalid self-voting mode");
     }
-    return data;
+    return envelope(data);
   })
   .handler(async ({ data }) => {
     const { setMergedRoundSelfVotingModeServer } = await import(

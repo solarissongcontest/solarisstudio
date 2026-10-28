@@ -490,7 +490,17 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     risk: "integrity_critical",
     canonicalTables: ["public.entries", "public.internal_entries"],
     canonicalOwner: "entry domain",
-    canonicalCommands: [],
+    canonicalCommands: [
+      "public.v3_sync_confirmation_entry",
+      "public.studio2_apply_confirmation_entry_review",
+    ],
+    // The public Confirmation command owns authentication/edit-window policy;
+    // these helpers are inaccessible directly and implement the participant
+    // content mutation inside that governed transaction.
+    sanctionedInternalWriters: [
+      "public.v3_submit_confirmation_core",
+      "public.submit_confirmation",
+    ],
   },
   {
     id: "publication",
@@ -517,7 +527,17 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "public.studio2_permission_subject_versions",
     ],
     canonicalOwner: "permission engine",
-    canonicalCommands: [],
+    canonicalCommands: ["public.studio2_apply_permission_change_r3"],
+    sanctionedInternalWriters: [
+      "public.studio2_apply_permission_change",
+      "private.studio2_touch_permission_subject_version",
+    ],
+    sanctionedWriteTriggers: [
+      "studio2_role_assignment_version_bump",
+      "studio2_capability_grant_version_bump",
+      "studio2_role_assignments_touch_subject_version",
+      "studio2_capability_grants_touch_subject_version",
+    ],
   },
   {
     id: "contest-lifecycle",

@@ -108,13 +108,6 @@ export type Studio2UpdateIncidentRequest = {
   postmortem?: string | null;
 };
 
-export type Studio2GrantCapabilityRequest = {
-  userId: string;
-  capability: SolarisCapability;
-  editionId?: string | null;
-  expiresAt?: string | null;
-};
-
 type SupabaseResult<T> = PromiseLike<{ data: T; error: unknown }>;
 
 type Studio2QueryBuilder = {
@@ -466,31 +459,6 @@ export function createStudio2Persistence(client: Studio2SupabaseClient) {
       const { data, error } = await query.order('created_at', { ascending: false });
       throwIfError(error);
       return Array.isArray(data) ? data.map(mapStudio2CapabilityGrantRow) : [];
-    },
-
-    async grantCapability(request: Studio2GrantCapabilityRequest): Promise<Studio2CapabilityGrantRecord> {
-      const { data, error } = await client.rpc('studio2_grant_capability', {
-        p_user_id: request.userId,
-        p_capability: request.capability,
-        p_edition_id: request.editionId ?? null,
-        p_expires_at: request.expiresAt ?? null,
-      });
-      throwIfError(error);
-      return mapStudio2CapabilityGrantRow(data);
-    },
-
-    async revokeCapability(
-      userId: string,
-      capability: SolarisCapability,
-      editionId?: string | null,
-    ): Promise<boolean> {
-      const { data, error } = await client.rpc('studio2_revoke_capability', {
-        p_user_id: userId,
-        p_capability: capability,
-        p_edition_id: editionId ?? null,
-      });
-      throwIfError(error);
-      return data === true;
     },
   };
 }
