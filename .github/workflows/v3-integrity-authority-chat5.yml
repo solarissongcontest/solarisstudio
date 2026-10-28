@@ -1,0 +1,195 @@
+name: V3 Integrity authority Chat 5
+
+on:
+  push:
+    branches:
+      - v3/integrity-authority-chat5
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-integrity-authority-chat5-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  focused-contracts:
+    name: Integrity focused contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run Integrity authority contracts
+        run: >-
+          bun test
+          src/lib/v3-integrity-authority.contract.test.ts
+          src/lib/v3-integrity-participant-idempotency.contract.test.ts
+          src/lib/v3-integrity-authority-runtime-corrections.contract.test.ts
+          src/lib/v3-integrity-adjudication-writer-cutover.contract.test.ts
+          src/lib/v3-integrity-reporter-response-authority.contract.test.ts
+          src/lib/v3-integrity-remaining-case-writers.contract.test.ts
+          src/lib/v3-integrity-intake-compatibility-cutover.contract.test.ts
+          src/lib/v3-integrity-s16-authority.contract.test.ts
+
+      - name: Generate fresh TanStack route tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f src/routeTree.gen.ts
+          bun run build
+          test -s src/routeTree.gen.ts
+
+      - name: TypeScript
+        run: bun run typecheck
+
+      - name: Lint changed Integrity authority files
+        run: >-
+          bunx eslint
+          src/lib/v3-s16-mutation-authority.ts
+          src/lib/v3-integrity-authority.contract.test.ts
+          src/lib/v3-integrity-participant-idempotency.contract.test.ts
+          src/lib/v3-integrity-authority-runtime-corrections.contract.test.ts
+          src/lib/v3-integrity-adjudication-writer-cutover.contract.test.ts
+          src/lib/v3-integrity-reporter-response-authority.contract.test.ts
+          src/lib/v3-integrity-remaining-case-writers.contract.test.ts
+          src/lib/v3-integrity-intake-compatibility-cutover.contract.test.ts
+          src/lib/v3-integrity-s16-authority.contract.test.ts
+
+  local-database:
+    name: Integrity clean local Supabase authority
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Ensure PostgreSQL client
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Start isolated local Supabase
+        run: supabase start
+
+      - name: Clean migration replay
+        run: supabase db reset --local --no-seed
+
+      - name: Verify migration history
+        run: supabase migration list --local
+
+      - name: Prove Integrity runtime authority catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          case "${DB_URL:-}" in
+            postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
+            *) echo 'Refusing non-local Integrity catalog rehearsal' >&2; exit 1 ;;
+          esac
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-authority-catalog.sql
+
+      - name: Run hostile Rules + Integrity rehearsal
+        run: bash .github/scripts/run-rules-integrity-security-rehearsal.sh
+
+      - name: Stop isolated Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  upgrade-from-main:
+    name: Integrity upgrade from current main
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Ensure PostgreSQL client
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Prepare current main worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-integrity-main origin/main
+          test -z "$(git -C /tmp/solaris-integrity-main status --porcelain --untracked-files=all)"
+
+      - name: Build current main database locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-integrity-main
+          supabase start
+          supabase db reset --local --no-seed
+          supabase migration list --local
+
+      - name: Apply branch migration delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" /tmp/solaris-integrity-main
+          cd /tmp/solaris-integrity-main
+          supabase migration up --local --include-all
+          supabase migration list --local
+
+      - name: Prove upgraded Integrity runtime authority catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-integrity-main
+          eval "$(supabase status -o env)"
+          case "${DB_URL:-}" in
+            postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
+            *) echo 'Refusing non-local Integrity upgrade rehearsal' >&2; exit 1 ;;
+          esac
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-integrity-authority-catalog.sql"
+
+      - name: Run hostile Rules + Integrity rehearsal after upgrade
+        shell: bash
+        run: |
+          cd /tmp/solaris-integrity-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/run-rules-integrity-security-rehearsal.sh"
+
+      - name: Stop isolated Supabase
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-integrity-main 2>/dev/null || exit 0
+          supabase stop --no-backup || true

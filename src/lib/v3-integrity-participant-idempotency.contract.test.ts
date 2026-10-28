@@ -75,21 +75,21 @@ describe("V3 participant Integrity retry authority", () => {
     const protectedStart = migration.indexOf(
       "create or replace function public.v3_create_protected_integrity_case",
     );
-    const protected = migration.slice(protectedStart);
+    const protectedCaseSql = migration.slice(protectedStart);
 
     expect(protectedStart).toBeGreaterThanOrEqual(0);
-    expect(protected).toContain("v_actor uuid := auth.uid()");
-    expect(protected).toContain("insert into public.studio2_operation_receipts");
-    expect(protected).toContain("'integrity.case.create.protected'");
-    expect(protected).toContain("receipt.actor_id = v_actor");
-    expect(protected).toContain("for update;");
-    expect(protected).toContain(
+    expect(protectedCaseSql).toContain("v_actor uuid := auth.uid()");
+    expect(protectedCaseSql).toContain("insert into public.studio2_operation_receipts");
+    expect(protectedCaseSql).toContain("'integrity.case.create.protected'");
+    expect(protectedCaseSql).toContain("receipt.actor_id = v_actor");
+    expect(protectedCaseSql).toContain("for update;");
+    expect(protectedCaseSql).toContain(
       "v_receipt.request_fingerprint is distinct from v_fingerprint",
     );
-    expect(protected).toContain(
+    expect(protectedCaseSql).toContain(
       "perform private.studio2_complete_operation(v_canonical_operation_id, v_result)",
     );
-    expect(protected).toContain("'receipt_id', v_canonical_operation_id");
+    expect(protectedCaseSql).toContain("'receipt_id', v_canonical_operation_id");
   });
 
   it("wraps existing validated case writers rather than duplicating their rules", () => {
