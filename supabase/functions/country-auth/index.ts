@@ -351,41 +351,18 @@ Deno.serve(async (req) => {
       return json({ error: message }, 400);
     }
 
-    // Auth creation and country ownership live in different Supabase subsystems,
-    // so make this flow compensating-transaction safe. The country_accounts
-    // UNIQUE constraints are the authoritative race boundary: if two signups
-    // pass the optimistic availability checks, only one ownership insert wins.
-    const { error: ownershipError } = await service.from("country_accounts").insert({
-      user_id: created.user.id,
-      country_id: countryId,
-      instagram_username: instagramUsername,
-      display_name: displayName,
-    });
-
-    if (ownershipError) {
-      const { error: cleanupError } = await service.auth.admin.deleteUser(created.user.id);
-      if (cleanupError) {
-        console.error(
-          "[country-auth] Failed to roll back Auth user after country ownership failure",
-          cleanupError,
-        );
-      }
-
-      if (ownershipError.code === "23505") {
-        return json(
-          {
-            error:
-              "That country or Instagram username was claimed while your account was being created. Refresh and choose an available option.",
-          },
-          409,
-        );
-      }
-
-      console.error("[country-auth] Country ownership creation failed", ownershipError);
-      return json(
-        { error: "Country ownership could not be created. No account was kept. Please try again." },
-        500,
-      );
+    // The Auth INSERT trigger claims country ownership in the same transaction
+    // as identity creation. This Edge function is a bounded readback, never a
+    // second account writer. A transient read failure must not delete a user
+    // whose canonical account may already have committed.
+    const { data: ownership, error: ownershipError } = await service
+      .from("country_accounts")
+      .select("user_id,country_id,instagram_username")
+      .eq("user_id", created.user.id)
+      .maybeSingle();
+    if (ownershipError || ownership?.country_id !== countryId || ownership?.instagram_username !== instagramUsername) {
+      console.error("[country-auth] Canonical country ownership readback failed", ownershipError);
+      return json({ error: "Account creation could not be confirmed. Try signing in with your Instagram username before creating another account." }, 503);
     }
 
     const { data: signedIn, error: signInError } = await publicAuth.auth.signInWithPassword({
