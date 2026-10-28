@@ -38,6 +38,8 @@ with critical(table_schema, table_name) as (
     ('public','shows'),
     ('public','studio2_edition_runtime'),
     ('public','integrity_cases'),
+    ('public','integrity_case_events'),
+    ('public','integrity_case_evidence'),
     ('public','integrity_case_appeals'),
     ('public','integrity_case_findings'),
     ('public','integrity_case_sanctions'),
