@@ -210,8 +210,13 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(migration).toContain("'appeals'");
     expect(organizerRoute).toContain("admin_integrity_case_resolution");
     expect(organizerRoute).toContain("admin_record_integrity_sanction");
-    expect(organizerRoute).toContain("admin_assign_integrity_appeal_reviewer");
-    expect(organizerRoute).toContain("admin_decide_integrity_appeal");
+    // Preserve the narrow Organizer mutation boundary with explicit operation
+    // identity and the canonical revision exposed by the resolution read RPC.
+    expect(organizerRoute).toContain('rpc("studio2_integrity_assign_appeal_reviewer", assignmentOperation.current.args)');
+    expect(organizerRoute).toContain('rpc("studio2_integrity_resolve_appeal", resolutionOperation.current.args)');
+    expect(organizerRoute).toContain("p_expected_version: selected.version");
+    expect(organizerRoute).toContain("p_idempotency_key: operationId");
+    expect(organizerRoute).not.toContain('rpc("admin_decide_integrity_appeal"');
     expect(investigationsRoute).toContain('to="/admin/integrity-resolution/$caseId"');
   });
 });

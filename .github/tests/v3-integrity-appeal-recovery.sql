@@ -53,6 +53,34 @@ begin
   exception when insufficient_privilege then null; end;
 end
 $foreign_reviewer$;
+reset role;
+do $live_reviewer$
+begin
+  begin
+    update public.integrity_case_reviewers set recused_at=now(),recusal_reason='Actual conflict identified after assignment'
+      where case_id='28111828-0000-4000-8000-000000000021' and user_id='28111828-0000-4000-8000-000000000002' and review_role='appeal_reviewer';
+    set local role authenticated;
+    perform set_config('request.jwt.claims','{"role":"authenticated","sub":"28111828-0000-4000-8000-000000000002","session_id":"28111828-0000-4000-8000-000000000012"}',true);
+    perform public.studio2_integrity_resolve_appeal(current_setting('test.appeal_id')::uuid,'reduced','A recused reviewer must never adjudicate.',4,'{}','{}','28111828-0000-4000-8000-000000000111','appeal-review:recused',2);
+    raise exception 'Recused reviewer resolved appeal';
+  exception when insufficient_privilege then if sqlerrm<>'Appeal reviewer is missing or recused' then raise; end if; end;
+  begin
+    delete from auth.sessions where id='28111828-0000-4000-8000-000000000012';
+    set local role authenticated;
+    perform set_config('request.jwt.claims','{"role":"authenticated","sub":"28111828-0000-4000-8000-000000000002","session_id":"28111828-0000-4000-8000-000000000012"}',true);
+    perform public.studio2_integrity_resolve_appeal(current_setting('test.appeal_id')::uuid,'reduced','A revoked reviewer must never adjudicate.',4,'{}','{}','28111828-0000-4000-8000-000000000112','appeal-review:revoked',2);
+    raise exception 'Revoked reviewer resolved appeal';
+  exception when insufficient_privilege then null; end;
+  begin
+    update public.integrity_case_sanctions set status='overturned' where id='28111828-0000-4000-8000-000000000041';
+    set local role authenticated;
+    perform set_config('request.jwt.claims','{"role":"authenticated","sub":"28111828-0000-4000-8000-000000000002","session_id":"28111828-0000-4000-8000-000000000012"}',true);
+    perform public.studio2_integrity_resolve_appeal(current_setting('test.appeal_id')::uuid,'reduced','A stale appeal cannot replace an inactive sanction.',4,'{}','{}','28111828-0000-4000-8000-000000000113','appeal-review:inactive-sanction',2);
+    raise exception 'Inactive sanction was replaced on appeal';
+  exception when check_violation then if sqlerrm<>'Appealed sanction is no longer active' then raise; end if; end;
+end
+$live_reviewer$;
+set local role authenticated;
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"28111828-0000-4000-8000-000000000002","session_id":"28111828-0000-4000-8000-000000000012"}',true);
 do $resolution$
 declare v_first jsonb; v_retry jsonb;

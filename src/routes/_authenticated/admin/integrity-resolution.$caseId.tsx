@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   UserCheck,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -71,6 +71,7 @@ type Sanction = {
 
 type Appeal = {
   id: string;
+  version: number;
   sanction_id: string;
   grounds: string;
   submitted_via: string;
@@ -283,21 +284,44 @@ function AppealsPanel({ appeals, sanctions, organizers, onChanged }: { appeals: 
   const [mitigating, setMitigating] = useState("");
   const [decisionReviewOpen, setDecisionReviewOpen] = useState(false);
 
+  const assignmentOperation = useRef<{ fingerprint: string; args: Record<string, unknown> } | null>(null);
+  const resolutionOperation = useRef<{ fingerprint: string; args: Record<string, unknown> } | null>(null);
   const assign = useMutation({
-    mutationFn: () => rpc("admin_assign_integrity_appeal_reviewer", { _appeal_id: selected?.id, _user_id: reviewer }),
-    onSuccess: async () => { await onChanged(); toast.success("Fresh appeal reviewer assigned"); },
+    mutationFn: () => {
+      if (!selected || !Number.isInteger(selected.version)) throw new Error("Reload the canonical appeal revision before assigning a reviewer.");
+      const fingerprint = JSON.stringify([selected.id, reviewer]);
+      if (assignmentOperation.current?.fingerprint !== fingerprint) {
+        const operationId = crypto.randomUUID();
+        assignmentOperation.current = { fingerprint, args: {
+          p_appeal_id: selected.id, p_user_id: reviewer,
+          p_operation_id: operationId, p_idempotency_key: operationId,
+          p_expected_version: selected.version,
+        } };
+      }
+      return rpc("studio2_integrity_assign_appeal_reviewer", assignmentOperation.current.args);
+    },
+    onSuccess: async () => { assignmentOperation.current = null; await onChanged(); toast.success("Fresh appeal reviewer assigned"); },
     onError: errorToast,
   });
   const decide = useMutation({
-    mutationFn: () => rpc("admin_decide_integrity_appeal", {
-      _appeal_id: selected?.id,
-      _outcome: outcome,
-      _decision_rationale: rationale,
-      _replacement_level: ["reduced", "increased"].includes(outcome) ? Number(replacementLevel) : null,
-      _aggravating_factors: csv(aggravating),
-      _mitigating_factors: csv(mitigating),
-    }),
-    onSuccess: async () => { setDecisionReviewOpen(false); setRationale(""); setReplacementLevel(""); await onChanged(); toast.success("Appeal decision recorded"); },
+    mutationFn: () => {
+      if (!selected || !Number.isInteger(selected.version)) throw new Error("Reload the canonical appeal revision before adjudicating.");
+      const request = {
+        p_appeal_id: selected.id, p_outcome: outcome, p_decision_rationale: rationale.trim(),
+        p_replacement_level: ["reduced", "increased"].includes(outcome) ? Number(replacementLevel) : null,
+        p_aggravating_factors: csv(aggravating), p_mitigating_factors: csv(mitigating),
+      };
+      const fingerprint = JSON.stringify(request);
+      if (resolutionOperation.current?.fingerprint !== fingerprint) {
+        const operationId = crypto.randomUUID();
+        resolutionOperation.current = { fingerprint, args: {
+          ...request, p_expected_version: selected.version,
+          p_operation_id: operationId, p_idempotency_key: operationId,
+        } };
+      }
+      return rpc("studio2_integrity_resolve_appeal", resolutionOperation.current.args);
+    },
+    onSuccess: async () => { resolutionOperation.current = null; setDecisionReviewOpen(false); setRationale(""); setReplacementLevel(""); await onChanged(); toast.success("Appeal decision recorded"); },
     onError: errorToast,
   });
 
