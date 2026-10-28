@@ -3,16 +3,10 @@ import { describe, expect, it } from "vitest";
 import { classifyV3ReleaseFinding } from "./v3-release-risk";
 import { V3_DOMAIN_CONSEQUENCE_REGISTRY } from "./v3-domain-consequence-registry";
 import { scanV3S16StaticAuthority } from "./v3-s16-mutation-authority";
+
 const read = (path: string) => readFileSync(path, "utf8");
-const observationalIdentity = [
-  "identity.authenticated",
-  "identity.signed_out",
-];
-const remainingIntegrity = [
-  "account.changed",
-  "session.changed",
-  "session.revoked",
-  "edition.changed",
+const observationalIdentity = ["identity.authenticated", "identity.signed_out"];
+const remainingHard = [
   "show.changed",
   "show.cue_changed",
   "integrity.case_changed",
@@ -20,8 +14,18 @@ const remainingIntegrity = [
   "media.verified",
 ];
 
-describe("original consequence authority boundaries", () => {
-  it.each(remainingIntegrity)("retains %s until its critical authority evidence is complete", (event) => {
+describe("remaining consequence authority boundaries", () => {
+  it.each(observationalIdentity)("keeps %s visible as non-authoritative event debt", (event) => {
+    const consequence = V3_DOMAIN_CONSEQUENCE_REGISTRY.find((item) => item.eventType === event);
+    expect(consequence).toBeDefined();
+    const finding = classifyV3ReleaseFinding(
+      `DOMAIN_CONSEQUENCE_DECLARED ${event} owner=${consequence!.ownerDomain}`,
+    );
+    expect(finding.releaseRisk).toBe("tracked_migration_debt");
+    expect(finding.consequenceClass).toBe("observational_or_pure_read");
+    expect(read("docs/v3-open-event-authority.md")).toContain(`| ${event} |`);
+  });
+  it.each(remainingHard)("retains %s until its critical authority evidence is complete", (event) => {
     const consequence = V3_DOMAIN_CONSEQUENCE_REGISTRY.find((item) => item.eventType === event);
     expect(consequence).toBeDefined();
     expect(
@@ -32,15 +36,40 @@ describe("original consequence authority boundaries", () => {
     expect(read("docs/v3-open-event-authority.md")).toContain(`| ${event} |`);
   });
 
-  it.each(observationalIdentity)("keeps %s visible as non-authoritative event debt", (event) => {
-    const consequence = V3_DOMAIN_CONSEQUENCE_REGISTRY.find((item) => item.eventType === event);
+  it("moves edition.changed out of the hard set only after canonical authority is explicit", () => {
+    const consequence = V3_DOMAIN_CONSEQUENCE_REGISTRY.find((item) => item.eventType === "edition.changed");
     expect(consequence).toBeDefined();
-    const finding = classifyV3ReleaseFinding(
-      `DOMAIN_CONSEQUENCE_DECLARED ${event} owner=${consequence!.ownerDomain}`,
-    );
-    expect(finding.releaseRisk).toBe("tracked_migration_debt");
-    expect(finding.consequenceClass).toBe("observational_or_pure_read");
-    expect(read("docs/v3-open-event-authority.md")).toContain(`| ${event} |`);
+    expect(
+      classifyV3ReleaseFinding(
+        `DOMAIN_CONSEQUENCE_DECLARED edition.changed owner=${consequence!.ownerDomain}`,
+      ),
+    ).toMatchObject({
+      releaseRisk: "tracked_migration_debt",
+      consequenceClass: "derived",
+      rule: "derived_consequence_debt",
+    });
+
+    const adminEditions = read("src/routes/_authenticated/admin/editions.tsx");
+    const dateEditor = read("src/routes/_authenticated/admin/anniversary-dates.tsx");
+    const design = read("src/routes/_authenticated/admin/design.$slug.tsx");
+    for (const source of [adminEditions, dateEditor, design]) {
+      expect(source).not.toMatch(/\.from\(\s*["']editions["']\s*\)[\s\S]{0,900}\.(?:insert|update|upsert|delete)\s*\(/);
+    }
+    expect(adminEditions).toContain("createEdition");
+    expect(dateEditor).toContain("applyEditionMetadataChange");
+    expect(design).toContain("applyEditionThemeChange");
+
+    const authority = read("supabase/migrations/20261027204500_v3_edition_authority.sql");
+    for (const invariant of [
+      "revoke insert, update, delete, truncate on public.editions from anon, authenticated, service_role",
+      "v3_create_edition",
+      "v3_apply_edition_metadata_change",
+      "v3_apply_edition_editing_change",
+      "v3_apply_edition_visual_change",
+      "private.v3_emit_domain_event",
+      "'edition.changed'",
+      "data_revision = data_revision + 1",
+    ]) expect(authority).toContain(invariant);
   });
 
   it("keeps session mutation, actor scope, tombstone and completion in the same command", () => {
@@ -57,8 +86,7 @@ describe("original consequence authority boundaries", () => {
       "insert into public.studio2_account_session_revocations",
       "delete from auth.sessions",
       "private.studio2_complete_operation",
-    ])
-      expect(command).toContain(invariant);
+    ]) expect(command).toContain(invariant);
     expect(command.indexOf("delete from auth.sessions")).toBeLessThan(
       command.indexOf("return private.studio2_complete_operation"),
     );
@@ -66,19 +94,25 @@ describe("original consequence authority boundaries", () => {
     expect(read("src/routes/_authenticated/route.tsx")).toContain("supabase.auth.getUser()");
   });
 
-  it("does not confuse accepted edition transitions with unrelated direct edition/show writers", () => {
-    for (const path of [
-      "src/routes/_authenticated/admin/editions.tsx",
-      "src/components/admin/ShowLineupWorkspace.tsx",
-    ]) {
-      expect(scanV3S16StaticAuthority([{ path, source: read(path) }])).toContainEqual(
-        expect.objectContaining({
-          domain: "contest-lifecycle",
-          kind: "direct_application_writer",
-          releaseRisk: "hard_blocker",
-        }),
-      );
-    }
+  it("does not confuse resolved edition authority with remaining show writers", () => {
+    expect(scanV3S16StaticAuthority([{
+      path: "src/routes/_authenticated/admin/editions.tsx",
+      source: read("src/routes/_authenticated/admin/editions.tsx"),
+    }])).not.toContainEqual(expect.objectContaining({
+      domain: "contest-lifecycle",
+      subject: "public.editions",
+      kind: "direct_application_writer",
+    }));
+
+    expect(scanV3S16StaticAuthority([{
+      path: "src/components/admin/ShowLineupWorkspace.tsx",
+      source: read("src/components/admin/ShowLineupWorkspace.tsx"),
+    }])).toContainEqual(expect.objectContaining({
+      domain: "contest-lifecycle",
+      subject: "public.shows",
+      kind: "direct_application_writer",
+      releaseRisk: "hard_blocker",
+    }));
   });
 
   it("preserves locked, versioned legal cue transitions and synchronous history", () => {
@@ -93,8 +127,7 @@ describe("original consequence authority boundaries", () => {
       "Another rundown segment is already live",
       "update public.shows",
       "insert into public.studio2_contest_events",
-    ])
-      expect(cue).toContain(invariant);
+    ]) expect(cue).toContain(invariant);
     expect(cue.indexOf("update public.shows")).toBeLessThan(
       cue.indexOf("insert into public.studio2_contest_events"),
     );
@@ -109,8 +142,7 @@ describe("original consequence authority boundaries", () => {
       "for update",
       "update public.integrity_cases",
       "insert into public.integrity_case_events",
-    ])
-      expect(cases).toContain(invariant);
+    ]) expect(cases).toContain(invariant);
     const appeals = read("supabase/migrations/20260911160000_integrity_sanctions_and_appeals.sql")
       .split("create or replace function public.admin_decide_integrity_appeal(")[1]
       .split("create or replace function")[0];
@@ -121,7 +153,6 @@ describe("original consequence authority boundaries", () => {
       "Replacement sanction level",
       "decision_rationale",
       "insert into public.integrity_case_events",
-    ])
-      expect(appeals).toContain(invariant);
+    ]) expect(appeals).toContain(invariant);
   });
 });

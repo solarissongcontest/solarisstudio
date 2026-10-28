@@ -88,8 +88,19 @@ export type V3S16Report = {
 };
 
 const WRITE_METHOD = /\.(?:insert|update|upsert|delete)\s*\(/;
-const FROM_CALL = /\.from\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
+const FROM_CALL = /(?:([A-Za-z_$][\w$]*)\s*)?\.from\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
 const SCHEMA_CALL = /\.schema\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
+
+/**
+ * These are database client namespaces, not sanctioned writers. S16 must not
+ * mistake `televoting.editions` for `public.editions` merely because Supabase
+ * clients express a configured schema separately from `.from("editions")`.
+ * The corresponding client configuration is regression-tested independently.
+ */
+const KNOWN_CLIENT_SCHEMA_BY_RECEIVER: Readonly<Record<string, string>> = {
+  televotingAdmin: "televoting",
+  televotingDb: "televoting",
+};
 
 function normalizeTable(value: string) {
   return value.replace(/^public\./, "");
@@ -117,19 +128,24 @@ function sourceWritesTable(source: string, table: string) {
   const targetName = targetParts.at(-1)!;
 
   for (const match of source.matchAll(FROM_CALL)) {
-    if (match[1] !== targetName && normalizeTable(match[1]) !== normalizedTarget) continue;
+    const receiver = match[1] ?? "";
+    const fromTable = match[2];
+    if (fromTable !== targetName && normalizeTable(fromTable) !== normalizedTarget) continue;
     const start = match.index ?? 0;
-    const before = source.slice(Math.max(0, start - 180), start);
+    const before = source.slice(Math.max(0, start - 240), start);
     const rawAfter = source.slice(start, Math.min(source.length, start + 900));
     const nextFrom = rawAfter.slice(match[0].length).search(/\.from\s*\(/);
     const semicolon = rawAfter.indexOf(";");
     const endCandidates = [nextFrom >= 0 ? match[0].length + nextFrom : -1, semicolon].filter((value) => value > 0);
     const chain = rawAfter.slice(0, endCandidates.length ? Math.min(...endCandidates) : rawAfter.length);
     if (!WRITE_METHOD.test(chain)) continue;
+
     if (explicitSchema) {
       const schemas = [...before.matchAll(SCHEMA_CALL)];
-      const closest = schemas.at(-1)?.[1];
-      if (closest && closest !== explicitSchema) continue;
+      const inlineSchema = schemas.at(-1)?.[1];
+      const receiverSchema = KNOWN_CLIENT_SCHEMA_BY_RECEIVER[receiver];
+      const resolvedSchema = inlineSchema ?? receiverSchema ?? "public";
+      if (resolvedSchema !== explicitSchema) continue;
     }
     return true;
   }
@@ -203,8 +219,6 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     canonicalTables: ["public.studio2_upload_authorizations"],
     canonicalOwner: "media upload authorization and finalization commands",
     canonicalCommands: ["public.studio2_prepare_upload", "public.v3_finalize_media_upload"],
-    // This evidence factory is private-by-privilege; the SQL negative tests
-    // reject anon/authenticated/service-role invocation of the helper itself.
     sanctionedInternalWriters: ["private.studio2_create_evidence_upload_authorization"],
   },
   {
@@ -217,7 +231,6 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "public.integrity_case_evidence",
     ],
     canonicalOwner: "integrity governance",
-    // The legacy RPC surface requires authority review before it is sanctioned.
     canonicalCommands: [],
   },
   {
@@ -263,9 +276,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "v3_submit_jury_ballot",
       "studio2_apply_jury_voting_status",
     ],
-    sanctionedInternalWriters: [
-      "submit_country_jury_ballot",
-    ],
+    sanctionedInternalWriters: ["submit_country_jury_ballot"],
   },
   {
     id: "confirmation",
@@ -338,8 +349,39 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     id: "contest-lifecycle",
     risk: "integrity_critical",
     canonicalTables: ["public.editions", "public.shows", "public.studio2_edition_runtime"],
-    canonicalOwner: "edition/live-show domains",
-    canonicalCommands: ["public.v3_apply_edition_visual_change"],
+    canonicalOwner: "edition authority + live-show authority",
+    canonicalCommands: [
+      "public.v3_create_edition",
+      "public.v3_apply_edition_metadata_change",
+      "public.v3_apply_edition_editing_change",
+      "public.v3_apply_edition_theme_change",
+      "public.v3_apply_edition_visual_change",
+      "public.studio2_transition_edition_v3",
+      "public.studio2_execute_host_operation",
+    ],
+    sanctionedInternalWriters: [
+      "private.studio2_seed_edition_runtime",
+      "public.studio2_apply_confirmation_round_change",
+      "public.sync_edition_publication_from_shows",
+      "public.bump_edition_data_revision",
+      "public.bump_country_edition_revisions",
+      // Edition design intentionally projects shared visual defaults into shows.
+      // It is trigger-only and not a general show mutation authority.
+      "public.sync_edition_design_to_shows",
+    ],
+    sanctionedWriteTriggers: [
+      "editions_sync_year_from_event_date",
+      "revoke_confirmation_tokens_on_edition_close",
+      "studio2_platform_direct_write_guard",
+      "studio2_seed_edition_runtime_after_insert",
+      "trg_emit_edition_pulse_event",
+      "trg_preserve_edition_public_design_metadata",
+      "trg_sync_edition_design_to_shows",
+      "trg_sync_edition_palette_after_change",
+      "v3_s3_supersede_edition_logo_reviews",
+      "studio2_edition_runtime_strict_dual_guard",
+      "studio2_edition_runtime_touch_updated_at",
+    ],
   },
 ];
 
