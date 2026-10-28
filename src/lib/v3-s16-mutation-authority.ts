@@ -1,4 +1,4 @@
-export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-5" as const;
+export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-6" as const;
 
 export type V3S16Risk = "integrity_critical" | "security_critical";
 
@@ -384,6 +384,18 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "public.studio2_integrity_assign_appeal_reviewer",
       "public.studio2_integrity_resolve_appeal",
       "public.studio2_integrity_grant_appeal_extension",
+      "public.admin_cancel_integrity_evidence_deletion",
+      "public.admin_create_integrity_evidence_disclosure_copy",
+      "public.admin_decide_sealed_identity_disclosure",
+      "public.admin_discard_expired_evidence_upload",
+      "public.admin_finalize_integrity_evidence_deletion",
+      "public.admin_finalize_integrity_evidence_derivative",
+      "public.admin_integrity_reporter_identity",
+      "public.admin_publish_integrity_decision",
+      "public.admin_request_sealed_identity_disclosure",
+      "public.admin_reveal_sealed_identity",
+      "public.admin_schedule_integrity_evidence_deletion",
+      "public.admin_upsert_integrity_rule_link",
     ],
     sanctionedInternalWriters: [
       "public.public_create_anonymous_integrity_case_impl",
@@ -406,8 +418,19 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       // reporter credential and derive the actor. Executable boundary proof:
       // .github/tests/v3-integrity-evidence-write-boundary.sql
       "public.integrity_finalize_evidence_token",
+      // Deterministic reconciliation primitive. External EXECUTE is revoked;
+      // governed SECURITY DEFINER callers own the semantic request.
+      "public.integrity_expire_stale_identity_approvals",
       "private.v3_integrity_case_changed_event",
       "private.v3_integrity_appeal_changed_event",
+    ],
+    sanctionedCrossDomainWriters: [
+      {
+        functionName: "public.admin_create_rule_interpretation_from_integrity_case",
+        ownerDomain: "rules",
+        scope: "rule-question case/ruling provenance and Integrity audit event only",
+        reason: "Rules owns the interpretation draft; the RPC is live-session gated and requires both rules.edit and integrity.manage before consuming protected Integrity state.",
+      },
     ],
     sanctionedWriteTriggers: [
       "v3_integrity_case_before_update",
