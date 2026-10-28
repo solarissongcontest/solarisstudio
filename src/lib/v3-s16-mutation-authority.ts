@@ -354,6 +354,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     canonicalTables: [
       "public.integrity_cases",
       "public.integrity_case_events",
+      "public.integrity_case_relations",
       "public.integrity_case_evidence",
       "public.integrity_case_appeals",
       "public.integrity_case_findings",
@@ -372,6 +373,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "public.studio2_integrity_set_case_priority",
       "public.studio2_integrity_reply_case",
       "public.studio2_integrity_add_case_note",
+      "public.studio2_integrity_link_cases",
       "public.studio2_integrity_record_preclearance_ruling",
       "public.studio2_integrity_record_finding",
       "public.studio2_integrity_record_sanction",

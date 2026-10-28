@@ -30,7 +30,7 @@ import {
   XCircle,
   type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import {
@@ -131,6 +131,7 @@ type ResolutionSummary = {
 type CaseDetail = {
   case: {
     id: string;
+    version: number;
     public_code: string;
     case_kind: string;
     category: string;
@@ -833,7 +834,26 @@ function RelationsPanel({ detail, cases, refresh }: { detail: CaseDetail; cases:
   const [related, setRelated] = useState("");
   const [type, setType] = useState("related");
   const [note, setNote] = useState("");
-  const mutation = useMutation({ mutationFn: () => rpc("admin_link_integrity_cases", { _case_id: detail.case.id, _related_case_id: related, _relation_type: type, _note: note || null }), onSuccess: async () => { setRelated(""); setNote(""); await refresh(); toast.success("Cases linked"); }, onError: errorToast });
+  const pendingOperation = useRef<{ fingerprint: string; args: Record<string, unknown> } | null>(null);
+  const mutation = useMutation({
+    mutationFn: () => {
+      const fingerprint = JSON.stringify([detail.case.id, related, type, note.trim() || null]);
+      if (pendingOperation.current?.fingerprint !== fingerprint) {
+        const previous = detail.relations.find((item) => item.related_case_id === related && item.relation_type === type);
+        const operationId = crypto.randomUUID();
+        pendingOperation.current = { fingerprint, args: {
+          p_case_id: detail.case.id, p_related_case_id: related, p_relation_type: type,
+          p_note: note.trim() || null, p_expected_case_version: detail.case.version,
+          p_expected_relation_id: previous?.id ?? null, p_expected_note: previous?.note ?? null,
+          p_operation_id: operationId, p_idempotency_key: operationId,
+        } };
+      }
+      // Retain exact identity and reviewed CAS across an ambiguous response.
+      return rpc("studio2_integrity_link_cases", pendingOperation.current.args);
+    },
+    onSuccess: async () => { pendingOperation.current = null; setRelated(""); setNote(""); await refresh(); toast.success("Cases linked"); },
+    onError: errorToast,
+  });
   return (
     <AdminCard>
       <SectionTitle icon={GitMerge} eyebrow="Related cases" title="Duplicates & corroboration" />
