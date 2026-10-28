@@ -134,7 +134,9 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(extensionMigration).toContain("'appeal.extension_granted'");
     expect(extensionMigration).toContain("visible_to_reporter");
     expect(appealsQueueRoute).toContain("Exceptional extension");
-    expect(appealsQueueRoute).toContain("admin_grant_integrity_appeal_extension");
+    expect(appealsQueueRoute).toContain('rpc("studio2_integrity_grant_appeal_extension", extensionOperation.current.args)');
+    expect(appealsQueueRoute).toContain("p_expected_version: appeal.version");
+    expect(appealsQueueRoute).toContain("p_idempotency_key: operationId");
   });
 
   it("gives protected and anonymous reporters narrow APIs and discoverable pages to inspect and submit appeals", () => {

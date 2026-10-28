@@ -35,6 +35,18 @@ begin
    if v_replay->>'appeal_id' is distinct from v_result->>'appeal_id' or v_replay->>'replayed'<>'true' then raise exception 'Late appeal replay diverged'; end if;
    reset role;
    if not exists(select 1 from public.integrity_case_appeals where id=v_appeal and status='rejected_late' and not was_timely and deadline_at<now()) then raise exception 'Late appeal deadline policy lost'; end if;
+   perform set_config('request.jwt.claims','{"role":"authenticated","sub":"28151625-0000-4000-8000-000000000003","session_id":"28151625-0000-4000-8000-000000000013"}',true);
+   set local role authenticated;
+   begin
+    perform public.studio2_integrity_grant_appeal_extension(v_appeal,now()+interval '16 days','Extension beyond the legal deadline ceiling',gen_random_uuid(),'extension:too-late',1);
+    raise exception 'Appeal extension ceiling bypassed';
+   exception when check_violation then if sqlerrm<>'Exceptional appeal extensions cannot exceed 14 days without a rulebook change' then raise; end if; end;
+   v_result:=public.studio2_integrity_grant_appeal_extension(v_appeal,now()+interval '1 day','Extraordinary extension with documented grounds',v_operation,'extension:valid',1);
+   v_replay:=public.studio2_integrity_grant_appeal_extension(v_appeal,now()+interval '1 day','Extraordinary extension with documented grounds',v_operation,'extension:valid',1);
+   if v_result is distinct from v_replay then raise exception 'Extension lost-response receipt diverged'; end if;
+   v_readback:=public.admin_integrity_appeals();
+   if not exists(select 1 from jsonb_array_elements(v_readback) a where a->>'id'=v_appeal::text and a->>'status'='submitted' and (a->>'version')::bigint=2) then raise exception 'Extension queue readback lost revision'; end if;
+   reset role;
    continue;
   end if;
   perform set_config('request.jwt.claims','{"role":"authenticated","sub":"28151625-0000-4000-8000-000000000003","session_id":"28151625-0000-4000-8000-000000000013"}',true);
@@ -48,6 +60,7 @@ begin
   -- no realtime, analytics, outbox drain or consumer is invoked by this test.
   v_readback:=public.admin_integrity_case_resolution(v_case);
   if not exists(select 1 from jsonb_array_elements(v_readback->'appeals') a where a->>'id'=v_appeal::text and a->>'status'=v_outcome and (a->>'version')::bigint=3) then raise exception 'Canonical case readback disagrees with appeal: %',v_outcome; end if;
+  if not exists(select 1 from jsonb_array_elements(v_readback->'sanctions') sanction where sanction->>'id'=v_sanction::text and sanction->>'status'=case when v_outcome in ('reduced','increased') then 'modified_on_appeal' when v_outcome='overturned' then 'overturned' else 'active' end) then raise exception 'Canonical case sanction readback disagrees with appeal: %',v_outcome; end if;
   reset role;
   if not exists(select 1 from public.integrity_case_appeals where id=v_appeal and case_id=v_case and sanction_id=v_sanction and status=v_outcome and version=3) then raise exception 'Appeal/case/sanction scope diverged'; end if;
   if not exists(select 1 from public.integrity_case_sanctions where id=v_sanction and final_level=6 and rationale='Original sanction rationale must remain intact' and status=case when v_outcome in ('reduced','increased') then 'modified_on_appeal' when v_outcome='overturned' then 'overturned' else 'active' end) then raise exception 'Original sanction consequence incoherent: %',v_outcome; end if;

@@ -78,6 +78,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Bun for exact-SHA appeal catalog proof
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
@@ -126,10 +131,21 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-recovery.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-outcome-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-case-relation-authority.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-writer-boundary.sql
           bash .github/scripts/v3-integrity-appeal-race-rehearsal.sh
+          bun --env-file=/dev/null scripts/collect-v3-s16-catalog-evidence.ts --out="$RUNNER_TEMP/integrity-appeal-catalog.json"
+          bun --env-file=/dev/null scripts/check-v3-integrity-appeal-authority.ts --catalog="$RUNNER_TEMP/integrity-appeal-catalog.json" --out="$RUNNER_TEMP/integrity-appeal-authority.json"
 
       - name: Run hostile Rules + Integrity rehearsal
         run: bash .github/scripts/run-rules-integrity-security-rehearsal.sh
+
+      - name: Upload exact-SHA appeal authority evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integrity-appeal-${{ github.job }}-${{ github.sha }}
+          path: ${{ runner.temp }}/integrity-appeal-*.json
+          if-no-files-found: ignore
 
       - name: Stop isolated Supabase
         if: always()
@@ -144,6 +160,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Setup Bun for exact-SHA appeal catalog proof
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -211,7 +232,10 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-recovery.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-outcome-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-case-relation-authority.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-writer-boundary.sql
           bash .github/scripts/v3-integrity-appeal-race-rehearsal.sh
+          bun --env-file=/dev/null scripts/collect-v3-s16-catalog-evidence.ts --out="$RUNNER_TEMP/integrity-appeal-catalog.json"
+          bun --env-file=/dev/null scripts/check-v3-integrity-appeal-authority.ts --catalog="$RUNNER_TEMP/integrity-appeal-catalog.json" --out="$RUNNER_TEMP/integrity-appeal-authority.json"
 
       - name: Run hostile Rules + Integrity rehearsal after upgrade
         shell: bash
@@ -221,6 +245,14 @@ jobs:
           # Edge code must come from the candidate, never the old main checkout.
           cd "$GITHUB_WORKSPACE"
           bash .github/scripts/run-rules-integrity-security-rehearsal.sh
+
+      - name: Upload exact-SHA appeal authority evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integrity-appeal-${{ github.job }}-${{ github.sha }}
+          path: ${{ runner.temp }}/integrity-appeal-*.json
+          if-no-files-found: ignore
 
       - name: Stop isolated Supabase
         if: always()

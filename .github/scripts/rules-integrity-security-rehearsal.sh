@@ -515,25 +515,25 @@ rpc_request "$REPORTER_A_TOKEN" reporter_submit_integrity_appeal "{\"_case_id\":
 expect_failure "duplicate reporter appeal is rejected"
 assert_db_eq "duplicate rejection leaves one reporter appeal" "select count(*) from public.integrity_case_appeals where sanction_id='$SANCTION_ID'::uuid and submitted_via<>'organizer';" "1"
 
-rpc_request "$ORGANIZER_A_TOKEN" admin_assign_integrity_appeal_reviewer "{\"_appeal_id\":\"$APPEAL_ID\",\"_user_id\":\"$ORGANIZER_A_ID\"}"
+rpc_request "$ORGANIZER_A_TOKEN" studio2_integrity_assign_appeal_reviewer "{\"p_appeal_id\":\"$APPEAL_ID\",\"p_user_id\":\"$ORGANIZER_A_ID\",\"p_operation_id\":\"28170709-0000-4000-8000-000000000001\",\"p_idempotency_key\":\"appeal-hostile:1\",\"p_expected_version\":1}"
 expect_failure "original finding/sanction author cannot review the appeal"
 assert_db_eq "conflicted reviewer failure leaves appeal unassigned" "select assigned_reviewer is null from public.integrity_case_appeals where id='$APPEAL_ID'::uuid;" "t"
 
 # Temporarily grant the reporter authoritative Organizer access solely to prove
 # the overlap case: being an Organizer does not let an appellant review their own appeal.
 db_exec "insert into public.studio2_role_assignments(user_id,role_key,edition_id,expires_at,assigned_by) values ('$REPORTER_A_ID'::uuid,'organizer',null,null,null) on conflict do nothing;"
-rpc_request "$ORGANIZER_B_TOKEN" admin_assign_integrity_appeal_reviewer "{\"_appeal_id\":\"$APPEAL_ID\",\"_user_id\":\"$REPORTER_A_ID\"}"
+rpc_request "$ORGANIZER_B_TOKEN" studio2_integrity_assign_appeal_reviewer "{\"p_appeal_id\":\"$APPEAL_ID\",\"p_user_id\":\"$REPORTER_A_ID\",\"p_operation_id\":\"28170709-0000-4000-8000-000000000002\",\"p_idempotency_key\":\"appeal-hostile:2\",\"p_expected_version\":1}"
 expect_failure "organizer-role appellant cannot review their own appeal"
 assert_db_eq "self-review rejection leaves appeal unassigned" "select assigned_reviewer is null from public.integrity_case_appeals where id='$APPEAL_ID'::uuid;" "t"
 
-rpc_request "$ORGANIZER_A_TOKEN" admin_assign_integrity_appeal_reviewer "{\"_appeal_id\":\"$APPEAL_ID\",\"_user_id\":\"$ORGANIZER_B_ID\"}"
+rpc_request "$ORGANIZER_A_TOKEN" studio2_integrity_assign_appeal_reviewer "{\"p_appeal_id\":\"$APPEAL_ID\",\"p_user_id\":\"$ORGANIZER_B_ID\",\"p_operation_id\":\"28170709-0000-4000-8000-000000000003\",\"p_idempotency_key\":\"appeal-hostile:3\",\"p_expected_version\":1}"
 expect_success "fresh organizer B is assigned appeal review"
-rpc_request "$ORGANIZER_B_TOKEN" admin_decide_integrity_appeal "{\"_appeal_id\":\"$APPEAL_ID\",\"_outcome\":\"reduced\",\"_decision_rationale\":\"An invalid reduction cannot retain or increase the original sanction level.\",\"_replacement_level\":5,\"_aggravating_factors\":[],\"_mitigating_factors\":[]}"
+rpc_request "$ORGANIZER_B_TOKEN" studio2_integrity_resolve_appeal "{\"p_appeal_id\":\"$APPEAL_ID\",\"p_outcome\":\"reduced\",\"p_decision_rationale\":\"An invalid reduction cannot retain or increase the original sanction level.\",\"p_replacement_level\":5,\"p_aggravating_factors\":[],\"p_mitigating_factors\":[],\"p_operation_id\":\"28170709-0000-4000-8000-000000000004\",\"p_idempotency_key\":\"appeal-hostile:4\",\"p_expected_version\":2}"
 expect_failure "illegal appeal reduction level is rejected"
 assert_db_eq "illegal reduction leaves appeal under review" "select status from public.integrity_case_appeals where id='$APPEAL_ID'::uuid;" "under_review"
-rpc_request "$ORGANIZER_B_TOKEN" admin_decide_integrity_appeal "{\"_appeal_id\":\"$APPEAL_ID\",\"_outcome\":\"upheld\",\"_decision_rationale\":\"Fresh reviewer confirms the controlled sanction after reconsidering the rehearsal evidence.\",\"_replacement_level\":null,\"_aggravating_factors\":[],\"_mitigating_factors\":[]}"
+rpc_request "$ORGANIZER_B_TOKEN" studio2_integrity_resolve_appeal "{\"p_appeal_id\":\"$APPEAL_ID\",\"p_outcome\":\"upheld\",\"p_decision_rationale\":\"Fresh reviewer confirms the controlled sanction after reconsidering the rehearsal evidence.\",\"p_replacement_level\":null,\"p_aggravating_factors\":[],\"p_mitigating_factors\":[],\"p_operation_id\":\"28170709-0000-4000-8000-000000000005\",\"p_idempotency_key\":\"appeal-hostile:5\",\"p_expected_version\":2}"
 expect_success "fresh reviewer records final appeal outcome"
-rpc_request "$ORGANIZER_A_TOKEN" admin_assign_integrity_appeal_reviewer "{\"_appeal_id\":\"$APPEAL_ID\",\"_user_id\":\"$ORGANIZER_A_ID\"}"
+rpc_request "$ORGANIZER_A_TOKEN" studio2_integrity_assign_appeal_reviewer "{\"p_appeal_id\":\"$APPEAL_ID\",\"p_user_id\":\"$ORGANIZER_A_ID\",\"p_operation_id\":\"28170709-0000-4000-8000-000000000006\",\"p_idempotency_key\":\"appeal-hostile:6\",\"p_expected_version\":3}"
 expect_failure "final appeal cannot be reassigned"
 assert_db_eq "final appeal status remains upheld" "select status from public.integrity_case_appeals where id='$APPEAL_ID'::uuid;" "upheld"
 
@@ -547,7 +547,7 @@ rpc_request "$REPORTER_B_TOKEN" reporter_submit_integrity_appeal "{\"_case_id\":
 expect_success "late appeal is recorded as rejected-late"; LATE_APPEAL="$(printf '%s' "$HTTP_BODY" | json_value appeal_id)"
 assert_db_eq "late appeal status is rejected_late" "select status from public.integrity_case_appeals where id='$LATE_APPEAL'::uuid;" "rejected_late"
 TOO_LATE_DEADLINE="$(db_scalar "select to_char(deadline_at + interval '15 days','YYYY-MM-DD\"T\"HH24:MI:SSOF') from public.integrity_case_appeals where id='$LATE_APPEAL'::uuid;")"
-rpc_request "$ORGANIZER_A_TOKEN" admin_grant_integrity_appeal_extension "{\"_appeal_id\":\"$LATE_APPEAL\",\"_new_deadline\":\"$TOO_LATE_DEADLINE\",\"_reason\":\"Attempting an extension beyond the absolute fourteen-day security ceiling.\"}"
+rpc_request "$ORGANIZER_A_TOKEN" studio2_integrity_grant_appeal_extension "{\"p_appeal_id\":\"$LATE_APPEAL\",\"p_new_deadline\":\"$TOO_LATE_DEADLINE\",\"p_reason\":\"Attempting an extension beyond the absolute fourteen-day security ceiling.\",\"p_operation_id\":\"28170709-0000-4000-8000-000000000007\",\"p_idempotency_key\":\"appeal-hostile:7\",\"p_expected_version\":1}"
 expect_failure "appeal extension beyond 14 days is rejected"
 assert_db_eq "invalid extension leaves rejected-late state unchanged" "select status||':'||(extension_granted_at is null)::text from public.integrity_case_appeals where id='$LATE_APPEAL'::uuid;" "rejected_late:true"
 

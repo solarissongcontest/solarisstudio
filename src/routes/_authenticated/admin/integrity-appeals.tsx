@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AlertTriangle, ArrowRight, CalendarClock, Gavel, RefreshCw, Search, ShieldCheck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -17,6 +17,7 @@ export const Route = createFileRoute("/_authenticated/admin/integrity-appeals")(
 
 type AppealItem = {
   id: string;
+  version: number;
   case_id: string;
   case_code: string;
   case_summary: string;
@@ -131,13 +132,23 @@ function AppealCard({ appeal, onChanged }: { appeal: AppealItem; onChanged: () =
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deadline, setDeadline] = useState("");
   const [reason, setReason] = useState("");
+  const extensionOperation = useRef<{ fingerprint: string; args: Record<string, unknown> } | null>(null);
   const mutation = useMutation({
-    mutationFn: () => rpc("admin_grant_integrity_appeal_extension", {
-      _appeal_id: appeal.id,
-      _new_deadline: new Date(deadline).toISOString(),
-      _reason: reason,
-    }),
+    mutationFn: () => {
+      if (!Number.isInteger(appeal.version)) throw new Error("Reload the canonical appeal revision before granting an extension.");
+      const request = { p_appeal_id: appeal.id, p_new_deadline: new Date(deadline).toISOString(), p_reason: reason.trim() };
+      const fingerprint = JSON.stringify(request);
+      if (extensionOperation.current?.fingerprint !== fingerprint) {
+        const operationId = crypto.randomUUID();
+        extensionOperation.current = { fingerprint, args: {
+          ...request, p_expected_version: appeal.version,
+          p_operation_id: operationId, p_idempotency_key: operationId,
+        } };
+      }
+      return rpc("studio2_integrity_grant_appeal_extension", extensionOperation.current.args);
+    },
     onSuccess: async () => {
+      extensionOperation.current = null;
       setConfirmOpen(false);
       setExtensionOpen(false);
       setDeadline("");

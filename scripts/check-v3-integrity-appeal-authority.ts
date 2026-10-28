@@ -1,0 +1,13 @@
+import { execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+import { proveIntegrityAppealAuthority } from "../src/lib/v3-integrity-appeal-authority";
+import type { V3S16CatalogEvidence } from "../src/lib/v3-s16-mutation-authority";
+const path=process.argv.find((arg)=>arg.startsWith("--catalog="))?.slice("--catalog=".length);
+if(!path)throw new Error("Exact-SHA local catalog is required");
+if(execFileSync("git",["status","--porcelain","--untracked-files=all"],{encoding:"utf8"}).trim())throw new Error("Appeal authority certification requires a clean candidate source tree");
+const sha=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim();
+const result=proveIntegrityAppealAuthority(JSON.parse(readFileSync(path,"utf8")) as V3S16CatalogEvidence,sha);
+const output=process.argv.find((arg)=>arg.startsWith("--out="))?.slice("--out=".length);
+if(output)writeFileSync(output,`${JSON.stringify(result,null,2)}\n`);
+console.log(JSON.stringify(result,null,2));
+if(!result.passed)process.exitCode=1;
