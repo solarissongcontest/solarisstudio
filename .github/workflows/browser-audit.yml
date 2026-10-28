@@ -80,7 +80,8 @@ jobs:
   public-routes:
     needs: [release-gate]
     if: needs.release-gate.outputs.run_audit == 'true'
-    runs-on: ubuntu-latest
+    # Playwright 1.55 supports Ubuntu 24.04, not the moving Ubuntu 26 label.
+    runs-on: ubuntu-24.04
     timeout-minutes: 55
 
     steps:

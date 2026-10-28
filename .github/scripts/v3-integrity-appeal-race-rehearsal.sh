@@ -57,7 +57,7 @@ wait "$winner_pid" || { cat "$scratch_dir/winner.log"; exit 1; }
 if wait "$loser_pid"; then echo 'Competing appeal reviewer overwrote the winner' >&2; exit 1; fi
 [[ "$blocked" == true ]] || { echo 'No concurrent lock wait observed' >&2; exit 1; }
 # Only canonical stale-version / reviewer authorization denials are acceptable.
-rg -q '40001|42501|P0409' "$scratch_dir/loser.log" || { cat "$scratch_dir/loser.log"; exit 1; }
+grep -Eq '40001|42501|P0409' "$scratch_dir/loser.log" || { cat "$scratch_dir/loser.log"; exit 1; }
 cat > "$scratch_dir/verify.sql" <<SQL
 begin;
 set local role authenticated;
