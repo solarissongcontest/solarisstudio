@@ -56,7 +56,15 @@ function tableEvidence(dbUrl: string, table: string): V3S16CatalogTableEvidence 
           select jsonb_agg(distinct g.grantee order by g.grantee)
           from information_schema.column_privileges g
           where g.table_schema = ${s} and g.table_name = ${n}
-            and g.privilege_type = 'UPDATE'
+            and g.privilege_type in ('INSERT','UPDATE')
+        ), '[]'::jsonb),
+        'columnDmlGrants', coalesce((
+          select jsonb_agg(jsonb_build_object(
+            'role', g.grantee, 'privilege', g.privilege_type, 'column', g.column_name
+          ) order by g.grantee, g.privilege_type, g.column_name)
+          from information_schema.column_privileges g
+          where g.table_schema = ${s} and g.table_name = ${n}
+            and g.privilege_type in ('INSERT','UPDATE')
         ), '[]'::jsonb),
         'writeTriggers', coalesce((
           select jsonb_agg(t.tgname order by t.tgname)

@@ -11,7 +11,7 @@ const migration = source(
   "supabase/migrations/20261016050000_v3_s5_media_review_consequences.sql",
 );
 const verificationMigration = source(
-  "supabase/migrations/20261027211500_v3_media_verified_byte_identity.sql",
+  "supabase/migrations/20261027211600_v3_media_verified_byte_identity.sql",
 );
 const registry = source("src/lib/v3-domain-consequence-registry.ts");
 

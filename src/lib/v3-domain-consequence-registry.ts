@@ -77,6 +77,7 @@ const NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT: Readonly<Record<string, readonly st
  * less true, which is an impressively bad trade.
  */
 const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = {
+  "media.verified": [],
   "acknowledgement.recorded": [],
   "notice.published": [],
   "notice.superseded": [],
@@ -125,6 +126,12 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
   "entry.changes_requested": [
     "supabase/migrations/20261015201221_v3_s5_entry_consequences.sql",
     ".github/scripts/v3-s5-entry-consequences-rehearsal.sh",
+  ],
+  "media.verified": [
+    "supabase/migrations/20261027211600_v3_media_verified_byte_identity.sql",
+    "src/lib/v3-media-finalizer-recovery.test.ts",
+    ".github/tests/v3-media-finalization-authority.sql",
+    "src/lib/v3-s5-media-consequences.test.ts",
   ],
   "media.reviewed": [
     "supabase/migrations/20261016050000_v3_s5_media_review_consequences.sql",
@@ -238,6 +245,7 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
  * delivery. Realtime may observe/invalidate opportunistically, but missed
  * delivery recovers by re-reading the canonical show/cue revision.
  */
+const EVENTS_WITHOUT_REQUIRED_ASYNC_CONSEQUENCES = new Set(["media.verified"]);
 const PERSISTED_OBSERVATIONAL_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
   "show.changed": [
     "supabase/migrations/20261027211500_v3_show_runtime_authority.sql",
@@ -395,7 +403,7 @@ export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
       const replacement = READ_ONLY_REPLACEMENTS[eventType] ?? null;
       // Media verification commits its canonical row, receipt and event before
       // any optional consumer; no async writer owns verification truth.
-      const noRequiredMediaEffects = eventType === "media.verified";
+      const noRequiredMediaEffects = EVENTS_WITHOUT_REQUIRED_ASYNC_CONSEQUENCES.has(eventType);
       const noAsyncEffects = Boolean(replacement || observationalEvidence || noRequiredMediaEffects);
 
       return {
@@ -415,7 +423,7 @@ export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
           effect: "invalidate-projection",
           projection,
         } as const)),
-        analyticsEffects: noAsyncEffects ? [] : [`domain-event:${eventType}`],
+        analyticsEffects: replacement || observationalEvidence ? [] : [`domain-event:${eventType}`],
         auditRequired: observationalEvidence
           ? true
           : !replacement && (domain.sensitivityClass !== "public" || domain.mutationCommands.length > 0),

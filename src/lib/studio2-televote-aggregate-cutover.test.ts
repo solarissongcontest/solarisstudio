@@ -57,7 +57,7 @@ describe("S16 Televote aggregate authority cutover", () => {
     expect(migration).toContain("private.studio2_claim_operation(");
     expect(migration).toContain("private.studio2_complete_operation(");
     expect(migration).toContain("public.v3_register_migration_contract(");
-    expect(migration).toContain("20261027195000_v3_s16_televote_aggregate_authority");
+    expect(migration).toContain("v3.televote.aggregate-authority");
     expect(migration).toContain("from public, anon, service_role;");
   });
 });
