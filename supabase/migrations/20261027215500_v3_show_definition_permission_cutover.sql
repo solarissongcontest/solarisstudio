@@ -1,5 +1,10 @@
 begin;
 
+select public.v3_register_migration_contract(
+  'v3.show.definition-permission-cutover', 1, 'forward_fix_only', false, null,
+  'Use canonical scoped edition capability for show definition commands; remove obsolete role fallback and preserve private helper EXECUTE revocations.'
+);
+
 -- Permission Engine V2 is authoritative. The initial show-definition helper retained
 -- a pre-cutover organizer-role fallback through public.has_role(uuid, app_role), but
 -- that overload no longer exists after the authoritative permission cutover. Show

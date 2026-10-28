@@ -117,7 +117,7 @@ begin
       'Stale rundown fixture','27270000-0000-4000-8000-000000000122','show-cue:stale');
     raise exception 'Stale rundown revision unexpectedly succeeded';
   exception when others then
-    if sqlstate <> '40001' then raise; end if;
+    if sqlstate <> 'PT409' then raise; end if;
   end;
 end $test$;
 select public.v3_set_show_rundown_lock(current_setting('test.show_id')::uuid,1,true,'Lock authority rundown',

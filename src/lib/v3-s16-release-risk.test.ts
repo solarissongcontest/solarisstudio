@@ -5,6 +5,9 @@ import type { V3S16Finding, V3S16Report } from "./v3-s16-mutation-authority";
 const domains: V3S16Report["domains"] = [
   {
     id: "results",
+    sanctionedCrossDomainWriters: [],
+    temporaryCompatibilityApplicationWriters: [],
+    allowedColumnDmlGrants: [],
     canonicalOwner: "Results / PR #1400",
     canonicalTables: ["public.results"],
     canonicalCommands: [],
@@ -14,6 +17,9 @@ const domains: V3S16Report["domains"] = [
   },
   {
     id: "jury",
+    sanctionedCrossDomainWriters: [],
+    temporaryCompatibilityApplicationWriters: [],
+    allowedColumnDmlGrants: [],
     canonicalOwner: "jury",
     canonicalTables: ["public.jury_votes"],
     canonicalCommands: ["v3_submit_jury_ballot", "studio2_apply_jury_voting_status"],
@@ -23,6 +29,9 @@ const domains: V3S16Report["domains"] = [
   },
   {
     id: "publication",
+    sanctionedCrossDomainWriters: [],
+    temporaryCompatibilityApplicationWriters: [],
+    allowedColumnDmlGrants: [],
     canonicalOwner: "publication",
     canonicalTables: ["public.studio2_show_publication_controls"],
     canonicalCommands: ["studio2_apply_show_publication_change", "studio2_publish_due_show_publications"],
@@ -32,6 +41,9 @@ const domains: V3S16Report["domains"] = [
   },
   {
     id: "entry",
+    sanctionedCrossDomainWriters: [],
+    temporaryCompatibilityApplicationWriters: [],
+    allowedColumnDmlGrants: [],
     canonicalOwner: "entry",
     canonicalTables: ["public.entries"],
     canonicalCommands: [],

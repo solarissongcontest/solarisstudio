@@ -57,7 +57,7 @@ export async function getMergedTelevotingRoundsServer() {
   }
 
   const remoteById = new Map((remoteEditionsResult.data ?? []).map((row: any) => [String(row.id), row]));
-  const remoteBySolaris = new Map((linksResult.data ?? []).map((row: any) => [String(row.solaris_id), String(row.remote_id)]));
+  const remoteBySolaris = new Map<string, string>((linksResult.data ?? []).map((row: any): [string, string] => [String(row.solaris_id), String(row.remote_id)]));
   const counts = new Map<string, number>();
   for (const entry of entriesResult.data ?? []) {
     counts.set(String(entry.round_id), (counts.get(String(entry.round_id)) ?? 0) + 1);

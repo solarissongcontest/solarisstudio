@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -41,7 +41,7 @@ describe("S16 Televote ballot moderation authority", () => {
 
   test("registers the high-risk migration with S13", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
-    expect(migration).toContain("20261027193000_v3_s16_televote_moderation_authority");
+    expect(migration).toContain("v3.televote.moderation-authority");
     expect(migration).toContain("'forward_fix_only'");
   });
 });

@@ -20,7 +20,7 @@ begin
   begin
     perform public.v3_apply_edition_visual_change('27180000-0000-4000-8000-000000000021','{"theme_colors":{}}','{"theme_colors":{"publicRadius":25}}','Conflicting concurrent change');
     raise exception 'Stale visual comparison unexpectedly succeeded';
-  exception when serialization_failure then null; end;
+  exception when sqlstate 'PT409' then null; end;
   begin
     perform public.v3_apply_edition_visual_change('27180000-0000-4000-8000-000000000021','{"published":false}','{"published":true}','Cannot change publication');
     raise exception 'Unsupported mutation unexpectedly succeeded';

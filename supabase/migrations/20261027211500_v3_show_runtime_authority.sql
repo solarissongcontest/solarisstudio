@@ -1,5 +1,10 @@
 begin;
 
+select public.v3_register_migration_contract(
+  'v3.show.runtime-authority', 1, 'forward_fix_only', false, null,
+  'Normalize known lifecycle aliases, reject unknown state, then constrain and govern show runtime with scoped CAS, receipts and synchronous audit. Validate clean replay and current-main upgrade before adoption.'
+);
+
 -- V3 live-show runtime authority.
 --
 -- Canonical show lifecycle is public.shows.status and uses the V3 vocabulary:
@@ -37,6 +42,7 @@ set status = case lower(btrim(status))
   when 'ended' then 'ended'
   when 'complete' then 'ended'
   when 'completed' then 'ended'
+  when 'finished' then 'ended'
   when 'closed' then 'ended'
   when 'cancelled' then 'cancelled'
   when 'canceled' then 'cancelled'

@@ -48,7 +48,7 @@ function derivedEditionStatus(edition: Edition, editionShows: Show[]) {
   );
   return {
     label: status === "completed" ? "Completed" : status === "published" ? "Published" : "Draft",
-    tone: status === "draft" ? ("neutral" as const) : ("success" as const),
+    tone: status === "draft" ? ("neutral" as const) : ("ready" as const),
   };
 }
 
@@ -128,7 +128,7 @@ function EditionsPage() {
       setNumberTouched(false);
       setCreateOpen(false);
       setMessage(
-        `${editionLabel(receipt.edition as Edition)} created with canonical operation ${receipt.operationId.slice(0, 8)}…`,
+        `${receipt.edition.edition_number ? `SSC ${receipt.edition.edition_number}` : receipt.edition.name} created with canonical operation ${receipt.operationId.slice(0, 8)}…`,
       );
       await refresh();
     } catch (cause) {

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { V3_S16_CRITICAL_DOMAINS } from "./v3-s16-mutation-authority";
@@ -49,7 +49,7 @@ describe("S16 canonical Entry mutation authority", () => {
   });
 
   test("registers S13 adoption and S16 canonical ownership", () => {
-    expect(migration).toContain("20261027211501_v3_s16_entry_confirmation_authority");
+    expect(migration).toContain("v3.entry.confirmation-authority");
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(V3_S16_CRITICAL_DOMAINS.find((domain) => domain.id === "entry")!.canonicalCommands).toContain("public.v3_sync_confirmation_entry");
   });

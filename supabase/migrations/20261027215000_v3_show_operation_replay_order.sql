@@ -1,5 +1,10 @@
 begin;
 
+select public.v3_register_migration_contract(
+  'v3.show.operation-replay-order', 1, 'forward_fix_only', false, null,
+  'Reconcile confirmed receipts before stale-state CAS so lost-response retries cannot duplicate live advancement; preserve authorization before replay.'
+);
+
 -- Lost-response recovery must consult stable operation identity before checking
 -- state that the first attempt may already have advanced/deleted. Otherwise a
 -- legitimate retry can incorrectly surface STATE_CHANGED/SHOW_NOT_FOUND after

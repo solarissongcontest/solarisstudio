@@ -289,4 +289,31 @@ begin
 end
 $test$;
 
+-- Auth signup and its canonical trigger claim ownership atomically. The Edge
+-- caller only reads this committed result; it cannot insert a peer account.
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+insert into public.countries(id,name,short_code)
+values ('27184517-0000-4000-8000-000000000031','Signup Authority Testland','ASX');
+insert into auth.users(id,aud,role,email,raw_user_meta_data,created_at,updated_at)
+values ('27184517-0000-4000-8000-000000000032','authenticated','authenticated','signup-authority@local.invalid',
+  '{"account_type":"country","country_id":"27184517-0000-4000-8000-000000000031","instagram_username":"signup_authority","display_name":"Signup Authority"}',now(),now());
+do $signup$
+begin
+  if (select count(*) from public.country_accounts where user_id='27184517-0000-4000-8000-000000000032'
+      and country_id='27184517-0000-4000-8000-000000000031' and instagram_username='signup_authority') <> 1 then
+    raise exception 'Auth signup did not atomically establish canonical account ownership';
+  end if;
+  begin
+    insert into auth.users(id,aud,role,email,raw_user_meta_data,created_at,updated_at)
+    values ('27184517-0000-4000-8000-000000000033','authenticated','authenticated','signup-race@local.invalid',
+      '{"account_type":"country","country_id":"27184517-0000-4000-8000-000000000031","instagram_username":"signup_race","display_name":"Signup Race"}',now(),now());
+    raise exception 'Competing signup unexpectedly claimed an owned country';
+  exception when unique_violation then null;
+  end;
+  if exists(select 1 from auth.users where id='27184517-0000-4000-8000-000000000033') then
+    raise exception 'Failed account claim left an orphan Auth identity';
+  end if;
+end
+$signup$;
 rollback;

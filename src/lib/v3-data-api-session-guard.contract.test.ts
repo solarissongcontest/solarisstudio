@@ -13,6 +13,20 @@ const rehearsal = readFileSync(
   "utf8",
 );
 describe("canonical Data API session revocation boundary", () => {
+  it("validates read-only requests while retaining row-lock admission for writable requests", () => {
+    const admission = readFileSync("supabase/migrations/20261028045945_v3_readonly_session_admission.sql", "utf8");
+    expect(admission).toContain("language plpgsql\nvolatile");
+    const branches = admission.split("if current_setting('transaction_read_only')::boolean then")[1].split("end if;")[0];
+    const [readonly, writable] = branches.split("  else\n");
+    for (const branch of [readonly, writable]) {
+      expect(branch).toContain("session_row.id = v_claimed_session");
+      expect(branch).toContain("session_row.user_id = v_actor");
+      expect(branch).toContain("session_row.not_after > now()");
+    }
+    expect(readonly).not.toContain("for key share");
+    expect(writable).toContain("for key share");
+    expect(admission).toContain("message = 'SESSION_REVOKED'");
+  });
   it("extends the existing hook before normal-mode and read-only early returns", () => {
     expect(migration).toContain(
       "pg_get_functiondef('private.studio2_data_api_operational_gate()'::regprocedure)",

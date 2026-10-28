@@ -1,7 +1,7 @@
 begin;
 
 select public.v3_register_migration_contract(
-  '20261027204000_v3_s16_televote_solaris_sync_authority',
+  'v3.televote.solaris-sync-authority',
   1,
   'forward_fix_only',
   false,

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -48,7 +48,7 @@ describe("S16 Televote Solaris lineup sync authority", () => {
   });
 
   test("registers migration adoption and restricts execution", () => {
-    expect(migration).toContain("20261027204000_v3_s16_televote_solaris_sync_authority");
+    expect(migration).toContain("v3.televote.solaris-sync-authority");
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain(") from public, anon, service_role;");
     expect(migration).toContain(") to authenticated;");

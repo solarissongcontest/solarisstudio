@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -46,7 +46,7 @@ describe("S16 canonical authorization mutation authority", () => {
   });
 
   test("registers migration adoption and protects the internal engine", () => {
-    expect(migration).toContain("20261027213001_v3_s16_authorization_authority");
+    expect(migration).toContain("v3.authorization.canonical-authority");
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain("revoke all on function public.studio2_apply_permission_change(");
     expect(migration).toContain("from public, anon, authenticated, service_role;");

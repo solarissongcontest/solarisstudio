@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -13,7 +13,7 @@ describe("S16 Televote round mutation authority", () => {
   test("routes round CRUD through explicit governed commands", () => {
     for (const command of ["v3_create_round", "v3_rename_round", "v3_delete_draft_round"]) {
       expect(migration).toContain(`televoting.${command}`);
-      expect(server).toContain(`\"${command}\"`);
+      expect(server).toContain(`"${command}"`);
     }
 
     expect(server).not.toContain('.from("rounds").insert');

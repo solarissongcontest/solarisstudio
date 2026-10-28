@@ -81,13 +81,22 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$SOURCE_ROOT/.github/tests/v3-account-s
 log "PASS: canonical account/session SQL authority contract"
 
 log "Creating one disposable viewer with independent target/current Auth sessions"
+RUN_TAG="$(python3 -c 'import uuid; print(uuid.uuid4().hex)')"
+VIEWER_EMAIL="v3-authority-$RUN_TAG@solaris.invalid"
+REVOKE_OPERATION="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+RACE_OPERATION="$(python3 -c 'import uuid; print(uuid.uuid4())')"
 request POST "$API_URL/auth/v1/admin/users" "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY" \
-  "{\"email\":\"v3-authority-rotation@solaris.invalid\",\"password\":\"$PASSWORD\",\"email_confirm\":true}"
+  "{\"email\":\"$VIEWER_EMAIL\",\"password\":\"$PASSWORD\",\"email_confirm\":true}"
 expect_success "create rotation viewer"
 USER_ID="$(json_field "$HTTP_BODY" id)"
+cleanup_viewer() {
+  curl -fsS -X DELETE "$API_URL/auth/v1/admin/users/$USER_ID" \
+    -H "apikey: $SERVICE_ROLE_KEY" -H "Authorization: Bearer $SERVICE_ROLE_KEY" >/dev/null || true
+}
+trap cleanup_viewer EXIT
 
 request POST "$API_URL/auth/v1/token?grant_type=password" "$ANON_KEY" "$ANON_KEY" \
-  "{\"email\":\"v3-authority-rotation@solaris.invalid\",\"password\":\"$PASSWORD\"}" \
+  "{\"email\":\"$VIEWER_EMAIL\",\"password\":\"$PASSWORD\"}" \
   'Solaris-V3-Rotation-Target'
 expect_success "sign in target session"
 TARGET_ACCESS_OLD="$(json_field "$HTTP_BODY" access_token)"
@@ -95,7 +104,7 @@ TARGET_REFRESH_OLD="$(json_field "$HTTP_BODY" refresh_token)"
 TARGET_SESSION="$(jwt_claim "$TARGET_ACCESS_OLD" session_id)"
 
 request POST "$API_URL/auth/v1/token?grant_type=password" "$ANON_KEY" "$ANON_KEY" \
-  "{\"email\":\"v3-authority-rotation@solaris.invalid\",\"password\":\"$PASSWORD\"}" \
+  "{\"email\":\"$VIEWER_EMAIL\",\"password\":\"$PASSWORD\"}" \
   'Solaris-V3-Rotation-Current'
 expect_success "sign in current session"
 CURRENT_ACCESS="$(json_field "$HTTP_BODY" access_token)"
@@ -120,7 +129,7 @@ expect_success "pre-revocation rotated access credential"
 
 TARGET_HANDLE="$(db_value "select private.v3_session_handle('$USER_ID'::uuid, '$TARGET_SESSION'::uuid);")"
 request POST "$API_URL/rest/v1/rpc/v3_revoke_session" "$CURRENT_ACCESS" "$ANON_KEY" \
-  "{\"p_session_handle\":\"$TARGET_HANDLE\",\"p_operation_id\":\"27184517-0000-4000-8000-000000000201\",\"p_idempotency_key\":\"rotation-revoke\"}"
+  "{\"p_session_handle\":\"$TARGET_HANDLE\",\"p_operation_id\":\"$REVOKE_OPERATION\",\"p_idempotency_key\":\"rotation-revoke:$RUN_TAG\"}"
 expect_success "revoke rotated target session"
 
 [[ "$(db_value "select count(*) from auth.sessions where id='$TARGET_SESSION';")" == '0' ]] || fail "revoked auth.sessions row survived"
@@ -142,15 +151,14 @@ expect_failure "revoked rotated refresh credential"
 
 log "Creating a third session to prove the admitted-request/revocation race boundary"
 request POST "$API_URL/auth/v1/token?grant_type=password" "$ANON_KEY" "$ANON_KEY" \
-  "{\"email\":\"v3-authority-rotation@solaris.invalid\",\"password\":\"$PASSWORD\"}" \
+  "{\"email\":\"$VIEWER_EMAIL\",\"password\":\"$PASSWORD\"}" \
   'Solaris-V3-Race-Target'
 expect_success "sign in race target"
 RACE_ACCESS="$(json_field "$HTTP_BODY" access_token)"
 RACE_SESSION="$(jwt_claim "$RACE_ACCESS" session_id)"
 RACE_HANDLE="$(db_value "select private.v3_session_handle('$USER_ID'::uuid, '$RACE_SESSION'::uuid);")"
 
-LOCK_READY="$(mktemp)"
-rm -f "$LOCK_READY"
+RACE_LOCK_KEY="$(python3 -c 'import secrets; print(secrets.randbelow(2147483646)+1)')"
 LOCK_LOG="$(mktemp)"
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -v actor="$USER_ID" -v session="$RACE_SESSION" >"$LOCK_LOG" 2>&1 <<SQL &
 begin;
@@ -160,17 +168,19 @@ select set_config(
   true
 );
 select private.v3_require_active_auth_session();
-\! touch "$LOCK_READY"
+-- This transaction-scoped marker becomes visible only after session admission.
+-- Database polling also works when psql runs inside the local DB container.
+select pg_advisory_xact_lock(27184517, $RACE_LOCK_KEY);
 select pg_sleep(3);
 commit;
 SQL
 LOCK_PID=$!
 
 for _ in $(seq 1 50); do
-  [[ -f "$LOCK_READY" ]] && break
+  [[ "$(db_value "select exists(select 1 from pg_locks where locktype='advisory' and classid=27184517 and objid=$RACE_LOCK_KEY and granted);")" == 't' ]] && break
   sleep 0.1
 done
-[[ -f "$LOCK_READY" ]] || { cat "$LOCK_LOG" >&2; kill "$LOCK_PID" 2>/dev/null || true; fail "race lock was never acquired"; }
+[[ "$(db_value "select exists(select 1 from pg_locks where locktype='advisory' and classid=27184517 and objid=$RACE_LOCK_KEY and granted);")" == 't' ]] || { cat "$LOCK_LOG" >&2; kill "$LOCK_PID" 2>/dev/null || true; fail "race lock was never acquired"; }
 
 START_MS="$(python3 - <<'PY'
 import time
@@ -178,14 +188,14 @@ print(int(time.time()*1000))
 PY
 )"
 request POST "$API_URL/rest/v1/rpc/v3_revoke_session" "$CURRENT_ACCESS" "$ANON_KEY" \
-  "{\"p_session_handle\":\"$RACE_HANDLE\",\"p_operation_id\":\"27184517-0000-4000-8000-000000000202\",\"p_idempotency_key\":\"race-revoke\"}"
+  "{\"p_session_handle\":\"$RACE_HANDLE\",\"p_operation_id\":\"$RACE_OPERATION\",\"p_idempotency_key\":\"race-revoke:$RUN_TAG\"}"
 END_MS="$(python3 - <<'PY'
 import time
 print(int(time.time()*1000))
 PY
 )"
-wait "$LOCK_PID" || { cat "$LOCK_LOG" >&2; rm -f "$LOCK_READY" "$LOCK_LOG"; fail "admitted request transaction failed"; }
-rm -f "$LOCK_READY" "$LOCK_LOG"
+wait "$LOCK_PID" || { cat "$LOCK_LOG" >&2; rm -f "$LOCK_LOG"; fail "admitted request transaction failed"; }
+rm -f "$LOCK_LOG"
 expect_success "revoke waits for admitted request boundary"
 ELAPSED_MS=$((END_MS - START_MS))
 (( ELAPSED_MS >= 1800 )) || fail "revocation did not wait for active-session transaction lock (${ELAPSED_MS}ms)"

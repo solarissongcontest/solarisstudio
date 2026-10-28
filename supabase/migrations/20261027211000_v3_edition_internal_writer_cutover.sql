@@ -15,7 +15,7 @@ select public.v3_register_migration_contract(
 create or replace function public.studio2_transition_edition_v2(
   p_edition_id uuid,
   p_to text,
-  p_reason text,
+  p_reason text default null,
   p_approval_request_id uuid default null
 )
 returns public.studio2_edition_runtime

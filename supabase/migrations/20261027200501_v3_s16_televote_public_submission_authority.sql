@@ -1,7 +1,7 @@
 begin;
 
 select public.v3_register_migration_contract(
-  '20261027200501_v3_s16_televote_public_submission_authority',
+  'v3.televote.public-submission-authority',
   1,
   'forward_fix_only',
   false,

@@ -1,7 +1,7 @@
 begin;
 
 select public.v3_register_migration_contract(
-  '20261027211501_v3_s16_entry_confirmation_authority',
+  'v3.entry.confirmation-authority',
   1,
   'forward_fix_only',
   false,

@@ -1,7 +1,7 @@
 begin;
 
 select public.v3_register_migration_contract(
-  '20261027213001_v3_s16_authorization_authority',
+  'v3.authorization.canonical-authority',
   1,
   'forward_fix_only',
   false,
@@ -21,8 +21,8 @@ revoke insert, update, delete on table public.studio2_role_capabilities
   from public, anon, authenticated, service_role;
 revoke insert, update, delete on table public.studio2_permission_subject_versions
   from public, anon, authenticated, service_role;
-revoke insert, update, delete on table public.studio2_permission_state_versions
-  from public, anon, authenticated, service_role;
+-- studio2_permission_state_versions was removed by the S3 identity cutover;
+-- studio2_permission_subject_versions above is the sole revision authority.
 
 -- These compatibility RPCs were kept executable by service_role after the R3
 -- cutover. Repository call-graph review finds no production caller; retaining

@@ -246,7 +246,7 @@ const PERSISTED_OBSERVATIONAL_CONSEQUENCES: Readonly<Record<string, readonly str
     "src/lib/v3-organizer-show-mode-review-boundary.contract.test.ts",
   ],
   "show.cue_changed": [
-    "supabase/migrations/20261027204500_v3_show_cue_authority.sql",
+    "supabase/migrations/20261027204600_v3_show_cue_authority.sql",
     "src/lib/studio2-broadcast-rundown-integration.test.ts",
   ],
 };

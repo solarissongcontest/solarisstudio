@@ -1,7 +1,7 @@
 begin;
 
 select public.v3_register_migration_contract(
-  '20261027205500_v3_s16_televote_direct_dml_cutover',
+  'v3.televote.direct-dml-cutover',
   1,
   'forward_fix_only',
   false,

@@ -81,6 +81,7 @@ describe("V3 Explore next public event", () => {
         }),
         show({
           id: "ended",
+          status: "ended",
           broadcast_config: {
             showMode: { phase: "ended", scheduledStart: "2026-10-20T18:00:00Z" },
           },

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -45,7 +45,7 @@ describe("S16 Televote round configuration authority", () => {
 
   test("registers the high-risk migration with S13", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
-    expect(migration).toContain("20261027202500_v3_s16_televote_round_entry_authority");
+    expect(migration).toContain("v3.televote.round-entry-authority");
     expect(migration).toContain("'forward_fix_only'");
   });
 });

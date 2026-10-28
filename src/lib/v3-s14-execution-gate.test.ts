@@ -25,7 +25,7 @@ function checks(
 describe("S14 execution risk gate", () => {
   it("blocks security hard blockers", () => {
     expect(
-      assessS14Execution(sha, checks(["DOMAIN_CONSEQUENCE_DECLARED session.revoked owner=session"]))
+      assessS14Execution(sha, checks(["DOMAIN_CONSEQUENCE_DECLARED session.unknown_security_change owner=session"]))
         .allowed,
     ).toBe(false);
   });

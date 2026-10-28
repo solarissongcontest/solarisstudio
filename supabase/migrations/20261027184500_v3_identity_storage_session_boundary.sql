@@ -1,5 +1,10 @@
 begin;
 
+select public.v3_register_migration_contract(
+  'v3.identity.storage-session-boundary', 1, 'forward_fix_only', false, null,
+  'Bind authenticated Storage access to live canonical sessions; retain anonymous capability semantics and verify revocation denial locally.'
+);
+
 -- Identity/sign-out authority must follow the canonical Supabase Auth session,
 -- including Storage requests that do not traverse PostgREST's db_pre_request
 -- hook. Reuse the existing auth.sessions-backed guard instead of inventing a

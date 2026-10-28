@@ -1,5 +1,10 @@
 begin;
 
+select public.v3_register_migration_contract(
+  'v3.show.definition-authority', 1, 'forward_fix_only', false, null,
+  'Govern show definition CRUD with actor scope, operation replay, CAS and transactional audit; retain Results ownership and verify clean replay and current-main upgrade.'
+);
+
 -- V3 show-definition authority. Show identity/configuration is separate from
 -- live runtime, lineup, publication, hosting, voting and Results. These commands
 -- replace the direct Organizer CRUD writer without becoming a second authority

@@ -9,18 +9,21 @@ describe("authentication transition authority", () => {
   it("prevents delayed A from publishing after B becomes the newer transition", async () => {
     const state: string[] = [];
     let releaseA!: () => void;
+    let markStarted!: () => void;
+    const started = new Promise<void>((resolve) => { markStarted = resolve; });
     const a = beginSolarisAuthTransition();
     const pendingA = runSolarisAuthMutation(
       a,
       async () => {
         state.push("A-installed");
+        markStarted();
         await new Promise<void>((resolve) => { releaseA = resolve; });
         return "A";
       },
       async () => { state.push("A-cleaned"); },
     );
 
-    await Promise.resolve();
+    await started;
     const b = beginSolarisAuthTransition();
     const pendingB = runSolarisAuthMutation(b, async () => {
       state.push("B-installed");

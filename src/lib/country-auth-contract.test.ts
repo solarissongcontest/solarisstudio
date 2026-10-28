@@ -39,13 +39,15 @@ describe("country account username authentication", () => {
   });
 
   it("creates authoritative country ownership before returning a new signup session", () => {
-    expect(authFunction).toContain('service.from("country_accounts").insert({');
-    expect(authFunction).toContain("user_id: created.user.id");
+    expect(authFunction).not.toContain('service.from("country_accounts").insert({');
+    expect(authFunction).toContain('.eq("user_id", created.user.id)');
     expect(authFunction).toContain("country_id: countryId");
     expect(authFunction).toContain("instagram_username: instagramUsername");
     expect(authFunction).toContain("display_name: displayName");
-    expect(authFunction).toContain("service.auth.admin.deleteUser(created.user.id)");
-    expect(authFunction).toContain('ownershipError.code === "23505"');
+    expect(authFunction).not.toContain("service.auth.admin.deleteUser(created.user.id)");
+    expect(authFunction).toContain("ownership?.country_id !== countryId");
+    expect(authFunction).toContain("ownership?.instagram_username !== instagramUsername");
+    expect(authFunction.indexOf("ownership?.country_id")).toBeLessThan(authFunction.indexOf("data: signedIn"));
   });
 
   it("rate limits anonymous signup, signin and recovery without storing raw identifiers", () => {

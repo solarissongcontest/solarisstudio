@@ -107,6 +107,7 @@ describe("event-driven Show Mode", () => {
 
   it("keeps an explicitly ended show ended while retaining result availability", () => {
     const ended = show({
+      status: "ended",
       broadcast_config: {
         showMode: { ...DEFAULT_SHOW_MODE, phase: "ended" },
       },
@@ -182,6 +183,7 @@ describe("event-driven Show Mode", () => {
     });
     const live = show({
       id: "live",
+      status: "live",
       sort_order: 2,
       broadcast_config: {
         showMode: { ...DEFAULT_SHOW_MODE, phase: "live" },

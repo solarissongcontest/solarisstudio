@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -38,7 +38,7 @@ describe("S16 public Televote submission authority", () => {
 
   test("registers the S16 hardening migration with S13", () => {
     expect(hardening).toContain("public.v3_register_migration_contract(");
-    expect(hardening).toContain("20261027200501_v3_s16_televote_public_submission_authority");
+    expect(hardening).toContain("v3.televote.public-submission-authority");
     expect(hardening).toContain("'forward_fix_only'");
   });
 });

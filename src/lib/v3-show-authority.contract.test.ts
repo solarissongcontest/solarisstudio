@@ -14,6 +14,19 @@ const runtime = source("src/lib/show-runtime-command.ts");
 const companion = source("src/lib/show-mode.ts");
 
 describe("V3 canonical show lifecycle authority", () => {
+  it("revalidates session and capability before cue receipt replay and keeps mutable state out of request identity", () => {
+    const cue = source("supabase/migrations/20261027204600_v3_show_cue_authority.sql");
+    for (const name of ["v3_save_show_rundown", "v3_set_show_rundown_lock", "v3_transition_show_cue"]) {
+      const body = cue.split(`create or replace function public.${name}(`)[1].split("$command$;")[0];
+      expect(body.indexOf("perform private.v3_require_active_auth_session()")).toBeGreaterThan(-1);
+      expect(body.indexOf("private.studio2_can_manage_broadcast(auth.uid(), v_edition_id)")).toBeLessThan(body.indexOf("v_claim :="));
+    }
+    const transition = cue.split("create or replace function public.v3_transition_show_cue(")[1];
+    const request = transition.split("v_claim := private.studio2_claim_operation(")[1].split("if coalesce")[0];
+    expect(request).not.toContain("v_from_status");
+    expect(request).toContain("p_expected_revision");
+    expect(transition).toContain("'fromStatus', v_from_status");
+  });
   it("constrains shows.status to the canonical V3 lifecycle vocabulary", () => {
     for (const state of ["scheduled", "preparing", "delayed", "live", "paused", "ended", "cancelled"]) {
       expect(lifecycle).toContain(`'${state}'`);

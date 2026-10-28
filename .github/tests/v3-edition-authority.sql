@@ -9,8 +9,8 @@ insert into auth.sessions(id,user_id,created_at,updated_at) values
  ('27270000-0000-4000-8000-000000000011','27270000-0000-4000-8000-000000000001',now(),now()),
  ('27270000-0000-4000-8000-000000000012','27270000-0000-4000-8000-000000000002',now(),now()),
  ('27270000-0000-4000-8000-000000000013','27270000-0000-4000-8000-000000000003',now(),now());
-insert into public.user_roles(user_id,role) values
- ('27270000-0000-4000-8000-000000000001','organizer');
+insert into public.studio2_role_assignments(user_id,role_key,edition_id) values
+ ('27270000-0000-4000-8000-000000000001','organizer',null);
 
 insert into public.editions(id,name,year,slug,edition_number,status,published,editing_enabled,data_revision)
 values
@@ -64,7 +64,7 @@ begin
       'Attempt stale edition overwrite'
     );
     raise exception 'Stale edition metadata CAS unexpectedly succeeded';
-  exception when serialization_failure then null; end;
+  exception when sqlstate 'PT409' then null; end;
 
   begin
     perform public.v3_apply_edition_metadata_change(

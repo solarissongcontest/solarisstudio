@@ -356,7 +356,7 @@ export async function syncMergedRoundFromSolarisServer(data: {
       ? `${row.entry.artist} · ${row.entry.song_title}`
       : "Official entry pending",
   }));
-  const codes = countryPayload.map((row) => row.code);
+  const codes = countryPayload.map((row: { code: string }) => row.code);
   if (new Set(codes).size !== codes.length) {
     throw new Error("Solaris contains duplicate country short codes in this line-up");
   }

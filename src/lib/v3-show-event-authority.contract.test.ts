@@ -28,7 +28,7 @@ for (const eventType of ["show.changed", "show.cue_changed"] as const) {
         expect(consequence.evidence).toContain("supabase/migrations/20261027211500_v3_show_runtime_authority.sql");
         expect(consequence.evidence).toContain("supabase/migrations/20261027213000_v3_show_definition_authority.sql");
       } else {
-        expect(consequence.evidence).toContain("supabase/migrations/20261027204500_v3_show_cue_authority.sql");
+        expect(consequence.evidence).toContain("supabase/migrations/20261027204600_v3_show_cue_authority.sql");
       }
     });
   });

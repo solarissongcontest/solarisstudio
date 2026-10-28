@@ -36,6 +36,7 @@ const LIFECYCLE_ALIASES: Readonly<Record<string, ShowLifecycleState>> = {
   ended: "ended",
   complete: "ended",
   completed: "ended",
+  finished: "ended",
   closed: "ended",
   cancelled: "cancelled",
   canceled: "cancelled",

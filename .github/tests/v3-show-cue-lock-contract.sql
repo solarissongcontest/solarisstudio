@@ -50,7 +50,7 @@ begin
       '27271000-0000-4000-8000-000000000105','show-lock:stale-unlock');
     raise exception 'Stale unlock unexpectedly succeeded';
   exception when others then
-    if sqlstate <> '40001' then raise; end if;
+    if sqlstate <> 'PT409' then raise; end if;
   end;
 end $test$;
 

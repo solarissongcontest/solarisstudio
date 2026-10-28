@@ -1,5 +1,10 @@
 begin;
 
+select public.v3_register_migration_contract(
+  'v3.show.writer-privilege-cutover', 1, 'forward_fix_only', false, null,
+  'Revoke broad show DML after canonical caller cutover; retain only explicitly bounded compatibility columns and enforce runtime/cue subtrees through database guards.'
+);
+
 -- S16 show authority cutover at the database privilege layer.
 --
 -- API roles no longer receive whole-row write authority over public.shows.

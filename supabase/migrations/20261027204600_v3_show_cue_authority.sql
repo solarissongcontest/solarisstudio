@@ -1,5 +1,10 @@
 begin;
 
+select public.v3_register_migration_contract(
+  'v3.show.cue-authority', 1, 'forward_fix_only', false, null,
+  'Cut cue writes over to scoped versioned commands and receipt-bound guards; retain inaccessible implementation helpers and verify lock recovery and duplicate advance locally.'
+);
+
 -- V3 Show/Cue authority cutover.
 --
 -- The legacy Studio 2 rundown functions already contain the domain-specific
@@ -137,6 +142,10 @@ begin
     raise exception using errcode = 'P0002', message = 'SHOW_NOT_FOUND';
   end if;
 
+  perform private.v3_require_active_auth_session();
+  if not private.studio2_can_manage_broadcast(auth.uid(), v_edition_id) then
+    raise exception using errcode = '42501', message = 'AUTHORIZATION';
+  end if;
   v_claim := private.studio2_claim_operation(
     p_operation_id,
     p_idempotency_key,
@@ -228,6 +237,10 @@ begin
     raise exception using errcode = 'P0002', message = 'SHOW_NOT_FOUND';
   end if;
 
+  perform private.v3_require_active_auth_session();
+  if not private.studio2_can_manage_broadcast(auth.uid(), v_edition_id) then
+    raise exception using errcode = '42501', message = 'AUTHORIZATION';
+  end if;
   v_claim := private.studio2_claim_operation(
     p_operation_id,
     p_idempotency_key,
@@ -330,6 +343,10 @@ begin
   from jsonb_array_elements(coalesce(v_before -> 'segments', '[]'::jsonb)) items(segment)
   where segment ->> 'id' = p_segment_id;
 
+  perform private.v3_require_active_auth_session();
+  if not private.studio2_can_manage_broadcast(auth.uid(), v_edition_id) then
+    raise exception using errcode = '42501', message = 'AUTHORIZATION';
+  end if;
   v_claim := private.studio2_claim_operation(
     p_operation_id,
     p_idempotency_key,
@@ -340,7 +357,6 @@ begin
     jsonb_build_object(
       'expectedRevision', p_expected_revision,
       'segmentId', nullif(btrim(coalesce(p_segment_id, '')), ''),
-      'fromStatus', v_from_status,
       'toStatus', p_to_status,
       'reason', btrim(coalesce(p_reason, ''))
     )
