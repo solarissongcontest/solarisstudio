@@ -57,6 +57,20 @@ table_evidence as (
         and g.table_name = c.table_name
         and g.privilege_type in ('INSERT','UPDATE')
     ), '[]'::jsonb),
+    'columnDmlGrants', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'role', g.grantee,
+          'privilege', g.privilege_type,
+          'column', g.column_name
+        )
+        order by g.grantee, g.privilege_type, g.column_name
+      )
+      from information_schema.column_privileges g
+      where g.table_schema = c.table_schema
+        and g.table_name = c.table_name
+        and g.privilege_type in ('INSERT','UPDATE')
+    ), '[]'::jsonb),
     'writeTriggers', coalesce((
       select jsonb_agg(distinct t.trigger_name order by t.trigger_name)
       from information_schema.triggers t

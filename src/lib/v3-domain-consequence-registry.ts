@@ -43,11 +43,14 @@ export type V3DomainConsequence = {
   auditRequired: boolean;
   consumers: readonly string[];
   /**
-   * S1 records intended consequence ownership. S4/S5 upgrades consequences to
-   * transactional event/outbox consumers; `declared` must not be mistaken for
-   * proof that an event bus already executes these effects.
+   * `declared` records ownership only.
+   * `event-backed` means required async consequences have executable consumers.
+   * `persisted-observational` means the event is atomically persisted with the
+   * canonical command but has no correctness-critical async consequence; readers
+   * recover by re-reading canonical state.
+   * `replaced-by-read` is a bounded canonical read rather than a mutation event.
    */
-  implementationState: "declared" | "event-backed" | "replaced-by-read";
+  implementationState: "declared" | "event-backed" | "persisted-observational" | "replaced-by-read";
   replacement: V3ReadOnlyConsequenceReplacement | null;
   evidence: readonly string[];
 };
@@ -65,10 +68,16 @@ const NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT: Readonly<Record<string, readonly st
  * task, a queued/delivered notification is not itself a delivery failure, and
  * private/participant projections must not claim a canonical task worker until
  * that worker actually exists.
+ *
+ * Show state/cue events are also deliberately empty here. The old live-show
+ * domain registry named `show.blocker`, but there is no executable show-blocker
+ * worker. The governed show/cue commands now commit canonical state first and
+ * persist the event as an observational invalidation/audit fact. Inventing a
+ * task consumer would make the release dashboard greener and the architecture
+ * less true, which is an impressively bad trade.
  */
 const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = {
   "acknowledgement.recorded": [],
-  "media.verified": [],
   "notice.published": [],
   "notice.superseded": [],
   "notification.queued": [],
@@ -76,6 +85,8 @@ const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = 
   "notification.failed": ["notification.delivery_failed"],
   "prediction.changed": [],
   "prediction.scored": [],
+  "show.changed": [],
+  "show.cue_changed": [],
 };
 
 const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
@@ -114,12 +125,6 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
   "entry.changes_requested": [
     "supabase/migrations/20261015201221_v3_s5_entry_consequences.sql",
     ".github/scripts/v3-s5-entry-consequences-rehearsal.sh",
-  ],
-  "media.verified": [
-    "supabase/migrations/20261027211500_v3_media_verified_byte_identity.sql",
-    "src/lib/v3-media-finalizer-recovery.test.ts",
-    ".github/tests/v3-media-finalization-authority.sql",
-    "src/lib/v3-s5-media-consequences.test.ts",
   ],
   "media.reviewed": [
     "supabase/migrations/20261016050000_v3_s5_media_review_consequences.sql",
@@ -227,12 +232,24 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
 };
 
 /**
- * `media.verified` is committed transactionally with the canonical media row and
- * operation receipt. No downstream mutation is required for verification to be
- * correct: consumers may re-read canonical media state, and optional projection
- * or analytics work may lag without becoming another verification authority.
+ * Persisted observational events are still real DomainEvents. Their canonical
+ * mutation is already committed transactionally and no correctness-critical
+ * task, notification, publication or projection worker depends on async
+ * delivery. Realtime may observe/invalidate opportunistically, but missed
+ * delivery recovers by re-reading the canonical show/cue revision.
  */
-const EVENTS_WITHOUT_REQUIRED_ASYNC_CONSEQUENCES = new Set(["media.verified"]);
+const PERSISTED_OBSERVATIONAL_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
+  "show.changed": [
+    "supabase/migrations/20261027211500_v3_show_runtime_authority.sql",
+    "supabase/migrations/20261027213000_v3_show_definition_authority.sql",
+    "src/lib/v3-show-authority.contract.test.ts",
+    "src/lib/v3-organizer-show-mode-review-boundary.contract.test.ts",
+  ],
+  "show.cue_changed": [
+    "supabase/migrations/20261027204500_v3_show_cue_authority.sql",
+    "src/lib/studio2-broadcast-rundown-integration.test.ts",
+  ],
+};
 
 /**
  * A reconciliation read is not a mutating domain event. Keep the old logical
@@ -287,6 +304,18 @@ export function v3DomainConsequenceImplementationErrors(consequence: V3DomainCon
       ? []
       : ["event-backed consequence lacks its canonical implementation evidence"];
   }
+  if (consequence.implementationState === "persisted-observational") {
+    const evidence = PERSISTED_OBSERVATIONAL_CONSEQUENCES[consequence.eventType];
+    if (!evidence?.length || !evidence.every((path) => consequence.evidence.includes(path)) || consequence.replacement) {
+      return ["persisted observational consequence lacks its canonical operation/event evidence"];
+    }
+    if (consequence.taskEffects.length || consequence.notificationEffects.length ||
+        consequence.publicationEffects.length || consequence.realtimeEffects.length ||
+        consequence.analyticsEffects.length || consequence.consumers.length) {
+      return ["persisted observational event must not claim required asynchronous consumers"];
+    }
+    return consequence.auditRequired ? [] : ["persisted observational event must retain audit evidence"];
+  }
   if (consequence.implementationState !== "replaced-by-read") return ["unknown consequence implementation state"];
 
   const expected = READ_ONLY_REPLACEMENTS[consequence.eventType];
@@ -310,7 +339,7 @@ export function v3DomainConsequenceImplementationErrors(consequence: V3DomainCon
   return [];
 }
 
-/** Resolved includes an explicitly replaced read; it never fabricates an event bus. */
+/** Resolved includes explicit read replacement and persisted observational facts. */
 export function isResolvedV3DomainConsequence(consequence: V3DomainConsequence) {
   return consequence.implementationState !== "declared" &&
     v3DomainConsequenceImplementationErrors(consequence).length === 0;
@@ -340,7 +369,8 @@ function unique(values: readonly string[]) {
  * `implementationState: declared` means ownership is documented but the
  * owning command has not yet proven transactional S4 emission plus executable
  * consequence consumers. Only events with concrete migration/rehearsal evidence
- * may be marked `event-backed`.
+ * may be marked event-backed, and only events with no required async consequence
+ * may be marked persisted-observational.
  */
 export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
   V3_SYSTEM_DOMAIN_REGISTRY.flatMap((domain) =>
@@ -354,59 +384,57 @@ export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
       );
       const notificationProviders = NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT[eventType] ?? [];
       const publicProjections = domain.publicConsumers.filter(Boolean);
-      const noRequiredAsyncConsequences = EVENTS_WITHOUT_REQUIRED_ASYNC_CONSEQUENCES.has(eventType);
-      const consumers = noRequiredAsyncConsequences
-        ? []
-        : unique([
-            ...domain.publicConsumers,
-            ...domain.organizerConsumers,
-            ...nonTaskBackgroundConsumers,
-            ...taskTypes.map((taskType) => `task:${taskType}`),
-          ]);
+      const consumers = unique([
+        ...domain.publicConsumers,
+        ...domain.organizerConsumers,
+        ...nonTaskBackgroundConsumers,
+        ...taskTypes.map((taskType) => `task:${taskType}`),
+      ]);
       const eventBackedEvidence = EVENT_BACKED_CONSEQUENCES[eventType];
+      const observationalEvidence = PERSISTED_OBSERVATIONAL_CONSEQUENCES[eventType];
       const replacement = READ_ONLY_REPLACEMENTS[eventType] ?? null;
+      // Media verification commits its canonical row, receipt and event before
+      // any optional consumer; no async writer owns verification truth.
+      const noRequiredMediaEffects = eventType === "media.verified";
+      const noAsyncEffects = Boolean(replacement || observationalEvidence || noRequiredMediaEffects);
 
       return {
         eventType,
         ownerDomain: domain.domain,
         projections: domain.projections,
-        taskEffects:
-          replacement || noRequiredAsyncConsequences
-            ? []
-            : taskTypes.map((taskType) => ({ effect: "re-evaluate", taskType } as const)),
-        notificationEffects:
-          replacement || noRequiredAsyncConsequences
-            ? []
-            : notificationProviders.map((providerId) => ({
-                effect: "evaluate-provider",
-                providerId,
-              } as const)),
-        publicationEffects:
-          replacement || noRequiredAsyncConsequences
-            ? []
-            : publicProjections.map((projection) => ({
-                effect: "re-evaluate-visibility",
-                projection,
-              } as const)),
-        realtimeEffects:
-          replacement || noRequiredAsyncConsequences
-            ? []
-            : domain.projections.map((projection) => ({
-                effect: "invalidate-projection",
-                projection,
-              } as const)),
-        analyticsEffects: replacement ? [] : [`domain-event:${eventType}`],
-        auditRequired:
-          !replacement && (domain.sensitivityClass !== "public" ||
-          domain.mutationCommands.length > 0),
-        consumers,
-        implementationState: replacement ? "replaced-by-read" : eventBackedEvidence ? "event-backed" : "declared",
+        taskEffects: noAsyncEffects ? [] : taskTypes.map((taskType) => ({ effect: "re-evaluate", taskType } as const)),
+        notificationEffects: noAsyncEffects ? [] : notificationProviders.map((providerId) => ({
+          effect: "evaluate-provider",
+          providerId,
+        } as const)),
+        publicationEffects: noAsyncEffects ? [] : publicProjections.map((projection) => ({
+          effect: "re-evaluate-visibility",
+          projection,
+        } as const)),
+        realtimeEffects: noAsyncEffects ? [] : domain.projections.map((projection) => ({
+          effect: "invalidate-projection",
+          projection,
+        } as const)),
+        analyticsEffects: noAsyncEffects ? [] : [`domain-event:${eventType}`],
+        auditRequired: observationalEvidence
+          ? true
+          : !replacement && (domain.sensitivityClass !== "public" || domain.mutationCommands.length > 0),
+        consumers: observationalEvidence || noRequiredMediaEffects ? [] : consumers,
+        implementationState: replacement
+          ? "replaced-by-read"
+          : eventBackedEvidence
+            ? "event-backed"
+            : observationalEvidence
+              ? "persisted-observational"
+              : "declared",
         replacement,
         evidence: replacement
           ? unique([...domain.ownershipEvidence, ...replacement.evidence])
           : eventBackedEvidence
             ? unique([...domain.ownershipEvidence, ...eventBackedEvidence])
-            : domain.ownershipEvidence,
+            : observationalEvidence
+              ? unique([...domain.ownershipEvidence, ...observationalEvidence])
+              : domain.ownershipEvidence,
       } satisfies V3DomainConsequence;
     }),
   );
@@ -453,6 +481,12 @@ export function validateV3DomainConsequenceRegistry() {
       const evidence = EVENT_BACKED_CONSEQUENCES[consequence.eventType];
       if (!evidence?.length) {
         errors.push(`${consequence.eventType} claims event-backed consequences without implementation evidence`);
+      }
+    }
+    if (consequence.implementationState === "persisted-observational") {
+      const evidence = PERSISTED_OBSERVATIONAL_CONSEQUENCES[consequence.eventType];
+      if (!evidence?.length) {
+        errors.push(`${consequence.eventType} claims persisted observational semantics without implementation evidence`);
       }
     }
   }

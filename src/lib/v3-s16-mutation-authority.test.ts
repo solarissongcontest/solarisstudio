@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { auditV3S16CatalogAuthority, scanV3S16StaticAuthority, type V3S16DomainDefinition } from "./v3-s16-mutation-authority";
+import {
+  auditV3S16CatalogAuthority,
+  buildV3S16MutationAuthorityReport,
+  scanV3S16StaticAuthority,
+  type V3S16DomainDefinition,
+} from "./v3-s16-mutation-authority";
 
 const domain: V3S16DomainDefinition = {
   id: "jury",
@@ -104,6 +109,7 @@ describe("S16 canonical mutation authority", () => {
         rlsEnabled: true,
         dmlRoles: [],
         columnDmlRoles: [],
+        columnDmlGrants: [],
         writeTriggers: ["jury_guard"],
         updatableViews: [],
       }],
@@ -158,5 +164,169 @@ describe("S16 canonical mutation authority", () => {
     expect(findings).toEqual([
       expect.objectContaining({ kind: "unexpected_write_trigger", subject: "rogue_writer" }),
     ]);
+  });
+
+  it("keeps bounded cross-domain show writers visible as compatibility debt without making them peer authorities", () => {
+    const showDomain: V3S16DomainDefinition = {
+      id: "show-lifecycle",
+      risk: "integrity_critical",
+      canonicalTables: ["public.shows"],
+      canonicalOwner: "live-show domain",
+      canonicalCommands: ["public.v3_apply_show_runtime_change"],
+      temporaryCompatibilityApplicationWriters: [{
+        path: "src/routes/_authenticated/admin/design.$slug.tsx",
+        table: "public.shows",
+        ownerDomain: "design/broadcast-presentation",
+        columns: ["theme_id", "broadcast_config"],
+        reason: "presentation only",
+        sunsetCondition: "presentation command cutover",
+      }],
+    };
+    const files = [
+      {
+        path: "src/routes/_authenticated/admin/design.$slug.tsx",
+        source: `client.from("shows").update({ theme_id, broadcast_config }).eq("id", showId)`,
+      },
+      {
+        path: "supabase/migrations/20261027000001_show.sql",
+        source: `create or replace function public.v3_apply_show_runtime_change() returns void language plpgsql security definer set search_path = pg_catalog, public as $$ begin null; end $$;`,
+      },
+    ];
+    expect(scanV3S16StaticAuthority(files, [showDomain])).toEqual([]);
+    const report = buildV3S16MutationAuthorityReport({
+      candidateSha: "d".repeat(40),
+      files,
+      domains: [showDomain],
+    });
+    expect(report.compatibilityDebt).toEqual(showDomain.temporaryCompatibilityApplicationWriters);
+  });
+
+  it("still hard-fails an unregistered direct show writer beside bounded compatibility", () => {
+    const showDomain: V3S16DomainDefinition = {
+      id: "show-lifecycle",
+      risk: "integrity_critical",
+      canonicalTables: ["public.shows"],
+      canonicalOwner: "live-show domain",
+      canonicalCommands: ["public.v3_apply_show_runtime_change"],
+      temporaryCompatibilityApplicationWriters: [{
+        path: "src/routes/design.tsx",
+        table: "public.shows",
+        ownerDomain: "design",
+        columns: ["theme_id"],
+        reason: "presentation only",
+        sunsetCondition: "design command cutover",
+      }],
+    };
+    const findings = scanV3S16StaticAuthority([
+      { path: "src/routes/design.tsx", source: `client.from("shows").update({ theme_id }).eq("id", id)` },
+      { path: "src/routes/rogue.tsx", source: `client.from("shows").update({ status: "live" }).eq("id", id)` },
+      {
+        path: "supabase/migrations/20261027000001_show.sql",
+        source: `create or replace function public.v3_apply_show_runtime_change() returns void language plpgsql security definer set search_path = pg_catalog, public as $$ begin null; end $$;`,
+      },
+    ], [showDomain]);
+    expect(findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "direct_application_writer", path: "src/routes/rogue.tsx" }),
+    ]));
+  });
+
+  it("accepts only exact bounded column grants and rejects lifecycle/service-role drift", () => {
+    const sha = "e".repeat(40);
+    const showDomain: V3S16DomainDefinition = {
+      id: "show-lifecycle",
+      risk: "integrity_critical",
+      canonicalTables: ["public.shows"],
+      canonicalOwner: "live-show domain",
+      canonicalCommands: ["public.v3_apply_show_runtime_change"],
+      allowedColumnDmlGrants: [{
+        table: "public.shows",
+        role: "authenticated",
+        privilege: "UPDATE",
+        column: "theme_id",
+        ownerDomain: "design",
+        sunsetCondition: "design command cutover",
+      }],
+    };
+    const base = {
+      schemaVersion: 1 as const,
+      candidateSha: sha,
+      functions: [{
+        name: "public.v3_apply_show_runtime_change",
+        owner: "postgres",
+        securityDefiner: true,
+        searchPath: "pg_catalog, public, private",
+        executeRoles: ["authenticated"],
+        writesTables: ["public.shows"],
+      }],
+    };
+    expect(auditV3S16CatalogAuthority({
+      ...base,
+      tables: [{
+        table: "public.shows",
+        owner: "postgres",
+        rlsEnabled: true,
+        dmlRoles: [],
+        columnDmlRoles: ["authenticated"],
+        columnDmlGrants: [{ role: "authenticated", privilege: "UPDATE", column: "theme_id" }],
+      }],
+    }, sha, [showDomain])).toEqual([]);
+
+    const lifecycleDrift = auditV3S16CatalogAuthority({
+      ...base,
+      tables: [{
+        table: "public.shows",
+        owner: "postgres",
+        rlsEnabled: true,
+        dmlRoles: [],
+        columnDmlRoles: ["authenticated", "service_role"],
+        columnDmlGrants: [
+          { role: "authenticated", privilege: "UPDATE", column: "theme_id" },
+          { role: "service_role", privilege: "UPDATE", column: "status" },
+        ],
+      }],
+    }, sha, [showDomain]);
+    expect(lifecycleDrift).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "unexpected_column_dml_role", subject: "public.shows.status" }),
+    ]));
+  });
+
+  it("fails closed if column-level DML cannot be proven down to exact columns", () => {
+    const sha = "f".repeat(40);
+    const showDomain: V3S16DomainDefinition = {
+      id: "show-lifecycle",
+      risk: "integrity_critical",
+      canonicalTables: ["public.shows"],
+      canonicalOwner: "live-show domain",
+      canonicalCommands: ["public.v3_apply_show_runtime_change"],
+      allowedColumnDmlGrants: [{
+        table: "public.shows",
+        role: "authenticated",
+        privilege: "UPDATE",
+        column: "theme_id",
+        ownerDomain: "design",
+        sunsetCondition: "design command cutover",
+      }],
+    };
+    const findings = auditV3S16CatalogAuthority({
+      schemaVersion: 1,
+      candidateSha: sha,
+      tables: [{
+        table: "public.shows",
+        owner: "postgres",
+        rlsEnabled: true,
+        dmlRoles: [],
+        columnDmlRoles: ["authenticated"],
+      }],
+      functions: [{
+        name: "public.v3_apply_show_runtime_change",
+        owner: "postgres",
+        securityDefiner: true,
+        searchPath: "pg_catalog, public",
+        executeRoles: ["authenticated"],
+      }],
+    }, sha, [showDomain]);
+    expect(findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "column_dml_scope_unproven", subject: "public.shows" }),
+    ]));
   });
 });

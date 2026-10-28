@@ -2,6 +2,31 @@ export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-4" as const;
 
 export type V3S16Risk = "integrity_critical" | "security_critical";
 
+export type V3S16CompatibilityApplicationWriter = {
+  path: string;
+  table: string;
+  ownerDomain: string;
+  columns: readonly string[];
+  reason: string;
+  sunsetCondition: string;
+};
+
+export type V3S16CrossDomainWriter = {
+  functionName: string;
+  ownerDomain: string;
+  scope: string;
+  reason: string;
+};
+
+export type V3S16AllowedColumnGrant = {
+  table: string;
+  role: string;
+  privilege: "INSERT" | "UPDATE";
+  column: string;
+  ownerDomain: string;
+  sunsetCondition: string;
+};
+
 export type V3S16DomainDefinition = {
   id: string;
   risk: V3S16Risk;
@@ -9,19 +34,31 @@ export type V3S16DomainDefinition = {
   canonicalOwner: string;
   canonicalCommands: readonly string[];
   sanctionedInternalWriters?: readonly string[];
+  sanctionedCrossDomainWriters?: readonly V3S16CrossDomainWriter[];
   sanctionedWriteTriggers?: readonly string[];
+  temporaryCompatibilityApplicationWriters?: readonly V3S16CompatibilityApplicationWriter[];
+  allowedColumnDmlGrants?: readonly V3S16AllowedColumnGrant[];
   resultsFrozenOwner?: boolean;
   knownLegacyWriterPatterns?: readonly { id: string; pattern: RegExp }[];
 };
 
 export type V3S16SourceFile = { path: string; source: string };
 
+export type V3S16CatalogColumnDmlGrant = {
+  role: string;
+  privilege: string;
+  column: string;
+};
+
 export type V3S16CatalogTableEvidence = {
   table: string;
   owner: string | null;
   rlsEnabled: boolean | null;
   dmlRoles: readonly string[];
+  /** Legacy aggregate evidence retained for backwards-compatible report parsing. */
   columnDmlRoles?: readonly string[];
+  /** Exact column grants are required to prove bounded compatibility safely. */
+  columnDmlGrants?: readonly V3S16CatalogColumnDmlGrant[];
   writeTriggers?: readonly string[];
   updatableViews?: readonly string[];
 };
@@ -50,6 +87,7 @@ export type V3S16FindingKind =
   | "catalog_table_missing"
   | "unexpected_direct_dml_role"
   | "unexpected_column_dml_role"
+  | "column_dml_scope_unproven"
   | "rls_not_enabled"
   | "unexpected_write_trigger"
   | "unexpected_updatable_view"
@@ -76,13 +114,17 @@ export type V3S16Report = {
   catalogAuditPassed: boolean;
   s16Passed: boolean;
   findings: readonly V3S16Finding[];
+  compatibilityDebt: readonly V3S16CompatibilityApplicationWriter[];
   domains: readonly {
     id: string;
     canonicalOwner: string;
     canonicalTables: readonly string[];
     canonicalCommands: readonly string[];
     sanctionedInternalWriters: readonly string[];
+    sanctionedCrossDomainWriters: readonly V3S16CrossDomainWriter[];
     sanctionedWriteTriggers: readonly string[];
+    temporaryCompatibilityApplicationWriters: readonly V3S16CompatibilityApplicationWriter[];
+    allowedColumnDmlGrants: readonly V3S16AllowedColumnGrant[];
     ownerBoundary: "shared" | "results_pr_1400";
   }[];
 };
@@ -174,8 +216,16 @@ function pinnedSearchPath(value: string | null) {
   return normalized.includes("pg_catalog") && !normalized.includes("$user");
 }
 
+function classifiedWriterNames(domain: V3S16DomainDefinition) {
+  return [
+    ...domain.canonicalCommands,
+    ...(domain.sanctionedInternalWriters ?? []),
+    ...(domain.sanctionedCrossDomainWriters ?? []).map((writer) => writer.functionName),
+  ];
+}
+
 function isClassifiedWriter(domain: V3S16DomainDefinition, functionName: string) {
-  return [...domain.canonicalCommands, ...(domain.sanctionedInternalWriters ?? [])]
+  return classifiedWriterNames(domain)
     .some((name) => functionNameMatches(name, functionName));
 }
 
@@ -185,6 +235,83 @@ function classifiedFunctionEvidence(
 ) {
   return catalog.functions.find((fn) => functionNameMatches(functionName, fn.name));
 }
+
+function compatibilityWriter(
+  domain: V3S16DomainDefinition,
+  path: string,
+  table: string,
+) {
+  return (domain.temporaryCompatibilityApplicationWriters ?? []).find(
+    (writer) => writer.path === path && writer.table === table,
+  );
+}
+
+function isAllowedColumnGrant(
+  domain: V3S16DomainDefinition,
+  table: string,
+  grant: V3S16CatalogColumnDmlGrant,
+) {
+  return (domain.allowedColumnDmlGrants ?? []).some((allowed) =>
+    allowed.table === table &&
+    allowed.role.toLowerCase() === grant.role.toLowerCase() &&
+    allowed.privilege === grant.privilege.toUpperCase() &&
+    allowed.column === grant.column,
+  );
+}
+
+const SHOW_COMPATIBILITY_WRITERS: readonly V3S16CompatibilityApplicationWriter[] = [
+  {
+    path: "src/routes/_authenticated/admin/design.$slug.tsx",
+    table: "public.shows",
+    ownerDomain: "design/broadcast-presentation",
+    columns: ["theme_id", "broadcast_config"],
+    reason: "Presentation configuration remains a neighbouring-domain compatibility path; database runtime/cue subtree guards prevent it from mutating showMode or studio2Rundown authority.",
+    sunsetCondition: "Replace direct show presentation UPDATE with its domain-owned governed presentation command.",
+  },
+  {
+    path: "src/components/admin/ShowLineupWorkspace.tsx",
+    table: "public.shows",
+    ownerDomain: "lineup",
+    columns: ["lineup_stage"],
+    reason: "Lineup stage is configuration owned by the lineup domain, not live-show lifecycle truth.",
+    sunsetCondition: "Migrate lineup_stage to the lineup domain command boundary and revoke its compatibility column grant.",
+  },
+  {
+    path: "src/routes/_authenticated/admin/voting-system/$slug.tsx",
+    table: "public.shows",
+    ownerDomain: "voting-configuration",
+    columns: ["voting_config", "qualifier_count"],
+    reason: "Voting configuration remains owned by the voting/Televote lane; this show-authority lane must not create a second voting mutation authority.",
+    sunsetCondition: "Voting/Televote owner migrates these fields to its canonical command and the show-table compatibility grants are revoked.",
+  },
+];
+
+const SHOW_COMPATIBILITY_COLUMN_GRANTS: readonly V3S16AllowedColumnGrant[] = [
+  ...["theme_id", "broadcast_config"].map((column) => ({
+    table: "public.shows",
+    role: "authenticated",
+    privilege: "UPDATE" as const,
+    column,
+    ownerDomain: "design/broadcast-presentation",
+    sunsetCondition: "Presentation command cutover",
+  })),
+  {
+    table: "public.shows",
+    role: "authenticated",
+    privilege: "UPDATE",
+    column: "lineup_stage",
+    ownerDomain: "lineup",
+    sunsetCondition: "Lineup stage command cutover",
+  },
+  ...["voting_config", "qualifier_count"].map((column) => ({
+    table: "public.shows",
+    role: "authenticated",
+    privilege: "UPDATE" as const,
+    column,
+    ownerDomain: "voting-configuration",
+    sunsetCondition: "Voting/Televote command cutover",
+  })),
+];
 
 export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
   {
@@ -295,10 +422,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "studio2_apply_confirmation_round_change",
       "admin_update_confirmation_controls",
     ],
-    sanctionedInternalWriters: [
-      "v3_submit_confirmation_core",
-      "submit_confirmation",
-    ],
+    sanctionedInternalWriters: ["v3_submit_confirmation_core", "submit_confirmation"],
     sanctionedWriteTriggers: [
       "v3_bridge_confirmation_submission_operation",
       "revoke_confirmation_tokens_on_submission_close",
@@ -317,14 +441,8 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     risk: "integrity_critical",
     canonicalTables: ["public.studio2_show_publication_controls", "public.studio2_show_publication_executions"],
     canonicalOwner: "publication domain",
-    canonicalCommands: [
-      "studio2_apply_show_publication_change",
-      "studio2_publish_due_show_publications",
-    ],
-    sanctionedInternalWriters: [
-      "studio2_create_show_publication_control",
-      "studio2_ensure_show_publication_control",
-    ],
+    canonicalCommands: ["studio2_apply_show_publication_change", "studio2_publish_due_show_publications"],
+    sanctionedInternalWriters: ["studio2_create_show_publication_control", "studio2_ensure_show_publication_control"],
     sanctionedWriteTriggers: [
       "v3_validate_publication_control",
       "v3_validate_publication_execution",
@@ -348,8 +466,8 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
   {
     id: "contest-lifecycle",
     risk: "integrity_critical",
-    canonicalTables: ["public.editions", "public.shows", "public.studio2_edition_runtime"],
-    canonicalOwner: "edition authority + live-show authority",
+    canonicalTables: ["public.editions", "public.studio2_edition_runtime"],
+    canonicalOwner: "edition domain",
     canonicalCommands: [
       "public.v3_create_edition",
       "public.v3_apply_edition_metadata_change",
@@ -383,6 +501,74 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "studio2_edition_runtime_touch_updated_at",
     ],
   },
+  {
+    id: "show-lifecycle",
+    risk: "integrity_critical",
+    canonicalTables: ["public.shows"],
+    canonicalOwner: "live-show domain",
+    canonicalCommands: [
+      "public.v3_create_show",
+      "public.v3_update_show_definition",
+      "public.v3_delete_show",
+      "public.v3_apply_show_runtime_change",
+      "public.v3_save_show_rundown",
+      "public.v3_set_show_rundown_lock",
+      "public.v3_transition_show_cue",
+    ],
+    sanctionedInternalWriters: [
+      "public.studio2_save_broadcast_rundown",
+      "public.studio2_set_broadcast_rundown_lock",
+      "public.studio2_transition_broadcast_segment",
+    ],
+    sanctionedCrossDomainWriters: [
+      {
+        functionName: "public.studio2_apply_show_publication_change",
+        ownerDomain: "publication",
+        scope: "publication projection fields only",
+        reason: "Publication has its own governed canonical command and is not show lifecycle authority.",
+      },
+      {
+        functionName: "public.studio2_publish_due_show_publications",
+        ownerDomain: "publication",
+        scope: "scheduled publication projection only",
+        reason: "Bounded publication job owns publication timing, not live-show state.",
+      },
+      {
+        functionName: "public.studio2_execute_host_operation",
+        ownerDomain: "host/edition",
+        scope: "host country/city only",
+        reason: "Host assignment is an edition/hosting operation sharing the show row, not live-show lifecycle authority.",
+      },
+      {
+        functionName: "public.sync_edition_design_to_shows",
+        ownerDomain: "design/broadcast-presentation",
+        scope: "theme/presentation inheritance with showMode and studio2Rundown preserved",
+        reason: "The trigger helper is non-callable to API roles after the show cue cutover and cannot own live runtime/cue state.",
+      },
+    ],
+    sanctionedWriteTriggers: [
+      "guard_result_publication_requires_reveal_ready",
+      "normalize_show_publication_channels_trigger",
+      "shows_sync_edition_publication",
+      "shows_sync_semi_final_qualifiers",
+      "studio2_create_show_publication_control",
+      "studio2_guard_direct_show_publication_write",
+      "studio2_locked_rundown_live_state_guard",
+      "studio2_platform_direct_write_guard",
+      "studio2_serialize_show_publication_with_results",
+      "trg_emit_show_pulse_events",
+      "trg_inherit_edition_design_on_show",
+      "trg_materialize_results_on_show_publish",
+      "trg_rerank_results_after_voting_config_change",
+      "update_shows_updated_at",
+      "v3_guard_jury_show_reference_scope",
+      "v3_validate_publication_projection_from_show",
+      "v3_guard_show_cue_authority",
+      "v3_guard_show_runtime_authority",
+    ],
+    temporaryCompatibilityApplicationWriters: SHOW_COMPATIBILITY_WRITERS,
+    allowedColumnDmlGrants: SHOW_COMPATIBILITY_COLUMN_GRANTS,
+  },
 ];
 
 export function scanV3S16StaticAuthority(
@@ -403,6 +589,7 @@ export function scanV3S16StaticAuthority(
     for (const file of productionFiles) {
       for (const table of domain.canonicalTables) {
         if (!sourceWritesTable(file.source, table)) continue;
+        if (compatibilityWriter(domain, file.path, table)) continue;
         findings.push({
           domain: domain.id,
           kind: "direct_application_writer",
@@ -476,8 +663,31 @@ export function auditV3S16CatalogAuthority(
       }
       const unexpectedRoles = evidence.dmlRoles.filter((role) => directDmlRoles.has(role.toLowerCase()));
       if (unexpectedRoles.length) findings.push({ domain: domain.id, kind: "unexpected_direct_dml_role", subject: table, detail: `Direct DML remains granted to ${unexpectedRoles.join(", ")}.`, releaseRisk: "hard_blocker", ownerBoundary });
+
       const columnRoles = (evidence.columnDmlRoles ?? []).filter((role) => directDmlRoles.has(role.toLowerCase()));
-      if (columnRoles.length) findings.push({ domain: domain.id, kind: "unexpected_column_dml_role", subject: table, detail: `Column-level DML remains granted to ${columnRoles.join(", ")}.`, releaseRisk: "hard_blocker", ownerBoundary });
+      if (columnRoles.length && !evidence.columnDmlGrants?.length) {
+        findings.push({
+          domain: domain.id,
+          kind: "column_dml_scope_unproven",
+          subject: table,
+          detail: `Column-level DML exists for ${columnRoles.join(", ")} but exact column evidence is absent; S16 cannot prove the grant is bounded.`,
+          releaseRisk: "hard_blocker",
+          ownerBoundary,
+        });
+      }
+      for (const grant of evidence.columnDmlGrants ?? []) {
+        if (!directDmlRoles.has(grant.role.toLowerCase())) continue;
+        if (isAllowedColumnGrant(domain, table, grant)) continue;
+        findings.push({
+          domain: domain.id,
+          kind: "unexpected_column_dml_role",
+          subject: `${table}.${grant.column}`,
+          detail: `${grant.privilege} remains granted to ${grant.role} on ${grant.column} outside the domain's bounded compatibility contract.`,
+          releaseRisk: "hard_blocker",
+          ownerBoundary,
+        });
+      }
+
       if (evidence.rlsEnabled === false && !table.startsWith("private.")) findings.push({ domain: domain.id, kind: "rls_not_enabled", subject: table, detail: "RLS is disabled on an API-visible critical table.", releaseRisk: "hard_blocker", ownerBoundary });
       for (const trigger of evidence.writeTriggers ?? []) {
         if (sanctionedTriggers.has(trigger)) continue;
@@ -533,13 +743,17 @@ export function buildV3S16MutationAuthorityReport(input: {
     catalogAuditPassed: catalogFindings.length === 0,
     s16Passed: findings.length === 0,
     findings,
+    compatibilityDebt: domains.flatMap((domain) => domain.temporaryCompatibilityApplicationWriters ?? []),
     domains: domains.map((domain) => ({
       id: domain.id,
       canonicalOwner: domain.canonicalOwner,
       canonicalTables: domain.canonicalTables,
       canonicalCommands: domain.canonicalCommands,
       sanctionedInternalWriters: domain.sanctionedInternalWriters ?? [],
+      sanctionedCrossDomainWriters: domain.sanctionedCrossDomainWriters ?? [],
       sanctionedWriteTriggers: domain.sanctionedWriteTriggers ?? [],
+      temporaryCompatibilityApplicationWriters: domain.temporaryCompatibilityApplicationWriters ?? [],
+      allowedColumnDmlGrants: domain.allowedColumnDmlGrants ?? [],
       ownerBoundary: domain.resultsFrozenOwner ? "results_pr_1400" : "shared",
     })),
   };

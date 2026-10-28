@@ -1,0 +1,113 @@
+name: V3 Show cue authority rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+      - v3/nav-maintenance-desktop-budget-verify
+    paths:
+      - "supabase/migrations/**"
+      - ".github/tests/v3-show-cue-authority.sql"
+      - ".github/tests/v3-show-cue-lock-contract.sql"
+      - ".github/scripts/v3-show-cue-authority-rehearsal.sh"
+      - ".github/workflows/v3-show-cue-authority-rehearsal.yml"
+      - "docs/v3-show-cue-authority.md"
+      - "docs/v3-show-cue-lock-semantics.md"
+      - "src/lib/show-mode.ts"
+      - "src/lib/show-runtime-command.ts"
+      - "src/lib/studio2-broadcast-rundown.ts"
+      - "src/lib/v3-show-authority.contract.test.ts"
+      - "src/lib/v3-show-event-authority.contract.test.ts"
+      - "src/lib/v3-show-permission-cutover.contract.test.ts"
+      - "src/lib/v3-s16-mutation-authority.ts"
+      - "src/lib/v3-s16-mutation-authority.test.ts"
+      - ".github/scripts/prepare-archive-local-config.py"
+      - ".github/tests/test_prepare_archive_local_config.py"
+      - ".github/scripts/v3-copy-migration-delta.sh"
+  workflow_dispatch:
+
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-show-cue-authority-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-replay:
+    name: Clean replay + show/cue authority checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Prepare independent local stack
+        run: python3 .github/scripts/prepare-archive-local-config.py supabase/config.toml "archive-show-cue-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-clean"
+      - name: Start isolated local Supabase
+        run: supabase start
+      - name: Rebuild complete migration chain
+        run: supabase db reset --local --no-seed
+      - name: Rehearse show/cue authority contract
+        run: bash .github/scripts/v3-show-cue-authority-rehearsal.sh
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  upgrade-from-base:
+    name: PR-base upgrade + show/cue authority checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Resolve rehearsal base
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_REF="${{ github.base_ref || 'main' }}"
+          printf 'BASE_REF=%s\n' "$BASE_REF" >> "$GITHUB_ENV"
+          git fetch origin "$BASE_REF" --no-tags
+      - name: Prepare disposable base worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add /tmp/solaris-show-cue-base "origin/${BASE_REF}"
+          python3 .github/scripts/prepare-archive-local-config.py /tmp/solaris-show-cue-base/supabase/config.toml "archive-show-cue-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-upgrade"
+      - name: Build base locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-show-cue-base
+          supabase start
+          supabase db reset --local --no-seed
+      - name: Apply additive candidate migration delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/v3-copy-migration-delta.sh "$GITHUB_WORKSPACE" /tmp/solaris-show-cue-base "origin/${BASE_REF}"
+          cd /tmp/solaris-show-cue-base
+          supabase migration up --local --include-all
+      - name: Rehearse contract after base upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-show-cue-base
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-show-cue-authority-rehearsal.sh"
+      - name: Stop isolated local Supabase
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-show-cue-base 2>/dev/null || exit 0
+          supabase stop --no-backup || true

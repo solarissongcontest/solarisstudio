@@ -43,9 +43,10 @@ describe("V3 Organizer Show Mode production review", () => {
     expect(adapter).toContain('client.rpc("v3_apply_show_runtime_change", args)');
     expect(adapter).toContain("response = await client.rpc(\"v3_apply_show_runtime_change\", args)");
     expect(adapter).toContain("p_idempotency_key: `show-runtime:${operationId}`");
-    expect(migration).toContain("'show.runtime.change'");
+    expect(adapter).toContain("p_expected_status: expectedStatus");
+    expect(migration).toContain("'show.transition'");
     expect(migration).toContain("'show.changed'");
-    expect(migration).toContain("'runtime_transitioned'");
+    expect(migration).toContain("'lifecycle_transitioned'");
     expect(migration).toContain("using errcode = '40001', message = 'STATE_CHANGED'");
     expect(migration).toContain("message = 'ILLEGAL_SHOW_TRANSITION'");
     expect(migration).toContain("create trigger v3_guard_show_runtime_authority");
