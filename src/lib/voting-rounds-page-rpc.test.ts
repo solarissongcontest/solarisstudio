@@ -27,11 +27,19 @@ describe("Voting Rounds & entries page runtime contract", () => {
     expect(functions).toContain("requireMergedTelevotingAdminServer");
   });
 
-  it("does not modify the legacy shared rounds server to solve a page-read problem", () => {
+  it("keeps the legacy loader read-only while retaining the dedicated page-read authority", () => {
     const server = source("integrations/televoting/rounds.server.ts");
-
-    expect(server).toContain("ensureCanonicalTelevotingEditionsServer");
-    expect(server).toContain("autoSyncDraftTelevotingRoundsForEditionServer");
+    const start = server.indexOf("export async function getMergedTelevotingRoundsServer()");
+    expect(start).toBeGreaterThanOrEqual(0);
+    const end = server.indexOf("\nexport async function ", start + 1);
+    const loader = server.slice(start, end < 0 ? undefined : end);
+    // Original invariant: page reads must not acquire a competing mutation
+    // boundary. The canonical cutover also removed the loader's implicit sync.
+    expect(loader).toContain("await requireMergedTelevotingAdminServer()");
+    expect(loader).toContain('.from("rounds")');
+    expect(loader).not.toContain("autoSyncDraftTelevotingRoundsForEditionServer");
+    expect(loader).not.toContain("ensureCanonicalTelevotingEditionsServer()");
+    expect(loader).not.toMatch(/\.(?:insert|update|delete|upsert|rpc)\(/);
   });
 
   it("keeps the page RPC invoker-scoped and explicitly organizer-gated", () => {
