@@ -138,15 +138,30 @@ jobs:
           bun --env-file=/dev/null scripts/collect-v3-s16-catalog-evidence.ts --out="$RUNNER_TEMP/integrity-appeal-catalog.json"
           bun --env-file=/dev/null scripts/check-v3-integrity-appeal-authority.ts --catalog="$RUNNER_TEMP/integrity-appeal-catalog.json" --out="$RUNNER_TEMP/integrity-appeal-authority.json"
 
+      - name: Generate exact-SHA full S16 authority report
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/s16-preflight" "$RUNNER_TEMP/s16-evidence"
+          printf '%s\n' "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')" > "$RUNNER_TEMP/migration-count.txt"
+          V3_CANDIDATE_SHA="$GITHUB_SHA" \
+          V3_PREFLIGHT_DIR="$RUNNER_TEMP/s16-preflight" \
+          V3_RELEASE_EVIDENCE_DIR="$RUNNER_TEMP/s16-evidence" \
+            bun --env-file=/dev/null scripts/check-v3-s16-mutation-authority.ts --catalog="$RUNNER_TEMP/integrity-appeal-catalog.json"
+
       - name: Run hostile Rules + Integrity rehearsal
         run: bash .github/scripts/run-rules-integrity-security-rehearsal.sh
 
-      - name: Upload exact-SHA appeal authority evidence
+      - name: Upload exact-SHA authority evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: integrity-appeal-${{ github.job }}-${{ github.sha }}
-          path: ${{ runner.temp }}/integrity-appeal-*.json
+          path: |
+            ${{ runner.temp }}/integrity-appeal-*.json
+            ${{ runner.temp }}/migration-count.txt
+            ${{ runner.temp }}/s16-preflight/**
+            ${{ runner.temp }}/s16-evidence/**
           if-no-files-found: ignore
 
       - name: Stop isolated Supabase
