@@ -38,11 +38,13 @@ identity = (directory / "identity-before.log").read_text()
 receipt = (directory / "receipt-before.log").read_text()
 tasks = (directory / "tasks-before.log").read_text()
 supplement = (directory / "supplement-before.log").read_text()
-for output, count in [(identity, 4), (receipt, 2), (tasks, 4), (supplement, 2)]:
+for output, count in [(identity, 5), (receipt, 2), (tasks, 4), (supplement, 2)]:
     if not re.search(rf"(?<![0-9]){count} fail(?![a-z])", output):
         raise SystemExit("Historical proof failed for an unexpected reason; inspect stored logs")
     if any(marker in output for marker in ["Cannot find module", "Cannot find package", "SyntaxError", "is not a function"]):
         raise SystemExit("Historical proof encountered a tooling failure")
+if "prevents a delayed getSession read from overwriting a newer SDK session event" not in identity:
+    raise SystemExit("Historical delayed-session overwrite regression was not observed")
 if "toBeUndefined" not in identity or "replaced-by-read" not in receipt or "declared" not in receipt or "visible-only-to-A" not in tasks:
     raise SystemExit("Expected owner defects were not observed")
 print("PASS: original identity/task cache, receipt model and supplement guard defects reproduced")
