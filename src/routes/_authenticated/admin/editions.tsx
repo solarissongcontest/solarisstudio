@@ -3,7 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, EyeOff, MapPin, Plus, RadioTower, Settings2 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
-import { AdminCard, AdminStatus } from "@/components/admin/AdminUI";
+import { AdminCard, AdminStatus, WorkspaceHeader } from "@/components/admin/AdminUI";
+import { MetricStrip, WorkspaceActionBar } from "@/components/admin/AdminWorkspacePrimitives";
 import { createEdition } from "@/lib/edition-authority";
 import {
   editionLabel,
@@ -186,24 +187,21 @@ function EditionsPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 pb-24">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Contest control</p>
-          <h1 className="mt-1 font-display text-3xl font-black">Editions</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Edition identity and metadata are governed server-side. Lifecycle transitions, publication,
-            hosting and visual design keep their own scoped authorities instead of competing for the same row.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="admin-action-primary"
-          onClick={() => setCreateOpen((open) => !open)}
-          disabled={!isOrganizer}
-        >
-          <Plus className="size-4" /> {createOpen ? "Close" : "New edition"}
-        </button>
-      </header>
+      <WorkspaceHeader
+        eyebrow="Contest control"
+        title="Editions"
+        description="Edition identity and metadata are governed server-side. Lifecycle transitions, publication, hosting and visual design keep their own scoped authorities instead of competing for the same row."
+        actions={
+          <button
+            type="button"
+            className="admin-action-primary"
+            onClick={() => setCreateOpen((open) => !open)}
+            disabled={!isOrganizer}
+          >
+            <Plus className="size-4" /> {createOpen ? "Close" : "New edition"}
+          </button>
+        }
+      />
 
       {error ? (
         <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-3 text-sm text-rose-100">
@@ -216,7 +214,7 @@ function EditionsPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <MetricStrip className="sm:grid-cols-3 xl:grid-cols-3">
         <AdminCard className="!p-4">
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Editions</p>
           <p className="mt-1 text-2xl font-black">{editions.length}</p>
@@ -229,7 +227,7 @@ function EditionsPage() {
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Next number</p>
           <p className="mt-1 text-2xl font-black">SSC {nextNumber}</p>
         </AdminCard>
-      </div>
+      </MetricStrip>
 
       {createOpen ? (
         <AdminCard>
@@ -298,11 +296,11 @@ function EditionsPage() {
                 />
               </label>
             </div>
-            <div className="flex justify-end">
+            <WorkspaceActionBar>
               <button type="submit" className="admin-action-primary" disabled={busy === "create" || !isOrganizer}>
                 <Plus className="size-4" /> {busy === "create" ? "Creating…" : "Create private draft"}
               </button>
-            </div>
+            </WorkspaceActionBar>
           </form>
         </AdminCard>
       ) : null}

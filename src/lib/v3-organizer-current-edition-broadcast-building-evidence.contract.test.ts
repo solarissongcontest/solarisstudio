@@ -37,7 +37,17 @@ describe("V3 Organizer current-edition Broadcast building evidence", () => {
     expect(route).toContain("EditionArtworkControl");
     expect(route).toContain('supabase.from("themes").update');
     expect(route).toContain('.from("editions")');
-    expect(route).toContain('.update({ theme_id: themeId })');
+    // Original invariant: the reviewed edition theme must actually persist.
+    // The replacement command adds exact prior-theme CAS and receipt validation.
+    expect(route).toContain("await applyEditionThemeChange({");
+    expect(route).toContain("editionId: review.editionId");
+    expect(route).toContain("expectedThemeId: review.editionThemeId");
+    expect(route).toContain("themeId,");
+    const command = readFileSync("src/lib/edition-theme-command.ts", "utf8");
+    expect(command).toContain('client.rpc("v3_apply_edition_theme_change", args)');
+    expect(command).toContain("p_expected_theme_id: input.expectedThemeId");
+    expect(command).toContain("!response.data.operationId");
+    expect(route).not.toMatch(/\.from\("editions"\)\s*\.update/);
     expect(route).toContain('supabase.from("shows").update');
     expect(route).toContain("AdminConfirmSheet");
     expect(route).toContain("applyReviewedDesign");

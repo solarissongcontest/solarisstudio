@@ -50,9 +50,13 @@ describe("V3 Organizer Design & Broadcast review boundary", () => {
 
   it("keeps legacy writes exact-edition scoped and does not claim atomic authority", () => {
     expect(route).toContain('.eq("id", show.id).eq("edition_id", review.editionId)');
-    expect(route).toContain("System #625 owns canonical expected-version/CAS, idempotency, durable operation receipts and uncertain-outcome recovery");
-    expect(route).toContain("are not atomic");
-    expect(route).toContain("partial progress may exist");
+    // Preserve exact show scope and partial-commit disclosure. Edition theme
+    // attachment now has a CAS/receipt boundary; the whole design save does not.
+    expect(route).toContain("await applyEditionThemeChange({");
+    expect(route).toContain("expectedThemeId: review.editionThemeId");
+    expect(route).toContain("Edition theme attachment is receipted");
+    expect(route).toContain("still spans legacy show writes");
+    expect(route).toContain("Refresh canonical state before retrying because partial show progress may exist");
   });
 
   it("discards reviewed commands when Organizer scope changes", () => {
