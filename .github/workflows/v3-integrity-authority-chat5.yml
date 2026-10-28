@@ -44,6 +44,7 @@ jobs:
           src/lib/v3-integrity-remaining-case-writers.contract.test.ts
           src/lib/v3-integrity-intake-compatibility-cutover.contract.test.ts
           src/lib/v3-integrity-s16-authority.contract.test.ts
+          src/lib/v3-integrity-residual-writer-authority.contract.test.ts
 
       - name: Generate fresh TanStack route tree
         shell: bash
@@ -68,6 +69,7 @@ jobs:
           src/lib/v3-integrity-remaining-case-writers.contract.test.ts
           src/lib/v3-integrity-intake-compatibility-cutover.contract.test.ts
           src/lib/v3-integrity-s16-authority.contract.test.ts
+          src/lib/v3-integrity-residual-writer-authority.contract.test.ts
 
   local-database:
     name: Integrity clean local Supabase authority
@@ -130,6 +132,7 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-evidence-write-boundary.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-register-evidence-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-core-actor-authority.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-residual-writer-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-recovery.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-outcome-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-case-relation-authority.sql
@@ -247,6 +250,7 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-evidence-write-boundary.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-register-evidence-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-core-actor-authority.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-residual-writer-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-recovery.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-outcome-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-case-relation-authority.sql
@@ -258,9 +262,6 @@ jobs:
       - name: Run hostile Rules + Integrity rehearsal after upgrade
         shell: bash
         run: |
-          # The database was built from main and upgraded above. Both worktrees
-          # address the same disposable project namespace; runtime scripts and
-          # Edge code must come from the candidate, never the old main checkout.
           cd "$GITHUB_WORKSPACE"
           bash .github/scripts/run-rules-integrity-security-rehearsal.sh
 
