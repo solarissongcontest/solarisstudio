@@ -399,6 +399,10 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "public.admin_add_integrity_case_note_impl",
       "public.admin_record_integrity_preclearance_ruling_impl",
       "public.admin_set_integrity_case_retention_impl",
+      // Owner-only token primitive; protected/anonymous wrappers validate the
+      // reporter credential and derive the actor. Executable boundary proof:
+      // .github/tests/v3-integrity-evidence-write-boundary.sql
+      "public.integrity_finalize_evidence_token",
       "private.v3_integrity_case_changed_event",
       "private.v3_integrity_appeal_changed_event",
     ],
@@ -408,6 +412,8 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "v3_integrity_appeal_before_update",
       "v3_integrity_appeal_changed_event",
       "v3_integrity_history_immutable",
+      "integrity_evidence_inherit_case_retention",
+      "integrity_evidence_validate_lineage",
       "organizer_inbox_integrity_case_insert",
       "organizer_inbox_integrity_appeal_insert",
       "organizer_inbox_case_state",
