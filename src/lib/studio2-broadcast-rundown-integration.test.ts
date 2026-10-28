@@ -12,7 +12,8 @@ const adapter = source('src/lib/studio2-broadcast-rundown.ts');
 const timingEngine = source('src/lib/broadcast-rundown.ts');
 const legacyMigration = source('supabase/migrations/20260912141000_studio2_advanced_broadcast_workflows.sql');
 const liveLockGuard = source('supabase/migrations/20260912141100_studio2_broadcast_live_lock_guard.sql');
-const authority = source('supabase/migrations/20261027204500_v3_show_cue_authority.sql');
+const structuralLockRecovery = source('supabase/migrations/20261028045749_v3_show_structural_lock_recovery.sql');
+const authority = source('supabase/migrations/20261027204600_v3_show_cue_authority.sql');
 
 describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
   it('extends the existing Organizer rundown surface and timing engine', () => {
@@ -37,7 +38,7 @@ describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
     expect(route).not.toContain('.update(');
   });
 
-  it('keeps row locking, revision CAS, legal transitions and the live lock inside the server boundary', () => {
+  it('keeps row locking, revision CAS and legal transitions while allowing governed structural-lock recovery', () => {
     expect(legacyMigration).toContain('p_expected_revision integer');
     expect(legacyMigration).toContain('for update');
     expect(legacyMigration).toContain("using errcode = '40001'");
@@ -45,8 +46,9 @@ describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
     expect(legacyMigration).toContain("(v_from_status = 'ready' and p_to_status in ('live', 'skipped'))");
     expect(legacyMigration).toContain("(v_from_status = 'live' and p_to_status in ('completed', 'skipped'))");
     expect(liveLockGuard).toContain("segment ->> 'status' = 'live'");
-    expect(liveLockGuard).toContain("nullif(v_rundown ->> 'lockedAt', '') is null");
-    expect(liveLockGuard).toContain('Lock the broadcast rundown before taking a segment live');
+    expect(structuralLockRecovery).toContain('private.v3_show_cue_operation_is_current');
+    expect(structuralLockRecovery).toContain('Only one rundown segment may be live');
+    expect(structuralLockRecovery).not.toContain("nullif(v_rundown ->> 'lockedAt', '') is null");
     expect(liveLockGuard).toContain('before update of broadcast_config on public.shows');
   });
 
@@ -79,7 +81,7 @@ describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
     expect(authority).toContain('revoke all on function public.sync_edition_design_to_shows()');
   });
 
-  it('requires server authorization, reviewed reasons and an explicit rundown lock for live production', () => {
+  it('requires server authorization and reviewed reasons while exposing structural editing coordination', () => {
     expect(legacyMigration).toContain("private.studio2_user_has_capability(p_user_id, 'edition.manage', p_edition_id)");
     expect(legacyMigration).toContain("public.has_role(p_user_id, 'organizer'::public.app_role)");
     expect(legacyMigration).toContain('length(v_reason) < 5');
