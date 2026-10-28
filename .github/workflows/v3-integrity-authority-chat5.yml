@@ -112,6 +112,19 @@ jobs:
           esac
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-authority-catalog.sql
 
+      - name: Prove Integrity evidence boundary and concurrent appeal recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          case "${DB_URL:-}" in
+            postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
+            *) echo 'Refusing non-local Integrity recovery proof' >&2; exit 1 ;;
+          esac
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-evidence-write-boundary.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-recovery.sql
+          bash .github/scripts/v3-integrity-appeal-race-rehearsal.sh
+
       - name: Run hostile Rules + Integrity rehearsal
         run: bash .github/scripts/run-rules-integrity-security-rehearsal.sh
 
@@ -180,6 +193,19 @@ jobs:
             *) echo 'Refusing non-local Integrity upgrade rehearsal' >&2; exit 1 ;;
           esac
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-integrity-authority-catalog.sql"
+
+      - name: Prove Integrity evidence boundary and concurrent appeal recovery after upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          case "${DB_URL:-}" in
+            postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
+            *) echo 'Refusing non-local Integrity recovery proof' >&2; exit 1 ;;
+          esac
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-evidence-write-boundary.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-recovery.sql
+          bash .github/scripts/v3-integrity-appeal-race-rehearsal.sh
 
       - name: Run hostile Rules + Integrity rehearsal after upgrade
         shell: bash
