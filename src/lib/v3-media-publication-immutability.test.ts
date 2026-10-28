@@ -15,7 +15,7 @@ describe("V3 verified media publication immutability", () => {
     "country fonts owner delete",
     "organizers delete edition artwork",
   ])("revokes final-bucket browser delete authority: %s", (policy) => {
-    expect(cutover).toContain(`drop policy if exists \"${policy}\" on storage.objects`);
+    expect(cutover).toContain(`drop policy if exists "${policy}" on storage.objects`);
   });
 
   it("retains reference unbinding outside Storage mutation authority", () => {

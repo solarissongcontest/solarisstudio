@@ -62,7 +62,7 @@ describe("identity authentication and sign-out authority", () => {
       "organizers delete edition artwork",
       "country fonts owner delete",
     ]) {
-      const start = storageBoundary.indexOf(`create policy \"${policy}\"`);
+      const start = storageBoundary.indexOf(`create policy "${policy}"`);
       expect(start).toBeGreaterThan(-1);
       expect(storageBoundary.slice(start, start + 900)).toContain(
         "private.v3_storage_authenticated_session_active()",
