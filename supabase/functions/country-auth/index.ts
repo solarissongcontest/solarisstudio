@@ -232,8 +232,24 @@ Deno.serve(async (req) => {
     const authorization = req.headers.get("authorization") ?? "";
     const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
     if (!token) return null;
-    const { data, error } = await publicAuth.auth.getUser(token);
-    return error ? null : data.user ?? null;
+
+    const authenticated = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authorization } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await authenticated.auth.getUser(token);
+    if (error || !data.user) return null;
+
+    // getUser proves the JWT identity, but a revoked access JWT can remain valid
+    // until exp. Re-enter PostgREST under that exact bearer so the canonical
+    // auth.sessions guard proves the signed session_id still exists before any
+    // service-role private read or Auth Admin mutation is allowed.
+    const { data: active, error: activeError } = await authenticated.rpc(
+      "v3_assert_active_session",
+    );
+    if (activeError || active !== true) return null;
+
+    return data.user;
   }
 
   if (action === "signup") {

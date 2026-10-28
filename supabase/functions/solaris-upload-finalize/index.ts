@@ -352,7 +352,6 @@ function stripPngMetadata(bytes: Uint8Array) {
   const parts: Uint8Array[] = [bytes.slice(0, 8)];
   const dropped = new Set(["eXIf", "tEXt", "zTXt", "iTXt", "tIME"]);
   let offset = 8;
-
   while (offset + 12 <= bytes.length) {
     const length = be32(bytes, offset);
     const end = offset + 12 + length;
@@ -632,20 +631,6 @@ function declaredTypeMatches(
   return false;
 }
 
-async function callerUserId(
-  supabaseUrl: string,
-  serviceRoleKey: string,
-  authorization: string | null,
-) {
-  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
-  if (!token) return null;
-  const service = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data, error } = await service.auth.getUser(token);
-  return error ? null : data.user?.id ?? null;
-}
-
 function callerSessionId(authorization: string | null): string | null {
   try {
     const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
@@ -656,6 +641,34 @@ function callerSessionId(authorization: string | null): string | null {
   } catch {
     return null;
   }
+}
+
+async function callerIdentity(
+  supabaseUrl: string,
+  anonKey: string,
+  authorization: string | null,
+) {
+  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) return { userId: null as string | null, sessionId: null as string | null, revoked: false };
+
+  const authenticated = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await authenticated.auth.getUser(token);
+  if (error || !data.user) {
+    // Anonymous SDK calls may carry a non-user bearer. Preserve the existing
+    // capability flow; an actor-bound authorization still fails the actor check.
+    return { userId: null as string | null, sessionId: null as string | null, revoked: false };
+  }
+
+  const sessionId = callerSessionId(authorization);
+  const { data: active, error: activeError } = await authenticated.rpc("v3_assert_active_session");
+  if (activeError || active !== true) {
+    return { userId: data.user.id, sessionId, revoked: true };
+  }
+
+  return { userId: data.user.id, sessionId, revoked: false };
 }
 
 async function persistFinalization(
@@ -703,8 +716,9 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
     return json({ error: "Upload finalizer is not configured." }, 503);
   }
 
@@ -718,6 +732,14 @@ Deno.serve(async (request) => {
   if (!input.token_id || !input.upload_secret) {
     return json({ error: "Upload token and secret are required." }, 400);
   }
+
+  const authorization = request.headers.get("authorization");
+  const caller = await callerIdentity(supabaseUrl, anonKey, authorization);
+  if (caller.revoked) {
+    return json({ error: "Your Solaris session is no longer active. Sign in again." }, 401);
+  }
+  const callerId = caller.userId;
+  const sessionId = caller.sessionId;
 
   const service = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -738,9 +760,6 @@ Deno.serve(async (request) => {
   if (!authorizationRow) return json({ error: "Upload authorization not found." }, 404);
 
   const row = authorizationRow as UploadAuthorization;
-  const authorization = request.headers.get("authorization");
-  const callerId = await callerUserId(supabaseUrl, serviceRoleKey, authorization);
-  const sessionId = callerSessionId(authorization);
 
   if (row.actor_id && row.actor_id !== callerId) {
     return json({ error: "This upload authorization belongs to another account." }, 403);

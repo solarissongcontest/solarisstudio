@@ -17,6 +17,14 @@ const preflightSchema = z.object({
 export const preflightCountryJuryVote = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => preflightSchema.parse(data))
   .handler(async ({ data }) => {
+    // The v3/v4/v5 integrity engine uses service-role reads after its identity
+    // gate. Prove both the JWT identity and canonical auth.sessions liveness at
+    // this request boundary before any of those privileged reads can begin.
+    const { requireSolarisActiveUserForAccessTokenServer } = await import(
+      "@/integrations/supabase/organizer.server"
+    );
+    await requireSolarisActiveUserForAccessTokenServer(data.accessToken);
+
     const { runJuryIntegrityPreflightV5Server } = await import(
       "@/integrations/jury-voting/jury-integrity-v5.server"
     );

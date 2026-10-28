@@ -47,6 +47,7 @@ async function finalizer(
     updatedRowMissing?: boolean;
     invalidBytes?: boolean;
     validEvidence?: boolean;
+    revokedSession?: boolean;
     duplicatePublish?: "same" | "different" | "wrong-size" | "unavailable";
     publishedReadback?: "same" | "different" | "wrong-size" | "unavailable";
     receiptReadbackError?: boolean;
@@ -108,7 +109,12 @@ async function finalizer(
           ]),
     error: finalReadbackMode === "unavailable" ? { status: 503 } : null,
   });
+  const activeSessionRpc = vi.fn(async () => ({
+    data: options.revokedSession ? false : true,
+    error: options.revokedSession ? { code: "42501", message: "SESSION_REVOKED" } : null,
+  }));
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+    if (name === "v3_assert_active_session") return activeSessionRpc();
     if (name === "v3_finalize_media_upload") {
       update({
         status: args.p_status,
@@ -144,17 +150,18 @@ async function finalizer(
     }
     throw new Error(`Unexpected RPC ${name}`);
   });
+  const from = vi.fn((table: string) => ({
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: async () => ({
+      data: table === "studio2_upload_authorizations" ? row : { mode: "normal" },
+      error: null,
+    }),
+  }));
   const service = {
     rpc,
     auth: { getUser: async () => ({ data: { user: { id: "actor-1" } }, error: null }) },
-    from: (table: string) => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      maybeSingle: async () => ({
-        data: table === "studio2_upload_authorizations" ? row : { mode: "normal" },
-        error: null,
-      }),
-    }),
+    from,
     storage: {
       from: (bucket: string) => ({
         download:
@@ -172,7 +179,11 @@ async function finalizer(
     Deno: {
       env: {
         get: (name: string) =>
-          name === "SUPABASE_URL" ? "http://127.0.0.1:54321" : "test-service-key",
+          name === "SUPABASE_URL"
+            ? "http://127.0.0.1:54321"
+            : name === "SUPABASE_ANON_KEY"
+              ? "test-anon-key"
+              : "test-service-key",
       },
       readFile: async () => new Uint8Array(),
       serve: (callback: typeof handler) => {
@@ -202,6 +213,9 @@ async function finalizer(
     );
   return {
     request,
+    activeSessionRpc,
+    from,
+    download: quarantineDownload,
     update,
     receiptReadback,
     remove,
@@ -213,6 +227,16 @@ async function finalizer(
 }
 
 describe("Media finalizer authoritative recovery evidence", () => {
+  it("rejects a revoked actor session before any service-role authorization read or Storage effect", async () => {
+    const { request, activeSessionRpc, from, download, remove } = await finalizer({ revokedSession: true });
+    const response = await request();
+    expect(response.status).toBe(401);
+    expect(activeSessionRpc).toHaveBeenCalledTimes(1);
+    expect(from).not.toHaveBeenCalled();
+    expect(download).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
   it("reports confirmed missing quarantine bytes explicitly", async () => {
     const { request } = await finalizer({ storageStatus: 404 });
     const response = await request();

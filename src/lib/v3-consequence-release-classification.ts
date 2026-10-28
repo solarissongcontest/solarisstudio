@@ -13,7 +13,11 @@ const PURE_READ_EVENTS = new Set([
   "receipt.reconciled",
 ]);
 
-// Optional lifecycle consequences never create or preserve canonical authority.
+// Authentication and sign-out authority is synchronous Supabase Auth/session
+// state. These lifecycle labels may support telemetry/audit, but delivery of an
+// application event must never create, preserve, revoke or resurrect access.
+// Privileged browser, Data API, Storage, Edge and server boundaries independently
+// prove canonical session liveness before actor authority is exercised.
 const OBSERVATIONAL_IDENTITY_LIFECYCLE_EVENTS = new Set([
   "identity.authenticated",
   "identity.signed_out",

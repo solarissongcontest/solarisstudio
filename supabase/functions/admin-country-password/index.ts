@@ -82,11 +82,23 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const publicAuth = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
   const { data: callerData, error: callerError } = await publicAuth.auth.getUser(token);
   if (callerError || !callerData.user) {
+    return json({ error: "Your organizer session has expired." }, 401);
+  }
+
+  // Auth-server identity alone is insufficient after sign-out because the
+  // already-issued access JWT may remain valid until exp. Re-enter the Data API
+  // with the exact bearer and reuse the canonical auth.sessions guard before
+  // any service-role read or Auth Admin mutation can occur.
+  const { data: activeSession, error: activeSessionError } = await publicAuth.rpc(
+    "v3_assert_active_session",
+  );
+  if (activeSessionError || activeSession !== true) {
     return json({ error: "Your organizer session has expired." }, 401);
   }
 
