@@ -20,4 +20,5 @@ exit 0
 EOF
 chmod +x "$wrapper_dir/curl"
 
-PATH="$wrapper_dir:$PATH" bash .github/scripts/rules-integrity-security-rehearsal.sh
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PATH="$wrapper_dir:$PATH" bash "$script_dir/rules-integrity-security-rehearsal.sh"

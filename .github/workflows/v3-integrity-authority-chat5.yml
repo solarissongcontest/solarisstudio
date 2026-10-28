@@ -212,8 +212,11 @@ jobs:
       - name: Run hostile Rules + Integrity rehearsal after upgrade
         shell: bash
         run: |
-          cd /tmp/solaris-integrity-main
-          bash "$GITHUB_WORKSPACE/.github/scripts/run-rules-integrity-security-rehearsal.sh"
+          # The database was built from main and upgraded above. Both worktrees
+          # address the same disposable project namespace; runtime scripts and
+          # Edge code must come from the candidate, never the old main checkout.
+          cd "$GITHUB_WORKSPACE"
+          bash .github/scripts/run-rules-integrity-security-rehearsal.sh
 
       - name: Stop isolated Supabase
         if: always()
