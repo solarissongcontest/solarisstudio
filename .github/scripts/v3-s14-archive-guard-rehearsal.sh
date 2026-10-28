@@ -275,4 +275,6 @@ expect_service_failure "archived task history rewrite" "Archived edition workflo
   "update public.studio2_organizer_tasks set resolved_at=null where id='$BLOCKER_ID'::uuid;"
 [[ "$(db_value "select resolved_at::text from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == "$ARCHIVED_TASK_RESOLVED_AT" ]] || fail "archive task guard rewrote retained resolution timestamp"
 
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$(dirname "${BASH_SOURCE[0]}")/../tests/v3-archive-internal-guard-authority.sql"
+
 log "S14 archive negative-path rehearsal passed"

@@ -526,7 +526,10 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     canonicalOwner: "publication domain",
     canonicalCommands: ["studio2_apply_show_publication_change", "studio2_publish_due_show_publications"],
     sanctionedInternalWriters: ["studio2_create_show_publication_control", "studio2_ensure_show_publication_control"],
+    // Owner-only guard, exact attachments and archived owner-DML denials:
+    // .github/tests/v3-archive-internal-guard-authority.sql
     sanctionedWriteTriggers: [
+      "v3_guard_archived_edition_workflow_write",
       "v3_validate_publication_control",
       "v3_validate_publication_execution",
       "v3_reject_publication_execution_mutation",
@@ -639,7 +642,10 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
         reason: "The trigger helper is non-callable to API roles after the show cue cutover and cannot own live runtime/cue state.",
       },
     ],
+    // Executable owner/EXECUTE/attachment and archived-show denial proof:
+    // .github/tests/v3-archive-internal-guard-authority.sql
     sanctionedWriteTriggers: [
+      "v3_guard_archived_edition_workflow_write",
       "guard_result_publication_requires_reveal_ready",
       "normalize_show_publication_channels_trigger",
       "shows_sync_edition_publication",
