@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 
@@ -32,6 +33,16 @@ type RoundRow = {
   participant_mode: string | null;
   self_voting_mode: string | null;
 };
+
+async function requireRoundEntriesReadServer() {
+  await requireSolarisCapabilityServer("voting.read", null);
+  await requireMergedTelevotingAdminServer();
+}
+
+async function requireRoundEntriesManageServer() {
+  await requireSolarisCapabilityServer("voting.manage", null);
+  return requireMergedTelevotingAdminServer();
+}
 
 async function audit(
   actor: { id: string; username: string },
@@ -104,7 +115,7 @@ async function syncParticipantMode(roundId: string) {
 }
 
 export async function getMergedRoundEntriesServer(roundId: string) {
-  await requireMergedTelevotingAdminServer();
+  await requireRoundEntriesReadServer();
 
   const { data: rawRound, error: roundError } = await televotingAdmin
     .from("rounds")
@@ -161,7 +172,7 @@ export async function getMergedRoundEntriesServer(roundId: string) {
 }
 
 export async function saveMergedRoundCountriesServer(data: { roundId: string; countryCodes: string[] }) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireRoundEntriesManageServer();
   await assertEditableRound(data.roundId);
 
   const { data: rawValidCountries, error: validError } = await televotingAdmin
@@ -248,7 +259,7 @@ export async function saveMergedCustomRoundEntryServer(data: {
   imageUrl?: string | null;
   description?: string | null;
 }) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireRoundEntriesManageServer();
   await assertEditableRound(data.roundId);
 
   if (data.id) {
@@ -329,7 +340,7 @@ export async function saveMergedCustomRoundEntryServer(data: {
 }
 
 export async function deleteMergedCustomRoundEntryServer(data: { roundId: string; entryId: string }) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireRoundEntriesManageServer();
   await assertEditableRound(data.roundId);
 
   const { data: rawBefore, error: beforeError } = await televotingAdmin
@@ -377,7 +388,7 @@ export async function deleteMergedCustomRoundEntryServer(data: { roundId: string
 }
 
 export async function reorderMergedRoundEntriesServer(data: { roundId: string; entryIds: string[] }) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireRoundEntriesManageServer();
   await assertEditableRound(data.roundId);
 
   const { data: rawBefore, error: beforeError } = await televotingAdmin
@@ -419,7 +430,7 @@ export async function setMergedRoundSelfVotingModeServer(data: {
   roundId: string;
   mode: "country_match" | "linked_identity" | "disabled" | "unrestricted";
 }) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireRoundEntriesManageServer();
   const round = await assertEditableRound(data.roundId);
 
   const { error } = await televotingAdmin

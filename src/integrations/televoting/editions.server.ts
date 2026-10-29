@@ -1,3 +1,4 @@
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 
@@ -10,6 +11,16 @@ export type MergedTelevotingEdition = {
   round_count: number;
   vote_count: number;
 };
+
+async function requireTelevotingEditionReadServer() {
+  await requireSolarisCapabilityServer("voting.read", null);
+  await requireMergedTelevotingAdminServer();
+}
+
+async function requireTelevotingEditionManageServer() {
+  await requireSolarisCapabilityServer("voting.manage", null);
+  return requireMergedTelevotingAdminServer();
+}
 
 async function audit(
   actor: { id: string; username: string },
@@ -30,7 +41,7 @@ async function audit(
 }
 
 export async function listMergedTelevotingEditionsServer(): Promise<MergedTelevotingEdition[]> {
-  await requireMergedTelevotingAdminServer();
+  await requireTelevotingEditionReadServer();
   const [editionResult, roundResult, voteResult] = await Promise.all([
     televotingAdmin.from("editions").select("id,name,is_active,is_archived,created_at").order("created_at", { ascending: false }),
     televotingAdmin.from("rounds").select("id,edition_id"),
@@ -62,7 +73,7 @@ export async function listMergedTelevotingEditionsServer(): Promise<MergedTelevo
 }
 
 export async function createMergedTelevotingEditionServer(name: string) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireTelevotingEditionManageServer();
   const { data: row, error } = await televotingAdmin
     .from("editions")
     .insert({ name, is_active: false, is_archived: false })
@@ -74,7 +85,7 @@ export async function createMergedTelevotingEditionServer(name: string) {
 }
 
 export async function renameMergedTelevotingEditionServer(data: { id: string; name: string }) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireTelevotingEditionManageServer();
   const { data: before, error: readError } = await televotingAdmin.from("editions").select("name").eq("id", data.id).maybeSingle();
   if (readError) throw new Error(readError.message);
   if (!before) throw new Error("Edition not found");
@@ -85,7 +96,7 @@ export async function renameMergedTelevotingEditionServer(data: { id: string; na
 }
 
 export async function activateMergedTelevotingEditionServer(id: string) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireTelevotingEditionManageServer();
   const { data: target, error: readError } = await televotingAdmin.from("editions").select("id,name,is_active,is_archived").eq("id", id).maybeSingle();
   if (readError) throw new Error(readError.message);
   if (!target) throw new Error("Edition not found");
@@ -101,7 +112,7 @@ export async function activateMergedTelevotingEditionServer(id: string) {
 }
 
 export async function archiveMergedTelevotingEditionServer(data: { id: string; archived: boolean }) {
-  const actor = await requireMergedTelevotingAdminServer();
+  const actor = await requireTelevotingEditionManageServer();
   const { data: before, error: readError } = await televotingAdmin.from("editions").select("id,name,is_active,is_archived").eq("id", data.id).maybeSingle();
   if (readError) throw new Error(readError.message);
   if (!before) throw new Error("Edition not found");

@@ -21,11 +21,17 @@ export const getMergedTelevotingOverview = createServerFn({ method: "POST" })
     editionId: data?.editionId ? String(data.editionId) : null,
   }))
   .handler(async ({ data }) => {
-    const [{ requireMergedTelevotingAdminServer }, { televotingAdmin }] = await Promise.all([
+    const [
+      { requireSolarisCapabilityServer },
+      { requireMergedTelevotingAdminServer },
+      { televotingAdmin },
+    ] = await Promise.all([
+      import("@/integrations/supabase/capabilities.server"),
       import("@/integrations/televoting/admin-session.server"),
       import("@/integrations/televoting/client.server"),
     ]);
 
+    await requireSolarisCapabilityServer("voting.read", data.editionId);
     await requireMergedTelevotingAdminServer();
 
     // One database round trip keeps the Cloudflare Worker comfortably below
