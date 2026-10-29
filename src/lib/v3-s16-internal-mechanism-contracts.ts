@@ -3,6 +3,84 @@ import type { InternalMechanismContract, InternalCallerContract } from './v3-s16
 // exposure, caller graph, attachment and table/column ACLs must independently pass.
 export const V3_INTERNAL_MECHANISM_CONTRACTS: readonly InternalMechanismContract[] = [
   {
+    "domain": "contest-lifecycle",
+    "signature": "private.studio2_transition_edition_v3(p_edition_id uuid, p_to text, p_reason text, p_approval_request_id uuid, p_expected_version bigint, p_operation_id uuid, p_idempotency_key text)",
+    "definitionHash": "dd287fcb2a0e4afacf02378856209fb2",
+    "securityDefiner": true,
+    "callerSignatures": [
+      "public.studio2_transition_edition_v3(p_edition_id uuid, p_to text, p_reason text, p_approval_request_id uuid, p_expected_version bigint, p_operation_id uuid, p_idempotency_key text)"
+    ],
+    "category": "primitive",
+    "reason": "Owner-only lifecycle implementation reached through the live-session canonical transition command; owns CAS, fingerprint, receipt and event atomically.",
+    "inputTables": [
+      "public.editions",
+      "public.studio2_edition_runtime"
+    ],
+    "attachments": [],
+    "proof": ".github/tests/v3-archive-runtime-mechanisms.sql"
+  },
+  {
+    "domain": "contest-lifecycle",
+    "signature": "private.v3_guard_archive_runtime_transition()",
+    "definitionHash": "82c1e7f5c6496fc647615a87754b8e7e",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects Archive without an owner-only transaction gate and forbids all archived runtime changes; never selects a lifecycle transition.",
+    "inputTables": [
+      "private.v3_archive_runtime_transition_gates",
+      "public.studio2_edition_runtime"
+    ],
+    "attachments": [
+      {
+        "table": "public.studio2_edition_runtime",
+        "type": 31
+      }
+    ],
+    "proof": ".github/tests/v3-archive-runtime-mechanisms.sql"
+  },
+  {
+    "domain": "contest-lifecycle",
+    "signature": "private.v3_guard_archived_legacy_edition_status()",
+    "definitionHash": "e502904b663f5ce6bfa81c0fb945834d",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects reversal of legacy status after canonical Archive; returns NEW without establishing lifecycle state.",
+    "inputTables": [
+      "public.editions",
+      "public.studio2_edition_runtime"
+    ],
+    "attachments": [
+      {
+        "table": "public.editions",
+        "type": 19
+      }
+    ],
+    "proof": ".github/tests/v3-archive-runtime-mechanisms.sql"
+  },
+  {
+    "domain": "contest-lifecycle",
+    "signature": "private.v3_sync_archived_edition_legacy_status()",
+    "definitionHash": "a35ab43ea88fd7e74e044f78b51db507",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "projection",
+    "reason": "One-way completed legacy status derived transactionally from the canonical archived runtime; cannot authorize or reverse Archive.",
+    "inputTables": [
+      "public.editions",
+      "public.studio2_edition_runtime"
+    ],
+    "attachments": [
+      {
+        "table": "public.studio2_edition_runtime",
+        "type": 21
+      }
+    ],
+    "proof": ".github/tests/v3-archive-runtime-mechanisms.sql"
+  },
+
+  {
     "domain": "televote",
     "signature": "private.studio2_guard_direct_client_write()",
     "definitionHash": "c28035d7628f91b70938209a32e28ebc",
@@ -609,6 +687,20 @@ export const V3_INTERNAL_MECHANISM_CONTRACTS: readonly InternalMechanismContract
   }
 ];
 export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
+  {
+    "signature": "public.studio2_transition_edition_v3(p_edition_id uuid, p_to text, p_reason text, p_approval_request_id uuid, p_expected_version bigint, p_operation_id uuid, p_idempotency_key text)",
+    "definitionHash": "e1f290b2de3f89c385628010aa0cae98",
+    "securityDefiner": true,
+    "callerSignatures": [
+      "public.studio2_transition_edition_v3(p_edition_id uuid, p_to text, p_reason text, p_approval_request_id uuid, p_expected_version bigint, p_operation_id uuid, p_idempotency_key text)"
+    ],
+    "executeRoles": [
+      "postgres",
+      "authenticated"
+    ],
+    "root": true
+  },
+
   {
     "signature": "private.v3_sync_published_televote_aggregation(p_aggregation_id uuid)",
     "definitionHash": "60ab81e0e25af63b8691ee7a356c5fd3",

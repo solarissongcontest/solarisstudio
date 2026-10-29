@@ -33,9 +33,11 @@ db_exec() { psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null; }
 db_value() { psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "$1"; }
 
 as_user() {
-  local user_id="$1" sql="$2"
+  local user_id="$1" sql="$2" session_id
+  session_id="$(db_value "select id::text from auth.sessions where user_id='$user_id'::uuid order by created_at desc limit 1;")"
+  [[ -n "$session_id" ]] || fail "missing live fixture session"
   psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c \
-    "set role authenticated; set request.jwt.claims = '{\"sub\":\"$user_id\",\"role\":\"authenticated\"}'; $sql"
+    "set role authenticated; set request.jwt.claims = '{\"sub\":\"$user_id\",\"role\":\"authenticated\",\"session_id\":\"$session_id\"}'; $sql"
 }
 
 expect_user_failure() {
@@ -126,6 +128,7 @@ create_local_user() {
     id="$(db_value "select id::text from auth.users where lower(email)=lower('$email') limit 1;")"
   fi
   [[ -n "$id" ]] || fail "could not create local user $email"
+  db_exec "insert into auth.sessions(id,user_id,created_at,updated_at) select gen_random_uuid(),'$id'::uuid,now(),now() where not exists(select 1 from auth.sessions where user_id='$id'::uuid);"
   printf '%s' "$id"
 }
 

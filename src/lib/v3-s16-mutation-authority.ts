@@ -613,6 +613,10 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "public.v3_apply_edition_visual_change",
       "public.studio2_transition_edition_v3",
       "public.studio2_execute_host_operation",
+      // Existing scoped Confirmation binding command: live session, canonical
+      // capability, CAS, fingerprint, R3 freshness, receipt/readback. Proof:
+      // .github/tests/v3-archive-runtime-mechanisms.sql
+      "public.studio2_apply_confirmation_edition_binding_change",
     ],
     sanctionedInternalWriters: [
       "private.studio2_seed_edition_runtime",

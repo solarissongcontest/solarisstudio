@@ -29,6 +29,10 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-televote-calculation-dm
 DB_URL="$DB_URL" bash .github/scripts/v3-s14-televote-result-truth-replay-hardening-rehearsal.sh
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-visual-command.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-authority.sql
+archive_mechanisms_sql="$(mktemp)"
+bun run scripts/generate-v3-internal-mechanism-proof.ts --proof-file=.github/tests/v3-archive-runtime-mechanisms.sql --out="$archive_mechanisms_sql"
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$archive_mechanisms_sql"
+rm -f "$archive_mechanisms_sql"
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-media-finalization-authority.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-canonical-truncate-authority.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-intake-delegation.sql
