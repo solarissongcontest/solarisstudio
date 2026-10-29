@@ -31,6 +31,7 @@ export type V3ParticipateProjection = {
   next: readonly V3ActionProjection[];
   waiting: readonly V3ActionProjection[];
   optionalNow: readonly V3ActionProjection[];
+  closed: readonly V3ActionProjection[];
   completed: readonly V3ActionProjection[];
 };
 
@@ -42,12 +43,23 @@ function firstOfficial(actions: readonly V3ActionProjection[]) {
   return actions.find((action) => !isOptional(action)) ?? null;
 }
 
+function votingIsCurrent(action: V3ActionProjection | null) {
+  if (!action) return false;
+  if (action.completed) return false;
+  if (action.sourceState === "finished") return false;
+  // The canonical Participation OS currently uses a voting `problem` only for
+  // a required voting window that closed without a recorded submission. It is
+  // still important context, but it is no longer a current voting action.
+  if (action.sourceState === "problem") return false;
+  return true;
+}
+
 function currentVotingAction(
   actions: readonly V3ActionProjection[],
   kind: "jury" | "televote",
 ) {
   return (
-    actions.find((action) => action.kind === kind && !action.completed) ??
+    actions.find((action) => action.kind === kind && votingIsCurrent(action)) ??
     actions.find((action) => action.kind === kind) ??
     null
   );
@@ -84,13 +96,14 @@ function projectFocus(input: {
  * that feeds Home. It deliberately does not create another task source or
  * infer workflow truth from routes.
  *
- * Responsibilities, blocked/waiting state and optional participation remain
- * separate. A canonical problem that the viewer cannot currently act on is
- * blocked, not their "Next" task. A public vote may be time-sensitive, but it
- * must never visually compete with an unfinished official delegation
+ * Responsibilities, blocked/waiting/closed state and optional participation
+ * remain separate. A canonical problem that the viewer cannot currently act on
+ * is blocked, not their "Next" task. A public vote may be time-sensitive, but
+ * it must never visually compete with an unfinished official delegation
  * responsibility as though both were required work. Likewise, a canonical
  * waiting action must not be presented as the viewer's next/optional action
- * until server-owned workflow state makes it actionable.
+ * until server-owned workflow state makes it actionable. A finished optional
+ * window is history, not successful completion.
  *
  * The focus projection is intentionally deterministic over those canonical
  * buckets. Canonical blocked required work outranks actionable required work,
@@ -106,19 +119,33 @@ export function projectV3Participate(
   const next: V3ActionProjection[] = [];
   const waiting: V3ActionProjection[] = [];
   const optionalNow: V3ActionProjection[] = [];
+  const closed: V3ActionProjection[] = [];
   const completed: V3ActionProjection[] = [];
 
   for (const action of bootstrap.actions) {
+    // `finished` means the opportunity/window ended. The shared V3 action
+    // projection historically marks it completed for generic historical UI,
+    // but Participate must keep "window closed" distinct from "I completed
+    // this responsibility".
+    if (action.sourceState === "finished") {
+      closed.push(action);
+      continue;
+    }
+
     if (action.completed) {
       completed.push(action);
       continue;
     }
 
     // A server-owned problem with no current participant action is blocked.
-    // Typical example: Organizer requires Entry changes but editing has not
-    // been reopened. Calling this "Next" would imply an action the user cannot
-    // actually take yet.
-    if (action.sourceState === "problem" && !action.actionRequired) {
+    // Current Jury/Televote `problem` state specifically means a required
+    // voting window closed without a recorded submission. It remains blocked
+    // even if an older generic task flag still says actionRequired: there is no
+    // browser action that can reopen the canonical voting window.
+    if (
+      action.sourceState === "problem" &&
+      (!action.actionRequired || action.kind === "jury" || action.kind === "televote")
+    ) {
       blocked.push(action);
       continue;
     }
@@ -157,14 +184,15 @@ export function projectV3Participate(
       jury,
       televote,
       currentCount:
-        Number(Boolean(jury && !jury.completed)) +
-        Number(Boolean(televote && !televote.completed)),
+        Number(votingIsCurrent(jury)) +
+        Number(votingIsCurrent(televote)),
     },
     needsAttention,
     blocked,
     next,
     waiting,
     optionalNow,
+    closed,
     completed,
   };
 }
