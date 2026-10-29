@@ -1,5 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
 import {
@@ -9,13 +8,22 @@ import {
 } from "@/components/v3/V3MusicEntityScreens";
 import { useV3ArtistIndexProjection } from "@/lib/v3-music-entities-runtime";
 
+type ArtistsSearch = { q?: string };
+
 export const Route = createFileRoute("/artists/")({
+  validateSearch: (search: Record<string, unknown>): ArtistsSearch => ({
+    q:
+      typeof search.q === "string" && search.q.trim()
+        ? search.q.trim().slice(0, 120)
+        : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Artists — Solaris Studio" },
       {
         name: "description",
-        content: "Browse publication-safe Solaris artist identities and their published songs and appearances.",
+        content:
+          "Browse publication-safe Solaris artist identities and their published songs and appearances.",
       },
     ],
   }),
@@ -23,7 +31,9 @@ export const Route = createFileRoute("/artists/")({
 });
 
 function ArtistsPage() {
-  const [query, setQuery] = useState("");
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const query = search.q ?? "";
   const projection = useV3ArtistIndexProjection(query);
 
   return (
@@ -39,7 +49,12 @@ function ArtistsPage() {
         <V3ArtistIndexScreen
           projection={projection.data}
           query={query}
-          onQueryChange={setQuery}
+          onQueryChange={(nextQuery) => {
+            void navigate({
+              search: { q: nextQuery || undefined },
+              replace: true,
+            });
+          }}
         />
       )}
     </AppShell>
