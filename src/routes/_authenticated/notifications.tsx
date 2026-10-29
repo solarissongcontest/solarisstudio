@@ -39,7 +39,7 @@ function NotificationsRoute() {
   const { isAppMode, platformResolved } = useSolarisApp();
   const rollout = useV3RolloutProbe(platformResolved && isAppMode);
 
-  if (!platformResolved || (isAppMode && rollout.isLoading)) {
+  if (!platformResolved || (isAppMode && rollout.isLoading && !rollout.data)) {
     return (
       <main
         className="relative z-10 mx-auto w-full max-w-3xl px-4 py-10 sm:py-14"
@@ -58,10 +58,14 @@ function NotificationsRoute() {
     );
   }
 
+  // Before server rollout positively selects the signed-in V3 Notifications
+  // surface, Settings remains the compatibility owner. A later rollout refetch
+  // error with cached enabled authority must not silently redirect the viewer
+  // away from the already-selected V3 route.
   if (
     !isAppMode ||
-    rollout.isError ||
-    rollout.data?.notificationsEnabled !== true ||
+    !rollout.data ||
+    rollout.data.notificationsEnabled !== true ||
     !rollout.data.userId
   ) {
     return <Navigate to="/settings" replace />;
@@ -132,9 +136,11 @@ function V3NotificationsRouteContent({
   const quietStart = (preferenceRow?.quiet_hours_start ?? "23:00").slice(0, 5);
   const quietEnd = (preferenceRow?.quiet_hours_end ?? "08:00").slice(0, 5);
   const deliveryStatus =
-    push.isError || !push.data
+    push.isError && !push.data
       ? UNKNOWN_APP_PUSH_DELIVERY
-      : describeAppPushDelivery(push.data);
+      : push.data
+        ? describeAppPushDelivery(push.data)
+        : UNKNOWN_APP_PUSH_DELIVERY;
   const inboxItems: V3NotificationInboxItem[] = (inbox.data ?? []).map((item) => ({
     id: item.notice.id,
     title: item.notice.title,
@@ -149,6 +155,8 @@ function V3NotificationsRouteContent({
     state: item.inboxState,
     acknowledgementRequired: item.notice.acknowledgementRequired,
   }));
+  const degraded = preferences.isError || push.isError || inbox.isError;
+  const retrying = preferences.isFetching || push.isFetching || inbox.isFetching;
 
   return (
     <V3AppShell editionLabel="Solaris Studio" phaseLabel="Notifications" activeArea="me">
@@ -157,9 +165,18 @@ function V3NotificationsRouteContent({
         enabledCategoryCount={categories.length}
         quietHoursLabel={`${quietStart}–${quietEnd}`}
         urgentDeadlineReminders={preferenceRow?.urgent_deadline_reminders ?? true}
-        preferencesUnavailable={preferences.isError}
-        inboxUnavailable={inbox.isError}
+        preferencesUnavailable={preferences.isError && !preferences.data}
+        inboxUnavailable={inbox.isError && !inbox.data}
+        degraded={degraded}
+        retrying={retrying}
         inboxItems={inboxItems}
+        onRetry={() => {
+          void Promise.allSettled([
+            preferences.refetch(),
+            push.refetch(),
+            inbox.refetch(),
+          ]);
+        }}
       />
     </V3AppShell>
   );
