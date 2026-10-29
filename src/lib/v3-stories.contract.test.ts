@@ -39,18 +39,32 @@ describe("Public V3 Stories contract", () => {
     expect(source).not.toContain("window.");
   });
 
-  it("uses Explore rollout authority and preserves legacy fallbacks", () => {
+  it("resolves Explore rollout before loading Stories and only uses legacy before V3 is selected", () => {
     const gates = read("src/components/v3/V3StoriesGates.tsx");
     const indexRoute = read("src/routes/stories/index.tsx");
     const detailRoute = read("src/routes/stories/$editionSlug.tsx");
 
     expect(gates).toContain("useV3RolloutProbe");
     expect(gates).toContain("useV3EditionRolloutProbe");
-    expect(gates).toContain("rollout.data.exploreEnabled !== true");
+    expect(gates).toContain("const v3Selected =");
+    expect(gates).toContain("useV3StoriesIndexBundle(v3Selected)");
+    expect(gates).toContain("useV3StoryDetailBundle(editionSlug, v3Selected)");
+    expect(gates).toContain("if (!rollout.data || !v3Selected)");
     expect(gates).toContain("return <>{fallback}</>");
     expect(indexRoute).toContain("<V3StoriesIndexGate fallback={<LegacyStoriesArchivePage />} />");
     expect(detailRoute).toContain("<V3StoryDetailGate");
     expect(detailRoute).toContain("fallback={<LegacyEditionStoryPage editionSlug={editionSlug} />}");
+  });
+
+  it("fails closed after V3 rollout selection and retains cached V3 data on refetch errors", () => {
+    const gates = read("src/components/v3/V3StoriesGates.tsx");
+
+    expect(gates).toContain("StoriesUnavailable");
+    expect(gates).toContain('data-v3-stories-state="error"');
+    expect(gates).toContain("if (bundle.isLoading && !bundle.data)");
+    expect(gates).toContain("if (!bundle.data)");
+    expect(gates).not.toContain("if (bundle.isError || !bundle.data");
+    expect(gates).not.toContain("rollout.isError || !rollout.data");
   });
 
   it("uses the shared spoiler preference authority for both Stories surfaces", () => {
