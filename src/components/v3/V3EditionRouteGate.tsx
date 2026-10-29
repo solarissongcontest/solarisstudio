@@ -11,6 +11,7 @@ import { useV3EditionRolloutProbe } from "@/lib/v3-primary-runtime";
 import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
 import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
 import { V3AppShell } from "./V3AppShell";
+import { V3EditionParticipantsScreen } from "./V3EditionParticipantsScreen";
 import { V3EditionProductScreen } from "./V3EditionProductScreen";
 
 function ResolvingEditionSurface() {
@@ -105,6 +106,7 @@ export function V3EditionRouteGate({
     serverError: serverPreferences.isError,
     serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null,
   });
+  const screenKey = `${rollout.data.userId ?? "anonymous"}:${slug}:${editionView ?? "overview"}:${hideSpoilers}`;
 
   return (
     <V3AppShell
@@ -118,12 +120,20 @@ export function V3EditionRouteGate({
         ) : undefined
       }
     >
-      <V3EditionProductScreen
-        key={`${rollout.data.userId ?? "anonymous"}:${slug}:${editionView ?? "overview"}:${hideSpoilers}`}
-        projection={bundle.projection}
-        hideSpoilers={hideSpoilers}
-        view={editionView}
-      />
+      {editionView === "participants" ? (
+        <V3EditionParticipantsScreen
+          key={screenKey}
+          projection={bundle.projection}
+          spoilerSafe={hideSpoilers}
+        />
+      ) : (
+        <V3EditionProductScreen
+          key={screenKey}
+          projection={bundle.projection}
+          hideSpoilers={hideSpoilers}
+          view={editionView}
+        />
+      )}
     </V3AppShell>
   );
 }
