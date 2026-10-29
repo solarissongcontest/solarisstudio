@@ -49,6 +49,7 @@ import {
 } from "@/lib/data";
 import { DEFAULT_ACCENT, entityDisplayMap } from "@/lib/entities";
 import { reportSupabaseError } from "@/lib/errors";
+import { executeJuryVoteChange, type JuryVoteAction } from "@/lib/v3-jury-vote-command";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
 import { resolveVoting } from "@/lib/voting";
 
@@ -300,51 +301,106 @@ function JuryWorkspace() {
     return { voterId: option?.voterId ?? null, countryId: option?.countryId ?? null };
   }
 
-  async function assign(voterKey: string, receiver: string, points: number) {
-    if (!edition || !selectedShow) return;
-    if (didNotVoteVoterKeys.has(voterKey)) {
+  async function mutateJuryScore(
+    action: JuryVoteAction,
+    voterKey: string,
+    points: number,
+    receiver?: string,
+  ) {
+    if (!edition || !selectedShow || busy) return;
+    if (action === "assign" && didNotVoteVoterKeys.has(voterKey)) {
       toast.error("Restore this jury ballot before assigning points.");
       return;
     }
+
     const { voterId, countryId } = decodeVoterKey(voterKey);
-    const voterIdentity = countryId ? identityFor(countryId) : { country_id: null, contest_entity_id: null };
-    const target = identityFor(receiver);
-    const { error } = await (supabase as any).rpc("assign_jury_vote", {
-      p_edition_id: edition.id,
-      p_show_id: selectedShow.id,
-      p_voter_id: voterId,
-      p_voter_country_id: voterIdentity.country_id,
-      p_voter_entity_id: voterIdentity.contest_entity_id,
-      p_receiving_country_id: target.country_id,
-      p_receiving_entity_id: target.contest_entity_id,
-      p_points: points,
-    });
-    if (error) {
-      toast.error(reportSupabaseError(error, "Could not save that jury score. Nothing was changed."));
-      return;
+    const voterIdentity = countryId
+      ? identityFor(countryId)
+      : { country_id: null, contest_entity_id: null };
+    const target = action === "assign" && receiver
+      ? identityFor(receiver)
+      : { country_id: null, contest_entity_id: null };
+
+    setBusy(true);
+    try {
+      const previewResult = await lifecycleRpc("studio2_jury_vote_change_preview", {
+        p_edition_id: edition.id,
+        p_show_id: selectedShow.id,
+        p_voter_id: voterId,
+        p_voter_country_id: voterIdentity.country_id,
+        p_voter_entity_id: voterIdentity.contest_entity_id,
+        p_receiving_country_id: target.country_id,
+        p_receiving_entity_id: target.contest_entity_id,
+        p_points: points,
+        p_action: action,
+      });
+      if (previewResult.error) {
+        throw new Error(previewResult.error.message || "Jury score preview failed.");
+      }
+
+      const preview = previewResult.data as {
+        expectedVersion: number;
+        riskClass: "R2";
+      };
+      if (!Number.isSafeInteger(preview.expectedVersion) || preview.expectedVersion < 0) {
+        throw new Error("Jury score preview returned an invalid version.");
+      }
+
+      const operation = createOrganisationCommand({
+        command: `jury.vote.${action}`,
+        payload: {
+          showId: selectedShow.id,
+          voterKey,
+          receiver: receiver ?? null,
+          points,
+          action,
+        },
+        riskClass: preview.riskClass,
+        scope: {
+          editionId: edition.id,
+          showId: selectedShow.id,
+          entityId: voterId ?? voterIdentity.contest_entity_id ?? voterIdentity.country_id,
+        },
+        expectedVersion: preview.expectedVersion,
+      });
+
+      await executeJuryVoteChange({
+        editionId: edition.id,
+        showId: selectedShow.id,
+        voterId,
+        voterCountryId: voterIdentity.country_id,
+        voterEntityId: voterIdentity.contest_entity_id,
+        receivingCountryId: target.country_id,
+        receivingEntityId: target.contest_entity_id,
+        points,
+        action,
+        expectedVersion: preview.expectedVersion,
+        operationId: operation.operationId,
+        idempotencyKey: operation.idempotencyKey,
+      }, supabase as any);
+
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["jury_votes"] }),
+        qc.invalidateQueries({ queryKey: ["admin-readiness-data"] }),
+      ]);
+    } catch (caught) {
+      toast.error(reportSupabaseError(
+        caught,
+        action === "assign"
+          ? "Could not save that jury score. Nothing was changed."
+          : "Could not clear that jury score. Nothing was changed.",
+      ));
+    } finally {
+      setBusy(false);
     }
-    await qc.invalidateQueries({ queryKey: ["jury_votes"] });
-    await qc.invalidateQueries({ queryKey: ["admin-readiness-data"] });
+  }
+
+  async function assign(voterKey: string, receiver: string, points: number) {
+    await mutateJuryScore("assign", voterKey, points, receiver);
   }
 
   async function clearPoint(voterKey: string, points: number) {
-    if (!edition || !selectedShow) return;
-    const { voterId, countryId } = decodeVoterKey(voterKey);
-    const voterIdentity = countryId ? identityFor(countryId) : { country_id: null, contest_entity_id: null };
-    const { error } = await (supabase as any).rpc("clear_jury_point", {
-      p_edition_id: edition.id,
-      p_show_id: selectedShow.id,
-      p_voter_id: voterId,
-      p_voter_country_id: voterIdentity.country_id,
-      p_voter_entity_id: voterIdentity.contest_entity_id,
-      p_points: points,
-    });
-    if (error) {
-      toast.error(reportSupabaseError(error, "Could not clear that jury score. Nothing was changed."));
-      return;
-    }
-    await qc.invalidateQueries({ queryKey: ["jury_votes"] });
-    await qc.invalidateQueries({ queryKey: ["admin-readiness-data"] });
+    await mutateJuryScore("clear", voterKey, points);
   }
 
   async function setDidNotVote(voterKey: string, didNotVote: boolean) {
