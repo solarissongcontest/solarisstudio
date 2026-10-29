@@ -22,6 +22,7 @@ import {
   resolveTabDragTargetIndex,
 } from "@/lib/interaction-physics";
 import {
+  isV3BrowserEdgeGestureStart,
   resolveV3LogicalHorizontalDelta,
   type V3LayoutDirection,
 } from "@/lib/v3-navigation-gesture";
@@ -231,7 +232,7 @@ export function V3LiquidTabBar({
           drag.captureTarget.releasePointerCapture?.(drag.pointerId);
         }
       } catch {
-        // Browser may already have released pointer capture.
+        // Pointer capture may already have released pointer capture.
       }
       for (const icon of drag.tabIcons) {
         icon.style.removeProperty("opacity");
@@ -322,6 +323,10 @@ export function V3LiquidTabBar({
       prefersReducedMotion() ||
       document.documentElement.hasAttribute("data-solaris-keyboard-open") ||
       document.documentElement.hasAttribute("data-solaris-feature-overlay-open") ||
+      isV3BrowserEdgeGestureStart({
+        clientX: event.clientX,
+        viewportWidth: window.visualViewport?.width ?? window.innerWidth,
+      }) ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) {
       return;
