@@ -11,6 +11,10 @@ import { useV3ArtistIndexProjection } from "@/lib/v3-music-entities-runtime";
 
 type ArtistsSearch = { q?: string };
 
+const ARTISTS_URL = "https://studio.solaris-song-contest.workers.dev/artists";
+const ARTISTS_DESCRIPTION =
+  "Browse the searchable publication-safe Solaris Artist index and its published Song relationships.";
+
 export const Route = createFileRoute("/artists/")({
   validateSearch: (search: Record<string, unknown>): ArtistsSearch => ({
     q:
@@ -21,18 +25,13 @@ export const Route = createFileRoute("/artists/")({
   head: () => ({
     meta: [
       { title: "Artists — Solaris Studio" },
-      {
-        name: "description",
-        content:
-          "Browse publication-safe Solaris artist identities and their published songs and appearances.",
-      },
+      { name: "description", content: ARTISTS_DESCRIPTION },
+      { property: "og:title", content: "Artists — Solaris Studio" },
+      { property: "og:description", content: ARTISTS_DESCRIPTION },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: ARTISTS_URL },
     ],
-    links: [
-      {
-        rel: "canonical",
-        href: "https://studio.solaris-song-contest.workers.dev/artists",
-      },
-    ],
+    links: [{ rel: "canonical", href: ARTISTS_URL }],
   }),
   component: ArtistsPage,
 });
