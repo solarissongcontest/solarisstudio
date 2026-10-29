@@ -32,6 +32,17 @@ describe("V3 Fantasy projection", () => {
     expect(resolveV3FantasyState({ game: { ...game, status: "scored" }, team: null, nowMs: Date.parse("2026-10-18T12:00:00Z") })).toBe("settled");
   });
 
+  it("never opens or locks a roster from the viewer device clock", () => {
+    const beforeOpen = Date.parse("2026-01-01T00:00:00Z");
+    const afterLock = Date.parse("2036-01-01T00:00:00Z");
+
+    expect(resolveV3FantasyState({ game, team: null, nowMs: beforeOpen })).toBe("open");
+    expect(resolveV3FantasyState({ game, team: null, nowMs: afterLock })).toBe("open");
+
+    const draft = { ...game, status: "draft" };
+    expect(resolveV3FantasyState({ game: draft, team: null, nowMs: afterLock })).toBe("upcoming");
+  });
+
   it("restores the canonical saved roster and captain instead of reopening an empty builder", () => {
     const restored = restoreV3FantasyRoster(
       { id: "team", game_id: game.id, profile_id: "viewer", state: "submitted", captain_country_id: "country-b", score: null },

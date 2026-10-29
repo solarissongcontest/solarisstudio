@@ -50,26 +50,32 @@ export type V3FantasyState =
   | "live_scoring"
   | "settled";
 
+/**
+ * Project Fantasy presentation state from canonical server-owned lifecycle
+ * fields only.
+ *
+ * `nowMs` is retained temporarily for call-site compatibility, but it is
+ * intentionally ignored. Device clocks must never open or close a roster. The
+ * write RPC re-checks the canonical server window and the read model's status
+ * is the only lifecycle signal this projection may use until System exposes a
+ * dedicated server-time Fantasy lifecycle projection.
+ */
 export function resolveV3FantasyState(input: {
   game: V3FantasyGame | null;
   team: V3FantasyTeam | null;
   nowMs: number;
 }): V3FantasyState {
-  const { game, team, nowMs } = input;
+  const { game, team } = input;
   if (!game || game.status === "cancelled") return "unavailable";
 
-  const opensAt = Date.parse(game.opens_at);
-  const locksAt = Date.parse(game.locks_at);
-  if (Number.isFinite(opensAt) && nowMs < opensAt) return "upcoming";
   if (game.status === "scored" || team?.state === "scored") return "settled";
   if (game.status === "scoring") return "live_scoring";
-  if (
-    game.status === "locked" ||
-    team?.state === "locked" ||
-    (Number.isFinite(locksAt) && nowMs >= locksAt)
-  ) {
-    return "locked";
-  }
+  if (game.status === "locked" || team?.state === "locked") return "locked";
+
+  // Draft/pending/unpublished lifecycle values stay non-actionable. Timestamps
+  // remain useful copy for the user, but the browser clock cannot promote them.
+  if (game.status !== "open") return "upcoming";
+
   if (team) return "submitted";
   return "open";
 }

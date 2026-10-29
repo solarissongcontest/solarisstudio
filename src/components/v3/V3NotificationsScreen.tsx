@@ -3,12 +3,14 @@ import {
   BellRing,
   CheckCircle2,
   Mail,
+  RefreshCw,
   Settings2,
   ShieldCheck,
   Smartphone,
 } from "lucide-react";
 
 import type { AppPushDeliveryStatus } from "@/lib/app-notifications";
+import { formatEventDateTime } from "@/lib/public-time";
 import {
   V3ActionCard,
   V3NowCard,
@@ -36,19 +38,17 @@ export type V3NotificationsScreenProps = {
   urgentDeadlineReminders: boolean;
   preferencesUnavailable?: boolean;
   inboxUnavailable?: boolean;
+  degraded?: boolean;
+  retrying?: boolean;
   inboxItems: readonly V3NotificationInboxItem[];
+  onRetry?: () => void;
 };
 
 function formatNoticeTime(value: string | null) {
   if (!value) return "Recently";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Recently";
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatEventDateTime(date, { locale: "en-GB" });
 }
 
 function noticeTone(item: V3NotificationInboxItem) {
@@ -74,7 +74,10 @@ export function V3NotificationsScreen({
   urgentDeadlineReminders,
   preferencesUnavailable = false,
   inboxUnavailable = false,
+  degraded = false,
+  retrying = false,
   inboxItems,
+  onRetry,
 }: V3NotificationsScreenProps) {
   const activeItems = inboxItems.filter((item) => item.state !== "archived");
   const acknowledgementCount = activeItems.filter(
@@ -100,8 +103,32 @@ export function V3NotificationsScreen({
         <V3ScreenHeader
           kicker="Me"
           title="Notifications"
-          description="Official updates, attention state and delivery health in one place. Push helps you notice work; it never becomes the work itself."
+          description="Official updates, important messages and delivery settings in one place."
         />
+
+        {degraded ? (
+          <V3Surface className="mb-4 border-amber-300/20 bg-amber-300/[0.045]" data-v3-notifications-authority-state="degraded">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">Some notification state could not be refreshed</p>
+                <p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--v3-text-secondary)]">
+                  Solaris keeps any previously verified state visible, marks unavailable projections honestly, and never treats notification delivery as proof that required work does or does not exist.
+                </p>
+              </div>
+              {onRetry ? (
+                <button
+                  type="button"
+                  disabled={retrying}
+                  onClick={onRetry}
+                  className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-[var(--v3-border-subtle)] px-3 text-xs font-semibold disabled:cursor-wait disabled:opacity-50"
+                >
+                  <RefreshCw className="size-3.5" aria-hidden="true" />
+                  {retrying ? "Refreshing…" : "Retry"}
+                </button>
+              ) : null}
+            </div>
+          </V3Surface>
+        ) : null}
 
         <V3Section title="Needs attention">
           <V3NowCard
@@ -117,8 +144,8 @@ export function V3NotificationsScreen({
           >
             {inboxUnavailable ? (
               <V3ActionCard
-                title="Open the canonical notice inbox"
-                description="If notification delivery is degraded, required official communications remain available in MySolaris."
+                title="Open official notices"
+                description="If the notification summary is unavailable, you can still open your official messages directly."
                 icon={ShieldCheck}
                 tone="neutral"
                 to="/my-solaris/notices"
@@ -137,7 +164,7 @@ export function V3NotificationsScreen({
                 {unreadWithoutAction > 0 ? (
                   <V3ActionCard
                     title={`${unreadWithoutAction} unread official message${unreadWithoutAction === 1 ? "" : "s"}`}
-                    description="Open your canonical notice inbox to read the full messages."
+                    description="Open Notices to read the full messages."
                     icon={Mail}
                     tone="neutral"
                     to="/my-solaris/notices"
@@ -168,7 +195,7 @@ export function V3NotificationsScreen({
             <V3Surface>
               <p className="text-sm font-semibold">Inbox status unavailable</p>
               <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                Solaris could not load the notification summary. The canonical Notices route remains the fallback.
+                Solaris couldn't load this summary. You can still open Notices directly.
               </p>
             </V3Surface>
           ) : latest.length ? (

@@ -80,7 +80,27 @@ export function v3Impact(task: SolarisTask): V3Impact {
   return "low";
 }
 
+function v3ActionRequired(task: SolarisTask) {
+  // The canonical Participation OS uses voting `problem` for a required voting
+  // window that has already closed without a recorded submission. That remains
+  // a blocking problem the viewer needs to understand, but the browser cannot
+  // act on it or reopen the official window. Keep the raw source state for
+  // context while normalizing V3 action affordance to false.
+  if (
+    task.state === "problem" &&
+    (task.kind === "jury" || task.kind === "televote")
+  ) {
+    return false;
+  }
+  return task.actionRequired;
+}
+
 export function projectV3Action(task: SolarisTask, now = Date.now()): V3ActionProjection {
+  const actionRequired = v3ActionRequired(task);
+  const urgencyTask = actionRequired === task.actionRequired
+    ? task
+    : { ...task, actionRequired };
+
   return {
     id: task.id,
     editionId: task.editionId,
@@ -90,13 +110,16 @@ export function projectV3Action(task: SolarisTask, now = Date.now()): V3ActionPr
     description: task.description,
     why: task.why,
     route: task.route,
-    actionRequired: task.actionRequired,
-    urgency: v3Urgency(task, now),
+    actionRequired,
+    urgency: v3Urgency(urgencyTask, now),
     impact: v3Impact(task),
     deliveryClass: v3DeliveryClass(task.importance),
     opensAt: task.opensAt,
     deadline: task.deadline,
-    completed: task.state === "completed" || task.state === "finished",
+    // `finished` means a window/opportunity ended. It is useful historical
+    // context but must not be presented as proof that the viewer completed the
+    // responsibility. Only canonical `completed` is completion evidence.
+    completed: task.state === "completed",
   };
 }
 

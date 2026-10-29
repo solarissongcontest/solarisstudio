@@ -14,6 +14,8 @@ describe("V3 official delegation notices", () => {
 
     expect(source).toContain("useV3RolloutProbe(platformResolved && isAppMode)");
     expect(source).toContain("rollout.data?.notificationsEnabled === true");
+    expect(source).toContain("rollout.isLoading && !rollout.data");
+    expect(source).not.toContain("!rollout.isError &&");
     expect(source).toContain("<V3OfficialNoticesRouteContent");
     expect(source).toContain("<OrganizerRecipientNoticesModule />");
     expect(source).toContain("<OrganizerPublicNoticesModule />");
@@ -70,6 +72,14 @@ describe("V3 official delegation notices", () => {
     expect(source).toContain("Reading this notice does not acknowledge it");
     expect(source).toContain("Acknowledgement recorded");
     expect(source).toContain('data-v3-official-notice-detail={notice.id}');
+  });
+
+  it("renders notice and receipt timestamps in canonical Solaris time", () => {
+    const source = screen();
+
+    expect(source).toContain('import { formatEventWallTime } from "@/lib/public-time"');
+    expect(source).toContain('formatEventWallTime(date, { locale: "en-GB" })');
+    expect(source).not.toContain("new Intl.DateTimeFormat(undefined");
   });
 
   it("handles stale notice deep links without inventing a successful state", () => {

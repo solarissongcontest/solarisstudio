@@ -40,7 +40,7 @@ function NoticesRoute() {
     return <OrganizerPublicNoticesModule />;
   }
 
-  if (!platformResolved || (isAppMode && rollout.isLoading)) {
+  if (!platformResolved || (isAppMode && rollout.isLoading && !rollout.data)) {
     return (
       <main
         className="relative z-10 mx-auto w-full max-w-3xl px-4 py-10 sm:py-14"
@@ -61,9 +61,12 @@ function NoticesRoute() {
     );
   }
 
+  // The compatibility route owns Public web and pre-cutover installed-app
+  // traffic. Once the server has positively selected V3 Notifications for this
+  // signed-in viewer, a later rollout refetch error must not switch an active
+  // official-notice workflow onto a second presentation/data path.
   if (
     isAppMode &&
-    !rollout.isError &&
     rollout.data?.notificationsEnabled === true &&
     rollout.data.userId
   ) {

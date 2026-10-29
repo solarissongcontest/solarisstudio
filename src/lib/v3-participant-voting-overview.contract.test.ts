@@ -29,7 +29,7 @@ describe("V3 participant voting overview", () => {
   it("merges both voting modes into Participate without creating another network source", () => {
     expect(projection).toContain('currentVotingAction(bootstrap.actions, "jury")');
     expect(projection).toContain('currentVotingAction(bootstrap.actions, "televote")');
-    expect(screen).toContain('title="Voting"');
+    expect(screen).toContain('title="Voting overview"');
     expect(screen).toContain('data-v3-voting-overview="canonical-actions"');
     expect(screen).toContain("Public voting stays optional even when it is time-sensitive.");
     expect(screen).toContain("Solaris has no canonical");

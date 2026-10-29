@@ -9,6 +9,7 @@ import {
 } from "@/lib/v3-primary-route-cutover";
 import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
 import { V3AppShell } from "./V3AppShell";
+import { V3Screen, V3ScreenHeader, V3Surface } from "./V3Foundation";
 import { V3HomeScreen } from "./V3HomeScreen";
 import { V3ParticipateScreen } from "./V3ParticipateScreen";
 
@@ -79,13 +80,67 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
   );
 }
 
+function V3PrimarySurfaceReadError({
+  surface,
+  onRetry,
+  retrying,
+}: {
+  surface: V3PrimarySurface;
+  onRetry: () => void;
+  retrying: boolean;
+}) {
+  const participate = surface === "participate";
+  return (
+    <V3AppShell
+      editionLabel="Solaris Studio"
+      phaseLabel={participate ? "Participate" : "Today"}
+    >
+      <V3Screen>
+        <div data-v3-primary-read-state="error">
+          <V3ScreenHeader
+            kicker={participate ? "Participate" : "Solaris Today"}
+            title={participate ? "Current responsibilities could not be verified" : "Current contest state could not be verified"}
+            description={
+              participate
+                ? "Solaris could not confirm the server-authoritative participation projection. No responsibility, deadline, completion or voting state has been assumed from stale browser data."
+                : "Solaris could not confirm the current public contest projection. This view will not substitute stale client state for the authoritative read."
+            }
+          />
+          <V3Surface level="raised" className="p-5">
+            <div role="alert">
+              <p className="text-sm font-semibold">Authoritative read unavailable</p>
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--v3-text-secondary)]">
+                Retry the canonical read. If the session or edition context changed, Solaris will reconcile from the server response rather than keeping the previous page state.
+              </p>
+              <button
+                type="button"
+                disabled={retrying}
+                onClick={onRetry}
+                className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-[var(--v3-border-subtle)] bg-white/[0.035] px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {retrying ? "Retrying…" : "Retry authoritative read"}
+              </button>
+            </div>
+          </V3Surface>
+        </div>
+      </V3Screen>
+    </V3AppShell>
+  );
+}
+
 /**
  * Reversible production gate for the first V3 route cutover.
  *
- * Public web never enters this gate. A disabled/unavailable rollout, bootstrap
- * failure or unsafe route returns the existing route unchanged. Participate is
- * deliberately signed-in-only for this first slice so anonymous public-voting
- * parity remains on the proven legacy route until its V3 projection is ready.
+ * Public web never enters this gate. A disabled rollout, an initial rollout
+ * read failure with no cached authority, or an unsafe route returns the
+ * existing route unchanged. Once an installed-app V3 route is selected, a
+ * canonical bundle read failure remains in V3 as an explicit fail-closed
+ * reconciliation state instead of silently presenting legacy UI as though
+ * nothing failed. A later refetch failure with cached authoritative rollout or
+ * bundle data likewise keeps that V3 state mounted rather than switching data
+ * paths underneath the viewer. Participate remains signed-in-only for this
+ * slice so anonymous public-voting parity stays on the proven legacy route
+ * until its V3 projection is ready.
  *
  * The canonical router pathname owns which primary V3 surface is rendered. This
  * keeps content and shell navigation in lockstep even if TanStack Router retains
@@ -131,11 +186,23 @@ export function V3PrimaryRouteGate({
     <>{legacy}</>
   );
 
-  if (rollout.isLoading) return <ResolvingPrimarySurface surface={effectiveSurface} />;
-  if (rollout.isError || rollout.data?.enabled !== true) return safeLegacyFallback;
+  if (rollout.isLoading && !rollout.data) {
+    return <ResolvingPrimarySurface surface={effectiveSurface} />;
+  }
+  if (!rollout.data || rollout.data.enabled !== true) return safeLegacyFallback;
   if (effectiveSurface === "participate" && !rollout.data.userId) return safeLegacyFallback;
-  if (bundleQuery.isLoading) return <ResolvingPrimarySurface surface={effectiveSurface} />;
-  if (bundleQuery.isError || !bundleQuery.data) return safeLegacyFallback;
+  if (bundleQuery.isLoading && !bundleQuery.data) {
+    return <ResolvingPrimarySurface surface={effectiveSurface} />;
+  }
+  if (!bundleQuery.data) {
+    return (
+      <V3PrimarySurfaceReadError
+        surface={effectiveSurface}
+        retrying={bundleQuery.isFetching}
+        onRetry={() => void bundleQuery.refetch()}
+      />
+    );
+  }
 
   const bundle = bundleQuery.data;
   const isAuthenticated = Boolean(bundle.bootstrap.identity.userId);

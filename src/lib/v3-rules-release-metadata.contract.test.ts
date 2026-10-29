@@ -22,6 +22,17 @@ describe("Public V3 Rules release metadata", () => {
     expect(home).toContain("Previous versions");
   });
 
+  it("formats effective dates deterministically in canonical Solaris time", () => {
+    const home = read("src/components/rules/RulesHomeV5.tsx");
+
+    expect(home).toContain('import { SOLARIS_TIME_ZONE } from "@/lib/public-time"');
+    expect(home).toContain('new Intl.DateTimeFormat("en-GB"');
+    expect(home).toContain("timeZone: SOLARIS_TIME_ZONE");
+    expect(home).not.toContain("Intl.DateTimeFormat(undefined");
+    expect(home).not.toContain("toLocaleDateString(");
+    expect(home).not.toContain("toLocaleString(");
+  });
+
   it("fails soft when a release has no valid effective date", () => {
     const home = read("src/components/rules/RulesHomeV5.tsx");
 

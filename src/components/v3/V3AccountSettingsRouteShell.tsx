@@ -19,6 +19,7 @@ type V3AccountSettingsRouteShellProps = {
   title: string;
   description: string;
   children: ReactNode;
+  v3Children?: ReactNode;
 };
 
 function ResolvingAccountSettingsRoute({ title }: { title: string }) {
@@ -45,24 +46,28 @@ function ResolvingAccountSettingsRoute({ title }: { title: string }) {
  *
  * The routes keep their canonical account/auth/preferences mutation engines.
  * Only the installed-app presentation changes when both the global V3 flag and
- * this slice flag are server-authoritatively enabled. Public web, rollout errors
- * and disabled rollout all keep the proven AppShell presentation.
+ * this slice flag are server-authoritatively enabled. Public web, an initial
+ * rollout failure with no cached authority, and disabled rollout keep the
+ * proven AppShell presentation. Once the server has selected V3, a later
+ * rollout refetch error must not switch the viewer back to a second shell/data
+ * path underneath active account or session state.
  */
 export function V3AccountSettingsRouteShell({
   section,
   title,
   description,
   children,
+  v3Children,
 }: V3AccountSettingsRouteShellProps) {
   const { isAppMode, platformResolved } = useSolarisApp();
   const session = useFanSession();
   const rollout = useV3RolloutProbe(platformResolved && isAppMode);
 
-  if (!platformResolved || (isAppMode && rollout.isLoading)) {
+  if (!platformResolved || (isAppMode && rollout.isLoading && !rollout.data)) {
     return <ResolvingAccountSettingsRoute title={title} />;
   }
 
-  if (!isAppMode || rollout.isError || rollout.data?.accountSettingsEnabled !== true) {
+  if (!isAppMode || !rollout.data || rollout.data.accountSettingsEnabled !== true) {
     return (
       <AppShell>
         <PageHeader
@@ -80,13 +85,15 @@ export function V3AccountSettingsRouteShell({
     window.location.href = "/";
   };
 
-  // The legacy MySolaris presentation receives this provider from AppShell's
-  // MySolarisWorkspaceShell. The V3 Account cutover deliberately bypasses that
-  // legacy shell, so it must preserve the same context boundary here. Settings
-  // does not consume MySolaris context and stays outside the provider to avoid
-  // duplicating its account/task query fan-out.
+  const selectedContent = v3Children ?? children;
+
+  // The compatibility Account route normally receives this provider from
+  // AppShell's MySolaris workspace. Installed-app V3 bypasses that shell, so
+  // native Account content must retain the same caller-scoped context boundary.
+  // Settings does not consume MySolaris context and deliberately stays outside
+  // the provider to avoid unrelated participant/task query fan-out.
   const routeContent =
-    section === "account" ? <MySolarisProvider>{children}</MySolarisProvider> : children;
+    section === "account" ? <MySolarisProvider>{selectedContent}</MySolarisProvider> : selectedContent;
 
   return (
     <V3AppShell
