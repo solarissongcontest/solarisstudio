@@ -18,19 +18,33 @@ describe("V3 Participate screen contract", () => {
     expect(participate).not.toContain("useMutation(");
   });
 
-  it("keeps required, upcoming, waiting, optional and completed presentation lanes distinct", () => {
+  it("keeps required, blocked, upcoming, waiting, optional and completed presentation lanes distinct", () => {
     expect(participate).toContain('title="Needs attention"');
+    expect(participate).toContain('title="Blocked"');
     expect(participate).toContain('title="Next"');
     expect(participate).toContain('title="Waiting"');
     expect(participate).toContain('title="Optional now"');
     expect(participate).toContain('title="Completed"');
     expect(participate).toContain("participate.needsAttention");
+    expect(participate).toContain("participate.blocked");
     expect(participate).toContain("participate.waiting");
     expect(participate).toContain("participate.optionalNow");
+    expect(projection).toContain('action.sourceState === "problem" && !action.actionRequired');
     expect(projection).toContain('action.sourceState === "waiting"');
+    expect(projection.indexOf('action.sourceState === "problem" && !action.actionRequired')).toBeLessThan(
+      projection.indexOf("if (isOptional(action))"),
+    );
     expect(projection.indexOf('action.sourceState === "waiting"')).toBeLessThan(
       projection.indexOf("if (isOptional(action))"),
     );
+  });
+
+  it("explains that blocked problems are not currently actionable", () => {
+    expect(participate).toContain("No action available");
+    expect(participate).toContain("you cannot act yet");
+    expect(participate).toContain("reopened Entry editing");
+    expect(projection).toContain('const blocked: V3ActionProjection[] = []');
+    expect(projection).toContain("blocked.push(action)");
   });
 
   it("shows exact projected open/close timing without inventing browser-owned workflow state", () => {
