@@ -12,6 +12,7 @@ import type {
   IntegrityIdentityMode,
   ProtectedCaseListItem,
 } from "@/lib/integrity";
+import { assertNonProductionSupabaseTarget } from "@/lib/supabase-target-safety";
 
 type RpcResult<T> = { data: T | null; error: { message: string } | null };
 
@@ -175,6 +176,9 @@ function anonymousBrowserClient() {
   const url = import.meta.env.VITE_SUPABASE_URL;
   const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) throw new Error("Supabase is not configured.");
+
+  assertNonProductionSupabaseTarget(url, import.meta.env.MODE || "development");
+
   return createClient(url, key, {
     auth: {
       persistSession: false,

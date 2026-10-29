@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
+import { assertNonProductionSupabaseTarget } from "@/lib/supabase-target-safety";
+
 interface SitemapEntry {
   path: string;
   changefreq?: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
@@ -62,6 +64,11 @@ export const Route = createFileRoute("/sitemap.xml")({
           const supabaseUrl = process.env.SUPABASE_URL;
           const key = process.env.SUPABASE_PUBLISHABLE_KEY;
           if (supabaseUrl && key) {
+            assertNonProductionSupabaseTarget(
+              supabaseUrl,
+              import.meta.env.MODE || process.env.NODE_ENV || "development",
+            );
+
             const { createClient } = await import("@supabase/supabase-js");
             const client = createClient(supabaseUrl, key, {
               auth: { persistSession: false, autoRefreshToken: false },

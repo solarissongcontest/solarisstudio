@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
+import { assertNonProductionSupabaseTarget } from "@/lib/supabase-target-safety";
+
 function canonicalSupabaseConfig() {
   const url =
     import.meta.env.VITE_SUPABASE_URL ||
@@ -11,6 +13,11 @@ function canonicalSupabaseConfig() {
   if (!url || !key) {
     throw new Error("Solaris Studio database access is unavailable.");
   }
+
+  assertNonProductionSupabaseTarget(
+    url,
+    import.meta.env.MODE || process.env.NODE_ENV || "development",
+  );
 
   return { url, key };
 }
