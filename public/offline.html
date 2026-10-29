@@ -32,12 +32,9 @@
       --offline-safe-content-gap: 4px;
       --offline-safe-content-top: calc(var(--offline-safe-top) + var(--offline-safe-content-gap));
     }
-    html[data-solaris-ios-standalone="true"] {
-      --offline-safe-top: max(env(safe-area-inset-top, 0px), 62px);
-    }
-    @media (orientation: landscape) {
+    @media (orientation: portrait) and (max-width: 767px) {
       html[data-solaris-ios-standalone="true"] {
-        --offline-safe-top: env(safe-area-inset-top, 0px);
+        --offline-safe-top: max(env(safe-area-inset-top, 0px), 62px);
       }
     }
     * { box-sizing: border-box; }
