@@ -13,12 +13,18 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export const Route = createFileRoute("/songs/$songId")({
-  head: () => ({
+  head: ({ params }) => ({
     meta: [
       { title: "Song — Solaris Studio" },
       {
         name: "description",
         content: "Publication-safe Solaris song identity and published contest appearances.",
+      },
+    ],
+    links: [
+      {
+        rel: "canonical",
+        href: `https://studio.solaris-song-contest.workers.dev/songs/${encodeURIComponent(params.songId)}`,
       },
     ],
   }),
