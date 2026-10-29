@@ -263,7 +263,11 @@ export function V3EditionOverviewScreen({
   const winnerRows = prioritizeOutcome
     ? projection.results.rows.filter((row) => row.rank === 1)
     : [];
-  const featuredOutcome = winnerRows.length ? winnerRows : resultPreview.slice(0, 1);
+  const featuredOutcome = prioritizeOutcome
+    ? winnerRows.length
+      ? winnerRows
+      : resultPreview.slice(0, 1)
+    : [];
 
   return (
     <V3Screen>
