@@ -279,6 +279,54 @@ export function V3LiveScreen({
         </div>
       </V3Surface>
 
+      {experience.reveal.state !== "hidden" ? (
+        <V3Section
+          title={experience.reveal.state === "complete" ? "Results reveal complete" : "Results reveal"}
+          meta={`${experience.reveal.currentStep} of ${experience.reveal.totalSteps}`}
+        >
+          <V3Surface
+            level="raised"
+            className="p-5"
+            data-v3-live-reveal-progress={experience.reveal.state}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="v3-kicker">Canonical reveal progress</p>
+                <p className="mt-2 text-lg font-bold tracking-[-0.02em]">
+                  {experience.reveal.state === "complete"
+                    ? "Reveal complete"
+                    : "Reveal in progress"}
+                </p>
+              </div>
+              <V3StatusChip tone={experience.reveal.state === "complete" ? "success" : "live"}>
+                {experience.reveal.state === "complete" ? "Complete" : "Live"}
+              </V3StatusChip>
+            </div>
+            <div
+              className="mt-4 h-2 overflow-hidden rounded-full bg-white/[0.08]"
+              role="progressbar"
+              aria-label="Results reveal progress"
+              aria-valuemin={0}
+              aria-valuemax={experience.reveal.totalSteps}
+              aria-valuenow={experience.reveal.currentStep}
+            >
+              <div
+                className="h-full rounded-full bg-white/80 transition-[width] motion-reduce:transition-none"
+                style={{
+                  width: `${experience.reveal.totalSteps > 0
+                    ? Math.min(100, (experience.reveal.currentStep / experience.reveal.totalSteps) * 100)
+                    : 0}%`,
+                }}
+              />
+            </div>
+            <p className="mt-3 text-xs leading-5 text-white/48">
+              {experience.reveal.currentStep} of {experience.reveal.totalSteps} reveal steps have been confirmed by the server.
+              Future reveal order stays private until each step is executed.
+            </p>
+          </V3Surface>
+        </V3Section>
+      ) : null}
+
       {experience.broadcast ||
       experience.voting.state === "open" ||
       experience.resultsPublished ? (

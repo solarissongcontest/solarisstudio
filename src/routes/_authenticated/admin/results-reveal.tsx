@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Sparkles, Trophy } from 'lucide-react';
@@ -10,6 +10,17 @@ import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { useContestEntities, useCountries, useResults, useShows } from '@/lib/data';
 import { displayFromEntity } from '@/lib/entities';
+import {
+  advanceReveal,
+  availableRevealTransitions,
+  configureRevealPlan,
+  isRevealArmable,
+  loadRevealDirectorSnapshot,
+  revealStateLabel,
+  transitionReveal,
+  type RevealDirectorRow,
+  type RevealLifecycleState,
+} from '@/lib/results-reveal-lifecycle';
 import { buildResultsRevealModel, type RevealStrategy } from '@/lib/results-reveal-model';
 import { isStudio2FeatureEnabled } from '@/lib/studio2-feature-flags';
 
@@ -34,45 +45,223 @@ function ResultsRevealHeader() {
     <AdminPageHeader
       eyebrow="Live · Reveal"
       title="Results Reveal Director"
-      description="Plan and rehearse reveal orders against the selected show's actual jury and televote result rows. Armed and Live authority stays unavailable until Solaris has a governed reveal lifecycle; this planner never arms or executes the public reveal."
+      description="Plan, rehearse, arm and operate a reveal against one locked canonical result version. Armed freezes the sequence; editing requires an explicit disarm."
     />
   );
 }
 
-function RevealAuthorityBoundary() {
+function sequencesEqual(a: readonly string[], b: readonly string[]) {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function toneForRevealState(state: RevealLifecycleState) {
+  if (state === 'complete') return 'ready' as const;
+  if (state === 'live') return 'attention' as const;
+  if (state === 'armed') return 'info' as const;
+  return 'neutral' as const;
+}
+
+function LifecycleControl({
+  runtime,
+  strategy,
+  proposedSequence,
+  busy,
+  error,
+  disarmReason,
+  onDisarmReasonChange,
+  onAction,
+}: {
+  runtime: RevealDirectorRow;
+  strategy: RevealStrategy;
+  proposedSequence: string[];
+  busy: boolean;
+  error: string | null;
+  disarmReason: string;
+  onDisarmReasonChange: (value: string) => void;
+  onAction: (action: RevealAction) => void;
+}) {
+  const planDirty = runtime.strategy !== strategy || !sequencesEqual(runtime.sequence, proposedSequence);
+  const armable = isRevealArmable(runtime) && !planDirty;
+  const transitions = availableRevealTransitions(runtime.state);
+
   return (
     <AdminCard strong>
       <AdminCardHeader
-        eyebrow="Execution boundary"
-        title="Planning / Rehearsal only"
-        description="This surface may compare and rehearse reveal sequences, but it cannot enter Armed, Live or Complete state. Armed must lock the reveal sequence and require explicit governed disarm before editing; those production commands are intentionally unavailable until server authority exists."
-        action={<AdminStatus tone="attention">Live authority unavailable</AdminStatus>}
+        eyebrow="Governed lifecycle"
+        title={`${revealStateLabel(runtime.state)} · v${runtime.version}`}
+        description={
+          runtime.state === 'armed'
+            ? `Sequence locked to result version ${runtime.lockedResultVersion ?? '—'}. Disarm before changing the plan.`
+            : runtime.state === 'live'
+              ? `Live reveal progress ${runtime.currentStep}/${runtime.totalSteps}. Each advance is server-authoritative and receipted.`
+              : runtime.state === 'complete'
+                ? `Reveal complete at ${runtime.currentStep}/${runtime.totalSteps}. Publication remains a separate Results/Publication authority.`
+                : `Plan is editable. Arming requires the current result version to already be locked and reveal-ready.`
+        }
+        action={<AdminStatus tone={toneForRevealState(runtime.state)}>{revealStateLabel(runtime.state)}</AdminStatus>}
       />
-      <div className="mt-3 flex flex-wrap gap-2">
-        <AdminStatus tone="ready">Planning</AdminStatus>
-        <AdminStatus tone="info">Rehearsal</AdminStatus>
-        <AdminStatus tone="neutral">Armed · server authority required</AdminStatus>
-        <AdminStatus tone="neutral">Live · server authority required</AdminStatus>
-        <AdminStatus tone="neutral">Complete · server authority required</AdminStatus>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Result authority</p>
+          <p className="mt-1 text-sm font-semibold">
+            v{runtime.calculationVersion || '—'} · reveal ready {runtime.revealReadyVersion ?? '—'}
+          </p>
+        </div>
+        <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Locked result</p>
+          <p className="mt-1 text-sm font-semibold">{runtime.lockedResultVersion ?? 'Not armed'}</p>
+        </div>
+        <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Sequence</p>
+          <p className="mt-1 text-sm font-semibold">{runtime.sequence.length} saved step(s)</p>
+        </div>
+        <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Execution</p>
+          <p className="mt-1 text-sm font-semibold">{runtime.currentStep}/{runtime.totalSteps}</p>
+        </div>
       </div>
+
+      {error ? (
+        <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {runtime.canManagePlan && runtime.state !== 'armed' && runtime.state !== 'live' && runtime.state !== 'complete' ? (
+          <button
+            type="button"
+            disabled={busy || !planDirty || proposedSequence.length === 0}
+            onClick={() => onAction({ kind: 'save-plan' })}
+            className="min-h-11 rounded-xl border border-white/[0.10] bg-white/[0.06] px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {planDirty ? 'Save reveal plan' : 'Plan saved'}
+          </button>
+        ) : null}
+
+        {runtime.canControl && transitions.includes('planning') ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onAction({ kind: 'transition', to: 'planning' })}
+            className="min-h-11 rounded-xl border border-white/[0.10] px-4 text-sm font-semibold disabled:opacity-40"
+          >
+            Return to planning
+          </button>
+        ) : null}
+
+        {runtime.canControl && transitions.includes('rehearsal') && runtime.state !== 'armed' ? (
+          <button
+            type="button"
+            disabled={busy || planDirty}
+            onClick={() => onAction({ kind: 'transition', to: 'rehearsal' })}
+            className="min-h-11 rounded-xl border border-white/[0.10] px-4 text-sm font-semibold disabled:opacity-40"
+          >
+            Enter rehearsal
+          </button>
+        ) : null}
+
+        {runtime.canControl && transitions.includes('armed') ? (
+          <button
+            type="button"
+            disabled={busy || !armable}
+            onClick={() => onAction({ kind: 'transition', to: 'armed' })}
+            className="min-h-11 rounded-xl bg-foreground px-4 text-sm font-bold text-background disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Arm locked sequence
+          </button>
+        ) : null}
+
+        {runtime.state === 'armed' && runtime.canControl ? (
+          <>
+            <label className="min-w-[240px] flex-1">
+              <span className="sr-only">Disarm reason</span>
+              <input
+                value={disarmReason}
+                onChange={(event) => onDisarmReasonChange(event.target.value)}
+                placeholder="Reason required to disarm"
+                className="min-h-11 w-full rounded-xl border border-white/[0.10] bg-background px-3 text-sm"
+              />
+            </label>
+            <button
+              type="button"
+              disabled={busy || disarmReason.trim().length < 3}
+              onClick={() => onAction({ kind: 'transition', to: 'rehearsal', reason: disarmReason })}
+              className="min-h-11 rounded-xl border border-white/[0.10] px-4 text-sm font-semibold disabled:opacity-40"
+            >
+              Disarm to rehearsal
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onAction({ kind: 'transition', to: 'live' })}
+              className="min-h-11 rounded-xl bg-destructive px-4 text-sm font-bold text-destructive-foreground disabled:opacity-40"
+            >
+              Start live reveal
+            </button>
+          </>
+        ) : null}
+
+        {runtime.state === 'live' && runtime.canControl ? (
+          <>
+            <button
+              type="button"
+              disabled={busy || runtime.currentStep >= runtime.totalSteps}
+              onClick={() => onAction({ kind: 'advance' })}
+              className="min-h-11 rounded-xl bg-foreground px-4 text-sm font-bold text-background disabled:opacity-40"
+            >
+              Advance next reveal
+            </button>
+            <button
+              type="button"
+              disabled={busy || runtime.currentStep !== runtime.totalSteps}
+              onClick={() => onAction({ kind: 'transition', to: 'complete' })}
+              className="min-h-11 rounded-xl border border-white/[0.10] px-4 text-sm font-semibold disabled:opacity-40"
+            >
+              Complete reveal
+            </button>
+          </>
+        ) : null}
+      </div>
+
+      {planDirty && runtime.state !== 'armed' && runtime.state !== 'live' && runtime.state !== 'complete' ? (
+        <p className="mt-3 text-xs text-muted-foreground">Save this exact sequence before arming. The server revalidates it against the canonical result identities.</p>
+      ) : null}
+      {!planDirty && runtime.state !== 'armed' && runtime.state !== 'live' && runtime.state !== 'complete' && !armable ? (
+        <p className="mt-3 text-xs text-muted-foreground">Arming stays unavailable until Results marks the current locked calculation version reveal-ready.</p>
+      ) : null}
     </AdminCard>
   );
 }
 
+type RevealAction =
+  | { kind: 'save-plan' }
+  | { kind: 'transition'; to: RevealLifecycleState; reason?: string }
+  | { kind: 'advance' };
+
 function ResultsRevealPage() {
   const { editionId } = useAdminContext();
+  const queryClient = useQueryClient();
   const showsQuery = useShows(editionId ?? undefined);
   const countriesQuery = useCountries();
   const entitiesQuery = useContestEntities(editionId ?? undefined);
   const shows = showsQuery.data ?? [];
   const [showId, setShowId] = useState('');
   const [strategy, setStrategy] = useState<RevealStrategy>('jury_order');
+  const [disarmReason, setDisarmReason] = useState('');
 
   const featureQuery = useQuery({
     queryKey: ['studio2-feature', 'results_replay', editionId ?? 'unscoped'],
     enabled: Boolean(editionId),
     queryFn: () => isStudio2FeatureEnabled('results_replay', editionId!),
     staleTime: 30_000,
+  });
+
+  const lifecycleQuery = useQuery({
+    queryKey: ['reveal-director', editionId ?? 'unscoped'],
+    enabled: Boolean(editionId && featureQuery.data === true),
+    queryFn: () => loadRevealDirectorSnapshot(editionId!),
   });
 
   useEffect(() => {
@@ -86,10 +275,15 @@ function ResultsRevealPage() {
   const resultsQuery = useResults(showId || undefined);
   const rows = resultsQuery.data ?? [];
   const model = useMemo(() => buildResultsRevealModel(rows), [rows]);
+  const runtime = (lifecycleQuery.data ?? []).find((item) => item.showId === showId) ?? null;
 
   useEffect(() => {
+    if (runtime?.sequence.length) {
+      setStrategy(runtime.strategy);
+      return;
+    }
     if (model.recommendedStrategy) setStrategy(model.recommendedStrategy);
-  }, [model.recommendedStrategy, showId]);
+  }, [model.recommendedStrategy, runtime?.showId, runtime?.strategy, runtime?.sequence.length, showId]);
 
   const countryMap = useMemo(
     () => new Map((countriesQuery.data ?? []).map((country) => [country.id, country])),
@@ -109,7 +303,45 @@ function ResultsRevealPage() {
 
   const simulation = model.simulations[strategy];
   const revealOrder = model.strategies[strategy];
+  const proposedSequence = revealOrder.map((award) => award.countryId);
   const selectedShow = shows.find((show) => show.id === showId) ?? null;
+
+  const mutation = useMutation({
+    mutationFn: async (action: RevealAction) => {
+      if (!runtime) throw new Error('Reload Reveal Director before operating this show.');
+      if (action.kind === 'save-plan') {
+        return configureRevealPlan({
+          showId: runtime.showId,
+          strategy,
+          sequence: proposedSequence,
+          expectedVersion: runtime.version,
+        });
+      }
+      if (action.kind === 'advance') {
+        return advanceReveal({
+          showId: runtime.showId,
+          expectedVersion: runtime.version,
+        });
+      }
+      return transitionReveal({
+        showId: runtime.showId,
+        to: action.to,
+        reason: action.reason,
+        expectedVersion: runtime.version,
+      });
+    },
+    onSuccess: async (result) => {
+      if (result.state !== 'armed') setDisarmReason('');
+      await queryClient.invalidateQueries({ queryKey: ['reveal-director', editionId ?? 'unscoped'] });
+    },
+  });
+
+  const mutationError = mutation.error
+    ? mutation.error instanceof Error
+      ? mutation.error.message
+      : 'Reveal operation failed. Reload the authoritative state before retrying.'
+    : null;
+
   const revealColumns = [
     {
       key: 'step',
@@ -182,7 +414,7 @@ function ResultsRevealPage() {
           <AdminEmptyState
             icon={Sparkles}
             title="Results Reveal Director is disabled"
-            description="Enable the Results Replay rollout flag before using reveal simulations."
+            description="Enable the Results Replay rollout flag before using reveal operations."
           />
         </AdminCard>
       </AdminPage>
@@ -193,7 +425,6 @@ function ResultsRevealPage() {
     <AdminPage>
       <ObjectPage className="max-w-7xl">
         <ResultsRevealHeader />
-        <RevealAuthorityBoundary />
 
         <AdminCard strong>
           <div className="grid gap-4 lg:grid-cols-2">
@@ -211,8 +442,9 @@ function ResultsRevealPage() {
               <span className="font-semibold">Reveal strategy</span>
               <select
                 value={strategy}
+                disabled={runtime?.state === 'armed' || runtime?.state === 'live' || runtime?.state === 'complete'}
                 onChange={(event) => setStrategy(event.target.value as RevealStrategy)}
-                className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-background px-3"
+                className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-background px-3 disabled:opacity-50"
               >
                 {(Object.keys(STRATEGY_LABELS) as RevealStrategy[]).map((key) => (
                   <option key={key} value={key}>{STRATEGY_LABELS[key]}</option>
@@ -222,6 +454,25 @@ function ResultsRevealPage() {
           </div>
           {selectedShow ? <p className="mt-3 text-xs text-muted-foreground">{selectedShow.kind} · {rows.length} result row(s)</p> : null}
         </AdminCard>
+
+        {lifecycleQuery.isLoading ? (
+          <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading governed reveal state…</p></AdminCard>
+        ) : lifecycleQuery.error ? (
+          <AdminCard><AdminEmptyState icon={Trophy} title="Reveal lifecycle unavailable" description="The canonical Reveal Director state could not be loaded. No production action is available until it reconciles." /></AdminCard>
+        ) : runtime ? (
+          <LifecycleControl
+            runtime={runtime}
+            strategy={strategy}
+            proposedSequence={proposedSequence}
+            busy={mutation.isPending}
+            error={mutationError}
+            disarmReason={disarmReason}
+            onDisarmReasonChange={setDisarmReason}
+            onAction={(action) => mutation.mutate(action)}
+          />
+        ) : selectedShow ? (
+          <AdminCard><AdminEmptyState icon={Trophy} title="Reveal runtime missing" description="This show has no canonical reveal runtime. Production controls remain unavailable until the server state is repaired." /></AdminCard>
+        ) : null}
 
         {showsQuery.isLoading || resultsQuery.isLoading ? (
           <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Loading reveal data…</p></AdminCard>
@@ -246,12 +497,14 @@ function ResultsRevealPage() {
                 {(Object.keys(model.simulations) as RevealStrategy[]).map((key) => {
                   const value = model.simulations[key];
                   const recommended = key === model.recommendedStrategy;
+                  const locked = runtime?.state === 'armed' || runtime?.state === 'live' || runtime?.state === 'complete';
                   return (
                     <button
                       key={key}
                       type="button"
+                      disabled={locked}
                       onClick={() => setStrategy(key)}
-                      className="rounded-xl border border-white/[0.08] bg-black/10 p-4 text-left transition hover:bg-white/[0.04]"
+                      className="rounded-xl border border-white/[0.08] bg-black/10 p-4 text-left transition hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="font-semibold">{STRATEGY_LABELS[key]}</p>
