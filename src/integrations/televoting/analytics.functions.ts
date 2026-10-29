@@ -22,12 +22,20 @@ function validateScope(scope: MergedAnalysisScope): MergedAnalysisScope {
   }
 }
 
+async function requireVotingRead() {
+  const { requireSolarisCapabilityServer } = await import(
+    "@/integrations/supabase/capabilities.server"
+  );
+  await requireSolarisCapabilityServer("voting.read");
+}
+
 export const getMergedScopedAnalytics = createServerFn({ method: "POST" })
   .inputValidator((data: { scope: MergedAnalysisScope; hodPersonId?: string | null }) => ({
     scope: validateScope(data.scope),
     hodPersonId: data.hodPersonId ? String(data.hodPersonId) : null,
   }))
   .handler(async ({ data }) => {
+    await requireVotingRead();
     const { getMergedScopedAnalyticsServer } = await import("@/integrations/televoting/analytics.server");
     return getMergedScopedAnalyticsServer(data.scope, { hodPersonId: data.hodPersonId });
   });
