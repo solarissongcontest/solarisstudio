@@ -5,7 +5,7 @@ log() { printf '\n[v3-s3-confirmation-invariants] %s\n' "$*"; }
 fail() { printf '\n[v3-s3-confirmation-invariants] FAIL: %s\n' "$*" >&2; printf '::error::%s\n' "$*"; exit 1; }
 
 # This rehearsal writes destructive fixtures and is local-only by design.
-eval "$(supabase status -o env)"
+if [[ -z "${DB_URL:-}" ]]; then eval "$(supabase status -o env)"; fi
 : "${API_URL:?missing local Supabase API_URL}"
 : "${DB_URL:?missing local Supabase DB_URL}"
 case "$API_URL" in http://127.0.0.1:*|http://localhost:*) ;; *) fail "Refusing hosted Supabase rehearsal ($API_URL)" ;; esac

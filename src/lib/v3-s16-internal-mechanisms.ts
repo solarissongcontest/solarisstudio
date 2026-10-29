@@ -79,6 +79,14 @@ export function proveInternalMechanisms(catalog: V3S16CatalogEvidence) {
   for (const c of contracts) {
     if (!node(c.signature)) continue;
     const fn=functions.get(c.signature)!;
+    // A shared trigger function can serve multiple domains. The recursive
+    // function proof is cached, but every domain's input/attachment boundary
+    // must pass independently; one protected attachment cannot sanction a
+    // different table with a restored raw grant or a changed trigger binding.
+    if (!pinned(fn,c) || c.inputTables.some(name=>{
+      const t=tables.get(name);
+      return !t || t.owner!=='postgres' || !t.columnDmlGrants || t.dmlRoles.some(r=>r.toLowerCase()!=='postgres') || (t.columnDmlRoles??[]).some(r=>r.toLowerCase()!=='postgres') || t.columnDmlGrants.some(g=>g.role.toLowerCase()!=='postgres') || (t.updatableViews??[]).length>0;
+    }) || c.attachments.some(a=>!tables.get(a.table)?.triggerDefinitions?.some(t=>t.functionOid===fn.oid && t.functionSignature===fn.signature && t.type===a.type && t.enabled==='O'))) continue;
     for (const a of c.attachments) {
       const table=tables.get(a.table)!;
       for (const t of table.triggerDefinitions??[]) {

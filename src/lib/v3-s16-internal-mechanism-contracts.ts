@@ -684,7 +684,494 @@ export const V3_INTERNAL_MECHANISM_CONTRACTS: readonly InternalMechanismContract
       "private.v3_reconcile_integrity_consequences(p_limit integer, p_case_id uuid)"
     ],
     "proof": ".github/tests/v3-integrity-durable-consequences.sql"
-  }
+  },
+  {
+    "domain": "confirmation",
+    "signature": "private.studio2_guard_confirmation_resolution_scope()",
+    "definitionHash": "a4a95dc1690ef77644b27367371736dd",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects a resolution outside its exact generation, edition and country; never resolves a requirement itself.",
+    "inputTables": [
+      "public.studio2_confirmation_requirements"
+    ],
+    "attachments": [
+      {
+        "table": "public.studio2_confirmation_requirements",
+        "type": 23
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "entry",
+    "signature": "private.studio2_guard_direct_client_write()",
+    "definitionHash": "c28035d7628f91b70938209a32e28ebc",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects raw API-role DML without selecting business state; the protected source remains command-owned.",
+    "inputTables": [
+      "public.entries"
+    ],
+    "attachments": [
+      {
+        "table": "public.entries",
+        "type": 30
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "jury",
+    "signature": "private.studio2_guard_direct_client_write()",
+    "definitionHash": "c28035d7628f91b70938209a32e28ebc",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects raw API-role DML without selecting business state; the protected source remains command-owned.",
+    "inputTables": [
+      "public.jury_votes"
+    ],
+    "attachments": [
+      {
+        "table": "public.jury_votes",
+        "type": 30
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "entry",
+    "signature": "private.studio2_guard_direct_confirmation_review_transition()",
+    "definitionHash": "76317b0ebaa6b45f8bcf74a04c97ebaf",
+    "securityDefiner": false,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Invoker guard rejects raw review transitions; preserves current_user and cannot establish an approval.",
+    "inputTables": [
+      "public.internal_entries"
+    ],
+    "attachments": [
+      {
+        "table": "public.internal_entries",
+        "type": 19
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "confirmation",
+    "signature": "private.studio2_guard_direct_confirmation_round_mutation()",
+    "definitionHash": "241a7e10518e4b080cbef31e400e51b1",
+    "securityDefiner": false,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Invoker guard rejects raw window/configuration mutation; the canonical round command chooses lifecycle state.",
+    "inputTables": [
+      "public.submission_rounds"
+    ],
+    "attachments": [
+      {
+        "table": "public.submission_rounds",
+        "type": 11
+      },
+      {
+        "table": "public.submission_rounds",
+        "type": 23
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "confirmation",
+    "signature": "private.studio2_guard_duplicate_confirmation_submission()",
+    "definitionHash": "77c5eaf3b41e235d87f3427fd2891a8f",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects duplicate completion of an existing generation under a scoped lock; cannot create or waive a requirement.",
+    "inputTables": [
+      "public.submissions"
+    ],
+    "attachments": [
+      {
+        "table": "public.submissions",
+        "type": 23
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "entry",
+    "signature": "private.studio2_touch_confirmation_review_version()",
+    "definitionHash": "231ac23cfcc8f8e78f6418342e039d88",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "housekeeping",
+    "reason": "Bounded server review CAS counter derived from affected content; cannot create a review decision.",
+    "inputTables": [
+      "public.internal_entries",
+      "public.national_final_entries",
+      "public.national_finals",
+      "public.studio2_confirmation_review_versions",
+      "public.submissions"
+    ],
+    "attachments": [
+      {
+        "table": "public.internal_entries",
+        "type": 29
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "confirmation",
+    "signature": "private.studio2_touch_confirmation_round_version()",
+    "definitionHash": "7a5a8c5460aa2efc22a7b18f26bc8400",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "housekeeping",
+    "reason": "Bounded server counter for affected canonical round keys; never accepts an external revision or selects round state.",
+    "inputTables": [
+      "public.studio2_confirmation_round_versions",
+      "public.submission_rounds",
+      "public.submissions"
+    ],
+    "attachments": [
+      {
+        "table": "public.submission_rounds",
+        "type": 21
+      },
+      {
+        "table": "public.submissions",
+        "type": 29
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "jury",
+    "signature": "private.studio2_touch_jury_window_version()",
+    "definitionHash": "4dbaa2f3f037f95e0a5dd7cfdddb57ad",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "housekeeping",
+    "reason": "Bounded server CAS counter for affected edition keys; cannot open or close a Jury window.",
+    "inputTables": [
+      "public.jury_voting_windows",
+      "public.studio2_jury_window_versions"
+    ],
+    "attachments": [
+      {
+        "table": "public.jury_voting_windows",
+        "type": 29
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "entry",
+    "signature": "private.studio2_touch_participation_status_version()",
+    "definitionHash": "1db6370a8809b63899f54f3e55dd6030",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "housekeeping",
+    "reason": "Bounded server CAS counter for affected entry identities; cannot change participation status.",
+    "inputTables": [
+      "public.entries",
+      "public.studio2_participation_status_versions"
+    ],
+    "attachments": [
+      {
+        "table": "public.entries",
+        "type": 29
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "confirmation",
+    "signature": "private.v3_guard_archived_edition_workflow_write()",
+    "definitionHash": "f483ca6eae32faa5f9e729bf343e8888",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects writes owned by an archived edition; returns NEW/OLD and cannot choose a lifecycle transition.",
+    "inputTables": [
+      "public.studio2_confirmation_requirements",
+      "public.submission_rounds",
+      "public.submissions"
+    ],
+    "attachments": [
+      {
+        "table": "public.studio2_confirmation_requirements",
+        "type": 31
+      },
+      {
+        "table": "public.submission_rounds",
+        "type": 31
+      },
+      {
+        "table": "public.submissions",
+        "type": 31
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "entry",
+    "signature": "private.v3_guard_archived_edition_workflow_write()",
+    "definitionHash": "f483ca6eae32faa5f9e729bf343e8888",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects writes owned by an archived edition; returns NEW/OLD and cannot choose a lifecycle transition.",
+    "inputTables": [
+      "public.entries",
+      "public.internal_entries"
+    ],
+    "attachments": [
+      {
+        "table": "public.entries",
+        "type": 31
+      },
+      {
+        "table": "public.internal_entries",
+        "type": 31
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "jury",
+    "signature": "private.v3_guard_archived_edition_workflow_write()",
+    "definitionHash": "f483ca6eae32faa5f9e729bf343e8888",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects writes owned by an archived edition; returns NEW/OLD and cannot choose a lifecycle transition.",
+    "inputTables": [
+      "public.jury_ballot_submissions",
+      "public.jury_votes",
+      "public.jury_voting_windows"
+    ],
+    "attachments": [
+      {
+        "table": "public.jury_ballot_submissions",
+        "type": 31
+      },
+      {
+        "table": "public.jury_votes",
+        "type": 31
+      },
+      {
+        "table": "public.jury_voting_windows",
+        "type": 31
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "confirmation",
+    "signature": "private.v3_guard_entry_parent_scope()",
+    "definitionHash": "4599bde6172a127e8c0fdb2e5d109b08",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects ownership changes of versioned Confirmation content; writes no content or review decision.",
+    "inputTables": [
+      "private.v3_entry_versions",
+      "public.national_final_entries",
+      "public.national_finals",
+      "public.submissions"
+    ],
+    "attachments": [
+      {
+        "table": "public.submissions",
+        "type": 19
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "jury",
+    "signature": "private.v3_guard_jury_ballot_reference_scope()",
+    "definitionHash": "078088949c3b77ce27b246b7e726ba53",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects scope drift of a referenced ballot; cannot submit or adjudicate one.",
+    "inputTables": [
+      "public.jury_ballot_submissions"
+    ],
+    "attachments": [
+      {
+        "table": "public.jury_ballot_submissions",
+        "type": 19
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "jury",
+    "signature": "private.v3_guard_jury_vote_object_scope()",
+    "definitionHash": "adaed93ac2e737498d1a044ba2d8a4bf",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Checks exact show, edition, voter and recipient ownership; cannot assign points or choose a review outcome.",
+    "inputTables": [
+      "public.jury_votes"
+    ],
+    "attachments": [
+      {
+        "table": "public.jury_votes",
+        "type": 23
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "entry",
+    "signature": "private.v3_validate_current_entry_pointer()",
+    "definitionHash": "87ea2ad5ca945dabaa3037f19a2e074b",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Checks exact latest immutable content/version/review scope; cannot invent a version or review.",
+    "inputTables": [
+      "private.v3_entry_reviews",
+      "private.v3_entry_versions",
+      "public.internal_entries",
+      "public.national_final_entries",
+      "public.national_finals",
+      "public.submissions"
+    ],
+    "attachments": [
+      {
+        "table": "public.internal_entries",
+        "type": 21
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "jury",
+    "signature": "private.v3_validate_jury_submission_scope()",
+    "definitionHash": "59b874ddda46aafd4f7de2277b09b8a6",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Checks the completed matching integrity preflight and DNV exclusion; cannot commit a ballot independently.",
+    "inputTables": [
+      "public.jury_ballot_submissions"
+    ],
+    "attachments": [
+      {
+        "table": "public.jury_ballot_submissions",
+        "type": 21
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "jury",
+    "signature": "private.v3_validate_jury_vote_ballot_scope()",
+    "definitionHash": "e3fde0832195ff5cfbdc01685147b8b4",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects votes outside their exact canonical ballot scope; changes no vote or review state.",
+    "inputTables": [
+      "public.jury_votes"
+    ],
+    "attachments": [
+      {
+        "table": "public.jury_votes",
+        "type": 21
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "jury",
+    "signature": "private.v3_validate_jury_window_scope()",
+    "definitionHash": "4bc14b3ba566df42313d2a2cf85d5555",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects windows outside the edition owned by their show; chooses no window status.",
+    "inputTables": [
+      "public.jury_voting_windows"
+    ],
+    "attachments": [
+      {
+        "table": "public.jury_voting_windows",
+        "type": 23
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "jury",
+    "signature": "public.assert_entity_edition()",
+    "definitionHash": "37575ab5e2147a1f907792ca8db35b80",
+    "securityDefiner": false,
+    "callerSignatures": [],
+    "category": "guard",
+    "reason": "Rejects an entity reference outside the row edition; writes no critical state.",
+    "inputTables": [
+      "public.jury_votes"
+    ],
+    "attachments": [
+      {
+        "table": "public.jury_votes",
+        "type": 23
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "entry",
+    "signature": "public.bump_edition_data_revision()",
+    "definitionHash": "457d9e02f2349db408a71481836c75e4",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "category": "housekeeping",
+    "reason": "Advances only the owning edition revision in the source transaction; changes no business lifecycle fields.",
+    "inputTables": [
+      "public.editions",
+      "public.entries"
+    ],
+    "attachments": [
+      {
+        "table": "public.entries",
+        "type": 29
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
+  {
+    "domain": "entry",
+    "signature": "public.update_updated_at_column()",
+    "definitionHash": "12c2e4a9f1f74f4a42379496ffa28f08",
+    "securityDefiner": false,
+    "callerSignatures": [],
+    "category": "housekeeping",
+    "reason": "Only assigns NEW.updated_at=now(); no business decision or independent invocation.",
+    "inputTables": [
+      "public.entries"
+    ],
+    "attachments": [
+      {
+        "table": "public.entries",
+        "type": 19
+      }
+    ],
+    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
+  },
 ];
 export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
   {

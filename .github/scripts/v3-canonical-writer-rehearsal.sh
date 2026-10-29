@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Transactional canonical-authority proofs; no reset, repair or hosted fallback.
-eval "$(supabase status -o env)"
+if [[ -z "${DB_URL:-}" ]]; then eval "$(supabase status -o env)"; fi
 case "${API_URL:-}" in http://127.0.0.1:*|http://localhost:*) ;; *) echo 'Refusing non-local writer rehearsal' >&2; exit 1;; esac
 case "${DB_URL:-}" in postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;; *) echo 'Refusing non-local writer database' >&2; exit 1;; esac
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-combined-lineup-authority.sql
@@ -49,5 +49,12 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-jury-writer-cutover.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-runtime-writer-cutover.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-confirmation-entry-writer-cutover.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-confirmation-runtime-state-authority.sql
+shared_mechanisms_sql="$(mktemp)"
+bun run scripts/generate-v3-internal-mechanism-proof.ts --proof-file=.github/tests/v3-shared-invariant-mechanisms.sql --out="$shared_mechanisms_sql"
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$shared_mechanisms_sql"
+rm -f "$shared_mechanisms_sql"
+for invariant_family in confirmation jury entry; do
+  DB_URL="$DB_URL" bash ".github/scripts/v3-s3-${invariant_family}-invariants-rehearsal.sh"
+done
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-case-relation-authority.sql
 bash .github/scripts/v3-account-session-authority-rehearsal.sh

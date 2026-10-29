@@ -9,8 +9,8 @@ const projection=contracts.find(c=>c.signature.startsWith('private.v3_apply_publ
 describe('runtime evidence for internal mechanisms',()=>{
  it('classifies observed Televote mechanisms by body, ACL, input closure, caller chain and trigger type',()=>{
   const proof=proveInternalMechanisms(fixture as V3S16CatalogEvidence);
-  expect(proof.classifications).toHaveLength(26);
-  expect(proof.triggers.size).toBe(32);
+  expect(proof.classifications.filter(c=>c.domain==='televote')).toHaveLength(26);
+  expect([...proof.triggers].filter(k=>k.startsWith('televote:')).length).toBe(32);
   for(const c of contracts) expect(existsSync(c.proof)).toBe(true);
  });
  for(const [label,change] of Object.entries({

@@ -6,7 +6,7 @@ fail() { printf '\n[v3-s3-jury-invariants] FAIL: %s\n' "$*" >&2; printf '::error
 
 # These fixtures are destructive by design. This rehearsal is local-only and
 # must fail closed instead of ever acquiring a hosted Supabase fallback.
-eval "$(supabase status -o env)"
+if [[ -z "${DB_URL:-}" ]]; then eval "$(supabase status -o env)"; fi
 : "${API_URL:?missing local Supabase API_URL}"
 : "${DB_URL:?missing local Supabase DB_URL}"
 case "$API_URL" in http://127.0.0.1:*|http://localhost:*) ;; *) fail "Refusing hosted Supabase rehearsal ($API_URL)" ;; esac
