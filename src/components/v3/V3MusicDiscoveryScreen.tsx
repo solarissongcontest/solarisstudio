@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Disc3, MicVocal, Search } from "lucide-react";
+import { Disc3, MicVocal, RefreshCw, Search } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 
 import type {
@@ -57,13 +57,29 @@ function MusicSearch({
   );
 }
 
-function MissingCollection({ label }: { label: string }) {
+function MissingCollection({
+  label,
+  onRetry,
+}: {
+  label: string;
+  onRetry?: () => void | Promise<unknown>;
+}) {
   return (
     <V3Surface className="p-4">
       <p className="text-sm font-semibold">{label} unavailable</p>
       <p className="mt-1 text-xs leading-5 text-white/48">
         Solaris could not load this publication-safe music collection. Hidden Entry data is not used as a fallback.
       </p>
+      {onRetry ? (
+        <button
+          type="button"
+          onClick={() => void onRetry()}
+          className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.055] px-3 text-xs font-semibold text-white/78 transition hover:bg-white/[0.09] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+        >
+          <RefreshCw className="size-3.5" aria-hidden="true" />
+          Retry {label.toLowerCase()}
+        </button>
+      ) : null}
     </V3Surface>
   );
 }
@@ -73,11 +89,15 @@ export function V3MusicDiscoveryScreen({
   artists,
   query,
   onQueryChange,
+  onRetrySongs,
+  onRetryArtists,
 }: {
   songs: V3SongIndexProjection | null;
   artists: V3ArtistIndexProjection | null;
   query: string;
   onQueryChange: (query: string) => void;
+  onRetrySongs?: () => void | Promise<unknown>;
+  onRetryArtists?: () => void | Promise<unknown>;
 }) {
   const songItems = songs?.items.slice(0, ROOT_SONG_LIMIT) ?? [];
   const artistItems = artists?.items.slice(0, ROOT_ARTIST_LIMIT) ?? [];
@@ -138,7 +158,7 @@ export function V3MusicDiscoveryScreen({
             </V3Surface>
           )
         ) : (
-          <MissingCollection label="Songs" />
+          <MissingCollection label="Songs" onRetry={onRetrySongs} />
         )}
         <div className="mt-3">
           <V3ActionCard
@@ -169,7 +189,7 @@ export function V3MusicDiscoveryScreen({
             </V3Surface>
           )
         ) : (
-          <MissingCollection label="Artists" />
+          <MissingCollection label="Artists" onRetry={onRetryArtists} />
         )}
         <div className="mt-3">
           <V3ActionCard
