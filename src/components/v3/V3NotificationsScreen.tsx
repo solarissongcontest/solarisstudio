@@ -82,13 +82,13 @@ export function V3NotificationsScreen({
     (item) => item.state === "unread" && !item.acknowledgementRequired,
   ).length;
   const attentionCount = acknowledgementCount + unreadWithoutAction;
-  const latest = [...activeItems]
+  const recent = [...activeItems]
     .sort((a, b) => {
       const aTime = a.sentAt ? new Date(a.sentAt).getTime() : 0;
       const bTime = b.sentAt ? new Date(b.sentAt).getTime() : 0;
       return bTime - aTime;
     })
-    .slice(0, 3);
+    .slice(0, 8);
 
   return (
     <V3Screen className="pb-8">
@@ -150,7 +150,7 @@ export function V3NotificationsScreen({
         </V3Section>
 
         <V3Section
-          title="Latest official messages"
+          title="Official messages"
           meta={
             <Link
               to="/my-solaris/notices"
@@ -167,36 +167,35 @@ export function V3NotificationsScreen({
                 Solaris couldn't load this summary. You can still open Notices directly.
               </p>
             </V3Surface>
-          ) : latest.length ? (
-            <div className="grid gap-2.5">
-              {latest.map((item) => (
-                <Link
-                  key={item.id}
-                  to="/my-solaris/notices"
-                  search={{ notice: item.id }}
-                  className="block"
-                >
-                  <V3Surface level="raised" className="transition hover:border-white/20">
-                    <div className="flex items-start gap-3">
-                      <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-white/[0.055] text-[var(--v3-text-secondary)]">
-                        <BellRing className="size-4" aria-hidden="true" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-[var(--v3-text-primary)]">
-                            {item.title}
-                          </span>
-                          <V3StatusChip tone={noticeTone(item)}>{noticeStateLabel(item)}</V3StatusChip>
+          ) : recent.length ? (
+            <V3Surface className="overflow-hidden p-0" data-v3-notification-list="">
+              <div className="divide-y divide-[var(--v3-border-subtle)]">
+                {recent.map((item) => (
+                  <Link
+                    key={item.id}
+                    to="/my-solaris/notices"
+                    search={{ notice: item.id }}
+                    className="flex min-h-16 items-start gap-3 px-3 py-3 transition hover:bg-white/[0.025] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/35 sm:px-4"
+                    data-v3-notification-row=""
+                  >
+                    <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-white/[0.045] text-[var(--v3-text-secondary)]">
+                      <BellRing className="size-4" aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-[var(--v3-text-primary)]">
+                          {item.title}
                         </span>
-                        <span className="mt-1 block text-xs leading-5 text-[var(--v3-text-secondary)]">
-                          {item.typeLabel} · {formatNoticeTime(item.sentAt)}
-                        </span>
+                        <V3StatusChip tone={noticeTone(item)}>{noticeStateLabel(item)}</V3StatusChip>
                       </span>
-                    </div>
-                  </V3Surface>
-                </Link>
-              ))}
-            </div>
+                      <span className="mt-1 block text-xs leading-5 text-[var(--v3-text-secondary)]">
+                        {item.typeLabel} · {formatNoticeTime(item.sentAt)}
+                      </span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </V3Surface>
           ) : (
             <V3Surface>
               <div className="flex items-start gap-3">
