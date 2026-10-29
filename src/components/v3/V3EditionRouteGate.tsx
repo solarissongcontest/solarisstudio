@@ -13,6 +13,7 @@ import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
 import { V3AppShell } from "./V3AppShell";
 import { V3EditionParticipantsScreen } from "./V3EditionParticipantsScreen";
 import { V3EditionProductScreen } from "./V3EditionProductScreen";
+import { V3EditionSongsScreen } from "./V3EditionSongsScreen";
 
 function ResolvingEditionSurface() {
   return (
@@ -125,6 +126,12 @@ export function V3EditionRouteGate({
           key={screenKey}
           projection={bundle.projection}
           spoilerSafe={hideSpoilers}
+        />
+      ) : editionView === "songs" ? (
+        <V3EditionSongsScreen
+          key={screenKey}
+          projection={bundle.projection}
+          hideSpoilers={hideSpoilers}
         />
       ) : (
         <V3EditionProductScreen
