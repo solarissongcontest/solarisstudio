@@ -66,7 +66,7 @@ export function proveInternalMechanisms(catalog: V3S16CatalogEvidence) {
     } else if (!caller || roleSet(fn.executeRoles)!==roleSet(caller.executeRoles)) return false;
     // Reviewed public entrypoints still perform active-session and capability
     // checks themselves. Calling them indirectly cannot bypass that authority.
-    if (!mechanism && caller!.root) {
+    if (!mechanism && caller!.root && fn.executeRoles.some(r=>r.toLowerCase()==='authenticated')) {
       if (fn.executeRoles.some(r=>['public','anon','service_role'].includes(r.toLowerCase()))) return false;
       verified.set(signature,true); return true;
     }

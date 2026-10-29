@@ -35,6 +35,7 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-intake-delega
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-evidence-write-boundary.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-register-evidence-authority.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-core-actor-authority.sql
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-durable-consequences.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-recovery.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-outcome-authority.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-writer-boundary.sql

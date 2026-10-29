@@ -71,6 +71,7 @@ export const V3_SYSTEM_EDGE_FUNCTION_REGISTRY: readonly V3SystemEdgeFunctionRegi
 ];
 
 export const V3_SYSTEM_SCHEDULED_JOB_REGISTRY: readonly V3SystemScheduledJobRegistration[] = [
+  {name: "v3-integrity-consequences", ownerDomain: "integrity", evidence: "supabase/migrations/20261029105007_v3_integrity_durable_consequences.sql"},
   {
     name: "solaris-app-push-dispatch",
     ownerDomain: "notification",

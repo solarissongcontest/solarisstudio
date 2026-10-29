@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Disposable local fixtures only. No hosted fallback or database repair.
-eval "$(supabase status -o env)"
+if [[ -z "${DB_URL:-}" ]]; then eval "$(supabase status -o env)"; fi
 case "${API_URL:-}" in http://127.0.0.1:*|http://localhost:*) ;; *) echo 'Refusing non-local Integrity rehearsal' >&2; exit 1;; esac
 case "${DB_URL:-}" in postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;; *) echo 'Refusing non-local Integrity database' >&2; exit 1;; esac
 scratch_dir=$(mktemp -d)

@@ -77,6 +77,8 @@ const NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT: Readonly<Record<string, readonly st
  * less true, which is an impressively bad trade.
  */
 const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = {
+  "integrity.case_changed": ["integrity.case.review", "integrity.appeal.review"],
+  "integrity.appeal_changed": ["integrity.case.review", "integrity.appeal.review"],
   "media.verified": [],
   "acknowledgement.recorded": [],
   "notice.published": [],
@@ -91,6 +93,16 @@ const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = 
 };
 
 const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
+  "integrity.case_changed": [
+    "supabase/migrations/20261029105007_v3_integrity_durable_consequences.sql",
+    ".github/tests/v3-integrity-durable-consequences.sql",
+    "src/lib/v3-integrity-durable-consequences.contract.test.ts",
+  ],
+  "integrity.appeal_changed": [
+    "supabase/migrations/20261029105007_v3_integrity_durable_consequences.sql",
+    ".github/tests/v3-integrity-durable-consequences.sql",
+    "src/lib/v3-integrity-durable-consequences.contract.test.ts",
+  ],
   "acknowledgement.recorded": [
     "supabase/migrations/20261017123000_v3_s5_acknowledgement_consequences.sql",
     "src/lib/v3-s5-acknowledgement-consequences.test.ts",

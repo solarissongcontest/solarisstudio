@@ -551,6 +551,61 @@ export const V3_INTERNAL_MECHANISM_CONTRACTS: readonly InternalMechanismContract
     ],
     "callerSignatures": [],
     "proof": ".github/tests/v3-televote-internal-mechanisms.sql"
+  },
+  {
+    "domain": "integrity",
+    "signature": "private.v3_integrity_history_consequence_trigger()",
+    "definitionHash": "208bf88815fb8e34b288e9de4833dc67",
+    "category": "projection",
+    "reason": "Observe immutable history and derive workflow tasks from canonical current state; never adjudicate a case or mutate a sanction. Delivery errors remain durably pending.",
+    "securityDefiner": true,
+    "inputTables": [
+      "public.integrity_adjudication_history"
+    ],
+    "attachments": [
+      {
+        "table": "public.integrity_adjudication_history",
+        "type": 5
+      }
+    ],
+    "callerSignatures": [],
+    "proof": ".github/tests/v3-integrity-durable-consequences.sql"
+  },
+  {
+    "domain": "integrity",
+    "signature": "private.v3_enqueue_integrity_history(p_history_id uuid)",
+    "definitionHash": "e1026ed83d57e8ebd0f2b5f88b92d6cd",
+    "category": "projection",
+    "reason": "Observe immutable history and derive workflow tasks from canonical current state; never adjudicate a case or mutate a sanction. Delivery errors remain durably pending.",
+    "securityDefiner": true,
+    "inputTables": [
+      "public.integrity_adjudication_history"
+    ],
+    "attachments": [],
+    "callerSignatures": [
+      "private.v3_integrity_history_consequence_trigger()",
+      "private.v3_reconcile_integrity_consequences(p_limit integer, p_case_id uuid)"
+    ],
+    "proof": ".github/tests/v3-integrity-durable-consequences.sql"
+  },
+  {
+    "domain": "integrity",
+    "signature": "private.v3_apply_integrity_workflow(p_case_id uuid)",
+    "definitionHash": "46b54db0f5d4c30e61cc4d2a8d092075",
+    "category": "projection",
+    "reason": "Observe immutable history and derive workflow tasks from canonical current state; never adjudicate a case or mutate a sanction. Delivery errors remain durably pending.",
+    "securityDefiner": true,
+    "inputTables": [
+      "public.integrity_adjudication_history",
+      "public.integrity_cases",
+      "public.integrity_case_appeals",
+      "public.integrity_case_sanctions"
+    ],
+    "attachments": [],
+    "callerSignatures": [
+      "private.v3_reconcile_integrity_consequences(p_limit integer, p_case_id uuid)"
+    ],
+    "proof": ".github/tests/v3-integrity-durable-consequences.sql"
   }
 ];
 export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
@@ -634,6 +689,29 @@ export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
   {
     "signature": "televoting.v3_recover_conversion_calculation(p_round_id uuid, p_expected_round_version bigint, p_operation_id uuid)",
     "definitionHash": "ff25c0162800367609bfbb5c890c21ac",
+    "executeRoles": [
+      "authenticated",
+      "postgres"
+    ],
+    "securityDefiner": true,
+    "root": true,
+    "callerSignatures": []
+  },
+  {
+    "signature": "private.v3_reconcile_integrity_consequences(p_limit integer, p_case_id uuid)",
+    "definitionHash": "4925eca19705638952f5be4438871230",
+    "executeRoles": [
+      "postgres"
+    ],
+    "securityDefiner": true,
+    "root": false,
+    "callerSignatures": [
+      "public.studio2_reconcile_integrity_consequences(p_case_id uuid, p_limit integer)"
+    ]
+  },
+  {
+    "signature": "public.studio2_reconcile_integrity_consequences(p_case_id uuid, p_limit integer)",
+    "definitionHash": "0f127e9cee1364bf1071464ae96950df",
     "executeRoles": [
       "authenticated",
       "postgres"

@@ -294,7 +294,7 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     organizerProjection: "Trust & Governance",
     commands: ["integrity.case_transition", "integrity.appeal_decide", "integrity.identity_reveal"],
     events: ["integrity.case_changed", "integrity.appeal_changed"],
-    tasks: ["integrity.review_required"],
+    tasks: ["integrity.case.review", "integrity.appeal.review"],
     legacySources: ["ungoverned evidence reads"],
     migrationState: "canonical-read",
     retirementCriteria: [

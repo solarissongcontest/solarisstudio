@@ -67,6 +67,8 @@ describe("System V3 S1 registries", () => {
       "entry.reviewed",
       "entry.submitted",
       "entry.version_changed",
+      "integrity.appeal_changed",
+      "integrity.case_changed",
       "jury.ballot_changed",
       "jury.closed",
       "jury.opened",
