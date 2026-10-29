@@ -72,7 +72,7 @@ describe("Solaris V3 PWA shell lifecycle", () => {
     expect(offline).toContain("Reconnect for official results");
   });
 
-  it("keeps the fallback shell viewport-safe and preserves the canonical five public areas", () => {
+  it("keeps the fallback shell viewport-safe, phone-scopes its defensive top minimum, and preserves the canonical five public areas", () => {
     expect(offline).toContain("viewport-fit=cover");
     expect(offline).toContain("--offline-safe-content-top");
     expect(offline).toContain('data-solaris-ios-standalone="true"');
