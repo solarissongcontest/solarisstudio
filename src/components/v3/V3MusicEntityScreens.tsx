@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Disc3, MicVocal, Search } from "lucide-react";
+import { Disc3, MicVocal, Search, X } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 
 import type {
@@ -37,10 +37,14 @@ function SearchBox({
     event.preventDefault();
     onSubmit(draft.trim());
   };
+  const clear = () => {
+    setDraft("");
+    onSubmit("");
+  };
 
   return (
-    <form onSubmit={submit} className="flex gap-2" role="search">
-      <label className="min-w-0 flex-1">
+    <form onSubmit={submit} className="flex flex-wrap gap-2 sm:flex-nowrap" role="search">
+      <label className="min-w-0 flex-1 basis-full sm:basis-auto">
         <span className="sr-only">{label}</span>
         <input
           value={draft}
@@ -50,6 +54,16 @@ function SearchBox({
           className="min-h-11 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-white/25 focus:bg-white/[0.065]"
         />
       </label>
+      {draft ? (
+        <button
+          type="button"
+          onClick={clear}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 text-sm font-semibold text-white/62 transition hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+        >
+          <X className="size-4" aria-hidden="true" />
+          Clear
+        </button>
+      ) : null}
       <button
         type="submit"
         className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.07] px-4 text-sm font-semibold text-white/88 transition hover:bg-white/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
