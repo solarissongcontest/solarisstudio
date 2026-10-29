@@ -81,6 +81,15 @@ describe("Solaris V3 canonical top system safe zone", () => {
     expect(adminResponsive.match(/var\(--solaris-safe-bottom/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
   });
 
+  it("keeps wide Public sticky navigation and local controls below the same browser top obstruction", () => {
+    expect(safeZone).toContain(".public-site-sidebar");
+    expect(safeZone).toContain(".participation-service-nav");
+    expect(safeZone).toContain(".my-solaris-section-nav");
+    expect(safeZone).toContain(".public-site-content > .responsive-tabs");
+    expect(safeZone).toContain(".public-site-content .directory-page-filter");
+    expect(safeZone.match(/top: calc\(5rem \+ var\(--solaris-system-safe-top\)\)/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+
   it("keeps anchors and keyboard-focus targets below sticky shell chrome", () => {
     expect(responsive).toContain("scroll-margin-block-start: var(--v3-shell-top-obstruction)");
     expect(responsive).toContain("a[href]");
