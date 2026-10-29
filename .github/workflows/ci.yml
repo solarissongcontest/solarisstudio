@@ -5,10 +5,12 @@ on:
     branches:
       - main
       - merge/confirmations
+      - v3/1629-integration-chat8
   pull_request:
     branches:
       - main
       - audit/pr450-base-snapshot
+      - v3/1629-integration-chat8
   workflow_dispatch:
 
 permissions:
@@ -125,11 +127,17 @@ jobs:
           mkdir -p v3-integration-evidence
           GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts > v3-integration-evidence/v3-completion-dashboard.md
           GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts --json > v3-integration-evidence/v3-completion-dashboard.json
+          GITHUB_SHA="$expected" bun run scripts/check-v3-capability-evidence-integrity.ts --json > v3-integration-evidence/v3-capability-evidence-integrity.json
           bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > v3-integration-evidence/v3-s14-rehearsal-readiness.json
           bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > v3-integration-evidence/v3-s15-zero-orphan-readiness.json
           actual="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-integration-evidence/v3-completion-dashboard.json","utf8")).candidateSha)')"
           if [ "$actual" != "$expected" ]; then
             echo "::error::V3 completion dashboard is bound to $actual, expected exact source SHA $expected"
+            exit 1
+          fi
+          evidence_sha="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-integration-evidence/v3-capability-evidence-integrity.json","utf8")).candidateSha)')"
+          if [ "$evidence_sha" != "$expected" ]; then
+            echo "::error::V3 capability evidence audit is bound to $evidence_sha, expected exact source SHA $expected"
             exit 1
           fi
 
@@ -253,13 +261,14 @@ jobs:
             echo
             echo "- Fresh dependency install: attempted"
             echo "- V3 production-isolation runtime guard: attempted"
-            echo "- V3 capability status-history guard: attempted when an exact base SHA exists"
+            echo "- V3 capability status-history guard: attempted when an exact base SHA exists; new final-state promotions require exact-tree repository evidence"
             echo "- V3 capability report: generated when registry modules loaded successfully"
             echo "- V3 route/API/capability registry guard: attempted"
             echo "- V3 search/notification/physical ownership guard: attempted"
             echo "- System V3 S1 workflow dependency/consequence guard: attempted"
             echo "- V3 structural release-integrity guard: attempted"
-            echo "- V3 live completion dashboard + S14/S15 readiness evidence: attempted and exact-source-SHA checked"
+            echo "- V3 live completion dashboard + capability evidence debt + S14/S15 readiness evidence: attempted and exact-source-SHA checked"
+            echo "- Inherited capability evidence debt remains visible in the artifact; release certification may require it complete without blocking unrelated PRs"
             echo "- Fresh TanStack route generation: attempted when prior gates passed"
             echo "- Generated route tree verification: attempted when build ran"
             echo "- Production build and client budget: attempted when prior gates passed"
