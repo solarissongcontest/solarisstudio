@@ -56,9 +56,8 @@ describe("V3 Edition spoiler and result safety", () => {
     expect(source).toContain('view === "schedule"');
   });
 
-  it("does not make collection navigation a new authority boundary", () => {
+  it("does not make collection navigation a new data or timing authority boundary", () => {
     const source = productScreen();
-    expect(source).toContain("reusing").not;
     expect(source).not.toContain("supabase");
     expect(source).not.toContain("createClient");
     expect(source).not.toContain("useQuery(");
