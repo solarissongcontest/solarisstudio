@@ -14,11 +14,11 @@
   width: 100%;
   max-width: none;
   padding: .75rem .75rem max(
-    calc(6.75rem + env(safe-area-inset-bottom)),
+    calc(6.75rem + var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px))),
     calc(var(--solaris-bottom-obstruction, 0px) + 1rem)
   );
   scroll-padding-bottom: max(
-    calc(6.75rem + env(safe-area-inset-bottom)),
+    calc(6.75rem + var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px))),
     calc(var(--solaris-bottom-obstruction, 0px) + var(--solaris-keyboard-inset, 0px) + 1rem)
   );
 }
@@ -29,7 +29,7 @@
 
 .admin-control-room {
   scroll-padding-bottom: max(
-    calc(6.75rem + env(safe-area-inset-bottom)),
+    calc(6.75rem + var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px))),
     calc(var(--solaris-bottom-obstruction, 0px) + var(--solaris-keyboard-inset, 0px) + 1rem)
   );
 }
