@@ -45,14 +45,43 @@
   flex: 1 1 0;
 }
 
+.admin-mobile-nav[data-v6-organizer-tabbar] [data-organizer-tab-index]:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--primary) 82%, white);
+  outline-offset: -3px;
+}
+
 html[data-solaris-keyboard-open] .admin-mobile-nav[data-v6-organizer-tabbar] {
   opacity: 0;
-  transform: translateY(calc(100% + env(safe-area-inset-bottom) + 2rem));
+  transform: translateY(
+    calc(
+      100% +
+      var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px)) +
+      2rem
+    )
+  );
   pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .admin-mobile-nav[data-v6-organizer-tabbar] {
     transition: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .admin-mobile-nav[data-v6-organizer-tabbar] > div {
+    border-color: var(--border) !important;
+    background: var(--background) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: 0 10px 28px rgb(0 0 0 / .2) !important;
+  }
+
+  .admin-mobile-nav[data-v6-organizer-tabbar] .solaris-app-tabbar-backdrop {
+    display: none !important;
+  }
+
+  .admin-mobile-nav[data-v6-organizer-tabbar] .v6-organizer-tabbar__lens {
+    background: color-mix(in oklab, var(--foreground) 12%, var(--background)) !important;
   }
 }
