@@ -26,6 +26,12 @@ export const Route = createFileRoute("/songs/")({
           "Browse publication-safe Solaris song identities and their published artist credits and appearances.",
       },
     ],
+    links: [
+      {
+        rel: "canonical",
+        href: "https://studio.solaris-song-contest.workers.dev/songs",
+      },
+    ],
   }),
   component: SongsPage,
 });
