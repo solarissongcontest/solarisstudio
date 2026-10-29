@@ -99,6 +99,29 @@ describe("V3 Organizer Control Room attention model", () => {
     ]);
   });
 
+  it("routes incidents to Incident Command and readiness exceptions to canonical Control", () => {
+    const items = buildControlRoomAttention(
+      readiness([
+        issue({
+          id: "running-order",
+          severity: "action",
+          title: "Running order incomplete",
+          detail: "Place every entry before the show.",
+        }),
+      ]),
+      [incident("incident with spaces", "sev2", "Graphics degraded")],
+    );
+
+    expect(items.find((item) => item.kind === "incident")).toMatchObject({
+      route: "/admin/incidents?incident=incident%20with%20spaces",
+      actionLabel: "Open incident",
+    });
+    expect(items.find((item) => item.kind === "readiness")).toMatchObject({
+      route: "/admin/control",
+      actionLabel: "Open Control",
+    });
+  });
+
   it("does not promote warning-only readiness observations into immediate attention", () => {
     const items = buildControlRoomAttention(
       readiness([
