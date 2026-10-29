@@ -90,9 +90,7 @@
         max(16px, var(--offline-safe-left));
     }
     .view[hidden] { display: none; }
-    .hero {
-      padding: 12px 0 8px;
-    }
+    .hero { padding: 12px 0 8px; }
     .eyebrow {
       margin: 0;
       color: #8ed4ef;
@@ -154,12 +152,16 @@
     .empty { margin-top: 10px; font-size: 13px; color: #8493aa; }
     .tabbar {
       position: fixed;
-      left: 50%;
+      left: calc(var(--offline-safe-left) + 9px);
+      right: calc(var(--offline-safe-right) + 9px);
       bottom: max(8px, var(--offline-safe-bottom));
       z-index: 5;
-      width: min(calc(100vw - 18px - var(--offline-safe-left) - var(--offline-safe-right)), 520px);
+      width: min(
+        520px,
+        calc(100vw - 18px - var(--offline-safe-left) - var(--offline-safe-right))
+      );
       min-height: 68px;
-      transform: translateX(-50%);
+      margin-inline: auto;
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 2px;
@@ -195,7 +197,7 @@
     }
     @media (min-width: 900px) {
       main { padding-bottom: 32px; }
-      .tabbar { width: 390px; }
+      .tabbar { width: min(390px, calc(100vw - 18px - var(--offline-safe-left) - var(--offline-safe-right))); }
     }
     @media (prefers-reduced-motion: reduce) {
       * { scroll-behavior: auto !important; }
