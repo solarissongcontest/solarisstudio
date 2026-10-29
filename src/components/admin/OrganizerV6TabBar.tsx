@@ -453,7 +453,7 @@ export function OrganizerV6TabBar({
           "relative mx-auto grid max-w-xl overflow-hidden rounded-[1.45rem] border border-white/[0.14]",
           "bg-[#06101f]/80 p-[.375rem] shadow-[0_12px_34px_rgba(0,0,0,.2)] backdrop-blur-2xl",
           "transition-[height,border-radius,transform] duration-200 ease-out motion-reduce:transition-none",
-          compact ? "h-[3.35rem]" : "h-[4.7rem]",
+          compact ? "h-[3.5rem]" : "h-[4.7rem]",
           held && "scale-x-[1.01] scale-y-[1.025]",
         )}
         style={
@@ -477,7 +477,7 @@ export function OrganizerV6TabBar({
             className={cn(
               "v6-organizer-tabbar__lens pointer-events-none absolute left-[.375rem] top-1/2 z-[1] rounded-[1rem] bg-white/[0.075]",
               "transition-transform duration-200 ease-out motion-reduce:transition-none",
-              compact ? "h-[2.55rem]" : "h-[3.7rem]",
+              compact ? "h-[2.75rem]" : "h-[3.7rem]",
               dragging && "transition-none",
             )}
             style={indicatorStyle}
@@ -509,7 +509,7 @@ export function OrganizerV6TabBar({
             </>
           );
           const tabClassName = cn(
-            "relative z-[2] flex min-w-0 items-center justify-center rounded-[1rem] px-1",
+            "relative z-[2] flex min-h-[44px] min-w-0 items-center justify-center rounded-[1rem] px-1",
             "text-[11px] font-semibold transition-[color,transform] duration-150",
             "active:scale-[0.96] motion-reduce:active:scale-100",
             compact ? "flex-row" : "flex-col gap-1",
