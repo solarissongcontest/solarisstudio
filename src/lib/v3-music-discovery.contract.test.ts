@@ -10,6 +10,8 @@ const primitives = () => read("src/components/v3/V3MusicPrimitives.tsx");
 const entityScreens = () => read("src/components/v3/V3MusicEntityScreens.tsx");
 const songsRoute = () => read("src/routes/songs/index.tsx");
 const artistsRoute = () => read("src/routes/artists/index.tsx");
+const songRoute = () => read("src/routes/songs/$songId.tsx");
+const artistRoute = () => read("src/routes/artists/$artistId.tsx");
 
 describe("V3 Songs & Artists discovery", () => {
   it("owns a dedicated public music root rather than substituting Edition", () => {
@@ -47,6 +49,22 @@ describe("V3 Songs & Artists discovery", () => {
     expect(source).toContain("Published appearance");
     expect(source).not.toContain('description="Artist profile"');
     expect(source).not.toContain('description="Open song"');
+  });
+
+  it("keeps canonical URLs on the music root, complete collections and opaque entity routes", () => {
+    expect(route()).toContain("https://studio.solaris-song-contest.workers.dev/music");
+    expect(songsRoute()).toContain("https://studio.solaris-song-contest.workers.dev/songs");
+    expect(artistsRoute()).toContain("https://studio.solaris-song-contest.workers.dev/artists");
+    expect(songRoute()).toContain("encodeURIComponent(params.songId)");
+    expect(artistRoute()).toContain("encodeURIComponent(params.artistId)");
+    expect(songRoute()).not.toContain("song.title");
+    expect(artistRoute()).not.toContain("artist.displayName");
+  });
+
+  it("never labels an unresolved sibling query unavailable while it is still loading", () => {
+    const source = route();
+    expect(source).toContain("if (songs.isLoading || artists.isLoading)");
+    expect(source).not.toContain("songs.isLoading && artists.isLoading");
   });
 
   it("never falls back to raw Entry or direct Supabase reads", () => {
