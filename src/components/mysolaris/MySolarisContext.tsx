@@ -233,10 +233,9 @@ export function MySolarisProvider({ children, editionId }: { children: ReactNode
   useEffect(() => {
     if (userQuery.isLoading) return;
 
-    if (!userQuery.data) {
-      writeAppAttentionSummary({ participate: 0, me: 0, osBadge: 0 });
-      return;
-    }
+    // The root SDK auth-isolation callback owns sign-out/reset. This writer
+    // only publishes counts for the exact fan-session that produced its data.
+    if (!userQuery.data) return;
 
     if (
       noticesQuery.isLoading ||
@@ -245,11 +244,15 @@ export function MySolarisProvider({ children, editionId }: { children: ReactNode
       juryQuery.isLoading
     ) return;
 
-    writeAppAttentionSummary({
-      participate: taskCounts.needsAction,
-      me: unreadNoticeCount,
-      osBadge: unreadNoticeCount,
-    });
+    writeAppAttentionSummary(
+      {
+        participate: taskCounts.needsAction,
+        me: unreadNoticeCount,
+        osBadge: unreadNoticeCount,
+      },
+      undefined,
+      userQuery.data.id,
+    );
   }, [
     confirmationQuery.isLoading,
     juryQuery.isLoading,

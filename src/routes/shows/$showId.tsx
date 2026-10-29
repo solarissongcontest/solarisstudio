@@ -17,6 +17,7 @@ import { PublicShowResultSpoilerGuard } from "@/components/public/PublicShowResu
 import { RadialPointsView } from "@/components/RadialPointsView";
 import { ResponsiveTabs, type ResponsiveTabOption } from "@/components/ResponsiveTabs";
 import { ScoreboardStage } from "@/components/ScoreboardStage";
+import { V3PublicScoreboardGate } from "@/components/v3/V3PublicScoreboardGate";
 import { StoryCards } from "@/components/StoryCards";
 import { ShowVotingStats } from "@/components/ShowVotingStats";
 import { TelevoteRoundsComparison } from "@/components/TelevoteRoundsComparison";
@@ -580,22 +581,30 @@ function ShowPage() {
           >
             <p className="text-xs text-muted-foreground">{overallHelp}</p>
           </Panel>
-          {standings.length ? (
-            <ScoreboardStage
-              theme={publicTheme}
-              standings={standings}
-              countries={displayMap}
-              participants={participantMap}
-              qualifiers={publication.qualifiers ? show.qualifier_count : null}
-            />
-          ) : (
-            <PublicDataState
-              kind="empty"
-              title="No published ranking yet"
-              description="The overall result will appear here when a published ranking is available."
-              compact
-            />
-          )}
+          <V3PublicScoreboardGate
+            showId={showId}
+            countries={displayMap}
+            participants={participantMap}
+            qualifiers={publication.qualifiers ? show.qualifier_count : null}
+            fallback={
+              standings.length ? (
+                <ScoreboardStage
+                  theme={publicTheme}
+                  standings={standings}
+                  countries={displayMap}
+                  participants={participantMap}
+                  qualifiers={publication.qualifiers ? show.qualifier_count : null}
+                />
+              ) : (
+                <PublicDataState
+                  kind="empty"
+                  title="No published ranking yet"
+                  description="The overall result will appear here when a published ranking is available."
+                  compact
+                />
+              )
+            }
+          />
         </>
       )}
 

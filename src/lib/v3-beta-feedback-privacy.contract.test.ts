@@ -37,8 +37,9 @@ describe("Public V3 Beta feedback privacy boundary", () => {
     const safety = read("src/lib/public-beta-feedback-safety.ts");
 
     expect(safety).toContain("not a supported image type");
-    expect(safety).toContain("screenshot .* is empty");
-    expect(safety).toContain("larger than 5 mb");
+    expect(safety).toContain('empty: "is empty"');
+    expect(safety).toContain("error instanceof BetaScreenshotValidationError");
+    expect(safety).toContain("larger than 5 MB");
     expect(safety).not.toContain("unexpected bucket");
   });
 

@@ -21,8 +21,9 @@ describe("installed app attention summary", () => {
     writeAppAttentionSummary(
       { participate: 3, me: 2, osBadge: 2 },
       storage,
+      "A",
     );
-    expect(readAppAttentionSummary(storage)).toMatchObject({
+    expect(readAppAttentionSummary(storage, "A")).toMatchObject({
       participate: 3,
       me: 2,
       osBadge: 2,
@@ -32,7 +33,7 @@ describe("installed app attention summary", () => {
   it("clamps invalid counts instead of trusting stored data", () => {
     const storage = new MemoryStorage();
     storage.setItem(
-      "solaris:app-attention:v1",
+      "solaris:app-attention:v2:A",
       JSON.stringify({
         participate: -8,
         me: 999,
@@ -40,7 +41,7 @@ describe("installed app attention summary", () => {
         updatedAt: "2026-09-30T00:00:00.000Z",
       }),
     );
-    expect(readAppAttentionSummary(storage)).toMatchObject({
+    expect(readAppAttentionSummary(storage, "A")).toMatchObject({
       participate: 0,
       me: 99,
       osBadge: 0,

@@ -38,9 +38,11 @@ describe("V3 Results root source contract", () => {
   });
 
   it("scopes larger reads to exactly the selected public result edition and show", () => {
-    expect(source).toContain('.eq("show_id", selectedShow.id)');
-    expect(source).toContain('client.rpc("public_safe_participants"');
-    expect(source).toContain("_edition_id: selectedEdition.id");
+    expect(source).toContain("await loadPublicResultSnapshots(client, [selectedShow.id])");
+    expect(source).toContain("snapshot.publicationVersion !== snapshots.get(selectedShow.id)!.publicationVersion");
+    expect(source).toContain("snapshot.rows");
+    expect(source).not.toContain('.from("results")');
+    expect(source).toContain("snapshot?.editionId === show.edition_id");
     expect(source).toContain('.eq("edition_id", selectedEdition.id)');
     expect(source).toContain('.in("id", [...countryIds])');
     expect(source).not.toContain("useAllResults");
@@ -53,10 +55,11 @@ describe("V3 Results root source contract", () => {
     expect(source).toContain("canonicalCountryId: row.country_id");
   });
 
-  it("filters withdrawn and disqualified identities without deleting stored results", () => {
-    expect(source).toContain('participant.participation_status === "withdrawn"');
-    expect(source).toContain('participant.participation_status === "disqualified"');
-    expect(source).toContain("filterNonCompetingRows");
+  it("keeps published eligibility frozen in the exact result version without deleting history", () => {
+    expect(source).toContain("const rows = snapshot.rows");
+    expect(source).not.toContain('client.rpc("public_safe_participants"');
+    expect(source).not.toContain("filterNonCompetingRows");
+    expect(source).not.toContain(".delete(");
   });
 
   it("keeps historical result queries bounded and non-polling", () => {

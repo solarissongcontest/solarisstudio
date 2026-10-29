@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
+import { useFanSession } from "./prediction-data";
+import { organizerTaskCountQueryKey, organizerTasksQueryKey } from "./organizer-task-query-keys";
 
 export type OrganizerTaskPriority = "critical" | "high" | "normal";
 export type OrganizerTaskState = "open" | "waiting" | "resolved";
@@ -217,9 +219,10 @@ export function useOrganizerTasksV5(
   enabled = true,
 ) {
   const normalizedEditionId = normalizeOrganizerEditionId(editionId);
+  const actorId = useFanSession().data?.id ?? null;
   return useQuery({
-    enabled,
-    queryKey: ["organizer-tasks-v5", normalizedEditionId ?? "unscoped", filter],
+    enabled: enabled && Boolean(actorId),
+    queryKey: organizerTasksQueryKey(normalizedEditionId, actorId, filter),
     queryFn: () => loadOrganizerTasksV5(normalizedEditionId, filter),
     retry: shouldRetryOrganizerTaskQuery,
     refetchInterval: 60_000,
@@ -232,9 +235,10 @@ export function useOrganizerTaskCountV5(
   enabled = true,
 ) {
   const normalizedEditionId = normalizeOrganizerEditionId(editionId);
+  const actorId = useFanSession().data?.id ?? null;
   return useQuery({
-    enabled,
-    queryKey: ["organizer-task-count-v5", normalizedEditionId ?? "unscoped"],
+    enabled: enabled && Boolean(actorId),
+    queryKey: organizerTaskCountQueryKey(normalizedEditionId, actorId),
     queryFn: () => loadOrganizerTaskCountV5(normalizedEditionId),
     retry: shouldRetryOrganizerTaskQuery,
     refetchInterval: 60_000,

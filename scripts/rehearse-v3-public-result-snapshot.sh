@@ -63,6 +63,26 @@ log "Mutating live result rows cannot rewrite the published immutable snapshot"
 db_exec "update public.results set jury_points=55,televote_points=944,total_points=999 where id='$RESULT_ID';"
 [[ "$(anon_value "public.v3_public_published_result_snapshot('$SHOW_ID')->'rows'->0->>'totalPoints'")" == '22' ]] || fail "mutable result row changed published version 1"
 
+log "Bounded batch reads preserve exact immutable publication and caller privileges"
+[[ "$(anon_value "jsonb_array_length(public.v3_public_published_result_snapshots(array['$SHOW_ID'::uuid,'$SHOW_ID'::uuid,'00000000-0000-4000-8000-00000000ffff'::uuid]))")" == '1' ]] || fail "batch duplicated shows or exposed unknown/private state"
+[[ "$(anon_value "public.v3_public_published_result_snapshots(array['$SHOW_ID'::uuid])->0->'rows'->0->>'totalPoints'")" == '22' ]] || fail "batch read mutable result truth"
+[[ "$(anon_value "public.v3_public_published_result_snapshots(array[]::uuid[]) = '[]'::jsonb")" == 't' ]] || fail "empty batch was not empty"
+db_exec "do \$\$ begin
+  begin
+    perform public.v3_public_published_result_snapshots(array_fill('$SHOW_ID'::uuid, array[101]));
+    raise exception 'unbounded batch accepted';
+  exception when invalid_parameter_value then null; end;
+  begin
+    perform public.v3_public_published_result_snapshots(array[null::uuid]);
+    raise exception 'null show accepted';
+  exception when invalid_parameter_value then null; end;
+end \$\$;"
+
+log "Metadata discovery transports only exact published headers and tied winners"
+[[ "$(anon_value "(public.v3_public_published_result_snapshots(array['$SHOW_ID'::uuid],false)->0) ? 'rows'")" == 'f' ]] || fail "header batch downloaded the full scoreboard"
+[[ "$(anon_value "public.v3_public_published_result_snapshots(array['$SHOW_ID'::uuid],false)->0->'winners'->0->>'totalPoints'")" == '22' ]] || fail "header winner used mutable result truth"
+[[ "$(anon_value "public.v3_public_published_result_snapshots(array['$SHOW_ID'::uuid],false)->0->>'resultVersion'")" == '1' ]] || fail "header lost exact result version"
+
 log "Hiding the publication removes the public projection"
 db_exec "begin;
   update public.shows set published=false,updated_at=now() where id='$SHOW_ID';

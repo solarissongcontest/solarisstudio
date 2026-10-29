@@ -1,3 +1,4 @@
+import { applyEditionVisualChange } from "@/lib/edition-visual-command";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
@@ -351,6 +352,8 @@ export async function uploadEditionArtwork(editionId: string, file: File) {
 
 export async function saveEditionVisualTheme(input: {
   editionId: string;
+  expected: Record<string, unknown>;
+  logoUrl?: string;
   artworkUrl: string | null;
   artworkStoragePath: string | null;
   theme: VisualTheme;
@@ -362,18 +365,17 @@ export async function saveEditionVisualTheme(input: {
     palette: input.palette ?? [],
     generatedFromArtwork: Boolean(input.generatedFromArtwork),
   };
-  const { data, error } = await supabase
-    .from("editions")
-    .update({
+  return applyEditionVisualChange({
+    editionId: input.editionId,
+    expected: input.expected,
+    patch: {
       artwork_url: input.artworkUrl,
       artwork_storage_path: input.artworkStoragePath,
       theme_colors: themeColors,
-    })
-    .eq("id", input.editionId)
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data;
+      ...(input.logoUrl === undefined ? {} : { logo: input.logoUrl }),
+    },
+    reason: "Apply reviewed edition artwork and palette",
+  });
 }
 
 export async function extractThemeFromImage(file: File): Promise<{ theme: VisualTheme; palette: string[] }> {

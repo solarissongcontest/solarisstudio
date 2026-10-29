@@ -35,11 +35,13 @@ describe("V3 Organizer Media Review exact-edition safety", () => {
     expect(service).toContain("p_edition_id: input.editionId");
   });
 
-  it("marks the implemented Media Review slice building without overstating parity", () => {
+  it("retains the accepted Media Review cutover with explicit owner evidence", () => {
     const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "operations-media-assets",
     );
     expect(capability?.targetDomain).toBe("contest");
-    expect(capability?.migrationStatus).toBe("building");
+    expect(capability?.migrationStatus).toBe("cutover");
+    expect(capability?.migrationEvidence).toContain("v3-organizer-specialist-acceptance.contract.test.ts");
+    expect(capability?.migrationEvidence).toContain("studio2-media-assets.test.ts");
   });
 });

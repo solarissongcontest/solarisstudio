@@ -19,7 +19,7 @@ jobs:
   preflight:
     name: Exact-SHA V3 release preflight
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       VITE_SUPABASE_URL: http://127.0.0.1:54321
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_v3_release_local_only
@@ -81,64 +81,88 @@ jobs:
       - name: Verify production isolation
         run: bun run scripts/check-v3-production-isolation.ts
 
-      - name: Run canonical registry guards
+      - name: Discover every independent static release failure
+        run: bun --env-file=/dev/null run scripts/v3-release-preflight.ts --group=static
+
+      - name: Report S16 static mutation authority
+        if: always()
+        env:
+          V3_PREFLIGHT_DIR: v3-release-preflight/static
+        run: bun --env-file=/dev/null run scripts/check-v3-s16-mutation-authority.ts --static
+
+      - name: Setup Supabase CLI for exact-SHA S16 catalog proof
+        if: always()
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase for S16
+        if: always()
+        run: supabase start
+
+      - name: Rebuild exact migration chain for S16
+        if: always()
+        run: supabase db reset --local --no-seed
+
+      - name: Collect exact-SHA S16 catalog evidence
+        if: always()
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          V3_S16_CATALOG_OUT: v3-release-preflight/s16/catalog-evidence.json
+        run: bun --env-file=/dev/null run scripts/collect-v3-s16-catalog-evidence.ts
+
+      - name: Enforce S16 against exact-SHA local catalog evidence
+        if: always()
+        env:
+          V3_PREFLIGHT_DIR: v3-release-preflight/s16
+          V3_RELEASE_EVIDENCE_DIR: v3-release-preflight
+        run: bun --env-file=/dev/null run scripts/check-v3-s16-mutation-authority.ts --catalog=v3-release-preflight/s16/catalog-evidence.json --enforce
+
+      - name: Verify shared Results integration contract
+        if: always()
+        env:
+          V3_RELEASE_EVIDENCE_DIR: v3-release-preflight
+        run: bun --env-file=/dev/null run scripts/check-v3-results-integration.ts
+
+      - name: Generate exact-SHA discovery dashboard
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
-          bun run certify:v3-registry
-          bun run scripts/check-v3-non-route-capabilities.ts
-          bun run scripts/check-v3-system-s1-registries.ts
-          echo "V3_REGISTRY_GUARDS_PASSED=1" >> "$GITHUB_ENV"
-
-      - name: Run structural release-integrity guard
-        run: bun run scripts/check-v3-release-integrity.ts
-
-      - name: Generate exact-SHA preflight evidence
-        shell: bash
-        run: |
-          set -euo pipefail
-          expected="$(printf '%s' "$V3_CANDIDATE_SHA" | tr '[:upper:]' '[:lower:]')"
+          expected="$V3_CANDIDATE_SHA"
           mkdir -p v3-release-preflight
           GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts > v3-release-preflight/completion-dashboard.md
           GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts --json > v3-release-preflight/completion-dashboard.json
-          bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > v3-release-preflight/s14-readiness.json
-          bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > v3-release-preflight/s15-readiness.json
-          V3_RELEASE_EVIDENCE_DIR=v3-release-preflight bun run scripts/build-v3-s15-zero-orphan-evidence.ts
-          git rev-parse HEAD > v3-release-preflight/exact-sha.txt
-          dashboard_sha="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-release-preflight/completion-dashboard.json","utf8")).candidateSha)')"
-          s15_sha="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-release-preflight/s15-zero-orphan.json","utf8")).candidateSha)')"
-          checkout_sha="$(cat v3-release-preflight/exact-sha.txt)"
-          if [ "$dashboard_sha" != "$expected" ] || [ "$s15_sha" != "$expected" ] || [ "$checkout_sha" != "$expected" ]; then
-            echo "::error::release evidence identity mismatch: dashboard=$dashboard_sha s15=$s15_sha checkout=$checkout_sha expected=$expected"
+          dashboard_sha="$(node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync("v3-release-preflight/completion-dashboard.json","utf8")).candidateSha)')"
+          if [ "$dashboard_sha" != "$expected" ]; then
+            echo "::error::release evidence identity mismatch: dashboard=$dashboard_sha expected=$expected"
             exit 1
           fi
+          echo "Discovery is not a release certificate; exact-SHA runtime artifacts remain mandatory."
 
-      - name: Enforce release-strict preconditions
+      - name: Retain strict external release evidence requirements
+        if: always()
         env:
           V3_RELEASE_EVIDENCE_DIR: v3-release-preflight
         run: bun run scripts/check-v3-release-integrity.ts --release
 
-      - name: Upload exact-SHA preflight evidence
+      - name: Generate fail-closed exact-SHA release manifest
+        if: always()
+        env:
+          V3_RELEASE_EVIDENCE_DIR: v3-release-preflight
+          V3_RELEASE_RISK_REPORT: v3-release-preflight/static/s15-burndown.json
+          V3_RELEASE_MANIFEST_DIR: v3-release-preflight
+        run: bun run scripts/build-v3-release-manifest.ts
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+      - name: Upload exact-SHA discovery summary
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: v3-release-preflight-${{ inputs.candidate_sha }}
           path: v3-release-preflight/
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 30
-
-      - name: Publish preflight summary
-        if: always()
-        shell: bash
-        run: |
-          {
-            echo "## V3 exact-SHA release preflight"
-            echo
-            echo "Requested candidate: \`${{ inputs.candidate_sha }}\`"
-            echo
-            echo "This workflow is a fail-closed preflight, not an S16 certificate. It must remain red while S14, S15, cutover, security-classification, or other release prerequisites are incomplete."
-            if [ -s v3-release-preflight/completion-dashboard.md ]; then
-              echo
-              cat v3-release-preflight/completion-dashboard.md
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,3 +1,5 @@
+import { V3ResultReadUnavailable } from "./V3ResultReadUnavailable";
+import { V3ResultCoverageNotice } from "./V3ResultCoverageNotice";
 import type { ReactNode } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
@@ -46,7 +48,7 @@ export function V3RelationshipsIndexGate({ fallback }: { fallback: ReactNode }) 
   }
 
   if (bundle.isError || !bundle.data || rollout.isError || !rollout.data) {
-    return <>{fallback}</>;
+    return <V3ResultReadUnavailable />;
   }
 
   if (rollout.data.enabled !== true || rollout.data.resultsEnabled !== true) {
@@ -59,6 +61,7 @@ export function V3RelationshipsIndexGate({ fallback }: { fallback: ReactNode }) 
       phaseLabel={bundle.data.shell.phaseLabel}
       activeArea="results"
     >
+      <V3ResultCoverageNotice coverage={bundle.data.resultCoverage} />
       <V3RelationshipsIndexScreen pairs={bundle.data.pairs} />
     </V3AppShell>
   );
@@ -86,14 +89,11 @@ export function V3RelationshipDetailGate({
     return <V3RelationshipsLoading editionLabel={bundle.data?.shell.editionLabel} />;
   }
 
-  if (
-    bundle.isError ||
-    !bundle.data ||
-    rollout.isError ||
-    !rollout.data ||
-    rollout.data.enabled !== true ||
-    rollout.data.resultsEnabled !== true
-  ) {
+  if (bundle.isError || !bundle.data || rollout.isError || !rollout.data) {
+    return <V3ResultReadUnavailable />;
+  }
+
+  if (rollout.data.enabled !== true || rollout.data.resultsEnabled !== true) {
     return <>{fallback}</>;
   }
 
@@ -103,6 +103,7 @@ export function V3RelationshipDetailGate({
       phaseLabel={bundle.data.shell.phaseLabel}
       activeArea="results"
     >
+      <V3ResultCoverageNotice coverage={bundle.data.resultCoverage} />
       <V3RelationshipDetailScreen bundle={bundle.data} />
     </V3AppShell>
   );

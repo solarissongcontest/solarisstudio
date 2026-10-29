@@ -37,6 +37,7 @@ export function isV3OrganizerLivePath(pathname: string) {
 export function isV3OrganizerControlPath(pathname: string) {
   return (
     pathname === "/admin/control" ||
+    /^\/admin\/(?:ssc-?\d+|:editionSlug|__edition__)$/i.test(pathname) ||
     pathname.startsWith("/admin/countries") ||
     pathname.startsWith("/admin/next-in-line") ||
     pathname.startsWith("/admin/submission-versions") ||

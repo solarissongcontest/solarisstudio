@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Check, ClipboardCheck, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminEmptyState, AdminStatus } from "@/components/admin/AdminUI";
@@ -22,9 +22,9 @@ import {
   ADMIN_BETA_SUBMITTED_KEY,
   buildAdminBetaSections,
 } from "@/features/admin-beta-test/sections";
-import { supabase } from "@/integrations/supabase/client";
 import { uploadBetaFeedbackScreenshot } from "@/lib/beta-feedback-upload";
 import { editionLabel, useEditions } from "@/lib/data";
+import { submitOrganizerAcceptanceEvidence } from "@/lib/v3-organizer-acceptance-evidence";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/beta-test")({
@@ -55,8 +55,14 @@ function AdminBetaTestPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sectionError, setSectionError] = useState<string | null>(null);
+  const submissionOperationRef = useRef<{
+    submissionId: string;
+    operationId: string;
+    idempotencyKey: string;
+  } | null>(null);
 
   useEffect(() => {
+    submissionOperationRef.current = null;
     setHydrated(false);
     setAnswers({});
     setBugs([]);
@@ -112,7 +118,14 @@ function AdminBetaTestPage() {
   );
 
   function updateAnswer(id: string, value: BetaAnswer) {
+    submissionOperationRef.current = null;
     setAnswers((previous) => ({ ...previous, [id]: value }));
+    setSectionError(null);
+  }
+
+  function updateBugs(nextBugs: BetaBugReport[]) {
+    submissionOperationRef.current = null;
+    setBugs(nextBugs);
     setSectionError(null);
   }
 
@@ -172,9 +185,19 @@ function AdminBetaTestPage() {
       return;
     }
 
+    let operation = submissionOperationRef.current;
+    if (!operation) {
+      const submissionId = crypto.randomUUID();
+      operation = {
+        submissionId,
+        operationId: crypto.randomUUID(),
+        idempotencyKey: `organizer-acceptance:${submissionId}`,
+      };
+      submissionOperationRef.current = operation;
+    }
+
     setSubmitting(true);
     setError(null);
-    const submissionId = crypto.randomUUID();
     const uploadedPaths: string[] = [];
 
     try {
@@ -184,11 +207,13 @@ function AdminBetaTestPage() {
         let screenshotPath = bug.screenshotPath;
         if (bug.file) {
           screenshotPath = await uploadBetaFeedbackScreenshot({
-            submissionId,
+            submissionId: operation.submissionId,
             bugId: bug.id,
             file: bug.file,
             admin: true,
           });
+          uploadedPaths.push(screenshotPath);
+        } else if (screenshotPath) {
           uploadedPaths.push(screenshotPath);
         }
 
@@ -202,24 +227,24 @@ function AdminBetaTestPage() {
         organizerEditionSlug: activeEdition.slug,
         organizerEditionLabel: editionLabel(activeEdition),
       };
-      const payload = {
-        id: submissionId,
-        tester_name: testerName,
+
+      await submitOrganizerAcceptanceEvidence({
+        editionId: activeEdition.id,
+        submissionId: operation.submissionId,
+        testerName,
         device,
-        browser: answers.browser || null,
-        familiarity: answers.familiarity || null,
+        browser: answers.browser ? String(answers.browser) : null,
+        familiarity: answers.familiarity ? String(answers.familiarity) : null,
         answers: scopedAnswers,
-        bug_reports: preparedBugs,
-        screenshot_paths: uploadedPaths,
-        user_agent: navigator.userAgent,
-        form_version: ADMIN_BETA_FORM_VERSION,
-      };
+        bugReports: preparedBugs,
+        screenshotPaths: uploadedPaths,
+        userAgent: navigator.userAgent,
+        formVersion: ADMIN_BETA_FORM_VERSION,
+        operationId: operation.operationId,
+        idempotencyKey: operation.idempotencyKey,
+      });
 
-      const { error: insertError } = await supabase
-        .from("admin_beta_test_submissions" as never)
-        .insert(payload as never);
-      if (insertError) throw insertError;
-
+      submissionOperationRef.current = null;
       window.localStorage.removeItem(draftKey);
       window.localStorage.setItem(submittedKey, "true");
       setSubmitted(true);
@@ -236,6 +261,7 @@ function AdminBetaTestPage() {
   }
 
   function restart() {
+    submissionOperationRef.current = null;
     if (draftKey) window.localStorage.removeItem(draftKey);
     if (submittedKey) window.localStorage.removeItem(submittedKey);
     setAnswers({});
@@ -352,7 +378,7 @@ function AdminBetaTestPage() {
                 />
               ))}
               {current.id === "bugs" && answers.bugsFound !== "No" && answers.bugsFound ? (
-                <BetaBugReports bugs={bugs} onChange={setBugs} />
+                <BetaBugReports bugs={bugs} onChange={updateBugs} />
               ) : null}
             </div>
           </>

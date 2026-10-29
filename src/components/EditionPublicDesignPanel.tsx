@@ -1,3 +1,4 @@
+import { applyEditionVisualChange } from "@/lib/edition-visual-command";
 import { useRouterState } from "@tanstack/react-router";
 import { LayoutTemplate, Monitor, Smartphone, Sparkles, Tablet } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -21,6 +22,7 @@ type PendingPublicDesignReview = {
   editionSlug: string;
   editionName: string;
   beforeThemeColors: Record<string, unknown>;
+  beforeCanonicalThemeColors: unknown;
   nextThemeColors: Record<string, unknown>;
   beforeStyle: string;
   nextStyle: PublicStyle;
@@ -176,6 +178,7 @@ export function EditionPublicDesignPanel() {
       editionSlug: edition.slug,
       editionName: edition.name,
       beforeThemeColors: cloneRecord(raw),
+      beforeCanonicalThemeColors: JSON.parse(JSON.stringify(edition.theme_colors ?? null)),
       nextThemeColors: cloneRecord(next),
       beforeStyle: savedPublicStyle(raw),
       nextStyle: style,
@@ -213,14 +216,12 @@ export function EditionPublicDesignPanel() {
         );
       }
 
-      const { error: updateError } = await supabase
-        .from("editions")
-        .update({ theme_colors: pendingReview.nextThemeColors })
-        .eq("id", pendingReview.editionId)
-        .eq("slug", pendingReview.editionSlug)
-        .select("id")
-        .single();
-      if (updateError) throw updateError;
+      await applyEditionVisualChange({
+        editionId: pendingReview.editionId,
+        expected: { name: pendingReview.editionName, slug: pendingReview.editionSlug, theme_colors: pendingReview.beforeCanonicalThemeColors },
+        patch: { theme_colors: pendingReview.nextThemeColors },
+        reason: "Apply reviewed public edition design",
+      });
 
       setPendingReview(null);
       await Promise.all([qc.invalidateQueries({ queryKey: ["editions"] }), qc.invalidateQueries({ queryKey: ["edition"] })]);
@@ -332,7 +333,7 @@ export function EditionPublicDesignPanel() {
             </div>
             <p>The reviewed payload also freezes surface strength, hero glow and both gradient configurations exactly as previewed.</p>
             <p>Before applying, Organizer re-reads the exact edition and refuses the save if its identity or any stored theme colour/design field changed while this review was open.</p>
-            <p>The underlying edition metadata update remains legacy direct-table authority. System #625 is still required for canonical version/CAS, idempotency, receipt and uncertain-outcome reconciliation.</p>
+            <p>The save checks the reviewed design again on the server. If another editor has changed it, refresh and review the current design before retrying.</p>
           </div>
         ) : null}
         confirmLabel="Apply public design"

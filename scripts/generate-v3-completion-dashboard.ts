@@ -1,3 +1,4 @@
+import { isResolvedV3DomainConsequence, isV3ReadOnlyConsequenceReplacement } from "../src/lib/v3-domain-consequence-registry";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import {
@@ -161,6 +162,9 @@ const candidateSha = exactSha();
 const eventBackedConsequences = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter(
   (item) => item.implementationState === "event-backed",
 );
+const resolvedConsequences = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter(isResolvedV3DomainConsequence);
+const readOnlyReplacements = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter(isV3ReadOnlyConsequenceReplacement);
+const unresolvedConsequences = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((item) => !isResolvedV3DomainConsequence(item));
 const systemConceptsOwned = V3_REQUIRED_SYSTEM_CONCEPTS.every(
   (concept) => Boolean((V3_SYSTEM_CONCEPT_OWNER as Record<string, string>)[concept]),
 );
@@ -236,16 +240,16 @@ const systemRows: EvidenceRow[] = [
     id: "S5",
     name: "cross-system consequence migration",
     state:
-      eventBackedConsequences.length === V3_DOMAIN_CONSEQUENCE_REGISTRY.length && eventBackedConsequences.length > 0
+      unresolvedConsequences.length === 0 && resolvedConsequences.length > 0
         ? "integrated"
-        : eventBackedConsequences.length > 0
+        : resolvedConsequences.length > 0
           ? "implemented"
           : "foundation",
-    evidence: `${eventBackedConsequences.length}/${V3_DOMAIN_CONSEQUENCE_REGISTRY.length} declared consequences are event-backed`,
+    evidence: `${eventBackedConsequences.length}/${V3_DOMAIN_CONSEQUENCE_REGISTRY.length} declared consequences are event-backed; ${readOnlyReplacements.length} are validated canonical read replacements`,
     blocker:
-      eventBackedConsequences.length === V3_DOMAIN_CONSEQUENCE_REGISTRY.length
+      unresolvedConsequences.length === 0
         ? undefined
-        : `${V3_DOMAIN_CONSEQUENCE_REGISTRY.length - eventBackedConsequences.length} consequences are still declaration-only`,
+        : `${unresolvedConsequences.length} consequences are still declaration-only`,
   },
   {
     id: "S6",
@@ -548,6 +552,9 @@ const payload = {
     pendingPhysicalDomains: pendingPhysicalDomains.length,
     consequences: V3_DOMAIN_CONSEQUENCE_REGISTRY.length,
     eventBackedConsequences: eventBackedConsequences.length,
+    resolvedConsequences: resolvedConsequences.length,
+    readOnlyReplacements: readOnlyReplacements.length,
+    unresolvedConsequences: unresolvedConsequences.length,
   },
   blockers,
 };
@@ -599,6 +606,8 @@ if (process.argv.includes("--json")) {
     `- Physical ownership audits pending: **${pendingPhysicalDomains.length}**`,
     `- Declared cross-domain consequences: **${V3_DOMAIN_CONSEQUENCE_REGISTRY.length}**`,
     `- Event-backed consequences: **${eventBackedConsequences.length}**`,
+    `- Validated canonical read replacements: **${readOnlyReplacements.length}**`,
+    `- Unresolved consequences: **${unresolvedConsequences.length}**`,
     "",
     "## Current release blockers",
     "",

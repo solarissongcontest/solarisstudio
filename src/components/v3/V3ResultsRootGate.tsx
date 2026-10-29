@@ -1,3 +1,5 @@
+import { V3ResultReadUnavailable } from "./V3ResultReadUnavailable";
+import { V3ResultCoverageNotice } from "./V3ResultCoverageNotice";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 
@@ -47,10 +49,10 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
     );
   }
 
-  // V3 never takes authority from an unresolved or failed public bundle. The
-  // established route remains available as a reversible rollout fallback.
+  // Failed canonical reads or unresolved rollout cannot authorize legacy
+  // result truth. Preserve rollback only for a resolved disabled rollout.
   if (bundle.isError || !bundle.data || rollout.isError || !rollout.data) {
-    return <>{fallback}</>;
+    return <V3ResultReadUnavailable />;
   }
 
   const v3Enabled = rollout.data.enabled === true && rollout.data.resultsEnabled === true;
@@ -79,6 +81,7 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
       phaseLabel={bundle.data.shell.phaseLabel ?? "Results"}
       activeArea="results"
     >
+      <V3ResultCoverageNotice coverage={bundle.data.resultCoverage} />
       <V3ResultsScreen
         key={`${rollout.data.userId ?? "anonymous"}:${bundle.data.input.showId || "none"}:${hideSpoilers}`}
         countries={countries}

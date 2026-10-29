@@ -17,8 +17,8 @@ describe("TerraOS maintenance visual asset routing", () => {
   it("keeps the final image-led experience entirely inside the already-approved /assets prefix", () => {
     for (const asset of [
       "/assets/terraos-maintenance/atmosphere.jpeg",
-      "/assets/terraos-maintenance/moment-a.png",
-      "/assets/terraos-maintenance/moment-b.png",
+      "/assets/terraos-maintenance/moment-a.svg",
+      "/assets/terraos-maintenance/moment-b.svg",
       "/assets/terraos-maintenance.css",
       "/assets/terraos-maintenance.js",
       "/assets/terraos-maintenance-story.css",
@@ -30,9 +30,13 @@ describe("TerraOS maintenance visual asset routing", () => {
   });
 
   it("requires multiple obvious image moments and locally hosted photo layers", () => {
-    expect(page.match(/data-photo-kind=\"photo\"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
-    expect(page.match(/data-photo-parallax=/g)?.length ?? 0).toBeGreaterThanOrEqual(7);
-    expect(page.match(/class=\"photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(page.match(/data-photo-kind="photo"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    // Each photographic chapter must participate in the motion contract;
+    // do not pin the superseded composition's arbitrary total image count.
+    const photoTags = page.match(/<img[^>]*data-photo-kind="photo"[^>]*>/g) ?? [];
+    expect(photoTags.length).toBeGreaterThanOrEqual(3);
+    for (const photo of photoTags) expect(photo).toContain("data-photo-parallax=");
+    expect(page.match(/class="photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(css).toContain(".photo-chapter{");
     expect(css).toContain(".live-art{");
   });
@@ -49,7 +53,7 @@ describe("TerraOS maintenance visual asset routing", () => {
 
   it("keeps Story copy centralized and provides every canonical fixture state", () => {
     for (const id of ["home", "explore", "participate", "results", "me"]) {
-      expect(storyData).toContain(`id: \"${id}\"`);
+      expect(storyData).toContain(`id: "${id}"`);
     }
     for (const fixture of [
       "home_caught_up",
@@ -67,14 +71,14 @@ describe("TerraOS maintenance visual asset routing", () => {
     ]) expect(storyData).toContain(fixture);
 
     expect(page).toContain("serializeTerraOsMaintenanceStories");
-    expect(page).toContain('id=\"terraos-story-data\"');
+    expect(page).toContain('id="terraos-story-data"');
     expect(storyData).toContain('.replaceAll("<", "\\\\u003c")');
   });
 
   it("makes the five existing carousel cards the Story entry points rather than adding a second runway", () => {
-    expect(page).toContain('data-story-card=\"${story.id}\"');
-    expect(page).toContain('data-story-view=\"${story.id}\"');
-    expect(page).toContain('role=\"button\" tabindex=\"0\" aria-haspopup=\"dialog\"');
+    expect(page).toContain('data-story-card="${story.id}"');
+    expect(page).toContain('data-story-view="${story.id}"');
+    expect(page).toContain('role="button" tabindex="0" aria-haspopup="dialog"');
     expect(page).toContain("data-story-carousel-progress");
     expect(storyRuntime).not.toContain("story-showcase");
     expect(storyCss).toContain("flex: 0 0 84vw !important");
@@ -97,7 +101,7 @@ describe("TerraOS maintenance visual asset routing", () => {
     expect(storyRuntime).toContain("data-comparison-tab=\"before\"");
     expect(storyRuntime).toContain("data-comparison-tab=\"after\"");
     for (const demo of ["home", "explore", "participate", "results", "me"]) {
-      expect(storyRuntime).toContain(`data-story-demo=\"${demo}\"`);
+      expect(storyRuntime).toContain(`data-story-demo="${demo}"`);
     }
     expect(storyRuntime).toContain("data-home-toggle");
     expect(storyRuntime).toContain("data-explore-query");

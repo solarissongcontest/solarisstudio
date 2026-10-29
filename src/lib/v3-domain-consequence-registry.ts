@@ -21,6 +21,16 @@ export type V3RealtimeEffect = {
   projection: string;
 };
 
+export type V3ReadOnlyConsequenceReplacement = {
+  kind: "canonical-read";
+  ownerDomain: string;
+  operation: string;
+  projection: string;
+  boundedBy: string;
+  rationale: string;
+  evidence: readonly string[];
+};
+
 export type V3DomainConsequence = {
   eventType: string;
   ownerDomain: string;
@@ -37,7 +47,8 @@ export type V3DomainConsequence = {
    * transactional event/outbox consumers; `declared` must not be mistaken for
    * proof that an event bus already executes these effects.
    */
-  implementationState: "declared" | "event-backed";
+  implementationState: "declared" | "event-backed" | "replaced-by-read";
+  replacement: V3ReadOnlyConsequenceReplacement | null;
   evidence: readonly string[];
 };
 
@@ -208,6 +219,92 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
   ],
 };
 
+/**
+ * A reconciliation read is not a mutating domain event. Keep the old logical
+ * catalog identity traceable, but replace its invented side-effect contract with
+ * the existing bounded, actor-scoped canonical read. This must never turn an
+ * unimplemented mutation into an implemented consequence.
+ */
+const READ_ONLY_REPLACEMENTS: Readonly<Record<string, V3ReadOnlyConsequenceReplacement>> = {
+  "activity.projected": {
+    kind: "canonical-read",
+    ownerDomain: "activity",
+    operation: "public.v3_my_participant_activity(timestamptz,integer,uuid)",
+    projection: "recipient-scoped participant activity from canonical completed operations",
+    boundedBy: "authenticated recipient; at most 50 rows per keyset page",
+    rationale:
+      "The Activity domain has no mutation commands: its specification requires reconstruction from canonical source events. The STABLE recipient RPC derives safe history from completed operation ledgers without a separate writable feed or a new activity event on every read.",
+    evidence: [
+      "src/lib/solaris-v6-domain-registry.ts",
+      "supabase/migrations/20261019213500_v3_participant_activity_projection.sql",
+      "src/integrations/v3/participant-activity.server.ts",
+      "src/lib/v3-participant-activity-adapter.test.ts",
+      ".github/scripts/v3-participant-activity-regression.sh",
+      ".github/tests/v3-participant-activity.sql",
+      "src/lib/v3-activity-projection-consequence.test.ts",
+    ],
+  },
+  "receipt.reconciled": {
+    kind: "canonical-read",
+    ownerDomain: "receipt",
+    operation: "public.studio2_reconcile_operation(uuid)",
+    projection: "actor-scoped canonical operation receipt",
+    boundedBy: "one operation id per invocation",
+    rationale:
+      "The STABLE RPC reads the actor's durable receipt without mutation. Recovery rereads and normalizes existing authority; it does not publish another receipt or invalidate the receipt it just read.",
+    evidence: [
+      "supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql",
+      "src/lib/system-operation-reconciliation.server.ts",
+      "src/lib/system-operation-reconciliation.server.test.ts",
+      ".github/scripts/v3-operation-receipt-rehearsal.sh",
+      "src/lib/v3-receipt-reconciliation-consequence.test.ts",
+    ],
+  },
+};
+
+export function v3DomainConsequenceImplementationErrors(consequence: V3DomainConsequence) {
+  if (consequence.implementationState === "declared") {
+    return consequence.replacement ? ["declared consequence has a replacement claim"] : [];
+  }
+  if (consequence.implementationState === "event-backed") {
+    const evidence = EVENT_BACKED_CONSEQUENCES[consequence.eventType];
+    return evidence?.length && evidence.every((path) => consequence.evidence.includes(path)) && !consequence.replacement
+      ? []
+      : ["event-backed consequence lacks its canonical implementation evidence"];
+  }
+  if (consequence.implementationState !== "replaced-by-read") return ["unknown consequence implementation state"];
+
+  const expected = READ_ONLY_REPLACEMENTS[consequence.eventType];
+  const actual = consequence.replacement;
+  if (!expected || !actual || consequence.ownerDomain !== expected.ownerDomain) {
+    return ["unknown read-only replacement or mismatched owner"];
+  }
+  for (const key of ["kind", "ownerDomain", "operation", "projection", "boundedBy", "rationale"] as const) {
+    if (actual[key] !== expected[key]) return ["read-only replacement differs from its canonical contract"];
+  }
+  if (!Array.isArray(actual.evidence) || !Array.isArray(consequence.evidence) ||
+      actual.evidence.length !== expected.evidence.length ||
+      !expected.evidence.every((path) => actual.evidence.includes(path) && consequence.evidence.includes(path))) {
+    return ["read-only replacement lacks its implementation and behavioral evidence"];
+  }
+  if (consequence.taskEffects.length || consequence.notificationEffects.length ||
+      consequence.publicationEffects.length || consequence.realtimeEffects.length ||
+      consequence.analyticsEffects.length || consequence.auditRequired) {
+    return ["a canonical read replacement must not invent mutating or delivery effects"];
+  }
+  return [];
+}
+
+/** Resolved includes an explicitly replaced read; it never fabricates an event bus. */
+export function isResolvedV3DomainConsequence(consequence: V3DomainConsequence) {
+  return consequence.implementationState !== "declared" &&
+    v3DomainConsequenceImplementationErrors(consequence).length === 0;
+}
+
+export function isV3ReadOnlyConsequenceReplacement(consequence: V3DomainConsequence) {
+  return consequence.implementationState === "replaced-by-read" && isResolvedV3DomainConsequence(consequence);
+}
+
 const providerIds: ReadonlySet<string> = new Set(
   V3_NOTIFICATION_PROVIDER_REGISTRY.map((provider) => provider.id),
 );
@@ -249,33 +346,37 @@ export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
         ...taskTypes.map((taskType) => `task:${taskType}`),
       ]);
       const eventBackedEvidence = EVENT_BACKED_CONSEQUENCES[eventType];
+      const replacement = READ_ONLY_REPLACEMENTS[eventType] ?? null;
 
       return {
         eventType,
         ownerDomain: domain.domain,
         projections: domain.projections,
-        taskEffects: taskTypes.map((taskType) => ({ effect: "re-evaluate", taskType } as const)),
-        notificationEffects: notificationProviders.map((providerId) => ({
+        taskEffects: replacement ? [] : taskTypes.map((taskType) => ({ effect: "re-evaluate", taskType } as const)),
+        notificationEffects: replacement ? [] : notificationProviders.map((providerId) => ({
           effect: "evaluate-provider",
           providerId,
         } as const)),
-        publicationEffects: publicProjections.map((projection) => ({
+        publicationEffects: replacement ? [] : publicProjections.map((projection) => ({
           effect: "re-evaluate-visibility",
           projection,
         } as const)),
-        realtimeEffects: domain.projections.map((projection) => ({
+        realtimeEffects: replacement ? [] : domain.projections.map((projection) => ({
           effect: "invalidate-projection",
           projection,
         } as const)),
-        analyticsEffects: [`domain-event:${eventType}`],
+        analyticsEffects: replacement ? [] : [`domain-event:${eventType}`],
         auditRequired:
-          domain.sensitivityClass !== "public" ||
-          domain.mutationCommands.length > 0,
+          !replacement && (domain.sensitivityClass !== "public" ||
+          domain.mutationCommands.length > 0),
         consumers,
-        implementationState: eventBackedEvidence ? "event-backed" : "declared",
-        evidence: eventBackedEvidence
-          ? unique([...domain.ownershipEvidence, ...eventBackedEvidence])
-          : domain.ownershipEvidence,
+        implementationState: replacement ? "replaced-by-read" : eventBackedEvidence ? "event-backed" : "declared",
+        replacement,
+        evidence: replacement
+          ? unique([...domain.ownershipEvidence, ...replacement.evidence])
+          : eventBackedEvidence
+            ? unique([...domain.ownershipEvidence, ...eventBackedEvidence])
+            : domain.ownershipEvidence,
       } satisfies V3DomainConsequence;
     }),
   );
@@ -300,6 +401,9 @@ export function validateV3DomainConsequenceRegistry() {
   );
 
   for (const consequence of V3_DOMAIN_CONSEQUENCE_REGISTRY) {
+    for (const issue of v3DomainConsequenceImplementationErrors(consequence)) {
+      errors.push(`${consequence.eventType}: ${issue}`);
+    }
     if (seen.has(consequence.eventType)) errors.push(`duplicate event ${consequence.eventType}`);
     seen.add(consequence.eventType);
     if (!v3SystemDomain(consequence.ownerDomain)) {

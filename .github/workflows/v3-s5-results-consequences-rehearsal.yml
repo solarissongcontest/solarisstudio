@@ -68,6 +68,44 @@ jobs:
           git fetch origin main --no-tags
           git worktree add /tmp/solaris-results-main origin/main
 
+      - name: Isolate disposable Inbucket web port
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-results-main
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("supabase/config.toml")
+          text = path.read_text()
+          section = re.search(r"(?ms)^\[inbucket\]\s*\n(.*?)(?=^\[|\Z)", text)
+
+          if section:
+              block = section.group(0)
+              if re.search(r"(?m)^port\s*=", block):
+                  replacement = re.sub(r"(?m)^port\s*=.*$", "port = 55324", block, count=1)
+              else:
+                  header_end = block.find("\n") + 1
+                  replacement = block[:header_end] + "port = 55324\n" + block[header_end:]
+              text = text[:section.start()] + replacement + text[section.end():]
+          else:
+              text = text.rstrip() + "\n\n[inbucket]\nport = 55324\n"
+
+          path.write_text(text)
+          PY
+          echo "Disposable current-main Inbucket port override:"
+          sed -n '/^\[inbucket\]/,/^\[/p' supabase/config.toml | head -8
+
+      - name: Diagnose local port ownership before upgrade start
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Listeners on the default and isolated Inbucket ports before supabase start:"
+          ss -ltnp | grep -E ':(54324|55324)[[:space:]]' || true
+          echo "Running Docker containers before supabase start:"
+          docker ps --format '{{.ID}} {{.Names}} {{.Ports}}' || true
+
       - name: Build current main locally
         shell: bash
         run: |

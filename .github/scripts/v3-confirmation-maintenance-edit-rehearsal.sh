@@ -12,6 +12,14 @@ case "$DB_URL" in
   *) fail "Refusing non-local database rehearsal" ;;
 esac
 
+python3 - "${API_URL:-}" <<'PY_LOCAL_API'
+import sys
+from urllib.parse import urlparse
+endpoint = urlparse(sys.argv[1])
+if endpoint.scheme != 'http' or endpoint.hostname not in ('127.0.0.1', 'localhost', '::1'):
+    raise SystemExit('Refusing non-local Confirmation maintenance API')
+PY_LOCAL_API
+
 scalar() { psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "$1"; }
 exec_sql() { psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null; }
 as_user() {
@@ -34,6 +42,8 @@ expect_denied() {
 COUNTRY_ID='00000000-0000-4000-8000-00000000c771'
 EDITION_ID='00000000-0000-4000-8000-00000000e771'
 ROUND_ID='00000000-0000-4000-8000-00000000a771'
+OTHER_EDITION_ID='00000000-0000-4000-8000-00000000e775'
+OTHER_ROUND_ID='00000000-0000-4000-8000-00000000a775'
 SUBMISSION_ID='00000000-0000-4000-8000-00000000f771'
 ENTRY_ID='00000000-0000-4000-8000-00000000d771'
 HOD_USER_ID='00000000-0000-4000-8000-00000000a772'
@@ -55,6 +65,10 @@ insert into public.editions(id,name,year,slug,edition_number,status,published,ed
 values ('$EDITION_ID','Maintenance Confirmation E2E',2026,'maintenance-confirmation-e2e',9771,'active',false,true);
 insert into public.submission_rounds(id,edition_id,name,status,opens_at,closes_at,editing_enabled)
 values ('$ROUND_ID','$EDITION_ID','Closed confirmation wave','closed',now()-interval '2 days',now()-interval '1 day',true);
+insert into public.editions(id,name,year,slug,edition_number,status,published,editing_enabled)
+values ('$OTHER_EDITION_ID','Unrelated Confirmation edition',2026,'unrelated-calendar-edition',9775,'draft',false,false);
+insert into public.submission_rounds(id,edition_id,name,status,editing_enabled)
+values ('$OTHER_ROUND_ID','$OTHER_EDITION_ID','Unrelated wave','closed',false);
 insert into public.country_accounts(user_id,country_id,status)
 values ('$HOD_USER_ID','$COUNTRY_ID','active');
 insert into public.submissions(
@@ -87,7 +101,7 @@ insert into public.studio2_capability_grants(user_id,capability,edition_id)
 values
   ('$ORGANIZER_USER_ID','confirmation.read',null),
   ('$ORGANIZER_USER_ID','confirmation.manage','$EDITION_ID'),
-  ('$INSPECTOR_USER_ID','confirmation.read',null);
+  ('$INSPECTOR_USER_ID','confirmation.read','$EDITION_ID');
 update public.studio2_platform_operational_state
 set mode='read_only',version=version+1,reason='Maintenance Confirmation rehearsal'
 where singleton=true;
@@ -105,6 +119,30 @@ DETAIL="$(as_user "$INSPECTOR_USER_ID" "select public.admin_confirmation_respons
 [[ "$DETAIL" == *"Original Song"* ]] || fail "response detail did not include fixture song"
 expect_denied "confirmation.read cannot reopen a response" "$INSPECTOR_USER_ID" \
   "select public.admin_update_confirmation_controls('$SUBMISSION_ID'::uuid,true,false,'Read-only actor must not mutate');"
+
+# These checks must prove authorization denial, never pass on an unrelated SQL error.
+expect_calendar_denied() {
+  local label="$1" actor="$2" sql="$3" output
+  if output="$(as_user "$actor" "$sql" 2>&1)"; then
+    fail "$label unexpectedly succeeded"
+  fi
+  printf '%s' "$output" | grep -Fq 'Missing Solaris capability: confirmation.read' || fail "$label did not fail through canonical read authorization"
+  log "PASS: $label"
+}
+
+log "Calendar read authority remains exact-edition and read-only"
+CALENDAR="$(as_user "$INSPECTOR_USER_ID" "select public.admin_confirmation_calendar('$EDITION_ID'::uuid,'$ROUND_ID'::uuid)::text;")"
+expect_eq "Calendar exact-edition response cardinality" "$(python3 -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$CALENDAR")" "1"
+expect_eq "Calendar exact response identity" "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])[0]["id"])' "$CALENDAR")" "$SUBMISSION_ID"
+expect_eq "Calendar exact edition identity" "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])[0]["edition_id"])' "$CALENDAR")" "$EDITION_ID"
+expect_eq "Calendar exact round identity" "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])[0]["round_id"])' "$CALENDAR")" "$ROUND_ID"
+expect_eq "Calendar excludes a foreign round" "$(as_user "$INSPECTOR_USER_ID" "select jsonb_array_length(public.admin_confirmation_calendar('$EDITION_ID'::uuid,'$OTHER_ROUND_ID'::uuid));")" "0"
+expect_calendar_denied "Calendar denies an edition outside the scoped read grant" "$INSPECTOR_USER_ID" \
+  "select public.admin_confirmation_calendar('$OTHER_EDITION_ID'::uuid,'$OTHER_ROUND_ID'::uuid);"
+expect_calendar_denied "Calendar denies a participant without Organizer read authority" "$HOD_USER_ID" \
+  "select public.admin_confirmation_calendar('$EDITION_ID'::uuid,'$ROUND_ID'::uuid);"
+expect_calendar_denied "Calendar null scope cannot widen an edition-only read grant" "$INSPECTOR_USER_ID" \
+  "select public.admin_confirmation_calendar(null,null);"
 
 log "Exact-edition manager reopens only the existing response"
 as_user "$ORGANIZER_USER_ID" "select public.admin_update_confirmation_controls('$SUBMISSION_ID'::uuid,true,false,'Maintenance correction opened');" >/dev/null

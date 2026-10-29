@@ -11,6 +11,8 @@ import { HistoricalNationalFinalManager } from "@/components/HistoricalNationalF
 import { NationalFinalResultOrderAddon } from "@/components/NationalFinalResultOrderAddon";
 import { supabase } from "@/integrations/supabase/client";
 import { useMyCountryAccount } from "@/lib/country-account";
+import { authenticatedIdentityQueryKey } from "@/lib/account-cache-isolation";
+import { useFanSession } from "@/lib/prediction-data";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -19,26 +21,32 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedIdentityGate({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const session = useFanSession();
+  const sessionUserId = session.data?.id ?? null;
   const identity = useQuery<User | null>({
-    queryKey: ["authenticated-identity-gate"],
+    queryKey: authenticatedIdentityQueryKey(sessionUserId),
+    enabled: Boolean(sessionUserId),
     queryFn: async () => {
       const { data, error } = await supabase.auth.getUser();
-      return error || !data.user ? null : data.user;
+      return error || !data.user || data.user.id !== sessionUserId ? null : data.user;
     },
     retry: false,
   });
 
+  const checkingIdentity = session.isPending || (Boolean(sessionUserId) && identity.isPending);
+  const authenticatedUser = identity.data?.id === sessionUserId ? identity.data : null;
+
   useEffect(() => {
-    if (identity.isPending || identity.data) return;
+    if (checkingIdentity || authenticatedUser) return;
     const redirect = `${window.location.pathname}${window.location.search}`;
     void navigate({
       to: "/auth",
       search: { redirect },
       replace: true,
     });
-  }, [identity.data, identity.isPending, navigate]);
+  }, [authenticatedUser, checkingIdentity, navigate]);
 
-  if (identity.isPending || !identity.data) {
+  if (checkingIdentity || !authenticatedUser) {
     return (
       <main
         className="grid min-h-screen place-items-center bg-[#020817] px-5 text-white"
@@ -49,7 +57,7 @@ function AuthenticatedIdentityGate({ children }: { children: ReactNode }) {
             Solaris Studio
           </p>
           <p className="mt-2 text-sm font-semibold text-white/85">
-            {identity.isPending ? "Checking your session…" : "Opening sign in…"}
+            {checkingIdentity ? "Checking your session…" : "Opening sign in…"}
           </p>
         </div>
       </main>
@@ -57,7 +65,7 @@ function AuthenticatedIdentityGate({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthenticatedUserProvider user={identity.data}>{children}</AuthenticatedUserProvider>
+    <AuthenticatedUserProvider user={authenticatedUser}>{children}</AuthenticatedUserProvider>
   );
 }
 

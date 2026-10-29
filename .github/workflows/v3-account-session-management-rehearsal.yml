@@ -9,7 +9,12 @@ on:
       - ".github/scripts/v3-account-session-management-rehearsal.sh"
       - ".github/workflows/v3-account-session-management-rehearsal.yml"
       - "src/lib/v3-account-session-management.contract.test.ts"
+      - ".github/scripts/prepare-archive-local-config.py"
+      - ".github/tests/test_prepare_archive_local_config.py"
   workflow_dispatch:
+
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
 
 permissions:
   contents: read
@@ -25,9 +30,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: supabase/setup-cli@v1
         with:
           version: 2.113.0
+      - name: Prepare independent local stack
+        run: python3 .github/scripts/prepare-archive-local-config.py supabase/config.toml "archive-account-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-clean"
       - name: Start isolated local Supabase
         run: supabase start
       - name: Rebuild complete migration chain
@@ -45,6 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - uses: supabase/setup-cli@v1
         with:
@@ -60,6 +70,7 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-account-session-main
+          python3 "$GITHUB_WORKSPACE/.github/scripts/prepare-archive-local-config.py" supabase/config.toml "archive-account-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-upgrade"
           supabase start
           supabase db reset --local --no-seed
       - name: Apply additive feature migration delta

@@ -168,11 +168,6 @@ as_service "select private.studio2_reconcile_all_organizer_tasks('$EDITION_ID'::
 
 log "Poison the resolved notification projection with one pending attempt and one retained failed attempt"
 db_exec "
-update public.admin_notifications
-set resolved_at=null, requires_action=true
-where recipient_id='$AUTHORIZED_ID'::uuid
-  and source_key='$BLOCKER_SOURCE_KEY';
-
 update public.notification_deliveries
 set status='failed', processing_started_at=null, error='$FAILED_ERROR'
 where subject_id='$BLOCKER_ID'
@@ -186,6 +181,16 @@ insert into public.notification_deliveries(
 )
 on conflict (user_id,dedupe_key) do update
 set status='pending',processing_started_at=null,error=null;
+
+-- Poison Inbox last. The clean migration chain now has delivery-side repair
+-- hooks that correctly re-project resolved Task state while delivery fixtures are
+-- being changed. This rehearsal needs a deliberately corrupted present-tense
+-- Inbox projection after those hooks have run so the explicit convergence path
+-- below is actually exercised rather than having its fixture repaired early.
+update public.admin_notifications
+set resolved_at=null, requires_action=true
+where recipient_id='$AUTHORIZED_ID'::uuid
+  and source_key='$BLOCKER_SOURCE_KEY';
 "
 [[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='$BLOCKER_SOURCE_KEY' and requires_action and resolved_at is null;")" == '1' ]] || fail "could not poison blocker Inbox projection for invariant rehearsal"
 

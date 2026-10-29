@@ -34,11 +34,14 @@ describe("V3 participant activity projection", () => {
         },
       ],
       next_before: "2026-10-15T10:00:00Z",
+      next_operation_id: "10000000-0000-4000-8000-000000000002",
       generated_at: "2026-10-16T10:01:00Z",
     });
 
     expect(parsed.schemaReady).toBe(true);
     expect(parsed.items).toHaveLength(2);
+    expect(parsed.nextBefore).toBe("2026-10-15T10:00:00Z");
+    expect(parsed.nextOperationId).toBe("10000000-0000-4000-8000-000000000002");
     expect(parsed.items[0]).toMatchObject({
       kind: "receipt",
       route: "/participate",

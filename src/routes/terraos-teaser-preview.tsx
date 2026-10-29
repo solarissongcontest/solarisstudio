@@ -1,4 +1,4 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import {
@@ -6,6 +6,7 @@ import {
   type TerraOSTeaserScreen,
 } from "@/components/v3/TerraOSTeaserPreview";
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
+import { requireTerraOsTeaserMaintenance } from "@/lib/terraos-teaser-preview-access";
 import { installTerraOsTeaserHeroHandoff } from "@/lib/terraos-teaser-hero-handoff";
 import { installTerraOsTeaserHostMicroMotion } from "@/lib/terraos-teaser-host-micro-motion";
 import { installTerraOsTeaserMobileAccessibility } from "@/lib/terraos-teaser-mobile-accessibility";
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/terraos-teaser-preview")({
     // This is a maintenance-only visual renderer, not a permanent public route.
     // Once launch removes global maintenance, stale/bookmarked teaser URLs must
     // disappear with it rather than exposing fixture data beside the live app.
-    if (!GLOBAL_MAINTENANCE_MODE) throw notFound();
+    requireTerraOsTeaserMaintenance(GLOBAL_MAINTENANCE_MODE);
   },
   validateSearch: (search: Record<string, unknown>) => {
     const requested = typeof search.screen === "string" ? search.screen : "home";

@@ -123,24 +123,27 @@ describe("V3 QA integration infrastructure", () => {
     expect(s15Core).toContain("V3_ORGANIZER_DISCOVERED_IDS");
   });
 
-  it("binds final release evidence to external runtime artifacts for one exact SHA", () => {
+  it("binds release evidence and fail-closed manifest generation to one exact SHA", () => {
     expect(preflight).toContain("candidate_sha");
     expect(preflight).toContain("^[0-9a-fA-F]{40}$");
     expect(preflight).toContain("git rev-parse HEAD");
     expect(preflight).toContain('echo "V3_CANDIDATE_SHA=$actual"');
     expect(preflight).toContain('GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts');
     expect(preflight).toContain("release evidence identity mismatch");
+    expect(preflight).toContain("check-v3-s16-mutation-authority.ts --static");
+    expect(preflight).toContain("check-v3-results-integration.ts");
     expect(preflight).toContain("check-v3-release-integrity.ts --release");
-    expect(preflight).toContain("not an S16 certificate");
+    expect(preflight).toContain("Discovery is not a release certificate");
+    expect(preflight).toContain("build-v3-release-manifest.ts");
     expect(integrity).toContain("V3_CANDIDATE_SHA");
     expect(integrity).toContain("V3_RELEASE_EVIDENCE_DIR");
     expect(integrity).toContain("releaseEvidenceDir");
-    expect(integrity).toContain("exactCandidateEvidence");
     expect(integrity).toContain("--certified");
     expect(integrity).toContain("candidateSha");
     expect(integrity).toContain("s14-full-contest.json");
     expect(integrity).toContain("s15-zero-orphan.json");
+    expect(integrity).toContain("s16-mutation-authority.json");
     expect(integrity).toContain("security-advisor-classification.json");
-    expect(integrity).toContain("s16-certification.json");
+    expect(integrity).toContain("results-integration.json");
   });
 });
