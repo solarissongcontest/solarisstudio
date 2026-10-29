@@ -131,13 +131,16 @@ function V3PrimarySurfaceReadError({
 /**
  * Reversible production gate for the first V3 route cutover.
  *
- * Public web never enters this gate. A disabled/unavailable rollout or unsafe
- * route returns the existing route unchanged. Once an installed-app V3 route
- * is selected, a canonical bundle read failure remains in V3 as an explicit
- * fail-closed reconciliation state instead of silently presenting legacy UI as
- * though nothing failed. Participate remains signed-in-only for this slice so
- * anonymous public-voting parity stays on the proven legacy route until its V3
- * projection is ready.
+ * Public web never enters this gate. A disabled rollout, an initial rollout
+ * read failure with no cached authority, or an unsafe route returns the
+ * existing route unchanged. Once an installed-app V3 route is selected, a
+ * canonical bundle read failure remains in V3 as an explicit fail-closed
+ * reconciliation state instead of silently presenting legacy UI as though
+ * nothing failed. A later refetch failure with cached authoritative rollout or
+ * bundle data likewise keeps that V3 state mounted rather than switching data
+ * paths underneath the viewer. Participate remains signed-in-only for this
+ * slice so anonymous public-voting parity stays on the proven legacy route
+ * until its V3 projection is ready.
  *
  * The canonical router pathname owns which primary V3 surface is rendered. This
  * keeps content and shell navigation in lockstep even if TanStack Router retains
@@ -183,11 +186,15 @@ export function V3PrimaryRouteGate({
     <>{legacy}</>
   );
 
-  if (rollout.isLoading) return <ResolvingPrimarySurface surface={effectiveSurface} />;
-  if (rollout.isError || rollout.data?.enabled !== true) return safeLegacyFallback;
+  if (rollout.isLoading && !rollout.data) {
+    return <ResolvingPrimarySurface surface={effectiveSurface} />;
+  }
+  if (!rollout.data || rollout.data.enabled !== true) return safeLegacyFallback;
   if (effectiveSurface === "participate" && !rollout.data.userId) return safeLegacyFallback;
-  if (bundleQuery.isLoading) return <ResolvingPrimarySurface surface={effectiveSurface} />;
-  if (bundleQuery.isError || !bundleQuery.data) {
+  if (bundleQuery.isLoading && !bundleQuery.data) {
+    return <ResolvingPrimarySurface surface={effectiveSurface} />;
+  }
+  if (!bundleQuery.data) {
     return (
       <V3PrimarySurfaceReadError
         surface={effectiveSurface}
