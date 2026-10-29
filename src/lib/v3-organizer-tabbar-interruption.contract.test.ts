@@ -45,4 +45,11 @@ describe("Organizer V3 navigation interruption ownership", () => {
       'style={{ paddingBottom: "max(.45rem, env(safe-area-inset-bottom))" }}',
     );
   });
+
+  it("keeps compact Organizer destinations at the canonical 44px minimum touch target", () => {
+    expect(organizerTabs).toContain('compact ? "h-[3.5rem]" : "h-[4.7rem]"');
+    expect(organizerTabs).toContain('compact ? "h-[2.75rem]" : "h-[3.7rem]"');
+    expect(organizerTabs).toContain("min-h-[44px]");
+    expect(organizerTabs).not.toContain('compact ? "h-[3.35rem]" : "h-[4.7rem]"');
+  });
 });
