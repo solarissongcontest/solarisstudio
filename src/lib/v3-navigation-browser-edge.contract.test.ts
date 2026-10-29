@@ -12,7 +12,10 @@ const pageSwipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
 describe("V3 browser edge gesture arbitration", () => {
   it("makes every horizontal shell gesture yield before pointer capture at browser edges", () => {
     for (const implementation of [installedAppTabs, publicV3Tabs, organizerTabs, pageSwipe]) {
-      expect(implementation).toContain("isV3BrowserEdgeGestureStart");
+      const guard = implementation.indexOf("isV3BrowserEdgeGestureStart({");
+      const capture = implementation.indexOf("setPointerCapture");
+      expect(guard).toBeGreaterThanOrEqual(0);
+      expect(capture).toBeGreaterThan(guard);
       expect(implementation).toContain("clientX: event.clientX");
       expect(implementation).toContain("window.innerWidth");
     }
