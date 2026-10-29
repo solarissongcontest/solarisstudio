@@ -22,6 +22,7 @@ import {
   resolveTabDragTargetIndex,
 } from "@/lib/interaction-physics";
 import {
+  isV3BrowserEdgeGestureStart,
   resolveV3LogicalHorizontalDelta,
   type V3LayoutDirection,
 } from "@/lib/v3-navigation-gesture";
@@ -267,6 +268,10 @@ export function OrganizerV6TabBar({
       prefersReducedMotion() ||
       document.documentElement.hasAttribute("data-solaris-keyboard-open") ||
       document.documentElement.hasAttribute("data-solaris-feature-overlay-open") ||
+      isV3BrowserEdgeGestureStart({
+        clientX: event.clientX,
+        viewportWidth: window.visualViewport?.width ?? window.innerWidth,
+      }) ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) {
       return;
