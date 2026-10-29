@@ -23,11 +23,12 @@ describe("Solaris V3 canonical top system safe zone", () => {
     expect(safeZone).not.toContain("@media (orientation: landscape)");
   });
 
-  it("keeps installed/native and browser mobile chrome below the shared boundary", () => {
+  it("keeps installed/native, Organizer and browser mobile chrome below the shared boundary", () => {
     expect(safeZone).toContain("html[data-solaris-app] .solaris-app-toolbar");
     expect(safeZone).toContain("padding-top: var(--solaris-safe-content-top)");
     expect(safeZone).toContain("html[data-solaris-app] .solaris-app-offline");
     expect(safeZone).toContain("html[data-solaris-app] .solaris-app-tabbar");
+    expect(safeZone).toContain("[data-solaris-organizer-toolbar]");
     expect(safeZone).toContain('html:not([data-solaris-app]) .site-nav');
   });
 
