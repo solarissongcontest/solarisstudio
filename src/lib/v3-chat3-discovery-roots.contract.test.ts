@@ -44,7 +44,7 @@ describe("V3 Public completion Chat 3 discovery roots", () => {
     const model = source("src/lib/v3-discovery-entities.ts");
 
     for (const state of ["paused", "delayed", "cancelled", "ended"] as const) {
-      expect(model).toContain(`\"${state}\"`);
+      expect(model).toContain(`"${state}"`);
     }
     expect(model).toContain('state === "post_edition" || state === "archived"');
     expect(model).toContain("participation_status");
