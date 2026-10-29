@@ -36,8 +36,8 @@ describe("V3 Edition bounded product architecture", () => {
     const screenSource = screen();
     expect(screenSource).toContain('view === "participants"');
     expect(screenSource).toContain('view === "songs"');
-    expect(screenSource).toContain("projection.participants.map");
-    expect(screenSource).toContain("projection.entries.map");
+    expect(screenSource).toContain("participants.map");
+    expect(screenSource).toContain("entries.map");
     expect(screenSource).toContain("projection.shows.map");
     expect(screenSource).toContain('label="Find a delegation"');
     expect(screenSource).toContain('label="Find a song, artist or country"');
