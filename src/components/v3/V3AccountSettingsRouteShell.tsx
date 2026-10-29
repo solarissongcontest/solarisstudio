@@ -46,8 +46,11 @@ function ResolvingAccountSettingsRoute({ title }: { title: string }) {
  *
  * The routes keep their canonical account/auth/preferences mutation engines.
  * Only the installed-app presentation changes when both the global V3 flag and
- * this slice flag are server-authoritatively enabled. Public web, rollout errors
- * and disabled rollout all keep the proven AppShell presentation.
+ * this slice flag are server-authoritatively enabled. Public web, an initial
+ * rollout failure with no cached authority, and disabled rollout keep the
+ * proven AppShell presentation. Once the server has selected V3, a later
+ * rollout refetch error must not switch the viewer back to a second shell/data
+ * path underneath active account or session state.
  */
 export function V3AccountSettingsRouteShell({
   section,
@@ -60,11 +63,11 @@ export function V3AccountSettingsRouteShell({
   const session = useFanSession();
   const rollout = useV3RolloutProbe(platformResolved && isAppMode);
 
-  if (!platformResolved || (isAppMode && rollout.isLoading)) {
+  if (!platformResolved || (isAppMode && rollout.isLoading && !rollout.data)) {
     return <ResolvingAccountSettingsRoute title={title} />;
   }
 
-  if (!isAppMode || rollout.isError || rollout.data?.accountSettingsEnabled !== true) {
+  if (!isAppMode || !rollout.data || rollout.data.accountSettingsEnabled !== true) {
     return (
       <AppShell>
         <PageHeader
