@@ -9,6 +9,7 @@ import {
   V3_SYSTEM_DOMAIN_REGISTRY,
 } from "../src/lib/v3-capability-registry";
 import { buildV3PublicProductReviewRows } from "../src/lib/v3-public-product-review";
+import { inspectV3NavigationReferencePackage } from "./lib/v3-navigation-reference-evidence";
 
 type CompletionState =
   | "missing"
@@ -479,7 +480,8 @@ const hasPageViewport = hasProductionTopLevelSwipeIntegration || hasLegacyPageVi
 const hasPageViewportFoundation =
   hasCanonicalTopLevelSwipeViewport || hasLegacyPageViewportFoundation || hasPageViewport;
 const hasTabMemory = existsSync("src/lib/v3-tab-memory.ts") || sourceContains(appShell, /tab.*memory|scroll.*restor/i);
-const hasReferenceFreeze = existsSync("docs/v3/navigation-reference/README.md");
+const referencePackage = inspectV3NavigationReferencePackage("docs/v3/navigation-reference");
+const hasReferenceFreeze = referencePackage.pass;
 
 const navigationRows: EvidenceRow[] = [
   { id: "N0", name: "freeze reference", state: hasReferenceFreeze ? "tested" : "missing", evidence: hasReferenceFreeze ? "Frozen navigation reference package present" : "No frozen Instagram/iPhone reference package in version control", blocker: hasReferenceFreeze ? undefined : "Reference baseline is not frozen" },
@@ -610,6 +612,7 @@ const payload = {
     legacyViewportFoundation: hasLegacyPageViewportFoundation,
     legacyViewportIntegration: hasLegacyPageViewportIntegration,
   },
+  navigationReference: referencePackage,
   registrySummary: {
     public: Object.fromEntries(countStatus(V3_PUBLIC_CAPABILITIES, (item) => item.specificationStatus)),
     publicProductParity: Object.fromEntries(countStatus(publicProductReviewRows, (item) => item.productParity)),

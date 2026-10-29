@@ -86,7 +86,7 @@ export function validateV3PublicProductReviewRegistry(
   overrides: readonly V3PublicProductReviewOverride[] = V3_PUBLIC_PRODUCT_REVIEW_OVERRIDES,
 ): string[] {
   const errors: string[] = [];
-  const knownCapabilityIds = new Set(capabilities.map((capability) => capability.id));
+  const knownCapabilityIds = new Set<string>(capabilities.map((capability) => capability.id));
   const seenOverrideIds = new Set<string>();
 
   for (const override of overrides) {
