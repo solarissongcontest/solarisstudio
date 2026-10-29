@@ -44,5 +44,6 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-confirmation-final-revi
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-jury-writer-cutover.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-runtime-writer-cutover.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-confirmation-entry-writer-cutover.sql
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-confirmation-runtime-state-authority.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-case-relation-authority.sql
 bash .github/scripts/v3-account-session-authority-rehearsal.sh
