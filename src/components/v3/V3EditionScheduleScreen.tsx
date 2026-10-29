@@ -22,9 +22,11 @@ function showKindLabel(kind: string) {
 function ScheduleRow({
   show,
   isNext,
+  spoilerSafe,
 }: {
   show: V3EditionShow;
   isNext: boolean;
+  spoilerSafe: boolean;
 }) {
   return (
     <Link
@@ -50,13 +52,13 @@ function ScheduleRow({
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <V3StatusChip tone="neutral">{showKindLabel(show.kind)}</V3StatusChip>
-            {show.participantCount > 0 ? (
+            {!spoilerSafe && show.participantCount > 0 ? (
               <V3StatusChip tone="neutral">{show.participantCount} entries</V3StatusChip>
             ) : null}
             {show.runningOrderAvailable ? (
               <V3StatusChip tone="neutral">Running order public</V3StatusChip>
             ) : null}
-            {show.resultsAvailable ? (
+            {!spoilerSafe && show.resultsAvailable ? (
               <V3StatusChip tone="success">Results public</V3StatusChip>
             ) : null}
           </div>
@@ -74,8 +76,10 @@ function ScheduleRow({
 
 export function V3EditionScheduleScreen({
   projection,
+  spoilerSafe,
 }: {
   projection: V3EditionPageProjection;
+  spoilerSafe: boolean;
 }) {
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -113,6 +117,11 @@ export function V3EditionScheduleScreen({
         description={`${projection.shows.length} public ${projection.shows.length === 1 ? "show" : "shows"}${editionMeta ? ` · ${editionMeta}` : ""}`}
         editorial
       />
+
+      <div className="flex flex-wrap gap-2">
+        <V3StatusChip tone="neutral">Public schedule</V3StatusChip>
+        {spoilerSafe ? <V3StatusChip tone="warning">Spoiler-safe details</V3StatusChip> : null}
+      </div>
 
       {projection.hub.hero.nextEvent ? (
         <V3Surface level="raised" className="p-4">
@@ -161,6 +170,7 @@ export function V3EditionScheduleScreen({
                 key={show.id}
                 show={show}
                 isNext={show.id === nextEventId}
+                spoilerSafe={spoilerSafe}
               />
             ))}
           </V3Surface>
