@@ -20,6 +20,7 @@ const ROUTE_CAPABILITY_RULES: RouteCapabilityRule[] = [
       "/admin/beta1-feedback",
       "/admin/beta2-feedback",
       "/admin/beta3-feedback",
+      "/admin/public-ux",
     ],
     "rollout.manage",
   ),
@@ -45,11 +46,11 @@ const ROUTE_CAPABILITY_RULES: RouteCapabilityRule[] = [
   rule(["/admin/media-assets", "/admin/publication/"], "publishing.read"),
   rule(["/admin/hosts"], "host.read"),
   rule(["/admin/entries/"], "entry.read_private"),
+  rule(["/admin/next-in-line"], "next_in_line.manage"),
+  rule(["/admin/country-accounts"], "delegation.manage"),
   rule(
     [
       "/admin/countries",
-      "/admin/next-in-line",
-      "/admin/country-accounts",
       "/admin/hod-history",
       "/admin/eligibility",
       "/admin/submission-versions",
