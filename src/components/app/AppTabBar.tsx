@@ -494,6 +494,10 @@ export function AppTabBar({
               : area.id === "me"
                 ? meBadge
                 : 0;
+          const accessibleLabel =
+            badge > 0
+              ? `${area.label}, ${badge} item${badge === 1 ? "" : "s"} need attention`
+              : area.label;
 
           return (
             <Link
@@ -501,7 +505,7 @@ export function AppTabBar({
               to={to as any}
               data-app-tab-index={index}
               aria-current={active ? "page" : undefined}
-              aria-label={area.label}
+              aria-label={accessibleLabel}
               onPointerDown={(event) => startDrag(event, index, active)}
               onPointerMove={moveDrag}
               onPointerUp={finishDrag}
@@ -541,10 +545,7 @@ export function AppTabBar({
               <span className="relative">
                 <Icon className="solaris-app-tab-icon size-[1.15rem]" aria-hidden="true" />
                 {badge > 0 ? (
-                  <span
-                    className="solaris-app-tab-badge"
-                    aria-label={`${badge} item${badge === 1 ? "" : "s"} need attention`}
-                  >
+                  <span className="solaris-app-tab-badge" aria-hidden="true">
                     {badge > 9 ? "9+" : badge}
                   </span>
                 ) : null}
