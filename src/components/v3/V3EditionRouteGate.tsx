@@ -6,11 +6,12 @@ import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import { useNotificationPreferences } from "@/lib/engagement-data";
 import { useV3EditionBundle } from "@/lib/v3-edition-runtime";
+import { resolveV3EditionCollectionView } from "@/lib/v3-edition-view";
 import { useV3EditionRolloutProbe } from "@/lib/v3-primary-runtime";
 import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
 import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
 import { V3AppShell } from "./V3AppShell";
-import { V3EditionSpoilerSafeScreen } from "./V3EditionSpoilerSafeScreen";
+import { V3EditionProductScreen } from "./V3EditionProductScreen";
 
 function ResolvingEditionSurface() {
   return (
@@ -53,6 +54,7 @@ export function V3EditionRouteGate({
   const { preferences } = useAppExperiencePreferences();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const editionView = resolveV3EditionCollectionView(searchStr);
   const rollout = useV3EditionRolloutProbe(
     slug,
     platformResolved && isAppMode,
@@ -116,10 +118,11 @@ export function V3EditionRouteGate({
         ) : undefined
       }
     >
-      <V3EditionSpoilerSafeScreen
-        key={`${rollout.data.userId ?? "anonymous"}:${slug}:${hideSpoilers}`}
+      <V3EditionProductScreen
+        key={`${rollout.data.userId ?? "anonymous"}:${slug}:${editionView ?? "overview"}:${hideSpoilers}`}
         projection={bundle.projection}
         hideSpoilers={hideSpoilers}
+        view={editionView}
       />
     </V3AppShell>
   );
