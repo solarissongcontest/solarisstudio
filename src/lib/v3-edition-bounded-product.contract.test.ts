@@ -6,20 +6,28 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 const gate = () => source("src/components/v3/V3EditionRouteGate.tsx");
-const screen = () => source("src/components/v3/V3EditionProductScreen.tsx");
+const overview = () => source("src/components/v3/V3EditionProductScreen.tsx");
+const participants = () => source("src/components/v3/V3EditionParticipantsScreen.tsx");
+const songs = () => source("src/components/v3/V3EditionSongsScreen.tsx");
+const schedule = () => source("src/components/v3/V3EditionScheduleScreen.tsx");
 const viewContract = () => source("src/lib/v3-edition-view.ts");
 
 describe("V3 Edition bounded product architecture", () => {
-  it("routes the installed-app Edition through the canonical bounded product surface", () => {
+  it("routes overview and each full collection through deliberate product surfaces", () => {
     const gateSource = gate();
     expect(gateSource).toContain("resolveV3EditionCollectionView(searchStr)");
+    expect(gateSource).toContain('editionView === "participants"');
+    expect(gateSource).toContain("<V3EditionParticipantsScreen");
+    expect(gateSource).toContain('editionView === "songs"');
+    expect(gateSource).toContain("<V3EditionSongsScreen");
+    expect(gateSource).toContain('editionView === "schedule"');
+    expect(gateSource).toContain("<V3EditionScheduleScreen");
     expect(gateSource).toContain("<V3EditionProductScreen");
-    expect(gateSource).toContain("view={editionView}");
     expect(gateSource).toContain("projection={bundle.projection}");
   });
 
   it("keeps Overview previews within explicit content budgets", () => {
-    const screenSource = screen();
+    const screenSource = overview();
     expect(screenSource).toContain("V3_EDITION_OVERVIEW_LIMITS.participants");
     expect(screenSource).toContain("V3_EDITION_OVERVIEW_LIMITS.songs");
     expect(screenSource).toContain("V3_EDITION_OVERVIEW_LIMITS.schedule");
@@ -32,19 +40,18 @@ describe("V3 Edition bounded product architecture", () => {
     expect(screenSource).toContain("resultPreview.map");
   });
 
-  it("moves full participant, song and schedule datasets behind deliberate collection views", () => {
-    const screenSource = screen();
-    expect(screenSource).toContain('view === "participants"');
-    expect(screenSource).toContain('view === "songs"');
-    expect(screenSource).toContain("participants.map");
-    expect(screenSource).toContain("entries.map");
-    expect(screenSource).toContain("projection.shows.map");
-    expect(screenSource).toContain('label="Find a delegation"');
-    expect(screenSource).toContain('label="Find a song, artist or country"');
+  it("keeps complete datasets out of the runtime Overview path", () => {
+    expect(participants()).toContain("projection.participants.filter");
+    expect(participants()).toContain("group.rows.map");
+    expect(songs()).toContain("projection.entries.filter");
+    expect(songs()).toContain("filtered.map");
+    expect(schedule()).toContain("projection.shows.filter");
+    expect(schedule()).toContain("filtered.map");
+    expect(gate()).not.toContain('view={editionView}');
   });
 
   it("keeps Story and Results on their existing dedicated product destinations", () => {
-    const screenSource = screen();
+    const screenSource = overview();
     expect(screenSource).toContain("href: projection.story?.href ?? base");
     expect(screenSource).toContain("href: projection.results.showHref ?? base");
     expect(screenSource).toContain('title="Open full story"');
@@ -53,13 +60,14 @@ describe("V3 Edition bounded product architecture", () => {
     expect(viewContract()).not.toContain('"stories" |');
   });
 
-  it("does not introduce fetching, clocks, publication inference or result calculation into the presentation slice", () => {
-    const screenSource = screen();
-    expect(screenSource).not.toContain("supabase");
-    expect(screenSource).not.toContain("useQuery(");
-    expect(screenSource).not.toContain("fetch(");
-    expect(screenSource).not.toContain("Date.now(");
-    expect(screenSource).not.toContain("new Date(");
-    expect(screenSource).not.toContain("calculate");
+  it("does not introduce fetching, clocks or duplicate authority into any collection surface", () => {
+    for (const screenSource of [overview(), participants(), songs(), schedule()]) {
+      expect(screenSource).not.toContain("supabase");
+      expect(screenSource).not.toContain("useQuery(");
+      expect(screenSource).not.toContain("fetch(");
+      expect(screenSource).not.toContain("Date.now(");
+      expect(screenSource).not.toContain("new Date(");
+      expect(screenSource).not.toContain("calculate");
+    }
   });
 });
