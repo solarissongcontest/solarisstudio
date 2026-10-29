@@ -7,6 +7,7 @@ const source = (path: string) => readFileSync(path, "utf8");
 const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
 const publicGeometry = source("src/styles/v3-navigation-fixed-geometry.css");
 const publicMaterial = source("src/styles/v3-liquid-tabbar.css");
+const responsiveShell = source("src/styles/v3-responsive-shell.css");
 const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
 const organizerCss = source("src/styles/v3-organizer-navigation.css");
 
@@ -19,6 +20,15 @@ describe("V3 navigation accessibility geometry", () => {
     expect(publicGeometry).toContain("height: 19px");
     expect(publicMaterial).toContain(".v3-liquid-tabbar__label");
     expect(publicMaterial).toContain("clip-path: inset(50%)");
+  });
+
+  it("keeps shared top and floating navigation on the canonical side safe aliases", () => {
+    expect(responsiveShell).toContain("var(--solaris-safe-right");
+    expect(responsiveShell).toContain("var(--solaris-safe-left");
+    expect(publicGeometry).toContain("var(--solaris-safe-right");
+    expect(publicGeometry).toContain("var(--solaris-safe-left");
+    expect(publicGeometry).toContain("var(--solaris-safe-bottom");
+    expect(organizerTabs).toContain("var(--solaris-safe-bottom");
   });
 
   it("keeps Public destinations semantic and exposes current state without requiring gestures", () => {
