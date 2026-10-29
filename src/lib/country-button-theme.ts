@@ -87,14 +87,11 @@ export function useSaveCountryButtonColour(countryId?: string | null) {
       const value = buttonColor === null ? null : buttonColor.trim().toLowerCase();
       if (value !== null && !validHex(value)) throw new Error("Choose a valid button colour.");
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("country_themes")
-        .upsert({ country_id: countryId, button_color: value }, { onConflict: "country_id" })
-        .select("*")
-        .single();
+        .upsert({ country_id: countryId, button_color: value }, { onConflict: "country_id" });
 
       if (error) throw error;
-      return data;
     },
     onSuccess: async () => {
       await Promise.all([
