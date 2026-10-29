@@ -6,11 +6,15 @@ import { MySolarisAccountPanel } from "@/components/MySolarisAccountPanel";
 import { MySolarisNotificationsPanel } from "@/components/mysolaris/MySolarisNotificationsPanel";
 import { MySolarisPasswordPanel } from "@/components/MySolarisPasswordPanel";
 import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
+import { V3AccountSections } from "@/components/v3/V3AccountSections";
 import { V3AccountSettingsRouteShell } from "@/components/v3/V3AccountSettingsRouteShell";
 
 export const Route = createFileRoute("/_authenticated/my-solaris/account")({
   head: () => ({
-    meta: [{ title: "MySolaris account — Solaris Studio" }, { name: "robots", content: "noindex" }],
+    meta: [
+      { title: "MySolaris account — Solaris Studio" },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
   }),
   component: AccountPage,
 });
@@ -20,14 +24,15 @@ function AccountPage() {
     <V3AccountSettingsRouteShell
       section="account"
       title="Account"
-      description="Your Solaris identity, account recovery, sign-in security and connected delegation."
+      description="Security, sessions, privacy, access and account actions for your Solaris identity."
+      v3Children={<V3AccountSections />}
     >
-      <AccountContent />
+      <LegacyAccountContent />
     </V3AccountSettingsRouteShell>
   );
 }
 
-function AccountContent() {
+function LegacyAccountContent() {
   const workspace = useMySolaris();
   const { isAppMode } = useSolarisApp();
   const country = workspace.countryAccount?.country;
