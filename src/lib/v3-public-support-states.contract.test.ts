@@ -47,7 +47,7 @@ describe("V3 Public launch, loading and recovery support states", () => {
     expect(source).not.toContain("database-backed reads");
   });
 
-  it("has explicit offline presence and safe reconnect reconciliation", () => {
+  it("has explicit offline presence and safe installed-app reconnect feedback", () => {
     const offline = read("src/components/app/AppOfflineBanner.tsx");
     const reconnect = read("src/components/app/AppReconnectReconciler.tsx");
 
@@ -56,6 +56,7 @@ describe("V3 Public launch, loading and recovery support states", () => {
     expect(reconnect).toContain("invalidateQueries");
     expect(reconnect).toContain("router.invalidate");
     expect(reconnect).toContain('chrome.archetype === "task" || chrome.archetype === "immersive"');
+    expect(reconnect).toContain("if (!isAppMode || !showRecovered) return null");
     expect(reconnect).toContain('data-solaris-app-reconnected=""');
     expect(reconnect).toContain("Back online · refreshing Solaris");
   });
