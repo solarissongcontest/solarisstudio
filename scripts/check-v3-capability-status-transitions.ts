@@ -184,7 +184,9 @@ function validatePromotionEvidence(promotions: Promotion[]) {
   if (!promotions.length) return [] as string[];
   const report = buildV3CapabilityEvidenceIntegrityReport();
   const evidenceByCapability = new Map(
-    [...report.public, ...report.organizer].map((row) => [`${row.surface}/${row.capabilityId}`, row]),
+    [...report.public, ...report.organizer].map(
+      (row) => [`${row.surface}/${row.capabilityId}`, row] as const,
+    ),
   );
   const errors: string[] = [];
 
