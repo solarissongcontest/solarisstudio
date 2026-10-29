@@ -26,7 +26,14 @@ export default defineConfig({
           // Consolidate the used icon modules rather than emitting hundreds
           // of independently compressed fragments across route chunks.
           codeSplitting: {
-            groups: [{ name: "vendor-icons", test: /[\\/]node_modules[\\/]lucide-react[\\/]/ }],
+            groups: [
+              { name: "vendor-icons", test: /[\\/]node_modules[\\/]lucide-react[\\/]/ },
+              // Keep the shared chart runtime in one compressed, lazy asset
+              // rather than scattering its axes and shapes across route chunks.
+              { name: "vendor-charts", test: /[\\/]node_modules[\\/](?:recharts|recharts-scale|d3-[^\\/]+|react-smooth|victory-vendor|internmap)[\\/]/ },
+              // Dialogs, menus and popovers share Radix's accessibility runtime.
+              { name: "vendor-radix", test: /[\\/]node_modules[\\/]@radix-ui[\\/]/ },
+            ],
           },
         },
       },

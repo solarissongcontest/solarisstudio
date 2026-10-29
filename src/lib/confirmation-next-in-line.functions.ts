@@ -251,22 +251,24 @@ export const getNextInLineCountry = createServerFn({ method: "POST" })
     }
   });
 
-const submitSchema = z.object({
-  edition_id: z.string().uuid(),
-  source_submission_id: z.string().uuid(),
-  country: z.string().trim().min(1).max(80),
-  participating: z.boolean(),
-  entry_unknown: z.boolean(),
-  selection_type: z.enum(["none", "unknown", "internal", "national_final"]),
-  national_final_entry_id: z.string().uuid().nullable().optional(),
-  artist: z.string().trim().max(160),
-  song_title: z.string().trim().max(160),
-  song_url: z.string().trim().max(500),
-  preview_start: z.string().trim().max(10),
-  preview_end: z.string().trim().max(10),
-});
+function createSubmitSchema() {
+  return z.object({
+    edition_id: z.string().uuid(),
+    source_submission_id: z.string().uuid(),
+    country: z.string().trim().min(1).max(80),
+    participating: z.boolean(),
+    entry_unknown: z.boolean(),
+    selection_type: z.enum(["none", "unknown", "internal", "national_final"]),
+    national_final_entry_id: z.string().uuid().nullable().optional(),
+    artist: z.string().trim().max(160),
+    song_title: z.string().trim().max(160),
+    song_url: z.string().trim().max(500),
+    preview_start: z.string().trim().max(10),
+    preview_end: z.string().trim().max(10),
+  });
+}
 
-type SubmitInput = z.infer<typeof submitSchema>;
+type SubmitInput = z.infer<ReturnType<typeof createSubmitSchema>>;
 
 type V3NextInLineSubmitResult = {
   ok: boolean;
@@ -327,7 +329,7 @@ async function reconcileSubmittedIntent(client: RpcClient, data: SubmitInput) {
 }
 
 export const submitNextInLine = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => submitSchema.parse(data))
+  .inputValidator((data: unknown) => createSubmitSchema().parse(data))
   .handler(async ({ data }) => {
     let client: RpcClient | null = null;
     try {
