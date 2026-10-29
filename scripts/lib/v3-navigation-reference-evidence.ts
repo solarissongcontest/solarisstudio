@@ -68,3 +68,20 @@ export function inspectV3NavigationReferencePackage(directory: string) {
   }
   return { pass: failures.length === 0, failures };
 }
+
+/** Implementation contracts cannot prove measured parity with a reference.
+ * Until the approved capture package exists, geometry is only a foundation.
+ * Even a valid package is an input to comparison, never a passing comparison. */
+export function describeV3NavigationGeometryEvidence(hasBar: boolean, approvedReference: boolean) {
+  return {
+    state: hasBar && approvedReference ? "implemented" as const : "foundation" as const,
+    evidence: !hasBar
+      ? "Canonical liquid navigation implementation is absent"
+      : approvedReference
+        ? "Navigation and approved reference exist; candidate geometry comparison is still required"
+        : "Navigation implementation exists without an approved measured reference",
+    blocker: approvedReference
+      ? "Exact-candidate geometry comparison and real-device acceptance have not passed"
+      : "Approved reference captures and measured geometry are required before parity can be assessed",
+  };
+}

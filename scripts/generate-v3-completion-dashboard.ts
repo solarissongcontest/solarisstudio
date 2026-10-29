@@ -10,7 +10,7 @@ import {
   V3_SYSTEM_DOMAIN_REGISTRY,
 } from "../src/lib/v3-capability-registry";
 import { buildV3PublicProductReviewRows } from "../src/lib/v3-public-product-review";
-import { inspectV3NavigationReferencePackage } from "./lib/v3-navigation-reference-evidence";
+import { inspectV3NavigationReferencePackage, describeV3NavigationGeometryEvidence } from "./lib/v3-navigation-reference-evidence";
 
 type CompletionState =
   | "missing"
@@ -459,7 +459,6 @@ const appShell = "src/components/v3/V3AppShell.tsx";
 const topLevelSwipeSurface = "src/components/v3/V3TopLevelSwipeSurface.tsx";
 const legacyPageViewport = "src/components/v3/V3PageViewport.tsx";
 const hasLiquid = existsSync(liquidTabBar);
-const hasLiquidContract = existsSync("src/lib/v3-app-shell.contract.test.ts") && hasLiquid;
 const hasVisualProgress = sourceContains(liquidTabBar, /visualProgress|navigationProgress/);
 const hasPointerDrag = sourceContains(liquidTabBar, /onPointerMove|pointermove/);
 const hasVelocity = sourceContains(interactionPhysics, /velocity/i);
@@ -486,10 +485,11 @@ const hasPageViewportFoundation =
 const hasTabMemory = existsSync("src/lib/v3-tab-memory.ts") || sourceContains(appShell, /tab.*memory|scroll.*restor/i);
 const referencePackage = inspectV3NavigationReferencePackage("docs/v3/navigation-reference");
 const hasReferenceFreeze = referencePackage.pass;
+const geometryEvidence = describeV3NavigationGeometryEvidence(hasLiquid, hasReferenceFreeze);
 
 const navigationRows: EvidenceRow[] = [
   { id: "N0", name: "freeze reference", state: hasReferenceFreeze ? "tested" : "missing", evidence: hasReferenceFreeze ? "Frozen navigation reference package present" : "No frozen Instagram/iPhone reference package in version control", blocker: hasReferenceFreeze ? undefined : "Reference baseline is not frozen" },
-  { id: "N1", name: "current bar geometry parity", state: hasLiquidContract ? "tested" : hasLiquid ? "implemented" : "foundation", evidence: hasLiquid ? "V3LiquidTabBar present" : "Current V3 shell only; liquid parity branch not integrated" },
+  { id: "N1", name: "current bar geometry parity", ...geometryEvidence },
   { id: "N2", name: "material parity + Apple override", state: hasLiquid && existsSync(liquidCss) ? "implemented" : "foundation", evidence: hasLiquid ? "Liquid tab bar material/CSS present" : "Canonical liquid material implementation not integrated" },
   { id: "N3", name: "compact state parity", state: hasLiquid && sourceContains(liquidTabBar, /compact/) ? "implemented" : "foundation", evidence: "Scroll compaction is accepted only from the canonical liquid navigation implementation" },
   { id: "N4", name: "shared visual progress", state: hasVisualProgress ? "implemented" : "missing", evidence: hasVisualProgress ? "Continuous visual/navigation progress detected" : "No shared progress authority detected" },
@@ -532,7 +532,7 @@ const navigationRows: EvidenceRow[] = [
 ];
 
 const navigationAcceptanceRows: EvidenceRow[] = [
-  { id: "geometry", name: "geometry and safe-area placement", state: hasLiquid ? "implemented" : "foundation", evidence: hasLiquid ? liquidTabBar : "V3 shell baseline only" },
+  { id: "geometry", name: "geometry and safe-area placement", ...geometryEvidence },
   { id: "material", name: "Liquid Glass material", state: hasLiquid && existsSync(liquidCss) ? "implemented" : "foundation", evidence: hasLiquid ? liquidCss : "Liquid parity branch not integrated" },
   { id: "lens", name: "active lens", state: hasLiquid ? "implemented" : "foundation", evidence: hasLiquid ? liquidTabBar : "No canonical liquid lens on main" },
   { id: "press", name: "press", state: hasLiquid && sourceContains(liquidTabBar, /pointerdown|press/i) ? "implemented" : "foundation", evidence: "Press response implementation signal" },

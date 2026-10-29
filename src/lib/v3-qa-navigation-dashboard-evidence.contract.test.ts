@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { describeV3NavigationGeometryEvidence } from "../../scripts/lib/v3-navigation-reference-evidence";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
@@ -9,6 +10,19 @@ const swipeSurface = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
 const appShell = source("src/components/v3/V3AppShell.tsx");
 
 describe("V3 QA navigation dashboard evidence ownership", () => {
+  it("does not award tested geometry from source or contract file existence", () => {
+    for (const hasBar of [false, true]) {
+      for (const approved of [false, true]) {
+        const evidence = describeV3NavigationGeometryEvidence(hasBar, approved);
+        expect(evidence.state).toBe(hasBar && approved ? "implemented" : "foundation");
+        expect(evidence.blocker).toBeTruthy();
+      }
+    }
+    expect(dashboard).not.toContain("hasLiquidContract");
+    expect(dashboard).toContain('name: "current bar geometry parity", ...geometryEvidence');
+    expect(dashboard).toContain('name: "geometry and safe-area placement", ...geometryEvidence');
+  });
+
   it("recognizes the compositor as foundation evidence without pretending it is production integration", () => {
     expect(swipeSurface).toContain('type SwipeSlot = "previous" | "current" | "next"');
     expect(swipeSurface).toContain("previousSurface");
