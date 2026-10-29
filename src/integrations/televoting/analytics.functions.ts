@@ -28,6 +28,15 @@ export const getMergedScopedAnalytics = createServerFn({ method: "POST" })
     hodPersonId: data.hodPersonId ? String(data.hodPersonId) : null,
   }))
   .handler(async ({ data }) => {
-    const { getMergedScopedAnalyticsServer } = await import("@/integrations/televoting/analytics.server");
-    return getMergedScopedAnalyticsServer(data.scope, { hodPersonId: data.hodPersonId });
+    const { requirePrivateVotingAnalysisServer } = await import(
+      "@/integrations/televoting/private-analysis-auth.server"
+    );
+    await requirePrivateVotingAnalysisServer();
+
+    const { getMergedScopedAnalyticsServer } = await import(
+      "@/integrations/televoting/analytics.server"
+    );
+    return getMergedScopedAnalyticsServer(data.scope, {
+      hodPersonId: data.hodPersonId,
+    });
   });
