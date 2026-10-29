@@ -81,8 +81,17 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
   },
   {
     domain: "entry",
-    canonicalCommands: ["public.v3_sync_confirmation_entry", "public.studio2_apply_confirmation_entry_review"],
-    evidence: ["supabase/migrations/20261027211501_v3_s16_entry_confirmation_authority.sql", "src/lib/v3-s16-entry-authority.contract.test.ts"],
+    canonicalCommands: [
+      "public.v3_sync_confirmation_entry",
+      "public.studio2_apply_confirmation_entry_review",
+      "public.studio2_apply_participation_status",
+    ],
+    evidence: [
+      "supabase/migrations/20261027211501_v3_s16_entry_confirmation_authority.sql",
+      "supabase/migrations/20261029221500_v3_s16_shared_runtime_authority_cutover.sql",
+      "src/lib/v3-s16-entry-authority.contract.test.ts",
+      "src/lib/v3-s16-shared-runtime-authority.test.ts",
+    ],
   },
   {
     domain: "authorization",
@@ -126,11 +135,18 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
     canonicalCommands: [
       "public.v3_submit_jury_ballot",
       "public.studio2_apply_jury_voting_status",
+      "public.studio2_apply_jury_ballot_review",
+      "public.studio2_apply_jury_vote_change",
     ],
     evidence: [
       "supabase/migrations/20261014132819_v3_jury_reliability_foundation.sql",
       "supabase/migrations/20261003014000_organisation_os_v5_jury_window_operations.sql",
+      "supabase/migrations/20261029221500_v3_s16_shared_runtime_authority_cutover.sql",
+      "supabase/migrations/20261029222500_v3_s16_retire_legacy_jury_score_writers.sql",
       "src/integrations/v3/jury-actions.server.ts",
+      "src/lib/v3-jury-vote-command.ts",
+      "src/lib/v3-jury-vote-command.test.ts",
+      "src/lib/v3-s16-shared-runtime-authority.test.ts",
       "src/components/admin/JuryVotingWindowControl.tsx",
     ],
     legacyApplicationWriters: [
@@ -140,6 +156,18 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
         rationale:
           "The participant browser can still bypass the V3 operation/receipt wrapper when the reliability rollout is disabled.",
       },
+      {
+        id: "browser-direct-assign_jury_vote",
+        pattern: /\.rpc\(\s*["']assign_jury_vote["']/,
+        rationale:
+          "Organizer score entry must use the governed jury.vote command so CAS, idempotency and operation readback cannot be bypassed.",
+      },
+      {
+        id: "browser-direct-clear_jury_point",
+        pattern: /\.rpc\(\s*["']clear_jury_point["']/,
+        rationale:
+          "Organizer score clearing must use the governed jury.vote command so CAS, idempotency and operation readback cannot be bypassed.",
+      },
     ],
   },
   {
@@ -148,12 +176,18 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
       "public.v3_submit_confirmation",
       "public.studio2_apply_confirmation_round_change",
       "public.admin_update_confirmation_controls",
+      "public.admin_confirmation_delete_response",
+      "public.admin_restore_confirmation_version",
+      "public.admin_confirmation_reconfirm",
+      "public.admin_confirmation_waive_requirement",
+      "public.admin_confirmation_apply_requirement_materialization",
     ],
     evidence: [
       "supabase/migrations/20261012010000_v3_confirmation_authority.sql",
       "supabase/migrations/20261003018000_organisation_os_v5_confirmation_round_operations.sql",
       "supabase/migrations/20261017143000_confirmation_maintenance_hotfix.sql",
       "supabase/migrations/20261017194000_confirmation_maintenance_readonly_gate.sql",
+      "supabase/migrations/20261014040000_v3_entry_restore_provenance.sql",
       "src/integrations/confirmations/admin.ts",
     ],
   },
