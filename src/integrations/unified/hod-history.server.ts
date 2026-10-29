@@ -1,5 +1,4 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireHodHistoryCapabilityServer } from "@/integrations/unified/hod-access.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 
 export type HodChannel = "delegation" | "jury" | "televote";
 
@@ -67,13 +66,19 @@ function normalizeIdentityKey(value: string) {
     .slice(0, 80);
 }
 
-/**
- * Internal resolver used by already-authorized server workflows.
- * Request-facing HOD history/suggestion functions must establish their own
- * capability boundary before calling this service-role projection.
- */
+async function loadServiceRoleDbAfterCapability(
+  capability: "delegation.read" | "delegation.manage",
+  editionId: string | null,
+) {
+  await requireSolarisCapabilityServer(capability, editionId);
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin as any;
+}
+
 export async function loadHodResolverServer() {
-  const db = supabaseAdmin as any;
+  // This resolver exposes cross-edition private HOD identity/assignment history,
+  // so edition-scoped read grants are intentionally insufficient here.
+  const db = await loadServiceRoleDbAfterCapability("delegation.read", null);
   const [peopleResult, assignmentsResult, editionsResult, countriesResult] = await Promise.all([
     db.from("delegation_people").select("id,display_name,identity_key,notes").order("display_name"),
     db
@@ -143,7 +148,6 @@ export async function loadHodResolverServer() {
 }
 
 export async function getHodHistoryServer() {
-  await requireHodHistoryCapabilityServer("delegation.read");
   const resolver = await loadHodResolverServer();
 
   const assignments: HodAssignment[] = resolver.assignments
@@ -200,8 +204,9 @@ export async function saveHodPersonServer(input: {
   identityKey?: string;
   notes?: string | null;
 }) {
-  await requireHodHistoryCapabilityServer("delegation.manage");
-  const db = supabaseAdmin as any;
+  // HOD people are shared identities reused across editions, so mutation is a
+  // global delegation administration operation rather than an edition-local edit.
+  const db = await loadServiceRoleDbAfterCapability("delegation.manage", null);
   const displayName = input.displayName.trim();
   if (!displayName) throw new Error("HOD name is required");
 
@@ -251,11 +256,19 @@ export async function saveHodAssignmentsServer(input: {
   confidence?: number;
   notes?: string | null;
 }) {
-  await requireHodHistoryCapabilityServer("delegation.manage");
-  const db = supabaseAdmin as any;
   const editionIds = [...new Set(input.editionIds.map(String).filter(Boolean))];
   if (!input.personId || !input.countryId || !editionIds.length) throw new Error("Person, country and at least one edition are required");
   if (!["delegation", "jury", "televote"].includes(input.channel)) throw new Error("Invalid HOD channel");
+
+  // Authorize the entire requested range before acquiring the service-role
+  // client so a partially-authorized range can never be partially written.
+  await Promise.all(
+    editionIds.map((editionId) =>
+      requireSolarisCapabilityServer("delegation.manage", editionId),
+    ),
+  );
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as any;
   const confidence = Math.max(0, Math.min(100, Math.round(Number(input.confidence ?? 100))));
   const now = new Date().toISOString();
 
@@ -277,9 +290,31 @@ export async function saveHodAssignmentsServer(input: {
 }
 
 export async function deleteHodAssignmentServer(id: string) {
-  await requireHodHistoryCapabilityServer("delegation.manage");
-  const db = supabaseAdmin as any;
-  const { error } = await db.from("delegation_hod_assignments").delete().eq("id", id);
+  const assignmentId = String(id ?? "").trim();
+  if (!assignmentId) throw new Error("Missing assignment");
+
+  // Resolve the authoritative Edition from private HOD history only after the
+  // caller has global history-read permission. The browser never supplies scope.
+  const db = await loadServiceRoleDbAfterCapability("delegation.read", null);
+  const { data: assignment, error: lookupError } = await db
+    .from("delegation_hod_assignments")
+    .select("id,edition_id")
+    .eq("id", assignmentId)
+    .maybeSingle();
+  if (lookupError) throw new Error(lookupError.message);
+  if (!assignment?.edition_id) throw new Error("HOD assignment not found");
+
+  const editionId = String(assignment.edition_id);
+  await requireSolarisCapabilityServer("delegation.manage", editionId);
+
+  const { data: deleted, error } = await db
+    .from("delegation_hod_assignments")
+    .delete()
+    .eq("id", assignmentId)
+    .eq("edition_id", editionId)
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(error.message);
-  return { ok: true };
+  if (!deleted?.id) throw new Error("HOD assignment changed before deletion");
+  return { ok: true, editionId };
 }

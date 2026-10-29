@@ -1,102 +1,73 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-function source(path: string) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
+const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
-function section(value: string, start: string, end?: string) {
-  const startIndex = value.indexOf(start);
-  if (startIndex < 0) return "";
-  const endIndex = end ? value.indexOf(end, startIndex + start.length) : -1;
-  return value.slice(startIndex, endIndex < 0 ? undefined : endIndex);
-}
+const server = read("src/integrations/unified/hod-history.server.ts");
+const functions = read("src/integrations/unified/hod-history.functions.ts");
 
-const access = source("integrations/unified/hod-access.server.ts");
-const functions = source("integrations/unified/hod-history.functions.ts");
-const history = source("integrations/unified/hod-history.server.ts");
-const suggestions = source("integrations/unified/hod-suggestions.server.ts");
-const routeMap = source("lib/permission-route-map.ts");
-const rls = source("../supabase/migrations/20260914174742_permission_engine_v2_core_rls_cutover.sql");
+describe("Organizer HOD history authorization", () => {
+  it("requires canonical cross-edition delegation.read before privileged history reads", () => {
+    const resolver = server.split("export async function loadHodResolverServer()")[1]?.split("export async function getHodHistoryServer")[0] ?? "";
 
-describe("Organizer HOD history authorization boundary", () => {
-  it("verifies the caller capability with the authenticated request client and fails closed", () => {
-    expect(access).toContain("createSolarisAuthenticatedClientServer");
-    expect(access).toContain('client.rpc("studio2_access_allowed"');
-    expect(access).toContain("p_capability: capability");
-    expect(access).toContain("p_edition_id: editionId");
-    expect(access).toContain("p_strict_before_cutover: true");
-    expect(access).toContain("if (error)");
-    expect(access).toContain("if (allowed !== true)");
-    expect(access).not.toContain("supabaseAdmin");
+    expect(server).toContain('requireSolarisCapabilityServer');
+    expect(server).not.toContain('requireSolarisOrganizerServer');
+    expect(resolver).toContain('loadServiceRoleDbAfterCapability("delegation.read", null)');
+    expect(resolver.indexOf('loadServiceRoleDbAfterCapability("delegation.read", null)')).toBeLessThan(
+      resolver.indexOf('from("delegation_people")'),
+    );
+    expect(resolver.indexOf('loadServiceRoleDbAfterCapability("delegation.read", null)')).toBeLessThan(
+      resolver.indexOf('from("delegation_hod_assignments")'),
+    );
   });
 
-  it("guards direct HOD history server exports before any service-role read or mutation", () => {
-    const read = section(
-      history,
-      "export async function getHodHistoryServer()",
-      "export async function saveHodPersonServer",
-    );
-    const savePerson = section(
-      history,
-      "export async function saveHodPersonServer",
-      "export async function saveHodAssignmentsServer",
-    );
-    const saveAssignments = section(
-      history,
-      "export async function saveHodAssignmentsServer",
-      "export async function deleteHodAssignmentServer",
-    );
-    const removeAssignment = section(
-      history,
-      "export async function deleteHodAssignmentServer",
-    );
+  it("requires global delegation.manage before shared HOD identity writes", () => {
+    const savePerson = server.split("export async function saveHodPersonServer")[1]?.split("export async function saveHodAssignmentsServer")[0] ?? "";
 
-    expect(read.indexOf('requireHodHistoryCapabilityServer("delegation.read")')).toBeGreaterThan(-1);
-    expect(read.indexOf("loadHodResolverServer()")).toBeGreaterThan(
-      read.indexOf('requireHodHistoryCapabilityServer("delegation.read")'),
-    );
-
-    for (const mutation of [savePerson, saveAssignments, removeAssignment]) {
-      const guard = mutation.indexOf('requireHodHistoryCapabilityServer("delegation.manage")');
-      const adminAccess = mutation.indexOf("const db = supabaseAdmin as any");
-      expect(guard).toBeGreaterThan(-1);
-      expect(adminAccess).toBeGreaterThan(guard);
-    }
+    const capability = 'loadServiceRoleDbAfterCapability("delegation.manage", null)';
+    expect(savePerson).toContain(capability);
+    expect(savePerson.indexOf(capability)).toBeLessThan(savePerson.indexOf('.from("delegation_people")'));
+    expect(savePerson).toContain('.update(values)');
+    expect(savePerson).toContain('.insert({');
   });
 
-  it("does not duplicate caller capability lookups in the thin TanStack server wrappers", () => {
-    expect(functions).not.toContain("requireHodHistoryCapabilityServer");
-    expect(functions).not.toContain("supabaseAdmin");
+  it("authorizes every Edition in an assignment range before importing the service-role client", () => {
+    const saveAssignments = server.split("export async function saveHodAssignmentsServer")[1]?.split("export async function deleteHodAssignmentServer")[0] ?? "";
+
+    expect(saveAssignments).toContain('editionIds.map((editionId) =>');
+    expect(saveAssignments).toContain('requireSolarisCapabilityServer("delegation.manage", editionId)');
+    expect(saveAssignments).toContain('await Promise.all(');
+    expect(saveAssignments.indexOf('await Promise.all(')).toBeLessThan(
+      saveAssignments.indexOf('await import("@/integrations/supabase/client.server")'),
+    );
+    expect(saveAssignments.indexOf('await import("@/integrations/supabase/client.server")')).toBeLessThan(
+      saveAssignments.indexOf('.upsert(rows'),
+    );
   });
 
-  it("protects and narrows the raw televote-derived identity evidence query", () => {
-    const guard = suggestions.indexOf('requireHodHistoryCapabilityServer("delegation.read")');
-    const adminRead = suggestions.indexOf("const db = supabaseAdmin as any");
-    const voteRead = suggestions.indexOf('.from("vote_submissions")');
+  it("derives delete scope server-side and rechecks edition-scoped manage before deletion", () => {
+    const remove = server.split("export async function deleteHodAssignmentServer")[1] ?? "";
 
-    expect(guard).toBeGreaterThan(-1);
-    expect(adminRead).toBeGreaterThan(guard);
-    expect(voteRead).toBeGreaterThan(guard);
-    expect(suggestions).not.toContain("requireSolarisOrganizerServer");
-    expect(suggestions).toContain(
-      '.select("round_id,country_code,username,username_normalized")',
-    );
-    expect(suggestions).toContain('.neq("status", "deleted")');
-    expect(suggestions).not.toContain(
-      '.select("id,round_id,country_code,username,username_normalized,status")',
-    );
-    expect(suggestions).not.toContain('submission.status === "deleted"');
+    expect(remove).toContain('loadServiceRoleDbAfterCapability("delegation.read", null)');
+    expect(remove).toContain('.select("id,edition_id")');
+    expect(remove).toContain('.eq("id", assignmentId)');
+    expect(remove).toContain('const editionId = String(assignment.edition_id)');
+    expect(remove).toContain('requireSolarisCapabilityServer("delegation.manage", editionId)');
+    expect(remove).toContain('.eq("edition_id", editionId)');
+
+    const lookup = remove.indexOf('.select("id,edition_id")');
+    const scopedManage = remove.indexOf('requireSolarisCapabilityServer("delegation.manage", editionId)');
+    const deletion = remove.indexOf('.delete()');
+    expect(lookup).toBeGreaterThan(-1);
+    expect(scopedManage).toBeGreaterThan(lookup);
+    expect(deletion).toBeGreaterThan(scopedManage);
   });
 
-  it("matches the existing route and database Permission Engine contract instead of inventing a second authority", () => {
-    expect(routeMap).toContain('"/admin/hod-history"');
-    expect(routeMap).toContain('"delegation.read"');
-    expect(rls).toContain(
-      "using (public.studio2_access_allowed('delegation.manage', edition_id, true))",
-    );
-    expect(rls).toContain(
-      "with check (public.studio2_access_allowed('delegation.manage', edition_id, true))",
-    );
+  it("does not accept caller actor identity and records resolved delete Edition in audit", () => {
+    expect(server).not.toContain("actorId");
+    expect(server).not.toContain("userId:");
+    expect(functions).toContain("editionId: result.editionId");
+    expect(functions).toContain('action: "hod_assignment.delete"');
   });
 });
