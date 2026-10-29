@@ -13,6 +13,7 @@ describe("V3 Edition Schedule collection", () => {
     expect(source).toContain('editionView === "schedule"');
     expect(source).toContain("<V3EditionScheduleScreen");
     expect(source).toContain("projection={bundle.projection}");
+    expect(source).toContain("spoilerSafe={hideSpoilers}");
   });
 
   it("uses the server-projected next event instead of browser chronology", () => {
@@ -42,6 +43,15 @@ describe("V3 Edition Schedule collection", () => {
     expect(source).toContain("show.resultsAvailable");
     expect(source).toContain("show.href");
     expect(source).toContain("Time to be announced");
+  });
+
+  it("suppresses participant/result hints while spoiler-free mode is active", () => {
+    const source = screen();
+    expect(source).toContain("spoilerSafe: boolean");
+    expect(source).toContain("!spoilerSafe && show.participantCount > 0");
+    expect(source).toContain("!spoilerSafe && show.resultsAvailable");
+    expect(source).toContain("Spoiler-safe details");
+    expect(source).toContain("show.runningOrderAvailable");
   });
 
   it("does not fetch, calculate state or create a second Show authority", () => {
