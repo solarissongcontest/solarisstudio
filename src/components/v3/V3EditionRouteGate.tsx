@@ -11,8 +11,8 @@ import { useV3EditionRolloutProbe } from "@/lib/v3-primary-runtime";
 import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
 import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
 import { V3AppShell } from "./V3AppShell";
+import { V3EditionOverviewScreen } from "./V3EditionOverviewScreen";
 import { V3EditionParticipantsScreen } from "./V3EditionParticipantsScreen";
-import { V3EditionProductScreen } from "./V3EditionProductScreen";
 import { V3EditionScheduleScreen } from "./V3EditionScheduleScreen";
 import { V3EditionSongsScreen } from "./V3EditionSongsScreen";
 
@@ -141,11 +141,10 @@ export function V3EditionRouteGate({
           spoilerSafe={hideSpoilers}
         />
       ) : (
-        <V3EditionProductScreen
+        <V3EditionOverviewScreen
           key={screenKey}
           projection={bundle.projection}
           hideSpoilers={hideSpoilers}
-          view={editionView}
         />
       )}
     </V3AppShell>
