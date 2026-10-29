@@ -57,8 +57,18 @@ describe("confirmation canonical reconciliation", () => {
     expect(sync).not.toContain("!publicationWasPublic");
   });
 
-  it("keeps manual snapshot sync organizer-protected", () => {
-    expect(sync).toContain("await requireSolarisOrganizerServer()");
-    expect(sync).toContain("syncConfirmationSnapshotToSolarisInternal(data.snapshot)");
+  it("requires confirmation.manage before caller-supplied snapshot data reaches canonical writes", () => {
+    expect(sync).toContain(
+      'import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";',
+    );
+    expect(sync).toContain('await requireSolarisCapabilityServer("confirmation.manage", null)');
+    expect(sync).not.toContain("requireSolarisOrganizerServer");
+
+    const capabilityIndex = sync.indexOf(
+      'await requireSolarisCapabilityServer("confirmation.manage", null)',
+    );
+    const syncIndex = sync.lastIndexOf("syncConfirmationSnapshotToSolarisInternal(data.snapshot)");
+    expect(capabilityIndex).toBeGreaterThan(-1);
+    expect(syncIndex).toBeGreaterThan(capabilityIndex);
   });
 });
