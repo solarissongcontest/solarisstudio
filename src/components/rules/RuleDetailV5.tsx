@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Info,
+  Search,
   XCircle,
 } from "lucide-react";
 
@@ -45,7 +46,7 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
 
         <nav className="mb-3 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground" aria-label="Rule breadcrumb">
           <Link to="/rules" className="hover:text-foreground">Rules</Link>
-          <ChevronRight className="size-3" />
+          <ChevronRight className="size-3" aria-hidden="true" />
           {rule.chapterSlug ? (
             <>
               <Link
@@ -55,7 +56,7 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
               >
                 {rule.chapterTitle ?? "Chapter"}
               </Link>
-              <ChevronRight className="size-3" />
+              <ChevronRight className="size-3" aria-hidden="true" />
             </>
           ) : null}
           <span className="text-foreground">{rule.id}</span>
@@ -76,27 +77,29 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
         <SolarisDepthSurface variant="reading">
           <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_15rem]">
             <div className="min-w-0 space-y-7">
-              <section aria-labelledby="official-rule-text">
+              <section aria-labelledby="official-rule-heading">
                 <SolarisDepthEyebrow>Official regulation</SolarisDepthEyebrow>
-                <div id="official-rule-text" className="mt-3 space-y-3 text-sm leading-7 text-foreground/90">
+                <h2 id="official-rule-heading" className="sr-only">Official regulation</h2>
+                <div id="official-rule-text" className="mt-3 scroll-mt-36 space-y-3 text-sm leading-7 text-foreground/90">
                   {rule.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
                 </div>
                 {rule.important ? (
                   <div className="mt-4 flex gap-3 border-l-2 border-amber-300/40 bg-amber-300/[0.035] px-4 py-3">
-                    <AlertTriangle className="mt-0.5 size-4.5 shrink-0 text-amber-200" />
+                    <AlertTriangle className="mt-0.5 size-4.5 shrink-0 text-amber-200" aria-hidden="true" />
                     <p className="text-sm leading-6">{rule.important}</p>
                   </div>
                 ) : null}
               </section>
 
               {rule.allowed?.length || rule.prohibited?.length ? (
-                <section aria-labelledby="rule-practical-meaning">
+                <section aria-labelledby="rule-practical-heading">
                   <SolarisDepthEyebrow>What this means</SolarisDepthEyebrow>
-                  <div id="rule-practical-meaning" className="mt-3 grid gap-4 sm:grid-cols-2">
+                  <h2 id="rule-practical-heading" className="sr-only">What this rule means</h2>
+                  <div id="rule-practical-meaning" className="mt-3 scroll-mt-36 grid gap-4 sm:grid-cols-2">
                     {rule.allowed?.length ? (
                       <div className="border-t border-emerald-300/20 pt-3">
                         <p className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
-                          <CheckCircle2 className="size-4" /> Allowed
+                          <CheckCircle2 className="size-4" aria-hidden="true" /> Allowed
                         </p>
                         <ul className="mt-2 space-y-2 text-sm leading-6 text-muted-foreground">
                           {rule.allowed.map((item) => <li key={item}>• {item}</li>)}
@@ -106,7 +109,7 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
                     {rule.prohibited?.length ? (
                       <div className="border-t border-rose-300/20 pt-3">
                         <p className="flex items-center gap-2 text-sm font-semibold text-rose-200">
-                          <XCircle className="size-4" /> Not allowed
+                          <XCircle className="size-4" aria-hidden="true" /> Not allowed
                         </p>
                         <ul className="mt-2 space-y-2 text-sm leading-6 text-muted-foreground">
                           {rule.prohibited.map((item) => <li key={item}>• {item}</li>)}
@@ -118,12 +121,13 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
               ) : null}
 
               {rule.bullets?.length ? (
-                <section aria-labelledby="rule-key-points">
+                <section aria-labelledby="rule-key-points-heading">
                   <SolarisDepthEyebrow>Key points</SolarisDepthEyebrow>
-                  <ul id="rule-key-points" className="mt-3 space-y-2">
+                  <h2 id="rule-key-points-heading" className="sr-only">Key points</h2>
+                  <ul id="rule-key-points" className="mt-3 scroll-mt-36 space-y-2">
                     {rule.bullets.map((item) => (
                       <li key={item} className="flex gap-2.5 text-sm leading-6">
-                        <CheckCircle2 className="mt-1 size-3.5 shrink-0 text-primary" />
+                        <CheckCircle2 className="mt-1 size-3.5 shrink-0 text-primary" aria-hidden="true" />
                         <span>{item}</span>
                       </li>
                     ))}
@@ -132,9 +136,10 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
               ) : null}
 
               {rule.examples?.length ? (
-                <section aria-labelledby="rule-examples">
+                <section aria-labelledby="rule-examples-heading">
                   <SolarisDepthEyebrow>Examples</SolarisDepthEyebrow>
-                  <div id="rule-examples" className="mt-2 divide-y divide-white/[0.07]">
+                  <h2 id="rule-examples-heading" className="sr-only">Examples</h2>
+                  <div id="rule-examples" className="mt-2 scroll-mt-36 divide-y divide-white/[0.07]">
                     {rule.examples.map((example) => (
                       <article key={example.title} className="py-3">
                         <p className="text-sm font-semibold">{example.title}</p>
@@ -162,13 +167,49 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
               </section>
             </div>
 
-            <aside className="space-y-5 border-t border-white/[0.08] pt-5 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+            <aside
+              className="space-y-5 border-t border-white/[0.08] pt-5 lg:sticky lg:top-[calc(5rem+env(safe-area-inset-top))] lg:self-start lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0"
+              data-v3-rule-context-rail="sticky"
+              aria-label="Rule context and navigation"
+            >
               <div>
                 <SolarisDepthEyebrow>Context</SolarisDepthEyebrow>
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
                   {rule.chapterNumber ? `Chapter ${rule.chapterNumber} · ${rule.chapterTitle}` : "Official General Regulations"}
                 </p>
               </div>
+
+              <nav className="border-t border-white/[0.08] pt-4" aria-label="On this rule">
+                <SolarisDepthEyebrow>On this rule</SolarisDepthEyebrow>
+                <div className="mt-2 grid gap-1 text-xs">
+                  <a className="min-h-9 rounded-lg px-2 py-2 font-semibold text-muted-foreground hover:bg-white/[0.035] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55" href="#official-rule-text">
+                    Official regulation
+                  </a>
+                  {rule.allowed?.length || rule.prohibited?.length ? (
+                    <a className="min-h-9 rounded-lg px-2 py-2 font-semibold text-muted-foreground hover:bg-white/[0.035] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55" href="#rule-practical-meaning">
+                      What this means
+                    </a>
+                  ) : null}
+                  {rule.bullets?.length ? (
+                    <a className="min-h-9 rounded-lg px-2 py-2 font-semibold text-muted-foreground hover:bg-white/[0.035] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55" href="#rule-key-points">
+                      Key points
+                    </a>
+                  ) : null}
+                  {rule.examples?.length ? (
+                    <a className="min-h-9 rounded-lg px-2 py-2 font-semibold text-muted-foreground hover:bg-white/[0.035] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55" href="#rule-examples">
+                      Examples
+                    </a>
+                  ) : null}
+                </div>
+              </nav>
+
+              <Link
+                to="/rules/search"
+                search={{ q: rule.title }}
+                className="flex min-h-10 items-center gap-2 rounded-xl border border-white/[0.08] px-3 text-xs font-semibold text-muted-foreground hover:bg-white/[0.035] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
+              >
+                <Search className="size-3.5" aria-hidden="true" /> Search related rules
+              </Link>
 
               {rule.relatedRules?.length ? (
                 <div className="border-t border-white/[0.08] pt-4">
@@ -188,7 +229,7 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
                             <span className="font-mono text-[11px] font-bold text-primary">{related.id}</span>
                             <span className="ml-1.5">{related.title}</span>
                           </span>
-                          <ChevronRight className="size-3.5 text-muted-foreground" />
+                          <ChevronRight className="size-3.5 text-muted-foreground" aria-hidden="true" />
                         </Link>
                       );
                     })}
@@ -198,7 +239,7 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
 
               <div className="border-t border-white/[0.08] pt-4">
                 <p className="flex items-start gap-2 text-[11px] leading-5 text-muted-foreground">
-                  <Info className="mt-0.5 size-3.5 shrink-0" />
+                  <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
                   Explanations help people understand the rule. The official regulation remains the governing text.
                 </p>
               </div>
