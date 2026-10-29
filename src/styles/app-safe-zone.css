@@ -170,4 +170,13 @@ html:not([data-solaris-app]) .app-main {
     top: calc(5rem + var(--solaris-system-safe-top)) !important;
     max-height: calc(100vh - 6rem - var(--solaris-system-safe-top)) !important;
   }
+
+  html:not([data-solaris-app]) :is(
+    .participation-service-nav,
+    .my-solaris-section-nav,
+    .public-site-content > .responsive-tabs,
+    .public-site-content .directory-page-filter
+  ) {
+    top: calc(5rem + var(--solaris-system-safe-top)) !important;
+  }
 }
