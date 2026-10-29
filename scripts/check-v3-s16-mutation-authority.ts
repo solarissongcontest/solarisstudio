@@ -7,6 +7,7 @@ import { extname, join, relative, resolve } from "node:path";
 import { buildV3S16MutationAuthorityReport, scanV3S16StaticAuthority, V3_S16_CRITICAL_DOMAINS, V3_S16_POLICY_VERSION, type V3S16CatalogEvidence, type V3S16SourceFile } from "../src/lib/v3-s16-mutation-authority";
 import { classifyV3S16ReleaseAuthority } from "../src/lib/v3-s16-release-risk";
 import { V3_RELEASE_POLICY_VERSION } from "../src/lib/v3-release-evidence";
+import { buildV3S16FindingLedger } from "./lib/v3-s16-finding-ledger";
 
 const SOURCE_ROOTS = ["src", "supabase/migrations", "supabase/functions", "workers", "functions"];
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".sql"]);
@@ -55,18 +56,24 @@ const assessment = classifyV3S16ReleaseAuthority({
   catalog,
   staticOnly,
 });
+const ledger = buildV3S16FindingLedger({ candidateSha: sha, raw: baseFindings,
+  classified: assessment.findings, domains: baseReport.domains, files, catalog,
+  catalogReference: catalogFile });
+const ledgerArtifact = `s16-finding-ledger-${sha}.json`;
 const report = {
   ...baseReport,
   catalogAuditPassed: staticOnly ? false : baseReport.catalogAuditPassed,
-  s16Passed: assessment.s16Passed,
+  s16Passed: assessment.s16Passed && ledger.reconciled,
   findings: assessment.findings,
   riskTotals: assessment.riskTotals,
   internalMechanismClassifications: catalog ? proveInternalMechanisms(catalog).classifications : [],
+  findingLedger: { artifact: ledgerArtifact, reconciled: ledger.reconciled, ...ledger.summary },
   ...(staticOnly ? { catalogStatus: "not_evaluated_in_static_mode" as const } : {}),
 };
 
 const directory = process.env.V3_PREFLIGHT_DIR ?? "v3-release-preflight/static";
 mkdirSync(directory, { recursive: true });
+writeFileSync(join(directory, ledgerArtifact), JSON.stringify(ledger, null, 2) + "\n");
 writeFileSync(join(directory, "s16-mutation-authority.json"), JSON.stringify(report, null, 2) + "\n");
 process.stdout.write(JSON.stringify(report, null, 2) + "\n");
 
@@ -86,6 +93,7 @@ if (!staticOnly && catalog) {
     check_version: V3_S16_POLICY_VERSION,
     s16Passed: report.s16Passed,
     findingCount: report.findings.length,
+    findingLedger: report.findingLedger,
     riskTotals: report.riskTotals,
   };
   writeFileSync(join(evidenceDirectory, "s16-mutation-authority.json"), JSON.stringify(evidence, null, 2) + "\n");
