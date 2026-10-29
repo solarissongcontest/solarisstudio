@@ -490,6 +490,8 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "televoting.v3_delete_combined_aggregation",
       "televoting.v3_update_combined_metadata",
       "televoting.v3_create_combined_aggregation",
+      "televoting.v3_manage_combined_sources",
+      "televoting.v3_calculate_combined",
       "televoting.submit_vote_checked",
       "public.studio2_update_televote_aggregate_totals",
     ],

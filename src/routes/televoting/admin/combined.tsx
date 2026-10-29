@@ -101,7 +101,7 @@ function CombinedResultsPage() {
   const rawUpsertSourceFn = useServerFn(upsertMergedCombinedSource);
   const rawDeleteSourceFn = useServerFn(deleteMergedCombinedSource);
   const rawValuesFn = useServerFn(saveMergedCombinedSourceValues);
-  const recalcFn = useServerFn(recalculateMergedCombined);
+  const rawRecalcFn = useServerFn(recalculateMergedCombined);
   const statusFn = useServerFn(setMergedCombinedStatus);
   const deleteFn = useServerFn(deleteMergedCombinedAggregation);
   const roundsFn = useServerFn(getMergedTelevotingRounds);
@@ -166,6 +166,7 @@ function CombinedResultsPage() {
     pendingSources.current.delete(key);
     return result;
   };
+  const recalcFn = sourceCommand("calculate", rawRecalcFn);
   const participantFn = sourceCommand("participants", rawParticipantFn);
   const upsertSourceFn = sourceCommand("source", rawUpsertSourceFn);
   const deleteSourceFn = sourceCommand("delete", rawDeleteSourceFn);

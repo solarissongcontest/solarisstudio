@@ -40,7 +40,9 @@ describe("V3 Organizer Combined Results read purity", () => {
     );
 
     expect(participants).toContain("refreshCombinedCanonicalParticipants(data.id)");
-    expect(recalculate).toContain("refreshCombinedCanonicalParticipants(data.id)");
+    expect(recalculate).toContain("recalculateMergedCombinedServer(data)");
+    const sql = readFileSync("supabase/migrations/20261029072852_v3_combined_calculation_authority.sql", "utf8");
+    expect(sql).toContain("Canonical show lineup changed");
     expect(status).toContain('data.status === "locked" || data.status === "published"');
     expect(status).toContain("refreshCombinedCanonicalParticipants(data.id)");
   });

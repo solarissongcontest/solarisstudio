@@ -122,16 +122,13 @@ export const saveMergedCombinedSourceValues = createServerFn({ method: "POST" })
   });
 
 export const recalculateMergedCombined = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string }) => {
-    if (!data?.id) throw new Error("Missing aggregation id");
+  .inputValidator((data: CombinedSourceOperation & { id: string }) => {
+    if (!data?.id || !Number.isSafeInteger(data.expectedVersion) || data.expectedVersion < 1 || !/^[0-9a-f-]{36}$/i.test(data.operationId)) throw new Error("Missing reviewed Combined calculation operation");
     return data;
   })
   .handler(async ({ data }) => {
-    // Ensure the calculator always sees the current canonical show lineup before
-    // it creates a new official calculation version.
-    await refreshCombinedCanonicalParticipants(data.id);
     const { recalculateMergedCombinedServer } = await import("@/integrations/televoting/combined.server");
-    return recalculateMergedCombinedServer(data.id);
+    return recalculateMergedCombinedServer(data);
   });
 
 export const setMergedCombinedStatus = createServerFn({ method: "POST" })

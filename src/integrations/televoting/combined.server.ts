@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 import {
-  COMBINED_ENGINE_VERSION,
   computeCombined,
   inputModeForSourceType,
   type ComponentSourceInput,
@@ -53,19 +52,6 @@ export type CombinedSource = {
   pool_remainder_bonus: number | null;
   final_point_pool: number | null;
 };
-
-type Actor = { id: string; username: string };
-
-async function audit(actor: Actor, action: string, targetId: string, values?: unknown) {
-  await televotingAdmin.from("admin_audit_log").insert({
-    actor_admin_id: actor.id,
-    actor_username: actor.username,
-    action,
-    target_type: "televote_aggregation",
-    target_id: targetId,
-    new_values: values ?? null,
-  });
-}
 
 export async function listMergedCombinedAggregationsServer() {
   await requireMergedTelevotingAdminServer();
@@ -321,115 +307,17 @@ export async function saveMergedCombinedSourceValuesServer(data: CombinedSourceO
   return mutateCombinedSource(data.aggregationId, "values", { sourceId: data.sourceId, values: data.values }, data);
 }
 
-export async function recalculateMergedCombinedServer(id: string) {
-  const actor = await requireMergedTelevotingAdminServer();
-  const aggregation = await loadAggregation(id);
-  const participants = await loadParticipants(id);
-  const sources = await loadSources(id);
-  const resolved = await resolveSources(sources, participants);
-  const result = computeCombined({
-    participants,
-    sources: resolved,
-    totalPoints: Number(aggregation.total_points_to_distribute ?? 0),
-    rankExponent: Number(aggregation.rank_exponent ?? 1.33),
+export async function recalculateMergedCombinedServer(data: CombinedSourceOperation & { id: string }) {
+  await requireMergedTelevotingAdminServer();
+  const { data: receipt, error } = await (televotingAdmin as any).rpc("v3_calculate_combined", {
+    p_aggregation_id: data.id,
+    p_expected_version: data.expectedVersion,
+    p_operation_id: data.operationId,
+    p_idempotency_key: `combined-calculate:${data.operationId}`,
   });
-  if (result.errors.length) throw new Error(result.errors[0]);
-  const version = Number(aggregation.calculation_version ?? 0) + 1;
-  const calculatedAt = new Date().toISOString();
-  const poolMap = new Map(result.pools.map((pool) => [pool.sourceId, pool]));
-
-  for (const pool of result.pools) {
-    await televotingAdmin.from("televote_aggregation_sources").update({
-      calculation_method: pool.method,
-      exact_point_pool: pool.exactPool,
-      floored_point_pool: pool.flooredPool,
-      pool_remainder: pool.poolRemainder,
-      pool_remainder_bonus: pool.poolBonus,
-      final_point_pool: pool.finalPool,
-    }).eq("id", pool.sourceId);
-  }
-
-  await televotingAdmin.from("combined_televote_component_results").delete().eq("aggregation_id", id).eq("calculation_version", version);
-  await televotingAdmin.from("combined_televote_results").delete().eq("aggregation_id", id).eq("calculation_version", version);
-
-  const componentRows = result.rows.flatMap((row) => row.componentResults.map((component) => ({
-    aggregation_id: id,
-    component_id: component.sourceId,
-    component_name: component.sourceName,
-    component_type: component.sourceType,
-    country_code: component.countryCode,
-    calculation_version: version,
-    method: component.method,
-    percentage_weight: poolMap.get(component.sourceId)?.percentageWeight ?? 0,
-    component_pool: poolMap.get(component.sourceId)?.finalPool ?? 0,
-    raw_score: component.rawScore,
-    raw_rank: component.rawRank,
-    participant_count: component.participantCount,
-    rank_base: component.rankBase,
-    rank_exponent: component.rankExponent,
-    rank_factor: component.rankFactor,
-    weighted_score: component.weightedScore,
-    source_weighted_total: component.sourceWeightedTotal,
-    exact_allocation: component.exactAllocation,
-    floored_allocation: component.flooredAllocation,
-    decimal_remainder: component.decimalRemainder,
-    remainder_bonus: component.remainderBonus,
-    final_allocated_points: component.finalAllocatedPoints,
-    tie_break_data: component.tieBreakData,
-    calculated_at: calculatedAt,
-  })));
-  if (componentRows.length) {
-    const { error } = await televotingAdmin.from("combined_televote_component_results").insert(componentRows);
-    if (error) throw new Error(error.message);
-  }
-
-  const finalRows = result.rows.map((row) => ({
-    aggregation_id: id,
-    country_code: row.code,
-    calculation_version: version,
-    source_contributions: row.componentResults.map((component) => ({
-      source_id: component.sourceId,
-      source_name: component.sourceName,
-      source_type: component.sourceType,
-      method: component.method,
-      raw_score: component.rawScore,
-      allocated_points: component.finalAllocatedPoints,
-    })),
-    total_voting_points: row.totalVotingPoints,
-    total_activity_points: row.totalActivityPoints,
-    final_correction: row.finalCorrection,
-    final_combined_points: row.finalCombinedPoints,
-    final_rank: row.finalRank,
-    final_tie_break_data: row.finalTieBreakData,
-    converted_points: row.totalVotingPoints,
-    post_conversion_bonus: row.totalActivityPoints,
-    post_conversion_adjustment: row.finalCorrection,
-    final_televote_score: row.finalCombinedPoints,
-    combined_original_rank: row.finalRank,
-    participant_count: participants.length,
-    calculated_at: calculatedAt,
-  }));
-  if (finalRows.length) {
-    const { error } = await televotingAdmin.from("combined_televote_results").insert(finalRows);
-    if (error) throw new Error(error.message);
-  }
-
-  const { error: updateError } = await televotingAdmin.from("televote_aggregations").update({
-    status: aggregation.status === "draft" ? "calculated" : aggregation.status,
-    calculation_version: version,
-    calculated_at: calculatedAt,
-    calculated_by: actor.id,
-    calculated_by_username: actor.username,
-    results_outdated: false,
-  }).eq("id", id);
-  if (updateError) throw new Error(updateError.message);
-  await audit(actor, "calculate_combined_televote", id, {
-    engine: COMBINED_ENGINE_VERSION,
-    calculation_version: version,
-    total_points: result.totalPoints,
-    pools: result.pools,
-  });
-  return { version, calculatedAt, result };
+  if (error) throw new Error(error.message);
+  if (!receipt || !Number.isSafeInteger(receipt.version)) throw new Error("Combined calculation returned an ambiguous receipt; retry this operation");
+  return receipt as { version: number; calculatedAt: string; operationId: string };
 }
 
 export async function setMergedCombinedStatusServer(data: { id: string; status: "draft" | "calculated" | "locked" | "published" }) {
