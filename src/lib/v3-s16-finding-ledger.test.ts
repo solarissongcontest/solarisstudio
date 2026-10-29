@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 import { buildV3S16FindingLedger } from "../../scripts/lib/v3-s16-finding-ledger";
 import type { V3S16CatalogEvidence, V3S16Finding, V3S16Report } from "./v3-s16-mutation-authority";
 import type { V3S16ClassifiedFinding } from "./v3-s16-release-risk";
+import { classifyV3S16ReleaseAuthority } from "./v3-s16-release-risk";
 
 const sha = "a".repeat(40);
 const inventory = {
-  canonicalCommands: [], sanctionedInternalWriters: [], sanctionedCrossDomainWriters: [],
-  sanctionedWriteTriggers: [], temporaryCompatibilityApplicationWriters: [], allowedColumnDmlGrants: [],
+  canonicalCommands: [],
+  sanctionedInternalWriters: [],
+  sanctionedCrossDomainWriters: [],
+  sanctionedWriteTriggers: [],
+  temporaryCompatibilityApplicationWriters: [],
+  allowedColumnDmlGrants: [],
 };
 const domains: V3S16Report["domains"] = [
   {
@@ -99,6 +104,46 @@ function ledger(overrides: Partial<Parameters<typeof buildV3S16FindingLedger>[0]
   });
 }
 describe("one reconciled S16 finding ledger", () => {
+  it("keeps identically named triggers on different tables as distinct findings", () => {
+    const triggers = ["public.entries", "public.internal_entries"].map((mutationTarget) => ({
+      ...raw[1],
+      mutationTarget,
+    }));
+    const result = classifyV3S16ReleaseAuthority({
+      baseFindings: triggers,
+      domains,
+      files: [],
+      staticOnly: true,
+    });
+    expect(result.findings).toHaveLength(2);
+    const inventory = ledger({ raw: triggers, classified: result.findings });
+    expect(inventory.reconciled).toBe(true);
+    expect(inventory.findings).toHaveLength(2);
+    expect(new Set(inventory.findings.map((f) => f.finding_id)).size).toBe(2);
+    expect(inventory.findings.map((f) => f.mutation_target).sort()).toEqual([
+      ["public.entries"],
+      ["public.internal_entries"],
+    ]);
+    expect(inventory.summary.raw_duplicates).toBe(0);
+  });
+  it("keeps overloaded writer signatures distinct even when names and messages match", () => {
+    const functions = ["private.writer(p_id uuid)", "private.writer(p_id uuid, p_reason text)"].map(
+      (objectSignature) => ({
+        ...raw[1],
+        kind: "competing_legacy_writer" as const,
+        subject: "private.writer",
+        objectSignature,
+      }),
+    );
+    const result = classifyV3S16ReleaseAuthority({
+      baseFindings: functions,
+      domains,
+      files: [],
+      staticOnly: true,
+    });
+    expect(result.findings).toHaveLength(2);
+    expect(ledger({ raw: functions, classified: result.findings }).findings).toHaveLength(2);
+  });
   it("distinguishes source, runtime, Results and shared while preserving every blocker", () => {
     const result = ledger();
     expect(result.reconciled).toBe(true);

@@ -107,6 +107,8 @@ export type V3S16Finding = {
   domain: string;
   kind: V3S16FindingKind;
   subject: string;
+  mutationTarget?: string;
+  objectSignature?: string;
   path?: string;
   detail: string;
   releaseRisk: "hard_blocker";
@@ -837,7 +839,7 @@ export function auditV3S16CatalogAuthority(
       for (const trigger of evidence.writeTriggers ?? []) {
         if (sanctionedTriggers.has(trigger)) continue;
         if (mechanisms.triggers.has(`${domain.id}:${table}:${trigger}`)) continue;
-        findings.push({ domain: domain.id, kind: "unexpected_write_trigger", subject: trigger, detail: `Write trigger ${trigger} can mutate or redirect critical state and must be explicitly sanctioned.`, releaseRisk: "hard_blocker", ownerBoundary });
+        findings.push({ domain: domain.id, kind: "unexpected_write_trigger", subject: trigger, mutationTarget: table, detail: `Write trigger ${trigger} can mutate or redirect critical state and must be explicitly sanctioned.`, releaseRisk: "hard_blocker", ownerBoundary });
       }
       for (const view of evidence.updatableViews ?? []) findings.push({ domain: domain.id, kind: "unexpected_updatable_view", subject: view, detail: `Updatable view ${view} exposes an alternative write path to critical state.`, releaseRisk: "hard_blocker", ownerBoundary });
     }
@@ -850,6 +852,7 @@ export function auditV3S16CatalogAuthority(
         domain: domain.id,
         kind: "competing_legacy_writer",
         subject: fn.name,
+        objectSignature: fn.signature ?? fn.name,
         detail: `Database function ${fn.name} writes critical ${domain.id} state but is not classified as a sanctioned mutation authority.`,
         releaseRisk: "hard_blocker",
         ownerBoundary,

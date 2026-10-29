@@ -12,7 +12,16 @@ function digest(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 function identity(finding: V3S16Finding | V3S16ClassifiedFinding) {
-  return [finding.domain, finding.kind, finding.subject, finding.path ?? null, finding.detail];
+  const key = [
+    finding.domain,
+    finding.kind,
+    finding.subject,
+    finding.path ?? null,
+    finding.detail,
+  ];
+  if (finding.mutationTarget) key.push(`target:${finding.mutationTarget}`);
+  if (finding.objectSignature) key.push(`signature:${finding.objectSignature}`);
+  return key;
 }
 
 function mutations(source: V3S16SourceFile | undefined, target: string) {
@@ -109,13 +118,20 @@ export function buildV3S16FindingLedger(input: {
       const domain = input.domains.find((d) => d.id === finding.domain);
       const source = input.files.find((f) => f.path === finding.path);
       const targets = new Set<string>();
-      const functions = (catalog?.functions ?? []).filter(
-        (f) => f.name === finding.subject || f.signature === finding.subject,
+      if (finding.mutationTarget) targets.add(finding.mutationTarget);
+      const functions = (catalog?.functions ?? []).filter((f) =>
+        finding.objectSignature
+          ? f.signature === finding.objectSignature ||
+            (!f.signature && f.name === finding.objectSignature)
+          : f.name === finding.subject || f.signature === finding.subject,
       );
       const attachments = (catalog?.tables ?? []).flatMap((table) =>
         (table.triggerDefinitions ?? [])
           .filter(
-            (t) => t.name === finding.subject && domain?.canonicalTables.includes(table.table),
+            (t) =>
+              t.name === finding.subject &&
+              domain?.canonicalTables.includes(table.table) &&
+              (!finding.mutationTarget || table.table === finding.mutationTarget),
           )
           .map((t) => ({
             table: table.table,
@@ -140,7 +156,11 @@ export function buildV3S16FindingLedger(input: {
       for (const table of tables) targets.add(table.table);
       for (const fn of functions)
         for (const table of fn.writesTables ?? [])
-          if (domain?.canonicalTables.includes(table)) targets.add(table);
+          if (
+            domain?.canonicalTables.includes(table) &&
+            (!finding.mutationTarget || table === finding.mutationTarget)
+          )
+            targets.add(table);
       if (finding.kind === "direct_application_writer") targets.add(finding.subject);
       const sourceMutations = mutations(source, finding.subject);
       const databaseObjects = functions
@@ -178,7 +198,12 @@ export function buildV3S16FindingLedger(input: {
       };
       return {
         finding_id: findingId,
-      fingerprint: digest([identity(finding), domain?.canonicalOwner, finding.ownerBoundary, evidence]),
+        fingerprint: digest([
+          identity(finding),
+          domain?.canonicalOwner,
+          finding.ownerBoundary,
+          evidence,
+        ]),
         source_location: finding.path ? { path: finding.path, mutations: sourceMutations } : null,
         database_object: databaseObjects.length
           ? databaseObjects

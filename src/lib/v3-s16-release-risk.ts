@@ -333,7 +333,8 @@ export function classifyV3S16ReleaseAuthority(input: {
   }
 
   const unique = [...new Map(findings.map((finding) => [
-    [finding.domain, finding.kind, finding.subject, finding.path ?? "", finding.detail].join("\u0000"),
+    [finding.domain, finding.kind, finding.subject, finding.path ?? "", finding.detail,
+      finding.mutationTarget ?? "", finding.objectSignature ?? ""].join("\u0000"),
     finding,
   ])).values()];
   const hardBlockers = unique.filter((finding) => finding.releaseRisk === "hard_blocker").length;
