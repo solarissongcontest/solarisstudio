@@ -22,6 +22,7 @@ import {
   resolveElasticDrag,
   resolveTabDragTargetIndex,
 } from "@/lib/interaction-physics";
+import { isV3BrowserEdgeGestureStart } from "@/lib/v3-navigation-gesture";
 import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
@@ -111,10 +112,6 @@ export function AppTabBar({
     return () => media.removeEventListener?.("change", refresh);
   }, [expandTabBar]);
 
-  // Publish the obstruction before paint. A normal effect used to reset the
-  // shared CSS variable to 0 during every collapsed/path dependency cleanup,
-  // creating a one-frame loss of reserved scroll space. On narrow screens that
-  // was enough to leave the final content underneath the floating bar.
   useLayoutEffect(() => {
     const root = document.documentElement;
     const bar = barRef.current;
@@ -132,10 +129,6 @@ export function AppTabBar({
       }
 
       const rect = bar.getBoundingClientRect();
-      // This value is deliberately output-only. Never feed a measured tab-bar
-      // height back into the CSS variable that sizes the tab bar itself:
-      // doing so creates a ResizeObserver feedback loop when drag elasticity
-      // temporarily changes the material height.
       const rawObstruction = Math.max(0, window.innerHeight - rect.top);
       const obstruction = Math.min(rawObstruction, 128);
       root.style.setProperty("--solaris-app-bottom-obstruction", `${Math.ceil(obstruction)}px`);
@@ -162,19 +155,11 @@ export function AppTabBar({
       rootObserver?.disconnect();
       window.removeEventListener("resize", updateMetrics);
       window.visualViewport?.removeEventListener("resize", updateMetrics);
-      // Do not zero the obstruction here. Dependency changes immediately
-      // install the next measurement and clearing in between causes geometry
-      // flicker. True unmount cleanup below owns the reset.
     };
   }, [collapsed, railMode, tabbarMode, pathname]);
 
   useEffect(
     () => () => {
-      // Route-level shells can be replaced in one React commit. Passive cleanup
-      // for the old AppTabBar runs after the replacement's layout effect has
-      // already published its measurement, so blindly clearing here can erase
-      // the new bar's obstruction and collapse the shell spacer underneath it.
-      // Only the final tab-bar owner is allowed to clear the shared metrics.
       window.requestAnimationFrame(() => {
         if (document.querySelector(".solaris-app-tabbar")) return;
 
@@ -316,8 +301,6 @@ export function AppTabBar({
       window.removeEventListener("pagehide", resetInterruptedGesture);
       window.removeEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
-      // Unmount/StrictMode teardown must not set React state. The press-hold
-      // hook cancels its own timer; only imperative DOM/ref cleanup is needed.
       resetDragDom();
     };
   }, [clearDrag, pathname, resetDragDom, searchStr]);
@@ -335,6 +318,10 @@ export function AppTabBar({
       prefersReducedMotion() ||
       root.hasAttribute("data-solaris-keyboard-open") ||
       root.hasAttribute("data-solaris-feature-overlay-open") ||
+      isV3BrowserEdgeGestureStart({
+        clientX: event.clientX,
+        viewportWidth: window.visualViewport?.width ?? window.innerWidth,
+      }) ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) return;
 
