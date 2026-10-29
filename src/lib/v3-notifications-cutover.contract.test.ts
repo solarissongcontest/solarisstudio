@@ -70,15 +70,17 @@ describe("V3 Notifications cutover", () => {
     expect(source).toContain("exploreEnabled");
   });
 
-  it("keeps the new destination installed-app-only and fails closed to Settings", () => {
+  it("keeps the new destination installed-app-only and fails closed to Settings before rollout selection", () => {
     const source = route();
 
     expect(source).toContain("useV3RolloutProbe(platformResolved && isAppMode)");
-    expect(source).toContain("rollout.data?.notificationsEnabled !== true");
+    expect(source).toContain("!rollout.data");
+    expect(source).toContain("rollout.data.notificationsEnabled !== true");
     expect(source).toContain('<Navigate to="/settings" replace />');
     expect(source).toContain('data-v3-notifications-route-boot=""');
     expect(source).toContain("<V3NotificationsRouteContent");
     expect(source).toContain('activeArea="me"');
+    expect(source).not.toContain("rollout.isError ||");
   });
 
   it("waits for preference, push and inbox reads before making notification-state claims", () => {
@@ -105,6 +107,22 @@ describe("V3 Notifications cutover", () => {
     expect(source).not.toContain("acknowledgeStudio2InboxNotice");
     expect(source).not.toContain("markStudio2NoticeOpened");
     expect(source).not.toContain("refetchInterval");
+  });
+
+  it("keeps cached verified data on refetch errors and exposes a unified retry", () => {
+    const source = route();
+    const ui = screen();
+
+    expect(source).toContain("preferences.isError && !preferences.data");
+    expect(source).toContain("inbox.isError && !inbox.data");
+    expect(source).toContain("const degraded = preferences.isError || push.isError || inbox.isError");
+    expect(source).toContain("Promise.allSettled");
+    expect(source).toContain("preferences.refetch()");
+    expect(source).toContain("push.refetch()");
+    expect(source).toContain("inbox.refetch()");
+    expect(ui).toContain('data-v3-notifications-authority-state="degraded"');
+    expect(ui).toContain("Some notification state could not be refreshed");
+    expect(ui).toContain("Retry");
   });
 
   it("keeps acknowledgement, required work and preference mutations on canonical destinations", () => {
