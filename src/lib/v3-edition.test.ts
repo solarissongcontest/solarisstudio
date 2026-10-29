@@ -167,7 +167,7 @@ describe("V3 Edition page projection", () => {
     expect(projection?.results.showHref).toBe("/shows/final?from=results");
   });
 
-  it("omits stored result rows for identities known to be non-competing", () => {
+  it("preserves immutable published rows even when current participant state later changes", () => {
     const projection = buildV3EditionPageProjection(
       input({
         edition: edition({ resultsPublication: "published", experience: "results" }),
@@ -237,10 +237,14 @@ describe("V3 Edition page projection", () => {
     );
 
     expect(projection?.results.state).toBe("available");
-    expect(projection?.results.rows.map((row) => row.id)).toEqual(["oland"]);
+    expect(projection?.results.rows.map((row) => row.id)).toEqual([
+      "oland",
+      "withdrawn",
+      "dq",
+    ]);
   });
 
-  it("does not treat a published result as available when only non-competing rows remain", () => {
+  it("keeps a published immutable result available even if every current participant row is non-confirmed", () => {
     const projection = buildV3EditionPageProjection(
       input({
         edition: edition({ resultsPublication: "published", experience: "results" }),
@@ -271,9 +275,9 @@ describe("V3 Edition page projection", () => {
       }),
     );
 
-    expect(projection?.results.state).toBe("empty");
-    expect(projection?.results.rows).toEqual([]);
-    expect(projection?.results.showHref).toBeNull();
+    expect(projection?.results.state).toBe("available");
+    expect(projection?.results.rows.map((row) => row.id)).toEqual(["withdrawn"]);
+    expect(projection?.results.showHref).toBe("/shows/final?from=results");
   });
 
   it("keeps empty publication-safe sections explicit", () => {
