@@ -108,7 +108,7 @@ function V3NotificationsRouteContent({
           <V3ScreenHeader
             kicker="Me"
             title="Notifications"
-            description="Official updates, attention state and delivery health in one place."
+            description="Official updates, important messages and delivery settings in one place."
           />
           <V3Surface>
             <p
@@ -129,8 +129,9 @@ function V3NotificationsRouteContent({
   const categories = preferenceRow?.categories?.length
     ? preferenceRow.categories
     : [...DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES];
-  const quietStart = (preferenceRow?.quiet_hours_start ?? "23:00").slice(0, 5);
-  const quietEnd = (preferenceRow?.quiet_hours_end ?? "08:00").slice(0, 5);
+  const quietStart = preferenceRow?.quiet_hours_start?.slice(0, 5) ?? null;
+  const quietEnd = preferenceRow?.quiet_hours_end?.slice(0, 5) ?? null;
+  const quietHoursLabel = quietStart && quietEnd ? `${quietStart}–${quietEnd}` : "Off";
   const deliveryStatus =
     push.isError || !push.data
       ? UNKNOWN_APP_PUSH_DELIVERY
@@ -155,7 +156,7 @@ function V3NotificationsRouteContent({
       <V3NotificationsScreen
         deliveryStatus={deliveryStatus}
         enabledCategoryCount={categories.length}
-        quietHoursLabel={`${quietStart}–${quietEnd}`}
+        quietHoursLabel={quietHoursLabel}
         urgentDeadlineReminders={preferenceRow?.urgent_deadline_reminders ?? true}
         preferencesUnavailable={preferences.isError}
         inboxUnavailable={inbox.isError}
