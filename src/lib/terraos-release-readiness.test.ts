@@ -28,7 +28,8 @@ describe("TerraOS public readiness projection", () => {
       "blocker",
       "registry",
     ]) {
-      expect(serialized).not.toContain(forbidden);
+      // Match metadata words, not substrings such as sha in "shape".
+      expect(serialized).not.toMatch(new RegExp(`\\b${forbidden}\\b`, "i"));
     }
   });
 });

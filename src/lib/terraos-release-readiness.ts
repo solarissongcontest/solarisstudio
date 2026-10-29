@@ -1,6 +1,6 @@
 import { V3_DOMAIN_CONSEQUENCE_REGISTRY } from "./v3-domain-consequence-registry";
 import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
-import { V3_PUBLIC_CAPABILITY_REGISTRY } from "./v3-public-capability-registry";
+import { V3_PUBLIC_CAPABILITY_REGISTRY, type PublicCapabilityMigration } from "./v3-public-capability-registry";
 import { V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES } from "./v3-public-capability-supplements";
 import { V3_SYSTEM_DOMAIN_REGISTRY } from "./v3-system-domain-registry";
 
@@ -22,7 +22,7 @@ export type TerraOsPublicReadiness = {
 };
 
 const PUBLIC_STATUS_SCORE: Record<
-  (typeof V3_PUBLIC_CAPABILITIES)[number]["specificationStatus"],
+  PublicCapabilityMigration["specificationStatus"],
   number
 > = {
   discovered: 0.05,
@@ -121,7 +121,7 @@ export function getTerraOsPublicReadiness(): TerraOsPublicReadiness {
   );
 
   const participation = publicScore(
-    (item) => item.targetArea === "participate" || item.id === "confirmations",
+    (item) => item.targetArea === "participate",
   );
 
   const publicProduct = publicScore((item) =>
