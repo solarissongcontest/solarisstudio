@@ -14,6 +14,10 @@ import {
 
 type MusicSearch = { q?: string };
 
+const MUSIC_URL = "https://studio.solaris-song-contest.workers.dev/music";
+const MUSIC_DESCRIPTION =
+  "Discover publication-safe Solaris songs and artists through durable first-class music identities.";
+
 export const Route = createFileRoute("/music/")({
   validateSearch: (search: Record<string, unknown>): MusicSearch => ({
     q:
@@ -24,18 +28,13 @@ export const Route = createFileRoute("/music/")({
   head: () => ({
     meta: [
       { title: "Songs & artists — Solaris Studio" },
-      {
-        name: "description",
-        content:
-          "Discover publication-safe Solaris songs and artists through durable first-class music identities.",
-      },
+      { name: "description", content: MUSIC_DESCRIPTION },
+      { property: "og:title", content: "Songs & artists — Solaris Studio" },
+      { property: "og:description", content: MUSIC_DESCRIPTION },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: MUSIC_URL },
     ],
-    links: [
-      {
-        rel: "canonical",
-        href: "https://studio.solaris-song-contest.workers.dev/music",
-      },
-    ],
+    links: [{ rel: "canonical", href: MUSIC_URL }],
   }),
   component: MusicPage,
 });
