@@ -60,13 +60,27 @@ function ParticipantFlag({ participant }: { participant: V3EditionParticipant })
   );
 }
 
+function entryLabel(
+  entry: V3EditionPageProjection["entries"][number] | null,
+): string | null {
+  if (!entry) return null;
+  return [entry.song ? `“${entry.song}”` : null, entry.artist]
+    .filter(Boolean)
+    .join(" · ") || "Entry revealed";
+}
+
 function ParticipantRow({
   participant,
+  entry,
   result,
+  showEntryAvailability,
 }: {
   participant: V3EditionParticipant;
+  entry: V3EditionPageProjection["entries"][number] | null;
   result: V3EditionPageProjection["results"]["rows"][number] | null;
+  showEntryAvailability: boolean;
 }) {
+  const revealedEntry = entryLabel(entry);
   const contents = (
     <div className="flex min-h-16 items-center gap-3 py-3">
       <ParticipantFlag participant={participant} />
@@ -76,8 +90,13 @@ function ParticipantRow({
         </span>
         <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/48">
           <span>{participant.shortCode}</span>
+          {showEntryAvailability ? (
+            <span className={revealedEntry ? "text-white/62" : "text-white/34"}>
+              {revealedEntry ?? "Entry not public yet"}
+            </span>
+          ) : null}
           {result ? (
-            <span className="font-semibold text-white/58">
+            <span className="font-semibold text-white/68">
               #{result.rank} · {result.totalPoints} pts
             </span>
           ) : null}
@@ -111,6 +130,16 @@ export function V3EditionParticipantsScreen({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ParticipantFilter>("all");
   const normalizedQuery = query.trim().toLocaleLowerCase();
+
+  const entryByIdentity = useMemo(
+    () =>
+      new Map(
+        !spoilerSafe
+          ? projection.entries.map((entry) => [entry.id, entry] as const)
+          : [],
+      ),
+    [projection.entries, spoilerSafe],
+  );
 
   const resultByIdentity = useMemo(
     () =>
@@ -155,6 +184,12 @@ export function V3EditionParticipantsScreen({
   ]
     .filter(Boolean)
     .join(" · ");
+  const resultsLabel =
+    projection.results.state === "available"
+      ? "Official results published"
+      : projection.results.state === "locked"
+        ? "Results locked"
+        : "Results pending";
 
   return (
     <V3Screen>
@@ -172,6 +207,18 @@ export function V3EditionParticipantsScreen({
         description={`${projection.participants.length} public delegations${editionMeta ? ` · ${editionMeta}` : ""}`}
         editorial
       />
+
+      <div className="flex flex-wrap gap-2">
+        <V3StatusChip tone="neutral">
+          {projection.overview.entryCount} revealed entries
+        </V3StatusChip>
+        <V3StatusChip
+          tone={projection.results.state === "available" ? "success" : "neutral"}
+        >
+          {resultsLabel}
+        </V3StatusChip>
+        {spoilerSafe ? <V3StatusChip tone="warning">Spoiler-free</V3StatusChip> : null}
+      </div>
 
       <V3Surface level="raised" className="p-4">
         <label className="relative block">
@@ -222,7 +269,9 @@ export function V3EditionParticipantsScreen({
 
       <p className="px-1 text-xs leading-5 text-white/45" aria-live="polite">
         {filtered.length} delegation{filtered.length === 1 ? "" : "s"} shown
-        {spoilerSafe ? " · result placements hidden by spoiler-free mode" : ""}.
+        {spoilerSafe
+          ? " · entry details and result placements hidden by spoiler-free mode"
+          : ""}.
       </p>
 
       {grouped.length ? (
@@ -237,7 +286,9 @@ export function V3EditionParticipantsScreen({
                 <ParticipantRow
                   key={participant.id}
                   participant={participant}
+                  entry={entryByIdentity.get(participant.id) ?? null}
                   result={resultByIdentity.get(participant.id) ?? null}
+                  showEntryAvailability={!spoilerSafe}
                 />
               ))}
             </V3Surface>
