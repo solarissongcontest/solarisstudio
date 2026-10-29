@@ -1,5 +1,4 @@
-import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
-import { televotingAdmin } from "@/integrations/televoting/client.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 
 export type MergedTelevotingEditionLink = {
   solaris_id: string;
@@ -22,6 +21,11 @@ async function solarisDb() {
   return supabaseAdmin as any;
 }
 
+async function televotingDb() {
+  const { televotingAdmin } = await import("@/integrations/televoting/client.server");
+  return televotingAdmin;
+}
+
 /**
  * Read-only projection for Organizer integration diagnostics.
  *
@@ -32,8 +36,8 @@ async function solarisDb() {
 export async function listMergedTelevotingEditionLinksServer(): Promise<
   MergedTelevotingEditionLink[]
 > {
-  await requireMergedTelevotingAdminServer();
-  const db = await solarisDb();
+  await requireSolarisCapabilityServer("voting.read");
+  const [db, votingDb] = await Promise.all([solarisDb(), televotingDb()]);
 
   const [solarisResult, linkResult, remoteResult] = await Promise.all([
     db
@@ -46,7 +50,7 @@ export async function listMergedTelevotingEditionLinksServer(): Promise<
       .select("solaris_id,remote_id,sync_status,last_synced_at")
       .eq("service", "televoting")
       .eq("entity_type", "edition"),
-    televotingAdmin
+    votingDb
       .from("editions")
       .select("id,name,is_active,is_archived")
       .order("created_at"),
