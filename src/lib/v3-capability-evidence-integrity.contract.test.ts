@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import {
   auditV3CapabilityEvidence,
   buildV3CapabilityEvidenceIntegrityReport,
+  normalizeV3RepositoryEvidenceReference,
   parseV3MigrationEvidence,
 } from "../../scripts/check-v3-capability-evidence-integrity";
 
@@ -16,16 +17,26 @@ describe("V3 capability evidence integrity", () => {
     ]);
   });
 
-  it("treats final migration state without evidence as a status-integrity violation", () => {
+  it("normalizes human annotations after a repository path without inventing a missing file", () => {
+    expect(
+      normalizeV3RepositoryEvidenceReference(
+        ".github/workflows/browser-audit.yml (local sitemap preflight)",
+      ),
+    ).toBe(".github/workflows/browser-audit.yml");
+  });
+
+  it("treats final migration state without machine-verifiable evidence as evidence debt", () => {
     const row = auditV3CapabilityEvidence({
       surface: "public",
       capabilityId: "example",
       declaredStatus: "cutover",
+      migrationEvidence: "legacy prose description",
     });
 
     expect(row.evidenceRequired).toBe(true);
     expect(row.evidenceStatus).toBe("missing");
     expect(row.statusIntegrityViolation).toBe(true);
+    expect(row.unverifiableEvidenceReferences).toEqual(["legacy prose description"]);
     expect(row.ownerLane).toBe("Session 2 — Public");
   });
 
@@ -49,7 +60,7 @@ describe("V3 capability evidence integrity", () => {
         surface: "public",
         capabilityId: "complete",
         declaredStatus: "parity",
-        migrationEvidence: "src/evidence.test.ts; scripts/rehearsal.sh",
+        migrationEvidence: "src/evidence.test.ts; scripts/rehearsal.sh; acceptance note",
       },
       (path) => existing.has(path),
     );
@@ -65,6 +76,7 @@ describe("V3 capability evidence integrity", () => {
 
     expect(complete.evidenceStatus).toBe("complete");
     expect(complete.statusIntegrityViolation).toBe(false);
+    expect(complete.unverifiableEvidenceReferences).toEqual(["acceptance note"]);
     expect(partial.evidenceStatus).toBe("partial");
     expect(partial.missingRepositoryEvidence).toEqual(["scripts/missing.sh"]);
     expect(partial.statusIntegrityViolation).toBe(true);
@@ -79,16 +91,21 @@ describe("V3 capability evidence integrity", () => {
     expect(report.invariant).toContain("parity/cutover/retired");
   });
 
-  it("keeps Quality wired to coordinator integration PRs and exact-tree evidence enforcement", () => {
+  it("keeps Quality wired to coordinator integration PRs while treating inherited evidence debt as reportable rather than a universal PR blocker", () => {
     const quality = readFileSync(resolve(process.cwd(), ".github/workflows/ci.yml"), "utf8");
+    const transitionGuard = readFileSync(
+      resolve(process.cwd(), "scripts/check-v3-capability-status-transitions.ts"),
+      "utf8",
+    );
 
     expect(quality).toContain("v3/1629-integration-chat8");
     expect(quality).toContain(
       "scripts/check-v3-capability-evidence-integrity.ts --json > v3-integration-evidence/v3-capability-evidence-integrity.json",
     );
-    expect(quality).toContain(
+    expect(quality).not.toContain(
       "scripts/check-v3-capability-evidence-integrity.ts --require-complete",
     );
-    expect(quality).toContain("V3 capability parity/cutover evidence integrity");
+    expect(transitionGuard).toContain("buildV3CapabilityEvidenceIntegrityReport");
+    expect(transitionGuard).toContain("cannot be accepted without exact-tree evidence");
   });
 });

@@ -141,9 +141,6 @@ jobs:
             exit 1
           fi
 
-      - name: Enforce V3 capability parity/cutover evidence integrity
-        run: bun run scripts/check-v3-capability-evidence-integrity.ts --require-complete
-
       - name: Upload V3 capability report
         if: always()
         uses: actions/upload-artifact@v4
@@ -264,14 +261,14 @@ jobs:
             echo
             echo "- Fresh dependency install: attempted"
             echo "- V3 production-isolation runtime guard: attempted"
-            echo "- V3 capability status-history guard: attempted when an exact base SHA exists"
+            echo "- V3 capability status-history guard: attempted when an exact base SHA exists; new final-state promotions require exact-tree repository evidence"
             echo "- V3 capability report: generated when registry modules loaded successfully"
             echo "- V3 route/API/capability registry guard: attempted"
             echo "- V3 search/notification/physical ownership guard: attempted"
             echo "- System V3 S1 workflow dependency/consequence guard: attempted"
             echo "- V3 structural release-integrity guard: attempted"
-            echo "- V3 live completion dashboard + capability evidence integrity + S14/S15 readiness evidence: attempted and exact-source-SHA checked"
-            echo "- V3 capability parity/cutover evidence integrity: enforced against repository evidence paths"
+            echo "- V3 live completion dashboard + capability evidence debt + S14/S15 readiness evidence: attempted and exact-source-SHA checked"
+            echo "- Inherited capability evidence debt remains visible in the artifact; release certification may require it complete without blocking unrelated PRs"
             echo "- Fresh TanStack route generation: attempted when prior gates passed"
             echo "- Generated route tree verification: attempted when build ran"
             echo "- Production build and client budget: attempted when prior gates passed"

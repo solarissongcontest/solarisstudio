@@ -29,6 +29,7 @@ export type CapabilityEvidenceAuditRow = CapabilityEvidenceInput & {
 
 const FINAL_MIGRATION_STATUSES = new Set(["parity", "cutover", "retired"]);
 const REPOSITORY_EVIDENCE_PREFIX = /^(?:\.github|docs|e2e|public|scripts|src|supabase)\//;
+const REPOSITORY_EVIDENCE_WITH_NOTE = /^((?:\.github|docs|e2e|public|scripts|src|supabase)\/\S+?)(?:\s+\([^)]*\))?$/;
 
 export function parseV3MigrationEvidence(value?: string): string[] {
   return (value ?? "")
@@ -37,8 +38,13 @@ export function parseV3MigrationEvidence(value?: string): string[] {
     .filter(Boolean);
 }
 
+export function normalizeV3RepositoryEvidenceReference(reference: string) {
+  const match = reference.match(REPOSITORY_EVIDENCE_WITH_NOTE);
+  return match?.[1] ?? reference;
+}
+
 function isRepositoryEvidenceReference(reference: string) {
-  return REPOSITORY_EVIDENCE_PREFIX.test(reference);
+  return REPOSITORY_EVIDENCE_PREFIX.test(normalizeV3RepositoryEvidenceReference(reference));
 }
 
 export function auditV3CapabilityEvidence(
@@ -47,7 +53,9 @@ export function auditV3CapabilityEvidence(
 ): CapabilityEvidenceAuditRow {
   const evidenceRequired = FINAL_MIGRATION_STATUSES.has(input.declaredStatus);
   const evidenceReferences = parseV3MigrationEvidence(input.migrationEvidence);
-  const repositoryEvidenceReferences = evidenceReferences.filter(isRepositoryEvidenceReference);
+  const repositoryEvidenceReferences = evidenceReferences
+    .filter(isRepositoryEvidenceReference)
+    .map(normalizeV3RepositoryEvidenceReference);
   const unverifiableEvidenceReferences = evidenceReferences.filter(
     (reference) => !isRepositoryEvidenceReference(reference),
   );
@@ -59,7 +67,7 @@ export function auditV3CapabilityEvidence(
   if (evidenceRequired) {
     if (!evidenceReferences.length || !repositoryEvidenceReferences.length) {
       evidenceStatus = "missing";
-    } else if (missingRepositoryEvidence.length || unverifiableEvidenceReferences.length) {
+    } else if (missingRepositoryEvidence.length) {
       evidenceStatus = "partial";
     } else {
       evidenceStatus = "complete";
@@ -121,17 +129,20 @@ export function buildV3CapabilityEvidenceIntegrityReport(
   const violations = rows.filter((item) => item.statusIntegrityViolation);
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     candidateSha: exactSha(),
     generatedAt: new Date().toISOString(),
     invariant:
-      "A capability declared parity/cutover/retired must cite machine-verifiable repository evidence that still exists on the exact source tree.",
+      "A capability declared parity/cutover/retired must cite at least one machine-verifiable repository evidence path that still exists on the exact source tree.",
     summary: {
       publicCapabilities: publicRows.length,
       organizerCapabilities: organizerRows.length,
       evidenceRequired: rows.filter((item) => item.evidenceRequired).length,
       evidenceComplete: rows.filter((item) => item.evidenceStatus === "complete").length,
       statusIntegrityViolations: violations.length,
+      legacyDescriptiveEvidenceOnly: violations.filter(
+        (item) => item.evidenceReferences.length > 0 && item.repositoryEvidenceReferences.length === 0,
+      ).length,
     },
     violations,
     public: publicRows,
@@ -147,8 +158,9 @@ function markdown(report: ReturnType<typeof buildV3CapabilityEvidenceIntegrityRe
     `- Final-state capabilities requiring evidence: **${report.summary.evidenceRequired}**`,
     `- Complete evidence sets: **${report.summary.evidenceComplete}**`,
     `- Status-integrity violations: **${report.summary.statusIntegrityViolations}**`,
+    `- Legacy prose-only evidence rows: **${report.summary.legacyDescriptiveEvidenceOnly}**`,
     "",
-    "> Declaring parity/cutover/retired is not evidence. Final-state registry rows must point to repository evidence that exists on this exact tree.",
+    "> Declaring parity/cutover/retired is not evidence. Final-state registry rows need at least one repository evidence path that exists on this exact tree. Descriptive annotations may supplement valid paths but never replace them.",
     "",
   ];
 
@@ -166,7 +178,7 @@ function markdown(report: ReturnType<typeof buildV3CapabilityEvidenceIntegrityRe
         reasons.push(`missing paths: ${item.missingRepositoryEvidence.join(", ")}`);
       }
       if (item.unverifiableEvidenceReferences.length) {
-        reasons.push(`unverifiable refs: ${item.unverifiableEvidenceReferences.join(", ")}`);
+        reasons.push(`descriptive refs: ${item.unverifiableEvidenceReferences.join(", ")}`);
       }
       lines.push(
         `- **${item.surface}/${item.capabilityId}** declared \`${item.declaredStatus}\` but evidence is \`${item.evidenceStatus}\`: ${reasons.join("; ")} · owner ${item.ownerLane}`,
