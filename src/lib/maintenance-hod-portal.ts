@@ -24,6 +24,9 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
     background:
       linear-gradient(180deg, rgba(18,43,72,.66), rgba(5,17,36,.94)),
       rgba(6,18,39,.96);
+    color: #f5fbff;
+    --muted: rgba(232,245,250,.88);
+    --muted-soft: rgba(210,228,238,.80);
     box-shadow: inset 0 1px 0 rgba(230,248,255,.08), 0 14px 34px rgba(0,4,18,.14);
   }
   .hod-portal-head {
