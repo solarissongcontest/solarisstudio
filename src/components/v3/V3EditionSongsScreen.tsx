@@ -37,13 +37,22 @@ function CountryFlag({
 
 function ProtectedSongs({
   count,
+  overviewHref,
   onReveal,
 }: {
   count: number;
+  overviewHref: string;
   onReveal: () => void;
 }) {
   return (
     <V3Screen>
+      <Link
+        to={overviewHref as any}
+        className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-semibold text-white/70 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+      >
+        <ChevronLeft className="size-4" aria-hidden="true" />
+        Edition overview
+      </Link>
       <V3ScreenHeader
         kicker="Edition · Songs"
         title="Songs & artists"
@@ -71,12 +80,6 @@ function ProtectedSongs({
           </div>
         </div>
       </V3Surface>
-      <V3ActionCard
-        title="Music discovery"
-        description="Browse the publication-safe Solaris Song and Artist indexes"
-        icon={Disc3}
-        to="/music"
-      />
     </V3Screen>
   );
 }
@@ -118,6 +121,7 @@ export function V3EditionSongsScreen({
     return (
       <ProtectedSongs
         count={projection.entries.length}
+        overviewHref={v3EditionOverviewHref(projection.hub.hero.href)}
         onReveal={() => setRevealed(true)}
       />
     );
@@ -207,7 +211,7 @@ export function V3EditionSongsScreen({
                         {entry.href ? (
                           <Link
                             to={entry.href as any}
-                            className="inline-flex min-h-10 items-center gap-2 rounded-lg px-1 text-xs font-semibold text-white/65 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+                            className="inline-flex min-h-11 items-center gap-2 rounded-lg px-1 text-xs font-semibold text-white/65 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                           >
                             <CountryFlag
                               flagImage={entry.flagImage}
@@ -263,18 +267,20 @@ export function V3EditionSongsScreen({
         )}
       </V3Section>
 
-      <V3Section title="Explore music">
-        <V3ActionCard
-          title="Songs & artists"
-          description="Open the first-class publication-safe music discovery surface"
-          icon={Disc3}
-          to="/music"
-        />
-      </V3Section>
+      {!hideSpoilers ? (
+        <V3Section title="Explore music">
+          <V3ActionCard
+            title="Songs & artists"
+            description="Open the first-class publication-safe music discovery surface"
+            icon={Disc3}
+            to="/music"
+          />
+        </V3Section>
+      ) : null}
 
       {hideSpoilers ? (
         <p className="px-1 text-xs leading-5 text-white/40">
-          Revealing songs here is local to this view. Your spoiler-free preference remains enabled.
+          Revealing songs here is local to this view. Your spoiler-free preference remains enabled, so broader music discovery stays outside this local reveal.
         </p>
       ) : null}
     </V3Screen>
