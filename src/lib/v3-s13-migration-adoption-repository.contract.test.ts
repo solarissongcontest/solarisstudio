@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { auditV3S13MigrationAdoption } from "./v3-s13-migration-adoption-audit";
@@ -34,7 +35,7 @@ describe("System V3 S13 repository adoption gate", () => {
   });
 
   it("keeps historical exemption debt explicit, exact-path and forward-repaired", () => {
-    expect(V3_S13_REVIEWED_MIGRATION_EXEMPTIONS).toHaveLength(6);
+    expect(V3_S13_REVIEWED_MIGRATION_EXEMPTIONS).toHaveLength(10);
     expect(V3_S13_REVIEWED_MIGRATION_EXEMPTIONS[0]).toEqual({
       path: "supabase/migrations/20261022151607_batch_running_order_result_sync.sql",
       reason: "immutable_history_forward_repaired",
@@ -44,11 +45,24 @@ describe("System V3 S13 repository adoption gate", () => {
   });
   it("binds each integrated System exception to a real forward adoption contract", () => {
     const forward = readFileSync("supabase/migrations/20261029170000_v3_integrated_system_lane_adoption.sql", "utf8");
-    for (const item of V3_S13_REVIEWED_MIGRATION_EXEMPTIONS.slice(1)) {
+    for (const item of V3_S13_REVIEWED_MIGRATION_EXEMPTIONS.slice(1, 6)) {
       const filename = item.path.split("/").at(-1)!;
       expect(forward).toContain(filename);
       expect(forward).toContain(`'v3.system-lane.${filename.slice(0, 14)}'`);
       expect(item.rationale).toContain("20261029170000_v3_integrated_system_lane_adoption.sql");
+    }
+  });
+
+  it("binds later coordinator repairs to immutable migration bytes and forward contracts", () => {
+    const forward = readFileSync("supabase/migrations/20261029225000_v3_shared_runtime_adoption.sql", "utf8");
+    for (const item of V3_S13_REVIEWED_MIGRATION_EXEMPTIONS.slice(6)) {
+      const filename = item.path.split("/").at(-1)!;
+      const digest = createHash("sha256").update(readFileSync(item.path)).digest("hex");
+      expect(forward).toContain(filename);
+      expect(forward).toContain(`'v3.shared-runtime-lane.${filename.slice(0, 14)}'`);
+      expect(forward).toContain(`sha256:${digest}`);
+      expect(item.rationale).toContain(`sha256:${digest}`);
+      expect(item.rationale).toContain("20261029225000_v3_shared_runtime_adoption.sql");
     }
   });
 

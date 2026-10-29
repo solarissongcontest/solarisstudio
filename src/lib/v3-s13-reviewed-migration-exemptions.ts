@@ -40,4 +40,24 @@ export const V3_S13_REVIEWED_MIGRATION_EXEMPTIONS = [
     reason: "immutable_history_forward_repaired",
     rationale: "Already-pushed System lane migration; preserve immutable SQL history. Its concrete semantic migration contract is registered by 20261029170000_v3_integrated_system_lane_adoption.sql and verified by local replay and current-main upgrade.",
   },
+  {
+    path: "supabase/migrations/20261029192000_v3_s16_harden_shared_internal_authority.sql",
+    reason: "immutable_history_forward_repaired",
+    rationale: "Published coordinator migration; preserve immutable history. Forward adoption in 20261029225000_v3_shared_runtime_adoption.sql binds sha256:e6025e9a3c2214fde04ff70399254272b14205ec60771467b4a80f5819416093.",
+  },
+  {
+    path: "supabase/migrations/20261029221500_v3_s16_shared_runtime_authority_cutover.sql",
+    reason: "immutable_history_forward_repaired",
+    rationale: "Published coordinator migration; preserve immutable history. Forward adoption in 20261029225000_v3_shared_runtime_adoption.sql binds sha256:f7e1b1615c4be4e0d1d329e674e4a8f2e25bbfab55d67d59f30a3d6e12f52777.",
+  },
+  {
+    path: "supabase/migrations/20261029222500_v3_s16_retire_legacy_jury_score_writers.sql",
+    reason: "immutable_history_forward_repaired",
+    rationale: "Published coordinator migration; preserve immutable history. Forward adoption in 20261029225000_v3_shared_runtime_adoption.sql binds sha256:db4f92b845089408be70fd68010448b52dc239bf331fe65d95d1fbfaceaf521b.",
+  },
+  {
+    path: "supabase/migrations/20261029223500_v3_s16_pin_shared_internal_mechanisms.sql",
+    reason: "immutable_history_forward_repaired",
+    rationale: "Published coordinator migration; preserve immutable history. Forward adoption in 20261029225000_v3_shared_runtime_adoption.sql binds sha256:8aa19c5523171626bf1ce5df72639ff61c8d056d5d955e57f44216f6ac1f6993.",
+  },
 ] as const satisfies readonly V3S13ReviewedMigrationExemption[];

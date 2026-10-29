@@ -21,7 +21,9 @@ describe("TerraOS maintenance first paint", () => {
   it("ships the stylesheet at first paint and loads motion after the story", () => {
     const html = renderMaintenancePage();
     expect(html.indexOf('/assets/terraos-maintenance.css')).toBeLessThan(html.indexOf("</head>"));
-    expect(html.indexOf('<script src="/assets/terraos-maintenance.js"')).toBeGreaterThan(html.indexOf("</main>"));
+    const motionScript = html.match(/<script src="\/assets\/terraos-maintenance\.js\?v=[^"\s]+"><\/script>/);
+    expect(motionScript).not.toBeNull();
+    expect(html.indexOf(motionScript![0])).toBeGreaterThan(html.indexOf("</main>"));
     const css = readFileSync("public/assets/terraos-maintenance.css", "utf8");
     expect(css).toContain("@media(prefers-reduced-motion:reduce)");
     expect(css).toContain(".scroll-in{opacity:1!important;transform:none!important}");

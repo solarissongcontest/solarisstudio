@@ -27,8 +27,8 @@ describe("V3 Organizer Jury parent edition boundary", () => {
   });
 
   it("protects the existing ballot and roster surfaces behind one parent gate while preserving governed window authority", () => {
-    expect(workspace).toContain('rpc("assign_jury_vote"');
-    expect(workspace).toContain('rpc("clear_jury_point"');
+    expect(workspace).toContain('lifecycleRpc("studio2_jury_vote_change_preview"');
+    expect(workspace).toContain("await executeJuryVoteChange({");
     expect(shell).toContain("JuryVotingWindowControl");
     expect(windowControl).toContain('rpc("studio2_jury_window_change_preview"');
     expect(windowControl).toContain('rpc("studio2_apply_jury_voting_status"');
@@ -40,9 +40,12 @@ describe("V3 Organizer Jury parent edition boundary", () => {
     expect(boundary).not.toContain(".from(");
   });
 
-  it("does not claim that legacy Jury correction and roster paths are final V3 authority", () => {
-    expect(workspace).toContain('rpc("assign_jury_vote"');
-    expect(workspace).toContain('rpc("clear_jury_point"');
-    expect(workspace).not.toContain("executeGovernedJuryCorrectionCommand");
+  it("keeps manual score entry behind the canonical command with reviewed edition, show and version", () => {
+    expect(workspace).not.toMatch(/\.rpc\(\s*["'](?:assign_jury_vote|clear_jury_point)["']/);
+    expect(workspace).toContain("editionId: edition.id");
+    expect(workspace).toContain("showId: selectedShow.id");
+    expect(workspace).toContain("expectedVersion: preview.expectedVersion");
+    expect(workspace).toContain("operationId: operation.operationId");
+    expect(workspace).toContain("idempotencyKey: operation.idempotencyKey");
   });
 });
