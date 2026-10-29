@@ -74,7 +74,7 @@ function organizerClassificationIds(source: string) {
 function parseOrganizerStatuses(source: string) {
   const classifications = organizerClassificationIds(source);
   const statuses = new Map<string, OrganizerStatus>(
-    [...classifications.keys()].map((id) => [id, "planned" as OrganizerStatus]),
+    [...classifications.keys()].map((id) => [id, "planned" as OrganizerStatus] as const),
   );
 
   const start = source.indexOf("function migrationStatusFor(id: string)");
