@@ -1,11 +1,61 @@
+[data-solaris-v3] {
+  --v3-system-safe-top: var(--solaris-system-safe-top, env(safe-area-inset-top, 0px));
+  --v3-top-context-content-height: 3.25rem;
+  --v3-top-context-obstruction: calc(
+    var(--v3-system-safe-top) +
+    var(--v3-top-context-content-height) +
+    var(--solaris-safe-content-gap, 0.25rem)
+  );
+  --v3-shell-top-obstruction: calc(var(--v3-top-context-obstruction) + 0.5rem);
+}
+
+[data-solaris-v3] .v3-top-context {
+  min-height: var(--v3-top-context-obstruction);
+  align-items: center;
+  gap: 0.5rem;
+  padding:
+    calc(var(--v3-system-safe-top) + var(--solaris-safe-content-gap, 0.25rem))
+    max(0.75rem, env(safe-area-inset-right, 0px))
+    0.25rem
+    max(0.75rem, env(safe-area-inset-left, 0px));
+}
+
+[data-solaris-v3] .v3-top-context__edition {
+  flex: 1 1 auto;
+  overflow: hidden;
+  gap: 0.4rem;
+  font-size: 0.67rem;
+  white-space: nowrap;
+}
+
+[data-solaris-v3] .v3-top-context__edition > .truncate {
+  min-width: 0;
+}
+
+[data-solaris-v3] .v3-screen :where(
+  [id],
+  a[href],
+  button,
+  input,
+  select,
+  textarea,
+  [tabindex]:not([tabindex="-1"])
+) {
+  scroll-margin-block-start: var(--v3-shell-top-obstruction);
+}
+
 [data-solaris-v3] .v3-desktop-primary-nav {
   display: none;
 }
 
 @media (min-width: 1024px) {
+  [data-solaris-v3] {
+    --v3-shell-top-obstruction: calc(var(--v3-top-context-obstruction) + 4.5rem);
+  }
+
   [data-solaris-v3] .v3-desktop-primary-nav {
     position: sticky;
-    top: calc(3.25rem + env(safe-area-inset-top));
+    top: var(--v3-top-context-obstruction);
     z-index: 25;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));

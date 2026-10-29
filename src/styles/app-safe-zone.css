@@ -1,0 +1,52 @@
+/* Canonical system-top exclusion contract -----------------------------------
+   Background material may remain edge-to-edge, but semantic/interactive chrome
+   begins only after this shared boundary. Route components must not invent
+   their own status-bar padding. */
+
+:root {
+  --solaris-ios-standalone-min-top: 3.875rem;
+  --solaris-system-safe-top: var(--solaris-safe-top, env(safe-area-inset-top, 0px));
+  --solaris-safe-content-gap: 0.25rem;
+  --solaris-safe-content-top: calc(
+    var(--solaris-system-safe-top) + var(--solaris-safe-content-gap)
+  );
+}
+
+/* iOS standalone has historically produced transient/suspiciously-small safe
+   values around launch/resume. Fail toward protected content in portrait. The
+   normal platform inset still wins whenever it is larger. */
+html[data-solaris-ios-standalone] {
+  --solaris-system-safe-top: max(
+    var(--solaris-safe-top, env(safe-area-inset-top, 0px)),
+    var(--solaris-ios-standalone-min-top)
+  );
+}
+
+/* Landscape safe geometry is materially different: do not drag the portrait
+   fallback into the content area. The real platform inset remains canonical. */
+@media (orientation: landscape) {
+  html[data-solaris-ios-standalone] {
+    --solaris-system-safe-top: var(--solaris-safe-top, env(safe-area-inset-top, 0px));
+  }
+}
+
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
+  html[data-solaris-app] .solaris-app-toolbar {
+    padding-top: var(--solaris-safe-content-top);
+  }
+
+  html[data-solaris-app] .solaris-app-offline {
+    top: calc(
+      var(--solaris-safe-content-top) + var(--solaris-app-toolbar-height) + 0.45rem
+    );
+  }
+}
+
+@media (display-mode: standalone) and (min-width: 900px),
+  (display-mode: window-controls-overlay) and (min-width: 900px) {
+  html[data-solaris-app] .solaris-app-tabbar {
+    top: calc(
+      var(--solaris-safe-content-top) + var(--solaris-app-toolbar-height) + 1rem
+    );
+  }
+}
