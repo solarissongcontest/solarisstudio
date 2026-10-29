@@ -294,7 +294,7 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
     stories: [],
     routes: {
       countries: "/countries",
-      songsAndArtists: currentEdition ? `/editions/${currentEdition.slug}` : "/editions",
+      songsAndArtists: "/music",
       shows: "/shows",
       stories: "/stories",
       results: "/results",
