@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import type { AppPushDeliveryStatus } from "@/lib/app-notifications";
+import { formatEventDateTime } from "@/lib/public-time";
 import {
   V3ActionCard,
   V3NowCard,
@@ -43,12 +44,7 @@ function formatNoticeTime(value: string | null) {
   if (!value) return "Recently";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Recently";
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatEventDateTime(date, { locale: "en-GB" });
 }
 
 function noticeTone(item: V3NotificationInboxItem) {
@@ -100,7 +96,7 @@ export function V3NotificationsScreen({
         <V3ScreenHeader
           kicker="Me"
           title="Notifications"
-          description="Official updates, attention state and delivery health in one place. Push helps you notice work; it never becomes the work itself."
+          description="Official updates, important messages and delivery settings in one place."
         />
 
         <V3Section title="Needs attention">
@@ -117,8 +113,8 @@ export function V3NotificationsScreen({
           >
             {inboxUnavailable ? (
               <V3ActionCard
-                title="Open the canonical notice inbox"
-                description="If notification delivery is degraded, required official communications remain available in MySolaris."
+                title="Open official notices"
+                description="If the notification summary is unavailable, you can still open your official messages directly."
                 icon={ShieldCheck}
                 tone="neutral"
                 to="/my-solaris/notices"
@@ -128,7 +124,7 @@ export function V3NotificationsScreen({
                 {acknowledgementCount > 0 ? (
                   <V3ActionCard
                     title={`${acknowledgementCount} acknowledgement${acknowledgementCount === 1 ? "" : "s"} required`}
-                    description="Read and acknowledge these in the authoritative official-notice workflow."
+                    description="Read and acknowledge these messages in Notices."
                     icon={ShieldCheck}
                     tone="required"
                     to="/my-solaris/notices"
@@ -137,7 +133,7 @@ export function V3NotificationsScreen({
                 {unreadWithoutAction > 0 ? (
                   <V3ActionCard
                     title={`${unreadWithoutAction} unread official message${unreadWithoutAction === 1 ? "" : "s"}`}
-                    description="Open your canonical notice inbox to read the full messages."
+                    description="Open Notices to read the full messages."
                     icon={Mail}
                     tone="neutral"
                     to="/my-solaris/notices"
@@ -168,7 +164,7 @@ export function V3NotificationsScreen({
             <V3Surface>
               <p className="text-sm font-semibold">Inbox status unavailable</p>
               <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                Solaris could not load the notification summary. The canonical Notices route remains the fallback.
+                Solaris couldn't load this summary. You can still open Notices directly.
               </p>
             </V3Surface>
           ) : latest.length ? (
@@ -280,9 +276,9 @@ export function V3NotificationsScreen({
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 size-5 shrink-0 text-[var(--v3-text-secondary)]" aria-hidden="true" />
               <div className="min-w-0">
-                <p className="text-sm font-semibold">Notifications are never the source of truth</p>
+                <p className="text-sm font-semibold">Your required work is still available</p>
                 <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                  Missing, delayed or blocked push delivery cannot hide required participation. Tasks and official Notices remain authoritative inside Solaris.
+                  If a notification is delayed or blocked, check Participate for current responsibilities and Notices for official messages.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link
