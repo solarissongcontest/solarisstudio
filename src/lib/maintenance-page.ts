@@ -24,6 +24,7 @@ type FeatureTone = "now" | "participate" | "explore" | "results" | "me";
 
 const ATMOSPHERE_PHOTO = "/assets/terraos-maintenance/atmosphere.jpeg";
 const SOLARIS_VISUAL_REVISION = "20261025-crisp-vectors";
+const MAINTENANCE_ASSET_REVISION = "20261025-wordmark-global-nowrap";
 const SOLARIS_MOMENT_A = `/assets/terraos-maintenance/moment-a.svg?v=${SOLARIS_VISUAL_REVISION}`;
 const SOLARIS_MOMENT_B = `/assets/terraos-maintenance/moment-b.svg?v=${SOLARIS_VISUAL_REVISION}`;
 
@@ -125,14 +126,14 @@ export function renderMaintenancePage(now: Date = new Date()): string {
   <link rel="icon" type="image/png" href="/icon-192.png?v=img2340-20260929" sizes="192x192" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=img2340-20260929" sizes="180x180" />
   <link rel="manifest" href="/site.webmanifest?v=img2340-20260929" />
-  <link rel="stylesheet" href="/assets/terraos-maintenance.css" />
-  <link rel="stylesheet" href="/assets/terraos-maintenance-story.css" data-terraos-story-styles="true" />
+  <link rel="stylesheet" href="/assets/terraos-maintenance.css?v=${MAINTENANCE_ASSET_REVISION}" />
+  <link rel="stylesheet" href="/assets/terraos-maintenance-story.css?v=${MAINTENANCE_ASSET_REVISION}" data-terraos-story-styles="true" />
   <title>TerraOS 3 — Solaris Studio</title>
 </head>
 <body>
 <div class="content" data-solaris-maintenance="true">
   <nav class="product-bar" aria-label="TerraOS 3 page navigation" data-product-bar>
-    <a class="product-name" href="#overview"><img class="product-mark" src="/solaris-studio-mark.png" alt="" aria-hidden="true" width="256" height="256" /><span>TerraOS 3</span></a>
+    <a class="product-name" href="#overview"><img class="product-mark" src="/solaris-studio-mark.png" alt="" aria-hidden="true" width="256" height="256" /><span style="white-space:nowrap">TerraOS&nbsp;3</span></a>
     <div class="product-links"><a href="#overview">Overview</a><a href="#experience">Experience</a><a class="confirmation-link" href="#confirmation-access">Confirmation</a></div>
   </nav>
 
@@ -142,13 +143,13 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     <div class="hero-grid">
       <div class="hero-copy">
         <p class="hero-kicker">Solaris Studio</p>
-        <h1 id="maintenance-title" class="terra-wordmark">TerraOS 3</h1>
+        <h1 id="maintenance-title" class="terra-wordmark" style="white-space:nowrap;max-width:none;font-size:clamp(2.6rem,14vw,9.8rem)">TerraOS&nbsp;3</h1>
         <p class="hero-tagline">Solaris, reimagined.</p>
         <p class="hero-intro">A new generation of Solaris Studio is taking shape around what is happening, what matters to you, and what comes next.</p>
-        <div class="hero-actions"><a class="hero-action hero-action-primary" href="#experience">Explore TerraOS 3</a><a class="hero-action" href="#confirmation-access">Access Confirmation</a></div>
+        <div class="hero-actions"><a class="hero-action hero-action-primary" href="#experience">Explore TerraOS&nbsp;3</a><a class="hero-action" href="#confirmation-access">Access Confirmation</a></div>
         <div class="release-card">
           <div class="arrival-line">${arrivalMarkup}</div>
-          <div class="readiness-head"><span>TerraOS 3 readiness</span><strong>${readiness.percent}%</strong></div>
+          <div class="readiness-head"><span>TerraOS&nbsp;3 readiness</span><strong>${readiness.percent}%</strong></div>
           <div class="readiness-track" style="${readinessStyle}" role="progressbar" aria-label="TerraOS 3 readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${readiness.percent}"><span class="readiness-fill" aria-hidden="true"></span></div>
           <p class="readiness-stage">${readinessStage}</p><p class="readiness-note">Based on tracked release criteria, not time elapsed.</p>
         </div>
@@ -167,7 +168,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
       <div class="photo-chapter-copy scroll-in"><p class="section-kicker">Built around the contest</p><h2 class="display-heading" id="atmosphere-title">One experience.<br />Every moment.</h2></div>
     </section>
 
-    <section class="manifesto" aria-labelledby="generation-title"><div class="manifesto-inner scroll-in"><p class="section-kicker">TerraOS 3</p><h2 class="display-heading" id="generation-title">A new generation of Solaris.</h2><p class="manifesto-lead">Solaris Studio is being rebuilt around the contest itself: what is happening, what matters to you, and what you need to do next.</p><div class="principles"><article class="principle"><strong>What matters now</strong><p>The important thing comes first instead of hiding behind a maze of competing screens.</p></article><article class="principle"><strong>Everything in its place</strong><p>Discover, participate, follow results and manage your Solaris identity through a clearer structure.</p></article><article class="principle"><strong>Built for the moment</strong><p>The experience can stay calm on ordinary days and become expressive when Solaris goes live.</p></article></div></div></section>
+    <section class="manifesto" aria-labelledby="generation-title"><div class="manifesto-inner scroll-in"><p class="section-kicker">TerraOS&nbsp;3</p><h2 class="display-heading" id="generation-title">A new generation of Solaris.</h2><p class="manifesto-lead">Solaris Studio is being rebuilt around the contest itself: what is happening, what matters to you, and what you need to do next.</p><div class="principles"><article class="principle"><strong>What matters now</strong><p>The important thing comes first instead of hiding behind a maze of competing screens.</p></article><article class="principle"><strong>Everything in its place</strong><p>Discover, participate, follow results and manage your Solaris identity through a clearer structure.</p></article><article class="principle"><strong>Built for the moment</strong><p>The experience can stay calm on ordinary days and become expressive when Solaris goes live.</p></article></div></div></section>
 
     <section class="immersive" aria-labelledby="place-title" data-photo-section>
       <img class="immersive-art" src="${SOLARIS_MOMENT_A}" alt="" aria-hidden="true" loading="lazy" data-photo-parallax=".14" />
@@ -189,7 +190,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
 
     <section class="look" id="preview" aria-labelledby="look-title">
       ${rhythmFieldMarkup("gallery-rhythm", 0.62, 1)}
-      <div class="look-head scroll-in"><div><p class="section-kicker">TerraOS 3</p><h2 class="display-heading" id="look-title">Take a closer look.</h2></div><div class="look-controls" aria-label="Preview gallery controls"><button class="look-control" type="button" data-gallery-prev aria-label="Previous preview">←</button><button class="look-control" type="button" data-gallery-next aria-label="Next preview">→</button></div></div><div class="look-track" data-look-track tabindex="0" aria-label="TerraOS 3 destinations">${galleryMarkup()}</div><div class="look-mobile-progress" data-story-carousel-progress aria-live="polite" aria-atomic="true">1 / ${TERRAOS_MAINTENANCE_STORIES.length}</div>
+      <div class="look-head scroll-in"><div><p class="section-kicker">TerraOS&nbsp;3</p><h2 class="display-heading" id="look-title">Take a closer look.</h2></div><div class="look-controls" aria-label="Preview gallery controls"><button class="look-control" type="button" data-gallery-prev aria-label="Previous preview">←</button><button class="look-control" type="button" data-gallery-next aria-label="Next preview">→</button></div></div><div class="look-track" data-look-track tabindex="0" aria-label="TerraOS 3 destinations">${galleryMarkup()}</div><div class="look-mobile-progress" data-story-carousel-progress aria-live="polite" aria-atomic="true">1 / ${TERRAOS_MAINTENANCE_STORIES.length}</div>
     </section>
 
     <section class="live" aria-labelledby="live-title" data-live-section data-photo-section>
@@ -199,17 +200,17 @@ export function renderMaintenancePage(now: Date = new Date()): string {
 
     <section class="confirmation-section" id="confirmation-access" aria-labelledby="confirmation-title"><div class="confirmation-layout"><div class="confirmation-intro scroll-in"><p class="section-kicker">Available during the transition</p><h2 class="display-heading" id="confirmation-title">Your delegation<br />keeps moving.</h2><p>While TerraOS 3 is being prepared, eligible delegation members can continue managing their current Confirmation. The rest of Solaris Studio remains under maintenance.</p></div><div class="confirmation-host" data-confirmation-host><div class="confirmation-fallback" data-confirmation-fallback>Confirmation access appears here for eligible delegation accounts.</div></div></div></section>
 
-    <section class="readiness-chapter" aria-labelledby="readiness-title"><div class="readiness-chapter-inner scroll-in"><p class="section-kicker">What's next</p><h2 class="display-heading" id="readiness-title"><span class="terra-wordmark">TerraOS 3</span><br />is taking shape.</h2><div class="readiness-big"><div class="readiness-big-head"><span>TerraOS 3 readiness</span><strong>${readiness.percent}%</strong></div><div class="readiness-track" style="${readinessStyle}" role="progressbar" aria-label="TerraOS 3 readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${readiness.percent}"><span class="readiness-fill" aria-hidden="true"></span></div><p class="readiness-stage">${readinessStage}</p><p class="readiness-note">Progress reflects tracked release readiness rather than time remaining.</p></div></div></section>
+    <section class="readiness-chapter" aria-labelledby="readiness-title"><div class="readiness-chapter-inner scroll-in"><p class="section-kicker">What's next</p><h2 class="display-heading" id="readiness-title"><span class="terra-wordmark" style="white-space:nowrap">TerraOS&nbsp;3</span><br />is taking shape.</h2><div class="readiness-big"><div class="readiness-big-head"><span>TerraOS&nbsp;3 readiness</span><strong>${readiness.percent}%</strong></div><div class="readiness-track" style="${readinessStyle}" role="progressbar" aria-label="TerraOS 3 readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${readiness.percent}"><span class="readiness-fill" aria-hidden="true"></span></div><p class="readiness-stage">${readinessStage}</p><p class="readiness-note">Progress reflects tracked release readiness rather than time remaining.</p></div></div></section>
 
-    <section class="finale" aria-labelledby="finale-title">${rhythmFieldMarkup("finale-rhythm", 1, -1)}<div class="finale-inner scroll-in"><p class="section-kicker">Solaris Studio</p><h2 id="finale-title" class="terra-wordmark display-heading">TerraOS 3</h2><p>Built for what happens next.</p><a class="finale-link" href="#confirmation-access">Access Confirmation ↑</a></div></section>
+    <section class="finale" aria-labelledby="finale-title">${rhythmFieldMarkup("finale-rhythm", 1, -1)}<div class="finale-inner scroll-in"><p class="section-kicker">Solaris Studio</p><h2 id="finale-title" class="terra-wordmark display-heading" style="white-space:nowrap;max-width:none;font-size:clamp(2.5rem,13.5vw,9rem)">TerraOS&nbsp;3</h2><p>Built for what happens next.</p><a class="finale-link" href="#confirmation-access">Access Confirmation ↑</a></div></section>
   </main>
 
-  <footer><div><strong>Terra Solaris Broadcasting Coalition</strong>Solaris Studio · TerraOS 3</div><div>Maintenance notice updated ${updated} · HTTP 503</div></footer>
+  <footer><div><strong>Terra Solaris Broadcasting Coalition</strong>Solaris Studio · TerraOS&nbsp;3</div><div>Maintenance notice updated ${updated} · HTTP 503</div></footer>
 </div>
 <script id="terraos-story-data" type="application/json">${storyData}</script>
-<script src="/assets/terraos-maintenance.js"></script>
-<script src="/assets/terraos-maintenance-story.js" data-terraos-story-script="true"></script>
-<script src="/assets/terraos-maintenance-story-polish.js" data-terraos-story-polish="true"></script>
+<script src="/assets/terraos-maintenance.js?v=${MAINTENANCE_ASSET_REVISION}"></script>
+<script src="/assets/terraos-maintenance-story.js?v=${MAINTENANCE_ASSET_REVISION}" data-terraos-story-script="true"></script>
+<script src="/assets/terraos-maintenance-story-polish.js?v=${MAINTENANCE_ASSET_REVISION}" data-terraos-story-polish="true"></script>
 </body>
 </html>`;
 }

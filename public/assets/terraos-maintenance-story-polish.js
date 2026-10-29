@@ -7,6 +7,53 @@
   let layerObserver = null;
   let bodyObserver = null;
 
+  function lockHeroWordmarkToSingleLine() {
+    const title = document.getElementById('maintenance-title');
+    if (!(title instanceof HTMLElement)) return;
+    title.textContent = 'TerraOS\u00a03';
+    title.style.maxWidth = 'none';
+    title.style.whiteSpace = 'nowrap';
+    title.style.fontSize = 'clamp(3.35rem, 18vw, 10.5rem)';
+  }
+
+  function installConfirmationContrastStyle() {
+    if (document.getElementById('terraos-confirmation-contrast')) return;
+    const style = document.createElement('style');
+    style.id = 'terraos-confirmation-contrast';
+    style.textContent = `
+      .hod-portal {
+        color: #ffffff !important;
+      }
+
+      .hod-portal h2,
+      .hod-portal .hod-country,
+      .hod-portal .hod-summary strong,
+      .hod-portal .hod-entry-title,
+      .hod-portal .hod-signin-intro strong {
+        color: #ffffff !important;
+      }
+
+      .hod-portal .hod-portal-copy,
+      .hod-portal .hod-checking,
+      .hod-portal .hod-note,
+      .hod-portal .hod-summary span {
+        color: #ffffff !important;
+      }
+
+      .hod-portal .hod-muted,
+      .hod-portal .hod-signin-intro span,
+      .hod-portal .hod-field-help,
+      .hod-portal .hod-edition,
+      .hod-portal .hod-entry-label,
+      .hod-portal .hod-status-row span:first-child,
+      .hod-portal .hod-round-explainer,
+      .hod-portal .hod-last-update {
+        color: rgba(255, 255, 255, .88) !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   function focusDirectDeepLink() {
     if (!window.location.hash.startsWith('#story-')) return;
     const layer = document.querySelector('[data-story-layer]');
@@ -92,6 +139,16 @@
     enrichRenderedStory();
     return true;
   }
+
+  // The maintenance hero is intentionally one indivisible brand lockup. Use a
+  // non-breaking space in the actual text node while keeping the oversized hero
+  // scale that gives the product mark its intended visual presence.
+  lockHeroWordmarkToSingleLine();
+
+  // Confirmation remains available during maintenance, so the dark card must
+  // own its own foreground palette instead of inheriting black/grey text from
+  // the surrounding light section.
+  installConfirmationContrastStyle();
 
   // The base Story runtime has already resolved the initial hash by the time
   // this script executes. Give direct deep links an intentional focus target

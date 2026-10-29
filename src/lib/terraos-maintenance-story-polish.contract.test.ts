@@ -27,6 +27,26 @@ describe("TerraOS maintenance Story interaction polish", () => {
     expect(baseCss).toContain("pointer-events:none");
   });
 
+  it("makes the TerraOS 3 hero brand lockup structurally unbreakable without shrinking away its hero scale", () => {
+    expect(polish).toContain("lockHeroWordmarkToSingleLine");
+    expect(polish).toContain("title.textContent = 'TerraOS\\u00a03'");
+    expect(polish).toContain("title.style.maxWidth = 'none'");
+    expect(polish).toContain("title.style.whiteSpace = 'nowrap'");
+    expect(polish).toContain("title.style.fontSize = 'clamp(3.35rem, 18vw, 10.5rem)'");
+  });
+
+  it("owns the full Confirmation card foreground palette on the dark maintenance surface", () => {
+    expect(polish).toContain("installConfirmationContrastStyle");
+    expect(polish).toContain("terraos-confirmation-contrast");
+    expect(polish).toContain(".hod-portal {");
+    expect(polish).toContain(".hod-portal h2");
+    expect(polish).toContain(".hod-portal .hod-country");
+    expect(polish).toContain(".hod-portal .hod-summary strong");
+    expect(polish).toContain(".hod-portal .hod-entry-title");
+    expect(polish).toContain("color: #ffffff !important");
+    expect(polish).toContain("color: rgba(255, 255, 255, .88) !important");
+  });
+
   it("gives direct Story deep links an intentional accessible focus target", () => {
     expect(polish).toContain("focusDirectDeepLink");
     expect(polish).toContain("[data-story-close]");
