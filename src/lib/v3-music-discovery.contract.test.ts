@@ -9,6 +9,7 @@ const screen = () => read("src/components/v3/V3MusicDiscoveryScreen.tsx");
 const primitives = () => read("src/components/v3/V3MusicPrimitives.tsx");
 const entityScreens = () => read("src/components/v3/V3MusicEntityScreens.tsx");
 const dataError = () => read("src/components/v3/V3MusicDataError.tsx");
+const runtime = () => read("src/lib/v3-music-entities-runtime.ts");
 const songsRoute = () => read("src/routes/songs/index.tsx");
 const artistsRoute = () => read("src/routes/artists/index.tsx");
 const songRoute = () => read("src/routes/songs/$songId.tsx");
@@ -34,6 +35,19 @@ describe("V3 Songs & Artists discovery", () => {
     expect(source).toContain("searchable publication-safe Artist index");
     expect(source).not.toContain("complete publication-safe Song collection");
     expect(source).not.toContain("complete publication-safe Artist collection");
+  });
+
+  it("requests only the preview rows the root can render while preserving bounded index defaults", () => {
+    const root = route();
+    const hooks = runtime();
+    expect(root).toContain("useV3SongIndexProjection(query, V3_MUSIC_DISCOVERY_LIMITS.songs)");
+    expect(root).toContain("useV3ArtistIndexProjection(query, V3_MUSIC_DISCOVERY_LIMITS.artists)");
+    expect(hooks).toContain("const DEFAULT_INDEX_LIMIT = 50");
+    expect(hooks).toContain("const MAX_INDEX_LIMIT = 100");
+    expect(hooks).toContain("const boundedLimit = boundedIndexLimit(limit)");
+    expect(hooks).toContain('["v3-music-songs", normalized, boundedLimit]');
+    expect(hooks).toContain('["v3-music-artists", normalized, boundedLimit]');
+    expect(hooks).toContain("limit: boundedLimit");
   });
 
   it("uses durable Song and Artist routes through reusable music presentation", () => {
