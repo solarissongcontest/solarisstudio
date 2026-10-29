@@ -44,6 +44,43 @@ function LiveBootSurface({ message }: { message: string }) {
   );
 }
 
+function LiveUnavailableSurface({
+  retrying,
+  onRetry,
+}: {
+  retrying: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <V3FoundationShell>
+      <V3Screen className="min-h-dvh">
+        <V3Surface
+          level="raised"
+          className="border-amber-300/20 bg-amber-300/[0.055] p-5"
+          data-v3-live-initial-unavailable=""
+        >
+          <p className="v3-kicker">Live</p>
+          <h1 className="mt-2 text-2xl font-bold tracking-[-0.03em]">
+            Live state unavailable
+          </h1>
+          <p role="alert" className="mt-2 text-sm leading-6 text-white/55">
+            Solaris could not verify the current public show state. V3 Live stays
+            closed rather than switching to a different legacy data path.
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            disabled={retrying}
+            className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-white/10 px-4 text-sm font-semibold text-white/75 transition hover:bg-white/[0.05] disabled:cursor-wait disabled:opacity-50"
+          >
+            {retrying ? "Retrying…" : "Retry Live state"}
+          </button>
+        </V3Surface>
+      </V3Screen>
+    </V3FoundationShell>
+  );
+}
+
 /**
  * Reversible Public V3 Live cutover.
  *
@@ -143,11 +180,18 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
     return <LiveBootSurface message="Opening authoritative show state…" />;
   }
 
-  // Legacy Show Mode is a reversible fallback only when the initial focused V3
-  // read has no authoritative snapshot. Refetch errors with cached data stay on
-  // V3 so the known-good state remains visible and explicitly stale.
+  // Once rollout authority has positively selected V3, an unavailable initial
+  // Live snapshot must not silently switch to the legacy archive-wide data path.
+  // Keep the V3 authority boundary visible and retryable instead.
   if (!bundle.data) {
-    return <>{fallback}</>;
+    return (
+      <LiveUnavailableSurface
+        retrying={bundle.isFetching}
+        onRetry={() => {
+          void bundle.refetch();
+        }}
+      />
+    );
   }
 
   const degraded = rollout.isError || bundle.isError;

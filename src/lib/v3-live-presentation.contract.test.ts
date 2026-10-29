@@ -43,7 +43,7 @@ describe("Public V3 Live presentation", () => {
     expect(screen).not.toContain("runningOrder[0]");
   });
 
-  it("shows server-owned timing without promoting timestamps into browser authority", () => {
+  it("shows server-owned timing deterministically without promoting timestamps into browser authority", () => {
     const screen = source();
 
     expect(screen).toContain('title="Show timing"');
@@ -53,6 +53,10 @@ describe("Public V3 Live presentation", () => {
     expect(screen).toContain("experience.voting.closedAt");
     expect(screen).toContain("experience.timing.resultsStartedAt");
     expect(screen).toContain("experience.timing.endedAt");
+    expect(screen).toContain('new Intl.DateTimeFormat("en-GB"');
+    expect(screen).toContain("timeZone: SOLARIS_TIME_ZONE");
+    expect(screen).not.toContain(".toLocaleTimeString(");
+    expect(screen).not.toContain(".toLocaleString(");
     expect(screen).toContain("do not independently advance");
     expect(screen).not.toContain("setTimeout(");
     expect(screen).not.toContain("setInterval(");
@@ -75,6 +79,17 @@ describe("Public V3 Live presentation", () => {
     expect(screen).toContain("disabled={refreshing}");
     expect(screen).toContain("motion-safe:animate-spin");
     expect(screen).toContain('aria-live="polite"');
+  });
+
+  it("fails closed instead of mounting legacy Show Mode after V3 rollout is known enabled", () => {
+    const routeGate = gate();
+
+    expect(routeGate).toContain('data-v3-live-initial-unavailable=""');
+    expect(routeGate).toContain("Live state unavailable");
+    expect(routeGate).toContain("rather than switching to a different legacy data path");
+    expect(routeGate).toContain("retrying={bundle.isFetching}");
+    expect(routeGate).toContain("void bundle.refetch()");
+    expect(routeGate).toContain("<LiveUnavailableSurface");
   });
 
   it("surfaces stale authoritative snapshots instead of pretending they are current", () => {
