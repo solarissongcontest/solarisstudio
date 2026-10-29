@@ -535,6 +535,9 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "v3_submit_confirmation",
       "studio2_apply_confirmation_round_change",
       "admin_update_confirmation_controls",
+      // Versioned delete replaces the old signature; S2 owns recovery after deletion.
+      // .github/tests/v3-confirmation-runtime-state-authority.sql
+      "public.admin_confirmation_delete_response",
     ],
     sanctionedInternalWriters: ["v3_submit_confirmation_core", "submit_confirmation"],
     sanctionedWriteTriggers: [

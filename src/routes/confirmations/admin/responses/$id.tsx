@@ -1,3 +1,4 @@
+import { runConfirmationResponseDelete, type ConfirmationDeleteRequest } from "@/lib/v3-confirmation-response-delete";
 import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
 import { assertDisplayedEntryVersion } from "@/lib/v3-entry-review-preview";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -88,6 +89,7 @@ type HistoryItem = {
 
 type ResponseDetail = {
   id: string;
+  delete_revision: string;
   country: string;
   instagram_username: string;
   country_account: string | null;
@@ -625,6 +627,8 @@ function ResponseDetailPage() {
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [creatingLink, setCreatingLink] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const submitDelete = useCallback((request: ConfirmationDeleteRequest) =>
+    confirmationsSupabase.rpc("admin_confirmation_delete_response", request), []);
 
   const syncSnapshot = useCallback(
     async (detail: ResponseDetail) => {
@@ -671,6 +675,25 @@ function ResponseDetailPage() {
       return;
     }
 
+    try {
+      const recovered = await runConfirmationResponseDelete({
+        userId: sessionData.session.user.id, submissionId: id, onlyPending: true,
+        storage: window.sessionStorage, submit: submitDelete,
+      });
+      if (recovered) {
+        toast.success("Confirmation deletion recovered");
+        await navigate({ to: "/confirmations/admin/responses" });
+        return;
+      }
+    } catch (caught) {
+      if (!(caught instanceof Error && "code" in caught && caught.code === "PT409")) {
+        setError(caught instanceof Error ? caught.message : "Could not recover the deletion outcome.");
+        setLoading(false);
+        return;
+      }
+      toast.info("The response changed. Review it again before deleting.");
+    }
+
     const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
       "admin_confirmation_response",
       {
@@ -695,7 +718,7 @@ function ResponseDetailPage() {
     } catch {
       // The review screen stays usable even if the canonical sync is temporarily unavailable.
     }
-  }, [id, loadTechnical, navigate, syncSnapshot]);
+  }, [id, loadTechnical, navigate, syncSnapshot, submitDelete]);
 
   useEffect(() => {
     void load();
@@ -837,17 +860,21 @@ function ResponseDetailPage() {
 
     setDeleting(true);
     try {
-      const { error: rpcError } = await confirmationsSupabase.rpc(
-        "admin_confirmation_delete_response",
-        {
-          _submission_id: data.id,
-        },
-      );
-      if (rpcError) throw rpcError;
+      const { data: sessionData } = await confirmationsSupabase.auth.getSession();
+      if (!sessionData.session) throw new Error("Sign in before deleting a response.");
+      await runConfirmationResponseDelete({
+        userId: sessionData.session.user.id, submissionId: data.id,
+        expectedRevision: data.delete_revision,
+        storage: window.sessionStorage, submit: submitDelete,
+      });
       setDeleteReviewOpen(false);
       toast.success("Confirmation deleted");
       await navigate({ to: "/confirmations/admin/responses" });
     } catch (caught) {
+      if (caught instanceof Error && "code" in caught && caught.code === "PT409") {
+        setDeleteReviewOpen(false);
+        await load();
+      }
       toast.error(caught instanceof Error ? caught.message : "Could not delete the response.");
     } finally {
       setDeleting(false);
@@ -1321,8 +1348,7 @@ function ResponseDetailPage() {
           <div className="space-y-2">
             <p>
               This permanently deletes <strong className="text-foreground">{data.country}</strong>&apos;s
-              Confirmation response and the related Confirmation-side data handled by the existing delete
-              authority. Organizer cannot undo this action.
+              Confirmation response and its related selection data. Organizer cannot undo this action.
             </p>
             <p>
               Context: {data.edition ? `SSC ${data.edition.edition_number} · ${data.edition.name}` : "edition unavailable"}
@@ -1330,9 +1356,8 @@ function ResponseDetailPage() {
               {new Date(data.submitted_at).toLocaleString()}.
             </p>
             <p>
-              This is still the legacy Confirmation delete authority, not a versioned rollback operation. If
-              canonical Solaris state needs recovery afterward, that must be handled separately rather than by
-              repeating this deletion.
+              Reopening this response safely recovers the deletion outcome after a connection loss.
+              Permanent deletion cannot be undone. Canonical Solaris Entry state remains subject to its own review.
             </p>
           </div>
         }

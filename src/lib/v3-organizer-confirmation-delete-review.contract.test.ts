@@ -24,12 +24,14 @@ describe("V3 Organizer Confirmation permanent deletion review", () => {
     expect(route).toContain("data.round?.name");
     expect(route).toContain("data.submitted_at");
     expect(route).toContain("admin_confirmation_delete_response");
-    expect(route).toContain("legacy Confirmation delete authority");
+    expect(route).toContain("expectedRevision: data.delete_revision");
+    expect(route).toContain("onlyPending: true");
   });
 
   it("states irreversibility without inventing rollback or a second mutation path", () => {
     expect(route).toContain("Organizer cannot undo this action");
-    expect(route).toContain("not a versioned rollback operation");
+    expect(route).toContain("Reopening this response safely recovers");
+    expect(route).toContain("runConfirmationResponseDelete");
     expect(route.match(/admin_confirmation_delete_response/g)?.length).toBe(1);
   });
 });
