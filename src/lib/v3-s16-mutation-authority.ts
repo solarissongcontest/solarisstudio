@@ -472,6 +472,8 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "televoting.combined_televote_results",
     ],
     canonicalOwner: "televote domain",
+    // Exact attachment, owner, path and external EXECUTE tested by the status SQL proof.
+    sanctionedWriteTriggers: ["v3_combined_command_version"],
     canonicalCommands: [
       "televoting.v3_create_round",
       "televoting.v3_rename_round",
@@ -484,6 +486,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       // Scoped atomic reconciliation; executable SQL proof rejects stale input
       // and revoked actors and recovers the exact committed operation receipt.
       "televoting.v3_reconcile_combined_lineup",
+      "televoting.v3_transition_combined_status",
       "televoting.submit_vote_checked",
       "public.studio2_update_televote_aggregate_totals",
     ],

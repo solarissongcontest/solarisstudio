@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 import {
@@ -26,6 +27,8 @@ export type CombinedAggregation = {
   public_columns: Record<string, boolean> | null;
   broadcast_display_mode: string | null;
   created_at?: string;
+  updated_at: string;
+  command_version: number;
 };
 
 export type CombinedSource = {
@@ -483,12 +486,19 @@ export async function setMergedCombinedStatusServer(data: { id: string; status: 
   if ((data.status === "locked" || data.status === "published") && (aggregation.results_outdated || !aggregation.calculation_version)) {
     throw new Error("Recalculate the combined result before locking or publishing it");
   }
-  const patch: Record<string, unknown> = { status: data.status };
-  if (data.status === "locked") patch.locked_at = new Date().toISOString();
-  if (data.status === "published") patch.published_at = new Date().toISOString();
-  const { error } = await televotingAdmin.from("televote_aggregations").update(patch).eq("id", data.id);
+  if (aggregation.status === data.status) return { ok: true };
+  const fingerprint = createHash("sha256").update(JSON.stringify([
+    actor.id, data.id, aggregation.command_version, data.status,
+  ])).digest("hex");
+  const operationId = `${fingerprint.slice(0, 8)}-${fingerprint.slice(8, 12)}-4${fingerprint.slice(13, 16)}-8${fingerprint.slice(17, 20)}-${fingerprint.slice(20, 32)}`;
+  const { error } = await (televotingAdmin as any).rpc("v3_transition_combined_status", {
+    p_aggregation_id: data.id,
+    p_status: data.status,
+    p_expected_version: aggregation.command_version,
+    p_operation_id: operationId,
+    p_idempotency_key: `combined-status:${fingerprint}`,
+  });
   if (error) throw new Error(error.message);
-  await audit(actor, "set_combined_status", data.id, { status: data.status });
   return { ok: true };
 }
 
