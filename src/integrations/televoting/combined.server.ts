@@ -279,14 +279,18 @@ export async function createMergedCombinedAggregationServer(data: { name: string
   return inserted;
 }
 
-export async function updateMergedCombinedAggregationServer(data: { id: string; name: string; totalPoints: number; rankExponent: number }) {
-  const actor = await requireMergedTelevotingAdminServer();
-  const { error } = await televotingAdmin
-    .from("televote_aggregations")
-    .update({ name: data.name, total_points_to_distribute: data.totalPoints, rank_exponent: data.rankExponent, results_outdated: true })
-    .eq("id", data.id);
+export async function updateMergedCombinedAggregationServer(data: { id: string; name: string; totalPoints: number; rankExponent: number; expectedVersion: number; operationId: string }) {
+  await requireMergedTelevotingAdminServer();
+  const { error } = await (televotingAdmin as any).rpc("v3_update_combined_metadata", {
+    p_aggregation_id: data.id,
+    p_expected_version: data.expectedVersion,
+    p_name: data.name,
+    p_total_points: data.totalPoints,
+    p_rank_exponent: data.rankExponent,
+    p_operation_id: data.operationId,
+    p_idempotency_key: `combined-metadata:${data.operationId}`,
+  });
   if (error) throw new Error(error.message);
-  await audit(actor, "update_combined_televote", data.id, data);
   return { ok: true };
 }
 

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -270,20 +270,23 @@ function CombinedWorkspace({
 }: any) {
   const aggregation = detail.aggregation;
   const [name, setName] = useState(aggregation.name);
+  const [settingsVersion, setSettingsVersion] = useState(aggregation.command_version);
   const [pool, setPool] = useState(String(aggregation.total_points_to_distribute));
   const [exponent, setExponent] = useState(String(aggregation.rank_exponent));
   const [sourceDraft, setSourceDraft] = useState<SourceDraft>(emptySource());
   const [publishOpen, setPublishOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
+  const pendingSettings = useRef<{fingerprint: string; data: {id: string; name: string; totalPoints: number; rankExponent: number; expectedVersion: number; operationId: string}} | null>(null);
 
   useEffect(() => {
     setName(aggregation.name);
+    setSettingsVersion(aggregation.command_version);
     setPool(String(aggregation.total_points_to_distribute));
     setExponent(String(aggregation.rank_exponent));
     setPublishOpen(false);
     setDeleteOpen(false);
-  }, [aggregation.id, aggregation.name, aggregation.total_points_to_distribute, aggregation.rank_exponent]);
+  }, [aggregation.id, aggregation.name, aggregation.total_points_to_distribute, aggregation.rank_exponent, aggregation.command_version]);
 
   const catalogMap = useMemo(() => new Map(detail.catalog.map((entry: any) => [entry.key, entry])), [detail.catalog]);
   const resolvedById = useMemo(() => new Map(detail.resolved.map((source: any) => [source.id, source])), [detail.resolved]);
@@ -327,9 +330,15 @@ function CombinedWorkspace({
 
   async function saveSettings() {
     try {
-      await updateFn({ data: { id: aggregation.id, name, totalPoints: Number(pool), rankExponent: Number(exponent) } });
+      const payload = { id: aggregation.id, name, totalPoints: Number(pool), rankExponent: Number(exponent) };
+      const fingerprint = JSON.stringify(payload);
+      if (pendingSettings.current?.fingerprint !== fingerprint) {
+        pendingSettings.current = { fingerprint, data: { ...payload, expectedVersion: settingsVersion, operationId: crypto.randomUUID() } };
+      }
+      await updateFn({ data: pendingSettings.current.data });
       toast.success("Combined settings saved");
       await onRefresh();
+      pendingSettings.current = null;
     } catch (error) {
       toast.error((error as Error).message);
     }

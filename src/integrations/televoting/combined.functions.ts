@@ -38,11 +38,13 @@ export const createMergedCombinedAggregation = createServerFn({ method: "POST" }
   });
 
 export const updateMergedCombinedAggregation = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string; name: string; totalPoints: number; rankExponent: number }) => {
+  .inputValidator((data: { id: string; name: string; totalPoints: number; rankExponent: number; expectedVersion: number; operationId: string }) => {
     if (!data?.id) throw new Error("Missing aggregation id");
     const name = String(data.name ?? "").trim();
     if (!name) throw new Error("Name is required");
-    return { id: data.id, name, totalPoints: Math.max(1, Math.trunc(Number(data.totalPoints))), rankExponent: Number(data.rankExponent) };
+    if (!Number.isSafeInteger(data.expectedVersion) || data.expectedVersion < 1 || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.operationId)) throw new Error("Missing reviewed Combined operation");
+    if (!Number.isFinite(data.rankExponent) || data.rankExponent <= 0) throw new Error("Invalid rank exponent");
+    return { id: data.id, name, totalPoints: Math.max(1, Math.trunc(Number(data.totalPoints))), rankExponent: Number(data.rankExponent), expectedVersion: data.expectedVersion, operationId: data.operationId };
   })
   .handler(async ({ data }) => {
     const { updateMergedCombinedAggregationServer } = await import("@/integrations/televoting/combined.server");
