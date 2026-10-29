@@ -12,14 +12,15 @@ describe("Solaris V3 canonical top system safe zone", () => {
   const navGeometry = source("src/styles/v3-navigation-fixed-geometry.css");
   const foundations = source("src/styles/v3-foundations.css");
 
-  it("centralizes platform safe-area aliases and the iOS standalone defensive marker", () => {
+  it("centralizes platform safe-area aliases and scopes the defensive iOS standalone minimum to portrait phones", () => {
     expect(metrics).toContain("data-solaris-ios-standalone");
     expect(metrics).toContain("env(safe-area-inset-top, 0px)");
     expect(safeZone).toContain("--solaris-system-safe-top");
     expect(safeZone).toContain("--solaris-safe-content-top");
     expect(safeZone).toContain("--solaris-ios-standalone-min-top");
+    expect(safeZone).toContain("@media (orientation: portrait) and (max-width: 767px)");
     expect(safeZone).toContain("max(");
-    expect(safeZone).toContain("@media (orientation: landscape)");
+    expect(safeZone).not.toContain("@media (orientation: landscape)");
   });
 
   it("keeps installed/native and browser mobile chrome below the shared boundary", () => {
