@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
+import { requireHodHistoryCapabilityServer } from "@/integrations/unified/hod-access.server";
 
 export type HodChannel = "delegation" | "jury" | "televote";
 
@@ -67,6 +67,11 @@ function normalizeIdentityKey(value: string) {
     .slice(0, 80);
 }
 
+/**
+ * Internal resolver used by already-authorized server workflows.
+ * Request-facing HOD history/suggestion functions must establish their own
+ * capability boundary before calling this service-role projection.
+ */
 export async function loadHodResolverServer() {
   const db = supabaseAdmin as any;
   const [peopleResult, assignmentsResult, editionsResult, countriesResult] = await Promise.all([
@@ -138,7 +143,7 @@ export async function loadHodResolverServer() {
 }
 
 export async function getHodHistoryServer() {
-  await requireSolarisOrganizerServer();
+  await requireHodHistoryCapabilityServer("delegation.read");
   const resolver = await loadHodResolverServer();
 
   const assignments: HodAssignment[] = resolver.assignments
@@ -195,7 +200,7 @@ export async function saveHodPersonServer(input: {
   identityKey?: string;
   notes?: string | null;
 }) {
-  await requireSolarisOrganizerServer();
+  await requireHodHistoryCapabilityServer("delegation.manage");
   const db = supabaseAdmin as any;
   const displayName = input.displayName.trim();
   if (!displayName) throw new Error("HOD name is required");
@@ -246,7 +251,7 @@ export async function saveHodAssignmentsServer(input: {
   confidence?: number;
   notes?: string | null;
 }) {
-  await requireSolarisOrganizerServer();
+  await requireHodHistoryCapabilityServer("delegation.manage");
   const db = supabaseAdmin as any;
   const editionIds = [...new Set(input.editionIds.map(String).filter(Boolean))];
   if (!input.personId || !input.countryId || !editionIds.length) throw new Error("Person, country and at least one edition are required");
@@ -272,7 +277,7 @@ export async function saveHodAssignmentsServer(input: {
 }
 
 export async function deleteHodAssignmentServer(id: string) {
-  await requireSolarisOrganizerServer();
+  await requireHodHistoryCapabilityServer("delegation.manage");
   const db = supabaseAdmin as any;
   const { error } = await db.from("delegation_hod_assignments").delete().eq("id", id);
   if (error) throw new Error(error.message);
