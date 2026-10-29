@@ -257,26 +257,19 @@ export async function getMergedCombinedAggregationServer(id: string) {
   return { aggregation, participants, sources, resolved, preview, catalog, stored: stored ?? [] };
 }
 
-export async function createMergedCombinedAggregationServer(data: { name: string; editionId?: string | null; totalPoints: number; rankExponent: number }) {
-  const actor = await requireMergedTelevotingAdminServer();
-  const { data: inserted, error } = await televotingAdmin
-    .from("televote_aggregations")
-    .insert({
-      edition_id: data.editionId ?? null,
-      name: data.name,
-      combination_method: "component_pool",
-      total_points_to_distribute: data.totalPoints,
-      rank_exponent: data.rankExponent,
-      status: "draft",
-      calculation_version: 0,
-      results_outdated: true,
-      broadcast_display_mode: "combined",
-    })
-    .select("id")
-    .single();
+export async function createMergedCombinedAggregationServer(data: { name: string; editionId?: string | null; totalPoints: number; rankExponent: number; operationId: string }) {
+  await requireMergedTelevotingAdminServer();
+  const { data: inserted, error } = await (televotingAdmin as any).rpc("v3_create_combined_aggregation", {
+    p_remote_edition_id: data.editionId ?? null,
+    p_name: data.name,
+    p_total_points: data.totalPoints,
+    p_rank_exponent: data.rankExponent,
+    p_operation_id: data.operationId,
+    p_idempotency_key: `combined-create:${data.operationId}`,
+  });
   if (error) throw new Error(error.message);
-  await audit(actor, "create_combined_televote", inserted.id, data);
-  return inserted;
+  if (!inserted || typeof inserted.id !== "string") throw new Error("Combined creation returned an ambiguous receipt");
+  return inserted as { id: string };
 }
 
 export async function updateMergedCombinedAggregationServer(data: { id: string; name: string; totalPoints: number; rankExponent: number; expectedVersion: number; operationId: string }) {

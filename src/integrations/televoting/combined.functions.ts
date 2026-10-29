@@ -24,13 +24,14 @@ export const getMergedCombinedAggregation = createServerFn({ method: "POST" })
   });
 
 export const createMergedCombinedAggregation = createServerFn({ method: "POST" })
-  .inputValidator((data: { name: string; editionId?: string | null; totalPoints: number; rankExponent: number }) => {
+  .inputValidator((data: { name: string; editionId?: string | null; totalPoints: number; rankExponent: number; operationId: string }) => {
     const name = String(data?.name ?? "").trim();
     if (!name) throw new Error("Name is required");
     const totalPoints = Math.max(1, Math.trunc(Number(data.totalPoints)));
     const rankExponent = Number(data.rankExponent);
     if (!Number.isFinite(rankExponent) || rankExponent <= 0) throw new Error("Invalid rank exponent");
-    return { name, editionId: data.editionId ?? null, totalPoints, rankExponent };
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.operationId)) throw new Error("Missing Combined creation operation");
+    return { name, editionId: data.editionId ?? null, totalPoints, rankExponent, operationId: data.operationId };
   })
   .handler(async ({ data }) => {
     const { createMergedCombinedAggregationServer } = await import("@/integrations/televoting/combined.server");

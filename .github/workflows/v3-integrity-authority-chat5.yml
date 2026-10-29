@@ -134,6 +134,7 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-core-actor-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-combined-delete-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-combined-metadata-authority.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-combined-create-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-residual-writer-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-recovery.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-outcome-authority.sql
@@ -254,6 +255,7 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-core-actor-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-combined-delete-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-combined-metadata-authority.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-combined-create-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-residual-writer-authority.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-recovery.sql
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-appeal-outcome-authority.sql

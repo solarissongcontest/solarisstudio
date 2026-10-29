@@ -112,6 +112,7 @@ function CombinedResultsPage() {
   const [createName, setCreateName] = useState("Grand Final combined televote");
   const [createPool, setCreatePool] = useState("1000");
   const [createExponent, setCreateExponent] = useState("1.33");
+  const pendingCreate = useRef<{fingerprint: string; data: {name: string; totalPoints: number; rankExponent: number; operationId: string}} | null>(null);
 
   const { data: admin, isLoading: adminLoading } = useQuery({
     queryKey: ["merged-televoting-admin"],
@@ -158,15 +159,16 @@ function CombinedResultsPage() {
   };
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      createFn({
-        data: {
-          name: createName,
-          totalPoints: Number(createPool),
-          rankExponent: Number(createExponent),
-        },
-      }),
+    mutationFn: () => {
+      const payload = { name: createName.trim(), totalPoints: Number(createPool), rankExponent: Number(createExponent) };
+      if (!payload.name || !Number.isFinite(payload.totalPoints) || payload.totalPoints < 1 || !Number.isFinite(payload.rankExponent) || payload.rankExponent <= 0) throw new Error("Enter a valid name, pool and exponent");
+      const fingerprint = JSON.stringify(payload);
+      if (pendingCreate.current && pendingCreate.current.fingerprint !== fingerprint) throw new Error("Recover the previous creation request before changing its inputs");
+      pendingCreate.current ??= { fingerprint, data: { ...payload, operationId: crypto.randomUUID() } };
+      return createFn({ data: pendingCreate.current.data });
+    },
     onSuccess: async (result) => {
+      pendingCreate.current = null;
       setSelectedId(result.id);
       setCreateOpen(false);
       toast.success("Combined result created");
