@@ -177,9 +177,16 @@ export function V3LiquidTabBar({
   useEffect(
     () => () => {
       window.requestAnimationFrame(() => {
-        if (document.querySelector("[data-v3-liquid-tabbar]")) return;
         const root = document.documentElement;
-        root.style.removeProperty("--v3-bottom-obstruction");
+        const nextV3Owner = document.querySelector("[data-v3-liquid-tabbar]");
+        if (!nextV3Owner) root.style.removeProperty("--v3-bottom-obstruction");
+        if (
+          document.querySelector(
+            "[data-v3-liquid-tabbar], [data-v3-organizer-tabbar], .solaris-app-tabbar",
+          )
+        ) {
+          return;
+        }
         root.style.setProperty("--solaris-bottom-obstruction", "0px");
       });
     },
@@ -314,6 +321,7 @@ export function V3LiquidTabBar({
       collapsed ||
       prefersReducedMotion() ||
       document.documentElement.hasAttribute("data-solaris-keyboard-open") ||
+      document.documentElement.hasAttribute("data-solaris-feature-overlay-open") ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) {
       return;
