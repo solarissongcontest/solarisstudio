@@ -56,7 +56,7 @@ export type V3PublicProductReviewRow = {
  * product/responsive/visual evidence. Absence is deliberately fail-closed and
  * resolves to unaudited / untested / uncertified.
  */
-export const V3_PUBLIC_PRODUCT_REVIEW_OVERRIDES = [] as const satisfies readonly V3PublicProductReviewOverride[];
+export const V3_PUBLIC_PRODUCT_REVIEW_OVERRIDES: readonly V3PublicProductReviewOverride[] = [];
 
 const DEFAULT_BLOCKER =
   "Independent Public product-parity review has not been recorded for this capability";
