@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 
 import { useCountries } from "@/lib/data";
 import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
-import { useCountryThemes } from "@/lib/visual-theme";
+import { useCountryTheme } from "@/lib/visual-theme";
 
 function countryCodeFromPath(pathname: string) {
   const match = pathname.match(/^\/(?:countries|wiki)\/([^/]+)/i);
@@ -13,20 +13,21 @@ export function CountryFlagLayerController() {
   const { pathname } = useHydrationSafeRouterLocation();
   const { data: countries } = useCountries();
   const code = countryCodeFromPath(pathname);
-  const { data: themes } = useCountryThemes({ enabled: Boolean(code) });
+  const country = useMemo(() => {
+    if (!code) return null;
+    return (
+      (countries ?? []).find(
+        (item) => item.short_code.toLowerCase() === code.toLowerCase(),
+      ) ?? null
+    );
+  }, [code, countries]);
+  const { data: theme } = useCountryTheme(country?.id);
 
   const flagEnabled = useMemo(() => {
-    if (!code) return null;
-    const country = (countries ?? []).find(
-      (item) => item.short_code.toLowerCase() === code.toLowerCase(),
-    );
     if (!country) return null;
-    const row = (themes ?? []).find((item) => item.country_id === country.id) as
-      | { flag_enabled?: boolean | null }
-      | undefined;
-
+    const row = theme as { flag_enabled?: boolean | null } | null | undefined;
     return row?.flag_enabled !== false;
-  }, [code, countries, themes]);
+  }, [country, theme]);
 
   useEffect(() => {
     if (flagEnabled == null) {
