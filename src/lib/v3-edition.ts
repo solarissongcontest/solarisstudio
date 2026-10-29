@@ -92,30 +92,17 @@ function stateFromCount(count: number): "available" | "empty" {
   return count > 0 ? "available" : "empty";
 }
 
-function competingEditionResults(input: V3EditionPageInput): readonly V3EditionResult[] {
-  // public_safe_participants already supplies canonical public participation
-  // state. Stored result rows stay untouched, but a known withdrawn or
-  // disqualified identity must not be presented as a competing Edition result.
-  // Unknown result identities remain visible because no contradictory public
-  // participation state exists for Solaris to override.
-  const nonCompeting = new Set(
-    input.participants
-      .filter((participant) => participant.participationStatus !== "confirmed")
-      .map((participant) => participant.id),
-  );
-  return input.results.filter((result) => !nonCompeting.has(result.id));
-}
-
 /**
  * Builds the complete V3 Edition read model after publication and identity
- * decisions have already been made by the server source. Result analysis stays
- * outside this projection; Edition only receives the official published rank
- * and total score summary it is allowed to present.
+ * decisions have already been made by the server source. Result rows arriving
+ * here come from the immutable published Result Version consumer. Edition must
+ * therefore preserve that frozen history instead of re-filtering it through
+ * today's participant state.
  */
 export function buildV3EditionPageProjection(
   input: V3EditionPageInput,
 ): V3EditionPageProjection | null {
-  const visibleResults = competingEditionResults(input);
+  const publishedResults = input.results;
   const hub = buildV3EditionHubProjection({
     edition: input.edition,
     sections: {
@@ -137,7 +124,7 @@ export function buildV3EditionPageProjection(
         href: "#edition-stories",
       },
       results: {
-        state: stateFromCount(visibleResults.length),
+        state: stateFromCount(publishedResults.length),
         href: "#edition-results",
       },
     },
@@ -148,7 +135,7 @@ export function buildV3EditionPageProjection(
   const resultsState =
     input.edition.resultsPublication !== "published"
       ? "locked"
-      : visibleResults.length
+      : publishedResults.length
         ? "available"
         : "empty";
   const story = input.story
@@ -176,7 +163,7 @@ export function buildV3EditionPageProjection(
     results: {
       state: resultsState,
       showHref: resultsState === "available" ? input.resultShowHref : null,
-      rows: resultsState === "available" ? visibleResults : [],
+      rows: resultsState === "available" ? publishedResults : [],
     },
   };
 }
