@@ -12,10 +12,24 @@
   );
 }
 
-/* iOS standalone has historically produced transient/suspiciously-small safe
-   values around phone launch/resume. Fail toward protected content only on
-   narrow portrait devices. Tablets keep their reported inset so the defensive
-   phone minimum cannot become a giant fake iPad header. */
+/* Protect the first semantic paint before React effects can publish the runtime
+   marker. `-webkit-touch-callout` narrows this to iOS-class WebKit, while the
+   standalone + phone-portrait media query avoids inventing a giant top moat on
+   browser tabs, landscape, Android or iPad/tablet layouts. */
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) and (orientation: portrait) and (max-width: 767px) {
+    :root {
+      --solaris-system-safe-top: max(
+        var(--solaris-safe-top, env(safe-area-inset-top, 0px)),
+        var(--solaris-ios-standalone-min-top)
+      );
+    }
+  }
+}
+
+/* Runtime detection reinforces the same boundary after hydration/resume. iOS
+   standalone has historically produced transient/suspiciously-small safe
+   values around phone launch/resume. Tablets keep their reported inset. */
 @media (orientation: portrait) and (max-width: 767px) {
   html[data-solaris-ios-standalone] {
     --solaris-system-safe-top: max(
