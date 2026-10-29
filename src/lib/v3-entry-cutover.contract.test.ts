@@ -15,7 +15,7 @@ describe("V3 participant Entry cutover", () => {
     expect(route()).toContain("V3EntryRouteGate");
     expect(gate()).toContain("rollout.data?.entryEnabled === true");
     expect(gate()).toContain("Boolean(rollout.data?.userId)");
-    expect(gate()).toContain("if (bundle.isError || !bundle.data) return <>{legacy}</>");
+    expect(gate()).toContain("if (bundle.isError || !bundle.data) return <UnavailableEntrySurface />");
     expect(rollout()).toContain('p_key: "solaris_app_v3_entry"');
     expect(migration()).toContain("'solaris_app_v3_entry'");
     expect(migration()).toContain("false,");
@@ -39,7 +39,7 @@ describe("V3 participant Entry cutover", () => {
     expect(code).toContain('client.rpc("public_country_account_confirmation_access")');
     expect(code).toContain('client.rpc("studio2_hod_context"');
     expect(code).toContain('client.rpc("v3_confirmation_entry_versions"');
-    expect(code).toContain("buildStudio2HodWorkspaceSnapshot(mapStudio2HodContext");
+    expect(code).toContain("buildStudio2HodWorkspaceSnapshot(hodContext)");
     expect(code).not.toContain("useAllParticipants");
     expect(code).not.toContain('.from("participants")');
   });

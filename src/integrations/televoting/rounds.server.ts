@@ -15,146 +15,146 @@ export type MergedAdminRoundServer = {
   closed_at: string | null;
   participant_mode: string;
   self_voting_mode: string;
+  version: number;
   entry_count: number;
 };
 
-async function audit(
-  actor: { id: string; username: string },
-  action: string,
-  values: { targetType?: string; targetId?: string; oldValues?: unknown; newValues?: unknown },
-) {
-  await televotingAdmin.from("admin_audit_log").insert({
-    actor_admin_id: actor.id,
-    actor_username: actor.username,
-    action,
-    target_type: values.targetType ?? null,
-    target_id: values.targetId ?? null,
-    old_values: values.oldValues ?? null,
-    new_values: values.newValues ?? null,
-  });
-}
-
+/**
+ * Legacy all-edition loader retained for compatibility only. Unlike the old
+ * implementation it is strictly read-only: entering a workspace must never be
+ * an implicit Televote catalog or line-up mutation authority.
+ */
 export async function getMergedTelevotingRoundsServer() {
   await requireMergedTelevotingAdminServer();
-  const canonicalEditions = await ensureCanonicalTelevotingEditionsServer();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as any;
 
-  // Bound drafts are projections, not independent participant lists. Refresh
-  // them whenever the organizer enters the Televoting rounds workspace so
-  // direct Solaris Studio edits are picked up even when Confirmations was not
-  // the writer that changed the canonical data.
-  const { autoSyncDraftTelevotingRoundsForEditionServer } = await import(
-    "@/integrations/televoting/auto-sync.server"
-  );
-  for (const edition of canonicalEditions) {
-    try {
-      await autoSyncDraftTelevotingRoundsForEditionServer(edition.solaris_id);
-    } catch (caught) {
-      console.error(
-        `[Televoting] Could not refresh draft projections for SSC${edition.edition_number}`,
-        caught,
-      );
-    }
+  const [solarisResult, linksResult, remoteEditionsResult, roundsResult, entriesResult, versionsResult] =
+    await Promise.all([
+      db
+        .from("editions")
+        .select("id,name,edition_number,status")
+        .not("edition_number", "is", null)
+        .order("edition_number", { ascending: false }),
+      db
+        .from("integration_links")
+        .select("solaris_id,remote_id")
+        .eq("service", "televoting")
+        .eq("entity_type", "edition"),
+      televotingAdmin
+        .from("editions")
+        .select("id,name,is_active,is_archived,created_at"),
+      televotingAdmin
+        .from("rounds")
+        .select("id,edition_id,name,status,opened_at,closed_at,participant_mode,self_voting_mode")
+        .order("created_at", { ascending: true }),
+      televotingAdmin.from("round_entries").select("round_id"),
+      db.from("studio2_televote_round_versions").select("round_id,version"),
+    ]);
+
+  for (const result of [solarisResult, linksResult, remoteEditionsResult, roundsResult, entriesResult, versionsResult]) {
+    if (result.error) throw new Error(result.error.message);
   }
 
-  const [roundsResult, entriesResult] = await Promise.all([
-    televotingAdmin.from("rounds").select("id,edition_id,name,status,opened_at,closed_at,participant_mode,self_voting_mode").order("created_at", { ascending: true }),
-    televotingAdmin.from("round_entries").select("round_id"),
-  ]);
-
-  if (roundsResult.error) throw new Error(roundsResult.error.message);
-  if (entriesResult.error) throw new Error(entriesResult.error.message);
-
+  const remoteById = new Map((remoteEditionsResult.data ?? []).map((row: any) => [String(row.id), row]));
+  const remoteBySolaris = new Map((linksResult.data ?? []).map((row: any) => [String(row.solaris_id), String(row.remote_id)]));
   const counts = new Map<string, number>();
   for (const entry of entriesResult.data ?? []) {
-    counts.set(entry.round_id, (counts.get(entry.round_id) ?? 0) + 1);
+    counts.set(String(entry.round_id), (counts.get(String(entry.round_id)) ?? 0) + 1);
   }
+  const versions = new Map((versionsResult.data ?? []).map((row: any) => [String(row.round_id), Number(row.version ?? 0)]));
 
-  const roundRows = (roundsResult.data ?? []).map((round) => ({
+  const roundRows = (roundsResult.data ?? []).map((round: any) => ({
     ...round,
     status: round.status as "draft" | "open" | "closed",
     participant_mode: String(round.participant_mode ?? "countries"),
     self_voting_mode: String(round.self_voting_mode ?? "country_match"),
-    entry_count: counts.get(round.id) ?? 0,
+    version: versions.get(String(round.id)) ?? 0,
+    entry_count: counts.get(String(round.id)) ?? 0,
   }));
 
-  return canonicalEditions.map((edition) => ({
-    ...edition,
-    rounds: roundRows.filter((round) => round.edition_id === edition.id),
-  }));
+  return (solarisResult.data ?? []).flatMap((edition: any) => {
+    const remoteId = remoteBySolaris.get(String(edition.id));
+    if (!remoteId) return [];
+    const remote = remoteById.get(remoteId) as any;
+    if (!remote) return [];
+    return [{
+      id: remoteId,
+      solaris_id: String(edition.id),
+      name: String(edition.name),
+      edition_number: Number(edition.edition_number),
+      is_active: remote.is_active === true,
+      is_archived: remote.is_archived === true,
+      rounds: roundRows.filter((round: any) => String(round.edition_id) === remoteId),
+    }];
+  });
 }
 
-export async function createMergedTelevotingRoundServer(data: { editionId: string; name: string }) {
-  const actor = await requireMergedTelevotingAdminServer();
+export async function createMergedTelevotingRoundServer(data: {
+  editionId: string;
+  name: string;
+  operationId: string;
+  idempotencyKey: string;
+}) {
+  await requireMergedTelevotingAdminServer();
+
+  // Catalog reconciliation is allowed here because this is an explicit
+  // Organizer mutation. Read paths above deliberately never invoke it.
   const canonicalEditions = await ensureCanonicalTelevotingEditionsServer();
   const edition = canonicalEditions.find((candidate) => candidate.id === data.editionId);
   if (!edition) throw new Error("Choose a canonical Solaris edition");
 
-  const { data: row, error } = await televotingAdmin
-    .from("rounds")
-    .insert({ edition_id: edition.id, name: data.name, status: "draft" })
-    .select("id,name")
-    .single();
+  const { data: rawResult, error } = await televotingAdmin.rpc("v3_create_round", {
+    p_remote_edition_id: edition.id,
+    p_name: data.name,
+    p_operation_id: data.operationId,
+    p_idempotency_key: data.idempotencyKey,
+    p_correlation_id: data.operationId,
+  });
   if (error) throw new Error(error.message);
-
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const solaris = supabaseAdmin as any;
-  const now = new Date().toISOString();
-  const { error: bindingError } = await solaris.from("televoting_round_bindings").upsert(
-    {
-      remote_round_id: row.id,
-      remote_edition_id: edition.id,
-      edition_id: edition.solaris_id,
-      show_id: null,
-      source_mode: "edition",
-      last_synced_at: null,
-      frozen_at: null,
-      updated_at: now,
-    },
-    { onConflict: "remote_round_id" },
-  );
-  if (bindingError) throw new Error(bindingError.message);
+  const result = (rawResult ?? {}) as Record<string, unknown>;
+  const roundId = String(result.id ?? "");
+  if (!roundId) throw new Error("Canonical Televote round command returned no round id");
 
   let syncWarning: string | null = null;
   try {
     await syncMergedRoundFromSolarisServer({
-      roundId: row.id,
+      roundId,
       sourceMode: "edition",
       showId: null,
     });
   } catch (caught) {
-    // Keep the newly-created draft bound even when an edition does not yet have
-    // enough confirmed participants to form a valid voting round. Future
-    // confirmation changes will retry it automatically.
+    // A newly-created draft remains valid when the canonical edition does not
+    // yet have enough confirmed participants. Explicit repair/sync can retry.
     syncWarning = caught instanceof Error ? caught.message : "Canonical line-up could not be populated yet";
   }
 
-  await audit(actor, "create_round", {
-    targetType: "round",
-    targetId: row.id,
-    newValues: {
-      name: data.name,
-      edition_id: edition.id,
-      solaris_edition_id: edition.solaris_id,
-      edition_number: edition.edition_number,
-      canonical_source: "edition",
-      canonical_sync_warning: syncWarning,
-    },
-  });
-  return { ...row, sync_warning: syncWarning };
+  return {
+    ...result,
+    id: roundId,
+    name: String(result.name ?? data.name),
+    sync_warning: syncWarning,
+  };
 }
 
-export async function renameMergedTelevotingRoundServer(data: { id: string; name: string }) {
-  const actor = await requireMergedTelevotingAdminServer();
-  const { data: before } = await televotingAdmin.from("rounds").select("name").eq("id", data.id).maybeSingle();
-  const { error } = await televotingAdmin.from("rounds").update({ name: data.name }).eq("id", data.id);
-  if (error) throw new Error(error.message);
-  await audit(actor, "rename_round", {
-    targetType: "round",
-    targetId: data.id,
-    oldValues: before,
-    newValues: { name: data.name },
+export async function renameMergedTelevotingRoundServer(data: {
+  id: string;
+  name: string;
+  expectedRoundVersion: number;
+  operationId: string;
+  idempotencyKey: string;
+}) {
+  await requireMergedTelevotingAdminServer();
+  const { data: result, error } = await televotingAdmin.rpc("v3_rename_round", {
+    p_round_id: data.id,
+    p_name: data.name,
+    p_expected_round_version: data.expectedRoundVersion,
+    p_operation_id: data.operationId,
+    p_idempotency_key: data.idempotencyKey,
+    p_correlation_id: data.operationId,
   });
-  return { ok: true };
+  if (error) throw new Error(error.message);
+  return result;
 }
 
 export async function previewMergedTelevotingRoundStatusServer(data: {
@@ -197,26 +197,20 @@ export async function setMergedTelevotingRoundStatusServer(data: {
   return receipt;
 }
 
-export async function deleteMergedTelevotingRoundServer(data: { id: string }) {
-  const actor = await requireMergedTelevotingAdminServer();
-  const { data: before, error: readError } = await televotingAdmin
-    .from("rounds")
-    .select("id,name,status,edition_id")
-    .eq("id", data.id)
-    .maybeSingle();
-  if (readError) throw new Error(readError.message);
-  if (!before) throw new Error("Round not found");
-  if (before.status !== "draft") throw new Error("Only draft rounds can be deleted");
-
-  const { error } = await televotingAdmin.from("rounds").delete().eq("id", data.id);
+export async function deleteMergedTelevotingRoundServer(data: {
+  id: string;
+  expectedRoundVersion: number;
+  operationId: string;
+  idempotencyKey: string;
+}) {
+  await requireMergedTelevotingAdminServer();
+  const { data: result, error } = await televotingAdmin.rpc("v3_delete_draft_round", {
+    p_round_id: data.id,
+    p_expected_round_version: data.expectedRoundVersion,
+    p_operation_id: data.operationId,
+    p_idempotency_key: data.idempotencyKey,
+    p_correlation_id: data.operationId,
+  });
   if (error) throw new Error(error.message);
-
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await (supabaseAdmin as any)
-    .from("televoting_round_bindings")
-    .delete()
-    .eq("remote_round_id", data.id);
-
-  await audit(actor, "delete_round", { targetType: "round", targetId: data.id, oldValues: before });
-  return { ok: true };
+  return result;
 }

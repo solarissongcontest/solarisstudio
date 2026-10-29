@@ -27,7 +27,15 @@ export type PublicCapabilityMigration = {
   authRequirement: "public" | "optional" | "authenticated" | "delegation" | "hod";
   classification: V3MigrationClassification;
   targetArea: "home" | "explore" | "participate" | "results" | "me" | "live" | "auth" | "contextual";
+  /** Actual route host, including patterns for embedded canonical surfaces. */
   targetRoute: string;
+  /** Explicit owner when a legacy route concept is replaced by non-route UI. */
+  replacementSurface?: {
+    kind: "shell-overlay" | "embedded-presentation";
+    ownerComponent: string;
+    hostRoute: string;
+    replacesLegacyRoutes: readonly string[];
+  };
   specificationStatus:
     | "discovered"
     | "mapped"
@@ -84,8 +92,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "redesign",
     targetArea: "participate",
     targetRoute: "/participate",
-    specificationStatus: "building",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.entry-submit-review-correct",
+    migrationEvidence: "src/lib/v3-entry-owner-acceptance.test.ts; scripts/fixtures/v3-entry-owner-proof.ts; src/lib/v3-entry-fail-closed.test.tsx; src/lib/v3-entry-cutover.contract.test.ts; src/lib/v3-entry-submission-receipt.contract.test.ts; src/lib/v3-entry-restore-provenance.contract.test.ts; src/integrations/v3/entry-source.server.ts; src/integrations/v3/entry-actions.server.ts; supabase/migrations/20261014060000_v3_entry_submission_receipt.sql",
   },
   {
     id: "participant-voting-overview",
@@ -129,8 +138,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "redesign",
     targetArea: "explore",
     targetRoute: "/countries/:country",
-    specificationStatus: "building",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.country-entity-discovery",
+    migrationEvidence: "src/lib/v3-public-immutable-cutover-acceptance.test.ts; src/lib/v3-public-result-consumers.test.ts; src/lib/v3-public-read-family-acceptance.test.tsx; src/lib/v3-public-result-snapshots.test.ts; src/lib/v3-public-published-result-snapshot.contract.test.ts; scripts/rehearse-v3-public-result-snapshot.sh; supabase/migrations/20261024170500_v3_public_published_result_snapshot.sql; supabase/migrations/20261026170916_v3_public_result_snapshot_batch.sql; src/integrations/v3/delegation-source.server.ts; src/lib/v3-delegation-cutover.contract.test.ts",
   },
   {
     id: "delegation-history",
@@ -159,8 +169,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "merge",
     targetArea: "me",
     targetRoute: "/my-solaris/activity",
-    specificationStatus: "building",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.private-activity-feed",
+    migrationEvidence: "src/lib/v3-public-activity-cutover-acceptance.test.ts; src/integrations/v3/participant-activity.server.ts; src/lib/v3-participant-activity-runtime.ts; src/lib/v3-participant-activity-adapter.test.ts; src/lib/v3-participant-activity-system.contract.test.ts; src/lib/v3-participant-activity.contract.test.ts; src/lib/v3-participant-activity-response.test.ts; .github/scripts/v3-participant-activity-regression.sh; .github/scripts/check-v3-activity-response.py; .github/tests/v3-participant-activity.sql; supabase/migrations/20261019213500_v3_participant_activity_projection.sql",
   },
   {
     id: "predictions",
@@ -174,8 +185,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "merge",
     targetArea: "contextual",
     targetRoute: "/predictions",
-    specificationStatus: "mapped",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.prediction-league",
+    migrationEvidence: "src/lib/v3-public-account-cutover-acceptance.test.ts; scripts/fixtures/v3-public-account-screen-proof.tsx; src/lib/v3-predictions-merge.contract.test.ts; src/lib/v3-predictions.test.ts; src/lib/v3-prediction-league-privacy.contract.test.ts",
   },
   {
     id: "saved-items",
@@ -189,9 +201,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "redesign",
     targetArea: "me",
     targetRoute: "/my-solaris/saved",
-    specificationStatus: "building",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.saved-and-followed-entities",
-    migrationEvidence: "V3 Following & Saved projection, caller-scoped preference writer, reversible installed-app route and focused regression coverage",
+    migrationEvidence: "src/lib/v3-public-account-cutover-acceptance.test.ts; scripts/fixtures/v3-public-account-screen-proof.tsx; src/lib/v3-following-saved.contract.test.ts; src/lib/v3-following-saved.test.ts; supabase/migrations/20261017103000_v3_s5_preference_consequences.sql",
   },
   {
     id: "country-account",
@@ -313,8 +325,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "redesign",
     targetArea: "results",
     targetRoute: "/results",
-    specificationStatus: "building",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.published-results-only",
+    migrationEvidence: "src/lib/v3-public-immutable-cutover-acceptance.test.ts; src/lib/v3-public-result-consumers.test.ts; src/lib/v3-public-read-family-acceptance.test.tsx; src/lib/v3-public-result-snapshots.test.ts; src/lib/v3-public-published-result-snapshot.contract.test.ts; scripts/rehearse-v3-public-result-snapshot.sh; supabase/migrations/20261024170500_v3_public_published_result_snapshot.sql; supabase/migrations/20261026170916_v3_public_result_snapshot_batch.sql; src/integrations/v3/results-source.server.ts; src/lib/v3-results-cutover.contract.test.ts",
   },
   {
     id: "live-show",
@@ -358,8 +371,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "merge",
     targetArea: "me",
     targetRoute: "/my-solaris",
-    specificationStatus: "mapped",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.community-display-identity",
+    migrationEvidence: "src/lib/v3-public-account-cutover-acceptance.test.ts; scripts/fixtures/v3-public-account-screen-proof.tsx; src/lib/v3-me-screen.test.tsx; src/lib/v3-me-summary.test.ts; src/lib/v3-me-architecture.contract.test.ts",
   },
   {
     id: "push-delivery",
@@ -388,8 +402,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "restrict",
     targetArea: "contextual",
     targetRoute: "/",
-    specificationStatus: "mapped",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.privacy-bounded-ux-telemetry",
+    migrationEvidence: "src/lib/v3-public-account-cutover-acceptance.test.ts; scripts/fixtures/v3-public-account-screen-proof.tsx; src/lib/public-ux-privacy.test.ts; src/lib/v3-public-ux-diagnostics.contract.test.ts",
   },
   {
     id: "app-shell",
@@ -404,6 +419,7 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     targetRoute: "/",
     specificationStatus: "parity",
     acceptanceScenarioId: "public.v3-shell-five-root-navigation",
+    migrationEvidence: "src/lib/v3-app-shell.contract.test.ts; src/lib/v3-public-navigation.test.ts; src/lib/v3-shell-route-boundary.test.ts",
   },
   {
     id: "explore-root",
@@ -432,8 +448,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "merge",
     targetArea: "explore",
     targetRoute: "/explore",
-    specificationStatus: "building",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.explore-entity-discovery",
+    migrationEvidence: "src/lib/v3-public-immutable-cutover-acceptance.test.ts; src/lib/v3-public-result-consumers.test.ts; src/lib/v3-public-read-family-acceptance.test.tsx; src/lib/v3-public-result-snapshots.test.ts; src/lib/v3-public-published-result-snapshot.contract.test.ts; scripts/rehearse-v3-public-result-snapshot.sh; supabase/migrations/20261024170500_v3_public_published_result_snapshot.sql; supabase/migrations/20261026170916_v3_public_result_snapshot_batch.sql; src/integrations/v3/explore-source.server.ts; src/lib/v3-explore-cutover.contract.test.ts",
   },
   {
     id: "edition-hub",
@@ -446,8 +463,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "redesign",
     targetArea: "explore",
     targetRoute: "/editions/:edition",
-    specificationStatus: "building",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.edition-entity-hub",
+    migrationEvidence: "src/lib/v3-public-immutable-cutover-acceptance.test.ts; src/lib/v3-public-result-consumers.test.ts; src/lib/v3-public-read-family-acceptance.test.tsx; src/lib/v3-public-result-snapshots.test.ts; src/lib/v3-public-published-result-snapshot.contract.test.ts; scripts/rehearse-v3-public-result-snapshot.sh; supabase/migrations/20261024170500_v3_public_published_result_snapshot.sql; supabase/migrations/20261026170916_v3_public_result_snapshot_batch.sql; src/integrations/v3/edition-source.server.ts; src/lib/v3-edition-cutover.contract.test.ts",
   },
   {
     id: "global-search",
@@ -459,9 +477,16 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     authRequirement: "public",
     classification: "redesign",
     targetArea: "explore",
-    targetRoute: "/search",
+    targetRoute: "/",
+    replacementSurface: {
+      kind: "shell-overlay",
+      ownerComponent: "src/components/public/PublicCommandPalette.tsx",
+      hostRoute: "/",
+      replacesLegacyRoutes: ["/search"],
+    },
     specificationStatus: "parity",
     acceptanceScenarioId: "public.global-search-entity-routing",
+    migrationEvidence: "src/lib/v3-search-cutover.contract.test.ts; src/lib/public-search.test.ts; e2e/v3-search.e2e.ts",
   },
   {
     id: "scoreboard",
@@ -473,9 +498,16 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     authRequirement: "public",
     classification: "merge",
     targetArea: "results",
-    targetRoute: "/results",
-    specificationStatus: "mapped",
+    targetRoute: "/shows/:showId",
+    replacementSurface: {
+      kind: "embedded-presentation",
+      ownerComponent: "src/components/v3/V3ScoreboardPresentation.tsx",
+      hostRoute: "/shows/:showId",
+      replacesLegacyRoutes: ["/scoreboard", "/scoreboard/*"],
+    },
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.scoreboard-published-result-version",
+    migrationEvidence: "src/components/v3/V3PublicScoreboardGate.tsx; src/integrations/v3/scoreboard-source.server.ts; src/lib/v3-public-scoreboard.functions.ts; src/lib/v3-public-scoreboard-runtime.ts; src/lib/v3-public-scoreboard.test.tsx; src/lib/v3-scoreboard-cutover.contract.test.ts; src/lib/v3-public-canonical-replacements.test.ts; scripts/rehearse-v3-public-result-snapshot.sh; supabase/migrations/20261024170500_v3_public_published_result_snapshot.sql; supabase/migrations/20261026170916_v3_public_result_snapshot_batch.sql",
   },
   {
     id: "delegation-detail",
@@ -488,8 +520,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "merge",
     targetArea: "explore",
     targetRoute: "/countries/:country",
-    specificationStatus: "building",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.delegation-country-detail",
+    migrationEvidence: "src/lib/v3-public-immutable-cutover-acceptance.test.ts; src/lib/v3-public-result-consumers.test.ts; src/lib/v3-public-read-family-acceptance.test.tsx; src/lib/v3-public-result-snapshots.test.ts; src/lib/v3-public-published-result-snapshot.contract.test.ts; scripts/rehearse-v3-public-result-snapshot.sh; supabase/migrations/20261024170500_v3_public_published_result_snapshot.sql; supabase/migrations/20261026170916_v3_public_result_snapshot_batch.sql; src/integrations/v3/delegation-source.server.ts; src/lib/v3-delegation-cutover.contract.test.ts",
   },
   {
     id: "authentication",
@@ -502,8 +535,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "redesign",
     targetArea: "auth",
     targetRoute: "/auth",
-    specificationStatus: "mapped",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.identity-session-transition",
+    migrationEvidence: "src/lib/v3-public-account-cutover-acceptance.test.ts; scripts/fixtures/v3-public-account-screen-proof.tsx; src/lib/v3-auth-return-intent.test.ts; src/lib/authenticated-identity-isolation.test.ts; src/lib/country-auth-contract.test.ts",
   },
 ] as const satisfies readonly PublicCapabilityMigration[];
 

@@ -201,6 +201,36 @@ else
   log "PASS: stale fresh-auth evidence rejected"
 fi
 
+log "The active second session can use an ordinary Data API read before revocation"
+request GET "$API_URL/rest/v1/countries?select=id&limit=1" "$TOKEN_A2" "$ANON_KEY"
+expect_success "active session ordinary Data API read"
+
+log "Canonical Data API gate permits only session recovery in protected operational modes"
+# Transactional fixture only: exercise the real hook in both modes, then roll
+# back the fixture. No persisted mode repair or alternative revoke writer.
+psql "$DB_URL" -v ON_ERROR_STOP=1 -v actor="$USER_A" -v session="$SESSION_A1" -qAt <<'SQL'
+begin;
+select set_config('request.jwt.claims', jsonb_build_object('sub', :'actor', 'role', 'authenticated', 'session_id', :'session')::text, true);
+select set_config('request.method', 'POST', true);
+do $test$
+declare v_mode text;
+begin
+  foreach v_mode in array array['read_only', 'maintenance'] loop
+    update public.studio2_platform_operational_state set mode = v_mode where singleton;
+    perform set_config('request.path', '/rest/v1/rpc/v3_revoke_session', true);
+    perform private.studio2_data_api_operational_gate();
+    perform set_config('request.path', '/rest/v1/rpc/admin_set_show_running_order', true);
+    begin
+      perform private.studio2_data_api_operational_gate();
+      raise exception 'Unrelated volatile mutation bypassed the protected mode';
+    exception when sqlstate '25006' then null;
+    end;
+  end loop;
+end
+$test$;
+rollback;
+SQL
+
 log "Fresh viewer A session revokes its other session and cascades refresh tokens"
 OP_ID='00000000-0000-4000-8000-00000000a615'
 rpc_revoke "$TOKEN_A1" "$OTHER_HANDLE" "$OP_ID" 'revoke-a2'
@@ -219,6 +249,15 @@ log "A revoked-but-unexpired access JWT loses the protected session contract imm
 rpc_sessions "$TOKEN_A2"
 expect_failure "revoked session projection"
 [[ "$HTTP_BODY" == *"SESSION_REVOKED"* || "$HTTP_BODY" == *"AUTHENTICATION"* ]] || fail "Revoked token failed for an unexpected reason: $HTTP_BODY"
+
+log "Revocation denies ordinary reads before any event delivery or UI invalidation"
+request GET "$API_URL/rest/v1/countries?select=id&limit=1" "$TOKEN_A2" "$ANON_KEY"
+expect_failure "revoked token ordinary Data API read"
+[[ "$HTTP_BODY" == *"SESSION_REVOKED"* ]] || fail "Revoked read did not reach the canonical session guard"
+request GET "$API_URL/rest/v1/countries?select=id&limit=1" "$TOKEN_A1" "$ANON_KEY"
+expect_success "surviving session ordinary Data API read"
+request GET "$API_URL/rest/v1/countries?select=id&limit=1" "$ANON_KEY" "$ANON_KEY"
+expect_success "anonymous public read remains available"
 
 log "Exact lost-response retry is idempotent"
 rpc_revoke "$TOKEN_A1" "$OTHER_HANDLE" "$OP_ID" 'revoke-a2'
@@ -267,5 +306,9 @@ expect_success "current-session Auth sign-out"
 [[ "$(db_value "select count(*) from auth.sessions where id='$SESSION_A1';")" == '0' ]] || fail "Current Auth sign-out left session row active"
 rpc_sessions "$TOKEN_A1"
 expect_failure "signed-out current session projection"
+
+request GET "$API_URL/rest/v1/countries?select=id&limit=1" "$TOKEN_A1" "$ANON_KEY"
+expect_failure "signed-out token ordinary Data API read"
+[[ "$HTTP_BODY" == *"SESSION_REVOKED"* ]] || fail "Sign-out read did not reach the canonical session guard"
 
 log "System V3 P42 account session management rehearsal passed"

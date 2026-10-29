@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { uploadVerifiedFile } from "@/lib/upload-safety";
+import { BetaScreenshotValidationError } from "./public-beta-feedback-safety";
 
 const ALLOWED_BETA_SCREENSHOT_TYPES = new Set([
   "image/png",
@@ -15,13 +16,13 @@ export async function uploadBetaFeedbackScreenshot(input: {
   admin?: boolean;
 }) {
   if (!ALLOWED_BETA_SCREENSHOT_TYPES.has(input.file.type)) {
-    throw new Error(`Screenshot “${input.file.name}” is not a supported image type.`);
+    throw new BetaScreenshotValidationError("unsupported-type", input.file.name);
   }
   if (input.file.size <= 0) {
-    throw new Error(`Screenshot “${input.file.name}” is empty.`);
+    throw new BetaScreenshotValidationError("empty", input.file.name);
   }
   if (input.file.size > MAX_BETA_SCREENSHOT_BYTES) {
-    throw new Error(`Screenshot “${input.file.name}” is larger than 5 MB.`);
+    throw new BetaScreenshotValidationError("too-large", input.file.name);
   }
 
   const receipt = await uploadVerifiedFile({

@@ -5,26 +5,89 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_call:
+    inputs:
+      certified_candidate_sha:
+        required: true
+        type: string
   workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: read
+  actions: read
 
 concurrency:
-  group: browser-audit-${{ github.ref }}
+  group: browser-audit-${{ inputs.certified_candidate_sha || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  release-gate:
+    name: Defer release browsers until cascade certification
+    runs-on: ubuntu-latest
+    outputs:
+      run_audit: ${{ steps.gate.outputs.run_audit }}
+    steps:
+      - name: Checkout exact source for release path discovery
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.certified_candidate_sha || github.event.pull_request.head.sha || github.sha }}
+      - name: Download late exact-SHA cascade evidence
+        if: inputs.certified_candidate_sha != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: v3-s15-certified-${{ inputs.certified_candidate_sha }}
+          path: v3-release-evidence/
+      - name: Preserve ordinary UI audits and defer release candidates
+        id: gate
+        env:
+          CERTIFIED_CANDIDATE_SHA: ${{ inputs.certified_candidate_sha }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const certified = process.env.CERTIFIED_CANDIDATE_SHA;
+            if (certified) {
+              const fs = require('fs');
+              const actual = require('child_process').execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim();
+              const s14 = JSON.parse(fs.readFileSync('v3-release-evidence/s14-full-contest.json', 'utf8'));
+              const s15 = JSON.parse(fs.readFileSync('v3-release-evidence/s15-zero-orphan.json', 'utf8'));
+              if (!/^[0-9a-f]{40}$/.test(certified) || actual !== certified || s14.candidateSha !== certified || s15.candidateSha !== certified || s14.passed !== true || s14.partial !== false || s14.runtimeFailure !== false || s14.lifecycle?.finalState !== 'archived' || (s15.schemaVersion ?? 0) < 4 || s15.zeroOrphans !== true || s15.findings.length !== 0 || s15.physicalOwnership?.zeroOwnershipConflicts !== true) {
+                throw new Error('Browser certification requires successful exact-head S14/S15 artifacts');
+              }
+              core.setOutput('run_audit', true);
+              return;
+            }
+            if (context.eventName !== 'pull_request') {
+              core.setOutput('run_audit', true);
+              return;
+            }
+            const fs = require('fs');
+            const source = fs.readFileSync('.github/workflows/v3-s14-full-contest-rehearsal.yml', 'utf8');
+            const section = source.split('    paths:\n')[1]?.split('  workflow_dispatch:')[0];
+            if (!section) throw new Error('Release path inventory is unavailable; browser fails closed');
+            const patterns = [...section.matchAll(/^\s+- "([^"]+)"/gm)].map(match => match[1]);
+            if (!patterns.length) throw new Error('Release path inventory is empty; browser fails closed');
+            const escape = text => text.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+            const matches = (path, pattern) => new RegExp('^' + pattern.split('**').map(part => part.split('*').map(escape).join('[^/]*')).join('.*') + '$').test(path);
+            const files = await github.paginate(github.rest.pulls.listFiles, { ...context.repo, pull_number: context.payload.pull_request.number, per_page: 100 });
+            const deferred = files.some(file => patterns.some(pattern => matches(file.filename, pattern)));
+            core.setOutput('run_audit', !deferred);
+            core.info(deferred ? 'Release changes require successful exact-head cascade/S14/S15 before browsers.' : 'Ordinary UI-only change retains its normal browser audit.');
+
   # Browser CI is forbidden from using hosted Supabase. It runs against an
   # isolated local stack and hard-fails if a non-local API URL reaches the job.
   # Egress guard: this must stay local even when production configuration changes.
   public-routes:
+    needs: [release-gate]
+    if: needs.release-gate.outputs.run_audit == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 55
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.certified_candidate_sha || github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

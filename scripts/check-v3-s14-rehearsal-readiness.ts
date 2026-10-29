@@ -1,3 +1,5 @@
+import { classifyV3ReleaseFinding, type V3ReleaseInventoryItem } from "../src/lib/v3-release-risk";
+import { isResolvedV3DomainConsequence } from "../src/lib/v3-domain-consequence-registry";
 import { existsSync, readFileSync } from "node:fs";
 import {
   V3_DOMAIN_CONSEQUENCE_REGISTRY,
@@ -69,31 +71,29 @@ const organizerRequired = [
 
 const blockers: string[] = [];
 const publicStatus = new Map(V3_PUBLIC_CAPABILITIES.map((item) => [item.id, item.specificationStatus]));
+const organizerStatus = new Map(V3_ORGANIZER_CAPABILITY_REGISTRY.map((item) => [item.legacyId, item.migrationStatus]));
+const matrix = JSON.parse(readFileSync("docs/v3-release-burndown.json", "utf8")) as {
+  publicCutovers: V3ReleaseInventoryItem[]; organizerCutovers: V3ReleaseInventoryItem[];
+};
+const inventory = [...matrix.publicCutovers, ...matrix.organizerCutovers];
+const currentFindings: string[] = [];
 for (const id of publicRequired) {
   const status = publicStatus.get(id);
-  if (!status || !["parity", "cutover", "retired"].includes(status)) {
-    blockers.push(`critical Public capability ${id} is ${status ?? "unregistered"}, not at parity/cutover`);
-  }
+  if (!status) blockers.push(`unregistered critical Public capability ${id}`);
+  else if (!["cutover", "retired"].includes(status)) currentFindings.push(`PUBLIC_CUTOVER_UNRESOLVED ${id}:${status}`);
 }
-
-const organizerStatus = new Map(
-  V3_ORGANIZER_CAPABILITY_REGISTRY.map((item) => [item.legacyId, item.migrationStatus]),
-);
 for (const id of organizerRequired) {
   const status = organizerStatus.get(id);
-  if (!status || !["parity", "cutover", "retired"].includes(status)) {
-    blockers.push(`critical Organizer capability ${id} is ${status ?? "unregistered"}, not at parity/cutover`);
-  }
+  if (!status) blockers.push(`unregistered critical Organizer capability ${id}`);
+  else if (!["cutover", "retired"].includes(status)) currentFindings.push(`ORGANIZER_CUTOVER_UNRESOLVED ${id}:${status}`);
 }
-
-const consequencePrefixes = ["confirmation.", "entry.", "media.", "jury.", "televote.", "result."];
-const relevantConsequences = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((item) =>
-  consequencePrefixes.some((prefix) => item.eventType.startsWith(prefix)),
-);
-const declarationOnly = relevantConsequences.filter((item) => item.implementationState !== "event-backed");
-if (declarationOnly.length) {
-  blockers.push(`${declarationOnly.length}/${relevantConsequences.length} critical lifecycle consequences are still declaration-only`);
-}
+const relevantConsequences = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((item) => !isResolvedV3DomainConsequence(item));
+currentFindings.push(...relevantConsequences.map((item) => `DOMAIN_CONSEQUENCE_DECLARED ${item.eventType} owner=${item.ownerDomain}`));
+const releaseRisks = currentFindings.map((finding) => classifyV3ReleaseFinding(finding, inventory.find((item) => item.exactFinding === finding)));
+blockers.push(...releaseRisks.filter((item) => item.releaseRisk === "hard_blocker").map((item) => item.finding));
+// This scanner checks harness structure. Actual execution additionally requires
+// exact-head isolation, migration adoption, focused workflows and S16 catalog
+// authority in the release preflight. Passing here is never release readiness.
 
 const missingAssets = focusedLocalAssets.filter((path) => !existsSync(path));
 if (missingAssets.length) blockers.push(`missing focused local rehearsal assets: ${missingAssets.join(", ")}`);
@@ -204,6 +204,8 @@ const ready = blockers.length === 0;
 const report = {
   schemaVersion: 3,
   ready,
+  releaseReady: false,
+  releaseRisks,
   lifecycle,
   negativeCases,
   seedContract: V3_S14_SEED_CONTRACT,

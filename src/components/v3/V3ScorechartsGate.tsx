@@ -1,3 +1,5 @@
+import { V3ResultReadUnavailable } from "./V3ResultReadUnavailable";
+import { V3ResultCoverageNotice } from "./V3ResultCoverageNotice";
 import type { ReactNode } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
@@ -37,11 +39,10 @@ export function V3ScorechartsGate({ fallback }: { fallback: ReactNode }) {
     );
   }
 
-  // Scorecharts is part of the Results ecosystem. It only adopts V3 when the
-  // same server-owned Results rollout is resolved and enabled. Any unresolved,
-  // failed or disabled authority falls back to the established public route.
+  // Failed canonical reads or unresolved rollout cannot authorize legacy
+  // result truth. Preserve rollback only for a resolved disabled rollout.
   if (bundle.isError || !bundle.data || rollout.isError || !rollout.data) {
-    return <>{fallback}</>;
+    return <V3ResultReadUnavailable />;
   }
 
   if (rollout.data.enabled !== true || rollout.data.resultsEnabled !== true) {
@@ -54,6 +55,7 @@ export function V3ScorechartsGate({ fallback }: { fallback: ReactNode }) {
       phaseLabel={bundle.data.shell.phaseLabel}
       activeArea="results"
     >
+      <V3ResultCoverageNotice coverage={bundle.data.resultCoverage} />
       <V3ScorechartsScreen
         items={bundle.data.items}
         generatedAt={bundle.data.generatedAt}

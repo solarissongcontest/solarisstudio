@@ -641,6 +641,28 @@ async function callerUserId(
   return error ? null : data.user?.id ?? null;
 }
 
+function callerSessionId(authorization: string | null): string | null {
+  try {
+    const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+    const body = token?.split(".")[1];
+    if (!body) return null;
+    const claims = JSON.parse(atob(body.replace(/-/g, "+").replace(/_/g, "/")));
+    return typeof claims.session_id === "string" ? claims.session_id : null;
+  } catch { return null; }
+}
+
+async function persistFinalization(
+  service: ReturnType<typeof createClient>, row: UploadAuthorization,
+  secret: string, actorId: string | null, sessionId: string | null,
+  outcome: { status: string; detected_mime?: string; verified_metadata?: Record<string, unknown>; rejection_reason: string | null },
+) {
+  return service.rpc("v3_finalize_media_upload", {
+    p_token_id: row.id, p_upload_secret: secret, p_actor_id: actorId, p_actor_session_id: sessionId,
+    p_status: outcome.status, p_detected_mime: outcome.detected_mime ?? null,
+    p_metadata: outcome.verified_metadata ?? {}, p_rejection_reason: outcome.rejection_reason,
+  });
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -734,17 +756,10 @@ Deno.serve(async (request) => {
   }
 
   if (new Date(row.expires_at).getTime() <= Date.now()) {
-    const { data: expired, error: expiryError } = await service
-      .from("studio2_upload_authorizations")
-      .update({
+    const { data: expired, error: expiryError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSessionId(request.headers.get("authorization")), {
         status: "expired",
         rejection_reason: "Upload authorization expired before finalization.",
-        finalized_at: new Date().toISOString(),
-      })
-      .eq("id", row.id)
-      .eq("status", "prepared")
-      .select("id")
-      .maybeSingle();
+      });
     if (expiryError || !expired) {
       return json({ error: "Upload expiration could not be confirmed. Retry finalization." }, 503);
     }
@@ -802,23 +817,16 @@ Deno.serve(async (request) => {
 
   if (rejection) {
     await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
-    const { data: rejected, error: rejectionError } = await service
-      .from("studio2_upload_authorizations")
-      .update({
+    const { data: rejected, error: rejectionError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSessionId(request.headers.get("authorization")), {
         status: "rejected",
         rejection_reason: rejection,
-        finalized_at: new Date().toISOString(),
         verified_metadata: {
           size: bytes.byteLength,
           detected: detected ?? null,
           signatureVerified: false,
           malwareScan: "not_available_in_current_runtime",
         },
-      })
-      .eq("id", row.id)
-      .eq("status", "prepared")
-      .select("id")
-      .maybeSingle();
+      });
     if (rejectionError || !rejected) {
       return json({ error: "Upload rejection could not be confirmed. Retry finalization." }, 503);
     }
@@ -867,12 +875,9 @@ Deno.serve(async (request) => {
         ? processingError.message
         : "Server-side file processing failed.";
     await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
-    const { data: rejected, error: rejectionError } = await service
-      .from("studio2_upload_authorizations")
-      .update({
+    const { data: rejected, error: rejectionError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSessionId(request.headers.get("authorization")), {
         status: "rejected",
         rejection_reason: message,
-        finalized_at: new Date().toISOString(),
         verified_metadata: {
           size: bytes.byteLength,
           detected,
@@ -881,11 +886,7 @@ Deno.serve(async (request) => {
           malwareScan: "not_available_in_current_runtime",
           moderationDecision: "rejected",
         },
-      })
-      .eq("id", row.id)
-      .eq("status", "prepared")
-      .select("id")
-      .maybeSingle();
+      });
     if (rejectionError || !rejected) {
       return json({ error: "Upload rejection could not be confirmed. Retry finalization." }, 503);
     }
@@ -946,6 +947,22 @@ Deno.serve(async (request) => {
       console.error("[solaris-upload-finalize] final publish failed", publishError);
       return json({ error: "Verified file could not be published." }, 500);
     }
+    // A pre-existing object is an ambiguous retry, not proof that these
+    // verified bytes were published. Read the exact bounded destination back
+    // before advancing the canonical receipt; never overwrite another object.
+    const { data: existing, error: readbackError } = await service.storage
+      .from(row.final_bucket)
+      .download(row.final_path);
+    if (readbackError || !existing) {
+      return json({ error: "Published upload could not be reconciled. Retry finalization." }, 503);
+    }
+    if (existing.size !== publishBytes.byteLength) {
+      return json({ error: "Published upload does not match the verified bytes." }, 409);
+    }
+    const existingBytes = new Uint8Array(await existing.arrayBuffer());
+    if (!existingBytes.every((value, index) => value === publishBytes[index])) {
+      return json({ error: "Published upload does not match the verified bytes." }, 409);
+    }
   }
 
   if (thumbnailBytes && thumbnailPath) {
@@ -963,28 +980,32 @@ Deno.serve(async (request) => {
     }
   }
 
+  // A Storage write does not establish a verified authorization. Require the
+  // conditional canonical receipt write to return its row before acknowledging
+  // success, and retain quarantine bytes if that write fails or loses a race.
+  const { data: verified, error: updateError } = await persistFinalization(service, row, input.upload_secret, callerId, callerSessionId(request.headers.get("authorization")), {
+      status: "verified",
+      detected_mime: detected!.mime,
+      verified_metadata: metadata,
+      rejection_reason: null,
+    });
+
+  if (updateError || !verified) {
+    console.error("[solaris-upload-finalize] authorization finalization unconfirmed", updateError);
+    return json(
+      {
+        error:
+          "Verified upload was published but receipt finalization could not be confirmed. Retry finalization.",
+      },
+      503,
+    );
+  }
+
   const { error: cleanupError } = await service.storage
     .from("solaris-upload-quarantine")
     .remove([row.quarantine_path]);
   if (cleanupError) {
     console.error("[solaris-upload-finalize] quarantine cleanup failed", cleanupError);
-  }
-
-  const { error: updateError } = await service
-    .from("studio2_upload_authorizations")
-    .update({
-      status: "verified",
-      detected_mime: detected!.mime,
-      verified_metadata: metadata,
-      rejection_reason: null,
-      finalized_at: new Date().toISOString(),
-    })
-    .eq("id", row.id)
-    .eq("status", "prepared");
-
-  if (updateError) {
-    console.error("[solaris-upload-finalize] authorization finalization failed", updateError);
-    return json({ error: "Verified upload was published but receipt finalization failed." }, 500);
   }
 
   return json({

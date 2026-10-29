@@ -35,7 +35,8 @@ describe("PR 450 browser blocker regressions", () => {
     const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
 
     expect(authenticated).toContain("function AuthenticatedIdentityGate");
-    expect(authenticated).toContain("<AuthenticatedUserProvider user={identity.data}>");
+    expect(authenticated).toContain("data.user.id !== sessionUserId");
+    expect(authenticated).toContain("<AuthenticatedUserProvider user={authenticatedUser}>");
     expect(authenticated).not.toContain("hasSolarisOrganizerAccess");
     expect(authenticated).not.toContain("beforeLoad:");
 

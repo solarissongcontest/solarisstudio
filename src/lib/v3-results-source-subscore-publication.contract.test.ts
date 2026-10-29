@@ -21,7 +21,7 @@ describe("V3 Results server sub-score publication boundary", () => {
   it("keeps canonical publication flags as the only sub-score disclosure authority", () => {
     const results = source("src/integrations/v3/results-source.server.ts");
 
-    expect(results).toContain("const publication = resolveShowPublication(selectedShow)");
+    expect(results).toContain("const publication = { jury_results: snapshot.availability.jury, televote_results: snapshot.availability.televote }");
     expect(results).toContain("juryPublished: publication.jury_results === true");
     expect(results).toContain("televotePublished: publication.televote_results === true");
     expect(results).not.toMatch(/localStorage|sessionStorage|Date\.now\(\).*jury|Date\.now\(\).*televote/);

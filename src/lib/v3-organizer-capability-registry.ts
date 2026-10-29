@@ -1,3 +1,5 @@
+import { V3_ORGANIZER_ACCEPTED_SPECIALIST_CUTOVERS, V3_ORGANIZER_ACCEPTED_SPECIALIST_EVIDENCE } from "./v3-organizer-accepted-specialist-cutovers";
+import { V3_ORGANIZER_OBSERVATIONAL_CUTOVERS, V3_ORGANIZER_OBSERVATIONAL_EVIDENCE } from "./v3-organizer-observational-cutovers";
 import { buildAdminNavigation } from "@/components/admin/admin-navigation";
 import { capabilityForOrganizerPath } from "./permission-route-map";
 import type { SolarisFeatureFlag } from "./feature-flags";
@@ -12,6 +14,7 @@ export type AdminCapabilityMigration = {
   targetRoute: string;
   ownerCapability: string;
   migrationStatus: "planned" | "building" | "parity" | "cutover" | "retired";
+  migrationEvidence?: string;
 };
 
 /**
@@ -133,7 +136,23 @@ function targetDomainFor(id: string) {
 }
 
 function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStatus"] {
-  if (id === "current-edition-overview") return "parity";
+  if (
+    id === "current-edition-overview" ||
+    id === "voting-intelligence" ||
+    id === "voting-analytics" ||
+    id === "voting-audit-log" ||
+    id === "voting-result-backtest" ||
+    id === "voting-anti-abuse" ||
+    id === "live-review-simulation-lab" ||
+    id === "live-review-voting-lab" ||
+    id === "workspace-administration" ||
+    id === "workspace-organizer-guide" ||
+    id === "delegation-edition-links" ||
+    id === "delegation-calendar" ||
+    Object.hasOwn(V3_ORGANIZER_ACCEPTED_SPECIALIST_CUTOVERS, id)
+  ) {
+    return "cutover";
+  }
   if (
     id === "current-edition-tasks" ||
     id === "operations-control-room" ||
@@ -153,19 +172,15 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "operations-communications" ||
     id === "live-review-reveal-director" ||
     id === "live-review-broadcast-rundown" ||
-    id === "live-review-simulation-lab" ||
     id === "live-review-time-machine" ||
-    id === "live-review-voting-lab" ||
     id === "delegation-confirmation-overview" ||
     id === "delegation-confirmation-requirements" ||
     id === "delegation-confirmation-responses" ||
     id === "delegation-next-in-line" ||
     id === "delegation-responses-by-country" ||
     id === "delegation-submission-rounds" ||
-    id === "delegation-calendar" ||
     id === "delegation-access" ||
     id === "delegation-submission-history" ||
-    id === "delegation-edition-links" ||
     id === "delegation-sync" ||
     id === "delegation-settings" ||
     id === "voting-rounds-entries" ||
@@ -175,14 +190,9 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "voting-televote-totals" ||
     id === "voting-integrity-review" ||
     id === "voting-public-results" ||
-    id === "voting-intelligence" ||
-    id === "voting-analytics" ||
     id === "voting-combined-results" ||
     id === "voting-result-integrity" ||
-    id === "voting-audit-log" ||
     id === "voting-edition-links" ||
-    id === "voting-result-backtest" ||
-    id === "voting-anti-abuse" ||
     id === "trust-investigations" ||
     id === "trust-rule-rulings" ||
     id === "trust-appeals" ||
@@ -193,10 +203,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "trust-interpretations" ||
     id === "trust-public-rules" ||
     id === "workspace-access-permissions" ||
-    id === "workspace-administration" ||
     id === "workspace-feature-rollout" ||
     id === "workspace-all-editions" ||
-    id === "workspace-organizer-guide" ||
     id === "workspace-country-accounts" ||
     id === "workspace-flag-qa" ||
     id === "workspace-hod-history" ||
@@ -251,6 +259,16 @@ export const V3_ORGANIZER_CAPABILITY_REGISTRY: readonly AdminCapabilityMigration
         targetRoute: targetRouteFor(item.to, classification),
         ownerCapability,
         migrationStatus: migrationStatusFor(item.id),
+        ...(item.id === "delegation-calendar" ? {
+          migrationEvidence: "src/lib/v3-organizer-confirmation-calendar.ts; src/lib/v3-organizer-confirmation-calendar.test.ts; scripts/fixtures/v3-organizer-confirmation-calendar-proof.tsx; src/routes/confirmations/admin/calendar.tsx; supabase/migrations/20261017201000_confirmation_maintenance_postgrest_path_and_reads.sql; .github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh; .github/workflows/v3-confirmation-maintenance-edit-rehearsal.yml",
+        } : {}),
+        ...(item.id === "delegation-edition-links" ? {
+          migrationEvidence: "src/lib/v3-organizer-edition-links-explicit-mutations.contract.test.ts; src/integrations/confirmations/edition-bindings.ts; src/routes/confirmations/admin/editions.tsx; supabase/migrations/20261026210600_v3_confirmation_edition_binding_r3_fresh_auth.sql; supabase/migrations/20261027055547_reconcile_binding_idempotency_alias.sql; supabase/migrations/20261027110823_binding_version_conflict_http_contract.sql; .github/scripts/v3-confirmation-edition-binding-rehearsal.sh; .github/workflows/v3-confirmation-edition-binding-rehearsal.yml",
+        } : {}),
+        ...(Object.hasOwn(V3_ORGANIZER_ACCEPTED_SPECIALIST_CUTOVERS, item.id)
+          ? { migrationEvidence: V3_ORGANIZER_ACCEPTED_SPECIALIST_EVIDENCE } : {}),
+        ...(Object.hasOwn(V3_ORGANIZER_OBSERVATIONAL_CUTOVERS, item.id)
+          ? { migrationEvidence: V3_ORGANIZER_OBSERVATIONAL_EVIDENCE } : {}),
       },
     ];
   });

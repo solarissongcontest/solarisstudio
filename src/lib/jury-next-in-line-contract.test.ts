@@ -35,7 +35,7 @@ describe("Next in Line competition contract", () => {
 });
 
 describe("country account jury voting contract", () => {
-  it("keeps organizer-controlled windows and authenticated-only submission RPCs in the migration", () => {
+  it("keeps organizer-controlled windows and the historical ballot primitive in the migration chain", () => {
     const migration = source(
       "supabase/migrations/20260821204500_country_account_jury_voting.sql",
     );
@@ -46,8 +46,6 @@ describe("country account jury voting contract", () => {
     expect(migration).toContain("submit_country_jury_ballot");
     expect(migration).toContain("window_row.status <> 'open'");
     expect(migration).toContain("preflight_row.requires_attestation and preflight_row.attested_at is null");
-    expect(migration).toContain("from public, anon");
-    expect(migration).toContain("to authenticated");
   });
 
   it("uses the same friend-voting math and historical jury plus televote channels", () => {
@@ -60,7 +58,7 @@ describe("country account jury voting contract", () => {
     expect(server).toContain('channel: "jury",');
   });
 
-  it("explains independent voting accurately and requires integrity preflight before submission", () => {
+  it("explains independent voting accurately and submits only through canonical V3 Jury authority", () => {
     const route = source("src/routes/jury-voting.tsx");
     expect(route).toContain('context="jury.vote"');
     expect(route).toContain("own independent preferences");
@@ -73,7 +71,8 @@ describe("country account jury voting contract", () => {
     expect(route).toContain("VOTE_INTEGRITY_PRESSURE");
     expect(route).toContain("VOTE_INTEGRITY_CONSEQUENCE");
     expect(route).toContain("DelayedConfirmationState");
-    expect(route).toContain("submit_country_jury_ballot");
+    expect(route).toContain("submitV3JuryBallot");
+    expect(route).not.toContain('supabase.rpc("submit_country_jury_ballot"');
   });
 
   it("keeps manual organizer entry while adding open and close controls", () => {

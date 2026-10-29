@@ -1,3 +1,5 @@
+import { isResolvedV3DomainConsequence } from "../src/lib/v3-domain-consequence-registry";
+import { buildV3ReleaseRiskReport, type V3ReleaseInventoryItem } from "../src/lib/v3-release-risk";
 import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, resolve } from "node:path";
@@ -12,11 +14,13 @@ import {
   validateV3WorkflowDependencyRegistry,
 } from "../src/lib/v3-capability-registry";
 
+const discovery = process.argv.includes("--discovery");
+const wantsJson = process.argv.includes("--json");
 const finalCertification = process.argv.includes("--certified");
 const strictRelease = process.argv.includes("--release") || finalCertification;
 const errors: string[] = [];
-const blockers: string[] = [];
 const warnings: string[] = [];
+const certificationBlockers: string[] = [];
 
 function duplicateValues(values: readonly string[]) {
   const seen = new Set<string>();
@@ -77,45 +81,94 @@ for (const consequence of V3_DOMAIN_CONSEQUENCE_REGISTRY) {
 const pendingPhysical = V3_SYSTEM_DOMAIN_REGISTRY.filter((item) => item.physicalAuditStatus === "pending");
 const unfinishedPublic = V3_PUBLIC_CAPABILITIES.filter((item) => !["cutover", "retired"].includes(item.specificationStatus));
 const unfinishedOrganizer = V3_ORGANIZER_CAPABILITY_REGISTRY.filter((item) => !["cutover", "retired"].includes(item.migrationStatus));
-const declarationOnly = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((item) => item.implementationState !== "event-backed");
-if (pendingPhysical.length) blockers.push(`${pendingPhysical.length} System physical ownership audits pending`);
-if (unfinishedPublic.length) blockers.push(`${unfinishedPublic.length} Public capabilities not cutover/retired`);
-if (unfinishedOrganizer.length) blockers.push(`${unfinishedOrganizer.length} Organizer capabilities not cutover/retired`);
-if (declarationOnly.length) blockers.push(`${declarationOnly.length} domain consequences not event-backed`);
-if (warnings.length) blockers.push(`${warnings.length} parity capabilities missing explicit migration evidence`);
+const declarationOnly = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter((item) => !isResolvedV3DomainConsequence(item));
+
+const repositoryFindings = [
+  ...errors.map((error) => `STRUCTURAL_INTEGRITY ${error}`),
+  ...pendingPhysical.map((domain) => `PHYSICAL_OWNER_PENDING ${domain.domain}`),
+  ...unfinishedPublic.map((capability) => `PUBLIC_CUTOVER_UNRESOLVED ${capability.id}:${capability.specificationStatus}`),
+  ...unfinishedOrganizer.map((capability) => `ORGANIZER_CUTOVER_UNRESOLVED ${capability.legacyId}:${capability.migrationStatus}`),
+  ...declarationOnly.map((consequence) => `DOMAIN_CONSEQUENCE_DECLARED ${consequence.eventType} owner=${consequence.ownerDomain}`),
+  ...warnings.map((warning) => `PARITY_EVIDENCE_MISSING ${warning}`),
+];
+
+let inventory: V3ReleaseInventoryItem[] = [];
+try {
+  const matrix = JSON.parse(readFileSync("docs/v3-release-burndown.json", "utf8")) as {
+    publicCutovers?: V3ReleaseInventoryItem[];
+    organizerCutovers?: V3ReleaseInventoryItem[];
+    consequences?: V3ReleaseInventoryItem[];
+  };
+  inventory = [...(matrix.publicCutovers ?? []), ...(matrix.organizerCutovers ?? []), ...(matrix.consequences ?? [])];
+} catch (error) {
+  errors.push(`release risk inventory unreadable: ${error instanceof Error ? error.message : String(error)}`);
+}
+const releaseRisk = buildV3ReleaseRiskReport(repositoryFindings, inventory);
+const releaseRiskBlockers = releaseRisk.findings.filter((finding) =>
+  finding.releaseRisk === "hard_blocker" || finding.releaseRisk === "conditional_blocker",
+);
 
 const releaseEvidenceDir = resolve(process.env.V3_RELEASE_EVIDENCE_DIR?.trim() || "v3-release-evidence");
-const releasePrerequisiteEvidence = ["s14-full-contest.json", "s15-zero-orphan.json", "security-advisor-classification.json"] as const;
-const exactCandidateEvidence = finalCertification ? [...releasePrerequisiteEvidence, "s16-certification.json"] : [...releasePrerequisiteEvidence];
+const releasePrerequisiteEvidence = [
+  "s14-full-contest.json",
+  "s15-zero-orphan.json",
+  "s16-mutation-authority.json",
+  "security-advisor-classification.json",
+  "results-integration.json",
+] as const;
 
 function semanticEvidenceFailure(filename: string, evidence: Record<string, unknown>): string | null {
   if (filename === "s14-full-contest.json" && evidence.passed !== true) return "s14-full-contest.json does not prove passed=true";
   if (filename === "s15-zero-orphan.json" && evidence.zeroOrphans !== true) return "s15-zero-orphan.json does not prove zeroOrphans=true";
+  if (filename === "s16-mutation-authority.json" && evidence.s16Passed !== true) return "s16-mutation-authority.json does not prove s16Passed=true";
   if (filename === "security-advisor-classification.json" && evidence.releaseReady !== true) return "security-advisor-classification.json does not prove releaseReady=true";
-  if (filename === "s16-certification.json" && evidence.certified !== true) return "s16-certification.json does not prove certified=true";
+  if (filename === "results-integration.json" && evidence.passed !== true) return "results-integration.json does not prove passed=true";
   return null;
 }
 
-for (const filename of exactCandidateEvidence) {
+for (const filename of releasePrerequisiteEvidence) {
   const path = join(releaseEvidenceDir, filename);
   if (!existsSync(path)) {
-    blockers.push(`missing exact-candidate runtime evidence: ${filename}`);
+    certificationBlockers.push(`missing exact-candidate runtime evidence: ${filename}`);
     continue;
   }
   if (!evidenceCandidateSha) {
-    blockers.push(`cannot verify exact candidate SHA for evidence: ${filename}`);
+    certificationBlockers.push(`cannot verify exact candidate SHA for evidence: ${filename}`);
     continue;
   }
   try {
     const evidence = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
-    const artifactSha = typeof evidence.candidateSha === "string" ? evidence.candidateSha.trim().toLowerCase() : "";
-    if (!/^[0-9a-f]{40}$/.test(artifactSha)) blockers.push(`${filename} is not bound by a valid 40-character candidateSha`);
-    else if (artifactSha !== evidenceCandidateSha) blockers.push(`${filename} certifies ${artifactSha}, not exact candidate ${evidenceCandidateSha}`);
+    const artifactShaRaw = typeof evidence.candidateSha === "string" ? evidence.candidateSha : typeof evidence.candidate_sha === "string" ? evidence.candidate_sha : "";
+    const artifactSha = artifactShaRaw.trim().toLowerCase();
+    if (!/^[0-9a-f]{40}$/.test(artifactSha)) certificationBlockers.push(`${filename} is not bound by a valid 40-character candidate SHA`);
+    else if (artifactSha !== evidenceCandidateSha) certificationBlockers.push(`${filename} certifies ${artifactSha}, not exact candidate ${evidenceCandidateSha}`);
     const semanticFailure = semanticEvidenceFailure(filename, evidence);
-    if (semanticFailure) blockers.push(semanticFailure);
+    if (semanticFailure) certificationBlockers.push(semanticFailure);
   } catch {
-    blockers.push(`${filename} is not valid JSON exact-candidate evidence`);
+    certificationBlockers.push(`${filename} is not valid JSON exact-candidate evidence`);
   }
+}
+
+if (discovery) {
+  const report = {
+    schemaVersion: 2,
+    candidateSha: evidenceCandidateSha,
+    structuralPassed: errors.length === 0,
+    repositoryReady: repositoryFindings.length === 0,
+    findings: repositoryFindings,
+    releaseRisk,
+    migrationInventory: {
+      unresolvedTotal: repositoryFindings.length,
+      public: unfinishedPublic.length,
+      organizer: unfinishedOrganizer.length,
+      consequences: declarationOnly.length,
+      pendingPhysical: pendingPhysical.length,
+      parityEvidenceWarnings: warnings.length,
+    },
+    pendingCertification: certificationBlockers,
+  };
+  process.stdout.write(wantsJson ? `${JSON.stringify(report, null, 2)}\n` : `${repositoryFindings.join("\n")}\n`);
+  process.exit(repositoryFindings.length ? 1 : 0);
 }
 
 for (const warning of warnings) process.stderr.write(`WARNING: ${warning}\n`);
@@ -123,9 +176,11 @@ if (errors.length) {
   process.stderr.write(`V3 release-integrity structural guard failed:\n- ${errors.join("\n- ")}\n`);
   process.exit(1);
 }
-if (strictRelease && blockers.length) {
-  process.stderr.write(`V3 release certification is BLOCKED:\n- ${blockers.join("\n- ")}\n`);
+if (strictRelease && (releaseRiskBlockers.length || certificationBlockers.length)) {
+  const riskLines = releaseRiskBlockers.map((finding) => `${finding.releaseRisk}: ${finding.finding} [${finding.rule}]`);
+  process.stderr.write(`V3 release certification is BLOCKED:\n- ${[...riskLines, ...certificationBlockers].join("\n- ")}\n`);
   process.exit(1);
 }
 process.stdout.write(`V3 release-integrity guard: PASS (${finalCertification ? "final-certification" : strictRelease ? "release-preflight" : "structural"})\n`);
-if (blockers.length) process.stdout.write(`Current release blockers:\n- ${blockers.join("\n- ")}\n`);
+process.stdout.write(`Release risk: hard=${releaseRisk.totals.hard_blocker} conditional=${releaseRisk.totals.conditional_blocker} tracked=${releaseRisk.totals.tracked_migration_debt} obsolete=${releaseRisk.totals.obsolete_or_replaced}; complete unresolved inventory=${releaseRisk.unresolvedTotal}\n`);
+if (certificationBlockers.length) process.stdout.write(`Pending exact-SHA certification evidence:\n- ${certificationBlockers.join("\n- ")}\n`);

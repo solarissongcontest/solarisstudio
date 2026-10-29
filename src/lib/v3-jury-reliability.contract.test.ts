@@ -68,7 +68,7 @@ describe("V3 Jury reliability foundation", () => {
     expect(migration).toContain("'found', false");
   });
 
-  it("exposes only bounded authenticated RPCs", () => {
+  it("exposes only bounded authenticated V3 RPCs", () => {
     for (const signature of [
       "public.v3_load_jury_draft(uuid)",
       "public.v3_save_jury_draft(uuid,jsonb,bigint,text,text)",
@@ -102,17 +102,17 @@ describe("V3 Jury reliability foundation", () => {
     expect(server).toContain("normalizeReceipt(result.receipt)");
   });
 
-  it("submits through the V3 command and reconciles an ambiguous response", () => {
+  it("submits only through the V3 command and reconciles an ambiguous response", () => {
     expect(route).toContain("useServerFn(submitV3JuryBallot)");
     expect(route).toContain("useServerFn(reconcileV3JurySubmission)");
     expect(route).toContain('"uncertain"');
     expect(route).toContain("Checking submission status…");
     expect(route).toContain("readV3JuryOperation(round.show_id)");
     expect(route).toContain("clearV3JuryOperation(round.show_id)");
-    expect(route).toContain("if (!v3ReliabilityEnabled)");
+    expect(route).not.toContain('supabase.rpc("submit_country_jury_ballot"');
   });
 
-  it("loads and CAS-saves the canonical server draft", () => {
+  it("loads and CAS-saves the canonical server draft when the draft rollout is enabled", () => {
     expect(route).toContain("useServerFn(loadV3JuryDraft)");
     expect(route).toContain("useServerFn(saveV3JuryDraft)");
     expect(route).toContain("expectedRevision");
@@ -129,12 +129,12 @@ describe("V3 Jury reliability foundation", () => {
     expect(route).toContain("does not manufacture a receipt from browser state");
   });
 
-  it("keeps the reliability cutover disabled and independently reversible", () => {
+  it("keeps draft/receipt rollout independently reversible without reintroducing a second ballot writer", () => {
     expect(flagMigration).toContain("'solaris_app_v3_jury'");
     expect(flagMigration).toContain("'solaris_app_v3_jury', false");
     expect(rollout).toContain('p_key: "solaris_app_v3_jury"');
     expect(route).toContain("rollout.data?.juryEnabled === true");
-    expect(route).toContain("if (!v3ReliabilityEnabled)");
-    expect(route).toContain('supabase.rpc("submit_country_jury_ballot"');
+    expect(route).toContain("useServerFn(submitV3JuryBallot)");
+    expect(route).not.toContain('supabase.rpc("submit_country_jury_ballot"');
   });
 });

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -16,6 +17,24 @@ const replayFix = readFileSync(
 );
 
 describe("S14 Stage 7 deadline operation identity", () => {
+  it("assigns distinct replay-stable identities to both semis and the final, rejecting unknown rounds", () => {
+    const identity = adapter.slice(adapter.indexOf("s14_stage7_deadline_set_identity()"), adapter.indexOf("\ns14_stage7_set_deadline_before_open()"));
+    const script = `set -euo pipefail
+TV_ROUND_ID=semi-one
+TV_ROUND_TWO_ID=semi-two
+S14_FINAL_TELEVOTE_ROUND_ID=final
+fail() { exit 1; }
+${identity}
+s14_stage7_deadline_set_identity "$1"`;
+    const resolve = (round: string) => execFileSync("bash", ["-c", script, "deadline-identity", round], { encoding: "utf8" }).trim();
+    const results = ["semi-one", "semi-two", "final"].map(resolve);
+    expect(new Set(results.map((value) => value.split("|")[0])).size).toBe(3);
+    expect(new Set(results.map((value) => value.split("|")[1])).size).toBe(3);
+    expect(resolve("final")).toBe("14000000-0000-4010-8600-000000000001|s14-final-televote-deadline-set");
+    expect(resolve("final")).toBe(resolve("final"));
+    expect(() => resolve("unknown-round")).toThrow();
+  });
+
   it("tracks the latest System-owned replay-stable command identity", () => {
     expect(foundation).toContain(
       "v_command := case when v_action = 'set' then 'televote.deadline.set' else 'televote.extend' end;",

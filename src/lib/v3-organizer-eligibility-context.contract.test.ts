@@ -43,11 +43,13 @@ describe("V3 Organizer Eligibility exact-scope safety", () => {
     expect(route).toContain("Eligibility receipt did not match the previewed Organizer scope.");
   });
 
-  it("marks the governed Eligibility slice building without claiming parity", () => {
+  it("retains the accepted governed Eligibility cutover with explicit evidence", () => {
     const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "operations-eligibility",
     );
     expect(capability?.targetDomain).toBe("contest");
-    expect(capability?.migrationStatus).toBe("building");
+    expect(capability?.migrationStatus).toBe("cutover");
+    expect(capability?.migrationEvidence).toContain("v3-organizer-specialist-acceptance.contract.test.ts");
+    expect(capability?.migrationEvidence).toContain("studio2-eligibility-integration.test.ts");
   });
 });

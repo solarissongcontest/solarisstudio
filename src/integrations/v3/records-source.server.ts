@@ -1,3 +1,4 @@
+import { loadPublicResultSnapshots, type PublicResultSnapshotClient, type PublicResultCoverage } from "@/lib/v3-public-result-snapshots";
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
@@ -21,12 +22,10 @@ const COUNTRY_COLUMNS =
   "id,name,native_name,short_code,flag_image,region,accent_color,description,first_participation";
 const PARTICIPANT_COLUMNS =
   "id,edition_id,show_id,country_id,contest_entity_id,artist,song,running_order,semi_final,qualified,participation_status";
-const RESULT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 const JURY_COLUMNS =
   "id,edition_id,show_id,voter_country_id,voter_id,voter_entity_id,receiving_country_id,receiving_entity_id,points";
 
-type RecordsSourceClient = {
+type RecordsSourceClient = PublicResultSnapshotClient & {
   from(table: string): any;
 };
 
@@ -123,8 +122,8 @@ function countFinalEditions(
  * holders without letting a freshly published result leak indirectly through
  * an aggregate record. No client receives raw archive rows.
  */
-export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
-  const client = createConfirmationPublicRuntimeClient() as unknown as RecordsSourceClient;
+export async function loadV3RecordsBundle(client: RecordsSourceClient = createConfirmationPublicRuntimeClient() as unknown as RecordsSourceClient): Promise<V3RecordsBundle> {
+  let resultCoverage: PublicResultCoverage = { includedShows: 0, unavailableShows: 0 };
 
   const editions = await fetchPaged<Edition>(
     client,
@@ -150,7 +149,8 @@ export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
       archivedFinalEditions: 0,
       spoilerSafeArchivedFinalEditions: 0,
       currentEditionAffectsRecords: false,
-      generatedAt: new Date().toISOString(),
+      resultCoverage,
+    generatedAt: new Date().toISOString(),
     };
   }
 
@@ -169,20 +169,21 @@ export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
   const resultShowIds = publicShows
     .filter((show) => resolveShowPublication(show).results === true)
     .map((show) => show.id);
-  const juryShowIds = publicShows
-    .filter((show) => resolveShowPublication(show).detailed_voting === true)
+  const snapshots = await loadPublicResultSnapshots(client, resultShowIds);
+  const versionedShows = publicShows.filter((show) => snapshots.get(show.id)?.editionId === show.edition_id);
+  resultCoverage = { includedShows: versionedShows.length, unavailableShows: resultShowIds.length - versionedShows.length };
+  const juryShowIds = versionedShows
+    .filter((show) => snapshots.get(show.id)!.availability.detailedVoting)
     .map((show) => show.id);
-
-  const [results, jury] = await Promise.all([
-    resultShowIds.length
-      ? fetchPaged<ResultRow>(client, "results", RESULT_COLUMNS, (query) =>
-          query.in("show_id", resultShowIds),
-        )
-      : Promise.resolve([] as ResultRow[]),
+  const publishedResultVersions = new Map([...snapshots].map(([id, snapshot]) => [id, snapshot.resultVersion]));
+  const publishedComponentShowIds = new Set(versionedShows.filter((show) => {
+    const availability = snapshots.get(show.id)!.availability;
+    return availability.jury && availability.televote;
+  }).map((show) => show.id));
+  const results = versionedShows.flatMap((show) => snapshots.get(show.id)!.rows);
+  const [jury] = await Promise.all([
     juryShowIds.length
-      ? fetchPaged<JuryVote>(client, "jury_votes", JURY_COLUMNS, (query) =>
-          query.in("show_id", juryShowIds),
-        )
+      ? fetchPaged<JuryVote>(client, "jury_votes", JURY_COLUMNS, (query) => query.in("show_id", juryShowIds))
       : Promise.resolve([] as JuryVote[]),
   ]);
 
@@ -203,6 +204,8 @@ export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
     participants: canonicalParticipants,
     results: canonicalResults,
     jury: canonicalJury,
+    publishedComponentShowIds,
+    publishedResultVersions,
   });
 
   const currentEditionId = currentEdition?.id ?? null;
@@ -234,6 +237,8 @@ export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
         participants: spoilerSafeParticipants,
         results: spoilerSafeResults,
         jury: spoilerSafeJury,
+        publishedComponentShowIds,
+        publishedResultVersions,
       })
     : records;
 
@@ -252,6 +257,7 @@ export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
       spoilerSafeShows,
     ),
     currentEditionAffectsRecords,
+    resultCoverage,
     generatedAt: new Date().toISOString(),
   };
 }

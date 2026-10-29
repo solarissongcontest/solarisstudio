@@ -26,6 +26,45 @@ const resultsAdapter = source("scripts/v3-s14-materialize-televote-results.ts");
 const readiness = source("scripts/check-v3-s14-rehearsal-readiness.ts");
 
 describe("S14 stateful full-contest harness", () => {
+  it("returns only anonymous snapshot JSON when HTTP success is logged", () => {
+    const helpers = stage9.slice(0, stage9.indexOf("immutable_result_snapshot()"));
+    const success = runtime.slice(runtime.indexOf("expect_success()"), runtime.indexOf("expect_failure()"));
+    const script = `
+${helpers}
+${success}
+log() { printf 'PASS: %s\\n' "$*"; }
+fail() { exit 1; }
+API_URL=http://127.0.0.1:54321
+ANON_KEY=local-test
+SNAPSHOT_BODY="$1"
+request() { HTTP_STATUS=200; HTTP_BODY="$SNAPSHOT_BODY"; }
+anonymous_result_snapshot local-show
+`;
+    for (const payload of [[], [{ id: "current-result", total_points: 12 }]]) {
+      const output = execFileSync("bash", ["-c", script, "snapshot-test", JSON.stringify(payload)], {
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      expect(JSON.parse(output)).toEqual(payload);
+    }
+  });
+
+  it("models worker death with a legal lease and waits for canonical expiry", () => {
+    const claimContract = source("supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql");
+    const bounds = claimContract.match(/p_lease_seconds not between (\d+) and (\d+)/);
+    const lease = stage8.match(/'s14-crash-worker',100,(\d+)/);
+    const wait = stage8.match(/sleep (\d+)\n {2}second_claim=/);
+    expect(bounds).not.toBeNull();
+    expect(lease).not.toBeNull();
+    expect(wait).not.toBeNull();
+    expect(Number(lease![1])).toBeGreaterThanOrEqual(Number(bounds![1]));
+    expect(Number(lease![1])).toBeLessThanOrEqual(Number(bounds![2]));
+    expect(Number(wait![1])).toBeGreaterThan(Number(lease![1]));
+    expect(stage8).toContain("expired Results lease was not reclaimable after worker crash");
+    expect(stage8).toContain("recovered Results delivery has no consumer receipt");
+    expect(stage8).not.toMatch(/update\s+private\.v3_domain_event_outbox/i);
+  });
+
   it("keeps one bounded 66-delegation contest instead of copying production", () => {
     expect(V3_S14_SEED_CONTRACT.editionCount).toBe(1);
     expect(V3_S14_SEED_CONTRACT.delegationCount).toBe(66);
@@ -174,7 +213,11 @@ describe("S14 stateful full-contest harness", () => {
     expect(driver).toContain('execute_result_action "$show_id" unlock');
     expect(driver).toContain('execute_result_action "$show_id" calculate');
     expect(driver).toContain("v1.result_rows = v2.result_rows");
-    expect(driver).toContain('lifecycle" == "2:2:2:2"');
+    expect(driver).toContain("next_version=$((base_version+1))");
+    expect(driver).toContain('v1.version=$base_version');
+    expect(driver).toContain('v2.version=$next_version');
+    expect(driver).toContain('SEMI_ONE_RESULT_VERSION="$next_version"');
+    expect(driver).toContain('lifecycle" == "$next_version:$next_version:$next_version:$next_version"');
     expect(driver).toContain("S14_RESULTS_VERSION_2_COMPLETE");
     expect(resultsAdapter).toContain("convertRound");
     expect(resultsAdapter).toContain("refusing non-local Supabase URL");
@@ -260,7 +303,7 @@ describe("S14 stateful full-contest harness", () => {
     expect(driver).toContain("S14_RESULTS_RECONCILE_IDEMPOTENCY_KEY");
     expect(driver).toContain("private.v3_edition_final_results_ready");
     expect(driver).toContain("studio2_transition_edition_v3");
-    expect(driver).toContain('p_to\\\":\\\"results');
+    expect(driver).toContain('p_to\\":\\"results');
     expect(driver).toContain("replay exact S14 Results reconciliation");
     expect(driver).toContain("studio2_reconcile_operation");
     expect(driver).toContain("S14_RESULTS_RUNTIME_RECONCILIATION_COMPLETE");

@@ -14,6 +14,7 @@ const previousMigration = () =>
   read("supabase/migrations/20261012014000_v3_confirmation_rollout_flag.sql");
 const probe = () => read("src/integrations/v3/rollout-probe.server.ts");
 const stage = () => read("src/components/ScoreboardStage.tsx");
+const gate = () => read("src/components/v3/V3PublicScoreboardGate.tsx");
 const presentation = () =>
   read("src/components/v3/V3ScoreboardPresentation.tsx");
 
@@ -60,21 +61,22 @@ describe("V3 Scoreboard cutover", () => {
     );
   });
 
-  it("limits V3 scoreboard presentation to installed-app show detail routes", () => {
-    const source = stage();
-
+  it("limits V3 scoreboard presentation to the public show route and reads its exact immutable publication", () => {
+    const source = gate();
+    const route = read("src/routes/shows/$showId.tsx");
     expect(source).toContain("useSolarisApp");
     expect(source).toContain("useV3RolloutProbe");
-    expect(source).toContain("isPublicShowRoute");
-    expect(source).toContain("/^\\/shows\\/[^/]+\\/?$/");
-    expect(source).toContain(
-      "platformResolved && isAppMode && isPublicShowRoute",
-    );
+    expect(source).toContain("platformResolved && isAppMode");
     expect(source).toContain("rollout.data?.scoreboardEnabled === true");
+    expect(source).toContain("useV3PublicScoreboard(showId, enabled)");
     expect(source).toContain("<V3ScoreboardPresentation");
+    expect(route).toContain("<V3PublicScoreboardGate");
+    expect(route).toContain("showId={showId}");
+    expect(route.indexOf("<V3PublicScoreboardGate")).toBeLessThan(route.indexOf("standings.length ? ("));
+    expect(stage()).not.toContain("<V3ScoreboardPresentation");
   });
 
-  it("preserves the proven scoreboard as the fail-closed fallback", () => {
+  it("preserves the proven scoreboard for explicit disabled-rollout rollback", () => {
     const source = stage();
 
     expect(source).toContain("<CountryCard");
@@ -153,7 +155,7 @@ describe("V3 Scoreboard cutover", () => {
   });
 
   it("does not expose a browser-controlled scoreboard rollout escape hatch", () => {
-    const combined = [migration(), probe(), stage(), presentation()].join("\n");
+    const combined = [migration(), probe(), stage(), gate(), presentation()].join("\n");
 
     expect(combined).not.toContain("VITE_SOLARIS_APP_V3_SCOREBOARD");
     expect(combined).not.toContain("localStorage");

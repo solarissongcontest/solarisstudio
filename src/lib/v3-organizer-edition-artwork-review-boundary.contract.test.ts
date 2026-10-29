@@ -41,8 +41,9 @@ describe("V3 Organizer edition artwork review boundary", () => {
   it("syncs only the exact reviewed theme set and states the remaining System boundary", () => {
     expect(source).toContain("synchroniseReviewedScoreboardThemes(review.theme, review.baseline.themes)");
     expect(source).toContain("reviewedTheme.config");
-    expect(source).toContain("are not atomic");
-    expect(source).toContain("System #625 owns canonical version/CAS, idempotency, receipts and uncertain-outcome recovery");
+    expect(source).toContain("Uploads and linked scoreboard theme updates can finish separately");
+    expect(source).toContain("expected: {");
+    expect(source).toContain("logoUrl: asset.publicUrl");
     expect(source).toContain("verified upload or theme changes may already have succeeded");
   });
 });

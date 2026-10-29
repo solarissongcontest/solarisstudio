@@ -100,7 +100,8 @@ describe("Organizer rearchitecture foundation", () => {
     const calendar = source("src/routes/confirmations/admin/calendar.tsx");
     expect(rounds).toContain("setOrganizerEditionId(nextEditionId)");
     expect(countries).toContain("setOrganizerEditionId(nextEditionId)");
-    expect(calendar).toContain("setOrganizerEditionId(next)");
+    expect(calendar).toContain("setOrganizerEditionId(event.target.value)");
+    expect(calendar).toContain("confirmationCalendarQuery(actor.id, editionId, roundId, authority)");
   });
 
   it("makes every country account imply the HOD role", () => {

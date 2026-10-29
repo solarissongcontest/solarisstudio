@@ -23,6 +23,7 @@ export type MergedModerationSubmission = {
   edited_at: string | null;
   edited_by: string | null;
   created_at: string;
+  version: number;
   entries: Array<{
     target_country_code: string;
     points: number;
@@ -33,27 +34,46 @@ export type MergedModerationSubmission = {
   }>;
 };
 
-async function audit(
-  actor: { id: string; username: string },
-  action: string,
-  opts: {
-    target_type?: string;
-    target_id?: string;
-    old_values?: unknown;
-    new_values?: unknown;
-    reason?: string;
-  } = {},
-) {
-  await televotingAdmin.from("admin_audit_log").insert({
-    actor_admin_id: actor.id,
-    actor_username: actor.username,
-    action,
-    target_type: opts.target_type ?? null,
-    target_id: opts.target_id ?? null,
-    old_values: opts.old_values ?? null,
-    new_values: opts.new_values ?? null,
-    reason: opts.reason ?? null,
+type ModerationCommandInput = {
+  id: string;
+  expectedVersion?: number;
+  operationId: string;
+  idempotencyKey: string;
+};
+
+async function resolveSubmissionVersion(id: string, expectedVersion?: number) {
+  if (expectedVersion !== undefined) return expectedVersion;
+  const { data, error } = await televotingAdmin.rpc("admin_submission_versions", {
+    p_submission_ids: [id],
   });
+  if (error) throw new Error(error.message);
+  const row = ((data ?? []) as Array<{ submission_id: string; version: number }>).find(
+    (candidate) => candidate.submission_id === id,
+  );
+  if (!row) throw new Error("Ballot revision is unavailable; refresh before editing");
+  return Number(row.version ?? 0);
+}
+
+async function applyModerationCommand(
+  data: ModerationCommandInput,
+  action: "set_status" | "soft_delete" | "restore" | "update_note" | "replace_entries",
+  payload: Record<string, unknown>,
+  reason?: string,
+) {
+  await requireMergedTelevotingAdminServer();
+  const expectedVersion = await resolveSubmissionVersion(data.id, data.expectedVersion);
+  const { data: result, error } = await televotingAdmin.rpc("v3_moderate_submission", {
+    p_submission_id: data.id,
+    p_action: action,
+    p_payload: payload,
+    p_reason: reason?.trim() || null,
+    p_expected_version: expectedVersion,
+    p_operation_id: data.operationId,
+    p_idempotency_key: data.idempotencyKey,
+    p_correlation_id: data.operationId,
+  });
+  if (error) throw new Error(error.message);
+  return result;
 }
 
 export async function listMergedModerationSubmissionsServer(roundId?: string | null): Promise<MergedModerationSubmission[]> {
@@ -74,7 +94,7 @@ export async function listMergedModerationSubmissionsServer(roundId?: string | n
   const roundIds = [...new Set((submissions ?? []).map((row) => row.round_id))];
   const countryCodes = [...new Set((submissions ?? []).map((row) => row.country_code))];
 
-  const [entryResult, roundResult, countryResult, roundEntryResult] = await Promise.all([
+  const [entryResult, roundResult, countryResult, roundEntryResult, versionResult] = await Promise.all([
     televotingAdmin
       .from("vote_entries")
       .select("submission_id,target_country_code,points")
@@ -85,15 +105,23 @@ export async function listMergedModerationSubmissionsServer(roundId?: string | n
       .from("round_entries")
       .select("entry_key,country_code,custom_name,short_name,entry_code,image_url")
       .in("round_id", roundIds),
+    televotingAdmin.rpc("admin_submission_versions", { p_submission_ids: submissionIds }),
   ]);
 
   if (entryResult.error) throw new Error(entryResult.error.message);
   if (roundResult.error) throw new Error(roundResult.error.message);
   if (countryResult.error) throw new Error(countryResult.error.message);
   if (roundEntryResult.error) throw new Error(roundEntryResult.error.message);
+  if (versionResult.error) throw new Error(versionResult.error.message);
 
   const roundMap = new Map((roundResult.data ?? []).map((row) => [row.id, row.name]));
   const countryMap = new Map((countryResult.data ?? []).map((row) => [row.code, row]));
+  const versionMap = new Map(
+    ((versionResult.data ?? []) as Array<{ submission_id: string; version: number }>).map((row) => [
+      row.submission_id,
+      Number(row.version ?? 0),
+    ]),
+  );
 
   const allCountriesResult = await televotingAdmin.from("countries").select("code,name,flag,flag_url");
   if (allCountriesResult.error) throw new Error(allCountriesResult.error.message);
@@ -131,6 +159,7 @@ export async function listMergedModerationSubmissionsServer(roundId?: string | n
       country_flag: country?.flag ?? null,
       country_flag_url: country?.flag_url ?? null,
       status: row.status as MergedModerationSubmission["status"],
+      version: versionMap.get(row.id) ?? 0,
       entries: (entriesBySubmission.get(row.id) ?? [])
         .sort((a, b) => b.points - a.points || a.target_country_code.localeCompare(b.target_country_code))
         .map((entry) => {
@@ -147,180 +176,36 @@ export async function listMergedModerationSubmissionsServer(roundId?: string | n
   }) as MergedModerationSubmission[];
 }
 
-export async function setMergedSubmissionStatusServer(data: {
-  id: string;
+export async function setMergedSubmissionStatusServer(data: ModerationCommandInput & {
   status: "active" | "suspicious" | "verified";
   reason?: string;
 }) {
-  const actor = await requireMergedTelevotingAdminServer();
-  const { data: before, error: readError } = await televotingAdmin
-    .from("vote_submissions")
-    .select("id,status,verified_at,verified_by")
-    .eq("id", data.id)
-    .maybeSingle();
-  if (readError) throw new Error(readError.message);
-  if (!before) throw new Error("Vote not found");
-
-  const patch: Record<string, unknown> = { status: data.status };
-  if (data.status === "verified") {
-    patch.verified_at = new Date().toISOString();
-    patch.verified_by = actor.id;
-  } else {
-    patch.verified_at = null;
-    patch.verified_by = null;
-  }
-
-  const { error } = await televotingAdmin.from("vote_submissions").update(patch).eq("id", data.id);
-  if (error) throw new Error(error.message);
-
-  await audit(actor, "moderate_vote_status", {
-    target_type: "vote_submission",
-    target_id: data.id,
-    old_values: before,
-    new_values: patch,
-    reason: data.reason,
-  });
-  return { ok: true };
+  return applyModerationCommand(data, "set_status", { status: data.status }, data.reason);
 }
 
-export async function softDeleteMergedSubmissionServer(data: { id: string; reason: string }) {
-  const actor = await requireMergedTelevotingAdminServer();
-  const { data: before, error: readError } = await televotingAdmin
-    .from("vote_submissions")
-    .select("id,status,moderator_note")
-    .eq("id", data.id)
-    .maybeSingle();
-  if (readError) throw new Error(readError.message);
-  if (!before) throw new Error("Vote not found");
-
-  const { error } = await televotingAdmin
-    .from("vote_submissions")
-    .update({
-      status: "deleted",
-      deleted_at: new Date().toISOString(),
-      deleted_by: actor.id,
-      moderator_note: data.reason,
-    })
-    .eq("id", data.id);
-  if (error) throw new Error(error.message);
-
-  await audit(actor, "delete_vote", {
-    target_type: "vote_submission",
-    target_id: data.id,
-    old_values: before,
-    new_values: { status: "deleted" },
-    reason: data.reason,
-  });
-  return { ok: true };
+export async function softDeleteMergedSubmissionServer(data: ModerationCommandInput & {
+  reason: string;
+}) {
+  return applyModerationCommand(data, "soft_delete", {}, data.reason);
 }
 
-export async function restoreMergedSubmissionServer(data: { id: string; reason?: string }) {
-  const actor = await requireMergedTelevotingAdminServer();
-  const { data: before, error: readError } = await televotingAdmin
-    .from("vote_submissions")
-    .select("id,status,deleted_at,deleted_by")
-    .eq("id", data.id)
-    .maybeSingle();
-  if (readError) throw new Error(readError.message);
-  if (!before) throw new Error("Vote not found");
-
-  const { error } = await televotingAdmin
-    .from("vote_submissions")
-    .update({ status: "active", deleted_at: null, deleted_by: null })
-    .eq("id", data.id);
-  if (error) throw new Error(error.message);
-
-  await audit(actor, "restore_vote", {
-    target_type: "vote_submission",
-    target_id: data.id,
-    old_values: before,
-    new_values: { status: "active" },
-    reason: data.reason,
-  });
-  return { ok: true };
+export async function restoreMergedSubmissionServer(data: ModerationCommandInput & {
+  reason?: string;
+}) {
+  return applyModerationCommand(data, "restore", {}, data.reason);
 }
 
-export async function updateMergedSubmissionNoteServer(data: { id: string; note: string }) {
-  const actor = await requireMergedTelevotingAdminServer();
-  const { data: before, error: readError } = await televotingAdmin
-    .from("vote_submissions")
-    .select("moderator_note")
-    .eq("id", data.id)
-    .maybeSingle();
-  if (readError) throw new Error(readError.message);
-  if (!before) throw new Error("Vote not found");
-
-  const { error } = await televotingAdmin
-    .from("vote_submissions")
-    .update({ moderator_note: data.note })
-    .eq("id", data.id);
-  if (error) throw new Error(error.message);
-
-  await audit(actor, "update_vote_note", {
-    target_type: "vote_submission",
-    target_id: data.id,
-    old_values: before,
-    new_values: { moderator_note: data.note },
-  });
-  return { ok: true };
+export async function updateMergedSubmissionNoteServer(data: ModerationCommandInput & {
+  note: string;
+}) {
+  return applyModerationCommand(data, "update_note", { note: data.note });
 }
 
-export async function editMergedSubmissionEntriesServer(data: {
-  id: string;
+export async function editMergedSubmissionEntriesServer(data: ModerationCommandInput & {
   entries: Array<{ target_country_code: string; points: number }>;
   reason: string;
 }) {
-  const actor = await requireMergedTelevotingAdminServer();
-
-  const { data: submission, error: submissionError } = await televotingAdmin
-    .from("vote_submissions")
-    .select("id,round_id")
-    .eq("id", data.id)
-    .maybeSingle();
-  if (submissionError) throw new Error(submissionError.message);
-  if (!submission) throw new Error("Vote not found");
-
-  const { data: validEntries, error: validError } = await televotingAdmin
-    .from("round_entries")
-    .select("entry_key")
-    .eq("round_id", submission.round_id);
-  if (validError) throw new Error(validError.message);
-  const validKeys = new Set((validEntries ?? []).map((entry) => entry.entry_key));
-  const invalid = data.entries.filter((entry) => !validKeys.has(entry.target_country_code));
-  if (invalid.length) throw new Error("Ballot contains an entry that is not eligible in this round");
-
-  const { data: before, error: beforeError } = await televotingAdmin
-    .from("vote_entries")
-    .select("target_country_code,points")
-    .eq("submission_id", data.id);
-  if (beforeError) throw new Error(beforeError.message);
-
-  const { error: deleteError } = await televotingAdmin.from("vote_entries").delete().eq("submission_id", data.id);
-  if (deleteError) throw new Error(deleteError.message);
-
-  const { error: insertError } = await televotingAdmin.from("vote_entries").insert(
-    data.entries.map((entry) => ({
-      submission_id: data.id,
-      target_country_code: entry.target_country_code,
-      points: entry.points,
-    })),
-  );
-  if (insertError) throw new Error(insertError.message);
-
-  const { error: markError } = await televotingAdmin
-    .from("vote_submissions")
-    .update({ edited_at: new Date().toISOString(), edited_by: actor.id })
-    .eq("id", data.id);
-  if (markError) throw new Error(markError.message);
-
-  await audit(actor, "edit_vote_entries", {
-    target_type: "vote_submission",
-    target_id: data.id,
-    old_values: before,
-    new_values: data.entries,
-    reason: data.reason,
-  });
-  return { ok: true };
+  return applyModerationCommand(data, "replace_entries", { entries: data.entries }, data.reason);
 }
 
 export async function getMergedModerationAlertsCountServer() {

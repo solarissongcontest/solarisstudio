@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const driver = readFileSync(".github/scripts/v3-full-contest-rehearsal.sh", "utf8");
@@ -13,6 +15,59 @@ const qualification = readFileSync(
 const lineup = readFileSync("src/components/admin/ShowLineupWorkspace.tsx", "utf8");
 
 describe("S14 canonical qualifier-to-final preparation", () => {
+  it("keeps promotion maintenance access local and authenticates the Organizer normally", () => {
+    for (const [config, port] of [[browserConfig, 4177], [readFileSync("playwright.s14-grand-final-results.config.ts", "utf8"), 4178]] as const) {
+    const compiled = ts.transpileModule(config, {
+      compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+    }).outputText;
+    const local = {
+      VITE_SUPABASE_URL: "http://127.0.0.1:54321",
+      SUPABASE_URL: "http://127.0.0.1:54321",
+      E2E_SUPABASE_URL: "http://127.0.0.1:54321",
+      VITE_CONFIRMATIONS_SUPABASE_URL: "http://127.0.0.1:54321",
+      CONFIRMATIONS_SUPABASE_URL: "http://127.0.0.1:54321",
+    };
+    function load(env: Record<string, string | undefined>) {
+      const exports: Record<string, unknown> = {};
+      runInNewContext(compiled, {
+        exports, URL, process: { env },
+        require: () => ({ defineConfig: (config: unknown) => config, devices: { "Desktop Chrome": {} } }),
+      });
+      return exports.default;
+    }
+    expect(load(local)).toMatchObject({
+      webServer: { url: `http://127.0.0.1:${port}/assets/terraos-maintenance.css`, timeout: 120_000 },
+      use: { contextOptions: { reducedMotion: "reduce" }, storageState: { cookies: [{ name: "solaris_e2e_maintenance_bypass", domain: "127.0.0.1" }] } },
+    });
+    expect(() => load({ ...local, E2E_BASE_URL: "https://hosted.invalid" })).toThrow();
+    expect(() => load({ ...local, E2E_SUPABASE_URL: "https://hosted.invalid" })).toThrow();
+    expect(() => load({ ...local, SUPABASE_URL: undefined })).toThrow();
+    }
+    expect(browser).toContain("auth/v1/token?grant_type=password");
+    expect(browser).toContain("seedOrganizerBrowserSession");
+  });
+
+  it("provisions the pinned browser runner before invoking canonical promotion", () => {
+    const manifest = JSON.parse(readFileSync("package.json", "utf8"));
+    expect(manifest.devDependencies["@playwright/test"]).toBe("1.55.0");
+    const workflow = readFileSync(".github/workflows/v3-s14-full-contest-rehearsal.yml", "utf8");
+    expect(workflow).toContain("bunx playwright install --with-deps chromium");
+    expect(workflow.indexOf("Install Chromium")).toBeLessThan(workflow.indexOf("Run complete one-state S14"));
+    expect(workflow).toContain("test-results/v3-s14-grand-final/");
+  });
+
+  it("reconciles missing eligible source identities in the qualification owner", () => {
+    const repair = readFileSync("supabase/migrations/20261025113648_reconcile_semifinal_qualification_flags.sql", "utf8");
+    expect(repair).toContain("public.refresh_edition_qualifications");
+    expect(repair).toContain("current_participant.participation_status, 'confirmed') = 'confirmed'");
+    expect(repair).toContain("select 1 from ranked_semis ranked");
+    expect(repair).toContain("s.kind = 'semi-final'");
+    expect(repair).not.toMatch(/delete from|update private\.v3_result_versions/i);
+    const workflow = readFileSync(".github/workflows/v3-s14-full-contest-rehearsal.yml", "utf8");
+    expect(workflow).toContain("needs: [static-preflight, focused-preflight, discovery-summary]");
+    expect(readFileSync("scripts/v3-release-preflight.ts", "utf8")).toContain("v3-s14-qualification-regression.sh");
+  });
+
   it("requires real result-ranked qualification before creating final appearances", () => {
     expect(finalLeg).toContain("exactly 20 canonical semi-final qualifiers");
     expect(finalLeg).toContain("ten canonical qualifiers from each semi-final");
@@ -24,6 +79,8 @@ describe("S14 canonical qualifier-to-final preparation", () => {
 
   it("promotes qualifiers through the actual Organizer lineup action instead of privileged QA writes", () => {
     expect(lineup).toContain("addQualifiers");
+    expect(lineup).toContain("resolveLineupShowSelection");
+    expect(lineup).toContain("loading: loadingEdition || loadingShows");
     expect(lineup).toContain("Add semi-final qualifiers");
     expect(finalLeg).toContain("playwright.s14-grand-final.config.ts");
     expect(browser).toContain('/admin/entries/${editionSlug}?show=');

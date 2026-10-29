@@ -45,6 +45,18 @@ type PublicationDecision = {
   publishedAt: string | null;
 };
 
+type CanonicalEntrySyncResult = {
+  ok?: boolean;
+  status?: string;
+  editionId?: string;
+  countryId?: string;
+  entryId?: string;
+  officialEntryKnown?: boolean;
+  sourceRef?: string | null;
+  artist?: string | null;
+  songTitle?: string | null;
+};
+
 export type ConfirmationSolarisSyncResult = {
   ok: boolean;
   status:
@@ -113,8 +125,6 @@ export function deriveConfirmationEntryPublication(
     }
   }
 
-  // For a National Final, an exact published result date is also a safe reveal
-  // boundary for the winning song when no stronger explicit song-reveal rule exists.
   if (
     snapshot.selection_method === "national_final" &&
     cleanText(snapshot.nf_result_date_type)?.toLowerCase() === "exact"
@@ -132,8 +142,6 @@ export function deriveConfirmationEntryPublication(
     }
   }
 
-  // Approximate/unknown dates are intentionally not guessed. The HOD can
-  // publish manually when the announcement actually happens.
   return { status: "draft", scheduledAt: null, publishedAt: null };
 }
 
@@ -143,6 +151,13 @@ function assertSnapshot(value: unknown): ConfirmationSnapshot {
   if (typeof row.id !== "string" || !row.id) throw new Error("Confirmation snapshot is missing an id");
   if (typeof row.country !== "string" || !row.country.trim()) throw new Error("Confirmation snapshot is missing a country");
   return value as ConfirmationSnapshot;
+}
+
+function parseCanonicalEntrySyncResult(value: unknown): CanonicalEntrySyncResult {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Canonical Entry sync returned an invalid response.");
+  }
+  return value as CanonicalEntrySyncResult;
 }
 
 async function recordSyncEvent(
@@ -340,55 +355,6 @@ async function syncConfirmationSnapshotToSolarisInternal(
     return result;
   }
 
-  const intendedCanonicalStatus = snapshot.participating ? "confirmed" : "withdrawn";
-  const canonicalGuard = await db
-    .from("entries")
-    .select("id,source,status,updated_at")
-    .eq("edition_id", edition.id)
-    .eq("country_id", country.id)
-    .maybeSingle();
-  if (canonicalGuard.error) throw new Error(canonicalGuard.error.message);
-
-  if (canonicalGuard.data && canonicalGuard.data.source !== "confirmations") {
-    const result: ConfirmationSolarisSyncResult = {
-      ok: false,
-      status: "canonical_owned",
-      editionId: edition.id,
-      countryId: country.id,
-      entryId: canonicalGuard.data.id,
-      message:
-        "Solaris already owns this canonical entry outside Confirmations. Automatic reconciliation was stopped instead of overwriting it.",
-    };
-    await recordSyncEvent(db, snapshot, result, result.message);
-    return result;
-  }
-
-  const snapshotUpdatedAt = Date.parse(snapshot.updated_at ?? "");
-  const canonicalUpdatedAt = Date.parse(canonicalGuard.data?.updated_at ?? "");
-  const canonicalHasFinalLifecycle = ["confirmed", "withdrawn"].includes(
-    String(canonicalGuard.data?.status ?? ""),
-  );
-  if (
-    canonicalGuard.data &&
-    canonicalHasFinalLifecycle &&
-    canonicalGuard.data.status !== intendedCanonicalStatus &&
-    Number.isFinite(snapshotUpdatedAt) &&
-    Number.isFinite(canonicalUpdatedAt) &&
-    canonicalUpdatedAt > snapshotUpdatedAt
-  ) {
-    const result: ConfirmationSolarisSyncResult = {
-      ok: false,
-      status: "canonical_newer",
-      editionId: edition.id,
-      countryId: country.id,
-      entryId: canonicalGuard.data.id,
-      message:
-        "Solaris has a newer final participation state than this Confirmation response. Automatic reconciliation was stopped to avoid reversing a later organizer decision.",
-    };
-    await recordSyncEvent(db, snapshot, result, result.message);
-    return result;
-  }
-
   const entityLookup = await db
     .from("contest_entities")
     .select("id")
@@ -416,8 +382,40 @@ async function syncConfirmationSnapshotToSolarisInternal(
     entity = inserted.data;
   }
 
-  const participationStatus = snapshot.participating ? "confirmed" : "withdrawn";
+  // Entry owns canonical artist/song/lifecycle truth. Resolve that authority
+  // before mutating participant compatibility state so a stale Confirmation
+  // cannot partially change Solaris and only then discover a canonical conflict.
+  const entrySyncRpc = await db.rpc("v3_sync_confirmation_entry", {
+    p_submission_id: snapshot.id,
+  });
+  if (entrySyncRpc.error) throw new Error(entrySyncRpc.error.message);
+  const entrySync = parseCanonicalEntrySyncResult(entrySyncRpc.data);
 
+  if (entrySync.ok !== true) {
+    const status = entrySync.status;
+    if (status === "canonical_owned" || status === "canonical_newer" || status === "unmatched_country") {
+      const result: ConfirmationSolarisSyncResult = {
+        ok: false,
+        status,
+        editionId: entrySync.editionId ?? edition.id,
+        countryId: entrySync.countryId ?? country.id,
+        entryId: entrySync.entryId,
+        message:
+          status === "canonical_owned"
+            ? "Solaris already owns this canonical entry outside Confirmations. Automatic reconciliation was stopped instead of overwriting it."
+            : status === "canonical_newer"
+              ? "Solaris has a newer final participation state than this Confirmation response. Automatic reconciliation was stopped to avoid reversing a later organizer decision."
+              : `No Solaris country matches “${snapshot.country}”.`,
+      };
+      await recordSyncEvent(db, snapshot, result, result.message);
+      return result;
+    }
+    throw new Error(`Canonical Entry sync failed with status ${String(status ?? "unknown")}.`);
+  }
+
+  if (!entrySync.entryId) throw new Error("Canonical Entry sync did not return an Entry id.");
+
+  const participationStatus = snapshot.participating ? "confirmed" : "withdrawn";
   const participantLookup = await db
     .from("participants")
     .select("id,publication_status,scheduled_publish_at,published_at,publication_source,publication_overridden")
@@ -482,149 +480,41 @@ async function syncConfirmationSnapshotToSolarisInternal(
   const { error: statusError } = await statusQuery;
   if (statusError) throw new Error(statusError.message);
 
-  let officialEntry: ConfirmationReviewEntry | null = null;
-  if (
-    snapshot.selection_method === "internal" &&
-    snapshot.internal_entry?.review_status === "accepted" &&
-    cleanText(snapshot.internal_entry.artist) &&
-    cleanText(snapshot.internal_entry.song_title)
-  ) {
-    officialEntry = snapshot.internal_entry;
-  }
-
-  if (snapshot.selection_method === "national_final" && snapshot.national_final?.winning_entry_id) {
-    const winner = (snapshot.national_final.entries ?? []).find(
-      (entry) => entry.id === snapshot.national_final?.winning_entry_id,
-    );
-    if (
-      winner &&
-      winner.review_status === "accepted" &&
-      !winner.removed &&
-      cleanText(winner.artist) &&
-      cleanText(winner.song_title)
-    ) {
-      officialEntry = winner;
-    }
-  }
-
-  const { data: existingEntry, error: existingEntryError } = await db
-    .from("entries")
-    .select("id,source,source_ref,artist,song_title,status")
+  const { error: compatibilityError } = await db
+    .from("participants")
+    .update({
+      artist: entrySync.officialEntryKnown ? cleanText(entrySync.artist) : null,
+      song: entrySync.officialEntryKnown ? cleanText(entrySync.songTitle) : null,
+    })
     .eq("edition_id", edition.id)
-    .eq("country_id", country.id)
-    .maybeSingle();
-  if (existingEntryError) throw new Error(existingEntryError.message);
+    .eq("country_id", country.id);
+  if (compatibilityError) throw new Error(compatibilityError.message);
 
-  let canonicalEntry = existingEntry;
-  if (officialEntry) {
-    const entryPayload = {
-      edition_id: edition.id,
-      country_id: country.id,
-      contest_entity_id: entity.id,
-      artist: cleanText(officialEntry.artist),
-      song_title: cleanText(officialEntry.song_title),
-      song_url: cleanText(officialEntry.song_url),
-      status: snapshot.participating ? "confirmed" : "withdrawn",
-      selection_method: cleanText(snapshot.selection_method),
-      source: "confirmations",
-      source_ref: officialEntry.id ?? snapshot.id,
-      metadata: {
-        confirmation_submission_id: snapshot.id,
-        confirmation_edition_id: snapshot.edition?.id ?? null,
-        national_final_id: snapshot.national_final?.id ?? null,
-        national_final_name: snapshot.national_final?.nf_name ?? null,
-        reveal_date_type: snapshot.reveal_date_type ?? null,
-        reveal_exact_date: snapshot.reveal_exact_date ?? null,
-        nf_result_date_type: snapshot.nf_result_date_type ?? null,
-        nf_result_exact_date: snapshot.nf_result_exact_date ?? null,
-      },
-      updated_at: new Date().toISOString(),
-    };
-
-    const upserted = await db
-      .from("entries")
-      .upsert(entryPayload, { onConflict: "edition_id,country_id" })
-      .select("id")
-      .single();
-    if (upserted.error) throw new Error(upserted.error.message);
-    canonicalEntry = upserted.data;
-
-    const { error: compatibilityError } = await db
-      .from("participants")
-      .update({
-        artist: entryPayload.artist,
-        song: entryPayload.song_title,
-      })
-      .eq("edition_id", edition.id)
-      .eq("country_id", country.id);
-    if (compatibilityError) throw new Error(compatibilityError.message);
-
-    if (
-      !participant.publication_overridden &&
-      confirmationPublication.status === "published"
-    ) {
-      const { error: publicationEventError } = await db.rpc("emit_entry_published_event", {
-        _edition_id: edition.id,
-        _country_id: country.id,
-      });
-      if (publicationEventError) {
-        const message = `Confirmation sync could not emit the canonical entry publication event: ${publicationEventError.message ?? "unknown database error"}`;
-        const failedResult: ConfirmationSolarisSyncResult = {
-          ok: false,
-          status: "publication_event_failed",
-          editionId: edition.id,
-          countryId: country.id,
-          participantId: participant.id,
-          entryId: canonicalEntry.id,
-          officialEntryKnown: true,
-          message,
-        };
-        await recordSyncEvent(db, snapshot, failedResult, message);
-        return failedResult;
-      }
-    }
-  } else if (!existingEntry || existingEntry.source === "confirmations") {
-    const pendingPayload = {
-      edition_id: edition.id,
-      country_id: country.id,
-      contest_entity_id: entity.id,
-      artist: null,
-      song_title: null,
-      song_url: null,
-      status: snapshot.participating ? "pending" : "withdrawn",
-      selection_method: cleanText(snapshot.selection_method),
-      source: "confirmations",
-      source_ref: snapshot.id,
-      metadata: {
-        confirmation_submission_id: snapshot.id,
-        confirmation_edition_id: snapshot.edition?.id ?? null,
-        awaiting_official_entry: true,
-        reveal_date_type: snapshot.reveal_date_type ?? null,
-        reveal_exact_date: snapshot.reveal_exact_date ?? null,
-        nf_result_date_type: snapshot.nf_result_date_type ?? null,
-        nf_result_exact_date: snapshot.nf_result_exact_date ?? null,
-      },
-      updated_at: new Date().toISOString(),
-    };
-    const upserted = await db
-      .from("entries")
-      .upsert(pendingPayload, { onConflict: "edition_id,country_id" })
-      .select("id")
-      .single();
-    if (upserted.error) throw new Error(upserted.error.message);
-    canonicalEntry = upserted.data;
-
-    if (existingEntry?.source === "confirmations") {
-      const { error: compatibilityError } = await db
-        .from("participants")
-        .update({ artist: null, song: null })
-        .eq("edition_id", edition.id)
-        .eq("country_id", country.id);
-      if (compatibilityError) throw new Error(compatibilityError.message);
+  if (
+    entrySync.officialEntryKnown === true &&
+    !participant.publication_overridden &&
+    confirmationPublication.status === "published"
+  ) {
+    const { error: publicationEventError } = await db.rpc("emit_entry_published_event", {
+      _edition_id: edition.id,
+      _country_id: country.id,
+    });
+    if (publicationEventError) {
+      const message = `Confirmation sync could not emit the canonical entry publication event: ${publicationEventError.message ?? "unknown database error"}`;
+      const failedResult: ConfirmationSolarisSyncResult = {
+        ok: false,
+        status: "publication_event_failed",
+        editionId: edition.id,
+        countryId: country.id,
+        participantId: participant.id,
+        entryId: entrySync.entryId,
+        officialEntryKnown: true,
+        message,
+      };
+      await recordSyncEvent(db, snapshot, failedResult, message);
+      return failedResult;
     }
   }
-
-  if (!canonicalEntry) throw new Error("Could not resolve canonical entry");
 
   await upsertLink(db, {
     entityType: "edition",
@@ -640,11 +530,11 @@ async function syncConfirmationSnapshotToSolarisInternal(
     editionId: edition.id,
     metadata: { country_id: country.id, country: country.name },
   });
-  if (officialEntry?.id) {
+  if (entrySync.officialEntryKnown === true && entrySync.sourceRef) {
     await upsertLink(db, {
       entityType: "entry",
-      solarisId: canonicalEntry.id,
-      remoteId: officialEntry.id,
+      solarisId: entrySync.entryId,
+      remoteId: entrySync.sourceRef,
       editionId: edition.id,
       metadata: { country_id: country.id, country: country.name },
     });
@@ -656,8 +546,8 @@ async function syncConfirmationSnapshotToSolarisInternal(
     editionId: edition.id,
     countryId: country.id,
     participantId: participant.id,
-    entryId: canonicalEntry.id,
-    officialEntryKnown: Boolean(officialEntry),
+    entryId: entrySync.entryId,
+    officialEntryKnown: entrySync.officialEntryKnown === true,
   };
   await recordSyncEvent(db, snapshot, result);
 

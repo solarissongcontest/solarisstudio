@@ -1,0 +1,132 @@
+name: V3 Confirmation edition binding rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/20261026210500_v3_confirmation_edition_binding_operations.sql"
+      - "supabase/migrations/20261026210600_v3_confirmation_edition_binding_r3_fresh_auth.sql"
+      - "supabase/migrations/*_repair_confirmation_binding_replay_contract.sql"
+      - "supabase/migrations/*_reconcile_binding_idempotency_alias.sql"
+      - "supabase/migrations/*_binding_version_conflict_http_contract.sql"
+      - ".github/scripts/v3-confirmation-edition-binding-rehearsal.sh"
+      - ".github/scripts/v3-copy-migration-delta.sh"
+      - ".github/workflows/v3-confirmation-edition-binding-rehearsal.yml"
+      - "src/integrations/confirmations/edition-bindings.ts"
+      - "src/routes/confirmations/admin/editions.tsx"
+      - "src/lib/v3-organizer-edition-links-explicit-mutations.contract.test.ts"
+      - "src/lib/v3-organizer-capability-registry.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-confirmation-edition-binding-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  focused-contract:
+    name: Focused contract + TypeScript
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_local_binding_proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Validate rehearsal shell syntax
+        run: bash -n .github/scripts/v3-confirmation-edition-binding-rehearsal.sh
+      - name: Run focused System #702 contract
+        run: bun --env-file=/dev/null test src/lib/v3-organizer-edition-links-explicit-mutations.contract.test.ts
+      - name: Generate route types through the canonical production build
+        run: bun --env-file=/dev/null run build
+      - name: TypeScript exact-head check
+        run: bun --env-file=/dev/null run typecheck
+
+  clean-replay:
+    name: Clean replay + governed Confirmation binding
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Start isolated local Supabase
+        run: supabase start
+      - name: Rebuild complete migration chain locally
+        run: supabase db reset --local --no-seed
+      - name: Rehearse governed Confirmation edition binding
+        run: bash .github/scripts/v3-confirmation-edition-binding-rehearsal.sh
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  upgrade-from-main:
+    name: Current main upgrade + governed Confirmation binding
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Prepare disposable current-main worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-confirmation-binding-main origin/main
+      - name: Build current main locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-confirmation-binding-main
+          supabase start
+          supabase db reset --local --no-seed
+      - name: Apply additive feature migration delta locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" /tmp/solaris-confirmation-binding-main
+          cd /tmp/solaris-confirmation-binding-main
+          supabase migration up --local --include-all
+      - name: Rehearse governed Confirmation binding after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-confirmation-binding-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-confirmation-edition-binding-rehearsal.sh"
+      - name: Stop isolated local Supabase
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-confirmation-binding-main 2>/dev/null || exit 0
+          supabase stop --no-backup || true

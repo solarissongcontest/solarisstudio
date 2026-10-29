@@ -86,6 +86,7 @@ export type V3EditionPageInput = {
   story: V3EditionStory | null;
   resultShowHref: string | null;
   results: readonly V3EditionResult[];
+  publishedResultSource?: { resultVersion: number; publicationVersion: number };
 };
 
 function stateFromCount(count: number): "available" | "empty" {
@@ -93,6 +94,11 @@ function stateFromCount(count: number): "available" | "empty" {
 }
 
 function competingEditionResults(input: V3EditionPageInput): readonly V3EditionResult[] {
+  // A validated immutable Publication snapshot owns its historical participant
+  // set. Later current-lineup changes cannot rewrite an already-published version.
+  if (input.publishedResultSource && Number.isSafeInteger(input.publishedResultSource.resultVersion)
+      && input.publishedResultSource.resultVersion > 0 && Number.isSafeInteger(input.publishedResultSource.publicationVersion)
+      && input.publishedResultSource.publicationVersion > 0) return input.results;
   // public_safe_participants already supplies canonical public participation
   // state. Stored result rows stay untouched, but a known withdrawn or
   // disqualified identity must not be presented as a competing Edition result.

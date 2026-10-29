@@ -31,14 +31,14 @@ describe("V3 Organizer public design review boundary", () => {
 
   it("applies only the frozen reviewed theme payload to the exact reviewed edition", () => {
     expect(panel).toContain("theme_colors: pendingReview.nextThemeColors");
-    expect(panel).toContain('.eq("slug", pendingReview.editionSlug)');
+    expect(panel).toContain("slug: pendingReview.editionSlug");
     expect(panel).toContain('confirmationText={pendingReview?.editionName}');
     expect(panel).toContain("The reviewed payload also freezes surface strength, hero glow and both gradient configurations exactly as previewed");
   });
 
-  it("keeps the remaining System authority gap explicit", () => {
-    expect(panel).toContain("legacy direct-table authority");
-    expect(panel).toContain("System #625");
-    expect(panel).toContain("version/CAS, idempotency, receipt and uncertain-outcome reconciliation");
+  it("uses the canonical visual command with exact reviewed identity and state", () => {
+    expect(panel).toContain("await applyEditionVisualChange({");
+    expect(panel).toContain("theme_colors: pendingReview.beforeCanonicalThemeColors");
+    expect(panel).not.toContain('.update({ theme_colors:');
   });
 });

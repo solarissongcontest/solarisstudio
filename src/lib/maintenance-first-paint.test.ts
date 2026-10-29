@@ -1,60 +1,36 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { renderMaintenancePage } from "./maintenance-page";
 
-describe("TerraOS 3 progressive reveal rendering", () => {
-  it("renders only the 18 October material and one next-reveal marker before 19 October", () => {
-    const teaser = renderMaintenancePage(new Date("2026-10-18T13:00:00+03:00"));
-
-    expect(teaser).toContain('data-terraos-teaser-phase="0"');
-    expect(teaser).toContain("Take a closer look.");
-    expect(teaser).toContain("Five places.<br />One Solaris.");
-    expect(teaser).toContain('data-next-reveal="2026-10-19"');
-    expect(teaser).toContain("More on 19.10");
-
-    expect(teaser).not.toContain('id="liquid-demo"');
-    expect(teaser).not.toContain("What’s next,<br />at a glance.");
-    expect(teaser).not.toContain("Results, live.");
-    expect(teaser).not.toContain("More on 20.10");
-    expect(teaser).not.toContain("More on 21.10");
-    expect(teaser).not.toContain("class=\"gate\"");
-    expect(teaser).not.toContain("data-locked-copy");
+// #1699 replaced the dated progressive teaser with the complete maintenance
+// story. First paint must expose real content before its optional motion boots.
+describe("TerraOS maintenance first paint", () => {
+  it.each(["2026-10-18", "2026-10-19", "2026-10-20", "2026-10-21"])("renders the complete story on %s", (date) => {
+    const html = renderMaintenancePage(new Date(`${date}T12:00:00Z`));
+    for (const id of ["overview", "solaris-now", "results-feature", "me-feature", "preview"]) {
+      expect(html).toContain(`id="${id}"`);
+    }
+    for (const screen of ["home", "explore", "participate", "results", "me"]) {
+      expect(html).toContain(`screen=${screen}&chrome=content`);
+    }
+    expect(html).not.toContain("data-next-reveal=");
+    expect(html).not.toContain("data-locked-copy");
   });
 
-  it("keeps the hero centered and gives it scroll-linked product choreography", () => {
-    const teaser = renderMaintenancePage(new Date("2026-10-18T13:00:00+03:00"));
-
-    expect(teaser).toContain("grid-template-columns:minmax(0,1fr)");
-    expect(teaser).toContain("max-width:calc(100vw - 2rem)");
-    expect(teaser).toContain("--hero-stage-scale:.96");
-    expect(teaser).toContain("requestAnimationFrame(updateHeroMotion)");
-    expect(teaser).toContain("window.addEventListener('scroll',requestHeroMotion,{passive:true})");
-    expect(teaser).toContain("prefers-reduced-motion:reduce");
-    expect(teaser).toContain('class="hero-copy-inner"');
+  it("ships the stylesheet at first paint and loads motion after the story", () => {
+    const html = renderMaintenancePage();
+    expect(html.indexOf('/assets/terraos-maintenance.css')).toBeLessThan(html.indexOf("</head>"));
+    expect(html.indexOf('<script src="/assets/terraos-maintenance.js"')).toBeGreaterThan(html.indexOf("</main>"));
+    const css = readFileSync("public/assets/terraos-maintenance.css", "utf8");
+    expect(css).toContain("@media(prefers-reduced-motion:reduce)");
+    expect(css).toContain(".scroll-in{opacity:1!important;transform:none!important}");
   });
 
-  it("adds navigation on 19 October without rendering later-day placeholders", () => {
-    const teaser = renderMaintenancePage(new Date("2026-10-19T00:01:00+03:00"));
-
-    expect(teaser).toContain('data-terraos-teaser-phase="1"');
-    expect(teaser).toContain('id="liquid-demo"');
-    expect(teaser).toContain("Touch it.");
-    expect(teaser).toContain('data-next-reveal="2026-10-20"');
-    expect(teaser).not.toContain("What’s next,<br />at a glance.");
-    expect(teaser).not.toContain("Results, live.");
-  });
-
-  it("adds Participation on 20 October and Results on 21 October", () => {
-    const twenty = renderMaintenancePage(new Date("2026-10-20T00:01:00+03:00"));
-    expect(twenty).toContain('data-terraos-teaser-phase="2"');
-    expect(twenty).toContain("What’s next,<br />at a glance.");
-    expect(twenty).toContain('data-next-reveal="2026-10-21"');
-    expect(twenty).not.toContain("Results, live.");
-
-    const twentyOne = renderMaintenancePage(new Date("2026-10-21T00:01:00+03:00"));
-    expect(twentyOne).toContain('data-terraos-teaser-phase="3"');
-    expect(twentyOne).toContain("Results, live.");
-    expect(twentyOne).toContain("Combined");
-    expect(twentyOne).not.toContain("data-next-reveal=");
+  it("stops presenting an expired arrival estimate as a future promise", () => {
+    expect(renderMaintenancePage(new Date("2000-01-01"))).toContain("Estimated arrival");
+    const expired = renderMaintenancePage(new Date("2100-01-01"));
+    expect(expired).toContain("TerraOS 3 is being prepared.");
+    expect(expired).not.toContain('<span class="arrival-label">Estimated arrival</span>');
   });
 });

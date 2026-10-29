@@ -71,10 +71,14 @@ describe("S15 exact-SHA zero-orphan release evidence", () => {
     expect(builder).toContain("if (requireZero && readiness.zeroOrphans !== true) process.exit(1)");
   });
 
-  it("is wired into exact-SHA release preflight", () => {
-    expect(preflight).toContain("build-v3-s15-zero-orphan-evidence.ts");
-    expect(preflight).toContain("V3_RELEASE_EVIDENCE_DIR=v3-release-preflight");
-    expect(preflight).toContain("s15-zero-orphan.json");
+  it("discovers readiness early and certifies S15 only after exact-head S14", () => {
+    const cascade = readFileSync(".github/workflows/v3-s14-full-contest-rehearsal.yml", "utf8");
+    expect(preflight).toContain("scripts/v3-release-preflight.ts --group=static");
+    expect(preflight).not.toContain("build-v3-s15-zero-orphan-evidence.ts");
+    expect(cascade).toContain("needs: [stateful-rehearsal]");
+    expect(cascade).toContain("Download successful exact-SHA S14 evidence");
+    expect(cascade).toContain("build-v3-s15-zero-orphan-evidence.ts --require-zero");
+    expect(builder).toContain("assertS14Certification");
   });
 
   it("does not introduce hosted Supabase access", () => {

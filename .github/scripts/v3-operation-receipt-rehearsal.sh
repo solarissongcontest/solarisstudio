@@ -84,7 +84,20 @@ sign_in() {
   [[ -n "$LAST_TOKEN" ]] || fail "sign-in response for $email had no token"
 }
 
-db_value() { psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "$1"; }
+assert_local_targets() {
+  case "$API_URL" in http://127.0.0.1:*|http://localhost:*|http://\[::1\]:*) ;; *) fail "Refusing hosted Supabase rehearsal ($API_URL)" ;; esac
+  case "$DB_URL" in postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*|postgresql://postgres:postgres@\[::1\]:*) ;; *) fail "Refusing non-local database rehearsal" ;; esac
+}
+
+db_value() { assert_local_targets; psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "$1"; }
+
+readback_state_fingerprint() {
+  db_value "select md5(jsonb_build_object(
+    'receipts', (select coalesce(jsonb_agg(to_jsonb(receipt) order by receipt.operation_id), '[]'::jsonb) from public.studio2_operation_receipts receipt),
+    'events', (select count(*) from private.v3_domain_events),
+    'outbox', (select count(*) from private.v3_domain_event_outbox)
+  )::text);"
+}
 
 expect_db_failure() {
   local label="$1" sql="$2" expected="$3" output
@@ -150,14 +163,23 @@ UNCERTAIN="$(db_value "begin; $(claims_sql "$USER_A_ID") select private.studio2_
 [[ "$(printf '%s' "$UNCERTAIN" | tail -n 1 | json_value status)" == 'uncertain' ]] || fail "uncertain receipt was not terminal: $UNCERTAIN"
 
 log "Reconciling only through the authenticated actor boundary"
+[[ "$(db_value "select provolatile from pg_proc where oid='public.studio2_reconcile_operation(uuid)'::regprocedure;")" == 's' ]] || fail "Canonical receipt reconciliation is not STABLE"
+READBACK_BEFORE="$(readback_state_fingerprint)"
 request POST "$API_URL/rest/v1/rpc/studio2_reconcile_operation" "$USER_A_TOKEN" "$ANON_KEY" "{\"p_operation_id\":\"$ACTOR_OPERATION\"}"
 expect_success "own operation reconciliation"
 expect_json "reconciliation status" status succeeded
 expect_json "reconciliation result" result.state completed
 expect_json "reconciliation correlation" correlationId "$CORRELATION_ID"
+FIRST_READBACK="$(printf '%s' "$HTTP_BODY" | json_value '')"
+
+request POST "$API_URL/rest/v1/rpc/studio2_reconcile_operation" "$USER_A_TOKEN" "$ANON_KEY" "{\"p_operation_id\":\"$ACTOR_OPERATION\"}"
+expect_success "repeated canonical receipt readback"
+[[ "$(printf '%s' "$HTTP_BODY" | json_value '')" == "$FIRST_READBACK" ]] || fail "Repeated readback changed the authoritative receipt"
 
 request POST "$API_URL/rest/v1/rpc/studio2_reconcile_operation" "$USER_B_TOKEN" "$ANON_KEY" "{\"p_operation_id\":\"$ACTOR_OPERATION\"}"
 expect_failure "foreign actor reconciliation"
+[[ "$(readback_state_fingerprint)" == "$READBACK_BEFORE" ]] || fail "Read-only reconciliation mutated receipts or enqueued new DomainEvent/outbox state"
+log "PASS: canonical reconciliation preserves durable receipts and event/outbox cardinality"
 
 expect_db_failure \
   "browser role direct private claim" \
@@ -165,3 +187,9 @@ expect_db_failure \
   'permission denied'
 
 log "System V3 S2 operation receipt rehearsal passed"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/v3-admin-beta-acceptance-rehearsal.sh" ]]; then
+  log "Rehearsing governed Organizer acceptance evidence on the same isolated local stack"
+  bash "$SCRIPT_DIR/v3-admin-beta-acceptance-rehearsal.sh"
+fi

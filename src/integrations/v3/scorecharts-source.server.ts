@@ -1,3 +1,4 @@
+import { loadPublicResultSnapshotHeaders, type PublicResultSnapshotClient } from "@/lib/v3-public-result-snapshots";
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import type { Edition, Show } from "@/lib/data";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
@@ -10,7 +11,7 @@ const EDITION_COLUMNS = "id,edition_number,name,slug,published";
 const SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,publication_config";
 
-type ScorechartsSourceClient = {
+type ScorechartsSourceClient = PublicResultSnapshotClient & {
   from(table: string): any;
 };
 
@@ -39,8 +40,7 @@ function publicEditionLabel(edition: Pick<Edition, "edition_number" | "name">) {
  * established show result route and are reachable only when detailed_voting is
  * canonically published for that show.
  */
-export async function loadV3ScorechartsBundle(): Promise<V3ScorechartsBundle> {
-  const client = createConfirmationPublicRuntimeClient() as unknown as ScorechartsSourceClient;
+export async function loadV3ScorechartsBundle(client: ScorechartsSourceClient = createConfirmationPublicRuntimeClient() as unknown as ScorechartsSourceClient): Promise<V3ScorechartsBundle> {
 
   const editionsResult = await client
     .from("editions")
@@ -84,7 +84,7 @@ export async function loadV3ScorechartsBundle(): Promise<V3ScorechartsBundle> {
     "Could not load public shows for Scorecharts",
   );
 
-  const scorechartShows = ((showsResult.data ?? []) as Show[])
+  const candidateShows = ((showsResult.data ?? []) as Show[])
     .filter(
       (show) =>
         isShowPublic(show) &&
@@ -97,6 +97,10 @@ export async function loadV3ScorechartsBundle(): Promise<V3ScorechartsBundle> {
       if (editionDifference !== 0) return editionDifference;
       return a.sort_order - b.sort_order || a.id.localeCompare(b.id);
     });
+
+  const snapshots = await loadPublicResultSnapshotHeaders(client, candidateShows.map((show) => show.id));
+  const scorechartShows = candidateShows.filter((show) => snapshots.get(show.id)?.editionId === show.edition_id && snapshots.get(show.id)!.availability.detailedVoting);
+  const resultCoverage = { includedShows: scorechartShows.length, unavailableShows: candidateShows.length - scorechartShows.length };
 
   const items = scorechartShows.flatMap((show) => {
     const edition = editionMap.get(show.edition_id);
@@ -123,6 +127,7 @@ export async function loadV3ScorechartsBundle(): Promise<V3ScorechartsBundle> {
       phaseLabel: "Scorecharts",
     },
     items,
+    resultCoverage,
     generatedAt: new Date().toISOString(),
   };
 }

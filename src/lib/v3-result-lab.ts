@@ -1,3 +1,4 @@
+import type { PublicResultCoverage } from "./v3-public-result-snapshots";
 import type {
   ResultLabJuryVote,
   ResultLabOfficialEntry,
@@ -42,5 +43,6 @@ export type V3ResultLabBundle = {
   juryVotes: ResultLabJuryVote[];
   voters: V3ResultLabVoter[];
   identities: V3ResultLabIdentity[];
+  resultCoverage?: PublicResultCoverage;
   generatedAt: string;
 };

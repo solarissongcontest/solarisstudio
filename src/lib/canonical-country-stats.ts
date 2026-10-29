@@ -22,6 +22,7 @@ type Options = {
   results: ResultRow[];
   jury: JuryVote[];
   televote: Televote[];
+  publishedResultVersions?: ReadonlyMap<string, number>;
 };
 
 type EditionFlag = { editionNumber: number; value: boolean };
