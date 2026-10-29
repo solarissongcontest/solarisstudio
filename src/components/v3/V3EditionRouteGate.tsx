@@ -138,6 +138,7 @@ export function V3EditionRouteGate({
         <V3EditionScheduleScreen
           key={screenKey}
           projection={bundle.projection}
+          spoilerSafe={hideSpoilers}
         />
       ) : (
         <V3EditionProductScreen
