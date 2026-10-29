@@ -40,6 +40,7 @@ function toneForAction(action: V3ActionProjection) {
 
 function statusToneForAction(action: V3ActionProjection): V3StatusTone {
   if (action.sourceState === "problem") return "danger";
+  if (action.sourceState === "finished") return "neutral";
   if (action.completed) return "success";
   if (action.actionRequired) return "required";
   if (action.sourceState === "waiting") return "progress";
@@ -250,9 +251,12 @@ function ResponsibilityLane({
 }
 
 function votingStateLabel(action: V3ActionProjection) {
+  if (action.sourceState === "finished") return "Closed";
+  if (action.sourceState === "problem") return "Closed · unresolved";
   if (action.completed) return action.kind === "jury" ? "Submitted" : "Finished";
-  if (action.sourceState === "problem") return "Needs attention";
+  if (action.sourceState === "needs_attention") return "Open · action required";
   if (action.sourceState === "available") return "Open";
+  if (action.sourceState === "upcoming") return "Upcoming";
   if (action.sourceState === "waiting") return action.opensAt ? "Upcoming" : "Waiting";
   return "Current";
 }
@@ -449,6 +453,33 @@ export function V3ParticipateScreen({
             progressByActionId={progressByActionId}
             delegationLabel={delegationLabel}
           />
+        </V3Section>
+      ) : null}
+
+      {participate.closed.length ? (
+        <V3Section title="Closed" meta={`${participate.closed.length} ended`}>
+          <V3Surface className="p-2" data-v3-participate-closed="">
+            <details>
+              <summary className="min-h-11 cursor-pointer list-none rounded-xl px-3 py-3 text-sm font-semibold text-white/72 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45">
+                View closed opportunities
+              </summary>
+              <p className="px-3 pb-2 text-xs leading-5 text-white/46">
+                These windows ended without being recorded as completed responsibilities. Closed does not mean completed.
+              </p>
+              <div className="v3-preview-grid px-1 pb-1 pt-1">
+                {participate.closed.slice(0, 8).map((action) => (
+                  <V3ActionCard
+                    key={action.id}
+                    title={action.title}
+                    description={action.description}
+                    tone="neutral"
+                    to={action.route}
+                    trailing={false}
+                  />
+                ))}
+              </div>
+            </details>
+          </V3Surface>
         </V3Section>
       ) : null}
 
