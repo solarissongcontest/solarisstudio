@@ -3,14 +3,14 @@ import { loadV3ResultsBundle } from "@/integrations/v3/results-source.server";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 import type { Edition } from "@/lib/data";
+import { normalizeLegacyEditionStatus } from "@/lib/edition-state";
 import {
   buildV3CountryExploreProjection,
   type V3CountryCurrentResult,
   type V3CountryExploreProjection,
 } from "@/lib/v3-explore-entities";
 
-const EDITION_COLUMNS =
-  "id,edition_number,name,year,slug,description,host_country_id,host_city,logo,theme_id,status,published";
+const EDITION_COLUMNS = "id,edition_number,slug,status,published";
 
 type DelegationSourceClient = {
   from(table: string): any;
@@ -86,6 +86,40 @@ function editionLabel(entry: EntryPayload): string {
   if (number != null && name) return `SSC ${number} · ${name}`;
   if (number != null) return `SSC ${number}`;
   return name ?? "Solaris edition";
+}
+
+/**
+ * `resolveCurrentPublicEdition()` deliberately falls back to the latest
+ * published edition between contest cycles. That fallback is useful for global
+ * archive presentation, but it is not permission to call a completed entry
+ * current participation.
+ */
+export function resolveV3DelegationCurrentParticipationEdition(
+  editions: readonly Edition[],
+): Edition | null {
+  const current = resolveCurrentPublicEdition(editions);
+  if (!current) return null;
+
+  const lifecycle = normalizeLegacyEditionStatus(current.status);
+  if (lifecycle === "post_edition" || lifecycle === "archived") {
+    return null;
+  }
+
+  return current;
+}
+
+/**
+ * A completed edition can still be the latest public result context after the
+ * show ends. Only an archived fallback stops being a current/latest result.
+ */
+export function resolveV3DelegationCurrentResultEdition(
+  editions: readonly Edition[],
+): Edition | null {
+  const current = resolveCurrentPublicEdition(editions);
+  if (!current) return null;
+  return normalizeLegacyEditionStatus(current.status) === "archived"
+    ? null
+    : current;
 }
 
 function parseProfile(
@@ -197,6 +231,11 @@ async function loadCurrentPublishedResult(input: {
  * remains identity/entry authority only. Current result context is composed
  * separately from the canonical publication-gated Results read model, so the
  * Delegation RPC never becomes a second result or voting authority.
+ *
+ * Historical/current continuity is explicit: completed/archived participation
+ * remains history, while a completed but not yet archived edition may still
+ * supply the latest published result. Archived fallback state is never promoted
+ * into either current surface.
  */
 export async function loadV3DelegationBundle(input: {
   code: string;
@@ -217,7 +256,10 @@ export async function loadV3DelegationBundle(input: {
   throwIfError(editionsResult.error, "Could not resolve the current public Solaris edition");
 
   const publishedEditions = (editionsResult.data ?? []) as Edition[];
-  const currentEdition = resolveCurrentPublicEdition(publishedEditions);
+  const currentParticipationEdition =
+    resolveV3DelegationCurrentParticipationEdition(publishedEditions);
+  const currentResultEdition =
+    resolveV3DelegationCurrentResultEdition(publishedEditions);
   const editionHrefById = new Map<string, string>();
   for (const edition of publishedEditions) {
     const id = stringOrNull(edition.id);
@@ -225,11 +267,14 @@ export async function loadV3DelegationBundle(input: {
     if (id && slug) editionHrefById.set(id, `/editions/${encodeURIComponent(slug)}`);
   }
 
-  const profile = parseProfile(profileResult.data, currentEdition?.id ?? null);
+  const profile = parseProfile(
+    profileResult.data,
+    currentParticipationEdition?.id ?? null,
+  );
   if (!profile) return null;
 
   const currentResult = await loadCurrentPublishedResult({
-    currentEdition,
+    currentEdition: currentResultEdition,
     countryId: profile.countryId,
     editionHrefById,
   });

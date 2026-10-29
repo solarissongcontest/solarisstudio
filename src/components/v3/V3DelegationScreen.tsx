@@ -136,9 +136,9 @@ export function V3DelegationScreen({
           </V3Surface>
         ) : (
           <V3Surface className="p-4">
-            <p className="text-sm font-semibold">No public entry yet</p>
+            <p className="text-sm font-semibold">No current public entry</p>
             <p className="mt-1 text-xs leading-5 text-white/48">
-              Entry details appear only after the canonical publication rules expose them.
+              Historical participation stays in Participation history. Current details appear here only when canonical publication state exposes them.
             </p>
           </V3Surface>
         )}
