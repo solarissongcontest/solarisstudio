@@ -16,22 +16,21 @@ describe("TerraOS mobile three-phone hero composition", () => {
     expect(route).toContain("installTerraOsTeaserHeroHandoff(frame)");
   });
 
-  it("keeps the compact base mobile tableau with all three phones available immediately", () => {
-    const maintenance = maintenanceSource();
-    expect(maintenance).toContain(".hero-stage { width:126vw; height:320px; margin-top:1.7rem; }");
-    expect(maintenance).toContain(".phone { width:178px; height:385px; border-radius:30px; }");
-    expect(maintenance).toContain(".phone.center { z-index:3; transform:translate(-50%,-46%); }");
-    expect(maintenance).toContain(".phone.left { transform:translate(calc(-135% - var(--hero-side-spread)),-32%) rotateY(15deg) rotateZ(-5deg) scale(.78); }");
-    expect(maintenance).toContain(".phone.right { transform:translate(calc(35% + var(--hero-side-spread)),-32%) rotateY(-15deg) rotateZ(5deg) scale(.78); }");
+  it("keeps all three devices in the responsive hero composition", () => {
+    const css = readFileSync(resolve(process.cwd(), "public/assets/terraos-maintenance.css"), "utf8");
+    for (const device of ["main", "left", "right"]) {
+      expect(css).toContain(`.hero-device-${device}`);
+    }
+    expect(css).toContain("overflow:clip");
+    expect(css).toContain("aspect-ratio:390/844");
   });
 
   it("keeps all three real preview frames in the hero markup", () => {
     const maintenance = maintenanceSource();
-    expect(maintenance).toContain('class="phone left"');
-    expect(maintenance).toContain('screen=participate');
-    expect(maintenance).toContain('class="phone center"');
-    expect(maintenance).toContain('screen=home');
-    expect(maintenance).toContain('class="phone right"');
-    expect(maintenance).toContain('screen=explore');
+    for (const [device, screen] of [["left", "participate"], ["main", "home"], ["right", "explore"]]) {
+      expect(maintenance).toContain(`class="hero-device hero-device-${device}"`);
+      expect(maintenance).toContain(`previewFrame("${screen}"`);
+    }
+    expect(maintenance).toContain('previewFrame("home", "TerraOS Home preview", "eager")');
   });
 });

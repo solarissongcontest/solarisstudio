@@ -1,0 +1,68 @@
+name: V3 Organizer acceptance evidence rehearsal
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/20261027153000_v3_admin_beta_acceptance_submission.sql"
+      - "src/lib/v3-organizer-acceptance-evidence.ts"
+      - "src/lib/v3-organizer-acceptance-evidence.contract.test.ts"
+      - "src/routes/_authenticated/admin/beta-test.tsx"
+      - ".github/scripts/v3-admin-beta-acceptance-rehearsal.sh"
+      - ".github/workflows/v3-admin-beta-acceptance-rehearsal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-admin-beta-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  focused-contract:
+    name: Focused acceptance contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_local_acceptance_proof
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Validate local rehearsal shell
+        run: bash -n .github/scripts/v3-admin-beta-acceptance-rehearsal.sh
+      - name: Run focused contract
+        run: bun --env-file=/dev/null test src/lib/v3-organizer-acceptance-evidence.contract.test.ts
+
+  local-runtime:
+    name: Local governed acceptance runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Start isolated local Supabase
+        run: supabase start
+      - name: Rebuild complete migration chain locally
+        run: supabase db reset --local --no-seed
+      - name: Rehearse governed Organizer acceptance evidence
+        run: bash .github/scripts/v3-admin-beta-acceptance-rehearsal.sh
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true

@@ -15,6 +15,8 @@ s14_stage7_deadline_set_identity() {
     printf '%s|%s\n' '14000000-0000-4007-8500-000000000001' 's14-televote-semi1-deadline-set'
   elif [[ -n "${TV_ROUND_TWO_ID:-}" && "$round_id" == "$TV_ROUND_TWO_ID" ]]; then
     printf '%s|%s\n' '14000000-0000-4007-8500-000000000004' 's14-televote-semi2-deadline-set'
+  elif [[ -n "${S14_FINAL_TELEVOTE_ROUND_ID:-}" && "$round_id" == "$S14_FINAL_TELEVOTE_ROUND_ID" ]]; then
+    printf '%s|%s\n' '14000000-0000-4010-8600-000000000001' 's14-final-televote-deadline-set'
   else
     fail "No deterministic S14 deadline operation identity for round $round_id"
   fi
@@ -82,7 +84,7 @@ s14_stage7_extend_expired_semi_one() {
   local event_id process_result receipt_command
 
   for _ in $(seq 1 80); do
-    if [[ "$(db_scalar "select (clock_timestamp() >= closes_at)::text from televoting.rounds where id='$round_id'::uuid;")" == "t" ]]; then
+    if [[ "$(db_scalar "select (clock_timestamp() >= closes_at)::text from televoting.rounds where id='$round_id'::uuid;")" == "true" ]]; then
       expired=1
       break
     fi

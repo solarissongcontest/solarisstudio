@@ -24,6 +24,7 @@ type PublicCountryArchiveInput = {
   results: ResultRow[];
   jury: JuryVote[];
   televote: Televote[];
+  publishedResultVersions?: ReadonlyMap<string, number>;
 };
 
 type EditionPublication = PublicationConfig;
@@ -168,7 +169,12 @@ export function buildPublicCountryArchive(
     input.results,
     input.participants as ParticipationAwareParticipant[],
   );
-  const results = competingResults.filter((result) => {
+  const eligibleCurrentRows = new Set(competingResults);
+  const results = input.results.filter((result) => {
+    const publishedVersion = result.show_id ? input.publishedResultVersions?.get(result.show_id) : null;
+    const immutableRow = publishedVersion && Number.isSafeInteger(publishedVersion) && publishedVersion > 0
+      && result.id.startsWith(`${result.show_id}:${publishedVersion}:`);
+    if (!immutableRow && !eligibleCurrentRows.has(result)) return false;
     if (!publishedEditionIds.has(result.edition_id) || !result.show_id) return false;
     return showPublishesResults(showById.get(result.show_id));
   });

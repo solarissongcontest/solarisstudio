@@ -29,8 +29,9 @@ describe("V3 Edition published-outcome hierarchy", () => {
   });
 
   it("keeps fallback outcome ordering owned by the canonical published result source", () => {
-    expect(serverSource).toContain('.not("final_rank", "is", null)');
-    expect(serverSource).toContain('.order("final_rank", { ascending: true })');
+    expect(serverSource).toContain("loadPublicResultSnapshots");
+    expect(serverSource).toContain("const resultRows = resultShow ? snapshot!.rows : []");
+    expect(serverSource).not.toContain('.from("results")');
     expect(source).not.toMatch(/\.sort\([^)]*rank|final_rank/);
   });
 

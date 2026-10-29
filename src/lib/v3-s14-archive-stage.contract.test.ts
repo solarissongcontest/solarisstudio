@@ -80,7 +80,7 @@ describe("S14 Stage 10 archive certification against current canonical V3 System
   it("refuses Archive unless the completed contest is honestly at Results with exact public result provenance", () => {
     expect(archive).toContain("requires canonical edition runtime state=results");
     expect(archive).toContain("result_row_count>0");
-    expect(archive).toContain("source_result_version=2");
+    expect(archive).toContain("source_result_version=(case show_id");
     expect(archive).toContain("private.v3_edition_final_results_ready");
     expect(archive).toContain("studio2_normalise_publication_config(frozen_config)");
     expect(readinessMigration).toContain("private.v3_edition_final_results_ready");
@@ -109,7 +109,8 @@ describe("S14 Stage 10 archive certification against current canonical V3 System
     expect(archive).toContain("replay exact archive operation");
     expect(archive).toContain("archive exact retry replays durable receipt");
     expect(archive).toContain("studio2_reconcile_operation");
-    expect(archive).toContain("archive operation cannot be reconciled from its durable receipt");
+    expect(archive).toContain('expect_json "Archive recovered operation" operationId "$S14_ARCHIVE_OPERATION_ID"');
+    expect(archive).toContain('expect_json "Archive recovered status" status succeeded');
     expect(archiveMigration).toContain("studio2_claim_operation");
     expect(archiveMigration).toContain("'replayed', true");
     expect(transitionConflictMigration).toContain("PT409");
@@ -187,7 +188,7 @@ describe("S14 Stage 10 archive certification against current canonical V3 System
     expect(archive).toContain("assert_receipts_retained");
     expect(archive).toContain("archive mutated immutable result-version history");
     expect(archive).toContain("archive mutated exact publication provenance");
-    expect(archive).toContain('assert_anonymous_result_matches_version "$FINAL_ID" 2');
+    expect(archive).toContain('assert_anonymous_result_matches_version "$FINAL_ID" "$FINAL_RESULT_VERSION"');
     expect(archiveMigration).toContain("public.editions.status");
   });
 

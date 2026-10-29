@@ -1,3 +1,4 @@
+import { loadPublicResultSnapshotHeaders } from "@/lib/v3-public-result-snapshots";
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import {
   resolveCurrentPublicEdition,
@@ -20,8 +21,6 @@ const EDITION_COLUMNS =
   "id,edition_number,name,year,slug,description,host_country_id,host_city,logo,theme_id,artwork_url,status,published";
 const SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,publication_config,broadcast_config";
-const RESULT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 
 type ExploreEdition = Edition & { artwork_url?: string | null };
 
@@ -186,8 +185,7 @@ function makeEditionInput(input: {
  * historical scoreboards. Chronology still comes only from canonical Show Mode
  * scheduledStart and one server timestamp.
  */
-export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundle> {
-  const client = createConfirmationPublicRuntimeClient() as unknown as ExploreClient;
+export async function loadCurrentV3ExploreBundle(client: ExploreClient = createConfirmationPublicRuntimeClient() as unknown as ExploreClient): Promise<V3ExploreServerBundle> {
   const generatedAt = new Date().toISOString();
 
   const [editionResult, countsResult] = await Promise.all([
@@ -216,24 +214,17 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
   let publicWinnerResults: ResultRow[] = [];
 
   if (publishedEditionIds.length) {
-    const [showsResult, winnersResult] = await Promise.all([
-      client
-        .from("shows")
-        .select(SHOW_COLUMNS)
-        .in("edition_id", publishedEditionIds)
-        .eq("published", true)
-        .order("sort_order", { ascending: true }),
-      client
-        .from("results")
-        .select(RESULT_COLUMNS)
-        .in("edition_id", publishedEditionIds)
-        .eq("final_rank", 1),
-    ]);
+    const showsResult = await client.from("shows").select(SHOW_COLUMNS)
+      .in("edition_id", publishedEditionIds).eq("published", true)
+      .order("sort_order", { ascending: true });
     throwIfError(showsResult.error, "Could not load public Solaris shows");
-    throwIfError(winnersResult.error, "Could not load public result availability");
-
     publicShows = (showsResult.data ?? []) as Show[];
-    publicWinnerResults = (winnersResult.data ?? []) as ResultRow[];
+    const snapshots = await loadPublicResultSnapshotHeaders(client, publicShows
+      .filter((show) => show.published && resolveShowPublication(show).results).map((show) => show.id));
+    publicWinnerResults = publicShows.flatMap((show) => {
+      const snapshot = snapshots.get(show.id);
+      return snapshot?.editionId === show.edition_id ? snapshot.winners : [];
+    });
   }
 
   const showsForEdition = (editionId: string) =>

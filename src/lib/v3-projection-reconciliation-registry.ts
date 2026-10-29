@@ -1,4 +1,4 @@
-import { V3_DOMAIN_CONSEQUENCE_REGISTRY } from "./v3-domain-consequence-registry";
+import { V3_DOMAIN_CONSEQUENCE_REGISTRY, isV3ReadOnlyConsequenceReplacement, v3DomainConsequence } from "./v3-domain-consequence-registry";
 import { V3_SYSTEM_DOMAIN_REGISTRY } from "./v3-system-domain-registry";
 
 export type V3ProjectionFreshnessClass = "static" | "normal" | "operational" | "live";
@@ -44,6 +44,21 @@ const OPERATIONAL_DOMAINS = new Set([
 const STATIC_DOMAINS = new Set(["rules"]);
 
 const DOMAIN_REPAIR_CONTRACTS: Readonly<Record<string, V3ProjectionRepairContract>> = {
+  activity: {
+    state: "rebuildable",
+    scope: "actor",
+    incrementalPath: "Read current canonical completed operation ledgers; no writable activity cache exists.",
+    rebuildPath: "public.v3_my_participant_activity(before,limit,before_operation_id)",
+    verificationPath: "Compare recipient operation identity, source event and reconciliation state with canonical ledger/version truth.",
+    boundedBy: "authenticated recipient; at most 50 rows per keyset page",
+    explicitFailureState: "DATABASE",
+    evidence: [
+      "supabase/migrations/20261019213500_v3_participant_activity_projection.sql",
+      ".github/scripts/v3-participant-activity-regression.sh",
+      ".github/tests/v3-participant-activity.sql",
+      "src/lib/v3-activity-projection-consequence.test.ts",
+    ],
+  },
   task: {
     state: "rebuildable",
     scope: "edition",
@@ -200,7 +215,14 @@ export const V3_PROJECTION_RECONCILIATION_REGISTRY: readonly V3ProjectionReconci
       const invalidatingEvents = uniqueSorted(
         V3_SYSTEM_DOMAIN_REGISTRY
           .filter((domain) => canonicalDomains.includes(domain.domain))
-          .flatMap((domain) => domain.eventTypes),
+          .flatMap((domain) => domain.domain === "activity"
+            // The derived read is refreshed by source truth, never by reading itself.
+            ? ["confirmation.submitted", "entry.version_changed", "jury.ballot_changed", "televote.ballot_submitted"]
+            : domain.eventTypes)
+          .filter((eventType) => {
+            const consequence = v3DomainConsequence(eventType);
+            return !consequence || !isV3ReadOnlyConsequenceReplacement(consequence);
+          }),
       );
       return {
         projection,
@@ -218,7 +240,7 @@ export function v3ProjectionReconciliation(projection: string) {
 
 export function v3ProjectionsInvalidatedByEvent(eventType: string) {
   const consequence = V3_DOMAIN_CONSEQUENCE_REGISTRY.find((item) => item.eventType === eventType);
-  if (!consequence) return [] as V3ProjectionReconciliation[];
+  if (!consequence || isV3ReadOnlyConsequenceReplacement(consequence)) return [] as V3ProjectionReconciliation[];
 
   const declared = new Set([
     ...consequence.projections,

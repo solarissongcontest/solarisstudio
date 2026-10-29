@@ -23,8 +23,36 @@ describe("canonical edition identity", () => {
     expect(() => confirmationEditionsById([{ id: "aaa" }, { id: "aaa" }])).toThrow();
     const route = source("src/routes/confirmations/admin/editions.tsx");
     expect(route).not.toContain("remoteByNumber");
-    expect(route).toContain("remoteById.get(edition.id)");
-    expect(route).toContain("id: edition.id,");
+    expect(route).toContain("loadConfirmationEditionBinding(targetEditionId)");
+    expect(route).toContain("if (!editionId)");
+    expect(route).toContain("previewConfirmationEditionBindingChange({");
+    expect(route).not.toContain('from("integration_links")');
+  });
+  it("uses the actual governed read client with exact identity and rejects absent or duplicate RPC shapes", async () => {
+    const rpc = vi.fn(async (_name: string, args: { p_edition_id: string }): Promise<{ data: unknown; error: null }> => ({
+      data: { editionId: args.p_edition_id, editionNumber: 22, bindingState: "missing" }, error: null,
+    }));
+    const exports: { loadConfirmationEditionBinding?: (editionId: string) => Promise<unknown> } = {};
+    // Execute the real client without loading a Supabase client or network. The
+    // transport seam is the same method used by the production adapter.
+    const code = transpileModule(
+      source("src/integrations/confirmations/edition-bindings.ts").replace(
+        'import { confirmationsSupabase } from "@/integrations/confirmations/client";', "",
+      ),
+      { compilerOptions: { module: ModuleKind.CommonJS } },
+    ).outputText;
+    runInNewContext(code, { exports, confirmationsSupabase: { rpc } });
+    const load = exports.loadConfirmationEditionBinding!;
+    expect(await load("edition-A")).toMatchObject({ editionId: "edition-A", editionNumber: 22 });
+    expect(await load("edition-B")).toMatchObject({ editionId: "edition-B", editionNumber: 22 });
+    expect(rpc.mock.calls.map(([name, args]) => [name, args])).toEqual([
+      ["studio2_confirmation_edition_binding", { p_edition_id: "edition-A" }],
+      ["studio2_confirmation_edition_binding", { p_edition_id: "edition-B" }],
+    ]);
+    rpc.mockResolvedValueOnce({ data: null, error: null });
+    await expect(load("edition-A")).rejects.toThrow("invalid response");
+    rpc.mockResolvedValueOnce({ data: [{ editionId: "edition-A" }, { editionId: "edition-A" }], error: null });
+    await expect(load("edition-A")).rejects.toThrow("invalid response");
   });
 });
 

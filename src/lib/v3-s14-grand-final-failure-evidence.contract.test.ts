@@ -26,13 +26,26 @@ describe("S14 Grand Final failure evidence", () => {
     );
   });
 
-  it("derives successful completion evidence from the same runtime-tracked phase arrays", () => {
-    expect(driver.match(/\$\{COMPLETED_STAGES\[\*\]\}/g)?.length).toBe(2);
-    expect(driver.match(/\$\{COMPLETED_CONTEST_EXTENSIONS\[\*\]\}/g)?.length).toBe(2);
-    expect(driver.match(/"completedStages": completed/g)?.length).toBe(2);
-    expect(driver.match(/"completedContestExtensions": completed_extensions/g)?.length).toBe(2);
-    expect(driver).toContain('pending = pending_text.split() if pending_text else []');
-    expect(driver).toContain('"pendingStages": pending');
+  it("writes successful evidence only after every runtime-tracked canonical phase completed", () => {
+    expect(driver).toContain(
+      '[[ "${#COMPLETED_STAGES[@]}" == "${#ALL_STAGES[@]}" ]] || fail "release-grade S14 evidence cannot be written with missing lifecycle stages"',
+    );
+    expect(driver).toContain(
+      '[[ "${#COMPLETED_CONTEST_EXTENSIONS[@]}" == "${#ALL_CONTEST_EXTENSIONS[@]}" ]] || fail "release-grade S14 evidence cannot be written with missing contest extensions"',
+    );
+    expect(driver).toContain(
+      '[[ "$(db_scalar "select state from public.studio2_edition_runtime where edition_id=\'$EDITION_ID\'::uuid;")" == "archived" ]] || fail "release-grade S14 evidence requires canonical archived state"',
+    );
+    expect(driver.indexOf("write_final_evidence")).toBeLessThan(
+      driver.lastIndexOf("write_final_evidence"),
+    );
+    expect(driver.lastIndexOf("write_final_evidence")).toBeGreaterThan(
+      driver.indexOf("release-grade S14 evidence cannot be written with missing contest extensions"),
+    );
+    expect(driver).toContain('"stage-10-archive",');
+    expect(driver).toContain('"grand-final-publication",');
+    expect(driver).toContain('"pendingStages": []');
+    expect(driver).toContain('"pendingContestExtensions": []');
   });
 
   it("uses the same canonical Grand Final extension vocabulary for success and failure evidence", () => {

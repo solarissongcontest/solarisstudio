@@ -38,3 +38,12 @@ src/routeTree.gen.ts
 .env
 .env.local
 .env.*.local
+
+# Generated release discovery logs and summaries (not release certification)
+/v3-release-preflight/
+
+# Supabase CLI local version/container metadata; source migrations remain visible
+/supabase/.temp/
+
+# Supabase CLI generated active local branch pointer (never source)
+/supabase/.branches/_current_branch

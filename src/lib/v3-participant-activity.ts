@@ -31,6 +31,7 @@ export type V3ParticipantActivityBundle = {
   schemaReady: boolean;
   items: V3ParticipantActivityItem[];
   nextBefore: string | null;
+  nextOperationId: string | null;
   generatedAt: string | null;
 };
 
@@ -81,6 +82,7 @@ export function emptyV3ParticipantActivityBundle(): V3ParticipantActivityBundle 
     schemaReady: false,
     items: [],
     nextBefore: null,
+    nextOperationId: null,
     generatedAt: null,
   };
 }
@@ -133,6 +135,7 @@ export function parseV3ParticipantActivity(
     schemaReady: true,
     items,
     nextBefore: stringValue(root.next_before ?? root.nextBefore),
+    nextOperationId: stringValue(root.next_operation_id ?? root.nextOperationId),
     generatedAt: stringValue(root.generated_at ?? root.generatedAt),
   };
 }

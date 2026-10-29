@@ -20,9 +20,11 @@ describe("Public V3 P24 Records", () => {
     const source = read("src/integrations/v3/records-source.server.ts");
 
     expect(source).toContain("resolveShowPublication(show).results === true");
-    expect(source).toContain("resolveShowPublication(show).detailed_voting === true");
-    expect(source).toContain('fetchPaged<ResultRow>(client, "results"');
-    expect(source).toContain('query.in("show_id", resultShowIds)');
+    expect(source).toContain("snapshots.get(show.id)!.availability.detailedVoting");
+    expect(source).toContain("snapshots.get(show.id)?.editionId === show.edition_id");
+    expect(source).not.toContain('fetchPaged<ResultRow>(client, "results"');
+    expect(source).toContain("await loadPublicResultSnapshots(client, resultShowIds)");
+    expect(source).toContain("snapshots.get(show.id)!.rows");
     expect(source).toContain('fetchPaged<JuryVote>(client, "jury_votes"');
     expect(source).toContain('query.in("show_id", juryShowIds)');
   });

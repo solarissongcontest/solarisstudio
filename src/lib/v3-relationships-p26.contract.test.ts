@@ -20,8 +20,10 @@ describe("Public V3 P26 Relationships", () => {
     const source = read("src/integrations/v3/relationships-source.server.ts");
 
     expect(source).toContain("resolveShowPublication(show).results === true");
-    expect(source).toContain("resolveShowPublication(show).detailed_voting === true");
-    expect(source).toContain('query.in("show_id", resultShowIds)');
+    expect(source).toContain("snapshots.get(show.id)!.availability.detailedVoting");
+    expect(source).toContain("snapshots.get(show.id)?.editionId === show.edition_id");
+    expect(source).toContain("await loadPublicResultSnapshots(client, resultShowIds)");
+    expect(source).toContain("snapshots.get(show.id)!.rows");
     expect(source).toContain('query.in("show_id", detailedShowIds)');
     expect(source).toContain("buildPublicCountryArchive({");
   });

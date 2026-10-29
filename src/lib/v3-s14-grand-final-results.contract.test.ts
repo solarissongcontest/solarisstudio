@@ -67,7 +67,7 @@ describe("S14 Grand Final results", () => {
     expect(finalResults).not.toContain("Grand Final results require Stage 8 helper");
   });
 
-  it("requires immutable v1/v2 reproducibility and exact current-v2 equality before finalization", () => {
+  it("requires two successive immutable calculations and exact current-version equality before finalization", () => {
     expect(resultVersions).toContain("create table private.v3_result_versions");
     expect(resultVersions).toContain("Result version evidence is immutable");
     expect(finalResults).toContain("immutable_result_snapshot_hash");
@@ -75,16 +75,16 @@ describe("S14 Grand Final results", () => {
     expect(finalResults).toContain("final_v1_hash");
     expect(finalResults).toContain("final_v2_hash");
     expect(finalResults).toContain("immutable v1/v2 snapshots differ for identical inputs");
-    expect(finalResults).toContain("current result rows do not equal immutable result version 2");
-    expect(finalResults).toContain("version in (1,2)");
+    expect(finalResults).toContain("current result rows do not equal exact immutable recalculation version");
+    expect(finalResults).toContain("version in ($FINAL_FIRST_RESULT_VERSION,$FINAL_RESULT_VERSION)");
     expect(finalResults).toContain("did not retain both immutable versions");
   });
 
-  it("uses governed Studio result finalization and binds the final current version to 2", () => {
+  it("uses governed Studio result finalization and binds the exact recalculated final version", () => {
     expect(finalResults).toContain("execute_result_operation");
-    expect(finalResults).toContain("review 2");
-    expect(finalResults).toContain("lock 2");
-    expect(finalResults).toContain("mark_reveal_ready 2");
+    expect(finalResults).toContain('review "$FINAL_RESULT_VERSION"');
+    expect(finalResults).toContain('lock "$FINAL_RESULT_VERSION"');
+    expect(finalResults).toContain('mark_reveal_ready "$FINAL_RESULT_VERSION"');
     expect(finalResults).toContain("calculationVersion");
     expect(finalResults).toContain("reviewedVersion");
     expect(finalResults).toContain("lockedVersion");
@@ -93,7 +93,7 @@ describe("S14 Grand Final results", () => {
     expect(finalResults).toContain("S14_GRAND_FINAL_RESULTS_COMPLETE");
   });
 
-  it("is wired into the stateful contest driver before exact-version Grand Final Publication", () => {
+  it("is wired into the stateful contest driver before exact-version Grand Final Publication and Archive", () => {
     expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"');
     expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-publication.sh"');
     expect(driver).toContain(
@@ -108,7 +108,13 @@ describe("S14 Grand Final results", () => {
     expect(driver.indexOf("run_s14_grand_final_results")).toBeLessThan(
       driver.indexOf("run_s14_grand_final_publication"),
     );
-    expect(driver).toContain("exact-version Grand Final Publication; only Archive remains pending");
+    expect(driver.indexOf("run_s14_grand_final_publication")).toBeLessThan(
+      driver.lastIndexOf("reconcile_edition_runtime_to_results"),
+    );
+    expect(driver.lastIndexOf("reconcile_edition_runtime_to_results")).toBeLessThan(
+      driver.indexOf("run_stage stage-10-archive run_s14_stage_10_archive"),
+    );
+    expect(driver).toContain("S14 full persistent contest rehearsal passed through canonical Archive.");
   });
 
   it("keeps the Grand Final result shell and unified driver syntactically valid", () => {

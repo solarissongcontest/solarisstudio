@@ -131,10 +131,10 @@ run_s14_stage_10_archive() {
   runtime_state="$(db_scalar "select state from public.studio2_edition_runtime where edition_id='$EDITION_ID'::uuid;")"
   [[ "$runtime_state" == "results" ]] || fail "S14 Stage 10 requires canonical edition runtime state=results, got '$runtime_state'"
 
-  [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid) and version=2 and result_row_count>0;")" == "3" ]] || \
-    fail "Stage 10 requires non-empty immutable result version 2 for all three shows"
-  [[ "$(db_scalar "select count(*) from public.studio2_show_publication_controls where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid) and state='public' and source_result_version=2 and coalesce((private.studio2_normalise_publication_config(frozen_config)->>'results')::boolean,false);")" == "3" ]] || \
-    fail "Stage 10 requires all three Results layers publicly bound to result version 2"
+  [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid) and version=(case show_id when '$SEMI_ONE_ID'::uuid then $SEMI_ONE_RESULT_VERSION when '$SEMI_TWO_ID'::uuid then $SEMI_TWO_RESULT_VERSION else $FINAL_RESULT_VERSION end) and result_row_count>0;")" == "3" ]] || \
+    fail "Stage 10 requires non-empty immutable result captured versions for all three shows"
+  [[ "$(db_scalar "select count(*) from public.studio2_show_publication_controls where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid) and state='public' and source_result_version=(case show_id when '$SEMI_ONE_ID'::uuid then $SEMI_ONE_RESULT_VERSION when '$SEMI_TWO_ID'::uuid then $SEMI_TWO_RESULT_VERSION else $FINAL_RESULT_VERSION end) and coalesce((private.studio2_normalise_publication_config(frozen_config)->>'results')::boolean,false);")" == "3" ]] || \
+    fail "Stage 10 requires all three Results layers publicly bound to exact captured result versions"
   [[ "$(db_scalar "select private.v3_edition_final_results_ready('$EDITION_ID'::uuid)::text;")" == "true" ]] || \
     fail "Stage 10 requires canonical final-results readiness before Archive"
 
@@ -210,20 +210,24 @@ run_s14_stage_10_archive() {
   [[ "$(db_scalar "select count(*) from public.studio2_contest_events where edition_id='$EDITION_ID'::uuid and type='edition.archived';")" == "$legacy_event_count_before_replay" ]] || \
     fail "archive exact retry duplicated legacy audit evidence"
 
-  reconciled_archive_status="$(db_scalar "select public.studio2_reconcile_operation('$S14_ARCHIVE_OPERATION_ID'::uuid)->>'status';")"
-  [[ "$reconciled_archive_status" == "succeeded" ]] || fail "archive operation cannot be reconciled from its durable receipt"
+  # Receipt recovery is actor-scoped, including when the caller is a service.
+  rpc_request "$ORGANIZER_A_TOKEN" studio2_reconcile_operation \
+    "{\"p_operation_id\":\"$S14_ARCHIVE_OPERATION_ID\"}"
+  expect_success "recover Archive through authenticated receipt RPC"
+  expect_json "Archive recovered operation" operationId "$S14_ARCHIVE_OPERATION_ID"
+  expect_json "Archive recovered status" status succeeded
 
-  claimed_archive_events="$(db_scalar "select coalesce(string_agg(event_id::text,',' order by event_id::text),'') from public.studio2_claim_domain_event_deliveries('edition.tasks','$S14_ARCHIVE_WORKER_ID',100,60);")"
+  claimed_archive_events="$(service_value "select coalesce(string_agg(event_id::text,',' order by event_id::text),'') from public.studio2_claim_domain_event_deliveries('edition.tasks','$S14_ARCHIVE_WORKER_ID',100,60);")"
   printf '%s' "$claimed_archive_events" | tr ',' '\n' | grep -Fxq "$archive_event_id" || \
     fail "archive edition.tasks consequence was not claimable"
-  db_scalar "select public.studio2_process_edition_domain_event('$archive_event_id'::uuid,'edition.tasks','$S14_ARCHIVE_WORKER_ID')::text;" >/dev/null
+  service_value "select public.studio2_process_edition_domain_event('$archive_event_id'::uuid,'edition.tasks','$S14_ARCHIVE_WORKER_ID')::text;" >/dev/null
   [[ "$(db_scalar "select status from private.v3_domain_event_outbox where event_id='$archive_event_id'::uuid and consumer_key='edition.tasks';")" == "completed" ]] || \
     fail "archive edition.tasks consequence did not complete"
   [[ "$(db_scalar "select count(*) from private.v3_domain_event_consumer_receipts where event_id='$archive_event_id'::uuid and consumer_key='edition.tasks';")" == "1" ]] || \
     fail "archive consequence consumer receipt is missing"
 
   resolved_task_evidence_before_reconcile="$(s14_resolved_task_evidence_hash)"
-  db_scalar "select private.v3_reconcile_resolved_task_notifications('$EDITION_ID'::uuid)::text;" >/dev/null
+  service_value "select private.v3_reconcile_resolved_task_notifications('$EDITION_ID'::uuid)::text;" >/dev/null
   resolved_task_evidence_after_reconcile="$(s14_resolved_task_evidence_hash)"
   [[ "$resolved_task_evidence_after_reconcile" == "$resolved_task_evidence_before_reconcile" ]] || \
     fail "resolved-task delivery reconciliation rewrote historical task resolution evidence"
@@ -276,9 +280,9 @@ where task.edition_id='$EDITION_ID'::uuid
   [[ "$publication_hash_after" == "$publication_hash_before" ]] || fail "archive mutated exact publication provenance"
   assert_receipts_retained "$receipt_ids_before" "$receipt_ids_after"
 
-  assert_anonymous_result_matches_version "$SEMI_ONE_ID" 2
-  assert_anonymous_result_matches_version "$SEMI_TWO_ID" 2
-  assert_anonymous_result_matches_version "$FINAL_ID" 2
+  assert_anonymous_result_matches_version "$SEMI_ONE_ID" "$SEMI_ONE_RESULT_VERSION"
+  assert_anonymous_result_matches_version "$SEMI_TWO_ID" "$SEMI_TWO_RESULT_VERSION"
+  assert_anonymous_result_matches_version "$FINAL_ID" "$FINAL_RESULT_VERSION"
 
   run_s14_supabase_outage_injection
 

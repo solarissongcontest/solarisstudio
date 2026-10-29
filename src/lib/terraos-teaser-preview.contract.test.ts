@@ -11,7 +11,8 @@ describe("TerraOS teaser preview isolation", () => {
 
   it("exists only while global maintenance is active", () => {
     expect(route).toContain("GLOBAL_MAINTENANCE_MODE");
-    expect(route).toContain("if (!GLOBAL_MAINTENANCE_MODE) throw notFound()");
+    expect(route).toContain("requireTerraOsTeaserMaintenance(GLOBAL_MAINTENANCE_MODE)");
+    expect(route).toContain('from "@/lib/terraos-teaser-preview-access"');
   });
 
   it("does not mount account-aware root services in fixture preview frames", () => {
