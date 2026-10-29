@@ -1,3 +1,4 @@
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 
@@ -41,6 +42,16 @@ type ModerationCommandInput = {
   idempotencyKey: string;
 };
 
+async function requireModerationReadServer() {
+  await requireSolarisCapabilityServer("integrity.read", null);
+  await requireMergedTelevotingAdminServer();
+}
+
+async function requireModerationManageServer() {
+  await requireSolarisCapabilityServer("integrity.manage", null);
+  await requireMergedTelevotingAdminServer();
+}
+
 async function resolveSubmissionVersion(id: string, expectedVersion?: number) {
   if (expectedVersion !== undefined) return expectedVersion;
   const { data, error } = await televotingAdmin.rpc("admin_submission_versions", {
@@ -60,7 +71,7 @@ async function applyModerationCommand(
   payload: Record<string, unknown>,
   reason?: string,
 ) {
-  await requireMergedTelevotingAdminServer();
+  await requireModerationManageServer();
   const expectedVersion = await resolveSubmissionVersion(data.id, data.expectedVersion);
   const { data: result, error } = await televotingAdmin.rpc("v3_moderate_submission", {
     p_submission_id: data.id,
@@ -77,7 +88,7 @@ async function applyModerationCommand(
 }
 
 export async function listMergedModerationSubmissionsServer(roundId?: string | null): Promise<MergedModerationSubmission[]> {
-  await requireMergedTelevotingAdminServer();
+  await requireModerationReadServer();
 
   let query = televotingAdmin
     .from("vote_submissions")
@@ -209,7 +220,7 @@ export async function editMergedSubmissionEntriesServer(data: ModerationCommandI
 }
 
 export async function getMergedModerationAlertsCountServer() {
-  await requireMergedTelevotingAdminServer();
+  await requireModerationReadServer();
   const [suspicious, events] = await Promise.all([
     televotingAdmin
       .from("vote_submissions")
