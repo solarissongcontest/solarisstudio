@@ -9,7 +9,7 @@ export type InternalMechanismContract = {
   reason: string;
   securityDefiner: boolean;
   inputTables: readonly string[];
-  attachments: readonly { table: string; type: number }[];
+  attachments: readonly { table: string; type: number; definitionHash?: string }[];
   callerSignatures: readonly string[];
   proof: string;
 };
@@ -61,7 +61,7 @@ export function proveInternalMechanisms(catalog: V3S16CatalogEvidence) {
         return !t || t.owner!=='postgres' || !t.columnDmlGrants || t.dmlRoles.some(r=>r.toLowerCase()!=='postgres') || (t.columnDmlRoles??[]).some(r=>r.toLowerCase()!=='postgres') || t.columnDmlGrants.some(g=>g.role.toLowerCase()!=='postgres') || (t.updatableViews??[]).length>0;
       })) return false;
       if (mechanism.attachments.length && (fn.returnType!=='trigger' || mechanism.attachments.some(a=>
-        !tables.get(a.table)?.triggerDefinitions?.some(t=>t.functionOid===fn.oid && t.functionSignature===fn.signature && t.type===a.type && t.enabled==='O')
+        !tables.get(a.table)?.triggerDefinitions?.some(t=>t.functionOid===fn.oid && t.functionSignature===fn.signature && t.type===a.type && t.enabled==='O' && (!a.definitionHash || t.definitionHash===a.definitionHash))
       ))) return false;
     } else if (!caller || roleSet(fn.executeRoles)!==roleSet(caller.executeRoles)) return false;
     // Reviewed public entrypoints still perform active-session and capability
@@ -86,11 +86,11 @@ export function proveInternalMechanisms(catalog: V3S16CatalogEvidence) {
     if (!pinned(fn,c) || c.inputTables.some(name=>{
       const t=tables.get(name);
       return !t || t.owner!=='postgres' || !t.columnDmlGrants || t.dmlRoles.some(r=>r.toLowerCase()!=='postgres') || (t.columnDmlRoles??[]).some(r=>r.toLowerCase()!=='postgres') || t.columnDmlGrants.some(g=>g.role.toLowerCase()!=='postgres') || (t.updatableViews??[]).length>0;
-    }) || c.attachments.some(a=>!tables.get(a.table)?.triggerDefinitions?.some(t=>t.functionOid===fn.oid && t.functionSignature===fn.signature && t.type===a.type && t.enabled==='O'))) continue;
+    }) || c.attachments.some(a=>!tables.get(a.table)?.triggerDefinitions?.some(t=>t.functionOid===fn.oid && t.functionSignature===fn.signature && t.type===a.type && t.enabled==='O' && (!a.definitionHash || t.definitionHash===a.definitionHash)))) continue;
     for (const a of c.attachments) {
       const table=tables.get(a.table)!;
       for (const t of table.triggerDefinitions??[]) {
-        if (t.functionOid===fn.oid && t.functionSignature===fn.signature && t.type===a.type && t.enabled==='O' && table.writeTriggers?.includes(t.name)) triggers.add(`${c.domain}:${a.table}:${t.name}`);
+        if (t.functionOid===fn.oid && t.functionSignature===fn.signature && t.type===a.type && t.enabled==='O' && (!a.definitionHash || t.definitionHash===a.definitionHash) && table.writeTriggers?.includes(t.name)) triggers.add(`${c.domain}:${a.table}:${t.name}`);
       }
     }
     writers.add(`${c.domain}:${fn.oid}`);

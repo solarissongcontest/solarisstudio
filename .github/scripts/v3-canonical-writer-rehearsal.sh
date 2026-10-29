@@ -48,6 +48,12 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-confirmation-final-revi
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-jury-writer-cutover.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-runtime-writer-cutover.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-confirmation-entry-writer-cutover.sql
+(
+  entry_mechanisms_sql="$(mktemp)"
+  trap 'rm -f "$entry_mechanisms_sql"' EXIT
+  bun --env-file=/dev/null scripts/generate-v3-internal-mechanism-proof.ts --proof-file=.github/tests/v3-entry-runtime-boundary.sql --out="$entry_mechanisms_sql"
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$entry_mechanisms_sql"
+)
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-confirmation-runtime-state-authority.sql
 shared_mechanisms_sql="$(mktemp)"
 bun run scripts/generate-v3-internal-mechanism-proof.ts --proof-file=.github/tests/v3-shared-invariant-mechanisms.sql --out="$shared_mechanisms_sql"

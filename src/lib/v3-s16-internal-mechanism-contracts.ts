@@ -1313,6 +1313,150 @@ export const V3_INTERNAL_MECHANISM_CONTRACTS: readonly InternalMechanismContract
     ],
     "attachments": []
   },
+  {
+    "domain": "entry",
+    "signature": "public.sync_confirmation_entry_youtube_link()",
+    "definitionHash": "7c22d77b3811f3c8c3dde5a228496714",
+    "securityDefiner": true,
+    "category": "projection",
+    "reason": "One-way YouTube mirror of the committed canonical Entry; cannot choose or overwrite Entry truth. Scope is edition/country, unchanged mirrors are not rewritten.",
+    "inputTables": [
+      "public.entries"
+    ],
+    "attachments": [
+      {
+        "table": "public.entries",
+        "type": 21,
+        "definitionHash": "4db2e968bbdb6ae6e9671f975b07ecb7"
+      }
+    ],
+    "callerSignatures": [],
+    "proof": ".github/tests/v3-entry-runtime-boundary.sql"
+  },
+  {
+    "domain": "entry",
+    "signature": "private.v3_supersede_stale_media_reviews()",
+    "definitionHash": "2be8a4fc851721980dd552503c484a84",
+    "securityDefiner": true,
+    "category": "guard",
+    "reason": "Entry edits invalidate approval evidence for a different source fingerprint; this mechanism cannot approve media, edit Entry content, or publish anything.",
+    "inputTables": [
+      "public.entries"
+    ],
+    "attachments": [
+      {
+        "table": "public.entries",
+        "type": 17,
+        "definitionHash": "e271466fddde07187f52c1dff8dbffde"
+      }
+    ],
+    "callerSignatures": [],
+    "proof": ".github/tests/v3-entry-runtime-boundary.sql"
+  },
+  {
+    "domain": "entry",
+    "signature": "private.v3_apply_entry_credits_context()",
+    "definitionHash": "dac7d925b6fc766c07e201d4b0dbcdd7",
+    "securityDefiner": true,
+    "category": "housekeeping",
+    "reason": "Normalizes credits supplied to an already-authorized Confirmation content write. No direct call or raw protected-table DML can invoke it independently.",
+    "inputTables": [
+      "public.internal_entries",
+      "public.national_final_entries"
+    ],
+    "attachments": [
+      {
+        "table": "public.internal_entries",
+        "type": 23,
+        "definitionHash": "d11cbf8be92666b5cd5eb1ee7e9637a0"
+      },
+      {
+        "table": "public.national_final_entries",
+        "type": 23,
+        "definitionHash": "fdbf6595a2be450092010bc73a1513e7"
+      }
+    ],
+    "callerSignatures": [],
+    "proof": ".github/tests/v3-entry-runtime-boundary.sql"
+  },
+  {
+    "domain": "entry",
+    "signature": "private.v3_bind_confirmation_entry_version()",
+    "definitionHash": "b25c42b20c10cd1f4adf4327ac0b58db",
+    "securityDefiner": true,
+    "category": "projection",
+    "reason": "Records immutable versions derived from actual content and binds reviews to that version. A content change invalidates prior review; it cannot approve new content or change Confirmation ownership.",
+    "inputTables": [
+      "public.internal_entries",
+      "public.national_final_entries",
+      "public.submissions",
+      "public.national_finals",
+      "public.submission_versions",
+      "private.v3_entry_versions",
+      "private.v3_entry_reviews"
+    ],
+    "attachments": [
+      {
+        "table": "public.internal_entries",
+        "type": 23,
+        "definitionHash": "47faf453bde9d4ef32287fc45e381162"
+      },
+      {
+        "table": "public.national_final_entries",
+        "type": 23,
+        "definitionHash": "6abaaf522d9a491e96b0612b92e9c419"
+      }
+    ],
+    "callerSignatures": [],
+    "proof": ".github/tests/v3-entry-runtime-boundary.sql"
+  },
+  {
+    "domain": "entry",
+    "signature": "private.v3_record_inserted_entry_version()",
+    "definitionHash": "5437403d1c6d6792f40e28b0237c88db",
+    "securityDefiner": true,
+    "category": "projection",
+    "reason": "AFTER INSERT evidence for the actual inserted Entry only; discarded ON CONFLICT candidates produce no history. Actor and lineage derive from canonical transaction context.",
+    "inputTables": [
+      "public.internal_entries",
+      "public.national_final_entries",
+      "public.submissions",
+      "public.national_finals",
+      "public.submission_versions",
+      "private.v3_entry_versions"
+    ],
+    "attachments": [
+      {
+        "table": "public.internal_entries",
+        "type": 5,
+        "definitionHash": "6fa39a25d2b66127e214d81ca23a67d0"
+      },
+      {
+        "table": "public.national_final_entries",
+        "type": 5,
+        "definitionHash": "33e2d4a12f5dbd4560beca2d8623039f"
+      }
+    ],
+    "callerSignatures": [],
+    "proof": ".github/tests/v3-entry-runtime-boundary.sql"
+  },
+  {
+    "domain": "entry",
+    "signature": "public.admin_set_participation_status(_edition_id uuid, _country_id uuid, _contest_entity_id uuid, _status text)",
+    "definitionHash": "7aeefa24feb7b23d95543011cac65377",
+    "securityDefiner": true,
+    "category": "primitive",
+    "reason": "Owner-only participant/status persistence behind the active-session capability/CAS command. Canonical Entry status, audit, durable observation and receipt commit or roll back together.",
+    "inputTables": [
+      "public.entries",
+      "public.studio2_operation_receipts"
+    ],
+    "attachments": [],
+    "callerSignatures": [
+      "public.studio2_apply_participation_status(p_edition_id uuid, p_country_id uuid, p_contest_entity_id uuid, p_status text, p_operation_id uuid, p_idempotency_key text, p_expected_version bigint)"
+    ],
+    "proof": ".github/tests/v3-entry-runtime-boundary.sql"
+  },
 ];
 export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
   {
@@ -1466,6 +1610,17 @@ export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
   {
     "signature": "public.admin_restore_confirmation_version(_submission_id uuid, _version_id uuid, _reason text, p_expected_revision text, p_operation_id uuid, p_idempotency_key text)",
     "definitionHash": "2ff4603654fdbce21a6d0950dc691a56",
+    "securityDefiner": true,
+    "executeRoles": [
+      "authenticated",
+      "postgres"
+    ],
+    "root": true,
+    "callerSignatures": []
+  },
+  {
+    "signature": "public.studio2_apply_participation_status(p_edition_id uuid, p_country_id uuid, p_contest_entity_id uuid, p_status text, p_operation_id uuid, p_idempotency_key text, p_expected_version bigint)",
+    "definitionHash": "3d19b2070957d3e697fde39a9bd6fa20",
     "securityDefiner": true,
     "executeRoles": [
       "authenticated",

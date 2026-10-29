@@ -77,7 +77,8 @@ function tableEvidence(dbUrl: string, table: string): V3S16CatalogTableEvidence 
         'triggerDefinitions', coalesce((
           select jsonb_agg(jsonb_build_object(
             'name', t.tgname, 'functionSignature', pn.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')',
-            'functionOid', p.oid::text, 'type', t.tgtype, 'enabled', t.tgenabled
+            'functionOid', p.oid::text, 'type', t.tgtype, 'enabled', t.tgenabled,
+            'definitionHash', md5(pg_get_triggerdef(t.oid))
           ) order by t.tgname)
           from pg_trigger t join pg_proc p on p.oid=t.tgfoid join pg_namespace pn on pn.oid=p.pronamespace
           where t.tgrelid=c.oid and not t.tgisinternal

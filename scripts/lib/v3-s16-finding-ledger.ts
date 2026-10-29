@@ -123,6 +123,7 @@ export function buildV3S16FindingLedger(input: {
             type: t.type,
             enabled: t.enabled,
             signature: t.functionSignature,
+            definition_hash: t.definitionHash ?? null,
           })),
       );
       for (const attachment of attachments) {

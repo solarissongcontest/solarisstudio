@@ -61,7 +61,7 @@ export type V3S16CatalogTableEvidence = {
   /** Exact column grants are required to prove bounded compatibility safely. */
   columnDmlGrants?: readonly V3S16CatalogColumnDmlGrant[];
   writeTriggers?: readonly string[];
-  triggerDefinitions?: readonly { name: string; functionSignature: string; functionOid: string; type: number; enabled: string }[];
+  triggerDefinitions?: readonly { name: string; functionSignature: string; functionOid: string; type: number; enabled: string; definitionHash?: string }[];
   updatableViews?: readonly string[];
 };
 
