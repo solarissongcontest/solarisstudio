@@ -14,6 +14,8 @@ describe("V3 official delegation notices", () => {
 
     expect(source).toContain("useV3RolloutProbe(platformResolved && isAppMode)");
     expect(source).toContain("rollout.data?.notificationsEnabled === true");
+    expect(source).toContain("rollout.isLoading && !rollout.data");
+    expect(source).not.toContain("!rollout.isError &&");
     expect(source).toContain("<V3OfficialNoticesRouteContent");
     expect(source).toContain("<OrganizerRecipientNoticesModule />");
     expect(source).toContain("<OrganizerPublicNoticesModule />");
