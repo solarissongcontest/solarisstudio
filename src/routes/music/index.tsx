@@ -2,7 +2,10 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
 import { V3MusicDataError } from "@/components/v3/V3MusicDataError";
-import { V3MusicDiscoveryScreen } from "@/components/v3/V3MusicDiscoveryScreen";
+import {
+  V3_MUSIC_DISCOVERY_LIMITS,
+  V3MusicDiscoveryScreen,
+} from "@/components/v3/V3MusicDiscoveryScreen";
 import {
   V3MusicLoading,
   V3MusicUnavailable,
@@ -43,8 +46,8 @@ function MusicPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const query = search.q ?? "";
-  const songs = useV3SongIndexProjection(query);
-  const artists = useV3ArtistIndexProjection(query);
+  const songs = useV3SongIndexProjection(query, V3_MUSIC_DISCOVERY_LIMITS.songs);
+  const artists = useV3ArtistIndexProjection(query, V3_MUSIC_DISCOVERY_LIMITS.artists);
 
   if (songs.isLoading || artists.isLoading) {
     return (
