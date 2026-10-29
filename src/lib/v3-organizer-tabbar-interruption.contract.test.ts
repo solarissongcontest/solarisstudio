@@ -8,10 +8,12 @@ const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
 const organizerNavigationCss = source("src/styles/v3-organizer-navigation.css");
 
 describe("Organizer V3 navigation interruption ownership", () => {
-  it("refuses to start direct manipulation while keyboard or feature overlays own interaction", () => {
+  it("refuses to start direct manipulation while keyboard, feature overlays, reduced motion or browser edges own interaction", () => {
     expect(organizerTabs).toContain('hasAttribute("data-solaris-keyboard-open")');
     expect(organizerTabs).toContain('hasAttribute("data-solaris-feature-overlay-open")');
     expect(organizerTabs).toContain("prefersReducedMotion()");
+    expect(organizerTabs).toContain("isV3BrowserEdgeGestureStart");
+    expect(organizerTabs).toContain("window.visualViewport?.width ?? window.innerWidth");
   });
 
   it("cancels active gestures across pointer, browser and app lifecycle interruptions", () => {
