@@ -2,12 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { AppRouteSkeleton } from "@/components/app/AppRouteStateFrame";
 import {
   V3NotificationsScreen,
   type V3NotificationInboxItem,
 } from "@/components/v3/V3NotificationsScreen";
 import { V3AppShell } from "@/components/v3/V3AppShell";
-import { V3Screen, V3ScreenHeader, V3Surface } from "@/components/v3/V3Foundation";
+import { V3Screen, V3ScreenHeader } from "@/components/v3/V3Foundation";
 import {
   describeAppPushDelivery,
   getAppPushState,
@@ -110,16 +111,10 @@ function V3NotificationsRouteContent({
             title="Notifications"
             description="Official updates, important messages and delivery settings in one place."
           />
-          <V3Surface>
-            <p
-              data-v3-notifications-authority-state="loading"
-              role="status"
-              aria-live="polite"
-              className="text-sm text-[var(--v3-text-secondary)]"
-            >
-              Loading your notification state…
-            </p>
-          </V3Surface>
+          <AppRouteSkeleton
+            variant="notifications"
+            label="Loading your notifications…"
+          />
         </V3Screen>
       </V3AppShell>
     );
