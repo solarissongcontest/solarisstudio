@@ -14,7 +14,9 @@ describe("V3 Organizer Voting integrity scope", () => {
     expect(route).toContain("if (!editionId)");
     expect(route).toContain('title="Choose an edition"');
     expect(route).toContain("edition-scoped Organizer work");
-    expect(route).toContain("<V3ScopedIntegrityReview key={editionId} editionId={editionId} />");
+    expect(route).toContain("<V3ScopedIntegrityReview");
+    expect(route).toContain("editionId={editionId}");
+    expect(route).toContain("editionLabel={editionLabel?.trim() || editionId}");
     expect(route).not.toContain("IntegrityReviewView");
     expect(route).not.toContain("IntegrityModerationHub");
   });

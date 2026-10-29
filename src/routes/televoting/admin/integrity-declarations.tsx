@@ -45,7 +45,7 @@ export const Route = createFileRoute("/televoting/admin/integrity-declarations")
 type Filter = "all" | "signed" | "submitted" | "unsigned";
 
 function IntegrityDeclarationsRoute() {
-  const { editionId } = useAdminContext();
+  const { editionId, editionLabel } = useAdminContext();
 
   if (!editionId) {
     return (
@@ -67,10 +67,22 @@ function IntegrityDeclarationsRoute() {
     );
   }
 
-  return <IntegrityDeclarationsPage key={editionId} editionId={editionId} />;
+  return (
+    <IntegrityDeclarationsPage
+      key={editionId}
+      editionId={editionId}
+      editionContextLabel={editionLabel?.trim() || editionId}
+    />
+  );
 }
 
-function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
+function IntegrityDeclarationsPage({
+  editionId,
+  editionContextLabel,
+}: {
+  editionId: string;
+  editionContextLabel: string;
+}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const getAdmin = useServerFn(getMergedTelevotingAdmin);
@@ -84,6 +96,7 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
     operationId: string;
     idempotencyKey: string;
     editionId: string;
+    editionLabel: string;
   } | null>(null);
 
   const { data: admin, isLoading: adminLoading } = useQuery({
@@ -137,6 +150,7 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
         operationId,
         idempotencyKey: operationId,
         editionId,
+        editionLabel: editionContextLabel,
       });
     },
   });
@@ -193,7 +207,7 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
   return (
     <div className="mx-auto max-w-5xl space-y-4" data-v3-organizer-declaration-edition={editionId}>
       <AdminPageHeader
-        eyebrow="Voting integrity"
+        eyebrow={`${editionContextLabel} · Voting integrity`}
         title="Declarations"
         description="Review automatic integrity warnings, evidence and signed declarations from the exact selected edition. An automatic flag is evidence for review, not a finding of misconduct by itself."
         actions={
@@ -203,6 +217,14 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
           </div>
         }
       />
+
+      <div
+        data-v3-organizer-context-lock="edition"
+        className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2"
+      >
+        <span className="admin-section-label">Edition context</span>
+        <AdminStatus tone="info">{editionContextLabel}</AdminStatus>
+      </div>
 
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <Metric icon={ShieldAlert} label="Flagged checks" value={rows.length} />
@@ -281,6 +303,13 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
         description={
           pendingInvalidation ? (
             <div className="space-y-3">
+              <div
+                data-v3-organizer-confirmation-context="edition"
+                className="rounded-xl border border-sky-200/15 bg-sky-200/[0.045] p-3"
+              >
+                <p className="admin-section-label">Edition context</p>
+                <p className="mt-1 font-semibold text-foreground">{pendingInvalidation.editionLabel}</p>
+              </div>
               <p>
                 This invalidates the declaration signed by{" "}
                 <strong className="text-foreground">{pendingInvalidation.row.username}</strong>.
