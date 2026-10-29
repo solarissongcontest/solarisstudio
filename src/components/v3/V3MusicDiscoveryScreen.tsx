@@ -162,8 +162,8 @@ export function V3MusicDiscoveryScreen({
         )}
         <div className="mt-3">
           <V3ActionCard
-            title="Browse all songs"
-            description="Open the complete publication-safe Song collection"
+            title="Browse songs"
+            description="Open the searchable publication-safe Song index"
             icon={Disc3}
             to={query ? `/songs?q=${encodeURIComponent(query)}` : "/songs"}
           />
@@ -193,8 +193,8 @@ export function V3MusicDiscoveryScreen({
         )}
         <div className="mt-3">
           <V3ActionCard
-            title="Browse all artists"
-            description="Open the complete publication-safe Artist collection"
+            title="Browse artists"
+            description="Open the searchable publication-safe Artist index"
             icon={MicVocal}
             to={query ? `/artists?q=${encodeURIComponent(query)}` : "/artists"}
           />
@@ -211,10 +211,10 @@ export function V3MusicDiscoveryScreen({
           </p>
           <div className="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
             <Link to="/songs" className="text-primary hover:underline">
-              All songs
+              Song index
             </Link>
             <Link to="/artists" className="text-primary hover:underline">
-              All artists
+              Artist index
             </Link>
           </div>
         </V3Surface>
