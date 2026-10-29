@@ -154,8 +154,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "merge",
     targetArea: "me",
     targetRoute: "/my-solaris/history",
-    specificationStatus: "mapped",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.participation-history",
+    migrationEvidence: "Installed-app history now renders V3DelegationHistoryScreen inside caller-bound MySolarisProvider, reads authenticated confirmed-edition/HOD history from owned_hod_edition_history with viewer-keyed cache isolation and country-scope verification, links through canonical edition IDs/slugs, preserves explicit Organizer country override rollback, and is guarded by src/lib/v3-private-delegation-history-cutover.contract.test.ts.",
   },
   {
     id: "participant-activity",

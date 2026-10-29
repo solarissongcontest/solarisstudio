@@ -175,8 +175,9 @@ export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
     classification: "merge",
     targetArea: "me",
     targetRoute: "/my-solaris",
-    specificationStatus: "mapped",
+    specificationStatus: "cutover",
     acceptanceScenarioId: "public.country-hub-hod-workspace",
+    migrationEvidence: "Country Hub root merges into Me, HOD responsibilities route to Participate, retained specialist aliases preserve notices/page-media/readiness/appearance, V3 Me exposes delegation tools only from canManageCountry + active delegation state, and src/lib/v3-country-hub-cutover.contract.test.ts locks legacy URL/action continuity.",
   },
   {
     id: "me-route",
