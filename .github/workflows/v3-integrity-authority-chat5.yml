@@ -155,6 +155,7 @@ jobs:
             *) echo 'Refusing non-local Confirmation deletion rehearsal' >&2; exit 1 ;;
           esac
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-confirmation-runtime-state-authority.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-confirmation-requirement-authority.sql
 
       - name: Prove Integrity runtime authority catalog
         shell: bash
@@ -299,6 +300,7 @@ jobs:
             *) echo 'Refusing non-local Confirmation deletion upgrade rehearsal' >&2; exit 1 ;;
           esac
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-confirmation-runtime-state-authority.sql"
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-confirmation-requirement-authority.sql"
 
       - name: Prove upgraded Integrity runtime authority catalog
         shell: bash

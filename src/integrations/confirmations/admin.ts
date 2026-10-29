@@ -1,3 +1,4 @@
+import { requirementRetryPrefix, runRetainedRequirementChange, type RequirementChange } from "@/lib/v3-confirmation-requirement-retry";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase as solarisSupabase } from "@/integrations/supabase/client";
@@ -118,6 +119,7 @@ export type ConfirmationRecoveryCode = {
 };
 
 export type ConfirmationRequirement = {
+  revision: string;
   id: string;
   editionId: string;
   countryId: string;
@@ -332,6 +334,7 @@ export async function loadConfirmationCalendar(
 export async function loadConfirmationRequirements(
   editionId: string,
 ): Promise<ConfirmationRequirement[]> {
+  await recoverRequirementChanges(editionId);
   const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_requirements", {
     p_edition_id: editionId,
   });
@@ -339,68 +342,46 @@ export async function loadConfirmationRequirements(
   return Array.isArray(data) ? (data as unknown as ConfirmationRequirement[]) : [];
 }
 
-export async function ensureConfirmationRequirements(
-  editionId: string,
-  countryIds?: string[],
-) {
-  const { data, error } = await confirmationsSupabase.rpc(
-    "admin_confirmation_ensure_requirements",
+async function submitRequirementChange(change: RequirementChange) {
+  return confirmationsSupabase.rpc(
+    change.kind === "reconfirm" ? "admin_confirmation_reconfirm" : "admin_confirmation_waive_requirement",
     {
-      p_edition_id: editionId,
-      p_country_ids: countryIds?.length ? countryIds : null,
+      p_requirement_id: change.requirementId,
+      p_reason: change.reason,
+      p_operation_id: change.operationId,
+      p_idempotency_key: change.idempotencyKey,
+      p_expected_revision: change.expectedRevision,
     },
   );
-  if (error) throw error;
-  return data as { ok: boolean; editionId: string; created: number };
 }
 
-export async function reconfirmConfirmationRequirement(input: {
-  requirementId: string;
-  reason: string;
-  operationId: string;
-  idempotencyKey: string;
-}) {
-  const { data, error } = await confirmationsSupabase.rpc(
-    "admin_confirmation_reconfirm",
-    {
-      p_requirement_id: input.requirementId,
-      p_reason: input.reason,
-      p_operation_id: input.operationId,
-      p_idempotency_key: input.idempotencyKey,
-    },
-  );
-  if (error) throw error;
-  return data as {
-    ok: boolean;
-    operationId: string;
-    previousRequirementId: string;
-    requirementId: string;
-    generation: number;
-  };
+async function requirementRetryContext() {
+  const {data} = await confirmationsSupabase.auth.getSession();
+  if (!data.session?.user.id) throw new Error("Sign in again before changing a confirmation requirement.");
+  return {actorId: data.session.user.id, storage: window.sessionStorage};
 }
 
-export async function waiveConfirmationRequirement(input: {
-  requirementId: string;
-  reason: string;
-  operationId: string;
-  idempotencyKey: string;
-}) {
-  const { data, error } = await confirmationsSupabase.rpc(
-    "admin_confirmation_waive_requirement",
-    {
-      p_requirement_id: input.requirementId,
-      p_reason: input.reason,
-      p_operation_id: input.operationId,
-      p_idempotency_key: input.idempotencyKey,
-    },
-  );
-  if (error) throw error;
-  return data as {
-    ok: boolean;
-    operationId: string;
-    requirementId: string;
-    status: "waived";
-  };
+async function recoverRequirementChanges(editionId: string) {
+  if (typeof window === "undefined") return;
+  const {actorId, storage} = await requirementRetryContext();
+  const prefix = requirementRetryPrefix(actorId);
+  // Snapshot keys: successful readback removes them while iterating.
+  const keys = Array.from({length: storage.length}, (_, i) => storage.key(i)).filter((key): key is string => !!key && key.startsWith(prefix));
+  for (const key of keys) {
+    const change: RequirementChange = JSON.parse(storage.getItem(key)!);
+    if (change.editionId !== editionId) continue;
+    await runRetainedRequirementChange(actorId, change, storage, submitRequirementChange);
+  }
+}
+
+type RequirementChangeInput = Omit<RequirementChange, "kind">;
+export async function reconfirmConfirmationRequirement(input: RequirementChangeInput) {
+  const {actorId, storage} = await requirementRetryContext();
+  return runRetainedRequirementChange(actorId, {...input, kind: "reconfirm"}, storage, submitRequirementChange);
+}
+export async function waiveConfirmationRequirement(input: RequirementChangeInput) {
+  const {actorId, storage} = await requirementRetryContext();
+  return runRetainedRequirementChange(actorId, {...input, kind: "waive"}, storage, submitRequirementChange);
 }
 
 export async function loadConfirmationRecoveryCodes(): Promise<ConfirmationRecoveryCode[]> {

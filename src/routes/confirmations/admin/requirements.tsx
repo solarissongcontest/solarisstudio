@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, CircleAlert, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react";
+import { CheckCircle2, CircleAlert, RotateCcw, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { ConfirmationRequirementMaterializationControl } from "@/components/admin/ConfirmationRequirementMaterializationControl";
 import {
   AdminCard,
   AdminEmptyState,
@@ -13,7 +14,6 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import {
-  ensureConfirmationRequirements,
   loadConfirmationRequirements,
   reconfirmConfirmationRequirement,
   waiveConfirmationRequirement,
@@ -59,26 +59,6 @@ function ConfirmationRequirementsPage() {
     refetchOnWindowFocus: true,
   });
 
-  const ensure = useMutation({
-    mutationFn: (targetEditionId: string) => ensureConfirmationRequirements(targetEditionId),
-    onSuccess: async (result, targetEditionId) => {
-      toast.success(
-        result.created
-          ? String(result.created) + " confirmation requirement" + (result.created === 1 ? "" : "s") + " created"
-          : "Every active delegation already has a current requirement",
-      );
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["confirmation-requirements", targetEditionId],
-        }),
-        queryClient.invalidateQueries({ queryKey: ["organizer-tasks-v5", targetEditionId] }),
-        queryClient.invalidateQueries({ queryKey: ["organizer-task-count-v5", targetEditionId] }),
-      ]);
-    },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Requirements could not be initialized"),
-  });
-
   const action = useMutation({
     mutationFn: async (input: {
       kind: "reconfirm" | "waive";
@@ -110,12 +90,16 @@ function ConfirmationRequirementsPage() {
       return input.kind === "reconfirm"
         ? reconfirmConfirmationRequirement({
             requirementId: input.requirement.id,
+            editionId: input.organizerEditionId,
+            expectedRevision: input.requirement.revision,
             reason: input.actionReason,
             operationId: command.operationId,
             idempotencyKey: command.idempotencyKey,
           })
         : waiveConfirmationRequirement({
             requirementId: input.requirement.id,
+            editionId: input.organizerEditionId,
+            expectedRevision: input.requirement.revision,
             reason: input.actionReason,
             operationId: command.operationId,
             idempotencyKey: command.idempotencyKey,
@@ -201,17 +185,7 @@ function ConfirmationRequirementsPage() {
         description="One current requirement per edition and delegation. Submission rounds only provide windows to satisfy these requirements; opening another round never creates another obligation."
         actions={
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="admin-action-secondary"
-              disabled={!editionId || ensure.isPending}
-              onClick={() => {
-                if (editionId) ensure.mutate(editionId);
-              }}
-            >
-              <RefreshCw className={ensure.isPending ? "size-4 animate-spin" : "size-4"} />
-              {ensure.isPending ? "Checking…" : "Ensure active delegations"}
-            </button>
+            <ConfirmationRequirementMaterializationControl editionId={editionId} />
             <Link to="/confirmations/admin/rounds" className="admin-action-secondary">
               Submission rounds
             </Link>
@@ -335,7 +309,7 @@ function ConfirmationRequirementsPage() {
                 title={filter === "all" ? "No confirmation requirements yet" : "No " + filter + " requirements"}
                 description={
                   filter === "all"
-                    ? "Use Ensure active delegations to create the first current-generation requirements. Existing satisfied requirements are never duplicated."
+                    ? "Use Ensure active delegations to review and create the first current-generation requirements. Existing satisfied requirements are never duplicated."
                     : "Nothing in this edition matches the selected requirement state."
                 }
               />

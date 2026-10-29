@@ -10,6 +10,7 @@ function requirement(
   generation = 1,
 ): ConfirmationRequirement {
   return {
+    revision: "a".repeat(64),
     id,
     editionId: "00000000-0000-4000-8000-00000000e004",
     countryId: `country-${id}`,

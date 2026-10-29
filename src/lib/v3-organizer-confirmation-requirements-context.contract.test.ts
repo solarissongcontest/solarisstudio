@@ -25,10 +25,11 @@ describe("V3 Organizer Confirmation Requirements command boundary", () => {
   });
 
   it("keeps mutation follow-up invalidation scoped to the edition that actually ran", () => {
-    expect(route).toContain("mutationFn: (targetEditionId: string) => ensureConfirmationRequirements(targetEditionId)");
-    expect(route).toContain('["confirmation-requirements", targetEditionId]');
-    expect(route).toContain('["organizer-tasks-v5", targetEditionId]');
-    expect(route).toContain('["organizer-task-count-v5", targetEditionId]');
+    const materialization = readFileSync("src/components/admin/ConfirmationRequirementMaterializationControl.tsx", "utf8");
+    expect(materialization).toContain("invalidateRequirementState(queryClient, reviewed.editionId)");
+    expect(materialization).toContain('["confirmation-requirements", editionId]');
+    expect(materialization).toContain('["organizer-tasks-v5", editionId]');
+    expect(materialization).toContain('["organizer-task-count-v5", editionId]');
     expect(route).toContain('["confirmation-requirements", variables.organizerEditionId]');
   });
 });

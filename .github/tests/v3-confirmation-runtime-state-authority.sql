@@ -147,6 +147,9 @@ select public.admin_confirmation_delete_response('29133000-0000-4000-8000-000000
 do $nf_cascade$ begin
  if exists(select 1 from public.national_finals where id='29133000-0000-4000-8000-000000000081') or exists(select 1 from public.national_final_entries where national_final_id='29133000-0000-4000-8000-000000000081') then raise exception 'National Final cascade incomplete'; end if;
 end $nf_cascade$;
+-- Prove the inner receipt guard independently of the outer raw-DML revocation.
+-- These hostile test grants are confined to this rolled-back transaction.
+grant insert,update,delete,truncate on public.studio2_operation_receipts to service_role;
 set local role service_role;
 do $receipt_forgery$ begin
  begin insert into public.studio2_operation_receipts(operation_id,actor_id,idempotency_key,correlation_id,request_fingerprint,command,risk_class,scope,status,result,completed_at)
