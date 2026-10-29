@@ -16,4 +16,18 @@ describe("V3 Participate state presentation", () => {
     expect(screen).toContain('title="Optional participation"');
     expect(screen).toContain("Public voting stays optional even when it is time-sensitive.");
   });
+
+  it("keeps closed opportunities distinct from completed responsibilities", () => {
+    expect(screen).toContain('title="Closed"');
+    expect(screen).toContain('data-v3-participate-closed=""');
+    expect(screen).toContain("View closed opportunities");
+    expect(screen).toContain("Closed does not mean completed.");
+    expect(screen).toContain('title="Completed"');
+  });
+
+  it("labels closed voting context without presenting it as current voting work", () => {
+    expect(screen).toContain('if (action.sourceState === "finished") return "Closed"');
+    expect(screen).toContain('if (action.sourceState === "problem") return "Closed · unresolved"');
+    expect(screen).toContain('if (action.sourceState === "needs_attention") return "Open · action required"');
+  });
 });
