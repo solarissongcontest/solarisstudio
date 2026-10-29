@@ -594,17 +594,10 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "public.studio2_permission_subject_versions",
     ],
     canonicalOwner: "permission engine",
-    canonicalCommands: ["public.studio2_apply_permission_change_r3"],
-    sanctionedInternalWriters: [
-      "public.studio2_apply_permission_change",
-      "private.studio2_touch_permission_subject_version",
-    ],
-    sanctionedWriteTriggers: [
-      "studio2_role_assignment_version_bump",
-      "studio2_capability_grant_version_bump",
-      "studio2_role_assignments_touch_subject_version",
-      "studio2_capability_grants_touch_subject_version",
-    ],
+    canonicalCommands: ["public.studio2_apply_permission_change_r3", "public.studio2_approve_permission_change"],
+    // Internal code is sanctioned only by the executable mechanism proofs.
+    sanctionedInternalWriters: [],
+    sanctionedWriteTriggers: [],
   },
   {
     id: "contest-lifecycle",

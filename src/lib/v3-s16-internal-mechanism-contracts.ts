@@ -1172,6 +1172,107 @@ export const V3_INTERNAL_MECHANISM_CONTRACTS: readonly InternalMechanismContract
     ],
     "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
   },
+{
+    "domain": "authorization",
+    "signature": "private.ensure_country_account_hod_role()",
+    "definitionHash": "2d6e98017e30c8ccd0c181684d742c78",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "proof": ".github/tests/v3-authorization-command-boundary.sql",
+    "category": "projection",
+    "reason": "Fixed HOD membership derived transactionally from a governed country association; cannot choose another role, actor or scope.",
+    "inputTables": [
+      "public.country_accounts",
+      "public.studio2_role_assignments",
+      "public.studio2_capability_grants",
+      "public.studio2_permission_subject_versions"
+    ],
+    "attachments": [
+      {
+        "table": "public.country_accounts",
+        "type": 21
+      }
+    ]
+  },
+  {
+    "domain": "authorization",
+    "signature": "private.studio2_ensure_permission_version(p_user_id uuid)",
+    "definitionHash": "96689ba4596e9e4e880eebe60a766e77",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "proof": ".github/tests/v3-authorization-command-boundary.sql",
+    "category": "primitive",
+    "reason": "Owner-only bounded revision initialization/increment; canonical access rows remain authority.",
+    "inputTables": [
+      "public.studio2_role_assignments",
+      "public.studio2_capability_grants",
+      "public.studio2_permission_subject_versions"
+    ],
+    "attachments": []
+  },
+  {
+    "domain": "authorization",
+    "signature": "public.studio2_apply_permission_change(p_user_id uuid, p_change_kind text, p_key text, p_edition_id uuid, p_expires_at timestamp with time zone, p_operation_id uuid, p_idempotency_key text, p_expected_version bigint)",
+    "definitionHash": "7b966a52dc73bb814e153fdb669d278e",
+    "securityDefiner": true,
+    "callerSignatures": [
+      "public.studio2_apply_permission_change_r3(p_user_id uuid, p_change_kind text, p_key text, p_edition_id uuid, p_expires_at timestamp with time zone, p_operation_id uuid, p_idempotency_key text, p_expected_version bigint)",
+      "public.studio2_apply_permission_change_r3(p_user_id uuid, p_change_kind text, p_key text, p_edition_id uuid, p_expires_at timestamp with time zone, p_operation_id uuid, p_idempotency_key text, p_expected_version bigint, p_approval_request_id uuid)"
+    ],
+    "proof": ".github/tests/v3-authorization-command-boundary.sql",
+    "category": "primitive",
+    "reason": "Owner-only permission write primitive requires a processing receipt from the reviewed two-operator command; cannot claim an independent operation.",
+    "inputTables": [
+      "public.studio2_role_assignments",
+      "public.studio2_capability_grants",
+      "public.studio2_permission_subject_versions",
+      "public.studio2_permission_change_approval_requests",
+      "public.studio2_operation_receipts"
+    ],
+    "attachments": []
+  },
+  {
+    "domain": "authorization",
+    "signature": "public.studio2_apply_permission_change_r3(p_user_id uuid, p_change_kind text, p_key text, p_edition_id uuid, p_expires_at timestamp with time zone, p_operation_id uuid, p_idempotency_key text, p_expected_version bigint)",
+    "definitionHash": "1811dd1d0817d8baf52c2273508572a0",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "proof": ".github/tests/v3-authorization-command-boundary.sql",
+    "category": "primitive",
+    "reason": "Retired compatibility entry is inaccessible to application roles and cannot create the processing receipt required by the private mutation core.",
+    "inputTables": [
+      "public.studio2_role_assignments",
+      "public.studio2_capability_grants",
+      "public.studio2_permission_subject_versions",
+      "public.studio2_operation_receipts"
+    ],
+    "attachments": []
+  },
+  {
+    "domain": "authorization",
+    "signature": "private.studio2_touch_permission_subject_version()",
+    "definitionHash": "be584848b4803023d0f660929c4b6b30",
+    "securityDefiner": true,
+    "callerSignatures": [],
+    "proof": ".github/tests/v3-authorization-command-boundary.sql",
+    "category": "housekeeping",
+    "reason": "One attached counter increments only exact affected subjects in the canonical role/grant transaction; no permission decision.",
+    "inputTables": [
+      "public.studio2_role_assignments",
+      "public.studio2_capability_grants",
+      "public.studio2_permission_subject_versions"
+    ],
+    "attachments": [
+      {
+        "table": "public.studio2_role_assignments",
+        "type": 29
+      },
+      {
+        "table": "public.studio2_capability_grants",
+        "type": 29
+      }
+    ]
+  },
 ];
 export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
   {
@@ -1298,5 +1399,16 @@ export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
     "securityDefiner": true,
     "root": true,
     "callerSignatures": []
-  }
+  },
+{
+    "signature": "public.studio2_apply_permission_change_r3(p_user_id uuid, p_change_kind text, p_key text, p_edition_id uuid, p_expires_at timestamp with time zone, p_operation_id uuid, p_idempotency_key text, p_expected_version bigint, p_approval_request_id uuid)",
+    "definitionHash": "9ca2b425068ac0db1261742907a62731",
+    "executeRoles": [
+      "authenticated",
+      "postgres"
+    ],
+    "securityDefiner": true,
+    "root": true,
+    "callerSignatures": []
+  },
 ];

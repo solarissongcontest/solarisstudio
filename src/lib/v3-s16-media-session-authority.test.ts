@@ -45,7 +45,7 @@ describe("S16 security consequence authority coverage", () => {
     );
     expect(source).toContain("drop table public.studio2_permission_state_versions");
     expect(source).toContain("Canonical per-user permission revision");
-    expect(domain.canonicalCommands).toEqual(["public.studio2_apply_permission_change_r3"]);
+    expect(domain.canonicalCommands).toEqual(["public.studio2_apply_permission_change_r3", "public.studio2_approve_permission_change"]);
   });
 
   it("keeps an unknown critical authority hard despite a known domain-shaped inventory", () => {

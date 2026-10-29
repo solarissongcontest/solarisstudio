@@ -86,8 +86,8 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
   },
   {
     domain: "authorization",
-    canonicalCommands: ["public.studio2_apply_permission_change_r3"],
-    evidence: ["supabase/migrations/20261027213001_v3_s16_authorization_authority.sql", ".github/tests/v3-canonical-truncate-authority.sql"],
+    canonicalCommands: ["public.studio2_apply_permission_change_r3", "public.studio2_approve_permission_change"],
+    evidence: ["supabase/migrations/20261027213001_v3_s16_authorization_authority.sql", "supabase/migrations/20261029172000_v3_authorization_command_boundary.sql", ".github/tests/v3-authorization-command-boundary.sql", "src/lib/v3-authorization-mechanisms.test.ts", ".github/tests/v3-canonical-truncate-authority.sql"],
   },
   {
     domain: "televote",
