@@ -12,23 +12,24 @@ import { useV3SongProjection } from "@/lib/v3-music-entities-runtime";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SONG_DESCRIPTION =
+  "Publication-safe Solaris Song identity and published contest appearances.";
 
 export const Route = createFileRoute("/songs/$songId")({
-  head: ({ params }) => ({
-    meta: [
-      { title: "Song — Solaris Studio" },
-      {
-        name: "description",
-        content: "Publication-safe Solaris song identity and published contest appearances.",
-      },
-    ],
-    links: [
-      {
-        rel: "canonical",
-        href: `https://studio.solaris-song-contest.workers.dev/songs/${encodeURIComponent(params.songId)}`,
-      },
-    ],
-  }),
+  head: ({ params }) => {
+    const url = `https://studio.solaris-song-contest.workers.dev/songs/${encodeURIComponent(params.songId)}`;
+    return {
+      meta: [
+        { title: "Song — Solaris Studio" },
+        { name: "description", content: SONG_DESCRIPTION },
+        { property: "og:title", content: "Song — Solaris Studio" },
+        { property: "og:description", content: SONG_DESCRIPTION },
+        { property: "og:type", content: "music.song" },
+        { property: "og:url", content: url },
+      ],
+      links: [{ rel: "canonical", href: url }],
+    };
+  },
   component: SongPage,
 });
 
