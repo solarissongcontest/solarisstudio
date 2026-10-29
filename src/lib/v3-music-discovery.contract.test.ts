@@ -7,6 +7,7 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 const route = () => read("src/routes/music/index.tsx");
 const screen = () => read("src/components/v3/V3MusicDiscoveryScreen.tsx");
 const primitives = () => read("src/components/v3/V3MusicPrimitives.tsx");
+const entityScreens = () => read("src/components/v3/V3MusicEntityScreens.tsx");
 const songsRoute = () => read("src/routes/songs/index.tsx");
 const artistsRoute = () => read("src/routes/artists/index.tsx");
 
@@ -38,8 +39,18 @@ describe("V3 Songs & Artists discovery", () => {
     expect(source).not.toContain("toLowerCase()");
   });
 
+  it("uses the dedicated music primitives on complete collections instead of generic action-card rows", () => {
+    const source = entityScreens();
+    expect(source).toContain("<V3SongPreview");
+    expect(source).toContain("<V3ArtistPreview");
+    expect(source).toContain('to="/music"');
+    expect(source).toContain("Published appearance");
+    expect(source).not.toContain('description="Artist profile"');
+    expect(source).not.toContain('description="Open song"');
+  });
+
   it("never falls back to raw Entry or direct Supabase reads", () => {
-    const combined = `${route()}\n${screen()}\n${primitives()}`;
+    const combined = `${route()}\n${screen()}\n${primitives()}\n${entityScreens()}`;
     expect(combined).not.toContain("supabase");
     expect(combined).not.toContain('.from("entries")');
     expect(combined).not.toContain("useEntries");
