@@ -8,6 +8,8 @@ import {
   V3_SYSTEM_CONCEPT_OWNER,
   V3_SYSTEM_DOMAIN_REGISTRY,
 } from "../src/lib/v3-capability-registry";
+import { buildV3PublicProductReviewRows } from "../src/lib/v3-public-product-review";
+import { inspectV3NavigationReferencePackage, describeV3NavigationGeometryEvidence } from "./lib/v3-navigation-reference-evidence";
 
 type CompletionState =
   | "missing"
@@ -158,6 +160,7 @@ function organizerRow(
 
 const registryGuardsPassed = process.env.V3_REGISTRY_GUARDS_PASSED === "1";
 const candidateSha = exactSha();
+const publicProductReviewRows = buildV3PublicProductReviewRows();
 const eventBackedConsequences = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter(
   (item) => item.implementationState === "event-backed",
 );
@@ -448,9 +451,10 @@ const organizerRows: EvidenceRow[] = [
 const liquidTabBar = "src/components/v3/V3LiquidTabBar.tsx";
 const liquidCss = "src/styles/v3-liquid-tabbar.css";
 const interactionPhysics = "src/lib/interaction-physics.ts";
+const appShell = "src/components/v3/V3AppShell.tsx";
 const topLevelSwipeSurface = "src/components/v3/V3TopLevelSwipeSurface.tsx";
+const legacyPageViewport = "src/components/v3/V3PageViewport.tsx";
 const hasLiquid = existsSync(liquidTabBar);
-const hasLiquidContract = existsSync("src/lib/v3-app-shell.contract.test.ts") && hasLiquid;
 const hasVisualProgress = sourceContains(liquidTabBar, /visualProgress|navigationProgress/);
 const hasPointerDrag = sourceContains(liquidTabBar, /onPointerMove|pointermove/);
 const hasVelocity = sourceContains(interactionPhysics, /velocity/i);
@@ -461,23 +465,60 @@ const hasCanonicalTopLevelSwipeViewport =
   sourceContains(topLevelSwipeSurface, /previousSurface/) &&
   sourceContains(topLevelSwipeSurface, /nextSurface/) &&
   sourceContains(topLevelSwipeSurface, /--v3-navigation-progress/);
-const hasPageViewport =
-  hasCanonicalTopLevelSwipeViewport ||
-  sourceContains("src/components/v3/V3PageViewport.tsx", /previous.*current.*next|visualProgress/s) ||
-  sourceContains("src/components/v3/V3AppShell.tsx", /previous.*current.*next|visualProgress/s);
-const hasTabMemory = existsSync("src/lib/v3-tab-memory.ts") || sourceContains("src/components/v3/V3AppShell.tsx", /tab.*memory|scroll.*restor/i);
-const hasReferenceFreeze = existsSync("docs/v3/navigation-reference/README.md");
+const hasProductionTopLevelSwipeIntegration =
+  hasCanonicalTopLevelSwipeViewport &&
+  sourceContains(appShell, /V3TopLevelSwipeSurface/) &&
+  sourceContains(appShell, /<V3TopLevelSwipeSurface\b/);
+const hasLegacyPageViewportFoundation =
+  sourceContains(legacyPageViewport, /previous.*current.*next|visualProgress/s);
+const hasLegacyPageViewportIntegration =
+  hasLegacyPageViewportFoundation &&
+  sourceContains(appShell, /V3PageViewport/) &&
+  sourceContains(appShell, /<V3PageViewport\b/);
+const hasPageViewport = hasProductionTopLevelSwipeIntegration || hasLegacyPageViewportIntegration;
+const hasPageViewportFoundation =
+  hasCanonicalTopLevelSwipeViewport || hasLegacyPageViewportFoundation || hasPageViewport;
+const hasTabMemory = existsSync("src/lib/v3-tab-memory.ts") || sourceContains(appShell, /tab.*memory|scroll.*restor/i);
+const referencePackage = inspectV3NavigationReferencePackage("docs/v3/navigation-reference");
+const hasReferenceFreeze = referencePackage.pass;
+const geometryEvidence = describeV3NavigationGeometryEvidence(hasLiquid, hasReferenceFreeze);
 
 const navigationRows: EvidenceRow[] = [
   { id: "N0", name: "freeze reference", state: hasReferenceFreeze ? "tested" : "missing", evidence: hasReferenceFreeze ? "Frozen navigation reference package present" : "No frozen Instagram/iPhone reference package in version control", blocker: hasReferenceFreeze ? undefined : "Reference baseline is not frozen" },
-  { id: "N1", name: "current bar geometry parity", state: hasLiquidContract ? "tested" : hasLiquid ? "implemented" : "foundation", evidence: hasLiquid ? "V3LiquidTabBar present" : "Current V3 shell only; liquid parity branch not integrated" },
+  { id: "N1", name: "current bar geometry parity", ...geometryEvidence },
   { id: "N2", name: "material parity + Apple override", state: hasLiquid && existsSync(liquidCss) ? "implemented" : "foundation", evidence: hasLiquid ? "Liquid tab bar material/CSS present" : "Canonical liquid material implementation not integrated" },
   { id: "N3", name: "compact state parity", state: hasLiquid && sourceContains(liquidTabBar, /compact/) ? "implemented" : "foundation", evidence: "Scroll compaction is accepted only from the canonical liquid navigation implementation" },
   { id: "N4", name: "shared visual progress", state: hasVisualProgress ? "implemented" : "missing", evidence: hasVisualProgress ? "Continuous visual/navigation progress detected" : "No shared progress authority detected" },
   { id: "N5", name: "direct lens interaction parity", state: hasPointerDrag ? "implemented" : "missing", evidence: hasPointerDrag ? "Direct pointer/lens interaction detected" : "Direct lens drag not integrated" },
-  { id: "N6", name: "top-level page viewport", state: hasPageViewport ? "implemented" : "missing", evidence: hasPageViewport ? "Previous/current/next viewport implementation detected" : "No canonical page viewport implementation detected" },
-  { id: "N7", name: "gesture arbitration", state: hasPageViewport && sourceContains("src/components/v3/V3AppShell.tsx", /gesture|horizontal|carousel/i) ? "implemented" : "missing", evidence: "Global swipe must fail closed around nested gestures and iOS back edge" },
-  { id: "N8", name: "whole-page direct manipulation", state: hasPageViewport && hasVisualProgress ? "implemented" : "missing", evidence: "Requires page viewport and shared visual progress" },
+  {
+    id: "N6",
+    name: "top-level page viewport",
+    state: hasPageViewport ? "integrated" : hasPageViewportFoundation ? "foundation" : "missing",
+    evidence: hasPageViewport
+      ? "Production V3AppShell mounts a live previous/current/next page viewport"
+      : hasPageViewportFoundation
+        ? "Swipe compositor foundation exists, but production V3AppShell activation was not detected"
+        : "No canonical page viewport implementation detected",
+    blocker: hasPageViewport
+      ? undefined
+      : "Whole-page swipe remains fail-closed until the production shell mounts safe live adjacent surfaces",
+  },
+  { id: "N7", name: "gesture arbitration", state: hasPageViewport && sourceContains(appShell, /gesture|horizontal|carousel/i) ? "implemented" : "missing", evidence: "Global swipe must fail closed around nested gestures and iOS back edge" },
+  {
+    id: "N8",
+    name: "whole-page direct manipulation",
+    state: hasPageViewport && hasVisualProgress
+      ? "integrated"
+      : hasPageViewportFoundation && hasVisualProgress
+        ? "foundation"
+        : "missing",
+    evidence: hasPageViewport && hasVisualProgress
+      ? "Production page viewport and shared navigation visual progress are both integrated"
+      : "Compositor/progress primitives do not count as whole-page product integration until V3AppShell mounts them",
+    blocker: hasPageViewport && hasVisualProgress
+      ? undefined
+      : "Production shell integration is required before whole-page direct manipulation can be credited",
+  },
   { id: "N9", name: "release physics", state: hasVelocity ? "implemented" : "foundation", evidence: hasVelocity ? "Velocity-aware interaction physics detected" : "No candidate release-physics evidence" },
   { id: "N10", name: "tab memory", state: hasTabMemory ? "implemented" : "missing", evidence: hasTabMemory ? "Per-tab route/scroll memory implementation detected" : "Canonical per-tab memory not detected" },
   { id: "N11", name: "interruption hardening", state: hasInterruptionCleanup ? "implemented" : "missing", evidence: hasInterruptionCleanup ? "Blur/visibility/orientation cleanup detected" : "Interruption cleanup not integrated" },
@@ -487,7 +528,7 @@ const navigationRows: EvidenceRow[] = [
 ];
 
 const navigationAcceptanceRows: EvidenceRow[] = [
-  { id: "geometry", name: "geometry and safe-area placement", state: hasLiquid ? "implemented" : "foundation", evidence: hasLiquid ? liquidTabBar : "V3 shell baseline only" },
+  { id: "geometry", name: "geometry and safe-area placement", ...geometryEvidence },
   { id: "material", name: "Liquid Glass material", state: hasLiquid && existsSync(liquidCss) ? "implemented" : "foundation", evidence: hasLiquid ? liquidCss : "Liquid parity branch not integrated" },
   { id: "lens", name: "active lens", state: hasLiquid ? "implemented" : "foundation", evidence: hasLiquid ? liquidTabBar : "No canonical liquid lens on main" },
   { id: "press", name: "press", state: hasLiquid && sourceContains(liquidTabBar, /pointerdown|press/i) ? "implemented" : "foundation", evidence: "Press response implementation signal" },
@@ -496,14 +537,26 @@ const navigationAcceptanceRows: EvidenceRow[] = [
   { id: "velocity-release", name: "velocity release", state: hasVelocity ? "implemented" : "foundation", evidence: interactionPhysics },
   { id: "edge-resistance", name: "edge resistance", state: hasLiquid && sourceContains(liquidTabBar, /rubber|edge/i) ? "implemented" : "missing", evidence: "First/last destination resistance" },
   { id: "scroll-compact", name: "scroll compact behavior", state: hasLiquid && sourceContains(liquidTabBar, /compact/) ? "implemented" : "foundation", evidence: "Expanded/compact morphology" },
-  { id: "page-swipe", name: "page swipe", state: hasPageViewport && hasVisualProgress ? "implemented" : "missing", evidence: "Live-DOM previous/current/next page composition" },
+  {
+    id: "page-swipe",
+    name: "page swipe",
+    state: hasPageViewport && hasVisualProgress
+      ? "integrated"
+      : hasPageViewportFoundation && hasVisualProgress
+        ? "foundation"
+        : "missing",
+    evidence: hasPageViewport
+      ? "Live-DOM previous/current/next page composition is mounted by V3AppShell"
+      : "Live-DOM compositor foundation exists but is not mounted by the production shell",
+    blocker: hasPageViewport ? undefined : "Production shell activation remains intentionally fail-closed",
+  },
   { id: "gesture-arbitration", name: "gesture arbitration", state: navigationRows.find((row) => row.id === "N7")?.state ?? "missing", evidence: "Nested horizontal content, vertical scroll and iOS back edge must win when appropriate" },
   { id: "route-memory", name: "route memory", state: hasTabMemory ? "implemented" : "missing", evidence: "Per-tab route/filter/scroll restoration" },
   { id: "focused-task-shell", name: "focused task shell", state: existsSync("src/components/v3/V3FocusedTaskShell.tsx") ? "implemented" : "foundation", evidence: "Critical workflows must suppress distracting global navigation" },
   { id: "keyboard", name: "keyboard", state: hasLiquid && sourceContains(liquidTabBar, /visualViewport|keyboard/i) ? "implemented" : "foundation", evidence: "Virtual-keyboard/safe-area behavior" },
   { id: "accessibility", name: "accessibility", state: hasLiquid && hasReducedEffects ? "implemented" : "foundation", evidence: "Semantic links, target size, reduced motion/transparency and focus behavior" },
-  { id: "responsive", name: "responsive behavior", state: existsSync("src/components/v3/V3AppShell.tsx") ? "implemented" : "foundation", evidence: "Shared V3 shell responsive behavior" },
-  { id: "standalone-pwa", name: "standalone PWA", state: sourceContains("src/components/v3/V3AppShell.tsx", /standalone|display-mode/) ? "implemented" : "foundation", evidence: "Standalone-specific shell behavior" },
+  { id: "responsive", name: "responsive behavior", state: existsSync(appShell) ? "implemented" : "foundation", evidence: "Shared V3 shell responsive behavior" },
+  { id: "standalone-pwa", name: "standalone PWA", state: sourceContains(appShell, /standalone|display-mode/) ? "implemented" : "foundation", evidence: "Standalone-specific shell behavior" },
   { id: "safe-updates", name: "safe updates", state: existsSync("src/lib/v3-client-lifecycle.ts") ? "implemented" : "foundation", evidence: "Critical workflows must defer unsafe activation" },
   { id: "resume", name: "resume reconciliation", state: existsSync("src/lib/v3-client-lifecycle.ts") ? "implemented" : "foundation", evidence: "Resume must refresh/reconcile canonical state" },
   { id: "offline-shell", name: "offline shell", state: existsSync("public/sw.js") || existsSync("src/sw.ts") ? "foundation" : "missing", evidence: "Offline shell is not domain authority" },
@@ -527,22 +580,44 @@ function table(rows: readonly EvidenceRow[]) {
   ].join("\n");
 }
 
+function publicProductTable() {
+  return [
+    "| Capability | Capability migration | Product parity | Verification | Certification | Product evidence / blocker |",
+    "| --- | --- | --- | --- | --- | --- |",
+    ...publicProductReviewRows.map((row) => {
+      const evidence = row.evidence.length ? row.evidence.join(", ") : row.blocker ?? "—";
+      return `| ${row.capabilityId} | **${row.migrationStatus}** | **${row.productParity}** | **${row.verification}** | **${row.certification}** | ${evidence.replaceAll("|", "\\|")} |`;
+    }),
+  ].join("\n");
+}
+
 const blockers = [...systemRows, ...publicRows, ...organizerRows, ...navigationRows, ...navigationAcceptanceRows]
   .filter((row) => row.blocker)
   .map((row) => `${row.id} ${row.name}: ${row.blocker}`);
 
 const payload = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   candidateSha,
   generatedAt: new Date().toISOString(),
   registryGuardsPassed,
   system: systemRows,
   public: publicRows,
+  publicProduct: publicProductReviewRows,
   organizer: organizerRows,
   navigation: navigationRows,
   navigationAcceptance: navigationAcceptanceRows,
+  navigationIntegration: {
+    compositorFoundation: hasCanonicalTopLevelSwipeViewport,
+    productionShellIntegration: hasProductionTopLevelSwipeIntegration,
+    legacyViewportFoundation: hasLegacyPageViewportFoundation,
+    legacyViewportIntegration: hasLegacyPageViewportIntegration,
+  },
+  navigationReference: referencePackage,
   registrySummary: {
     public: Object.fromEntries(countStatus(V3_PUBLIC_CAPABILITIES, (item) => item.specificationStatus)),
+    publicProductParity: Object.fromEntries(countStatus(publicProductReviewRows, (item) => item.productParity)),
+    publicVerification: Object.fromEntries(countStatus(publicProductReviewRows, (item) => item.verification)),
+    publicCertification: Object.fromEntries(countStatus(publicProductReviewRows, (item) => item.certification)),
     organizer: Object.fromEntries(countStatus(V3_ORGANIZER_CAPABILITY_REGISTRY, (item) => item.migrationStatus)),
     systemDomains: V3_SYSTEM_DOMAIN_REGISTRY.length,
     pendingPhysicalDomains: pendingPhysicalDomains.length,
@@ -563,19 +638,30 @@ if (process.argv.includes("--json")) {
     `- Canonical registry guards in this run: **${registryGuardsPassed ? "passed" : "not proven"}**`,
     "",
     "> Evidence states are deliberately not percentages. A later state is never inferred from route existence or an optimistic PR description.",
+    "> Capability migration, product parity, verification and certification are separate facts. A cut-over route is not automatically a redesigned or certified V3 product surface.",
     "> Order: missing → foundation → implemented → integrated → tested → parity → cutover → certified.",
     "",
     "## System S0–S16",
     "",
     table(systemRows),
     "",
-    "## Public P0–P50",
+    "## Public P0–P50 capability migration",
     "",
     table(publicRows),
     "",
     "### Public capability registry",
     "",
     ...countStatus(V3_PUBLIC_CAPABILITIES, (item) => item.specificationStatus).map(([status, count]) => `- ${status}: **${count}**`),
+    "",
+    "## Public product parity / verification / certification",
+    "",
+    publicProductTable(),
+    "",
+    "### Public product evidence summary",
+    "",
+    ...countStatus(publicProductReviewRows, (item) => item.productParity).map(([status, count]) => `- Product parity ${status}: **${count}**`),
+    ...countStatus(publicProductReviewRows, (item) => item.verification).map(([status, count]) => `- Verification ${status}: **${count}**`),
+    ...countStatus(publicProductReviewRows, (item) => item.certification).map(([status, count]) => `- Certification ${status}: **${count}**`),
     "",
     "## Organizer O0–O18",
     "",
@@ -592,6 +678,11 @@ if (process.argv.includes("--json")) {
     "## Navigation acceptance areas",
     "",
     table(navigationAcceptanceRows),
+    "",
+    "### Navigation integration truth",
+    "",
+    `- Top-level swipe compositor foundation: **${hasCanonicalTopLevelSwipeViewport ? "present" : "missing"}**`,
+    `- Production V3AppShell top-level swipe integration: **${hasProductionTopLevelSwipeIntegration ? "present" : "not detected"}**`,
     "",
     "## System registry/consequence summary",
     "",
