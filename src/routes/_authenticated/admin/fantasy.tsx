@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_authenticated/admin/fantasy")({
   head: () => ({
     meta: [
       { title: "Fantasy SSC — Solaris Organizer" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: FantasyAdminPage,
@@ -53,7 +53,7 @@ function FantasyAdminPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("fantasy_games")
-        .select("*")
+        .select("id,edition_id,show_id,name,opens_at,locks_at,status,roster_size,budget,captain_multiplier")
         .eq("edition_id", editionId!)
         .order("created_at", { ascending: false })
         .limit(1)
