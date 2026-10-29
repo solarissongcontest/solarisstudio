@@ -19,6 +19,7 @@ import {
   AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
+import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
 import {
   hasCompleteOrganizerTaskOperationalEvidence,
   resolveOrganizerTaskOperationalState,
@@ -29,6 +30,7 @@ import {
   type OrganizerTaskPriority,
   type OrganizerTaskV5,
 } from "@/lib/admin-tasks-v5";
+import { editionLabel as formatEditionLabel, useEditions } from "@/lib/data";
 
 const FILTERS = [
   "all",
@@ -71,10 +73,22 @@ function OrganizerTasksPage() {
   const { editionId } = useAdminContext();
   const { filter } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const editionsQuery = useEditions();
+  const editions = editionsQuery.data ?? [];
+  const edition = selectOrganizerEdition(editions, editionId);
+  const resolvedEditionId = editionId && edition ? edition.id : "";
+  const organizerEditionLabel = edition ? formatEditionLabel(edition) : null;
   const backend = useOrganisationBackendContract();
   const tasksSupported = backend.data?.capabilities.organizerTasks === true;
   const backendFilter = backendFilterForView(filter);
-  const tasksQuery = useOrganizerTasksV5(editionId, backendFilter, tasksSupported);
+  const tasksQuery = useOrganizerTasksV5(
+    resolvedEditionId || null,
+    backendFilter,
+    tasksSupported &&
+      Boolean(resolvedEditionId) &&
+      editionsQuery.isSuccess &&
+      !editionsQuery.error,
+  );
   const rawTasks = tasksQuery.data ?? [];
   const classifiedTasks: ClassifiedTask[] = rawTasks.map((task) => ({
     task,
@@ -84,6 +98,9 @@ function OrganizerTasksPage() {
   const completeOperationalEvidence = hasCompleteOrganizerTaskOperationalEvidence(rawTasks);
 
   const metricsAvailable =
+    Boolean(resolvedEditionId) &&
+    editionsQuery.isSuccess &&
+    !editionsQuery.error &&
     backend.isSuccess &&
     tasksSupported &&
     !tasksQuery.isLoading &&
@@ -116,7 +133,7 @@ function OrganizerTasksPage() {
     <AdminPage>
       <div className="mx-auto max-w-6xl space-y-4">
         <AdminPageHeader
-          eyebrow="Organizer · Work"
+          eyebrow={organizerEditionLabel ? `${organizerEditionLabel} · Organizer work` : "Organizer · Work"}
           title="Tasks"
           description="One domain-backed queue for work that is genuinely unresolved. Reading a notification never completes a task; the authoritative source state does."
           actions={
@@ -129,24 +146,36 @@ function OrganizerTasksPage() {
           }
         />
 
-        <SolarisMorphingSelection
-          value={filter}
-          ariaLabel="Task filters"
-          options={FILTERS.map((value) => ({
-            value,
-            label: filterLabel(value),
-          }))}
-          onChange={(next) => {
-            if (!FILTERS.includes(next as OrganizerTaskViewFilter)) return;
-            void navigate({
-              search: { filter: next as OrganizerTaskViewFilter },
-              replace: true,
-            });
-          }}
-          className="border-white/[0.07] bg-white/[0.02]"
-        />
+        {organizerEditionLabel ? (
+          <div
+            data-v3-organizer-context-lock="edition"
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2"
+          >
+            <span className="admin-section-label">Edition context</span>
+            <AdminStatus tone="info">{organizerEditionLabel}</AdminStatus>
+          </div>
+        ) : null}
 
-        {filter !== "resolved" ? (
+        {edition ? (
+          <SolarisMorphingSelection
+            value={filter}
+            ariaLabel="Task filters"
+            options={FILTERS.map((value) => ({
+              value,
+              label: filterLabel(value),
+            }))}
+            onChange={(next) => {
+              if (!FILTERS.includes(next as OrganizerTaskViewFilter)) return;
+              void navigate({
+                search: { filter: next as OrganizerTaskViewFilter },
+                replace: true,
+              });
+            }}
+            className="border-white/[0.07] bg-white/[0.02]"
+          />
+        ) : null}
+
+        {edition && filter !== "resolved" ? (
           <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 xl:grid-cols-5">
             <Metric label="Actionable" value={actionable} tone="info" />
             <Metric label="Blocked" value={blocked} tone="blocked" />
@@ -156,7 +185,33 @@ function OrganizerTasksPage() {
           </section>
         ) : null}
 
-        {backend.isLoading ? (
+        {editionsQuery.isLoading ? (
+          <AdminCard>
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              Resolving Organizer edition context…
+            </p>
+          </AdminCard>
+        ) : editionsQuery.error ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Edition context could not be resolved"
+              description={
+                editionsQuery.error instanceof Error
+                  ? editionsQuery.error.message
+                  : "Solaris could not verify the selected Organizer edition."
+              }
+            />
+          </AdminCard>
+        ) : !edition ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Choose an edition"
+              description="Select an edition that is currently available to your Organizer account before evaluating Tasks. Solaris will not query task state for a missing, stale or inaccessible edition context."
+            />
+          </AdminCard>
+        ) : backend.isLoading ? (
           <AdminCard>
             <p className="py-12 text-center text-sm text-muted-foreground">
               Verifying Organizer backend compatibility…
@@ -230,9 +285,11 @@ function OrganizerTasksPage() {
           </AdminCard>
         )}
 
-        <p className="px-1 text-[11px] leading-5 text-muted-foreground">
-          Task state is derived from canonical domain evidence. Legacy waiting and resolved states remain authoritative; actionable, blocked, failed and overdue require explicit rich-state evidence from the task projection. Due timestamps are display metadata only and the browser clock never upgrades them into workflow truth. Priority is severity, not workflow state. There is intentionally no generic “Mark resolved” button.
-        </p>
+        {edition ? (
+          <p className="px-1 text-[11px] leading-5 text-muted-foreground">
+            Task state is derived from canonical domain evidence. Legacy waiting and resolved states remain authoritative; actionable, blocked, failed and overdue require explicit rich-state evidence from the task projection. Due timestamps are display metadata only and the browser clock never upgrades them into workflow truth. Priority is severity, not workflow state. There is intentionally no generic “Mark resolved” button.
+          </p>
+        ) : null}
       </div>
     </AdminPage>
   );

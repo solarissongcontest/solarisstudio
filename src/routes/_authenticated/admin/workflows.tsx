@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
-  CircleDot,
   Clock3,
   GitBranch,
   ListChecks,
@@ -28,8 +27,7 @@ import {
 import { useEditionAdminDeadlines } from '@/lib/admin-ops';
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions, useParticipants, useShows } from '@/lib/data';
-import { defaultSubsystemStatesForEdition, normalizeLegacyEditionStatus } from '@/lib/edition-state';
-import { studio2ControlRoom } from '@/lib/studio2-control-room';
+import { loadStudio2ControlRoomSnapshot } from '@/lib/studio2-control-room';
 import { isStudio2FeatureEnabled } from '@/lib/studio2-feature-flags';
 import {
   buildStudio2TaskBoard,
@@ -97,31 +95,20 @@ function WorkflowsPage() {
   const deadlinesQuery = useEditionAdminDeadlines(resolvedEditionId || null);
 
   const featureQuery = useQuery({
-    queryKey: ['studio2-workflow-flags', resolvedEditionId || 'none'],
+    queryKey: ['studio2-workflow-engine-flag', resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId),
-    queryFn: async () => {
-      const [workflowEngine, controlRoom] = await Promise.all([
-        isStudio2FeatureEnabled('workflow_engine', resolvedEditionId),
-        isStudio2FeatureEnabled('live_control_room', resolvedEditionId),
-      ]);
-      return { workflowEngine, controlRoom };
-    },
+    queryFn: () => isStudio2FeatureEnabled('workflow_engine', resolvedEditionId),
     staleTime: 30_000,
   });
 
   const snapshotQuery = useQuery({
     queryKey: ['studio2-workflow-runtime', resolvedEditionId || 'none'],
-    enabled: Boolean(resolvedEditionId) && featureQuery.data?.controlRoom === true,
-    queryFn: () => studio2ControlRoom.loadSnapshot(resolvedEditionId, 100),
+    enabled: Boolean(resolvedEditionId) && featureQuery.data === true,
+    queryFn: () => loadStudio2ControlRoomSnapshot(resolvedEditionId, undefined, 100),
     refetchInterval: 60_000,
   });
 
-  const runtime = useMemo(() => {
-    if (snapshotQuery.data?.runtime.runtime) return snapshotQuery.data.runtime.runtime;
-    if (!selectedEdition) return null;
-    const state = normalizeLegacyEditionStatus(selectedEdition.status);
-    return { edition: state, subsystems: defaultSubsystemStatesForEdition(state) };
-  }, [selectedEdition, snapshotQuery.data]);
+  const runtime = snapshotQuery.data?.runtime.runtime ?? null;
 
   const model = useMemo(() => {
     if (!selectedEdition || !runtime) return null;
@@ -177,7 +164,7 @@ function WorkflowsPage() {
     || showsQuery.isLoading
     || deadlinesQuery.isLoading
     || featureQuery.isLoading
-    || (featureQuery.data?.controlRoom === true && snapshotQuery.isLoading);
+    || (featureQuery.data === true && snapshotQuery.isLoading);
   const error = editionsQuery.error
     || countriesQuery.error
     || participantsQuery.error
@@ -192,7 +179,7 @@ function WorkflowsPage() {
         <AdminPageHeader
           eyebrow="Solaris Studio 2 · Operations"
           title="Workflows"
-          description="Operational workflow state derived from canonical contest data and evaluated by the shared Workflow Engine. Automations may recommend work; irreversible actions stay explicit."
+          description="Operational workflow state derived from canonical contest data and canonical Studio 2 runtime, then evaluated by the shared Workflow Engine. Automations may recommend work; irreversible actions stay explicit."
           actions={
             <a href="/admin/tasks" className="admin-action-secondary">
               Open Tasks
@@ -208,7 +195,7 @@ function WorkflowsPage() {
               description="Select the edition in the Organizer toolbar before Studio 2 derives operational workflows. Solaris will not substitute the newest or globally active edition."
             />
           </AdminCard>
-        ) : featureQuery.data && !featureQuery.data.workflowEngine ? (
+        ) : featureQuery.data === false ? (
           <AdminCard>
             <AdminEmptyState
               icon={ShieldAlert}
@@ -224,7 +211,7 @@ function WorkflowsPage() {
           <AdminCard>
             <AdminEmptyState
               icon={AlertTriangle}
-              title="Workflows could not load"
+              title="Workflows could not load canonical state"
               description={errorText(error)}
             />
           </AdminCard>
@@ -243,7 +230,7 @@ function WorkflowsPage() {
               <AdminCardHeader
                 eyebrow="Active workflows"
                 title="Operational flow"
-                description="The current edition stage drives confirmation, submission, jury, broadcast, verification and publication work. Entry and show workflows stay attached to their canonical records."
+                description="The canonical edition runtime drives confirmation, submission, jury, broadcast, verification and publication work. Entry and show workflows stay attached to their canonical records."
               />
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {filtered.filter((workflow) => workflow.status !== 'completed').slice(0, 9).map((workflow) => (
@@ -412,18 +399,6 @@ function WorkflowsPage() {
                 <p className="text-sm text-muted-foreground">No automation recommendations are active for the current edition state.</p>
               )}
             </AdminCard>
-
-            {featureQuery.data?.controlRoom === false ? (
-              <AdminCard>
-                <div className="flex items-start gap-3">
-                  <CircleDot className="mt-0.5 size-5 shrink-0 text-sky-200" />
-                  <div>
-                    <p className="text-sm font-semibold">Compatibility runtime in use</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Live Control Room is disabled, so lifecycle state is derived from the legacy edition status. Entry, show and deadline data still comes from canonical records.</p>
-                  </div>
-                </div>
-              </AdminCard>
-            ) : null}
           </>
         ) : null}
       </div>

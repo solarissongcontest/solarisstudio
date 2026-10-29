@@ -34,11 +34,17 @@ type PendingRoundStatusChange = {
   preview: MergedRoundStatusPreview;
   operationId: string;
   idempotencyKey: string;
+  editionId: string;
+  editionLabel: string;
 };
+
+function staleRoundScope(message: string) {
+  return Object.assign(new Error(message), { status: 409 });
+}
 
 export function VotingRoundsView() {
   const queryClient = useQueryClient();
-  const { editionId } = useAdminContext();
+  const { editionId, editionLabel: organizerEditionLabel } = useAdminContext();
   const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
   const createRound = useServerFn(createMergedTelevotingRound);
   const renameRound = useServerFn(renameMergedTelevotingRound);
@@ -65,18 +71,38 @@ export function VotingRoundsView() {
   const rounds = edition?.rounds ?? [];
   const openRound = rounds.find((round) => round.status === "open") ?? null;
   const remoteEditionId = edition?.id ?? "";
+  const editionContextLabel =
+    organizerEditionLabel?.trim() ||
+    (edition ? `SSC ${edition.edition_number} · ${edition.name}` : editionId ?? "Current edition");
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["merged-televoting-rounds-page", editionId] });
 
+  function assertCurrentRoundScope(round?: MergedAdminRound) {
+    if (!editionId || !edition || edition.solaris_id !== editionId || !remoteEditionId) {
+      throw staleRoundScope(
+        "Organizer edition context changed. Reload Voting Rounds from the currently selected edition.",
+      );
+    }
+    if (round && round.edition_id !== remoteEditionId) {
+      throw staleRoundScope(
+        "This voting round no longer belongs to the selected Organizer edition.",
+      );
+    }
+    return { editionId, remoteEditionId };
+  }
+
   const createMutation = useMutation({
-    mutationFn: () => createRound({
-      data: {
-        editionId: remoteEditionId,
-        name: newName.trim(),
-        operationId: crypto.randomUUID(),
-        idempotencyKey: crypto.randomUUID(),
-      },
-    }),
+    mutationFn: () => {
+      assertCurrentRoundScope();
+      return createRound({
+        data: {
+          editionId: remoteEditionId,
+          name: newName.trim(),
+          operationId: crypto.randomUUID(),
+          idempotencyKey: crypto.randomUUID(),
+        },
+      });
+    },
     onSuccess: async (result) => {
       setNewName("");
       setCreateOpen(false);
@@ -88,15 +114,19 @@ export function VotingRoundsView() {
   });
 
   const renameMutation = useMutation({
-    mutationFn: () => renameRound({
-      data: {
-        id: editing!.id,
-        name: editingName.trim(),
-        expectedRoundVersion: editing!.version,
-        operationId: crypto.randomUUID(),
-        idempotencyKey: crypto.randomUUID(),
-      },
-    }),
+    mutationFn: () => {
+      if (!editing) throw new Error("Choose a voting round to rename");
+      assertCurrentRoundScope(editing);
+      return renameRound({
+        data: {
+          id: editing.id,
+          name: editingName.trim(),
+          expectedRoundVersion: editing.version,
+          operationId: crypto.randomUUID(),
+          idempotencyKey: crypto.randomUUID(),
+        },
+      });
+    },
     onSuccess: async () => {
       setEditing(null);
       setEditingName("");
@@ -112,7 +142,16 @@ export function VotingRoundsView() {
   ) {
     setStatusBusy(round.id);
     try {
+      const scope = assertCurrentRoundScope(round);
       const preview = await previewStatus({ data: { id: round.id, status } });
+      if (
+        preview.solarisEditionId !== scope.editionId ||
+        preview.remoteEditionId !== scope.remoteEditionId
+      ) {
+        throw staleRoundScope(
+          "Voting round preview returned a different edition scope. Nothing was changed.",
+        );
+      }
       if (preview.alreadyApplied) {
         toast.message(`${round.name} is already ${status}.`);
         return;
@@ -126,6 +165,8 @@ export function VotingRoundsView() {
         preview,
         operationId: crypto.randomUUID(),
         idempotencyKey: crypto.randomUUID(),
+        editionId: scope.editionId,
+        editionLabel: editionContextLabel,
       });
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : "Round status impact could not be loaded");
@@ -139,6 +180,18 @@ export function VotingRoundsView() {
     const pending = pendingStatus;
     setStatusBusy(pending.round.id);
     try {
+      const scope = assertCurrentRoundScope(pending.round);
+      if (
+        pending.editionId !== scope.editionId ||
+        pending.preview.solarisEditionId !== scope.editionId ||
+        pending.preview.remoteEditionId !== scope.remoteEditionId
+      ) {
+        setPendingStatus(null);
+        await refresh();
+        throw staleRoundScope(
+          "Organizer edition context changed after this voting review opened. Canonical state was refreshed and nothing was applied.",
+        );
+      }
       await setStatus({
         data: {
           id: pending.round.id,
@@ -169,6 +222,7 @@ export function VotingRoundsView() {
     if (!deleteTarget) return;
     const target = deleteTarget;
     try {
+      assertCurrentRoundScope(target);
       await deleteRound({
         data: {
           id: target.id,
@@ -188,7 +242,7 @@ export function VotingRoundsView() {
   return (
     <div className="admin-page mx-auto max-w-5xl pb-5">
       <AdminPageHeader
-        eyebrow="Voting"
+        eyebrow={`${editionContextLabel} · Voting`}
         title="Rounds & entries"
         description="Prepare a voting round, check its line-up, then deliberately open or close voting. Technical state stays out of the way until you need it."
         actions={
@@ -202,6 +256,16 @@ export function VotingRoundsView() {
           </button>
         }
       />
+
+      {editionId ? (
+        <div
+          data-v3-organizer-context-lock="edition"
+          className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2"
+        >
+          <span className="admin-section-label">Edition context</span>
+          <AdminStatus tone="info">{editionContextLabel}</AdminStatus>
+        </div>
+      ) : null}
 
       {!editionId || isLoading ? (
         <AdminCard className="py-10 text-center text-sm text-muted-foreground">
@@ -315,7 +379,7 @@ export function VotingRoundsView() {
         </AdminCard>
       )}
 
-      <AdminSheet open={createOpen} onClose={() => !createMutation.isPending && setCreateOpen(false)} title="Create voting round" description="The round starts as a draft. Configure its entries before opening voting.">
+      <AdminSheet open={createOpen} onClose={() => !createMutation.isPending && setCreateOpen(false)} title="Create voting round" description={`Create a draft round in ${editionContextLabel}. Configure its entries before opening voting.`}>
         <div className="space-y-4">
           <label className="block"><span className="text-xs font-semibold">Round name</span><Input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Grand Final" className="mt-2 min-h-11" /></label>
           <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2">
@@ -325,7 +389,7 @@ export function VotingRoundsView() {
         </div>
       </AdminSheet>
 
-      <AdminSheet open={Boolean(editing)} onClose={() => !renameMutation.isPending && setEditing(null)} title="Rename voting round" description="This changes the round name without touching entries, ballots or results.">
+      <AdminSheet open={Boolean(editing)} onClose={() => !renameMutation.isPending && setEditing(null)} title="Rename voting round" description={`Rename this round in ${editionContextLabel}. This does not touch entries, ballots or results.`}>
         <div className="space-y-4">
           <Input value={editingName} onChange={(event) => setEditingName(event.target.value)} className="min-h-11" />
           <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2">
@@ -377,7 +441,18 @@ export function VotingRoundsView() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={removeRound}
         title={deleteTarget ? `Delete ${deleteTarget.name}?` : "Delete round?"}
-        description="This permanently removes the draft voting round. Only draft rounds can be deleted; backend protections remain in force."
+        description={deleteTarget ? (
+          <div className="space-y-3">
+            <div
+              data-v3-organizer-confirmation-context="edition-round"
+              className="rounded-xl border border-sky-200/15 bg-sky-200/[0.045] p-3"
+            >
+              <p className="admin-section-label">Operation context</p>
+              <p className="mt-1 font-semibold text-foreground">{editionContextLabel} · {deleteTarget.name}</p>
+            </div>
+            <p>This permanently removes the draft voting round. Only draft rounds can be deleted; backend protections remain in force.</p>
+          </div>
+        ) : "Review the voting round before deleting it."}
         confirmLabel="Delete round"
         confirmationText={deleteTarget?.name}
         confirmationHint={deleteTarget ? `Type ${deleteTarget.name} to confirm` : undefined}
@@ -391,6 +466,14 @@ function TelevoteRoundImpactPreview({ pending }: { pending: PendingRoundStatusCh
   const preview = pending.preview;
   return (
     <div className="space-y-3">
+      <div
+        data-v3-organizer-confirmation-context="edition-round"
+        className="rounded-xl border border-sky-200/15 bg-sky-200/[0.045] p-3"
+      >
+        <p className="admin-section-label">Operation context</p>
+        <p className="mt-1 font-semibold text-foreground">{pending.editionLabel} · {pending.round.name}</p>
+      </div>
+
       <p>
         This is a <strong className="text-foreground">Risk R2</strong> live-voting change for{" "}
         <strong className="text-foreground">{pending.round.name}</strong>.

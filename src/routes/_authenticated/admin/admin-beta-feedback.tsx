@@ -6,7 +6,7 @@ export const Route = createFileRoute("/_authenticated/admin/admin-beta-feedback"
   head: () => ({
     meta: [
       { title: "QA Coverage — Solaris Organizer" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: AdminQaCoveragePage,

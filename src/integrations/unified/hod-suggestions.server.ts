@@ -1,6 +1,4 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
-import { televotingAdmin } from "@/integrations/televoting/client.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { loadHodResolverServer } from "@/integrations/unified/hod-history.server";
 
 export type HodIdentitySuggestion = {
@@ -30,9 +28,18 @@ function normalizeUsername(value: unknown) {
 }
 
 export async function getHodIdentitySuggestionsServer(): Promise<HodIdentitySuggestion[]> {
-  await requireSolarisOrganizerServer();
-  const db = supabaseAdmin as any;
+  // Suggestions combine cross-edition private HOD history with protected raw
+  // Televote submission identity. Require both data-class capabilities before
+  // either privileged client is imported. loadHodResolverServer() enforces the
+  // parent global delegation.read boundary itself.
+  await requireSolarisCapabilityServer("televote.ballots.read", null);
   const hod = await loadHodResolverServer();
+
+  const [{ supabaseAdmin }, { televotingAdmin }] = await Promise.all([
+    import("@/integrations/supabase/client.server"),
+    import("@/integrations/televoting/client.server"),
+  ]);
+  const db = supabaseAdmin as any;
 
   const [editionLinksResult, bindingsResult, roundsResult, submissionsResult] = await Promise.all([
     db
@@ -48,7 +55,8 @@ export async function getHodIdentitySuggestionsServer(): Promise<HodIdentitySugg
       .select("id,edition_id,name"),
     televotingAdmin
       .from("vote_submissions")
-      .select("id,round_id,country_code,username,username_normalized,status")
+      .select("round_id,country_code,username,username_normalized")
+      .neq("status", "deleted")
       .limit(50000),
   ]);
 
@@ -78,7 +86,6 @@ export async function getHodIdentitySuggestionsServer(): Promise<HodIdentitySugg
   const candidates = new Map<string, Candidate>();
 
   for (const submission of submissionsResult.data ?? []) {
-    if (submission.status === "deleted") continue;
     const roundId = String(submission.round_id);
     const editionId = canonicalByRound.get(roundId)
       ?? canonicalByRemoteEdition.get(remoteEditionByRound.get(roundId) ?? "");

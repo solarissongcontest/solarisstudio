@@ -25,11 +25,20 @@ describe('Studio 2 Workflows integration', () => {
     expect(model).not.toContain('.update(');
   });
 
-  it('derives workflow state from canonical edition, participant, show and runtime sources', () => {
+  it('derives workflow state from exact-edition canonical data and Studio 2 runtime', () => {
     expect(route).toContain('useParticipants(resolvedEditionId');
     expect(route).toContain('useShows(resolvedEditionId');
-    expect(route).toContain('studio2ControlRoom.loadSnapshot');
+    expect(route).toContain('loadStudio2ControlRoomSnapshot(resolvedEditionId, undefined, 100)');
+    expect(route).toContain('const runtime = snapshotQuery.data?.runtime.runtime ?? null');
     expect(route).toContain('buildStudio2WorkflowModel');
+    expect(route).not.toContain('normalizeLegacyEditionStatus');
+    expect(route).not.toContain('defaultSubsystemStatesForEdition');
+  });
+
+  it('does not couple workflow runtime truth to the Control Room presentation rollout', () => {
+    expect(route).toContain("isStudio2FeatureEnabled('workflow_engine', resolvedEditionId)");
+    expect(route).not.toContain("isStudio2FeatureEnabled('live_control_room'");
+    expect(route).not.toContain('Compatibility runtime in use');
   });
 
   it('keeps queue filters and workflow inspection URL-addressable', () => {

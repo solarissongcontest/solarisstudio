@@ -1,5 +1,9 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
+import {
+  createSolarisAuthenticatedClientServer,
+  requireSolarisOrganizerServer,
+} from "@/integrations/supabase/organizer.server";
+import type { SolarisCapability } from "@/lib/permissions-v2";
 import type { AdvancedFriendVotingConfig } from "@/integrations/televoting/advanced-friend-voting";
 import { DEFAULT_ADVANCED_FRIEND_VOTING_CONFIG } from "@/integrations/televoting/advanced-friend-voting";
 import type { FriendVotingRiskConfig } from "@/integrations/televoting/friend-voting-math";
@@ -16,6 +20,28 @@ const DEFAULTS: FriendVotingSettings = {
   cliqueMinEdgeRisk: 65, cliqueInternalShareThreshold: 0.5, cliqueMinMembers: 3, cliqueMinDensity: 0.5, riskNotable: 30, riskReview: 50, riskStrong: 65, riskHigh: 80, riskCritical: 90,
   advancedModel: { ...DEFAULT_ADVANCED_FRIEND_VOTING_CONFIG },
 };
+
+const FRIEND_VOTING_CAPABILITIES = {
+  read: "voting.read",
+  manage: "voting.manage",
+} as const satisfies Record<string, SolarisCapability>;
+
+async function requireFriendVotingCapability(
+  capability: (typeof FRIEND_VOTING_CAPABILITIES)[keyof typeof FRIEND_VOTING_CAPABILITIES],
+  strictBeforeCutover: boolean,
+) {
+  const organizer = await requireSolarisOrganizerServer();
+  const caller = createSolarisAuthenticatedClientServer();
+  const { data, error } = await (caller as any).rpc("studio2_access_allowed", {
+    p_capability: capability,
+    p_edition_id: null,
+    p_strict_before_cutover: strictBeforeCutover,
+  });
+  if (error) throw new Error(`Could not verify Solaris capability: ${capability}`);
+  if (data !== true) throw new Error(`Missing Solaris capability: ${capability}`);
+  return organizer;
+}
+
 function n(value: unknown, fallback: number) { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : fallback; }
 function rowToSettings(row: any): FriendVotingSettings {
   const advanced = row?.advanced_model_config && typeof row.advanced_model_config === "object" ? row.advanced_model_config : {};
@@ -49,9 +75,9 @@ function rowToSettings(row: any): FriendVotingSettings {
   };
 }
 export async function loadFriendVotingSettingsServer(): Promise<FriendVotingSettings> { const db = supabaseAdmin as any; const { data, error } = await db.from("friend_voting_settings").select("*").eq("id", "default").maybeSingle(); if (error) throw new Error(error.message); return rowToSettings(data); }
-export async function getFriendVotingSettingsServer() { await requireSolarisOrganizerServer(); return loadFriendVotingSettingsServer(); }
+export async function getFriendVotingSettingsServer() { await requireFriendVotingCapability(FRIEND_VOTING_CAPABILITIES.read, false); return loadFriendVotingSettingsServer(); }
 export async function updateFriendVotingSettingsServer(input: FriendVotingSettings) {
-  const organizer = await requireSolarisOrganizerServer(); const db = supabaseAdmin as any;
+  const organizer = await requireFriendVotingCapability(FRIEND_VOTING_CAPABILITIES.manage, true); const db = supabaseAdmin as any;
   const values = {
     min_independent_editions: Math.max(1, Math.trunc(input.minIndependentEditions)), full_confidence_editions: Math.max(1, Math.trunc(input.fullConfidenceEditions)), support_edition_threshold: input.supportEditionThreshold, maximum_edition_threshold: input.maximumEditionThreshold, reciprocal_edition_threshold: input.reciprocalEditionThreshold, intensity_threshold: input.intensityThreshold, cross_channel_min_editions: Math.max(1, Math.trunc(input.crossChannelMinEditions)), base_confidence_weight: input.baseConfidenceWeight, support_weight: input.supportWeight, maximum_weight: input.maximumWeight, reciprocity_weight: input.reciprocityWeight, intensity_weight: input.intensityWeight, cross_channel_weight: input.crossChannelWeight, cross_channel_per_edition_weight: input.crossChannelPerEditionWeight, one_edition_cap: Math.round(input.oneEditionCap), two_edition_cap: Math.round(input.twoEditionCap), clique_min_edge_risk: Math.round(input.cliqueMinEdgeRisk), clique_internal_share_threshold: input.cliqueInternalShareThreshold, clique_min_members: Math.max(2, Math.trunc(input.cliqueMinMembers)), clique_min_density: input.cliqueMinDensity, risk_notable: Math.round(input.riskNotable), risk_review: Math.round(input.riskReview), risk_strong: Math.round(input.riskStrong), risk_high: Math.round(input.riskHigh), risk_critical: Math.round(input.riskCritical), advanced_model_config: input.advancedModel,
   };

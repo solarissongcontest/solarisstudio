@@ -16,7 +16,13 @@ import {
 } from "@/integrations/televoting/moderation.functions";
 import { getMergedTelevotingRoundsPage } from "@/integrations/televoting/rounds.functions";
 
-export function V3ScopedIntegrityReview({ editionId }: { editionId: string }) {
+export function V3ScopedIntegrityReview({
+  editionId,
+  editionLabel,
+}: {
+  editionId: string;
+  editionLabel: string;
+}) {
   const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
   const listVotes = useServerFn(listMergedModerationSubmissions);
   const [roundId, setRoundId] = useState("all");
@@ -104,7 +110,7 @@ export function V3ScopedIntegrityReview({ editionId }: { editionId: string }) {
   return (
     <div className="admin-page mx-auto max-w-6xl pb-5" data-v3-organizer-integrity-scope={editionId}>
       <AdminPageHeader
-        eyebrow="Voting · Integrity"
+        eyebrow={`${editionLabel} · Voting · Integrity`}
         title="Integrity review"
         description="Review only ballots from voting rounds linked to the exact edition selected in Solaris Organizer. Human decisions and sanctions stay unavailable until their server commands are edition-scoped."
         actions={
@@ -113,6 +119,14 @@ export function V3ScopedIntegrityReview({ editionId }: { editionId: string }) {
           </AdminStatus>
         }
       />
+
+      <div
+        data-v3-organizer-context-lock="edition"
+        className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2"
+      >
+        <span className="admin-section-label">Edition context</span>
+        <AdminStatus tone="info">{editionLabel}</AdminStatus>
+      </div>
 
       <AdminCard className="mb-4 !border-amber-200/15">
         <div className="flex items-start gap-3">

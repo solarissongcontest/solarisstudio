@@ -44,6 +44,13 @@ export type AdminNotification = {
   created_at: string;
 };
 
+const ADMIN_DEADLINE_FIELDS =
+  "id,edition_id,show_id,kind,label,due_at,completed_at,notes,created_at";
+const ADMIN_AUDIT_FIELDS =
+  "id,actor_id,action,table_name,record_id,edition_id,country_id,before_data,after_data,created_at";
+const ADMIN_NOTIFICATION_FIELDS =
+  "id,recipient_id,severity,title,body,href,source_key,read_at,resolved_at,requires_action,resolution_mode,created_at";
+
 const adminDb = supabase as any;
 
 function missingSchema(error: unknown) {
@@ -67,7 +74,7 @@ async function loadAdminDeadlines(editionId?: string | null) {
 
   const { data, error } = await adminDb
     .from("admin_deadlines")
-    .select("*")
+    .select(ADMIN_DEADLINE_FIELDS)
     .eq("edition_id", normalizedEditionId)
     .order("due_at", { ascending: true });
 
@@ -120,7 +127,7 @@ export function useAdminAudit(limit = 30) {
     queryFn: async () => {
       const { data, error } = await adminDb
         .from("admin_audit_log")
-        .select("*")
+        .select(ADMIN_AUDIT_FIELDS)
         .order("created_at", { ascending: false })
         .limit(limit);
 
@@ -145,7 +152,7 @@ export function useAdminNotifications() {
     queryFn: async () => {
       const { data, error } = await adminDb
         .from("admin_notifications")
-        .select("*")
+        .select(ADMIN_NOTIFICATION_FIELDS)
         .eq("recipient_id", user.id)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -245,52 +252,65 @@ export function useToggleAdminDeadline() {
 
 export function useMarkNotificationRead() {
   const qc = useQueryClient();
+  const user = useAuthenticatedUser();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await adminDb
+      const { data, error } = await adminDb
         .from("admin_notifications")
         .update({ read_at: new Date().toISOString() })
-        .eq("id", id);
+        .eq("id", id)
+        .eq("recipient_id", user.id)
+        .select("id, recipient_id, read_at")
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data || data.recipient_id !== user.id || !data.read_at) {
+        throw new Error("Notification read state could not be reconciled for this account.");
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-notifications"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-notifications", user.id] }),
   });
 }
 
 export function useResolveAdminNotification() {
   const qc = useQueryClient();
+  const user = useAuthenticatedUser();
 
   return useMutation({
     mutationFn: async ({ id, resolved }: { id: string; resolved: boolean }) => {
-      const { error } = await adminDb
+      const resolvedAt = resolved ? new Date().toISOString() : null;
+      const { data, error } = await adminDb
         .from("admin_notifications")
-        .update({ resolved_at: resolved ? new Date().toISOString() : null })
-        .eq("id", id);
+        .update({ resolved_at: resolvedAt })
+        .eq("id", id)
+        .eq("recipient_id", user.id)
+        .select("id, recipient_id, resolved_at")
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data || data.recipient_id !== user.id || Boolean(data.resolved_at) !== resolved) {
+        throw new Error("Notification resolution state could not be reconciled for this account.");
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-notifications"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-notifications", user.id] }),
   });
 }
 
 export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();
+  const user = useAuthenticatedUser();
 
   return useMutation({
     mutationFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) return;
-
       const { error } = await adminDb
         .from("admin_notifications")
         .update({ read_at: new Date().toISOString() })
-        .eq("recipient_id", auth.user.id)
+        .eq("recipient_id", user.id)
         .is("read_at", null);
 
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-notifications"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-notifications", user.id] }),
   });
 }

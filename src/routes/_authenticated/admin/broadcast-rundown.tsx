@@ -43,18 +43,25 @@ import {
   type Studio2BroadcastRundownConfig,
 } from '@/lib/studio2-broadcast-rundown';
 
-type PendingLockReview = {
+type ReviewedBroadcastContext = {
+  editionId: string;
+  editionLabel: string;
   showId: string;
   showName: string;
   revision: number;
+};
+
+type PendingStructureReview = ReviewedBroadcastContext & {
+  config: Studio2BroadcastRundownConfig;
+  reason: string;
+};
+
+type PendingLockReview = ReviewedBroadcastContext & {
   locked: boolean;
   reason: string;
 };
 
-type PendingSegmentReview = {
-  showId: string;
-  showName: string;
-  revision: number;
+type PendingSegmentReview = ReviewedBroadcastContext & {
   segment: RundownSegment;
   status: RundownSegmentStatus;
   reason: string;
@@ -64,6 +71,7 @@ type SegmentTransitionCommand = {
   segmentId: string;
   status: RundownSegmentStatus;
   reason: string;
+  reviewedEditionId?: string;
   reviewedShowId?: string;
   reviewedRevision?: number;
   reviewedStatus?: RundownSegmentStatus;
@@ -73,44 +81,53 @@ export const Route = createFileRoute('/_authenticated/admin/broadcast-rundown')(
   head: () => ({
     meta: [
       { title: 'Broadcast Rundown — Solaris Organizer' },
-      { name: 'robots', content: 'noindex' },
+      { name: 'robots', content: 'noindex, nofollow' },
     ],
   }),
   component: BroadcastRundownRoute,
 });
 
 function BroadcastRundownRoute() {
-  const { editionId } = useAdminContext();
-  return <BroadcastRundownPage key={editionId || 'unscoped'} />;
+  const { editionId, showId } = useAdminContext();
+  return <BroadcastRundownPage key={`${editionId || 'unscoped'}:${showId || 'no-show'}`} />;
 }
 
 function BroadcastRundownPage() {
-  const { editionId } = useAdminContext();
+  const {
+    editionId,
+    editionLabel,
+    showId: contextShowId,
+    setShowContext,
+  } = useAdminContext();
   const showsQuery = useShows(editionId ?? undefined);
   const queryClient = useQueryClient();
   const shows = showsQuery.data ?? [];
-  const [showId, setShowId] = useState('');
+  const selectedShow = shows.find((show) => show.id === contextShowId) ?? null;
+  const showId = selectedShow?.id ?? '';
+  const currentEditionLabel = editionLabel ?? 'Selected edition';
   const [mode, setMode] = useState<Studio2BroadcastMode>('production');
   const [draft, setDraft] = useState<Studio2BroadcastRundownConfig | null>(null);
+  const [pendingStructureReview, setPendingStructureReview] = useState<PendingStructureReview | null>(null);
   const [pendingLockReview, setPendingLockReview] = useState<PendingLockReview | null>(null);
   const [pendingSegmentReview, setPendingSegmentReview] = useState<PendingSegmentReview | null>(null);
 
   useEffect(() => {
-    if (!shows.length) {
-      if (showId) setShowId('');
-      return;
-    }
-    if (!showId || !shows.some((show) => show.id === showId)) setShowId(shows[0]!.id);
-  }, [showId, shows]);
+    if (showsQuery.isLoading || !contextShowId || selectedShow) return;
+    setShowContext(null);
+  }, [contextShowId, selectedShow, setShowContext, showsQuery.isLoading]);
 
   const rundownQuery = useQuery({
-    queryKey: ['studio2-broadcast-rundown', showId],
-    enabled: Boolean(showId),
+    queryKey: ['studio2-broadcast-rundown', editionId, showId],
+    enabled: Boolean(editionId && selectedShow),
     queryFn: () => loadStudio2BroadcastRundown(showId),
   });
 
   useEffect(() => {
-    if (!showId || rundownQuery.isLoading) return;
+    if (!showId) {
+      setDraft(null);
+      return;
+    }
+    if (rundownQuery.isLoading) return;
     setDraft(rundownQuery.data ?? createDefaultBroadcastRundown());
   }, [rundownQuery.data, rundownQuery.isLoading, showId]);
 
@@ -119,33 +136,46 @@ function BroadcastRundownPage() {
   }, [mode, rundownQuery.data]);
 
   useEffect(() => {
+    setPendingStructureReview(null);
     setPendingLockReview(null);
     setPendingSegmentReview(null);
   }, [showId, mode]);
 
-  const refreshRundown = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['studio2-broadcast-rundown', showId] });
+  const refreshRundown = async (targetShowId = showId) => {
+    await queryClient.invalidateQueries({
+      queryKey: ['studio2-broadcast-rundown', editionId, targetShowId],
+    });
     await queryClient.invalidateQueries({ queryKey: ['shows'] });
   };
 
-  function assertProductionEditionScope() {
+  function assertProductionEditionScope(
+    reviewedEditionId = editionId,
+    reviewedShowId = showId,
+  ) {
     if (mode === 'rehearsal') return;
 
-    const show = shows.find((candidate) => candidate.id === showId) ?? null;
+    const show = shows.find((candidate) => candidate.id === reviewedShowId) ?? null;
     const scope = validateEditionCommandScope({
       routeEditionId: editionId ?? null,
-      commandEditionId: editionId ?? null,
+      commandEditionId: reviewedEditionId ?? null,
       entityEditionId: show?.edition_id ?? null,
       capabilityEditionId: null,
     });
 
-    if (!editionId || !show || !scope.ok) {
+    if (
+      !editionId ||
+      !reviewedEditionId ||
+      editionId !== reviewedEditionId ||
+      contextShowId !== reviewedShowId ||
+      !show ||
+      !scope.ok
+    ) {
       const mismatch = !scope.ok && scope.mismatches.length
         ? ` (${scope.mismatches.join(', ')})`
         : '';
       throw Object.assign(
         new Error(
-          `Edition context changed before the broadcast command${mismatch}. Reload the canonical rundown before retrying.`,
+          `Organizer context changed before the broadcast command${mismatch}. Reload the canonical rundown before retrying.`,
         ),
         { status: 409 },
       );
@@ -153,35 +183,53 @@ function BroadcastRundownPage() {
   }
 
   const saveMutation = useMutation({
-    mutationFn: () => {
-      if (!showId || !draft) throw new Error('Select a show and create a rundown first.');
-      if (mode === 'rehearsal') return Promise.resolve(draft);
-      assertProductionEditionScope();
-      return saveStudio2BroadcastRundown(showId, draft, 'Broadcast rundown edited in organizer planner');
+    mutationFn: async (review: PendingStructureReview) => {
+      if (mode !== 'production') {
+        throw staleBroadcastReview('The rundown left Production mode while the structure review was open.');
+      }
+      assertProductionEditionScope(review.editionId, review.showId);
+      if (review.config.revision !== review.revision) {
+        throw staleBroadcastReview('The reviewed structure carries inconsistent revision evidence.');
+      }
+      const live = await loadStudio2BroadcastRundown(review.showId);
+      const liveRevision = live?.revision ?? 0;
+      if (liveRevision !== review.revision) {
+        throw staleBroadcastReview('The canonical rundown revision changed while the structure review was open.');
+      }
+      return saveStudio2BroadcastRundown(
+        review.showId,
+        review.config,
+        review.reason,
+      );
     },
-    onSuccess: async (config) => {
+    onSuccess: async (config, review) => {
+      setPendingStructureReview(null);
       setDraft(config);
-      if (mode === 'production') await refreshRundown();
+      await refreshRundown(review.showId);
     },
+    onError: () => setPendingStructureReview(null),
   });
 
   const lockMutation = useMutation({
-    mutationFn: async ({ showId: reviewedShowId, revision, locked, reason }: PendingLockReview) => {
+    mutationFn: async ({
+      editionId: reviewedEditionId,
+      showId: reviewedShowId,
+      revision,
+      locked,
+      reason,
+    }: PendingLockReview) => {
       if (!showId || !draft) throw new Error('Select a show and load its rundown first.');
-      assertProductionEditionScope();
-      if (showId !== reviewedShowId) {
-        throw staleBroadcastReview('The selected show changed while the lock review was open.');
-      }
+      assertProductionEditionScope(reviewedEditionId, reviewedShowId);
       const live = await loadStudio2BroadcastRundown(reviewedShowId);
       if (!live || live.revision !== revision) {
         throw staleBroadcastReview('The rundown revision changed while the lock review was open.');
       }
       return setStudio2BroadcastRundownLock(reviewedShowId, live, locked, reason);
     },
-    onSuccess: async (config) => {
+    onSuccess: async (config, review) => {
       setPendingLockReview(null);
       setDraft(config);
-      await refreshRundown();
+      await refreshRundown(review.showId);
     },
     onError: () => setPendingLockReview(null),
   });
@@ -191,6 +239,7 @@ function BroadcastRundownPage() {
       segmentId,
       status,
       reason,
+      reviewedEditionId,
       reviewedShowId,
       reviewedRevision,
       reviewedStatus,
@@ -199,10 +248,10 @@ function BroadcastRundownPage() {
       if (mode === 'rehearsal') {
         return transitionStudio2BroadcastSegment(showId, draft, segmentId, status, reason, mode);
       }
-      assertProductionEditionScope();
-      if (!reviewedShowId || reviewedRevision == null || !reviewedStatus || showId !== reviewedShowId) {
-        throw staleBroadcastReview('The reviewed show context is no longer current.');
+      if (!reviewedEditionId || !reviewedShowId || reviewedRevision == null || !reviewedStatus) {
+        throw staleBroadcastReview('The reviewed Organizer context is no longer current.');
       }
+      assertProductionEditionScope(reviewedEditionId, reviewedShowId);
       const live = await loadStudio2BroadcastRundown(reviewedShowId);
       const liveSegment = live?.segments.find((segment) => segment.id === segmentId) ?? null;
       if (!live || live.revision !== reviewedRevision || liveSegment?.status !== reviewedStatus) {
@@ -234,7 +283,6 @@ function BroadcastRundownPage() {
     }
   }, [draft]);
   const readiness = useMemo(() => buildStudio2BroadcastReadiness(draft), [draft]);
-  const selectedShow = shows.find((show) => show.id === showId) ?? null;
   const structureLocked = mode === 'production' && Boolean(draft?.lockedAt);
   type TimingRow = NonNullable<typeof calculated>["segments"][number];
   const timingColumns = calculated ? [
@@ -329,10 +377,25 @@ function BroadcastRundownPage() {
     });
   };
 
+  const reviewStructure = () => {
+    if (!draft || !editionId || !selectedShow || mode !== 'production' || structureLocked) return;
+    setPendingStructureReview({
+      editionId,
+      editionLabel: currentEditionLabel,
+      showId: selectedShow.id,
+      showName: selectedShow.name,
+      revision: draft.revision,
+      config: cloneRundownConfig(draft),
+      reason: '',
+    });
+  };
+
   const changeLock = (locked: boolean) => {
-    if (!draft || mode !== 'production' || !selectedShow) return;
+    if (!draft || !editionId || mode !== 'production' || !selectedShow) return;
     setPendingLockReview({
-      showId,
+      editionId,
+      editionLabel: currentEditionLabel,
+      showId: selectedShow.id,
       showName: selectedShow.name,
       revision: draft.revision,
       locked,
@@ -350,9 +413,11 @@ function BroadcastRundownPage() {
       });
       return;
     }
-    if (!draft || !selectedShow) return;
+    if (!draft || !editionId || !selectedShow) return;
     setPendingSegmentReview({
-      showId,
+      editionId,
+      editionLabel: currentEditionLabel,
+      showId: selectedShow.id,
       showName: selectedShow.name,
       revision: draft.revision,
       segment,
@@ -408,9 +473,13 @@ function BroadcastRundownPage() {
               <span className="font-semibold">Show</span>
               <select
                 value={showId}
-                onChange={(event) => setShowId(event.target.value)}
+                onChange={(event) => {
+                  const nextShow = shows.find((show) => show.id === event.target.value) ?? null;
+                  setShowContext(nextShow ? { id: nextShow.id, label: nextShow.name } : null);
+                }}
                 className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-background px-3"
               >
+                <option value="">Choose show…</option>
                 {shows.map((show) => <option key={show.id} value={show.id}>{show.name}</option>)}
               </select>
             </label>
@@ -420,7 +489,7 @@ function BroadcastRundownPage() {
               <input
                 type="datetime-local"
                 value={draft ? toLocalInputValue(draft.startAt) : ''}
-                disabled={structureLocked}
+                disabled={structureLocked || !selectedShow}
                 onChange={(event) => setDraft((current) => current ? { ...current, startAt: fromLocalInputValue(event.target.value) } : current)}
                 className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-background px-3 disabled:opacity-50"
               />
@@ -441,17 +510,17 @@ function BroadcastRundownPage() {
 
             <button
               type="button"
-              disabled={!draft || saveMutation.isPending || structureLocked || mode === 'rehearsal'}
-              onClick={() => saveMutation.mutate()}
+              disabled={!draft || !selectedShow || saveMutation.isPending || structureLocked || mode === 'rehearsal'}
+              onClick={reviewStructure}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
             >
               <Save className="size-4" />
-              {saveMutation.isPending ? 'Saving…' : 'Save structure'}
+              {saveMutation.isPending ? 'Saving…' : 'Review structure'}
             </button>
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {selectedShow ? <span>{selectedShow.kind} · {selectedShow.status}</span> : null}
+            {selectedShow ? <span>{selectedShow.kind} · {selectedShow.status}</span> : <span>No show selected</span>}
             {draft ? <span>· revision {draft.revision}</span> : null}
             {mode === 'rehearsal' ? <AdminStatus tone="info">simulation only</AdminStatus> : null}
             {draft?.lockedAt ? <AdminStatus tone="ready">locked</AdminStatus> : <AdminStatus tone="attention">unlocked</AdminStatus>}
@@ -464,12 +533,14 @@ function BroadcastRundownPage() {
           {mutationError ? <ErrorMessage error={mutationError} /> : null}
         </AdminCard>
 
-        {showsQuery.isLoading || rundownQuery.isLoading ? (
+        {showsQuery.isLoading || (selectedShow && rundownQuery.isLoading) ? (
           <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Loading broadcast rundown…</p></AdminCard>
         ) : showsQuery.error || rundownQuery.error ? (
           <AdminCard><AdminEmptyState icon={Clock3} title="Rundown unavailable" description={errorText(showsQuery.error ?? rundownQuery.error)} /></AdminCard>
         ) : !shows.length ? (
           <AdminCard><AdminEmptyState icon={Clock3} title="No shows in this edition" description="Create a show before building its broadcast rundown." /></AdminCard>
+        ) : !selectedShow ? (
+          <AdminCard><AdminEmptyState icon={Clock3} title="Choose a show" description="Select the exact show you intend to plan or operate. Solaris will bind that show into the Organizer context before any production command is available." /></AdminCard>
         ) : draft && calculated ? (
           <>
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -598,6 +669,47 @@ function BroadcastRundownPage() {
         ) : null}
 
         <AdminConfirmSheet
+          open={Boolean(pendingStructureReview)}
+          onClose={() => {
+            if (!saveMutation.isPending) setPendingStructureReview(null);
+          }}
+          onConfirm={async () => {
+            if (!pendingStructureReview) return;
+            await saveMutation.mutateAsync({
+              ...pendingStructureReview,
+              reason: pendingStructureReview.reason.trim(),
+            });
+          }}
+          title="Save this production rundown structure?"
+          description={pendingStructureReview ? (
+            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <p className="font-semibold text-foreground">{pendingStructureReview.editionLabel} · {pendingStructureReview.showName}</p>
+                <p className="mt-1">Reviewed rundown revision {pendingStructureReview.revision}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Planned start:</span> {formatDateTime(pendingStructureReview.config.startAt)}</p>
+                <p className="mt-1"><span className="font-semibold text-foreground">Segments:</span> {pendingStructureReview.config.segments.length}</p>
+              </div>
+              <label className="block">
+                <span className="font-semibold text-foreground">Operator reason</span>
+                <textarea
+                  value={pendingStructureReview.reason}
+                  onChange={(event) => setPendingStructureReview((current) => current ? { ...current, reason: event.target.value } : current)}
+                  rows={3}
+                  autoFocus
+                  placeholder="Why is this production rundown structure changing?"
+                  className="mt-2 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] p-3 text-sm text-foreground outline-none focus:border-sky-200/30"
+                />
+                <span className="mt-1 block text-[11px]">At least 5 characters. The reason is stored with the audited command.</span>
+              </label>
+              <p>Solaris freezes this exact structure for review, re-reads the canonical rundown immediately before saving, and refuses the command if the edition, show or revision changed.</p>
+            </div>
+          ) : null}
+          confirmLabel="Save reviewed structure"
+          busy={saveMutation.isPending}
+          confirmDisabled={!pendingStructureReview || pendingStructureReview.reason.trim().length < 5}
+        />
+
+        <AdminConfirmSheet
           open={Boolean(pendingLockReview)}
           onClose={() => {
             if (!lockMutation.isPending) setPendingLockReview(null);
@@ -613,7 +725,7 @@ function BroadcastRundownPage() {
           description={pendingLockReview ? (
             <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-                <p className="font-semibold text-foreground">{pendingLockReview.showName}</p>
+                <p className="font-semibold text-foreground">{pendingLockReview.editionLabel} · {pendingLockReview.showName}</p>
                 <p className="mt-1">Reviewed rundown revision {pendingLockReview.revision}</p>
               </div>
               <label className="block">
@@ -652,6 +764,7 @@ function BroadcastRundownPage() {
               segmentId: pendingSegmentReview.segment.id,
               status: pendingSegmentReview.status,
               reason: pendingSegmentReview.reason.trim(),
+              reviewedEditionId: pendingSegmentReview.editionId,
               reviewedShowId: pendingSegmentReview.showId,
               reviewedRevision: pendingSegmentReview.revision,
               reviewedStatus: pendingSegmentReview.segment.status,
@@ -661,7 +774,7 @@ function BroadcastRundownPage() {
           description={pendingSegmentReview ? (
             <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-                <p className="font-semibold text-foreground">{pendingSegmentReview.showName}</p>
+                <p className="font-semibold text-foreground">{pendingSegmentReview.editionLabel} · {pendingSegmentReview.showName}</p>
                 <p className="mt-1">Reviewed rundown revision {pendingSegmentReview.revision}</p>
                 <p className="mt-2"><span className="font-semibold text-foreground">Segment:</span> {pendingSegmentReview.segment.label}</p>
                 <p className="mt-1"><span className="font-semibold text-foreground">Transition:</span> {pendingSegmentReview.segment.status} → {pendingSegmentReview.status}</p>
@@ -689,6 +802,13 @@ function BroadcastRundownPage() {
       </div>
     </AdminPage>
   );
+}
+
+function cloneRundownConfig(config: Studio2BroadcastRundownConfig): Studio2BroadcastRundownConfig {
+  return {
+    ...config,
+    segments: config.segments.map((segment) => ({ ...segment })),
+  };
 }
 
 function Metric({ label, value, tone = 'neutral' }: { label: string; value: string; tone?: 'neutral' | 'ready' | 'attention' | 'blocked' }) {
