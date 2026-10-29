@@ -76,7 +76,8 @@ describe("Solaris V3 PWA shell lifecycle", () => {
     expect(offline).toContain("viewport-fit=cover");
     expect(offline).toContain("--offline-safe-content-top");
     expect(offline).toContain('data-solaris-ios-standalone="true"');
-    expect(offline).toContain("@media (orientation: landscape)");
+    expect(offline).toContain("@media (orientation: portrait) and (max-width: 767px)");
+    expect(offline).not.toContain("@media (orientation: landscape)");
     expect(offline).toContain("--offline-safe-bottom");
     expect(offline).toContain("min-height: 44px");
     expect(offline).toContain("prefers-reduced-transparency: reduce");
