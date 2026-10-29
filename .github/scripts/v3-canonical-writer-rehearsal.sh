@@ -19,6 +19,7 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-combined-calculation-au
 )
 bash .github/scripts/v3-combined-calculation-concurrency.sh
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-round-conversion-authority.sql
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-televote-calculation-dml-cutover.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-visual-command.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-authority.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-media-finalization-authority.sql

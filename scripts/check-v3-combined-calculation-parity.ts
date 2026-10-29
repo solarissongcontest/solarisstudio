@@ -13,7 +13,8 @@ const cases: ComponentSourceInput[][] = [
  [source(1,'converted_points',50,{AA:1,BB:3}),source(2,'raw_results',50,{AA:3,BB:1})],
  [source(1,'raw_results',100,{AA:10,BB:10},{distributions:{AA:[5,5],BB:[10]}})],
 ];
-let sql=setup+`select set_config('request.jwt.claims','{"role":"authenticated","sub":"29072852-0000-4000-8000-000000000001","session_id":"29072852-0000-4000-8000-000000000011"}',true);\n`;
+let sql=setup+`insert into televoting.countries(code,name) values('AA','Parity A'),('BB','Parity B'),('XX','Voting') on conflict do nothing;
+select set_config('request.jwt.claims','{"role":"authenticated","sub":"29072852-0000-4000-8000-000000000001","session_id":"29072852-0000-4000-8000-000000000011"}',true);\n`;
 for(const [i,sources] of cases.entries()) {
  const total= i===1?101:i===5?2:100; const exponent=i===0?1:1.33;
  const result=computeCombined({participants:['AA','BB'],sources,totalPoints:total,rankExponent:exponent});
@@ -26,11 +27,12 @@ for(const [i,sources] of cases.entries()) {
   if (s.distributions) {
    roundId = `29072852-0000-4000-8000-${String(1000+i*10+s.displayOrder).padStart(12,'0')}`;
    sql+=`insert into televoting.editions(id,name) values('${roundId}','Distribution parity');
-   insert into televoting.rounds(id,edition_id,name,status) values('${roundId}','${roundId}','Distribution parity','closed');\n`;
+   insert into televoting.rounds(id,edition_id,name,status,closes_at,televote_engine_version) values('${roundId}','${roundId}','Distribution parity','open',now()+interval '1 hour','rank-weighted-v1');
+   insert into televoting.round_entries(round_id,entry_type,entry_key,country_code,display_order) values('${roundId}','country','AA','AA',0),('${roundId}','country','BB','BB',1);\n`;
    let n=0;
    for(const [code,points] of Object.entries(s.distributions)) for(const value of points) {
     const ballot=`29072852-0000-4000-8000-${String(2000+i*100+n++).padStart(12,'0')}`;
-    sql+=`insert into televoting.vote_submissions(id,round_id,username,username_normalized,country_code) values('${ballot}','${roundId}','${ballot}','${ballot}','ZZ');
+    sql+=`insert into televoting.vote_submissions(id,round_id,username,username_normalized,country_code) values('${ballot}','${roundId}','${ballot}','${ballot}','XX');
     insert into televoting.vote_entries(submission_id,target_country_code,points) values('${ballot}','${code}',${value});\n`;
    }
   }
