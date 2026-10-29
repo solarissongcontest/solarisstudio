@@ -5,10 +5,11 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Solaris V6 unified overlay and chrome ownership", () => {
-  it("mounts viewport and keyboard chrome metrics only through AppOverlayManager", () => {
+  it("keeps viewport authority in AppRuntime while safe-area aliases mount through AppOverlayManager", () => {
     const runtime = source("src/components/app/AppRuntime.tsx");
     const manager = source("src/components/app/AppOverlayManager.tsx");
 
+    expect(runtime).toContain("createAppViewportController");
     expect(runtime).not.toContain("AppChromeMetrics");
     expect(manager).toContain('import { AppChromeMetrics }');
     expect(manager.match(/<AppChromeMetrics\s*\/>/g)).toHaveLength(1);
@@ -33,11 +34,23 @@ describe("Solaris V6 unified overlay and chrome ownership", () => {
     expect(manager).toContain("else if");
   });
 
-  it("centralises viewport, keyboard and safe-area variables under the manager-owned metrics lifecycle", () => {
+  it("separates canonical viewport and keyboard state from safe-area alias ownership", () => {
+    const viewport = source("src/lib/app-viewport.ts");
     const metrics = source("src/components/app/AppChromeMetrics.tsx");
+
     for (const token of [
+      "--solaris-visual-viewport-width",
       "--solaris-visual-viewport-height",
+      "--solaris-visual-viewport-offset-left",
+      "--solaris-visual-viewport-offset-top",
+      "--solaris-visual-viewport-scale",
       "--solaris-keyboard-inset",
+      "data-solaris-keyboard-open",
+    ]) {
+      expect(viewport, token).toContain(token);
+    }
+
+    for (const token of [
       "--solaris-safe-top",
       "--solaris-safe-right",
       "--solaris-safe-bottom",
@@ -45,7 +58,11 @@ describe("Solaris V6 unified overlay and chrome ownership", () => {
     ]) {
       expect(metrics, token).toContain(token);
     }
-    expect(metrics).toContain("data-solaris-keyboard-open");
+
+    expect(metrics).not.toContain("window.visualViewport");
+    expect(metrics).not.toContain("--solaris-keyboard-inset");
+    expect(metrics).not.toContain("--solaris-visual-viewport-height");
+    expect(metrics).not.toContain("data-solaris-keyboard-open");
   });
 
   it("keeps persistent app chrome responsive to manager-owned overlay state", () => {
