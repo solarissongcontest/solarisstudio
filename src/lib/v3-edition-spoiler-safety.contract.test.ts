@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const gate = () => read("src/components/v3/V3EditionRouteGate.tsx");
-const overview = () => read("src/components/v3/V3EditionProductScreen.tsx");
+const overview = () => read("src/components/v3/V3EditionOverviewScreen.tsx");
 const participants = () => read("src/components/v3/V3EditionParticipantsScreen.tsx");
 const songs = () => read("src/components/v3/V3EditionSongsScreen.tsx");
 const schedule = () => read("src/components/v3/V3EditionScheduleScreen.tsx");
