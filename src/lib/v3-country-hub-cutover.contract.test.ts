@@ -37,6 +37,19 @@ describe("V3 Country Hub cutover", () => {
     expect(tasks).toContain("Official notices");
   });
 
+  it("moves participant readiness to Participate without turning Organizer country inspection into participant state", () => {
+    const readiness = read("src/routes/_authenticated/country-hub/readiness.tsx");
+    const entry = read("src/routes/_authenticated/my-solaris/entry.tsx");
+
+    expect(readiness).toContain("if (search.country)");
+    expect(readiness).toContain("NAV_TARGETS.participate");
+    expect(readiness).toContain("NAV_TARGETS.mySolarisEntry");
+    expect(readiness).toContain('view: "readiness"');
+    expect(readiness).toContain("impersonating the selected country");
+    expect(entry).toContain("V3EntryRouteGate");
+    expect(entry).toContain("organizerInspection={Boolean(search.country)}");
+  });
+
   it("keeps HOD identity/history in Me without mixing organizer country overrides into private history", () => {
     const root = read("src/components/v3/V3MeRoot.tsx");
     const historyRoute = read("src/routes/_authenticated/my-solaris/history.tsx");
@@ -51,20 +64,14 @@ describe("V3 Country Hub cutover", () => {
     expect(historyScreen).toContain("Your HOD role in this edition");
   });
 
-  it("keeps every retained Country Hub specialist URL mapped to its canonical owner", () => {
+  it("keeps retained personal Country Hub specialist URLs mapped to their canonical owners", () => {
     const notices = read("src/routes/_authenticated/country-hub/notices.tsx");
     const pageBuilder = read("src/routes/_authenticated/country-hub/page-builder.tsx");
-    const readiness = read("src/routes/_authenticated/country-hub/readiness.tsx");
     const theme = read("src/routes/_authenticated/country-hub/theme.tsx");
-    const entry = read("src/routes/_authenticated/my-solaris/entry.tsx");
 
     expect(notices).toContain("NAV_TARGETS.mySolarisNotices");
     expect(pageBuilder).toContain("NAV_TARGETS.mySolarisPageBuilder");
-    expect(readiness).toContain("NAV_TARGETS.mySolarisEntry");
-    expect(readiness).toContain('view: "readiness"');
     expect(theme).toContain("NAV_TARGETS.mySolarisTheme");
-    expect(entry).toContain("V3EntryRouteGate");
-    expect(entry).toContain("organizerInspection={Boolean(search.country)}");
   });
 
   it("surfaces delegation tools from capability state rather than the display role", () => {
