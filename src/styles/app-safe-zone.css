@@ -30,23 +30,32 @@ html[data-solaris-ios-standalone] {
   }
 }
 
-@media (display-mode: standalone), (display-mode: window-controls-overlay) {
-  html[data-solaris-app] .solaris-app-toolbar {
-    padding-top: var(--solaris-safe-content-top);
-  }
-
-  html[data-solaris-app] .solaris-app-offline {
-    top: calc(
-      var(--solaris-safe-content-top) + var(--solaris-app-toolbar-height) + 0.45rem
-    );
-  }
+/* Installed/native app chrome consumes the same semantic boundary regardless
+   of whether the platform reports itself through display-mode or a native
+   wrapper. That keeps app-mode behavior aligned instead of making CSS media
+   queries a second runtime authority. */
+html[data-solaris-app] .solaris-app-toolbar {
+  padding-top: var(--solaris-safe-content-top);
 }
 
-@media (display-mode: standalone) and (min-width: 900px),
-  (display-mode: window-controls-overlay) and (min-width: 900px) {
+html[data-solaris-app] .solaris-app-offline {
+  top: calc(
+    var(--solaris-safe-content-top) + var(--solaris-app-toolbar-height) + 0.45rem
+  );
+}
+
+@media (min-width: 900px) {
   html[data-solaris-app] .solaris-app-tabbar {
     top: calc(
       var(--solaris-safe-content-top) + var(--solaris-app-toolbar-height) + 1rem
     );
+  }
+}
+
+/* Browser-mode mobile chrome is still semantic Solaris UI. Keep it below the
+   same protected boundary while retaining edge-to-edge decorative backgrounds. */
+@media (max-width: 899px) {
+  html:not([data-solaris-app]) .site-nav {
+    padding-top: var(--solaris-safe-content-top);
   }
 }
