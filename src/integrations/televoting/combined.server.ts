@@ -287,84 +287,38 @@ export async function updateMergedCombinedAggregationServer(data: { id: string; 
   return { ok: true };
 }
 
-export async function setMergedCombinedParticipantsServer(data: { id: string; participants: string[] }) {
-  const actor = await requireMergedTelevotingAdminServer();
-  await televotingAdmin.from("televote_aggregation_participants").delete().eq("aggregation_id", data.id);
-  if (data.participants.length) {
-    const { error } = await televotingAdmin.from("televote_aggregation_participants").insert(
-      data.participants.map((country_code, display_order) => ({ aggregation_id: data.id, country_code, display_order })),
-    );
-    if (error) throw new Error(error.message);
-  }
-  await televotingAdmin.from("televote_aggregations").update({ results_outdated: true }).eq("id", data.id);
-  await audit(actor, "set_combined_participants", data.id, { participants: data.participants });
-  return { ok: true };
-}
+export type CombinedSourceOperation = { expectedVersion: number; operationId: string };
 
-export async function upsertMergedCombinedSourceServer(data: {
-  id?: string | null;
-  aggregationId: string;
-  sourceType: string;
-  inputMode: SourceInputMode;
-  roundId?: string | null;
-  name: string;
-  weight: number;
-  enabled: boolean;
-  displayOrder: number;
-  correctionScope?: CorrectionScope;
-  correctionTargetSourceId?: string | null;
-}) {
-  const actor = await requireMergedTelevotingAdminServer();
-  const payload = {
-    aggregation_id: data.aggregationId,
-    source_type: data.sourceType,
-    input_mode: data.inputMode,
-    source_round_id: data.roundId ?? null,
-    source_name: data.name,
-    calculation_stage: data.inputMode === "correction" ? "post_conversion" : "pre_conversion",
-    calculation_method: data.inputMode,
-    percentage_weight: data.inputMode === "correction" ? 0 : data.weight,
-    weight: data.inputMode === "correction" ? 0 : data.weight,
-    enabled: data.enabled,
-    display_order: data.displayOrder,
-    correction_scope: data.correctionScope ?? "final",
-    correction_target_source_id: data.correctionTargetSourceId ?? null,
-  };
-  let result;
-  if (data.id) {
-    result = await televotingAdmin.from("televote_aggregation_sources").update(payload).eq("id", data.id).select("id").single();
-  } else {
-    result = await televotingAdmin.from("televote_aggregation_sources").insert(payload).select("id").single();
-  }
-  if (result.error) throw new Error(result.error.message);
-  await televotingAdmin.from("televote_aggregations").update({ results_outdated: true }).eq("id", data.aggregationId);
-  await audit(actor, data.id ? "update_combined_source" : "create_combined_source", data.aggregationId, { source_id: result.data.id, ...payload });
-  return result.data;
-}
-
-export async function deleteMergedCombinedSourceServer(data: { aggregationId: string; sourceId: string }) {
-  const actor = await requireMergedTelevotingAdminServer();
-  await televotingAdmin.from("external_score_entries").delete().eq("source_id", data.sourceId);
-  const { error } = await televotingAdmin.from("televote_aggregation_sources").delete().eq("id", data.sourceId).eq("aggregation_id", data.aggregationId);
+async function mutateCombinedSource(id: string, action: string, payload: unknown, operation: CombinedSourceOperation) {
+  await requireMergedTelevotingAdminServer();
+  const { data, error } = await (televotingAdmin as any).rpc("v3_manage_combined_sources", {
+    p_aggregation_id: id, p_action: action, p_payload: payload,
+    p_expected_version: operation.expectedVersion, p_operation_id: operation.operationId,
+    p_idempotency_key: `combined-source:${operation.operationId}`,
+  });
   if (error) throw new Error(error.message);
-  await televotingAdmin.from("televote_aggregations").update({ results_outdated: true }).eq("id", data.aggregationId);
-  await audit(actor, "delete_combined_source", data.aggregationId, { source_id: data.sourceId });
-  return { ok: true };
+  return data;
 }
 
-export async function saveMergedCombinedSourceValuesServer(data: { aggregationId: string; sourceId: string; values: Record<string, number> }) {
-  const actor = await requireMergedTelevotingAdminServer();
-  await televotingAdmin.from("external_score_entries").delete().eq("source_id", data.sourceId);
-  const rows = Object.entries(data.values)
-    .filter(([, value]) => Number(value) !== 0)
-    .map(([country_code, value]) => ({ source_id: data.sourceId, country_code, value: Number(value) }));
-  if (rows.length) {
-    const { error } = await televotingAdmin.from("external_score_entries").insert(rows);
-    if (error) throw new Error(error.message);
-  }
-  await televotingAdmin.from("televote_aggregations").update({ results_outdated: true }).eq("id", data.aggregationId);
-  await audit(actor, "save_combined_source_values", data.aggregationId, { source_id: data.sourceId, count: rows.length });
-  return { ok: true };
+export async function setMergedCombinedParticipantsServer(data: CombinedSourceOperation & { id: string; participants: string[] }) {
+  return mutateCombinedSource(data.id, "participants", { participants: data.participants }, data);
+}
+
+export async function upsertMergedCombinedSourceServer(data: CombinedSourceOperation & {
+  id?: string | null; aggregationId: string; sourceType: string; inputMode: SourceInputMode;
+  roundId?: string | null; name: string; weight: number; enabled: boolean; displayOrder: number;
+  correctionScope?: CorrectionScope; correctionTargetSourceId?: string | null;
+}) {
+  const { expectedVersion: _version, operationId: _operation, ...payload } = data;
+  return mutateCombinedSource(data.aggregationId, "source", payload, data);
+}
+
+export async function deleteMergedCombinedSourceServer(data: CombinedSourceOperation & { aggregationId: string; sourceId: string }) {
+  return mutateCombinedSource(data.aggregationId, "delete_source", { sourceId: data.sourceId }, data);
+}
+
+export async function saveMergedCombinedSourceValuesServer(data: CombinedSourceOperation & { aggregationId: string; sourceId: string; values: Record<string, number> }) {
+  return mutateCombinedSource(data.aggregationId, "values", { sourceId: data.sourceId, values: data.values }, data);
 }
 
 export async function recalculateMergedCombinedServer(id: string) {

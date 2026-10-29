@@ -97,10 +97,10 @@ function CombinedResultsPage() {
   const detailFn = useServerFn(getMergedCombinedAggregation);
   const createFn = useServerFn(createMergedCombinedAggregation);
   const updateFn = useServerFn(updateMergedCombinedAggregation);
-  const participantFn = useServerFn(setMergedCombinedParticipants);
-  const upsertSourceFn = useServerFn(upsertMergedCombinedSource);
-  const deleteSourceFn = useServerFn(deleteMergedCombinedSource);
-  const valuesFn = useServerFn(saveMergedCombinedSourceValues);
+  const rawParticipantFn = useServerFn(setMergedCombinedParticipants);
+  const rawUpsertSourceFn = useServerFn(upsertMergedCombinedSource);
+  const rawDeleteSourceFn = useServerFn(deleteMergedCombinedSource);
+  const rawValuesFn = useServerFn(saveMergedCombinedSourceValues);
   const recalcFn = useServerFn(recalculateMergedCombined);
   const statusFn = useServerFn(setMergedCombinedStatus);
   const deleteFn = useServerFn(deleteMergedCombinedAggregation);
@@ -149,6 +149,27 @@ function CombinedResultsPage() {
     queryFn: () => detailFn({ data: { id: selectedId } }),
     enabled: Boolean(admin && selectedId),
   });
+
+  const pendingSources = useRef(new Map<string, { fingerprint: string; data: any }>());
+  const sourceCommand = (action: string, fn: any) => async ({ data }: { data: any }) => {
+    const id = data.aggregationId ?? data.id;
+    const key = `${id}:${action}`;
+    const fingerprint = JSON.stringify(data);
+    let pending = pendingSources.current.get(key);
+    if (pending && pending.fingerprint !== fingerprint) throw new Error("Retry the pending source request before changing its inputs");
+    if (!pending) {
+      if (!detail || detail.aggregation.id !== id) throw new Error("Reload the Combined result before editing");
+      pending = { fingerprint, data: { ...data, expectedVersion: detail.aggregation.command_version, operationId: crypto.randomUUID() } };
+      pendingSources.current.set(key, pending);
+    }
+    const result = await fn({ data: pending.data });
+    pendingSources.current.delete(key);
+    return result;
+  };
+  const participantFn = sourceCommand("participants", rawParticipantFn);
+  const upsertSourceFn = sourceCommand("source", rawUpsertSourceFn);
+  const deleteSourceFn = sourceCommand("delete", rawDeleteSourceFn);
+  const valuesFn = sourceCommand("values", rawValuesFn);
 
   const refresh = async () => {
     await Promise.all([

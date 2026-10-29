@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { CombinedSourceOperation } from "@/integrations/televoting/combined.server";
 import type { CorrectionScope, SourceInputMode } from "@/integrations/televoting/combined-math";
 
 async function refreshCombinedCanonicalParticipants(aggregationId: string) {
@@ -53,10 +54,10 @@ export const updateMergedCombinedAggregation = createServerFn({ method: "POST" }
   });
 
 export const setMergedCombinedParticipants = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string; participants: string[] }) => {
+  .inputValidator((data: CombinedSourceOperation & { id: string; participants: string[] }) => {
     if (!data?.id) throw new Error("Missing aggregation id");
     const participants = [...new Set((data.participants ?? []).map(String).filter(Boolean))];
-    return { id: data.id, participants };
+    return { ...data, participants };
   })
   .handler(async ({ data }) => {
     const canonicalSync = await refreshCombinedCanonicalParticipants(data.id);
@@ -73,7 +74,7 @@ export const setMergedCombinedParticipants = createServerFn({ method: "POST" })
   });
 
 export const upsertMergedCombinedSource = createServerFn({ method: "POST" })
-  .inputValidator((data: {
+  .inputValidator((data: CombinedSourceOperation & {
     id?: string | null;
     aggregationId: string;
     sourceType: string;
@@ -98,7 +99,7 @@ export const upsertMergedCombinedSource = createServerFn({ method: "POST" })
   });
 
 export const deleteMergedCombinedSource = createServerFn({ method: "POST" })
-  .inputValidator((data: { aggregationId: string; sourceId: string }) => {
+  .inputValidator((data: CombinedSourceOperation & { aggregationId: string; sourceId: string }) => {
     if (!data?.aggregationId || !data?.sourceId) throw new Error("Missing source");
     return data;
   })
@@ -110,10 +111,10 @@ export const deleteMergedCombinedSource = createServerFn({ method: "POST" })
   });
 
 export const saveMergedCombinedSourceValues = createServerFn({ method: "POST" })
-  .inputValidator((data: { aggregationId: string; sourceId: string; values: Record<string, number> }) => {
+  .inputValidator((data: CombinedSourceOperation & { aggregationId: string; sourceId: string; values: Record<string, number> }) => {
     if (!data?.aggregationId || !data?.sourceId) throw new Error("Missing source");
     const values = Object.fromEntries(Object.entries(data.values ?? {}).map(([key, value]) => [key, Number(value) || 0]));
-    return { aggregationId: data.aggregationId, sourceId: data.sourceId, values };
+    return { ...data, values };
   })
   .handler(async ({ data }) => {
     const { saveMergedCombinedSourceValuesServer } = await import("@/integrations/televoting/combined.server");
