@@ -1,4 +1,5 @@
 import { V3_S16_MECHANISM_TABLES } from "../src/lib/v3-s16-internal-mechanisms";
+import { extendV3S16Domains } from "../src/lib/v3-s16-domain-extensions";
 import { definitionWritesTable } from "../src/lib/v3-s16-postgres-function-writers";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -138,7 +139,8 @@ function functionInventory(dbUrl: string): FunctionInventoryRow[] {
 
 const sha = candidateSha();
 const dbUrl = databaseUrl();
-const criticalTables = [...new Set([...V3_S16_CRITICAL_DOMAINS.flatMap((domain) => domain.canonicalTables), ...V3_S16_MECHANISM_TABLES])].sort();
+const domains = extendV3S16Domains(V3_S16_CRITICAL_DOMAINS);
+const criticalTables = [...new Set([...domains.flatMap((domain) => domain.canonicalTables), ...V3_S16_MECHANISM_TABLES])].sort();
 const tables = criticalTables.flatMap((table) => {
   const evidence = tableEvidence(dbUrl, table);
   return evidence ? [evidence] : [];
