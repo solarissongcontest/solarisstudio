@@ -59,11 +59,16 @@ function projectFocus(input: {
   waiting: readonly V3ActionProjection[];
   next: readonly V3ActionProjection[];
 }): V3ParticipateFocusProjection {
-  const actionable = firstOfficial(input.needsAttention);
-  if (actionable) return { state: "actionable", action: actionable };
-
+  // Canonical Participate ordering is deliberately blocker-first. A blocked
+  // official responsibility can prevent the delegation from progressing even
+  // when some other action is technically available, so it must not be hidden
+  // behind an actionable card. The screen still explains that no action is
+  // currently available for the blocker instead of manufacturing one.
   const blocked = firstOfficial(input.blocked);
   if (blocked) return { state: "blocked", action: blocked };
+
+  const actionable = firstOfficial(input.needsAttention);
+  if (actionable) return { state: "actionable", action: actionable };
 
   const waiting = firstOfficial(input.waiting);
   if (waiting) return { state: "waiting", action: waiting };
@@ -88,8 +93,10 @@ function projectFocus(input: {
  * until server-owned workflow state makes it actionable.
  *
  * The focus projection is intentionally deterministic over those canonical
- * buckets. It never compares the browser clock, manufactures a deadline state
- * or promotes optional fan participation into an official responsibility.
+ * buckets. Canonical blocked required work outranks actionable required work,
+ * followed by waiting and upcoming responsibility. It never compares the
+ * browser clock, manufactures a deadline state or promotes optional fan
+ * participation into an official responsibility.
  */
 export function projectV3Participate(
   bootstrap: Pick<V3BootstrapProjection, "actions" | "journey">,
