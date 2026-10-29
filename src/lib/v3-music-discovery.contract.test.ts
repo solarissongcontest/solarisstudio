@@ -66,6 +66,17 @@ describe("V3 Songs & Artists discovery", () => {
     expect(artistRoute()).not.toContain("artist.displayName");
   });
 
+  it("publishes route-specific Open Graph metadata without copying entity publication authority into head", () => {
+    for (const source of [route(), songsRoute(), artistsRoute(), songRoute(), artistRoute()]) {
+      expect(source).toContain('property: "og:title"');
+      expect(source).toContain('property: "og:description"');
+      expect(source).toContain('property: "og:type"');
+      expect(source).toContain('property: "og:url"');
+    }
+    expect(songRoute()).not.toContain("getV3SongProjection");
+    expect(artistRoute()).not.toContain("getV3ArtistProjection");
+  });
+
   it("never labels an unresolved sibling query unavailable while it is still loading", () => {
     const source = route();
     expect(source).toContain("if (songs.isLoading || artists.isLoading)");
@@ -89,6 +100,15 @@ describe("V3 Songs & Artists discovery", () => {
     expect(route()).toContain("Promise.all([songs.refetch(), artists.refetch()])");
     expect(screen()).toContain("onRetrySongs");
     expect(screen()).toContain("onRetryArtists");
+  });
+
+  it("provides an explicit root search recovery action", () => {
+    const source = screen();
+    expect(source).toContain("const clear = () =>");
+    expect(source).toContain('setDraft("")');
+    expect(source).toContain('onSubmit("")');
+    expect(source).toContain("Clear");
+    expect(source).toContain('type="button"');
   });
 
   it("never falls back to raw Entry or direct Supabase reads", () => {
