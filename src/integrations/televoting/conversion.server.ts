@@ -18,6 +18,8 @@ export type TelevoteEngineVersion = typeof CALC_ENGINE_VERSION | typeof ROBUST_T
 
 export type MergedRoundConfig = {
   id: string;
+  round_version: number;
+  input_hash: string;
   name: string;
   status: "draft" | "open" | "closed";
   total_points_to_distribute: number;
@@ -39,27 +41,18 @@ export type MergedRoundConfig = {
   broadcast_display_mode: "original" | "converted" | "combined";
 };
 
-async function audit(
-  actor: { id: string; username: string },
-  action: string,
-  opts: {
-    target_type?: string;
-    target_id?: string;
-    old_values?: unknown;
-    new_values?: unknown;
-    reason?: string;
-  } = {},
-) {
-  await televotingAdmin.from("admin_audit_log").insert({
-    actor_admin_id: actor.id,
-    actor_username: actor.username,
-    action,
-    target_type: opts.target_type ?? null,
-    target_id: opts.target_id ?? null,
-    old_values: opts.old_values ?? null,
-    new_values: opts.new_values ?? null,
-    reason: opts.reason ?? null,
+export type ConversionOperation = { expectedVersion: number; operationId: string };
+
+async function conversionCommand(roundId: string, action: string, payload: unknown, operation: ConversionOperation) {
+  await requireMergedTelevotingAdminServer();
+  const { data, error } = await (televotingAdmin as any).rpc("v3_configure_round", {
+    p_round_id: roundId, p_action: action, p_payload: payload,
+    p_expected_round_version: operation.expectedVersion, p_operation_id: operation.operationId,
+    p_idempotency_key: `conversion:${operation.operationId}`,
   });
+  if (error) throw new Error(error.message);
+  if (!data?.ok) throw new Error("Ambiguous conversion receipt; retry this operation");
+  return data as { ok: true; version: number; calculatedAt: string; roundVersion: number };
 }
 
 function robustConfigForRound(round: MergedRoundConfig): RobustTelevoteConfig {
@@ -75,11 +68,7 @@ function robustConfigForRound(round: MergedRoundConfig): RobustTelevoteConfig {
 }
 
 export async function loadMergedConversionRound(roundId: string): Promise<MergedRoundConfig> {
-  const { data, error } = await televotingAdmin
-    .from("rounds")
-    .select("id,name,status,total_points_to_distribute,rank_exponent,televote_engine_version,ballot_exponent,breadth_floor,breadth_exponent,support_exponent,rank_boost_strength,rank_boost_shape,results_status,calculation_version,calculated_at,calculated_by_username,calc_participant_codes,results_outdated,public_advanced_transparency,broadcast_display_mode")
-    .eq("id", roundId)
-    .maybeSingle();
+  const { data, error } = await (televotingAdmin as any).rpc("v3_conversion_context", { p_round_id: roundId });
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Round not found");
   return data as unknown as MergedRoundConfig;
@@ -195,7 +184,7 @@ export async function getMergedTelevoteConversionServer(roundId: string) {
   return { round, participants, originals, robustPreview, stored: stored ?? [] };
 }
 
-export async function updateMergedConversionConfigServer(data: {
+export async function updateMergedConversionConfigServer(data: ConversionOperation & {
   roundId: string;
   totalPoints?: number;
   rankExponent?: number;
@@ -209,8 +198,7 @@ export async function updateMergedConversionConfigServer(data: {
   advancedTransparency?: boolean;
   broadcastMode?: "original" | "converted" | "combined";
 }) {
-  const actor = await requireMergedTelevotingAdminServer();
-  const before = await loadMergedConversionRound(data.roundId);
+  await requireMergedTelevotingAdminServer();
 
   const patch: Record<string, unknown> = {};
   if (data.totalPoints !== undefined) patch.total_points_to_distribute = Math.max(0, Math.trunc(data.totalPoints));
@@ -230,46 +218,7 @@ export async function updateMergedConversionConfigServer(data: {
   if (data.advancedTransparency !== undefined) patch.public_advanced_transparency = data.advancedTransparency;
   if (data.broadcastMode !== undefined) patch.broadcast_display_mode = data.broadcastMode;
 
-  const beforeMath = JSON.stringify({
-    total: before.total_points_to_distribute,
-    rankExponent: before.rank_exponent,
-    engine: before.televote_engine_version,
-    config: robustConfigForRound(before),
-  });
-  const afterMath = JSON.stringify({
-    total: patch.total_points_to_distribute ?? before.total_points_to_distribute,
-    rankExponent: patch.rank_exponent ?? before.rank_exponent,
-    engine: patch.televote_engine_version ?? before.televote_engine_version,
-    config: {
-      ballotTotal: DEFAULT_ROBUST_TELEVOTE_CONFIG.ballotTotal,
-      ballotExponent: patch.ballot_exponent ?? before.ballot_exponent,
-      breadthFloor: patch.breadth_floor ?? before.breadth_floor,
-      breadthExponent: patch.breadth_exponent ?? before.breadth_exponent,
-      supportExponent: patch.support_exponent ?? before.support_exponent,
-      rankBoostStrength: patch.rank_boost_strength ?? before.rank_boost_strength,
-      rankBoostShape: patch.rank_boost_shape ?? before.rank_boost_shape,
-    },
-  });
-  if (before.calculation_version > 0 && beforeMath !== afterMath) patch.results_outdated = true;
-
-  const { error } = await televotingAdmin.from("rounds").update(patch).eq("id", data.roundId);
-  if (error) throw new Error(error.message);
-
-  await audit(actor, "update_televote_config", {
-    target_type: "round",
-    target_id: data.roundId,
-    old_values: {
-      total_points_to_distribute: before.total_points_to_distribute,
-      rank_exponent: before.rank_exponent,
-      televote_engine_version: before.televote_engine_version,
-      robust_config: robustConfigForRound(before),
-      public_advanced_transparency: before.public_advanced_transparency,
-      broadcast_display_mode: before.broadcast_display_mode,
-    },
-    new_values: patch,
-  });
-
-  return { ok: true, outdated: Boolean(patch.results_outdated) };
+  return conversionCommand(data.roundId, "conversion_config", patch, data);
 }
 
 async function persistV1Calculation(
@@ -309,10 +258,9 @@ async function persistV1Calculation(
     engine_version: CALC_ENGINE_VERSION,
     calculation_config: { rankExponent: result.rankExponent },
   }));
-  const { error } = await televotingAdmin.from("round_results").insert(rows);
-  if (error) throw new Error(error.message);
 
   return {
+    rows, influenceRows: [],
     engineVersion: CALC_ENGINE_VERSION,
     participantCount: result.participantCount,
     rankBase: result.rankBase,
@@ -376,8 +324,6 @@ async function persistV2Calculation(
     rank_boost: row.rankBoost,
     calculation_config: result.config,
   }));
-  const { error } = await televotingAdmin.from("round_results").insert(rows);
-  if (error) throw new Error(error.message);
 
   const influence = analyseRobustInfluence({
     participants,
@@ -398,12 +344,8 @@ async function persistV2Calculation(
     max_point_movement: row.maxPointMovement,
     most_affected_entry: row.mostAffectedEntry,
   }));
-  if (influenceRows.length) {
-    const { error: influenceError } = await televotingAdmin.from("round_influence_results").insert(influenceRows);
-    if (influenceError) throw new Error(influenceError.message);
-  }
-
   return {
+    rows, influenceRows,
     engineVersion: ROBUST_TELEVOTE_ENGINE_VERSION,
     participantCount: result.participantCount,
     rankBase: null,
@@ -419,55 +361,32 @@ async function persistV2Calculation(
   };
 }
 
-export async function runMergedOfficialCalculationServer(roundId: string) {
+export async function runMergedOfficialCalculationServer(data: ConversionOperation & { roundId: string }) {
   const actor = await requireMergedTelevotingAdminServer();
-  const round = await loadMergedConversionRound(roundId);
-  const participants = await loadMergedConversionParticipants(roundId);
+  // Recover before reading new inputs or calculating. An acknowledged calculation
+  // may have changed the round revision after its response was lost.
+  const client = (televotingAdmin as any).schema("public");
+  const { data: recovered, error: recoveryError } = await client.rpc("studio2_reconcile_operation", { p_operation_id: data.operationId });
+  if (recovered?.status === "succeeded") {
+    // Re-enter the command to recheck live capability and the exact request hash.
+    // Its original deterministic request is retained in the receipt request data.
+    const { data: receipt, error } = await (televotingAdmin as any).rpc("v3_recover_conversion_calculation", {
+      p_round_id: data.roundId, p_expected_round_version: data.expectedVersion, p_operation_id: data.operationId,
+    });
+    if (error) throw new Error(error.message);
+    return receipt as { ok: true; version: number; calculatedAt: string };
+  }
+  if (recoveryError && !["UNKNOWN", "P0002"].includes(recoveryError.message) && recoveryError.code !== "P0002") throw new Error(recoveryError.message);
+  const round = await loadMergedConversionRound(data.roundId);
+  if (round.round_version !== data.expectedVersion) throw new Error("VERSION_CONFLICT");
+  const participants = await loadMergedConversionParticipants(data.roundId);
   if (!participants.length) throw new Error("This round has no eligible participants");
-
-  const version = round.calculation_version + 1;
-  const calculatedAt = new Date().toISOString();
-
-  const { error: deleteError } = await televotingAdmin.from("round_results").delete().eq("round_id", roundId);
-  if (deleteError) throw new Error(deleteError.message);
-  const { error: influenceDeleteError } = await televotingAdmin.from("round_influence_results").delete().eq("round_id", roundId);
-  if (influenceDeleteError) throw new Error(influenceDeleteError.message);
-
-  const engineVersion = round.televote_engine_version ?? CALC_ENGINE_VERSION;
-  const calculation = engineVersion === ROBUST_TELEVOTE_ENGINE_VERSION
-    ? await persistV2Calculation(roundId, version, calculatedAt, actor, round, participants)
-    : await persistV1Calculation(roundId, version, calculatedAt, actor, round, participants);
-
-  const { error: updateError } = await televotingAdmin
-    .from("rounds")
-    .update({
-      results_status: "calculated",
-      calculation_version: version,
-      calculated_at: calculatedAt,
-      calculated_by: actor.id,
-      calculated_by_username: actor.username,
-      calc_participant_codes: participants,
-      results_outdated: false,
-    })
-    .eq("id", roundId);
-  if (updateError) throw new Error(updateError.message);
-
-  await audit(actor, "calculate_televote_conversion", {
-    target_type: "round",
-    target_id: roundId,
-    new_values: {
-      engine: calculation.engineVersion,
-      calculation_version: version,
-      total_points: calculation.totalPoints,
-      participant_count: calculation.participantCount,
-      distributed_total: calculation.distributedTotal,
-      zero_weight: calculation.zeroWeight,
-      config: calculation.config,
-      influence: calculation.influence,
-    },
-  });
-
-  return { version, calculatedAt, ...calculation };
+  const calculation = round.televote_engine_version === ROBUST_TELEVOTE_ENGINE_VERSION
+    ? await persistV2Calculation(data.roundId, 0, "", actor, round, participants)
+    : await persistV1Calculation(data.roundId, 0, "", actor, round, participants);
+  return conversionCommand(data.roundId, "conversion_calculation", {
+    inputHash: round.input_hash, rows: calculation.rows, influenceRows: calculation.influenceRows,
+  }, data);
 }
 
 export async function validateMergedPublicationServer(roundId: string) {
@@ -513,33 +432,10 @@ export async function validateMergedPublicationServer(roundId: string) {
   return { problems, round, participants, rows };
 }
 
-export async function setMergedResultsStatusServer(data: {
+export async function setMergedResultsStatusServer(data: ConversionOperation & {
   roundId: string;
   status: "calculated" | "locked" | "published";
   reason?: string;
 }) {
-  const actor = await requireMergedTelevotingAdminServer();
-  const before = await loadMergedConversionRound(data.roundId);
-
-  if ((data.status === "locked" || data.status === "published") && before.calculation_version === 0) {
-    throw new Error("Calculate the conversion before locking or publishing");
-  }
-
-  if (data.status === "published") {
-    const { problems } = await validateMergedPublicationServer(data.roundId);
-    if (problems.length) throw new Error(`Cannot publish:\n• ${problems.join("\n• ")}`);
-  }
-
-  const { error } = await televotingAdmin.from("rounds").update({ results_status: data.status }).eq("id", data.roundId);
-  if (error) throw new Error(error.message);
-
-  await audit(actor, `televote_results_${data.status}`, {
-    target_type: "round",
-    target_id: data.roundId,
-    old_values: { results_status: before.results_status },
-    new_values: { results_status: data.status },
-    reason: data.reason,
-  });
-
-  return { ok: true };
+  return conversionCommand(data.roundId, "conversion_status", { status: data.status, reason: data.reason ?? null }, data);
 }

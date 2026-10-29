@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { ConversionOperation } from "@/integrations/televoting/conversion.server";
 
 const finiteBetween = (value: unknown, min: number, max: number, name: string) => {
   const number = Number(value);
@@ -21,7 +22,7 @@ export const getMergedTelevoteConversion = createServerFn({ method: "POST" })
   });
 
 export const updateMergedConversionConfig = createServerFn({ method: "POST" })
-  .inputValidator((data: {
+  .inputValidator((data: ConversionOperation & {
     roundId: string;
     totalPoints?: number;
     rankExponent?: number;
@@ -36,7 +37,7 @@ export const updateMergedConversionConfig = createServerFn({ method: "POST" })
     broadcastMode?: "original" | "converted" | "combined";
   }) => {
     if (!data?.roundId) throw new Error("Missing round");
-    const output: typeof data = { roundId: data.roundId };
+    const output: typeof data = { roundId: data.roundId, expectedVersion: data.expectedVersion, operationId: data.operationId };
     if (data.totalPoints !== undefined) {
       const value = Number(data.totalPoints);
       if (!Number.isInteger(value) || value < 0) throw new Error("T must be a non-negative whole number");
@@ -68,16 +69,16 @@ export const updateMergedConversionConfig = createServerFn({ method: "POST" })
   });
 
 export const recalculateMergedConversion = createServerFn({ method: "POST" })
-  .inputValidator((data: { roundId: string; confirm?: boolean }) => {
+  .inputValidator((data: ConversionOperation & { roundId: string; confirm?: boolean }) => {
     if (!data?.roundId) throw new Error("Missing round");
-    return { roundId: data.roundId, confirm: Boolean(data.confirm) };
+    return { ...data, confirm: Boolean(data.confirm) };
   })
   .handler(async ({ data }) => {
     const { loadMergedConversionRound, runMergedOfficialCalculationServer } = await import("@/integrations/televoting/conversion.server");
     const round = await loadMergedConversionRound(data.roundId);
     if (round.results_status === "locked" && !data.confirm) throw new Error("This result is locked — explicit confirmation required");
     if (round.results_status === "published" && !data.confirm) throw new Error("This result is published — explicit confirmation required");
-    return runMergedOfficialCalculationServer(data.roundId);
+    return runMergedOfficialCalculationServer(data);
   });
 
 export const checkMergedPublicationReadiness = createServerFn({ method: "POST" })
@@ -94,7 +95,7 @@ export const checkMergedPublicationReadiness = createServerFn({ method: "POST" }
   });
 
 export const setMergedResultsStatus = createServerFn({ method: "POST" })
-  .inputValidator((data: {
+  .inputValidator((data: ConversionOperation & {
     roundId: string;
     status: "calculated" | "locked" | "published";
     reason?: string;
@@ -103,6 +104,7 @@ export const setMergedResultsStatus = createServerFn({ method: "POST" })
     if (!["calculated", "locked", "published"].includes(data.status)) throw new Error("Invalid status");
     return {
       roundId: data.roundId,
+      expectedVersion: data.expectedVersion, operationId: data.operationId,
       status: data.status,
       reason: data.reason?.trim() || undefined,
     };

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -51,10 +51,10 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
   const queryClient = useQueryClient();
   const getAdmin = useServerFn(getMergedTelevotingAdmin);
   const getConversion = useServerFn(getMergedTelevoteConversion);
-  const updateConfig = useServerFn(updateMergedConversionConfig);
-  const recalculate = useServerFn(recalculateMergedConversion);
+  const rawUpdateConfig = useServerFn(updateMergedConversionConfig);
+  const rawRecalculate = useServerFn(recalculateMergedConversion);
   const checkReadiness = useServerFn(checkMergedPublicationReadiness);
-  const setStatus = useServerFn(setMergedResultsStatus);
+  const rawSetStatus = useServerFn(setMergedResultsStatus);
 
   const [roundId, setRoundId] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -97,6 +97,25 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
     queryFn: () => getConversion({ data: { roundId: effectiveRoundId } }),
     enabled: Boolean(admin && effectiveRoundId),
   });
+
+  const pending = useRef(new Map<string, { fingerprint: string; data: any }>());
+  const command = (action: string, fn: any) => async ({ data: request }: { data: any }) => {
+    const key = `${request.roundId}:${action}`;
+    const fingerprint = JSON.stringify(request);
+    let attempt = pending.current.get(key);
+    if (attempt && attempt.fingerprint !== fingerprint) throw new Error("Retry the pending conversion request before changing its inputs");
+    if (!attempt) {
+      if (!data?.round || data.round.id !== request.roundId) throw new Error("Reload the round before editing");
+      attempt = { fingerprint, data: { ...request, expectedVersion: data.round.round_version, operationId: crypto.randomUUID() } };
+      pending.current.set(key, attempt);
+    }
+    const receipt = await fn({ data: attempt.data });
+    pending.current.delete(key);
+    return receipt;
+  };
+  const updateConfig = command("config", rawUpdateConfig);
+  const recalculate = command("calculate", rawRecalculate);
+  const setStatus = command("status", rawSetStatus);
 
   useEffect(() => {
     if (!data?.round) return;
@@ -152,7 +171,7 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
     mutationFn: (confirmProtected: boolean) => recalculate({ data: { roundId: effectiveRoundId, confirm: confirmProtected } }),
     onSuccess: async (result) => {
       setProtectedRecalcOpen(false);
-      toast.success(`Calculation v${result.version} stored · ${result.distributedTotal}/${result.totalPoints} points distributed`);
+      toast.success(`Calculation v${result.version} stored`);
       await invalidate();
     },
     onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Calculation failed"),

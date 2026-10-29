@@ -31,10 +31,11 @@ describe("V3 Organizer public voting results scope", () => {
     expect(resultsView).toContain('["merged-televoting-conversion", editionId, effectiveRoundId]');
   });
 
-  it("does not claim governed write parity while result lifecycle commands remain legacy", () => {
+  it("retains reviewed conversion command identity until the receipt is acknowledged", () => {
     expect(resultsView).toContain("recalculateMergedConversion");
     expect(resultsView).toContain("setMergedResultsStatus");
-    expect(resultsView).not.toContain("operationId");
+    expect(resultsView).toContain("expectedVersion: data.round.round_version, operationId: crypto.randomUUID()");
+    expect(resultsView.indexOf("await fn({ data: attempt.data })")).toBeLessThan(resultsView.indexOf("pending.current.delete(key)"));
     expect(resultsView).not.toContain("idempotencyKey");
   });
 });
