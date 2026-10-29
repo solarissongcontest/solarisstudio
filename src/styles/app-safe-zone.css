@@ -47,6 +47,13 @@ html[data-solaris-app] .solaris-app-offline {
   }
 }
 
+/* Organizer is a separate perspective, not a separate status-bar universe.
+   The shared toolbar remains sticky at the physical top, while its semantic
+   controls begin below the exact same protected content boundary as Public. */
+[data-solaris-organizer-toolbar] {
+  padding-top: var(--solaris-safe-content-top);
+}
+
 /* Browser-mode chrome is still semantic Solaris UI. Keep the sticky global
    header, mobile drawer, quick navigation and responsive section navigation on
    the same platform boundary. These overrides deliberately live here rather
