@@ -10,15 +10,21 @@ describe("Solaris V3 canonical top system safe zone", () => {
   const responsive = source("src/styles/v3-responsive-shell.css");
   const focusedTask = source("src/styles/v3-focused-task-shell.css");
   const navGeometry = source("src/styles/v3-navigation-fixed-geometry.css");
+  const adminShell = source("src/components/admin/AdminShell.tsx");
+  const adminResponsive = source("src/admin-desktop.css");
   const foundations = source("src/styles/v3-foundations.css");
 
-  it("centralizes platform safe-area aliases and scopes the defensive iOS standalone minimum to portrait phones", () => {
+  it("centralizes platform safe-area aliases and protects iOS standalone phone first paint before runtime markers", () => {
     expect(metrics).toContain("data-solaris-ios-standalone");
     expect(metrics).toContain("env(safe-area-inset-top, 0px)");
     expect(safeZone).toContain("--solaris-system-safe-top");
     expect(safeZone).toContain("--solaris-safe-content-top");
     expect(safeZone).toContain("--solaris-ios-standalone-min-top");
-    expect(safeZone).toContain("@media (orientation: portrait) and (max-width: 767px)");
+    expect(safeZone).toContain("@supports (-webkit-touch-callout: none)");
+    expect(safeZone).toContain("(display-mode: standalone)");
+    expect(safeZone).toContain("(orientation: portrait)");
+    expect(safeZone).toContain("(max-width: 767px)");
+    expect(safeZone).toContain("html[data-solaris-ios-standalone]");
     expect(safeZone).toContain("max(");
     expect(safeZone).not.toContain("@media (orientation: landscape)");
   });
@@ -28,6 +34,7 @@ describe("Solaris V3 canonical top system safe zone", () => {
     expect(safeZone).toContain("padding-top: var(--solaris-safe-content-top)");
     expect(safeZone).toContain("html[data-solaris-app] .solaris-app-offline");
     expect(safeZone).toContain("html[data-solaris-app] .solaris-app-tabbar");
+    expect(adminShell).toContain('data-solaris-organizer-toolbar=""');
     expect(safeZone).toContain("[data-solaris-organizer-toolbar]");
     expect(safeZone).toContain('html:not([data-solaris-app]) .site-nav');
   });
@@ -54,13 +61,14 @@ describe("Solaris V3 canonical top system safe zone", () => {
     expect(focusedTask).not.toContain("calc(env(safe-area-inset-top) + 0.45rem)");
   });
 
-  it("routes floating navigation through shared side/bottom safe aliases", () => {
+  it("routes Public and Organizer mobile bottom spacing through the shared safe-bottom alias", () => {
     expect(navGeometry).toContain("var(--solaris-safe-left");
     expect(navGeometry).toContain("var(--solaris-safe-right");
     expect(navGeometry).toContain("var(--solaris-safe-bottom");
     expect(navGeometry).toContain("min-height: 44px");
     expect(navGeometry).not.toContain("left: max(11px, env(safe-area-inset-left))");
     expect(navGeometry).not.toContain("bottom: calc(env(safe-area-inset-bottom) + 7px)");
+    expect(adminResponsive.match(/var\(--solaris-safe-bottom/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
   });
 
   it("keeps anchors and keyboard-focus targets below sticky shell chrome", () => {
