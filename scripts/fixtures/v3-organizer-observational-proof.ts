@@ -32,6 +32,15 @@ mock.module("../../src/integrations/televoting/admin-session.server", () => ({
     return { id: "caller", username: "Organizer" };
   },
 }));
+mock.module("../../src/integrations/supabase/capabilities.server", () => ({
+  requireSolarisCapabilityServer: async () => {
+    if (!allowed) throw new Error("Organizer access required");
+  },
+  getSolarisCapabilitiesServer: async () => {
+    if (!allowed) throw new Error("Organizer access required");
+    return { capabilities: ["televote.ballots.read", "jury.ballots.read", "integrity.read"] };
+  },
+}));
 mock.module("../../src/integrations/televoting/client.server", () => ({ televotingAdmin: transport }));
 const countries = [
   { id: "country-a", short_code: "AA", name: "A" },

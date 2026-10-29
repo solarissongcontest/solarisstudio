@@ -59,7 +59,10 @@ describe("accepted Organizer specialist family", () => {
     expect(votingRoute).toContain('["merged-televoting-admin-overview", editionId ?? "none"]');
     expect(votingRoute).toContain("getOverview({ data: { editionId: editionId! } })");
     expect(votingRoute).not.toContain("useMutation(");
-    expect(votingOverview).toContain("await requireMergedTelevotingAdminServer()");
+    expect(votingOverview).toContain("await requireSolarisOrganizerServer()");
+    expect(votingOverview).toContain('p_capability: "voting.read"');
+    expect(votingOverview).toContain('p_edition_id: data.editionId');
+    expect(votingOverview.indexOf("if (allowed !== true)")).toBeLessThan(votingOverview.indexOf('const { televotingAdmin }'));
     expect(votingOverview).toContain('"admin_overview_summary"');
     expect(votingOverview).toContain("p_solaris_edition_id: data.editionId");
   });
@@ -99,7 +102,7 @@ describe("accepted Organizer specialist family", () => {
   });
 
   it("accepts Command Assistant only as exact-edition read-only navigation", () => {
-    expect(commandAssistantRoute).toContain("const { editionId } = useAdminContext()");
+    expect(commandAssistantRoute).toContain("const { editionId, setEditionId } = useAdminContext()");
     expect(commandAssistantRoute).toContain("edition.id === editionId");
     expect(commandAssistantRoute).toContain("useV3OrganizerProjection(resolvedEditionId || null)");
     expect(commandAssistantRoute).toContain("cannot generate arbitrary SQL");

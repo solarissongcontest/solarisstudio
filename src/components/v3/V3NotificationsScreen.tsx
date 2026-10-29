@@ -155,7 +155,7 @@ export function V3NotificationsScreen({
                 {acknowledgementCount > 0 ? (
                   <V3ActionCard
                     title={`${acknowledgementCount} acknowledgement${acknowledgementCount === 1 ? "" : "s"} required`}
-                    description="Read and acknowledge these in the authoritative official-notice workflow."
+                    description="Open Notices to read these and acknowledge any required updates."
                     icon={ShieldCheck}
                     tone="required"
                     to="/my-solaris/notices"
@@ -307,9 +307,9 @@ export function V3NotificationsScreen({
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 size-5 shrink-0 text-[var(--v3-text-secondary)]" aria-hidden="true" />
               <div className="min-w-0">
-                <p className="text-sm font-semibold">Notifications are never the source of truth</p>
+                <p className="text-sm font-semibold">Your required work is still available</p>
                 <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                  Missing, delayed or blocked push delivery cannot hide required participation. Tasks and official Notices remain authoritative inside Solaris.
+                  If a push reminder is delayed or blocked, check Participate for current responsibilities and Notices for official messages.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link

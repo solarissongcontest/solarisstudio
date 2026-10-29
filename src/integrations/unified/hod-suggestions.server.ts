@@ -30,7 +30,7 @@ function normalizeUsername(value: unknown) {
 export async function getHodIdentitySuggestionsServer(): Promise<HodIdentitySuggestion[]> {
   // Suggestions combine cross-edition private HOD history with protected raw
   // Televote submission identity. Require both data-class capabilities before
-  // either privileged client is imported. loadHodResolverServer() enforces the
+  // either privileged client is imported. The HOD resolver enforces the
   // parent global delegation.read boundary itself.
   await requireSolarisCapabilityServer("televote.ballots.read", null);
   const hod = await loadHodResolverServer();

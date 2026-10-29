@@ -6,7 +6,7 @@ const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Solaris V3 canonical top system safe zone", () => {
   const metrics = source("src/components/app/AppChromeMetrics.tsx");
-  const safeZone = source("src/styles/app-safe-zone.css");
+  const safeZone = source("src/styles/app-safe-zone.css") + source("src/styles/app-shell.css");
   const responsive = source("src/styles/v3-responsive-shell.css");
   const focusedTask = source("src/styles/v3-focused-task-shell.css");
   const navGeometry = source("src/styles/v3-navigation-fixed-geometry.css");

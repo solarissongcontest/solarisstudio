@@ -67,7 +67,7 @@ describe("V3 Organizer read-only voting specialist acceptance evidence", () => {
   it("keeps historical backtesting an authenticated read-only simulation", () => {
     expect(backtest).toContain("No official result is changed");
     expect(backtest).toContain("read-only simulation");
-    expect(backtestServer).toContain("requireMergedTelevotingAdminServer");
+    expect(backtestServer).toContain('requireSolarisCapabilityServer("televote.ballots.read")');
     expect(backtestServer).toContain('.from("rounds")');
     expect(backtestServer).not.toContain(".insert(");
     expect(backtestServer).not.toContain(".update(");

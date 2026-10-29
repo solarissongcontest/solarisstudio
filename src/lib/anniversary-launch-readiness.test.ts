@@ -11,7 +11,7 @@ const takeover = source("src/components/AnniversaryTakeover.tsx");
 const hub = source("src/routes/anniversary/index.tsx");
 const mySolarisShell = source("src/components/mysolaris/MySolarisWorkspaceShell.tsx");
 const mySolarisRecap = source("src/components/mysolaris/MySolarisAnniversaryRecap.tsx");
-const adminPreview = source("src/routes/_authenticated/admin/anniversary.tsx");
+const adminPreview = source("src/lib/v3-organizer-anniversary-preview.ts");
 
 describe("anniversary launch readiness", () => {
   it("uses one shared publication-aware resolved-final guard", () => {

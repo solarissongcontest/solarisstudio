@@ -37,7 +37,7 @@ describe("Organizer Control Room readiness egress contract", () => {
   it("keeps every readiness family explicit so new tables cannot enter the payload accidentally", () => {
     for (const table of READINESS_TABLES) {
       expect(source).toContain(`${table}:`);
-      expect(source).toContain(`\"${table}\", editionId`);
+      expect(source).toContain(`"${table}", editionId`);
     }
 
     expect(source).toContain("type ReadinessTable = keyof typeof READINESS_SELECTS");

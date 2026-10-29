@@ -86,7 +86,7 @@ describe("Solaris Studio V3 primary route cutover architecture", () => {
     );
     const resolvingSurface = gateText.slice(
       gateText.indexOf("function ResolvingPrimarySurface"),
-      gateText.indexOf("/**\n * Reversible production gate"),
+      gateText.indexOf("function V3PrimarySurfaceReadError"),
     );
     expect(resolvingSurface).toContain('data-v3-primary-boot=""');
     expect(resolvingSurface).toContain("<h1");

@@ -110,7 +110,7 @@ describe("V3 Rules & Guidance cutover", () => {
 
     expect(source).toContain("validateSearch");
     expect(source).toContain("sanitizeRuleContextPath(search.context)");
-    expect(source).toContain("const explicitAction = actionFor(contextPath ?? null)");
+    expect(source).toContain("resolveAppliedRulesContext({ explicitContextPath: contextPath ?? \"\" })");
     expect(source).toContain("GOVERNANCE_ACTION_STORAGE_KEY");
     expect(source).toContain("RULE_CONTEXT_STORAGE_KEY");
     expect(source).toContain("RulesApplyingHere context={context}");

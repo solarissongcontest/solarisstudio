@@ -52,8 +52,8 @@ describe("Solaris Studio V3 focused critical-task shell architecture", () => {
 
     expect(css).toContain("min-width: 2.75rem");
     expect(css).toContain("min-height: 2.75rem");
-    expect(css).toContain("env(safe-area-inset-top)");
-    expect(css).toContain("env(safe-area-inset-bottom)");
+    expect(css).toContain("env(safe-area-inset-top, 0px)");
+    expect(css).toContain("env(safe-area-inset-bottom, 0px)");
     expect(css).toContain("prefers-reduced-transparency: reduce");
     expect(css).toContain("backdrop-filter: none");
   });

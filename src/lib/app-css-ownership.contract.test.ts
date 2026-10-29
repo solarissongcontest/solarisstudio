@@ -79,7 +79,7 @@ describe("installed app CSS ownership", () => {
         if (!name.endsWith(".css") || path === "src/styles/app-shell.css") continue;
         const css = readFileSync(path, "utf8");
         for (const token of protectedTokens) {
-          if (css.includes(token)) violations.push(`${path}: ${token}`);
+          if (new RegExp(token.replaceAll(".", "\\.") + "(?![a-zA-Z0-9_-])").test(css)) violations.push(`${path}: ${token}`);
         }
       }
     };

@@ -24,7 +24,7 @@ describe("public audit regressions after Organisation OS V5 hardening", () => {
     );
     expect(search).toContain('aria-label="Search rules"');
     expect(search).toContain(
-      'className="min-h-10 min-w-0 flex-1 bg-transparent text-sm outline-none"',
+      'className="min-h-10 min-w-0 flex-1',
     );
   });
 

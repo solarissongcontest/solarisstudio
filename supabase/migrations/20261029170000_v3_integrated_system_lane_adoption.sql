@@ -1,0 +1,10 @@
+begin;
+-- Forward adoption of already-pushed System lane migrations. Preserve their
+-- immutable bytes; these contracts describe the replayed and tested behavior.
+-- Schema/authority changes are forward-fix-only; never restore raw transport DML.
+select public.v3_register_migration_contract('v3.system-lane.20261029151500',1,'forward_fix_only',false,null,'Adopts immutable 20261029151500_v3_s16_confirmation_derived_trigger_authority.sql. Retire redundant Confirmation recovery, browser registration and stats triggers; canonical submission owns registration and bounded default recovery identity. Replay asserts retired attachment and ACL invariants.');
+select public.v3_register_migration_contract('v3.system-lane.20261029153500',1,'forward_fix_only',false,null,'Adopts immutable 20261029153500_v3_s16_confirmation_cas_and_grants.sql. Revoke transport DML on Confirmation requirement, round CAS and operation tables; pin owner-only round version housekeeping and remove redundant raw round guards. Replay checks privilege and attachment drift.');
+select public.v3_register_migration_contract('v3.system-lane.20261029160000',1,'forward_fix_only',false,null,'Adopts immutable 20261029160000_v3_s16_jury_window_single_authority.sql. Collapse Jury window validation, CAS, audit, persistence and receipt into one command; retain unavailable legacy signature fail-closed. Preserve live lineup and one-open-window invariants.');
+select public.v3_register_migration_contract('v3.system-lane.20261029162500',1,'forward_fix_only',false,null,'Adopts immutable 20261029162500_v3_s16_jury_transport_boundary.sql. Revoke Jury transport column DML and lock private version primitives behind canonical callers; retired window engine signature cannot mutate. Replay asserts exact role privileges.');
+select public.v3_register_migration_contract('v3.system-lane.20261029165000',1,'forward_fix_only',false,null,'Adopts immutable 20261029165000_v3_s16_jury_scope_constraints.sql. Audit existing Jury show and ballot scope before adding validated composite foreign keys; retire procedural scope guards only after declarative reverse-drift protection is active.');
+commit;

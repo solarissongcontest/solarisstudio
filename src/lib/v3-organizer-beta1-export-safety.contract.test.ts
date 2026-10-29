@@ -11,8 +11,9 @@ const registry = read("src/lib/v3-organizer-capability-registry.ts");
 describe("Organizer Beta 1 archive export safety", () => {
   it("reads only the historical response fields the archive actually renders or exports", () => {
     expect(route).toContain(
-      '.select("id,tester_name,device,browser,familiarity,answers,bug_reports,form_version,created_at")',
+      '"id,tester_name,device,browser,familiarity,answers,bug_reports,form_version,created_at"',
     );
+    expect(route).toContain('.select(BETA1_COLUMNS, { count: "exact" })');
     expect(route).not.toContain('.select("*")');
   });
 

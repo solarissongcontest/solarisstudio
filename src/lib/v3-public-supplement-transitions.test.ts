@@ -46,9 +46,11 @@ describe("Public supplement transition history", () => {
     expect(result.stderr).toContain("Public supplement: capability row disappeared");
   }));
 
-  it("allows a forward transition while leaving acceptance to the release contracts", () => fixture((directory, base) => {
+  it("rejects a forward transition without exact-tree acceptance evidence", () => fixture((directory, base) => {
     writeFileSync(join(directory, supplement), row("cutover"));
-    expect(check(directory, base).status).toBe(0);
+    const result = check(directory, base);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("cannot be accepted without exact-tree evidence");
   }));
 
   it("preserves history when a capability moves between canonical source files", () => fixture((directory, base) => {

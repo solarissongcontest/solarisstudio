@@ -40,7 +40,7 @@ describe("V3 push delivery reconciliation", () => {
     });
 
     const route = readFileSync("src/routes/_authenticated/notifications.tsx", "utf8");
-    expect(route).toContain("push.isError || !push.data");
+    expect(route).toContain("push.isError && !push.data");
     expect(route).toContain("? UNKNOWN_APP_PUSH_DELIVERY");
     expect(route).not.toContain("push.data ?? EMPTY_PUSH");
   });

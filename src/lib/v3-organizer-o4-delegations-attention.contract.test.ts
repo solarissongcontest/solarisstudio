@@ -12,8 +12,8 @@ const adminDomains = readFileSync("src/components/admin/admin-domains.ts", "utf8
 
 describe("Organizer O4 Delegations attention boundary", () => {
   it("fails closed without explicit Organizer edition context", () => {
-    expect(route).toContain("enabled: Boolean(editionId)");
-    expect(route).toContain("loadConfirmationRequirements(editionId!)");
+    expect(route).toContain("enabled: Boolean(resolvedEditionId)");
+    expect(route).toContain("loadConfirmationRequirements(resolvedEditionId)");
     expect(route).toContain("Solaris will not substitute another edition");
   });
 

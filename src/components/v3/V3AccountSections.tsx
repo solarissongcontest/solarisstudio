@@ -46,10 +46,10 @@ export function V3AccountSections() {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">Public fan identity</p>
               <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                Fan display name, visibility and leaderboard opt-in are managed in one dedicated Me surface. Account recovery and delegation identity remain separate.
+                Manage your fan display name, visibility and leaderboard opt-in in your country workspace. Account recovery and delegation identity remain separate.
               </p>
               <Link
-                to="/my-solaris/profile"
+                to="/my-solaris/country"
                 className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-[var(--v3-border-subtle)] px-3 text-xs font-semibold"
               >
                 Manage public fan identity

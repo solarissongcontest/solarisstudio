@@ -31,7 +31,7 @@ describe("V3 Organizer Confirmation line-up sync", () => {
     expect(syncRoute).toContain("addCountriesToShow");
     expect(syncRoute).toContain("System #598 remains the blocker");
     expect(lineupServer).toContain("export const addCountriesToShow");
-    expect(lineupServer).toContain("requireSolarisOrganizerServer()");
+    expect(lineupServer).toContain('requireSolarisCapabilityServer("entry.edit", data.editionId)');
     expect(lineupServer).toContain('.from("participants").update');
     expect(lineupServer).toContain('.from("participants").insert');
   });

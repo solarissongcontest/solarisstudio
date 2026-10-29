@@ -9,9 +9,8 @@ type GuideSectionLike<TQuestion extends GuideQuestionLike> = {
 };
 
 export function filterOrganizerGuideSections<
-  TQuestion extends GuideQuestionLike,
-  TSection extends GuideSectionLike<TQuestion>,
->(sections: readonly TSection[], query: string): Array<Omit<TSection, "questions"> & { questions: TQuestion[] }> {
+  TSection extends GuideSectionLike<GuideQuestionLike>,
+>(sections: readonly TSection[], query: string): Array<Omit<TSection, "questions"> & { questions: TSection["questions"][number][] }> {
   const normalizedQuery = query.trim().toLocaleLowerCase();
 
   return sections

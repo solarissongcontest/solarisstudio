@@ -35,7 +35,7 @@ describe("S16 Televote round mutation authority", () => {
     expect(migration).toContain("private.studio2_complete_operation");
 
     expect(functions).toContain("expectedRoundVersion");
-    expect(view).toContain("expectedRoundVersion: editing!.version");
+    expect(view).toContain("expectedRoundVersion: editing.version");
     expect(view).toContain("expectedRoundVersion: target.version");
   });
 

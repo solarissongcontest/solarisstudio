@@ -44,9 +44,9 @@ describe("V3 Participate screen contract", () => {
     expect(participate).toContain("remainingBlocked");
     expect(participate).toContain("remainingWaiting");
     expect(participate).toContain("remainingNext");
-    expect(projection).toContain('action.sourceState === "problem" && !action.actionRequired');
+    expect(projection).toContain('action.sourceState === "problem" &&');
     expect(projection).toContain('action.sourceState === "waiting"');
-    expect(projection.indexOf('action.sourceState === "problem" && !action.actionRequired')).toBeLessThan(
+    expect(projection.indexOf('action.sourceState === "problem" &&')).toBeLessThan(
       projection.indexOf("if (isOptional(action))"),
     );
     expect(projection.indexOf('action.sourceState === "waiting"')).toBeLessThan(

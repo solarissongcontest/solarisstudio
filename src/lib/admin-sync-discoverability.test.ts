@@ -8,8 +8,11 @@ function source(path: string) {
 describe("confirmed-country sync discoverability", () => {
   it("links the show sync manager from the Contest workflow", () => {
     const editionAdmin = source("routes/_authenticated/admin/$slug.tsx");
-    expect(editionAdmin).toContain('title="Sync confirmed countries"');
-    expect(editionAdmin).toContain('to={`/admin/lineup-sync/${slug}`}');
+    const workspaces = source("lib/v3-organizer.ts");
+    expect(workspaces).toContain('href: editionHref("/admin/lineup-sync/:slug")');
+    expect(workspaces).toContain('description: "Heat progression and line-up synchronization"');
+    expect(editionAdmin).toContain("contestWorkspace?.items.map");
+    expect(editionAdmin).toContain("to={item.href}");
   });
 
   it("keeps round-to-show sync available from Delegations advanced tools", () => {

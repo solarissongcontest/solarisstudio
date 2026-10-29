@@ -131,10 +131,10 @@ describe("V3 Notifications cutover", () => {
     expect(source).toContain('to="/my-solaris/notices"');
     expect(source).toContain('to="/participate"');
     expect(source).toContain('to="/settings"');
-    expect(source).toContain("Notifications are never the source of truth");
+    expect(source).toContain("Your required work is still available");
     expect(source).toContain('item.state === "acknowledgement_required"');
     expect(source).toContain(
-      "Read and acknowledge these in the authoritative official-notice workflow.",
+      "Open Notices to read these and acknowledge any required updates.",
     );
   });
 

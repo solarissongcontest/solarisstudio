@@ -3503,3 +3503,32 @@ html[data-solaris-app] .solaris-app-list-row {
 html[data-solaris-app] .solaris-app-list-row + .solaris-app-list-row {
   border-top: 1px solid rgb(210 236 248 / .085);
 }
+
+/* Installed/native app chrome consumes the same semantic boundary regardless
+   of whether the platform reports itself through display-mode or a native
+   wrapper. That keeps app-mode behavior aligned instead of making CSS media
+   queries a second runtime authority. */
+html[data-solaris-app] .solaris-app-toolbar {
+  padding-top: var(--solaris-safe-content-top);
+}
+
+html[data-solaris-app] .solaris-app-toolbar-inner {
+  padding-inline:
+    max(.75rem, var(--solaris-safe-left, env(safe-area-inset-left, 0px)))
+    max(.75rem, var(--solaris-safe-right, env(safe-area-inset-right, 0px)));
+}
+
+html[data-solaris-app] .solaris-app-offline {
+  top: calc(
+    var(--solaris-safe-content-top) + var(--solaris-app-toolbar-height) + 0.45rem
+  );
+}
+
+@media (min-width: 900px) {
+  html[data-solaris-app] .solaris-app-tabbar {
+    top: calc(
+      var(--solaris-safe-content-top) + var(--solaris-app-toolbar-height) + 1rem
+    );
+    left: max(.8rem, var(--solaris-safe-left, env(safe-area-inset-left, 0px)));
+  }
+}

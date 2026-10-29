@@ -30,7 +30,7 @@ describe("V3 Televote historical backtest authorization", () => {
   it("keeps the browser behind the server-function boundary", () => {
     expect(fn).toContain('createServerFn({ method: "POST" })');
     expect(fn).toContain(
-      'import("@/integrations/televoting/backtest.server")',
+      '"@/integrations/televoting/backtest.server"',
     );
     expect(fn).toContain("runHistoricalTelevoteBacktestServer(data)");
     expect(fn).not.toMatch(/supabaseAdmin|televotingAdmin|\.from\(|\.rpc\(/);

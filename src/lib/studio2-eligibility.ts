@@ -535,12 +535,8 @@ export async function applyStudio2EligibilityOverrideChange(
   // The write may have committed even when its response was lost. Reconcile the
   // exact operation once immediately; never ask the UI to infer success from a
   // changed table row or to manufacture a second operation identity.
-  try {
-    const reconciled = await reconcileEligibilityOverrideChange(input, client);
-    if (reconciled) return reconciled;
-  } catch (reconciliationError) {
-    throw reconciliationError;
-  }
+  const reconciled = await reconcileEligibilityOverrideChange(input, client);
+  if (reconciled) return reconciled;
 
   throw error;
 }

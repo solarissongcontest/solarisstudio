@@ -16,7 +16,8 @@ describe("Public V3 Live route reconnect boundary", () => {
     expect(gate).toContain("if (!bundle.data)");
     expect(gate).not.toContain("rollout.isError || !rollout.data");
     expect(gate).not.toContain("bundle.isError || !bundle.data");
-    expect(gate).toContain("reversible fallback only when the initial focused V3");
+    expect(gate).toContain("Live snapshot must not silently switch to the legacy");
+    expect(gate).toContain("<LiveUnavailableSurface");
   });
 
   it("keeps cached rollout and Live authority mounted when a refetch fails", () => {

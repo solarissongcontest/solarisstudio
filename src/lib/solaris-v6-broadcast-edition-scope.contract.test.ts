@@ -13,7 +13,7 @@ function mutationSection(route: string, start: string, end: string) {
 }
 
 function expectGuardBeforeWrite(section: string, writeCall: string) {
-  const guardIndex = section.indexOf("assertProductionEditionScope();");
+  const guardIndex = section.indexOf("assertProductionEditionScope(");
   const writeIndex = section.indexOf(writeCall);
   expect(guardIndex).toBeGreaterThanOrEqual(0);
   expect(writeIndex).toBeGreaterThan(guardIndex);
@@ -27,7 +27,7 @@ describe("Solaris V6 Broadcast edition isolation", () => {
 
     expect(route).toContain("validateEditionCommandScope");
     expect(route).toContain("routeEditionId: editionId ?? null");
-    expect(route).toContain("commandEditionId: editionId ?? null");
+    expect(route).toContain("commandEditionId: reviewedEditionId ?? null");
     expect(route).toContain("entityEditionId: show?.edition_id ?? null");
     expect(route).toContain("{ status: 409 }");
   });
@@ -60,9 +60,10 @@ describe("Solaris V6 Broadcast edition isolation", () => {
     );
 
     expect(route).toContain("if (mode === 'rehearsal') return;");
-    expect(route).toContain(
-      "if (mode === 'rehearsal') return Promise.resolve(draft);",
-    );
+    const save = mutationSection(route, "const saveMutation = useMutation", "const lockMutation = useMutation");
+    expect(save).toContain("if (mode !== 'production')");
+    expect(save).toContain("throw staleBroadcastReview");
+    expect(save.indexOf("if (mode !== 'production')")).toBeLessThan(save.indexOf("saveStudio2BroadcastRundown("));
     expect(route).toContain(
       "Rehearsal mode never calls a production mutation",
     );
@@ -75,6 +76,6 @@ describe("Solaris V6 Broadcast edition isolation", () => {
 
     expect(route).toContain("component: BroadcastRundownRoute");
     expect(route).toContain("function BroadcastRundownRoute()");
-    expect(route).toContain("<BroadcastRundownPage key={editionId || 'unscoped'} />");
+    expect(route).toContain("<BroadcastRundownPage key={`${editionId || 'unscoped'}:${showId || 'no-show'}`} />");
   });
 });

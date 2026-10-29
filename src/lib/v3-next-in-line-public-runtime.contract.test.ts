@@ -44,7 +44,8 @@ describe("V3 Public Next in Line runtime", () => {
     expect(page).toContain('search={{ redirect: "/next-in-line" }}');
     expect(page).toContain("Sign in to enter Next in Line");
     expect(page).toContain("eligible delegation and source entry from your authenticated account");
-    expect(page).toContain("return <NextInLineCompetition />");
+    expect(page).toContain("<NextInLineCompetition");
+    expect(page).toContain("key={session.data.id}");
   });
 
   it("keeps the caller-specific participant workflow out of crawler indexes", () => {

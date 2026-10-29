@@ -87,7 +87,7 @@ describe("Solaris installed-app foundation", () => {
 
   it("tracks the current installed-app static cache generation", () => {
     const worker = source("public/sw.js");
-    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v15"');
+    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v16"');
   });
 
   it("lets the active tab indicator drag across destinations", () => {

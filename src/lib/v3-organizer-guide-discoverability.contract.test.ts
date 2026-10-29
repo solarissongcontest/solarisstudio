@@ -28,10 +28,11 @@ describe("Organizer Guide discoverability", () => {
     expect(route).not.toContain(".rpc(");
 
     const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
-      (item) => item.id === "workspace-organizer-guide",
+      (item) => item.legacyId === "workspace-organizer-guide",
     );
     expect(capability).toBeDefined();
     expect(capability?.classification).toEqual("contextualize");
-    expect(capability?.migrationStatus).toEqual("building");
+    expect(capability?.migrationStatus).toEqual("cutover");
+    expect(capability?.migrationEvidence).toContain("v3-organizer-observational-acceptance.test.tsx");
   });
 });

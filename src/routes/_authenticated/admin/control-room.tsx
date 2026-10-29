@@ -172,7 +172,7 @@ function ControlRoomV2() {
       if (!requestReason) throw new Error('A reason is required before requesting second approval.');
       return studio2ControlRoom.requestTransitionApproval(editionId, to, requestReason);
     },
-    onSuccess: refresh,
+    onSuccess: () => refresh(),
   });
 
   const approveTransition = useMutation({

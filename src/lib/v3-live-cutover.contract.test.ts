@@ -54,7 +54,11 @@ describe("Public V3 Live route cutover", () => {
     expect(source).not.toContain("rollout.isError || !rollout.data");
     expect(source).not.toContain("bundle.isError || !bundle.data");
     expect(source).toContain("rollout.isError || bundle.isError");
-    expect(source.match(/return <>{fallback}<\/>;/g)?.length).toBe(2);
+    expect(source.match(/return <>{fallback}<\/>;/g)?.length).toBe(1);
+    const unavailable = source.slice(source.indexOf("if (!bundle.data)"), source.indexOf("const degraded"));
+    expect(unavailable).toContain("<LiveUnavailableSurface");
+    expect(unavailable).toContain("bundle.refetch()");
+    expect(unavailable).not.toContain("fallback");
   });
 
   it("preserves the existing Show Mode wake-lock preference as progressive enhancement", () => {
