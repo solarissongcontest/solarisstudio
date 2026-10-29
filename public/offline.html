@@ -5,12 +5,40 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#020817" />
   <title>Offline — Solaris Studio</title>
+  <script>
+    (() => {
+      const nav = navigator;
+      const iosDevice =
+        /iPad|iPhone|iPod/i.test(nav.userAgent) ||
+        (nav.platform === "MacIntel" && nav.maxTouchPoints > 1);
+      const standalone =
+        nav.standalone === true ||
+        window.matchMedia?.("(display-mode: standalone)").matches === true;
+      if (iosDevice && standalone) {
+        document.documentElement.dataset.solarisIosStandalone = "true";
+      }
+    })();
+  </script>
   <style>
     :root {
       color-scheme: dark;
       font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #020817;
       color: #f7fbff;
+      --offline-safe-top: env(safe-area-inset-top, 0px);
+      --offline-safe-right: env(safe-area-inset-right, 0px);
+      --offline-safe-bottom: env(safe-area-inset-bottom, 0px);
+      --offline-safe-left: env(safe-area-inset-left, 0px);
+      --offline-safe-content-gap: 4px;
+      --offline-safe-content-top: calc(var(--offline-safe-top) + var(--offline-safe-content-gap));
+    }
+    html[data-solaris-ios-standalone="true"] {
+      --offline-safe-top: max(env(safe-area-inset-top, 0px), 62px);
+    }
+    @media (orientation: landscape) {
+      html[data-solaris-ios-standalone="true"] {
+        --offline-safe-top: env(safe-area-inset-top, 0px);
+      }
     }
     * { box-sizing: border-box; }
     body {
@@ -26,8 +54,12 @@
       position: sticky;
       top: 0;
       z-index: 4;
-      min-height: calc(52px + env(safe-area-inset-top));
-      padding: env(safe-area-inset-top) 16px 0;
+      min-height: calc(52px + var(--offline-safe-content-top));
+      padding:
+        var(--offline-safe-content-top)
+        max(16px, var(--offline-safe-right))
+        0
+        max(16px, var(--offline-safe-left));
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -54,7 +86,11 @@
     main {
       width: min(760px, 100%);
       margin: 0 auto;
-      padding: 18px 16px calc(104px + env(safe-area-inset-bottom));
+      padding:
+        18px
+        max(16px, var(--offline-safe-right))
+        calc(104px + var(--offline-safe-bottom))
+        max(16px, var(--offline-safe-left));
     }
     .view[hidden] { display: none; }
     .hero {
@@ -122,9 +158,9 @@
     .tabbar {
       position: fixed;
       left: 50%;
-      bottom: max(8px, env(safe-area-inset-bottom));
+      bottom: max(8px, var(--offline-safe-bottom));
       z-index: 5;
-      width: min(calc(100vw - 18px), 520px);
+      width: min(calc(100vw - 18px - var(--offline-safe-left) - var(--offline-safe-right)), 520px);
       min-height: 68px;
       transform: translateX(-50%);
       display: grid;
@@ -140,21 +176,40 @@
     }
     .tab {
       min-width: 0;
+      min-height: 44px;
+      display: grid;
+      place-items: center;
+      align-content: center;
       border: 0;
       border-radius: 18px;
       background: transparent;
       color: #8290a7;
       font-size: 10px;
       font-weight: 800;
+      text-decoration: none;
     }
     .tab span { display: block; margin-bottom: 4px; font-size: 17px; line-height: 1; }
-    .tab[aria-selected="true"] { background: rgba(142,212,239,.12); color: #dff7ff; }
+    .tab[aria-current="page"] { background: rgba(142,212,239,.12); color: #dff7ff; }
+    .tab:focus-visible,
+    .row:focus-visible,
+    .primary:focus-visible {
+      outline: 2px solid #8ed4ef;
+      outline-offset: 2px;
+    }
     @media (min-width: 900px) {
       main { padding-bottom: 32px; }
       .tabbar { width: 390px; }
     }
     @media (prefers-reduced-motion: reduce) {
       * { scroll-behavior: auto !important; }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .toolbar,
+      .tabbar {
+        background: #081426;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
     }
   </style>
 </head>
@@ -231,11 +286,11 @@
   </main>
 
   <nav class="tabbar" aria-label="Offline Solaris Studio">
-    <a class="tab" href="/" data-tab="home" aria-selected="false"><span>⌂</span>Home</a>
-    <a class="tab" href="/explore" data-tab="explore" aria-selected="false"><span>⌕</span>Explore</a>
-    <a class="tab" href="/participate" data-tab="participate" aria-selected="false"><span>◎</span>Participate</a>
-    <a class="tab" href="/results" data-tab="results" aria-selected="false"><span>♜</span>Results</a>
-    <a class="tab" href="/my-solaris" data-tab="me" aria-selected="false"><span>◉</span>Me</a>
+    <a class="tab" href="/" data-tab="home"><span aria-hidden="true">⌂</span>Home</a>
+    <a class="tab" href="/explore" data-tab="explore"><span aria-hidden="true">⌕</span>Explore</a>
+    <a class="tab" href="/participate" data-tab="participate"><span aria-hidden="true">◎</span>Participate</a>
+    <a class="tab" href="/results" data-tab="results"><span aria-hidden="true">♜</span>Results</a>
+    <a class="tab" href="/my-solaris" data-tab="me"><span aria-hidden="true">◉</span>Me</a>
   </nav>
 
   <script>
@@ -249,7 +304,11 @@
           node.hidden = node.getAttribute("data-view") !== view;
         });
         document.querySelectorAll("[data-tab]").forEach((node) => {
-          node.setAttribute("aria-selected", node.getAttribute("data-tab") === view ? "true" : "false");
+          if (node.getAttribute("data-tab") === view) {
+            node.setAttribute("aria-current", "page");
+          } else {
+            node.removeAttribute("aria-current");
+          }
         });
       };
 
