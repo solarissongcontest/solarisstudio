@@ -44,7 +44,7 @@ function WebCountriesPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Country discovery"
+        eyebrow="Delegation directory"
         title="Countries"
         description="Start with the current contest and movement across Terra Solaris, then browse the complete country archive when you need it."
         className="directory-page-hero countries-library-hero"
@@ -60,7 +60,7 @@ function WebCountriesPage() {
               to="/records"
               className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-sm font-semibold transition-colors hover:border-primary/40 hover:text-primary"
             >
-              Country records
+              Most successful delegations
             </Link>
           </div>
         }
