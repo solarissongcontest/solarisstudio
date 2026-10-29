@@ -9,6 +9,7 @@ describe("Solaris V3 canonical top system safe zone", () => {
   const safeZone = source("src/styles/app-safe-zone.css");
   const responsive = source("src/styles/v3-responsive-shell.css");
   const focusedTask = source("src/styles/v3-focused-task-shell.css");
+  const navGeometry = source("src/styles/v3-navigation-fixed-geometry.css");
   const foundations = source("src/styles/v3-foundations.css");
 
   it("centralizes platform safe-area aliases and the iOS standalone defensive marker", () => {
@@ -47,6 +48,15 @@ describe("Solaris V3 canonical top system safe zone", () => {
       "scroll-margin-block-start: calc(4.75rem + var(--v3-focused-task-safe-top))",
     );
     expect(focusedTask).not.toContain("calc(env(safe-area-inset-top) + 0.45rem)");
+  });
+
+  it("routes floating navigation through shared side/bottom safe aliases", () => {
+    expect(navGeometry).toContain("var(--solaris-safe-left");
+    expect(navGeometry).toContain("var(--solaris-safe-right");
+    expect(navGeometry).toContain("var(--solaris-safe-bottom");
+    expect(navGeometry).toContain("min-height: 44px");
+    expect(navGeometry).not.toContain("left: max(11px, env(safe-area-inset-left))");
+    expect(navGeometry).not.toContain("bottom: calc(env(safe-area-inset-bottom) + 7px)");
   });
 
   it("keeps anchors and keyboard-focus targets below sticky shell chrome", () => {
