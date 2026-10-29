@@ -1,3 +1,4 @@
+import { recoverCombinedDeletion, type CombinedDeletionReceiptClient } from "@/integrations/televoting/combined-deletion";
 import { createHash } from "node:crypto";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
@@ -504,17 +505,24 @@ export async function setMergedCombinedStatusServer(data: { id: string; status: 
 
 export async function deleteMergedCombinedAggregationServer(id: string) {
   const actor = await requireMergedTelevotingAdminServer();
+  // An aggregate ID is never recycled. Keep its actor-bound delete identity
+  // stable even when a committed deletion makes the original row unreadable.
+  const fingerprint = createHash("sha256").update(JSON.stringify(["combined.delete", actor.id, id])).digest("hex");
+  const operationId = `${fingerprint.slice(0, 8)}-${fingerprint.slice(8, 12)}-4${fingerprint.slice(13, 16)}-8${fingerprint.slice(17, 20)}-${fingerprint.slice(20, 32)}`;
+  const { createSolarisAuthenticatedClientServer } = await import("@/integrations/supabase/organizer.server");
+  const client = createSolarisAuthenticatedClientServer() as unknown as CombinedDeletionReceiptClient;
+  if (await recoverCombinedDeletion(id, async () => client.rpc("studio2_reconcile_operation", { p_operation_id: operationId }))) {
+    return { ok: true };
+  }
   const aggregation = await loadAggregation(id);
   if (aggregation.status === "published") throw new Error("Published combined results cannot be deleted");
-  const sourceResult = await televotingAdmin.from("televote_aggregation_sources").select("id").eq("aggregation_id", id);
-  const sourceIds = (sourceResult.data ?? []).map((row) => row.id);
-  if (sourceIds.length) await televotingAdmin.from("external_score_entries").delete().in("source_id", sourceIds);
-  await televotingAdmin.from("combined_televote_component_results").delete().eq("aggregation_id", id);
-  await televotingAdmin.from("combined_televote_results").delete().eq("aggregation_id", id);
-  await televotingAdmin.from("televote_aggregation_participants").delete().eq("aggregation_id", id);
-  await televotingAdmin.from("televote_aggregation_sources").delete().eq("aggregation_id", id);
-  const { error } = await televotingAdmin.from("televote_aggregations").delete().eq("id", id);
+  const { error } = await (televotingAdmin as any).rpc("v3_delete_combined_aggregation", {
+    p_aggregation_id: id,
+    p_remote_edition_id: aggregation.edition_id,
+    p_expected_version: aggregation.command_version,
+    p_operation_id: operationId,
+    p_idempotency_key: `combined-delete:${fingerprint}`,
+  });
   if (error) throw new Error(error.message);
-  await audit(actor, "delete_combined_televote", id, { name: aggregation.name });
   return { ok: true };
 }

@@ -487,6 +487,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       // and revoked actors and recovers the exact committed operation receipt.
       "televoting.v3_reconcile_combined_lineup",
       "televoting.v3_transition_combined_status",
+      "televoting.v3_delete_combined_aggregation",
       "televoting.submit_vote_checked",
       "public.studio2_update_televote_aggregate_totals",
     ],
