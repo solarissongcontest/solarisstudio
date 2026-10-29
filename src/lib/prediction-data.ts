@@ -16,6 +16,15 @@ import type { PredictionItem, PredictionType } from "./predictions";
 
 const supabase = baseSupabase as unknown as SupabaseClient<AppDatabase>;
 
+const FAN_PROFILE_FIELDS =
+  "id,display_name,visibility,leaderboard_opt_in,created_at,updated_at";
+const PREDICTION_ROUND_FIELDS =
+  "id,show_id,opens_at,locks_at,status,prediction_types,scoring_version,consensus_minimum,created_at,updated_at";
+const PREDICTION_ENTRY_FIELDS =
+  "id,round_id,profile_id,version,state,submitted_at,locked_at,share_token,created_at,updated_at";
+const PREDICTION_SCORE_FIELDS =
+  "entry_id,score,percentile,breakdown,scoring_version,scored_at";
+
 export type PredictionRound = Omit<PredictionRoundRow, "prediction_types"> & {
   prediction_types: PredictionType[];
 };
@@ -93,9 +102,12 @@ async function attachPredictionDetails(
   const [itemsResult, scoresResult] = await Promise.all([
     supabase
       .from("prediction_items")
-      .select("entry_id, country_id, prediction_type, rank, confidence")
+      .select("entry_id,country_id,prediction_type,rank,confidence")
       .in("entry_id", entryIds),
-    supabase.from("prediction_scores").select("*").in("entry_id", entryIds),
+    supabase
+      .from("prediction_scores")
+      .select(PREDICTION_SCORE_FIELDS)
+      .in("entry_id", entryIds),
   ]);
 
   if (itemsResult.error) throw itemsResult.error;
@@ -130,7 +142,7 @@ export function usePredictionRounds(showId?: string, includeCancelled = false) {
     queryFn: async () => {
       let query = supabase
         .from("prediction_rounds")
-        .select("*")
+        .select(PREDICTION_ROUND_FIELDS)
         .order("locks_at", { ascending: true });
 
       if (!includeCancelled) query = query.neq("status", "cancelled");
@@ -173,7 +185,7 @@ export function useFanProfile(profileId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fan_profiles")
-        .select("*")
+        .select(FAN_PROFILE_FIELDS)
         .eq("id", profileId!)
         .maybeSingle();
       if (missingEngagementSchema(error)) return null;
@@ -196,7 +208,7 @@ export function useSaveFanProfile(profileId?: string) {
           { id: profileId, ...profile, updated_at: new Date().toISOString() },
           { onConflict: "id" },
         )
-        .select("*")
+        .select(FAN_PROFILE_FIELDS)
         .single();
       if (error) throw error;
       return data;
@@ -214,7 +226,7 @@ export function useMyPrediction(roundId?: string, profileId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prediction_entries")
-        .select("*")
+        .select(PREDICTION_ENTRY_FIELDS)
         .eq("round_id", roundId!)
         .eq("profile_id", profileId!)
         .maybeSingle();
@@ -234,7 +246,7 @@ export function useMyPredictionHistory(profileId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prediction_entries")
-        .select("*")
+        .select(PREDICTION_ENTRY_FIELDS)
         .eq("profile_id", profileId!)
         .order("updated_at", { ascending: false });
       if (missingEngagementSchema(error)) return [] as SavedPredictionEntry[];
