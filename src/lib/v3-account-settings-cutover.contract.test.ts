@@ -71,7 +71,9 @@ describe("V3 Account + Settings cutover", () => {
     const source = shell();
 
     expect(source).toContain("useV3RolloutProbe(platformResolved && isAppMode)");
-    expect(source).toContain("rollout.data?.accountSettingsEnabled !== true");
+    expect(source).toContain("!rollout.data || rollout.data.accountSettingsEnabled !== true");
+    expect(source).toContain("rollout.isLoading && !rollout.data");
+    expect(source).not.toContain("rollout.isError ||");
     expect(source).toContain("<AppShell>");
     expect(source).toContain("<V3AppShell");
     expect(source).toContain('to="/my-solaris/account"');
@@ -83,7 +85,8 @@ describe("V3 Account + Settings cutover", () => {
     const source = shell();
 
     expect(source).toContain('import { MySolarisProvider } from "@/components/mysolaris/MySolarisContext"');
-    expect(source).toContain('section === "account" ? <MySolarisProvider>{children}</MySolarisProvider> : children');
+    expect(source).toContain("const selectedContent = v3Children ?? children");
+    expect(source).toContain('section === "account" ? <MySolarisProvider>{selectedContent}</MySolarisProvider> : selectedContent');
     expect(source).toContain("{routeContent}");
   });
 
