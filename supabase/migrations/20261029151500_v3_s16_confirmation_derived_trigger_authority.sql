@@ -2,18 +2,21 @@ begin;
 
 -- S16 Confirmation authority hardening.
 --
--- Recovery-code assignment and browser-session registration are derived
--- housekeeping, not independent Confirmation state transitions. The historical
--- trigger helpers were restored for clean-replay parity in 20261015183200, but
--- leaving them attached makes them independent runtime write mechanisms even
--- though the canonical submit command already owns the submission transaction.
+-- Recovery-code assignment, browser-session registration and the legacy
+-- round_stats refresh are derived housekeeping, not independent Confirmation
+-- state transitions. The historical trigger helpers were restored for
+-- clean-replay parity in 20261015183200, but leaving them attached makes them
+-- independent runtime write mechanisms even though the canonical submit/delete
+-- commands already own the submission transaction.
 --
 -- Recovery codes now use a private-by-privilege column default. The canonical
 -- submit implementation omits recovery_code when inserting a submission, so it
 -- receives the same generated value without a write trigger. Browser-session
 -- registration is already performed explicitly inside submit_confirmation after
 -- the canonical submission write, so the duplicate AFTER INSERT trigger is
--- unnecessary.
+-- unnecessary. round_stats has no runtime reader and round availability already
+-- counts canonical submissions directly, so its trigger/table refresh is stale
+-- compatibility work rather than authoritative state.
 
 alter function public.generate_recovery_code() owner to postgres;
 alter function public.generate_recovery_code()
@@ -33,6 +36,10 @@ drop trigger if exists register_submission_browser_trg
   on public.submissions;
 drop function if exists public.register_submission_browser();
 
+drop trigger if exists submissions_stats_trg
+  on public.submissions;
+drop function if exists public.sync_round_stats();
+
 -- Executable structural proof. Fail migration replay instead of silently
 -- restoring a callable/attached housekeeping authority later.
 do $proof$
@@ -45,7 +52,8 @@ begin
     where trigger_row.tgrelid = 'public.submissions'::regclass
       and trigger_row.tgname in (
         'ensure_submission_recovery_code_trg',
-        'register_submission_browser_trg'
+        'register_submission_browser_trg',
+        'submissions_stats_trg'
       )
       and not trigger_row.tgisinternal
   ) then
@@ -58,6 +66,10 @@ begin
 
   if to_regprocedure('public.register_submission_browser()') is not null then
     raise exception 'S16: obsolete register_submission_browser() remains callable';
+  end if;
+
+  if to_regprocedure('public.sync_round_stats()') is not null then
+    raise exception 'S16: obsolete sync_round_stats() remains callable';
   end if;
 
   select pg_get_expr(default_row.adbin, default_row.adrelid)
