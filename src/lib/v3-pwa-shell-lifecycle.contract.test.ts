@@ -5,14 +5,26 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Solaris V3 PWA shell lifecycle", () => {
+  const rootRoute = source("src/routes/__root.tsx");
   const runtime = source("src/components/app/AppRuntime.tsx");
   const lifecycle = source("src/lib/app-lifecycle.ts");
+  const viewport = source("src/lib/app-viewport.ts");
   const updateSafety = source("src/lib/app-update-safety.ts");
   const freshness = source("src/components/app/AppDataFreshnessCoordinator.tsx");
   const reconnect = source("src/components/app/AppReconnectReconciler.tsx");
   const restore = source("src/components/app/AppLaunchRestoreCoordinator.tsx");
+  const appStyles = source("src/styles/app-shell.css");
   const worker = source("public/sw.js");
   const offline = source("public/offline.html");
+
+  it("protects standalone cold-launch first paint until runtime platform detection owns the shell", () => {
+    expect(rootRoute).toContain("data-solaris-app-boot");
+    expect(rootRoute).toContain("navigator.standalone === true");
+    expect(rootRoute).toContain('root.dataset.solarisRuntime = "standalone"');
+    expect(runtime).toContain('root.removeAttribute("data-solaris-app-boot")');
+    expect(appStyles).toContain('html[data-solaris-app-boot] body > *');
+    expect(appStyles).toContain('html[data-solaris-app-boot] body::before');
+  });
 
   it("restores canonical app lifecycle after backgrounding without inventing a second state machine", () => {
     expect(lifecycle).toContain("APP_RESUME_EVENT");
@@ -21,6 +33,17 @@ describe("Solaris V3 PWA shell lifecycle", () => {
     expect(lifecycle).toContain('document.addEventListener("visibilitychange"');
     expect(runtime).toContain("createAppLifecycleController");
     expect(runtime).toContain("APP_RESUME_EVENT");
+  });
+
+  it("reprojects viewport and keyboard geometry on orientation/VisualViewport changes", () => {
+    expect(runtime).toContain("createAppViewportController");
+    expect(viewport).toContain('window.addEventListener("orientationchange", schedule)');
+    expect(viewport).toContain('visual?.addEventListener("resize", schedule)');
+    expect(viewport).toContain('visual?.addEventListener("scroll", schedule)');
+    expect(viewport).toContain("--solaris-visual-viewport-width");
+    expect(viewport).toContain("--solaris-visual-viewport-height");
+    expect(viewport).toContain("--solaris-keyboard-inset");
+    expect(viewport).toContain("data-solaris-keyboard-open");
   });
 
   it("revalidates read models on resume and reconnect without replaying critical mutations", () => {
