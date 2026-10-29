@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
+const organizerNavigationCss = source("src/styles/v3-organizer-navigation.css");
 
 describe("Organizer V3 navigation interruption ownership", () => {
   it("refuses to start direct manipulation while keyboard or feature overlays own interaction", () => {
@@ -44,6 +45,7 @@ describe("Organizer V3 navigation interruption ownership", () => {
     expect(organizerTabs).not.toContain(
       'style={{ paddingBottom: "max(.45rem, env(safe-area-inset-bottom))" }}',
     );
+    expect(organizerNavigationCss).toContain("var(--solaris-safe-bottom");
   });
 
   it("keeps compact Organizer destinations at the canonical 44px minimum touch target", () => {
@@ -51,5 +53,13 @@ describe("Organizer V3 navigation interruption ownership", () => {
     expect(organizerTabs).toContain('compact ? "h-[2.75rem]" : "h-[3.7rem]"');
     expect(organizerTabs).toContain("min-h-[44px]");
     expect(organizerTabs).not.toContain('compact ? "h-[3.35rem]" : "h-[4.7rem]"');
+  });
+
+  it("provides visible keyboard focus and a non-refractive Reduce Transparency fallback", () => {
+    expect(organizerNavigationCss).toContain("[data-organizer-tab-index]:focus-visible");
+    expect(organizerNavigationCss).toContain("@media (prefers-reduced-transparency: reduce)");
+    expect(organizerNavigationCss).toContain("backdrop-filter: none !important");
+    expect(organizerNavigationCss).toContain(".solaris-app-tabbar-backdrop");
+    expect(organizerNavigationCss).toContain("display: none !important");
   });
 });
