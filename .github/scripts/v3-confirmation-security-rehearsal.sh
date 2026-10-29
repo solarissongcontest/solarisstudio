@@ -348,17 +348,20 @@ expect_db_failure "versioned candidate cannot escape into historical workflow" "
 # Unowned historical finals still permit their existing accepted/winner workflow.
 db_exec "insert into public.national_final_entries(id,national_final_id,artist,song_title,review_status) values ('00000000-0000-4000-8000-00000000f537','00000000-0000-4000-8000-00000000f536','Historical artist','Historical song','accepted'); update public.national_finals set winning_entry_id='00000000-0000-4000-8000-00000000f537' where id='00000000-0000-4000-8000-00000000f536';"
 db_exec "insert into public.studio2_capability_grants(user_id,capability,edition_id) values ('$USER_B_ID','delegation.manage',null);"
-rpc_request "$USER_B_TOKEN" admin_restore_confirmation_version "{\"_submission_id\":\"$SUBMISSION_ID\",\"_version_id\":\"00000000-0000-4000-8000-00000000f539\",\"_reason\":\"Restore reviewed winner content for a new review\"}"
+RESTORE_REVISION="$(db_scalar "select private.v3_confirmation_response_delete_revision('$SUBMISSION_ID'::uuid);")"
+rpc_request "$USER_B_TOKEN" admin_restore_confirmation_version "{\"_submission_id\":\"$SUBMISSION_ID\",\"_version_id\":\"00000000-0000-4000-8000-00000000f539\",\"_reason\":\"Restore reviewed winner content for a new review\",\"p_expected_revision\":\"$RESTORE_REVISION\",\"p_operation_id\":\"29173011-0000-4000-8000-000000000101\",\"p_idempotency_key\":\"v3-restore-rehearsal-1\"}"
 expect_success "restore a National Final snapshot with a historical winner"
 expect_json "restored winner explicitly requires review" winner_requires_review true
 [[ "$(db_scalar "select winning_entry_id is null from public.national_finals where id='$NF_ID';")" == "t" ]] || fail "restore reused winner approval"
 [[ "$(db_scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID' and song_title='Final song' and review_status='pending' and reviewed_version_id is null and current_version_id is not null;")" == "1" ]] || fail "restore did not produce pending versioned content"
-rpc_request "$USER_B_TOKEN" admin_restore_confirmation_version "{\"_submission_id\":\"$SUBMISSION_ID\",\"_version_id\":\"00000000-0000-4000-8000-00000000f539\",\"_reason\":\"Restore the same content as another new version\"}"
+RESTORE_REVISION="$(db_scalar "select private.v3_confirmation_response_delete_revision('$SUBMISSION_ID'::uuid);")"
+rpc_request "$USER_B_TOKEN" admin_restore_confirmation_version "{\"_submission_id\":\"$SUBMISSION_ID\",\"_version_id\":\"00000000-0000-4000-8000-00000000f539\",\"_reason\":\"Restore the same content as another new version\",\"p_expected_revision\":\"$RESTORE_REVISION\",\"p_operation_id\":\"29173011-0000-4000-8000-000000000102\",\"p_idempotency_key\":\"v3-restore-rehearsal-2\"}"
 expect_success "same-content restore still creates a new content identity"
 [[ "$(db_scalar "select content_revision from public.national_final_entries where national_final_id='$NF_ID' and song_title='Final song';")" == "2" ]] || fail "same-content restore reused an old version identity"
 # Historical restoration must still respect later moderation removal.
 db_exec "update public.national_final_entries set review_status='removed',removed=true,reviewed_at=clock_timestamp(),reviewed_by='$USER_B_ID' where national_final_id='$NF_ID' and song_title='Final song';"
-rpc_request "$USER_B_TOKEN" admin_restore_confirmation_version "{\"_submission_id\":\"$SUBMISSION_ID\",\"_version_id\":\"00000000-0000-4000-8000-00000000f539\",\"_reason\":\"Must not resurrect a removed candidate\"}"
+RESTORE_REVISION="$(db_scalar "select private.v3_confirmation_response_delete_revision('$SUBMISSION_ID'::uuid);")"
+rpc_request "$USER_B_TOKEN" admin_restore_confirmation_version "{\"_submission_id\":\"$SUBMISSION_ID\",\"_version_id\":\"00000000-0000-4000-8000-00000000f539\",\"_reason\":\"Must not resurrect a removed candidate\",\"p_expected_revision\":\"$RESTORE_REVISION\",\"p_operation_id\":\"29173011-0000-4000-8000-000000000103\",\"p_idempotency_key\":\"v3-restore-rehearsal-3\"}"
 expect_failure "restore cannot bypass later moderation removal"
 [[ "$(db_scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID' and removed;")" == "1" ]] || fail "restore resurrected a removed candidate"
 # Canonical response deletion must remain possible without deleting private evidence.

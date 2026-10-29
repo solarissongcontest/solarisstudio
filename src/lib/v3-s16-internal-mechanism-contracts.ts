@@ -1273,6 +1273,46 @@ export const V3_INTERNAL_MECHANISM_CONTRACTS: readonly InternalMechanismContract
       }
     ]
   },
+{
+    "domain": "confirmation",
+    "signature": "public.admin_restore_confirmation_version_apply(_submission_id uuid, _version_id uuid, _reason text)",
+    "definitionHash": "a38392714998c94fabb4d69aeffa9328",
+    "securityDefiner": true,
+    "callerSignatures": [
+      "private.v3_restore_confirmation_version_core(_submission_id uuid, _version_id uuid, _reason text)"
+    ],
+    "proof": ".github/tests/v3-confirmation-restore-authority.sql",
+    "category": "primitive",
+    "reason": "Inaccessible historical content implementation, reached only through the active-session reviewed restore command; canonical CAS, receipt, history and consequences commit atomically.",
+    "inputTables": [
+      "public.submissions",
+      "public.internal_entries",
+      "public.national_finals",
+      "public.national_final_entries",
+      "public.submission_versions"
+    ],
+    "attachments": []
+  },
+  {
+    "domain": "entry",
+    "signature": "public.admin_restore_confirmation_version_apply(_submission_id uuid, _version_id uuid, _reason text)",
+    "definitionHash": "a38392714998c94fabb4d69aeffa9328",
+    "securityDefiner": true,
+    "callerSignatures": [
+      "private.v3_restore_confirmation_version_core(_submission_id uuid, _version_id uuid, _reason text)"
+    ],
+    "proof": ".github/tests/v3-confirmation-restore-authority.sql",
+    "category": "primitive",
+    "reason": "Inaccessible historical content implementation, reached only through the active-session reviewed restore command; canonical CAS, receipt, history and consequences commit atomically.",
+    "inputTables": [
+      "public.submissions",
+      "public.internal_entries",
+      "public.national_finals",
+      "public.national_final_entries",
+      "public.submission_versions"
+    ],
+    "attachments": []
+  },
 ];
 export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
   {
@@ -1408,6 +1448,29 @@ export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
       "postgres"
     ],
     "securityDefiner": true,
+    "root": true,
+    "callerSignatures": []
+  },
+{
+    "signature": "private.v3_restore_confirmation_version_core(_submission_id uuid, _version_id uuid, _reason text)",
+    "definitionHash": "d6119799df78e369b87d8326d3d520c4",
+    "securityDefiner": true,
+    "executeRoles": [
+      "postgres"
+    ],
+    "root": false,
+    "callerSignatures": [
+      "public.admin_restore_confirmation_version(_submission_id uuid, _version_id uuid, _reason text, p_expected_revision text, p_operation_id uuid, p_idempotency_key text)"
+    ]
+  },
+  {
+    "signature": "public.admin_restore_confirmation_version(_submission_id uuid, _version_id uuid, _reason text, p_expected_revision text, p_operation_id uuid, p_idempotency_key text)",
+    "definitionHash": "2ff4603654fdbce21a6d0950dc691a56",
+    "securityDefiner": true,
+    "executeRoles": [
+      "authenticated",
+      "postgres"
+    ],
     "root": true,
     "callerSignatures": []
   },

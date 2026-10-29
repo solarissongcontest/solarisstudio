@@ -14,6 +14,7 @@ import {
   type StoredConfirmationVersion,
 } from '@/lib/confirmation-version-history';
 import type { SubmissionSnapshot } from '@/lib/submission-versioning';
+import { runRetainedConfirmationRestore, restoreRetryKey, type RestoreRequest } from '@/lib/v3-confirmation-restore-retry';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminSheet, AdminStatus } from './AdminUI';
 
 type VersionRow = {
@@ -36,6 +37,7 @@ type RestoreResult = {
 };
 
 type RestoreBaseline = {
+  revision: string;
   targetId: string;
   targetVersion: number;
   latestVersion: number | null;
@@ -69,13 +71,27 @@ function latestVersionNumber(versions: StoredConfirmationVersion[]) {
   );
 }
 
+async function restoreContext() {
+  const {data} = await confirmationsSupabase.auth.getSession();
+  if (!data.session?.user.id) throw new Error('Sign in again before restoring a response.');
+  return {actorId: data.session.user.id, storage: window.sessionStorage};
+}
+async function recoverPendingRestore(submissionId: string) {
+  let context;
+  try { context = await restoreContext(); } catch { return null; }
+  return runRetainedConfirmationRestore({...context, submissionId, onlyPending: true, submit: submitRestore});
+}
+const submitRestore = (request: RestoreRequest) => confirmationsSupabase.rpc('admin_restore_confirmation_version', request);
+
 export function ConfirmationVersionHistory({
   submissionId,
   currentSnapshot,
+  expectedRevision,
   scopeLabel,
 }: {
   submissionId: string;
   currentSnapshot: SubmissionSnapshot;
+  expectedRevision: string;
   scopeLabel: string;
 }) {
   const queryClient = useQueryClient();
@@ -84,10 +100,38 @@ export function ConfirmationVersionHistory({
   const [restoreReason, setRestoreReason] = useState('');
   const [restoreBaseline, setRestoreBaseline] = useState<RestoreBaseline | null>(null);
   const [reviewChecking, setReviewChecking] = useState(false);
+  const [recoveryWarning, setRecoveryWarning] = useState<string | null>(null);
+
+  async function reconcileRestoredResponse(): Promise<string | null> {
+    try {
+      const current = await confirmationsSupabase.rpc('admin_confirmation_response', {_submission_id: submissionId});
+      if (current.error) throw current.error;
+      const sync = await syncToSolaris({data: {snapshot: current.data}});
+      return sync.ok ? null : sync.message ?? 'Canonical Solaris sync needs attention.';
+    } catch (error) {
+      return error instanceof Error ? error.message : 'Canonical Solaris sync failed after the restore.';
+    }
+  }
 
   const versionsQuery = useQuery({
     queryKey: ['confirmation-submission-versions', submissionId],
-    queryFn: () => loadVersions(submissionId),
+    queryFn: async () => {
+      try {
+        const recovered = await recoverPendingRestore(submissionId);
+        setRecoveryWarning(null);
+        if (recovered) {
+          await queryClient.invalidateQueries({queryKey: ['confirmation-response-version-current']});
+          const warning = await reconcileRestoredResponse();
+          if (warning) toast.warning(`Restore receipt recovered. Solaris sync needs attention: ${warning}`);
+          else toast.success('The previous restore committed. Its saved receipt was recovered.');
+        }
+      } catch {
+        // Recovery authority may be unavailable or revoked while history remains
+        // readable. Keep the saved identity and preserve legitimate read access.
+        setRecoveryWarning('A previous restore could not be checked. Refresh history to retry its saved operation.');
+      }
+      return loadVersions(submissionId);
+    },
   });
 
   const versions = versionsQuery.data ?? [];
@@ -107,29 +151,17 @@ export function ConfirmationVersionHistory({
   }, [versions]);
 
   const restoreMutation = useMutation({
-    mutationFn: async ({ target, reason }: { target: StoredConfirmationVersion; reason: string }) => {
-      const { data, error } = await confirmationsSupabase.rpc('admin_restore_confirmation_version', {
+    mutationFn: async ({ target, reason, revision }: { target: StoredConfirmationVersion; reason: string; revision: string }) => {
+      const context = await restoreContext();
+      const data = await runRetainedConfirmationRestore({...context, submissionId, request: {
         _submission_id: submissionId,
         _version_id: target.id,
         _reason: reason.trim(),
-      });
-      if (error) throw error;
+        p_expected_revision: revision,
+      }, submit: submitRestore});
 
       const restore = data as unknown as RestoreResult;
-      let syncWarning: string | null = null;
-
-      try {
-        const current = await confirmationsSupabase.rpc('admin_confirmation_response', {
-          _submission_id: submissionId,
-        });
-        if (current.error) throw current.error;
-        const sync = await syncToSolaris({ data: { snapshot: current.data } });
-        if (!sync.ok) syncWarning = sync.message ?? 'Canonical Solaris sync needs attention.';
-      } catch (syncError) {
-        syncWarning = syncError instanceof Error
-          ? syncError.message
-          : 'Canonical Solaris sync failed after the restore.';
-      }
+      const syncWarning = await reconcileRestoredResponse();
 
       return { restore, syncWarning };
     },
@@ -149,7 +181,16 @@ export function ConfirmationVersionHistory({
         toast.success(`Historical snapshot restored. Previous state preserved as edit ${restore.captured_version}.`);
       }
     },
-    onError: (error) => {
+    onError: async (error) => {
+      if ((error as {code?: string}).code === 'PT409') {
+        setRestoreTarget(null);
+        setRestoreReason('');
+        setRestoreBaseline(null);
+        await queryClient.invalidateQueries({queryKey: ['confirmation-response-version-current']});
+        await versionsQuery.refetch();
+        toast.error('This response changed. Review the refreshed history before restoring it.');
+        return;
+      }
       toast.error(error instanceof Error ? error.message : 'The historical snapshot could not be restored.');
     },
   });
@@ -180,6 +221,7 @@ export function ConfirmationVersionHistory({
     setRestoreReason('');
     setRestoreTarget(target);
     setRestoreBaseline({
+      revision: expectedRevision,
       targetId: target.id,
       targetVersion: target.version,
       latestVersion: latestVersionNumber(versions),
@@ -198,6 +240,13 @@ export function ConfirmationVersionHistory({
 
     setReviewChecking(true);
     try {
+      const context = await restoreContext();
+      if (context.storage.getItem(restoreRetryKey(context.actorId, submissionId))) {
+        // Recovery precedes the history check: a committed restore necessarily
+        // creates a newer history version and must still read back safely.
+        restoreMutation.mutate({ target: restoreTarget, reason: restoreReason, revision: restoreBaseline.revision });
+        return;
+      }
       const refreshed = await versionsQuery.refetch();
       if (refreshed.error) throw refreshed.error;
       const liveVersions = refreshed.data ?? [];
@@ -216,7 +265,7 @@ export function ConfirmationVersionHistory({
         );
       }
 
-      restoreMutation.mutate({ target: liveTarget, reason: restoreReason });
+      restoreMutation.mutate({ target: liveTarget, reason: restoreReason, revision: restoreBaseline.revision });
     } catch (error) {
       setRestoreTarget(null);
       setRestoreReason('');
@@ -234,9 +283,10 @@ export function ConfirmationVersionHistory({
           eyebrow="Audit"
           title="Submission versions"
           description="Edit-by-edit history reconstructed from immutable pre-edit snapshots. Restoring a snapshot appends a new audit version first; existing history is never rewritten."
-          action={<History className="size-4 text-muted-foreground" />}
+          action={<button type="button" onClick={() => void versionsQuery.refetch()} disabled={versionsQuery.isFetching} className="admin-action-secondary"><History className="size-4" /> Refresh history</button>}
         />
 
+        {recoveryWarning ? <p role="status" className="mb-3 text-xs text-amber-100">{recoveryWarning}</p> : null}
         {versionsQuery.isLoading ? (
           <p className="py-6 text-center text-sm text-muted-foreground">Loading version history…</p>
         ) : versionsQuery.error ? (
@@ -344,7 +394,7 @@ export function ConfirmationVersionHistory({
           </div>
 
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Before applying, Organizer refetches submission history and refuses the restore if a newer version appeared while this review was open. The underlying legacy restore authority still does not provide a canonical idempotency key or operation receipt, so an ambiguous failure must be reconciled from refreshed history before retrying.
+            Before applying, Organizer refetches submission history and refuses the restore if a newer version appeared while this review was open. The server also checks the reviewed response revision. If the connection drops, retry or reopen this response to recover the saved restore receipt without creating another history version.
           </p>
         </div>
 

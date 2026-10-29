@@ -1,3 +1,9 @@
+-- Historical reference only. Canonical restore authority is installed by
+-- migrations/20261029173000_v3_confirmation_restore_command.sql.
+-- Fail closed if this superseded manual installer is executed.
+begin;
+do $retired$ begin raise exception 'Obsolete restore installer: use the governed migration history'; end $retired$;
+
 -- Applied to the dedicated Confirmations Supabase project.
 -- Adds immutable-ish provenance, version-number integrity and an organizer-only
 -- restore command. A restore always captures the current state as a new version
@@ -573,3 +579,5 @@ $$;
 revoke all on function public.admin_confirmation_versions(uuid) from public;
 grant execute on function public.admin_confirmation_versions(uuid)
   to anon, authenticated, service_role;
+
+rollback;

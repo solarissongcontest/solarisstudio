@@ -58,6 +58,7 @@ type VersionedResponseRow = ResponseRow & {
 };
 
 type ResponseDetail = {
+  delete_revision: string;
   id: string;
   participating: boolean;
   selection_method: string | null;
@@ -303,8 +304,10 @@ function SubmissionVersionsPage() {
                     <AdminCard><AdminEmptyState icon={History} title="Current response unavailable" description="Version history cannot be compared with the current response right now." /></AdminCard>
                   ) : (
                     <ConfirmationVersionHistory
+                      key={`${editionId}:${detailQuery.data.id}`}
                       submissionId={detailQuery.data.id}
                       currentSnapshot={currentSnapshot(detailQuery.data)}
+                      expectedRevision={detailQuery.data.delete_revision}
                       scopeLabel={restoreScopeLabel}
                     />
                   )}

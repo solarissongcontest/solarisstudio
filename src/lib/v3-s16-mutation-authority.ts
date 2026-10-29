@@ -538,6 +538,7 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       // Versioned delete replaces the old signature; S2 owns recovery after deletion.
       // .github/tests/v3-confirmation-runtime-state-authority.sql
       "public.admin_confirmation_delete_response",
+      "public.admin_restore_confirmation_version",
       "public.admin_confirmation_reconfirm",
       "public.admin_confirmation_waive_requirement",
       "public.admin_confirmation_apply_requirement_materialization",

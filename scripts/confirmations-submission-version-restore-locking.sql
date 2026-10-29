@@ -1,3 +1,9 @@
+-- Historical reference only. Canonical restore authority is installed by
+-- migrations/20261029173000_v3_confirmation_restore_command.sql.
+-- Fail closed if this superseded manual installer is executed.
+begin;
+do $retired$ begin raise exception 'Obsolete restore installer: use the governed migration history'; end $retired$;
+
 -- Applied immediately after confirmations-submission-version-restore.sql.
 -- Ordinary confirmation edits lock submission_rounds first. Keep organizer
 -- restores on the same lock order so a simultaneous edit/restore cannot race
@@ -103,3 +109,5 @@ revoke all on function public.admin_restore_confirmation_version(uuid, uuid, tex
   from public;
 grant execute on function public.admin_restore_confirmation_version(uuid, uuid, text)
   to anon, authenticated, service_role;
+
+rollback;

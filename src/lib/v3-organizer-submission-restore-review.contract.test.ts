@@ -29,7 +29,7 @@ describe('V3 Organizer submission-history restore review', () => {
   it('rechecks that the exact historical target still exists before invoking restore authority', () => {
     expect(history).toContain('liveVersions.find((version) => version.id === restoreBaseline.targetId)');
     expect(history).toContain('liveTarget.version !== restoreBaseline.targetVersion');
-    expect(history).toContain("restoreMutation.mutate({ target: liveTarget, reason: restoreReason })");
+    expect(history).toContain("restoreMutation.mutate({ target: liveTarget, reason: restoreReason, revision: restoreBaseline.revision })");
     expect(history.match(/admin_restore_confirmation_version/g)?.length).toBe(1);
   });
 
@@ -44,9 +44,20 @@ describe('V3 Organizer submission-history restore review', () => {
     expect(route).toContain('scopeLabel={restoreScopeLabel}');
   });
 
-  it('keeps the legacy authority boundary explicit instead of inventing receipt parity', () => {
-    expect(history).toContain('legacy restore authority still does not provide a canonical idempotency key or operation receipt');
-    expect(history).toContain('ambiguous failure must be reconciled from refreshed history before retrying');
+  it('uses server CAS and retained receipt recovery beyond the explanatory history check', () => {
+    expect(history).toContain('runRetainedConfirmationRestore');
+    expect(history).toContain('p_expected_revision: revision');
+    expect(history).toContain('recover the saved restore receipt without creating another history version');
+    expect(history.indexOf('context.storage.getItem(restoreRetryKey')).toBeLessThan(history.indexOf('const refreshed = await versionsQuery.refetch()'));
     expect(history).toContain('Restore reason');
   });
+  it('retires the historical manual installers so they cannot recreate an unversioned peer', () => {
+    for (const path of ['scripts/confirmations-submission-version-restore.sql', 'scripts/confirmations-submission-version-restore-locking.sql']) {
+      const installer = source(path);
+      expect(installer).toContain('Obsolete restore installer: use the governed migration history');
+      expect(installer.indexOf('do $retired$')).toBeLessThan(installer.indexOf('create or replace function'));
+      expect(installer).toContain('20261029173000_v3_confirmation_restore_command.sql');
+    }
+  });
+
 });
