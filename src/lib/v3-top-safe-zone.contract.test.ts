@@ -29,6 +29,16 @@ describe("Solaris V3 canonical top system safe zone", () => {
     expect(safeZone).not.toContain("@media (orientation: landscape)");
   });
 
+  it("bridges legacy installed-app safe tokens onto the canonical platform aliases", () => {
+    expect(safeZone).toContain("html:root");
+    expect(safeZone).toContain("--solaris-app-safe-top: var(--solaris-safe-top");
+    expect(safeZone).toContain("--solaris-app-safe-right: var(--solaris-safe-right");
+    expect(safeZone).toContain("--solaris-app-safe-bottom: var(--solaris-safe-bottom");
+    expect(safeZone).toContain("--solaris-app-safe-left: var(--solaris-safe-left");
+    expect(safeZone).toContain("html[data-solaris-app] .solaris-app-toolbar-inner");
+    expect(safeZone).toContain("html .solaris-install-prompt");
+  });
+
   it("keeps installed/native, Organizer and browser mobile chrome below the shared boundary", () => {
     expect(safeZone).toContain("html[data-solaris-app] .solaris-app-toolbar");
     expect(safeZone).toContain("padding-top: var(--solaris-safe-content-top)");
