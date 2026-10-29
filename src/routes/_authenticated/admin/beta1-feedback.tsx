@@ -8,6 +8,7 @@ import { beta1Sections } from "@/features/beta-test/sections-beta1";
 import { formatBetaAnswer, isBetaQuestionVisible } from "@/features/beta-test/sections";
 import type { BetaAnswer, BetaAnswers } from "@/features/beta-test/types";
 import { supabase } from "@/integrations/supabase/client";
+import { rowsToSpreadsheetSafeCsv } from "@/lib/spreadsheet-safe-csv";
 
 export const Route = createFileRoute("/_authenticated/admin/beta1-feedback")({
   head: () => ({
@@ -53,7 +54,7 @@ function Beta1ArchivePage() {
     try {
       const { data, error: selectError } = await supabase
         .from("beta_test_submissions" as never)
-        .select("*")
+        .select("id,tester_name,device,browser,familiarity,answers,bug_reports,form_version,created_at")
         .eq("form_version", 2)
         .order("created_at", { ascending: false });
       if (selectError) throw selectError;
@@ -98,9 +99,7 @@ function Beta1ArchivePage() {
       ...questions.map((question) => csvValue(submission.answers[question.id])),
       JSON.stringify(submission.bug_reports ?? []),
     ]);
-    const csv = [headers, ...rows]
-      .map((row) => row.map((value) => escapeCsv(String(value ?? ""))).join(","))
-      .join("\n");
+    const csv = rowsToSpreadsheetSafeCsv([headers, ...rows]);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -270,9 +269,4 @@ function csvValue(value: BetaAnswer | undefined) {
   if (Array.isArray(value)) return value.join(" | ");
   if (typeof value === "object") return Object.entries(value).map(([key, item]) => `${key}: ${item}`).join(" | ");
   return String(value);
-}
-
-function escapeCsv(value: string) {
-  if (!/[",\n]/.test(value)) return value;
-  return `"${value.replaceAll('"', '""')}"`;
 }
