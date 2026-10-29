@@ -8,7 +8,20 @@ export type V3VotingOverviewProjection = {
   currentCount: number;
 };
 
+export type V3ParticipateFocusState =
+  | "actionable"
+  | "blocked"
+  | "waiting"
+  | "upcoming"
+  | "clear";
+
+export type V3ParticipateFocusProjection = {
+  state: V3ParticipateFocusState;
+  action: V3ActionProjection | null;
+};
+
 export type V3ParticipateProjection = {
+  focus: V3ParticipateFocusProjection;
   journey: readonly V3JourneyStepProjection[];
   journeyCompleteCount: number;
   journeyTotalCount: number;
@@ -25,6 +38,10 @@ function isOptional(action: V3ActionProjection) {
   return action.deliveryClass === "optional";
 }
 
+function firstOfficial(actions: readonly V3ActionProjection[]) {
+  return actions.find((action) => !isOptional(action)) ?? null;
+}
+
 function currentVotingAction(
   actions: readonly V3ActionProjection[],
   kind: "jury" | "televote",
@@ -34,6 +51,27 @@ function currentVotingAction(
     actions.find((action) => action.kind === kind) ??
     null
   );
+}
+
+function projectFocus(input: {
+  needsAttention: readonly V3ActionProjection[];
+  blocked: readonly V3ActionProjection[];
+  waiting: readonly V3ActionProjection[];
+  next: readonly V3ActionProjection[];
+}): V3ParticipateFocusProjection {
+  const actionable = firstOfficial(input.needsAttention);
+  if (actionable) return { state: "actionable", action: actionable };
+
+  const blocked = firstOfficial(input.blocked);
+  if (blocked) return { state: "blocked", action: blocked };
+
+  const waiting = firstOfficial(input.waiting);
+  if (waiting) return { state: "waiting", action: waiting };
+
+  const upcoming = firstOfficial(input.next);
+  if (upcoming) return { state: "upcoming", action: upcoming };
+
+  return { state: "clear", action: null };
 }
 
 /**
@@ -48,6 +86,10 @@ function currentVotingAction(
  * responsibility as though both were required work. Likewise, a canonical
  * waiting action must not be presented as the viewer's next/optional action
  * until server-owned workflow state makes it actionable.
+ *
+ * The focus projection is intentionally deterministic over those canonical
+ * buckets. It never compares the browser clock, manufactures a deadline state
+ * or promotes optional fan participation into an official responsibility.
  */
 export function projectV3Participate(
   bootstrap: Pick<V3BootstrapProjection, "actions" | "journey">,
@@ -97,8 +139,10 @@ export function projectV3Participate(
 
   const jury = currentVotingAction(bootstrap.actions, "jury");
   const televote = currentVotingAction(bootstrap.actions, "televote");
+  const focus = projectFocus({ needsAttention, blocked, waiting, next });
 
   return {
+    focus,
     journey: bootstrap.journey,
     journeyCompleteCount: bootstrap.journey.filter((step) => step.state === "complete").length,
     journeyTotalCount: bootstrap.journey.length,

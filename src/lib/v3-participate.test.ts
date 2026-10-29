@@ -98,6 +98,7 @@ describe("projectV3Participate", () => {
       journey,
     });
 
+    expect(projection.focus).toEqual({ state: "actionable", action: required });
     expect(projection.needsAttention.map((item) => item.id)).toEqual(["required-jury"]);
     expect(projection.blocked.map((item) => item.id)).toEqual(["entry-changes-locked"]);
     expect(projection.next.map((item) => item.id)).toEqual(["next-entry"]);
@@ -130,9 +131,42 @@ describe("projectV3Participate", () => {
       journey: [],
     });
 
+    expect(projection.focus.action?.id).toBe("editable-entry-correction");
+    expect(projection.focus.state).toBe("actionable");
     expect(projection.blocked.map((item) => item.id)).toEqual(["locked-entry-correction"]);
     expect(projection.needsAttention.map((item) => item.id)).toEqual(["editable-entry-correction"]);
     expect(projection.next).toEqual([]);
+  });
+
+  it("uses blocked, waiting and upcoming official states as honest focus fallbacks", () => {
+    const blocked = action("blocked-entry", {
+      kind: "entry",
+      sourceState: "problem",
+      deliveryClass: "required",
+      actionRequired: false,
+    });
+    const waiting = action("waiting-confirmation", {
+      kind: "confirmation",
+      sourceState: "waiting",
+      deliveryClass: "required",
+    });
+    const upcoming = action("upcoming-jury", {
+      sourceState: "upcoming",
+      deliveryClass: "required",
+    });
+
+    expect(projectV3Participate({ actions: [upcoming, waiting, blocked], journey: [] }).focus).toEqual({
+      state: "blocked",
+      action: blocked,
+    });
+    expect(projectV3Participate({ actions: [upcoming, waiting], journey: [] }).focus).toEqual({
+      state: "waiting",
+      action: waiting,
+    });
+    expect(projectV3Participate({ actions: [upcoming], journey: [] }).focus).toEqual({
+      state: "upcoming",
+      action: upcoming,
+    });
   });
 
   it("keeps optional waiting actions in Waiting until canonical state becomes actionable", () => {
@@ -149,6 +183,7 @@ describe("projectV3Participate", () => {
     expect(projection.waiting.map((item) => item.id)).toEqual(["televote-waiting"]);
     expect(projection.optionalNow).toEqual([]);
     expect(projection.next).toEqual([]);
+    expect(projection.focus).toEqual({ state: "clear", action: null });
   });
 
   it("projects jury and public televote into one voting overview without changing their responsibility classes", () => {
@@ -223,6 +258,7 @@ describe("projectV3Participate", () => {
     expect(projection.voting.jury?.id).toBe("jury-submitted");
     expect(projection.voting.televote?.id).toBe("televote-finished");
     expect(projection.voting.currentCount).toBe(0);
+    expect(projection.focus).toEqual({ state: "clear", action: null });
   });
 
   it("does not invent closed or unavailable voting truth when no canonical action exists", () => {
@@ -233,9 +269,10 @@ describe("projectV3Participate", () => {
       televote: null,
       currentCount: 0,
     });
+    expect(projection.focus).toEqual({ state: "clear", action: null });
   });
 
-  it("never promotes an optional action into required attention even when it is urgent", () => {
+  it("never promotes an optional action into required focus even when it is urgent", () => {
     const optionalUrgent = action("urgent-public-vote", {
       kind: "televote",
       deliveryClass: "optional",
@@ -250,6 +287,7 @@ describe("projectV3Participate", () => {
     expect(projection.needsAttention).toEqual([]);
     expect(projection.optionalNow.map((item) => item.id)).toEqual(["urgent-public-vote"]);
     expect(projection.voting.televote?.id).toBe("urgent-public-vote");
+    expect(projection.focus).toEqual({ state: "clear", action: null });
   });
 
   it("uses journey evidence as-is instead of inventing missing responsibilities", () => {

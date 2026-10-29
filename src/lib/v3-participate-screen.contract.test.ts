@@ -11,24 +11,39 @@ describe("V3 Participate screen contract", () => {
   const projection = source("src/lib/v3-participate.ts");
 
   it("renders from the shared Participate projection instead of re-querying workflow state", () => {
-    expect(participate).toContain('import { projectV3Participate } from "@/lib/v3-participate"');
+    expect(participate).toContain('import {\n  projectV3Participate,');
     expect(participate).toContain("projectV3Participate(bootstrap)");
     expect(participate).not.toContain("supabase");
     expect(participate).not.toContain("useQuery(");
     expect(participate).not.toContain("useMutation(");
   });
 
-  it("keeps required, blocked, upcoming, waiting, optional and completed presentation lanes distinct", () => {
-    expect(participate).toContain('title="Needs attention"');
-    expect(participate).toContain('title="Blocked"');
-    expect(participate).toContain('title="Next"');
-    expect(participate).toContain('title="Waiting"');
-    expect(participate).toContain('title="Optional now"');
-    expect(participate).toContain('title="Completed"');
-    expect(participate).toContain("participate.needsAttention");
-    expect(participate).toContain("participate.blocked");
-    expect(participate).toContain("participate.waiting");
-    expect(participate).toContain("participate.optionalNow");
+  it("gives one official responsibility visual priority before secondary lanes", () => {
+    expect(participate).toContain('title="Current responsibility"');
+    expect(participate).toContain('data-v3-participate-focus={focus.state}');
+    expect(participate).toContain("Next meaningful responsibility");
+    expect(participate).toContain('title="Other responsibilities"');
+    expect(participate.indexOf('title="Current responsibility"')).toBeLessThan(
+      participate.indexOf('title="Other responsibilities"'),
+    );
+    expect(projection).toContain("const focus = projectFocus({ needsAttention, blocked, waiting, next });");
+    expect(projection).toContain('return { state: "actionable", action: actionable }');
+    expect(projection).toContain('return { state: "blocked", action: blocked }');
+    expect(projection).toContain('return { state: "waiting", action: waiting }');
+    expect(projection).toContain('return { state: "upcoming", action: upcoming }');
+    expect(projection).toContain('return { state: "clear", action: null }');
+  });
+
+  it("keeps required, blocked, upcoming and waiting secondary lanes distinct without equal top-level card sections", () => {
+    expect(participate).toContain('data-v3-participate-lane={state}');
+    expect(participate).toContain('label="Also needs attention"');
+    expect(participate).toContain('label="Blocked"');
+    expect(participate).toContain('label="Waiting"');
+    expect(participate).toContain('label="Upcoming"');
+    expect(participate).toContain("remainingAttention");
+    expect(participate).toContain("remainingBlocked");
+    expect(participate).toContain("remainingWaiting");
+    expect(participate).toContain("remainingNext");
     expect(projection).toContain('action.sourceState === "problem" && !action.actionRequired');
     expect(projection).toContain('action.sourceState === "waiting"');
     expect(projection.indexOf('action.sourceState === "problem" && !action.actionRequired')).toBeLessThan(
@@ -39,12 +54,36 @@ describe("V3 Participate screen contract", () => {
     );
   });
 
-  it("explains that blocked problems are not currently actionable", () => {
-    expect(participate).toContain("No action available");
-    expect(participate).toContain("you cannot act yet");
-    expect(participate).toContain("reopened Entry editing");
-    expect(projection).toContain('const blocked: V3ActionProjection[] = []');
-    expect(projection).toContain("blocked.push(action)");
+  it("never promotes optional fan participation into the official focus", () => {
+    expect(projection).toContain("function firstOfficial(actions: readonly V3ActionProjection[])");
+    expect(projection).toContain("actions.find((action) => !isOptional(action)) ?? null");
+    expect(participate).toContain('title="Optional participation"');
+    expect(participate.indexOf('title="Current responsibility"')).toBeLessThan(
+      participate.indexOf('title="Optional participation"'),
+    );
+  });
+
+  it("explains blocked, waiting, upcoming and calm states without inventing an action", () => {
+    expect(participate).toContain("the official workflow does not currently give you an action");
+    expect(participate).toContain("waiting on the official workflow or review state");
+    expect(participate).toContain("No action is required yet");
+    expect(participate).toContain("You're caught up");
+    expect(participate).toContain("No official responsibility right now");
+  });
+
+  it("keeps journey, voting, optional participation and completion subordinate to current responsibility", () => {
+    for (const title of [
+      'title="Responsibility journey"',
+      'title="Voting overview"',
+      'title="Optional participation"',
+      'title="Completed"',
+    ]) {
+      expect(participate).toContain(title);
+      expect(participate.indexOf('title="Current responsibility"')).toBeLessThan(
+        participate.indexOf(title),
+      );
+    }
+    expect(participate).toContain('data-v3-voting-overview="canonical-actions"');
   });
 
   it("shows exact projected open/close timing without inventing browser-owned workflow state", () => {

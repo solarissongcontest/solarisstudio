@@ -1,6 +1,9 @@
 import type { V3BootstrapProjection } from "@/lib/v3-bootstrap";
 import type { V3ActionProjection } from "@/lib/v3-experience";
-import { projectV3Participate } from "@/lib/v3-participate";
+import {
+  projectV3Participate,
+  type V3ParticipateFocusProjection,
+} from "@/lib/v3-participate";
 import { formatEventDateTime } from "@/lib/public-time";
 import {
   V3ActionCard,
@@ -102,6 +105,150 @@ function ActionList({
   );
 }
 
+function focusPresentation(focus: V3ParticipateFocusProjection) {
+  switch (focus.state) {
+    case "actionable":
+      return {
+        label: "Action now",
+        tone: "required" as V3StatusTone,
+        explanation: "This is the highest-priority official responsibility Solaris can confirm you can act on now.",
+      };
+    case "blocked":
+      return {
+        label: "Blocked",
+        tone: "danger" as V3StatusTone,
+        explanation: "This responsibility needs resolution, but the official workflow does not currently give you an action. Solaris will not pretend otherwise.",
+      };
+    case "waiting":
+      return {
+        label: "Waiting",
+        tone: "progress" as V3StatusTone,
+        explanation: "Your participation is waiting on the official workflow or review state. No action is required until that state changes.",
+      };
+    case "upcoming":
+      return {
+        label: "Upcoming",
+        tone: "progress" as V3StatusTone,
+        explanation: "No action is required yet. This is the next official responsibility currently projected for your delegation.",
+      };
+    case "clear":
+      return {
+        label: "Caught up",
+        tone: "success" as V3StatusTone,
+        explanation: "Nothing in the official responsibility projection requires or anticipates an action from you right now.",
+      };
+  }
+}
+
+function PrimaryResponsibility({
+  focus,
+  progressByActionId,
+  delegationLabel,
+  hasJourney,
+}: {
+  focus: V3ParticipateFocusProjection;
+  progressByActionId: Readonly<Record<string, V3TaskProgress>>;
+  delegationLabel?: string | null;
+  hasJourney: boolean;
+}) {
+  const presentation = focusPresentation(focus);
+  const action = focus.action;
+
+  if (!action) {
+    return (
+      <V3Surface level="raised" className="p-5 sm:p-6">
+        <div data-v3-participate-focus="clear" aria-live="polite">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-lg font-semibold">{hasJourney ? "You're caught up" : "No official responsibility right now"}</p>
+            <V3StatusChip tone={presentation.tone}>{presentation.label}</V3StatusChip>
+          </div>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/52">{presentation.explanation}</p>
+        </div>
+      </V3Surface>
+    );
+  }
+
+  const progress = progressByActionId[action.id];
+  return (
+    <V3Surface level="raised" className="p-4 sm:p-5">
+      <div data-v3-participate-focus={focus.state} aria-live="polite">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/48">Next meaningful responsibility</p>
+          <V3StatusChip tone={presentation.tone}>{presentation.label}</V3StatusChip>
+        </div>
+        <V3ActionCard
+          title={action.title}
+          description={action.description}
+          tone={toneForAction(action)}
+          to={action.route}
+          meta={timingMeta(action, delegationLabel)}
+        />
+        {progress && progress.total > 0 ? (
+          <div className="px-1 pt-3">
+            <V3Progress
+              value={(progress.current / progress.total) * 100}
+              label={progress.label ?? action.title}
+            />
+          </div>
+        ) : null}
+        <p className="px-1 pt-3 text-xs leading-5 text-white/44">{presentation.explanation}</p>
+      </div>
+    </V3Surface>
+  );
+}
+
+function withoutFocus(
+  actions: readonly V3ActionProjection[],
+  focus: V3ParticipateFocusProjection,
+) {
+  if (!focus.action) return actions;
+  return actions.filter((action) => action.id !== focus.action?.id);
+}
+
+function ResponsibilityLane({
+  label,
+  state,
+  actions,
+  progressByActionId,
+  delegationLabel,
+}: {
+  label: string;
+  state: "attention" | "blocked" | "waiting" | "upcoming";
+  actions: readonly V3ActionProjection[];
+  progressByActionId: Readonly<Record<string, V3TaskProgress>>;
+  delegationLabel?: string | null;
+}) {
+  if (!actions.length) return null;
+
+  const chip =
+    state === "attention" ? (
+      <V3StatusChip tone="required">{actions.length} required</V3StatusChip>
+    ) : state === "blocked" ? (
+      <V3StatusChip tone="danger">No action available</V3StatusChip>
+    ) : (
+      <V3StatusChip tone="progress">{state === "waiting" ? "No action yet" : "Upcoming"}</V3StatusChip>
+    );
+
+  return (
+    <div className="border-t border-white/[0.07] pt-4 first:border-t-0 first:pt-0" data-v3-participate-lane={state}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">{label}</h3>
+        {chip}
+      </div>
+      {state === "blocked" ? (
+        <p className="mb-3 text-xs leading-5 text-white/46">
+          The official workflow reports a problem, but it has not opened a participant action yet.
+        </p>
+      ) : null}
+      <ActionList
+        actions={actions}
+        progressByActionId={progressByActionId}
+        delegationLabel={delegationLabel}
+      />
+    </div>
+  );
+}
+
 function votingStateLabel(action: V3ActionProjection) {
   if (action.completed) return action.kind === "jury" ? "Submitted" : "Finished";
   if (action.sourceState === "problem") return "Needs attention";
@@ -140,10 +287,7 @@ function VotingOverviewCard({
   }
 
   return (
-    <V3Surface
-      level={action.actionRequired ? "raised" : "base"}
-      className="p-3"
-    >
+    <V3Surface level={action.actionRequired ? "raised" : "base"} className="p-3">
       <div data-v3-voting-overview-state={action.sourceState}>
         <div className="mb-2 flex items-center justify-between gap-3 px-1">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/48">{label}</p>
@@ -167,13 +311,10 @@ function VotingOverviewCard({
 }
 
 /**
- * V3 Participate composition.
- *
- * The screen consumes the same bootstrap as Home. The shared Participate
- * projection groups canonical Actions into required, blocked, upcoming,
- * waiting, optional and completed buckets while Journey remains the
- * evidence-backed responsibility timeline. No network call or second workflow
- * state is introduced here.
+ * V3 Participate composition. The screen consumes the same bootstrap as Home,
+ * gives one official responsibility visual priority, and keeps optional fan
+ * participation subordinate. No network call or second workflow state is
+ * introduced here.
  */
 export function V3ParticipateScreen({
   bootstrap,
@@ -181,21 +322,71 @@ export function V3ParticipateScreen({
   delegationLabel,
 }: V3ParticipateScreenProps) {
   const participate = projectV3Participate(bootstrap);
+  const remainingAttention = withoutFocus(participate.needsAttention, participate.focus);
+  const remainingBlocked = withoutFocus(participate.blocked, participate.focus);
+  const remainingWaiting = withoutFocus(participate.waiting, participate.focus);
+  const remainingNext = withoutFocus(participate.next, participate.focus);
+  const secondaryCount =
+    remainingAttention.length + remainingBlocked.length + remainingWaiting.length + remainingNext.length;
 
   return (
     <V3Screen>
       <V3ScreenHeader
         kicker={bootstrap.context.editionLabel ?? "Participate"}
         title="Your participation"
-        description="Official responsibilities first, optional participation second. Solaris keeps the whole journey visible without making every activity look mandatory."
+        description="One official responsibility at a time. Everything else stays visible without competing for your attention."
       />
 
+      <V3Section title="Current responsibility">
+        <PrimaryResponsibility
+          focus={participate.focus}
+          progressByActionId={progressByActionId}
+          delegationLabel={delegationLabel}
+          hasJourney={participate.journeyTotalCount > 0}
+        />
+      </V3Section>
+
+      {secondaryCount ? (
+        <V3Section title="Other responsibilities" meta={`${secondaryCount} more`}>
+          <V3Surface className="space-y-5 p-4 sm:p-5">
+            <ResponsibilityLane
+              label="Also needs attention"
+              state="attention"
+              actions={remainingAttention}
+              progressByActionId={progressByActionId}
+              delegationLabel={delegationLabel}
+            />
+            <ResponsibilityLane
+              label="Blocked"
+              state="blocked"
+              actions={remainingBlocked}
+              progressByActionId={progressByActionId}
+              delegationLabel={delegationLabel}
+            />
+            <ResponsibilityLane
+              label="Waiting"
+              state="waiting"
+              actions={remainingWaiting}
+              progressByActionId={progressByActionId}
+              delegationLabel={delegationLabel}
+            />
+            <ResponsibilityLane
+              label="Upcoming"
+              state="upcoming"
+              actions={remainingNext}
+              progressByActionId={progressByActionId}
+              delegationLabel={delegationLabel}
+            />
+          </V3Surface>
+        </V3Section>
+      ) : null}
+
       <V3Section
-        title="Your responsibilities"
+        title="Responsibility journey"
         meta={
           participate.journeyTotalCount
             ? `${participate.journeyCompleteCount} of ${participate.journeyTotalCount} complete`
-            : "No current responsibilities"
+            : "No current journey"
         }
       >
         {participate.journeyTotalCount ? (
@@ -223,16 +414,16 @@ export function V3ParticipateScreen({
           </V3Journey>
         ) : (
           <V3Surface className="p-4">
-            <p className="text-sm font-semibold">No official responsibilities right now</p>
+            <p className="text-sm font-semibold">No official responsibility journey right now</p>
             <p className="mt-1 text-xs leading-5 text-white/48">
-              Solaris will add a journey step only when the underlying workflow provides real evidence for it.
+              Solaris adds journey steps only when the underlying workflow provides real evidence for them.
             </p>
           </V3Surface>
         )}
       </V3Section>
 
       <V3Section
-        title="Voting"
+        title="Voting overview"
         meta={participate.voting.currentCount ? `${participate.voting.currentCount} current` : "No current voting actions"}
       >
         <div className="grid gap-3 sm:grid-cols-2" data-v3-voting-overview="canonical-actions">
@@ -251,72 +442,8 @@ export function V3ParticipateScreen({
         </div>
       </V3Section>
 
-      <V3Section
-        title="Needs attention"
-        meta={
-          participate.needsAttention.length ? (
-            <V3StatusChip tone="required">
-              {participate.needsAttention.length} required
-            </V3StatusChip>
-          ) : (
-            <V3StatusChip tone="success">Clear</V3StatusChip>
-          )
-        }
-      >
-        {participate.needsAttention.length ? (
-          <ActionList
-            actions={participate.needsAttention}
-            progressByActionId={progressByActionId}
-            delegationLabel={delegationLabel}
-          />
-        ) : (
-          <V3Surface className="p-4">
-            <p className="text-sm font-semibold">Nothing requires action</p>
-            <p className="mt-1 text-xs leading-5 text-white/48">
-              Solaris will surface the next official responsibility when it becomes actionable.
-            </p>
-          </V3Surface>
-        )}
-      </V3Section>
-
-      {participate.blocked.length ? (
-        <V3Section title="Blocked" meta={<V3StatusChip tone="danger">No action available</V3StatusChip>}>
-          <V3Surface className="mb-3 p-4">
-            <p className="text-sm font-semibold">Something needs resolution, but you cannot act yet</p>
-            <p className="mt-1 text-xs leading-5 text-white/48">
-              Solaris will move this back to Needs attention when the authoritative workflow gives you an action, such as reopened Entry editing.
-            </p>
-          </V3Surface>
-          <ActionList
-            actions={participate.blocked}
-            progressByActionId={progressByActionId}
-            delegationLabel={delegationLabel}
-          />
-        </V3Section>
-      ) : null}
-
-      {participate.next.length ? (
-        <V3Section title="Next" meta={<V3StatusChip tone="progress">Upcoming</V3StatusChip>}>
-          <ActionList
-            actions={participate.next}
-            progressByActionId={progressByActionId}
-            delegationLabel={delegationLabel}
-          />
-        </V3Section>
-      ) : null}
-
-      {participate.waiting.length ? (
-        <V3Section title="Waiting" meta={<V3StatusChip tone="progress">No action yet</V3StatusChip>}>
-          <ActionList
-            actions={participate.waiting}
-            progressByActionId={progressByActionId}
-            delegationLabel={delegationLabel}
-          />
-        </V3Section>
-      ) : null}
-
       {participate.optionalNow.length ? (
-        <V3Section title="Optional now" meta={<V3StatusChip>Optional</V3StatusChip>}>
+        <V3Section title="Optional participation" meta={<V3StatusChip>Optional</V3StatusChip>}>
           <ActionList
             actions={participate.optionalNow}
             progressByActionId={progressByActionId}
