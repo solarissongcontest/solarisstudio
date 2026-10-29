@@ -46,7 +46,7 @@ function MusicPage() {
   const songs = useV3SongIndexProjection(query);
   const artists = useV3ArtistIndexProjection(query);
 
-  if (songs.isLoading && artists.isLoading) {
+  if (songs.isLoading || artists.isLoading) {
     return (
       <AppShell>
         <V3MusicLoading label="Songs & artists" />
