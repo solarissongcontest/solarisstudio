@@ -168,34 +168,36 @@ export function V3NotificationsScreen({
               </p>
             </V3Surface>
           ) : recent.length ? (
-            <V3Surface className="overflow-hidden p-0" data-v3-notification-list="">
-              <div className="divide-y divide-[var(--v3-border-subtle)]">
-                {recent.map((item) => (
-                  <Link
-                    key={item.id}
-                    to="/my-solaris/notices"
-                    search={{ notice: item.id }}
-                    className="flex min-h-16 items-start gap-3 px-3 py-3 transition hover:bg-white/[0.025] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/35 sm:px-4"
-                    data-v3-notification-row=""
-                  >
-                    <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-white/[0.045] text-[var(--v3-text-secondary)]">
-                      <BellRing className="size-4" aria-hidden="true" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-[var(--v3-text-primary)]">
-                          {item.title}
+            <div data-v3-notification-list="">
+              <V3Surface className="overflow-hidden p-0">
+                <div className="divide-y divide-[var(--v3-border-subtle)]">
+                  {recent.map((item) => (
+                    <Link
+                      key={item.id}
+                      to="/my-solaris/notices"
+                      search={{ notice: item.id }}
+                      className="flex min-h-16 items-start gap-3 px-3 py-3 transition hover:bg-white/[0.025] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/35 sm:px-4"
+                      data-v3-notification-row=""
+                    >
+                      <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-white/[0.045] text-[var(--v3-text-secondary)]">
+                        <BellRing className="size-4" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-[var(--v3-text-primary)]">
+                            {item.title}
+                          </span>
+                          <V3StatusChip tone={noticeTone(item)}>{noticeStateLabel(item)}</V3StatusChip>
                         </span>
-                        <V3StatusChip tone={noticeTone(item)}>{noticeStateLabel(item)}</V3StatusChip>
+                        <span className="mt-1 block text-xs leading-5 text-[var(--v3-text-secondary)]">
+                          {item.typeLabel} · {formatNoticeTime(item.sentAt)}
+                        </span>
                       </span>
-                      <span className="mt-1 block text-xs leading-5 text-[var(--v3-text-secondary)]">
-                        {item.typeLabel} · {formatNoticeTime(item.sentAt)}
-                      </span>
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </V3Surface>
+                    </Link>
+                  ))}
+                </div>
+              </V3Surface>
+            </div>
           ) : (
             <V3Surface>
               <div className="flex items-start gap-3">
