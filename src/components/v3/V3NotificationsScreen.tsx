@@ -3,6 +3,7 @@ import {
   BellRing,
   CheckCircle2,
   Mail,
+  RefreshCw,
   Settings2,
   ShieldCheck,
   Smartphone,
@@ -37,7 +38,10 @@ export type V3NotificationsScreenProps = {
   urgentDeadlineReminders: boolean;
   preferencesUnavailable?: boolean;
   inboxUnavailable?: boolean;
+  degraded?: boolean;
+  retrying?: boolean;
   inboxItems: readonly V3NotificationInboxItem[];
+  onRetry?: () => void;
 };
 
 function formatNoticeTime(value: string | null) {
@@ -70,7 +74,10 @@ export function V3NotificationsScreen({
   urgentDeadlineReminders,
   preferencesUnavailable = false,
   inboxUnavailable = false,
+  degraded = false,
+  retrying = false,
   inboxItems,
+  onRetry,
 }: V3NotificationsScreenProps) {
   const activeItems = inboxItems.filter((item) => item.state !== "archived");
   const acknowledgementCount = activeItems.filter(
@@ -99,6 +106,30 @@ export function V3NotificationsScreen({
           description="Official updates, important messages and delivery settings in one place."
         />
 
+        {degraded ? (
+          <V3Surface className="mb-4 border-amber-300/20 bg-amber-300/[0.045]" data-v3-notifications-authority-state="degraded">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">Some notification state could not be refreshed</p>
+                <p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--v3-text-secondary)]">
+                  Solaris keeps any previously verified state visible, marks unavailable projections honestly, and never treats notification delivery as proof that required work does or does not exist.
+                </p>
+              </div>
+              {onRetry ? (
+                <button
+                  type="button"
+                  disabled={retrying}
+                  onClick={onRetry}
+                  className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-[var(--v3-border-subtle)] px-3 text-xs font-semibold disabled:cursor-wait disabled:opacity-50"
+                >
+                  <RefreshCw className="size-3.5" aria-hidden="true" />
+                  {retrying ? "Refreshing…" : "Retry"}
+                </button>
+              ) : null}
+            </div>
+          </V3Surface>
+        ) : null}
+
         <V3Section title="Needs attention">
           <V3NowCard
             eyebrow={attentionCount > 0 ? "Action & unread" : "Inbox"}
@@ -124,7 +155,7 @@ export function V3NotificationsScreen({
                 {acknowledgementCount > 0 ? (
                   <V3ActionCard
                     title={`${acknowledgementCount} acknowledgement${acknowledgementCount === 1 ? "" : "s"} required`}
-                    description="Read and acknowledge these messages in Notices."
+                    description="Read and acknowledge these in the authoritative official-notice workflow."
                     icon={ShieldCheck}
                     tone="required"
                     to="/my-solaris/notices"
@@ -276,9 +307,9 @@ export function V3NotificationsScreen({
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 size-5 shrink-0 text-[var(--v3-text-secondary)]" aria-hidden="true" />
               <div className="min-w-0">
-                <p className="text-sm font-semibold">Your required work is still available</p>
+                <p className="text-sm font-semibold">Notifications are never the source of truth</p>
                 <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                  If a notification is delayed or blocked, check Participate for current responsibilities and Notices for official messages.
+                  Missing, delayed or blocked push delivery cannot hide required participation. Tasks and official Notices remain authoritative inside Solaris.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link
