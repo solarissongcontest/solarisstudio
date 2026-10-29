@@ -30,6 +30,11 @@ export type V3Storyline = Omit<V3StorySummary, "itemCount" | "heroMoment"> & {
   items: V3StoryMoment[];
 };
 
+export type V3StoryArtwork = {
+  src: string;
+  alt: string;
+};
+
 export type V3StoriesAnniversary = {
   referenceDate: string;
   timeZone: string;
@@ -40,6 +45,8 @@ export type V3StoriesAnniversary = {
 export type V3StoriesIndexBundle = {
   shell: { editionLabel: string; phaseLabel: string };
   stories: V3StorySummary[];
+  currentStory: V3StorySummary | null;
+  historicalStories: V3StorySummary[];
   anniversary: V3StoriesAnniversary;
   generatedAt: string;
 };
@@ -47,6 +54,7 @@ export type V3StoriesIndexBundle = {
 export type V3StoryDetailBundle = {
   shell: { editionLabel: string; phaseLabel: string };
   story: V3Storyline | null;
+  artwork: V3StoryArtwork | null;
   relatedEdition: { label: string; href: string } | null;
   relatedStories: V3StorySummary[];
   generatedAt: string;
