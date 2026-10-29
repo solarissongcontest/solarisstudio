@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
+import { V3MusicDataError } from "@/components/v3/V3MusicDataError";
 import { V3MusicDiscoveryScreen } from "@/components/v3/V3MusicDiscoveryScreen";
 import {
   V3MusicLoading,
@@ -54,12 +55,24 @@ function MusicPage() {
     );
   }
 
-  if ((songs.isError || !songs.data) && (artists.isError || !artists.data)) {
+  if (songs.isError && artists.isError) {
+    return (
+      <AppShell>
+        <V3MusicDataError
+          title="Could not load Songs & artists"
+          description="The publication-safe music catalogue is temporarily unavailable."
+          onRetry={() => Promise.all([songs.refetch(), artists.refetch()])}
+        />
+      </AppShell>
+    );
+  }
+
+  if (!songs.data && !artists.data) {
     return (
       <AppShell>
         <V3MusicUnavailable
           title="Songs & artists unavailable"
-          description="The canonical publication-safe music catalogue could not be loaded. Solaris does not fall back to unpublished Entry data."
+          description="No publication-safe music catalogue is currently available. Solaris does not fall back to unpublished Entry data."
         />
       </AppShell>
     );
@@ -77,6 +90,8 @@ function MusicPage() {
             replace: true,
           });
         }}
+        onRetrySongs={songs.isError ? () => songs.refetch() : undefined}
+        onRetryArtists={artists.isError ? () => artists.refetch() : undefined}
       />
     </AppShell>
   );
