@@ -11,8 +11,16 @@ describe("V3 Participate authoritative-read failure state", () => {
     expect(gate).toContain("bundleQuery.refetch()");
   });
 
-  it("retains the compatibility fallback for rollout-disabled and unauthenticated boundaries", () => {
-    expect(gate).toContain("if (rollout.isError || rollout.data?.enabled !== true) return safeLegacyFallback;");
+  it("falls back only when rollout authority is absent/disabled or Participate is unauthenticated", () => {
+    expect(gate).toContain("if (!rollout.data || rollout.data.enabled !== true) return safeLegacyFallback;");
     expect(gate).toContain('if (effectiveSurface === "participate" && !rollout.data.userId) return safeLegacyFallback;');
+  });
+
+  it("keeps cached authoritative V3 data mounted across background refetch failures", () => {
+    expect(gate).toContain("if (rollout.isLoading && !rollout.data)");
+    expect(gate).toContain("if (bundleQuery.isLoading && !bundleQuery.data)");
+    expect(gate).toContain("if (!bundleQuery.data)");
+    expect(gate).not.toContain("if (rollout.isError || rollout.data?.enabled !== true)");
+    expect(gate).not.toContain("if (bundleQuery.isError || !bundleQuery.data)");
   });
 });
