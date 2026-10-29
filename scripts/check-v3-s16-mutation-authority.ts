@@ -1,5 +1,6 @@
 import { proveInternalMechanisms } from "../src/lib/v3-s16-internal-mechanisms";
 import { resolveS16CandidateSha } from "../src/lib/v3-s16-candidate-sha";
+import { extendV3S16Domains } from "../src/lib/v3-s16-domain-extensions";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
@@ -41,10 +42,11 @@ const catalogFile = catalogPath();
 const catalog = catalogFile && existsSync(catalogFile)
   ? JSON.parse(readFileSync(catalogFile, "utf8")) as V3S16CatalogEvidence
   : null;
+const domains = extendV3S16Domains(V3_S16_CRITICAL_DOMAINS);
 
-const baseReport = buildV3S16MutationAuthorityReport({ candidateSha: sha, files, catalog });
+const baseReport = buildV3S16MutationAuthorityReport({ candidateSha: sha, files, catalog, domains });
 const baseFindings = staticOnly
-  ? scanV3S16StaticAuthority(files, V3_S16_CRITICAL_DOMAINS)
+  ? scanV3S16StaticAuthority(files, domains)
   : baseReport.findings;
 const assessment = classifyV3S16ReleaseAuthority({
   baseFindings,
