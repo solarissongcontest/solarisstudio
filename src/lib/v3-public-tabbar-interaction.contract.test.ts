@@ -14,10 +14,12 @@ describe("Public installed-app tab bar interaction contract", () => {
     expect(tabs).toContain("velocityX: drag.velocityX");
   });
 
-  it("keeps drag optional for reduced-motion and keyboard users", () => {
+  it("keeps drag optional for reduced-motion, keyboard, overlay and browser-edge owners", () => {
     expect(tabs).toContain("prefersReducedMotion()");
     expect(tabs).toContain('root.hasAttribute("data-solaris-keyboard-open")');
     expect(tabs).toContain('root.hasAttribute("data-solaris-feature-overlay-open")');
+    expect(tabs).toContain("isV3BrowserEdgeGestureStart");
+    expect(tabs).toContain("window.visualViewport?.width ?? window.innerWidth");
   });
 
   it("cancels gestures on browser, overlay, keyboard and app-resume interruptions", () => {
