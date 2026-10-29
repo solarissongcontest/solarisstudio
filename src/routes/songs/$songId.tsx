@@ -1,6 +1,7 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
+import { V3MusicDataError } from "@/components/v3/V3MusicDataError";
 import {
   V3MusicLoading,
   V3MusicUnavailable,
@@ -55,12 +56,24 @@ function SongPage() {
     );
   }
 
-  if (projection.isError || !projection.data) {
+  if (projection.isError) {
+    return (
+      <AppShell>
+        <V3MusicDataError
+          title="Could not load Song"
+          description="The canonical public Song projection is temporarily unavailable."
+          onRetry={() => projection.refetch()}
+        />
+      </AppShell>
+    );
+  }
+
+  if (!projection.data) {
     return (
       <AppShell>
         <V3MusicUnavailable
           title="Song unavailable"
-          description="This Song identity is not public or the canonical public projection is unavailable."
+          description="This Song identity is not public or no longer resolves to a public canonical identity."
         />
       </AppShell>
     );
