@@ -6,6 +6,7 @@ import {
   BUNDLED_RULEBOOK_META,
   usePublishedRulebook,
 } from "@/lib/rules-governance";
+import { formatRulebookHistoryDate } from "@/lib/v3-rulebook-history";
 
 export function RulebookVersionBanner() {
   const release = usePublishedRulebook();
@@ -36,7 +37,7 @@ export function RulebookVersionBanner() {
           <p className="mt-1 text-sm font-bold text-slate-100">{title}</p>
           <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
             <CalendarClock className="size-3" />
-            {effectiveAt ? `Effective ${formatDate(effectiveAt)}` : "Bundled official regulations"}
+            {effectiveAt ? `Effective ${formatRulebookHistoryDate(effectiveAt)}` : "Bundled official regulations"}
           </p>
         </div>
       </div>
@@ -48,15 +49,4 @@ export function RulebookVersionBanner() {
       </Link>
     </section>
   );
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
 }

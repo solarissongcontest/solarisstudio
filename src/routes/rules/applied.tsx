@@ -8,15 +8,20 @@ import {
   RULE_CONTEXT_STORAGE_KEY,
 } from "@/components/rules/RulesGovernanceContext";
 import { V3RulesRouteGate } from "@/components/v3/V3RulesRouteGate";
-import {
-  GOVERNANCE_ACTION_KEYS,
-  type GovernanceActionKey,
-} from "@/lib/governance-v5";
-import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
+import type { GovernanceActionKey } from "@/lib/governance-v5";
+import { sanitizeRuleContextPath } from "@/lib/rule-context";
+import { resolveAppliedRulesContext } from "@/lib/v3-rules-applied-context";
+
+type AppliedRulesSearch = {
+  /** undefined = no nomination, null = explicit invalid nomination */
+  context?: string | null;
+};
 
 export const Route = createFileRoute("/rules/applied")({
-  validateSearch: (search: Record<string, unknown>): { context?: string } => ({
-    context: sanitizeRuleContextPath(search.context),
+  validateSearch: (search: Record<string, unknown>): AppliedRulesSearch => ({
+    context: Object.prototype.hasOwnProperty.call(search, "context")
+      ? (sanitizeRuleContextPath(search.context) ?? null)
+      : undefined,
   }),
   head: () => ({
     meta: [
@@ -27,22 +32,15 @@ export const Route = createFileRoute("/rules/applied")({
   component: AppliedRulesPage,
 });
 
-function actionFor(path: string | null): GovernanceActionKey | null {
-  if (!path) return null;
-  const context = getRuleContext(path);
-  if (!context) return null;
-  if (context.key === "confirmations") return "confirmation.submit";
-  if (context.key === "jury") return "jury.vote";
-  if (context.key === "televoting") return "televote.vote";
-  if (context.key === "entries") return "entry.submit";
-  if (context.key === "integrity") return "integrity.report";
-  if (context.key === "hosting-media") return "hosting.accept";
-  return null;
-}
-
 export function AppliedRulesPage() {
   const { context: contextPath } = Route.useSearch();
-  const content = <AppliedRulesContent contextPath={contextPath} />;
+  const contextRequested = contextPath !== undefined;
+  const content = (
+    <AppliedRulesContent
+      key={contextRequested ? `explicit:${contextPath ?? "invalid"}` : "session-context"}
+      contextPath={contextPath}
+    />
+  );
 
   return (
     <V3RulesRouteGate
@@ -55,32 +53,32 @@ export function AppliedRulesPage() {
   );
 }
 
-function AppliedRulesContent({ contextPath }: { contextPath?: string }) {
-  const [context, setContext] = useState<GovernanceActionKey | null>(null);
+function AppliedRulesContent({ contextPath }: { contextPath?: string | null }) {
+  const contextRequested = contextPath !== undefined;
+  const explicitResolution = contextRequested
+    ? resolveAppliedRulesContext({ explicitContextPath: contextPath ?? "" })
+    : null;
+  const [sessionResolution, setSessionResolution] = useState<{
+    ready: boolean;
+    context: GovernanceActionKey | null;
+  }>({ ready: false, context: null });
 
   useEffect(() => {
-    const explicitAction = actionFor(contextPath ?? null);
-    if (explicitAction) {
-      setContext(explicitAction);
-      return;
-    }
+    if (contextRequested) return;
 
     try {
-      const storedAction = window.sessionStorage.getItem(GOVERNANCE_ACTION_STORAGE_KEY);
-      if (
-        storedAction &&
-        GOVERNANCE_ACTION_KEYS.includes(storedAction as GovernanceActionKey)
-      ) {
-        setContext(storedAction as GovernanceActionKey);
-        return;
-      }
-      setContext(
-        actionFor(window.sessionStorage.getItem(RULE_CONTEXT_STORAGE_KEY)),
-      );
+      const resolution = resolveAppliedRulesContext({
+        storedAction: window.sessionStorage.getItem(GOVERNANCE_ACTION_STORAGE_KEY),
+        storedContextPath: window.sessionStorage.getItem(RULE_CONTEXT_STORAGE_KEY),
+      });
+      setSessionResolution({ ready: true, context: resolution.context });
     } catch {
-      setContext(null);
+      setSessionResolution({ ready: true, context: null });
     }
-  }, [contextPath]);
+  }, [contextRequested]);
+
+  const resolving = !contextRequested && !sessionResolution.ready;
+  const context = explicitResolution?.context ?? sessionResolution.context;
 
   return (
     <div className="mx-auto max-w-4xl pb-20">
@@ -91,11 +89,19 @@ function AppliedRulesContent({ contextPath }: { contextPath?: string }) {
           Solaris remembers only the coarse workflow family, never ballot contents, case IDs or other sensitive task details.
         </p>
       </header>
-      {context ? (
+      {resolving ? (
+        <div className="mt-6 border-y border-border/60 py-6" aria-live="polite">
+          <p className="text-sm text-muted-foreground">Resolving the rule guidance for this session…</p>
+        </div>
+      ) : context ? (
         <RulesApplyingHere context={context} initiallyExpanded primaryLimit={99} className="mt-5" />
       ) : (
         <div className="mt-6 border-y border-border/60 py-6">
-          <p className="text-sm text-muted-foreground">No recent rule-aware task is available in this session.</p>
+          <p className="text-sm text-muted-foreground">
+            {contextRequested
+              ? "No rule-aware workflow matches this context."
+              : "No recent rule-aware task is available in this session."}
+          </p>
           <Link to="/rules" className="mt-3 inline-flex text-sm font-bold text-primary">Open Rules</Link>
         </div>
       )}
