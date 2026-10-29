@@ -12,6 +12,17 @@
   );
 }
 
+/* The older installed-app stylesheet still names its safe-area tokens with an
+   app-specific prefix. Bridge those names here with higher specificity so they
+   cannot become a second platform resolver while legacy transition surfaces are
+   still mounted. */
+html:root {
+  --solaris-app-safe-top: var(--solaris-safe-top, env(safe-area-inset-top, 0px));
+  --solaris-app-safe-right: var(--solaris-safe-right, env(safe-area-inset-right, 0px));
+  --solaris-app-safe-bottom: var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px));
+  --solaris-app-safe-left: var(--solaris-safe-left, env(safe-area-inset-left, 0px));
+}
+
 /* Protect the first semantic paint before React effects can publish the runtime
    marker. `-webkit-touch-callout` narrows this to iOS-class WebKit, while the
    standalone + phone-portrait media query avoids inventing a giant top moat on
@@ -47,9 +58,22 @@ html[data-solaris-app] .solaris-app-toolbar {
   padding-top: var(--solaris-safe-content-top);
 }
 
+html[data-solaris-app] .solaris-app-toolbar-inner {
+  padding-inline:
+    max(.75rem, var(--solaris-safe-left, env(safe-area-inset-left, 0px)))
+    max(.75rem, var(--solaris-safe-right, env(safe-area-inset-right, 0px)));
+}
+
 html[data-solaris-app] .solaris-app-offline {
   top: calc(
     var(--solaris-safe-content-top) + var(--solaris-app-toolbar-height) + 0.45rem
+  );
+}
+
+html .solaris-install-prompt {
+  bottom: calc(
+    5.9rem +
+    max(.55rem, var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px)))
   );
 }
 
@@ -58,6 +82,7 @@ html[data-solaris-app] .solaris-app-offline {
     top: calc(
       var(--solaris-safe-content-top) + var(--solaris-app-toolbar-height) + 1rem
     );
+    left: max(.8rem, var(--solaris-safe-left, env(safe-area-inset-left, 0px)));
   }
 }
 
@@ -72,6 +97,12 @@ html[data-solaris-app] .solaris-app-offline {
    header, mobile drawer, quick navigation and responsive section navigation on
    the same platform boundary. These overrides deliberately live here rather
    than in route components so safe-area logic cannot fragment again. */
+html:not([data-solaris-app]) .app-main {
+  padding-bottom: calc(
+    6.5rem + var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px))
+  ) !important;
+}
+
 @media (max-width: 899px) {
   html:not([data-solaris-app]) .site-nav {
     padding-top: var(--solaris-safe-content-top);
