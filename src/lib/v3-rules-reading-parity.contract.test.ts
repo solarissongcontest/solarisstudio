@@ -27,7 +27,7 @@ describe("V3 Rules reading parity", () => {
       "rule-key-points",
       "rule-examples",
     ]) {
-      expect(detail).toContain(`id=\"${anchor}\"`);
+      expect(detail).toContain(`id="${anchor}"`);
     }
     expect(detail).toContain("scroll-mt-36");
   });
