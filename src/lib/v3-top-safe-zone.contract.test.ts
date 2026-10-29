@@ -31,12 +31,14 @@ describe("Solaris V3 canonical top system safe zone", () => {
     expect(safeZone).toContain('html:not([data-solaris-app]) .site-nav');
   });
 
-  it("gives V3 one safe-area-aware top obstruction authority", () => {
+  it("gives V3 one safe-area-aware top obstruction authority and shared side aliases", () => {
     expect(responsive).toContain("--v3-system-safe-top: var(--solaris-system-safe-top");
     expect(responsive).toContain("--v3-top-context-obstruction");
     expect(responsive).toContain("--v3-shell-top-obstruction");
     expect(responsive).toContain("min-height: var(--v3-top-context-obstruction)");
     expect(responsive).toContain("var(--solaris-safe-content-gap, 0.25rem)");
+    expect(responsive).toContain("var(--solaris-safe-right");
+    expect(responsive).toContain("var(--solaris-safe-left");
   });
 
   it("keeps focused Confirmation/Jury/Televote chrome on the same safe boundary", () => {
