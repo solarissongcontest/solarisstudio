@@ -72,10 +72,21 @@ describe("Solaris V3 PWA shell lifecycle", () => {
 
   it("keeps the fallback shell viewport-safe and preserves the canonical five public areas", () => {
     expect(offline).toContain("viewport-fit=cover");
-    expect(offline).toContain("safe-area-inset-top");
-    expect(offline).toContain("safe-area-inset-bottom");
+    expect(offline).toContain("--offline-safe-content-top");
+    expect(offline).toContain('data-solaris-ios-standalone="true"');
+    expect(offline).toContain("@media (orientation: landscape)");
+    expect(offline).toContain("--offline-safe-bottom");
+    expect(offline).toContain("min-height: 44px");
+    expect(offline).toContain("prefers-reduced-transparency: reduce");
     for (const label of ["Home", "Explore", "Participate", "Results", "Me"]) {
       expect(offline).toContain(`>${label}</a>`);
     }
+  });
+
+  it("uses link semantics for offline navigation instead of pretending links are tabs", () => {
+    expect(offline).toContain('node.setAttribute("aria-current", "page")');
+    expect(offline).toContain('node.removeAttribute("aria-current")');
+    expect(offline).not.toContain('aria-selected="false"');
+    expect(offline).not.toContain('node.setAttribute("aria-selected"');
   });
 });
