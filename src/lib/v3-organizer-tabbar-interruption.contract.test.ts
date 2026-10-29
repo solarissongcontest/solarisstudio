@@ -41,12 +41,14 @@ describe("Organizer V3 navigation interruption ownership", () => {
     expect(organizerTabs).toContain('--solaris-bottom-obstruction", "0px"');
   });
 
-  it("uses the shared safe-bottom alias instead of a private platform inset", () => {
+  it("uses shared side/bottom safe aliases instead of private platform geometry", () => {
     expect(organizerTabs).toContain("var(--solaris-safe-bottom");
     expect(organizerTabs).toContain('data-v3-organizer-tabbar=""');
     expect(organizerTabs).not.toContain(
       'style={{ paddingBottom: "max(.45rem, env(safe-area-inset-bottom))" }}',
     );
+    expect(organizerNavigationCss).toContain("var(--solaris-safe-left");
+    expect(organizerNavigationCss).toContain("var(--solaris-safe-right");
     expect(organizerNavigationCss).toContain("var(--solaris-safe-bottom");
   });
 
