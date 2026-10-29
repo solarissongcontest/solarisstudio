@@ -175,11 +175,20 @@ export function AppTabBar({
       // already published its measurement, so blindly clearing here can erase
       // the new bar's obstruction and collapse the shell spacer underneath it.
       // Only the final tab-bar owner is allowed to clear the shared metrics.
-      if (document.querySelector(".solaris-app-tabbar")) return;
+      window.requestAnimationFrame(() => {
+        if (document.querySelector(".solaris-app-tabbar")) return;
 
-      const root = document.documentElement;
-      root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
-      root.style.setProperty("--solaris-bottom-obstruction", "0px");
+        const root = document.documentElement;
+        root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
+        if (
+          document.querySelector(
+            "[data-v3-liquid-tabbar], [data-v3-organizer-tabbar]",
+          )
+        ) {
+          return;
+        }
+        root.style.setProperty("--solaris-bottom-obstruction", "0px");
+      });
     },
     [],
   );
