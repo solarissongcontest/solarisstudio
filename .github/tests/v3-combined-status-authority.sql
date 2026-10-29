@@ -41,6 +41,7 @@ begin
  if has_function_privilege('authenticated','private.v3_combined_command_version()','execute') or has_function_privilege('service_role','private.v3_combined_command_version()','execute') then raise exception 'Callable internal version guard'; end if;
  if not exists(select 1 from pg_proc where oid='private.v3_combined_command_version()'::regprocedure and prosecdef and proowner='postgres'::regrole and proconfig=array['search_path=pg_catalog']) then raise exception 'Unsafe version guard'; end if;
  if (select count(*) from public.integration_events where remote_id='29043157-0000-4000-8000-000000000071')<>1 then raise exception 'Status audit duplicated'; end if;
+ if has_column_privilege('authenticated','televoting.televote_aggregations','command_version','INSERT,UPDATE') or has_column_privilege('service_role','televoting.televote_aggregations','command_version','INSERT,UPDATE') then raise exception 'External command-version write authority'; end if;
  if has_function_privilege('service_role','televoting.v3_transition_combined_status(uuid,text,bigint,uuid,text)','execute') then raise exception 'Service transport may change status'; end if;
 end $audit$;
 rollback;
