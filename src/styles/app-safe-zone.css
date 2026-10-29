@@ -13,20 +13,15 @@
 }
 
 /* iOS standalone has historically produced transient/suspiciously-small safe
-   values around launch/resume. Fail toward protected content in portrait. The
-   normal platform inset still wins whenever it is larger. */
-html[data-solaris-ios-standalone] {
-  --solaris-system-safe-top: max(
-    var(--solaris-safe-top, env(safe-area-inset-top, 0px)),
-    var(--solaris-ios-standalone-min-top)
-  );
-}
-
-/* Landscape safe geometry is materially different: do not drag the portrait
-   fallback into the content area. The real platform inset remains canonical. */
-@media (orientation: landscape) {
+   values around phone launch/resume. Fail toward protected content only on
+   narrow portrait devices. Tablets keep their reported inset so the defensive
+   phone minimum cannot become a giant fake iPad header. */
+@media (orientation: portrait) and (max-width: 767px) {
   html[data-solaris-ios-standalone] {
-    --solaris-system-safe-top: var(--solaris-safe-top, env(safe-area-inset-top, 0px));
+    --solaris-system-safe-top: max(
+      var(--solaris-safe-top, env(safe-area-inset-top, 0px)),
+      var(--solaris-ios-standalone-min-top)
+    );
   }
 }
 
