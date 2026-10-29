@@ -8,6 +8,7 @@ describe("Solaris V3 canonical top system safe zone", () => {
   const metrics = source("src/components/app/AppChromeMetrics.tsx");
   const safeZone = source("src/styles/app-safe-zone.css");
   const responsive = source("src/styles/v3-responsive-shell.css");
+  const focusedTask = source("src/styles/v3-focused-task-shell.css");
   const foundations = source("src/styles/v3-foundations.css");
 
   it("centralizes platform safe-area aliases and the iOS standalone defensive marker", () => {
@@ -32,6 +33,18 @@ describe("Solaris V3 canonical top system safe zone", () => {
     expect(responsive).toContain("--v3-shell-top-obstruction");
     expect(responsive).toContain("min-height: var(--v3-top-context-obstruction)");
     expect(responsive).toContain("var(--solaris-safe-content-gap, 0.25rem)");
+  });
+
+  it("keeps focused Confirmation/Jury/Televote chrome on the same safe boundary", () => {
+    expect(focusedTask).toContain("--v3-focused-task-safe-top: var(");
+    expect(focusedTask).toContain("--solaris-safe-content-top");
+    expect(focusedTask).toContain("var(--solaris-safe-right");
+    expect(focusedTask).toContain("var(--solaris-safe-bottom");
+    expect(focusedTask).toContain("var(--solaris-safe-left");
+    expect(focusedTask).toContain(
+      "scroll-margin-block-start: calc(4.75rem + var(--v3-focused-task-safe-top))",
+    );
+    expect(focusedTask).not.toContain("calc(env(safe-area-inset-top) + 0.45rem)");
   });
 
   it("keeps anchors and keyboard-focus targets below sticky shell chrome", () => {
