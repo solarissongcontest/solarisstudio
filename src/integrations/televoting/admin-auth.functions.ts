@@ -2,6 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 
 export const getMergedTelevotingAdmin = createServerFn({ method: "GET" }).handler(async () => {
   try {
+    const { requireSolarisCapabilityServer } = await import(
+      "@/integrations/supabase/capabilities.server"
+    );
+    await requireSolarisCapabilityServer("voting.read", null);
+
     const { loadMergedTelevotingAdminServer } = await import(
       "@/integrations/televoting/admin-session.server"
     );
