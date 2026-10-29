@@ -28,8 +28,12 @@ describe("V3 Songs & Artists discovery", () => {
     expect(source).toContain("const ROOT_ARTIST_LIMIT = 6");
     expect(source).toContain("songs?.items.slice(0, ROOT_SONG_LIMIT)");
     expect(source).toContain("artists?.items.slice(0, ROOT_ARTIST_LIMIT)");
-    expect(source).toContain('title="Browse all songs"');
-    expect(source).toContain('title="Browse all artists"');
+    expect(source).toContain('title="Browse songs"');
+    expect(source).toContain('title="Browse artists"');
+    expect(source).toContain("searchable publication-safe Song index");
+    expect(source).toContain("searchable publication-safe Artist index");
+    expect(source).not.toContain("complete publication-safe Song collection");
+    expect(source).not.toContain("complete publication-safe Artist collection");
   });
 
   it("uses durable Song and Artist routes through reusable music presentation", () => {
@@ -42,7 +46,7 @@ describe("V3 Songs & Artists discovery", () => {
     expect(source).not.toContain("toLowerCase()");
   });
 
-  it("uses the dedicated music primitives on complete collections instead of generic action-card rows", () => {
+  it("uses the dedicated music primitives on searchable collections instead of generic action-card rows", () => {
     const source = entityScreens();
     expect(source).toContain("<V3SongPreview");
     expect(source).toContain("<V3ArtistPreview");
@@ -52,7 +56,7 @@ describe("V3 Songs & Artists discovery", () => {
     expect(source).not.toContain('description="Open song"');
   });
 
-  it("keeps canonical URLs on the music root, complete collections and opaque entity routes", () => {
+  it("keeps canonical URLs on the music root, searchable indexes and opaque entity routes", () => {
     expect(route()).toContain("https://studio.solaris-song-contest.workers.dev/music");
     expect(songsRoute()).toContain("https://studio.solaris-song-contest.workers.dev/songs");
     expect(artistsRoute()).toContain("https://studio.solaris-song-contest.workers.dev/artists");
@@ -95,7 +99,7 @@ describe("V3 Songs & Artists discovery", () => {
     expect(combined).not.toContain("useAllParticipants");
   });
 
-  it("keeps music searches shareable and bounded on root and complete collections", () => {
+  it("keeps music searches shareable and bounded on root and searchable indexes", () => {
     for (const source of [route(), songsRoute(), artistsRoute()]) {
       expect(source).toContain("validateSearch");
       expect(source).toContain("slice(0, 120)");
