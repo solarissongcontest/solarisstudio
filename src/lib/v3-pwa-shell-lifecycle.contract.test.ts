@@ -109,6 +109,14 @@ describe("Solaris V3 PWA shell lifecycle", () => {
     }
   });
 
+  it("keeps offline navigation inside asymmetric left/right safe areas", () => {
+    expect(offline).toContain("left: calc(var(--offline-safe-left) + 9px)");
+    expect(offline).toContain("right: calc(var(--offline-safe-right) + 9px)");
+    expect(offline).toContain("margin-inline: auto");
+    expect(offline).not.toContain("left: 50%");
+    expect(offline).not.toContain("transform: translateX(-50%)");
+  });
+
   it("uses link semantics for offline navigation instead of pretending links are tabs", () => {
     expect(offline).toContain('node.setAttribute("aria-current", "page")');
     expect(offline).toContain('node.removeAttribute("aria-current")');
