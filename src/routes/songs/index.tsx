@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
+import { V3MusicDataError } from "@/components/v3/V3MusicDataError";
 import {
   V3MusicLoading,
   V3MusicUnavailable,
@@ -46,10 +47,16 @@ function SongsPage() {
     <AppShell>
       {projection.isLoading ? (
         <V3MusicLoading label="Songs" />
-      ) : projection.isError || !projection.data ? (
+      ) : projection.isError ? (
+        <V3MusicDataError
+          title="Could not load Songs"
+          description="The publication-safe Song collection is temporarily unavailable."
+          onRetry={() => projection.refetch()}
+        />
+      ) : !projection.data ? (
         <V3MusicUnavailable
           title="Songs unavailable"
-          description="The publication-safe Song index could not be loaded. No Entry titles are promoted into identity as a fallback."
+          description="No publication-safe Song collection is currently available. No Entry titles are promoted into identity as a fallback."
         />
       ) : (
         <V3SongIndexScreen
