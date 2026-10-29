@@ -53,7 +53,9 @@ describe("Solaris V3 PWA shell lifecycle", () => {
   });
 
   it("keeps navigational HTML network-first and only falls back to the read-only offline shell", () => {
+    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v16"');
     expect(worker).toContain('const OFFLINE_URL = "/offline.html"');
+    expect(worker).toContain("OFFLINE_URL,");
     expect(worker).toContain('if (request.mode === "navigate")');
     expect(worker).toContain("return await fetch(request)");
     expect(worker).toContain("caches.match(OFFLINE_URL)");
