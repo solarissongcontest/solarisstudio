@@ -38,7 +38,9 @@ identity = (directory / "identity-before.log").read_text()
 receipt = (directory / "receipt-before.log").read_text()
 tasks = (directory / "tasks-before.log").read_text()
 supplement = (directory / "supplement-before.log").read_text()
-for output, count in [(identity, 5), (receipt, 2), (tasks, 4), (supplement, 2)]:
+# The supplement guard now also rejects unsupported forward promotions. The
+# historical implementation lacks that check in addition to rollback/removal.
+for output, count in [(identity, 5), (receipt, 2), (tasks, 4), (supplement, 3)]:
     if not re.search(rf"(?<![0-9]){count} fail(?![a-z])", output):
         raise SystemExit("Historical proof failed for an unexpected reason; inspect stored logs")
     if any(marker in output for marker in ["Cannot find module", "Cannot find package", "SyntaxError", "is not a function"]):
@@ -47,6 +49,9 @@ if "prevents a delayed getSession read from overwriting a newer SDK session even
     raise SystemExit("Historical delayed-session overwrite regression was not observed")
 if "toBeUndefined" not in identity or "replaced-by-read" not in receipt or "declared" not in receipt or "visible-only-to-A" not in tasks:
     raise SystemExit("Expected owner defects were not observed")
+for case in ["rejects backward status changes in discovered capabilities", "rejects silent removal from the combined canonical inventory", "rejects a forward transition without exact-tree acceptance evidence"]:
+    if not re.search(r"\(fail\).*" + re.escape(case), supplement):
+        raise SystemExit("Expected supplement authority defect was not observed: " + case)
 print("PASS: original identity/task cache, receipt model and supplement guard defects reproduced")
 PY
 cd "$root"
