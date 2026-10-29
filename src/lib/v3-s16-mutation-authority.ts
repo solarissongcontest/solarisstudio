@@ -481,6 +481,9 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
       "televoting.v3_moderate_submission",
       "televoting.v3_configure_round",
       "televoting.v3_sync_round_lineup",
+      // Scoped atomic reconciliation; executable SQL proof rejects stale input
+      // and revoked actors and recovers the exact committed operation receipt.
+      "televoting.v3_reconcile_combined_lineup",
       "televoting.submit_vote_checked",
       "public.studio2_update_televote_aggregate_totals",
     ],

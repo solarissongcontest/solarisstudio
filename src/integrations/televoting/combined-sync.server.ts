@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 
@@ -25,34 +26,6 @@ function sameList(a: string[], b: string[]) {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
-async function recordCombinedSyncEvent(
-  db: any,
-  outcome: CombinedCanonicalSyncOutcome,
-  previous: string[],
-  next: string[],
-) {
-  if (outcome.status !== "synced") return;
-  const now = new Date().toISOString();
-  const { error } = await db.from("integration_events").insert({
-    service: "televoting",
-    event_type: "combined.participants.autosynced",
-    entity_type: "show",
-    entity_id: outcome.showId ?? null,
-    remote_id: outcome.aggregationId,
-    payload: {
-      edition_id: outcome.editionId ?? null,
-      previous,
-      participants: next,
-    },
-    status: "completed",
-    attempts: 1,
-    last_error: null,
-    completed_at: now,
-    updated_at: now,
-  });
-  if (error) console.error("[Combined canonical sync] Could not record integration event", error);
-}
-
 /**
  * A Combined Televote made entirely from Solaris-bound voting rounds is a
  * projection of that Solaris show, not an independent participant list.
@@ -71,7 +44,7 @@ export async function syncEditableCombinedParticipantsFromSolarisServer(
 
   const { data: aggregation, error: aggregationError } = await televotingAdmin
     .from("televote_aggregations")
-    .select("id,status,calculation_version")
+    .select("id,status,calculation_version,updated_at")
     .eq("id", aggregationId)
     .maybeSingle();
   if (aggregationError) throw new Error(aggregationError.message);
@@ -205,39 +178,20 @@ export async function syncEditableCombinedParticipantsFromSolarisServer(
     };
   }
 
-  const { error: deleteError } = await televotingAdmin
-    .from("televote_aggregation_participants")
-    .delete()
-    .eq("aggregation_id", aggregationId);
-  if (deleteError) throw new Error(deleteError.message);
-
-  if (canonicalCodes.length) {
-    const { error: insertError } = await televotingAdmin
-      .from("televote_aggregation_participants")
-      .insert(
-        canonicalCodes.map((countryCode: string, displayOrder: number) => ({
-          aggregation_id: aggregationId,
-          country_code: countryCode,
-          display_order: displayOrder,
-        })),
-      );
-    if (insertError) throw new Error(insertError.message);
-  }
-
-  const { error: aggregationUpdateError } = await televotingAdmin
-    .from("televote_aggregations")
-    .update({ results_outdated: Number(aggregation.calculation_version ?? 0) > 0 })
-    .eq("id", aggregationId);
-  if (aggregationUpdateError) throw new Error(aggregationUpdateError.message);
-
-  const outcome: CombinedCanonicalSyncOutcome = {
-    aggregationId,
-    status: "synced",
-    editionId,
-    showId,
-    participantCount: canonicalCodes.length,
-    message: `${canonicalCodes.length} Combined participants refreshed from the Solaris show.`,
-  };
-  await recordCombinedSyncEvent(db, outcome, currentCodes, canonicalCodes);
-  return outcome;
+  // Bind retry identity to the reviewed input, including the prior canonical
+  // revision. A fresh state creates a new operation; a lost response can safely
+  // retry the exact same request without duplicating participant/event writes.
+  const fingerprint = createHash("sha256").update(JSON.stringify([
+    aggregationId, aggregation.updated_at, currentCodes,
+  ])).digest("hex");
+  const operationId = `${fingerprint.slice(0, 8)}-${fingerprint.slice(8, 12)}-4${fingerprint.slice(13, 16)}-8${fingerprint.slice(17, 20)}-${fingerprint.slice(20, 32)}`;
+  const { data: result, error } = await (televotingAdmin as any).rpc("v3_reconcile_combined_lineup", {
+    p_aggregation_id: aggregationId,
+    p_expected_updated_at: aggregation.updated_at,
+    p_expected_participants: currentCodes,
+    p_operation_id: operationId,
+    p_idempotency_key: `combined-lineup:${fingerprint}`,
+  });
+  if (error) throw new Error(error.message);
+  return result as CombinedCanonicalSyncOutcome;
 }
