@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Run Integrity authority contracts
+      - name: Run Integrity and Confirmation authority contracts
         run: >-
           bun test
           src/lib/v3-integrity-authority.contract.test.ts
@@ -45,6 +45,10 @@ jobs:
           src/lib/v3-integrity-intake-compatibility-cutover.contract.test.ts
           src/lib/v3-integrity-s16-authority.contract.test.ts
           src/lib/v3-integrity-residual-writer-authority.contract.test.ts
+          src/lib/v3-confirmation-response-delete.test.ts
+          src/lib/v3-organizer-confirmation-delete-review.contract.test.ts
+          src/lib/confirmations-response-review-route.test.ts
+          src/lib/confirmation-canonical-reconciliation.contract.test.ts
 
       - name: Generate fresh TanStack route tree
         shell: bash
@@ -57,7 +61,35 @@ jobs:
       - name: TypeScript
         run: bun run typecheck
 
-      - name: Lint changed Integrity authority files
+      - name: Regenerate source S16 and require zero shared findings
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$RUNNER_TEMP/s16-source"
+          mkdir -p "$source_dir"
+          V3_CANDIDATE_SHA="$GITHUB_SHA" \
+          V3_PREFLIGHT_DIR="$source_dir" \
+            bun --env-file=/dev/null scripts/check-v3-s16-mutation-authority.ts --static >/dev/null
+          node -e '
+            const report = require(process.argv[1]);
+            const shared = report.findings.filter((finding) => finding.ownerBoundary === "shared");
+            const results = report.findings.filter((finding) => finding.ownerBoundary === "results_pr_1400");
+            console.log(`S16 source shared=${shared.length} results_owned=${results.length}`);
+            if (shared.length !== 0) {
+              console.error(JSON.stringify(shared, null, 2));
+              process.exit(1);
+            }
+          ' "$source_dir/s16-mutation-authority.json"
+
+      - name: Upload source S16 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: confirmation-delete-source-s16-${{ github.sha }}
+          path: ${{ runner.temp }}/s16-source/s16-mutation-authority.json
+          if-no-files-found: error
+
+      - name: Lint changed Integrity and Confirmation authority files
         run: >-
           bunx eslint
           src/lib/v3-s16-mutation-authority.ts
@@ -70,6 +102,10 @@ jobs:
           src/lib/v3-integrity-intake-compatibility-cutover.contract.test.ts
           src/lib/v3-integrity-s16-authority.contract.test.ts
           src/lib/v3-integrity-residual-writer-authority.contract.test.ts
+          src/lib/v3-confirmation-response-delete.ts
+          src/lib/v3-confirmation-response-delete.test.ts
+          src/lib/v3-organizer-confirmation-delete-review.contract.test.ts
+          'src/routes/confirmations/admin/responses/$id.tsx'
 
   local-database:
     name: Integrity clean local Supabase authority
@@ -108,6 +144,17 @@ jobs:
 
       - name: Verify migration history
         run: supabase migration list --local
+
+      - name: Prove Confirmation response deletion authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          case "${DB_URL:-}" in
+            postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
+            *) echo 'Refusing non-local Confirmation deletion rehearsal' >&2; exit 1 ;;
+          esac
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-confirmation-runtime-state-authority.sql
 
       - name: Prove Integrity runtime authority catalog
         shell: bash
@@ -155,6 +202,17 @@ jobs:
           V3_PREFLIGHT_DIR="$RUNNER_TEMP/s16-preflight" \
           V3_RELEASE_EVIDENCE_DIR="$RUNNER_TEMP/s16-evidence" \
             bun --env-file=/dev/null scripts/check-v3-s16-mutation-authority.ts --catalog="$RUNNER_TEMP/integrity-appeal-catalog.json"
+          node -e '
+            const report = require(process.argv[1]);
+            const shared = report.findings.filter((finding) => finding.ownerBoundary === "shared");
+            const confirmation = shared.filter((finding) => finding.domain === "confirmation");
+            const deleteFindings = report.findings.filter((finding) => /admin_confirmation_delete_response|v3_confirmation_response_delete_revision/.test(`${finding.subject ?? ""} ${finding.path ?? ""} ${finding.detail ?? ""}`));
+            console.log(`S16 runtime shared=${shared.length} confirmation=${confirmation.length}`);
+            if (deleteFindings.length !== 0) {
+              console.error(JSON.stringify(deleteFindings, null, 2));
+              process.exit(1);
+            }
+          ' "$RUNNER_TEMP/s16-preflight/s16-mutation-authority.json"
 
       - name: Run hostile Rules + Integrity rehearsal
         run: bash .github/scripts/run-rules-integrity-security-rehearsal.sh
@@ -229,6 +287,18 @@ jobs:
           cd /tmp/solaris-integrity-main
           supabase migration up --local --include-all
           supabase migration list --local
+
+      - name: Prove Confirmation response deletion authority after upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-integrity-main
+          eval "$(supabase status -o env)"
+          case "${DB_URL:-}" in
+            postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
+            *) echo 'Refusing non-local Confirmation deletion upgrade rehearsal' >&2; exit 1 ;;
+          esac
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-confirmation-runtime-state-authority.sql"
 
       - name: Prove upgraded Integrity runtime authority catalog
         shell: bash
