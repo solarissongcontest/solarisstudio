@@ -52,10 +52,37 @@ html[data-solaris-app] .solaris-app-offline {
   }
 }
 
-/* Browser-mode mobile chrome is still semantic Solaris UI. Keep it below the
-   same protected boundary while retaining edge-to-edge decorative backgrounds. */
+/* Browser-mode chrome is still semantic Solaris UI. Keep the sticky global
+   header, mobile drawer, quick navigation and responsive section navigation on
+   the same platform boundary. These overrides deliberately live here rather
+   than in route components so safe-area logic cannot fragment again. */
 @media (max-width: 899px) {
   html:not([data-solaris-app]) .site-nav {
     padding-top: var(--solaris-safe-content-top);
+  }
+
+  html:not([data-solaris-app]) .public-drawer > :first-child {
+    padding-top: max(1rem, var(--solaris-safe-content-top)) !important;
+  }
+
+  html:not([data-solaris-app]) .public-drawer > :last-child {
+    padding-bottom: max(1rem, var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
+  }
+
+  html:not([data-solaris-app]) .mobile-quick-nav {
+    padding-bottom: max(.4rem, var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  html:not([data-solaris-app]) .public-site-sidebar {
+    top: calc(4.35rem + var(--solaris-system-safe-top)) !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  html:not([data-solaris-app]) .public-site-sidebar {
+    top: calc(5rem + var(--solaris-system-safe-top)) !important;
+    max-height: calc(100vh - 6rem - var(--solaris-system-safe-top)) !important;
   }
 }
