@@ -11,9 +11,21 @@ const televoteKey='televote:public.televote_votes:studio2_platform_direct_write_
 describe('shared invariant mechanism boundaries',()=>{
  it('classifies the observed guard and bounded housekeeping implementations',()=>{
   const proof=proveInternalMechanisms(observed);
-  expect(proof.classifications.filter(c=>c.proof===sharedProof)).toHaveLength(23);
+  // Round CAS now has its own current Confirmation proof, including exact
+  // trigger-column fingerprints. Preserve coverage after that ownership move.
+  expect(proof.classifications.filter(c=>c.proof===sharedProof)).toHaveLength(18);
+  expect(proof.classifications.some(c=>c.signature==='private.studio2_touch_confirmation_round_version()'&&c.proof==='.github/tests/v3-confirmation-runtime-mechanisms.sql')).toBe(true);
   expect(proof.triggers.has(entryKey)).toBe(true);
   expect(proof.triggers.has(televoteKey)).toBe(true);
+ });
+ it('keeps mechanisms retired by the integrated System cutovers unavailable rather than sanctioning stale attachments',()=>{
+  expect(observed.functions.some(f=>f.signature==='private.studio2_guard_direct_confirmation_round_mutation()')).toBe(false);
+  for(const signature of ['private.studio2_touch_jury_window_version()','private.v3_guard_jury_ballot_reference_scope()','private.v3_validate_jury_window_scope()']){
+   const f=observed.functions.find(f=>f.signature===signature)!;
+   expect(f.executeRoles).toEqual(['postgres']);
+   expect(observed.tables.flatMap(t=>t.triggerDefinitions??[]).some(t=>t.functionSignature===signature)).toBe(false);
+   expect(proveInternalMechanisms(observed).classifications.some(c=>c.signature===signature)).toBe(false);
+  }
  });
  for(const drift of ['table','column','attachment'] as const) it(`does not reuse another domain's valid proof after ${drift} drift`,()=>{
   const catalog=structuredClone(observed);

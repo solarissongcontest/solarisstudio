@@ -181,6 +181,7 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
       "public.admin_confirmation_reconfirm",
       "public.admin_confirmation_waive_requirement",
       "public.admin_confirmation_apply_requirement_materialization",
+      "public.studio2_reconcile_confirmation_requirements",
     ],
     evidence: [
       "supabase/migrations/20261012010000_v3_confirmation_authority.sql",
@@ -189,6 +190,8 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
       "supabase/migrations/20261017194000_confirmation_maintenance_readonly_gate.sql",
       "supabase/migrations/20261014040000_v3_entry_restore_provenance.sql",
       "src/integrations/confirmations/admin.ts",
+      "supabase/migrations/20261029233000_v3_confirmation_repair_runtime_boundary.sql",
+      ".github/tests/v3-confirmation-runtime-mechanisms.sql",
     ],
   },
   {

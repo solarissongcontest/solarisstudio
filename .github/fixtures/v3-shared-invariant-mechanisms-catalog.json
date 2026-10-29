@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "candidateSha": "1612810c19bdf71faf56395d7cfbbe0bbb5c5d9f",
+  "candidateSha": "unit-fixture-only-not-release-evidence",
   "tables": [
     {
       "owner": "postgres",
@@ -83,7 +83,8 @@
           "name": "v3_entry_reviews_immutable",
           "type": 27,
           "enabled": "O",
-          "functionOid": "24204",
+          "functionOid": "24202",
+          "definitionHash": "aca15cceffb7d8c5897184a7529ae55b",
           "functionSignature": "private.v3_guard_immutable_entry_evidence()"
         }
       ]
@@ -241,21 +242,24 @@
           "name": "v3_emit_entry_version_changed_event",
           "type": 5,
           "enabled": "O",
-          "functionOid": "24973",
+          "functionOid": "24971",
+          "definitionHash": "8e62c2348bc551f001af5e983726eb24",
           "functionSignature": "private.v3_emit_entry_version_changed_event()"
         },
         {
           "name": "v3_entry_versions_immutable",
           "type": 27,
           "enabled": "O",
-          "functionOid": "24204",
+          "functionOid": "24202",
+          "definitionHash": "16694b4f57dab62f57813de8bf07dd2a",
           "functionSignature": "private.v3_guard_immutable_entry_evidence()"
         },
         {
           "name": "v3_s3_guard_entry_version_lineage",
           "type": 7,
           "enabled": "O",
-          "functionOid": "24356",
+          "functionOid": "24354",
+          "definitionHash": "12c9668703d9eec04c36df435ff2ba33",
           "functionSignature": "private.v3_guard_entry_version_lineage()"
         }
       ]
@@ -499,63 +503,72 @@
           "name": "editions_sync_year_from_event_date",
           "type": 23,
           "enabled": "O",
-          "functionOid": "20364",
+          "functionOid": "20362",
+          "definitionHash": "3b25a963acc1a158a3b322f1a616d59b",
           "functionSignature": "public.sync_edition_year_from_event_date()"
         },
         {
           "name": "revoke_confirmation_tokens_on_edition_close",
           "type": 21,
           "enabled": "O",
-          "functionOid": "24929",
+          "functionOid": "24927",
+          "definitionHash": "a096d9a678e1f51fb766e36ed4d708f0",
           "functionSignature": "private.revoke_confirmation_tokens_on_edition_close()"
         },
         {
           "name": "studio2_platform_direct_write_guard",
           "type": 30,
           "enabled": "O",
-          "functionOid": "23745",
+          "functionOid": "23743",
+          "definitionHash": "ca63857f1de03dec6ca13b53db833f32",
           "functionSignature": "private.studio2_guard_direct_client_write()"
         },
         {
           "name": "studio2_seed_edition_runtime_after_insert",
           "type": 5,
           "enabled": "O",
-          "functionOid": "20956",
+          "functionOid": "20954",
+          "definitionHash": "b62bed0c51528ca26bef8bec8f4a029e",
           "functionSignature": "private.studio2_seed_edition_runtime()"
         },
         {
           "name": "trg_emit_edition_pulse_event",
           "type": 21,
           "enabled": "O",
-          "functionOid": "18372",
+          "functionOid": "18370",
+          "definitionHash": "6632301ec48b6dcb923d381cc68ccc94",
           "functionSignature": "public.emit_edition_pulse_event()"
         },
         {
           "name": "trg_preserve_edition_public_design_metadata",
           "type": 19,
           "enabled": "O",
-          "functionOid": "20193",
+          "functionOid": "20191",
+          "definitionHash": "f51243be90979349945ff042d328944a",
           "functionSignature": "public.preserve_edition_public_design_metadata()"
         },
         {
           "name": "trg_sync_edition_palette_after_change",
           "type": 17,
           "enabled": "O",
-          "functionOid": "20224",
+          "functionOid": "20222",
+          "definitionHash": "f8fd1d83ef3752fefdf08180efde4447",
           "functionSignature": "public.sync_edition_palette_after_change()"
         },
         {
           "name": "v3_guard_archived_legacy_edition_status",
           "type": 19,
           "enabled": "O",
-          "functionOid": "25148",
+          "functionOid": "25171",
+          "definitionHash": "255cec6076cb2af39013725ac2e1bb9c",
           "functionSignature": "private.v3_guard_archived_legacy_edition_status()"
         },
         {
           "name": "v3_s3_supersede_edition_logo_reviews",
           "type": 17,
           "enabled": "O",
-          "functionOid": "24372",
+          "functionOid": "24370",
+          "definitionHash": "34f1b235138c6c3af481d190ae0641c9",
           "functionSignature": "private.v3_supersede_stale_media_reviews()"
         }
       ]
@@ -727,49 +740,56 @@
           "name": "entries_bump_edition_revision",
           "type": 29,
           "enabled": "O",
-          "functionOid": "19002",
+          "functionOid": "19000",
+          "definitionHash": "e94141e69dc17380dde0457624982084",
           "functionSignature": "public.bump_edition_data_revision()"
         },
         {
           "name": "entries_sync_confirmation_youtube",
           "type": 21,
           "enabled": "O",
-          "functionOid": "20149",
+          "functionOid": "20147",
+          "definitionHash": "4db2e968bbdb6ae6e9671f975b07ecb7",
           "functionSignature": "public.sync_confirmation_entry_youtube_link()"
         },
         {
           "name": "studio2_entries_touch_participation_status_version",
           "type": 29,
           "enabled": "O",
-          "functionOid": "23448",
+          "functionOid": "23446",
+          "definitionHash": "74aef32296f726a0c3dcfb20d44f86e4",
           "functionSignature": "private.studio2_touch_participation_status_version()"
         },
         {
           "name": "studio2_platform_direct_write_guard",
           "type": 30,
           "enabled": "O",
-          "functionOid": "23745",
+          "functionOid": "23743",
+          "definitionHash": "34e9fa425162cc8e5bc423d7c48862bd",
           "functionSignature": "private.studio2_guard_direct_client_write()"
         },
         {
           "name": "update_entries_updated_at",
           "type": 19,
           "enabled": "O",
-          "functionOid": "17944",
+          "functionOid": "17942",
+          "definitionHash": "3a4653aa7085b6959368b512511c04e3",
           "functionSignature": "public.update_updated_at_column()"
         },
         {
           "name": "v3_guard_archived_edition_workflow_write",
           "type": 31,
           "enabled": "O",
-          "functionOid": "25151",
+          "functionOid": "25174",
+          "definitionHash": "c3e7856a4f792a3011daaa636477f200",
           "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
         },
         {
           "name": "v3_s3_supersede_entry_media_reviews",
           "type": 17,
           "enabled": "O",
-          "functionOid": "24372",
+          "functionOid": "24370",
+          "definitionHash": "e271466fddde07187f52c1dff8dbffde",
           "functionSignature": "private.v3_supersede_stale_media_reviews()"
         }
       ]
@@ -991,49 +1011,56 @@
           "name": "studio2_guard_internal_entry_review_transition",
           "type": 19,
           "enabled": "O",
-          "functionOid": "23690",
+          "functionOid": "23688",
+          "definitionHash": "e849899bed9d0fbbbffebd9598a675ec",
           "functionSignature": "private.studio2_guard_direct_confirmation_review_transition()"
         },
         {
           "name": "studio2_touch_internal_entry_review_version",
           "type": 29,
           "enabled": "O",
-          "functionOid": "23689",
+          "functionOid": "23687",
+          "definitionHash": "6a03690373e689298455bde844a59a3a",
           "functionSignature": "private.studio2_touch_confirmation_review_version()"
         },
         {
           "name": "v3_00_apply_internal_entry_credits_context",
           "type": 23,
           "enabled": "O",
-          "functionOid": "24797",
+          "functionOid": "24795",
+          "definitionHash": "d11cbf8be92666b5cd5eb1ee7e9637a0",
           "functionSignature": "private.v3_apply_entry_credits_context()"
         },
         {
           "name": "v3_bind_internal_entry",
           "type": 23,
           "enabled": "O",
-          "functionOid": "24207",
+          "functionOid": "24205",
+          "definitionHash": "47faf453bde9d4ef32287fc45e381162",
           "functionSignature": "private.v3_bind_confirmation_entry_version()"
         },
         {
           "name": "v3_guard_archived_edition_workflow_write",
           "type": 31,
           "enabled": "O",
-          "functionOid": "25151",
+          "functionOid": "25174",
+          "definitionHash": "25cb8d2240c7bda487bc336ab9435dd1",
           "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
         },
         {
           "name": "v3_record_inserted_internal_entry",
           "type": 5,
           "enabled": "O",
-          "functionOid": "24210",
+          "functionOid": "24208",
+          "definitionHash": "6fa39a25d2b66127e214d81ca23a67d0",
           "functionSignature": "private.v3_record_inserted_entry_version()"
         },
         {
           "name": "v3_s3_validate_internal_entry_pointer",
           "type": 21,
           "enabled": "O",
-          "functionOid": "24358",
+          "functionOid": "24356",
+          "definitionHash": "ff8ab4de44561a9917047c8a3228b19a",
           "functionSignature": "private.v3_validate_current_entry_pointer()"
         }
       ]
@@ -1049,7 +1076,6 @@
         "studio2_jury_ballot_review_results_sync",
         "studio2_jury_ballot_review_task_reconcile",
         "v3_guard_archived_edition_workflow_write",
-        "v3_guard_jury_ballot_reference_scope",
         "v3_s3_validate_jury_submission_scope"
       ],
       "columnDmlRoles": [
@@ -1223,35 +1249,32 @@
           "name": "studio2_jury_ballot_review_results_sync",
           "type": 17,
           "enabled": "O",
-          "functionOid": "23776",
+          "functionOid": "23774",
+          "definitionHash": "62a984aa7c8d064bbe0a56406284c724",
           "functionSignature": "private.studio2_sync_results_after_jury_ballot_review()"
         },
         {
           "name": "studio2_jury_ballot_review_task_reconcile",
           "type": 21,
           "enabled": "O",
-          "functionOid": "23769",
+          "functionOid": "23767",
+          "definitionHash": "f16bee6aaeb6c83bf64ed3525ef50fd2",
           "functionSignature": "private.studio2_jury_ballot_review_task_trigger()"
         },
         {
           "name": "v3_guard_archived_edition_workflow_write",
           "type": 31,
           "enabled": "O",
-          "functionOid": "25151",
+          "functionOid": "25174",
+          "definitionHash": "3b04839daca5ed31b2928d664beac7ed",
           "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
-        },
-        {
-          "name": "v3_guard_jury_ballot_reference_scope",
-          "type": 19,
-          "enabled": "O",
-          "functionOid": "24687",
-          "functionSignature": "private.v3_guard_jury_ballot_reference_scope()"
         },
         {
           "name": "v3_s3_validate_jury_submission_scope",
           "type": 21,
           "enabled": "O",
-          "functionOid": "24384",
+          "functionOid": "24382",
+          "definitionHash": "1b323c2f1d38e5db669466a47a94d8dd",
           "functionSignature": "private.v3_validate_jury_submission_scope()"
         }
       ]
@@ -1266,6 +1289,7 @@
       "writeTriggers": [
         "jury_votes_entity_edition",
         "jury_votes_sync_results",
+        "studio2_jury_vote_touch_version",
         "studio2_platform_direct_write_guard",
         "v3_guard_archived_edition_workflow_write",
         "v3_guard_jury_vote_object_scope",
@@ -1392,42 +1416,56 @@
           "name": "jury_votes_entity_edition",
           "type": 23,
           "enabled": "O",
-          "functionOid": "18143",
+          "functionOid": "18141",
+          "definitionHash": "08f3bfa1adfc26c04d78506dbb75455b",
           "functionSignature": "public.assert_entity_edition()"
         },
         {
           "name": "jury_votes_sync_results",
           "type": 29,
           "enabled": "O",
-          "functionOid": "20219",
+          "functionOid": "20217",
+          "definitionHash": "3afe4812305c2cea12bd1a1eb7ecaf91",
           "functionSignature": "public.sync_results_after_vote_change()"
+        },
+        {
+          "name": "studio2_jury_vote_touch_version",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "25784",
+          "definitionHash": "f6b815c0d36244dd37e4044389f7fb9e",
+          "functionSignature": "private.studio2_touch_jury_vote_version()"
         },
         {
           "name": "studio2_platform_direct_write_guard",
           "type": 30,
           "enabled": "O",
-          "functionOid": "23745",
+          "functionOid": "23743",
+          "definitionHash": "0fae77d914a63546f1448d42941617a5",
           "functionSignature": "private.studio2_guard_direct_client_write()"
         },
         {
           "name": "v3_guard_archived_edition_workflow_write",
           "type": 31,
           "enabled": "O",
-          "functionOid": "25151",
+          "functionOid": "25174",
+          "definitionHash": "2bf5d5f8d2682e3210b2ac7ce197eb09",
           "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
         },
         {
           "name": "v3_guard_jury_vote_object_scope",
           "type": 23,
           "enabled": "O",
-          "functionOid": "24682",
+          "functionOid": "24680",
+          "definitionHash": "0924c4751ec07a6cdb80af8f4659ddbb",
           "functionSignature": "private.v3_guard_jury_vote_object_scope()"
         },
         {
           "name": "v3_s3_validate_jury_vote_ballot_scope",
           "type": 21,
           "enabled": "O",
-          "functionOid": "24390",
+          "functionOid": "24388",
+          "definitionHash": "1b2422940db79c967c7ff3ca5f3a031c",
           "functionSignature": "private.v3_validate_jury_vote_ballot_scope()"
         }
       ]
@@ -1440,9 +1478,7 @@
       ],
       "rlsEnabled": true,
       "writeTriggers": [
-        "studio2_jury_window_touch_edition_version",
-        "v3_guard_archived_edition_workflow_write",
-        "v3_s3_validate_jury_window_scope"
+        "v3_guard_archived_edition_workflow_write"
       ],
       "columnDmlRoles": [
         "postgres"
@@ -1522,25 +1558,12 @@
       ],
       "triggerDefinitions": [
         {
-          "name": "studio2_jury_window_touch_edition_version",
-          "type": 29,
-          "enabled": "O",
-          "functionOid": "23424",
-          "functionSignature": "private.studio2_touch_jury_window_version()"
-        },
-        {
           "name": "v3_guard_archived_edition_workflow_write",
           "type": 31,
           "enabled": "O",
-          "functionOid": "25151",
+          "functionOid": "25174",
+          "definitionHash": "97c35a17c25a6194ddccbc22a612314c",
           "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
-        },
-        {
-          "name": "v3_s3_validate_jury_window_scope",
-          "type": 23,
-          "enabled": "O",
-          "functionOid": "24382",
-          "functionSignature": "private.v3_validate_jury_window_scope()"
         }
       ]
     },
@@ -1812,56 +1835,64 @@
           "name": "national_final_entry_pulse",
           "type": 21,
           "enabled": "O",
-          "functionOid": "20029",
+          "functionOid": "20027",
+          "definitionHash": "ec37d1a99ffb0216638df61be87bf953",
           "functionSignature": "public.national_final_entry_pulse_trigger()"
         },
         {
           "name": "studio2_guard_nf_entry_review_transition",
           "type": 19,
           "enabled": "O",
-          "functionOid": "23690",
+          "functionOid": "23688",
+          "definitionHash": "52e40bbde3fd30ce24ab4b4dcd199631",
           "functionSignature": "private.studio2_guard_direct_confirmation_review_transition()"
         },
         {
           "name": "studio2_touch_nf_entry_review_version",
           "type": 29,
           "enabled": "O",
-          "functionOid": "23689",
+          "functionOid": "23687",
+          "definitionHash": "5961f3b7f29801ba4cb5ed38d4036b38",
           "functionSignature": "private.studio2_touch_confirmation_review_version()"
         },
         {
           "name": "v3_00_apply_nf_entry_credits_context",
           "type": 23,
           "enabled": "O",
-          "functionOid": "24797",
+          "functionOid": "24795",
+          "definitionHash": "fdbf6595a2be450092010bc73a1513e7",
           "functionSignature": "private.v3_apply_entry_credits_context()"
         },
         {
           "name": "v3_bind_nf_entry",
           "type": 23,
           "enabled": "O",
-          "functionOid": "24207",
+          "functionOid": "24205",
+          "definitionHash": "6abaaf522d9a491e96b0612b92e9c419",
           "functionSignature": "private.v3_bind_confirmation_entry_version()"
         },
         {
           "name": "v3_guard_archived_edition_workflow_write",
           "type": 31,
           "enabled": "O",
-          "functionOid": "25151",
+          "functionOid": "25174",
+          "definitionHash": "20c330f570b40ee3f282648efded92c9",
           "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
         },
         {
           "name": "v3_record_inserted_nf_entry",
           "type": 5,
           "enabled": "O",
-          "functionOid": "24210",
+          "functionOid": "24208",
+          "definitionHash": "33e2d4a12f5dbd4560beca2d8623039f",
           "functionSignature": "private.v3_record_inserted_entry_version()"
         },
         {
           "name": "v3_s3_validate_nf_entry_pointer",
           "type": 21,
           "enabled": "O",
-          "functionOid": "24358",
+          "functionOid": "24356",
+          "definitionHash": "1c10fdc3a1f2af5fa236aa119ab5960e",
           "functionSignature": "private.v3_validate_current_entry_pointer()"
         }
       ]
@@ -2012,42 +2043,48 @@
           "name": "national_final_pulse",
           "type": 21,
           "enabled": "O",
-          "functionOid": "20028",
+          "functionOid": "20026",
+          "definitionHash": "fdf273af74e1f0b3148b5721d87aa46a",
           "functionSignature": "public.national_final_pulse_trigger()"
         },
         {
           "name": "studio2_guard_nf_winner_transition",
           "type": 19,
           "enabled": "O",
-          "functionOid": "23690",
+          "functionOid": "23688",
+          "definitionHash": "2b97f21f3b4037ad6360dcf3eefb228d",
           "functionSignature": "private.studio2_guard_direct_confirmation_review_transition()"
         },
         {
           "name": "studio2_touch_nf_review_version",
           "type": 29,
           "enabled": "O",
-          "functionOid": "23689",
+          "functionOid": "23687",
+          "definitionHash": "3cbf31625d8548cb469eaa5578b9801d",
           "functionSignature": "private.studio2_touch_confirmation_review_version()"
         },
         {
           "name": "v3_guard_archived_edition_workflow_write",
           "type": 31,
           "enabled": "O",
-          "functionOid": "25151",
+          "functionOid": "25174",
+          "definitionHash": "feec13b1456b0c0fbabe5d6e238b3075",
           "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
         },
         {
           "name": "v3_guard_entry_nf_scope",
           "type": 19,
           "enabled": "O",
-          "functionOid": "24213",
+          "functionOid": "24211",
+          "definitionHash": "94a1708a752f1cae45fb22242c64a3ce",
           "functionSignature": "private.v3_guard_entry_parent_scope()"
         },
         {
           "name": "v3_guard_exact_reviewed_winner",
           "type": 23,
           "enabled": "O",
-          "functionOid": "24216",
+          "functionOid": "24214",
+          "definitionHash": "742e4bc994d8ce3144496d3fd808acf0",
           "functionSignature": "private.v3_guard_exact_reviewed_winner()"
         }
       ]
@@ -2234,14 +2271,16 @@
           "name": "studio2_confirmation_resolution_scope_guard",
           "type": 23,
           "enabled": "O",
-          "functionOid": "24353",
+          "functionOid": "24351",
+          "definitionHash": "64de6b49888a9a9f941b9dd5555449ee",
           "functionSignature": "private.studio2_guard_confirmation_resolution_scope()"
         },
         {
           "name": "v3_guard_archived_edition_workflow_write",
           "type": 31,
           "enabled": "O",
-          "functionOid": "25151",
+          "functionOid": "25174",
+          "definitionHash": "eb56985bfbfda990fb56f2f519a5034b",
           "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
         }
       ]
@@ -2340,52 +2379,6 @@
     },
     {
       "owner": "postgres",
-      "table": "public.studio2_jury_window_versions",
-      "dmlRoles": [
-        "postgres"
-      ],
-      "rlsEnabled": true,
-      "writeTriggers": [],
-      "columnDmlRoles": [
-        "postgres"
-      ],
-      "updatableViews": [],
-      "columnDmlGrants": [
-        {
-          "role": "postgres",
-          "column": "edition_id",
-          "privilege": "INSERT"
-        },
-        {
-          "role": "postgres",
-          "column": "updated_at",
-          "privilege": "INSERT"
-        },
-        {
-          "role": "postgres",
-          "column": "version",
-          "privilege": "INSERT"
-        },
-        {
-          "role": "postgres",
-          "column": "edition_id",
-          "privilege": "UPDATE"
-        },
-        {
-          "role": "postgres",
-          "column": "updated_at",
-          "privilege": "UPDATE"
-        },
-        {
-          "role": "postgres",
-          "column": "version",
-          "privilege": "UPDATE"
-        }
-      ],
-      "triggerDefinitions": []
-    },
-    {
-      "owner": "postgres",
       "table": "public.studio2_participation_status_versions",
       "dmlRoles": [
         "postgres"
@@ -2450,8 +2443,6 @@
       "writeTriggers": [
         "revoke_confirmation_tokens_on_round_close",
         "studio2_confirmation_round_touch_version",
-        "studio2_guard_direct_confirmation_round_delete",
-        "studio2_guard_direct_confirmation_round_update",
         "v3_guard_archived_edition_workflow_write"
       ],
       "columnDmlRoles": [
@@ -2555,35 +2546,24 @@
           "name": "revoke_confirmation_tokens_on_round_close",
           "type": 21,
           "enabled": "O",
-          "functionOid": "24927",
+          "functionOid": "24925",
+          "definitionHash": "43dd9e556c077c5089337f39239d00c1",
           "functionSignature": "private.revoke_confirmation_tokens_on_round_close()"
         },
         {
           "name": "studio2_confirmation_round_touch_version",
           "type": 21,
           "enabled": "O",
-          "functionOid": "23524",
+          "functionOid": "23522",
+          "definitionHash": "23a81919bccab549cebd8afc22f5c5bd",
           "functionSignature": "private.studio2_touch_confirmation_round_version()"
-        },
-        {
-          "name": "studio2_guard_direct_confirmation_round_delete",
-          "type": 11,
-          "enabled": "O",
-          "functionOid": "23527",
-          "functionSignature": "private.studio2_guard_direct_confirmation_round_mutation()"
-        },
-        {
-          "name": "studio2_guard_direct_confirmation_round_update",
-          "type": 23,
-          "enabled": "O",
-          "functionOid": "23527",
-          "functionSignature": "private.studio2_guard_direct_confirmation_round_mutation()"
         },
         {
           "name": "v3_guard_archived_edition_workflow_write",
           "type": 31,
           "enabled": "O",
-          "functionOid": "25151",
+          "functionOid": "25174",
+          "definitionHash": "6677b14f930620c0b35e817c2b093e41",
           "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
         }
       ]
@@ -2596,13 +2576,10 @@
       ],
       "rlsEnabled": true,
       "writeTriggers": [
-        "ensure_submission_recovery_code_trg",
-        "register_submission_browser_trg",
         "revoke_confirmation_tokens_on_submission_close",
         "studio2_confirmation_duplicate_submission_guard",
         "studio2_confirmation_requirement_reconcile",
         "studio2_confirmation_submission_touch_round_version",
-        "submissions_stats_trg",
         "v3_guard_archived_edition_workflow_write",
         "v3_guard_entry_submission_scope"
       ],
@@ -2934,66 +2911,51 @@
       ],
       "triggerDefinitions": [
         {
-          "name": "ensure_submission_recovery_code_trg",
-          "type": 7,
-          "enabled": "O",
-          "functionOid": "24620",
-          "functionSignature": "public.ensure_submission_recovery_code()"
-        },
-        {
-          "name": "register_submission_browser_trg",
-          "type": 5,
-          "enabled": "O",
-          "functionOid": "24621",
-          "functionSignature": "public.register_submission_browser()"
-        },
-        {
           "name": "revoke_confirmation_tokens_on_submission_close",
           "type": 21,
           "enabled": "O",
-          "functionOid": "24925",
+          "functionOid": "24923",
+          "definitionHash": "24d9edcac7ddce68cfc5889782db79fb",
           "functionSignature": "private.revoke_confirmation_tokens_on_submission_close()"
         },
         {
           "name": "studio2_confirmation_duplicate_submission_guard",
           "type": 23,
           "enabled": "O",
-          "functionOid": "23330",
+          "functionOid": "23328",
+          "definitionHash": "b3707a141397e668aefc259a6b11517a",
           "functionSignature": "private.studio2_guard_duplicate_confirmation_submission()"
         },
         {
           "name": "studio2_confirmation_requirement_reconcile",
           "type": 29,
           "enabled": "O",
-          "functionOid": "23332",
+          "functionOid": "23330",
+          "definitionHash": "6d9f547c83ecd4797c420591225cd8b0",
           "functionSignature": "private.studio2_confirmation_submission_requirement_trigger()"
         },
         {
           "name": "studio2_confirmation_submission_touch_round_version",
           "type": 29,
           "enabled": "O",
-          "functionOid": "23524",
+          "functionOid": "23522",
+          "definitionHash": "fae04eb10cfaf020898239f316734dfc",
           "functionSignature": "private.studio2_touch_confirmation_round_version()"
-        },
-        {
-          "name": "submissions_stats_trg",
-          "type": 13,
-          "enabled": "O",
-          "functionOid": "24622",
-          "functionSignature": "public.sync_round_stats()"
         },
         {
           "name": "v3_guard_archived_edition_workflow_write",
           "type": 31,
           "enabled": "O",
-          "functionOid": "25151",
+          "functionOid": "25174",
+          "definitionHash": "ea81662cd73876d2f3b61101ff8ba1f1",
           "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
         },
         {
           "name": "v3_guard_entry_submission_scope",
           "type": 19,
           "enabled": "O",
-          "functionOid": "24213",
+          "functionOid": "24211",
+          "definitionHash": "345dd97be9e7cc0f5880e8beea2d1280",
           "functionSignature": "private.v3_guard_entry_parent_scope()"
         }
       ]
@@ -3093,35 +3055,40 @@
           "name": "studio2_platform_direct_write_guard",
           "type": 30,
           "enabled": "O",
-          "functionOid": "23745",
+          "functionOid": "23743",
+          "definitionHash": "c18ff1d0b3892d8f73e20ab00da7247f",
           "functionSignature": "private.studio2_guard_direct_client_write()"
         },
         {
           "name": "televote_entity_edition",
           "type": 23,
           "enabled": "O",
-          "functionOid": "18143",
+          "functionOid": "18141",
+          "definitionHash": "137cf432be35c4047a976cd039ea4d9a",
           "functionSignature": "public.assert_entity_edition()"
         },
         {
           "name": "televote_votes_sync_results",
           "type": 29,
           "enabled": "O",
-          "functionOid": "20219",
+          "functionOid": "20217",
+          "definitionHash": "06a8bcb2782f3bc0a5edda65a4929c94",
           "functionSignature": "public.sync_results_after_vote_change()"
         },
         {
           "name": "v3_guard_archived_edition_workflow_write",
           "type": 31,
           "enabled": "O",
-          "functionOid": "25151",
+          "functionOid": "25174",
+          "definitionHash": "f4236da340fff15bc7775aee8de455fb",
           "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
         },
         {
           "name": "v3_guard_source_managed_televote_projection",
           "type": 31,
           "enabled": "O",
-          "functionOid": "24832",
+          "functionOid": "24830",
+          "definitionHash": "0b59bf4baf2de57aa3f7e308322cad58",
           "functionSignature": "private.v3_guard_source_managed_televote_projection()"
         }
       ]
@@ -3129,7 +3096,7 @@
   ],
   "functions": [
     {
-      "oid": "24353",
+      "oid": "24351",
       "name": "private.studio2_guard_confirmation_resolution_scope",
       "owner": "postgres",
       "callers": [],
@@ -3144,7 +3111,7 @@
       "writesTables": []
     },
     {
-      "oid": "23745",
+      "oid": "23743",
       "name": "private.studio2_guard_direct_client_write",
       "owner": "postgres",
       "callers": [],
@@ -3159,7 +3126,7 @@
       "writesTables": []
     },
     {
-      "oid": "23690",
+      "oid": "23688",
       "name": "private.studio2_guard_direct_confirmation_review_transition",
       "owner": "postgres",
       "callers": [],
@@ -3174,22 +3141,7 @@
       "writesTables": []
     },
     {
-      "oid": "23527",
-      "name": "private.studio2_guard_direct_confirmation_round_mutation",
-      "owner": "postgres",
-      "callers": [],
-      "signature": "private.studio2_guard_direct_confirmation_round_mutation()",
-      "returnType": "trigger",
-      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
-      "executeRoles": [
-        "postgres"
-      ],
-      "definitionHash": "241a7e10518e4b080cbef31e400e51b1",
-      "securityDefiner": false,
-      "writesTables": []
-    },
-    {
-      "oid": "23330",
+      "oid": "23328",
       "name": "private.studio2_guard_duplicate_confirmation_submission",
       "owner": "postgres",
       "callers": [],
@@ -3204,7 +3156,7 @@
       "writesTables": []
     },
     {
-      "oid": "23689",
+      "oid": "23687",
       "name": "private.studio2_touch_confirmation_review_version",
       "owner": "postgres",
       "callers": [],
@@ -3221,41 +3173,39 @@
       ]
     },
     {
-      "oid": "23524",
+      "oid": "23522",
       "name": "private.studio2_touch_confirmation_round_version",
       "owner": "postgres",
       "callers": [],
       "signature": "private.studio2_touch_confirmation_round_version()",
       "returnType": "trigger",
-      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "searchPath": "pg_catalog, public, private, pg_temp",
       "executeRoles": [
         "postgres"
       ],
-      "definitionHash": "7a5a8c5460aa2efc22a7b18f26bc8400",
+      "definitionHash": "34c7a910b30bb7c74b8d821d5b273af1",
       "securityDefiner": true,
       "writesTables": [
         "public.studio2_confirmation_round_versions"
       ]
     },
     {
-      "oid": "23424",
+      "oid": "23422",
       "name": "private.studio2_touch_jury_window_version",
       "owner": "postgres",
       "callers": [],
       "signature": "private.studio2_touch_jury_window_version()",
       "returnType": "trigger",
-      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "searchPath": "pg_catalog, pg_temp",
       "executeRoles": [
         "postgres"
       ],
-      "definitionHash": "4dbaa2f3f037f95e0a5dd7cfdddb57ad",
+      "definitionHash": "71e333a61b959e84c9e946e3b21982a4",
       "securityDefiner": true,
-      "writesTables": [
-        "public.studio2_jury_window_versions"
-      ]
+      "writesTables": []
     },
     {
-      "oid": "23448",
+      "oid": "23446",
       "name": "private.studio2_touch_participation_status_version",
       "owner": "postgres",
       "callers": [],
@@ -3272,7 +3222,7 @@
       ]
     },
     {
-      "oid": "25151",
+      "oid": "25174",
       "name": "private.v3_guard_archived_edition_workflow_write",
       "owner": "postgres",
       "callers": [],
@@ -3287,7 +3237,7 @@
       "writesTables": []
     },
     {
-      "oid": "24213",
+      "oid": "24211",
       "name": "private.v3_guard_entry_parent_scope",
       "owner": "postgres",
       "callers": [],
@@ -3302,22 +3252,22 @@
       "writesTables": []
     },
     {
-      "oid": "24687",
+      "oid": "24685",
       "name": "private.v3_guard_jury_ballot_reference_scope",
       "owner": "postgres",
       "callers": [],
       "signature": "private.v3_guard_jury_ballot_reference_scope()",
       "returnType": "trigger",
-      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "searchPath": "pg_catalog, pg_temp",
       "executeRoles": [
         "postgres"
       ],
-      "definitionHash": "078088949c3b77ce27b246b7e726ba53",
+      "definitionHash": "eb1668c5046ca23fbf3d23aa84513d56",
       "securityDefiner": true,
       "writesTables": []
     },
     {
-      "oid": "24682",
+      "oid": "24680",
       "name": "private.v3_guard_jury_vote_object_scope",
       "owner": "postgres",
       "callers": [],
@@ -3332,7 +3282,7 @@
       "writesTables": []
     },
     {
-      "oid": "24358",
+      "oid": "24356",
       "name": "private.v3_validate_current_entry_pointer",
       "owner": "postgres",
       "callers": [],
@@ -3347,7 +3297,7 @@
       "writesTables": []
     },
     {
-      "oid": "24384",
+      "oid": "24382",
       "name": "private.v3_validate_jury_submission_scope",
       "owner": "postgres",
       "callers": [],
@@ -3362,7 +3312,7 @@
       "writesTables": []
     },
     {
-      "oid": "24390",
+      "oid": "24388",
       "name": "private.v3_validate_jury_vote_ballot_scope",
       "owner": "postgres",
       "callers": [],
@@ -3377,22 +3327,22 @@
       "writesTables": []
     },
     {
-      "oid": "24382",
+      "oid": "24380",
       "name": "private.v3_validate_jury_window_scope",
       "owner": "postgres",
       "callers": [],
       "signature": "private.v3_validate_jury_window_scope()",
       "returnType": "trigger",
-      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "searchPath": "pg_catalog, pg_temp",
       "executeRoles": [
         "postgres"
       ],
-      "definitionHash": "4bc14b3ba566df42313d2a2cf85d5555",
+      "definitionHash": "430cd926cf2ac7ac0491ab89e6ace094",
       "securityDefiner": true,
       "writesTables": []
     },
     {
-      "oid": "18143",
+      "oid": "18141",
       "name": "public.assert_entity_edition",
       "owner": "postgres",
       "callers": [],
@@ -3407,7 +3357,7 @@
       "writesTables": []
     },
     {
-      "oid": "19002",
+      "oid": "19000",
       "name": "public.bump_edition_data_revision",
       "owner": "postgres",
       "callers": [],
@@ -3424,7 +3374,7 @@
       ]
     },
     {
-      "oid": "17944",
+      "oid": "17942",
       "name": "public.update_updated_at_column",
       "owner": "postgres",
       "callers": [],

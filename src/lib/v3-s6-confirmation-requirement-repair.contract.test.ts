@@ -107,7 +107,7 @@ describe("System V3 S6 bounded Confirmation requirement repair", () => {
     expect(repair).toContain("'reconciliation_required'");
   });
 
-  it("keeps the repair boundary service-only", () => {
+  it("preserves the historical service grant before the governed repair cutover", () => {
     expect(migration).toContain(
       "revoke all on function public.studio2_reconcile_confirmation_requirements(uuid, integer, integer)",
     );

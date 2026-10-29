@@ -108,7 +108,7 @@ const DOMAIN_REPAIR_CONTRACTS: Readonly<Record<string, V3ProjectionRepairContrac
     incrementalPath:
       "Canonical submission writes invoke private.studio2_reconcile_confirmation_requirement; confirmation.submitted/window_changed drive downstream task and notification reconciliation.",
     rebuildPath:
-      "public.studio2_reconcile_confirmation_requirements(edition_id,offset,limit)",
+      "public.studio2_reconcile_confirmation_requirements(edition_id,offset,limit,operation_id,idempotency_key)",
     verificationPath:
       "public.studio2_verify_confirmation_requirements(edition_id,limit)",
     boundedBy:
@@ -121,6 +121,8 @@ const DOMAIN_REPAIR_CONTRACTS: Readonly<Record<string, V3ProjectionRepairContrac
       "src/lib/v3-s6-confirmation-requirement-reconciliation.contract.test.ts",
       "supabase/migrations/20261024200300_v3_s6_confirmation_requirement_bounded_repair.sql",
       ".github/scripts/v3-s5-confirmation-consequences-rehearsal.sh",
+      "supabase/migrations/20261029233000_v3_confirmation_repair_runtime_boundary.sql",
+      ".github/tests/v3-confirmation-runtime-mechanisms.sql",
       "src/lib/v3-s6-confirmation-requirement-repair.contract.test.ts",
     ],
   },

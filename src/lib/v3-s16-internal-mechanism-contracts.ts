@@ -763,29 +763,6 @@ export const V3_INTERNAL_MECHANISM_CONTRACTS: readonly InternalMechanismContract
   },
   {
     "domain": "confirmation",
-    "signature": "private.studio2_guard_direct_confirmation_round_mutation()",
-    "definitionHash": "241a7e10518e4b080cbef31e400e51b1",
-    "securityDefiner": false,
-    "callerSignatures": [],
-    "category": "guard",
-    "reason": "Invoker guard rejects raw window/configuration mutation; the canonical round command chooses lifecycle state.",
-    "inputTables": [
-      "public.submission_rounds"
-    ],
-    "attachments": [
-      {
-        "table": "public.submission_rounds",
-        "type": 11
-      },
-      {
-        "table": "public.submission_rounds",
-        "type": 23
-      }
-    ],
-    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
-  },
-  {
-    "domain": "confirmation",
     "signature": "private.studio2_guard_duplicate_confirmation_submission()",
     "definitionHash": "77c5eaf3b41e235d87f3427fd2891a8f",
     "securityDefiner": true,
@@ -821,51 +798,6 @@ export const V3_INTERNAL_MECHANISM_CONTRACTS: readonly InternalMechanismContract
     "attachments": [
       {
         "table": "public.internal_entries",
-        "type": 29
-      }
-    ],
-    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
-  },
-  {
-    "domain": "confirmation",
-    "signature": "private.studio2_touch_confirmation_round_version()",
-    "definitionHash": "7a5a8c5460aa2efc22a7b18f26bc8400",
-    "securityDefiner": true,
-    "callerSignatures": [],
-    "category": "housekeeping",
-    "reason": "Bounded server counter for affected canonical round keys; never accepts an external revision or selects round state.",
-    "inputTables": [
-      "public.studio2_confirmation_round_versions",
-      "public.submission_rounds",
-      "public.submissions"
-    ],
-    "attachments": [
-      {
-        "table": "public.submission_rounds",
-        "type": 21
-      },
-      {
-        "table": "public.submissions",
-        "type": 29
-      }
-    ],
-    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
-  },
-  {
-    "domain": "jury",
-    "signature": "private.studio2_touch_jury_window_version()",
-    "definitionHash": "4dbaa2f3f037f95e0a5dd7cfdddb57ad",
-    "securityDefiner": true,
-    "callerSignatures": [],
-    "category": "housekeeping",
-    "reason": "Bounded server CAS counter for affected edition keys; cannot open or close a Jury window.",
-    "inputTables": [
-      "public.jury_voting_windows",
-      "public.studio2_jury_window_versions"
-    ],
-    "attachments": [
-      {
-        "table": "public.jury_voting_windows",
         "type": 29
       }
     ],
@@ -997,25 +929,6 @@ export const V3_INTERNAL_MECHANISM_CONTRACTS: readonly InternalMechanismContract
   },
   {
     "domain": "jury",
-    "signature": "private.v3_guard_jury_ballot_reference_scope()",
-    "definitionHash": "078088949c3b77ce27b246b7e726ba53",
-    "securityDefiner": true,
-    "callerSignatures": [],
-    "category": "guard",
-    "reason": "Rejects scope drift of a referenced ballot; cannot submit or adjudicate one.",
-    "inputTables": [
-      "public.jury_ballot_submissions"
-    ],
-    "attachments": [
-      {
-        "table": "public.jury_ballot_submissions",
-        "type": 19
-      }
-    ],
-    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
-  },
-  {
-    "domain": "jury",
     "signature": "private.v3_guard_jury_vote_object_scope()",
     "definitionHash": "adaed93ac2e737498d1a044ba2d8a4bf",
     "securityDefiner": true,
@@ -1091,25 +1004,6 @@ export const V3_INTERNAL_MECHANISM_CONTRACTS: readonly InternalMechanismContract
       {
         "table": "public.jury_votes",
         "type": 21
-      }
-    ],
-    "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
-  },
-  {
-    "domain": "jury",
-    "signature": "private.v3_validate_jury_window_scope()",
-    "definitionHash": "4bc14b3ba566df42313d2a2cf85d5555",
-    "securityDefiner": true,
-    "callerSignatures": [],
-    "category": "guard",
-    "reason": "Rejects windows outside the edition owned by their show; chooses no window status.",
-    "inputTables": [
-      "public.jury_voting_windows"
-    ],
-    "attachments": [
-      {
-        "table": "public.jury_voting_windows",
-        "type": 23
       }
     ],
     "proof": ".github/tests/v3-shared-invariant-mechanisms.sql"
@@ -1457,6 +1351,92 @@ export const V3_INTERNAL_MECHANISM_CONTRACTS: readonly InternalMechanismContract
     ],
     "proof": ".github/tests/v3-entry-runtime-boundary.sql"
   },
+  {
+    "domain": "confirmation",
+    "signature": "private.studio2_touch_confirmation_round_version()",
+    "definitionHash": "34c7a910b30bb7c74b8d821d5b273af1",
+    "securityDefiner": true,
+    "category": "housekeeping",
+    "reason": "Bounded round CAS advancement from committed round/response mutation; no business transition or externally supplied version is accepted.",
+    "inputTables": [
+      "public.submissions",
+      "public.submission_rounds",
+      "public.studio2_confirmation_round_versions"
+    ],
+    "attachments": [
+      {
+        "table": "public.submission_rounds",
+        "type": 21,
+        "definitionHash": "23a81919bccab549cebd8afc22f5c5bd"
+      },
+      {
+        "table": "public.submissions",
+        "type": 29,
+        "definitionHash": "fae04eb10cfaf020898239f316734dfc"
+      }
+    ],
+    "callerSignatures": [],
+    "proof": ".github/tests/v3-confirmation-runtime-mechanisms.sql"
+  },
+  {
+    "domain": "confirmation",
+    "signature": "private.studio2_confirmation_submission_requirement_trigger()",
+    "definitionHash": "bf845e615c99482fb65d0fe2d576bb64",
+    "securityDefiner": true,
+    "category": "projection",
+    "reason": "Transactionally derives fulfillment from canonical response insertion/change/deletion; cannot choose reconfirmation generation or accept a forged actor.",
+    "inputTables": [
+      "public.submissions",
+      "public.studio2_confirmation_requirements"
+    ],
+    "attachments": [
+      {
+        "table": "public.submissions",
+        "type": 29,
+        "definitionHash": "6d9f547c83ecd4797c420591225cd8b0"
+      }
+    ],
+    "callerSignatures": [],
+    "proof": ".github/tests/v3-confirmation-runtime-mechanisms.sql"
+  },
+  {
+    "domain": "confirmation",
+    "signature": "private.studio2_reconcile_confirmation_requirement(p_edition_id uuid, p_country_id uuid)",
+    "definitionHash": "37be8c445ded4aa48bbd5c3ec278bc4f",
+    "securityDefiner": true,
+    "category": "projection",
+    "reason": "Owner-only canonical-source fulfillment repair; ignores unchanged tuples, preserves invalidated/current generation boundaries and never selects a new reconfirmation generation.",
+    "inputTables": [
+      "public.submissions",
+      "public.studio2_confirmation_requirements",
+      "public.studio2_operation_receipts"
+    ],
+    "attachments": [],
+    "callerSignatures": [
+      "private.studio2_confirmation_submission_requirement_trigger()",
+      "public.admin_confirmation_ensure_requirements(p_edition_id uuid, p_country_ids uuid[])",
+      "private.v3_reconcile_confirmation_requirements_core(p_edition_id uuid, p_offset integer, p_limit integer)"
+    ],
+    "proof": ".github/tests/v3-confirmation-runtime-mechanisms.sql"
+  },
+  {
+    "domain": "confirmation",
+    "signature": "public.admin_confirmation_ensure_requirements(p_edition_id uuid, p_country_ids uuid[])",
+    "definitionHash": "4590dd5d842e4aed78d8010c70eca012",
+    "securityDefiner": true,
+    "category": "primitive",
+    "reason": "Initial requirement materialization implementation behind reviewed fingerprint/CAS, live actor capability and stable receipt; unavailable as a peer command.",
+    "inputTables": [
+      "public.submissions",
+      "public.studio2_confirmation_requirements",
+      "public.studio2_operation_receipts"
+    ],
+    "attachments": [],
+    "callerSignatures": [
+      "public.admin_confirmation_apply_requirement_materialization(p_edition_id uuid, p_country_ids uuid[], p_expected_fingerprint text, p_operation_id uuid, p_idempotency_key text, p_correlation_id uuid)"
+    ],
+    "proof": ".github/tests/v3-confirmation-runtime-mechanisms.sql"
+  },
 ];
 export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
   {
@@ -1628,5 +1608,39 @@ export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
     ],
     "root": true,
     "callerSignatures": []
+  },
+  {
+    "signature": "public.admin_confirmation_apply_requirement_materialization(p_edition_id uuid, p_country_ids uuid[], p_expected_fingerprint text, p_operation_id uuid, p_idempotency_key text, p_correlation_id uuid)",
+    "definitionHash": "b96a4f6920cf7589661e54bff8f7df81",
+    "securityDefiner": true,
+    "executeRoles": [
+      "authenticated",
+      "postgres"
+    ],
+    "root": true,
+    "callerSignatures": []
+  },
+  {
+    "signature": "public.studio2_reconcile_confirmation_requirements(p_edition_id uuid, p_offset integer, p_limit integer, p_operation_id uuid, p_idempotency_key text)",
+    "definitionHash": "c77ed3595bc2d33ddc51270c45f6e80e",
+    "securityDefiner": true,
+    "executeRoles": [
+      "authenticated",
+      "postgres"
+    ],
+    "root": true,
+    "callerSignatures": []
+  },
+  {
+    "signature": "private.v3_reconcile_confirmation_requirements_core(p_edition_id uuid, p_offset integer, p_limit integer)",
+    "definitionHash": "d99e08867cf7ecffadcee7bc26e53d7d",
+    "securityDefiner": true,
+    "executeRoles": [
+      "postgres"
+    ],
+    "root": false,
+    "callerSignatures": [
+      "public.studio2_reconcile_confirmation_requirements(p_edition_id uuid, p_offset integer, p_limit integer, p_operation_id uuid, p_idempotency_key text)"
+    ]
   },
 ];
