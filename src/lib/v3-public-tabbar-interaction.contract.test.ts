@@ -48,4 +48,11 @@ describe("Public installed-app tab bar interaction contract", () => {
     expect(tabs).toContain('--solaris-app-bottom-obstruction", "0px"');
     expect(tabs).toContain('--solaris-bottom-obstruction", "0px"');
   });
+
+  it("includes attention counts in the semantic destination name without double-announcing the badge", () => {
+    expect(tabs).toContain("const accessibleLabel =");
+    expect(tabs).toContain("need attention");
+    expect(tabs).toContain("aria-label={accessibleLabel}");
+    expect(tabs).toContain('className="solaris-app-tab-badge" aria-hidden="true"');
+  });
 });
