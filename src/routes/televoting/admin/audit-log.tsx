@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Clock3, FileClock, Search } from "lucide-react";
+import { Clock3, FileClock, RefreshCw, Search } from "lucide-react";
 
 import {
   AdminCard,
@@ -21,7 +21,7 @@ import { listMergedAuditLog, type MergedAuditRow } from "@/integrations/televoti
 import type { AuditJson } from "@/integrations/televoting/audit.server";
 
 export const Route = createFileRoute("/televoting/admin/audit-log")({
-  head: () => ({ meta: [{ title: "Voting audit log — Solaris Organizer" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Voting audit log — Solaris Organizer" }, { name: "robots", content: "noindex, nofollow" }] }),
   component: AuditLogPage,
 });
 
@@ -39,11 +39,18 @@ function AuditLogPage() {
     if (!adminLoading && !admin) void navigate({ to: "/auth", search: { redirect: "/televoting/admin/audit-log" } });
   }, [admin, adminLoading, navigate]);
 
-  const { data: rows = [], isLoading, error } = useQuery<MergedAuditRow[]>({
+  const {
+    data: rows = [],
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useQuery<MergedAuditRow[]>({
     queryKey: ["merged-televoting-audit", action, targetType],
     queryFn: () => getAudit({ data: { action: action || null, targetType: targetType || null, limit: 750 } }),
     enabled: Boolean(admin),
-    refetchInterval: 60_000,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 
   const actions = useMemo<string[]>(() => [...new Set(rows.map((row) => row.action))].sort(), [rows]);
@@ -60,7 +67,20 @@ function AuditLogPage() {
         eyebrow="Voting service"
         title="Audit log"
         description="Trace result, round, moderation and integrity changes in one chronological organizer history. Technical payloads stay collapsed until you need them."
-        actions={<Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!admin || isFetching}
+              onClick={() => void refetch()}
+              className="admin-action-secondary"
+            >
+              <RefreshCw className={isFetching ? "size-4 animate-spin" : "size-4"} />
+              {isFetching ? "Refreshing…" : "Refresh"}
+            </button>
+            <Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>
+          </div>
+        }
       />
 
       <FilterBar className="[&>div]:sm:grid-cols-3 [&>div]:xl:grid-cols-3">
