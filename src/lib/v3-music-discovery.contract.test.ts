@@ -8,6 +8,7 @@ const route = () => read("src/routes/music/index.tsx");
 const screen = () => read("src/components/v3/V3MusicDiscoveryScreen.tsx");
 const primitives = () => read("src/components/v3/V3MusicPrimitives.tsx");
 const entityScreens = () => read("src/components/v3/V3MusicEntityScreens.tsx");
+const dataError = () => read("src/components/v3/V3MusicDataError.tsx");
 const songsRoute = () => read("src/routes/songs/index.tsx");
 const artistsRoute = () => read("src/routes/artists/index.tsx");
 const songRoute = () => read("src/routes/songs/$songId.tsx");
@@ -67,8 +68,27 @@ describe("V3 Songs & Artists discovery", () => {
     expect(source).not.toContain("songs.isLoading && artists.isLoading");
   });
 
+  it("separates retryable projection failures from invalid or non-public identity", () => {
+    expect(dataError()).toContain("Retry");
+    expect(dataError()).toContain("onRetry={() => void onRetry()}");
+    expect(dataError()).toContain("will not substitute raw Entry data");
+
+    for (const source of [songsRoute(), artistsRoute(), songRoute(), artistRoute()]) {
+      expect(source).toContain("projection.isError");
+      expect(source).toContain("<V3MusicDataError");
+      expect(source).toContain("projection.refetch()");
+      expect(source).toContain("!projection.data");
+      expect(source).toContain("<V3MusicUnavailable");
+    }
+
+    expect(route()).toContain("songs.isError && artists.isError");
+    expect(route()).toContain("Promise.all([songs.refetch(), artists.refetch()])");
+    expect(screen()).toContain("onRetrySongs");
+    expect(screen()).toContain("onRetryArtists");
+  });
+
   it("never falls back to raw Entry or direct Supabase reads", () => {
-    const combined = `${route()}\n${screen()}\n${primitives()}\n${entityScreens()}`;
+    const combined = `${route()}\n${screen()}\n${primitives()}\n${entityScreens()}\n${dataError()}`;
     expect(combined).not.toContain("supabase");
     expect(combined).not.toContain('.from("entries")');
     expect(combined).not.toContain("useEntries");
