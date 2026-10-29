@@ -1,6 +1,4 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { televotingAdmin } from "@/integrations/televoting/client.server";
-import { requireHodHistoryCapabilityServer } from "@/integrations/unified/hod-access.server";
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { loadHodResolverServer } from "@/integrations/unified/hod-history.server";
 
 export type HodIdentitySuggestion = {
@@ -30,9 +28,18 @@ function normalizeUsername(value: unknown) {
 }
 
 export async function getHodIdentitySuggestionsServer(): Promise<HodIdentitySuggestion[]> {
-  await requireHodHistoryCapabilityServer("delegation.read");
-  const db = supabaseAdmin as any;
+  // Suggestions combine cross-edition private HOD history with protected raw
+  // Televote submission identity. Require both data-class capabilities before
+  // either privileged client is imported. loadHodResolverServer() enforces the
+  // parent global delegation.read boundary itself.
+  await requireSolarisCapabilityServer("televote.ballots.read", null);
   const hod = await loadHodResolverServer();
+
+  const [{ supabaseAdmin }, { televotingAdmin }] = await Promise.all([
+    import("@/integrations/supabase/client.server"),
+    import("@/integrations/televoting/client.server"),
+  ]);
+  const db = supabaseAdmin as any;
 
   const [editionLinksResult, bindingsResult, roundsResult, submissionsResult] = await Promise.all([
     db
