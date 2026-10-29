@@ -15,25 +15,35 @@
   color-scheme: inherit;
 }
 
+/* Do not undo the shared fixed-geometry contract with rem-based Organizer
+   overrides. The bar is icon-only, so text scaling should enlarge page content
+   without moving the physical lens/icon centres or shrinking touch targets. */
 [data-organizer-v3-liquid-nav][data-organizer-v3-tabbar-mode="compact"] .v3-liquid-tabbar__material {
-  width: min(20.25rem, calc(100vw - 2rem - env(safe-area-inset-left) - env(safe-area-inset-right)));
-  height: 3.55rem;
+  width: min(
+    324px,
+    calc(
+      100vw - 32px -
+      var(--solaris-safe-left, env(safe-area-inset-left, 0px)) -
+      var(--solaris-safe-right, env(safe-area-inset-right, 0px))
+    )
+  );
+  height: 57px;
   margin-inline: auto;
-  border-radius: 1.72rem;
+  border-radius: 28px;
 }
 
 [data-organizer-v3-liquid-nav][data-organizer-v3-tabbar-mode="compact"] .v3-liquid-tabbar__item {
-  min-height: 2.75rem;
+  min-height: 44px;
 }
 
 [data-organizer-v3-liquid-nav][data-organizer-v3-tabbar-mode="compact"] .v3-liquid-tabbar__icon-wrap {
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 22px;
+  height: 22px;
 }
 
 [data-organizer-v3-liquid-nav][data-organizer-v3-tabbar-mode="compact"] .v3-liquid-tabbar__icon {
-  width: 1.08rem;
-  height: 1.08rem;
+  width: 17px;
+  height: 17px;
 }
 
 @media (min-width: 900px) {

@@ -5,16 +5,40 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Solaris V6 shared chrome infrastructure", () => {
-  it("owns keyboard and visual-viewport metrics once through AppOverlayManager", () => {
+  it("owns keyboard and visual-viewport state once through AppRuntime", () => {
     const runtime = source("src/components/app/AppRuntime.tsx");
+    const viewport = source("src/lib/app-viewport.ts");
     const overlays = source("src/components/app/AppOverlayManager.tsx");
     const metrics = source("src/components/app/AppChromeMetrics.tsx");
-    expect(runtime).not.toContain("AppChromeMetrics");
+
+    expect(runtime).toContain("createAppViewportController");
     expect(overlays).toContain("<AppChromeMetrics />");
-    expect(metrics).toContain("--solaris-keyboard-inset");
-    expect(metrics).toContain("--solaris-visual-viewport-height");
-    expect(metrics).toContain("data-solaris-keyboard-open");
-    expect(metrics).toContain("window.visualViewport");
+
+    for (const token of [
+      "--solaris-visual-viewport-width",
+      "--solaris-visual-viewport-height",
+      "--solaris-visual-viewport-offset-left",
+      "--solaris-visual-viewport-offset-top",
+      "--solaris-visual-viewport-scale",
+      "--solaris-keyboard-inset",
+      "data-solaris-keyboard-open",
+    ]) {
+      expect(viewport, token).toContain(token);
+    }
+
+    for (const token of [
+      "--solaris-safe-top",
+      "--solaris-safe-right",
+      "--solaris-safe-bottom",
+      "--solaris-safe-left",
+    ]) {
+      expect(metrics, token).toContain(token);
+    }
+
+    expect(metrics).not.toContain("window.visualViewport");
+    expect(metrics).not.toContain("--solaris-keyboard-inset");
+    expect(metrics).not.toContain("--solaris-visual-viewport-height");
+    expect(metrics).not.toContain("data-solaris-keyboard-open");
   });
 
   it("uses one bottom-obstruction contract across public and Organizer chrome", () => {

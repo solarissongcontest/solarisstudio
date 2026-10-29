@@ -1,4 +1,51 @@
 (function () {
+  const documentRoot = document.documentElement;
+  const nav = navigator;
+  const iosDevice =
+    /iPad|iPhone|iPod/i.test(nav.userAgent) ||
+    (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1);
+  const standalone =
+    nav.standalone === true ||
+    window.matchMedia?.('(display-mode: standalone)').matches === true;
+  documentRoot.toggleAttribute('data-terraos-ios-standalone', iosDevice && standalone);
+
+  // Maintenance is a static emergency shell, so it cannot consume the React
+  // app's safe-area token directly. It still gets one canonical resolver for
+  // every semantic top-chrome surface instead of letting the product bar,
+  // Story View and Confirmation anchor invent independent status-bar offsets.
+  const safeZoneStyle = document.createElement('style');
+  safeZoneStyle.setAttribute('data-terraos-safe-zone', 'canonical');
+  safeZoneStyle.textContent = `
+    :root {
+      --terra-system-safe-top: env(safe-area-inset-top, 0px);
+      --terra-safe-content-gap: .25rem;
+      --terra-safe-content-top: calc(var(--terra-system-safe-top) + var(--terra-safe-content-gap));
+      --terra-top-obstruction: calc(var(--terra-safe-content-top) + 4.5rem);
+    }
+    html[data-terraos-ios-standalone] {
+      --terra-system-safe-top: max(env(safe-area-inset-top, 0px), 3.875rem);
+    }
+    @media (orientation: landscape) {
+      html[data-terraos-ios-standalone] {
+        --terra-system-safe-top: env(safe-area-inset-top, 0px);
+      }
+    }
+    .product-bar {
+      top: var(--terra-safe-content-top) !important;
+    }
+    .story-view-header {
+      padding-top: max(.55rem, var(--terra-safe-content-top)) !important;
+    }
+    #overview,
+    #experience,
+    #confirmation-access,
+    [data-confirmation-host],
+    .story-view-layer :where(a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])) {
+      scroll-margin-block-start: var(--terra-top-obstruction);
+    }
+  `;
+  document.head.appendChild(safeZoneStyle);
+
   const root = document.querySelector('[data-solaris-maintenance="true"]');
   const portal = document.querySelector('.hod-portal');
   const confirmationHost = document.querySelector('[data-confirmation-host]');

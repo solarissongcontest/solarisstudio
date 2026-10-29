@@ -22,6 +22,7 @@ import {
   resolveTabDragTargetIndex,
 } from "@/lib/interaction-physics";
 import {
+  isV3BrowserEdgeGestureStart,
   resolveV3LogicalHorizontalDelta,
   type V3LayoutDirection,
 } from "@/lib/v3-navigation-gesture";
@@ -157,7 +158,16 @@ export function OrganizerV6TabBar({
 
   useEffect(
     () => () => {
-      document.documentElement.style.setProperty("--solaris-bottom-obstruction", "0px");
+      window.requestAnimationFrame(() => {
+        if (
+          document.querySelector(
+            "[data-v3-organizer-tabbar], [data-v3-liquid-tabbar], .solaris-app-tabbar",
+          )
+        ) {
+          return;
+        }
+        document.documentElement.style.setProperty("--solaris-bottom-obstruction", "0px");
+      });
     },
     [],
   );
@@ -257,6 +267,11 @@ export function OrganizerV6TabBar({
       collapsed ||
       prefersReducedMotion() ||
       document.documentElement.hasAttribute("data-solaris-keyboard-open") ||
+      document.documentElement.hasAttribute("data-solaris-feature-overlay-open") ||
+      isV3BrowserEdgeGestureStart({
+        clientX: event.clientX,
+        viewportWidth: window.visualViewport?.width ?? window.innerWidth,
+      }) ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) {
       return;
@@ -423,9 +438,13 @@ export function OrganizerV6TabBar({
     <nav
       ref={barRef}
       className="admin-mobile-nav fixed inset-x-0 bottom-0 z-[var(--solaris-z-tabbar)] px-2"
-      style={{ paddingBottom: "max(.45rem, env(safe-area-inset-bottom))" }}
+      style={{
+        paddingBottom:
+          "max(.45rem, var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px)))",
+      }}
       aria-label="Organizer navigation"
       data-v6-organizer-tabbar=""
+      data-v3-organizer-tabbar=""
       data-mode={mode}
       data-collapsed={compact ? "true" : "false"}
       data-layout-direction={layoutDirection}
@@ -439,7 +458,7 @@ export function OrganizerV6TabBar({
           "relative mx-auto grid max-w-xl overflow-hidden rounded-[1.45rem] border border-white/[0.14]",
           "bg-[#06101f]/80 p-[.375rem] shadow-[0_12px_34px_rgba(0,0,0,.2)] backdrop-blur-2xl",
           "transition-[height,border-radius,transform] duration-200 ease-out motion-reduce:transition-none",
-          compact ? "h-[3.35rem]" : "h-[4.7rem]",
+          compact ? "h-[3.5rem]" : "h-[4.7rem]",
           held && "scale-x-[1.01] scale-y-[1.025]",
         )}
         style={
@@ -463,7 +482,7 @@ export function OrganizerV6TabBar({
             className={cn(
               "v6-organizer-tabbar__lens pointer-events-none absolute left-[.375rem] top-1/2 z-[1] rounded-[1rem] bg-white/[0.075]",
               "transition-transform duration-200 ease-out motion-reduce:transition-none",
-              compact ? "h-[2.55rem]" : "h-[3.7rem]",
+              compact ? "h-[2.75rem]" : "h-[3.7rem]",
               dragging && "transition-none",
             )}
             style={indicatorStyle}
@@ -495,7 +514,7 @@ export function OrganizerV6TabBar({
             </>
           );
           const tabClassName = cn(
-            "relative z-[2] flex min-w-0 items-center justify-center rounded-[1rem] px-1",
+            "relative z-[2] flex min-h-[44px] min-w-0 items-center justify-center rounded-[1rem] px-1",
             "text-[11px] font-semibold transition-[color,transform] duration-150",
             "active:scale-[0.96] motion-reduce:active:scale-100",
             compact ? "flex-row" : "flex-col gap-1",

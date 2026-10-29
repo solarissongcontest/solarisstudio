@@ -1,0 +1,182 @@
+/* Canonical system-top exclusion contract -----------------------------------
+   Background material may remain edge-to-edge, but semantic/interactive chrome
+   begins only after this shared boundary. Route components must not invent
+   their own status-bar padding. */
+
+:root {
+  --solaris-ios-standalone-min-top: 3.875rem;
+  --solaris-system-safe-top: var(--solaris-safe-top, env(safe-area-inset-top, 0px));
+  --solaris-safe-content-gap: 0.25rem;
+  --solaris-safe-content-top: calc(
+    var(--solaris-system-safe-top) + var(--solaris-safe-content-gap)
+  );
+}
+
+/* The older installed-app stylesheet still names its safe-area tokens with an
+   app-specific prefix. Bridge those names here with higher specificity so they
+   cannot become a second platform resolver while legacy transition surfaces are
+   still mounted. */
+html:root {
+  --solaris-app-safe-top: var(--solaris-safe-top, env(safe-area-inset-top, 0px));
+  --solaris-app-safe-right: var(--solaris-safe-right, env(safe-area-inset-right, 0px));
+  --solaris-app-safe-bottom: var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px));
+  --solaris-app-safe-left: var(--solaris-safe-left, env(safe-area-inset-left, 0px));
+}
+
+/* Protect the first semantic paint before React effects can publish the runtime
+   marker. `-webkit-touch-callout` narrows this to iOS-class WebKit, while the
+   standalone + phone-portrait media query avoids inventing a giant top moat on
+   browser tabs, landscape, Android or iPad/tablet layouts. */
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) and (orientation: portrait) and (max-width: 767px) {
+    :root {
+      --solaris-system-safe-top: max(
+        var(--solaris-safe-top, env(safe-area-inset-top, 0px)),
+        var(--solaris-ios-standalone-min-top)
+      );
+    }
+  }
+}
+
+/* Runtime detection reinforces the same boundary after hydration/resume. iOS
+   standalone has historically produced transient/suspiciously-small safe
+   values around phone launch/resume. Tablets keep their reported inset. */
+@media (orientation: portrait) and (max-width: 767px) {
+  html[data-solaris-ios-standalone] {
+    --solaris-system-safe-top: max(
+      var(--solaris-safe-top, env(safe-area-inset-top, 0px)),
+      var(--solaris-ios-standalone-min-top)
+    );
+  }
+}
+
+/* Installed/native app chrome consumes the same semantic boundary regardless
+   of whether the platform reports itself through display-mode or a native
+   wrapper. That keeps app-mode behavior aligned instead of making CSS media
+   queries a second runtime authority. */
+html[data-solaris-app] .solaris-app-toolbar {
+  padding-top: var(--solaris-safe-content-top);
+}
+
+html[data-solaris-app] .solaris-app-toolbar-inner {
+  padding-inline:
+    max(.75rem, var(--solaris-safe-left, env(safe-area-inset-left, 0px)))
+    max(.75rem, var(--solaris-safe-right, env(safe-area-inset-right, 0px)));
+}
+
+html[data-solaris-app] .solaris-app-offline {
+  top: calc(
+    var(--solaris-safe-content-top) + var(--solaris-app-toolbar-height) + 0.45rem
+  );
+}
+
+html .solaris-install-prompt {
+  bottom: calc(
+    5.9rem +
+    max(.55rem, var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px)))
+  );
+}
+
+@media (min-width: 900px) {
+  html[data-solaris-app] .solaris-app-tabbar {
+    top: calc(
+      var(--solaris-safe-content-top) + var(--solaris-app-toolbar-height) + 1rem
+    );
+    left: max(.8rem, var(--solaris-safe-left, env(safe-area-inset-left, 0px)));
+  }
+}
+
+/* Organizer is a separate perspective, not a separate status-bar universe.
+   The shared toolbar remains sticky at the physical top, while its semantic
+   controls begin below the exact same protected content boundary as Public. */
+[data-solaris-organizer-toolbar] {
+  padding-top: var(--solaris-safe-content-top);
+}
+
+[data-solaris-organizer-toolbar] > div {
+  padding-inline:
+    max(1rem, var(--solaris-safe-left, env(safe-area-inset-left, 0px)))
+    max(1rem, var(--solaris-safe-right, env(safe-area-inset-right, 0px))) !important;
+}
+
+/* Browser-mode chrome is still semantic Solaris UI. Keep the sticky global
+   header, mobile drawer, quick navigation and responsive section navigation on
+   the same platform boundary. These overrides deliberately live here rather
+   than in route components so safe-area logic cannot fragment again. */
+html:not([data-solaris-app]) .site-nav {
+  padding-top: var(--solaris-safe-content-top);
+}
+
+html:not([data-solaris-app]) .site-nav > div {
+  padding-inline:
+    max(.75rem, var(--solaris-safe-left, env(safe-area-inset-left, 0px)))
+    max(.75rem, var(--solaris-safe-right, env(safe-area-inset-right, 0px)));
+}
+
+html:not([data-solaris-app]) .app-main {
+  padding-bottom: calc(
+    6.5rem + var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px))
+  ) !important;
+}
+
+@media (min-width: 640px) {
+  [data-solaris-organizer-toolbar] > div,
+  html:not([data-solaris-app]) .site-nav > div {
+    padding-inline:
+      max(1.25rem, var(--solaris-safe-left, env(safe-area-inset-left, 0px)))
+      max(1.25rem, var(--solaris-safe-right, env(safe-area-inset-right, 0px))) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  [data-solaris-organizer-toolbar] > div,
+  html:not([data-solaris-app]) .site-nav > div {
+    padding-inline:
+      max(1.5rem, var(--solaris-safe-left, env(safe-area-inset-left, 0px)))
+      max(1.5rem, var(--solaris-safe-right, env(safe-area-inset-right, 0px))) !important;
+  }
+}
+
+@media (min-width: 1536px) {
+  html:not([data-solaris-app]) .site-nav > div {
+    padding-inline:
+      max(2.5rem, var(--solaris-safe-left, env(safe-area-inset-left, 0px)))
+      max(2.5rem, var(--solaris-safe-right, env(safe-area-inset-right, 0px))) !important;
+  }
+}
+
+@media (max-width: 899px) {
+  html:not([data-solaris-app]) .public-drawer > :first-child {
+    padding-top: max(1rem, var(--solaris-safe-content-top)) !important;
+  }
+
+  html:not([data-solaris-app]) .public-drawer > :last-child {
+    padding-bottom: max(1rem, var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
+  }
+
+  html:not([data-solaris-app]) .mobile-quick-nav {
+    padding-bottom: max(.4rem, var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  html:not([data-solaris-app]) .public-site-sidebar {
+    top: calc(4.35rem + var(--solaris-system-safe-top)) !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  html:not([data-solaris-app]) .public-site-sidebar {
+    top: calc(5rem + var(--solaris-system-safe-top)) !important;
+    max-height: calc(100vh - 6rem - var(--solaris-system-safe-top)) !important;
+  }
+
+  html:not([data-solaris-app]) :is(
+    .participation-service-nav,
+    .my-solaris-section-nav,
+    .public-site-content > .responsive-tabs,
+    .public-site-content .directory-page-filter
+  ) {
+    top: calc(5rem + var(--solaris-system-safe-top)) !important;
+  }
+}

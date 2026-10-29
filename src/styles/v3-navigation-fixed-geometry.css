@@ -5,9 +5,9 @@
  * aligned with v3-navigation-geometry.ts, rather than rem.
  */
 [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
-  left: max(11px, env(safe-area-inset-left));
-  right: max(11px, env(safe-area-inset-right));
-  bottom: calc(env(safe-area-inset-bottom) + 7px);
+  left: max(11px, var(--solaris-safe-left, env(safe-area-inset-left, 0px)));
+  right: max(11px, var(--solaris-safe-right, env(safe-area-inset-right, 0px)));
+  bottom: calc(var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px)) + 7px);
   width: min(calc(100% - 22px), 544px);
 }
 
@@ -79,7 +79,14 @@
 }
 
 [data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__material {
-  width: min(324px, calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+  width: min(
+    324px,
+    calc(
+      100vw - 32px -
+      var(--solaris-safe-left, env(safe-area-inset-left, 0px)) -
+      var(--solaris-safe-right, env(safe-area-inset-right, 0px))
+    )
+  );
   height: 57px;
   border-radius: 28px;
 }
@@ -103,13 +110,15 @@
 }
 
 html[data-solaris-keyboard-open] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
-  transform: translateY(calc(100% + env(safe-area-inset-bottom) + 32px));
+  transform: translateY(
+    calc(100% + var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px)) + 32px)
+  );
 }
 
 @media (max-width: 374px) {
   [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
-    left: max(7px, env(safe-area-inset-left));
-    right: max(7px, env(safe-area-inset-right));
+    left: max(7px, var(--solaris-safe-left, env(safe-area-inset-left, 0px)));
+    right: max(7px, var(--solaris-safe-right, env(safe-area-inset-right, 0px)));
     width: min(calc(100% - 14px), 544px);
   }
 

@@ -1,52 +1,46 @@
 import { useEffect } from "react";
 
+import "@/styles/app-safe-zone.css";
+
+type IOSStandaloneNavigator = Navigator & {
+  standalone?: boolean;
+};
+
+function isIOSStandalonePwa() {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+  const nav = navigator as IOSStandaloneNavigator;
+  const iosDevice =
+    /iPad|iPhone|iPod/i.test(nav.userAgent) ||
+    (nav.platform === "MacIntel" && nav.maxTouchPoints > 1);
+  const standalone =
+    nav.standalone === true ||
+    window.matchMedia?.("(display-mode: standalone)").matches === true;
+  return iosDevice && standalone;
+}
+
 /**
- * Shared V6 viewport and keyboard metrics.
+ * Shared safe-area aliases for persistent Solaris chrome.
  *
- * Public, Participant and Organizer surfaces consume the same root variables.
- * Pages never guess keyboard height or attach their own visualViewport policy.
+ * AppRuntime -> createAppViewportController is the single authoritative owner
+ * of VisualViewport measurements, keyboard inset and keyboard-open state.
+ * Keeping this component limited to safe-area aliases prevents two independent
+ * listeners from racing to write the same root chrome state.
  */
 export function AppChromeMetrics() {
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty("--solaris-safe-top", "env(safe-area-inset-top)");
-    root.style.setProperty("--solaris-safe-right", "env(safe-area-inset-right)");
-    root.style.setProperty("--solaris-safe-bottom", "env(safe-area-inset-bottom)");
-    root.style.setProperty("--solaris-safe-left", "env(safe-area-inset-left)");
-
-    const sync = () => {
-      const viewport = window.visualViewport;
-      const visualHeight = viewport?.height ?? window.innerHeight;
-      const visualOffsetTop = viewport?.offsetTop ?? 0;
-      const rawKeyboardInset = Math.max(
-        0,
-        window.innerHeight - visualHeight - visualOffsetTop,
-      );
-      const keyboardInset = rawKeyboardInset >= 100 ? rawKeyboardInset : 0;
-
-      root.style.setProperty("--solaris-visual-viewport-height", `${visualHeight}px`);
-      root.style.setProperty("--solaris-keyboard-inset", `${Math.ceil(keyboardInset)}px`);
-      root.toggleAttribute("data-solaris-keyboard-open", keyboardInset > 0);
-    };
-
-    sync();
-    window.addEventListener("resize", sync);
-    window.addEventListener("orientationchange", sync);
-    window.visualViewport?.addEventListener("resize", sync);
-    window.visualViewport?.addEventListener("scroll", sync);
+    root.style.setProperty("--solaris-safe-top", "env(safe-area-inset-top, 0px)");
+    root.style.setProperty("--solaris-safe-right", "env(safe-area-inset-right, 0px)");
+    root.style.setProperty("--solaris-safe-bottom", "env(safe-area-inset-bottom, 0px)");
+    root.style.setProperty("--solaris-safe-left", "env(safe-area-inset-left, 0px)");
+    root.toggleAttribute("data-solaris-ios-standalone", isIOSStandalonePwa());
 
     return () => {
-      window.removeEventListener("resize", sync);
-      window.removeEventListener("orientationchange", sync);
-      window.visualViewport?.removeEventListener("resize", sync);
-      window.visualViewport?.removeEventListener("scroll", sync);
-      root.style.removeProperty("--solaris-visual-viewport-height");
-      root.style.removeProperty("--solaris-keyboard-inset");
       root.style.removeProperty("--solaris-safe-top");
       root.style.removeProperty("--solaris-safe-right");
       root.style.removeProperty("--solaris-safe-bottom");
       root.style.removeProperty("--solaris-safe-left");
-      root.removeAttribute("data-solaris-keyboard-open");
+      root.removeAttribute("data-solaris-ios-standalone");
     };
   }, []);
 

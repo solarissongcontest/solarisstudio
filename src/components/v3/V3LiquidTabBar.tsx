@@ -22,6 +22,7 @@ import {
   resolveTabDragTargetIndex,
 } from "@/lib/interaction-physics";
 import {
+  isV3BrowserEdgeGestureStart,
   resolveV3LogicalHorizontalDelta,
   type V3LayoutDirection,
 } from "@/lib/v3-navigation-gesture";
@@ -140,6 +141,7 @@ export function V3LiquidTabBar({
       syncDirection();
       if (
         !bar ||
+        bar.getClientRects().length === 0 ||
         window.innerWidth >= 1024 ||
         root.hasAttribute("data-solaris-keyboard-open")
       ) {
@@ -177,9 +179,16 @@ export function V3LiquidTabBar({
   useEffect(
     () => () => {
       window.requestAnimationFrame(() => {
-        if (document.querySelector("[data-v3-liquid-tabbar]")) return;
         const root = document.documentElement;
-        root.style.removeProperty("--v3-bottom-obstruction");
+        const nextV3Owner = document.querySelector("[data-v3-liquid-tabbar]");
+        if (!nextV3Owner) root.style.removeProperty("--v3-bottom-obstruction");
+        if (
+          document.querySelector(
+            "[data-v3-liquid-tabbar], [data-v3-organizer-tabbar], .solaris-app-tabbar",
+          )
+        ) {
+          return;
+        }
         root.style.setProperty("--solaris-bottom-obstruction", "0px");
       });
     },
@@ -224,7 +233,7 @@ export function V3LiquidTabBar({
           drag.captureTarget.releasePointerCapture?.(drag.pointerId);
         }
       } catch {
-        // Browser may already have released pointer capture.
+        // Pointer capture may already have released pointer capture.
       }
       for (const icon of drag.tabIcons) {
         icon.style.removeProperty("opacity");
@@ -314,6 +323,11 @@ export function V3LiquidTabBar({
       collapsed ||
       prefersReducedMotion() ||
       document.documentElement.hasAttribute("data-solaris-keyboard-open") ||
+      document.documentElement.hasAttribute("data-solaris-feature-overlay-open") ||
+      isV3BrowserEdgeGestureStart({
+        clientX: event.clientX,
+        viewportWidth: window.visualViewport?.width ?? window.innerWidth,
+      }) ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) {
       return;
