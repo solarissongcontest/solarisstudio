@@ -157,7 +157,16 @@ export function OrganizerV6TabBar({
 
   useEffect(
     () => () => {
-      document.documentElement.style.setProperty("--solaris-bottom-obstruction", "0px");
+      window.requestAnimationFrame(() => {
+        if (
+          document.querySelector(
+            "[data-v3-organizer-tabbar], [data-v3-liquid-tabbar], .solaris-app-tabbar",
+          )
+        ) {
+          return;
+        }
+        document.documentElement.style.setProperty("--solaris-bottom-obstruction", "0px");
+      });
     },
     [],
   );
@@ -257,6 +266,7 @@ export function OrganizerV6TabBar({
       collapsed ||
       prefersReducedMotion() ||
       document.documentElement.hasAttribute("data-solaris-keyboard-open") ||
+      document.documentElement.hasAttribute("data-solaris-feature-overlay-open") ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) {
       return;
@@ -423,9 +433,13 @@ export function OrganizerV6TabBar({
     <nav
       ref={barRef}
       className="admin-mobile-nav fixed inset-x-0 bottom-0 z-[var(--solaris-z-tabbar)] px-2"
-      style={{ paddingBottom: "max(.45rem, env(safe-area-inset-bottom))" }}
+      style={{
+        paddingBottom:
+          "max(.45rem, var(--solaris-safe-bottom, env(safe-area-inset-bottom, 0px)))",
+      }}
       aria-label="Organizer navigation"
       data-v6-organizer-tabbar=""
+      data-v3-organizer-tabbar=""
       data-mode={mode}
       data-collapsed={compact ? "true" : "false"}
       data-layout-direction={layoutDirection}
