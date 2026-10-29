@@ -11,6 +11,11 @@ const canonicalSubmit = readFileSync(
   "utf8",
 ).toLowerCase();
 
+const restoredDependencies = readFileSync(
+  "supabase/migrations/20261015183200_v3_confirmation_submit_runtime_dependencies_restore.sql",
+  "utf8",
+).toLowerCase();
+
 describe("V3 S16 Confirmation derived-trigger authority", () => {
   it("replaces recovery-code trigger mutation with a private column default", () => {
     expect(hardening).toContain(
@@ -52,6 +57,15 @@ describe("V3 S16 Confirmation derived-trigger authority", () => {
     );
   });
 
+  it("retires the unused round-stats trigger without weakening round availability", () => {
+    expect(hardening).toContain("drop trigger if exists submissions_stats_trg");
+    expect(hardening).toContain("drop function if exists public.sync_round_stats()");
+
+    expect(restoredDependencies).toContain(
+      "select count(*) into cnt from public.submissions where round_id = r.id",
+    );
+  });
+
   it("carries executable replay-time proof for attachment and privilege drift", () => {
     expect(hardening).toContain("from pg_trigger trigger_row");
     expect(hardening).toContain(
@@ -59,6 +73,9 @@ describe("V3 S16 Confirmation derived-trigger authority", () => {
     );
     expect(hardening).toContain(
       "to_regprocedure('public.register_submission_browser()') is not null",
+    );
+    expect(hardening).toContain(
+      "to_regprocedure('public.sync_round_stats()') is not null",
     );
     expect(hardening).toContain(
       "has_function_privilege('service_role', 'public.generate_recovery_code()', 'execute')",
