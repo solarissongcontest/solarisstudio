@@ -23,6 +23,13 @@ type RoundMutationEnvelope = {
   idempotencyKey?: string;
 };
 
+async function requireVotingCapability(capability: "voting.read" | "voting.manage") {
+  const { requireSolarisCapabilityServer } = await import(
+    "@/integrations/supabase/capabilities.server"
+  );
+  await requireSolarisCapabilityServer(capability);
+}
+
 function cleanOptionalText(value: unknown, maxLength: number) {
   const text = String(value ?? "").trim();
   if (!text) return null;
@@ -61,6 +68,7 @@ export const getMergedRoundEntries = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
+    await requireVotingCapability("voting.read");
     const { getMergedRoundEntriesServer } = await import(
       "@/integrations/televoting/entries.server"
     );
@@ -76,6 +84,7 @@ export const saveMergedRoundCountries = createServerFn({ method: "POST" })
     return envelope({ ...data, countryCodes: clean });
   })
   .handler(async ({ data }) => {
+    await requireVotingCapability("voting.manage");
     const { saveMergedRoundCountriesServer } = await import(
       "@/integrations/televoting/entries.server"
     );
@@ -107,6 +116,7 @@ export const saveMergedCustomRoundEntry = createServerFn({ method: "POST" })
     });
   })
   .handler(async ({ data }) => {
+    await requireVotingCapability("voting.manage");
     const { saveMergedCustomRoundEntryServer } = await import(
       "@/integrations/televoting/entries.server"
     );
@@ -119,6 +129,7 @@ export const deleteMergedCustomRoundEntry = createServerFn({ method: "POST" })
     return envelope(data);
   })
   .handler(async ({ data }) => {
+    await requireVotingCapability("voting.manage");
     const { deleteMergedCustomRoundEntryServer } = await import(
       "@/integrations/televoting/entries.server"
     );
@@ -132,6 +143,7 @@ export const reorderMergedRoundEntries = createServerFn({ method: "POST" })
     return envelope(data);
   })
   .handler(async ({ data }) => {
+    await requireVotingCapability("voting.manage");
     const { reorderMergedRoundEntriesServer } = await import(
       "@/integrations/televoting/entries.server"
     );
@@ -148,6 +160,7 @@ export const setMergedRoundSelfVotingMode = createServerFn({ method: "POST" })
     return envelope(data);
   })
   .handler(async ({ data }) => {
+    await requireVotingCapability("voting.manage");
     const { setMergedRoundSelfVotingModeServer } = await import(
       "@/integrations/televoting/entries.server"
     );
