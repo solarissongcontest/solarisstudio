@@ -21,12 +21,33 @@ export const getMergedTelevotingOverview = createServerFn({ method: "POST" })
     editionId: data?.editionId ? String(data.editionId) : null,
   }))
   .handler(async ({ data }) => {
-    const [{ requireMergedTelevotingAdminServer }, { televotingAdmin }] = await Promise.all([
-      import("@/integrations/televoting/admin-session.server"),
-      import("@/integrations/televoting/client.server"),
-    ]);
+    const {
+      createSolarisAuthenticatedClientServer,
+      requireSolarisOrganizerServer,
+    } = await import("@/integrations/supabase/organizer.server");
 
-    await requireMergedTelevotingAdminServer();
+    await requireSolarisOrganizerServer();
+    const caller = createSolarisAuthenticatedClientServer();
+    const { data: allowed, error: authorizationError } = await (caller as any).rpc(
+      "studio2_access_allowed",
+      {
+        p_capability: "voting.read",
+        p_edition_id: data.editionId,
+        p_strict_before_cutover: false,
+      },
+    );
+    if (authorizationError) {
+      throw new Error("Could not verify Solaris capability: voting.read");
+    }
+    if (allowed !== true) {
+      throw new Error("Missing Solaris capability: voting.read");
+    }
+
+    // Load the privileged Televoting client only after the caller has proved
+    // the same named capability that owns /televoting/admin navigation.
+    const { televotingAdmin } = await import(
+      "@/integrations/televoting/client.server"
+    );
 
     // One database round trip keeps the Cloudflare Worker comfortably below
     // its subrequest ceiling and makes the overview follow Organizer edition
