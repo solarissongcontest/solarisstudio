@@ -34,6 +34,7 @@ describe("V3 Edition Songs collection", () => {
     expect(source).toContain("entry.href");
     expect(source).toContain("entry.flagImage");
     expect(source).toContain("entry.name");
+    expect(source).toContain("min-h-11");
   });
 
   it("surfaces only already-published official result context", () => {
@@ -59,11 +60,25 @@ describe("V3 Edition Songs collection", () => {
     expect(source).not.toContain("sessionStorage");
   });
 
-  it("connects to first-class music discovery without pretending Edition text is durable Song identity", () => {
+  it("does not let the protected or local-reveal view bypass the global spoiler preference through music discovery", () => {
     const source = screen();
+    const protectedStart = source.indexOf("function ProtectedSongs(");
+    const productStart = source.indexOf("export function V3EditionSongsScreen");
+    const protectedSource = source.slice(protectedStart, productStart);
+
+    expect(protectedStart).toBeGreaterThanOrEqual(0);
+    expect(productStart).toBeGreaterThan(protectedStart);
+    expect(protectedSource).not.toContain('to="/music"');
+    expect(source).toContain("!hideSpoilers ? (");
     expect(source).toContain('to="/music"');
+    expect(source).toContain("broader music discovery stays outside this local reveal");
+  });
+
+  it("connects to first-class music discovery when spoiler protection is not active", () => {
+    const source = screen();
     expect(source).toContain('title="Songs & artists"');
     expect(source).toContain("first-class publication-safe music discovery surface");
+    expect(source).toContain('to="/music"');
   });
 
   it("does not invent media or add a second publication/fetch boundary", () => {
