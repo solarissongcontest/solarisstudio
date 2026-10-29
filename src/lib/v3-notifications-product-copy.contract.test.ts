@@ -20,12 +20,20 @@ describe("V3 Notifications product-copy contract", () => {
 
   it("retains clear user destinations for work, notices and preferences", () => {
     expect(notifications).toContain('title="Needs attention"');
-    expect(notifications).toContain('title="Latest official messages"');
+    expect(notifications).toContain('title="Official messages"');
     expect(notifications).toContain('title="Delivery"');
     expect(notifications).toContain('title="Required work"');
     expect(notifications).toContain('to="/participate"');
     expect(notifications).toContain('to="/my-solaris/notices"');
     expect(notifications).toContain('to="/settings"');
+  });
+
+  it("uses one bounded chronological list instead of a card per message", () => {
+    expect(notifications).toContain(".slice(0, 8)");
+    expect(notifications).toContain('data-v3-notification-list=""');
+    expect(notifications).toContain('data-v3-notification-row=""');
+    expect(notifications).toContain("divide-y divide-[var(--v3-border-subtle)]");
+    expect(notifications).not.toContain("latest.map");
   });
 
   it("formats notice timestamps deterministically without browser-default locale authority", () => {
