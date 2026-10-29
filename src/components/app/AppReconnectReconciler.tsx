@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { APP_CONNECTIVITY_RECOVERED_EVENT } from "@/lib/app-connectivity";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
@@ -10,19 +11,22 @@ export function AppReconnectReconciler() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { pathname } = useHydrationSafeRouterLocation();
+  const { isAppMode } = useSolarisApp();
   const [showRecovered, setShowRecovered] = useState(false);
   const recoveredTimer = useRef<number | null>(null);
 
   useEffect(() => {
     const onRecovered = () => {
-      setShowRecovered(true);
-      if (recoveredTimer.current !== null) {
-        window.clearTimeout(recoveredTimer.current);
+      if (isAppMode) {
+        setShowRecovered(true);
+        if (recoveredTimer.current !== null) {
+          window.clearTimeout(recoveredTimer.current);
+        }
+        recoveredTimer.current = window.setTimeout(() => {
+          recoveredTimer.current = null;
+          setShowRecovered(false);
+        }, 2600);
       }
-      recoveredTimer.current = window.setTimeout(() => {
-        recoveredTimer.current = null;
-        setShowRecovered(false);
-      }, 2600);
 
       const chrome = resolveAppRouteChrome(pathname);
 
@@ -44,9 +48,9 @@ export function AppReconnectReconciler() {
         recoveredTimer.current = null;
       }
     };
-  }, [pathname, queryClient, router]);
+  }, [isAppMode, pathname, queryClient, router]);
 
-  if (!showRecovered) return null;
+  if (!isAppMode || !showRecovered) return null;
 
   return (
     <div
