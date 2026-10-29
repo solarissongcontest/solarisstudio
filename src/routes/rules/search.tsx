@@ -27,24 +27,31 @@ function RuleSearchPage() {
 
   return (
     <RulesRouteShell resolvingTitle="Opening Rule search">
-      <div className="mx-auto max-w-5xl pb-20">
+      <div className="mx-auto max-w-5xl pb-20" data-v3-rules-search="">
         <header className="border-b border-border/65 pb-5">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">Rules</p>
           <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">Search</h1>
-          <form action="/rules/search" className="mt-4 flex min-h-12 items-center gap-2 rounded-2xl border border-border bg-surface/55 px-3">
-            <Search className="size-4.5 text-primary" />
+        </header>
+
+        <div
+          className="sticky top-[calc(4.35rem+env(safe-area-inset-top))] z-20 -mx-2 mt-3 border-b border-border/55 bg-background/92 px-2 py-3 backdrop-blur-xl"
+          data-v3-rules-search-sticky=""
+        >
+          <form action="/rules/search" className="flex min-h-12 items-center gap-2 rounded-2xl border border-border bg-surface/90 px-3 shadow-sm">
+            <Search className="size-4.5 shrink-0 text-primary" aria-hidden="true" />
             <input
               name="q"
               defaultValue={q}
               aria-label="Search rules"
               placeholder="Ask about a rule…"
-              className="min-h-10 min-w-0 flex-1 bg-transparent text-sm outline-none"
+              className="min-h-10 min-w-0 flex-1 bg-transparent text-base outline-none sm:text-sm"
+              enterKeyHint="search"
             />
-            <button type="submit" className="min-h-9 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground">
+            <button type="submit" className="min-h-9 shrink-0 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground">
               Search
             </button>
           </form>
-        </header>
+        </div>
 
         {answer ? (
           <section className="mt-6 border-l-2 border-primary/35 pl-4" aria-labelledby="best-rule-answer">
@@ -67,7 +74,7 @@ function RuleSearchPage() {
           </section>
         ) : null}
 
-        <section className="mt-7" aria-labelledby="rule-search-results">
+        <section className="mt-7 scroll-mt-36" aria-labelledby="rule-search-results">
           <div className="flex items-end justify-between gap-3 border-b border-border/65 pb-3">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">Official rulebook</p>
@@ -84,22 +91,29 @@ function RuleSearchPage() {
                   key={rule.id}
                   to="/rules/$ruleId"
                   params={{ ruleId: rule.id }}
-                  className="flex min-h-20 items-center gap-3 py-4"
+                  className="flex min-h-20 items-center gap-3 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
                 >
                   <span className="w-12 shrink-0 font-mono text-xs font-black text-primary">{rule.id}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold">{rule.title}</span>
                     <span className="mt-1 block text-xs leading-5 text-muted-foreground">{rule.summary}</span>
                   </span>
-                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 </Link>
               ))}
             </div>
           ) : q.trim() ? (
-            <p className="py-8 text-sm leading-6 text-muted-foreground">
-              No official rule matched that phrase. Try broader words such as confirmation, deadline, Eurovision, voting, friendship, privacy or appeal.
+            <div className="py-8" role="status">
+              <p className="text-sm font-semibold">No official rule matched “{q}”.</p>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Try a broader rule topic such as confirmation, deadline, voting, friendship, privacy or appeal. No result is inferred from an approximate match.
+              </p>
+            </div>
+          ) : (
+            <p className="py-8 text-sm leading-6 text-muted-foreground" role="status">
+              Search by rule number, topic or question. Results come from the current published rulebook index.
             </p>
-          ) : null}
+          )}
         </section>
       </div>
     </RulesRouteShell>
