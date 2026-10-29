@@ -64,7 +64,7 @@ request() {
   local output
   output="$(mktemp)"
   local args=(
-    -sS -o "$output" -w '%{http_code}' -X "$method" "$url"
+    --connect-timeout 3 --max-time "${REQUEST_TIMEOUT:-30}" -sS -o "$output" -w '%{http_code}' -X "$method" "$url"
     -H "apikey: $api_key"
     -H "Authorization: Bearer $bearer"
   )
@@ -444,17 +444,8 @@ assert_db_eq "invalid evidence uploads create no upload token" "select count(*) 
 # auth.getUser and authorize through caller-scoped RPCs.
 supabase functions serve --no-verify-jwt >/tmp/rules-integrity-functions.log 2>&1 &
 FUNCTION_PID=$!
-FUNCTION_READY=0
-for _ in $(seq 1 120); do
-  request POST "$API_URL/functions/v1/integrity-evidence-download" "$ANON_KEY" "$ANON_KEY" '{}'
-  if [[ "$HTTP_STATUS" != "000" && "$HTTP_STATUS" != 5* ]]; then
-    FUNCTION_READY=1
-    break
-  fi
-  sleep 1
-done
-if [[ "$FUNCTION_READY" != "1" ]]; then
-  tail -n 200 /tmp/rules-integrity-functions.log >&2 || true
+source "$(dirname "${BASH_SOURCE[0]}")/v3-integrity-edge-readiness.sh"
+if ! wait_for_integrity_edge "$FUNCTION_PID" "$API_URL" "$ANON_KEY" /tmp/rules-integrity-functions.log; then
   fail "Local Evidence Edge Functions did not become application-ready"
 fi
 
