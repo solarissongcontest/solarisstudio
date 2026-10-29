@@ -98,7 +98,7 @@ describe("projectV3Participate", () => {
       journey,
     });
 
-    expect(projection.focus).toEqual({ state: "actionable", action: required });
+    expect(projection.focus).toEqual({ state: "blocked", action: blocked });
     expect(projection.needsAttention.map((item) => item.id)).toEqual(["required-jury"]);
     expect(projection.blocked.map((item) => item.id)).toEqual(["entry-changes-locked"]);
     expect(projection.next.map((item) => item.id)).toEqual(["next-entry"]);
@@ -109,7 +109,7 @@ describe("projectV3Participate", () => {
     expect(projection.journeyTotalCount).toBe(2);
   });
 
-  it("keeps a non-actionable problem blocked instead of implying it is the user's Next task", () => {
+  it("keeps a non-actionable blocking problem above another editable responsibility", () => {
     const lockedChanges = action("locked-entry-correction", {
       kind: "entry",
       sourceState: "problem",
@@ -131,8 +131,8 @@ describe("projectV3Participate", () => {
       journey: [],
     });
 
-    expect(projection.focus.action?.id).toBe("editable-entry-correction");
-    expect(projection.focus.state).toBe("actionable");
+    expect(projection.focus.action?.id).toBe("locked-entry-correction");
+    expect(projection.focus.state).toBe("blocked");
     expect(projection.blocked.map((item) => item.id)).toEqual(["locked-entry-correction"]);
     expect(projection.needsAttention.map((item) => item.id)).toEqual(["editable-entry-correction"]);
     expect(projection.next).toEqual([]);
