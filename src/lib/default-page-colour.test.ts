@@ -50,16 +50,19 @@ describe("default page colour system", () => {
     expect(wiki).not.toContain("wandering into a 404");
   });
 
-  it("uses the same premium directory treatment for the country library", () => {
-    const countries = read("src/routes/countries/index.tsx");
-    expect(countries).toContain('className="directory-page-hero countries-library-hero"');
-    expect(countries).toContain("directory-page-filter");
-    expect(countries).toContain("directory-country-card");
+  it("keeps country discovery on the shared V3 surface hierarchy", () => {
+    const route = read("src/routes/countries/index.tsx");
+    const countries = read("src/components/v3/V3CountriesDiscoveryScreen.tsx");
+    expect(route).toContain('className="directory-page-hero countries-library-hero"');
+    expect(countries).toContain("AppSectionHeader");
+    expect(countries).toContain("AppGroupedList");
+    expect(countries).toContain("bg-surface");
+    expect(countries).not.toContain("glass");
   });
 
   it("harmonises the remaining public editorial cards and headers", () => {
     const editions = read("src/routes/editions/index.tsx");
-    const shows = read("src/routes/shows/index.tsx");
+    const shows = read("src/components/v3/V3ShowsDiscoveryScreen.tsx");
     const tools = read("src/routes/tools/index.tsx");
     const guide = read("src/components/GuideFAQ.tsx");
 
@@ -68,7 +71,8 @@ describe("default page colour system", () => {
     expect(editions).toContain("Past editions");
     expect(editions).not.toContain("BackgroundFlag");
     expect(editions).not.toContain("rgba(10,30,58,.97)");
-    expect(shows).toContain("solaris-family-card-overlay");
+    expect(shows).toContain("border-border bg-surface");
+    expect(shows).toContain("ShowStateBadge");
     expect(tools).toContain("solaris-family-card");
     expect(guide).toContain('className="data-panel rounded-2xl p-4 sm:p-5"');
   });
