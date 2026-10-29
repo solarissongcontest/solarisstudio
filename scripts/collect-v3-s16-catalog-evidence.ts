@@ -1,3 +1,4 @@
+import { V3_S16_MECHANISM_TABLES } from "../src/lib/v3-s16-internal-mechanisms";
 import { definitionWritesTable } from "../src/lib/v3-s16-postgres-function-writers";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -49,7 +50,7 @@ function tableEvidence(dbUrl: string, table: string): V3S16CatalogTableEvidence 
         'rlsEnabled', c.relrowsecurity,
         'dmlRoles', coalesce((
           select jsonb_agg(distinct g.grantee order by g.grantee)
-          from information_schema.role_table_grants g
+          from information_schema.table_privileges g
           where g.table_schema = ${s} and g.table_name = ${n}
             and g.privilege_type in ('INSERT','UPDATE','DELETE','TRUNCATE')
         ), '[]'::jsonb),
@@ -71,6 +72,14 @@ function tableEvidence(dbUrl: string, table: string): V3S16CatalogTableEvidence 
           select jsonb_agg(t.tgname order by t.tgname)
           from pg_trigger t
           where t.tgrelid = c.oid and not t.tgisinternal
+        ), '[]'::jsonb),
+        'triggerDefinitions', coalesce((
+          select jsonb_agg(jsonb_build_object(
+            'name', t.tgname, 'functionSignature', pn.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')',
+            'functionOid', p.oid::text, 'type', t.tgtype, 'enabled', t.tgenabled
+          ) order by t.tgname)
+          from pg_trigger t join pg_proc p on p.oid=t.tgfoid join pg_namespace pn on pn.oid=p.pronamespace
+          where t.tgrelid=c.oid and not t.tgisinternal
         ), '[]'::jsonb),
         'updatableViews', coalesce((
           select jsonb_agg(v.table_schema || '.' || v.table_name order by v.table_schema, v.table_name)
@@ -95,6 +104,16 @@ function functionInventory(dbUrl: string): FunctionInventoryRow[] {
     from (
       select jsonb_build_object(
         'name', ns.nspname || '.' || p.proname,
+        'oid', p.oid::text,
+        'signature', ns.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')',
+        'definitionHash', md5(pg_get_functiondef(p.oid)),
+        'returnType', p.prorettype::regtype::text,
+        'callers', coalesce((
+          select jsonb_agg(c.oid::text order by c.oid)
+          from pg_proc c join pg_namespace cn on cn.oid=c.pronamespace
+          where cn.nspname in ('public','private','televoting') and c.prokind='f'
+            and c.prosrc ~ ('\\m' || p.proname || '["]?[[:space:]]*\\(')
+        ), '[]'::jsonb),
         'owner', pg_get_userbyid(p.proowner),
         'securityDefiner', p.prosecdef,
         'searchPath', coalesce((
@@ -119,7 +138,7 @@ function functionInventory(dbUrl: string): FunctionInventoryRow[] {
 
 const sha = candidateSha();
 const dbUrl = databaseUrl();
-const criticalTables = [...new Set(V3_S16_CRITICAL_DOMAINS.flatMap((domain) => domain.canonicalTables))].sort();
+const criticalTables = [...new Set([...V3_S16_CRITICAL_DOMAINS.flatMap((domain) => domain.canonicalTables), ...V3_S16_MECHANISM_TABLES])].sort();
 const tables = criticalTables.flatMap((table) => {
   const evidence = tableEvidence(dbUrl, table);
   return evidence ? [evidence] : [];

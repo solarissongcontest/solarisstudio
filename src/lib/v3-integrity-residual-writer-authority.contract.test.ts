@@ -54,6 +54,6 @@ describe("V3 Integrity residual writer authority", () => {
   });
 
   it("bumps the S16 policy so prior exact-SHA evidence cannot certify the new boundary", () => {
-    expect(registry).toContain('V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-6"');
+    expect(registry).toContain('V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-7"');
   });
 });

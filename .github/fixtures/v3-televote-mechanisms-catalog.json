@@ -1,0 +1,3422 @@
+{
+  "schemaVersion": 1,
+  "candidateSha": "8861dc6eb616beb9bdba98cbfc9fd4c50af45798",
+  "tables": [
+    {
+      "owner": "postgres",
+      "table": "private.v3_televote_result_projection_sources",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": false,
+      "writeTriggers": [],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "payload_fingerprint",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "points_total",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "projection_revision",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "row_count",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "source_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "source_published_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "source_type",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "source_version",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "synced_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "payload_fingerprint",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "points_total",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "projection_revision",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "row_count",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "source_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "source_published_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "source_type",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "source_version",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "synced_at",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": []
+    },
+    {
+      "owner": "postgres",
+      "table": "public.jury_votes",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "jury_votes_entity_edition",
+        "jury_votes_sync_results",
+        "studio2_platform_direct_write_guard",
+        "v3_guard_archived_edition_workflow_write",
+        "v3_guard_jury_vote_object_scope",
+        "v3_s3_validate_jury_vote_ballot_scope"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "ballot_submission_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "points",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "receiving_country_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "receiving_entity_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_country_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_entity_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "ballot_submission_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "points",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "receiving_country_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "receiving_entity_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_country_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_entity_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_id",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "jury_votes_entity_edition",
+          "type": 23,
+          "enabled": "O",
+          "functionOid": "18141",
+          "functionSignature": "public.assert_entity_edition()"
+        },
+        {
+          "name": "jury_votes_sync_results",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "20217",
+          "functionSignature": "public.sync_results_after_vote_change()"
+        },
+        {
+          "name": "studio2_platform_direct_write_guard",
+          "type": 30,
+          "enabled": "O",
+          "functionOid": "23743",
+          "functionSignature": "private.studio2_guard_direct_client_write()"
+        },
+        {
+          "name": "v3_guard_archived_edition_workflow_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25142",
+          "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
+        },
+        {
+          "name": "v3_guard_jury_vote_object_scope",
+          "type": 23,
+          "enabled": "O",
+          "functionOid": "24680",
+          "functionSignature": "private.v3_guard_jury_vote_object_scope()"
+        },
+        {
+          "name": "v3_s3_validate_jury_vote_ballot_scope",
+          "type": 21,
+          "enabled": "O",
+          "functionOid": "24388",
+          "functionSignature": "private.v3_validate_jury_vote_ballot_scope()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "public.studio2_televote_global_versions",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "singleton",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "version",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "singleton",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "version",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": []
+    },
+    {
+      "owner": "postgres",
+      "table": "public.studio2_televote_round_versions",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "round_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "version",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "round_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "version",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": []
+    },
+    {
+      "owner": "postgres",
+      "table": "public.studio2_televote_submission_versions",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "submission_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "version",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "submission_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "version",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": []
+    },
+    {
+      "owner": "postgres",
+      "table": "public.televote_votes",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "studio2_platform_direct_write_guard",
+        "televote_entity_edition",
+        "televote_votes_sync_results",
+        "v3_guard_archived_edition_workflow_write",
+        "v3_guard_source_managed_televote_projection"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "contest_entity_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "country_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "points",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "contest_entity_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "country_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "points",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "studio2_platform_direct_write_guard",
+          "type": 30,
+          "enabled": "O",
+          "functionOid": "23743",
+          "functionSignature": "private.studio2_guard_direct_client_write()"
+        },
+        {
+          "name": "televote_entity_edition",
+          "type": 23,
+          "enabled": "O",
+          "functionOid": "18141",
+          "functionSignature": "public.assert_entity_edition()"
+        },
+        {
+          "name": "televote_votes_sync_results",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "20217",
+          "functionSignature": "public.sync_results_after_vote_change()"
+        },
+        {
+          "name": "v3_guard_archived_edition_workflow_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25142",
+          "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
+        },
+        {
+          "name": "v3_guard_source_managed_televote_projection",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "24830",
+          "functionSignature": "private.v3_guard_source_managed_televote_projection()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "televoting.combined_televote_results",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "televoting_combined_results_updated_at",
+        "v3_guard_archived_televote_write"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "aggregation_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "calculation_version",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "combined_original_rank",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "combined_original_score",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "component_breakdown",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "converted_points",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "country_code",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "decimal_remainder",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "exact_converted_points",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "final_combined_points",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "final_correction",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "final_rank",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "final_televote_score",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "final_tie_break_data",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "floored_points",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "manual_pre_conversion_adjustment",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "participant_count",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "post_conversion_adjustment",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "post_conversion_bonus",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "pre_conversion_total",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_base",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_exponent",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_factor",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "remainder_bonus",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "source_contributions",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "total_activity_points",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "total_voting_points",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "weighted_score",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "aggregation_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "calculation_version",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "combined_original_rank",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "combined_original_score",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "component_breakdown",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "converted_points",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "country_code",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "decimal_remainder",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "exact_converted_points",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "final_combined_points",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "final_correction",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "final_rank",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "final_televote_score",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "final_tie_break_data",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "floored_points",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "manual_pre_conversion_adjustment",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "participant_count",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "post_conversion_adjustment",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "post_conversion_bonus",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "pre_conversion_total",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_base",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_exponent",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_factor",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "remainder_bonus",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "source_contributions",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "total_activity_points",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "total_voting_points",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "weighted_score",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "televoting_combined_results_updated_at",
+          "type": 19,
+          "enabled": "O",
+          "functionOid": "19183",
+          "functionSignature": "televoting.update_updated_at_column()"
+        },
+        {
+          "name": "v3_guard_archived_televote_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25188",
+          "functionSignature": "private.v3_guard_archived_televote_write()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "televoting.external_score_entries",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "televoting_entries_outdated",
+        "televoting_external_entries_updated_at"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "country_code",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "entered_by",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "entry_type",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "reason",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "source_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "value",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "country_code",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "entered_by",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "entry_type",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "reason",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "source_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "value",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "televoting_entries_outdated",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "19587",
+          "functionSignature": "televoting.flag_aggregation_outdated()"
+        },
+        {
+          "name": "televoting_external_entries_updated_at",
+          "type": 19,
+          "enabled": "O",
+          "functionOid": "19183",
+          "functionSignature": "televoting.update_updated_at_column()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "televoting.integrity_action_audit",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "action",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "decision_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "metadata",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "organizer_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "preflight_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "reason",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "sanction_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "submission_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "action",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "decision_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "metadata",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "organizer_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "preflight_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "reason",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "sanction_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "submission_id",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": []
+    },
+    {
+      "owner": "postgres",
+      "table": "televoting.round_countries",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "round_countries_flag_outdated",
+        "v3_guard_archived_televote_write"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "country_code",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "display_order",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "round_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "country_code",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "display_order",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "round_id",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "round_countries_flag_outdated",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "19584",
+          "functionSignature": "televoting.flag_round_results_outdated()"
+        },
+        {
+          "name": "v3_guard_archived_televote_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25188",
+          "functionSignature": "private.v3_guard_archived_televote_write()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "televoting.round_entries",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "round_entries_flag_outdated",
+        "round_entries_normalize_trg",
+        "round_entries_sync_countries_trg",
+        "studio2_televote_entries_touch_round_version",
+        "v3_guard_archived_televote_write"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "country_code",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "custom_name",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "description",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "display_order",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "entry_code",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "entry_key",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "entry_type",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "image_url",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "round_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "short_name",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "subtitle",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "country_code",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "custom_name",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "description",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "display_order",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "entry_code",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "entry_key",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "entry_type",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "image_url",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "round_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "short_name",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "subtitle",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "round_entries_flag_outdated",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "19584",
+          "functionSignature": "televoting.flag_round_results_outdated()"
+        },
+        {
+          "name": "round_entries_normalize_trg",
+          "type": 23,
+          "enabled": "O",
+          "functionOid": "19580",
+          "functionSignature": "televoting.round_entries_normalize()"
+        },
+        {
+          "name": "round_entries_sync_countries_trg",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "19582",
+          "functionSignature": "televoting.round_entries_sync_countries()"
+        },
+        {
+          "name": "studio2_televote_entries_touch_round_version",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "23498",
+          "functionSignature": "private.studio2_touch_televote_round_version()"
+        },
+        {
+          "name": "v3_guard_archived_televote_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25188",
+          "functionSignature": "private.v3_guard_archived_televote_write()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "televoting.rounds",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "studio2_guard_direct_televote_status",
+        "studio2_televote_rounds_touch_global_version",
+        "studio2_televote_rounds_touch_round_version",
+        "televoting_rounds_updated_at",
+        "v3_guard_archived_televote_write",
+        "v3_guard_direct_televote_deadline",
+        "v3_sync_published_televote_round"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "ballot_exponent",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "breadth_exponent",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "breadth_floor",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "broadcast_display_mode",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "calc_participant_codes",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_by",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_by_username",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "calculation_version",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "closed_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "closes_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "name",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "opened_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "participant_mode",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "public_advanced_transparency",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_boost_shape",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_boost_strength",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_exponent",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "results_outdated",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "results_status",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "self_voting_mode",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "status",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "support_exponent",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "televote_engine_version",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "total_points_to_distribute",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "ballot_exponent",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "breadth_exponent",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "breadth_floor",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "broadcast_display_mode",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "calc_participant_codes",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_by",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_by_username",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "calculation_version",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "closed_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "closes_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "name",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "opened_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "participant_mode",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "public_advanced_transparency",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_boost_shape",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_boost_strength",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_exponent",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "results_outdated",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "results_status",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "self_voting_mode",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "status",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "support_exponent",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "televote_engine_version",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "total_points_to_distribute",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "studio2_guard_direct_televote_status",
+          "type": 19,
+          "enabled": "O",
+          "functionOid": "23501",
+          "functionSignature": "private.studio2_guard_direct_televote_status()"
+        },
+        {
+          "name": "studio2_televote_rounds_touch_global_version",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "23496",
+          "functionSignature": "private.studio2_touch_televote_global_version()"
+        },
+        {
+          "name": "studio2_televote_rounds_touch_round_version",
+          "type": 21,
+          "enabled": "O",
+          "functionOid": "23498",
+          "functionSignature": "private.studio2_touch_televote_round_version()"
+        },
+        {
+          "name": "televoting_rounds_updated_at",
+          "type": 19,
+          "enabled": "O",
+          "functionOid": "19183",
+          "functionSignature": "televoting.update_updated_at_column()"
+        },
+        {
+          "name": "v3_guard_archived_televote_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25188",
+          "functionSignature": "private.v3_guard_archived_televote_write()"
+        },
+        {
+          "name": "v3_guard_direct_televote_deadline",
+          "type": 19,
+          "enabled": "O",
+          "functionOid": "24843",
+          "functionSignature": "private.v3_guard_direct_televote_deadline()"
+        },
+        {
+          "name": "v3_sync_published_televote_round",
+          "type": 21,
+          "enabled": "O",
+          "functionOid": "24832",
+          "functionSignature": "private.v3_sync_published_televote_round_trigger()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "televoting.televote_aggregation_participants",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "televoting_participants_outdated",
+        "v3_guard_archived_televote_write"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "aggregation_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "country_code",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "display_order",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "aggregation_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "country_code",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "display_order",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "televoting_participants_outdated",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "19587",
+          "functionSignature": "televoting.flag_aggregation_outdated()"
+        },
+        {
+          "name": "v3_guard_archived_televote_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25188",
+          "functionSignature": "private.v3_guard_archived_televote_write()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "televoting.televote_aggregation_sources",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "televoting_aggregation_source_robust_input",
+        "televoting_sources_outdated",
+        "televoting_sources_updated_at",
+        "v3_guard_archived_televote_write"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "aggregation_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "calculation_method",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "calculation_stage",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "correction_scope",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "correction_target_source_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "display_order",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "enabled",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "exact_point_pool",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "final_point_pool",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "floored_point_pool",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "input_mode",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "percentage_weight",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "pool_remainder",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "pool_remainder_bonus",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "source_name",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "source_round_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "source_type",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "tie_break_data",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "weight",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "aggregation_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "calculation_method",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "calculation_stage",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "correction_scope",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "correction_target_source_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "display_order",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "enabled",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "exact_point_pool",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "final_point_pool",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "floored_point_pool",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "input_mode",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "percentage_weight",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "pool_remainder",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "pool_remainder_bonus",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "source_name",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "source_round_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "source_type",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "tie_break_data",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "weight",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "televoting_aggregation_source_robust_input",
+          "type": 23,
+          "enabled": "O",
+          "functionOid": "20350",
+          "functionSignature": "televoting.enforce_robust_round_combined_input()"
+        },
+        {
+          "name": "televoting_sources_outdated",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "19587",
+          "functionSignature": "televoting.flag_aggregation_outdated()"
+        },
+        {
+          "name": "televoting_sources_updated_at",
+          "type": 19,
+          "enabled": "O",
+          "functionOid": "19183",
+          "functionSignature": "televoting.update_updated_at_column()"
+        },
+        {
+          "name": "v3_guard_archived_televote_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25188",
+          "functionSignature": "private.v3_guard_archived_televote_write()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "televoting.televote_aggregations",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "televoting_aggregations_updated_at",
+        "v3_combined_command_version",
+        "v3_guard_archived_televote_write",
+        "v3_sync_published_televote_aggregation"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "broadcast_display_mode",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_by",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_by_username",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "calculation_version",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "combination_method",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "command_version",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "locked_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "name",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "public_columns",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "published_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_exponent",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "results_outdated",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "status",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "total_points_to_distribute",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "broadcast_display_mode",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_by",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "calculated_by_username",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "calculation_version",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "combination_method",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "command_version",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "locked_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "name",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "public_columns",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "published_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "rank_exponent",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "results_outdated",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "status",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "total_points_to_distribute",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "televoting_aggregations_updated_at",
+          "type": 19,
+          "enabled": "O",
+          "functionOid": "19183",
+          "functionSignature": "televoting.update_updated_at_column()"
+        },
+        {
+          "name": "v3_combined_command_version",
+          "type": 19,
+          "enabled": "O",
+          "functionOid": "25630",
+          "functionSignature": "private.v3_combined_command_version()"
+        },
+        {
+          "name": "v3_guard_archived_televote_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25188",
+          "functionSignature": "private.v3_guard_archived_televote_write()"
+        },
+        {
+          "name": "v3_sync_published_televote_aggregation",
+          "type": 21,
+          "enabled": "O",
+          "functionOid": "24834",
+          "functionSignature": "private.v3_sync_published_televote_aggregation_trigger()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "televoting.vote_entries",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "v3_guard_archived_televote_write",
+        "v3_s3_guard_televote_entry_scope",
+        "v3_touch_televote_entry_version"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "is_historical",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "points",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "submission_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "target_country_code",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "is_historical",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "points",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "submission_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "target_country_code",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "v3_guard_archived_televote_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25188",
+          "functionSignature": "private.v3_guard_archived_televote_write()"
+        },
+        {
+          "name": "v3_s3_guard_televote_entry_scope",
+          "type": 23,
+          "enabled": "O",
+          "functionOid": "24400",
+          "functionSignature": "private.v3_guard_televote_entry_scope()"
+        },
+        {
+          "name": "v3_touch_televote_entry_version",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "25359",
+          "functionSignature": "private.v3_touch_televote_submission_version()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "televoting.vote_integrity_decisions",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "ballot_excluded_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "decision",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "evidence_notes",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "organizer_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "preflight_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "reason",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "submission_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "ballot_excluded_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "decision",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "evidence_notes",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "organizer_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "preflight_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "reason",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "submission_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": []
+    },
+    {
+      "owner": "postgres",
+      "table": "televoting.vote_submissions",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "trg_block_sanctioned_submission",
+        "v3_enforce_televote_submission_deadline",
+        "v3_guard_archived_televote_write",
+        "v3_s3_guard_televote_submission_identity",
+        "v3_touch_televote_submission_version"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "country_code",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "deleted_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "deleted_by",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "deletion_category",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "deletion_reason",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "device_token_hash",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "edited_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "edited_by",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "fingerprint_hash",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "ip_country",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "ip_hash",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "is_historical",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "is_vpn",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "moderator_note",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "risk_score",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "round_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "status",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "username",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "username_normalized",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "verified_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "verified_by",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "country_code",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "deleted_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "deleted_by",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "deletion_category",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "deletion_reason",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "device_token_hash",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "edited_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "edited_by",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "fingerprint_hash",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "ip_country",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "ip_hash",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "is_historical",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "is_vpn",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "moderator_note",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "risk_score",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "round_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "status",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "username",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "username_normalized",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "verified_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "verified_by",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "trg_block_sanctioned_submission",
+          "type": 7,
+          "enabled": "O",
+          "functionOid": "19902",
+          "functionSignature": "televoting.block_sanctioned_submission()"
+        },
+        {
+          "name": "v3_enforce_televote_submission_deadline",
+          "type": 7,
+          "enabled": "O",
+          "functionOid": "24847",
+          "functionSignature": "private.v3_enforce_televote_submission_deadline()"
+        },
+        {
+          "name": "v3_guard_archived_televote_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25188",
+          "functionSignature": "private.v3_guard_archived_televote_write()"
+        },
+        {
+          "name": "v3_s3_guard_televote_submission_identity",
+          "type": 23,
+          "enabled": "O",
+          "functionOid": "24398",
+          "functionSignature": "private.v3_guard_televote_submission_identity()"
+        },
+        {
+          "name": "v3_touch_televote_submission_version",
+          "type": 21,
+          "enabled": "O",
+          "functionOid": "25359",
+          "functionSignature": "private.v3_touch_televote_submission_version()"
+        }
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "oid": "23743",
+      "name": "private.studio2_guard_direct_client_write",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.studio2_guard_direct_client_write()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "c28035d7628f91b70938209a32e28ebc",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "23501",
+      "name": "private.studio2_guard_direct_televote_status",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.studio2_guard_direct_televote_status()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "4d8d97174a200d07c52820844a4ed9e2",
+      "securityDefiner": false,
+      "writesTables": []
+    },
+    {
+      "oid": "23496",
+      "name": "private.studio2_touch_televote_global_version",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.studio2_touch_televote_global_version()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "63f44be723b5fef81e106dad148e27d1",
+      "securityDefiner": true,
+      "writesTables": [
+        "public.studio2_televote_global_versions"
+      ]
+    },
+    {
+      "oid": "23498",
+      "name": "private.studio2_touch_televote_round_version",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.studio2_touch_televote_round_version()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "15f22ec5ab0e38e4984628a3ce8d619e",
+      "securityDefiner": true,
+      "writesTables": [
+        "public.studio2_televote_round_versions"
+      ]
+    },
+    {
+      "oid": "24825",
+      "name": "private.v3_apply_published_televote_projection",
+      "owner": "postgres",
+      "callers": [
+        "24828",
+        "24829"
+      ],
+      "signature": "private.v3_apply_published_televote_projection(p_edition_id uuid, p_show_id uuid, p_source_type text, p_source_id text, p_source_version integer, p_source_published_at timestamp with time zone, p_rows jsonb)",
+      "returnType": "jsonb",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "b3363674b7b42d1a17adbb99fe1d680b",
+      "securityDefiner": true,
+      "writesTables": [
+        "private.v3_televote_result_projection_sources",
+        "public.televote_votes"
+      ]
+    },
+    {
+      "oid": "25651",
+      "name": "private.v3_configure_round_conversion",
+      "owner": "postgres",
+      "callers": [
+        "25405",
+        "25655"
+      ],
+      "signature": "private.v3_configure_round_conversion(p_round_id uuid, p_action text, p_payload jsonb, p_expected_round_version bigint, p_operation_id uuid, p_idempotency_key text)",
+      "returnType": "jsonb",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "d3ca53683aaa5e87128cef45f086376c",
+      "securityDefiner": true,
+      "writesTables": [
+        "televoting.rounds"
+      ]
+    },
+    {
+      "oid": "24847",
+      "name": "private.v3_enforce_televote_submission_deadline",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.v3_enforce_televote_submission_deadline()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "a6444ecf4b76d330b3049345820941d4",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "25142",
+      "name": "private.v3_guard_archived_edition_workflow_write",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.v3_guard_archived_edition_workflow_write()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "f483ca6eae32faa5f9e729bf343e8888",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "25188",
+      "name": "private.v3_guard_archived_televote_write",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.v3_guard_archived_televote_write()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "1ae86579f712177d38f4e9d6f5016379",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "24843",
+      "name": "private.v3_guard_direct_televote_deadline",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.v3_guard_direct_televote_deadline()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "bb2cdc9b1250fb87716f0abb0566dbc9",
+      "securityDefiner": false,
+      "writesTables": []
+    },
+    {
+      "oid": "24830",
+      "name": "private.v3_guard_source_managed_televote_projection",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.v3_guard_source_managed_televote_projection()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "3e88b454a35974e2169643fec6180c2a",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "24400",
+      "name": "private.v3_guard_televote_entry_scope",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.v3_guard_televote_entry_scope()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "cebd60ba21041aac95a736507de4dcfa",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "24398",
+      "name": "private.v3_guard_televote_submission_identity",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.v3_guard_televote_submission_identity()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "f1f3b240d96c644b7a36e00ddcf13a03",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "24829",
+      "name": "private.v3_sync_published_televote_aggregation",
+      "owner": "postgres",
+      "callers": [
+        "24834"
+      ],
+      "signature": "private.v3_sync_published_televote_aggregation(p_aggregation_id uuid)",
+      "returnType": "jsonb",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "60ab81e0e25af63b8691ee7a356c5fd3",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "24834",
+      "name": "private.v3_sync_published_televote_aggregation_trigger",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.v3_sync_published_televote_aggregation_trigger()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "14865d54667192782c03bef632c6c79f",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "24828",
+      "name": "private.v3_sync_published_televote_round",
+      "owner": "postgres",
+      "callers": [
+        "24832"
+      ],
+      "signature": "private.v3_sync_published_televote_round(p_round_id uuid)",
+      "returnType": "jsonb",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "604eb78f7b80011a9f92694c77be40fb",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "24832",
+      "name": "private.v3_sync_published_televote_round_trigger",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.v3_sync_published_televote_round_trigger()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "8686720f6783da67264d443226ae760b",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "25359",
+      "name": "private.v3_touch_televote_submission_version",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.v3_touch_televote_submission_version()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "3d263c32d78e628ea9f2f770a7efc229",
+      "securityDefiner": true,
+      "writesTables": [
+        "public.studio2_televote_submission_versions"
+      ]
+    },
+    {
+      "oid": "18141",
+      "name": "public.assert_entity_edition",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "public.assert_entity_edition()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "37575ab5e2147a1f907792ca8db35b80",
+      "securityDefiner": false,
+      "writesTables": []
+    },
+    {
+      "oid": "20217",
+      "name": "public.sync_results_after_vote_change",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "public.sync_results_after_vote_change()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "b84dc1dc337033a0033b20341cade9f6",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "19902",
+      "name": "televoting.block_sanctioned_submission",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "televoting.block_sanctioned_submission()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "1b902a6e1fc4bfd4c7caa9b5e72bf3e8",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "19908",
+      "name": "televoting.exclude_integrity_ballot",
+      "owner": "postgres",
+      "callers": [
+        "19910"
+      ],
+      "signature": "televoting.exclude_integrity_ballot(p_preflight_id uuid, p_reason text, p_organizer_id uuid)",
+      "returnType": "jsonb",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "d3943730f31726939c042de0bb4cc2e1",
+      "securityDefiner": true,
+      "writesTables": [
+        "televoting.integrity_action_audit",
+        "televoting.vote_integrity_decisions",
+        "televoting.vote_submissions"
+      ]
+    },
+    {
+      "oid": "19587",
+      "name": "televoting.flag_aggregation_outdated",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "televoting.flag_aggregation_outdated()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "403c62ceb13ef6101ac9f8ceca14244d",
+      "securityDefiner": true,
+      "writesTables": [
+        "televoting.televote_aggregations"
+      ]
+    },
+    {
+      "oid": "19584",
+      "name": "televoting.flag_round_results_outdated",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "televoting.flag_round_results_outdated()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "a785fe72d7ce7e09016005b732fae467",
+      "securityDefiner": true,
+      "writesTables": [
+        "televoting.rounds"
+      ]
+    },
+    {
+      "oid": "19910",
+      "name": "televoting.organizer_exclude_integrity_ballot",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "televoting.organizer_exclude_integrity_ballot(p_preflight_id uuid, p_reason text)",
+      "returnType": "jsonb",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "authenticated",
+        "postgres"
+      ],
+      "definitionHash": "ef8ff430fc05a281aac5b48a2fab4373",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "19909",
+      "name": "televoting.organizer_record_integrity_decision",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "televoting.organizer_record_integrity_decision(p_preflight_id uuid, p_decision text, p_reason text, p_evidence_notes text)",
+      "returnType": "jsonb",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "authenticated",
+        "postgres"
+      ],
+      "definitionHash": "124c46ccbfdecb336ab08b430d449b20",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "19904",
+      "name": "televoting.record_integrity_decision",
+      "owner": "postgres",
+      "callers": [
+        "19909"
+      ],
+      "signature": "televoting.record_integrity_decision(p_preflight_id uuid, p_decision text, p_reason text, p_evidence_notes text, p_organizer_id uuid)",
+      "returnType": "jsonb",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "26899513c63c7766c7b48fcbcd049b61",
+      "securityDefiner": true,
+      "writesTables": [
+        "televoting.integrity_action_audit",
+        "televoting.vote_integrity_decisions",
+        "televoting.vote_submissions"
+      ]
+    },
+    {
+      "oid": "19580",
+      "name": "televoting.round_entries_normalize",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "televoting.round_entries_normalize()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "b3053678a10314f82516d1d30a01b8b1",
+      "securityDefiner": false,
+      "writesTables": []
+    },
+    {
+      "oid": "19582",
+      "name": "televoting.round_entries_sync_countries",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "televoting.round_entries_sync_countries()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "65b666c14e6ec2398413263b2eaa7c5f",
+      "securityDefiner": true,
+      "writesTables": [
+        "televoting.round_countries"
+      ]
+    },
+    {
+      "oid": "19183",
+      "name": "televoting.update_updated_at_column",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "televoting.update_updated_at_column()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "bcbb6890600f079fefa1d9e9e87bc9ff",
+      "securityDefiner": false,
+      "writesTables": []
+    },
+    {
+      "oid": "25405",
+      "name": "televoting.v3_configure_round",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "televoting.v3_configure_round(p_round_id uuid, p_action text, p_payload jsonb, p_expected_round_version bigint, p_operation_id uuid, p_idempotency_key text, p_correlation_id uuid)",
+      "returnType": "jsonb",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "authenticated",
+        "postgres"
+      ],
+      "definitionHash": "26013ec1266348823095c02153e1d1d3",
+      "securityDefiner": true,
+      "writesTables": [
+        "televoting.round_entries",
+        "televoting.rounds"
+      ]
+    },
+    {
+      "oid": "25655",
+      "name": "televoting.v3_recover_conversion_calculation",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "televoting.v3_recover_conversion_calculation(p_round_id uuid, p_expected_round_version bigint, p_operation_id uuid)",
+      "returnType": "jsonb",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "authenticated",
+        "postgres"
+      ],
+      "definitionHash": "ff25c0162800367609bfbb5c890c21ac",
+      "securityDefiner": true,
+      "writesTables": []
+    }
+  ]
+}

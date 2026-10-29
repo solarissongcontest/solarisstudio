@@ -1,3 +1,4 @@
+import { proveInternalMechanisms } from "../src/lib/v3-s16-internal-mechanisms";
 import { resolveS16CandidateSha } from "../src/lib/v3-s16-candidate-sha";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
@@ -58,6 +59,7 @@ const report = {
   s16Passed: assessment.s16Passed,
   findings: assessment.findings,
   riskTotals: assessment.riskTotals,
+  internalMechanismClassifications: catalog ? proveInternalMechanisms(catalog).classifications : [],
   ...(staticOnly ? { catalogStatus: "not_evaluated_in_static_mode" as const } : {}),
 };
 

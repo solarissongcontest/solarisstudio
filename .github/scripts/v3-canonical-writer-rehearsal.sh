@@ -20,6 +20,13 @@ psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-combined-calculation-au
 bash .github/scripts/v3-combined-calculation-concurrency.sh
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-round-conversion-authority.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-televote-calculation-dml-cutover.sql
+(
+  mechanisms_sql="$(mktemp)"
+  trap 'rm -f "$mechanisms_sql"' EXIT
+  bun --env-file=/dev/null run scripts/generate-v3-internal-mechanism-proof.ts --out="$mechanisms_sql"
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$mechanisms_sql"
+)
+DB_URL="$DB_URL" bash .github/scripts/v3-s14-televote-result-truth-replay-hardening-rehearsal.sh
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-visual-command.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-edition-authority.sql
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-media-finalization-authority.sql

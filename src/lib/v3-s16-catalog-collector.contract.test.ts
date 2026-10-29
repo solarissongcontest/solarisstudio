@@ -12,7 +12,8 @@ describe("S16 exact-SHA catalog evidence", () => {
   });
 
   it("inspects real Postgres authority rather than inferring it from route declarations", () => {
-    expect(collector).toContain("information_schema.role_table_grants");
+    expect(collector).toContain("information_schema.table_privileges");
+    expect(collector).not.toContain("information_schema.role_table_grants");
     expect(collector).toContain("information_schema.column_privileges");
     expect(collector).toContain("'columnDmlGrants'");
     expect(collector).toContain("'role', g.grantee, 'privilege', g.privilege_type, 'column', g.column_name");

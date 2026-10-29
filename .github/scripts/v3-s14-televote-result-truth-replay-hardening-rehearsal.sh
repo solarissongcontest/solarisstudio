@@ -4,7 +4,7 @@ set -euo pipefail
 log() { printf '\n[v3-s14-televote-replay-hardening] %s\n' "$*"; }
 fail() { printf '\n[v3-s14-televote-replay-hardening] FAIL: %s\n' "$*" >&2; exit 1; }
 
-eval "$(supabase status -o env)"
+if [[ -z "${DB_URL:-}" ]]; then eval "$(supabase status -o env)"; fi
 : "${DB_URL:?missing local Supabase DB_URL}"
 case "$DB_URL" in
   postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
@@ -20,6 +20,13 @@ db_expect_failure() {
   fi
   log "PASS: $label rejected and rolled back"
 }
+
+# Dispose only this rehearsal's instrumentation; it must never become runtime
+# authority evidence or affect subsequent rehearsals/catalog collection.
+cleanup_instrumentation() {
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -q -c "drop trigger if exists v3_s14_replay_force_sync_failure on public.results; drop trigger if exists v3_s14_replay_count_result_update on public.results; drop function if exists private.v3_s14_replay_force_sync_failure(); drop function if exists private.v3_s14_replay_count_result_update();" >/dev/null
+}
+trap cleanup_instrumentation EXIT
 
 EDITION_ID='00000000-0000-4000-8000-00000000c201'
 SHOW_ID='00000000-0000-4000-8000-00000000c202'

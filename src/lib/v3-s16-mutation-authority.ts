@@ -1,4 +1,5 @@
-export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-6" as const;
+import { proveInternalMechanisms } from "./v3-s16-internal-mechanisms";
+export const V3_S16_POLICY_VERSION = "v3-s16-mutation-authority-7" as const;
 
 export type V3S16Risk = "integrity_critical" | "security_critical";
 
@@ -60,6 +61,7 @@ export type V3S16CatalogTableEvidence = {
   /** Exact column grants are required to prove bounded compatibility safely. */
   columnDmlGrants?: readonly V3S16CatalogColumnDmlGrant[];
   writeTriggers?: readonly string[];
+  triggerDefinitions?: readonly { name: string; functionSignature: string; functionOid: string; type: number; enabled: string }[];
   updatableViews?: readonly string[];
 };
 
@@ -70,6 +72,11 @@ export type V3S16CatalogFunctionEvidence = {
   searchPath: string | null;
   executeRoles: readonly string[];
   writesTables?: readonly string[];
+  oid?: string;
+  signature?: string;
+  definitionHash?: string;
+  returnType?: string;
+  callers?: readonly string[];
 };
 
 export type V3S16CatalogEvidence = {
@@ -784,6 +791,7 @@ export function auditV3S16CatalogAuthority(
   const findings: V3S16Finding[] = [];
   const tableByName = new Map(catalog.tables.map((table) => [table.table, table]));
   const directDmlRoles = new Set(["anon", "authenticated", "service_role", "public"]);
+  const mechanisms = proveInternalMechanisms(catalog);
 
   for (const domain of domains) {
     const ownerBoundary = domain.resultsFrozenOwner ? "results_pr_1400" : "shared";
@@ -824,6 +832,7 @@ export function auditV3S16CatalogAuthority(
       if (evidence.rlsEnabled === false && !table.startsWith("private.")) findings.push({ domain: domain.id, kind: "rls_not_enabled", subject: table, detail: "RLS is disabled on an API-visible critical table.", releaseRisk: "hard_blocker", ownerBoundary });
       for (const trigger of evidence.writeTriggers ?? []) {
         if (sanctionedTriggers.has(trigger)) continue;
+        if (mechanisms.triggers.has(`${domain.id}:${table}:${trigger}`)) continue;
         findings.push({ domain: domain.id, kind: "unexpected_write_trigger", subject: trigger, detail: `Write trigger ${trigger} can mutate or redirect critical state and must be explicitly sanctioned.`, releaseRisk: "hard_blocker", ownerBoundary });
       }
       for (const view of evidence.updatableViews ?? []) findings.push({ domain: domain.id, kind: "unexpected_updatable_view", subject: view, detail: `Updatable view ${view} exposes an alternative write path to critical state.`, releaseRisk: "hard_blocker", ownerBoundary });
@@ -832,7 +841,7 @@ export function auditV3S16CatalogAuthority(
     const tableSet = new Set(domain.canonicalTables);
     for (const fn of catalog.functions) {
       const writesCritical = (fn.writesTables ?? []).some((table) => tableSet.has(table));
-      if (!writesCritical || isClassifiedWriter(domain, fn.name)) continue;
+      if (!writesCritical || isClassifiedWriter(domain, fn.name) || mechanisms.writers.has(`${domain.id}:${fn.oid}`)) continue;
       findings.push({
         domain: domain.id,
         kind: "competing_legacy_writer",
