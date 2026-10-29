@@ -8,12 +8,17 @@ type HostedShow = Show & {
   host_city?: string | null;
 };
 
+type HostGroup = {
+  countryId: string | null;
+  city: string | null;
+  shows: HostedShow[];
+};
+
 export function EditionHostingExtension({ pathname }: { pathname: string }) {
   const match = pathname.match(/^\/editions\/([^/]+)\/?$/i);
   const slug = match?.[1] ? decodeURIComponent(match[1]) : null;
   const { data: edition } = useEdition(slug ?? "");
   const { data: shows } = useShows(edition?.id);
-  const { data: countries } = useCountries();
 
   if (!edition || !slug) return null;
 
@@ -21,14 +26,7 @@ export function EditionHostingExtension({ pathname }: { pathname: string }) {
     .filter((show) => isShowPublic(show))
     .sort((a, b) => a.sort_order - b.sort_order);
 
-  const groups = new Map<
-    string,
-    {
-      countryId: string | null;
-      city: string | null;
-      shows: HostedShow[];
-    }
-  >();
+  const groups = new Map<string, HostGroup>();
 
   for (const show of publicShows) {
     const countryId = show.host_country_id ?? edition.host_country_id ?? null;
@@ -44,6 +42,11 @@ export function EditionHostingExtension({ pathname }: { pathname: string }) {
   const hosts = [...groups.values()];
   if (hosts.length <= 1) return null;
 
+  return <SplitHostingPanel hosts={hosts} />;
+}
+
+function SplitHostingPanel({ hosts }: { hosts: HostGroup[] }) {
+  const { data: countries } = useCountries();
   const countryMap = new Map((countries ?? []).map((country) => [country.id, country]));
 
   return (
