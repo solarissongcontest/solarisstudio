@@ -6,10 +6,7 @@ import {
 import { projectV3Actions, projectV3Attention } from "./v3-experience";
 import { projectV3Home } from "./v3-home";
 import { projectV3Journey } from "./v3-journey";
-import {
-  canonicalizeParticipantTasks,
-  projectParticipantTaskReadModel,
-} from "./v3-task-engine";
+import type { V3ParticipantTaskProjection } from "./v3-task-engine";
 
 export type V3BootstrapIdentity = {
   userId: string | null;
@@ -31,17 +28,27 @@ export type V3BootstrapSource = {
   context: V3BootstrapContext;
   capabilities: readonly string[];
   domain: V3ContestDomainSnapshot;
+  /**
+   * Canonical participant tasks. Production server sources must reconcile this
+   * list before it reaches this client-shared projector.
+   */
   tasks: readonly SolarisTask[];
+  /**
+   * Server-produced task-read metadata. Transitional pure/unit callers may omit
+   * it, but production bootstrap paths always provide it.
+   */
+  taskProjection?: V3ParticipantTaskProjection | null;
   preferences?: {
     hideResultSpoilers?: boolean;
   };
 };
 
 /**
- * The V3 bootstrap is a pure read projection. Canonical participant task truth
- * is normalized exactly once before Home, Journey, Attention and Participate
- * consume it. Those surfaces therefore cannot independently decide that a
- * Confirmation, Entry, Jury, notice or other responsibility is complete.
+ * Client-safe V3 projection over a server-authorized snapshot.
+ *
+ * This module intentionally does not reconcile or infer participant task truth.
+ * `loadV3BootstrapProjection` owns that server boundary. Home, Journey, Actions,
+ * Attention and Participate only render the already-reconciled task set.
  */
 export function projectV3Bootstrap(source: V3BootstrapSource) {
   const serverNow = Date.parse(source.serverTime);
@@ -49,15 +56,10 @@ export function projectV3Bootstrap(source: V3BootstrapSource) {
     throw new Error("V3 bootstrap requires a valid serverTime timestamp.");
   }
 
-  const canonicalTasks = canonicalizeParticipantTasks(source.tasks);
-  const taskProjection = projectParticipantTaskReadModel(
-    canonicalTasks,
-    source.serverTime,
-  );
   const experience = projectV3Experience(source.domain);
-  const actions = projectV3Actions(canonicalTasks, serverNow);
+  const actions = projectV3Actions(source.tasks, serverNow);
   const attention = projectV3Attention(actions);
-  const journey = projectV3Journey(canonicalTasks);
+  const journey = projectV3Journey(source.tasks);
   const home = projectV3Home({
     experience,
     attention,
@@ -71,7 +73,7 @@ export function projectV3Bootstrap(source: V3BootstrapSource) {
     identity: source.identity,
     context: source.context,
     capabilities: [...source.capabilities],
-    taskProjection,
+    taskProjection: source.taskProjection ?? null,
     experience,
     actions,
     attention,

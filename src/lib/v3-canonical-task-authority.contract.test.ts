@@ -2,13 +2,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const root = resolve(import.meta.dirname, "../..");
+const root = process.cwd();
 const migration = readFileSync(
   resolve(root, "supabase/migrations/20261030092000_v3_canonical_task_read_projection.sql"),
   "utf8",
 );
 const adminTasks = readFileSync(resolve(root, "src/lib/admin-tasks-v5.ts"), "utf8");
 const bootstrap = readFileSync(resolve(root, "src/lib/v3-bootstrap.ts"), "utf8");
+const bootstrapServer = readFileSync(resolve(root, "src/lib/v3-bootstrap-server.ts"), "utf8");
 const participate = readFileSync(resolve(root, "src/components/v3/V3ParticipateScreen.tsx"), "utf8");
 
 describe("V3 canonical Task authority contract", () => {
@@ -41,11 +42,17 @@ describe("V3 canonical Task authority contract", () => {
     expect(adminTasks).toContain("Organizer Tasks V3 did not prove canonical reconciliation");
   });
 
-  it("normalizes participant task truth before Home, Journey, Attention and Participate consume it", () => {
-    expect(bootstrap).toContain("canonicalizeParticipantTasks(source.tasks)");
-    expect(bootstrap).toContain("projectParticipantTaskReadModel");
-    expect(bootstrap).toContain("projectV3Actions(canonicalTasks");
-    expect(bootstrap).toContain("projectV3Journey(canonicalTasks)");
+  it("reconciles participant task truth once at the server bootstrap boundary", () => {
+    expect(bootstrapServer).toContain("canonicalizeParticipantTasks(snapshot.tasks)");
+    expect(bootstrapServer).toContain("projectParticipantTaskReadModel(tasks, serverTime)");
+    expect(bootstrapServer).toContain("taskProjection,");
+  });
+
+  it("keeps the client-shared bootstrap a renderer of canonical Task truth", () => {
+    expect(bootstrap).not.toContain("canonicalizeParticipantTasks");
+    expect(bootstrap).not.toContain("projectParticipantTaskReadModel(");
+    expect(bootstrap).toContain("projectV3Actions(source.tasks");
+    expect(bootstrap).toContain("projectV3Journey(source.tasks)");
   });
 
   it("keeps the V3 Participate component a renderer rather than another domain reader", () => {
