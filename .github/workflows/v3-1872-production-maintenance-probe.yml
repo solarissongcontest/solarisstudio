@@ -1,0 +1,50 @@
+name: V3 #1872 production maintenance probe
+
+on:
+  push:
+    branches:
+      - ops/v3-1872-maintenance-probe
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify ordinary visitors remain in maintenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          root_headers="$RUNNER_TEMP/root-headers.txt"
+          root_body="$RUNNER_TEMP/root-body.html"
+          admin_headers="$RUNNER_TEMP/admin-headers.txt"
+          admin_body="$RUNNER_TEMP/admin-body.html"
+
+          root_status="$(curl --silent --show-error --max-time 20 --dump-header "$root_headers" --output "$root_body" --write-out '%{http_code}' https://studio.solaris-song-contest.workers.dev/)"
+          test "$root_status" = "503"
+          grep -Fq 'Solaris Studio' "$root_body"
+          if grep -Eiq '^www-authenticate: *Basic' "$root_headers"; then
+            echo '::error::Production root unexpectedly requires temporary preview Basic auth.'
+            exit 1
+          fi
+
+          admin_status="$(curl --silent --show-error --max-time 20 --dump-header "$admin_headers" --output "$admin_body" --write-out '%{http_code}' https://studio.solaris-song-contest.workers.dev/__maintenance-admin)"
+          test "$admin_status" = "200"
+          grep -Fq 'Maintenance access' "$admin_body"
+          if grep -Eiq '^www-authenticate: *Basic' "$admin_headers"; then
+            echo '::error::Maintenance-admin unexpectedly uses preview Basic auth.'
+            exit 1
+          fi
+
+          {
+            echo '## Solaris Studio bounded production maintenance probe'
+            echo
+            echo "- Root HTTP status: $root_status"
+            echo "- /__maintenance-admin HTTP status: $admin_status"
+            echo '- Root contains Solaris Studio maintenance UI: YES'
+            echo '- Temporary Basic auth present: NO'
+            echo '- Requests made: 2 GET requests only'
+            echo '- Supabase/API traversal: NONE'
+          } >> "$GITHUB_STEP_SUMMARY"
