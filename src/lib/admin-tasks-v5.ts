@@ -27,18 +27,6 @@ const ORGANIZER_TASK_OPERATIONAL_STATES = new Set<OrganizerTaskOperationalState>
   "resolved",
 ]);
 
-const V3_OPERATIONAL_STATES = new Set([
-  "actionable",
-  "in_progress",
-  "blocked",
-  "waiting",
-  "failed",
-  "overdue",
-  "expired",
-  "superseded",
-  "resolved",
-]);
-
 export type OrganizerTaskV5 = {
   id: string;
   editionId: string | null;
@@ -85,6 +73,9 @@ function requireOrganizerEditionId(editionId: string | null | undefined) {
 
 function parseOperationalState(value: unknown, index: number) {
   if (value == null) return null;
+  if (value === "in_progress") return "actionable";
+  if (value === "expired") return "overdue";
+  if (value === "superseded") return "resolved";
   if (
     typeof value !== "string" ||
     !ORGANIZER_TASK_OPERATIONAL_STATES.has(value as OrganizerTaskOperationalState)
@@ -165,29 +156,6 @@ function record(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function requiredString(value: unknown, label: string) {
-  if (typeof value !== "string" || !value.trim()) {
-    throw new Error(`Invalid Organizer Tasks V3 ${label}.`);
-  }
-  return value;
-}
-
-function nullableString(value: unknown, label: string) {
-  if (value == null) return null;
-  if (typeof value !== "string") throw new Error(`Invalid Organizer Tasks V3 ${label}.`);
-  return value;
-}
-
-function collapseV3OperationalState(value: unknown, index: number): OrganizerTaskOperationalState {
-  if (typeof value !== "string" || !V3_OPERATIONAL_STATES.has(value)) {
-    throw new Error(`Invalid Organizer Tasks V3 operational state at index ${index}.`);
-  }
-  if (value === "in_progress") return "actionable";
-  if (value === "expired") return "overdue";
-  if (value === "superseded") return "resolved";
-  return value as OrganizerTaskOperationalState;
-}
-
 export function mapOrganizerTasksV3Compatibility(
   value: unknown,
   expectedEditionId: string,
@@ -206,46 +174,20 @@ export function mapOrganizerTasksV3Compatibility(
     throw new Error("Invalid Organizer Tasks V3 items.");
   }
 
-  const compatible = projection.items.map((value, index) => {
-    const task = record(value, `item ${index}`);
-    const sourceState = requiredString(task.sourceState, `items[${index}].sourceState`);
-    if (!["open", "waiting", "resolved"].includes(sourceState)) {
-      throw new Error(`Invalid Organizer Tasks V3 source state at index ${index}.`);
-    }
-    const priority = requiredString(task.priority, `items[${index}].priority`);
-    if (!["critical", "high", "normal"].includes(priority)) {
-      throw new Error(`Invalid Organizer Tasks V3 priority at index ${index}.`);
-    }
-    return {
-      id: requiredString(task.id, `items[${index}].id`),
-      editionId: nullableString(task.editionId, `items[${index}].editionId`),
-      countryId: nullableString(task.countryId, `items[${index}].countryId`),
-      assignedTo: nullableString(task.assignedTo, `items[${index}].assignedTo`),
-      sourceKind: requiredString(task.sourceKind, `items[${index}].sourceKind`),
-      sourceKey: requiredString(task.sourceKey, `items[${index}].sourceKey`),
-      taskType: requiredString(task.taskType, `items[${index}].taskType`),
-      priority,
-      state: sourceState,
-      operationalState: collapseV3OperationalState(task.operationalState, index),
-      title: requiredString(task.title, `items[${index}].title`),
-      description: typeof task.description === "string" ? task.description : "",
-      href: requiredString(task.route ?? task.href, `items[${index}].route`),
-      dueAt: nullableString(task.dueAt ?? task.deadline, `items[${index}].dueAt`),
-      resolutionPredicate:
-        task.resolutionPredicate && typeof task.resolutionPredicate === "object"
-          ? (task.resolutionPredicate as Record<string, unknown>)
-          : {},
-      ruleReference: Array.isArray(task.ruleReference)
-        ? task.ruleReference.filter((item): item is string => typeof item === "string")
-        : [],
-      openedAt: requiredString(task.openedAt, `items[${index}].openedAt`),
-      resolvedAt: nullableString(task.resolvedAt, `items[${index}].resolvedAt`),
-      lastEvaluatedAt: requiredString(
-        task.lastEvaluatedAt,
-        `items[${index}].lastEvaluatedAt`,
-      ),
-    } satisfies OrganizerTaskV5;
-  });
+  const compatible = mapOrganizerTasksV5(
+    projection.items.map((value, index) => {
+      const task = record(value, `item ${index}`);
+      if (task.editionId != null && typeof task.editionId !== "string") {
+        throw new Error(`Invalid Organizer Tasks V3 editionId at index ${index}.`);
+      }
+      return {
+        ...task,
+        state: task.sourceState,
+        href: task.route ?? task.href,
+        dueAt: task.dueAt ?? task.deadline,
+      };
+    }),
+  );
 
   if (compatible.some((task) => task.editionId && task.editionId !== expectedEditionId)) {
     throw new Error("Organizer Tasks returned a task from another edition scope.");
@@ -253,19 +195,11 @@ export function mapOrganizerTasksV3Compatibility(
   return compatible;
 }
 
-function isMissingV3TaskRpc(error: RpcError) {
+function isMissingV3Rpc(error: RpcError, rpc: string) {
   if (!error) return false;
   if (error.code === "PGRST202" || error.code === "42883") return true;
   const message = error.message?.toLowerCase() ?? "";
-  return message.includes("admin_organizer_tasks_v3") &&
-    (message.includes("could not find") || message.includes("does not exist"));
-}
-
-function isMissingV3TaskCountRpc(error: RpcError) {
-  if (!error) return false;
-  if (error.code === "PGRST202" || error.code === "42883") return true;
-  const message = error.message?.toLowerCase() ?? "";
-  return message.includes("admin_organizer_task_count_v3") &&
+  return message.includes(rpc) &&
     (message.includes("could not find") || message.includes("does not exist"));
 }
 
@@ -307,7 +241,7 @@ export async function loadOrganizerTasksV5(
   if (!canonical.error) {
     return mapOrganizerTasksV3Compatibility(canonical.data, exactEditionId);
   }
-  if (!isMissingV3TaskRpc(canonical.error)) {
+  if (!isMissingV3Rpc(canonical.error, "admin_organizer_tasks_v3")) {
     throw new Error(canonical.error.message || "Organizer Tasks V3 could not be loaded.");
   }
 
@@ -339,7 +273,7 @@ export async function loadOrganizerTaskCountV5(
   });
   if (!canonical.error) {
     data = canonical.data;
-  } else if (isMissingV3TaskCountRpc(canonical.error)) {
+  } else if (isMissingV3Rpc(canonical.error, "admin_organizer_task_count_v3")) {
     const legacy = await client.rpc("admin_organizer_task_count", {
       p_edition_id: exactEditionId,
     });
