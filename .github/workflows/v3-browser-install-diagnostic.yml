@@ -1,0 +1,71 @@
+name: V3 Browser install diagnostic
+
+on:
+  push:
+    branches:
+      - v3/live-real-app-update
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-browser-install-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    name: Exact Browser Audit install diagnostic
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install app dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run exact Browser Audit install commands
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            bun add --dev @playwright/test@1.55.0
+            bunx playwright install --with-deps chromium webkit
+          } 2>&1 | tee browser-install-output.txt
+
+      - name: Upload browser install diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-browser-install-diagnostic
+          path: browser-install-output.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish browser install diagnostic summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -s browser-install-output.txt ]; then
+            {
+              echo '### Exact Browser Audit install diagnostic'
+              echo
+              echo '```text'
+              cat browser-install-output.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
