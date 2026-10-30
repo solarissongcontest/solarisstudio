@@ -33,7 +33,21 @@ describe("System V3 S13 repository adoption gate", () => {
     expect(report.clean).toBe(true);
   });
 
-  it("starts with no historical exemption debt at the forward-stamped boundary", () => {
-    expect(V3_S13_REVIEWED_MIGRATION_EXEMPTIONS).toEqual([]);
+  it("keeps immutable historical exemption debt exact, reviewed and forward-repaired", () => {
+    expect(V3_S13_REVIEWED_MIGRATION_EXEMPTIONS).toHaveLength(1);
+    expect(V3_S13_REVIEWED_MIGRATION_EXEMPTIONS[0]).toMatchObject({
+      path: "supabase/migrations/20261022151607_batch_running_order_result_sync.sql",
+      reason: "immutable_history_forward_repaired",
+    });
+    expect(V3_S13_REVIEWED_MIGRATION_EXEMPTIONS[0].rationale).toContain(
+      "20261023205400_v3_s13_adopt_batch_running_order_result_sync.sql",
+    );
+    expect(
+      postFrameworkMigrations().some(
+        (migration) =>
+          migration.path ===
+          "supabase/migrations/20261023205400_v3_s13_adopt_batch_running_order_result_sync.sql",
+      ),
+    ).toBe(true);
   });
 });
