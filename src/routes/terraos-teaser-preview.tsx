@@ -1,6 +1,7 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { TerraOSLiveMaintenancePreview } from "@/components/v3/TerraOSLiveMaintenancePreview";
 import {
   TerraOSTeaserPreview,
   type TerraOSTeaserScreen,
@@ -15,6 +16,7 @@ import {
   installTerraOsTeaserPreviewPolish,
 } from "@/lib/terraos-teaser-mobile-polish";
 import { installTerraOsTeaserMobileReferenceHero } from "@/lib/terraos-teaser-mobile-reference-hero";
+import "@/styles/terraos-live-maintenance-preview-layout.css";
 
 const SCREENS = new Set<TerraOSTeaserScreen>([
   "home",
@@ -102,5 +104,9 @@ function TerraOSTeaserPreviewRoute() {
     };
   }, [screen, chrome]);
 
-  return <TerraOSTeaserPreview screen={screen} showNavigation={chrome !== "content"} />;
+  if (chrome === "content") {
+    return <TerraOSTeaserPreview screen={screen} showNavigation={false} />;
+  }
+
+  return <TerraOSLiveMaintenancePreview screen={screen} />;
 }
