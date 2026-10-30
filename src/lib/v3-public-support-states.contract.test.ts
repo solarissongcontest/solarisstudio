@@ -6,21 +6,26 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 
 describe("V3 Public launch, loading and recovery support states", () => {
   it("keeps the installed-app launch identity Solaris-owned", () => {
+    const manifest = read("public/site.webmanifest");
     const source = read("src/components/app/AppLaunchRestoreCoordinator.tsx");
 
-    expect(source).toContain('/solaris-app-mark.svg');
-    expect(source).toContain('alt="Solaris Studio"');
-    expect(source).toContain("Solaris Studio");
-    expect(source).toContain("Opening your saved view");
+    expect(manifest).toContain('"name": "Solaris Studio"');
+    expect(manifest).toContain('"short_name": "Solaris Studio"');
+    expect(manifest).toContain('"start_url": "/app-launch"');
+    expect(source).toContain("app_cold_launch_restored");
     expect(source).not.toContain("TSBC");
   });
 
-  it("keeps warm launch restore scoped instead of forcing a splash for every route", () => {
+  it("keeps cold-launch restore transaction-scoped instead of forcing a splash for every route", () => {
     const source = read("src/components/app/AppLaunchRestoreCoordinator.tsx");
 
-    expect(source).toContain("launchRestoreNeeded");
-    expect(source).toContain("restoreIntent");
-    expect(source).toContain("data-solaris-app-boot");
+    expect(source).toContain("readAppLaunchTransaction()");
+    expect(source).toContain("if (!transaction) return;");
+    expect(source).toContain('if (pathname === "/app-launch") return;');
+    expect(source).toContain('if (pathname !== "/" && pathname !== safeRoot.pathname)');
+    expect(source).toContain("getAppLaunchDestinationFromSnapshot");
+    expect(source).toContain("window.location.replace(targetHref)");
+    expect(source).toContain("return null;");
   });
 
   it("provides route-shaped skeleton variants while retaining a generic router fallback", () => {
