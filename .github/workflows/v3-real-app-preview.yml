@@ -13,13 +13,9 @@ concurrency:
   group: v3-real-app-preview
   cancel-in-progress: true
 
-env:
-  CLOUDFLARE_ACCOUNT_ID: 2af381c24fdf56cbbae4214a99dfada5
-  PREVIEW_URL: https://pr1872-v3-studio.solaris-song-contest.workers.dev
-
 jobs:
   preview:
-    name: Upload protected real-app preview
+    name: Deploy protected real-app preview
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
@@ -43,98 +39,90 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Prepare protected read-only preview source
+        run: bun run scripts/prepare-v3-real-app-preview.mjs
+
       - name: Build the real Solaris Studio application
+        env:
+          VITE_SOLARIS_V3_PREVIEW_READ_ONLY: "true"
         run: bun run build
 
       - name: Preserve the client performance budget
         run: bun run budget:client
 
-      - name: Require Cloudflare upload credentials
-        shell: bash
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
-            echo "::error::CLOUDFLARE_API_TOKEN is not configured for repository Actions."
-            exit 1
-          fi
-
-      - name: Snapshot the active production deployment
-        shell: bash
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          bunx wrangler@4.141.0 deployments list --name studio --json > /tmp/solaris-production-before.json
-          test -s /tmp/solaris-production-before.json
-
-      - name: Upload #1872 as a non-production Worker version
-        shell: bash
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          bunx wrangler@4.141.0 versions upload \
-            --name studio \
-            --preview-alias pr1872-v3 \
-            --message "PR #1872 ${GITHUB_SHA}" \
-            --keep-vars \
-            2>&1 | tee /tmp/solaris-preview-upload.txt
-
-          echo "Expected stable Version URL: ${PREVIEW_URL}"
-
-      - name: Prove production traffic was not changed
-        shell: bash
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          bunx wrangler@4.141.0 deployments list --name studio --json > /tmp/solaris-production-after.json
-          if ! cmp -s /tmp/solaris-production-before.json /tmp/solaris-production-after.json; then
-            echo "::error::The active Worker deployment changed during a preview-only upload. Refusing to treat this as a safe preview."
-            diff -u /tmp/solaris-production-before.json /tmp/solaris-production-after.json || true
-            exit 1
-          fi
-
-      - name: Record exact uploaded Worker version
-        shell: bash
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          bunx wrangler@4.141.0 versions list --name studio --json > /tmp/solaris-worker-versions.json
-          if ! grep -Fq "$GITHUB_SHA" /tmp/solaris-worker-versions.json; then
-            echo "::warning::The versions listing did not expose the Git SHA message verbatim; the upload transcript remains authoritative for this run."
-          fi
-
-      - name: Verify protected preview gate
+      - name: Deploy to an isolated temporary Cloudflare account
+        id: deploy
         shell: bash
         run: |
           set -euo pipefail
+          set +e
+          bunx wrangler@4.141.0 deploy \
+            --temporary \
+            --no-bundle \
+            --config wrangler.v3-preview.jsonc \
+            --message "Solaris Studio V3 PR #1872 ${GITHUB_SHA}" \
+            > /tmp/solaris-v3-preview-deploy.log 2>&1
+          deploy_status=$?
+          set -e
 
-          root_status="$(curl --silent --show-error --output /tmp/solaris-preview-root.html --write-out '%{http_code}' "${PREVIEW_URL}/")"
-          if [ "$root_status" != "503" ]; then
-            echo "::error::Unauthenticated preview root returned HTTP ${root_status}; expected maintenance HTTP 503."
+          # The temporary-account claim URL is a bearer credential. Never print
+          # it into public Actions logs. Only non-sensitive deployment output is
+          # surfaced here.
+          sed -E \
+            's#https://dash\.cloudflare\.com/claim-preview\?claimToken=[^[:space:]]+#<claim-url-redacted>#g' \
+            /tmp/solaris-v3-preview-deploy.log
+
+          if [ "$deploy_status" -ne 0 ]; then
+            echo "::error::Temporary Cloudflare preview deployment failed."
+            exit "$deploy_status"
+          fi
+
+          preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' /tmp/solaris-v3-preview-deploy.log | tail -n 1)"
+          if [ -z "$preview_url" ]; then
+            echo "::error::Cloudflare deployment succeeded but no workers.dev preview URL was found."
             exit 1
           fi
 
-          admin_status="$(curl --silent --show-error --output /tmp/solaris-preview-admin.html --write-out '%{http_code}' "${PREVIEW_URL}/__maintenance-admin")"
-          if [ "$admin_status" != "200" ]; then
-            echo "::error::Maintenance-admin preview gate returned HTTP ${admin_status}; expected 200."
-            cat /tmp/solaris-preview-admin.html || true
+          echo "PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"
+          {
+            echo "preview_url=$preview_url"
+            echo "git_sha=$GITHUB_SHA"
+          } > preview-address.txt
+
+      - name: Verify preview access protection
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --dump-header /tmp/preview-headers.txt \
+            --output /tmp/preview-body.txt "$PREVIEW_URL/" || true
+
+          status="$(awk 'toupper($1) ~ /^HTTP\// { code=$2 } END { print code }' /tmp/preview-headers.txt)"
+          if [ "$status" != "401" ]; then
+            echo "::error::Unauthenticated preview returned HTTP ${status:-unknown}; expected 401."
+            exit 1
+          fi
+          if ! grep -Eiq '^www-authenticate: Basic realm="Solaris Studio V3 preview"' /tmp/preview-headers.txt; then
+            echo "::error::Preview did not expose the canonical server-side Basic-auth challenge."
             exit 1
           fi
 
-          if grep -Fq "not configured on this deployment" /tmp/solaris-preview-admin.html; then
-            echo "::error::The preview did not inherit the server-only maintenance-admin secret."
+      - name: Verify production remains untouched
+        shell: bash
+        run: |
+          set -euo pipefail
+          production_status="$(curl --silent --show-error --output /tmp/production-root.html --write-out '%{http_code}' https://studio.solaris-song-contest.workers.dev/)"
+          if [ "$production_status" != "503" ]; then
+            echo "::error::Production maintenance root returned HTTP $production_status; expected 503."
             exit 1
           fi
 
-          if ! grep -Fq "Maintenance access" /tmp/solaris-preview-admin.html; then
-            echo "::error::The preview admin route is not the canonical signed maintenance gate."
-            exit 1
-          fi
+      - name: Upload non-sensitive preview address
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-real-app-preview-address
+          path: preview-address.txt
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Preview summary
         if: always()
@@ -144,11 +132,14 @@ jobs:
             echo "## Solaris Studio V3 real-app preview"
             echo
             echo "- Exact Git SHA: \`${GITHUB_SHA}\`"
-            echo "- Worker: \`studio\`"
-            echo "- Stable alias: \`pr1872-v3\`"
-            echo "- Preview URL: ${PREVIEW_URL}"
-            echo "- Owner access: ${PREVIEW_URL}/__maintenance-admin"
-            echo "- Upload mode: Worker version only; no production deployment command is used"
-            echo "- Normal preview visitors remain behind global maintenance"
-            echo "- The canonical signed maintenance-admin bypass remains GET/HEAD-only"
+            if [ -n "${PREVIEW_URL:-}" ]; then
+              echo "- Protected preview URL: ${PREVIEW_URL}"
+            fi
+            echo "- Hosting: isolated Cloudflare temporary preview account"
+            echo "- Production Worker: untouched"
+            echo "- Production maintenance: still enabled"
+            echo "- Access: server-side HTTP Basic auth"
+            echo "- Preview Worker accepts only GET/HEAD requests"
+            echo "- Browser Supabase transport rejects non-GET/HEAD requests"
+            echo "- No production Supabase migration, reset, fixture write or mutation is performed"
           } >> "$GITHUB_STEP_SUMMARY"

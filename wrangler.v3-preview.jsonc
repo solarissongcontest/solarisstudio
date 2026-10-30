@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "solaris-v3-pr1872-preview",
+  "compatibility_date": "2026-08-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": ".output/server/index.mjs",
+  "vars": {
+    "NODE_ENV": "production",
+    "MAINTENANCE_HOD_ACCESS": "false",
+    "SOLARIS_V3_PREVIEW_PASSWORD_SHA256": "768df61ba84578b7f3e91cd164d24391479d11f17c385054c4b55f549ae31fc5",
+    "SUPABASE_URL": "https://dkxmnvekiopyesuzggeu.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_88TCCj0swFjn6xESWLwqlQ_HVUpU7Fa"
+  },
+  "assets": {
+    "directory": ".output/public"
+  },
+  "version_metadata": {
+    "binding": "CF_VERSION_METADATA"
+  },
+  "observability": {
+    "enabled": false
+  }
+}
