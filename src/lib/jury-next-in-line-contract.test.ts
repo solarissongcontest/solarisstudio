@@ -87,7 +87,8 @@ describe("country account jury voting contract", () => {
     expect(manual).toContain('lifecycleRpc("studio2_jury_vote_change_preview"');
     expect(manual).toContain('await mutateJuryScore("assign", voterKey, points, receiver)');
     expect(manual).toContain('await mutateJuryScore("clear", voterKey, points)');
-    expect(manual).toContain("await executeJuryVoteChange({");
+    expect(manual).toContain("executeJuryVoteChange(command,client)");
+    expect(manual).toContain("runRetainedJuryCommand(actorId,intent,sessionStorage");
     expect(manual).not.toMatch(/\.rpc\(\s*["'](?:assign_jury_vote|clear_jury_point)["']/);
   });
 

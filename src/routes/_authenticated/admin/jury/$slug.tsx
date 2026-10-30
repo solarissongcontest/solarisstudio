@@ -12,9 +12,11 @@ import {
   Users,
   Vote,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
+import { readRetainedJuryCommand, recoverRetainedJuryCommand, runRetainedJuryCommand, type JuryCommandIntent, type RetainedJuryCommand } from "@/lib/v3-jury-retained-command";
 import { CountryPicker } from "@/components/CountryPicker";
 import { FlagChip } from "@/components/FlagChip";
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -49,7 +51,7 @@ import {
 } from "@/lib/data";
 import { DEFAULT_ACCENT, entityDisplayMap } from "@/lib/entities";
 import { reportSupabaseError } from "@/lib/errors";
-import { executeJuryVoteChange, type JuryVoteAction } from "@/lib/v3-jury-vote-command";
+import { executeJuryBallotReview, executeJuryVoteChange, type JuryVoteAction } from "@/lib/v3-jury-vote-command";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
 import { resolveVoting } from "@/lib/voting";
 
@@ -169,6 +171,18 @@ export const Route = createFileRoute("/_authenticated/admin/jury/$slug")({
 });
 
 function JuryWorkspace() {
+  const user = useAuthenticatedUser();
+  const currentActor = useRef(user.id);
+  currentActor.current = user.id;
+  const mutationInFlight = useRef(false);
+  const [juryRecovery, setJuryRecovery] = useState<{actorId: string; pending: boolean; error?: string} | null>(null);
+  function refreshJuryRecovery(actorId: string) {
+    if (currentActor.current !== actorId) return;
+    try { setJuryRecovery({actorId,pending: Boolean(readRetainedJuryCommand(actorId,sessionStorage))}); }
+    catch { setJuryRecovery({actorId,pending: true,error: "Saved jury change could not be read. Restore access to this browser's session storage before continuing."}); }
+  }
+  useEffect(() => { refreshJuryRecovery(user.id); }, [user.id]);
+
   const { slug } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -301,98 +315,68 @@ function JuryWorkspace() {
     return { voterId: option?.voterId ?? null, countryId: option?.countryId ?? null };
   }
 
-  async function mutateJuryScore(
-    action: JuryVoteAction,
-    voterKey: string,
-    points: number,
-    receiver?: string,
-  ) {
-    if (!edition || !selectedShow || busy) return;
-    if (action === "assign" && didNotVoteVoterKeys.has(voterKey)) {
-      toast.error("Restore this jury ballot before assigning points.");
-      return;
-    }
+  async function executeRetainedJury(command: RetainedJuryCommand) {
+    const actorId = user.id;
+    const client = { rpc: async (name: string, args?: Record<string,unknown>) => {
+      const {data,error} = await supabase.auth.getSession();
+      if (error || currentActor.current !== actorId || data.session?.user.id !== actorId) {
+        throw Object.assign(new Error("Sign in as the original reviewer to recover this jury change."),{code:"42501"});
+      }
+      return lifecycleRpc(name,args ?? {});
+    }};
+    return command.kind === "score"
+      ? executeJuryVoteChange(command,client)
+      : executeJuryBallotReview(command,client);
+  }
 
-    const { voterId, countryId } = decodeVoterKey(voterKey);
-    const voterIdentity = countryId
-      ? identityFor(countryId)
-      : { country_id: null, contest_entity_id: null };
-    const target = action === "assign" && receiver
-      ? identityFor(receiver)
-      : { country_id: null, contest_entity_id: null };
-
-    setBusy(true);
+  async function recoverPendingJury() {
+    if (busy || mutationInFlight.current) return;
+    const actorId = user.id;
+    mutationInFlight.current = true; setBusy(true);
     try {
-      const previewResult = await lifecycleRpc("studio2_jury_vote_change_preview", {
-        p_edition_id: edition.id,
-        p_show_id: selectedShow.id,
-        p_voter_id: voterId,
-        p_voter_country_id: voterIdentity.country_id,
-        p_voter_entity_id: voterIdentity.contest_entity_id,
-        p_receiving_country_id: target.country_id,
-        p_receiving_entity_id: target.contest_entity_id,
-        p_points: points,
-        p_action: action,
-      });
-      if (previewResult.error) {
-        throw new Error(previewResult.error.message || "Jury score preview failed.");
-      }
+      await recoverRetainedJuryCommand(actorId,sessionStorage,executeRetainedJury);
+      if (currentActor.current !== actorId) return;
+      setPendingBallotReview(null); setLifecycleReason("");
+      toast.success("Jury change confirmed. Scores and review state are refreshing.");
+      await refresh();
+    } catch (caught) { toast.error(reportSupabaseError(caught,"Jury change is still unconfirmed. Retry recovery before making another change.")); }
+    finally { mutationInFlight.current=false; setBusy(false); refreshJuryRecovery(actorId); }
+  }
 
-      const preview = previewResult.data as {
-        expectedVersion: number;
-        riskClass: "R2";
-      };
-      if (!Number.isSafeInteger(preview.expectedVersion) || preview.expectedVersion < 0) {
-        throw new Error("Jury score preview returned an invalid version.");
-      }
-
-      const operation = createOrganisationCommand({
-        command: `jury.vote.${action}`,
-        payload: {
-          showId: selectedShow.id,
-          voterKey,
-          receiver: receiver ?? null,
-          points,
-          action,
-        },
-        riskClass: preview.riskClass,
-        scope: {
-          editionId: edition.id,
-          showId: selectedShow.id,
-          entityId: voterId ?? voterIdentity.contest_entity_id ?? voterIdentity.country_id,
-        },
-        expectedVersion: preview.expectedVersion,
-      });
-
-      await executeJuryVoteChange({
-        editionId: edition.id,
-        showId: selectedShow.id,
-        voterId,
-        voterCountryId: voterIdentity.country_id,
-        voterEntityId: voterIdentity.contest_entity_id,
-        receivingCountryId: target.country_id,
-        receivingEntityId: target.contest_entity_id,
-        points,
-        action,
-        expectedVersion: preview.expectedVersion,
-        operationId: operation.operationId,
-        idempotencyKey: operation.idempotencyKey,
-      }, supabase as any);
-
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["jury_votes"] }),
-        qc.invalidateQueries({ queryKey: ["admin-readiness-data"] }),
-      ]);
+  async function mutateJuryScore(action: JuryVoteAction, voterKey: string, points: number, receiver?: string) {
+    if (!edition || !selectedShow || busy || mutationInFlight.current) return;
+    const actorId = user.id;
+    const {voterId,countryId} = decodeVoterKey(voterKey);
+    const voterIdentity = countryId ? identityFor(countryId) : {country_id:null,contest_entity_id:null};
+    const target = action === "assign" && receiver ? identityFor(receiver) : {country_id:null,contest_entity_id:null};
+    const intent: JuryCommandIntent = {
+      kind:"score", editionId:edition.id, showId:selectedShow.id, voterId,
+      voterCountryId:voterIdentity.country_id, voterEntityId:voterIdentity.contest_entity_id,
+      receivingCountryId:target.country_id, receivingEntityId:target.contest_entity_id, points,action,
+    };
+    mutationInFlight.current = true; setBusy(true);
+    try {
+      await runRetainedJuryCommand(actorId,intent,sessionStorage,async () => {
+        // Recovery of a retained request precedes a fresh preview or mutable DNV
+        // check. A committed operation may now refer to an immutable show.
+        if (action === "assign" && didNotVoteVoterKeys.has(voterKey)) throw new Error("Restore this jury ballot before assigning points.");
+        const previewResult = await lifecycleRpc("studio2_jury_vote_change_preview", {
+          p_edition_id:intent.editionId,p_show_id:intent.showId,p_voter_id:intent.voterId,
+          p_voter_country_id:intent.voterCountryId,p_voter_entity_id:intent.voterEntityId,
+          p_receiving_country_id:intent.receivingCountryId,p_receiving_entity_id:intent.receivingEntityId,
+          p_points:points,p_action:action,
+        });
+        if (previewResult.error) throw previewResult.error;
+        const preview = previewResult.data as {expectedVersion:number;riskClass:"R2"};
+        if (!Number.isSafeInteger(preview?.expectedVersion) || preview.expectedVersion < 0) throw new Error("Refresh jury scores before editing this ballot.");
+        const operation = createOrganisationCommand({command:`jury.vote.${action}`,payload:intent,riskClass:preview.riskClass,
+          scope:{editionId:edition.id,showId:selectedShow.id,entityId:voterId ?? voterIdentity.contest_entity_id ?? voterIdentity.country_id},expectedVersion:preview.expectedVersion});
+        return {...intent,expectedVersion:preview.expectedVersion,operationId:operation.operationId,idempotencyKey:operation.idempotencyKey};
+      },executeRetainedJury);
+      if (currentActor.current === actorId) await refresh();
     } catch (caught) {
-      toast.error(reportSupabaseError(
-        caught,
-        action === "assign"
-          ? "Could not save that jury score. Nothing was changed."
-          : "Could not clear that jury score. Nothing was changed.",
-      ));
-    } finally {
-      setBusy(false);
-    }
+      toast.error(reportSupabaseError(caught,"Jury score change could not be confirmed. Recover any saved change before trying another edit."));
+    } finally { mutationInFlight.current=false; setBusy(false); refreshJuryRecovery(actorId); }
   }
 
   async function assign(voterKey: string, receiver: string, points: number) {
@@ -545,33 +529,21 @@ function JuryWorkspace() {
   }
 
   async function applyBallotReview() {
-    if (!pendingBallotReview || busy) return;
-    const requiresReason = pendingBallotReview.targetStatus !== "valid";
-    if (requiresReason && !lifecycleReason.trim()) return;
-
-    setBusy(true);
+    if (!pendingBallotReview || busy || mutationInFlight.current) return;
+    const actorId = user.id;
+    const reason = lifecycleReason.trim() || null;
+    if (pendingBallotReview.targetStatus !== "valid" && !reason) return;
+    const intent: JuryCommandIntent = {kind:"review",editionId:pendingBallotReview.ballot.edition_id,showId:pendingBallotReview.ballot.show_id,
+      ballotId:pendingBallotReview.ballot.id,targetStatus:pendingBallotReview.targetStatus,reason};
+    mutationInFlight.current=true; setBusy(true);
     try {
-      const result = await lifecycleRpc("studio2_apply_jury_ballot_review", {
-        p_ballot_id: pendingBallotReview.ballot.id,
-        p_target_status: pendingBallotReview.targetStatus,
-        p_reason: lifecycleReason.trim() || null,
-        p_operation_id: pendingBallotReview.operationId,
-        p_idempotency_key: pendingBallotReview.idempotencyKey,
-        p_expected_version: pendingBallotReview.expectedVersion,
-      });
-      if (result.error) {
-        throw new Error(result.error.message || "Jury ballot review transition failed.");
-      }
-
+      await runRetainedJuryCommand(actorId,intent,sessionStorage,async () => ({...intent,expectedVersion:pendingBallotReview.expectedVersion,
+        operationId:pendingBallotReview.operationId,idempotencyKey:pendingBallotReview.idempotencyKey}),executeRetainedJury);
+      if (currentActor.current !== actorId) return;
       toast.success(`Jury ballot marked ${humanizeLifecycle(pendingBallotReview.targetStatus)}`);
-      setPendingBallotReview(null);
-      setLifecycleReason("");
-      await refresh();
-    } catch (caught) {
-      toast.error(reportSupabaseError(caught, "Jury ballot review could not be applied."));
-    } finally {
-      setBusy(false);
-    }
+      setPendingBallotReview(null); setLifecycleReason(""); await refresh();
+    } catch (caught) { toast.error(reportSupabaseError(caught,"Jury review could not be confirmed. Recover the saved change before changing its reason or status.")); }
+    finally { mutationInFlight.current=false; setBusy(false); refreshJuryRecovery(actorId); }
   }
 
   async function addMissingParticipants() {
@@ -732,7 +704,15 @@ function JuryWorkspace() {
 
   if (loadingEdition || loadingShows) return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading jury workspace…</p></AdminCard>;
   if (!edition) return <AdminCard><AdminEmptyState icon={Vote} title="Edition not found" description="Choose another edition from the organizer workspace." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
-  if (!orderedShows.length) return <AdminPage><AdminPageHeader eyebrow={editionLabel(edition)} title="Jury voting" description="Create a show before configuring its juries and ballots." /><AdminCard><AdminEmptyState icon={Users} title="No shows yet" description="Juries belong to a show." action={<Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary">Create a show</Link>} /></AdminCard></AdminPage>;
+  const recoveryNotice = juryRecovery?.actorId === user.id && juryRecovery.pending ? (
+    <div role="status" className="mb-4 rounded-xl border border-amber-300/30 p-4">
+      <p className="text-sm font-semibold">A jury change needs confirmation</p>
+      <p className="mt-1 text-sm text-muted-foreground">{juryRecovery.error ?? "Confirm the saved change before making another score or review change. Recovery uses the original reviewed request."}</p>
+      <button type="button" className="admin-action-primary mt-3" disabled={busy || Boolean(juryRecovery.error)} onClick={() => void recoverPendingJury()}>Confirm saved jury change</button>
+    </div>
+  ) : null;
+
+  if (!orderedShows.length) return <AdminPage>{recoveryNotice}<AdminPageHeader eyebrow={editionLabel(edition)} title="Jury voting" description="Create a show before configuring its juries and ballots." /><AdminCard><AdminEmptyState icon={Users} title="No shows yet" description="Juries belong to a show." action={<Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary">Create a show</Link>} /></AdminCard></AdminPage>;
 
   return (
     <AdminPage>
@@ -742,6 +722,8 @@ function JuryWorkspace() {
         description="Enter jury ballots quickly during production, or explicitly mark a jury as did not vote without inventing scores."
         actions={<AdminMoreMenu label="More" title="Jury actions" description="Configuration that should stay out of the way during live ballot entry."><AdminActionItem icon={Users} title="Manage jury roster" description={explicitRoster ? `${orderedVoters.length} explicit jury entities configured.` : "Participating countries are used automatically."} onClick={() => setView("roster")} /><AdminActionItem icon={Settings2} title="Voting system" description="Change point scale, weighting, self-voting and qualifier rules." onClick={() => void navigate({ to: "/admin/voting-system/$slug", params: { slug } })} /></AdminMoreMenu>}
       />
+
+      {recoveryNotice}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Link to="/admin/$slug" params={{ slug }} className="admin-action-quiet"><ArrowLeft className="size-4" /> Edition home</Link>

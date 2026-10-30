@@ -39,54 +39,55 @@ function asObject(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function asString(value: unknown, label: string): string {
-  if (typeof value !== "string" || !value) throw new Error(`Invalid ${label}.`);
-  return value;
-}
-
-function asInteger(value: unknown, label: string): number {
-  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
-    throw new Error(`Invalid ${label}.`);
-  }
-  return value;
-}
-
 function normalizeResult(
   value: unknown,
   request: JuryVoteCommandRequest,
   replayed: boolean,
 ): JuryVoteCommandResult {
   const result = asObject(value, "jury score result");
-  const operationId = asString(result.operationId, "jury score operation id");
-  const action = asString(result.action, "jury score action") as JuryVoteAction;
-  const showId = asString(result.showId, "jury score show id");
-  const points = asInteger(result.points, "jury score points");
-  const previousVersion = asInteger(result.previousVersion, "previous jury score version");
-  const version = asInteger(result.version, "jury score version");
-  const deletedRows = asInteger(result.deletedRows ?? 0, "deleted jury score rows");
-  const voteId = result.voteId === null || result.voteId === undefined
-    ? null
-    : asString(result.voteId, "jury score vote id");
-
-  if (operationId !== request.operationId) {
-    throw new Error("Jury score receipt belongs to another operation.");
-  }
-  if (action !== request.action || showId !== request.showId || points !== request.points) {
+  const semantic = asObject(result.request, "verified jury score request");
+  const fields = [
+    "editionId",
+    "showId",
+    "voterId",
+    "voterCountryId",
+    "voterEntityId",
+    "receivingCountryId",
+    "receivingEntityId",
+    "points",
+    "action",
+    "expectedVersion",
+  ] as const;
+  if (
+    fields.some((key) => semantic[key] !== request[key]) ||
+    result.operationId !== request.operationId ||
+    result.action !== request.action ||
+    result.showId !== request.showId ||
+    result.points !== request.points ||
+    result.previousVersion !== request.expectedVersion
+  ) {
     throw new Error("Jury score receipt disagrees with the requested mutation.");
   }
-  if (previousVersion !== request.expectedVersion || version < previousVersion) {
-    throw new Error("Jury score receipt disagrees with the reviewed score version.");
-  }
-
+  const version = result.version as number;
+  const deletedRows = (result.deletedRows ?? 0) as number;
+  const voteId = result.voteId ?? null;
+  if (
+    !Number.isSafeInteger(version) ||
+    version < request.expectedVersion ||
+    !Number.isSafeInteger(deletedRows) ||
+    deletedRows < 0 ||
+    (voteId !== null && (typeof voteId !== "string" || !voteId))
+  )
+    throw new Error("Invalid jury score receipt. Recover the saved change.");
   return {
-    operationId,
-    action,
-    showId,
-    points,
-    previousVersion,
+    operationId: request.operationId,
+    action: request.action,
+    showId: request.showId,
+    points: request.points,
+    previousVersion: request.expectedVersion,
     version,
-    voteId,
     deletedRows,
+    voteId: voteId as string | null,
     replayed,
   };
 }
@@ -96,17 +97,11 @@ function normalizeWireResult(value: unknown, request: JuryVoteCommandRequest) {
   if (envelope.status === "succeeded") {
     return normalizeResult(envelope.result, request, envelope.replayed === true);
   }
-  if (envelope.result && typeof envelope.result === "object") {
-    return normalizeResult(envelope.result, request, envelope.replayed === true);
-  }
   throw new Error("Jury score operation did not return a successful receipt.");
 }
 
-/**
- * Executes one canonical manual jury-score mutation. A transport or RPC error is
- * reconciled exactly once by operation id before it is surfaced, so a response
- * lost after commit does not invite a blind second official mutation.
- */
+/** A lost, thrown or malformed response is recovered through the same governed
+ * command. Generic receipt readback cannot bypass fresh domain authorization. */
 export async function executeJuryVoteChange(
   request: JuryVoteCommandRequest,
   client: JuryVoteRpcClient,
@@ -117,37 +112,92 @@ export async function executeJuryVoteChange(
   if (!request.operationId || !request.idempotencyKey) {
     throw new Error("Jury score mutation requires stable operation identity.");
   }
+  return recoverJuryCommand(async () => {
+    const { data, error } = await client.rpc("studio2_apply_jury_vote_change", {
+      p_edition_id: request.editionId,
+      p_show_id: request.showId,
+      p_voter_id: request.voterId,
+      p_voter_country_id: request.voterCountryId,
+      p_voter_entity_id: request.voterEntityId,
+      p_receiving_country_id: request.receivingCountryId,
+      p_receiving_entity_id: request.receivingEntityId,
+      p_points: request.points,
+      p_action: request.action,
+      p_operation_id: request.operationId,
+      p_idempotency_key: request.idempotencyKey,
+      p_expected_version: request.expectedVersion,
+    });
 
-  const { data, error } = await client.rpc("studio2_apply_jury_vote_change", {
-    p_edition_id: request.editionId,
-    p_show_id: request.showId,
-    p_voter_id: request.voterId,
-    p_voter_country_id: request.voterCountryId,
-    p_voter_entity_id: request.voterEntityId,
-    p_receiving_country_id: request.receivingCountryId,
-    p_receiving_entity_id: request.receivingEntityId,
-    p_points: request.points,
-    p_action: request.action,
-    p_operation_id: request.operationId,
-    p_idempotency_key: request.idempotencyKey,
-    p_expected_version: request.expectedVersion,
+    if (error) throw error;
+    return normalizeWireResult(data, request);
   });
+}
 
-  if (!error) return normalizeWireResult(data, request);
-
-  const { data: reconciliation, error: reconciliationError } = await client.rpc(
-    "studio2_reconcile_operation",
-    { p_operation_id: request.operationId },
+export function isDefiniteJuryRejection(error: unknown): boolean {
+  const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+  return (
+    typeof code === "string" &&
+    ["PT409", "40001", "22023", "23514", "55000", "P0002"].includes(code)
   );
+}
 
-  if (!reconciliationError) {
+/** A database rejection cannot commit this request. Authorization revocation
+ * and fingerprint conflicts retain identity because earlier success may exist. */
+export async function recoverJuryCommand<T>(attempt: () => Promise<T>): Promise<T> {
+  try {
+    return await attempt();
+  } catch (original) {
+    if (
+      isDefiniteJuryRejection(original) ||
+      (original && typeof original === "object" && "code" in original && original.code === "42501")
+    )
+      throw original;
     try {
-      return normalizeWireResult(reconciliation, request);
+      return await attempt();
     } catch {
-      // The original mutation error stays authoritative if a receipt is absent,
-      // malformed or contradicts the exact reviewed request.
+      throw original;
     }
   }
+}
 
-  throw error;
+export type JuryBallotReviewRequest = {
+  editionId: string;
+  showId: string;
+  ballotId: string;
+  targetStatus: "valid" | "needs_review" | "invalidated" | "superseded";
+  reason: string | null;
+  expectedVersion: number;
+  operationId: string;
+  idempotencyKey: string;
+};
+export async function executeJuryBallotReview(
+  request: JuryBallotReviewRequest,
+  client: JuryVoteRpcClient,
+) {
+  return recoverJuryCommand(async () => {
+    const { data, error } = await client.rpc("studio2_apply_jury_ballot_review", {
+      p_ballot_id: request.ballotId,
+      p_target_status: request.targetStatus,
+      p_reason: request.reason,
+      p_expected_version: request.expectedVersion,
+      p_operation_id: request.operationId,
+      p_idempotency_key: request.idempotencyKey,
+    });
+    if (error) throw error;
+    const result = asObject(data, "jury ballot review receipt");
+    if (
+      result.ok !== true ||
+      result.operationId !== request.operationId ||
+      result.ballotId !== request.ballotId ||
+      result.editionId !== request.editionId ||
+      result.showId !== request.showId ||
+      result.status !== request.targetStatus ||
+      result.reason !== request.reason ||
+      result.previousVersion !== request.expectedVersion ||
+      result.version !== request.expectedVersion + 1
+    ) {
+      throw new Error("Jury ballot review is unconfirmed. Recover the retained operation.");
+    }
+    return result;
+  });
 }

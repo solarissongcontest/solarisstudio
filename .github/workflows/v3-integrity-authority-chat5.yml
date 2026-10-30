@@ -162,6 +162,9 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/v3-entry-runtime.sql"
           bun --env-file=/dev/null scripts/generate-v3-internal-mechanism-proof.ts --proof-file=.github/tests/v3-confirmation-runtime-mechanisms.sql --out="$RUNNER_TEMP/v3-confirmation-runtime.sql"
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/v3-confirmation-runtime.sql"
+          bun --env-file=/dev/null scripts/generate-v3-internal-mechanism-proof.ts --proof-file=.github/tests/v3-jury-runtime-mechanisms.sql --out="$RUNNER_TEMP/v3-jury-runtime.sql"
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/v3-jury-runtime.sql"
+          DB_URL="$DB_URL" V3_VERIFICATION_TARGET=local python3 "$GITHUB_WORKSPACE/.github/scripts/v3-jury-concurrency.py"
 
       - name: Prove Integrity runtime authority catalog
         shell: bash
@@ -313,6 +316,9 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/v3-entry-runtime.sql"
           (cd "$GITHUB_WORKSPACE" && bun --env-file=/dev/null scripts/generate-v3-internal-mechanism-proof.ts --proof-file=.github/tests/v3-confirmation-runtime-mechanisms.sql --out="$RUNNER_TEMP/v3-confirmation-runtime.sql")
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/v3-confirmation-runtime.sql"
+          (cd "$GITHUB_WORKSPACE" && bun --env-file=/dev/null scripts/generate-v3-internal-mechanism-proof.ts --proof-file=.github/tests/v3-jury-runtime-mechanisms.sql --out="$RUNNER_TEMP/v3-jury-runtime.sql")
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/v3-jury-runtime.sql"
+          DB_URL="$DB_URL" V3_VERIFICATION_TARGET=local python3 "$GITHUB_WORKSPACE/.github/scripts/v3-jury-concurrency.py"
 
       - name: Prove upgraded Integrity runtime authority catalog
         shell: bash

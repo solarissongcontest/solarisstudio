@@ -72,7 +72,8 @@ describe("Organisation OS V5 jury ballot lifecycle", () => {
   it("exposes Organizer ballot validation without rewriting submitted vote rows", () => {
     expect(route).toContain("Ballot validation");
     expect(route).toContain("studio2_jury_ballot_review_preview");
-    expect(route).toContain("studio2_apply_jury_ballot_review");
+    expect(route).toContain("executeJuryBallotReview");
+    expect(source("src/lib/v3-jury-vote-command.ts")).toContain("studio2_apply_jury_ballot_review");
     expect(route).toContain("Mark valid");
     expect(route).toContain("Needs review");
     expect(route).toContain("Invalidate");

@@ -1437,6 +1437,129 @@ export const V3_INTERNAL_MECHANISM_CONTRACTS: readonly InternalMechanismContract
     ],
     "proof": ".github/tests/v3-confirmation-runtime-mechanisms.sql"
   },
+{
+  "domain": "jury",
+  "signature": "public.sync_results_after_vote_change()",
+  "definitionHash": "b84dc1dc337033a0033b20341cade9f6",
+  "securityDefiner": true,
+  "category": "projection",
+  "reason": "Transactional provisional score projection from protected canonical Jury rows. The caller cannot choose official ranking, publication or finalization; Results authority remains separately blocked in #1400.",
+  "inputTables": [
+    "public.jury_votes",
+    "public.televote_votes"
+  ],
+  "attachments": [
+    {
+      "table": "public.jury_votes",
+      "type": 29,
+      "definitionHash": "3afe4812305c2cea12bd1a1eb7ecaf91"
+    }
+  ],
+  "callerSignatures": [],
+  "proof": ".github/tests/v3-jury-runtime-mechanisms.sql"
+},
+{
+  "domain": "jury",
+  "signature": "private.studio2_touch_jury_vote_version()",
+  "definitionHash": "4e112d30d73d00024df062cb49a93acb",
+  "securityDefiner": true,
+  "category": "housekeeping",
+  "reason": "Bounded server-owned show revision advancement from protected Jury score rows. No external revision or lifecycle decision is accepted.",
+  "inputTables": [
+    "public.jury_votes",
+    "public.studio2_jury_vote_versions",
+    "public.studio2_operation_receipts"
+  ],
+  "attachments": [
+    {
+      "table": "public.jury_votes",
+      "type": 29,
+      "definitionHash": "f6b815c0d36244dd37e4044389f7fb9e"
+    }
+  ],
+  "callerSignatures": [],
+  "proof": ".github/tests/v3-jury-runtime-mechanisms.sql"
+},
+{
+  "domain": "jury",
+  "signature": "public.clear_jury_point(p_edition_id uuid, p_show_id uuid, p_voter_id uuid, p_voter_country_id uuid, p_voter_entity_id uuid, p_points integer)",
+  "definitionHash": "83f7d299dcdc6824368dd1cc516521f2",
+  "securityDefiner": true,
+  "category": "primitive",
+  "reason": "Owner-only manual-row deletion behind the same governed score command; published/finalized inputs and participant ballot evidence are protected.",
+  "inputTables": [
+    "public.jury_votes",
+    "public.studio2_jury_vote_versions",
+    "public.studio2_operation_receipts"
+  ],
+  "attachments": [],
+  "callerSignatures": [
+    "public.studio2_apply_jury_vote_change(p_edition_id uuid, p_show_id uuid, p_voter_id uuid, p_voter_country_id uuid, p_voter_entity_id uuid, p_receiving_country_id uuid, p_receiving_entity_id uuid, p_points integer, p_action text, p_operation_id uuid, p_idempotency_key text, p_expected_version bigint)"
+  ],
+  "proof": ".github/tests/v3-jury-runtime-mechanisms.sql"
+},
+{
+  "domain": "jury",
+  "signature": "public.assign_jury_vote(p_edition_id uuid, p_show_id uuid, p_voter_id uuid, p_voter_country_id uuid, p_voter_entity_id uuid, p_receiving_country_id uuid, p_receiving_entity_id uuid, p_points integer)",
+  "definitionHash": "48aacf4c0e37eb41b4b122dab5fc2985",
+  "securityDefiner": true,
+  "category": "primitive",
+  "reason": "Owner-only manual-row replacement behind the active-session, capability, lifecycle, fingerprint and CAS command. It cannot delete immutable participant ballot evidence.",
+  "inputTables": [
+    "public.jury_votes",
+    "public.studio2_jury_vote_versions",
+    "public.studio2_operation_receipts"
+  ],
+  "attachments": [],
+  "callerSignatures": [
+    "public.studio2_apply_jury_vote_change(p_edition_id uuid, p_show_id uuid, p_voter_id uuid, p_voter_country_id uuid, p_voter_entity_id uuid, p_receiving_country_id uuid, p_receiving_entity_id uuid, p_points integer, p_action text, p_operation_id uuid, p_idempotency_key text, p_expected_version bigint)"
+  ],
+  "proof": ".github/tests/v3-jury-runtime-mechanisms.sql"
+},
+{
+  "domain": "jury",
+  "signature": "private.studio2_jury_ballot_review_task_trigger()",
+  "definitionHash": "e953a49311687635a28373ba2cc93f79",
+  "securityDefiner": true,
+  "category": "projection",
+  "reason": "Synchronous review task/notification reconciliation from canonical ballot state. Failure rolls back review, audit and receipt; duplicate retry cannot reapply it.",
+  "inputTables": [
+    "public.jury_ballot_submissions",
+    "public.jury_votes",
+    "public.studio2_operation_receipts"
+  ],
+  "attachments": [
+    {
+      "table": "public.jury_ballot_submissions",
+      "type": 21,
+      "definitionHash": "f16bee6aaeb6c83bf64ed3525ef50fd2"
+    }
+  ],
+  "callerSignatures": [],
+  "proof": ".github/tests/v3-jury-runtime-mechanisms.sql"
+},
+{
+  "domain": "jury",
+  "signature": "private.studio2_sync_results_after_jury_ballot_review()",
+  "definitionHash": "07dddc9dea47106f4c694e5e33ccf737",
+  "securityDefiner": true,
+  "category": "projection",
+  "reason": "Transactional provisional Results invalidation derived from reviewed Jury status, behind closed ballot inputs. Shared Jury input guards protect locked/scheduled/published outcomes. This does not certify frozen Results official authority.",
+  "inputTables": [
+    "public.jury_ballot_submissions",
+    "public.jury_votes",
+    "public.studio2_operation_receipts"
+  ],
+  "attachments": [
+    {
+      "table": "public.jury_ballot_submissions",
+      "type": 17,
+      "definitionHash": "62a984aa7c8d064bbe0a56406284c724"
+    }
+  ],
+  "callerSignatures": [],
+  "proof": ".github/tests/v3-jury-runtime-mechanisms.sql"
+}
 ];
 export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
   {
@@ -1643,4 +1766,15 @@ export const V3_INTERNAL_CALLER_CONTRACTS: readonly InternalCallerContract[] = [
       "public.studio2_reconcile_confirmation_requirements(p_edition_id uuid, p_offset integer, p_limit integer, p_operation_id uuid, p_idempotency_key text)"
     ]
   },
+{
+  "signature": "public.studio2_apply_jury_vote_change(p_edition_id uuid, p_show_id uuid, p_voter_id uuid, p_voter_country_id uuid, p_voter_entity_id uuid, p_receiving_country_id uuid, p_receiving_entity_id uuid, p_points integer, p_action text, p_operation_id uuid, p_idempotency_key text, p_expected_version bigint)",
+  "definitionHash": "94f36c738d303fdd4ac6e916f286dc14",
+  "executeRoles": [
+    "postgres",
+    "authenticated"
+  ],
+  "securityDefiner": true,
+  "root": true,
+  "callerSignatures": []
+}
 ];

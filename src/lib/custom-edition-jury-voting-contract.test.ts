@@ -20,7 +20,9 @@ describe("custom edition-only jury voting contract", () => {
     const route = source("src/routes/_authenticated/admin/jury/$slug.tsx");
 
     expect(route).toContain("p_voter_entity_id: voterIdentity.contest_entity_id");
-    expect(route).toContain("p_receiving_entity_id: target.contest_entity_id");
+    expect(route).toContain("receivingEntityId:target.contest_entity_id");
+    expect(route).toContain("p_receiving_entity_id:intent.receivingEntityId");
+    expect(source("src/lib/v3-jury-vote-command.ts")).toContain("p_receiving_entity_id: request.receivingEntityId");
   });
 
   it("keeps edition-only countries separate from global country identity", () => {

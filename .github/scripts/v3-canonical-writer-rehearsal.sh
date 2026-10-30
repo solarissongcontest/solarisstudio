@@ -70,3 +70,10 @@ for invariant_family in confirmation jury entry; do
 done
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/tests/v3-integrity-case-relation-authority.sql
 bash .github/scripts/v3-account-session-authority-rehearsal.sh
+
+(
+  jury_mechanisms_sql="$(mktemp)"
+  trap 'rm -f "$jury_mechanisms_sql"' EXIT
+  bun --env-file=/dev/null scripts/generate-v3-internal-mechanism-proof.ts --proof-file=.github/tests/v3-jury-runtime-mechanisms.sql --out="$jury_mechanisms_sql"
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$jury_mechanisms_sql"
+)

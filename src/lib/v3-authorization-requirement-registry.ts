@@ -249,7 +249,7 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
     scope: "object",
     objectResolution: "ballot -> edition",
     serverBoundary: "public.studio2_apply_jury_ballot_review",
-    serviceRoleAllowed: true,
+    serviceRoleAllowed: false,
     negativePaths: [
       "missing capability",
       "unknown ballot",
@@ -258,6 +258,8 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
       "missing reason for adverse transition",
     ],
     evidence: [
+      "supabase/migrations/20261029234500_v3_jury_command_recovery_boundary.sql",
+      ".github/tests/v3-jury-runtime-mechanisms.sql",
       "supabase/migrations/20261003193000_organisation_os_v5_jury_ballot_lifecycle.sql",
       "src/lib/organisation-v5-jury-ballot-lifecycle.test.ts",
       "src/lib/v3-s7-jury-ballot-authorization.contract.test.ts",

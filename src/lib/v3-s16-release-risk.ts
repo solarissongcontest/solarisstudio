@@ -139,6 +139,9 @@ export const V3_S16_AUTHORITY_CONTRACTS: readonly V3S16AuthorityContract[] = [
       "public.studio2_apply_jury_vote_change",
     ],
     evidence: [
+      "supabase/migrations/20261029234500_v3_jury_command_recovery_boundary.sql",
+      ".github/tests/v3-jury-runtime-mechanisms.sql",
+      "src/lib/v3-jury-retained-command.test.ts",
       "supabase/migrations/20261014132819_v3_jury_reliability_foundation.sql",
       "supabase/migrations/20261003014000_organisation_os_v5_jury_window_operations.sql",
       "supabase/migrations/20261029221500_v3_s16_shared_runtime_authority_cutover.sql",

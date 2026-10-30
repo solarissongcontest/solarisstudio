@@ -28,7 +28,8 @@ describe("V3 Organizer Jury parent edition boundary", () => {
 
   it("protects the existing ballot and roster surfaces behind one parent gate while preserving governed window authority", () => {
     expect(workspace).toContain('lifecycleRpc("studio2_jury_vote_change_preview"');
-    expect(workspace).toContain("await executeJuryVoteChange({");
+    expect(workspace).toContain("executeJuryVoteChange(command,client)");
+    expect(workspace).toContain("runRetainedJuryCommand(actorId,intent,sessionStorage");
     expect(shell).toContain("JuryVotingWindowControl");
     expect(windowControl).toContain('rpc("studio2_jury_window_change_preview"');
     expect(windowControl).toContain('rpc("studio2_apply_jury_voting_status"');

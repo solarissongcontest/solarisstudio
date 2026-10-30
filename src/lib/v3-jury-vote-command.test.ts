@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  executeJuryVoteChange,
+  executeJuryVoteChange, executeJuryBallotReview,
   type JuryVoteCommandRequest,
 } from "./v3-jury-vote-command";
 
@@ -25,6 +25,7 @@ function receipt(overrides: Record<string, unknown> = {}) {
     status: "succeeded",
     replayed: false,
     result: {
+      request: {editionId:request.editionId,showId:request.showId,voterId:request.voterId,voterCountryId:request.voterCountryId,voterEntityId:request.voterEntityId,receivingCountryId:request.receivingCountryId,receivingEntityId:request.receivingEntityId,points:request.points,action:request.action,expectedVersion:request.expectedVersion},
       operationId: request.operationId,
       action: request.action,
       showId: request.showId,
@@ -71,9 +72,8 @@ describe("executeJuryVoteChange", () => {
 
     expect(result.operationId).toBe(request.operationId);
     expect(rpc).toHaveBeenCalledTimes(2);
-    expect(rpc).toHaveBeenNthCalledWith(2, "studio2_reconcile_operation", {
-      p_operation_id: request.operationId,
-    });
+    expect(rpc.mock.calls[1]).toEqual(rpc.mock.calls[0]);
+    expect(rpc.mock.calls[1][0]).toBe("studio2_apply_jury_vote_change");
   });
 
   it("rejects a receipt for a different semantic request", async () => {
@@ -94,5 +94,45 @@ describe("executeJuryVoteChange", () => {
       .mockResolvedValueOnce({ data: null, error: new Error("receipt unavailable") });
 
     await expect(executeJuryVoteChange(request, { rpc })).rejects.toBe(original);
+  });
+});
+
+
+describe("governed Jury uncertain-outcome recovery", () => {
+  for (const first of [undefined, null, {}, {status:"succeeded",result:null}]) {
+    it(`recovers a malformed success without replacing the operation: ${JSON.stringify(first)}`, async () => {
+      const rpc = vi.fn().mockResolvedValueOnce({data:first,error:null}).mockResolvedValueOnce({data:receipt(),error:null});
+      await expect(executeJuryVoteChange(request,{rpc})).resolves.toMatchObject({operationId:request.operationId,version:8});
+      expect(rpc.mock.calls[1]).toEqual(rpc.mock.calls[0]);
+    });
+  }
+  it("recovers a thrown network response through fresh canonical authorization", async () => {
+    const rpc = vi.fn().mockRejectedValueOnce(new Error("socket closed")).mockResolvedValueOnce({data:receipt(),error:null});
+    await expect(executeJuryVoteChange(request,{rpc})).resolves.toMatchObject({version:8});
+    expect(rpc.mock.calls[1]).toEqual(rpc.mock.calls[0]);
+    expect(rpc.mock.calls.every(call => call[0] !== "studio2_reconcile_operation")).toBe(true);
+  });
+  it("cannot substitute a receipt for another recipient or reviewed version", async () => {
+    const rpc = vi.fn().mockResolvedValue({data:receipt({request:{...request,receivingCountryId:request.voterCountryId}}),error:null});
+    await expect(executeJuryVoteChange(request,{rpc})).rejects.toThrow("disagrees");
+  });
+  it("cannot recover success from a failed operation envelope", async () => {
+    const rpc = vi.fn().mockResolvedValue({data:{...receipt(),status:"failed"},error:null});
+    await expect(executeJuryVoteChange(request,{rpc})).rejects.toThrow("successful receipt");
+  });
+  it("does not turn revoked authorization into generic receipt readback success", async () => {
+    const error = {code:"42501",message:"Revoked session"};
+    const rpc = vi.fn().mockResolvedValue({data:null,error});
+    await expect(executeJuryVoteChange(request,{rpc})).rejects.toBe(error);
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+  it("recovers review after the ballot status/version has changed", async () => {
+    const review = {editionId:request.editionId,showId:request.showId,ballotId:request.voterCountryId!,targetStatus:"invalidated" as const,reason:"Invalid declaration",expectedVersion:1,operationId:request.operationId,idempotencyKey:"review"};
+    const result = {ok:true,...review,status:review.targetStatus,previousVersion:1,version:2};
+    const rpc = vi.fn().mockRejectedValueOnce(new Error("lost review response")).mockResolvedValueOnce({data:result,error:null});
+    await expect(executeJuryBallotReview(review,{rpc})).resolves.toMatchObject({operationId:review.operationId});
+    expect(rpc.mock.calls[1]).toEqual(rpc.mock.calls[0]);
+    const mismatch = vi.fn().mockResolvedValue({data:{...result,reason:"Different adjudication"},error:null});
+    await expect(executeJuryBallotReview(review,{rpc:mismatch})).rejects.toThrow("unconfirmed");
   });
 });

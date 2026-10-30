@@ -33,7 +33,7 @@ describe("System V3 S7 Jury ballot authorization", () => {
       scope: "object",
       objectResolution: "ballot -> edition",
       serverBoundary: "public.studio2_apply_jury_ballot_review",
-      serviceRoleAllowed: true,
+      serviceRoleAllowed: false,
     });
 
     const apply = body(

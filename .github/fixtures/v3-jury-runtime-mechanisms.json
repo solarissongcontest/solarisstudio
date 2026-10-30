@@ -1,0 +1,1036 @@
+{
+  "schemaVersion": 1,
+  "candidateSha": "unit-fixture-not-release-evidence",
+  "tables": [
+    {
+      "owner": "postgres",
+      "table": "public.jury_ballot_submissions",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "studio2_jury_ballot_review_results_sync",
+        "studio2_jury_ballot_review_task_reconcile",
+        "v3_guard_archived_edition_workflow_write",
+        "v3_s3_validate_jury_submission_scope"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "preflight_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "review_reason",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "review_version",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "reviewed_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "reviewed_by",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "risk_score",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "status",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "submitted_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "user_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_country_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_entity_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "preflight_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "review_reason",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "review_version",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "reviewed_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "reviewed_by",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "risk_score",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "status",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "submitted_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "user_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_country_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_entity_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_id",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "v3_guard_archived_edition_workflow_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25142",
+          "definitionHash": "3b04839daca5ed31b2928d664beac7ed",
+          "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
+        },
+        {
+          "name": "v3_s3_validate_jury_submission_scope",
+          "type": 21,
+          "enabled": "O",
+          "functionOid": "24382",
+          "definitionHash": "1b323c2f1d38e5db669466a47a94d8dd",
+          "functionSignature": "private.v3_validate_jury_submission_scope()"
+        },
+        {
+          "name": "studio2_jury_ballot_review_task_reconcile",
+          "type": 21,
+          "enabled": "O",
+          "functionOid": "23767",
+          "definitionHash": "f16bee6aaeb6c83bf64ed3525ef50fd2",
+          "functionSignature": "private.studio2_jury_ballot_review_task_trigger()"
+        },
+        {
+          "name": "studio2_jury_ballot_review_results_sync",
+          "type": 17,
+          "enabled": "O",
+          "functionOid": "23774",
+          "definitionHash": "62a984aa7c8d064bbe0a56406284c724",
+          "functionSignature": "private.studio2_sync_results_after_jury_ballot_review()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "public.jury_votes",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "jury_votes_entity_edition",
+        "jury_votes_sync_results",
+        "studio2_jury_vote_touch_version",
+        "studio2_platform_direct_write_guard",
+        "v3_guard_archived_edition_workflow_write",
+        "v3_guard_jury_vote_object_scope",
+        "v3_s3_validate_jury_vote_ballot_scope"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "ballot_submission_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "points",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "receiving_country_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "receiving_entity_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_country_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_entity_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "ballot_submission_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "points",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "receiving_country_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "receiving_entity_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_country_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_entity_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "voter_id",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "jury_votes_entity_edition",
+          "type": 23,
+          "enabled": "O",
+          "functionOid": "18141",
+          "definitionHash": "08f3bfa1adfc26c04d78506dbb75455b",
+          "functionSignature": "public.assert_entity_edition()"
+        },
+        {
+          "name": "studio2_platform_direct_write_guard",
+          "type": 30,
+          "enabled": "O",
+          "functionOid": "23743",
+          "definitionHash": "0fae77d914a63546f1448d42941617a5",
+          "functionSignature": "private.studio2_guard_direct_client_write()"
+        },
+        {
+          "name": "v3_guard_archived_edition_workflow_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25142",
+          "definitionHash": "2bf5d5f8d2682e3210b2ac7ce197eb09",
+          "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
+        },
+        {
+          "name": "v3_guard_jury_vote_object_scope",
+          "type": 23,
+          "enabled": "O",
+          "functionOid": "24680",
+          "definitionHash": "0924c4751ec07a6cdb80af8f4659ddbb",
+          "functionSignature": "private.v3_guard_jury_vote_object_scope()"
+        },
+        {
+          "name": "v3_s3_validate_jury_vote_ballot_scope",
+          "type": 21,
+          "enabled": "O",
+          "functionOid": "24388",
+          "definitionHash": "1b2422940db79c967c7ff3ca5f3a031c",
+          "functionSignature": "private.v3_validate_jury_vote_ballot_scope()"
+        },
+        {
+          "name": "jury_votes_sync_results",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "20217",
+          "definitionHash": "3afe4812305c2cea12bd1a1eb7ecaf91",
+          "functionSignature": "public.sync_results_after_vote_change()"
+        },
+        {
+          "name": "studio2_jury_vote_touch_version",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "25784",
+          "definitionHash": "f6b815c0d36244dd37e4044389f7fb9e",
+          "functionSignature": "private.studio2_touch_jury_vote_version()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "public.studio2_jury_vote_versions",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "version",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "version",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": []
+    },
+    {
+      "owner": "postgres",
+      "table": "public.studio2_operation_receipts",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "v3_confirmation_delete_receipt_guard",
+        "v3_confirmation_delete_receipt_truncate_guard",
+        "v3_emit_access_operation_events",
+        "v3_emit_confirmation_edition_operation_event",
+        "v3_emit_confirmation_operation_event",
+        "v3_emit_entry_operation_event",
+        "v3_emit_entry_submission_event",
+        "v3_emit_jury_operation_event",
+        "v3_emit_media_review_operation_event",
+        "v3_emit_prediction_round_operation_event",
+        "v3_emit_prediction_score_operation_event",
+        "v3_emit_publication_operation_event",
+        "v3_emit_televote_deadline_operation_event",
+        "v3_emit_televote_operation_event"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "actor_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "actor_session_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "auth_freshness_evidence",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "command",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "completed_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "correlation_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "error_code",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "error_metadata",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "idempotency_key",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "operation_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "request_fingerprint",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "result",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "risk_class",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "scope",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "status",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "actor_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "actor_session_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "auth_freshness_evidence",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "command",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "completed_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "correlation_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "error_code",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "error_metadata",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "idempotency_key",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "operation_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "request_fingerprint",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "result",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "risk_class",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "scope",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "status",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "updated_at",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "v3_confirmation_delete_receipt_guard",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25720",
+          "definitionHash": "78cd426dd9fdcc609274a8a9326a272d",
+          "functionSignature": "private.v3_guard_confirmation_delete_receipt()"
+        },
+        {
+          "name": "v3_confirmation_delete_receipt_truncate_guard",
+          "type": 34,
+          "enabled": "O",
+          "functionOid": "25720",
+          "definitionHash": "136a1e7af7ee4dee1f1842858d5c41cd",
+          "functionSignature": "private.v3_guard_confirmation_delete_receipt()"
+        },
+        {
+          "name": "v3_emit_access_operation_events",
+          "type": 17,
+          "enabled": "O",
+          "functionOid": "24861",
+          "definitionHash": "463e8fb5aa19e7cfae9caed9683848a2",
+          "functionSignature": "private.v3_emit_access_operation_events()"
+        },
+        {
+          "name": "v3_emit_confirmation_edition_operation_event",
+          "type": 17,
+          "enabled": "O",
+          "functionOid": "25296",
+          "definitionHash": "c2222e5bcf474f165ae58e2f20ee0bf4",
+          "functionSignature": "private.v3_emit_confirmation_edition_operation_event()"
+        },
+        {
+          "name": "v3_emit_confirmation_operation_event",
+          "type": 17,
+          "enabled": "O",
+          "functionOid": "24606",
+          "definitionHash": "5158b969603ec4d65fd7a3867810ea9a",
+          "functionSignature": "private.v3_emit_confirmation_operation_event()"
+        },
+        {
+          "name": "v3_emit_entry_operation_event",
+          "type": 17,
+          "enabled": "O",
+          "functionOid": "24625",
+          "definitionHash": "7a26f30ddf2fae38b65d93d4521498c8",
+          "functionSignature": "private.v3_emit_entry_operation_event()"
+        },
+        {
+          "name": "v3_emit_entry_submission_event",
+          "type": 17,
+          "enabled": "O",
+          "functionOid": "24973",
+          "definitionHash": "65fb5dc9fa2431912b22362ce1c9f25b",
+          "functionSignature": "private.v3_emit_entry_submission_event()"
+        },
+        {
+          "name": "v3_emit_jury_operation_event",
+          "type": 17,
+          "enabled": "O",
+          "functionOid": "24629",
+          "definitionHash": "1763b1dda4d5efc6486ad994c32a0c44",
+          "functionSignature": "private.v3_emit_jury_operation_event()"
+        },
+        {
+          "name": "v3_emit_media_review_operation_event",
+          "type": 17,
+          "enabled": "O",
+          "functionOid": "24647",
+          "definitionHash": "51776534475dea274fec683a5a40a122",
+          "functionSignature": "private.v3_emit_media_review_operation_event()"
+        },
+        {
+          "name": "v3_emit_prediction_round_operation_event",
+          "type": 17,
+          "enabled": "O",
+          "functionOid": "24912",
+          "definitionHash": "6ea266e2c48e2a7d4ac4e7d2bed20679",
+          "functionSignature": "private.v3_emit_prediction_round_operation_event()"
+        },
+        {
+          "name": "v3_emit_prediction_score_operation_event",
+          "type": 17,
+          "enabled": "O",
+          "functionOid": "24889",
+          "definitionHash": "863831eeaf912426fd58fea6c14a1c1a",
+          "functionSignature": "private.v3_emit_prediction_score_operation_event()"
+        },
+        {
+          "name": "v3_emit_publication_operation_event",
+          "type": 17,
+          "enabled": "O",
+          "functionOid": "24655",
+          "definitionHash": "d1490c3f1e998a679f1530e5b82cb6dd",
+          "functionSignature": "private.v3_emit_publication_operation_event()"
+        },
+        {
+          "name": "v3_emit_televote_deadline_operation_event",
+          "type": 17,
+          "enabled": "O",
+          "functionOid": "24853",
+          "definitionHash": "a3dc35f7d0741b49c701fabc92d0ea60",
+          "functionSignature": "private.v3_emit_televote_deadline_operation_event()"
+        },
+        {
+          "name": "v3_emit_televote_operation_event",
+          "type": 17,
+          "enabled": "O",
+          "functionOid": "24637",
+          "definitionHash": "c840a890d4bf3e3ce36edf3ec6229a38",
+          "functionSignature": "private.v3_emit_televote_operation_event()"
+        }
+      ]
+    },
+    {
+      "owner": "postgres",
+      "table": "public.televote_votes",
+      "dmlRoles": [
+        "postgres"
+      ],
+      "rlsEnabled": true,
+      "writeTriggers": [
+        "studio2_platform_direct_write_guard",
+        "televote_entity_edition",
+        "televote_votes_sync_results",
+        "v3_guard_archived_edition_workflow_write",
+        "v3_guard_source_managed_televote_projection"
+      ],
+      "columnDmlRoles": [
+        "postgres"
+      ],
+      "updatableViews": [],
+      "columnDmlGrants": [
+        {
+          "role": "postgres",
+          "column": "contest_entity_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "country_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "points",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "column": "contest_entity_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "country_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "created_at",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "edition_id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "id",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "points",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "column": "show_id",
+          "privilege": "UPDATE"
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "studio2_platform_direct_write_guard",
+          "type": 30,
+          "enabled": "O",
+          "functionOid": "23743",
+          "definitionHash": "c18ff1d0b3892d8f73e20ab00da7247f",
+          "functionSignature": "private.studio2_guard_direct_client_write()"
+        },
+        {
+          "name": "televote_entity_edition",
+          "type": 23,
+          "enabled": "O",
+          "functionOid": "18141",
+          "definitionHash": "137cf432be35c4047a976cd039ea4d9a",
+          "functionSignature": "public.assert_entity_edition()"
+        },
+        {
+          "name": "v3_guard_archived_edition_workflow_write",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "25142",
+          "definitionHash": "f4236da340fff15bc7775aee8de455fb",
+          "functionSignature": "private.v3_guard_archived_edition_workflow_write()"
+        },
+        {
+          "name": "v3_guard_source_managed_televote_projection",
+          "type": 31,
+          "enabled": "O",
+          "functionOid": "24830",
+          "definitionHash": "0b59bf4baf2de57aa3f7e308322cad58",
+          "functionSignature": "private.v3_guard_source_managed_televote_projection()"
+        },
+        {
+          "name": "televote_votes_sync_results",
+          "type": 29,
+          "enabled": "O",
+          "functionOid": "20217",
+          "definitionHash": "06a8bcb2782f3bc0a5edda65a4929c94",
+          "functionSignature": "public.sync_results_after_vote_change()"
+        }
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "oid": "20217",
+      "name": "public.sync_results_after_vote_change",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "public.sync_results_after_vote_change()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, televoting, extensions, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "b84dc1dc337033a0033b20341cade9f6",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "25784",
+      "name": "private.studio2_touch_jury_vote_version",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.studio2_touch_jury_vote_version()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "4e112d30d73d00024df062cb49a93acb",
+      "securityDefiner": true,
+      "writesTables": [
+        "public.studio2_jury_vote_versions"
+      ]
+    },
+    {
+      "oid": "25787",
+      "name": "public.studio2_apply_jury_vote_change",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "public.studio2_apply_jury_vote_change(p_edition_id uuid, p_show_id uuid, p_voter_id uuid, p_voter_country_id uuid, p_voter_entity_id uuid, p_receiving_country_id uuid, p_receiving_entity_id uuid, p_points integer, p_action text, p_operation_id uuid, p_idempotency_key text, p_expected_version bigint)",
+      "returnType": "jsonb",
+      "searchPath": "pg_catalog, public, private, pg_temp",
+      "executeRoles": [
+        "postgres",
+        "authenticated"
+      ],
+      "definitionHash": "94f36c738d303fdd4ac6e916f286dc14",
+      "securityDefiner": true,
+      "writesTables": [
+        "public.studio2_jury_vote_versions"
+      ]
+    },
+    {
+      "oid": "18161",
+      "name": "public.clear_jury_point",
+      "owner": "postgres",
+      "callers": [
+        "25787"
+      ],
+      "signature": "public.clear_jury_point(p_edition_id uuid, p_show_id uuid, p_voter_id uuid, p_voter_country_id uuid, p_voter_entity_id uuid, p_points integer)",
+      "returnType": "integer",
+      "searchPath": "pg_catalog, public, private, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "83f7d299dcdc6824368dd1cc516521f2",
+      "securityDefiner": true,
+      "writesTables": [
+        "public.jury_votes"
+      ]
+    },
+    {
+      "oid": "18160",
+      "name": "public.assign_jury_vote",
+      "owner": "postgres",
+      "callers": [
+        "25787"
+      ],
+      "signature": "public.assign_jury_vote(p_edition_id uuid, p_show_id uuid, p_voter_id uuid, p_voter_country_id uuid, p_voter_entity_id uuid, p_receiving_country_id uuid, p_receiving_entity_id uuid, p_points integer)",
+      "returnType": "uuid",
+      "searchPath": "pg_catalog, public, private, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "48aacf4c0e37eb41b4b122dab5fc2985",
+      "securityDefiner": true,
+      "writesTables": [
+        "public.jury_votes"
+      ]
+    },
+    {
+      "oid": "23767",
+      "name": "private.studio2_jury_ballot_review_task_trigger",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.studio2_jury_ballot_review_task_trigger()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "e953a49311687635a28373ba2cc93f79",
+      "securityDefiner": true,
+      "writesTables": []
+    },
+    {
+      "oid": "23774",
+      "name": "private.studio2_sync_results_after_jury_ballot_review",
+      "owner": "postgres",
+      "callers": [],
+      "signature": "private.studio2_sync_results_after_jury_ballot_review()",
+      "returnType": "trigger",
+      "searchPath": "pg_catalog, public, private, pg_temp",
+      "executeRoles": [
+        "postgres"
+      ],
+      "definitionHash": "07dddc9dea47106f4c694e5e33ccf737",
+      "securityDefiner": true,
+      "writesTables": [
+        "public.studio2_result_operations"
+      ]
+    }
+  ]
+}
