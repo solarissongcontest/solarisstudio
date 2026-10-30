@@ -14,7 +14,8 @@ describe("TerraOS live maintenance preview", () => {
   it("is entered explicitly from maintenance without implying a V3 launch", () => {
     expect(maintenance).toContain('href="/terraos-teaser-preview?screen=home">Preview</a>');
     expect(maintenance).toContain('href="/terraos-teaser-preview?screen=home">Preview TerraOS&nbsp;3</a>');
-    expect(maintenance).toContain("TerraOS 3 is being prepared.");
+    expect(maintenance).toContain("Estimated arrival");
+    expect(maintenance).toContain("Based on tracked release criteria, not time elapsed.");
   });
 
   it("remains maintenance-only and noindex", () => {
