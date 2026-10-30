@@ -58,7 +58,13 @@ export const Route = createFileRoute("/terraos-teaser-preview")({
 function TerraOSTeaserPreviewRoute() {
   const { screen, chrome } = Route.useSearch();
 
-  useEffect(() => installTerraOsTeaserPreviewPolish(document), []);
+  useEffect(() => {
+    // Embedded maintenance cards retain their compact static treatment. The
+    // direct owner preview has a separate, newer shell so legacy teaser CSS
+    // cannot restyle its Liquid navigation back into the old frosted dock.
+    if (chrome !== "content") return;
+    return installTerraOsTeaserPreviewPolish(document);
+  }, [chrome]);
 
   useEffect(() => {
     // The full Home renderer is the same-origin bridge already used by the
