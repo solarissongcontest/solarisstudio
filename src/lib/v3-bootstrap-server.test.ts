@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PublicContestState } from './current-contest-state';
+import type { SolarisTask } from './participation-os';
 import type { V3BootstrapServerSnapshot, V3BootstrapServerSource } from './v3-bootstrap-server';
 import {
   createV3BootstrapRequestLoader,
@@ -31,6 +32,26 @@ const publicContest: PublicContestState = {
   description: 'Current edition',
   primaryAction: { label: 'Explore edition', to: '/editions/hanvor-2026' },
 };
+
+function participantTask(overrides: Partial<SolarisTask> = {}): SolarisTask {
+  return {
+    id: 'confirmation:source-a',
+    editionId: 'edition-22',
+    kind: 'confirmation',
+    title: 'Complete confirmation',
+    description: 'Confirmation remains required.',
+    state: 'needs_attention',
+    importance: 'required',
+    blocking: true,
+    actionRequired: true,
+    opensAt: null,
+    deadline: null,
+    route: '/confirmations',
+    priority: 120,
+    why: 'Canonical confirmation requirement remains unresolved.',
+    ...overrides,
+  };
+}
 
 function snapshot(overrides: Partial<V3BootstrapServerSnapshot> = {}): V3BootstrapServerSnapshot {
   return {
@@ -66,8 +87,49 @@ describe('V3 server bootstrap adapter', () => {
     expect(projection.context.delegationId).toBe('country-oland');
     expect(projection.capabilities).toEqual(['entry.edit']);
     expect(projection.actions).toEqual([]);
+    expect(projection.taskProjection).toMatchObject({
+      schemaVersion: 1,
+      audience: 'participant',
+      authoritativeSource: 'participant-task-engine',
+      items: [],
+    });
     expect(projection.journey).toBeDefined();
     expect(projection.home).toBeDefined();
+  });
+
+  it('reconciles duplicate semantic participant obligations once at the server boundary', async () => {
+    const projection = await loadV3BootstrapProjection(request, {
+      loadSnapshot: async () =>
+        snapshot({
+          tasks: [
+            participantTask({
+              id: 'hod:confirmation-complete',
+              state: 'completed',
+              actionRequired: false,
+              blocking: false,
+              priority: 70,
+            }),
+            participantTask({
+              id: 'confirmation-required:req-1',
+              state: 'problem',
+              actionRequired: true,
+              blocking: true,
+              priority: 140,
+            }),
+          ],
+        }),
+    });
+
+    expect(projection.taskProjection?.items).toHaveLength(1);
+    expect(projection.taskProjection?.items[0]).toMatchObject({
+      id: 'participant:edition-22:confirmation',
+      state: 'blocked',
+      actionRequired: true,
+      blocking: true,
+    });
+    expect(projection.actions).toHaveLength(1);
+    expect(projection.actions[0]?.id).toBe('participant:edition-22:confirmation');
+    expect(projection.journey).toHaveLength(1);
   });
 
   it('coalesces concurrent identical loads inside one request-scoped loader', async () => {

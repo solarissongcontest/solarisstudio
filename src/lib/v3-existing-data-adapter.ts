@@ -8,12 +8,14 @@ import type {
 import type { V3ShowState } from "./v3-domain-state";
 import { v3ContestDomainFromPublicState } from "./v3-public-contest-adapter";
 import { v3ContestDomainFromRuntime } from "./v3-runtime-state-adapter";
+import type { V3ParticipantTaskProjection } from "./v3-task-engine";
 
 export type V3ExistingDataAdapterInput = {
   publicContest: PublicContestState;
   runtime?: EditionRuntimeState | null;
   show?: V3ShowState | null;
   tasks: readonly SolarisTask[];
+  taskProjection?: V3ParticipantTaskProjection | null;
   identity: V3BootstrapIdentity;
   delegation?: {
     id: string | null;
@@ -44,6 +46,7 @@ export function v3BootstrapSourceFromExistingData({
   runtime = null,
   show = null,
   tasks,
+  taskProjection = null,
   identity,
   delegation = null,
   capabilities,
@@ -70,6 +73,7 @@ export function v3BootstrapSourceFromExistingData({
     capabilities,
     domain,
     tasks,
+    taskProjection,
     preferences: {
       hideResultSpoilers,
     },

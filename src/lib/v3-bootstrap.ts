@@ -6,6 +6,7 @@ import {
 import { projectV3Actions, projectV3Attention } from "./v3-experience";
 import { projectV3Home } from "./v3-home";
 import { projectV3Journey } from "./v3-journey";
+import type { V3ParticipantTaskProjection } from "./v3-task-engine";
 
 export type V3BootstrapIdentity = {
   userId: string | null;
@@ -27,17 +28,27 @@ export type V3BootstrapSource = {
   context: V3BootstrapContext;
   capabilities: readonly string[];
   domain: V3ContestDomainSnapshot;
+  /**
+   * Canonical participant tasks. Production server sources must reconcile this
+   * list before it reaches this client-shared projector.
+   */
   tasks: readonly SolarisTask[];
+  /**
+   * Server-produced task-read metadata. Transitional pure/unit callers may omit
+   * it, but production bootstrap paths always provide it.
+   */
+  taskProjection?: V3ParticipantTaskProjection | null;
   preferences?: {
     hideResultSpoilers?: boolean;
   };
 };
 
 /**
- * The first V3 bootstrap contract is deliberately a pure projection. It does
- * not fetch data and it does not own workflow truth. Existing server authority
- * supplies contest facts + participant task evidence, and every visible V3
- * summary is derived from those same inputs in one place.
+ * Client-safe V3 projection over a server-authorized snapshot.
+ *
+ * This module intentionally does not reconcile or infer participant task truth.
+ * `loadV3BootstrapProjection` owns that server boundary. Home, Journey, Actions,
+ * Attention and Participate only render the already-reconciled task set.
  */
 export function projectV3Bootstrap(source: V3BootstrapSource) {
   const serverNow = Date.parse(source.serverTime);
@@ -62,6 +73,7 @@ export function projectV3Bootstrap(source: V3BootstrapSource) {
     identity: source.identity,
     context: source.context,
     capabilities: [...source.capabilities],
+    taskProjection: source.taskProjection ?? null,
     experience,
     actions,
     attention,

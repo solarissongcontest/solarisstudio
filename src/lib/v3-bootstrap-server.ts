@@ -8,6 +8,10 @@ import {
 } from './v3-bootstrap';
 import { v3BootstrapSourceFromExistingData } from './v3-existing-data-adapter';
 import type { V3ShowState } from './v3-domain-state';
+import {
+  canonicalizeParticipantTasks,
+  projectParticipantTaskReadModel,
+} from './v3-task-engine';
 
 export type V3BootstrapServerRequest = {
   viewerId: string | null;
@@ -108,11 +112,18 @@ export async function loadV3BootstrapProjection(
   const serverTime = assertTimestamp(snapshot.serverTime, 'serverTime');
   const generatedAt = assertTimestamp(snapshot.generatedAt ?? serverTime, 'generatedAt');
 
+  // One canonical participant Task boundary: authorized domain evidence is
+  // reconciled once on the server before any client-shared V3 projection runs.
+  // Replays/retries are deterministic and cannot create duplicate obligations.
+  const tasks = canonicalizeParticipantTasks(snapshot.tasks);
+  const taskProjection = projectParticipantTaskReadModel(tasks, serverTime);
+
   const bootstrapSource = v3BootstrapSourceFromExistingData({
     publicContest: snapshot.publicContest,
     runtime: snapshot.runtime ?? null,
     show: snapshot.show ?? null,
-    tasks: snapshot.tasks,
+    tasks,
+    taskProjection,
     identity: snapshot.identity,
     delegation: snapshot.delegation ?? null,
     capabilities: snapshot.capabilities,

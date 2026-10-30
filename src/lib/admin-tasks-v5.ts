@@ -49,11 +49,12 @@ export type OrganizerTaskV5 = {
   lastEvaluatedAt: string;
 };
 
+type RpcError = { message?: string; code?: string } | null;
 type RpcClient = {
   rpc(
     name: string,
     args?: Record<string, unknown>,
-  ): PromiseLike<{ data: unknown; error: { message?: string } | null }>;
+  ): PromiseLike<{ data: unknown; error: RpcError }>;
 };
 
 const ORGANIZER_TASK_SCOPE_ERROR =
@@ -72,6 +73,9 @@ function requireOrganizerEditionId(editionId: string | null | undefined) {
 
 function parseOperationalState(value: unknown, index: number) {
   if (value == null) return null;
+  if (value === "in_progress") return "actionable";
+  if (value === "expired") return "overdue";
+  if (value === "superseded") return "resolved";
   if (
     typeof value !== "string" ||
     !ORGANIZER_TASK_OPERATIONAL_STATES.has(value as OrganizerTaskOperationalState)
@@ -145,13 +149,64 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
   });
 }
 
+function record(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Invalid Organizer Tasks V3 ${label}.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+export function mapOrganizerTasksV3Compatibility(
+  value: unknown,
+  expectedEditionId: string,
+): OrganizerTaskV5[] {
+  const projection = record(value, "payload");
+  if (projection.schemaVersion !== 1) {
+    throw new Error("Unsupported Organizer Tasks V3 schema version.");
+  }
+  if (projection.editionId !== expectedEditionId) {
+    throw new Error("Organizer Tasks V3 returned another edition projection.");
+  }
+  if (projection.authoritativeSource !== "studio2_organizer_tasks" || projection.reconciled !== true) {
+    throw new Error("Organizer Tasks V3 did not prove canonical reconciliation.");
+  }
+  if (!Array.isArray(projection.items)) {
+    throw new Error("Invalid Organizer Tasks V3 items.");
+  }
+
+  const compatible = mapOrganizerTasksV5(
+    projection.items.map((value, index) => {
+      const task = record(value, `item ${index}`);
+      if (task.editionId != null && typeof task.editionId !== "string") {
+        throw new Error(`Invalid Organizer Tasks V3 editionId at index ${index}.`);
+      }
+      return {
+        ...task,
+        state: task.sourceState,
+        href: task.route ?? task.href,
+        dueAt: task.dueAt ?? task.deadline,
+      };
+    }),
+  );
+
+  if (compatible.some((task) => task.editionId && task.editionId !== expectedEditionId)) {
+    throw new Error("Organizer Tasks returned a task from another edition scope.");
+  }
+  return compatible;
+}
+
+function isMissingV3Rpc(error: RpcError, rpc: string) {
+  if (!error) return false;
+  if (error.code === "PGRST202" || error.code === "42883") return true;
+  const message = error.message?.toLowerCase() ?? "";
+  return message.includes(rpc) &&
+    (message.includes("could not find") || message.includes("does not exist"));
+}
+
 /**
  * Resolve only state that is authoritative in the task payload.
- *
- * The legacy `open | waiting | resolved` state can prove waiting/resolved, while
- * richer open-task semantics must come from the canonical operationalState
- * projection. A due timestamp is display metadata and must never be promoted to
- * workflow truth with the browser clock.
+ * Due timestamps and priority are display metadata here; the server-side V3
+ * projection owns overdue/blocked/failed classification.
  */
 export function resolveOrganizerTaskOperationalState(
   task: OrganizerTaskV5,
@@ -162,11 +217,6 @@ export function resolveOrganizerTaskOperationalState(
   return "unclassified";
 }
 
-/**
- * Rich-state metrics and filters are only truthful when every unresolved task
- * can be classified from canonical evidence. One modern row must not make a
- * partially legacy queue look fully authoritative.
- */
 export function hasCompleteOrganizerTaskOperationalEvidence(
   tasks: OrganizerTaskV5[],
 ) {
@@ -181,6 +231,24 @@ export async function loadOrganizerTasksV5(
   client: RpcClient = supabase as unknown as RpcClient,
 ) {
   const exactEditionId = requireOrganizerEditionId(editionId);
+
+  const canonical = await client.rpc("admin_organizer_tasks_v3", {
+    p_edition_id: exactEditionId,
+    p_filter: filter,
+    p_limit: 200,
+    p_offset: 0,
+  });
+  if (!canonical.error) {
+    return mapOrganizerTasksV3Compatibility(canonical.data, exactEditionId);
+  }
+  if (!isMissingV3Rpc(canonical.error, "admin_organizer_tasks_v3")) {
+    throw new Error(canonical.error.message || "Organizer Tasks V3 could not be loaded.");
+  }
+
+  // Deployment-order compatibility only. This reads the same canonical task
+  // table/reconciler and is permitted solely while the additive V3 RPC is not
+  // installed yet. Any other V3 error fails closed instead of silently falling
+  // back to a weaker interpretation.
   const { data, error } = await client.rpc("admin_organizer_tasks", {
     p_edition_id: exactEditionId,
     p_filter: filter,
@@ -198,10 +266,25 @@ export async function loadOrganizerTaskCountV5(
   client: RpcClient = supabase as unknown as RpcClient,
 ) {
   const exactEditionId = requireOrganizerEditionId(editionId);
-  const { data, error } = await client.rpc("admin_organizer_task_count", {
+  let data: unknown;
+
+  const canonical = await client.rpc("admin_organizer_task_count_v3", {
     p_edition_id: exactEditionId,
   });
-  if (error) throw new Error(error.message || "Organizer task count could not be loaded.");
+  if (!canonical.error) {
+    data = canonical.data;
+  } else if (isMissingV3Rpc(canonical.error, "admin_organizer_task_count_v3")) {
+    const legacy = await client.rpc("admin_organizer_task_count", {
+      p_edition_id: exactEditionId,
+    });
+    if (legacy.error) {
+      throw new Error(legacy.error.message || "Organizer task count could not be loaded.");
+    }
+    data = legacy.data;
+  } else {
+    throw new Error(canonical.error.message || "Organizer task count V3 could not be loaded.");
+  }
+
   if (typeof data !== "number" || !Number.isSafeInteger(data) || data < 0) {
     throw new Error("Organizer task count returned an invalid authoritative payload.");
   }

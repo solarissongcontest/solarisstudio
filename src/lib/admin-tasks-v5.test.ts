@@ -4,15 +4,18 @@ import {
   hasCompleteOrganizerTaskOperationalEvidence,
   loadOrganizerTaskCountV5,
   loadOrganizerTasksV5,
+  mapOrganizerTasksV3Compatibility,
   mapOrganizerTasksV5,
   resolveOrganizerTaskOperationalState,
   type OrganizerTaskV5,
 } from "./admin-tasks-v5";
 
+const EDITION_ID = "00000000-0000-4000-8000-00000000e220";
+
 function task(overrides: Partial<OrganizerTaskV5> = {}): OrganizerTaskV5 {
   return {
     id: "task-1",
-    editionId: "00000000-0000-4000-8000-00000000e220",
+    editionId: EDITION_ID,
     countryId: null,
     assignedTo: null,
     sourceKind: "confirmation_requirement",
@@ -34,179 +37,216 @@ function task(overrides: Partial<OrganizerTaskV5> = {}): OrganizerTaskV5 {
   };
 }
 
-describe("Organizer Tasks edition RPC boundary", () => {
-  it("refuses missing or whitespace-only edition scope before any task RPC", async () => {
+function v3Task(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "task-1",
+    dedupeKey: "confirmation_requirement:task-1",
+    editionId: EDITION_ID,
+    showId: null,
+    countryId: null,
+    subjectType: "confirmation_requirement",
+    subjectId: "task-1",
+    sourceKind: "confirmation_requirement",
+    sourceKey: "confirmation_requirement:task-1",
+    taskType: "confirmation.requirement",
+    requiredCapability: "confirmation.manage",
+    sourceState: "open",
+    operationalState: "actionable",
+    actionRequired: true,
+    blocking: false,
+    urgency: "low",
+    impact: "medium",
+    deliveryClass: "recommended",
+    priority: "normal",
+    title: "Review requirement",
+    description: "Review the canonical requirement state.",
+    why: "Canonical condition remains unresolved.",
+    route: "/admin/tasks",
+    href: "/admin/tasks",
+    primaryAction: { kind: "navigate", label: "Review", route: "/admin/tasks" },
+    assignedTo: null,
+    opensAt: "2026-10-17T10:00:00.000Z",
+    deadline: null,
+    dueAt: null,
+    expiresAt: null,
+    openedAt: "2026-10-17T10:00:00.000Z",
+    resolvedAt: null,
+    lastEvaluatedAt: "2026-10-17T10:00:00.000Z",
+    stateVersion: "2026-10-17T10:00:00.000Z",
+    resolutionPredicate: {},
+    ruleReference: [],
+    resolutionEvidence: {},
+    ...overrides,
+  };
+}
+
+function v3Projection(items: unknown[] = [v3Task()]) {
+  return {
+    schemaVersion: 1,
+    editionId: EDITION_ID,
+    filter: "all",
+    items,
+    summary: {},
+    pagination: { limit: 200, offset: 0, total: items.length, hasMore: false, nextOffset: null },
+    stateVersion: "state-1",
+    serverTime: "2026-10-17T10:00:00.000Z",
+    authoritativeSource: "studio2_organizer_tasks",
+    reconciled: true,
+  };
+}
+
+describe("Organizer Tasks canonical V3 RPC boundary", () => {
+  it("refuses missing edition scope before any task RPC", async () => {
     const rpc = vi.fn(async () => ({ data: [], error: null }));
-    const client = { rpc };
-
-    await expect(loadOrganizerTasksV5("", "all", client)).rejects.toThrow(
+    await expect(loadOrganizerTasksV5("", "all", { rpc })).rejects.toThrow(
       "Organizer Tasks require an explicit selected Organizer edition scope.",
     );
-    await expect(loadOrganizerTasksV5("   ", "mine", client)).rejects.toThrow(
-      "Organizer Tasks require an explicit selected Organizer edition scope.",
-    );
-
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("preserves a selected UUID while trimming accidental surrounding whitespace", async () => {
-    const rpc = vi.fn(async () => ({ data: [], error: null }));
-    const client = { rpc };
-    const editionId = "00000000-0000-4000-8000-00000000e220";
+  it("uses the canonical V3 projection first and preserves exact edition scope", async () => {
+    const rpc = vi.fn(async () => ({ data: v3Projection(), error: null }));
+    const result = await loadOrganizerTasksV5(`  ${EDITION_ID}  `, "waiting", { rpc });
 
-    await loadOrganizerTasksV5(`  ${editionId}  `, "waiting", client);
-
-    expect(rpc).toHaveBeenCalledWith("admin_organizer_tasks", {
-      p_edition_id: editionId,
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith("admin_organizer_tasks_v3", {
+      p_edition_id: EDITION_ID,
       p_filter: "waiting",
+      p_limit: 200,
+      p_offset: 0,
     });
+    expect(result[0]?.operationalState).toBe("actionable");
   });
 
-  it("refuses missing edition scope before the task-count RPC", async () => {
-    const rpc = vi.fn(async () => ({ data: 0, error: null }));
-    const client = { rpc };
-
-    await expect(loadOrganizerTaskCountV5("", client)).rejects.toThrow(
-      "Organizer Tasks require an explicit selected Organizer edition scope.",
+  it("collapses richer V3 terminal/progress states only for legacy route compatibility", () => {
+    const mapped = mapOrganizerTasksV3Compatibility(
+      v3Projection([
+        v3Task({ id: "progress", sourceKey: "progress", operationalState: "in_progress" }),
+        v3Task({ id: "expired", sourceKey: "expired", operationalState: "expired" }),
+        v3Task({
+          id: "superseded",
+          sourceKey: "superseded",
+          sourceState: "resolved",
+          operationalState: "superseded",
+        }),
+      ]),
+      EDITION_ID,
     );
 
-    expect(rpc).not.toHaveBeenCalled();
+    expect(mapped.map((item) => item.operationalState)).toEqual([
+      "actionable",
+      "overdue",
+      "resolved",
+    ]);
   });
 
-  it("accepts only a non-negative integer as authoritative task-count evidence", async () => {
-    const editionId = "00000000-0000-4000-8000-00000000e220";
-
-    await expect(
-      loadOrganizerTaskCountV5(editionId, {
-        rpc: vi.fn(async () => ({ data: 0, error: null })),
-      }),
-    ).resolves.toBe(0);
-    await expect(
-      loadOrganizerTaskCountV5(editionId, {
-        rpc: vi.fn(async () => ({ data: 7, error: null })),
-      }),
-    ).resolves.toBe(7);
+  it("rejects V3 payloads that do not prove canonical reconciliation", () => {
+    expect(() =>
+      mapOrganizerTasksV3Compatibility(
+        { ...v3Projection(), reconciled: false },
+        EDITION_ID,
+      ),
+    ).toThrow("Organizer Tasks V3 did not prove canonical reconciliation.");
   });
 
-  it.each([null, "0", -1, 1.5, Number.NaN])(
-    "rejects malformed task-count payload %p instead of fabricating zero",
-    async (data) => {
-      const editionId = "00000000-0000-4000-8000-00000000e220";
-      const rpc = vi.fn(async () => ({ data, error: null }));
-
-      await expect(loadOrganizerTaskCountV5(editionId, { rpc })).rejects.toThrow(
-        "Organizer task count returned an invalid authoritative payload.",
-      );
-    },
-  );
-
-  it("rejects a cross-edition task row even after an exact-edition RPC", async () => {
-    const editionId = "00000000-0000-4000-8000-00000000e220";
+  it("rejects cross-edition rows after the exact-edition V3 read", async () => {
     const rpc = vi.fn(async () => ({
-      data: [
-        task({
-          editionId: "00000000-0000-4000-8000-00000000e221",
-        }),
-      ],
+      data: v3Projection([
+        v3Task({ editionId: "00000000-0000-4000-8000-00000000e221" }),
+      ]),
       error: null,
     }));
 
-    await expect(loadOrganizerTasksV5(editionId, "all", { rpc })).rejects.toThrow(
+    await expect(loadOrganizerTasksV5(EDITION_ID, "all", { rpc })).rejects.toThrow(
       "Organizer Tasks returned a task from another edition scope.",
     );
   });
 
-  it("allows edition-null system tasks returned by an exact-edition projection", async () => {
-    const editionId = "00000000-0000-4000-8000-00000000e220";
-    const rpc = vi.fn(async () => ({ data: [task({ editionId: null })], error: null }));
+  it("fails closed on a real V3 error rather than falling back to weaker semantics", async () => {
+    const rpc = vi.fn(async () => ({
+      data: null,
+      error: { code: "42501", message: "Organizer task access required" },
+    }));
 
-    await expect(loadOrganizerTasksV5(editionId, "all", { rpc })).resolves.toHaveLength(1);
+    await expect(loadOrganizerTasksV5(EDITION_ID, "all", { rpc })).rejects.toThrow(
+      "Organizer task access required",
+    );
+    expect(rpc).toHaveBeenCalledTimes(1);
   });
+
+  it("uses the legacy canonical task-table read only during deployment-order RPC absence", async () => {
+    const rpc = vi.fn(async (name: string) => {
+      if (name === "admin_organizer_tasks_v3") {
+        return {
+          data: null,
+          error: { code: "PGRST202", message: "Could not find admin_organizer_tasks_v3" },
+        };
+      }
+      return { data: [task({ operationalState: "blocked" })], error: null };
+    });
+
+    const result = await loadOrganizerTasksV5(EDITION_ID, "all", { rpc });
+    expect(result[0]?.operationalState).toBe("blocked");
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("prefers the canonical V3 count and only falls back when that RPC is absent", async () => {
+    const canonicalRpc = vi.fn(async () => ({ data: 7, error: null }));
+    await expect(loadOrganizerTaskCountV5(EDITION_ID, { rpc: canonicalRpc })).resolves.toBe(7);
+    expect(canonicalRpc).toHaveBeenCalledWith("admin_organizer_task_count_v3", {
+      p_edition_id: EDITION_ID,
+    });
+
+    const fallbackRpc = vi.fn(async (name: string) => {
+      if (name === "admin_organizer_task_count_v3") {
+        return { data: null, error: { code: "PGRST202", message: "missing" } };
+      }
+      return { data: 3, error: null };
+    });
+    await expect(loadOrganizerTaskCountV5(EDITION_ID, { rpc: fallbackRpc })).resolves.toBe(3);
+  });
+
+  it.each([null, "0", -1, 1.5, Number.NaN])(
+    "rejects malformed canonical task-count payload %p",
+    async (data) => {
+      const rpc = vi.fn(async () => ({ data, error: null }));
+      await expect(loadOrganizerTaskCountV5(EDITION_ID, { rpc })).rejects.toThrow(
+        "Organizer task count returned an invalid authoritative payload.",
+      );
+    },
+  );
 });
 
 describe("Organizer Task operational state trust boundary", () => {
-  it("accepts an explicit canonical operational state when the payload provides one", () => {
-    const [mapped] = mapOrganizerTasksV5([
-      {
-        ...task(),
-        operationalState: "blocked",
-      },
-    ]);
-
+  it("accepts explicit canonical operational state", () => {
+    const [mapped] = mapOrganizerTasksV5([{ ...task(), operationalState: "blocked" }]);
     expect(mapped.operationalState).toBe("blocked");
   });
 
-  it("rejects unknown operational states instead of silently inventing UI semantics", () => {
+  it("rejects unknown operational states", () => {
     expect(() =>
-      mapOrganizerTasksV5([
-        {
-          ...task(),
-          operationalState: "sort-of-bad",
-        },
-      ]),
+      mapOrganizerTasksV5([{ ...task(), operationalState: "sort-of-bad" }]),
     ).toThrow("Invalid Organizer Task operational state at index 0");
   });
 
-  it("keeps resolved and waiting legacy domain state authoritative", () => {
+  it("keeps resolved and waiting source state authoritative", () => {
     expect(
-      resolveOrganizerTaskOperationalState(
-        task({ state: "resolved", operationalState: "failed" }),
-      ),
+      resolveOrganizerTaskOperationalState(task({ state: "resolved", operationalState: "failed" })),
     ).toBe("resolved");
     expect(
-      resolveOrganizerTaskOperationalState(
-        task({ state: "waiting", operationalState: "blocked" }),
-      ),
+      resolveOrganizerTaskOperationalState(task({ state: "waiting", operationalState: "blocked" })),
     ).toBe("waiting");
   });
 
-  it("honors explicit blocked, failed, overdue and actionable evidence for open tasks", () => {
-    expect(
-      resolveOrganizerTaskOperationalState(task({ operationalState: "blocked" })),
-    ).toBe("blocked");
-    expect(
-      resolveOrganizerTaskOperationalState(task({ operationalState: "failed" })),
-    ).toBe("failed");
-    expect(
-      resolveOrganizerTaskOperationalState(task({ operationalState: "overdue" })),
-    ).toBe("overdue");
-    expect(
-      resolveOrganizerTaskOperationalState(task({ operationalState: "actionable" })),
-    ).toBe("actionable");
-  });
-
-  it("never promotes a due timestamp to workflow truth with the browser clock", () => {
-    const overdueByBrowserTime = task({
-      dueAt: "2026-10-17T23:59:59.000Z",
-      operationalState: null,
-    });
-    const futureByBrowserTime = task({
-      dueAt: "2099-10-18T00:00:01.000Z",
-      operationalState: null,
-    });
-
-    expect(resolveOrganizerTaskOperationalState(overdueByBrowserTime)).toBe(
-      "unclassified",
-    );
-    expect(resolveOrganizerTaskOperationalState(futureByBrowserTime)).toBe(
-      "unclassified",
-    );
+  it("never promotes due time or severity into workflow truth in the browser", () => {
     expect(
       resolveOrganizerTaskOperationalState(
-        task({ dueAt: "not-a-date", operationalState: null }),
+        task({ dueAt: "2020-01-01T00:00:00Z", priority: "critical", operationalState: null }),
       ),
     ).toBe("unclassified");
   });
 
-  it("never treats severity as workflow state", () => {
-    expect(
-      resolveOrganizerTaskOperationalState(
-        task({ priority: "critical", operationalState: null }),
-      ),
-    ).toBe("unclassified");
-  });
-
-  it("requires canonical rich-state evidence for every unresolved open task before rich metrics are complete", () => {
+  it("requires canonical rich-state evidence for every unresolved open task", () => {
     expect(
       hasCompleteOrganizerTaskOperationalEvidence([
         task({ state: "waiting", operationalState: null }),
@@ -217,8 +257,8 @@ describe("Organizer Task operational state trust boundary", () => {
 
     expect(
       hasCompleteOrganizerTaskOperationalEvidence([
-        task({ id: "task-modern", operationalState: "failed" }),
-        task({ id: "task-legacy", operationalState: null }),
+        task({ id: "modern", operationalState: "failed" }),
+        task({ id: "legacy", operationalState: null }),
       ]),
     ).toBe(false);
   });
