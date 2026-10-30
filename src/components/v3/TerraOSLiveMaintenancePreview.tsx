@@ -31,11 +31,7 @@ export function TerraOSLiveMaintenancePreview({
   screen: TerraOSTeaserScreen;
 }) {
   return (
-    <div
-      data-terraos-live-preview-shell="true"
-      data-terraos-teaser-preview={screen}
-      data-terraos-teaser-chrome="full"
-    >
+    <div data-terraos-live-preview-shell="true" data-preview-screen={screen}>
       <div className="terraos-live-preview-badge" aria-label="Preview, fixture data, read only">
         <strong>Preview</strong>
         <span>Fixture data · read-only</span>
