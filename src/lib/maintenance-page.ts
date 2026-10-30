@@ -134,7 +134,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
 <div class="content" data-solaris-maintenance="true">
   <nav class="product-bar" aria-label="TerraOS 3 page navigation" data-product-bar>
     <a class="product-name" href="#overview"><img class="product-mark" src="/solaris-studio-mark.png" alt="" aria-hidden="true" width="256" height="256" /><span style="white-space:nowrap">TerraOS&nbsp;3</span></a>
-    <div class="product-links"><a href="#overview">Overview</a><a href="#experience">Experience</a><a class="confirmation-link" href="#confirmation-access">Confirmation</a></div>
+    <div class="product-links"><a href="#overview">Overview</a><a href="#experience">Experience</a><a href="/terraos-teaser-preview?screen=home">Preview</a><a class="confirmation-link" href="#confirmation-access">Confirmation</a></div>
   </nav>
 
   <header class="hero" id="overview" aria-labelledby="maintenance-title" data-hero>
@@ -146,7 +146,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
         <h1 id="maintenance-title" class="terra-wordmark" style="white-space:nowrap;max-width:none;font-size:clamp(2.6rem,14vw,9.8rem)">TerraOS&nbsp;3</h1>
         <p class="hero-tagline">Solaris, reimagined.</p>
         <p class="hero-intro">A new generation of Solaris Studio is taking shape around what is happening, what matters to you, and what comes next.</p>
-        <div class="hero-actions"><a class="hero-action hero-action-primary" href="#experience">Explore TerraOS&nbsp;3</a><a class="hero-action" href="#confirmation-access">Access Confirmation</a></div>
+        <div class="hero-actions"><a class="hero-action hero-action-primary" href="/terraos-teaser-preview?screen=home">Preview TerraOS&nbsp;3</a><a class="hero-action" href="#confirmation-access">Access Confirmation</a></div>
         <div class="release-card">
           <div class="arrival-line">${arrivalMarkup}</div>
           <div class="readiness-head"><span>TerraOS&nbsp;3 readiness</span><strong>${readiness.percent}%</strong></div>
@@ -202,7 +202,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
 
     <section class="readiness-chapter" aria-labelledby="readiness-title"><div class="readiness-chapter-inner scroll-in"><p class="section-kicker">What's next</p><h2 class="display-heading" id="readiness-title"><span class="terra-wordmark" style="white-space:nowrap">TerraOS&nbsp;3</span><br />is taking shape.</h2><div class="readiness-big"><div class="readiness-big-head"><span>TerraOS&nbsp;3 readiness</span><strong>${readiness.percent}%</strong></div><div class="readiness-track" style="${readinessStyle}" role="progressbar" aria-label="TerraOS 3 readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${readiness.percent}"><span class="readiness-fill" aria-hidden="true"></span></div><p class="readiness-stage">${readinessStage}</p><p class="readiness-note">Progress reflects tracked release readiness rather than time remaining.</p></div></div></section>
 
-    <section class="finale" aria-labelledby="finale-title">${rhythmFieldMarkup("finale-rhythm", 1, -1)}<div class="finale-inner scroll-in"><p class="section-kicker">Solaris Studio</p><h2 id="finale-title" class="terra-wordmark display-heading" style="white-space:nowrap;max-width:none;font-size:clamp(2.5rem,13.5vw,9rem)">TerraOS&nbsp;3</h2><p>Built for what happens next.</p><a class="finale-link" href="#confirmation-access">Access Confirmation ↑</a></div></section>
+    <section class="finale" aria-labelledby="finale-title">${rhythmFieldMarkup("finale-rhythm", 1, -1)}<div class="finale-inner scroll-in"><p class="section-kicker">Solaris Studio</p><h2 id="finale-title" class="terra-wordmark display-heading" style="white-space:nowrap;max-width:none;font-size:clamp(2.5rem,13.5vw,9rem)">TerraOS&nbsp;3</h2><p>Built for what happens next.</p><a class="finale-link" href="/terraos-teaser-preview?screen=home">Open Preview →</a><a class="finale-link" href="#confirmation-access">Access Confirmation ↑</a></div></section>
   </main>
 
   <footer><div><strong>Terra Solaris Broadcasting Coalition</strong>Solaris Studio · TerraOS&nbsp;3</div><div>Maintenance notice updated ${updated} · HTTP 503</div></footer>

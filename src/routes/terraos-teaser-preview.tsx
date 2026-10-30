@@ -1,6 +1,7 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { TerraOSLiveMaintenancePreview } from "@/components/v3/TerraOSLiveMaintenancePreview";
 import {
   TerraOSTeaserPreview,
   type TerraOSTeaserScreen,
@@ -15,6 +16,7 @@ import {
   installTerraOsTeaserPreviewPolish,
 } from "@/lib/terraos-teaser-mobile-polish";
 import { installTerraOsTeaserMobileReferenceHero } from "@/lib/terraos-teaser-mobile-reference-hero";
+import "@/styles/terraos-live-maintenance-preview-layout.css";
 
 const SCREENS = new Set<TerraOSTeaserScreen>([
   "home",
@@ -56,7 +58,13 @@ export const Route = createFileRoute("/terraos-teaser-preview")({
 function TerraOSTeaserPreviewRoute() {
   const { screen, chrome } = Route.useSearch();
 
-  useEffect(() => installTerraOsTeaserPreviewPolish(document), []);
+  useEffect(() => {
+    // Embedded maintenance cards retain their compact static treatment. The
+    // direct owner preview has a separate, newer shell so legacy teaser CSS
+    // cannot restyle its Liquid navigation back into the old frosted dock.
+    if (chrome !== "content") return;
+    return installTerraOsTeaserPreviewPolish(document);
+  }, [chrome]);
 
   useEffect(() => {
     // The full Home renderer is the same-origin bridge already used by the
@@ -102,5 +110,9 @@ function TerraOSTeaserPreviewRoute() {
     };
   }, [screen, chrome]);
 
-  return <TerraOSTeaserPreview screen={screen} showNavigation={chrome !== "content"} />;
+  if (chrome === "content") {
+    return <TerraOSTeaserPreview screen={screen} showNavigation={false} />;
+  }
+
+  return <TerraOSLiveMaintenancePreview screen={screen} />;
 }
