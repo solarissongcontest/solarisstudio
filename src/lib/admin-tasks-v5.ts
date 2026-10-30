@@ -27,6 +27,18 @@ const ORGANIZER_TASK_OPERATIONAL_STATES = new Set<OrganizerTaskOperationalState>
   "resolved",
 ]);
 
+const V3_OPERATIONAL_STATES = new Set([
+  "actionable",
+  "in_progress",
+  "blocked",
+  "waiting",
+  "failed",
+  "overdue",
+  "expired",
+  "superseded",
+  "resolved",
+]);
+
 export type OrganizerTaskV5 = {
   id: string;
   editionId: string | null;
@@ -49,11 +61,12 @@ export type OrganizerTaskV5 = {
   lastEvaluatedAt: string;
 };
 
+type RpcError = { message?: string; code?: string } | null;
 type RpcClient = {
   rpc(
     name: string,
     args?: Record<string, unknown>,
-  ): PromiseLike<{ data: unknown; error: { message?: string } | null }>;
+  ): PromiseLike<{ data: unknown; error: RpcError }>;
 };
 
 const ORGANIZER_TASK_SCOPE_ERROR =
@@ -145,13 +158,121 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
   });
 }
 
+function record(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Invalid Organizer Tasks V3 ${label}.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function requiredString(value: unknown, label: string) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`Invalid Organizer Tasks V3 ${label}.`);
+  }
+  return value;
+}
+
+function nullableString(value: unknown, label: string) {
+  if (value == null) return null;
+  if (typeof value !== "string") throw new Error(`Invalid Organizer Tasks V3 ${label}.`);
+  return value;
+}
+
+function collapseV3OperationalState(value: unknown, index: number): OrganizerTaskOperationalState {
+  if (typeof value !== "string" || !V3_OPERATIONAL_STATES.has(value)) {
+    throw new Error(`Invalid Organizer Tasks V3 operational state at index ${index}.`);
+  }
+  if (value === "in_progress") return "actionable";
+  if (value === "expired") return "overdue";
+  if (value === "superseded") return "resolved";
+  return value as OrganizerTaskOperationalState;
+}
+
+export function mapOrganizerTasksV3Compatibility(
+  value: unknown,
+  expectedEditionId: string,
+): OrganizerTaskV5[] {
+  const projection = record(value, "payload");
+  if (projection.schemaVersion !== 1) {
+    throw new Error("Unsupported Organizer Tasks V3 schema version.");
+  }
+  if (projection.editionId !== expectedEditionId) {
+    throw new Error("Organizer Tasks V3 returned another edition projection.");
+  }
+  if (projection.authoritativeSource !== "studio2_organizer_tasks" || projection.reconciled !== true) {
+    throw new Error("Organizer Tasks V3 did not prove canonical reconciliation.");
+  }
+  if (!Array.isArray(projection.items)) {
+    throw new Error("Invalid Organizer Tasks V3 items.");
+  }
+
+  const compatible = projection.items.map((value, index) => {
+    const task = record(value, `item ${index}`);
+    const sourceState = requiredString(task.sourceState, `items[${index}].sourceState`);
+    if (!["open", "waiting", "resolved"].includes(sourceState)) {
+      throw new Error(`Invalid Organizer Tasks V3 source state at index ${index}.`);
+    }
+    const priority = requiredString(task.priority, `items[${index}].priority`);
+    if (!["critical", "high", "normal"].includes(priority)) {
+      throw new Error(`Invalid Organizer Tasks V3 priority at index ${index}.`);
+    }
+    return {
+      id: requiredString(task.id, `items[${index}].id`),
+      editionId: nullableString(task.editionId, `items[${index}].editionId`),
+      countryId: nullableString(task.countryId, `items[${index}].countryId`),
+      assignedTo: nullableString(task.assignedTo, `items[${index}].assignedTo`),
+      sourceKind: requiredString(task.sourceKind, `items[${index}].sourceKind`),
+      sourceKey: requiredString(task.sourceKey, `items[${index}].sourceKey`),
+      taskType: requiredString(task.taskType, `items[${index}].taskType`),
+      priority,
+      state: sourceState,
+      operationalState: collapseV3OperationalState(task.operationalState, index),
+      title: requiredString(task.title, `items[${index}].title`),
+      description: typeof task.description === "string" ? task.description : "",
+      href: requiredString(task.route ?? task.href, `items[${index}].route`),
+      dueAt: nullableString(task.dueAt ?? task.deadline, `items[${index}].dueAt`),
+      resolutionPredicate:
+        task.resolutionPredicate && typeof task.resolutionPredicate === "object"
+          ? (task.resolutionPredicate as Record<string, unknown>)
+          : {},
+      ruleReference: Array.isArray(task.ruleReference)
+        ? task.ruleReference.filter((item): item is string => typeof item === "string")
+        : [],
+      openedAt: requiredString(task.openedAt, `items[${index}].openedAt`),
+      resolvedAt: nullableString(task.resolvedAt, `items[${index}].resolvedAt`),
+      lastEvaluatedAt: requiredString(
+        task.lastEvaluatedAt,
+        `items[${index}].lastEvaluatedAt`,
+      ),
+    } satisfies OrganizerTaskV5;
+  });
+
+  if (compatible.some((task) => task.editionId && task.editionId !== expectedEditionId)) {
+    throw new Error("Organizer Tasks returned a task from another edition scope.");
+  }
+  return compatible;
+}
+
+function isMissingV3TaskRpc(error: RpcError) {
+  if (!error) return false;
+  if (error.code === "PGRST202" || error.code === "42883") return true;
+  const message = error.message?.toLowerCase() ?? "";
+  return message.includes("admin_organizer_tasks_v3") &&
+    (message.includes("could not find") || message.includes("does not exist"));
+}
+
+function isMissingV3TaskCountRpc(error: RpcError) {
+  if (!error) return false;
+  if (error.code === "PGRST202" || error.code === "42883") return true;
+  const message = error.message?.toLowerCase() ?? "";
+  return message.includes("admin_organizer_task_count_v3") &&
+    (message.includes("could not find") || message.includes("does not exist"));
+}
+
 /**
  * Resolve only state that is authoritative in the task payload.
- *
- * The legacy `open | waiting | resolved` state can prove waiting/resolved, while
- * richer open-task semantics must come from the canonical operationalState
- * projection. A due timestamp is display metadata and must never be promoted to
- * workflow truth with the browser clock.
+ * Due timestamps and priority are display metadata here; the server-side V3
+ * projection owns overdue/blocked/failed classification.
  */
 export function resolveOrganizerTaskOperationalState(
   task: OrganizerTaskV5,
@@ -162,11 +283,6 @@ export function resolveOrganizerTaskOperationalState(
   return "unclassified";
 }
 
-/**
- * Rich-state metrics and filters are only truthful when every unresolved task
- * can be classified from canonical evidence. One modern row must not make a
- * partially legacy queue look fully authoritative.
- */
 export function hasCompleteOrganizerTaskOperationalEvidence(
   tasks: OrganizerTaskV5[],
 ) {
@@ -181,6 +297,24 @@ export async function loadOrganizerTasksV5(
   client: RpcClient = supabase as unknown as RpcClient,
 ) {
   const exactEditionId = requireOrganizerEditionId(editionId);
+
+  const canonical = await client.rpc("admin_organizer_tasks_v3", {
+    p_edition_id: exactEditionId,
+    p_filter: filter,
+    p_limit: 200,
+    p_offset: 0,
+  });
+  if (!canonical.error) {
+    return mapOrganizerTasksV3Compatibility(canonical.data, exactEditionId);
+  }
+  if (!isMissingV3TaskRpc(canonical.error)) {
+    throw new Error(canonical.error.message || "Organizer Tasks V3 could not be loaded.");
+  }
+
+  // Deployment-order compatibility only. This reads the same canonical task
+  // table/reconciler and is permitted solely while the additive V3 RPC is not
+  // installed yet. Any other V3 error fails closed instead of silently falling
+  // back to a weaker interpretation.
   const { data, error } = await client.rpc("admin_organizer_tasks", {
     p_edition_id: exactEditionId,
     p_filter: filter,
@@ -198,10 +332,25 @@ export async function loadOrganizerTaskCountV5(
   client: RpcClient = supabase as unknown as RpcClient,
 ) {
   const exactEditionId = requireOrganizerEditionId(editionId);
-  const { data, error } = await client.rpc("admin_organizer_task_count", {
+  let data: unknown;
+
+  const canonical = await client.rpc("admin_organizer_task_count_v3", {
     p_edition_id: exactEditionId,
   });
-  if (error) throw new Error(error.message || "Organizer task count could not be loaded.");
+  if (!canonical.error) {
+    data = canonical.data;
+  } else if (isMissingV3TaskCountRpc(canonical.error)) {
+    const legacy = await client.rpc("admin_organizer_task_count", {
+      p_edition_id: exactEditionId,
+    });
+    if (legacy.error) {
+      throw new Error(legacy.error.message || "Organizer task count could not be loaded.");
+    }
+    data = legacy.data;
+  } else {
+    throw new Error(canonical.error.message || "Organizer task count V3 could not be loaded.");
+  }
+
   if (typeof data !== "number" || !Number.isSafeInteger(data) || data < 0) {
     throw new Error("Organizer task count returned an invalid authoritative payload.");
   }

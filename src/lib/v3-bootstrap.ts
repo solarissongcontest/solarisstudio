@@ -6,6 +6,10 @@ import {
 import { projectV3Actions, projectV3Attention } from "./v3-experience";
 import { projectV3Home } from "./v3-home";
 import { projectV3Journey } from "./v3-journey";
+import {
+  canonicalizeParticipantTasks,
+  projectParticipantTaskReadModel,
+} from "./v3-task-engine";
 
 export type V3BootstrapIdentity = {
   userId: string | null;
@@ -34,10 +38,10 @@ export type V3BootstrapSource = {
 };
 
 /**
- * The first V3 bootstrap contract is deliberately a pure projection. It does
- * not fetch data and it does not own workflow truth. Existing server authority
- * supplies contest facts + participant task evidence, and every visible V3
- * summary is derived from those same inputs in one place.
+ * The V3 bootstrap is a pure read projection. Canonical participant task truth
+ * is normalized exactly once before Home, Journey, Attention and Participate
+ * consume it. Those surfaces therefore cannot independently decide that a
+ * Confirmation, Entry, Jury, notice or other responsibility is complete.
  */
 export function projectV3Bootstrap(source: V3BootstrapSource) {
   const serverNow = Date.parse(source.serverTime);
@@ -45,10 +49,15 @@ export function projectV3Bootstrap(source: V3BootstrapSource) {
     throw new Error("V3 bootstrap requires a valid serverTime timestamp.");
   }
 
+  const canonicalTasks = canonicalizeParticipantTasks(source.tasks);
+  const taskProjection = projectParticipantTaskReadModel(
+    canonicalTasks,
+    source.serverTime,
+  );
   const experience = projectV3Experience(source.domain);
-  const actions = projectV3Actions(source.tasks, serverNow);
+  const actions = projectV3Actions(canonicalTasks, serverNow);
   const attention = projectV3Attention(actions);
-  const journey = projectV3Journey(source.tasks);
+  const journey = projectV3Journey(canonicalTasks);
   const home = projectV3Home({
     experience,
     attention,
@@ -62,6 +71,7 @@ export function projectV3Bootstrap(source: V3BootstrapSource) {
     identity: source.identity,
     context: source.context,
     capabilities: [...source.capabilities],
+    taskProjection,
     experience,
     actions,
     attention,

@@ -52,26 +52,44 @@ function source(overrides: Partial<V3BootstrapSource> = {}): V3BootstrapSource {
 }
 
 describe("V3 bootstrap projection", () => {
-  it("drives Home, Journey and Attention from the same participant task evidence", () => {
+  it("drives Home, Journey, Attention and Participate from one canonical task projection", () => {
     const bootstrap = projectV3Bootstrap(source());
 
-    expect(bootstrap.actions[0]?.id).toBe("jury:sf1");
-    expect(bootstrap.attention.primary?.id).toBe("jury:sf1");
+    expect(bootstrap.taskProjection).toMatchObject({
+      schemaVersion: 1,
+      audience: "participant",
+      authoritativeSource: "participant-task-engine",
+    });
+    expect(bootstrap.actions[0]?.id).toBe("participant:22:jury");
+    expect(bootstrap.attention.primary?.id).toBe("participant:22:jury");
     expect(bootstrap.journey[0]).toMatchObject({
-      id: "jury:sf1",
+      id: "participant:22:jury",
       responsibility: "jury",
       state: "active",
     });
     expect(bootstrap.home.primaryMode).toBe("attention");
   });
 
-  it("uses server time rather than device time for urgency", () => {
+  it("reconciles duplicate participant evidence before any V3 surface consumes it", () => {
     const bootstrap = projectV3Bootstrap(
       source({
-        serverTime: "2026-10-11T19:30:00.000Z",
+        tasks: [
+          task({ id: "jury:rpc", priority: 120 }),
+          task({ id: "hod:jury", priority: 80, state: "waiting", actionRequired: false }),
+        ],
       }),
     );
 
+    expect(bootstrap.taskProjection.items).toHaveLength(1);
+    expect(bootstrap.actions).toHaveLength(1);
+    expect(bootstrap.journey).toHaveLength(1);
+    expect(bootstrap.actions[0]?.id).toBe("participant:22:jury");
+  });
+
+  it("uses server time rather than device time for urgency", () => {
+    const bootstrap = projectV3Bootstrap(
+      source({ serverTime: "2026-10-11T19:30:00.000Z" }),
+    );
     expect(bootstrap.actions[0]?.urgency).toBe("immediate");
   });
 
@@ -96,9 +114,10 @@ describe("V3 bootstrap projection", () => {
     expect(bootstrap.journey).toEqual([]);
     expect(bootstrap.attention.badgeCount).toBe(0);
     expect(bootstrap.actions[0]?.deliveryClass).toBe("optional");
+    expect(bootstrap.taskProjection.items[0]?.deliveryClass).toBe("optional");
   });
 
-  it("keeps personal entry completion in tasks instead of contest-domain state", () => {
+  it("keeps personal entry completion in canonical tasks instead of contest-domain state", () => {
     const entry = task({
       id: "entry:22",
       kind: "entry",
@@ -111,6 +130,10 @@ describe("V3 bootstrap projection", () => {
     const bootstrap = projectV3Bootstrap(source({ tasks: [entry] }));
 
     expect("entry" in source().domain).toBe(false);
+    expect(bootstrap.taskProjection.items[0]).toMatchObject({
+      id: "participant:22:entry",
+      state: "completed",
+    });
     expect(bootstrap.journey[0]).toMatchObject({
       responsibility: "entry",
       state: "complete",
@@ -120,10 +143,7 @@ describe("V3 bootstrap projection", () => {
   it("applies spoiler protection once at bootstrap projection level", () => {
     const bootstrap = projectV3Bootstrap(
       source({
-        domain: {
-          ...source().domain,
-          results: "published",
-        },
+        domain: { ...source().domain, results: "published" },
         tasks: [],
         preferences: { hideResultSpoilers: true },
       }),
@@ -138,7 +158,6 @@ describe("V3 bootstrap projection", () => {
     const bootstrap = projectV3Bootstrap(
       source({ capabilities: ["confirmation.manage", "jury.vote"] }),
     );
-
     expect(bootstrap.capabilities).toEqual(["confirmation.manage", "jury.vote"]);
   });
 
