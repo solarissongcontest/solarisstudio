@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import {
   AlertTriangle,
   Check,
@@ -110,17 +110,20 @@ export function V3Section({
   );
 }
 
+type V3SurfaceProps = Omit<HTMLAttributes<HTMLDivElement>, "children"> & {
+  children: ReactNode;
+  level?: "base" | "raised" | "glass";
+};
+
 export function V3Surface({
   children,
   level = "base",
   className,
-}: {
-  children: ReactNode;
-  level?: "base" | "raised" | "glass";
-  className?: string;
-}) {
+  ...props
+}: V3SurfaceProps) {
   return (
     <div
+      {...props}
       className={cn(
         "v3-surface",
         level === "raised" && "v3-surface--raised",
