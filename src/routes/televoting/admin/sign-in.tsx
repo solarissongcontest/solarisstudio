@@ -11,5 +11,4 @@ export const Route = createFileRoute("/televoting/admin/sign-in")({
     });
   },
   head: () => ({ meta: [{ name: "robots", content: "noindex" }] }),
-  component: () => null,
 });

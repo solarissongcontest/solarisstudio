@@ -14,5 +14,4 @@ export const Route = createFileRoute("/_authenticated/admin/edition-theme/$slug"
       replace: true,
     });
   },
-  component: () => null,
 });

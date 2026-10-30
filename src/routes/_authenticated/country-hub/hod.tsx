@@ -23,5 +23,4 @@ export const Route = createFileRoute("/_authenticated/country-hub/hod")({
     }
     throw redirect({ to: NAV_TARGETS.participate, replace: true });
   },
-  component: () => null,
 });

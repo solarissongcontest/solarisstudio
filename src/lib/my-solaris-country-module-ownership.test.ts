@@ -43,7 +43,9 @@ describe("native MySolaris country ownership", () => {
     expect(legacyPage).toContain("NAV_TARGETS.mySolarisPageBuilder, search, replace: true");
     expect(legacyAppearance).toContain("NAV_TARGETS.mySolarisTheme, search, replace: true");
     for (const route of [legacyCountry, legacyPage, legacyAppearance]) {
-      expect(route).toContain("component: () => null");
+      // Every path throws a redirect before rendering; a null-renderer chunk
+      // adds no ownership boundary. Actual redirect behavior is also exercised.
+      expect(route).not.toContain("component:");
       expect(route).not.toContain("useMyCountryAccount");
     }
   });
