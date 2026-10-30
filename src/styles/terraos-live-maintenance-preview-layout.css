@@ -1,0 +1,72 @@
+[data-terraos-live-preview-shell="true"] {
+  position: relative;
+  min-height: 100dvh;
+}
+
+/* The embedded teaser renderer is intentionally viewport-clipped. The direct
+   owner preview is different: it must allow the full fixture screen to be
+   inspected on real phones and desktops. Keep this override scoped to the
+   maintenance-only wrapper rather than changing embedded teaser cards. */
+[data-terraos-live-preview-shell="true"] > [data-terraos-teaser-preview] {
+  height: auto !important;
+  min-height: 100dvh !important;
+  overflow: visible !important;
+}
+
+[data-terraos-live-preview-shell="true"] > [data-terraos-teaser-preview] > div {
+  height: auto !important;
+  min-height: 100dvh !important;
+  overflow: visible !important;
+}
+
+.terraos-live-preview-badge {
+  position: fixed;
+  z-index: 80;
+  top: calc(env(safe-area-inset-top, 0px) + 0.7rem);
+  right: max(0.75rem, env(safe-area-inset-right, 0px));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.48rem;
+  min-height: 2.15rem;
+  padding: 0.4rem 0.66rem;
+  border: 1px solid rgba(230, 245, 255, 0.13);
+  border-radius: 999px;
+  color: rgba(237, 247, 255, 0.78);
+  background: rgba(7, 16, 32, 0.72);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.terraos-live-preview-badge strong {
+  color: #f8fbff;
+  font-size: 0.68rem;
+  font-weight: 760;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.terraos-live-preview-badge span {
+  font-size: 0.66rem;
+  font-weight: 620;
+}
+
+@media (max-width: 430px) {
+  .terraos-live-preview-badge {
+    top: calc(env(safe-area-inset-top, 0px) + 3.25rem);
+    right: 0.75rem;
+  }
+
+  .terraos-live-preview-badge span {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .terraos-live-preview-badge {
+    background: var(--v3-bg-subtle);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
