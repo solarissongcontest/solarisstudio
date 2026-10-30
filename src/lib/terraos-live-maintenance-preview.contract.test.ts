@@ -80,7 +80,7 @@ describe("TerraOS live maintenance preview", () => {
   it("lets the direct preview expand for desktop inspection without changing embedded teaser cards", () => {
     expect(layoutCss).toContain('data-terraos-live-preview-shell="true"');
     expect(layoutCss).toContain("height: auto !important");
-    expect(navCss).toContain("@media (min-width: 760px)");
-    expect(navCss).toContain("width: min(100%, 72rem)");
+    expect(layoutCss).toContain("@media (min-width: 760px)");
+    expect(layoutCss).toContain("width: min(100%, 72rem)");
   });
 });
