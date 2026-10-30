@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Mobile App V2 composition completion", () => {
-  it("uses the shared mobile composition primitives across primary directories", () => {
+  it("uses shared mobile composition primitives across primary directories", () => {
     const primitives = source("src/components/app/AppPrimitives.tsx");
     for (const primitive of [
       "AppScreen",
@@ -19,9 +19,7 @@ describe("Mobile App V2 composition completion", () => {
     }
 
     for (const route of [
-      "src/routes/countries/index.tsx",
       "src/routes/editions/index.tsx",
-      "src/routes/shows/index.tsx",
       "src/routes/results/index.tsx",
       "src/routes/site-directory/index.tsx",
     ]) {
@@ -30,6 +28,17 @@ describe("Mobile App V2 composition completion", () => {
       expect(code, route).toContain("AppSectionHeader");
       expect(code, route).toContain("AppGroupedList");
     }
+
+    const countriesRoute = source("src/routes/countries/index.tsx");
+    const countries = source("src/components/v3/V3CountriesDiscoveryScreen.tsx");
+    const showsRoute = source("src/routes/shows/index.tsx");
+    const shows = source("src/components/v3/V3ShowsDiscoveryScreen.tsx");
+    expect(countriesRoute).toContain("AppScreen");
+    expect(countries).toContain("AppSectionHeader");
+    expect(countries).toContain("AppGroupedList");
+    expect(showsRoute).toContain("AppScreen");
+    expect(shows).toContain("AppSectionHeader");
+    expect(shows).toContain("ShowCollection");
   });
 
   it("keeps app card surfaces flat and tokenized instead of multiplying glass panels", () => {
@@ -49,14 +58,21 @@ describe("Mobile App V2 composition completion", () => {
 
   it("gives installed directory empty states a recovery action", () => {
     for (const route of [
-      "src/routes/countries/index.tsx",
       "src/routes/editions/index.tsx",
-      "src/routes/shows/index.tsx",
       "src/routes/site-directory/index.tsx",
     ]) {
       const code = source(route);
       expect(code, route).toContain("AppEmptyState");
       expect(code, route).toContain("solaris-app-empty-action");
+    }
+
+    for (const screen of [
+      "src/components/v3/V3CountriesDiscoveryScreen.tsx",
+      "src/components/v3/V3ShowsDiscoveryScreen.tsx",
+    ]) {
+      const code = source(screen);
+      expect(code, screen).toContain("AppEmptyState");
+      expect(code, screen).toContain("solaris-app-empty-action");
     }
   });
 
