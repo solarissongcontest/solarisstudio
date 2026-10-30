@@ -14,7 +14,7 @@ describe("V3 Reference convergence", () => {
     expect(source).toContain('isStudio2FeatureEnabled("public_encyclopedia")');
     expect(source).toContain('enabled: isAppMode');
     expect(source).toContain('referenceRollout.data === true');
-    expect(source).toContain('<Navigate to="/encyclopedia" replace />');
+    expect(source).toContain('<Navigate to="/encyclopedia" search={{ artist: undefined }} replace />');
   });
 
   it("keeps the legacy Wiki root available when Reference is not safely rolled out", () => {
