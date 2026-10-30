@@ -90,6 +90,14 @@
   font-weight: 620;
 }
 
+@media (min-width: 760px) {
+  [data-terraos-live-preview-shell="true"] .v3-screen {
+    width: min(100%, 72rem);
+    margin-inline: auto;
+    padding-inline: clamp(2rem, 5vw, 4.5rem);
+  }
+}
+
 @media (max-width: 430px) {
   .terraos-live-preview-badge {
     top: calc(env(safe-area-inset-top, 0px) + 3.25rem);
