@@ -45,7 +45,7 @@ function WikiIndexPage() {
   }
 
   if (isAppMode && !referenceRollout.isError && referenceRollout.data === true) {
-    return <Navigate to="/encyclopedia" replace />;
+    return <Navigate to="/encyclopedia" search={{ artist: undefined }} replace />;
   }
 
   return isAppMode ? <AppWikiIndexPage /> : <WebWikiIndexPage />;
