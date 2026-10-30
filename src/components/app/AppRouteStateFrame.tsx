@@ -14,7 +14,7 @@ function organizerRoute(pathname: string) {
   );
 }
 
-export function shouldOwnCriticalRouteStateFrame(pathname: string, searchStr = "") {
+function shouldOwnCriticalRouteStateFrame(pathname: string, searchStr = "") {
   if (organizerRoute(pathname)) return false;
   return resolveSolarisAppScreen(pathname, searchStr).behavior.criticalTask;
 }
@@ -75,7 +75,7 @@ export function AppRouteStateFrame({
   );
 }
 
-export type AppRouteSkeletonVariant =
+type AppRouteSkeletonVariant =
   | "generic"
   | "reference"
   | "notifications"
