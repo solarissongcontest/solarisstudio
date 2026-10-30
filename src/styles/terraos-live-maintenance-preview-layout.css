@@ -1,6 +1,13 @@
 [data-terraos-live-preview-shell="true"] {
+  --terra-preview-top-safe: env(safe-area-inset-top, 0px);
+  --terra-preview-top-comfort: 6px;
   position: relative;
   min-height: 100dvh;
+  overflow-x: clip;
+  background:
+    radial-gradient(circle at 16% -8%, rgba(58, 143, 213, 0.12), transparent 28rem),
+    radial-gradient(circle at 86% 18%, rgba(114, 89, 180, 0.07), transparent 24rem),
+    var(--v3-bg-base);
 }
 
 /* The embedded teaser renderer is intentionally viewport-clipped. The direct
@@ -17,6 +24,37 @@
   height: auto !important;
   min-height: 100dvh !important;
   overflow: visible !important;
+}
+
+[data-terraos-live-preview-shell="true"] .v3-foundation-shell {
+  min-height: 100dvh;
+}
+
+[data-terraos-live-preview-shell="true"] .v3-top-context {
+  min-height: calc(var(--terra-preview-top-safe) + var(--terra-preview-top-comfort) + 42px);
+  padding:
+    calc(var(--terra-preview-top-safe) + var(--terra-preview-top-comfort))
+    max(14px, env(safe-area-inset-right))
+    6px
+    max(14px, env(safe-area-inset-left));
+  background: linear-gradient(
+    180deg,
+    rgba(4, 10, 25, 0.8),
+    rgba(4, 10, 25, 0.34) 72%,
+    transparent
+  );
+  -webkit-backdrop-filter: blur(14px) saturate(138%);
+  backdrop-filter: blur(14px) saturate(138%);
+}
+
+[data-terraos-live-preview-shell="true"] .v3-top-context__edition {
+  min-height: 36px;
+  font-size: 0.68rem;
+  letter-spacing: 0.065em;
+}
+
+[data-terraos-live-preview-shell="true"] .v3-screen {
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
 }
 
 .terraos-live-preview-badge {
