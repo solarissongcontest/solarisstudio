@@ -272,7 +272,7 @@ export async function updateMergedConversionConfigServer(data: {
   return { ok: true, outdated: Boolean(patch.results_outdated) };
 }
 
-async function persistV1Calculation(
+async function buildV1Calculation(
   roundId: string,
   version: number,
   calculatedAt: string,
@@ -309,10 +309,10 @@ async function persistV1Calculation(
     engine_version: CALC_ENGINE_VERSION,
     calculation_config: { rankExponent: result.rankExponent },
   }));
-  const { error } = await televotingAdmin.from("round_results").insert(rows);
-  if (error) throw new Error(error.message);
 
   return {
+    resultRows: rows,
+    influenceRows: [],
     engineVersion: CALC_ENGINE_VERSION,
     participantCount: result.participantCount,
     rankBase: result.rankBase,
@@ -324,7 +324,7 @@ async function persistV1Calculation(
   };
 }
 
-async function persistV2Calculation(
+async function buildV2Calculation(
   roundId: string,
   version: number,
   calculatedAt: string,
@@ -376,8 +376,6 @@ async function persistV2Calculation(
     rank_boost: row.rankBoost,
     calculation_config: result.config,
   }));
-  const { error } = await televotingAdmin.from("round_results").insert(rows);
-  if (error) throw new Error(error.message);
 
   const influence = analyseRobustInfluence({
     participants,
@@ -398,12 +396,10 @@ async function persistV2Calculation(
     max_point_movement: row.maxPointMovement,
     most_affected_entry: row.mostAffectedEntry,
   }));
-  if (influenceRows.length) {
-    const { error: influenceError } = await televotingAdmin.from("round_influence_results").insert(influenceRows);
-    if (influenceError) throw new Error(influenceError.message);
-  }
 
   return {
+    resultRows: rows,
+    influenceRows,
     engineVersion: ROBUST_TELEVOTE_ENGINE_VERSION,
     participantCount: result.participantCount,
     rankBase: null,
@@ -427,47 +423,48 @@ export async function runMergedOfficialCalculationServer(roundId: string) {
 
   const version = round.calculation_version + 1;
   const calculatedAt = new Date().toISOString();
-
-  const { error: deleteError } = await televotingAdmin.from("round_results").delete().eq("round_id", roundId);
-  if (deleteError) throw new Error(deleteError.message);
-  const { error: influenceDeleteError } = await televotingAdmin.from("round_influence_results").delete().eq("round_id", roundId);
-  if (influenceDeleteError) throw new Error(influenceDeleteError.message);
-
   const engineVersion = round.televote_engine_version ?? CALC_ENGINE_VERSION;
   const calculation = engineVersion === ROBUST_TELEVOTE_ENGINE_VERSION
-    ? await persistV2Calculation(roundId, version, calculatedAt, actor, round, participants)
-    : await persistV1Calculation(roundId, version, calculatedAt, actor, round, participants);
+    ? await buildV2Calculation(roundId, version, calculatedAt, actor, round, participants)
+    : await buildV1Calculation(roundId, version, calculatedAt, actor, round, participants);
 
-  const { error: updateError } = await televotingAdmin
-    .from("rounds")
-    .update({
-      results_status: "calculated",
-      calculation_version: version,
-      calculated_at: calculatedAt,
-      calculated_by: actor.id,
-      calculated_by_username: actor.username,
-      calc_participant_codes: participants,
-      results_outdated: false,
-    })
-    .eq("id", roundId);
-  if (updateError) throw new Error(updateError.message);
+  const { resultRows, influenceRows, ...calculationSummary } = calculation;
+  const { data: committedVersionValue, error: commitError } = await televotingAdmin.rpc(
+    "v3_commit_official_round_calculation",
+    {
+      p_round_id: roundId,
+      p_expected_previous_version: round.calculation_version,
+      p_calculated_at: calculatedAt,
+      p_calculated_by: actor.id,
+      p_calculated_by_username: actor.username,
+      p_participant_codes: participants,
+      p_result_rows: resultRows,
+      p_influence_rows: influenceRows,
+    },
+  );
+  if (commitError) throw new Error(commitError.message);
+
+  const committedVersion = Number(committedVersionValue);
+  if (!Number.isInteger(committedVersion) || committedVersion !== version) {
+    throw new Error(`Calculation commit returned unexpected version ${String(committedVersionValue)}`);
+  }
 
   await audit(actor, "calculate_televote_conversion", {
     target_type: "round",
     target_id: roundId,
     new_values: {
-      engine: calculation.engineVersion,
-      calculation_version: version,
-      total_points: calculation.totalPoints,
-      participant_count: calculation.participantCount,
-      distributed_total: calculation.distributedTotal,
-      zero_weight: calculation.zeroWeight,
-      config: calculation.config,
-      influence: calculation.influence,
+      engine: calculationSummary.engineVersion,
+      calculation_version: committedVersion,
+      total_points: calculationSummary.totalPoints,
+      participant_count: calculationSummary.participantCount,
+      distributed_total: calculationSummary.distributedTotal,
+      zero_weight: calculationSummary.zeroWeight,
+      config: calculationSummary.config,
+      influence: calculationSummary.influence,
     },
   });
 
-  return { version, calculatedAt, ...calculation };
+  return { version: committedVersion, calculatedAt, ...calculationSummary };
 }
 
 export async function validateMergedPublicationServer(roundId: string) {
