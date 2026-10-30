@@ -69,6 +69,11 @@ type DragState = {
   tabIcons: SVGElement[];
 };
 
+type DragPreview = {
+  index: number;
+  pathname: string;
+};
+
 function triggerSelectionHaptic(duration = 8) {
   if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
   navigator.vibrate(duration);
@@ -104,8 +109,7 @@ export function V3LiquidTabBar({
     0,
     destinations.findIndex((destination) => destination.active),
   );
-  const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
-  const [dragging, setDragging] = useState(false);
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
   const [layoutDirection, setLayoutDirection] = useState<V3LayoutDirection>("ltr");
   const barRef = useRef<HTMLElement | null>(null);
   const materialRef = useRef<HTMLDivElement | null>(null);
@@ -123,6 +127,8 @@ export function V3LiquidTabBar({
     end: endHold,
   } = useSolarisPressHold();
 
+  const dragging = held;
+  const dragPreviewIndex = dragPreview?.pathname === pathname ? dragPreview.index : null;
   const previewIndex = dragPreviewIndex ?? activeIndex;
   const visualLensIndex = dragging ? activeIndex : previewIndex;
   const count = Math.max(1, destinations.length);
@@ -203,7 +209,6 @@ export function V3LiquidTabBar({
       true,
       "Finish the current navigation gesture before updating.",
     );
-    setDragging(true);
     triggerSelectionHaptic(10);
   }, [held]);
 
@@ -212,11 +217,6 @@ export function V3LiquidTabBar({
     lastPreviewHaptic.current = previewIndex;
     triggerSelectionHaptic(6);
   }, [dragging, previewIndex]);
-
-  useEffect(() => {
-    if (dragging || dragPreviewIndex == null || dragPreviewIndex !== activeIndex) return;
-    setDragPreviewIndex(null);
-  }, [activeIndex, dragPreviewIndex, dragging]);
 
   const tabRects = () => {
     const material = materialRef.current;
@@ -257,18 +257,16 @@ export function V3LiquidTabBar({
   const clearDrag = useCallback(() => {
     endHold();
     resetDragDom();
-    setDragging(false);
-    setDragPreviewIndex(null);
+    setDragPreview(null);
   }, [endHold, resetDragDom]);
 
   const settleDrag = useCallback(
     (targetIndex: number) => {
       endHold();
       resetDragDom();
-      setDragging(false);
-      setDragPreviewIndex(targetIndex);
+      setDragPreview({ index: targetIndex, pathname });
     },
-    [endHold, resetDragDom],
+    [endHold, pathname, resetDragDom],
   );
 
   useEffect(() => {
@@ -444,7 +442,7 @@ export function V3LiquidTabBar({
     });
     if (nextPreview !== drag.previewIndex) {
       drag.previewIndex = nextPreview;
-      setDragPreviewIndex(nextPreview);
+      setDragPreview({ index: nextPreview, pathname });
     }
 
     if (drag.moved) event.preventDefault();
