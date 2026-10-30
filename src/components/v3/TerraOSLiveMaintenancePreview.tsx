@@ -43,14 +43,17 @@ export function TerraOSLiveMaintenancePreview({
 
       <TerraOSTeaserPreview screen={screen} showNavigation={false} />
 
-      <nav className="terraos-live-preview-nav" aria-label="TerraOS 3 preview navigation">
+      <nav
+        className="v3-bottom-nav terraos-live-preview-nav"
+        aria-label="TerraOS 3 preview navigation"
+      >
         {PREVIEW_DESTINATIONS.map(({ id, label, icon: Icon }) => {
           const active = screen === id;
           return (
             <a
               key={id}
               href={`/terraos-teaser-preview?screen=${id}`}
-              className="terraos-live-preview-nav__item"
+              className="v3-bottom-nav__item terraos-live-preview-nav__item"
               data-active={active ? "true" : "false"}
               aria-current={active ? "page" : undefined}
               aria-label={label}
@@ -60,7 +63,9 @@ export function TerraOSLiveMaintenancePreview({
                 strokeWidth={active ? 2.35 : 1.9}
                 aria-hidden="true"
               />
-              <span className="terraos-live-preview-nav__label">{label}</span>
+              <span className="v3-bottom-nav__label terraos-live-preview-nav__label">
+                {label}
+              </span>
             </a>
           );
         })}
