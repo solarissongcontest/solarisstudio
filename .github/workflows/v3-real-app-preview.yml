@@ -53,31 +53,39 @@ jobs:
       - name: Deploy to an isolated temporary Cloudflare account
         id: deploy
         shell: bash
+        env:
+          WRANGLER_LOG: debug
         run: |
           set -euo pipefail
+          raw_log="$RUNNER_TEMP/wrangler-preview-raw.log"
+          safe_log="$RUNNER_TEMP/wrangler-preview-debug.log"
+
           set +e
           bunx wrangler@4.141.0 deploy \
             --temporary \
             --no-bundle \
             --config wrangler.v3-preview.jsonc \
             --message "Solaris Studio V3 PR #1872 ${GITHUB_SHA}" \
-            > /tmp/solaris-v3-preview-deploy.log 2>&1
+            > "$raw_log" 2>&1
           deploy_status=$?
           set -e
 
-          # The temporary-account claim URL is a bearer credential. Never print
-          # it into public Actions logs. Only non-sensitive deployment output is
-          # surfaced here.
+          # Temporary-account claim URLs are bearer credentials. Preserve the
+          # complete Wrangler diagnostic while stripping claim/auth material
+          # before anything reaches Actions logs or artifacts.
           sed -E \
-            's#https://dash\.cloudflare\.com/claim-preview\?claimToken=[^[:space:]]+#<claim-url-redacted>#g' \
-            /tmp/solaris-v3-preview-deploy.log
+            -e 's#https://dash\.cloudflare\.com/claim-preview\?claimToken=[^[:space:]]+#<claim-url-redacted>#g' \
+            -e 's#(claimToken=)[^&[:space:]]+#\1<redacted>#g' \
+            -e 's#(Authorization: Bearer )[A-Za-z0-9._~-]+#\1<redacted>#Ig' \
+            "$raw_log" > "$safe_log"
+          cat "$safe_log"
 
           if [ "$deploy_status" -ne 0 ]; then
-            echo "::error::Temporary Cloudflare preview deployment failed."
+            echo "::error::Temporary Cloudflare preview deployment failed with exit code $deploy_status."
             exit "$deploy_status"
           fi
 
-          preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' /tmp/solaris-v3-preview-deploy.log | tail -n 1)"
+          preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' "$safe_log" | tail -n 1)"
           if [ -z "$preview_url" ]; then
             echo "::error::Cloudflare deployment succeeded but no workers.dev preview URL was found."
             exit 1
@@ -88,6 +96,15 @@ jobs:
             echo "preview_url=$preview_url"
             echo "git_sha=$GITHUB_SHA"
           } > preview-address.txt
+
+      - name: Upload sanitized Wrangler diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wrangler-preview-debug
+          path: ${{ runner.temp }}/wrangler-preview-debug.log
+          if-no-files-found: warn
+          retention-days: 1
 
       - name: Verify preview access protection
         shell: bash
