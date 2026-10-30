@@ -63,7 +63,6 @@ jobs:
           set +e
           bunx wrangler@4.141.0 deploy \
             --temporary \
-            --no-bundle \
             --config wrangler.v3-preview.jsonc \
             --message "Solaris Studio V3 PR #1872 ${GITHUB_SHA}" \
             > "$raw_log" 2>&1
