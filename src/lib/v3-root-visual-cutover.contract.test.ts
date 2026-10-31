@@ -26,4 +26,35 @@ describe("V3 root visual cutover", () => {
     expect(explore).not.toContain("V3ActionCard");
     expect(explore).not.toContain("V3Surface");
   });
+
+  it("makes Me identity-first and removes dashboard-card wrappers", () => {
+    const me = source("src/components/v3/V3MeScreen.tsx");
+
+    expect(me).toContain('data-v3-me-identity=""');
+    expect(me).toContain('data-v3-me-activity-metrics=""');
+    expect(me).not.toContain("V3ScreenHeader");
+    expect(me).not.toContain("V3ActionCard");
+    expect(me).not.toContain("V3Surface");
+  });
+
+  it("removes nested task surfaces from Participate while keeping task emphasis", () => {
+    const participate = source("src/components/v3/V3ParticipateScreen.tsx");
+
+    expect(participate).toContain('data-v3-participate-header=""');
+    expect(participate).toContain('data-v3-participate-task-list=""');
+    expect(participate).not.toContain("V3ScreenHeader");
+    expect(participate).not.toContain("V3Surface");
+    expect(participate).toContain("V3ActionCard");
+  });
+
+  it("keeps Results projections intact while flattening archive, personal and analysis navigation", () => {
+    const results = source("src/components/v3/V3ResultsScreen.tsx");
+
+    expect(results).toContain('data-v3-results-header=""');
+    expect(results).toContain('data-v3-results-mode-control=""');
+    expect(results).toContain("buildV3ResultsProjection");
+    expect(results).toContain("V3ScoreboardPresentation");
+    expect(results).not.toContain("V3ScreenHeader");
+    expect(results).not.toContain("V3Surface");
+  });
 });
