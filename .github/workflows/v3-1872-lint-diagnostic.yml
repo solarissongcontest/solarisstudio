@@ -1,0 +1,109 @@
+name: V3 #1872 lint diagnostic
+
+on:
+  push:
+    branches:
+      - v3/live-real-app-update
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-diagnostic:
+    name: Exact independent ESLint diagnostic
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify checkout is exact workflow SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Reproduce exact independent lint gate
+        id: exact_lint
+        shell: bash
+        run: |
+          set +e
+          bun run lint 2>&1 | tee lint-diagnostic.txt
+          status=${PIPESTATUS[0]}
+          printf '%s\n' "$status" > lint-status.txt
+          exit 0
+
+      - name: Capture machine-readable ESLint diagnostics
+        shell: bash
+        run: |
+          set +e
+          bunx eslint . -f json > eslint-diagnostic.json
+          status=$?
+          printf '%s\n' "$status" > eslint-json-status.txt
+          exit 0
+
+      - name: Publish ESLint diagnostics as check annotations
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const data = JSON.parse(fs.readFileSync('eslint-diagnostic.json', 'utf8'));
+          let count = 0;
+          for (const result of data) {
+            for (const message of result.messages ?? []) {
+              count += 1;
+              const file = path.relative(process.cwd(), result.filePath).replaceAll('\\', '/');
+              const line = message.line ?? 1;
+              const col = message.column ?? 1;
+              const endLine = message.endLine ?? line;
+              const endColumn = message.endColumn ?? col;
+              const rule = message.ruleId ?? 'eslint';
+              const text = String(message.message ?? 'ESLint diagnostic').replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+              console.log(`::error file=${file},line=${line},col=${col},endLine=${endLine},endColumn=${endColumn},title=${rule}::${text}`);
+            }
+          }
+          console.log(`ESLint diagnostic count: ${count}`);
+          if (count === 0) console.log('::notice::Machine-readable ESLint run produced no diagnostics.');
+          NODE
+
+      - name: Fail with exact lint status after evidence is captured
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(cat lint-status.txt)"
+          if [ "$status" -ne 0 ]; then
+            echo "Exact bun run lint exit status: $status"
+            exit "$status"
+          fi
+
+      - name: Upload lint diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1872-lint-diagnostic-${{ github.sha }}
+          path: |
+            lint-diagnostic.txt
+            lint-status.txt
+            eslint-diagnostic.json
+            eslint-json-status.txt
+          if-no-files-found: error
+          retention-days: 1
