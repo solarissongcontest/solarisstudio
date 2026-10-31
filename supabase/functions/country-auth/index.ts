@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 const internalEmailSuffix = "@country.solaris.invalid";
+const productionSiteOrigin = "https://studio.solaris-song-contest.workers.dev";
 const pwnedPasswordsRangeUrl = "https://api.pwnedpasswords.com/range";
 
 function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
@@ -37,15 +38,24 @@ function looksLikeEmail(value: string) {
 }
 
 function safeResetRedirect(req: Request) {
+  const fallback = `${productionSiteOrigin}/auth/reset`;
   const origin = req.headers.get("origin")?.trim();
-  if (!origin) return undefined;
+  if (!origin) return fallback;
+
   try {
     const parsed = new URL(origin);
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return undefined;
-    return `${parsed.origin}/auth/reset`;
+    const localDevelopmentOrigin =
+      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname);
+
+    if (parsed.origin === productionSiteOrigin || localDevelopmentOrigin) {
+      return `${parsed.origin}/auth/reset`;
+    }
   } catch {
-    return undefined;
+    // Fall back to the canonical Solaris origin below.
   }
+
+  return fallback;
 }
 
 function requestAddress(req: Request) {
@@ -201,7 +211,12 @@ Deno.serve(async (req) => {
     if (!identifier) return { email: null as string | null, noRecovery: false, suspended: false };
 
     if (looksLikeEmail(identifier)) {
-      return { email: identifier.toLowerCase(), noRecovery: false, suspended: false };
+      const email = identifier.toLowerCase();
+      return {
+        email,
+        noRecovery: email.endsWith(internalEmailSuffix),
+        suspended: false,
+      };
     }
 
     const username = normalizeInstagram(identifier);
@@ -456,7 +471,7 @@ Deno.serve(async (req) => {
     const redirectTo = safeResetRedirect(req);
     const { error } = await publicAuth.auth.resetPasswordForEmail(
       resolved.email,
-      redirectTo ? { redirectTo } : undefined,
+      { redirectTo },
     );
     if (error) return json({ error: "Password recovery could not be started. Try again later." }, 400);
     return json({ ok: true, recoveryAvailable: true });
