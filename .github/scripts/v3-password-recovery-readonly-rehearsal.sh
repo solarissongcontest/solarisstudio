@@ -26,29 +26,29 @@ RECOVERY_REHEARSAL="$SCRIPT_ROOT/.github/scripts/v3-password-recovery-rehearsal.
 [[ -f "$GATE_CHECKS" ]] || fail "read-only gate checks script is missing"
 [[ -f "$RECOVERY_REHEARSAL" ]] || fail "password recovery rehearsal script is missing"
 
-log "Entering read_only on the disposable local platform"
-psql "$DB_URL" -v ON_ERROR_STOP=1 -q <<'SQL'
-update public.studio2_platform_operational_state
-set mode = 'read_only'
-where singleton = true;
-SQL
-[[ "$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select mode from public.studio2_platform_operational_state where singleton = true;")" == "read_only" ]] \
-  || fail "local platform did not enter read_only"
-
-log "Running focused country-auth protection and global-gate checks"
+log "Running focused country-auth protection and global-gate checks in read_only"
 bash "$GATE_CHECKS"
 
-# The focused checks deliberately leave the platform in read_only. The existing
-# recovery rehearsal now runs unchanged in that mode, preserving its local-only
-# API/DB/Mailpit guards while proving the real recovery email, redirect, session,
-# password replacement, new-password sign-in and old-password rejection path.
 [[ "$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select mode from public.studio2_platform_operational_state where singleton = true;")" == "read_only" ]] \
-  || fail "focused checks did not preserve read_only for recovery rehearsal"
+  || fail "focused checks did not preserve read_only"
 
-log "Running canonical password recovery rehearsal while read_only"
-bash "$RECOVERY_REHEARSAL"
+# Disposable country-signup fixtures are setup, not part of the maintenance
+# behavior under test. Create them under normal mode, then let the canonical
+# recovery rehearsal itself enter read_only immediately after fixture setup and
+# before any recovery classification/request/session/password assertion.
+log "Returning disposable setup to normal before canonical fixture creation"
+psql "$DB_URL" -v ON_ERROR_STOP=1 -q <<'SQL'
+update public.studio2_platform_operational_state
+set mode = 'normal'
+where singleton = true;
+SQL
+[[ "$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select mode from public.studio2_platform_operational_state where singleton = true;")" == "normal" ]] \
+  || fail "local platform did not return to normal for fixture setup"
+
+log "Running canonical password recovery rehearsal with read_only entered after fixtures"
+RECOVERY_PLATFORM_MODE=read_only bash "$RECOVERY_REHEARSAL"
 
 [[ "$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select mode from public.studio2_platform_operational_state where singleton = true;")" == "read_only" ]] \
-  || fail "password recovery rehearsal unexpectedly changed platform mode"
+  || fail "password recovery rehearsal did not finish in read_only"
 
 log "Password recovery read_only rehearsal passed"
