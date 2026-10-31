@@ -265,8 +265,66 @@ jobs:
       - name: Enforce structural V3 release integrity
         run: bun run scripts/check-v3-release-integrity.ts
 
-      - name: Lint independently of monolithic Quality
-        run: bun run lint
+      - name: Capture exact independent ESLint diagnostic
+        id: exact_lint
+        shell: bash
+        run: |
+          set +e
+          bun run lint 2>&1 | tee lint-diagnostic.txt
+          status=${PIPESTATUS[0]}
+          printf '%s\n' "$status" > lint-status.txt
+          bunx eslint . --report-unused-disable-directives --max-warnings 0 -f json > eslint-diagnostic.json 2> eslint-diagnostic.stderr
+          printf '%s\n' "$?" > eslint-json-status.txt
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          let data = [];
+          try {
+            data = JSON.parse(fs.readFileSync('eslint-diagnostic.json', 'utf8'));
+          } catch (error) {
+            console.log(`::error title=eslint-diagnostic-parser::${String(error.message).replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A')}`);
+          }
+          let count = 0;
+          for (const result of data) {
+            for (const message of result.messages ?? []) {
+              count += 1;
+              const file = path.relative(process.cwd(), result.filePath).replaceAll('\\', '/');
+              const line = message.line ?? 1;
+              const col = message.column ?? 1;
+              const endLine = message.endLine ?? line;
+              const endColumn = message.endColumn ?? col;
+              const rule = message.ruleId ?? 'eslint';
+              const text = String(message.message ?? 'ESLint diagnostic').replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+              console.log(`::error file=${file},line=${line},col=${col},endLine=${endLine},endColumn=${endColumn},title=${rule}::${text}`);
+            }
+          }
+          console.log(`ESLint diagnostic count: ${count}`);
+          NODE
+          exit 0
+
+      - name: Upload exact ESLint diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1872-eslint-diagnostic-${{ github.event.pull_request.head.sha }}
+          path: |
+            lint-diagnostic.txt
+            lint-status.txt
+            eslint-diagnostic.json
+            eslint-diagnostic.stderr
+            eslint-json-status.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Fail if independent lint failed
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(cat lint-status.txt)"
+          if [ "$status" -ne 0 ]; then
+            echo "Exact bun run lint exit status: $status"
+            exit "$status"
+          fi
 
       - name: Force fresh route generation
         run: rm -f src/routeTree.gen.ts
