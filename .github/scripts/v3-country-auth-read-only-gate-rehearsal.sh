@@ -25,13 +25,15 @@ esac
 
 http_json() {
   local method="$1" url="$2" bearer="$3" apikey="$4" body="${5-}"
-  local tmp
+  local tmp status
   tmp="$(mktemp)"
-  HTTP_STATUS="$(curl -sS -o "$tmp" -w '%{http_code}' -X "$method" "$url" \
-    -H "apikey: $apikey" \
-    -H "Authorization: Bearer $bearer" \
-    -H "Content-Type: application/json" \
-    ${body:+--data "$body"})"
+  local args=(-sS -o "$tmp" -w '%{http_code}' -X "$method" "$url"
+    -H "apikey: $apikey"
+    -H "Authorization: Bearer $bearer"
+    -H "Content-Type: application/json")
+  [[ -n "$body" ]] && args+=(--data "$body")
+  status="$(curl "${args[@]}")"
+  HTTP_STATUS="$status"
   HTTP_BODY="$(cat "$tmp")"
   rm -f "$tmp"
 }
@@ -47,6 +49,18 @@ set mode = '$mode',
 where singleton = true;
 SQL
 }
+
+restore_normal() {
+  psql "$DB_URL" -v ON_ERROR_STOP=1 -q <<'SQL' >/dev/null 2>&1 || true
+update public.studio2_platform_operational_state
+set mode = 'normal',
+    version = version + 1,
+    reason = 'Local country-auth read-only rehearsal cleanup',
+    changed_at = now()
+where singleton = true;
+SQL
+}
+trap restore_normal EXIT
 
 assert_mode() {
   local expected="$1" actual
@@ -119,6 +133,7 @@ assert_limiter_service_role "maintenance-gate-${GITHUB_RUN_ID:-manual}"
 assert_public_denied
 assert_unrelated_writes_blocked
 
-set_mode normal
+restore_normal
+trap - EXIT
 assert_mode normal
 log "Read-only country-auth gate rehearsal passed"
