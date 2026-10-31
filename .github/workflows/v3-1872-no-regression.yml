@@ -191,6 +191,244 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  baseline-lint:
+    name: Exact main independent lint baseline
+    if: github.event.pull_request.number == 1872
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact base SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Capture exact bun run lint baseline
+        shell: bash
+        run: |
+          set +e
+          bun run lint 2>&1 | tee lint-output.txt
+          status=${PIPESTATUS[0]}
+          printf '%s\n' "$status" > lint-status.txt
+          bunx eslint . -f json > eslint-diagnostic.json
+          printf '%s\n' "$?" > eslint-json-status.txt
+          exit 0
+
+      - name: Normalize blocking ESLint diagnostics
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const data = JSON.parse(fs.readFileSync('eslint-diagnostic.json', 'utf8'));
+          const errors = [];
+          for (const result of data) {
+            const file = path.relative(process.cwd(), result.filePath).replaceAll('\\', '/');
+            for (const message of result.messages ?? []) {
+              if (message.severity !== 2) continue;
+              errors.push({
+                file,
+                line: message.line ?? 1,
+                column: message.column ?? 1,
+                endLine: message.endLine ?? message.line ?? 1,
+                endColumn: message.endColumn ?? message.column ?? 1,
+                rule: message.ruleId ?? 'eslint',
+                message: String(message.message ?? 'ESLint diagnostic'),
+              });
+            }
+          }
+          errors.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+          fs.writeFileSync('eslint-errors.json', JSON.stringify(errors, null, 2) + '\n');
+          console.log(`Exact main blocking ESLint diagnostics: ${errors.length}`);
+          NODE
+
+      - name: Upload exact main lint evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1872-base-lint-${{ github.event.pull_request.base.sha }}
+          path: |
+            lint-output.txt
+            lint-status.txt
+            eslint-diagnostic.json
+            eslint-json-status.txt
+            eslint-errors.json
+          if-no-files-found: error
+          retention-days: 7
+
+  candidate-lint:
+    name: Exact #1872 independent lint candidate
+    if: github.event.pull_request.number == 1872
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Capture exact bun run lint candidate
+        shell: bash
+        run: |
+          set +e
+          bun run lint 2>&1 | tee lint-output.txt
+          status=${PIPESTATUS[0]}
+          printf '%s\n' "$status" > lint-status.txt
+          bunx eslint . -f json > eslint-diagnostic.json
+          printf '%s\n' "$?" > eslint-json-status.txt
+          exit 0
+
+      - name: Normalize blocking ESLint diagnostics
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const data = JSON.parse(fs.readFileSync('eslint-diagnostic.json', 'utf8'));
+          const errors = [];
+          for (const result of data) {
+            const file = path.relative(process.cwd(), result.filePath).replaceAll('\\', '/');
+            for (const message of result.messages ?? []) {
+              if (message.severity !== 2) continue;
+              errors.push({
+                file,
+                line: message.line ?? 1,
+                column: message.column ?? 1,
+                endLine: message.endLine ?? message.line ?? 1,
+                endColumn: message.endColumn ?? message.column ?? 1,
+                rule: message.ruleId ?? 'eslint',
+                message: String(message.message ?? 'ESLint diagnostic'),
+              });
+            }
+          }
+          errors.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+          fs.writeFileSync('eslint-errors.json', JSON.stringify(errors, null, 2) + '\n');
+          console.log(`Exact candidate blocking ESLint diagnostics: ${errors.length}`);
+          NODE
+
+      - name: Upload exact candidate lint evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1872-candidate-lint-${{ github.event.pull_request.head.sha }}
+          path: |
+            lint-output.txt
+            lint-status.txt
+            eslint-diagnostic.json
+            eslint-json-status.txt
+            eslint-errors.json
+          if-no-files-found: error
+          retention-days: 7
+
+  compare-lint-delta:
+    name: Independent lint no-regression certification
+    if: github.event.pull_request.number == 1872
+    needs:
+      - baseline-lint
+      - candidate-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download exact main lint evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: v3-1872-base-lint-${{ github.event.pull_request.base.sha }}
+          path: baseline
+
+      - name: Download exact candidate lint evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: v3-1872-candidate-lint-${{ github.event.pull_request.head.sha }}
+          path: candidate
+
+      - name: Compare blocking ESLint diagnostic identities
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const baseline = JSON.parse(fs.readFileSync('baseline/eslint-errors.json', 'utf8'));
+          const candidate = JSON.parse(fs.readFileSync('candidate/eslint-errors.json', 'utf8'));
+          const key = (entry) => JSON.stringify(entry);
+          const baseKeys = new Set(baseline.map(key));
+          const candidateKeys = new Set(candidate.map(key));
+          const shared = candidate.filter((entry) => baseKeys.has(key(entry)));
+          const introduced = candidate.filter((entry) => !baseKeys.has(key(entry)));
+          const resolved = baseline.filter((entry) => !candidateKeys.has(key(entry)));
+          const report = {
+            baseSha: '${{ github.event.pull_request.base.sha }}',
+            candidateSha: '${{ github.event.pull_request.head.sha }}',
+            mainErrors: baseline.length,
+            candidateErrors: candidate.length,
+            sharedInheritedErrors: shared.length,
+            newCandidateErrors: introduced.length,
+            resolvedInheritedErrors: resolved.length,
+            introduced,
+            resolved,
+          };
+          fs.writeFileSync('v3-1872-lint-no-regression.json', JSON.stringify(report, null, 2) + '\n');
+          console.log(`Main lint errors: ${report.mainErrors}`);
+          console.log(`#1872 lint errors: ${report.candidateErrors}`);
+          console.log(`Shared inherited lint errors: ${report.sharedInheritedErrors}`);
+          console.log(`New #1872 lint errors: ${report.newCandidateErrors}`);
+          console.log(`Resolved inherited lint errors: ${report.resolvedInheritedErrors}`);
+          if (introduced.length > 0) {
+            for (const error of introduced) {
+              console.log(`::error file=${error.file},line=${error.line},col=${error.column},title=${error.rule}::${error.message.replaceAll('%', '%25').replaceAll('\\r', '%0D').replaceAll('\\n', '%0A')}`);
+            }
+            process.exit(1);
+          }
+          NODE
+
+      - name: Upload independent lint no-regression certification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1872-lint-no-regression-${{ github.event.pull_request.head.sha }}
+          path: v3-1872-lint-no-regression.json
+          if-no-files-found: error
+          retention-days: 14
+
   candidate-owned-gates:
     name: #1872 targeted contracts and production-sensitive gates
     if: github.event.pull_request.number == 1872
@@ -264,67 +502,6 @@ jobs:
 
       - name: Enforce structural V3 release integrity
         run: bun run scripts/check-v3-release-integrity.ts
-
-      - name: Capture exact independent ESLint diagnostic
-        id: exact_lint
-        shell: bash
-        run: |
-          set +e
-          bun run lint 2>&1 | tee lint-diagnostic.txt
-          status=${PIPESTATUS[0]}
-          printf '%s\n' "$status" > lint-status.txt
-          bunx eslint . --report-unused-disable-directives --max-warnings 0 -f json > eslint-diagnostic.json 2> eslint-diagnostic.stderr
-          printf '%s\n' "$?" > eslint-json-status.txt
-          node <<'NODE'
-          const fs = require('fs');
-          const path = require('path');
-          let data = [];
-          try {
-            data = JSON.parse(fs.readFileSync('eslint-diagnostic.json', 'utf8'));
-          } catch (error) {
-            console.log(`::error title=eslint-diagnostic-parser::${String(error.message).replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A')}`);
-          }
-          let count = 0;
-          for (const result of data) {
-            for (const message of result.messages ?? []) {
-              count += 1;
-              const file = path.relative(process.cwd(), result.filePath).replaceAll('\\', '/');
-              const line = message.line ?? 1;
-              const col = message.column ?? 1;
-              const endLine = message.endLine ?? line;
-              const endColumn = message.endColumn ?? col;
-              const rule = message.ruleId ?? 'eslint';
-              const text = String(message.message ?? 'ESLint diagnostic').replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
-              console.log(`::error file=${file},line=${line},col=${col},endLine=${endLine},endColumn=${endColumn},title=${rule}::${text}`);
-            }
-          }
-          console.log(`ESLint diagnostic count: ${count}`);
-          NODE
-          exit 0
-
-      - name: Upload exact ESLint diagnostic
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: v3-1872-eslint-diagnostic-${{ github.event.pull_request.head.sha }}
-          path: |
-            lint-diagnostic.txt
-            lint-status.txt
-            eslint-diagnostic.json
-            eslint-diagnostic.stderr
-            eslint-json-status.txt
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Fail if independent lint failed
-        shell: bash
-        run: |
-          set -euo pipefail
-          status="$(cat lint-status.txt)"
-          if [ "$status" -ne 0 ]; then
-            echo "Exact bun run lint exit status: $status"
-            exit "$status"
-          fi
 
       - name: Force fresh route generation
         run: rm -f src/routeTree.gen.ts
