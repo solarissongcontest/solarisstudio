@@ -25,7 +25,7 @@ describe("country auth protection during restricted platform modes", () => {
       "if v_rpc_name = 'country_auth_consume_rate_limit' then",
     );
     expect(gateMigration).toContain(
-      "if position('/rpc/' in v_path) > 0 then",
+      "if position(''/rpc/'' in v_path) > 0 then",
     );
     expect(gateMigration).toContain("studio2_apply_confirmation_round_change");
     expect(gateMigration).toContain("studio2_apply_platform_mode_change");
