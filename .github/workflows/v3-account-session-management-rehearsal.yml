@@ -9,9 +9,12 @@ on:
       - "supabase/functions/country-auth/**"
       - ".github/scripts/v3-account-session-management-rehearsal.sh"
       - ".github/scripts/v3-password-recovery-rehearsal.sh"
+      - ".github/scripts/v3-password-recovery-readonly-rehearsal.sh"
+      - ".github/scripts/v3-country-auth-readonly-gate-checks.sh"
       - ".github/workflows/v3-account-session-management-rehearsal.yml"
       - "src/lib/v3-account-session-management.contract.test.ts"
       - "src/lib/password-recovery-regression.test.ts"
+      - "src/lib/country-auth-readonly-rate-limit.test.ts"
       - "src/lib/maintenance-hod-portal.ts"
       - "src/lib/country-auth.ts"
       - "src/routes/auth/**"
@@ -40,10 +43,10 @@ jobs:
         run: supabase db reset --local --no-seed
       - name: Rehearse account session contract
         run: bash .github/scripts/v3-account-session-management-rehearsal.sh
-      - name: Rehearse country password recovery
+      - name: Rehearse country password recovery in read-only
         env:
           RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/clean.log
-        run: bash .github/scripts/v3-password-recovery-rehearsal.sh
+        run: bash .github/scripts/v3-password-recovery-readonly-rehearsal.sh
       - name: Upload clean recovery stage trace
         if: always()
         uses: actions/upload-artifact@v4
@@ -113,7 +116,7 @@ jobs:
 
           [[ "$runtime_after_hash" == "$pr_hash" ]]
           diff -qr "$pr_source" "$runtime_source"
-      - name: Rehearse password recovery after current-main upgrade
+      - name: Rehearse password recovery in read-only after current-main upgrade
         shell: bash
         env:
           RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/upgrade.log
@@ -121,7 +124,7 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-account-session-main
-          bash "$GITHUB_WORKSPACE/.github/scripts/v3-password-recovery-rehearsal.sh"
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-password-recovery-readonly-rehearsal.sh"
       - name: Upload upgrade recovery stage trace
         if: always()
         uses: actions/upload-artifact@v4
