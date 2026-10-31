@@ -8,7 +8,7 @@ import {
   type V3NotificationInboxItem,
 } from "@/components/v3/V3NotificationsScreen";
 import { V3AppShell } from "@/components/v3/V3AppShell";
-import { V3Screen, V3ScreenHeader } from "@/components/v3/V3Foundation";
+import { V3Screen } from "@/components/v3/V3Foundation";
 import {
   describeAppPushDelivery,
   getAppPushState,
@@ -105,12 +105,16 @@ function V3NotificationsRouteContent({
   if (preferences.isLoading || push.isLoading || inbox.isLoading) {
     return (
       <V3AppShell editionLabel="Solaris Studio" phaseLabel="Notifications" activeArea="me">
-        <V3Screen className="pb-8">
-          <V3ScreenHeader
-            kicker="Me"
-            title="Notifications"
-            description="Official updates, important messages and delivery settings in one place."
-          />
+        <V3Screen>
+          <header className="mb-6 max-w-3xl">
+            <p className="v3-kicker">Me</p>
+            <h1 className="mt-2 text-[clamp(2rem,9vw,3.25rem)] font-semibold leading-[0.97] tracking-[-0.055em]">
+              Notifications
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/50">
+              Official messages, attention items and delivery status.
+            </p>
+          </header>
           <AppRouteSkeleton
             variant="notifications"
             label="Loading your notifications…"
