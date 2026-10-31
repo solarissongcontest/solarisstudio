@@ -48,4 +48,50 @@ describe("V3 long-tail visual cutover", () => {
     expect(show).toContain("ScoreboardStage");
     expect(show).toContain("ResponsiveTabs");
   });
+
+  it("renders Stories as an editorial chronology instead of a generic card grid", () => {
+    const stories = source("src/components/v3/V3StoriesIndexScreen.tsx");
+    expect(stories).toContain('data-v3-stories-header=""');
+    expect(stories).toContain('data-v3-stories-on-this-day=""');
+    expect(stories).toContain('data-v3-stories-edition-list=""');
+    expect(stories).toContain("divide-y divide-white/[0.065] border-y");
+    expect(stories).not.toContain("V3ScreenHeader");
+    expect(stories).not.toContain("V3ActionCard");
+  });
+
+  it("keeps Story detail editorial by flattening timeline and related-story content", () => {
+    const story = source("src/components/v3/V3StoryDetailScreen.tsx");
+    expect(story).toContain('data-v3-story-detail-header=""');
+    expect(story).toContain('data-v3-story-timeline=""');
+    expect(story).toContain('data-v3-related-stories=""');
+    expect(story).not.toContain("V3ScreenHeader");
+    expect(story).not.toContain("V3ActionCard");
+  });
+
+  it("gives Archive a native V3 history hierarchy without changing archive destinations", () => {
+    const archive = source("src/routes/archive/index.tsx");
+    expect(archive).toContain("<V3AppShell");
+    expect(archive).toContain('data-v3-archive-header=""');
+    expect(archive).toContain('data-v3-archive-list=""');
+    expect(archive).toContain("ARCHIVE_DESTINATIONS.map");
+    expect(archive).toContain("divide-y divide-white/[0.065] border-y");
+  });
+
+  it("renders Notifications as an inbox and settings list instead of nested surfaces", () => {
+    const notifications = source("src/components/v3/V3NotificationsScreen.tsx");
+    expect(notifications).toContain('data-v3-notifications-header=""');
+    expect(notifications).toContain('data-v3-notification-list=""');
+    expect(notifications).not.toContain("V3ScreenHeader");
+    expect(notifications).not.toContain("V3ActionCard");
+    expect(notifications).not.toContain("V3Surface");
+  });
+
+  it("renders Records as a flat statistical archive while retaining spoiler protection", () => {
+    const records = source("src/components/v3/V3RecordsScreen.tsx");
+    expect(records).toContain('data-v3-records-header=""');
+    expect(records).toContain('data-v3-records-list=""');
+    expect(records).toContain('data-v3-record-row=""');
+    expect(records).toContain('data-v3-records-spoilers="protected"');
+    expect(records).not.toContain("V3ScreenHeader");
+  });
 });
