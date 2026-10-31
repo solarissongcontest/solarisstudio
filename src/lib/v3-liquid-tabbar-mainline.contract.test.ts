@@ -6,14 +6,16 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("canonical V3 Liquid tab bar mainline cutover", () => {
-  it("keeps the reference bar icon-only without hiding semantic names", () => {
+  it("keeps the five-tab control icon-only without hiding semantic names", () => {
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const css = source("src/styles/v3-liquid-tabbar.css");
 
     expect(tabs).toContain('aria-label={navigationItemLabel(destination.label, badge)}');
     expect(tabs).toContain('aria-current={active ? "page" : undefined}');
     expect(tabs).toContain('className="v3-liquid-tabbar__label"');
-    expect(css).toMatch(/v3-liquid-tabbar__label[\s\S]*position: absolute;[\s\S]*clip-path: inset\(50%\)/);
+    expect(css).toMatch(
+      /v3-liquid-tabbar__label[\s\S]*position: absolute;[\s\S]*clip-path: inset\(50%\)/,
+    );
   });
 
   it("keeps direct-lens dragging adjacent-only with bounded edge physics", () => {
@@ -38,14 +40,61 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(tabs).toContain("// Pre-measure once at gesture start.");
   });
 
-  it("uses physical CSS-pixel geometry while preserving 44px compact targets", () => {
-    const css = source("src/styles/v3-navigation-fixed-geometry.css");
+  it("replaces the former giant dock geometry with the compact floating capsule contract", () => {
+    const geometry = source("src/styles/v3-navigation-fixed-geometry.css");
 
-    expect(css).toContain("width: min(calc(100% - 22px), 544px)");
-    expect(css).toContain("height: 70px");
-    expect(css).toContain("left: 6px !important");
-    expect(css).toContain("right: auto !important");
-    expect(css).toContain("min-height: 44px");
+    expect(geometry).toContain("--v3-nav-outer-inline: 14px");
+    expect(geometry).toContain("--v3-nav-bottom-comfort: 10px");
+    expect(geometry).toContain("--v3-nav-shell-height: 64px");
+    expect(geometry).toContain("--v3-nav-max-width: 414px");
+    expect(geometry).toContain("--v3-nav-lens-height: 50px");
+    expect(geometry).toContain("height: 54px");
+    expect(geometry).toContain("min-height: 44px");
+
+    // Negative reference: these values were the production geometry before the
+    // complete redesign and must not silently return.
+    expect(geometry).not.toContain("height: 70px");
+    expect(geometry).not.toContain("calc(100% - 22px)");
+    expect(geometry).not.toContain("left: max(11px");
+    expect(geometry).not.toContain("width: min(324px");
+  });
+
+  it("keeps the visible selected lens optically smaller than the hit slot and physically expressive", () => {
+    const liquidCss = source("src/styles/v3-liquid-tabbar.css");
+
+    expect(liquidCss).toContain("scale: 0.84 0.90");
+    expect(liquidCss).toMatch(
+      /data-held="true"[\s\S]*v3-liquid-tabbar__lens[\s\S]*scale: 0\.98 1\.02/,
+    );
+    expect(liquidCss).toContain("data-dragging=\"true\"");
+    expect(liquidCss).toContain("backdrop-filter: blur(14px) saturate(160%) brightness(1.075)");
+    expect(liquidCss).not.toContain("height: 4.35rem");
+    expect(liquidCss).not.toContain("width: min(calc(100% - 1.4rem), 34rem)");
+  });
+
+  it("has one navbar style owner instead of legacy geometry plus late shell overrides", () => {
+    const geometry = source("src/styles/v3-navigation-fixed-geometry.css");
+    const shellCss = source("src/styles/v3-shared-public-shell-completion.css");
+
+    expect(geometry).toContain("single owner of visible mobile navbar geometry");
+    expect(shellCss).not.toContain(".v3-liquid-tabbar__material");
+    expect(shellCss).not.toContain(".v3-liquid-tabbar__lens");
+    expect(shellCss).not.toContain(".v3-bottom-nav.v3-liquid-tabbar");
+    expect(shellCss).toContain("--v3-top-system-safe");
+  });
+
+  it("keeps safe-area placement and canonical shell-owned content clearance", () => {
+    const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const geometry = source("src/styles/v3-navigation-fixed-geometry.css");
+
+    expect(geometry).toContain(
+      "bottom: calc(env(safe-area-inset-bottom) + var(--v3-nav-bottom-comfort))",
+    );
+    expect(geometry).toContain(
+      "padding-bottom: calc(var(--v3-bottom-obstruction, 108px) + 14px)",
+    );
+    expect(tabs).toContain('root.style.setProperty("--v3-bottom-obstruction"');
+    expect(tabs).toContain('root.style.setProperty("--solaris-bottom-obstruction"');
   });
 
   it("keeps keyboard, Reduced Motion and Reduced Transparency fallbacks", () => {
@@ -53,6 +102,8 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     const responsiveCss = source("src/styles/v3-responsive-shell.css");
 
     expect(liquidCss).toContain("html[data-solaris-keyboard-open]");
+    expect(liquidCss).toContain("visibility: hidden");
+    expect(liquidCss).toContain("pointer-events: none");
     expect(liquidCss).toContain("@media (prefers-reduced-motion: reduce)");
     expect(liquidCss).toContain("@media (prefers-reduced-transparency: reduce)");
     expect(responsiveCss).toContain("@media (min-width: 1024px)");
