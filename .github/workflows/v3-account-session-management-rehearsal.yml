@@ -6,9 +6,15 @@ on:
       - main
     paths:
       - "supabase/migrations/**"
+      - "supabase/functions/country-auth/**"
       - ".github/scripts/v3-account-session-management-rehearsal.sh"
+      - ".github/scripts/v3-password-recovery-rehearsal.sh"
       - ".github/workflows/v3-account-session-management-rehearsal.yml"
       - "src/lib/v3-account-session-management.contract.test.ts"
+      - "src/lib/password-recovery-regression.test.ts"
+      - "src/lib/maintenance-hod-portal.ts"
+      - "src/lib/country-auth.ts"
+      - "src/routes/auth/**"
   workflow_dispatch:
 
 permissions:
@@ -22,7 +28,7 @@ jobs:
   clean-replay:
     name: Clean replay + account session checks
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
@@ -34,6 +40,18 @@ jobs:
         run: supabase db reset --local --no-seed
       - name: Rehearse account session contract
         run: bash .github/scripts/v3-account-session-management-rehearsal.sh
+      - name: Rehearse country password recovery
+        env:
+          RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/clean.log
+        run: bash .github/scripts/v3-password-recovery-rehearsal.sh
+      - name: Upload clean recovery stage trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: password-recovery-trace-clean-${{ github.sha }}
+          path: ${{ runner.temp }}/recovery-traces/clean.log
+          if-no-files-found: error
+          retention-days: 3
       - name: Stop isolated local Supabase
         if: always()
         run: supabase stop --no-backup || true
@@ -41,7 +59,7 @@ jobs:
   upgrade-from-main:
     name: Current main upgrade + account session checks
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -75,6 +93,43 @@ jobs:
           set -euo pipefail
           cd /tmp/solaris-account-session-main
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-account-session-management-rehearsal.sh"
+      - name: Stage exact PR country-auth source into upgrade runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          runtime_root=/tmp/solaris-account-session-main
+          pr_source="$GITHUB_WORKSPACE/supabase/functions/country-auth"
+          runtime_source="$runtime_root/supabase/functions/country-auth"
+
+          pr_hash="$(sha256sum "$pr_source/index.ts" | awk '{print $1}')"
+          runtime_before_hash="$(sha256sum "$runtime_source/index.ts" | awk '{print $1}')"
+
+          rm -rf "$runtime_source"
+          cp -a "$pr_source" "$runtime_source"
+
+          runtime_after_hash="$(sha256sum "$runtime_source/index.ts" | awk '{print $1}')"
+          printf '[recovery-source-stage] runtime_before_hash=%s pr_hash=%s runtime_after_hash=%s\n' \
+            "$runtime_before_hash" "$pr_hash" "$runtime_after_hash"
+
+          [[ "$runtime_after_hash" == "$pr_hash" ]]
+          diff -qr "$pr_source" "$runtime_source"
+      - name: Rehearse password recovery after current-main upgrade
+        shell: bash
+        env:
+          RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/upgrade.log
+          RECOVERY_MAIN_WORKTREE: /tmp/solaris-account-session-main
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-account-session-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-password-recovery-rehearsal.sh"
+      - name: Upload upgrade recovery stage trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: password-recovery-trace-upgrade-${{ github.sha }}
+          path: ${{ runner.temp }}/recovery-traces/upgrade.log
+          if-no-files-found: error
+          retention-days: 3
       - name: Stop isolated local Supabase
         if: always()
         shell: bash

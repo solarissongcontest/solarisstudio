@@ -559,6 +559,17 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
     document.getElementById("hod-recovery").addEventListener("click", onRecovery);
   }
 
+  function renderRecoveryFeedback(message, available) {
+    renderSignedOut();
+    const form = document.getElementById("hod-signin-form");
+    const className = available ? "hod-success" : "hod-note";
+    const role = available ? "status" : "alert";
+    form.insertAdjacentHTML(
+      "beforeend",
+      '<div class="' + className + '" role="' + role + '">' + escapeHtml(message) + '</div>',
+    );
+  }
+
   function renderWrongAccount() {
     hodRoot.innerHTML =
       '<div class="hod-error" role="alert"><strong>This account is not an active country account.</strong><br />No delegation data has been exposed.</div>' +
@@ -733,9 +744,17 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
         body: { action: "recover", identifier },
       });
       if (result.error) throw result.error;
-      renderSignedOut();
-      const form = document.getElementById("hod-signin-form");
-      form.insertAdjacentHTML("beforeend", '<div class="hod-success" role="status">If recovery is available for that account, Solaris has sent the next steps.</div>');
+      if (result.data?.recoveryAvailable === false) {
+        renderRecoveryFeedback(
+          "This country account does not have a recovery email. Contact an organizer to regain access.",
+          false,
+        );
+        return;
+      }
+      renderRecoveryFeedback(
+        "If that account has a recovery email, a password reset link has been sent.",
+        true,
+      );
     } catch (error) {
       renderSignedOut(await browserErrorMessage(error));
     }
