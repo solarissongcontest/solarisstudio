@@ -98,7 +98,7 @@ function_call() {
 }
 
 create_auth_user() {
-  local email="$1" display_name="$2"
+  local email="$1" display_name="$2" country_id="$3"
   local body
   body="$(python3 -c '
 import json, sys
@@ -106,9 +106,13 @@ print(json.dumps({
   "email": sys.argv[1],
   "password": sys.argv[2],
   "email_confirm": True,
-  "user_metadata": {"display_name": sys.argv[3], "account_type": "country"},
+  "user_metadata": {
+    "display_name": sys.argv[3],
+    "account_type": "country",
+    "country_id": sys.argv[4],
+  },
 }))
-' "$email" "$OLD_PASSWORD" "$display_name")"
+' "$email" "$OLD_PASSWORD" "$display_name" "$country_id")"
   http_json POST "$API_URL/auth/v1/admin/users" "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY" "$body"
   (( HTTP_STATUS >= 200 && HTTP_STATUS < 300 )) || fail "local Auth user creation failed: HTTP $HTTP_STATUS $HTTP_BODY"
   printf '%s' "$HTTP_BODY" | json_field id
@@ -145,8 +149,8 @@ on conflict (id) do update
 set name = excluded.name, short_code = excluded.short_code, region = excluded.region;
 SQL
 
-REAL_USER_ID="$(create_auth_user "$REAL_EMAIL" "Recovery Browser HOD")"
-NO_RECOVERY_USER_ID="$(create_auth_user "$NO_RECOVERY_EMAIL" "No Recovery Browser HOD")"
+REAL_USER_ID="$(create_auth_user "$REAL_EMAIL" "Recovery Browser HOD" "$REAL_COUNTRY_ID")"
+NO_RECOVERY_USER_ID="$(create_auth_user "$NO_RECOVERY_EMAIL" "No Recovery Browser HOD" "$NO_RECOVERY_COUNTRY_ID")"
 
 psql "$DB_URL" -v ON_ERROR_STOP=1 -q <<SQL
 insert into public.country_accounts (
