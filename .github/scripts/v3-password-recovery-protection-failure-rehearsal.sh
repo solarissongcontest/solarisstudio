@@ -74,6 +74,14 @@ assert_generic_503() {
   [[ "$has_recovery" == "False" ]] || fail "protection failure exposed a recoveryAvailable classification"
 }
 
+assert_generic_recovery_envelope() {
+  local expected_status="$1"
+  [[ "$HTTP_STATUS" == "$expected_status" ]] || fail "recovery limiter case returned HTTP $HTTP_STATUS instead of $expected_status"
+  ok="$(printf '%s' "$HTTP_BODY" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("ok") is True)')"
+  available="$(printf '%s' "$HTTP_BODY" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("recoveryAvailable") is True)')"
+  [[ "$ok" == "True" && "$available" == "True" ]] || fail "recovery limiter case broke the enumeration-safe envelope"
+}
+
 log "Entering read_only and making only the limiter infrastructure unavailable"
 psql "$DB_URL" -v ON_ERROR_STOP=1 -q <<'SQL'
 update public.studio2_platform_operational_state
@@ -110,7 +118,21 @@ done
 assert_generic_503 'definitely_unknown_country_account'
 assert_generic_503 'synthetic-recovery@example.test'
 assert_generic_503 'synthetic-internal@country.solaris.invalid'
-
 log "Recovery protection infrastructure failure is generic 503 and non-enumerating"
+
+log "Restoring protection and proving limiter exhaustion keeps the generic envelope"
+psql "$DB_URL" -v ON_ERROR_STOP=1 -q <<'SQL'
+grant execute on function public.country_auth_consume_rate_limit(text, text, integer, integer)
+  to service_role;
+SQL
+limited_identifier="recovery_limit_${GITHUB_RUN_ID:-manual}"
+for attempt in $(seq 1 5); do
+  function_call "$limited_identifier"
+  assert_generic_recovery_envelope 200
+done
+function_call "$limited_identifier"
+assert_generic_recovery_envelope 202
+
+log "Recovery protection failure and exhaustion rehearsal passed"
 restore
 trap - EXIT
