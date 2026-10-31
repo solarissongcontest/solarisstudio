@@ -60,8 +60,19 @@ jobs:
         run: bun run budget:client
 
       - name: Install browser-audit runner
+        shell: bash
         run: |
-          bun add --dev @playwright/test@1.55.0
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if bun add --dev @playwright/test@1.55.0 --no-save --network-concurrency 4; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Browser-audit Playwright install failed after ${attempt} attempts."
+              exit 1
+            fi
+            sleep $((attempt * 8))
+          done
           bunx playwright install --with-deps chromium webkit
 
       - name: Start isolated local Supabase for browser audit
