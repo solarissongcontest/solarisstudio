@@ -1,10 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
 import { CountryDesignV2Styles } from "@/components/country/CountryDesignV2Styles";
 import { CountryWikiExperience } from "@/components/wiki/CountryWikiExperience";
+import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 
 export const Route = createFileRoute("/wiki/$code")({
   head: ({ params }) => {
@@ -49,11 +52,26 @@ export const Route = createFileRoute("/wiki/$code")({
 
 function CountryWikiRoute() {
   const { code } = Route.useParams();
+  const { isAppMode } = useSolarisApp();
   const [clientReady, setClientReady] = useState(false);
+  const referenceRollout = useQuery({
+    queryKey: ["studio2-feature", "public_encyclopedia"],
+    queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
+    enabled: isAppMode,
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
     setClientReady(true);
   }, []);
+
+  if (isAppMode && referenceRollout.isLoading) {
+    return <WikiHydrationSkeleton code={code} label="Opening canonical country profile" />;
+  }
+
+  if (isAppMode && !referenceRollout.isError && referenceRollout.data === true) {
+    return <Navigate to="/countries/$code" params={{ code }} replace />;
+  }
 
   return (
     <>
@@ -64,12 +82,18 @@ function CountryWikiRoute() {
   );
 }
 
-function WikiHydrationSkeleton({ code }: { code: string }) {
+function WikiHydrationSkeleton({
+  code,
+  label = "Loading Terra Solaris Wiki article",
+}: {
+  code: string;
+  label?: string;
+}) {
   return (
     <AppShell>
-      <div className="wiki-canvas wiki-loading" role="status" aria-label="Loading Wiki article" aria-live="polite">
+      <div className="wiki-canvas wiki-loading" role="status" aria-label={label} aria-live="polite">
         <h1 className="sr-only">{code.toUpperCase()} — Terra Solaris Wiki</h1>
-        <span className="sr-only">Loading Terra Solaris Wiki article</span>
+        <span className="sr-only">{label}</span>
         <div className="wiki-loading-header" />
         <div className="wiki-loading-grid">
           <div />
