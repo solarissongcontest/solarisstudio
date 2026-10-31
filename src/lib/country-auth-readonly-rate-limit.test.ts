@@ -61,11 +61,20 @@ describe("country auth protection during restricted platform modes", () => {
     );
   });
 
-  it("runs the canonical recovery rehearsal under read_only", () => {
-    expect(readonlyWrapper).toContain("set mode = 'read_only'");
+  it("runs the canonical recovery rehearsal under read_only after fixtures exist", () => {
     expect(readonlyWrapper).toContain("v3-country-auth-readonly-gate-checks.sh");
     expect(readonlyWrapper).toContain("v3-password-recovery-rehearsal.sh");
-    expect(readonlyWrapper).toContain("preserve read_only for recovery rehearsal");
+    expect(readonlyWrapper).toContain("set mode = 'normal'");
+    expect(readonlyWrapper).toContain("RECOVERY_PLATFORM_MODE=read_only");
+    expect(recoveryRehearsal).toContain('stage "country-account-enrich"');
+    expect(recoveryRehearsal).toContain('stage "platform-mode"');
+    expect(recoveryRehearsal).toContain("set mode = :'recovery_mode'");
+    expect(recoveryRehearsal.indexOf('stage "platform-mode"')).toBeGreaterThan(
+      recoveryRehearsal.indexOf('stage "country-account-enrich"'),
+    );
+    expect(recoveryRehearsal.indexOf('stage "recovery-classification"')).toBeGreaterThan(
+      recoveryRehearsal.indexOf('stage "platform-mode"'),
+    );
     expect(recoveryRehearsal).toContain("Mailpit did not capture the recovery email");
     expect(recoveryRehearsal).toContain("valid recovery link did not return to local /auth/reset");
     expect(recoveryRehearsal).toContain("new-password sign-in returned HTTP");
