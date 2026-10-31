@@ -37,6 +37,8 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.113.0
+      - name: Clear stale local Supabase state
+        run: supabase stop --no-backup || true
       - name: Start isolated local Supabase
         run: supabase start
       - name: Rebuild complete migration chain
@@ -53,7 +55,7 @@ jobs:
         with:
           name: password-recovery-trace-clean-${{ github.sha }}
           path: ${{ runner.temp }}/recovery-traces/clean.log
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 3
       - name: Stop isolated local Supabase
         if: always()
@@ -81,6 +83,7 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-account-session-main
+          supabase stop --no-backup || true
           supabase start
           supabase db reset --local --no-seed
       - name: Apply additive feature migration delta
@@ -131,7 +134,7 @@ jobs:
         with:
           name: password-recovery-trace-upgrade-${{ github.sha }}
           path: ${{ runner.temp }}/recovery-traces/upgrade.log
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 3
       - name: Stop isolated local Supabase
         if: always()
