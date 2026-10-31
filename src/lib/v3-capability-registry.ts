@@ -1,10 +1,12 @@
 import { V3_PUBLIC_CAPABILITY_REGISTRY } from "./v3-public-capability-registry";
 import { V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES } from "./v3-public-capability-supplements";
+import { V3_PUBLIC_PLANNED_CAPABILITIES } from "./v3-public-planned-capabilities";
 
-/** Public capability inventory after combining legacy V6 surfaces and route-scan discoveries. */
+/** Public capability inventory after combining legacy V6 surfaces, route-scan discoveries and canonical new V3 product work. */
 export const V3_PUBLIC_CAPABILITIES = [
   ...V3_PUBLIC_CAPABILITY_REGISTRY,
   ...V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES,
+  ...V3_PUBLIC_PLANNED_CAPABILITIES,
 ] as const;
 
 export {
@@ -13,6 +15,7 @@ export {
   V3_PUBLIC_SOURCE_SURFACE_IDS,
 } from "./v3-public-capability-registry";
 export { V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES } from "./v3-public-capability-supplements";
+export { V3_PUBLIC_PLANNED_CAPABILITIES } from "./v3-public-planned-capabilities";
 export {
   V3_ORGANIZER_CAPABILITY_REGISTRY,
   V3_ORGANIZER_CLASSIFICATION_BY_ID,
