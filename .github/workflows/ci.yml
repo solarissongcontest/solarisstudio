@@ -28,11 +28,10 @@ jobs:
         with:
           bun-version: 1.2.19
 
-      - name: Generate and commit deterministic Playwright dependency graph
+      - name: Generate repository-owned Playwright dependency graph
         shell: bash
         run: |
           set -euo pipefail
-
           installed=0
           for attempt in 1 2 3; do
             if bun add --dev --exact @playwright/test@1.55.0 --network-concurrency 4; then
@@ -46,29 +45,13 @@ jobs:
             exit 1
           fi
 
-          git show 2ecedc8400213250c07b2f2f134d2ce6c912c91b:.github/workflows/ci.yml > .github/workflows/ci.yml
-
-          python <<'PY'
-          from pathlib import Path
-          path = Path('.github/workflows/browser-audit.yml')
-          text = path.read_text()
-          start = text.index('      - name: Install browser-audit runner\n')
-          end = text.index('\n      - name: Start isolated local Supabase for browser audit', start)
-          replacement = '      - name: Verify locked Playwright runner\n        run: test "$(bunx playwright --version)" = "Version 1.55.0"\n\n      - name: Install browser-audit browser binaries\n        run: bunx playwright install --with-deps chromium webkit\n'
-          path.write_text(text[:start] + replacement + text[end:])
-          PY
-
           rm -rf node_modules
           bun install --frozen-lockfile
           test "$(bunx playwright --version)" = "Version 1.55.0"
-          if grep -Fq 'bun add --dev @playwright/test' .github/workflows/browser-audit.yml; then
-            echo 'Browser Audit still mutates the Playwright dependency at runtime.'
-            exit 1
-          fi
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add package.json bun.lock .github/workflows/browser-audit.yml .github/workflows/ci.yml
+          git add package.json bun.lock
           git diff --cached --check
           git commit -m '[V3-NAV] Lock Playwright runner in repository dependencies'
           git push origin HEAD:v3/navbar-complete-redesign
