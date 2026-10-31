@@ -83,6 +83,42 @@ jobs:
           set -euo pipefail
           cd /tmp/solaris-account-session-main
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-account-session-management-rehearsal.sh"
+      - name: Probe Supabase runtime-root ownership
+        shell: bash
+        run: |
+          set -u
+          probe="$RUNNER_TEMP/supabase-root-probe.txt"
+          runtime_root=/tmp/solaris-account-session-main
+          pr_root="$GITHUB_WORKSPACE"
+
+          runtime_status=0
+          (cd "$runtime_root" && supabase status -o env >/dev/null 2>&1) || runtime_status=$?
+          pr_status=0
+          (cd "$pr_root" && supabase status -o env >/dev/null 2>&1) || pr_status=$?
+
+          runtime_config=no
+          [[ -f "$runtime_root/supabase/config.toml" ]] && runtime_config=yes
+          pr_config=no
+          [[ -f "$pr_root/supabase/config.toml" ]] && pr_config=yes
+
+          {
+            printf 'runtime_root=%s\n' "$runtime_root"
+            printf 'runtime_status=%s\n' "$runtime_status"
+            printf 'runtime_config=%s\n' "$runtime_config"
+            printf 'pr_root=%s\n' "$pr_root"
+            printf 'pr_status=%s\n' "$pr_status"
+            printf 'pr_config=%s\n' "$pr_config"
+          } | tee "$probe"
+
+          [[ "$runtime_status" -eq 0 ]]
+      - name: Upload Supabase runtime-root probe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-root-probe-${{ github.sha }}
+          path: ${{ runner.temp }}/supabase-root-probe.txt
+          if-no-files-found: error
+          retention-days: 3
       - name: Rehearse password recovery after current-main upgrade
         shell: bash
         run: |
