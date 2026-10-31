@@ -1,62 +1,43 @@
-/* V3 premium bottom navigation: direct manipulation with bounded Solaris/Apple
-   Liquid Glass. Semantic links remain ordinary navigation; interaction physics
-   are progressive enhancement. */
+/*
+ * Solaris V3 floating Liquid Glass navigation material.
+ *
+ * Geometry is owned only by v3-navigation-fixed-geometry.css. This file owns
+ * material, selection hierarchy, interaction states and accessibility fallbacks.
+ * The outer capsule stays quiet; the selected lens carries the visual character.
+ */
 
 [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
-  position: fixed;
-  z-index: 60;
-  left: max(0.7rem, env(safe-area-inset-left));
-  right: max(0.7rem, env(safe-area-inset-right));
-  bottom: calc(env(safe-area-inset-bottom) + 0.45rem);
-  display: block;
-  width: min(calc(100% - 1.4rem), 34rem);
-  min-height: 0;
-  margin: 0 auto;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  color: var(--v3-text-secondary);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-  box-shadow: none;
-  pointer-events: auto;
-  isolation: isolate;
   transition:
     opacity var(--v3-motion-fast) var(--v3-ease-enter),
-    transform var(--v3-motion-fast) var(--v3-ease-enter);
+    transform var(--v3-motion-fast) var(--v3-ease-enter),
+    visibility 0s linear 0s;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__material {
-  --v3-liquid-gap: 0.14rem;
-  position: relative;
-  display: grid;
-  width: 100%;
-  height: 4.35rem;
-  gap: var(--v3-liquid-gap);
-  padding: 0.38rem;
-  overflow: hidden;
   isolation: isolate;
-  border: 1px solid color-mix(in oklab, rgba(242, 250, 255, 0.32) 68%, var(--v3-border));
-  border-radius: 2rem;
+  border: 0;
   color: var(--v3-text-secondary);
   background:
-    radial-gradient(115% 170% at 50% -65%, rgba(255,255,255,0.16), transparent 54%),
-    radial-gradient(75% 160% at 92% 120%, color-mix(in oklab, var(--v3-edition-accent) 10%, transparent), transparent 64%),
-    linear-gradient(145deg, rgba(225, 243, 252, 0.095), rgba(21, 42, 72, 0.27) 38%, rgba(4, 12, 29, 0.66));
-  -webkit-backdrop-filter: blur(30px) saturate(178%) brightness(1.045);
-  backdrop-filter: blur(30px) saturate(178%) brightness(1.045);
+    radial-gradient(86% 120% at 50% -42%, rgba(255, 255, 255, 0.09), transparent 58%),
+    linear-gradient(180deg, rgba(235, 247, 255, 0.055), rgba(9, 19, 39, 0.18)),
+    color-mix(in oklab, rgba(5, 15, 32, 0.66) 88%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(145%) brightness(1.015);
+  backdrop-filter: blur(20px) saturate(145%) brightness(1.015);
   box-shadow:
-    0 22px 58px rgba(0, 3, 20, 0.30),
-    0 7px 18px rgba(0, 3, 18, 0.18),
-    inset 0 1px 0 rgba(249, 253, 255, 0.23),
-    inset 0 -1px 0 rgba(3, 10, 26, 0.28);
+    0 12px 34px rgba(0, 3, 20, 0.20),
+    0 3px 10px rgba(0, 3, 18, 0.10),
+    inset 0 0 0 0.5px rgba(246, 252, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition:
     width var(--v3-motion-standard) var(--v3-ease-spring),
     height var(--v3-motion-standard) var(--v3-ease-spring),
     border-radius var(--v3-motion-standard) var(--v3-ease-spring),
-    transform var(--v3-motion-fast) var(--v3-ease-spring),
-    box-shadow var(--v3-motion-standard) var(--v3-ease-enter);
-  will-change: width, height, transform;
+    background var(--v3-motion-fast) var(--v3-ease-enter),
+    box-shadow var(--v3-motion-fast) var(--v3-ease-enter);
+  will-change: width, height;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__material::before {
@@ -67,10 +48,10 @@
   pointer-events: none;
   border-radius: inherit;
   background:
-    linear-gradient(128deg, rgba(255,255,255,0.12), transparent 23% 73%, rgba(255,255,255,0.045)),
-    radial-gradient(80% 120% at 18% -12%, rgba(255,255,255,0.08), transparent 55%);
+    linear-gradient(118deg, rgba(255, 255, 255, 0.07), transparent 24% 76%, rgba(255, 255, 255, 0.025)),
+    radial-gradient(74% 90% at 18% -8%, rgba(255, 255, 255, 0.055), transparent 60%);
   mix-blend-mode: screen;
-  opacity: 0.82;
+  opacity: 0.56;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__material::after {
@@ -80,9 +61,7 @@
   inset: 1px;
   pointer-events: none;
   border-radius: inherit;
-  box-shadow:
-    inset 0 0 0 0.5px rgba(255,255,255,0.09),
-    inset 0 -12px 24px rgba(2, 7, 20, 0.08);
+  box-shadow: inset 0 -10px 18px rgba(1, 7, 20, 0.045);
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__backdrop {
@@ -96,46 +75,71 @@
   overflow: hidden;
   border-radius: inherit;
   pointer-events: none;
-  opacity: 0.96;
+  opacity: 0.62;
   contain: strict;
 }
 
+/*
+ * The lens keeps a slot-sized interaction box for existing gesture physics, but
+ * its rendered material is intentionally smaller through the independent scale
+ * property. That changes the visible composition without shrinking the tab hit
+ * target or destabilising the drag hot path.
+ */
 [data-solaris-v3] .v3-liquid-tabbar__lens {
-  position: absolute;
   z-index: 2;
-  left: 0.38rem;
-  top: 0.38rem;
-  bottom: 0.38rem;
-  border: 1px solid rgba(245, 252, 255, 0.15);
-  border-radius: calc(1.58rem + var(--v3-liquid-pull-radius));
+  overflow: visible;
+  isolation: isolate;
+  scale: 0.84 0.90;
+  border: 1px solid rgba(249, 253, 255, 0.25);
   pointer-events: none;
   background:
-    radial-gradient(90% 130% at 42% -28%, rgba(255,255,255,0.15), transparent 52%),
-    linear-gradient(150deg, rgba(226, 244, 253, 0.11), rgba(157, 203, 230, 0.055) 48%, rgba(6, 20, 42, 0.10));
-  -webkit-backdrop-filter: blur(11px) saturate(135%) brightness(1.055);
-  backdrop-filter: blur(11px) saturate(135%) brightness(1.055);
+    radial-gradient(105% 145% at 36% -26%, rgba(255, 255, 255, 0.27), transparent 47%),
+    radial-gradient(96% 126% at 84% 120%, rgba(110, 204, 255, 0.09), transparent 58%),
+    linear-gradient(145deg, rgba(240, 250, 255, 0.15), rgba(142, 198, 231, 0.07) 48%, rgba(6, 19, 40, 0.095));
+  -webkit-backdrop-filter: blur(14px) saturate(160%) brightness(1.075);
+  backdrop-filter: blur(14px) saturate(160%) brightness(1.075);
   box-shadow:
-    0 7px 18px rgba(0, 3, 18, 0.12),
-    inset 0 1px 0 rgba(255,255,255,0.14),
-    inset 0 -1px 0 rgba(2, 8, 22, 0.16);
+    0 7px 18px rgba(0, 3, 18, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 rgba(2, 8, 22, 0.12),
+    inset 1px 0 0 rgba(126, 219, 255, 0.07),
+    inset -1px 0 0 rgba(255, 180, 225, 0.045);
   transition:
     transform var(--v3-motion-standard) var(--v3-ease-spring),
+    scale 210ms cubic-bezier(0.18, 0.88, 0.24, 1),
     border-radius var(--v3-motion-fast) var(--v3-ease-enter),
-    box-shadow var(--v3-motion-fast) var(--v3-ease-enter);
-  will-change: transform, border-radius;
+    border-color var(--v3-motion-fast) var(--v3-ease-enter),
+    background var(--v3-motion-fast) var(--v3-ease-enter),
+    box-shadow 210ms cubic-bezier(0.18, 0.88, 0.24, 1),
+    -webkit-backdrop-filter var(--v3-motion-fast) var(--v3-ease-enter),
+    backdrop-filter var(--v3-motion-fast) var(--v3-ease-enter);
+  will-change: transform, scale, border-radius;
 }
 
-[data-solaris-v3] .v3-liquid-tabbar[data-layout-direction="rtl"] .v3-liquid-tabbar__lens {
-  left: auto;
-  right: 0.38rem;
+[data-solaris-v3] .v3-liquid-tabbar__lens::before,
+[data-solaris-v3] .v3-liquid-tabbar__lens::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: inherit;
 }
 
-[data-solaris-v3] .v3-liquid-tabbar__material[data-dragging="true"] .v3-liquid-tabbar__lens {
-  transition: none;
+[data-solaris-v3] .v3-liquid-tabbar__lens::before {
+  z-index: -1;
+  inset: 1px;
+  background:
+    linear-gradient(120deg, rgba(142, 223, 255, 0.075), transparent 35% 68%, rgba(255, 166, 224, 0.045)),
+    radial-gradient(82% 100% at 27% 0%, rgba(255, 255, 255, 0.17), transparent 60%);
+  mix-blend-mode: screen;
+  opacity: 0.78;
+}
+
+[data-solaris-v3] .v3-liquid-tabbar__lens::after {
+  inset: 0;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow:
-    0 9px 22px rgba(0, 3, 18, 0.16),
-    inset 0 1px 0 rgba(255,255,255,0.18),
-    inset 0 -1px 0 rgba(2, 8, 22, 0.14);
+    inset 0 0 9px rgba(173, 229, 255, 0.04),
+    inset 0 -6px 12px rgba(1, 7, 20, 0.055);
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__material[data-drag-direction="right"] .v3-liquid-tabbar__lens {
@@ -146,27 +150,62 @@
   transform-origin: right center;
 }
 
-[data-solaris-v3] .v3-liquid-tabbar__material[data-held="true"] {
-  transform: scaleX(1.006) scaleY(1.012);
+/* Immediate touch-down feedback before the long-press threshold. */
+[data-solaris-v3]
+  .v3-liquid-tabbar__material:has(.v3-liquid-tabbar__item[data-active="true"]:active)
+  .v3-liquid-tabbar__lens {
+  scale: 0.80 0.86;
+  border-color: rgba(249, 253, 255, 0.21);
   box-shadow:
-    0 24px 62px rgba(0, 3, 20, 0.34),
-    0 8px 20px rgba(0, 3, 18, 0.20),
-    inset 0 1px 0 rgba(249, 253, 255, 0.27),
-    inset 0 -1px 0 rgba(3, 10, 26, 0.25);
+    0 4px 12px rgba(0, 3, 18, 0.11),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(2, 8, 22, 0.10);
+}
+
+/*
+ * Long press visibly picks up the lens. Only the local selected material grows;
+ * the outer capsule stays steady, so the control does not become a jelly dock.
+ */
+[data-solaris-v3] .v3-liquid-tabbar__material[data-held="true"] {
+  box-shadow:
+    0 13px 36px rgba(0, 3, 20, 0.21),
+    0 3px 10px rgba(0, 3, 18, 0.10),
+    inset 0 0 0 0.5px rgba(246, 252, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+[data-solaris-v3] .v3-liquid-tabbar__material[data-held="true"] .v3-liquid-tabbar__lens {
+  scale: 0.98 1.02;
+  border-color: rgba(249, 253, 255, 0.34);
+  background:
+    radial-gradient(108% 148% at 35% -24%, rgba(255, 255, 255, 0.31), transparent 46%),
+    radial-gradient(100% 130% at 84% 120%, rgba(110, 204, 255, 0.11), transparent 58%),
+    linear-gradient(145deg, rgba(242, 251, 255, 0.18), rgba(142, 198, 231, 0.08) 48%, rgba(6, 19, 40, 0.10));
+  -webkit-backdrop-filter: blur(16px) saturate(170%) brightness(1.09);
+  backdrop-filter: blur(16px) saturate(170%) brightness(1.09);
+  box-shadow:
+    0 11px 26px rgba(0, 3, 18, 0.18),
+    0 0 0 1px rgba(151, 222, 255, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.31),
+    inset 0 -1px 0 rgba(2, 8, 22, 0.10),
+    inset 1px 0 0 rgba(126, 219, 255, 0.085),
+    inset -1px 0 0 rgba(255, 180, 225, 0.06);
+}
+
+[data-solaris-v3] .v3-liquid-tabbar__material[data-held="true"] .v3-liquid-tabbar__lens::before {
+  opacity: 0.98;
+}
+
+[data-solaris-v3] .v3-liquid-tabbar__material[data-dragging="true"] .v3-liquid-tabbar__lens {
+  transition:
+    scale 120ms cubic-bezier(0.2, 0.85, 0.2, 1),
+    border-color 120ms linear,
+    box-shadow 120ms linear;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__item {
-  position: relative;
-  z-index: 3;
-  display: flex;
-  min-width: 0;
-  min-height: 3.55rem;
-  align-items: center;
-  justify-content: center;
-  padding: 0.2rem 0.15rem;
   border: 0;
-  border-radius: 1.45rem;
-  color: color-mix(in oklab, var(--v3-text-tertiary) 92%, transparent);
+  color: color-mix(in oklab, var(--v3-text-tertiary) 86%, transparent);
   background: transparent;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
@@ -179,7 +218,7 @@
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__item:active {
-  transform: scale(0.975);
+  transform: scale(0.97);
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__item[data-visual-active="true"] {
@@ -187,28 +226,24 @@
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__item[data-emphasis="true"]:not([data-visual-active="true"]) {
-  color: color-mix(in oklab, var(--v3-accent-strong) 82%, var(--v3-text-secondary));
+  color: color-mix(in oklab, var(--v3-accent-strong) 76%, var(--v3-text-secondary));
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__item:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--v3-accent-strong) 86%, white);
-  outline-offset: -4px;
+  outline: 2px solid color-mix(in oklab, var(--v3-accent-strong) 82%, white);
+  outline-offset: -3px;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__icon-wrap {
   position: relative;
   display: grid;
   place-items: center;
-  width: 1.55rem;
-  height: 1.55rem;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__icon {
-  width: 1.18rem;
-  height: 1.18rem;
-  stroke-width: 1.9;
-  opacity: 0.78;
-  transform: scale(0.97);
+  stroke-width: 1.85;
+  opacity: 0.66;
+  transform: scale(0.96);
   transition:
     opacity var(--v3-motion-fast) var(--v3-ease-enter),
     transform var(--v3-motion-fast) var(--v3-ease-spring),
@@ -216,13 +251,12 @@
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__item[data-visual-active="true"] .v3-liquid-tabbar__icon {
-  stroke-width: 2.25;
+  stroke-width: 2.2;
   opacity: 1;
-  transform: scale(1.02);
+  transform: scale(1.035);
 }
 
-/* The reference mobile bar is visually icon-only. The accessible name remains
-   on each semantic link, and the text remains in the DOM for non-visual users. */
+/* Icon-only visually; semantic and VoiceOver names remain on the links. */
 [data-solaris-v3] .v3-liquid-tabbar__label {
   position: absolute;
   width: 1px;
@@ -238,86 +272,45 @@
 
 [data-solaris-v3] .v3-liquid-tabbar__badge {
   position: absolute;
-  inset-inline-end: -0.52rem;
-  top: -0.36rem;
   display: grid;
-  min-width: 1rem;
-  height: 1rem;
   place-items: center;
-  padding: 0 0.22rem;
-  border: 1px solid rgba(255,255,255,0.23);
+  border: 1px solid rgba(255, 255, 255, 0.23);
   border-radius: 999px;
   color: white;
   background: var(--v3-danger);
   box-shadow:
-    0 2px 7px rgba(0,0,0,0.28),
-    0 0 0 2px color-mix(in oklab, var(--v3-bg-base) 74%, transparent);
-  font-size: 0.54rem;
+    0 2px 7px rgba(0, 0, 0, 0.25),
+    0 0 0 2px color-mix(in oklab, var(--v3-bg-base) 72%, transparent);
   font-weight: 800;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__material {
-  width: min(20.25rem, calc(100vw - 2rem - env(safe-area-inset-left) - env(safe-area-inset-right)));
-  height: 3.55rem;
-  margin-inline: auto;
-  border-radius: 1.72rem;
+  background:
+    linear-gradient(180deg, rgba(239, 249, 255, 0.045), rgba(8, 19, 39, 0.16)),
+    color-mix(in oklab, rgba(6, 16, 34, 0.69) 90%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(140%) brightness(1.01);
+  backdrop-filter: blur(18px) saturate(140%) brightness(1.01);
+  box-shadow:
+    0 9px 25px rgba(0, 3, 20, 0.18),
+    inset 0 0 0 0.5px rgba(246, 252, 255, 0.12),
+    inset 0 1px 0 rgba(249, 253, 255, 0.07);
 }
 
-[data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__item {
-  min-height: 2.75rem;
+[data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__lens {
+  scale: 0.80 0.88;
 }
 
-[data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__icon-wrap {
-  width: 1.4rem;
-  height: 1.4rem;
-}
-
-[data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__icon {
-  width: 1.08rem;
-  height: 1.08rem;
-}
-
-[data-solaris-v3] .v3-screen {
-  padding-bottom: calc(var(--v3-bottom-obstruction, 7.25rem) + 1rem);
-}
-
-/* Follow the established App V2 keyboard contract: transient software-keyboard
-   presentation removes global bottom chrome instead of letting Safari hoist it
-   into the middle of an active form. */
+/* Follow the existing shell contract: software keyboard removes bottom chrome. */
 html[data-solaris-keyboard-open] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
   opacity: 0;
-  transform: translateY(calc(100% + env(safe-area-inset-bottom) + 2rem));
+  visibility: hidden;
   pointer-events: none;
-}
-
-@media (max-width: 374px) {
-  [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
-    left: max(0.45rem, env(safe-area-inset-left));
-    right: max(0.45rem, env(safe-area-inset-right));
-    width: min(calc(100% - 0.9rem), 34rem);
-  }
-
-  [data-solaris-v3] .v3-liquid-tabbar__material {
-    height: 4.15rem;
-    border-radius: 1.85rem;
-  }
-
-  [data-solaris-v3] .v3-liquid-tabbar__item {
-    min-height: 3.35rem;
-  }
-}
-
-@media (orientation: landscape) and (max-height: 520px) {
-  [data-solaris-v3] .v3-liquid-tabbar__material {
-    height: 3.55rem;
-    border-radius: 1.7rem;
-  }
-
-  [data-solaris-v3] .v3-liquid-tabbar__item {
-    min-height: 2.75rem;
-  }
+  transition:
+    opacity var(--v3-motion-fast) var(--v3-ease-enter),
+    transform var(--v3-motion-fast) var(--v3-ease-enter),
+    visibility 0s linear var(--v3-motion-fast);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -330,29 +323,42 @@ html[data-solaris-keyboard-open] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabb
     transition-timing-function: linear !important;
   }
 
-  [data-solaris-v3] .v3-liquid-tabbar__item:active,
-  [data-solaris-v3] .v3-liquid-tabbar__material[data-held="true"] {
+  [data-solaris-v3] .v3-liquid-tabbar__item:active {
     transform: none;
+  }
+
+  [data-solaris-v3]
+    .v3-liquid-tabbar__material:has(.v3-liquid-tabbar__item[data-active="true"]:active)
+    .v3-liquid-tabbar__lens,
+  [data-solaris-v3] .v3-liquid-tabbar__material[data-held="true"] .v3-liquid-tabbar__lens {
+    scale: 0.84 0.90;
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
   [data-solaris-v3] .v3-liquid-tabbar__material {
-    border-color: var(--v3-border);
-    background: var(--v3-bg-subtle);
+    background: color-mix(in oklab, var(--v3-bg-subtle) 96%, black 4%);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
-    box-shadow: 0 14px 36px rgba(0, 3, 20, 0.28);
+    box-shadow:
+      0 10px 28px rgba(0, 3, 20, 0.22),
+      inset 0 0 0 1px var(--v3-border);
   }
 
   [data-solaris-v3] .v3-liquid-tabbar__backdrop {
     display: none;
   }
 
-  [data-solaris-v3] .v3-liquid-tabbar__lens {
+  [data-solaris-v3] .v3-liquid-tabbar__lens,
+  [data-solaris-v3] .v3-liquid-tabbar__material[data-held="true"] .v3-liquid-tabbar__lens {
     background: var(--v3-surface-strong);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+    filter: none;
+  }
+
+  [data-solaris-v3] .v3-liquid-tabbar__lens::before {
+    display: none;
   }
 }
 
@@ -361,7 +367,10 @@ html[data-solaris-keyboard-open] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabb
     background: color-mix(in oklab, var(--v3-bg-subtle) 94%, transparent);
   }
 
-  [data-solaris-v3] .v3-liquid-tabbar__lens {
-    background: color-mix(in oklab, var(--v3-surface-strong) 88%, transparent);
+  [data-solaris-v3] .v3-liquid-tabbar__lens,
+  [data-solaris-v3] .v3-liquid-tabbar__material[data-held="true"] .v3-liquid-tabbar__lens {
+    background: color-mix(in oklab, var(--v3-surface-strong) 91%, transparent);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
