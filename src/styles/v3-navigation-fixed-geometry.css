@@ -1,41 +1,70 @@
 @import "./v3-shared-public-shell-completion.css";
 
 /*
- * The canonical mobile bar is icon-only. User text scaling must therefore
- * enlarge surrounding page typography without resizing the physical navigation
- * object or moving its icon/lens centers. Keep these dimensions in CSS px,
- * aligned with v3-navigation-geometry.ts, rather than rem.
+ * Canonical mobile geometry for the redesigned Solaris V3 floating navigation.
+ *
+ * The previous 70px-tall / 11px-inset dock is intentionally not preserved.
+ * This file is the single owner of visible mobile navbar geometry. Optical
+ * material belongs to v3-liquid-tabbar.css; shared shell/safe-area rules belong
+ * to v3-shared-public-shell-completion.css.
+ *
+ * Visual geometry may stay compact while each semantic tab retains a >=44px
+ * hit target. Values are CSS px so text scaling does not distort the control.
  */
+[data-solaris-v3] {
+  --v3-nav-outer-inline: 14px;
+  --v3-nav-bottom-comfort: 10px;
+  --v3-nav-shell-height: 64px;
+  --v3-nav-shell-pad-x: 5px;
+  --v3-nav-shell-pad-y: 6px;
+  --v3-nav-slot-gap: 1px;
+  --v3-nav-shell-radius: 27px;
+  --v3-nav-lens-gutter: 12px;
+  --v3-nav-lens-half-gutter: 6px;
+  --v3-nav-lens-height: 50px;
+  --v3-nav-lens-radius: 22px;
+  --v3-nav-max-width: 414px;
+}
+
 [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
-  left: max(11px, env(safe-area-inset-left));
-  right: max(11px, env(safe-area-inset-right));
-  bottom: calc(env(safe-area-inset-bottom) + 7px);
-  width: min(calc(100% - 22px), 544px);
+  position: fixed;
+  z-index: 60;
+  left: max(var(--v3-nav-outer-inline), env(safe-area-inset-left));
+  right: max(var(--v3-nav-outer-inline), env(safe-area-inset-right));
+  bottom: calc(env(safe-area-inset-bottom) + var(--v3-nav-bottom-comfort));
+  display: block;
+  width: min(calc(100% - (2 * var(--v3-nav-outer-inline))), var(--v3-nav-max-width));
+  min-height: 0;
+  margin-inline: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: auto;
+  isolation: isolate;
+}
+
+[data-solaris-v3] .v3-liquid-tabbar__material {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: var(--v3-nav-shell-height);
+  gap: var(--v3-nav-slot-gap);
+  padding: var(--v3-nav-shell-pad-y) var(--v3-nav-shell-pad-x);
+  overflow: hidden;
+  border-radius: var(--v3-nav-shell-radius);
 }
 
 /*
- * Keep the decorative lens out of WebKit's RTL flex/grid static-position
- * coordinate systems. The material preserves inherited logical direction for
- * route and gesture semantics; a fully constrained LTR overlay owns the lens'
- * physical coordinates. The lens is absolutely anchored inside that overlay
- * with explicit physical left/right/top/bottom values, so its starting point
- * never depends on the RTL flex container's static-position calculation.
+ * The lens is deliberately narrower than a navigation slot. This is the key
+ * structural break from the old Solaris dock, whose selected slab consumed the
+ * whole item cell. The layer stays physical-LTR so WebKit RTL layout cannot
+ * perturb the lens coordinate system; route semantics remain logical/RTL-aware.
  */
-[data-solaris-v3] .v3-liquid-tabbar__material {
-  --v3-liquid-gap: 2px;
-  display: flex;
-  height: 70px;
-  gap: 2px;
-  padding: 6px;
-  border-radius: 32px;
-}
-
 [data-solaris-v3] .v3-liquid-tabbar__lens-layer {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  inset: 0;
   z-index: 2;
   display: block;
   direction: ltr;
@@ -46,29 +75,35 @@
   position: absolute !important;
   display: block;
   box-sizing: border-box;
-  left: 6px !important;
+  left: calc(var(--v3-nav-shell-pad-x) + var(--v3-nav-lens-half-gutter)) !important;
   right: auto !important;
-  top: 6px !important;
-  bottom: 6px !important;
-  height: auto !important;
-  border-radius: calc(25px + var(--v3-liquid-pull-radius));
+  top: 50% !important;
+  bottom: auto !important;
+  height: var(--v3-nav-lens-height) !important;
+  border-radius: calc(var(--v3-nav-lens-radius) + var(--v3-liquid-pull-radius));
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__item {
+  position: relative;
+  z-index: 3;
+  display: flex;
   flex: 1 1 0;
-  min-height: 57px;
-  padding: 3px 2px;
-  border-radius: 23px;
+  min-width: 0;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 20px;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__icon-wrap {
-  width: 25px;
-  height: 25px;
+  width: 26px;
+  height: 26px;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__icon {
-  width: 19px;
-  height: 19px;
+  width: 20px;
+  height: 20px;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__badge {
@@ -80,10 +115,23 @@
   font-size: 9px;
 }
 
+/* Scroll compactness is a second morphology, not the old dock scaled down. */
+[data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] {
+  --v3-nav-lens-gutter: 10px;
+  --v3-nav-lens-half-gutter: 5px;
+  --v3-nav-lens-height: 42px;
+  --v3-nav-lens-radius: 19px;
+}
+
 [data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__material {
-  width: min(324px, calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)));
-  height: 57px;
-  border-radius: 28px;
+  width: min(
+    300px,
+    calc(100vw - 40px - env(safe-area-inset-left) - env(safe-area-inset-right))
+  );
+  height: 54px;
+  margin-inline: auto;
+  padding-block: 5px;
+  border-radius: 24px;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__item {
@@ -91,44 +139,47 @@
 }
 
 [data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__icon-wrap {
-  width: 22px;
-  height: 22px;
+  width: 23px;
+  height: 23px;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__icon {
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
 }
 
+/* The shell owns clearance globally. Individual routes must not add navbar hacks. */
 [data-solaris-v3] .v3-screen {
-  padding-bottom: calc(var(--v3-bottom-obstruction, 116px) + 16px);
+  padding-bottom: calc(var(--v3-bottom-obstruction, 108px) + 14px);
 }
 
 html[data-solaris-keyboard-open] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
-  transform: translateY(calc(100% + env(safe-area-inset-bottom) + 32px));
+  transform: translateY(calc(100% + env(safe-area-inset-bottom) + 28px));
 }
 
-@media (max-width: 374px) {
-  [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
-    left: max(7px, env(safe-area-inset-left));
-    right: max(7px, env(safe-area-inset-right));
-    width: min(calc(100% - 14px), 544px);
-  }
-
-  [data-solaris-v3] .v3-liquid-tabbar__material {
-    height: 66px;
-    border-radius: 30px;
+@media (max-width: 359px) {
+  [data-solaris-v3] {
+    --v3-nav-outer-inline: 10px;
+    --v3-nav-shell-height: 62px;
+    --v3-nav-lens-height: 48px;
   }
 
   [data-solaris-v3] .v3-liquid-tabbar__item {
-    min-height: 54px;
+    min-height: 50px;
   }
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
+  [data-solaris-v3] {
+    --v3-nav-bottom-comfort: 7px;
+    --v3-nav-shell-height: 54px;
+    --v3-nav-lens-height: 42px;
+    --v3-nav-lens-radius: 19px;
+  }
+
   [data-solaris-v3] .v3-liquid-tabbar__material {
-    height: 57px;
-    border-radius: 27px;
+    padding-block: 5px;
+    border-radius: 24px;
   }
 
   [data-solaris-v3] .v3-liquid-tabbar__item {
