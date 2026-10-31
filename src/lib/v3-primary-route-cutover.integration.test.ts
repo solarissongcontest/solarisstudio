@@ -55,13 +55,14 @@ describe("Solaris Studio V3 primary route cutover architecture", () => {
     expect(wrapper).not.toContain("loadTelevoteSummary");
   });
 
-  it("keeps rollout server-authoritative and fail closed", () => {
+  it("keeps rollout server-authoritative, bounded and fail closed", () => {
     const sourceText = probe();
     const migrationText = migration();
 
-    expect(sourceText).toContain('rpc("studio2_feature_enabled"');
-    expect(sourceText).toContain('p_key: "solaris_app_v3"');
+    expect(sourceText).toContain('rpc("studio2_feature_flags_snapshot"');
+    expect(sourceText).toContain('"solaris_app_v3"');
     expect(sourceText).toContain("enabled: false");
+    expect(sourceText).not.toContain('client.rpc("studio2_feature_enabled"');
     expect(sourceText).not.toContain("localStorage");
     expect(sourceText).not.toContain("sessionStorage");
     expect(sourceText).not.toContain("service_role");

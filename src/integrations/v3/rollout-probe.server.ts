@@ -8,6 +8,27 @@ import type { Edition } from "@/lib/data";
 const EDITION_COLUMNS =
   "id,edition_number,name,year,slug,description,host_country_id,host_city,logo,theme_id,status,published";
 
+const ROLLOUT_FEATURE_KEYS = [
+  "solaris_app_v3",
+  "solaris_app_v3_confirmation",
+  "solaris_app_v3_scoreboard",
+  "solaris_app_v3_account_settings",
+  "solaris_app_v3_explore",
+  "solaris_app_v3_edition_hub",
+  "solaris_app_v3_notifications",
+  "solaris_app_v3_delegation",
+  "solaris_app_v3_search",
+  "solaris_app_v3_rules_guidance",
+  "solaris_app_v3_me",
+  "solaris_app_v3_results",
+  "solaris_app_v3_entry",
+  "solaris_app_v3_jury",
+  "solaris_app_v3_live",
+  "solaris_app_v3_organizer",
+] as const;
+
+type RolloutFeatureKey = (typeof ROLLOUT_FEATURE_KEYS)[number];
+
 type RolloutClient = {
   auth?: {
     getUser(token?: string): Promise<{
@@ -44,6 +65,11 @@ export type V3RolloutProbe = {
   organizerEnabled?: boolean;
   editionId: string | null;
   userId: string | null;
+};
+
+type FeatureSnapshotRow = {
+  flag_key: string;
+  enabled: boolean;
 };
 
 function bearerToken() {
@@ -94,64 +120,57 @@ function disabledProbe(input?: {
   };
 }
 
+function featureSnapshot(data: unknown) {
+  if (!Array.isArray(data)) return null;
+
+  const requested = new Set<string>(ROLLOUT_FEATURE_KEYS);
+  const resolved = new Map<RolloutFeatureKey, boolean>();
+
+  for (const value of data) {
+    if (!value || typeof value !== "object") return null;
+    const row = value as Partial<FeatureSnapshotRow>;
+    if (
+      typeof row.flag_key !== "string" ||
+      typeof row.enabled !== "boolean" ||
+      !requested.has(row.flag_key) ||
+      resolved.has(row.flag_key as RolloutFeatureKey)
+    ) {
+      return null;
+    }
+    resolved.set(row.flag_key as RolloutFeatureKey, row.enabled);
+  }
+
+  // Missing rows are not accepted as an implicit allow/deny guess. The RPC is
+  // required to return every requested key, including unknown keys as false.
+  if (resolved.size !== ROLLOUT_FEATURE_KEYS.length) return null;
+  return resolved;
+}
+
 async function evaluateV3Rollout(
   publicClient: RolloutClient,
   editionId: string | null,
 ): Promise<V3RolloutProbe> {
   const { client, userId } = await rolloutClientForRequest(publicClient);
-  const [
-    globalFlag,
-    confirmationFlag,
-    scoreboardFlag,
-    accountSettingsFlag,
-    exploreFlag,
-    editionHubFlag,
-    notificationsFlag,
-    delegationFlag,
-    searchFlag,
-    rulesGuidanceFlag,
-    meFlag,
-    resultsFlag,
-    entryFlag,
-    juryFlag,
-    liveFlag,
-    organizerFlag,
-  ] = await Promise.all([
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_confirmation", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_scoreboard", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_account_settings", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_explore", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_edition_hub", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_notifications", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_delegation", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_search", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_rules_guidance", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_me", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_results", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_entry", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_jury", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_live", p_edition_id: editionId }),
-    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_organizer", p_edition_id: editionId }),
-  ]);
+  const snapshot = await client.rpc("studio2_feature_flags_snapshot", {
+    p_keys: [...ROLLOUT_FEATURE_KEYS],
+    p_edition_id: editionId,
+  });
 
-  if (globalFlag.error) return disabledProbe({ editionId, userId });
+  if (snapshot.error) return disabledProbe({ editionId, userId });
+  const flags = featureSnapshot(snapshot.data);
+  if (!flags) return disabledProbe({ editionId, userId });
 
-  const enabled = globalFlag.data === true;
-  const confirmationEnabled = enabled && !confirmationFlag.error && confirmationFlag.data === true;
-  const scoreboardEnabled = enabled && !scoreboardFlag.error && scoreboardFlag.data === true;
-  const accountSettingsEnabled =
-    enabled && !accountSettingsFlag.error && accountSettingsFlag.data === true;
-  const exploreEnabled = enabled && !exploreFlag.error && exploreFlag.data === true;
-  const editionHubEnabled =
-    enabled && exploreEnabled && !editionHubFlag.error && editionHubFlag.data === true;
-  const notificationsEnabled =
-    accountSettingsEnabled && !notificationsFlag.error && notificationsFlag.data === true;
-  const delegationEnabled =
-    enabled && exploreEnabled && !delegationFlag.error && delegationFlag.data === true;
-  const searchEnabled = enabled && !searchFlag.error && searchFlag.data === true;
-  const rulesGuidanceEnabled =
-    enabled && !rulesGuidanceFlag.error && rulesGuidanceFlag.data === true;
+  const flag = (key: RolloutFeatureKey) => flags.get(key) === true;
+  const enabled = flag("solaris_app_v3");
+  const confirmationEnabled = enabled && flag("solaris_app_v3_confirmation");
+  const scoreboardEnabled = enabled && flag("solaris_app_v3_scoreboard");
+  const accountSettingsEnabled = enabled && flag("solaris_app_v3_account_settings");
+  const exploreEnabled = enabled && flag("solaris_app_v3_explore");
+  const editionHubEnabled = enabled && exploreEnabled && flag("solaris_app_v3_edition_hub");
+  const notificationsEnabled = accountSettingsEnabled && flag("solaris_app_v3_notifications");
+  const delegationEnabled = enabled && exploreEnabled && flag("solaris_app_v3_delegation");
+  const searchEnabled = enabled && flag("solaris_app_v3_search");
+  const rulesGuidanceEnabled = enabled && flag("solaris_app_v3_rules_guidance");
 
   return {
     enabled,
@@ -164,12 +183,12 @@ async function evaluateV3Rollout(
     delegationEnabled,
     searchEnabled,
     rulesGuidanceEnabled,
-    meEnabled: enabled && !meFlag.error && meFlag.data === true,
-    resultsEnabled: enabled && !resultsFlag.error && resultsFlag.data === true,
-    entryEnabled: enabled && !entryFlag.error && entryFlag.data === true,
-    juryEnabled: enabled && !juryFlag.error && juryFlag.data === true,
-    liveEnabled: enabled && !liveFlag.error && liveFlag.data === true,
-    organizerEnabled: enabled && !organizerFlag.error && organizerFlag.data === true,
+    meEnabled: enabled && flag("solaris_app_v3_me"),
+    resultsEnabled: enabled && flag("solaris_app_v3_results"),
+    entryEnabled: enabled && flag("solaris_app_v3_entry"),
+    juryEnabled: enabled && flag("solaris_app_v3_jury"),
+    liveEnabled: enabled && flag("solaris_app_v3_live"),
+    organizerEnabled: enabled && flag("solaris_app_v3_organizer"),
     editionId,
     userId,
   };

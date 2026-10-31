@@ -30,16 +30,17 @@ describe("System V3 Public Live rollout contract", () => {
   it("exposes one fail-closed server-owned liveEnabled probe field", () => {
     expect(probe).toContain("liveEnabled: boolean");
     expect(probe).toContain("liveEnabled: false");
-    expect(probe).toContain(
-      'client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_live", p_edition_id: editionId })',
-    );
+    expect(probe).toContain('client.rpc("studio2_feature_flags_snapshot"');
+    expect(probe).toContain('"solaris_app_v3_live"');
     expect(probe).toContain("liveEnabled:");
-    expect(probe).toContain("enabled && !liveFlag.error && liveFlag.data === true");
+    expect(probe).toContain('enabled && flag("solaris_app_v3_live")');
+    expect(probe).not.toContain('client.rpc("studio2_feature_enabled"');
   });
 
   it("requires global V3 and fails closed when rollout reads fail", () => {
-    expect(probe).toContain("if (globalFlag.error) return disabledProbe({ editionId, userId })");
-    expect(probe).toContain("const enabled = globalFlag.data === true");
+    expect(probe).toContain("if (snapshot.error) return disabledProbe({ editionId, userId })");
+    expect(probe).toContain("if (!flags) return disabledProbe({ editionId, userId })");
+    expect(probe).toContain('const enabled = flag("solaris_app_v3")');
     expect(probe).toContain("return disabledProbe();");
     expect(probe).not.toContain("VITE_SOLARIS_APP_V3_LIVE");
     expect(probe).not.toContain("localStorage");
