@@ -73,7 +73,8 @@ describe("password recovery regression contract", () => {
   });
 
   it("retains the same canonical country-auth sign-in path after a password is changed", () => {
-    expect(authClient).toContain('action: "signin"');
+    expect(authClient).toContain("signInSolarisCountryAccount");
+    expect(authClient).toContain("invokeCountryAuth");
     expect(authFunction).toContain('action === "signin"');
     expect(authFunction).toContain("signInWithPassword");
     expect(authFunction).toContain("accessToken: data.session.access_token");
