@@ -83,6 +83,12 @@ case "$MAILPIT_URL" in
   *) fail "refusing password recovery rehearsal against non-local Mailpit URL" ;;
 esac
 
+RECOVERY_PLATFORM_MODE="${RECOVERY_PLATFORM_MODE:-}"
+case "$RECOVERY_PLATFORM_MODE" in
+  ''|normal|read_only|maintenance) ;;
+  *) fail "unsupported RECOVERY_PLATFORM_MODE: $RECOVERY_PLATFORM_MODE" ;;
+esac
+
 stage "api-availability"
 api_health_status="$(curl -sS -o /dev/null -w '%{http_code}' "$API_URL/auth/v1/health" || true)"
 trace "[recovery-http] stage=api-availability status=${api_health_status:-000}"
@@ -251,6 +257,19 @@ set country_id = excluded.country_id,
     display_name = excluded.display_name,
     updated_at = now();
 SQL
+
+if [[ -n "$RECOVERY_PLATFORM_MODE" ]]; then
+  stage "platform-mode"
+  log "Entering $RECOVERY_PLATFORM_MODE after disposable recovery fixtures are ready"
+  psql "$DB_URL" -v ON_ERROR_STOP=1 -q -v recovery_mode="$RECOVERY_PLATFORM_MODE" <<'SQL'
+update public.studio2_platform_operational_state
+set mode = :'recovery_mode'
+where singleton = true;
+SQL
+  actual_mode="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select mode from public.studio2_platform_operational_state where singleton = true;")"
+  [[ "$actual_mode" == "$RECOVERY_PLATFORM_MODE" ]] || fail "platform mode did not persist as $RECOVERY_PLATFORM_MODE"
+  trace "[recovery-platform] stage=platform-mode mode=$actual_mode"
+fi
 
 stage "recovery-classification"
 log "Verifying recovery availability contracts"
