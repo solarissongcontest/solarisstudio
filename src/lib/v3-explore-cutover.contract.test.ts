@@ -54,6 +54,21 @@ describe("V3 Explore production cutover", () => {
     expect(implementation).not.toContain("subscribe(");
   });
 
+  it("bounds archive preview Show and Result reads to the root surface budget", () => {
+    const implementation = server();
+
+    expect(implementation).toContain("const EXPLORE_ARCHIVE_PREVIEW_LIMIT = 4");
+    expect(implementation).toContain("const archivePreviewEditions = editions");
+    expect(implementation).toContain("edition.id !== currentEdition?.id");
+    expect(implementation).toContain("isArchiveEligibleEdition(edition)");
+    expect(implementation).toContain(".slice(0, EXPLORE_ARCHIVE_PREVIEW_LIMIT)");
+    expect(implementation).toContain("const projectionEditions = [");
+    expect(implementation).toContain("const projectionEditionIds = projectionEditions.map");
+    expect(implementation).toContain('.in("edition_id", projectionEditionIds)');
+    expect(implementation).toContain("editions: projectionEditions.map");
+    expect(implementation).not.toContain("publishedEditionIds");
+  });
+
   it("derives aggregate entry counts from the existing public participant projection", () => {
     const sql = migration();
     expect(sql).toContain("v3_public_explore_counts");
