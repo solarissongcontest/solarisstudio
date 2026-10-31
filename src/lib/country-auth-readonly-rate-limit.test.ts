@@ -12,6 +12,12 @@ const limiterMigration = source(
 );
 const authFunction = source("supabase/functions/country-auth/index.ts");
 const recoveryRehearsal = source(".github/scripts/v3-password-recovery-rehearsal.sh");
+const readonlyWrapper = source(
+  ".github/scripts/v3-password-recovery-readonly-rehearsal.sh",
+);
+const readonlyGateChecks = source(
+  ".github/scripts/v3-country-auth-readonly-gate-checks.sh",
+);
 
 describe("country auth protection during restricted platform modes", () => {
   it("allows only the exact country-auth limiter through the operational gate", () => {
@@ -55,18 +61,27 @@ describe("country auth protection during restricted platform modes", () => {
     );
   });
 
-  it("rehearses sign-in, recovery and global fail-closed behavior in read_only", () => {
-    expect(recoveryRehearsal).toContain('stage "enter-read-only"');
-    expect(recoveryRehearsal).toContain("set mode = 'read_only'");
-    expect(recoveryRehearsal).toContain('stage "read-only-rate-limit-rpc"');
-    expect(recoveryRehearsal).toContain('stage "read-only-signin"');
-    expect(recoveryRehearsal).toContain('stage "read-only-global-gate"');
-    expect(recoveryRehearsal).toContain('stage "recovery-protection-failure"');
-    expect(recoveryRehearsal).toContain('stage "recovery-rate-limit-exhaustion"');
-    expect(recoveryRehearsal).toContain("country_auth_consume_rate_limit");
-    expect(recoveryRehearsal).toContain("v3_revoke_session");
-    expect(recoveryRehearsal).toContain("Password recovery is temporarily unavailable. Try again shortly.");
+  it("runs the canonical recovery rehearsal under read_only", () => {
+    expect(readonlyWrapper).toContain("set mode = 'read_only'");
+    expect(readonlyWrapper).toContain("v3-country-auth-readonly-gate-checks.sh");
+    expect(readonlyWrapper).toContain("v3-password-recovery-rehearsal.sh");
+    expect(readonlyWrapper).toContain("preserve read_only for recovery rehearsal");
     expect(recoveryRehearsal).toContain("Mailpit did not capture the recovery email");
+    expect(recoveryRehearsal).toContain("valid recovery link did not return to local /auth/reset");
+    expect(recoveryRehearsal).toContain("new-password sign-in returned HTTP");
     expect(recoveryRehearsal).toContain("old password still signed in after reset");
+  });
+
+  it("proves sign-in protection, recovery failure semantics and global fail-closed behavior", () => {
+    expect(readonlyGateChecks).toContain("country_auth_consume_rate_limit");
+    expect(readonlyGateChecks).toContain("anon directly executed the limiter");
+    expect(readonlyGateChecks).toContain("authenticated caller directly executed the limiter");
+    expect(readonlyGateChecks).toContain("valid country sign-in reaches password authentication in read_only");
+    expect(readonlyGateChecks).toContain("sign-in rate limiting remains enforced");
+    expect(readonlyGateChecks).toContain("unrelated service-role table write");
+    expect(readonlyGateChecks).toContain("v3_revoke_session");
+    expect(readonlyGateChecks).toContain("exhausted recovery budget preserves generic anti-enumeration envelope");
+    expect(readonlyGateChecks).toContain("Password recovery is temporarily unavailable. Try again shortly.");
+    expect(readonlyGateChecks).toContain("limiter infrastructure failure is generic 503, not fake success");
   });
 });
