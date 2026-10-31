@@ -1,8 +1,8 @@
 name: Quality
 
 on:
-  pull_request:
-    branches: [main]
+  push:
+    branches: [v3/navbar-complete-redesign]
 
 permissions:
   contents: write
@@ -20,7 +20,7 @@ jobs:
       - name: Checkout navbar branch with history
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: v3/navbar-complete-redesign
           fetch-depth: 0
 
       - name: Setup Bun
