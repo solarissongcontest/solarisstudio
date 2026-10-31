@@ -52,31 +52,10 @@ jobs:
           from pathlib import Path
           path = Path('.github/workflows/browser-audit.yml')
           text = path.read_text()
-          old = '''      - name: Install browser-audit runner
-        shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3; do
-            if bun add --dev @playwright/test@1.55.0 --no-save --network-concurrency 4; then
-              break
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "Browser-audit Playwright install failed after ${attempt} attempts."
-              exit 1
-            fi
-            sleep $((attempt * 8))
-          done
-          bunx playwright install --with-deps chromium webkit
-'''
-          new = '''      - name: Verify locked Playwright runner
-        run: test "$(bunx playwright --version)" = "Version 1.55.0"
-
-      - name: Install browser-audit browser binaries
-        run: bunx playwright install --with-deps chromium webkit
-'''
-          if old not in text:
-              raise SystemExit('Expected Browser Audit runtime Playwright install block was not found')
-          path.write_text(text.replace(old, new))
+          start = text.index('      - name: Install browser-audit runner\n')
+          end = text.index('\n      - name: Start isolated local Supabase for browser audit', start)
+          replacement = '      - name: Verify locked Playwright runner\n        run: test "$(bunx playwright --version)" = "Version 1.55.0"\n\n      - name: Install browser-audit browser binaries\n        run: bunx playwright install --with-deps chromium webkit\n'
+          path.write_text(text[:start] + replacement + text[end:])
           PY
 
           rm -rf node_modules
