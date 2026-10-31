@@ -41,7 +41,17 @@ jobs:
       - name: Rehearse account session contract
         run: bash .github/scripts/v3-account-session-management-rehearsal.sh
       - name: Rehearse country password recovery
+        env:
+          RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/clean.log
         run: bash .github/scripts/v3-password-recovery-rehearsal.sh
+      - name: Upload clean recovery stage trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: password-recovery-trace-clean-${{ github.sha }}
+          path: ${{ runner.temp }}/recovery-traces/clean.log
+          if-no-files-found: error
+          retention-days: 3
       - name: Stop isolated local Supabase
         if: always()
         run: supabase stop --no-backup || true
@@ -121,10 +131,21 @@ jobs:
           retention-days: 3
       - name: Rehearse password recovery after current-main upgrade
         shell: bash
+        env:
+          RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/upgrade.log
+          RECOVERY_MAIN_WORKTREE: /tmp/solaris-account-session-main
         run: |
           set -euo pipefail
           cd "$GITHUB_WORKSPACE"
           bash .github/scripts/v3-password-recovery-rehearsal.sh
+      - name: Upload upgrade recovery stage trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: password-recovery-trace-upgrade-${{ github.sha }}
+          path: ${{ runner.temp }}/recovery-traces/upgrade.log
+          if-no-files-found: error
+          retention-days: 3
       - name: Stop isolated local Supabase
         if: always()
         shell: bash
