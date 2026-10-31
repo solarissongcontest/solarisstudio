@@ -59,21 +59,11 @@ jobs:
       - name: Enforce client performance budget
         run: bun run budget:client
 
-      - name: Install browser-audit runner
-        shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3; do
-            if bun add --dev @playwright/test@1.55.0 --no-save --network-concurrency 4; then
-              break
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "Browser-audit Playwright install failed after ${attempt} attempts."
-              exit 1
-            fi
-            sleep $((attempt * 8))
-          done
-          bunx playwright install --with-deps chromium webkit
+      - name: Verify locked Playwright runner
+        run: test "$(bunx playwright --version)" = "Version 1.55.0"
+
+      - name: Install browser-audit browser binaries
+        run: bunx playwright install --with-deps chromium webkit
 
       - name: Start isolated local Supabase for browser audit
         shell: bash

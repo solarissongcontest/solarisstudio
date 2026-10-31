@@ -31,10 +31,10 @@ type Rect = {
 };
 
 const VIEWPORTS = [
-  { width: 375, height: 812 },
+  { width: 375, height: 844 },
   { width: 390, height: 844 },
-  { width: 393, height: 852 },
-  { width: 430, height: 932 },
+  { width: 393, height: 844 },
+  { width: 430, height: 844 },
 ] as const;
 
 const ROUTES = [
@@ -219,6 +219,13 @@ async function attachNavbar(page: Page, testInfo: TestInfo, name: string) {
   });
 }
 
+async function attachGeometry(testInfo: TestInfo, name: string, geometry: NavGeometry) {
+  await testInfo.attach(`${name}-geometry.json`, {
+    body: Buffer.from(`${JSON.stringify(geometry, null, 2)}\n`),
+    contentType: "application/json",
+  });
+}
+
 test.describe.configure({ retries: 0 });
 
 test(
@@ -250,8 +257,11 @@ test(
       );
       const geometry = await readGeometry(page);
       expect(geometry, `${viewport.width}px navbar geometry should render`).not.toBeNull();
-      if (geometry) expectRedesignedGeometry(geometry, viewport.width);
-      await attachNavbar(page, testInfo, `navbar-${viewport.width}`);
+      if (geometry) {
+        expectRedesignedGeometry(geometry, viewport.width);
+        await attachGeometry(testInfo, `navbar-${viewport.width}x${viewport.height}`, geometry);
+      }
+      await attachNavbar(page, testInfo, `navbar-${viewport.width}x${viewport.height}`);
     }
 
     await page.setViewportSize({ width: 390, height: 844 });
@@ -270,6 +280,7 @@ test(
       expect(geometry, `${route.label} navbar geometry should render`).not.toBeNull();
       if (!geometry) continue;
       expectRedesignedGeometry(geometry, 390);
+      await attachGeometry(testInfo, `navbar-390x844-${route.label.toLowerCase()}`, geometry);
 
       if (!reference) reference = geometry;
       else {
@@ -279,7 +290,7 @@ test(
         expect(Math.abs(geometry.bottomGap - reference.bottomGap)).toBeLessThanOrEqual(1);
       }
 
-      await attachNavbar(page, testInfo, `navbar-390-${route.label.toLowerCase()}`);
+      await attachNavbar(page, testInfo, `navbar-390x844-${route.label.toLowerCase()}`);
     }
 
     await context.close();

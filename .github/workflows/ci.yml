@@ -2,56 +2,268 @@ name: Quality
 
 on:
   push:
-    branches: [v3/navbar-complete-redesign]
+    branches:
+      - main
+      - merge/confirmations
+  pull_request:
+    branches:
+      - main
+      - audit/pr450-base-snapshot
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: quality-lock-commit-${{ github.ref }}
+  group: quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   quality:
     name: Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
+
     steps:
-      - name: Checkout navbar branch with history
+      - name: Checkout exact source
         uses: actions/checkout@v4
         with:
-          ref: v3/navbar-complete-redesign
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+
+      - name: Isolate Quality CI from hosted Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "VITE_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_quality_ci_local_only"
+            echo "SUPABASE_URL=http://127.0.0.1:54321"
+            echo "SUPABASE_PUBLISHABLE_KEY=sb_publishable_quality_ci_local_only"
+            echo "SUPABASE_PROJECT_ID=local"
+            echo "SUPABASE_PROJECT_REF=local"
+            echo "VITE_SUPABASE_PROJECT_ID=local"
+            echo "VITE_SUPABASE_PROJECT_REF=local"
+            echo "V3_VERIFICATION_TARGET=local"
+            echo "VITE_CONFIRMATIONS_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=sb_publishable_quality_ci_local_only"
+            echo "CONFIRMATIONS_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=sb_publishable_quality_ci_local_only"
+          } >> "$GITHUB_ENV"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.2.19
 
-      - name: Generate repository-owned Playwright dependency graph
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify V3 production isolation
+        run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Enforce V3 capability status transitions on pull requests
+        if: github.event_name == 'pull_request'
         shell: bash
+        env:
+          V3_STATUS_BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          installed=0
-          for attempt in 1 2 3; do
-            if bun add --dev --exact @playwright/test@1.55.0 --network-concurrency 4; then
-              installed=1
-              break
-            fi
-            sleep $((attempt * 8))
-          done
-          if [ "$installed" -ne 1 ]; then
-            echo "Unable to resolve @playwright/test@1.55.0 after three bounded attempts."
+          git fetch --no-tags --depth=1 origin "$V3_STATUS_BASE_REF"
+          bun run scripts/check-v3-capability-status-transitions.ts
+
+      - name: Enforce V3 capability status transitions on pushes
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        shell: bash
+        env:
+          V3_STATUS_BASE_REF: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$V3_STATUS_BASE_REF"
+          bun run scripts/check-v3-capability-status-transitions.ts
+
+      - name: Generate V3 capability report
+        run: bun run report:v3-registry > v3-capability-report.md
+
+      - name: Enforce V3 capability and system registries
+        run: bun run certify:v3-registry
+
+      - name: Enforce V3 non-route discovery registries
+        run: bun run scripts/check-v3-non-route-capabilities.ts
+
+      - name: Enforce System V3 S1 dependency and consequence registries
+        run: bun run scripts/check-v3-system-s1-registries.ts
+
+      - name: Enforce structural V3 release integrity
+        run: bun run scripts/check-v3-release-integrity.ts
+
+      - name: Record registry guard evidence
+        shell: bash
+        run: echo "V3_REGISTRY_GUARDS_PASSED=1" >> "$GITHUB_ENV"
+
+      - name: Generate V3 integration evidence
+        shell: bash
+        env:
+          V3_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s' "$V3_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Cannot resolve exact source SHA for V3 evidence"
+            exit 1
+          fi
+          checkout_sha="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [ "$checkout_sha" != "$expected" ]; then
+            echo "::error::V3 evidence checkout is $checkout_sha, expected exact source SHA $expected"
+            exit 1
+          fi
+          mkdir -p v3-integration-evidence
+          GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts > v3-integration-evidence/v3-completion-dashboard.md
+          GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts --json > v3-integration-evidence/v3-completion-dashboard.json
+          bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > v3-integration-evidence/v3-s14-rehearsal-readiness.json
+          bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > v3-integration-evidence/v3-s15-zero-orphan-readiness.json
+          actual="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-integration-evidence/v3-completion-dashboard.json","utf8")).candidateSha)')"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::V3 completion dashboard is bound to $actual, expected exact source SHA $expected"
             exit 1
           fi
 
-          rm -rf node_modules
-          bun install --frozen-lockfile
-          test "$(bunx playwright --version)" = "Version 1.55.0"
+      - name: Upload V3 capability report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-capability-report
+          path: v3-capability-report.md
+          if-no-files-found: ignore
+          retention-days: 7
 
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add package.json bun.lock
-          git diff --cached --check
-          git commit -m '[V3-NAV] Lock Playwright runner in repository dependencies'
-          git push origin HEAD:v3/navbar-complete-redesign
+      - name: Upload V3 integration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-integration-evidence
+          path: v3-integration-evidence/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Publish V3 completion dashboard summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -s v3-integration-evidence/v3-completion-dashboard.md ]; then
+            cat v3-integration-evidence/v3-completion-dashboard.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Force fresh route generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f src/routeTree.gen.ts
+          echo "Removed any local generated route tree."
+          echo "The production build must regenerate it from src/routes."
+
+      - name: Production build
+        run: bun run build
+
+      - name: Enforce client performance budget
+        run: bun run budget:client
+
+      - name: Verify route tree was generated
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -s src/routeTree.gen.ts ]; then
+            echo "::error::TanStack Router did not generate src/routeTree.gen.ts"
+            exit 1
+          fi
+          echo "routeTree.gen.ts generated successfully."
+
+      - name: Verify generated route tree is untracked
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files --error-unmatch src/routeTree.gen.ts >/dev/null 2>&1; then
+            echo "::error::src/routeTree.gen.ts must not be committed; it is generated during build."
+            exit 1
+          fi
+          if ! git check-ignore -q src/routeTree.gen.ts; then
+            echo "::error::src/routeTree.gen.ts must be ignored."
+            exit 1
+          fi
+          echo "Generated route tree is correctly untracked and ignored."
+
+      - name: TypeScript
+        run: bun run typecheck
+
+      - name: Unit tests
+        shell: bash
+        run: |
+          set +e
+          bun test 2>&1 | tee unit-test-output.txt
+          status=${PIPESTATUS[0]}
+          exit "$status"
+
+      - name: Upload unit test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: unit-test-output.txt
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: Lint
+        shell: bash
+        run: |
+          set +e
+          bun run lint 2>&1 | tee lint-output.txt
+          status=${PIPESTATUS[0]}
+          exit "$status"
+
+      - name: Verify CI did not mutate tracked source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --exit-code -- .; then
+            echo "::error::Quality checks modified tracked repository files. Fix the source in Git instead of patching it inside CI."
+            exit 1
+          fi
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: lint-output.txt
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: Quality summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo
+            echo "### Solaris Studio quality run"
+            echo
+            echo "- Fresh dependency install: attempted"
+            echo "- V3 production-isolation runtime guard: attempted"
+            echo "- V3 capability status-history guard: attempted when an exact base SHA exists"
+            echo "- V3 capability report: generated when registry modules loaded successfully"
+            echo "- V3 route/API/capability registry guard: attempted"
+            echo "- V3 search/notification/physical ownership guard: attempted"
+            echo "- System V3 S1 workflow dependency/consequence guard: attempted"
+            echo "- V3 structural release-integrity guard: attempted"
+            echo "- V3 live completion dashboard + S14/S15 readiness evidence: attempted and exact-source-SHA checked"
+            echo "- Fresh TanStack route generation: attempted when prior gates passed"
+            echo "- Generated route tree verification: attempted when build ran"
+            echo "- Production build and client budget: attempted when prior gates passed"
+            echo "- TypeScript: attempted when prior gates passed"
+            echo "- Unit tests: attempted when prior gates passed; output retained when produced"
+            echo "- Lint: attempted when prior gates passed"
+          } >> "$GITHUB_STEP_SUMMARY"
