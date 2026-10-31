@@ -15,13 +15,12 @@
   --v3-nav-outer-inline: 14px;
   --v3-nav-bottom-comfort: 10px;
   --v3-nav-shell-height: 64px;
-  --v3-nav-shell-pad-x: 5px;
+  --v3-nav-shell-pad-x: 6px;
   --v3-nav-shell-pad-y: 6px;
-  --v3-nav-slot-gap: 1px;
+  --v3-nav-slot-gap: 2px;
   --v3-nav-shell-radius: 27px;
-  --v3-nav-lens-gutter: 12px;
-  --v3-nav-lens-half-gutter: 6px;
   --v3-nav-lens-height: 50px;
+  --v3-nav-lens-top: 7px;
   --v3-nav-lens-radius: 22px;
   --v3-nav-max-width: 414px;
 }
@@ -33,7 +32,13 @@
   right: max(var(--v3-nav-outer-inline), env(safe-area-inset-right));
   bottom: calc(env(safe-area-inset-bottom) + var(--v3-nav-bottom-comfort));
   display: block;
-  width: min(calc(100% - (2 * var(--v3-nav-outer-inline))), var(--v3-nav-max-width));
+  width: min(
+    calc(
+      100% - max(var(--v3-nav-outer-inline), env(safe-area-inset-left)) -
+        max(var(--v3-nav-outer-inline), env(safe-area-inset-right))
+    ),
+    var(--v3-nav-max-width)
+  );
   min-height: 0;
   margin-inline: auto;
   padding: 0;
@@ -57,10 +62,13 @@
 }
 
 /*
- * The lens is deliberately narrower than a navigation slot. This is the key
- * structural break from the old Solaris dock, whose selected slab consumed the
- * whole item cell. The layer stays physical-LTR so WebKit RTL layout cannot
- * perturb the lens coordinate system; route semantics remain logical/RTL-aware.
+ * The interaction layer still maps one logical lens box to each tab slot so the
+ * existing drag/velocity math stays stable. The visible lens is optically
+ * smaller inside that box (owned by v3-liquid-tabbar.css), which is the key
+ * structural break from the old full-slot selected slab.
+ *
+ * The layer stays physical-LTR so WebKit RTL layout cannot perturb the lens
+ * coordinate system; route semantics remain logical/RTL-aware.
  */
 [data-solaris-v3] .v3-liquid-tabbar__lens-layer {
   position: absolute;
@@ -75,9 +83,9 @@
   position: absolute !important;
   display: block;
   box-sizing: border-box;
-  left: calc(var(--v3-nav-shell-pad-x) + var(--v3-nav-lens-half-gutter)) !important;
+  left: var(--v3-nav-shell-pad-x) !important;
   right: auto !important;
-  top: 50% !important;
+  top: var(--v3-nav-lens-top) !important;
   bottom: auto !important;
   height: var(--v3-nav-lens-height) !important;
   border-radius: calc(var(--v3-nav-lens-radius) + var(--v3-liquid-pull-radius));
@@ -115,11 +123,10 @@
   font-size: 9px;
 }
 
-/* Scroll compactness is a second morphology, not the old dock scaled down. */
+/* Scroll compactness is a second morphology, not the expanded dock scaled down. */
 [data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] {
-  --v3-nav-lens-gutter: 10px;
-  --v3-nav-lens-half-gutter: 5px;
   --v3-nav-lens-height: 42px;
+  --v3-nav-lens-top: 6px;
   --v3-nav-lens-radius: 19px;
 }
 
@@ -162,6 +169,7 @@ html[data-solaris-keyboard-open] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabb
     --v3-nav-outer-inline: 10px;
     --v3-nav-shell-height: 62px;
     --v3-nav-lens-height: 48px;
+    --v3-nav-lens-top: 7px;
   }
 
   [data-solaris-v3] .v3-liquid-tabbar__item {
@@ -174,6 +182,7 @@ html[data-solaris-keyboard-open] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabb
     --v3-nav-bottom-comfort: 7px;
     --v3-nav-shell-height: 54px;
     --v3-nav-lens-height: 42px;
+    --v3-nav-lens-top: 6px;
     --v3-nav-lens-radius: 19px;
   }
 
