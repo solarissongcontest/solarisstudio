@@ -10,7 +10,6 @@ import type {
 } from "@/lib/fan-records";
 import {
   V3Screen,
-  V3ScreenHeader,
   V3Section,
   V3StatusChip,
   V3Surface,
@@ -58,22 +57,23 @@ export function V3RecordsScreen({
 
   return (
     <V3Screen>
-      <V3ScreenHeader
-        kicker="Hall of records"
-        title="Records"
-        description="The extreme, impressive and occasionally unfortunate corners of published SSC history, with ties kept intact."
-        editorial
-      />
+      <header className="mb-6 max-w-3xl" data-v3-records-header="">
+        <p className="v3-kicker">Hall of records</p>
+        <h1 className="mt-2 text-[clamp(2rem,9vw,3.25rem)] font-semibold leading-[0.97] tracking-[-0.055em]">
+          Records
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-white/50">
+          The extreme, impressive and occasionally unfortunate corners of published SSC history, with ties kept intact.
+        </p>
+      </header>
 
       {spoilerProtected ? (
         <V3Surface level="raised" className="p-5" data-v3-records-spoilers="protected">
           <div className="flex items-start gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.055]">
-              <EyeOff className="size-5" aria-hidden="true" />
-            </span>
+            <EyeOff className="mt-0.5 size-5 shrink-0 text-white/48" aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <p className="v3-kicker">Spoiler-free mode</p>
-              <h2 className="mt-1 text-lg font-bold">Current-edition records are hidden</h2>
+              <h2 className="mt-1 text-lg font-semibold">Current-edition records are hidden</h2>
               <p className="mt-2 max-w-2xl text-xs leading-5 text-white/48">
                 Career totals, streaks and record holders below are calculated without the current public edition so a fresh result cannot leak indirectly through archive statistics.
               </p>
@@ -81,7 +81,7 @@ export function V3RecordsScreen({
                 <button
                   type="button"
                   onClick={onRevealCurrentEdition}
-                  className="mt-4 min-h-11 rounded-xl bg-[var(--v3-accent)] px-4 text-sm font-semibold text-[var(--v3-bg-base)]"
+                  className="mt-4 min-h-11 rounded-xl bg-[var(--v3-accent)] px-4 text-sm font-semibold text-[var(--v3-bg-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                 >
                   Reveal current-edition records
                 </button>
@@ -91,15 +91,15 @@ export function V3RecordsScreen({
         </V3Surface>
       ) : null}
 
-      <V3Surface level="raised" className="p-5">
+      <aside className="mb-7 border-l-2 border-[var(--v3-accent)] pl-4" aria-labelledby="records-coverage-heading">
         <p className="v3-kicker">Archive coverage</p>
-        <p className="mt-2 text-sm leading-6 text-white/62">
-          These records currently use {archivedFinalEditions} edition
-          {archivedFinalEditions === 1 ? "" : "s"} with published Grand Final
-          results, plus voting and qualification data that is actually public.
-          Missing archive data is excluded rather than treated as zero.
+        <h2 id="records-coverage-heading" className="mt-1 text-sm font-semibold">
+          {archivedFinalEditions} published final edition{archivedFinalEditions === 1 ? "" : "s"} represented
+        </h2>
+        <p className="mt-1 max-w-2xl text-xs leading-5 text-white/45">
+          Records use published Grand Final, voting and qualification data that actually exists. Missing archive data is excluded rather than treated as zero.
         </p>
-      </V3Surface>
+      </aside>
 
       <V3Section title="Record categories" meta={`${records.length} records`}>
         <div
@@ -116,7 +116,7 @@ export function V3RecordsScreen({
                 role="tab"
                 aria-selected={selected}
                 onClick={() => setTab(option.value)}
-                className="min-h-11 shrink-0 rounded-xl border px-3 text-xs font-semibold transition"
+                className="min-h-11 shrink-0 rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                 style={{
                   borderColor: selected
                     ? "var(--v3-border-strong)"
@@ -136,20 +136,18 @@ export function V3RecordsScreen({
         </div>
 
         {filtered.length ? (
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="divide-y divide-white/[0.065] border-y border-white/[0.07]" data-v3-records-list="">
             {filtered.map((record) => (
-              <RecordCard key={record.id} record={record} />
+              <RecordRow key={record.id} record={record} />
             ))}
           </div>
         ) : (
-          <V3Surface className="p-5">
-            <div role="status" data-v3-records-empty="">
-              <p className="text-sm font-semibold">No records in this category yet</p>
-              <p className="mt-1 text-xs leading-5 text-white/48">
-                Solaris only calculates records from archive layers that are canonically public.
-              </p>
-            </div>
-          </V3Surface>
+          <div className="border-y border-white/[0.07] py-6" role="status" data-v3-records-empty="">
+            <p className="text-sm font-semibold">No records in this category yet</p>
+            <p className="mt-1 text-xs leading-5 text-white/48">
+              Solaris only calculates records from archive layers that are canonically public.
+            </p>
+          </div>
         )}
       </V3Section>
 
@@ -160,54 +158,55 @@ export function V3RecordsScreen({
   );
 }
 
-function RecordCard({ record }: { record: FanRecord }) {
+function RecordRow({ record }: { record: FanRecord }) {
   const primaryHolders = record.holders.slice(0, 8);
   const remainingHolders = record.holders.slice(8);
 
   return (
-    <V3Surface level="raised" className="flex min-h-64 min-w-0 flex-col p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+    <article className="grid min-w-0 gap-4 py-5 md:grid-cols-[minmax(0,0.82fr)_minmax(16rem,1.18fr)] md:gap-8" data-v3-record-row="">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
           <p className="v3-kicker">{CATEGORY_LABELS[record.category]}</p>
-          <h2 className="mt-1 break-words text-lg font-bold leading-tight sm:text-xl">
-            {record.label}
-          </h2>
+          {record.holders.length > 1 ? (
+            <V3StatusChip tone="neutral">{record.holders.length} tied</V3StatusChip>
+          ) : null}
         </div>
-        {record.holders.length > 1 ? (
-          <V3StatusChip tone="neutral">{record.holders.length} tied</V3StatusChip>
+        <h2 className="mt-2 max-w-[28ch] text-[1.1rem] font-semibold leading-tight tracking-[-0.03em] sm:text-[1.2rem]">
+          {record.label}
+        </h2>
+        <p className="mt-3 break-words text-[2rem] font-black leading-none tracking-[-0.05em]">
+          {record.value}
+        </p>
+        <p className="mt-2 max-w-xl text-xs leading-5 text-white/46">{record.explanation}</p>
+      </div>
+
+      <div className="min-w-0 border-t border-white/[0.065] md:border-l md:border-t-0 md:pl-6">
+        <div className="divide-y divide-white/[0.06]">
+          {primaryHolders.map((holder) => (
+            <RecordHolderRow key={holder.countryId} holder={holder} />
+          ))}
+        </div>
+
+        {remainingHolders.length > 0 ? (
+          <details className="border-t border-white/[0.065]">
+            <summary className="cursor-pointer list-none py-3 text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 [&::-webkit-details-marker]:hidden">
+              Show all {record.holders.length} tied countries
+            </summary>
+            <div className="divide-y divide-white/[0.06] border-t border-white/[0.06]">
+              {remainingHolders.map((holder) => (
+                <RecordHolderRow key={holder.countryId} holder={holder} />
+              ))}
+            </div>
+          </details>
         ) : null}
       </div>
-
-      <p className="mt-4 break-words text-3xl font-black tracking-[-0.045em]">
-        {record.value}
-      </p>
-      <p className="mt-2 text-xs leading-5 text-white/48">{record.explanation}</p>
-
-      <div className="mt-4 divide-y divide-white/[0.07] rounded-xl border border-white/[0.07] bg-white/[0.02] px-3">
-        {primaryHolders.map((holder) => (
-          <RecordHolderRow key={holder.countryId} holder={holder} />
-        ))}
-      </div>
-
-      {remainingHolders.length > 0 ? (
-        <details className="mt-2 overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.02]">
-          <summary className="cursor-pointer list-none px-3 py-3 text-xs font-semibold text-white/68 [&::-webkit-details-marker]:hidden">
-            Show all {record.holders.length} tied countries
-          </summary>
-          <div className="divide-y divide-white/[0.07] border-t border-white/[0.07] px-3">
-            {remainingHolders.map((holder) => (
-              <RecordHolderRow key={holder.countryId} holder={holder} />
-            ))}
-          </div>
-        </details>
-      ) : null}
-    </V3Surface>
+    </article>
   );
 }
 
 function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
   return (
-    <div className="py-3 first:pt-2.5 last:pb-2.5">
+    <div className="py-3 first:pt-3 last:pb-3">
       <div className="flex min-w-0 items-start gap-3">
         <FlagChip
           code={holder.shortCode}
@@ -220,7 +219,7 @@ function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
             <Link
               to="/countries/$code"
               params={{ code: holder.shortCode.toLowerCase() }}
-              className="truncate text-sm font-semibold hover:text-primary"
+              className="truncate text-sm font-semibold hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
             >
               {holder.countryName}
             </Link>

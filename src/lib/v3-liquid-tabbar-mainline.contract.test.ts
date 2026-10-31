@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("canonical V3 Liquid tab bar mainline cutover", () => {
-  it("keeps the reference bar icon-only without hiding semantic names", () => {
+  it("keeps the bar icon-only without hiding semantic names", () => {
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const css = source("src/styles/v3-liquid-tabbar.css");
 
@@ -38,21 +38,24 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(tabs).toContain("// Pre-measure once at gesture start.");
   });
 
-  it("uses physical CSS-pixel geometry while preserving 44px compact targets", () => {
+  it("uses the quieter visual-cutover geometry while preserving 44px compact targets", () => {
     const css = source("src/styles/v3-navigation-fixed-geometry.css");
 
-    expect(css).toContain("width: min(calc(100% - 22px), 544px)");
-    expect(css).toContain("height: 70px");
+    expect(css).toContain("width: min(calc(100% - 36px), 428px)");
+    expect(css).toContain("height: 58px");
     expect(css).toContain("left: 6px !important");
     expect(css).toContain("right: auto !important");
     expect(css).toContain("min-height: 44px");
+    expect(css).toContain("width: min(286px");
   });
 
   it("keeps keyboard, Reduced Motion and Reduced Transparency fallbacks", () => {
     const liquidCss = source("src/styles/v3-liquid-tabbar.css");
+    const geometryCss = source("src/styles/v3-navigation-fixed-geometry.css");
     const responsiveCss = source("src/styles/v3-responsive-shell.css");
 
     expect(liquidCss).toContain("html[data-solaris-keyboard-open]");
+    expect(geometryCss).toContain("visibility: hidden");
     expect(liquidCss).toContain("@media (prefers-reduced-motion: reduce)");
     expect(liquidCss).toContain("@media (prefers-reduced-transparency: reduce)");
     expect(responsiveCss).toContain("@media (min-width: 1024px)");

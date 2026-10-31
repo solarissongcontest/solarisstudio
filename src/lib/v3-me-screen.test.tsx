@@ -28,7 +28,8 @@ describe("production Me composition", () => {
   });
   it("renders a server-proven zero distinctly from unavailable", async () => {
     const html = await renderMe(false, 0);
-    expect(html).toMatch(/>0<\/span>/);
+    expect(html).toMatch(/>0<\/(?:dd|span)>/);
     expect(html).toContain("Delegation V3 receipts");
+    expect(html).not.toMatch(/>—<\/(?:dd|span)>[^]*Delegation V3 receipts/);
   });
 });

@@ -37,7 +37,6 @@ describe("V3 Explore screen architecture boundary", () => {
 
   it("surfaces Live from the projected current-edition state without inferring show authority", () => {
     expect(source).toContain('edition.experience === "live" && edition.liveHref');
-    expect(source).toContain('data-v3-explore-live-action=""');
     expect(source).toContain('title="Open Live Mode"');
     expect(source).toContain("to={edition.liveHref}");
     expect(source).not.toContain('to="/show-mode"');
@@ -52,8 +51,9 @@ describe("V3 Explore screen architecture boundary", () => {
   it("uses the shared V3 foundation rather than creating another shell", () => {
     expect(source).toContain('from "./V3Foundation"');
     expect(source).toContain("<V3Screen>");
-    expect(source).toContain("<V3ScreenHeader");
+    expect(source).toContain('data-v3-explore-header=""');
     expect(source).toContain("<V3Section");
+    expect(source).not.toContain("V3ScreenHeader");
     expect(source).not.toContain("V3FoundationShell");
     expect(source).not.toContain("V3BottomNav");
   });

@@ -1,15 +1,32 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { BookOpen, CalendarDays } from "lucide-react";
+import { BookOpen, CalendarDays, ChevronRight } from "lucide-react";
 
 import type { V3StoriesIndexBundle } from "@/lib/v3-stories";
 import {
   V3Screen,
-  V3ScreenHeader,
   V3Section,
   V3StatusChip,
   V3Surface,
 } from "./V3Foundation";
+
+function EmptyStoryState({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: typeof BookOpen;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div role="status" className="border-y border-white/[0.07] py-9 text-center">
+      <Icon className="mx-auto size-5 text-white/30" aria-hidden="true" />
+      <p className="mt-3 text-sm font-semibold">{title}</p>
+      <p className="mx-auto mt-1 max-w-lg text-xs leading-5 text-white/45">{description}</p>
+    </div>
+  );
+}
 
 export function V3StoriesIndexScreen({
   bundle,
@@ -23,12 +40,15 @@ export function V3StoriesIndexScreen({
 
   return (
     <V3Screen>
-      <V3ScreenHeader
-        kicker="Solaris archive"
-        title="Stories"
-        description="Reviewed narratives and published moments from Solaris history. Drafts stay private until an organizer explicitly publishes them."
-        editorial
-      />
+      <header className="mb-6 max-w-3xl" data-v3-stories-header="">
+        <p className="v3-kicker">Solaris archive</p>
+        <h1 className="mt-2 max-w-[13ch] text-[clamp(2rem,9vw,3.3rem)] font-semibold leading-[0.96] tracking-[-0.055em]">
+          Stories that shaped the contest
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-white/50 sm:text-[0.95rem]">
+          Reviewed narratives and published moments from Solaris history. Drafts remain private until organizers publish them.
+        </p>
+      </header>
 
       {protectedView ? (
         <V3Surface level="raised" className="p-5" data-v3-stories-spoiler-protected="">
@@ -43,7 +63,7 @@ export function V3StoriesIndexScreen({
           <button
             type="button"
             onClick={() => setRevealed(true)}
-            className="mt-4 min-h-11 rounded-xl bg-[var(--v3-accent)] px-4 font-semibold text-[var(--v3-bg-base)]"
+            className="mt-4 min-h-11 rounded-xl bg-[var(--v3-accent)] px-4 font-semibold text-[var(--v3-bg-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
           >
             Reveal published stories
           </button>
@@ -64,101 +84,110 @@ export function V3StoriesIndexScreen({
             }
           >
             {bundle.anniversary.onThisDay.length ? (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {bundle.anniversary.onThisDay.slice(0, 6).map((moment, index) => (
-                  <V3Surface
-                    key={`${moment.editionSlug ?? "moment"}:${moment.occurredAt}:${index}`}
-                    level="raised"
-                    className="p-4"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[0.65rem] font-bold uppercase tracking-[0.13em] text-primary">
-                        {moment.yearsAgo != null ? `${moment.yearsAgo} years ago` : "Archive moment"}
-                      </span>
-                      <span className="text-[0.65rem] text-white/38">
-                        importance {moment.importance}
-                      </span>
-                    </div>
-                    <h3 className="mt-3 text-lg font-bold leading-tight">{moment.headline}</h3>
-                    <p className="mt-2 text-xs leading-5 text-white/48">{moment.summary}</p>
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <span className="text-xs text-white/38">
-                        {moment.editionName ?? "Solaris Song Contest"}
-                      </span>
+              <div className="divide-y divide-white/[0.065] border-y border-white/[0.07]" data-v3-stories-on-this-day="">
+                {bundle.anniversary.onThisDay.slice(0, 6).map((moment, index) => {
+                  const body = (
+                    <>
+                      <div className="min-w-0 flex-1 py-4">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.66rem] font-semibold uppercase tracking-[0.12em]">
+                          <span className="text-primary">
+                            {moment.yearsAgo != null ? `${moment.yearsAgo} years ago` : "Archive moment"}
+                          </span>
+                          <span className="text-white/32">{moment.editionName ?? "Solaris Song Contest"}</span>
+                        </div>
+                        <h3 className="mt-2 text-[1.05rem] font-semibold leading-tight tracking-[-0.025em]">
+                          {moment.headline}
+                        </h3>
+                        <p className="mt-1.5 max-w-3xl text-xs leading-5 text-white/48">{moment.summary}</p>
+                      </div>
                       {moment.editionSlug ? (
-                        <Link
-                          to="/stories/$editionSlug"
-                          params={{ editionSlug: moment.editionSlug }}
-                          className="text-xs font-semibold text-primary hover:underline"
-                        >
-                          Open story
-                        </Link>
+                        <ChevronRight className="size-4 shrink-0 text-white/25" aria-hidden="true" />
                       ) : null}
-                    </div>
-                  </V3Surface>
-                ))}
+                    </>
+                  );
+
+                  return moment.editionSlug ? (
+                    <Link
+                      key={`${moment.editionSlug}:${moment.occurredAt}:${index}`}
+                      to="/stories/$editionSlug"
+                      params={{ editionSlug: moment.editionSlug }}
+                      className="flex min-h-20 items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+                    >
+                      {body}
+                    </Link>
+                  ) : (
+                    <article
+                      key={`moment:${moment.occurredAt}:${index}`}
+                      className="flex min-h-20 items-center gap-3"
+                    >
+                      {body}
+                    </article>
+                  );
+                })}
               </div>
             ) : (
-              <V3Surface className="p-5">
-                <div role="status" className="text-center">
-                  <CalendarDays className="mx-auto size-5 text-white/32" aria-hidden="true" />
-                  <p className="mt-3 text-sm font-semibold">No published moments for today</p>
-                  <p className="mx-auto mt-1 max-w-lg text-xs leading-5 text-white/45">
-                    As reviewed edition stories are published, the calendar archive fills itself from those public moments.
-                  </p>
-                </div>
-              </V3Surface>
+              <EmptyStoryState
+                icon={CalendarDays}
+                title="No published moments for today"
+                description="As reviewed edition stories are published, the calendar archive fills itself from those public moments."
+              />
             )}
           </V3Section>
 
           <V3Section title="Edition stories" meta={`${bundle.stories.length} published`}>
             {bundle.stories.length ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                {bundle.stories.map((story) => (
+              <div className="divide-y divide-white/[0.065] border-y border-white/[0.07]" data-v3-stories-edition-list="">
+                {bundle.stories.map((story, index) => (
                   <Link
                     key={story.editionId}
                     to="/stories/$editionSlug"
                     params={{ editionSlug: story.editionSlug }}
-                    className="block rounded-[var(--v3-radius-xl)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+                    className="group grid min-h-28 grid-cols-[3.25rem_minmax(0,1fr)_auto] items-start gap-3 py-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 sm:grid-cols-[4.5rem_minmax(0,1fr)_auto]"
                   >
-                    <V3Surface level="raised" className="h-full p-5 transition hover:bg-white/[0.045]">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-[0.65rem] font-bold uppercase tracking-[0.13em] text-primary">
-                          {story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}
-                        </span>
-                        <span className="text-xs text-white/38">{story.itemCount} moments</span>
-                      </div>
-                      <h3 className="mt-3 text-2xl font-black tracking-[-0.03em]">{story.title}</h3>
+                    <div className="pt-0.5">
+                      <span className="block text-[0.62rem] font-bold uppercase tracking-[0.12em] text-primary">
+                        {story.editionNumber != null ? `SSC ${story.editionNumber}` : "Edition"}
+                      </span>
+                      <span className="mt-1 block text-[0.68rem] text-white/34">{story.itemCount} moments</span>
+                    </div>
+                    <article className="min-w-0">
+                      <h3 className="text-[1.18rem] font-semibold leading-[1.08] tracking-[-0.035em] transition-colors group-hover:text-primary sm:text-[1.3rem]">
+                        {story.title}
+                      </h3>
                       {story.subtitle ? (
-                        <p className="mt-1 text-sm font-semibold text-white/70">{story.subtitle}</p>
+                        <p className="mt-1 text-xs font-medium text-white/64">{story.subtitle}</p>
                       ) : null}
-                      <p className="mt-3 line-clamp-3 text-sm leading-6 text-white/48">
+                      <p className="mt-2 line-clamp-2 max-w-3xl text-xs leading-5 text-white/46">
                         {story.introduction ?? story.heroMoment?.summary ?? "Open the reviewed edition timeline."}
                       </p>
-                      {story.heroMoment ? (
-                        <div className="mt-5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-                          <p className="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white/35">
-                            Defining moment
-                          </p>
-                          <p className="mt-1 text-sm font-semibold">{story.heroMoment.headline}</p>
-                        </div>
+                      {index === 0 && story.heroMoment ? (
+                        <p className="mt-2 text-[0.69rem] leading-5 text-white/38">
+                          <span className="font-semibold text-white/55">Defining moment:</span>{" "}
+                          {story.heroMoment.headline}
+                        </p>
                       ) : null}
-                    </V3Surface>
+                    </article>
+                    <ChevronRight className="mt-1 size-4 shrink-0 text-white/24 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                   </Link>
                 ))}
               </div>
             ) : (
-              <V3Surface className="p-6">
-                <div role="status" className="text-center">
-                  <BookOpen className="mx-auto size-5 text-white/32" aria-hidden="true" />
-                  <p className="mt-3 text-sm font-semibold">No edition stories published yet</p>
-                  <p className="mx-auto mt-1 max-w-lg text-xs leading-5 text-white/45">
-                    Drafts remain private until organizers explicitly publish them.
-                  </p>
-                </div>
-              </V3Surface>
+              <EmptyStoryState
+                icon={BookOpen}
+                title="No edition stories published yet"
+                description="Drafts remain private until organizers explicitly publish them."
+              />
             )}
           </V3Section>
+
+          <nav aria-label="Story archive links" className="mt-8 flex flex-wrap gap-x-5 gap-y-3 border-t border-white/[0.07] pt-5 text-sm">
+            <Link to="/archive" className="font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70">
+              Browse the full archive
+            </Link>
+            <Link to="/wiki" className="font-semibold text-white/62 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70">
+              Open the encyclopedia
+            </Link>
+          </nav>
         </>
       )}
     </V3Screen>

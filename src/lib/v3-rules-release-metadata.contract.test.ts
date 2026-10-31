@@ -16,7 +16,8 @@ describe("Public V3 Rules release metadata", () => {
     );
 
     expect(home).toContain('data-v3-rulebook-release-meta=""');
-    expect(home).toContain("Current version · v{version}");
+    expect(home).toContain("General Regulations · v{version}");
+    expect(home).toContain('aria-label={`Current rulebook version ${version}`}');
     expect(home).toContain("Effective {effectiveDate}");
     expect(home).toContain('to="/rules/changes"');
     expect(home).toContain("Previous versions");

@@ -17,7 +17,6 @@ import {
   SolarisDepthEyebrow,
   SolarisDepthPage,
   SolarisDepthSafeZone,
-  SolarisDepthSurface,
 } from "@/components/SolarisDepth";
 import {
   GOVERNANCE_ACTION_STORAGE_KEY,
@@ -124,19 +123,23 @@ export function RulesHomeV5({
   };
 
   return (
-    <SolarisDepthPage tone="rules">
+    <SolarisDepthPage tone="rules" className="pb-2" data-v3-rules-redesign="">
       <SolarisDepthSafeZone>
-        <header className="pb-2">
-          {!isAppMode ? <SolarisDepthEyebrow tone="primary">Rules</SolarisDepthEyebrow> : null}
-          <div className={isAppMode ? "flex flex-wrap items-baseline gap-x-2 gap-y-1" : "mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1"}>
-            <h1 className="text-2xl font-bold tracking-[-0.025em]">Official regulations</h1>
-            <span className="text-xs text-muted-foreground">General Regulations · v{version}</span>
-          </div>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+        <header className="border-b border-white/[0.08] pb-5" data-v3-rules-header="">
+          <SolarisDepthEyebrow tone="primary">Official regulations</SolarisDepthEyebrow>
+          <h1 className="mt-2 max-w-[18ch] text-[clamp(2rem,8vw,2.8rem)] font-semibold leading-[0.98] tracking-[-0.05em]">
+            General Regulations
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
             Find the rule that applies, get a direct answer, or browse the official rulebook.
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground" data-v3-rulebook-release-meta="">
-            <span aria-label={`Current rulebook version ${version}`}>Current version · v{version}</span>
+          <div
+            className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
+            data-v3-rulebook-release-meta=""
+          >
+            <span className="font-semibold text-foreground/75" aria-label={`Current rulebook version ${version}`}>
+              General Regulations · v{version}
+            </span>
             {effectiveDate ? <span>Effective {effectiveDate}</span> : null}
             <Link to="/rules/changes" className="font-semibold text-primary hover:underline">
               Previous versions
@@ -144,14 +147,14 @@ export function RulesHomeV5({
           </div>
         </header>
 
-        <SolarisDepthSurface variant="action" className="mt-4">
+        <section className="mt-5 border-b border-white/[0.08] pb-5" data-v3-rules-search="">
           <form
             onSubmit={(event) => {
               event.preventDefault();
               submitSearch();
             }}
           >
-            <label className="flex min-h-12 items-center gap-3 rounded-xl border border-white/[0.08] bg-black/10 px-3 focus-within:border-primary/35">
+            <label className="flex min-h-12 items-center gap-3 border-b border-white/[0.12] py-1 focus-within:border-primary/55">
               <Search className="size-4.5 shrink-0 text-primary" aria-hidden="true" />
               <span className="sr-only">Ask about a rule</span>
               <input
@@ -164,15 +167,17 @@ export function RulesHomeV5({
               {!isAppMode ? (
                 <button
                   type="submit"
-                  className="inline-flex min-h-9 items-center rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"
+                  className="inline-flex min-h-10 items-center px-2 text-xs font-bold text-primary"
                 >
                   Search
                 </button>
-              ) : null}
+              ) : (
+                <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              )}
             </label>
           </form>
-          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-            <span>Try</span>
+          <div className="mt-3 flex gap-3 overflow-x-auto pb-1 text-[11px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Rule search suggestions">
+            <span className="shrink-0 text-muted-foreground">Try</span>
             {["friend voting", "artist eligibility", "deadline", "anonymous report"].map((example) => (
               <button
                 key={example}
@@ -181,51 +186,50 @@ export function RulesHomeV5({
                   setQuery(example);
                   void navigate({ to: "/rules/search", search: { q: example } });
                 }}
-                className="inline-flex min-h-8 items-center font-semibold text-primary"
+                className="inline-flex min-h-8 shrink-0 items-center font-semibold text-primary"
               >
                 {example}
               </button>
             ))}
           </div>
-        </SolarisDepthSurface>
+        </section>
 
         <GovernanceStatusStrip context="rules" className="mt-3" />
       </SolarisDepthSafeZone>
 
       {forYou && context ? (
-        <SolarisDepthSafeZone className="mt-6">
+        <SolarisDepthSafeZone className="mt-7">
           <SolarisDepthEyebrow tone="primary">For you</SolarisDepthEyebrow>
-          <Link to="/rules/applied" className="mt-2 block">
-            <SolarisDepthSurface variant="action" className="flex items-center gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                <CheckCircle2 className="size-4.5" />
+          <Link
+            to="/rules/applied"
+            className="mt-2 flex min-h-16 items-center gap-3 border-y border-primary/20 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+          >
+            <CheckCircle2 className="size-5 shrink-0 text-primary" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">{forYou.title}</span>
+              <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                {forYou.description}
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold">{forYou.title}</span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {forYou.description}
-                </span>
-              </span>
-              <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-            </SolarisDepthSurface>
+            </span>
+            <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           </Link>
         </SolarisDepthSafeZone>
       ) : null}
 
-      <SolarisDepthSafeZone className="mt-7">
+      <SolarisDepthSafeZone className="mt-8" data-v3-rules-quick-answers="">
         <div className="mb-2 flex items-center justify-between gap-3">
           <SolarisDepthEyebrow>Quick answers</SolarisDepthEyebrow>
-          <Link to="/rules/answers" className="text-xs font-bold text-primary">
+          <Link to="/rules/answers" className="inline-flex min-h-10 items-center text-xs font-bold text-primary">
             See all
           </Link>
         </div>
-        <SolarisDepthSurface variant="reading" className="!py-1">
+        <div className="divide-y divide-white/[0.075] border-y border-white/[0.08]">
           {quick.map((answer) => (
             <Link
               key={answer.id}
               to="/rules/answers"
               hash={answer.id}
-              className="solaris-depth-row"
+              className="flex min-h-16 items-center gap-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
             >
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold">{answer.question}</span>
@@ -233,20 +237,28 @@ export function RulesHomeV5({
                   {answer.explanation}
                 </span>
               </span>
-              <span className="solaris-depth-verdict">{answer.answer}</span>
-              <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="shrink-0 text-[0.64rem] font-black uppercase tracking-[0.08em] text-primary">
+                {answer.answer}
+              </span>
+              <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
             </Link>
           ))}
-        </SolarisDepthSurface>
+        </div>
       </SolarisDepthSafeZone>
 
-      <SolarisDepthSafeZone className="mt-7">
-        <SolarisDepthEyebrow>Rulebook</SolarisDepthEyebrow>
-        <SolarisDepthSurface variant="reading" className="mt-2 !py-1">
+      <SolarisDepthSafeZone className="mt-8" data-v3-rules-browse="">
+        <div className="mb-2 flex items-end justify-between gap-3">
+          <div>
+            <SolarisDepthEyebrow>Browse</SolarisDepthEyebrow>
+            <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em]">Official rulebook</h2>
+          </div>
+          <span className="text-xs text-muted-foreground">21 chapters</span>
+        </div>
+        <div className="divide-y divide-white/[0.075] border-y border-white/[0.08]">
           <RuleDestination
             to="/rules/chapters"
             icon={BookOpen}
-            title="21 chapters"
+            title="All chapters"
             description="Browse the complete General Regulations."
           />
           <RuleDestination
@@ -273,7 +285,7 @@ export function RulesHomeV5({
             title="Changes & history"
             description="Current and previous rulebook versions."
           />
-        </SolarisDepthSurface>
+        </div>
       </SolarisDepthSafeZone>
     </SolarisDepthPage>
   );
@@ -291,15 +303,18 @@ function RuleDestination({
   description: string;
 }) {
   return (
-    <Link to={to as any} className="solaris-depth-row">
-      <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.025] text-primary">
-        <Icon className="size-4" />
+    <Link
+      to={to as any}
+      className="flex min-h-16 items-center gap-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+    >
+      <span className="grid size-9 shrink-0 place-items-center text-primary" aria-hidden="true">
+        <Icon className="size-4.5" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold">{title}</span>
         <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{description}</span>
       </span>
-      <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+      <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
     </Link>
   );
 }

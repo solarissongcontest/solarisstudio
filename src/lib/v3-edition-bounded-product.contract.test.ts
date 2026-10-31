@@ -58,8 +58,9 @@ describe("V3 Edition bounded product architecture", () => {
     const screenSource = overview();
     expect(screenSource).toContain("href: projection.story?.href ?? base");
     expect(screenSource).toContain("href: projection.results.showHref ?? base");
-    expect(screenSource).toContain('title="Open full story"');
-    expect(screenSource).toContain('title="Open complete official result"');
+    expect(screenSource).toContain("<SectionFooterLink to={projection.story.href}>Open full story</SectionFooterLink>");
+    expect(screenSource).toContain("Open complete official result");
+    expect(screenSource).toContain("<SectionFooterLink to={projection.results.showHref}>");
     expect(viewContract()).not.toContain('"results" |');
     expect(viewContract()).not.toContain('"stories" |');
   });

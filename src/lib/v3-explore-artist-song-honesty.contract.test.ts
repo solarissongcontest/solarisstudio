@@ -11,7 +11,7 @@ describe("V3 Explore Artist/Song identity honesty", () => {
     expect(screen).toContain(
       '"songs-and-artists": "Published song and artist labels in their Entry and Edition context"',
     );
-    expect(screen).toContain("published entries, shows and stories");
+    expect(screen).toContain("Find any public edition, country, entry, show or story");
     expect(screen).not.toContain("The songs and artists in the public Solaris catalogue");
   });
 
