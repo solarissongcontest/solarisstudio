@@ -85,8 +85,8 @@ describe("V3 Notifications cutover", () => {
     const source = route();
 
     expect(source).toContain("preferences.isLoading || push.isLoading || inbox.isLoading");
-    expect(source).toContain('data-v3-notifications-authority-state="loading"');
-    expect(source).toContain("Loading your notification state");
+    expect(source).toContain('variant="notifications"');
+    expect(source).toContain('label="Loading your notifications…"');
     expect(source.indexOf("preferences.isLoading || push.isLoading || inbox.isLoading")).toBeLessThan(
       source.indexOf("const preferenceRow = preferences.data"),
     );
@@ -113,10 +113,10 @@ describe("V3 Notifications cutover", () => {
     expect(source).toContain('to="/my-solaris/notices"');
     expect(source).toContain('to="/participate"');
     expect(source).toContain('to="/settings"');
-    expect(source).toContain("Notifications are never the source of truth");
+    expect(source).toContain("Your required work is still available");
     expect(source).toContain('item.state === "acknowledgement_required"');
     expect(source).toContain(
-      "Read and acknowledge these in the authoritative official-notice workflow.",
+      "If a notification is delayed or blocked, check Participate for current responsibilities and Notices for official messages.",
     );
   });
 

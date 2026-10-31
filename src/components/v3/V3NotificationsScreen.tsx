@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import type { AppPushDeliveryStatus } from "@/lib/app-notifications";
+import { formatEventDateTime } from "@/lib/public-time";
 import {
   V3ActionCard,
   V3NowCard,
@@ -43,12 +44,7 @@ function formatNoticeTime(value: string | null) {
   if (!value) return "Recently";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Recently";
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatEventDateTime(date, { locale: "en-GB" });
 }
 
 function noticeTone(item: V3NotificationInboxItem) {
@@ -86,13 +82,13 @@ export function V3NotificationsScreen({
     (item) => item.state === "unread" && !item.acknowledgementRequired,
   ).length;
   const attentionCount = acknowledgementCount + unreadWithoutAction;
-  const latest = [...activeItems]
+  const recent = [...activeItems]
     .sort((a, b) => {
       const aTime = a.sentAt ? new Date(a.sentAt).getTime() : 0;
       const bTime = b.sentAt ? new Date(b.sentAt).getTime() : 0;
       return bTime - aTime;
     })
-    .slice(0, 3);
+    .slice(0, 8);
 
   return (
     <V3Screen className="pb-8">
@@ -100,7 +96,7 @@ export function V3NotificationsScreen({
         <V3ScreenHeader
           kicker="Me"
           title="Notifications"
-          description="Official updates, attention state and delivery health in one place. Push helps you notice work; it never becomes the work itself."
+          description="Official updates, important messages and delivery settings in one place."
         />
 
         <V3Section title="Needs attention">
@@ -117,8 +113,8 @@ export function V3NotificationsScreen({
           >
             {inboxUnavailable ? (
               <V3ActionCard
-                title="Open the canonical notice inbox"
-                description="If notification delivery is degraded, required official communications remain available in MySolaris."
+                title="Open official notices"
+                description="If the notification summary is unavailable, you can still open your official messages directly."
                 icon={ShieldCheck}
                 tone="neutral"
                 to="/my-solaris/notices"
@@ -128,7 +124,7 @@ export function V3NotificationsScreen({
                 {acknowledgementCount > 0 ? (
                   <V3ActionCard
                     title={`${acknowledgementCount} acknowledgement${acknowledgementCount === 1 ? "" : "s"} required`}
-                    description="Read and acknowledge these in the authoritative official-notice workflow."
+                    description="Read and acknowledge these messages in Notices."
                     icon={ShieldCheck}
                     tone="required"
                     to="/my-solaris/notices"
@@ -137,7 +133,7 @@ export function V3NotificationsScreen({
                 {unreadWithoutAction > 0 ? (
                   <V3ActionCard
                     title={`${unreadWithoutAction} unread official message${unreadWithoutAction === 1 ? "" : "s"}`}
-                    description="Open your canonical notice inbox to read the full messages."
+                    description="Open Notices to read the full messages."
                     icon={Mail}
                     tone="neutral"
                     to="/my-solaris/notices"
@@ -154,7 +150,7 @@ export function V3NotificationsScreen({
         </V3Section>
 
         <V3Section
-          title="Latest official messages"
+          title="Official messages"
           meta={
             <Link
               to="/my-solaris/notices"
@@ -168,21 +164,22 @@ export function V3NotificationsScreen({
             <V3Surface>
               <p className="text-sm font-semibold">Inbox status unavailable</p>
               <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                Solaris could not load the notification summary. The canonical Notices route remains the fallback.
+                Solaris couldn't load this summary. You can still open Notices directly.
               </p>
             </V3Surface>
-          ) : latest.length ? (
-            <div className="grid gap-2.5">
-              {latest.map((item) => (
-                <Link
-                  key={item.id}
-                  to="/my-solaris/notices"
-                  search={{ notice: item.id }}
-                  className="block"
-                >
-                  <V3Surface level="raised" className="transition hover:border-white/20">
-                    <div className="flex items-start gap-3">
-                      <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-white/[0.055] text-[var(--v3-text-secondary)]">
+          ) : recent.length ? (
+            <div data-v3-notification-list="">
+              <V3Surface className="overflow-hidden p-0">
+                <div className="divide-y divide-[var(--v3-border-subtle)]">
+                  {recent.map((item) => (
+                    <Link
+                      key={item.id}
+                      to="/my-solaris/notices"
+                      search={{ notice: item.id }}
+                      className="flex min-h-16 items-start gap-3 px-3 py-3 transition hover:bg-white/[0.025] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/35 sm:px-4"
+                      data-v3-notification-row=""
+                    >
+                      <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-white/[0.045] text-[var(--v3-text-secondary)]">
                         <BellRing className="size-4" aria-hidden="true" />
                       </span>
                       <span className="min-w-0 flex-1">
@@ -196,10 +193,10 @@ export function V3NotificationsScreen({
                           {item.typeLabel} · {formatNoticeTime(item.sentAt)}
                         </span>
                       </span>
-                    </div>
-                  </V3Surface>
-                </Link>
-              ))}
+                    </Link>
+                  ))}
+                </div>
+              </V3Surface>
             </div>
           ) : (
             <V3Surface>
@@ -280,9 +277,9 @@ export function V3NotificationsScreen({
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 size-5 shrink-0 text-[var(--v3-text-secondary)]" aria-hidden="true" />
               <div className="min-w-0">
-                <p className="text-sm font-semibold">Notifications are never the source of truth</p>
+                <p className="text-sm font-semibold">Your required work is still available</p>
                 <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                  Missing, delayed or blocked push delivery cannot hide required participation. Tasks and official Notices remain authoritative inside Solaris.
+                  If a notification is delayed or blocked, check Participate for current responsibilities and Notices for official messages.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link

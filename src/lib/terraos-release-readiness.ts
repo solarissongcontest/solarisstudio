@@ -1,13 +1,16 @@
 import { V3_DOMAIN_CONSEQUENCE_REGISTRY } from "./v3-domain-consequence-registry";
 import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
-import { V3_PUBLIC_CAPABILITY_REGISTRY } from "./v3-public-capability-registry";
+import {
+  V3_PUBLIC_CAPABILITY_REGISTRY,
+  type PublicCapabilityMigration,
+} from "./v3-public-capability-registry";
 import { V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES } from "./v3-public-capability-supplements";
 import { V3_SYSTEM_DOMAIN_REGISTRY } from "./v3-system-domain-registry";
 
-const V3_PUBLIC_CAPABILITIES = [
+const V3_PUBLIC_CAPABILITIES: readonly PublicCapabilityMigration[] = [
   ...V3_PUBLIC_CAPABILITY_REGISTRY,
   ...V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES,
-] as const;
+];
 
 type PublicReadinessStage =
   | "Foundation work underway"

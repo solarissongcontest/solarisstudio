@@ -19,13 +19,16 @@ describe("Public Encyclopedia durable identity boundary", () => {
     );
   });
 
-  it("keeps artist and song text discoverable through durable Entry context", () => {
+  it("keeps Entry identity server-owned in bounded public search results", () => {
     const implementation = route();
 
-    expect(implementation).toContain('kind: "entry"');
-    expect(implementation).toContain("participant.artist");
-    expect(implementation).toContain("participant.song");
-    expect(implementation).toContain('href: `/countries/${country.short_code}`');
+    expect(implementation).toContain('type ResultKind = "edition" | "country" | "entry" | "show";');
+    expect(implementation).toContain('"entry",');
+    expect(implementation).toContain("kind: row.result_type as ResultKind");
+    expect(implementation).toContain("id = typeof row.result_id");
+    expect(implementation).toContain("to={item.href as any}");
+    expect(implementation).not.toContain("participant.artist");
+    expect(implementation).not.toContain("participant.song");
   });
 
   it("preserves old artist query bookmarks as search input without treating them as identity", () => {
@@ -40,10 +43,14 @@ describe("Public Encyclopedia durable identity boundary", () => {
     );
   });
 
-  it("keeps the public archive publication filter in front of reference discovery", () => {
+  it("keeps publication filtering on server-owned public projections", () => {
     const implementation = route();
 
-    expect(implementation).toContain("buildPublicCountryArchive");
+    expect(implementation).toContain('"solaris_public_search"');
+    expect(implementation).toContain('"v3_public_explore_counts"');
+    expect(implementation).not.toContain("buildPublicCountryArchive");
     expect(implementation).not.toContain("supabaseAdmin");
+    expect(implementation).not.toContain('.from("');
+    expect(implementation).not.toContain(".from('");
   });
 });
