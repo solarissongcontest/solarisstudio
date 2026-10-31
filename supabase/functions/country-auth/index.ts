@@ -267,8 +267,6 @@ Deno.serve(async (req) => {
     }
 
     try {
-      // Signup has a strict address-only bucket so rotating country/username
-      // targets cannot buy the same caller more password or database work.
       const addressAllowed = await consumeRateLimit(
         service,
         "signup-address",
@@ -350,10 +348,6 @@ Deno.serve(async (req) => {
       return json({ error: message }, 400);
     }
 
-    // Auth creation and country ownership live in different Supabase subsystems,
-    // so make this flow compensating-transaction safe. The country_accounts
-    // UNIQUE constraints are the authoritative race boundary: if two signups
-    // pass the optimistic availability checks, only one ownership insert wins.
     const { error: ownershipError } = await service.from("country_accounts").insert({
       user_id: created.user.id,
       country_id: countryId,
@@ -457,7 +451,10 @@ Deno.serve(async (req) => {
       }
     } catch (error) {
       console.error("[country-auth] Recovery rate limiting unavailable", error);
-      return json({ ok: true, recoveryAvailable: true }, 202);
+      return json(
+        { error: "Password recovery is temporarily unavailable. Try again shortly." },
+        503,
+      );
     }
 
     const resolved = await resolveLoginEmail(identifier);
