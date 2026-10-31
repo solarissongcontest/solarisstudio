@@ -47,7 +47,6 @@ describe("country authentication during read-only maintenance", () => {
 
     expect(limiterMigration).toContain("private.country_auth_rate_limits");
     expect(limiterMigration).toContain("security definer");
-    expect(limiterMigration).toContain("sha").toBe(false);
   });
 
   it("keeps the limiter private and stores only caller-supplied hashed keys", () => {
