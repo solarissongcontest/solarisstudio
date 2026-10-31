@@ -7,9 +7,10 @@ export type V3LegacyRouteShellArea = V3Area;
 /**
  * Heavy V3 chrome for legacy-content route families.
  *
- * Kept in its own dynamically imported module so routes that never enter the
- * installed V3 experience do not pay for navigation, command-palette and
- * attention dependencies in their initial client bundle.
+ * The outer V3 shell owns physical safe areas and bottom-navigation clearance.
+ * The nested legacy AppShell remains a content adapter only: its duplicate
+ * toolbar/tabbar/background and old tabbar runway are removed here so routes do
+ * not accidentally reserve system geometry twice.
  */
 export function V3LegacyRouteShell({
   children,
@@ -31,10 +32,9 @@ export function V3LegacyRouteShell({
             display: none !important;
           }
 
-          /* Preserve the established route's content measure, safe-area and
-             bottom-obstruction spacing. Only duplicate chrome is removed. */
           [data-v3-legacy-route-adapter] .app-main {
             min-width: 0;
+            padding-bottom: var(--v3-page-end-space, 28px) !important;
           }
 
           [data-v3-legacy-route-adapter] > .relative.isolate.min-h-screen {
