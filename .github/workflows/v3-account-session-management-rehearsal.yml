@@ -93,42 +93,26 @@ jobs:
           set -euo pipefail
           cd /tmp/solaris-account-session-main
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-account-session-management-rehearsal.sh"
-      - name: Probe Supabase runtime-root ownership
+      - name: Stage exact PR country-auth source into upgrade runtime
         shell: bash
         run: |
-          set -u
-          probe="$RUNNER_TEMP/supabase-root-probe.txt"
+          set -euo pipefail
           runtime_root=/tmp/solaris-account-session-main
-          pr_root="$GITHUB_WORKSPACE"
+          pr_source="$GITHUB_WORKSPACE/supabase/functions/country-auth"
+          runtime_source="$runtime_root/supabase/functions/country-auth"
 
-          runtime_status=0
-          (cd "$runtime_root" && supabase status -o env >/dev/null 2>&1) || runtime_status=$?
-          pr_status=0
-          (cd "$pr_root" && supabase status -o env >/dev/null 2>&1) || pr_status=$?
+          pr_hash="$(sha256sum "$pr_source/index.ts" | awk '{print $1}')"
+          runtime_before_hash="$(sha256sum "$runtime_source/index.ts" | awk '{print $1}')"
 
-          runtime_config=no
-          [[ -f "$runtime_root/supabase/config.toml" ]] && runtime_config=yes
-          pr_config=no
-          [[ -f "$pr_root/supabase/config.toml" ]] && pr_config=yes
+          rm -rf "$runtime_source"
+          cp -a "$pr_source" "$runtime_source"
 
-          {
-            printf 'runtime_root=%s\n' "$runtime_root"
-            printf 'runtime_status=%s\n' "$runtime_status"
-            printf 'runtime_config=%s\n' "$runtime_config"
-            printf 'pr_root=%s\n' "$pr_root"
-            printf 'pr_status=%s\n' "$pr_status"
-            printf 'pr_config=%s\n' "$pr_config"
-          } | tee "$probe"
+          runtime_after_hash="$(sha256sum "$runtime_source/index.ts" | awk '{print $1}')"
+          printf '[recovery-source-stage] runtime_before_hash=%s pr_hash=%s runtime_after_hash=%s\n' \
+            "$runtime_before_hash" "$pr_hash" "$runtime_after_hash"
 
-          [[ "$runtime_status" -eq 0 ]]
-      - name: Upload Supabase runtime-root probe
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: supabase-root-probe-${{ github.sha }}
-          path: ${{ runner.temp }}/supabase-root-probe.txt
-          if-no-files-found: error
-          retention-days: 3
+          [[ "$runtime_after_hash" == "$pr_hash" ]]
+          diff -qr "$pr_source" "$runtime_source"
       - name: Rehearse password recovery after current-main upgrade
         shell: bash
         env:
@@ -136,8 +120,8 @@ jobs:
           RECOVERY_MAIN_WORKTREE: /tmp/solaris-account-session-main
         run: |
           set -euo pipefail
-          cd "$GITHUB_WORKSPACE"
-          bash .github/scripts/v3-password-recovery-rehearsal.sh
+          cd /tmp/solaris-account-session-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-password-recovery-rehearsal.sh"
       - name: Upload upgrade recovery stage trace
         if: always()
         uses: actions/upload-artifact@v4
