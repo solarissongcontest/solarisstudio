@@ -8,10 +8,15 @@ on:
       - "supabase/migrations/**"
       - "supabase/functions/country-auth/**"
       - ".github/scripts/v3-account-session-management-rehearsal.sh"
+      - ".github/scripts/v3-country-auth-read-only-gate-rehearsal.sh"
+      - ".github/scripts/v3-country-auth-read-only-signin-rehearsal.sh"
+      - ".github/scripts/v3-password-recovery-protection-failure-rehearsal.sh"
+      - ".github/scripts/v3-password-recovery-read-only-rehearsal.sh"
       - ".github/scripts/v3-password-recovery-rehearsal.sh"
       - ".github/workflows/v3-account-session-management-rehearsal.yml"
       - "src/lib/v3-account-session-management.contract.test.ts"
       - "src/lib/password-recovery-regression.test.ts"
+      - "src/lib/country-auth-read-only-recovery-regression.test.ts"
       - "src/lib/maintenance-hod-portal.ts"
       - "src/lib/country-auth.ts"
       - "src/routes/auth/**"
@@ -25,10 +30,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  focused-contract:
+    name: Read-only auth regression contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run focused read-only auth contract
+        run: npm test -- src/lib/country-auth-read-only-recovery-regression.test.ts
+
   clean-replay:
     name: Clean replay + account session checks
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
@@ -38,12 +57,18 @@ jobs:
         run: supabase start
       - name: Rebuild complete migration chain
         run: supabase db reset --local --no-seed
+      - name: Rehearse read-only auth gate boundaries
+        run: bash .github/scripts/v3-country-auth-read-only-gate-rehearsal.sh
       - name: Rehearse account session contract
         run: bash .github/scripts/v3-account-session-management-rehearsal.sh
-      - name: Rehearse country password recovery
+      - name: Rehearse recovery protection failure and exhaustion
+        run: bash .github/scripts/v3-password-recovery-protection-failure-rehearsal.sh
+      - name: Rehearse country sign-in in read-only mode
+        run: bash .github/scripts/v3-country-auth-read-only-signin-rehearsal.sh
+      - name: Rehearse country password recovery in read-only mode
         env:
           RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/clean.log
-        run: bash .github/scripts/v3-password-recovery-rehearsal.sh
+        run: bash .github/scripts/v3-password-recovery-read-only-rehearsal.sh
       - name: Upload clean recovery stage trace
         if: always()
         uses: actions/upload-artifact@v4
@@ -59,7 +84,7 @@ jobs:
   upgrade-from-main:
     name: Current main upgrade + account session checks
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -87,6 +112,12 @@ jobs:
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" /tmp/solaris-account-session-main
           cd /tmp/solaris-account-session-main
           supabase migration up --local --include-all
+      - name: Rehearse read-only auth gate boundaries after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-account-session-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-country-auth-read-only-gate-rehearsal.sh"
       - name: Rehearse contract after current-main upgrade
         shell: bash
         run: |
@@ -113,7 +144,19 @@ jobs:
 
           [[ "$runtime_after_hash" == "$pr_hash" ]]
           diff -qr "$pr_source" "$runtime_source"
-      - name: Rehearse password recovery after current-main upgrade
+      - name: Rehearse recovery protection failure after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-account-session-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-password-recovery-protection-failure-rehearsal.sh"
+      - name: Rehearse country sign-in in read-only mode after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-account-session-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-country-auth-read-only-signin-rehearsal.sh"
+      - name: Rehearse password recovery in read-only mode after current-main upgrade
         shell: bash
         env:
           RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/upgrade.log
@@ -121,7 +164,7 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-account-session-main
-          bash "$GITHUB_WORKSPACE/.github/scripts/v3-password-recovery-rehearsal.sh"
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-password-recovery-read-only-rehearsal.sh"
       - name: Upload upgrade recovery stage trace
         if: always()
         uses: actions/upload-artifact@v4
