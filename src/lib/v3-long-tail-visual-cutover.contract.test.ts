@@ -13,6 +13,16 @@ describe("V3 long-tail visual cutover", () => {
     expect(adapter).toContain("display: none !important");
   });
 
+  it("translates remaining AppShell routes away from the V2 dashboard surface language", () => {
+    const adapter = source("src/components/v3/V3LegacyRouteShell.tsx");
+    expect(adapter).toContain(".page-header h1");
+    expect(adapter).toContain(".data-panel");
+    expect(adapter).toContain("border-radius: 0 !important");
+    expect(adapter).toContain("background: transparent !important");
+    expect(adapter).toContain(".solaris-app-entity-sidebar");
+    expect(adapter).toContain("display: none !important");
+  });
+
   it("recomposes delegation identity, history and cross-links as flat entity content", () => {
     const country = source("src/components/v3/V3DelegationScreen.tsx");
     expect(country).toContain('data-v3-delegation-header=""');
@@ -29,5 +39,13 @@ describe("V3 long-tail visual cutover", () => {
     expect(shows).toContain("divide-y divide-border/60 border-y");
     expect(shows).not.toContain("rounded-2xl border p-4");
     expect(shows).not.toContain("rounded-2xl border border-border bg-surface");
+  });
+
+  it("keeps Show detail canonical reads while its V2 panels are flattened by the adapter", () => {
+    const show = source("src/routes/shows/$showId.tsx");
+    expect(show).toContain("resolveShowPublication");
+    expect(show).toContain("resolveV3ResultsSpoilerProtection");
+    expect(show).toContain("ScoreboardStage");
+    expect(show).toContain("ResponsiveTabs");
   });
 });
