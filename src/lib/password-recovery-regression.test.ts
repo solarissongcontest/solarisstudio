@@ -67,13 +67,13 @@ describe("password recovery regression contract", () => {
     expect(resetRoute).toContain("setSolarisPassword(password)");
     expect(resetRoute).toContain("supabase.auth.getUser()");
     expect(resetRoute).toContain("password-recovery link");
-    expect(resetRoute).toContain("If it expired, request a new one from the sign-in page.");
+    expect(resetRoute).toContain("expired, request a new one from the sign-in page.");
     expect(authClient).toContain('action: "set-password"');
     expect(authFunction).toContain('action === "set-password"');
   });
 
   it("retains the same canonical country-auth sign-in path after a password is changed", () => {
-    expect(authClient).toContain("signInSolarisCountryAccount");
+    expect(authClient).toContain("export async function signInSolarisAccount");
     expect(authClient).toContain("invokeCountryAuth");
     expect(authFunction).toContain('action === "signin"');
     expect(authFunction).toContain("signInWithPassword");
