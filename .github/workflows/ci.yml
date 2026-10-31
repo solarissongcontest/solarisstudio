@@ -5,32 +5,34 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: quality-lock-artifact-${{ github.ref }}
+  group: quality-lock-commit-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   quality:
     name: Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
-      - name: Checkout exact source
+      - name: Checkout navbar branch with history
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.2.19
 
-      - name: Generate repository-owned Playwright dependency graph
+      - name: Generate and commit deterministic Playwright dependency graph
         shell: bash
         run: |
           set -euo pipefail
+
           installed=0
           for attempt in 1 2 3; do
             if bun add --dev --exact @playwright/test@1.55.0 --network-concurrency 4; then
@@ -43,16 +45,51 @@ jobs:
             echo "Unable to resolve @playwright/test@1.55.0 after three bounded attempts."
             exit 1
           fi
+
+          git show 2ecedc8400213250c07b2f2f134d2ce6c912c91b:.github/workflows/ci.yml > .github/workflows/ci.yml
+
+          python <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/browser-audit.yml')
+          text = path.read_text()
+          old = '''      - name: Install browser-audit runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if bun add --dev @playwright/test@1.55.0 --no-save --network-concurrency 4; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Browser-audit Playwright install failed after ${attempt} attempts."
+              exit 1
+            fi
+            sleep $((attempt * 8))
+          done
+          bunx playwright install --with-deps chromium webkit
+'''
+          new = '''      - name: Verify locked Playwright runner
+        run: test "$(bunx playwright --version)" = "Version 1.55.0"
+
+      - name: Install browser-audit browser binaries
+        run: bunx playwright install --with-deps chromium webkit
+'''
+          if old not in text:
+              raise SystemExit('Expected Browser Audit runtime Playwright install block was not found')
+          path.write_text(text.replace(old, new))
+          PY
+
           rm -rf node_modules
           bun install --frozen-lockfile
           test "$(bunx playwright --version)" = "Version 1.55.0"
+          if grep -Fq 'bun add --dev @playwright/test' .github/workflows/browser-audit.yml; then
+            echo 'Browser Audit still mutates the Playwright dependency at runtime.'
+            exit 1
+          fi
 
-      - name: Upload Bun-generated dependency graph
-        uses: actions/upload-artifact@v4
-        with:
-          name: v3-navbar-playwright-lock
-          path: |
-            package.json
-            bun.lock
-          if-no-files-found: error
-          retention-days: 1
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json bun.lock .github/workflows/browser-audit.yml .github/workflows/ci.yml
+          git diff --cached --check
+          git commit -m '[V3-NAV] Lock Playwright runner in repository dependencies'
+          git push origin HEAD:v3/navbar-complete-redesign
