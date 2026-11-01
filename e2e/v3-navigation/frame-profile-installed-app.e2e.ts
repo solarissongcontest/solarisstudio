@@ -78,11 +78,11 @@ test("installed app shell survives representative navigation without duplicate c
 
   // Override the project's Reduced Motion context only for this profiling slice.
   // N12 Reduced Motion is tested separately; here we need the actual visual path.
+  // Match the proven installed-navbar interaction context instead of emulating a
+  // touch-only device and then manufacturing synthetic PointerEvents.
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     reducedMotion: "no-preference",
-    hasTouch: true,
-    isMobile: true,
   });
   const { baseURL } = await prepareNavbarInstalledContext(context);
   const page = await context.newPage();
@@ -90,29 +90,26 @@ test("installed app shell survives representative navigation without duplicate c
   await applyNavbarInstalledCssEmulation(page);
 
   const nav = page.locator(".solaris-app-tabbar");
+  const material = nav.locator(".solaris-app-tabbar-material");
+  const active = nav.getByRole("link", { name: /^Me(?:,|$)/ });
+  await expect(page.locator('[data-v3-account-settings-screen="account"]')).toBeVisible();
   await expect(nav).toBeVisible();
   await expect(nav.locator("[data-app-tab-index]")).toHaveCount(5);
-  await expect(nav.locator('[data-app-tab-index][aria-current="page"]')).toHaveCount(1);
+  await expect(active).toHaveAttribute("aria-current", "page");
+  await expect
+    .poll(async () => (await active.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(0);
 
-  const active = nav.locator('[data-app-tab-index][aria-current="page"]');
-  await expect(active).toBeVisible();
-  await expect(active).toHaveAttribute("aria-label", "Me");
   const bounds = await active.boundingBox();
   expect(bounds).not.toBeNull();
   if (!bounds) return;
 
   const startX = bounds.x + bounds.width / 2;
   const startY = bounds.y + bounds.height / 2;
-  const material = page.locator(".solaris-app-tabbar-material");
+  await page.mouse.move(startX, startY);
   await startFrameSampler(page, 950);
 
-  await active.dispatchEvent("pointerdown", {
-    pointerId: 77,
-    pointerType: "touch",
-    button: 0,
-    clientX: startX,
-    clientY: startY,
-  });
+  await page.mouse.down();
 
   // Direct manipulation is intentionally hold-gated. Profile the production
   // gesture instead of moving immediately and cancelling the pending hold.
@@ -120,25 +117,17 @@ test("installed app shell survives representative navigation without duplicate c
   await expect(material).toHaveAttribute("data-held", "true");
   await expect(material).toHaveAttribute("data-dragging", "true");
 
-  for (let step = 1; step <= 14; step += 1) {
-    await active.dispatchEvent("pointermove", {
-      pointerId: 77,
-      pointerType: "touch",
-      button: 0,
-      clientX: startX - step * 4,
-      clientY: startY,
-    });
-    await page.waitForTimeout(16);
-  }
-  await active.dispatchEvent("pointercancel", {
-    pointerId: 77,
-    pointerType: "touch",
-    button: 0,
-    clientX: startX - 56,
-    clientY: startY,
-  });
+  // Stay below the adjacent-tab release threshold. This still exercises the
+  // held lens' continuous drag/stretch path, then measures the real snap-back
+  // settlement without mixing route loading into the frame profile.
+  await page.mouse.move(startX - 44, startY, { steps: 11 });
+  await page.waitForTimeout(48);
+  await page.mouse.up();
+
   await expect(material).toHaveAttribute("data-dragging", "false");
   await expect(material).toHaveAttribute("data-held", "false");
+  await expect(active).toHaveAttribute("aria-current", "page");
+  await expect(page).toHaveURL(/\/my-solaris\/account(?:[/?#]|$)/);
 
   const profile = await finishFrameSampler(page);
   const cadenceSufficient = profile.sampleCount >= 20;
@@ -155,7 +144,7 @@ test("installed app shell survives representative navigation without duplicate c
           candidateSha: process.env.GITHUB_SHA ?? null,
           project: testInfo.project.name,
           measuredAt: new Date().toISOString(),
-          interaction: "active-lens-hold-drag-cancel",
+          interaction: "active-lens-hold-drag-snapback",
           samplingQuality,
           certificationEligible: cadenceSufficient,
           profile,
