@@ -125,6 +125,9 @@ describe("country authentication during read-only maintenance", () => {
   });
 
   it("runs the existing full Mailpit/reset/password cycle inside read_only on clean and upgrade paths", () => {
+    expect(readOnlyRecoveryRehearsal).toContain(
+      "truncate table private.country_auth_rate_limits",
+    );
     expect(readOnlyRecoveryRehearsal).toContain("set_mode read_only");
     expect(readOnlyRecoveryRehearsal).toContain(
       'bash "$script_dir/v3-password-recovery-rehearsal.sh"',
@@ -141,6 +144,8 @@ describe("country authentication during read-only maintenance", () => {
       expect(fullRecoveryRehearsal).toContain(evidence);
     }
 
+    expect(workflow).toContain("oven-sh/setup-bun@v2");
+    expect(workflow).toContain("bun-version: 1.2.19");
     expect(workflow).toContain("v3-password-recovery-read-only-rehearsal.sh");
     expect(workflow).toContain("clean-replay:");
     expect(workflow).toContain("upgrade-from-main:");
