@@ -1,12 +1,9 @@
 import {
-  LEGACY_RULE_ALIASES,
   SSC_RULEBOOK as BASE_RULEBOOK,
   SSC_RULES as BASE_RULES,
   SSC_RULE_CHAPTERS as BASE_RULE_CHAPTERS,
 } from "@/lib/ssc-rules/canon-v4";
 import { ROLEPLAY_CHAPTER } from "@/lib/ssc-rules/roleplay";
-
-export { LEGACY_RULE_ALIASES };
 
 export const SSC_RULE_CHAPTERS = [...BASE_RULE_CHAPTERS, ROLEPLAY_CHAPTER];
 
