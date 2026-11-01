@@ -41,6 +41,7 @@ NF_OTHER_ENTRY_ID='00000000-0000-4000-8000-00000000d782'
 HOD_USER_ID='00000000-0000-4000-8000-00000000a782'
 ORGANIZER_USER_ID='00000000-0000-4000-8000-00000000a783'
 EDIT_OPERATION_ID='00000000-0000-4000-8000-00000000b782'
+READONLY_REVIEW_OPERATION_ID='00000000-0000-4000-8000-00000000b785'
 REVIEW_OPERATION_ID='00000000-0000-4000-8000-00000000b783'
 REVIEW_CORRELATION_ID='00000000-0000-4000-8000-00000000b784'
 SESSION_ID='maintenance-nf-winner-session'
@@ -179,7 +180,31 @@ expect_eq "new exact version is not pre-approved" "$(scalar "select coalesce(rev
 expect_db_failure "manual canonical winner still requires exact review" \
   "update public.national_finals set winning_entry_id='$SAVED_WINNER_ENTRY_ID' where id='$NF_ID';"
 
-log "Organizer accepts the exact staged version and promotion becomes atomic"
+CAS_VERSION="$(scalar "select coalesce(version,1) from public.studio2_confirmation_review_versions where submission_id='$SUBMISSION_ID';")"
+
+log "Read-only mode keeps Organizer review blocked while preserving staged intent"
+if as_user "$ORGANIZER_USER_ID" "
+select public.studio2_apply_confirmation_entry_review(
+  'national_final',
+  '$SAVED_WINNER_ENTRY_ID'::uuid,
+  'accepted',
+  null,
+  '$READONLY_REVIEW_OPERATION_ID'::uuid,
+  'maintenance-nf-winner-readonly-reject',
+  $CAS_VERSION,
+  '$NEW_VERSION'::uuid,
+  '$REVIEW_CORRELATION_ID'::uuid
+);" >/dev/null 2>&1; then
+  fail "Organizer exact review unexpectedly succeeded while platform was read-only"
+fi
+log "PASS: Organizer exact review remains blocked in read-only mode"
+expect_eq "pending winner survives blocked review" "$(scalar "select pending_winning_entry_id::text from public.national_finals where id='$NF_ID';")" "$SAVED_WINNER_ENTRY_ID"
+expect_eq "blocked review leaves exact version unapproved" "$(scalar "select coalesce(reviewed_version_id::text,'') from public.national_final_entries where id='$SAVED_WINNER_ENTRY_ID';")" ""
+
+log "Platform exits read-only; Organizer can now accept the exact staged version"
+exec_sql "update public.studio2_platform_operational_state set mode='normal',version=version+1,reason='Maintenance NF winner rehearsal review phase' where singleton=true;"
+expect_eq "platform review phase is normal" "$(scalar "select mode from public.studio2_platform_operational_state where singleton=true;")" "normal"
+
 CAS_VERSION="$(scalar "select coalesce(version,1) from public.studio2_confirmation_review_versions where submission_id='$SUBMISSION_ID';")"
 REVIEW_RESULT="$(as_user "$ORGANIZER_USER_ID" "
 select public.studio2_apply_confirmation_entry_review(
