@@ -35,8 +35,8 @@ describe("installed app degraded public archive", () => {
     });
     expect(snapshot?.shows[0]?.label).toBe("Ballot Showcase");
     expect(snapshot?.countries[0]?.label).toBe("Emailia");
-    expect(snapshot).not.toBeNull();
-    expectSanitizedPublicIndexShape(snapshot!);
+    if (!snapshot) throw new Error("Expected the sanitized public offline snapshot to be readable");
+    expectSanitizedPublicIndexShape(snapshot);
   });
 
   it("keeps navigation HTML network-only while the offline fallback reads the safe index", () => {
