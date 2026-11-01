@@ -73,14 +73,14 @@ test(
 
       expect(measured, `${viewport.width}x${viewport.height} geometry must render`).not.toBeNull();
       if (!measured) continue;
-      const expectedWidth = Math.min(viewport.width - 48, 342);
+      const expectedWidth = Math.min(viewport.width - 28, 414);
       expect(measured.documentScrollWidth).toBeLessThanOrEqual(measured.documentClientWidth + 2);
       expect(measured.bodyScrollWidth).toBeLessThanOrEqual(measured.documentClientWidth + 2);
       expect(measured.navbar.width).toBeGreaterThan(expectedWidth - 3);
       expect(measured.navbar.width).toBeLessThan(expectedWidth + 3);
       expect(measured.navbar.height).toBeGreaterThanOrEqual(63);
       expect(measured.navbar.height).toBeLessThanOrEqual(65);
-      expect(measured.navbar.left).toBeGreaterThanOrEqual(23);
+      expect(measured.navbar.left).toBeGreaterThanOrEqual(13);
       expect(
         Math.abs(measured.navbar.left - (measured.viewportWidth - measured.navbar.width) / 2),
       ).toBeLessThanOrEqual(2);
@@ -101,7 +101,7 @@ test(
         `${JSON.stringify(
           {
             candidateSha: process.env.GITHUB_SHA ?? null,
-            owner: "src/components/app/AppTabBar.tsx + src/styles/app-shell.css",
+            owner: "src/components/app/AppTabBar.tsx + src/styles/v3-installed-app-navbar.css",
             project: testInfo.project.name,
             measurements: evidence,
           },

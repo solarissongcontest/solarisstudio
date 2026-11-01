@@ -135,10 +135,15 @@ async function measureCompact(page: Page, expandedHeight: number) {
     const spacer = document.createElement("div");
     spacer.dataset.v3GeometryScrollFixture = "";
     spacer.style.height = "1600px";
+    spacer.style.width = "1px";
     spacer.style.pointerEvents = "none";
     document.body.append(spacer);
     window.scrollTo(0, 420);
+    window.dispatchEvent(new Event("scroll"));
   });
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeGreaterThan(140);
   const bar = page.locator(".solaris-app-tabbar");
   await expect(bar).toHaveAttribute("data-collapsed", "true");
   // The React state attribute can flip before WebKit has exposed the resulting

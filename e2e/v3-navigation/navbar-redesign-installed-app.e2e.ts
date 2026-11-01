@@ -94,14 +94,14 @@ async function readGeometry(page: Page): Promise<NavGeometry | null> {
 }
 
 function expectRedesignedGeometry(geometry: NavGeometry, viewportWidth: number) {
-  const expectedMaterialWidth = Math.min(viewportWidth - 48, 342);
+  const expectedMaterialWidth = Math.min(viewportWidth - 28, 414);
 
   expect(geometry.overflow).toBeLessThanOrEqual(2);
   expect(geometry.material.width).toBeGreaterThan(expectedMaterialWidth - 3);
   expect(geometry.material.width).toBeLessThan(expectedMaterialWidth + 3);
   expect(geometry.material.height).toBeGreaterThanOrEqual(63);
   expect(geometry.material.height).toBeLessThanOrEqual(65);
-  expect(geometry.material.left).toBeGreaterThanOrEqual(23);
+  expect(geometry.material.left).toBeGreaterThanOrEqual(13);
   expect(
     Math.abs(geometry.material.left - (geometry.viewportWidth - geometry.material.width) / 2),
   ).toBeLessThanOrEqual(2);

@@ -5,9 +5,18 @@ import { expect, type BrowserContext, type Page } from "@playwright/test";
 const NAVBAR_INSTALLED_APP_CSS_EMULATION = readFileSync("src/styles/app-shell.css", "utf8")
   .replace(/\(display-mode:\s*(?:standalone|window-controls-overlay)\)\s+and\s+/g, "")
   .replace(/\(display-mode:\s*(?:standalone|window-controls-overlay)\)/g, "all");
+const NAVBAR_V3_INSTALLED_GEOMETRY = readFileSync(
+  "src/styles/v3-installed-app-navbar.css",
+  "utf8",
+);
 
 export async function applyNavbarInstalledCssEmulation(page: Page) {
+  // app-shell.css is linked before V3's component CSS in production. Re-inject
+  // the V3 installed-nav owner after the display-mode emulation so the audit
+  // preserves that real cascade instead of letting the emulation resurrect the
+  // old AppTabBar geometry at the end of <head>.
   await page.addStyleTag({ content: NAVBAR_INSTALLED_APP_CSS_EMULATION });
+  await page.addStyleTag({ content: NAVBAR_V3_INSTALLED_GEOMETRY });
 }
 
 export type NavbarE2ESession = {

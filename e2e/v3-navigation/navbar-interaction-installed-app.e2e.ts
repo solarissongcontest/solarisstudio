@@ -26,6 +26,7 @@ test(
     const lens = nav.locator(".solaris-app-tab-indicator");
     const me = nav.getByRole("link", { name: /^Me(?:,|$)/ });
     await expect(nav).toBeVisible();
+    await expect(lens).toBeVisible();
     await expect(page.locator("[data-v3-liquid-tabbar]:visible")).toHaveCount(0);
     await expect(me).toHaveAttribute("aria-current", "page");
 
