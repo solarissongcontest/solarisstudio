@@ -25,10 +25,21 @@ test(
     const material = nav.locator(".solaris-app-tabbar-material");
     const lens = nav.locator(".solaris-app-tab-indicator");
     const me = nav.getByRole("link", { name: /^Me(?:,|$)/ });
+    await expect(page.locator('[data-v3-account-settings-screen="account"]')).toBeVisible();
     await expect(nav).toBeVisible();
     await expect(lens).toBeVisible();
     await expect(page.locator("[data-v3-liquid-tabbar]:visible")).toHaveCount(0);
     await expect(me).toHaveAttribute("aria-current", "page");
+
+    // WebKit can expose the visible pre-hydration element for one frame while
+    // React replaces the route shell. Require stable rendered geometry before
+    // sampling the lens rather than racing that owner handoff.
+    await expect
+      .poll(async () => (await lens.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(0);
+    await expect
+      .poll(async () => (await me.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(0);
 
     const restingLens = await lens.boundingBox();
     const meBox = await me.boundingBox();
