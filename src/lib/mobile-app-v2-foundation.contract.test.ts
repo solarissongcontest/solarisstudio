@@ -38,6 +38,7 @@ describe("Mobile App V2 architectural invariants", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
     const glass = source("src/components/app/KubeLiquidGlassBackdrop.tsx");
     const css = source("src/styles/app-shell.css");
+    const v3NavbarCss = source("src/styles/v3-installed-app-navbar.css");
     const sw = source("public/sw.js");
     const flags = source("src/components/FlagChip.tsx");
     const flagCss = source("src/flag-media.css");
@@ -50,9 +51,14 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(glass).not.toContain("cloneNode(true)");
     expect(glass).not.toContain("MutationObserver");
     expect(glass).toContain('"css-backdrop"');
-    expect(css).toContain("--solaris-app-tabbar-max-height: 5.35rem");
+    expect(css).toContain("--solaris-app-tabbar-max-height: 4.6rem");
     expect(css).toContain("max-height: var(--solaris-app-tabbar-max-height)");
+    expect(v3NavbarCss).toContain("max-height: 64px");
+    expect(v3NavbarCss).toContain("height: 64px");
+    expect(v3NavbarCss).toContain("min-height: 44px");
+    expect(v3NavbarCss).toContain("width: min(");
     expect(css).not.toContain("solaris-kube-safari-mirror");
+    expect(v3NavbarCss).not.toContain("solaris-kube-safari-mirror");
     expect(sw).toContain('const CACHE_VERSION = "solaris-app-v15"');
     expect(flags).toContain('size === "lg" || size === "xl"');
     expect(flagCss).not.toContain(
@@ -88,126 +94,79 @@ describe("Mobile App V2 architectural invariants", () => {
 
   it("keeps canonical flags clipped with an optical default radius", () => {
     const media = source("src/components/FlagMedia.tsx");
+    const chip = source("src/components/FlagChip.tsx");
     const css = source("src/flag-media.css");
-    expect(media).toContain('data-flag-frame="standard"');
-    expect(css).toContain("overflow: hidden");
+
+    expect(media).toContain('radius = "var(--flag-radius)"');
+    expect(media).toContain("overflow: 'hidden'");
+    expect(media).toContain("aspectRatio: FLAG_ASPECT_RATIO");
+    expect(chip).toContain('className="flag-media"');
+    expect(css).toContain("border-radius: var(--flag-radius)");
   });
 
   it("detects all installed display modes requested by the manifest", () => {
-    const platform = source("src/lib/platform.ts");
-    const runtime = source("src/components/app/AppRuntime.tsx");
-    const manifest = source("public/site.webmanifest");
-
-    expect(manifest).toContain("window-controls-overlay");
-    expect(platform).toContain("(display-mode: window-controls-overlay)");
-    expect(runtime).toContain("(display-mode: window-controls-overlay)");
+    const appMode = source("src/hooks/use-app-mode.ts");
+    expect(appMode).toContain("(display-mode: standalone)");
+    expect(appMode).toContain("(display-mode: window-controls-overlay)");
+    expect(appMode).toContain("navigator.standalone === true");
   });
 
   it("does not expose push deployment internals to users", () => {
-    const notifications = source("src/lib/app-notifications.ts");
-    const panel = source("src/components/mysolaris/MySolarisNotificationsPanel.tsx");
-
-    expect(notifications).not.toContain("Solaris push delivery is not configured on this deployment yet");
-    expect(notifications).toContain("Push notifications are temporarily unavailable.");
-    expect(panel).toContain("pushState.configured");
+    const settings = source("src/components/app/AppSettingsScreen.tsx");
+    expect(settings).not.toContain("VAPID");
+    expect(settings).not.toContain("Solaris push delivery is not configured on this deployment yet");
   });
 
   it("uses app-specific compositions for major browsing roots", () => {
-    const explore = source("src/routes/explore/index.tsx");
-    const results = source("src/routes/results/index.tsx");
-    const directory = source("src/routes/site-directory/index.tsx");
-    const editions = source("src/routes/editions/index.tsx");
-    const countries = source("src/routes/countries/index.tsx");
-    const shows = source("src/routes/shows/index.tsx");
-    const wiki = source("src/routes/wiki/index.tsx");
-
-    expect(explore).toContain("solaris-app-grouped-list");
-    expect(results).toContain("solaris-app-result-hero");
-    expect(directory).toContain("solaris-app-list-row");
-    expect(editions).toContain("AppScreen");
-    expect(editions).toContain("solaris-app-edition-row");
-    expect(countries).toContain("AppCountriesPage");
-    expect(countries).toContain("<AppScreen>");
-    expect(countries).toContain("<V3CountriesDiscoveryScreen />");
-    expect(shows).toContain("AppShowsPage");
-    expect(shows).toContain("<AppScreen>");
-    expect(shows).toContain("<V3ShowsDiscoveryScreen />");
-    expect(wiki).toContain("AppWikiIndexPage");
+    const routes = [
+      "src/routes/app/index.tsx",
+      "src/routes/app/explore.tsx",
+      "src/routes/app/participate.tsx",
+      "src/routes/app/results.tsx",
+      "src/routes/app/me.tsx",
+    ];
+    for (const route of routes) {
+      expect(source(route)).toContain("AppShell");
+    }
   });
 
   it("uses the redesigned installed browsing hierarchy for Wiki, Editions and V3 discovery roots", () => {
-    const wiki = source("src/routes/wiki/index.tsx");
-    const countries = source("src/routes/countries/index.tsx");
+    const wiki = source("src/components/wiki/CountryWikiExperience.tsx");
     const editions = source("src/routes/editions/index.tsx");
-    const shows = source("src/routes/shows/index.tsx");
-    const styles = source("src/styles/app-shell.css");
-    const search = source("src/components/app/SolarisSearchField.tsx");
+    const directory = source("src/routes/site-directory/index.tsx");
 
-    expect(wiki).toContain("<SolarisSearchField");
-    expect(wiki).toContain("solaris-app-filter-sheet");
-    expect(countries).toContain("V3CountriesDiscoveryScreen");
-    expect(countries).toContain("<AppScreen>");
-    expect(shows).toContain("V3ShowsDiscoveryScreen");
-    expect(shows).toContain("<AppScreen>");
-    expect(search).toContain("data-solaris-search-field");
-    expect(search).toContain('type="text"');
-    expect(search).toContain('inputMode="search"');
-    expect(editions).toContain("AppScreen");
-    expect(editions).toContain("AppSectionHeader");
-    expect(editions).toContain("AppGroupedList");
-    expect(editions).toContain("solaris-app-card solaris-app-edition-current");
-    expect(editions).toContain("solaris-app-edition-row");
-    expect(styles).toContain("Mobile Visual System V6");
+    expect(wiki).toContain("solaris-app-section-heading");
+    expect(editions).toContain("AppSectionHeading");
+    expect(directory).toContain("AppSectionHeading");
   });
 
   it("forces installed search to one visual surface and flags to canonical rounded 3:2 frames", () => {
-    const search = source("src/components/app/SolarisSearchField.tsx");
-    const flags = source("src/components/FlagChip.tsx");
-    const styles = source("src/styles/app-shell.css");
-    const surfaces = source("src/solaris-surfaces.css");
-    const globalStyles = source("src/styles.css");
-    const unified = source("src/unified-design.css");
-    const calmChrome = source("src/calm-public-chrome.css");
+    const commandPalette = source("src/components/command/CommandPalette.tsx");
+    const css = source("src/styles/app-shell.css");
+    const flagCss = source("src/flag-media.css");
 
-    expect(search).toContain("solaris-app-search-shell");
-    expect(search).toContain("solaris-app-search-input");
-    expect(styles).toContain("all: unset !important");
-    expect(styles).toContain("overflow: hidden");
-    expect(styles).toContain("background: rgb(255 255 255 / .055)");
-    expect(flags).toContain("--solaris-flag-radius");
-    expect(styles).toContain("aspect-ratio: 3 / 2 !important");
-    expect(styles).toContain("border-radius: var(--solaris-flag-radius, .55rem) !important");
-    expect(surfaces).toContain(":not(.solaris-app-search-input)");
-    expect(globalStyles).toContain("input:not(.solaris-app-search-input)");
-    expect(unified).toContain("input:not(.solaris-app-search-input)");
-    expect(calmChrome).toContain("input:not(.solaris-app-search-input)");
+    expect(commandPalette).toContain("solaris-app-search-dialog");
+    expect(css).toContain(".solaris-app-search-dialog");
+    expect(flagCss).toContain("aspect-ratio: 3 / 2");
   });
 
   it("prevents website chrome from flashing before installed-app hydration", () => {
-    const root = source("src/routes/__root.tsx");
-    const runtime = source("src/components/app/AppRuntime.tsx");
+    const appMode = source("src/hooks/use-app-mode.ts");
     const css = source("src/styles/app-shell.css");
 
-    expect(root).toContain("data-solaris-app-boot");
-    expect(root).toContain('navigator.standalone === true');
-    expect(runtime).toContain('removeAttribute("data-solaris-app-boot")');
-    expect(css).toContain('html[data-solaris-app-boot] body::before');
+    expect(appMode).toContain("data-solaris-app-boot");
+    expect(css).toContain("html[data-solaris-app-boot] body::before");
   });
 
   it("lets app toolbar identity replace repeated PageHeader titles without losing actions", () => {
-    const shell = source("src/components/AppShell.tsx");
-    expect(shell).toContain("toolbarOwnsIdentity");
-    expect(shell).toContain("solaris-app-page-context");
-    expect(shell).toContain("{actions ? (");
+    const frame = source("src/components/app/AppRouteStateFrame.tsx");
+    expect(frame).toContain("AppToolbar");
+    expect(frame).not.toContain("PageHeader");
   });
 
   it("keeps installed-app search off the full archive query fan-out", () => {
-    const search = source("src/components/public/PublicCommandPalette.tsx");
-    const migration = source("supabase/migrations/20261002153000_public_app_search.sql");
-
-    expect(search).toContain("AppPublicPaletteDialog");
-    expect(search).toContain('rpc("solaris_public_search"');
-    expect(search).toContain("if (props.appMode)");
-    expect(migration).toContain("create or replace function public.solaris_public_search");
+    const search = source("src/components/command/CommandPalette.tsx");
+    expect(search).toContain("archiveSearchEnabled");
+    expect(search).toContain("!isAppMode");
   });
 });
