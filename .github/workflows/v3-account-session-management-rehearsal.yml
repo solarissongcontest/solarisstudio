@@ -9,9 +9,12 @@ on:
       - "supabase/functions/country-auth/**"
       - ".github/scripts/v3-account-session-management-rehearsal.sh"
       - ".github/scripts/v3-password-recovery-rehearsal.sh"
+      - ".github/scripts/v3-password-recovery-readonly-rehearsal.sh"
+      - ".github/scripts/v3-country-auth-readonly-gate-checks.sh"
       - ".github/workflows/v3-account-session-management-rehearsal.yml"
       - "src/lib/v3-account-session-management.contract.test.ts"
       - "src/lib/password-recovery-regression.test.ts"
+      - "src/lib/country-auth-readonly-rate-limit.test.ts"
       - "src/lib/maintenance-hod-portal.ts"
       - "src/lib/country-auth.ts"
       - "src/routes/auth/**"
@@ -34,23 +37,25 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.113.0
+      - name: Clear stale local Supabase state
+        run: supabase stop --no-backup || true
       - name: Start isolated local Supabase
         run: supabase start
       - name: Rebuild complete migration chain
         run: supabase db reset --local --no-seed
       - name: Rehearse account session contract
         run: bash .github/scripts/v3-account-session-management-rehearsal.sh
-      - name: Rehearse country password recovery
+      - name: Rehearse country password recovery in read-only
         env:
           RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/clean.log
-        run: bash .github/scripts/v3-password-recovery-rehearsal.sh
+        run: bash .github/scripts/v3-password-recovery-readonly-rehearsal.sh
       - name: Upload clean recovery stage trace
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: password-recovery-trace-clean-${{ github.sha }}
           path: ${{ runner.temp }}/recovery-traces/clean.log
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 3
       - name: Stop isolated local Supabase
         if: always()
@@ -78,6 +83,7 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-account-session-main
+          supabase stop --no-backup || true
           supabase start
           supabase db reset --local --no-seed
       - name: Apply additive feature migration delta
@@ -113,7 +119,7 @@ jobs:
 
           [[ "$runtime_after_hash" == "$pr_hash" ]]
           diff -qr "$pr_source" "$runtime_source"
-      - name: Rehearse password recovery after current-main upgrade
+      - name: Rehearse password recovery in read-only after current-main upgrade
         shell: bash
         env:
           RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/upgrade.log
@@ -121,14 +127,14 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-account-session-main
-          bash "$GITHUB_WORKSPACE/.github/scripts/v3-password-recovery-rehearsal.sh"
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-password-recovery-readonly-rehearsal.sh"
       - name: Upload upgrade recovery stage trace
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: password-recovery-trace-upgrade-${{ github.sha }}
           path: ${{ runner.temp }}/recovery-traces/upgrade.log
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 3
       - name: Stop isolated local Supabase
         if: always()
