@@ -22,6 +22,22 @@ describe("PR Browser Audit bounded smoke and route isolation contract", () => {
     expect(playwrightConfig).not.toContain("maxFailures: prSmoke ? 1 : 0");
   });
 
+  it("binds Browser Audit checkout and retained evidence to the exact candidate SHA", () => {
+    const exactShaExpression = "${{ github.event.pull_request.head.sha || github.sha }}";
+
+    expect(browserAuditWorkflow).toContain("- name: Checkout exact source");
+    expect(browserAuditWorkflow).toContain(`ref: ${exactShaExpression}`);
+    expect(browserAuditWorkflow).toContain("- name: Verify exact browser-audit source");
+    expect(browserAuditWorkflow).toContain(`BROWSER_AUDIT_SOURCE_SHA: ${exactShaExpression}`);
+    expect(browserAuditWorkflow).toContain('checkout_sha="$(git rev-parse HEAD');
+    expect(browserAuditWorkflow).toContain('if [ "$checkout_sha" != "$expected" ]');
+    expect(browserAuditWorkflow).toContain('echo "candidate_sha=$expected"');
+    expect(browserAuditWorkflow).toContain("artifacts/browser-audit/provenance.txt");
+    expect(browserAuditWorkflow).toContain(`name: organizer-preflight-${exactShaExpression}`);
+    expect(browserAuditWorkflow).toContain(`name: browser-audit-summary-${exactShaExpression}`);
+    expect(browserAuditWorkflow).toContain(`name: browser-audit-${exactShaExpression}`);
+  });
+
   it("isolates Organizer route crawls so one route cannot cancel the next navigation", () => {
     expect(organizerAudit.match(/const routePage = await context\.newPage\(\);/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     expect(organizerAudit).toContain("await routePage.close();");
