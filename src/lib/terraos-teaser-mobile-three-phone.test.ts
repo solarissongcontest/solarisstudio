@@ -29,10 +29,10 @@ describe("TerraOS responsive hero preview composition", () => {
   it("keeps all three real fixture-safe preview frames in server-rendered hero markup", () => {
     const maintenance = maintenanceSource();
     expect(maintenance).toContain('class="hero-device hero-device-left"');
-    expect(maintenance).toContain('screen:"participate"');
+    expect(maintenance).toContain('previewFrame("participate"');
     expect(maintenance).toContain('class="hero-device hero-device-main"');
-    expect(maintenance).toContain('screen:"home"');
+    expect(maintenance).toContain('previewFrame("home"');
     expect(maintenance).toContain('class="hero-device hero-device-right"');
-    expect(maintenance).toContain('screen:"explore"');
+    expect(maintenance).toContain('previewFrame("explore"');
   });
 });
