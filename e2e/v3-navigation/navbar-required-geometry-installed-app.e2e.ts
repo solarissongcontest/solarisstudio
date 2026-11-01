@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { prepareNavbarInstalledContext } from "./navbar-local-rollout";
+
 const VIEWPORTS = [
   { width: 375, height: 844 },
   { width: 390, height: 844 },
@@ -15,44 +17,8 @@ test(
       "One isolated WebKit installed-app context records the canonical mobile viewport matrix.",
     );
 
-    const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
-    const parsed = new URL(baseURL);
-    if (!["127.0.0.1", "localhost"].includes(parsed.hostname)) {
-      throw new Error(`Refusing navbar geometry evidence against non-local app origin: ${parsed.origin}`);
-    }
-
     const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
-    await context.addCookies([
-      {
-        name: "solaris_e2e_maintenance_bypass",
-        value: "1",
-        url: baseURL,
-        httpOnly: true,
-        secure: false,
-        sameSite: "Lax",
-      },
-    ]);
-    await context.addInitScript(() => {
-      localStorage.setItem("solaris:app-first-run-complete:v1", "1");
-      Object.defineProperty(navigator, "standalone", { configurable: true, value: true });
-      const original = window.matchMedia.bind(window);
-      window.matchMedia = ((query: string) => {
-        if (query === "(display-mode: standalone)") {
-          return {
-            matches: true,
-            media: query,
-            onchange: null,
-            addListener: () => undefined,
-            removeListener: () => undefined,
-            addEventListener: () => undefined,
-            removeEventListener: () => undefined,
-            dispatchEvent: () => false,
-          } as MediaQueryList;
-        }
-        return original(query);
-      }) as typeof window.matchMedia;
-    });
-
+    const { baseURL } = await prepareNavbarInstalledContext(context);
     const page = await context.newPage();
     await page.goto(`${baseURL}/`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-v3-liquid-tabbar]")).toBeVisible();
