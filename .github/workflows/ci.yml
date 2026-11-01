@@ -221,7 +221,7 @@ jobs:
             echo "step=unit-tests"
             echo
           } > unit-test-output.txt
-          bun test 2>&1 | tee -a unit-test-output.txt
+          bun run test 2>&1 | tee -a unit-test-output.txt
           status=${PIPESTATUS[0]}
           exit "$status"
 
