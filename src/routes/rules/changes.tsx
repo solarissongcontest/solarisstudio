@@ -73,6 +73,9 @@ function RulebookChangesPage() {
 
 function ReleaseSection({ release, newest }: { release: RulebookRelease; newest: boolean }) {
   const changes = release.changes ?? [];
+  const date = release.effective_from ?? release.published_at;
+  const bundledOnly = release.is_current === true && !release.id && !date;
+
   return (
     <article
       id={rulebookReleaseAnchor(release.version)}
@@ -84,7 +87,7 @@ function ReleaseSection({ release, newest }: { release: RulebookRelease; newest:
         </span>
         {release.is_current ? (
           <span className="rounded-full border border-emerald-300/15 bg-emerald-300/[0.05] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-emerald-200">
-            Current published
+            {bundledOnly ? "Current bundled" : "Current published"}
           </span>
         ) : newest ? (
           <span className="rounded-full border border-white/[0.08] bg-black/10 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
@@ -93,7 +96,7 @@ function ReleaseSection({ release, newest }: { release: RulebookRelease; newest:
         ) : null}
         <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground">
           <CalendarClock className="size-3.5" aria-hidden="true" />
-          {formatDate(release.effective_from ?? release.published_at)}
+          {bundledOnly ? "Bundled with this app version" : formatDate(date)}
         </span>
       </div>
 
