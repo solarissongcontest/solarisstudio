@@ -1,5 +1,29 @@
 begin;
 
+-- S13 contract: forward-only Confirmation/National Final safety repair. This
+-- introduces staged participant winner intent and no automatic bulk backfill.
+-- Production may intentionally lag the S13 migration-contract framework, so
+-- keep the canonical literal registration call while executing it only when
+-- that framework exists.
+do $contract$
+begin
+  if to_regprocedure(
+       'public.v3_register_migration_contract(text,integer,text,boolean,text,text)'
+     ) is not null then
+    execute $registration$
+      select public.v3_register_migration_contract(
+        'v3.confirmation.pending-nf-winner-review',
+        1,
+        'forward_fix_only',
+        false,
+        null,
+        'Separate participant-declared National Final winner intent from the canonical exact-version-reviewed winner so Confirmation edits can be saved without weakening Organizer review or publication invariants.'
+      )
+    $registration$;
+  end if;
+end
+$contract$;
+
 -- Participant Confirmation writes must be able to declare a National Final
 -- winner before the exact entry revision has been reviewed. Keep that intent
 -- separate from the canonical reviewed winner so unpublished/unreviewed data
