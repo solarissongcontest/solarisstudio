@@ -8,6 +8,11 @@
  */
 
 @media (max-width: 899px) {
+  html[data-solaris-keyboard-open] {
+    --solaris-app-bottom-obstruction: 0px !important;
+    --solaris-bottom-obstruction: 0px !important;
+  }
+
   [data-solaris-v3] .solaris-app-tabbar {
     left: 50%;
     right: auto;
