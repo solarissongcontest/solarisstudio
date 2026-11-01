@@ -68,11 +68,55 @@ jobs:
       - name: Install browser-audit browser binaries
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          diagnostic_log="$GITHUB_WORKSPACE/browser-install-diagnostic.log"
+          : > "$diagnostic_log"
+          exec > >(tee -a "$diagnostic_log") 2>&1
+
+          echo "=== Browser install diagnostic metadata ==="
+          echo "runner_os=${RUNNER_OS:-<unset>}"
+          echo "runner_arch=${RUNNER_ARCH:-<unset>}"
+          node --version
+          bun --version
+          bunx playwright --version
+          echo "PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-<unset>}"
+          echo "PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT=${PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT:-<unset>}"
+          for variable in PLAYWRIGHT_DOWNLOAD_HOST PLAYWRIGHT_CHROMIUM_DOWNLOAD_HOST PLAYWRIGHT_WEBKIT_DOWNLOAD_HOST HTTP_PROXY HTTPS_PROXY ALL_PROXY; do
+            if [ -n "${!variable:-}" ]; then
+              echo "${variable}=<set; value redacted>"
+            else
+              echo "${variable}=<unset>"
+            fi
+          done
+          echo "NO_PROXY=${NO_PROXY:-<unset>}"
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require.resolve('playwright-core/browsers.json');
+          const metadata = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const requested = new Set(['chromium', 'chromium-headless-shell', 'ffmpeg', 'webkit']);
+          console.log(`playwright_browsers_metadata=${path}`);
+          for (const browser of metadata.browsers.filter((entry) => requested.has(entry.name))) {
+            console.log(JSON.stringify({
+              name: browser.name,
+              revision: browser.revision,
+              browserVersion: browser.browserVersion ?? null,
+              installByDefault: browser.installByDefault ?? null,
+            }));
+          }
+          NODE
+
+          final_status=0
+          set -x
           for browser in chromium webkit; do
             installed=0
+            last_status=0
             for attempt in 1 2 3; do
-              if bunx playwright install "$browser"; then
+              echo "browser_install_attempt browser=${browser} attempt=${attempt}"
+              bunx playwright install "$browser"
+              last_status=$?
+              echo "browser_install_exit browser=${browser} attempt=${attempt} status=${last_status}"
+              if [ "$last_status" -eq 0 ]; then
                 installed=1
                 break
               fi
@@ -82,9 +126,22 @@ jobs:
             done
             if [ "$installed" -ne 1 ]; then
               echo "Failed to install ${browser} after three bounded attempts."
-              exit 1
+              final_status="$last_status"
+              break
             fi
           done
+          set +x
+          echo "browser_install_final_exit=${final_status}"
+          exit "$final_status"
+
+      - name: Upload browser-install diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-install-diagnostics
+          path: browser-install-diagnostic.log
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Start isolated local Supabase for browser audit
         shell: bash
