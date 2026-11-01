@@ -13,7 +13,7 @@ type NavGeometry = {
   items: Rect[];
   bottomGap: number;
   obstruction: number;
-  screenPaddingBottom: number | null;
+  appMainPaddingBottom: number | null;
 };
 
 type Rect = {
@@ -44,14 +44,14 @@ const ROUTES = [
 
 async function readGeometry(page: Page): Promise<NavGeometry | null> {
   return page.evaluate(() => {
-    const bar = document.querySelector<HTMLElement>("[data-v3-liquid-tabbar]");
-    const material = bar?.querySelector<HTMLElement>(".v3-liquid-tabbar__material") ?? null;
-    const lens = bar?.querySelector<HTMLElement>(".v3-liquid-tabbar__lens") ?? null;
+    const bar = document.querySelector<HTMLElement>(".solaris-app-tabbar");
+    const material = bar?.querySelector<HTMLElement>(".solaris-app-tabbar-material") ?? null;
+    const lens = bar?.querySelector<HTMLElement>(".solaris-app-tab-indicator") ?? null;
     const items = bar
-      ? Array.from(bar.querySelectorAll<HTMLElement>("[data-v3-tab-index]"))
+      ? Array.from(bar.querySelectorAll<HTMLElement>("[data-app-tab-index]"))
       : [];
     const activeItem =
-      bar?.querySelector<HTMLElement>('[data-v3-tab-index][aria-current="page"]') ?? null;
+      bar?.querySelector<HTMLElement>('[data-app-tab-index][aria-current="page"]') ?? null;
     if (!bar || !material || !lens || items.length !== 5) return null;
 
     const rect = (element: HTMLElement) => {
@@ -66,51 +66,53 @@ async function readGeometry(page: Page): Promise<NavGeometry | null> {
         centerX: bounds.left + bounds.width / 2,
       };
     };
-    const barRect = rect(bar);
+    const materialRect = rect(material);
     const rootStyle = getComputedStyle(document.documentElement);
-    const screen = document.querySelector<HTMLElement>(".v3-screen");
+    const appMain = document.querySelector<HTMLElement>(".app-main[data-solaris-app-mode='true']");
 
     return {
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
       overflow:
         Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
-      bar: barRect,
-      material: rect(material),
+      bar: rect(bar),
+      material: materialRect,
       lens: rect(lens),
       activeItem: activeItem ? rect(activeItem) : null,
       items: items.map(rect),
-      bottomGap: window.innerHeight - barRect.bottom,
+      bottomGap: window.innerHeight - materialRect.bottom,
       obstruction: Number.parseFloat(
-        rootStyle.getPropertyValue("--v3-bottom-obstruction") || "0",
+        rootStyle.getPropertyValue("--solaris-app-bottom-obstruction") ||
+          rootStyle.getPropertyValue("--solaris-bottom-obstruction") ||
+          "0",
       ),
-      screenPaddingBottom: screen
-        ? Number.parseFloat(getComputedStyle(screen).paddingBottom || "0")
+      appMainPaddingBottom: appMain
+        ? Number.parseFloat(getComputedStyle(appMain).paddingBottom || "0")
         : null,
     };
   });
 }
 
-function expectRedesignedGeometry(geometry: NavGeometry, expectedWidth: number) {
-  const expectedMaterialWidth = Math.min(expectedWidth - 28, 414);
+function expectRedesignedGeometry(geometry: NavGeometry, viewportWidth: number) {
+  const expectedMaterialWidth = Math.min(viewportWidth - 48, 342);
 
   expect(geometry.overflow).toBeLessThanOrEqual(2);
   expect(geometry.material.width).toBeGreaterThan(expectedMaterialWidth - 3);
   expect(geometry.material.width).toBeLessThan(expectedMaterialWidth + 3);
   expect(geometry.material.height).toBeGreaterThanOrEqual(63);
   expect(geometry.material.height).toBeLessThanOrEqual(65);
-  expect(geometry.material.left).toBeGreaterThanOrEqual(12);
+  expect(geometry.material.left).toBeGreaterThanOrEqual(23);
   expect(
     Math.abs(geometry.material.left - (geometry.viewportWidth - geometry.material.width) / 2),
   ).toBeLessThanOrEqual(2);
-  expect(geometry.bottomGap).toBeGreaterThanOrEqual(8);
+  expect(geometry.bottomGap).toBeGreaterThanOrEqual(9);
   expect(geometry.bottomGap).toBeLessThanOrEqual(64);
-  expect(geometry.obstruction).toBeGreaterThan(geometry.material.height + geometry.bottomGap);
+  expect(geometry.obstruction).toBeGreaterThan(geometry.material.height + geometry.bottomGap - 2);
 
   expect(geometry.activeItem).not.toBeNull();
   if (geometry.activeItem) {
-    expect(geometry.lens.width).toBeGreaterThan(geometry.activeItem.width * 0.76);
-    expect(geometry.lens.width).toBeLessThan(geometry.activeItem.width * 0.91);
+    expect(geometry.lens.width).toBeGreaterThan(geometry.activeItem.width * 0.74);
+    expect(geometry.lens.width).toBeLessThan(geometry.activeItem.width * 0.86);
     expect(Math.abs(geometry.lens.centerX - geometry.activeItem.centerX)).toBeLessThanOrEqual(3);
   }
   expect(geometry.lens.height).toBeLessThan(geometry.material.height * 0.78);
@@ -121,14 +123,23 @@ function expectRedesignedGeometry(geometry: NavGeometry, expectedWidth: number) 
     expect(item.height).toBeGreaterThanOrEqual(44);
   }
 
-  if (geometry.screenPaddingBottom != null) {
-    expect(geometry.screenPaddingBottom).toBeGreaterThanOrEqual(geometry.obstruction + 10);
+  if (geometry.appMainPaddingBottom != null) {
+    expect(geometry.appMainPaddingBottom).toBeGreaterThanOrEqual(geometry.obstruction + 10);
   }
 }
 
-async function attachNavbar(page: Page, testInfo: TestInfo, name: string) {
-  const nav = page.locator("[data-v3-liquid-tabbar]");
+async function assertAuthoritativeNavbar(page: Page) {
+  const nav = page.locator(".solaris-app-tabbar");
   await expect(nav).toBeVisible();
+  await expect(nav.locator(".solaris-app-tabbar-material")).toBeVisible();
+  await expect(nav.locator("[data-app-tab-index]")).toHaveCount(5);
+  await expect(nav.locator('[data-app-tab-index][aria-current="page"]')).toHaveCount(1);
+  await expect(page.locator("[data-v3-liquid-tabbar]:visible")).toHaveCount(0);
+  return nav;
+}
+
+async function attachNavbar(page: Page, testInfo: TestInfo, name: string) {
+  const nav = await assertAuthoritativeNavbar(page);
   await testInfo.attach(`${name}.png`, {
     body: await nav.screenshot({ animations: "disabled", caret: "hide" }),
     contentType: "image/png",
@@ -145,7 +156,7 @@ async function attachGeometry(testInfo: TestInfo, name: string, geometry: NavGeo
 test.describe.configure({ retries: 0 });
 
 test(
-  "installed app shell survives representative navigation without duplicate chrome: redesigned navbar geometry is stable across widths and routes",
+  "installed app shell survives representative navigation without duplicate chrome: authoritative production navbar geometry is stable across widths and routes",
   async ({ browser }, testInfo) => {
     test.skip(
       testInfo.project.name !== "ios-pwa-portrait",
@@ -160,15 +171,13 @@ test(
     const page = await context.newPage();
 
     await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });
-    await expect(page.locator("[data-v3-liquid-tabbar]")).toBeVisible();
+    await assertAuthoritativeNavbar(page);
 
     for (const viewport of VIEWPORTS) {
       await page.setViewportSize(viewport);
       await page.evaluate(() => window.scrollTo(0, 0));
-      await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveAttribute(
-        "data-collapsed",
-        "false",
-      );
+      const nav = await assertAuthoritativeNavbar(page);
+      await expect(nav).toHaveAttribute("data-collapsed", "false");
       const geometry = await readGeometry(page);
       expect(geometry, `${viewport.width}px navbar geometry should render`).not.toBeNull();
       if (geometry) {
@@ -185,10 +194,7 @@ test(
       const response = await page.goto(`${baseURL}${route.path}`, { waitUntil: "domcontentloaded" });
       expect(response?.status(), `${route.label} should load`).toBeLessThan(400);
       await page.evaluate(() => window.scrollTo(0, 0));
-      const nav = page.locator("[data-v3-liquid-tabbar]");
-      await expect(nav, `${route.label} must use the real V3 navbar`).toBeVisible();
-      await expect(nav.locator("[data-v3-tab-index]")).toHaveCount(5);
-      await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
+      const nav = await assertAuthoritativeNavbar(page);
 
       const geometry = await readGeometry(page);
       expect(geometry, `${route.label} navbar geometry should render`).not.toBeNull();
