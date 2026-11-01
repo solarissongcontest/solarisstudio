@@ -163,7 +163,7 @@ export function RulesHomeV5({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search rules or ask a question…"
-              className={isAppMode ? "min-h-11 min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-muted-foreground/65" : "min-h-11 min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/65"}
+              className={isAppMode ? "min-h-10 min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-muted-foreground/65" : "min-h-10 min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/65"}
               enterKeyHint="search"
             />
             <button
