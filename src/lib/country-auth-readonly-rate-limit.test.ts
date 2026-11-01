@@ -18,6 +18,12 @@ const readonlyWrapper = source(
 const readonlyGateChecks = source(
   ".github/scripts/v3-country-auth-readonly-gate-checks.sh",
 );
+const accountSessionWorkflow = source(
+  ".github/workflows/v3-account-session-management-rehearsal.yml",
+);
+const productionHeadUpgrade = source(
+  ".github/scripts/v3-production-head-upgrade-rehearsal.sh",
+);
 
 describe("country auth protection during restricted platform modes", () => {
   it("allows only the exact country-auth limiter through the operational gate", () => {
@@ -92,6 +98,28 @@ describe("country auth protection during restricted platform modes", () => {
     expect(recoveryRehearsal).toContain("valid recovery link did not return to local /auth/reset");
     expect(recoveryRehearsal).toContain("new-password sign-in returned HTTP");
     expect(recoveryRehearsal).toContain("old password still signed in after reset");
+  });
+
+  it("replays the actual hosted production head for upgrade account and recovery checks", () => {
+    expect(accountSessionWorkflow).toContain("upgrade-from-production-head:");
+    expect(accountSessionWorkflow).toContain(
+      "bash .github/scripts/v3-production-head-upgrade-rehearsal.sh",
+    );
+    expect(accountSessionWorkflow).toContain(
+      'V3_PRODUCTION_MIGRATION_HEAD: "20261014020000"',
+    );
+    expect(accountSessionWorkflow).toContain(
+      'V3_PRODUCTION_HEAD_KEEP_RUNNING: "true"',
+    );
+    expect(accountSessionWorkflow).not.toContain("v3-copy-migration-delta.sh");
+    expect(accountSessionWorkflow).not.toContain("/tmp/solaris-account-session-main");
+    expect(productionHeadUpgrade).toContain(
+      'KEEP_RUNNING="${V3_PRODUCTION_HEAD_KEEP_RUNNING:-false}"',
+    );
+    expect(productionHeadUpgrade).toContain(
+      'if [[ "$status" -eq 0 && "$KEEP_RUNNING" == true ]]; then',
+    );
+    expect(productionHeadUpgrade).toContain("supabase stop --no-backup");
   });
 
   it("proves sign-in protection, recovery failure semantics and global fail-closed behavior", () => {
