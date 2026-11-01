@@ -339,6 +339,11 @@ test("installed app shell survives representative navigation without duplicate c
 
   await page.evaluate(() => {
     document.documentElement.removeAttribute("data-solaris-keyboard-open");
+    // A real software-keyboard dismissal changes the VisualViewport/window
+    // geometry. AppTabBar intentionally recomputes its JS-owned obstruction on
+    // that resize signal; dispatch it here instead of testing an impossible
+    // attribute-only lifecycle that leaves the last measured value stale.
+    window.dispatchEvent(new Event("resize"));
   });
   await expect
     .poll(async () => (await readGeometry(page))?.obstruction ?? 0)
