@@ -5,7 +5,15 @@ import {
   clearOfflinePublicIndex,
   readOfflinePublicIndex,
   writeOfflinePublicIndex,
+  type OfflinePublicIndex,
 } from "./app-offline-snapshot";
+
+function expectSanitizedPublicIndexShape(snapshot: OfflinePublicIndex) {
+  expect(Object.keys(snapshot).sort()).toEqual(["countries", "editions", "savedAt", "shows"]);
+  for (const item of [...snapshot.editions, ...snapshot.shows, ...snapshot.countries]) {
+    expect(Object.keys(item).sort()).toEqual(["id", "label", "path"]);
+  }
+}
 
 describe("installed app degraded public archive", () => {
   it("stores only a small sanitized public index rather than stale HTML or private state", () => {
@@ -15,18 +23,20 @@ describe("installed app degraded public archive", () => {
       getItem: () => value,
     };
     writeOfflinePublicIndex({
-      editions: [{ id: "e1", name: "Edition", slug: "edition", edition_number: 22 }],
-      shows: [{ id: "s1", name: "Grand Final" }],
-      countries: [{ id: "c1", name: "Oland", short_code: "OL" }],
+      editions: [{ id: "e1", name: "Email Ballot Showcase", slug: "edition", edition_number: 22 }],
+      shows: [{ id: "s1", name: "Ballot Showcase" }],
+      countries: [{ id: "c1", name: "Emailia", short_code: "EM" }],
     }, storage);
     const snapshot = readOfflinePublicIndex(storage);
     expect(snapshot?.editions[0]).toEqual({
       id: "e1",
-      label: "SSC 22 · Edition",
+      label: "SSC 22 · Email Ballot Showcase",
       path: "/editions/edition",
     });
-    expect(JSON.stringify(snapshot)).not.toContain("email");
-    expect(JSON.stringify(snapshot)).not.toContain("ballot");
+    expect(snapshot?.shows[0]?.label).toBe("Ballot Showcase");
+    expect(snapshot?.countries[0]?.label).toBe("Emailia");
+    expect(snapshot).not.toBeNull();
+    expectSanitizedPublicIndexShape(snapshot!);
   });
 
   it("keeps navigation HTML network-only while the offline fallback reads the safe index", () => {
