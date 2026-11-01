@@ -4,11 +4,9 @@ on:
   push:
     branches:
       - main
-      - merge/confirmations
   pull_request:
     branches:
       - main
-      - audit/pr450-base-snapshot
   workflow_dispatch:
 
 permissions:
@@ -229,7 +227,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-report
+          name: unit-test-report-${{ github.event.pull_request.head.sha || github.sha }}
           path: unit-test-output.txt
           if-no-files-found: ignore
           retention-days: 1
@@ -269,7 +267,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lint-report
+          name: lint-report-${{ github.event.pull_request.head.sha || github.sha }}
           path: lint-output.txt
           if-no-files-found: ignore
           retention-days: 1
@@ -314,7 +312,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: quality-diagnostics
+          name: quality-diagnostics-${{ github.event.pull_request.head.sha || github.sha }}
           path: quality-diagnostics.txt
           if-no-files-found: error
           retention-days: 7
