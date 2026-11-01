@@ -37,6 +37,13 @@ restore_normal() {
 }
 trap restore_normal EXIT
 
+# This is a disposable local database. Earlier focused rehearsals intentionally
+# exhaust recovery limiter buckets, so clear only local ephemeral protection
+# state before the full Mailpit/reset cycle. Never carry this operation into
+# production verification or application code.
+log "Resetting disposable local authentication limiter state"
+psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c 'truncate table private.country_auth_rate_limits;'
+
 log "Entering read_only before the full local recovery cycle"
 set_mode read_only 'Local password-recovery read-only rehearsal'
 mode="$(psql "$DB_URL" -Atqc "select mode from public.studio2_platform_operational_state where singleton = true")"
