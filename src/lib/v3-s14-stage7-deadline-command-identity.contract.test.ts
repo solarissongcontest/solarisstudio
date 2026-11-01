@@ -42,4 +42,10 @@ describe("S14 Stage 7 deadline operation identity", () => {
     expect(adapter).toContain("replay initial Televote deadline");
     expect(adapter).toContain("replay genuine +2 minute Televote extension");
   });
+
+  it("assigns the Grand Final Televote its own governed deadline-set identity", () => {
+    expect(adapter).toContain("S14_FINAL_TELEVOTE_ROUND_ID");
+    expect(adapter).toContain("14000000-0000-4010-8600-000000000001");
+    expect(adapter).toContain("s14-final-televote-deadline-set");
+  });
 });
