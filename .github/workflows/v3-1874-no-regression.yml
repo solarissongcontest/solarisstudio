@@ -34,23 +34,21 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Resolve and verify reconciled main parent
+      - name: Resolve and verify current main ancestry
         shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          parent_count="$(git rev-list --parents -n 1 HEAD | awk '{print NF-1}')"
-          if [ "$parent_count" -lt 2 ]; then
-            echo "::error::Final #1874 candidate must be a two-parent reconciliation commit before certification."
-            exit 1
-          fi
-          base_sha="$(git rev-parse HEAD^2)"
-          git fetch --no-tags --depth=1 origin main
-          current_main="$(git rev-parse FETCH_HEAD)"
-          if [ "$base_sha" != "$current_main" ]; then
-            echo "::error::#1874 second parent $base_sha is not current main $current_main"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          git fetch --no-tags origin main
+          base_sha="$(git rev-parse FETCH_HEAD)"
+          if ! git merge-base --is-ancestor "$base_sha" HEAD; then
+            echo "::error::#1874 exact candidate $EXPECTED_SHA does not contain current main $base_sha. Reconcile main before certification."
             exit 1
           fi
           echo "BASE_SHA=$base_sha" >> "$GITHUB_ENV"
+          printf '%s\n' "$base_sha" > baseline-sha.txt
           git checkout --detach "$base_sha"
           test "$(git rev-parse HEAD)" = "$base_sha"
 
@@ -116,6 +114,7 @@ jobs:
         with:
           name: v3-1874-baseline-${{ github.event.pull_request.head.sha }}
           path: |
+            baseline-sha.txt
             unit-test-output.txt
             unit-test-status.txt
             lint-output.txt
@@ -263,7 +262,7 @@ jobs:
           const introduced = candidate.filter((entry) => !baseKeys.has(key(entry)));
           const resolved = baseline.filter((entry) => !candidateKeys.has(key(entry)));
           const report = {
-            baseSha: require('child_process').execFileSync('git', ['rev-parse', 'HEAD^2'], { encoding: 'utf8' }).trim(),
+            baseSha: fs.readFileSync('baseline/baseline-sha.txt', 'utf8').trim(),
             candidateSha: require('child_process').execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
             mainErrors: baseline.length,
             candidateErrors: candidate.length,
