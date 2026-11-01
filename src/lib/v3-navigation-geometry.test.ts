@@ -7,9 +7,9 @@ import {
 } from "@/lib/v3-navigation-geometry";
 
 describe("V3 navigation implementation geometry", () => {
-  it("keeps implementation measurements separate from the missing approved Instagram baseline", () => {
+  it("records the owner-approved V3 visual cutover without inventing external reference values", () => {
     expect(V3_NAVIGATION_REFERENCE_STATUS).toEqual({
-      status: "awaiting-approved-instagram-baseline",
+      status: "owner-approved-v3-visual-cutover",
       referenceValues: null,
     });
   });
@@ -29,7 +29,7 @@ describe("V3 navigation implementation geometry", () => {
     );
   });
 
-  it("retains a 44px minimum compact target while reference calibration remains blocked", () => {
+  it("retains a 44px minimum compact target without fabricating external calibration values", () => {
     expect(V3_NAVIGATION_GEOMETRY.minimumTarget).toBeGreaterThanOrEqual(44);
     expect(V3_NAVIGATION_GEOMETRY.itemMinHeightCompact).toBeGreaterThanOrEqual(44);
     expect(V3_NAVIGATION_REFERENCE_STATUS.referenceValues).toBeNull();

@@ -1,37 +1,38 @@
 export const V3_NAVIGATION_GEOMETRY = {
-  shellMaxWidth: 544,
-  shellHeightExpanded: 70,
-  shellHeightCompact: 57,
-  compactHeight: 57,
-  horizontalInset: 11,
-  narrowHorizontalInset: 7,
-  bottomInset: 7,
-  shellRadius: 32,
-  compactRadius: 28,
+  shellMaxWidth: 428,
+  shellHeightExpanded: 58,
+  shellHeightCompact: 50,
+  compactHeight: 50,
+  horizontalInset: 18,
+  narrowHorizontalInset: 10,
+  bottomInset: 10,
+  shellRadius: 29,
+  compactRadius: 25,
   materialPadding: 6,
+  compactVerticalPadding: 3,
   slotGap: 2,
-  itemMinHeightExpanded: 57,
+  itemMinHeightExpanded: 46,
   itemMinHeightCompact: 44,
-  iconWrapSize: 25,
+  iconWrapSize: 24,
   iconWrapSizeCompact: 22,
-  iconOpticalSize: 19,
-  iconOpticalSizeCompact: 17,
-  lensRadius: 25,
+  iconOpticalSize: 20,
+  iconOpticalSizeCompact: 18,
+  lensRadius: 20,
   lensOvershootMax: 14,
-  compactWidth: 324,
-  shadowSpreadBudget: 58,
-  obstructionMax: 136,
+  compactWidth: 286,
+  shadowSpreadBudget: 40,
+  obstructionMax: 124,
   minimumTarget: 44,
 } as const;
 
 /**
- * The values above describe the current Solaris implementation geometry only.
- * They are intentionally not labelled as Instagram parity measurements until
- * the approved N0 reference package exists. Dynamic tokens such as shellWidth,
- * slotWidth, iconCenterX and lens dimensions are emitted by Browser Audit.
+ * These values describe the owner-approved V3 visual-cutover geometry. They are
+ * implementation measurements, not a claim that Solaris reproduces private
+ * Instagram internals. Observable reference calibration can still refine them
+ * later without returning to the old oversized dock composition.
  */
 export const V3_NAVIGATION_REFERENCE_STATUS = {
-  status: "awaiting-approved-instagram-baseline",
+  status: "owner-approved-v3-visual-cutover",
   referenceValues: null,
 } as const;
 

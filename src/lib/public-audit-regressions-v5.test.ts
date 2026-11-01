@@ -20,7 +20,7 @@ describe("public audit regressions after Organisation OS V5 hardening", () => {
     const search = source("src/routes/rules/search.tsx");
     expect(home).toContain('"min-h-10 min-w-0 flex-1');
     expect(home).toContain(
-      'className="inline-flex min-h-8 items-center font-semibold text-primary"',
+      'className="inline-flex min-h-8 shrink-0 items-center font-semibold text-primary"',
     );
     expect(search).toContain('aria-label="Search rules"');
     expect(search).toContain(

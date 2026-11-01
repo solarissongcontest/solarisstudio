@@ -32,7 +32,7 @@ describe("V3 Notifications product-copy contract", () => {
     expect(notifications).toContain(".slice(0, 8)");
     expect(notifications).toContain('data-v3-notification-list=""');
     expect(notifications).toContain('data-v3-notification-row=""');
-    expect(notifications).toContain("divide-y divide-[var(--v3-border-subtle)]");
+    expect(notifications).toContain("divide-y divide-white/[0.065] border-y border-white/[0.07]");
     expect(notifications).not.toContain("latest.map");
   });
 

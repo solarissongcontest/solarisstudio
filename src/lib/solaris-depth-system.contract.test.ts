@@ -5,16 +5,17 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("Solaris Depth System governance visual contract", () => {
-  it("removes the legacy rulebook hero and uses semantic depth surfaces", () => {
+  it("keeps Rules in the depth family while allowing the V3 landing page to go flat", () => {
     const route = source("src/routes/rules/index.tsx");
     const home = source("src/components/rules/RulesHomeV5.tsx");
     const depth = source("src/components/SolarisDepth.tsx");
 
     expect(route).not.toContain("RulebookVersionBanner");
     expect(route).toContain("<RulesHomeV5");
-    expect(home).toContain("SolarisDepthSurface");
-    expect(home).toContain('variant="reading"');
-    expect(home).toContain('variant="action"');
+    expect(home).toContain("SolarisDepthPage");
+    expect(home).toContain("SolarisDepthSafeZone");
+    expect(home).not.toContain("SolarisDepthSurface");
+    expect(home).toContain('data-v3-rules-redesign=""');
     expect(depth).toContain("SolarisDepthSafeZone");
   });
 

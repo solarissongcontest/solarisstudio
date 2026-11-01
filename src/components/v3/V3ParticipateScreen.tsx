@@ -8,10 +8,8 @@ import {
   V3JourneyStep,
   V3Progress,
   V3Screen,
-  V3ScreenHeader,
   V3Section,
   V3StatusChip,
-  V3Surface,
   type V3StatusTone,
 } from "./V3Foundation";
 
@@ -56,13 +54,7 @@ function timingMeta(action: V3ActionProjection, delegationLabel?: string | null)
   const values = [timing, delegationLabel ?? null].filter(Boolean) as string[];
 
   if (!values.length) return undefined;
-  return (
-    <>
-      {values.map((value) => (
-        <span key={value}>{value}</span>
-      ))}
-    </>
-  );
+  return <>{values.map((value) => <span key={value}>{value}</span>)}</>;
 }
 
 function ActionList({
@@ -75,11 +67,11 @@ function ActionList({
   delegationLabel?: string | null;
 }) {
   return (
-    <div className="v3-preview-grid">
+    <div className="space-y-3" data-v3-participate-task-list="">
       {actions.map((action) => {
         const progress = progressByActionId[action.id];
         return (
-          <V3Surface key={action.id} level={action.actionRequired ? "raised" : "base"} className="p-3">
+          <div key={action.id} className="border-b border-white/[0.07] pb-3 last:border-b-0 last:pb-0">
             <V3ActionCard
               title={action.title}
               description={action.description}
@@ -88,14 +80,11 @@ function ActionList({
               meta={timingMeta(action, delegationLabel)}
             />
             {progress && progress.total > 0 ? (
-              <div className="px-1 pb-1 pt-3">
-                <V3Progress
-                  value={(progress.current / progress.total) * 100}
-                  label={progress.label ?? action.title}
-                />
+              <div className="px-1 pt-3">
+                <V3Progress value={(progress.current / progress.total) * 100} label={progress.label ?? action.title} />
               </div>
             ) : null}
-          </V3Surface>
+          </div>
         );
       })}
     </div>
@@ -110,7 +99,7 @@ function votingStateLabel(action: V3ActionProjection) {
   return "Current";
 }
 
-function VotingOverviewCard({
+function VotingOverview({
   label,
   action,
   optional,
@@ -121,60 +110,38 @@ function VotingOverviewCard({
   optional: boolean;
   delegationLabel?: string | null;
 }) {
-  if (!action) {
-    return (
-      <V3Surface className="p-4">
-        <div data-v3-voting-overview-state="absent">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold">{label}</p>
-              <p className="mt-1 text-xs leading-5 text-white/48">
-                Solaris has no canonical {optional ? "public voting" : "jury responsibility"} action for this account and edition right now.
-              </p>
-            </div>
-            <V3StatusChip>{optional ? "Optional" : "Official"}</V3StatusChip>
-          </div>
-        </div>
-      </V3Surface>
-    );
-  }
-
   return (
-    <V3Surface
-      level={action.actionRequired ? "raised" : "base"}
-      className="p-3"
-    >
-      <div data-v3-voting-overview-state={action.sourceState}>
-        <div className="mb-2 flex items-center justify-between gap-3 px-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/48">{label}</p>
-          <V3StatusChip tone={statusToneForAction(action)}>{votingStateLabel(action)}</V3StatusChip>
-        </div>
-        <V3ActionCard
-          title={action.title}
-          description={action.description}
-          tone={toneForAction(action)}
-          to={action.route}
-          meta={timingMeta(action, delegationLabel)}
-        />
-        <p className="px-1 pb-1 pt-2 text-[11px] leading-5 text-white/38">
-          {optional
-            ? "Public voting stays optional even when it is time-sensitive."
-            : "Jury status comes from the official delegation voting projection and outranks optional fan participation when action is required."}
-        </p>
+    <section className="border-y border-white/[0.07] py-3" data-v3-voting-overview-state={action?.sourceState ?? "absent"}>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/45">{label}</p>
+        <V3StatusChip tone={action ? statusToneForAction(action) : "neutral"}>
+          {action ? votingStateLabel(action) : optional ? "Optional" : "Official"}
+        </V3StatusChip>
       </div>
-    </V3Surface>
+      {action ? (
+        <>
+          <V3ActionCard
+            title={action.title}
+            description={action.description}
+            tone={toneForAction(action)}
+            to={action.route}
+            meta={timingMeta(action, delegationLabel)}
+          />
+          <p className="mt-2 px-1 text-[11px] leading-5 text-white/38">
+            {optional
+              ? "Public voting stays optional even when it is time-sensitive."
+              : "Jury status comes from the official delegation voting projection and outranks optional fan participation when action is required."}
+          </p>
+        </>
+      ) : (
+        <p className="text-xs leading-5 text-white/46">
+          Solaris has no canonical {optional ? "public voting" : "jury responsibility"} action for this account and edition right now.
+        </p>
+      )}
+    </section>
   );
 }
 
-/**
- * V3 Participate composition.
- *
- * The screen consumes the same bootstrap as Home. The shared Participate
- * projection groups canonical Actions into required, upcoming, waiting,
- * optional and completed buckets while Journey remains the evidence-backed
- * responsibility timeline. No network call or second workflow state is
- * introduced here.
- */
 export function V3ParticipateScreen({
   bootstrap,
   progressByActionId = {},
@@ -184,19 +151,19 @@ export function V3ParticipateScreen({
 
   return (
     <V3Screen>
-      <V3ScreenHeader
-        kicker={bootstrap.context.editionLabel ?? "Participate"}
-        title="Your participation"
-        description="Official responsibilities first, optional participation second. Solaris keeps the whole journey visible without making every activity look mandatory."
-      />
+      <header className="mb-5" data-v3-participate-header="">
+        <p className="v3-kicker">{bootstrap.context.editionLabel ?? "Participate"}</p>
+        <h1 className="mt-2 max-w-[18ch] text-[clamp(1.9rem,8vw,2.7rem)] font-semibold leading-[0.98] tracking-[-0.05em]">
+          Your participation
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-white/50">
+          Official responsibilities first. Optional participation stays visibly optional.
+        </p>
+      </header>
 
       <V3Section
         title="Your responsibilities"
-        meta={
-          participate.journeyTotalCount
-            ? `${participate.journeyCompleteCount} of ${participate.journeyTotalCount} complete`
-            : "No current responsibilities"
-        }
+        meta={participate.journeyTotalCount ? `${participate.journeyCompleteCount} of ${participate.journeyTotalCount} complete` : "No current responsibilities"}
       >
         {participate.journeyTotalCount ? (
           <V3Journey>
@@ -208,128 +175,66 @@ export function V3ParticipateScreen({
                   title={step.title}
                   detail={step.detail}
                   state={step.state}
-                  trailing={
-                    progress
-                      ? `${progress.current} / ${progress.total}`
-                      : step.state === "complete"
-                        ? "Done"
-                        : step.actionRequired
-                          ? "Action"
-                          : undefined
-                  }
+                  trailing={progress ? `${progress.current} / ${progress.total}` : step.state === "complete" ? "Done" : step.actionRequired ? "Action" : undefined}
                 />
               );
             })}
           </V3Journey>
         ) : (
-          <V3Surface className="p-4">
-            <p className="text-sm font-semibold">No official responsibilities right now</p>
-            <p className="mt-1 text-xs leading-5 text-white/48">
-              Solaris will add a journey step only when the underlying workflow provides real evidence for it.
-            </p>
-          </V3Surface>
+          <p className="border-y border-white/[0.07] py-4 text-sm leading-6 text-white/48">
+            No official responsibilities right now. Solaris adds a journey step only when the underlying workflow provides real evidence for it.
+          </p>
         )}
       </V3Section>
 
-      <V3Section
-        title="Voting"
-        meta={participate.voting.currentCount ? `${participate.voting.currentCount} current` : "No current voting actions"}
-      >
-        <div className="grid gap-3 sm:grid-cols-2" data-v3-voting-overview="canonical-actions">
-          <VotingOverviewCard
-            label="Jury"
-            action={participate.voting.jury}
-            optional={false}
-            delegationLabel={delegationLabel}
-          />
-          <VotingOverviewCard
-            label="Public televote"
-            action={participate.voting.televote}
-            optional
-            delegationLabel={delegationLabel}
-          />
+      <V3Section title="Voting" meta={participate.voting.currentCount ? `${participate.voting.currentCount} current` : "No current voting actions"}>
+        <div className="grid gap-4 sm:grid-cols-2" data-v3-voting-overview="canonical-actions">
+          <VotingOverview label="Jury" action={participate.voting.jury} optional={false} delegationLabel={delegationLabel} />
+          <VotingOverview label="Public televote" action={participate.voting.televote} optional delegationLabel={delegationLabel} />
         </div>
       </V3Section>
 
       <V3Section
         title="Needs attention"
-        meta={
-          participate.needsAttention.length ? (
-            <V3StatusChip tone="required">
-              {participate.needsAttention.length} required
-            </V3StatusChip>
-          ) : (
-            <V3StatusChip tone="success">Clear</V3StatusChip>
-          )
-        }
+        meta={participate.needsAttention.length ? <V3StatusChip tone="required">{participate.needsAttention.length} required</V3StatusChip> : <V3StatusChip tone="success">Clear</V3StatusChip>}
       >
         {participate.needsAttention.length ? (
-          <ActionList
-            actions={participate.needsAttention}
-            progressByActionId={progressByActionId}
-            delegationLabel={delegationLabel}
-          />
+          <ActionList actions={participate.needsAttention} progressByActionId={progressByActionId} delegationLabel={delegationLabel} />
         ) : (
-          <V3Surface className="p-4">
-            <p className="text-sm font-semibold">Nothing requires action</p>
-            <p className="mt-1 text-xs leading-5 text-white/48">
-              Solaris will surface the next official responsibility when it becomes actionable.
-            </p>
-          </V3Surface>
+          <p className="border-y border-white/[0.07] py-4 text-sm text-white/48">Nothing requires action.</p>
         )}
       </V3Section>
 
       {participate.next.length ? (
         <V3Section title="Next" meta={<V3StatusChip tone="progress">Upcoming</V3StatusChip>}>
-          <ActionList
-            actions={participate.next}
-            progressByActionId={progressByActionId}
-            delegationLabel={delegationLabel}
-          />
+          <ActionList actions={participate.next} progressByActionId={progressByActionId} delegationLabel={delegationLabel} />
         </V3Section>
       ) : null}
 
       {participate.waiting.length ? (
         <V3Section title="Waiting" meta={<V3StatusChip tone="progress">No action yet</V3StatusChip>}>
-          <ActionList
-            actions={participate.waiting}
-            progressByActionId={progressByActionId}
-            delegationLabel={delegationLabel}
-          />
+          <ActionList actions={participate.waiting} progressByActionId={progressByActionId} delegationLabel={delegationLabel} />
         </V3Section>
       ) : null}
 
       {participate.optionalNow.length ? (
         <V3Section title="Optional now" meta={<V3StatusChip>Optional</V3StatusChip>}>
-          <ActionList
-            actions={participate.optionalNow}
-            progressByActionId={progressByActionId}
-            delegationLabel={delegationLabel}
-          />
+          <ActionList actions={participate.optionalNow} progressByActionId={progressByActionId} delegationLabel={delegationLabel} />
         </V3Section>
       ) : null}
 
       {participate.completed.length ? (
         <V3Section title="Completed" meta={`${participate.completed.length} recorded`}>
-          <V3Surface className="p-2">
-            <details>
-              <summary className="min-h-11 cursor-pointer list-none rounded-xl px-3 py-3 text-sm font-semibold text-white/72 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45">
-                View completed activity
-              </summary>
-              <div className="v3-preview-grid px-1 pb-1 pt-1">
-                {participate.completed.slice(0, 8).map((action) => (
-                  <V3ActionCard
-                    key={action.id}
-                    title={action.title}
-                    description={action.description}
-                    tone="complete"
-                    to={action.route}
-                    trailing={false}
-                  />
-                ))}
-              </div>
-            </details>
-          </V3Surface>
+          <details className="border-y border-white/[0.07]">
+            <summary className="min-h-11 cursor-pointer list-none py-3 text-sm font-semibold text-white/72 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45">
+              View completed activity
+            </summary>
+            <div className="space-y-2 pb-3">
+              {participate.completed.slice(0, 8).map((action) => (
+                <V3ActionCard key={action.id} title={action.title} description={action.description} tone="complete" to={action.route} trailing={false} />
+              ))}
+            </div>
+          </details>
         </V3Section>
       ) : null}
     </V3Screen>
