@@ -1,4 +1,4 @@
-import { SSC_RULEBOOK, SSC_RULES, SSC_RULE_CHAPTERS } from "@/lib/ssc-rules/canon-v4";
+import { SSC_RULEBOOK, SSC_RULES, SSC_RULE_CHAPTERS } from "@/lib/ssc-rules/current";
 import { getRuleById } from "@/lib/ssc-rules/search";
 import type { RuleTone, SscRule } from "@/lib/ssc-rules/types";
 
@@ -125,7 +125,7 @@ function applySnapshotToRule(rule: SscRule, snapshot: RuleSnapshot) {
   }
 }
 
-/** Apply an immutable published release over the bundled v4 canon. */
+/** Apply an immutable published release over the bundled current canon. */
 export function applyPublishedRulebookRelease(release: RulebookRelease | null | undefined) {
   if (!release?.version) {
     if (appliedReleaseVersion !== null) {
