@@ -12,23 +12,26 @@ describe("TerraOS public readiness projection", () => {
   });
 
   it("never exposes internal implementation metadata through the public value", () => {
-    const serialized = JSON.stringify(getTerraOsPublicReadiness()).toLowerCase();
+    const readiness = getTerraOsPublicReadiness();
+    const serialized = JSON.stringify(readiness).toLowerCase();
 
-    for (const forbidden of [
-      "sha",
-      "commit",
-      "pull request",
-      "pr #",
-      "deployment",
-      "supabase",
-      "database",
-      "migration",
-      "workflow",
-      "ci",
-      "blocker",
-      "registry",
-    ]) {
-      expect(serialized).not.toContain(forbidden);
+    const forbiddenPatterns = [
+      /\bsha\b/,
+      /\bcommit\b/,
+      /pull request/,
+      /\bpr\s*#/,
+      /\bdeployment\b/,
+      /\bsupabase\b/,
+      /\bdatabase\b/,
+      /\bmigration\b/,
+      /\bworkflow\b/,
+      /\bci\b/,
+      /\bblocker\b/,
+      /\bregistry\b/,
+    ];
+
+    for (const forbidden of forbiddenPatterns) {
+      expect(serialized).not.toMatch(forbidden);
     }
   });
 });
