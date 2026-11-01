@@ -30,12 +30,12 @@ function textFor(ruleId: string) {
     .toLowerCase();
 }
 
-describe("SSC v4 canon audit", () => {
-  it("keeps exactly 21 numbered chapters with unique current rule ids", () => {
-    expect(SSC_RULEBOOK.version).toBe("4.0");
-    expect(RULEBOOK_STATS.chapters).toBe(21);
+describe("SSC current canon audit", () => {
+  it("keeps exactly 22 numbered chapters with unique current rule ids", () => {
+    expect(SSC_RULEBOOK.version).toBe("4.1");
+    expect(RULEBOOK_STATS.chapters).toBe(22);
     expect(SSC_RULE_CHAPTERS.map((chapter) => chapter.number)).toEqual(
-      Array.from({ length: 21 }, (_, index) => index + 1),
+      Array.from({ length: 22 }, (_, index) => index + 1),
     );
 
     const ids = SSC_RULES.map((rule) => rule.id);
@@ -109,6 +109,28 @@ describe("SSC v4 canon audit", () => {
     expect(QUICK_RULE_IDS.length).toBeGreaterThan(0);
     expect(QUICK_RULE_IDS.filter((ruleId) => !getRuleById(ruleId))).toEqual([]);
     expect(new Set(QUICK_RULE_IDS).size).toBe(QUICK_RULE_IDS.length);
+  });
+
+  it("preserves the Roleplay & Worldbuilding protection and Dormant contracts", () => {
+    const chapter = SSC_RULE_CHAPTERS.find((candidate) => candidate.number === 22);
+    expect(chapter?.slug).toBe("roleplay-worldbuilding");
+    expect(chapter?.rules.map((rule) => rule.id)).toEqual(
+      Array.from({ length: 11 }, (_, index) => `22.${index + 1}`),
+    );
+
+    const protectedCountry = textFor("22.4");
+    const dormantCountry = textFor("22.5");
+    const elimination = textFor("22.6");
+    const history = textFor("22.10");
+
+    expect(protectedCountry).toContain("withdrawal");
+    expect(protectedCountry).toContain("had an active hod");
+    expect(dormantCountry).toContain("six consecutive");
+    expect(dormantCountry).toContain("completed editions");
+    expect(dormantCountry).toContain("no active head of delegation at any point");
+    expect(elimination).toMatch(/annex|partition|eliminat/);
+    expect(history).toContain("historical");
+    expect(history).toContain("past");
   });
 
   it("preserves objective artist-popularity thresholds at the official check time", () => {
@@ -191,7 +213,7 @@ describe("SSC v4 canon audit", () => {
     expect(hosting).toMatch(/not.*physical|physical-event|physical event/);
   });
 
-  it("keeps legacy ids migration-only when they collide with current v4 ids", () => {
+  it("keeps legacy ids migration-only when they collide with current ids", () => {
     for (const [legacyId, currentId] of Object.entries(LEGACY_RULE_ALIASES)) {
       expect(getRuleById(currentId)?.id).toBe(currentId);
       if (SSC_RULES.some((rule) => rule.id === legacyId)) {
