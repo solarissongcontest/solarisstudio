@@ -214,7 +214,7 @@ test("installed app shell survives representative navigation without duplicate c
   await applyNavbarInstalledCssEmulation(page);
   await expect(page.locator('[data-v3-account-settings-screen="account"]')).toBeVisible();
   await expect(page.locator(".solaris-app-tabbar")).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toHaveCount(1);
+  await expect(page.getByRole("navigation", { name: "Solaris Studio" })).toHaveCount(1);
   await expect(page.locator('.solaris-app-tabbar [aria-current="page"]')).toHaveCount(1);
 
   for (const label of ["Home", "Explore", "Participate", "Results", "Me"]) {
@@ -276,10 +276,15 @@ test("installed app shell survives representative navigation without duplicate c
     const spacer = document.createElement("div");
     spacer.dataset.v3NavScrollFixture = "";
     spacer.style.height = "1600px";
+    spacer.style.width = "1px";
     spacer.style.pointerEvents = "none";
     document.body.append(spacer);
     window.scrollTo(0, 420);
+    window.dispatchEvent(new Event("scroll"));
   });
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeGreaterThan(140);
   await expect(page.locator(".solaris-app-tabbar")).toHaveAttribute("data-collapsed", "true");
   await expect
     .poll(async () => (await readGeometry(page))?.material.height ?? initial.material.height)
