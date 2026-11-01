@@ -108,7 +108,8 @@ export function AppTabBar({
     const bar = barRef.current;
 
     const updateMetrics = () => {
-      if (!bar || railMode || tabbarMode === "hidden") {
+      const keyboardOpen = root.hasAttribute("data-solaris-keyboard-open");
+      if (!bar || railMode || tabbarMode === "hidden" || keyboardOpen) {
         root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
         root.style.setProperty("--solaris-bottom-obstruction", "0px");
         return;
@@ -131,11 +132,20 @@ export function AppTabBar({
         ? new ResizeObserver(updateMetrics)
         : null;
     if (observer && bar) observer.observe(bar as Element);
+    const keyboardObserver =
+      typeof MutationObserver !== "undefined"
+        ? new MutationObserver(updateMetrics)
+        : null;
+    keyboardObserver?.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-solaris-keyboard-open"],
+    });
     window.addEventListener("resize", updateMetrics);
     window.visualViewport?.addEventListener("resize", updateMetrics);
 
     return () => {
       observer?.disconnect();
+      keyboardObserver?.disconnect();
       window.removeEventListener("resize", updateMetrics);
       window.visualViewport?.removeEventListener("resize", updateMetrics);
       // Do not zero the obstruction here. Dependency changes immediately
