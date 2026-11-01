@@ -1,0 +1,114 @@
+name: V3 navbar guarded owner finalization
+
+on:
+  push:
+    branches: [v3/navbar-complete-redesign]
+    paths: [.github/workflows/v3-navbar-owner-finalize.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v3/navbar-complete-redesign
+          fetch-depth: 0
+      - name: Apply fail-closed owner and installed-CSS harness cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one match, got {count}: {old!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          shell = "src/components/v3/V3AppShell.tsx"
+          replace_once(
+              shell,
+              'import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";\n',
+              'import { useSolarisApp } from "@/components/app/AppRuntime";\nimport { PublicCommandPalette } from "@/components/public/PublicCommandPalette";\n',
+          )
+          replace_once(
+              shell,
+              '  const navigate = useNavigate();\n  const publicArea = activeArea ?? resolveV3ShellActiveArea(pathname, searchStr);',
+              '  const navigate = useNavigate();\n  const { isAppMode } = useSolarisApp();\n  const publicArea = activeArea ?? resolveV3ShellActiveArea(pathname, searchStr);',
+          )
+          replace_once(
+              shell,
+              '''      <V3LiquidTabBar\n        key={navigationInteractionKey}\n        pathname={pathname}\n        destinations={navigationDestinations}\n        onSelect={selectDestination}\n      />''',
+              '''      {!isAppMode ? (\n        <V3LiquidTabBar\n          key={navigationInteractionKey}\n          pathname={pathname}\n          destinations={navigationDestinations}\n          onSelect={selectDestination}\n        />\n      ) : null}''',
+          )
+
+          helper = "e2e/v3-navigation/navbar-local-rollout.ts"
+          replace_once(
+              helper,
+              'import { expect, type BrowserContext } from "@playwright/test";\n',
+              'import { readFileSync } from "node:fs";\n\nimport { expect, type BrowserContext, type Page } from "@playwright/test";\n',
+          )
+          replace_once(
+              helper,
+              'export type NavbarE2ESession = {',
+              '''const NAVBAR_INSTALLED_APP_CSS_EMULATION = readFileSync("src/styles/app-shell.css", "utf8")\n  .replace(/\\(display-mode:\\s*(?:standalone|window-controls-overlay)\\)\\s+and\\s+/g, "")\n  .replace(/\\(display-mode:\\s*(?:standalone|window-controls-overlay)\\)/g, "all");\n\nexport async function applyNavbarInstalledCssEmulation(page: Page) {\n  await page.addStyleTag({ content: NAVBAR_INSTALLED_APP_CSS_EMULATION });\n}\n\nexport type NavbarE2ESession = {''',
+          )
+
+          interaction = "e2e/v3-navigation/navbar-interaction-installed-app.e2e.ts"
+          replace_once(
+              interaction,
+              'import { prepareNavbarInstalledContext } from "./navbar-local-rollout";',
+              'import { applyNavbarInstalledCssEmulation, prepareNavbarInstalledContext } from "./navbar-local-rollout";',
+          )
+          replace_once(
+              interaction,
+              '    await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });\n\n    const nav',
+              '    await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });\n    await applyNavbarInstalledCssEmulation(page);\n\n    const nav',
+          )
+
+          redesign = "e2e/v3-navigation/navbar-redesign-installed-app.e2e.ts"
+          replace_once(
+              redesign,
+              'import { prepareNavbarInstalledContext } from "./navbar-local-rollout";',
+              'import { applyNavbarInstalledCssEmulation, prepareNavbarInstalledContext } from "./navbar-local-rollout";',
+          )
+          replace_once(
+              redesign,
+              '    await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });\n    await assertAuthoritativeNavbar(page);',
+              '    await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });\n    await applyNavbarInstalledCssEmulation(page);\n    await assertAuthoritativeNavbar(page);',
+          )
+          replace_once(
+              redesign,
+              '      const response = await page.goto(`${baseURL}${route.path}`, { waitUntil: "domcontentloaded" });\n      expect(response?.status(), `${route.label} should load`).toBeLessThan(400);',
+              '      const response = await page.goto(`${baseURL}${route.path}`, { waitUntil: "domcontentloaded" });\n      await applyNavbarInstalledCssEmulation(page);\n      expect(response?.status(), `${route.label} should load`).toBeLessThan(400);',
+          )
+
+          required = "e2e/v3-navigation/navbar-required-geometry-installed-app.e2e.ts"
+          replace_once(
+              required,
+              'import { prepareNavbarInstalledContext } from "./navbar-local-rollout";',
+              'import { applyNavbarInstalledCssEmulation, prepareNavbarInstalledContext } from "./navbar-local-rollout";',
+          )
+          replace_once(
+              required,
+              '    await page.goto(`${baseURL}/`, { waitUntil: "domcontentloaded" });\n    const nav',
+              '    await page.goto(`${baseURL}/`, { waitUntil: "domcontentloaded" });\n    await applyNavbarInstalledCssEmulation(page);\n    const nav',
+          )
+
+          Path('.github/workflows/v3-navbar-owner-finalize.yml').unlink()
+          PY
+
+          git diff --check
+          git diff -- src/components/v3/V3AppShell.tsx e2e/v3-navigation/navbar-local-rollout.ts e2e/v3-navigation/navbar-interaction-installed-app.e2e.ts e2e/v3-navigation/navbar-redesign-installed-app.e2e.ts e2e/v3-navigation/navbar-required-geometry-installed-app.e2e.ts
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/components/v3/V3AppShell.tsx e2e/v3-navigation/navbar-local-rollout.ts e2e/v3-navigation/navbar-interaction-installed-app.e2e.ts e2e/v3-navigation/navbar-redesign-installed-app.e2e.ts e2e/v3-navigation/navbar-required-geometry-installed-app.e2e.ts .github/workflows/v3-navbar-owner-finalize.yml
+          git commit -m "fix(v3-nav): make AppTabBar the installed navigation owner"
+          git push origin HEAD:v3/navbar-complete-redesign
