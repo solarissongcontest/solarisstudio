@@ -218,7 +218,8 @@ select public.studio2_apply_confirmation_entry_review(
   '$NEW_VERSION'::uuid,
   '$REVIEW_CORRELATION_ID'::uuid
 )::text;")"
-expect_eq "exact NF review accepted" "$(python3 -c 'import json,sys; print(str(json.loads(sys.argv[1])["ok"]).lower())' "$REVIEW_RESULT")" "true"
+expect_eq "exact NF review operation completed" "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("status", ""))' "$REVIEW_RESULT")" "completed"
+expect_eq "exact NF review accepted" "$(python3 -c 'import json,sys; payload=json.loads(sys.argv[1]); print(str((payload.get("result") or {}).get("ok", False)).lower())' "$REVIEW_RESULT")" "true"
 expect_eq "review binds exact current version" "$(scalar "select reviewed_version_id::text from public.national_final_entries where id='$SAVED_WINNER_ENTRY_ID';")" "$NEW_VERSION"
 expect_eq "accepted pending winner becomes canonical" "$(scalar "select winning_entry_id::text from public.national_finals where id='$NF_ID';")" "$SAVED_WINNER_ENTRY_ID"
 expect_eq "pending winner clears after promotion" "$(scalar "select coalesce(pending_winning_entry_id::text,'') from public.national_finals where id='$NF_ID';")" ""
