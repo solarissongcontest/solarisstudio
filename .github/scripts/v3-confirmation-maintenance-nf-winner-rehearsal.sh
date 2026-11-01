@@ -161,24 +161,30 @@ select public.v3_submit_confirmation(
 expect_eq "NF edit accepted" "$(python3 -c 'import json,sys; print(str(json.loads(sys.argv[1])["ok"]).lower())' "$SUBMIT_RESULT")" "true"
 expect_eq "same NF response updated" "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["submission_id"])' "$SUBMIT_RESULT")" "$SUBMISSION_ID"
 expect_eq "NF correction creates no duplicate response" "$(scalar "select count(*) from public.submissions where edition_id='$EDITION_ID' and country='Maintenance NF Land';")" "1"
-expect_eq "corrected NF winner content persisted" "$(scalar "select song_title from public.national_final_entries where id='$NF_ENTRY_ID';")" "Corrected Winner"
 
-NEW_VERSION="$(scalar "select current_version_id from public.national_final_entries where id='$NF_ENTRY_ID';")"
+# Changing artist/title is modeled by submit_confirmation as replacement of the
+# NF entry row, not an identity-preserving content edit. Resolve the canonical
+# post-save row instead of assuming the fixture UUID survives that replacement.
+SAVED_WINNER_ENTRY_ID="$(scalar "select id from public.national_final_entries where national_final_id='$NF_ID' and coalesce(removed,false)=false and artist='Fixture Winner Artist' and song_title='Corrected Winner' limit 1;")"
+[[ -n "$SAVED_WINNER_ENTRY_ID" ]] || fail "corrected NF winner row was not persisted"
+expect_eq "corrected NF winner content persisted" "$(scalar "select song_title from public.national_final_entries where id='$SAVED_WINNER_ENTRY_ID';")" "Corrected Winner"
+
+NEW_VERSION="$(scalar "select current_version_id from public.national_final_entries where id='$SAVED_WINNER_ENTRY_ID';")"
 [[ -n "$NEW_VERSION" && "$NEW_VERSION" != "$OLD_VERSION" ]] || fail "NF correction did not create a new exact entry version"
 expect_eq "declared winner is staged, not canonical" "$(scalar "select coalesce(winning_entry_id::text,'') from public.national_finals where id='$NF_ID';")" ""
-expect_eq "pending winner records participant intent" "$(scalar "select pending_winning_entry_id::text from public.national_finals where id='$NF_ID';")" "$NF_ENTRY_ID"
-expect_eq "declared winner awaits organizer review" "$(scalar "select review_status from public.national_final_entries where id='$NF_ENTRY_ID';")" "pending"
-expect_eq "new exact version is not pre-approved" "$(scalar "select coalesce(reviewed_version_id::text,'') from public.national_final_entries where id='$NF_ENTRY_ID';")" ""
+expect_eq "pending winner records participant intent" "$(scalar "select pending_winning_entry_id::text from public.national_finals where id='$NF_ID';")" "$SAVED_WINNER_ENTRY_ID"
+expect_eq "declared winner awaits organizer review" "$(scalar "select review_status from public.national_final_entries where id='$SAVED_WINNER_ENTRY_ID';")" "pending"
+expect_eq "new exact version is not pre-approved" "$(scalar "select coalesce(reviewed_version_id::text,'') from public.national_final_entries where id='$SAVED_WINNER_ENTRY_ID';")" ""
 
 expect_db_failure "manual canonical winner still requires exact review" \
-  "update public.national_finals set winning_entry_id='$NF_ENTRY_ID' where id='$NF_ID';"
+  "update public.national_finals set winning_entry_id='$SAVED_WINNER_ENTRY_ID' where id='$NF_ID';"
 
 log "Organizer accepts the exact staged version and promotion becomes atomic"
 CAS_VERSION="$(scalar "select coalesce(version,1) from public.studio2_confirmation_review_versions where submission_id='$SUBMISSION_ID';")"
 REVIEW_RESULT="$(as_user "$ORGANIZER_USER_ID" "
 select public.studio2_apply_confirmation_entry_review(
   'national_final',
-  '$NF_ENTRY_ID'::uuid,
+  '$SAVED_WINNER_ENTRY_ID'::uuid,
   'accepted',
   null,
   '$REVIEW_OPERATION_ID'::uuid,
@@ -188,10 +194,10 @@ select public.studio2_apply_confirmation_entry_review(
   '$REVIEW_CORRELATION_ID'::uuid
 )::text;")"
 expect_eq "exact NF review accepted" "$(python3 -c 'import json,sys; print(str(json.loads(sys.argv[1])["ok"]).lower())' "$REVIEW_RESULT")" "true"
-expect_eq "review binds exact current version" "$(scalar "select reviewed_version_id::text from public.national_final_entries where id='$NF_ENTRY_ID';")" "$NEW_VERSION"
-expect_eq "accepted pending winner becomes canonical" "$(scalar "select winning_entry_id::text from public.national_finals where id='$NF_ID';")" "$NF_ENTRY_ID"
+expect_eq "review binds exact current version" "$(scalar "select reviewed_version_id::text from public.national_final_entries where id='$SAVED_WINNER_ENTRY_ID';")" "$NEW_VERSION"
+expect_eq "accepted pending winner becomes canonical" "$(scalar "select winning_entry_id::text from public.national_finals where id='$NF_ID';")" "$SAVED_WINNER_ENTRY_ID"
 expect_eq "pending winner clears after promotion" "$(scalar "select coalesce(pending_winning_entry_id::text,'') from public.national_finals where id='$NF_ID';")" ""
-expect_eq "review history records exact promoted version" "$(scalar "select reviewed_version_id::text from public.submission_review_history where submission_id='$SUBMISSION_ID' and target_entry_id='$NF_ENTRY_ID' order by created_at desc limit 1;")" "$NEW_VERSION"
+expect_eq "review history records exact promoted version" "$(scalar "select reviewed_version_id::text from public.submission_review_history where submission_id='$SUBMISSION_ID' and target_entry_id='$SAVED_WINNER_ENTRY_ID' order by created_at desc limit 1;")" "$NEW_VERSION"
 expect_eq "NF response revision advances once" "$(scalar "select edit_count from public.submissions where id='$SUBMISSION_ID';")" "1"
 expect_eq "NF round remains closed after correction" "$(scalar "select status from public.submission_rounds where id='$ROUND_ID';")" "closed"
 
