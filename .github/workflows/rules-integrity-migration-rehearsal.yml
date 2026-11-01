@@ -4,7 +4,6 @@ on:
   pull_request:
     branches:
       - main
-      - audit/pr450-base-snapshot
     paths:
       - "supabase/migrations/**"
       - "supabase/functions/integrity-evidence-download/**"

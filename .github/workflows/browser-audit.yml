@@ -23,8 +23,35 @@ jobs:
     timeout-minutes: 55
 
     steps:
-      - name: Checkout
+      - name: Checkout exact source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact browser-audit source
+        shell: bash
+        env:
+          BROWSER_AUDIT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s' "$BROWSER_AUDIT_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Cannot resolve exact source SHA for Browser Audit"
+            exit 1
+          fi
+          checkout_sha="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [ "$checkout_sha" != "$expected" ]; then
+            echo "::error::Browser Audit checkout is $checkout_sha, expected exact candidate SHA $expected"
+            exit 1
+          fi
+          mkdir -p artifacts/browser-audit
+          {
+            echo "candidate_sha=$expected"
+            echo "checkout_sha=$checkout_sha"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+          } > artifacts/browser-audit/provenance.txt
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -403,14 +430,12 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:4173
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
           SOLARIS_PR455_PREFLIGHT_ALREADY_PASSED: "1"
-          # Pull requests run a representative smoke set, as do main pushes. Manual dispatch keeps
-          # the exhaustive ten-viewport + sitemap inventory available without
-          # turning every PR into a 40-minute crawl of the same archive data.
-          # The final public-quality release branch also runs the exhaustive set
-          # once before merge.
-          E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'recovery/canonical-main-v6-20261004' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920' || github.head_ref == 'feature/final-ui-completion-20261001' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
+          # Pull requests and main pushes run the representative smoke set. Exhaustive
+          # and visual certification are explicit manual actions, so temporary release
+          # branches cannot silently become permanent workflow semantics.
+          E2E_FULL_AUDIT: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
           PERSONALITY_REFERENCE_CAPTURE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
-          E2E_VISUAL_CAPTURE: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'recovery/canonical-main-v6-20261004' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
+          E2E_VISUAL_CAPTURE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
           # E2E Supabase URL/key are inherited from the isolated local stack.
           # Hosted account credentials are intentionally unavailable in browser CI.
 
@@ -433,9 +458,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: organizer-preflight
+          name: organizer-preflight-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             artifacts/browser-audit/preflight
+            artifacts/browser-audit/provenance.txt
             playwright-pr455-preflight-summary.json
             test-results/pr455-preflight
           if-no-files-found: ignore
@@ -445,8 +471,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-audit-summary
-          path: playwright-summary.json
+          name: browser-audit-summary-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            playwright-summary.json
+            artifacts/browser-audit/provenance.txt
           if-no-files-found: ignore
           retention-days: 14
 
@@ -454,9 +482,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-audit
+          name: browser-audit-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             playwright-report
             test-results/playwright
+            artifacts/browser-audit/provenance.txt
           if-no-files-found: ignore
           retention-days: 14
