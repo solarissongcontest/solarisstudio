@@ -68,6 +68,7 @@ jobs:
       - name: Install browser-audit browser binaries
         shell: bash
         run: |
+          set +e
           set -uo pipefail
           diagnostic_log="$GITHUB_WORKSPACE/browser-install-diagnostic.log"
           : > "$diagnostic_log"
@@ -92,10 +93,14 @@ jobs:
 
           node <<'NODE'
           const fs = require('node:fs');
-          const path = require.resolve('playwright-core/browsers.json');
-          const metadata = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const metadataPath = 'node_modules/playwright-core/browsers.json';
+          console.log(`playwright_browsers_metadata=${metadataPath}`);
+          if (!fs.existsSync(metadataPath)) {
+            console.log('playwright_browsers_metadata_missing=true');
+            process.exit(0);
+          }
+          const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
           const requested = new Set(['chromium', 'chromium-headless-shell', 'ffmpeg', 'webkit']);
-          console.log(`playwright_browsers_metadata=${path}`);
           for (const browser of metadata.browsers.filter((entry) => requested.has(entry.name))) {
             console.log(JSON.stringify({
               name: browser.name,
