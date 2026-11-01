@@ -14,6 +14,7 @@ describe("Pre-Beta public UX completion contract", () => {
   const breadcrumbs = source("src/lib/public-breadcrumbs.ts");
   const confirmation = source("src/components/ConfirmationForm.tsx");
   const rules = source("src/components/rules/RulesHomeV5.tsx");
+  const roleplay = source("src/components/rules/RoleplayWorldbuildingVisual.tsx");
   const integrity = source("src/components/integrity/IntegrityHomeV5.tsx");
   const mySolarisContext = source("src/components/mysolaris/MySolarisContext.tsx");
   const priorities = source("src/lib/my-solaris-priorities.ts");
@@ -68,9 +69,12 @@ describe("Pre-Beta public UX completion contract", () => {
     for (const target of ["/rules/chapters", "/rules/interpretations", "/rules/changes"]) {
       expect(rules).toContain(`to="${target}"`);
     }
-    for (const label of ["21 chapters", "Official clarifications", "Changes & history"]) {
+    for (const label of ["22 chapters", "Official clarifications", "Changes & history"]) {
       expect(rules).toContain(`title="${label}"`);
     }
+    expect(rules).toContain('chapter: "roleplay-worldbuilding"');
+    expect(roleplay).toContain("Dormancy clock");
+    expect(roleplay).toContain("Six fully HODless completed Editions");
     for (const label of ["Follow or recover a case", "How the process works", "Privacy & anonymity"]) {
       expect(integrity).toContain(label);
     }
