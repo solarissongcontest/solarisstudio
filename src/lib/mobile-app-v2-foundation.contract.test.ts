@@ -94,79 +94,126 @@ describe("Mobile App V2 architectural invariants", () => {
 
   it("keeps canonical flags clipped with an optical default radius", () => {
     const media = source("src/components/FlagMedia.tsx");
-    const chip = source("src/components/FlagChip.tsx");
     const css = source("src/flag-media.css");
-
-    expect(media).toContain('radius = "var(--flag-radius)"');
-    expect(media).toContain("overflow: 'hidden'");
-    expect(media).toContain("aspectRatio: FLAG_ASPECT_RATIO");
-    expect(chip).toContain('className="flag-media"');
-    expect(css).toContain("border-radius: var(--flag-radius)");
+    expect(media).toContain('data-flag-frame="standard"');
+    expect(css).toContain("overflow: hidden");
   });
 
   it("detects all installed display modes requested by the manifest", () => {
-    const appMode = source("src/hooks/use-app-mode.ts");
-    expect(appMode).toContain("(display-mode: standalone)");
-    expect(appMode).toContain("(display-mode: window-controls-overlay)");
-    expect(appMode).toContain("navigator.standalone === true");
+    const platform = source("src/lib/platform.ts");
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    const manifest = source("public/site.webmanifest");
+
+    expect(manifest).toContain("window-controls-overlay");
+    expect(platform).toContain("(display-mode: window-controls-overlay)");
+    expect(runtime).toContain("(display-mode: window-controls-overlay)");
   });
 
   it("does not expose push deployment internals to users", () => {
-    const settings = source("src/components/app/AppSettingsScreen.tsx");
-    expect(settings).not.toContain("VAPID");
-    expect(settings).not.toContain("Solaris push delivery is not configured on this deployment yet");
+    const notifications = source("src/lib/app-notifications.ts");
+    const panel = source("src/components/mysolaris/MySolarisNotificationsPanel.tsx");
+
+    expect(notifications).not.toContain("Solaris push delivery is not configured on this deployment yet");
+    expect(notifications).toContain("Push notifications are temporarily unavailable.");
+    expect(panel).toContain("pushState.configured");
   });
 
   it("uses app-specific compositions for major browsing roots", () => {
-    const routes = [
-      "src/routes/app/index.tsx",
-      "src/routes/app/explore.tsx",
-      "src/routes/app/participate.tsx",
-      "src/routes/app/results.tsx",
-      "src/routes/app/me.tsx",
-    ];
-    for (const route of routes) {
-      expect(source(route)).toContain("AppShell");
-    }
+    const explore = source("src/routes/explore/index.tsx");
+    const results = source("src/routes/results/index.tsx");
+    const directory = source("src/routes/site-directory/index.tsx");
+    const editions = source("src/routes/editions/index.tsx");
+    const countries = source("src/routes/countries/index.tsx");
+    const shows = source("src/routes/shows/index.tsx");
+    const wiki = source("src/routes/wiki/index.tsx");
+
+    expect(explore).toContain("solaris-app-grouped-list");
+    expect(results).toContain("solaris-app-result-hero");
+    expect(directory).toContain("solaris-app-list-row");
+    expect(editions).toContain("AppScreen");
+    expect(editions).toContain("solaris-app-edition-row");
+    expect(countries).toContain("AppCountriesPage");
+    expect(countries).toContain("<AppScreen>");
+    expect(countries).toContain("<V3CountriesDiscoveryScreen />");
+    expect(shows).toContain("AppShowsPage");
+    expect(shows).toContain("<AppScreen>");
+    expect(shows).toContain("<V3ShowsDiscoveryScreen />");
+    expect(wiki).toContain("AppWikiIndexPage");
   });
 
   it("uses the redesigned installed browsing hierarchy for Wiki, Editions and V3 discovery roots", () => {
-    const wiki = source("src/components/wiki/CountryWikiExperience.tsx");
+    const wiki = source("src/routes/wiki/index.tsx");
+    const countries = source("src/routes/countries/index.tsx");
     const editions = source("src/routes/editions/index.tsx");
-    const directory = source("src/routes/site-directory/index.tsx");
+    const shows = source("src/routes/shows/index.tsx");
+    const styles = source("src/styles/app-shell.css");
+    const search = source("src/components/app/SolarisSearchField.tsx");
 
-    expect(wiki).toContain("solaris-app-section-heading");
-    expect(editions).toContain("AppSectionHeading");
-    expect(directory).toContain("AppSectionHeading");
+    expect(wiki).toContain("<SolarisSearchField");
+    expect(wiki).toContain("solaris-app-filter-sheet");
+    expect(countries).toContain("V3CountriesDiscoveryScreen");
+    expect(countries).toContain("<AppScreen>");
+    expect(shows).toContain("V3ShowsDiscoveryScreen");
+    expect(shows).toContain("<AppScreen>");
+    expect(search).toContain("data-solaris-search-field");
+    expect(search).toContain('type="text"');
+    expect(search).toContain('inputMode="search"');
+    expect(editions).toContain("AppScreen");
+    expect(editions).toContain("AppSectionHeader");
+    expect(editions).toContain("AppGroupedList");
+    expect(editions).toContain("solaris-app-card solaris-app-edition-current");
+    expect(editions).toContain("solaris-app-edition-row");
+    expect(styles).toContain("Mobile Visual System V6");
   });
 
   it("forces installed search to one visual surface and flags to canonical rounded 3:2 frames", () => {
-    const commandPalette = source("src/components/command/CommandPalette.tsx");
-    const css = source("src/styles/app-shell.css");
-    const flagCss = source("src/flag-media.css");
+    const search = source("src/components/app/SolarisSearchField.tsx");
+    const flags = source("src/components/FlagChip.tsx");
+    const styles = source("src/styles/app-shell.css");
+    const surfaces = source("src/solaris-surfaces.css");
+    const globalStyles = source("src/styles.css");
+    const unified = source("src/unified-design.css");
+    const calmChrome = source("src/calm-public-chrome.css");
 
-    expect(commandPalette).toContain("solaris-app-search-dialog");
-    expect(css).toContain(".solaris-app-search-dialog");
-    expect(flagCss).toContain("aspect-ratio: 3 / 2");
+    expect(search).toContain("solaris-app-search-shell");
+    expect(search).toContain("solaris-app-search-input");
+    expect(styles).toContain("all: unset !important");
+    expect(styles).toContain("overflow: hidden");
+    expect(styles).toContain("background: rgb(255 255 255 / .055)");
+    expect(flags).toContain("--solaris-flag-radius");
+    expect(styles).toContain("aspect-ratio: 3 / 2 !important");
+    expect(styles).toContain("border-radius: var(--solaris-flag-radius, .55rem) !important");
+    expect(surfaces).toContain(":not(.solaris-app-search-input)");
+    expect(globalStyles).toContain("input:not(.solaris-app-search-input)");
+    expect(unified).toContain("input:not(.solaris-app-search-input)");
+    expect(calmChrome).toContain("input:not(.solaris-app-search-input)");
   });
 
   it("prevents website chrome from flashing before installed-app hydration", () => {
-    const appMode = source("src/hooks/use-app-mode.ts");
+    const root = source("src/routes/__root.tsx");
+    const runtime = source("src/components/app/AppRuntime.tsx");
     const css = source("src/styles/app-shell.css");
 
-    expect(appMode).toContain("data-solaris-app-boot");
-    expect(css).toContain("html[data-solaris-app-boot] body::before");
+    expect(root).toContain("data-solaris-app-boot");
+    expect(root).toContain('navigator.standalone === true');
+    expect(runtime).toContain('removeAttribute("data-solaris-app-boot")');
+    expect(css).toContain('html[data-solaris-app-boot] body::before');
   });
 
   it("lets app toolbar identity replace repeated PageHeader titles without losing actions", () => {
-    const frame = source("src/components/app/AppRouteStateFrame.tsx");
-    expect(frame).toContain("AppToolbar");
-    expect(frame).not.toContain("PageHeader");
+    const shell = source("src/components/AppShell.tsx");
+    expect(shell).toContain("toolbarOwnsIdentity");
+    expect(shell).toContain("solaris-app-page-context");
+    expect(shell).toContain("{actions ? (");
   });
 
   it("keeps installed-app search off the full archive query fan-out", () => {
-    const search = source("src/components/command/CommandPalette.tsx");
-    expect(search).toContain("archiveSearchEnabled");
-    expect(search).toContain("!isAppMode");
+    const search = source("src/components/public/PublicCommandPalette.tsx");
+    const migration = source("supabase/migrations/20261002153000_public_app_search.sql");
+
+    expect(search).toContain("AppPublicPaletteDialog");
+    expect(search).toContain('rpc("solaris_public_search"');
+    expect(search).toContain("if (props.appMode)");
+    expect(migration).toContain("create or replace function public.solaris_public_search");
   });
 });
