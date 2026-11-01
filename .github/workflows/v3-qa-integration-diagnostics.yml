@@ -1,0 +1,127 @@
+name: V3 QA Integration Diagnostics
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-qa-integration-diagnostics-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diagnostics:
+    name: Integration diagnostics
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_qa_integration_local_only
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_qa_integration_local_only
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      VITE_SUPABASE_PROJECT_ID: local
+      VITE_SUPABASE_PROJECT_REF: local
+      V3_VERIFICATION_TARGET: local
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_qa_integration_local_only
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_qa_integration_local_only
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify production isolation
+        run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Production build
+        run: bun run build
+
+      - name: Measure canonical client budget
+        id: budget
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          bun run budget:client 2>&1 | tee client-budget-output.txt
+          status=${PIPESTATUS[0]}
+          exit "$status"
+
+      - name: Unit tests
+        id: unit
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          bun run test 2>&1 | tee unit-test-output.txt
+          status=${PIPESTATUS[0]}
+          exit "$status"
+
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          bun run lint 2>&1 | tee lint-output.txt
+          status=${PIPESTATUS[0]}
+          exit "$status"
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-qa-integration-diagnostics-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            client-budget-output.txt
+            unit-test-output.txt
+            lint-output.txt
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Enforce diagnostic outcomes
+        if: always()
+        shell: bash
+        env:
+          BUDGET_OUTCOME: ${{ steps.budget.outcome }}
+          UNIT_OUTCOME: ${{ steps.unit.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+        run: |
+          set -euo pipefail
+          failed=0
+          for check in \
+            "Client budget:${BUDGET_OUTCOME:-not-run}" \
+            "Unit tests:${UNIT_OUTCOME:-not-run}" \
+            "Lint:${LINT_OUTCOME:-not-run}"
+          do
+            name="${check%%:*}"
+            outcome="${check#*:}"
+            if [ "$outcome" != "success" ]; then
+              echo "::error::$name outcome is $outcome"
+              failed=1
+            fi
+          done
+          exit "$failed"
