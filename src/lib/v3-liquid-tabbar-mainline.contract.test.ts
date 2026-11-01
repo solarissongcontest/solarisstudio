@@ -59,12 +59,23 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(geometry).not.toContain("width: min(324px");
   });
 
-  it("keeps the visible selected lens optically smaller than the hit slot and physically expressive", () => {
+  it("keeps the visible selected lens optically smaller without scaling its physical slot translation", () => {
+    const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const liquidCss = source("src/styles/v3-liquid-tabbar.css");
 
-    expect(liquidCss).toContain("scale: 0.84 0.90");
+    expect(liquidCss).toContain("--v3-liquid-optical-scale-x: 0.84");
+    expect(liquidCss).toContain("--v3-liquid-optical-scale-y: 0.90");
+    expect(tabs).toContain("scaleX(var(--v3-liquid-optical-scale-x))");
+    expect(tabs).toContain("scaleY(var(--v3-liquid-optical-scale-y))");
+    expect(tabs).toMatch(
+      /translate3d\([\s\S]*scaleX\(var\(--v3-liquid-scale-x\)\)[\s\S]*scaleX\(var\(--v3-liquid-optical-scale-x\)\)/,
+    );
+    expect(liquidCss).not.toMatch(/\n\s*scale:\s*0\.84 0\.90/);
     expect(liquidCss).toMatch(
-      /data-held="true"[\s\S]*v3-liquid-tabbar__lens[\s\S]*scale: 0\.98 1\.02/,
+      /data-held="true"[\s\S]*v3-liquid-tabbar__lens[\s\S]*--v3-liquid-optical-scale-x: 0\.98;[\s\S]*--v3-liquid-optical-scale-y: 1\.02/,
+    );
+    expect(liquidCss).toContain(
+      '.v3-liquid-tabbar__material:not([data-held="true"]):has(.v3-liquid-tabbar__item[data-active="true"]:active)',
     );
     expect(liquidCss).toContain("data-dragging=\"true\"");
     expect(liquidCss).toContain("backdrop-filter: blur(14px) saturate(160%) brightness(1.075)");
