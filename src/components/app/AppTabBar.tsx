@@ -18,7 +18,7 @@ import {
   resolveTabDragTargetIndex,
 } from "@/lib/interaction-physics";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
-import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
+import { holdMovementExceeded, useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -36,8 +36,10 @@ type PrimaryArea = (typeof PUBLIC_GLOBAL_AREAS)[number]["id"];
 type DragState = {
   pointerId: number;
   startX: number;
+  startY: number;
   originIndex: number;
   moved: boolean;
+  engaged: boolean;
 };
 
 function isPrimaryArea(value: string): value is PrimaryArea {
@@ -230,6 +232,14 @@ export function AppTabBar({
   }, [endHold, resetDragDom]);
 
   useEffect(() => {
+    if (!held) return;
+    const drag = dragState.current;
+    if (!drag || drag.engaged) return;
+    drag.engaged = true;
+    setDragging(true);
+  }, [held]);
+
+  useEffect(() => {
     const resetInterruptedGesture = () => clearDrag();
     const resetWhenHidden = () => {
       if (document.visibilityState !== "visible") clearDrag();
@@ -258,24 +268,48 @@ export function AppTabBar({
       !active ||
       collapsed ||
       railMode ||
+      prefersReducedMotion() ||
+      document.documentElement.hasAttribute("data-solaris-keyboard-open") ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) return;
 
+    suppressClick.current = false;
     dragState.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
+      startY: event.clientY,
       originIndex: index,
       moved: false,
+      engaged: false,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginHold(event.pointerId, event.clientX, event.clientY);
-    setDragging(true);
   };
 
   const moveDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     moveHold(event.pointerId, event.clientX, event.clientY);
+
+    if (!drag.engaged) {
+      if (
+        holdMovementExceeded(
+          drag.startX,
+          drag.startY,
+          event.clientX,
+          event.clientY,
+        )
+      ) {
+        suppressClick.current = true;
+        try {
+          event.currentTarget.releasePointerCapture?.(event.pointerId);
+        } catch {
+          // Browser may already have released pointer capture.
+        }
+        clearDrag();
+      }
+      return;
+    }
 
     const rects = tabRects();
     const origin = rects[drag.originIndex];
@@ -317,6 +351,11 @@ export function AppTabBar({
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
+    if (!drag.engaged) {
+      clearDrag();
+      return;
+    }
+
     const rects = tabRects();
     const origin = rects[drag.originIndex];
     const targetIndex = resolveTabDragTargetIndex({
@@ -327,7 +366,7 @@ export function AppTabBar({
       activationRatio: 0.72,
     });
     const moved = drag.moved;
-    suppressClick.current = moved;
+    suppressClick.current = drag.engaged || moved;
 
     try {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
@@ -352,7 +391,7 @@ export function AppTabBar({
   const cancelDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    suppressClick.current = drag.moved;
+    suppressClick.current = drag.moved || drag.engaged;
     clearDrag();
   };
 
