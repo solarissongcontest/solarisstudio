@@ -80,7 +80,7 @@ function RuleSearchPage() {
                   defaultValue={q}
                   aria-label="Search rules"
                   placeholder="Ask about a rule…"
-                  className="min-h-11 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/65 sm:text-sm"
+                  className="min-h-10 min-w-0 flex-1 bg-transparent text-sm outline-none"
                 />
                 <button type="submit" className="inline-flex min-h-10 items-center rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground">
                   Search
