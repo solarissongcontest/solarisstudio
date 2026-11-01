@@ -33,6 +33,18 @@ describe("country auth protection during restricted platform modes", () => {
     expect(gateMigration).not.toContain("if session_user = 'service_role'");
   });
 
+  it("keeps S13 registration when available without blocking pre-S13 production", () => {
+    expect(gateMigration).toContain(
+      "to_regprocedure(\n       'public.v3_register_migration_contract(text,integer,text,boolean,text,text)'",
+    );
+    expect(gateMigration).toContain(
+      "perform public.v3_register_migration_contract(",
+    );
+    expect(gateMigration).toContain(
+      "do not make this emergency\n-- authentication-protection repair depend on unrelated framework adoption",
+    );
+  });
+
   it("preserves the private hashed limiter and service-role-only execution", () => {
     expect(limiterMigration).toContain("private.country_auth_rate_limits");
     expect(limiterMigration).toContain("p_key_hash text");
