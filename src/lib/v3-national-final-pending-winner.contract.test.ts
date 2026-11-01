@@ -10,6 +10,9 @@ const migration = source(
 const guardMigration = source(
   "supabase/migrations/20261101173758_v3_pending_nf_winner_transition_guard.sql",
 );
+const publicRedactionMigration = source(
+  "supabase/migrations/20261101174945_v3_pending_nf_winner_public_lookup_redaction.sql",
+);
 const prefill = source("src/lib/prefill.ts");
 
 describe("National Final pending winner review contract", () => {
@@ -21,6 +24,9 @@ describe("National Final pending winner review contract", () => {
     expect(migration).toContain("v3.confirmation.pending-nf-winner-review");
     expect(migration).toContain("forward_fix_only");
     expect(guardMigration).toContain("v3.confirmation.pending-nf-winner-transition-guard");
+    expect(publicRedactionMigration).toContain(
+      "v3.confirmation.pending-nf-winner-public-redaction",
+    );
   });
 
   it("keeps participant winner intent separate from the exact-reviewed canonical winner", () => {
@@ -46,6 +52,15 @@ describe("National Final pending winner review contract", () => {
     );
     expect(guardMigration).toContain(
       "private.studio2_guard_direct_confirmation_review_transition()",
+    );
+  });
+
+  it("redacts staged winner intent from the legacy anonymous submission lookup", () => {
+    expect(publicRedactionMigration).toContain(
+      "(to_jsonb(nf) - 'pending_winning_entry_id')",
+    );
+    expect(publicRedactionMigration).toContain(
+      "grant execute on function public.public_lookup_submission(uuid, text) to anon, authenticated, service_role",
     );
   });
 
