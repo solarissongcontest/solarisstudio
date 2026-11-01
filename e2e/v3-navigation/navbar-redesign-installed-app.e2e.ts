@@ -1,6 +1,6 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
-import { prepareNavbarInstalledContext } from "./navbar-local-rollout";
+import { applyNavbarInstalledCssEmulation, prepareNavbarInstalledContext } from "./navbar-local-rollout";
 
 type NavGeometry = {
   viewportWidth: number;
@@ -171,6 +171,7 @@ test(
     const page = await context.newPage();
 
     await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });
+    await applyNavbarInstalledCssEmulation(page);
     await assertAuthoritativeNavbar(page);
 
     for (const viewport of VIEWPORTS) {
@@ -192,6 +193,7 @@ test(
 
     for (const route of ROUTES) {
       const response = await page.goto(`${baseURL}${route.path}`, { waitUntil: "domcontentloaded" });
+      await applyNavbarInstalledCssEmulation(page);
       expect(response?.status(), `${route.label} should load`).toBeLessThan(400);
       await page.evaluate(() => window.scrollTo(0, 0));
       const nav = await assertAuthoritativeNavbar(page);

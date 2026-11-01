@@ -1,4 +1,14 @@
-import { expect, type BrowserContext } from "@playwright/test";
+import { readFileSync } from "node:fs";
+
+import { expect, type BrowserContext, type Page } from "@playwright/test";
+
+const NAVBAR_INSTALLED_APP_CSS_EMULATION = readFileSync("src/styles/app-shell.css", "utf8")
+  .replace(/\(display-mode:\s*(?:standalone|window-controls-overlay)\)\s+and\s+/g, "")
+  .replace(/\(display-mode:\s*(?:standalone|window-controls-overlay)\)/g, "all");
+
+export async function applyNavbarInstalledCssEmulation(page: Page) {
+  await page.addStyleTag({ content: NAVBAR_INSTALLED_APP_CSS_EMULATION });
+}
 
 export type NavbarE2ESession = {
   access_token: string;

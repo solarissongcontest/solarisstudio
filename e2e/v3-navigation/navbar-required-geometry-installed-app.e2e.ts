@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { prepareNavbarInstalledContext } from "./navbar-local-rollout";
+import { applyNavbarInstalledCssEmulation, prepareNavbarInstalledContext } from "./navbar-local-rollout";
 
 const VIEWPORTS = [
   { width: 375, height: 844 },
@@ -21,6 +21,7 @@ test(
     const { baseURL } = await prepareNavbarInstalledContext(context);
     const page = await context.newPage();
     await page.goto(`${baseURL}/`, { waitUntil: "domcontentloaded" });
+    await applyNavbarInstalledCssEmulation(page);
     const nav = page.locator(".solaris-app-tabbar");
     await expect(nav).toBeVisible();
     await expect(page.locator("[data-v3-liquid-tabbar]:visible")).toHaveCount(0);

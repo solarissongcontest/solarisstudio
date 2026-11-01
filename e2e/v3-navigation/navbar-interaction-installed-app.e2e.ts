@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { prepareNavbarInstalledContext } from "./navbar-local-rollout";
+import { applyNavbarInstalledCssEmulation, prepareNavbarInstalledContext } from "./navbar-local-rollout";
 
 test.describe.configure({ retries: 0 });
 
@@ -19,6 +19,7 @@ test(
     const { baseURL } = await prepareNavbarInstalledContext(context);
     const page = await context.newPage();
     await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });
+    await applyNavbarInstalledCssEmulation(page);
 
     const nav = page.locator(".solaris-app-tabbar");
     const material = nav.locator(".solaris-app-tabbar-material");
