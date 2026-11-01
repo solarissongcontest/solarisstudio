@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { renderMaintenancePage } from "./maintenance-page";
+
 const page = readFileSync("src/lib/maintenance-page.ts", "utf8");
 const css = readFileSync("public/assets/terraos-maintenance.css", "utf8");
 const motion = readFileSync("public/assets/terraos-maintenance.js", "utf8");
@@ -8,43 +10,66 @@ const storyCss = readFileSync("public/assets/terraos-maintenance-story.css", "ut
 const storyRuntime = readFileSync("public/assets/terraos-maintenance-story.js", "utf8");
 const storyData = readFileSync("src/lib/terraos-maintenance-stories.ts", "utf8");
 const server = readFileSync("src/server.ts", "utf8");
-const momentA = readFileSync("public/assets/terraos-maintenance/moment-a.png");
-const momentB = readFileSync("public/assets/terraos-maintenance/moment-b.png");
-const legacyMomentA = readFileSync("public/IMG_6171.png");
-const legacyMomentB = readFileSync("public/IMG_9177.png");
+const momentA = readFileSync("public/assets/terraos-maintenance/moment-a.svg", "utf8");
+const momentB = readFileSync("public/assets/terraos-maintenance/moment-b.svg", "utf8");
+const rendered = renderMaintenancePage(new Date("2026-11-02T00:00:00+02:00"));
+const LOCAL_ORIGIN = "https://maintenance.solaris.test";
+const MAINTENANCE_ARTWORK_PREFIX = "/assets/terraos-maintenance/";
+
+function imageSources(html: string) {
+  return [...html.matchAll(/<img\b[^>]*\bsrc=(["'])([^"']+)\1/gi)].map((match) => match[2]);
+}
+
+function assertLocalImageSources(sources: string[]) {
+  for (const source of sources) {
+    const url = new URL(source, LOCAL_ORIGIN);
+    if (url.origin !== LOCAL_ORIGIN) throw new Error(`remote image source: ${source}`);
+  }
+}
 
 describe("TerraOS maintenance visual asset routing", () => {
-  it("keeps the final image-led experience entirely inside the already-approved /assets prefix", () => {
-    for (const asset of [
-      "/assets/terraos-maintenance/atmosphere.jpeg",
-      "/assets/terraos-maintenance/moment-a.png",
-      "/assets/terraos-maintenance/moment-b.png",
-      "/assets/terraos-maintenance.css",
-      "/assets/terraos-maintenance.js",
-      "/assets/terraos-maintenance-story.css",
-      "/assets/terraos-maintenance-story.js",
-    ]) expect(page).toContain(asset);
+  it("keeps maintenance artwork local and inside the dedicated asset namespace", () => {
+    const sources = imageSources(rendered);
+    assertLocalImageSources(sources);
+
+    const maintenanceArtwork = sources
+      .map((source) => new URL(source, LOCAL_ORIGIN))
+      .filter((url) => url.pathname.startsWith(MAINTENANCE_ARTWORK_PREFIX));
+    const pathnames = new Set(maintenanceArtwork.map((url) => url.pathname));
+
+    expect(pathnames).toContain("/assets/terraos-maintenance/atmosphere.jpeg");
+    expect(pathnames).toContain("/assets/terraos-maintenance/moment-a.svg");
+    expect(pathnames).toContain("/assets/terraos-maintenance/moment-b.svg");
+    expect(pathnames.size).toBeGreaterThanOrEqual(3);
+    expect(maintenanceArtwork.some((url) => url.pathname.endsWith(".svg") && url.searchParams.has("v"))).toBe(true);
 
     expect(server).toContain('const MAINTENANCE_APP_ASSET_PREFIXES = ["/_build/", "/assets/", "/build/", "/fonts/"] as const;');
     expect(server).not.toContain('"/assets/terraos-maintenance/",');
   });
 
+  it("detects remote artwork substitution even when the asset pathname looks valid", () => {
+    const mutatedSources = [
+      ...imageSources(rendered),
+      "https://images.example.test/assets/terraos-maintenance/moment-a.svg?v=mutated",
+    ];
+
+    expect(() => assertLocalImageSources(mutatedSources)).toThrow(/remote image source/);
+  });
+
   it("requires multiple obvious image moments and locally hosted photo layers", () => {
-    expect(page.match(/data-photo-kind=\"photo\"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
-    expect(page.match(/data-photo-parallax=/g)?.length ?? 0).toBeGreaterThanOrEqual(7);
-    expect(page.match(/class=\"photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(rendered.match(/data-photo-kind=\"photo\"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(rendered.match(/data-photo-parallax=/g)?.length ?? 0).toBeGreaterThanOrEqual(7);
+    expect(rendered.match(/class=\"photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(css).toContain(".photo-chapter{");
     expect(css).toContain(".live-art{");
   });
 
-  it("uses real dedicated moment artwork instead of recycling the blank and TSBC legacy files", () => {
-    const pngSignature = "89504e470d0a1a0a";
-    expect(momentA.subarray(0, 8).toString("hex")).toBe(pngSignature);
-    expect(momentB.subarray(0, 8).toString("hex")).toBe(pngSignature);
-    expect(momentA.length).toBeGreaterThan(5_000);
-    expect(momentB.length).toBeGreaterThan(5_000);
-    expect(momentA.equals(legacyMomentA)).toBe(false);
-    expect(momentB.equals(legacyMomentB)).toBe(false);
+  it("accepts the current dedicated SVG moments as real, distinct visual assets", () => {
+    expect(momentA).toContain("<svg");
+    expect(momentB).toContain("<svg");
+    expect(momentA.length).toBeGreaterThan(120);
+    expect(momentB.length).toBeGreaterThan(120);
+    expect(momentA).not.toBe(momentB);
   });
 
   it("keeps Story copy centralized and provides every canonical fixture state", () => {
