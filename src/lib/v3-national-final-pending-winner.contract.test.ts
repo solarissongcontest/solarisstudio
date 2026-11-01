@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 const migration = source(
-  "supabase/migrations/20261101172500_v3_confirmation_pending_nf_winner.sql",
+  "supabase/migrations/20261101172649_v3_confirmation_pending_nf_winner.sql",
 );
 const prefill = source("src/lib/prefill.ts");
 
