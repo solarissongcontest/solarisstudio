@@ -65,7 +65,7 @@ function InterpretationsIndex() {
                 Official clarifications
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Published TSBC answers explain how an existing rule applies. They do not silently replace the regulation or create a hidden new version.
+                Published TSBC answers explain how an existing rule applies. They do not silently replace the official regulation or create a new rulebook version.
               </p>
             </div>
             <span className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[0.08] bg-black/10 px-3 text-xs text-muted-foreground">
