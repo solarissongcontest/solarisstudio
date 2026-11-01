@@ -36,6 +36,15 @@ export const V3_S14_SEED_CONTRACT = {
   ] as const,
 } as const;
 
+export const V3_S14_CONTEST_EXTENSIONS = [
+  "grand-final-qualifier-bridge",
+  "grand-final-voting",
+  "grand-final-results",
+  "grand-final-publication",
+] as const;
+
+export const V3_S14_FINAL_LIFECYCLE_STATE = "archived" as const;
+
 export const V3_S14_STAGES: readonly V3S14Stage[] = [
   {
     id: "stage-1-setup",
