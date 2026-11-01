@@ -159,9 +159,12 @@ const representativeCiProjects = [
     use: { viewport: { width: 390, height: 844 }, serviceWorkers: "block" as const },
   },
   {
-    // Account/read-only states are release-critical for PR #464.
+    // Account/read-only states are release-critical for PR #464. This project
+    // mutates singleton rollout rows, so it must not race the installed-app
+    // navbar certification that uses the same isolated local Supabase rows.
     name: "account-states",
     testMatch: /account-states\.e2e\.ts/,
+    dependencies: ["ios-pwa-portrait"],
     use: { viewport: { width: 1440, height: 1000 } },
   },
   {
@@ -205,6 +208,7 @@ const exhaustiveProjects = [
   {
     name: "account-states",
     testMatch: /account-states\.e2e\.ts/,
+    dependencies: ["ios-pwa-portrait"],
     use: { viewport: { width: 1440, height: 1000 } },
   },
   {
