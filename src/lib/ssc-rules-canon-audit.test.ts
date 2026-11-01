@@ -111,6 +111,14 @@ describe("SSC current canon audit", () => {
     expect(new Set(QUICK_RULE_IDS).size).toBe(QUICK_RULE_IDS.length);
   });
 
+  it("carries the already-published v4.0.1 definitions into the current structural canon", () => {
+    const definitions = textFor("2.1");
+    expect(definitions).toContain("appeal: a formal request");
+    expect(definitions).toContain("head of delegation (hod)");
+    expect(definitions).toContain("official contest channel");
+    expect(definitions).toContain("withdrawal: the formal removal");
+  });
+
   it("preserves the Roleplay & Worldbuilding protection and Dormant contracts", () => {
     const chapter = SSC_RULE_CHAPTERS.find((candidate) => candidate.number === 22);
     expect(chapter?.slug).toBe("roleplay-worldbuilding");
