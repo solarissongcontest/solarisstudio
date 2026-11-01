@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 
+import { AppTabBar } from "@/components/app/AppTabBar";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
@@ -355,14 +356,22 @@ export function V3AppShell({
         {children}
       </div>
 
-      {!isAppMode ? (
+      {isAppMode ? (
+        <AppTabBar
+          pathname={pathname}
+          searchStr={searchStr}
+          signedIn={Boolean(rollout.data?.userId)}
+          participateBadge={participateAttentionCount}
+          meBadge={attention.me}
+        />
+      ) : (
         <V3LiquidTabBar
           key={navigationInteractionKey}
           pathname={pathname}
           destinations={navigationDestinations}
           onSelect={selectDestination}
         />
-      ) : null}
+      )}
     </V3FoundationShell>
   );
 }

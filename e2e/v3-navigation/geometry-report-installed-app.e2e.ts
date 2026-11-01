@@ -1,5 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
+import { applyNavbarInstalledCssEmulation } from "./navbar-local-rollout";
+
 import { V3_NAVIGATION_GEOMETRY } from "../../src/lib/v3-navigation-geometry";
 import type { V3NavigationReferenceGeometry } from "../../src/lib/v3-navigation-reference-baseline";
 
@@ -88,14 +90,14 @@ async function installSession(context: BrowserContext, session: E2ESession) {
 
 async function measureExpanded(page: Page) {
   return page.evaluate(() => {
-    const bar = document.querySelector<HTMLElement>("[data-v3-liquid-tabbar]");
-    const material = bar?.querySelector<HTMLElement>(".v3-liquid-tabbar__material") ?? null;
-    const lens = bar?.querySelector<HTMLElement>(".v3-liquid-tabbar__lens") ?? null;
+    const bar = document.querySelector<HTMLElement>(".solaris-app-tabbar");
+    const material = bar?.querySelector<HTMLElement>(".solaris-app-tabbar-material") ?? null;
+    const lens = bar?.querySelector<HTMLElement>(".solaris-app-tab-indicator") ?? null;
     const items = bar
-      ? Array.from(bar.querySelectorAll<HTMLElement>("[data-v3-tab-index]"))
+      ? Array.from(bar.querySelectorAll<HTMLElement>("[data-app-tab-index]"))
       : [];
     const icons = bar
-      ? Array.from(bar.querySelectorAll<SVGElement>(".v3-liquid-tabbar__icon"))
+      ? Array.from(bar.querySelectorAll<SVGElement>(".solaris-app-tab-icon"))
       : [];
     if (!bar || !material || !lens || items.length !== 5 || icons.length !== 5) return null;
 
@@ -137,7 +139,7 @@ async function measureCompact(page: Page, expandedHeight: number) {
     document.body.append(spacer);
     window.scrollTo(0, 420);
   });
-  const bar = page.locator("[data-v3-liquid-tabbar]");
+  const bar = page.locator(".solaris-app-tabbar");
   await expect(bar).toHaveAttribute("data-collapsed", "true");
   // The React state attribute can flip before WebKit has exposed the resulting
   // computed geometry. N14 evidence must sample the compact material itself,
@@ -145,13 +147,13 @@ async function measureCompact(page: Page, expandedHeight: number) {
   await expect
     .poll(() =>
       page.evaluate(() => {
-        const material = document.querySelector<HTMLElement>(".v3-liquid-tabbar__material");
+        const material = document.querySelector<HTMLElement>(".solaris-app-tabbar-material");
         return material?.getBoundingClientRect().height ?? Number.POSITIVE_INFINITY;
       }),
     )
     .toBeLessThan(expandedHeight - 1);
   return page.evaluate(() => {
-    const material = document.querySelector<HTMLElement>(".v3-liquid-tabbar__material");
+    const material = document.querySelector<HTMLElement>(".solaris-app-tabbar-material");
     if (!material) return null;
     const rect = material.getBoundingClientRect();
     return { width: rect.width, height: rect.height };
@@ -172,7 +174,8 @@ test("installed app shell survives representative navigation without duplicate c
   await installSession(context, session);
   const page = await context.newPage();
   await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });
-  await expect(page.locator("[data-v3-liquid-tabbar]")).toBeVisible();
+  await applyNavbarInstalledCssEmulation(page);
+  await expect(page.locator(".solaris-app-tabbar")).toBeVisible();
 
   const expanded = await measureExpanded(page);
   expect(expanded).not.toBeNull();

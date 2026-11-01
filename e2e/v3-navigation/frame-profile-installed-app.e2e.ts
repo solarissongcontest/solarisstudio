@@ -1,5 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
+import { applyNavbarInstalledCssEmulation } from "./navbar-local-rollout";
+
 type E2ESession = {
   access_token: string;
   user: { id: string; email?: string | null };
@@ -167,9 +169,10 @@ test("installed app shell survives representative navigation without duplicate c
   await installSession(context, session);
   const page = await context.newPage();
   await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });
-  const nav = page.locator("[data-v3-liquid-tabbar]");
+  await applyNavbarInstalledCssEmulation(page);
+  const nav = page.locator(".solaris-app-tabbar");
   await expect(nav).toBeVisible();
-  const active = nav.locator('[data-v3-tab-index][aria-current="page"]');
+  const active = nav.locator('[data-app-tab-index][aria-current="page"]');
   const bounds = await active.boundingBox();
   expect(bounds).not.toBeNull();
   if (!bounds) return;
@@ -202,7 +205,7 @@ test("installed app shell survives representative navigation without duplicate c
     clientX: startX - 56,
     clientY: startY,
   });
-  await expect(page.locator(".v3-liquid-tabbar__material")).toHaveAttribute(
+  await expect(page.locator(".solaris-app-tabbar-material")).toHaveAttribute(
     "data-dragging",
     "false",
   );
