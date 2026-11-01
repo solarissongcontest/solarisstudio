@@ -59,10 +59,11 @@ jobs:
       - name: Enforce client performance budget
         run: bun run budget:client
 
-      - name: Install browser-audit runner
-        run: |
-          bun add --dev @playwright/test@1.55.0
-          bunx playwright install --with-deps chromium webkit
+      - name: Verify locked Playwright runner
+        run: test "$(bunx playwright --version)" = "Version 1.55.0"
+
+      - name: Install browser-audit browser binaries
+        run: bunx playwright install --with-deps chromium webkit
 
       - name: Start isolated local Supabase for browser audit
         shell: bash
