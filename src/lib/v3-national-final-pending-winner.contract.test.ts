@@ -10,6 +10,15 @@ const migration = source(
 const prefill = source("src/lib/prefill.ts");
 
 describe("National Final pending winner review contract", () => {
+  it("adopts the post-S13 migration contract without requiring it on older production stacks", () => {
+    expect(migration).toContain("v3_register_migration_contract(");
+    expect(migration).toContain(
+      "public.v3_register_migration_contract(text,integer,text,boolean,text,text)",
+    );
+    expect(migration).toContain("v3.confirmation.pending-nf-winner-review");
+    expect(migration).toContain("forward_fix_only");
+  });
+
   it("keeps participant winner intent separate from the exact-reviewed canonical winner", () => {
     expect(migration).toContain("pending_winning_entry_id uuid");
     expect(migration).toContain("solaris.v3_confirmation_participant_write");
