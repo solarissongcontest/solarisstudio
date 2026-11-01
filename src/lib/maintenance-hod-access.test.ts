@@ -121,10 +121,10 @@ describe("TerraOS 3 maintenance page + HOD integration", () => {
     expect(maintenanceCss).toContain("--primary:");
   });
 
-  it("moves the injected portal into the dedicated Confirmation chapter through the static runtime", () => {
+  it("moves the injected portal into the dedicated Confirmation chapter through the revisioned static runtime", () => {
     expect(teaser).toContain('data-confirmation-host');
     expect(teaser).toContain('id="confirmation-access"');
-    expect(teaser).toContain('<script src="/assets/terraos-maintenance.js"></script>');
+    expect(teaser).toContain('<script src="/assets/terraos-maintenance.js?v=20261025-wordmark-global-nowrap"></script>');
     expect(maintenanceMotion).toContain("const portal = document.querySelector('.hod-portal')");
     expect(maintenanceMotion).toContain("const confirmationHost = document.querySelector('[data-confirmation-host]')");
     expect(maintenanceMotion).toContain("confirmationHost.appendChild(portal)");
