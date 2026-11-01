@@ -279,12 +279,25 @@ test("installed app shell survives representative navigation without duplicate c
     spacer.style.width = "1px";
     spacer.style.pointerEvents = "none";
     document.body.append(spacer);
-    window.scrollTo(0, 420);
-    window.dispatchEvent(new Event("scroll"));
+    window.scrollTo(0, 0);
   });
+
+  // Let the route-reset/listener effects settle before producing genuine
+  // downward travel. A single synthetic jump immediately after DOMContentLoaded
+  // can race the hook initialization and test hydration timing instead of the
+  // responsive-bar contract.
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+  );
+  await page.evaluate(() => window.scrollTo(0, 190));
   await expect
     .poll(() => page.evaluate(() => window.scrollY))
     .toBeGreaterThan(140);
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+  );
+  await page.evaluate(() => window.scrollTo(0, 420));
+
   await expect(page.locator(".solaris-app-tabbar")).toHaveAttribute("data-collapsed", "true");
   await expect
     .poll(async () => (await readGeometry(page))?.material.height ?? initial.material.height)
