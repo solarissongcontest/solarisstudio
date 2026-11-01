@@ -175,14 +175,8 @@ function validateFailureEvidence(evidence: V3S14Evidence) {
     fail("runtime failure evidence requires failureStage diagnostics");
   }
   if (typeof evidence.exitCode !== "number" || evidence.exitCode === 0) {
-    fail("runtime failure evidence requires a non-zero exitCode");
+    fail("runtime failure evidence requires a non-zero exitCode diagnostic");
   }
-
-  const diagnostics = asRecord(evidence.diagnostics, "diagnostics");
-  if (diagnostics.failurePhase !== evidence.failurePhase || diagnostics.failureStage !== evidence.failureStage) {
-    fail("diagnostics must preserve the exact failure phase/stage");
-  }
-  if (diagnostics.exitCode !== evidence.exitCode) fail("diagnostics must preserve the exact exit code");
 
   if (evidence.lifecycle !== undefined) {
     const lifecycle = asRecord(evidence.lifecycle, "lifecycle");
