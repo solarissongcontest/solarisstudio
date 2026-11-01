@@ -1,9 +1,8 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 function source(path: string) {
-  return readFileSync(resolve(process.cwd(), path), "utf8");
+  return readFileSync(path, "utf8");
 }
 
 describe("Pre-Beta public UX completion contract", () => {
@@ -14,7 +13,7 @@ describe("Pre-Beta public UX completion contract", () => {
   const breadcrumbs = source("src/lib/public-breadcrumbs.ts");
   const confirmation = source("src/components/ConfirmationForm.tsx");
   const rules = source("src/components/rules/RulesHomeV5.tsx");
-  const roleplay = source("src/components/rules/RoleplayWorldbuildingVisual.tsx");
+  const publicNavigation = source("src/lib/public-navigation.ts");
   const integrity = source("src/components/integrity/IntegrityHomeV5.tsx");
   const mySolarisContext = source("src/components/mysolaris/MySolarisContext.tsx");
   const priorities = source("src/lib/my-solaris-priorities.ts");
@@ -72,9 +71,8 @@ describe("Pre-Beta public UX completion contract", () => {
     for (const label of ["22 chapters", "Official clarifications", "Changes & history"]) {
       expect(rules).toContain(`title="${label}"`);
     }
-    expect(rules).toContain('chapter: "roleplay-worldbuilding"');
-    expect(roleplay).toContain("Dormancy clock");
-    expect(roleplay).toContain("Six fully HODless completed Editions");
+    expect(publicNavigation).toContain("Browse all 22 chapters");
+    expect(publicNavigation).toContain('"/rules/chapters/roleplay-worldbuilding"');
     for (const label of ["Follow or recover a case", "How the process works", "Privacy & anonymity"]) {
       expect(integrity).toContain(label);
     }
