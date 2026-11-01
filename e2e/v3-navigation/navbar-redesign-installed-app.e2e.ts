@@ -93,6 +93,25 @@ async function readGeometry(page: Page): Promise<NavGeometry | null> {
   });
 }
 
+async function readStableGeometry(page: Page, label: string): Promise<NavGeometry> {
+  await expect
+    .poll(async () => {
+      const geometry = await readGeometry(page);
+      return Boolean(
+        geometry &&
+          geometry.material.width > 0 &&
+          geometry.material.height > 0 &&
+          geometry.activeItem,
+      );
+    }, { message: `${label} navbar should settle after route-shell hydration` })
+    .toBe(true);
+
+  const geometry = await readGeometry(page);
+  expect(geometry, `${label} navbar geometry should render`).not.toBeNull();
+  if (!geometry) throw new Error(`${label} navbar geometry disappeared after settling`);
+  return geometry;
+}
+
 function expectRedesignedGeometry(geometry: NavGeometry, viewportWidth: number) {
   const expectedMaterialWidth = Math.min(viewportWidth - 28, 414);
 
@@ -134,6 +153,7 @@ async function assertAuthoritativeNavbar(page: Page) {
   await expect(nav.locator(".solaris-app-tabbar-material")).toBeVisible();
   await expect(nav.locator("[data-app-tab-index]")).toHaveCount(5);
   await expect(nav.locator('[data-app-tab-index][aria-current="page"]')).toHaveCount(1);
+  await expect(nav.locator(".solaris-app-tab-label").first()).toBeHidden();
   await expect(page.locator("[data-v3-liquid-tabbar]:visible")).toHaveCount(0);
   return nav;
 }
@@ -179,12 +199,9 @@ test(
       await page.evaluate(() => window.scrollTo(0, 0));
       const nav = await assertAuthoritativeNavbar(page);
       await expect(nav).toHaveAttribute("data-collapsed", "false");
-      const geometry = await readGeometry(page);
-      expect(geometry, `${viewport.width}px navbar geometry should render`).not.toBeNull();
-      if (geometry) {
-        expectRedesignedGeometry(geometry, viewport.width);
-        await attachGeometry(testInfo, `navbar-${viewport.width}x${viewport.height}`, geometry);
-      }
+      const geometry = await readStableGeometry(page, `${viewport.width}px`);
+      expectRedesignedGeometry(geometry, viewport.width);
+      await attachGeometry(testInfo, `navbar-${viewport.width}x${viewport.height}`, geometry);
       await attachNavbar(page, testInfo, `navbar-${viewport.width}x${viewport.height}`);
     }
 
@@ -196,11 +213,9 @@ test(
       await applyNavbarInstalledCssEmulation(page);
       expect(response?.status(), `${route.label} should load`).toBeLessThan(400);
       await page.evaluate(() => window.scrollTo(0, 0));
-      const nav = await assertAuthoritativeNavbar(page);
+      await assertAuthoritativeNavbar(page);
 
-      const geometry = await readGeometry(page);
-      expect(geometry, `${route.label} navbar geometry should render`).not.toBeNull();
-      if (!geometry) continue;
+      const geometry = await readStableGeometry(page, route.label);
       expectRedesignedGeometry(geometry, 390);
       await attachGeometry(testInfo, `navbar-390x844-${route.label.toLowerCase()}`, geometry);
 
