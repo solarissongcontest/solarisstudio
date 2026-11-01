@@ -154,7 +154,15 @@ function applySnapshotToRule(rule: SscRule, snapshot: RuleSnapshot) {
 
 /** Apply an immutable published release over the bundled current canon. */
 export function applyPublishedRulebookRelease(release: RulebookRelease | null | undefined) {
-  if (!release?.version || !isPublishedReleaseCompatibleWithBundledCanon(release)) {
+  if (!release?.version) {
+    if (appliedReleaseVersion !== null) {
+      resetRulebookBaseline();
+      appliedReleaseVersion = null;
+    }
+    return;
+  }
+
+  if (!isPublishedReleaseCompatibleWithBundledCanon(release)) {
     if (appliedReleaseVersion !== null) {
       resetRulebookBaseline();
       appliedReleaseVersion = null;
