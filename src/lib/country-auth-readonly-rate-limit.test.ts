@@ -83,7 +83,7 @@ describe("country auth protection during restricted platform modes", () => {
     expect(recoveryRehearsal).toContain('stage "platform-mode"');
     expect(recoveryRehearsal).toContain("set mode = :'recovery_mode'");
     expect(recoveryRehearsal.indexOf('stage "platform-mode"')).toBeGreaterThan(
-      recoveryRehearsal.indexOf('stage "country-account-enrich"),
+      recoveryRehearsal.indexOf('stage "country-account-enrich"'),
     );
     expect(recoveryRehearsal.indexOf('stage "recovery-classification"')).toBeGreaterThan(
       recoveryRehearsal.indexOf('stage "platform-mode"'),
