@@ -70,25 +70,7 @@ test("maintenance artwork makes no remote image requests", async ({ page }) => {
   expect(remoteImages).toEqual([]);
 });
 
-test("versioned local maintenance runtime moves the server-injected HOD portal into Confirmation", async ({ page }) => {
-  await page.route("**/*", async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (request.resourceType() !== "document" || url.pathname !== "/") {
-      await route.fallback();
-      return;
-    }
-
-    const response = await route.fetch();
-    const html = await response.text();
-    const injected = html.replace(
-      "<footer>",
-      '<section class="hod-portal" data-test-hod-portal="true">Fixture HOD portal</section><footer>',
-    );
-    if (injected === html) throw new Error("maintenance fixture could not find the server portal insertion point");
-    await route.fulfill({ response, body: injected });
-  });
-
+test("versioned local maintenance runtime places the real HOD portal in Confirmation", async ({ page }) => {
   const response = await page.goto("/", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(503);
 
@@ -99,6 +81,8 @@ test("versioned local maintenance runtime moves the server-injected HOD portal i
   expect(runtime.pathname).toBe("/assets/terraos-maintenance.js");
   expect(runtime.searchParams.get("v")).toBeTruthy();
 
-  await expect(page.locator('[data-confirmation-host] > .hod-portal[data-test-hod-portal="true"]')).toHaveCount(1);
+  const portal = page.locator('[data-confirmation-host] > .hod-portal');
+  await expect(portal).toHaveCount(1);
+  await expect(portal).toContainText("Manage your current Confirmation");
   await expect(page.locator('[data-confirmation-fallback]')).toBeHidden();
 });
