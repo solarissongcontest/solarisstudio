@@ -7,6 +7,7 @@ import {
   Map,
   ShieldCheck,
   UsersRound,
+  type LucideIcon,
 } from "lucide-react";
 
 const DORMANCY_EDITIONS = [1, 2, 3, 4, 5, 6] as const;
@@ -152,7 +153,7 @@ function VisualLane({
   detail,
   accent,
 }: {
-  icon: typeof Map;
+  icon: LucideIcon;
   eyebrow: string;
   title: string;
   detail: string;
@@ -186,7 +187,7 @@ function StatusCard({
   items,
   tone,
 }: {
-  icon: typeof Map;
+  icon: LucideIcon;
   label: string;
   title: string;
   items: string[];
