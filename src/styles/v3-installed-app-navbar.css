@@ -162,6 +162,15 @@
     display: none;
   }
 
+  /* A software keyboard hides the fixed navigation completely. Visibility is
+   * intentional here: unlike opacity/transform alone, it removes descendant
+   * links from hit testing and sequential focus until AppChromeMetrics clears
+   * the keyboard state. */
+  html[data-solaris-keyboard-open] [data-solaris-v3] .solaris-app-tabbar {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
   [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material {
     --solaris-tab-pad: 5px;
     --solaris-tab-total-inset: 10px;
