@@ -4,14 +4,16 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 const driver = source(".github/scripts/v3-full-contest-rehearsal.sh");
 const workflow = source(".github/workflows/v3-s14-full-contest-rehearsal.yml");
+const validator = source("scripts/v3-s14-evidence-validator.ts");
 
 describe("S14 exact-SHA runtime failure evidence", () => {
-  it("writes fail-closed partial evidence with both canonical phase and detailed failure identity", () => {
+  it("writes fail-closed partial evidence with canonical phase and useful diagnostics", () => {
     expect(driver).toContain("write_runtime_failure_evidence");
     expect(driver).toContain("trap on_exit EXIT");
     expect(driver).toContain('"runtimeFailure": True');
     expect(driver).toContain('"failurePhase": failure_phase');
     expect(driver).toContain('"failureStage": failure_stage');
+    expect(driver).toContain('"exitCode": int(exit_code)');
     expect(driver).toContain("canonical_failure_phase");
     expect(driver).toContain('detail.startswith(f"{phase}:")');
     expect(driver).toContain('"candidateSha": sha');
@@ -28,36 +30,37 @@ describe("S14 exact-SHA runtime failure evidence", () => {
     expect(driver).toContain('"pendingContestExtensions": []');
   });
 
-  it("does not overwrite a successful partial rehearsal with runtime-failure evidence", () => {
+  it("does not overwrite successful final evidence with runtime-failure evidence", () => {
     expect(driver).toContain("EVIDENCE_WRITTEN=0");
     expect(driver).toContain('[[ "$EVIDENCE_WRITTEN" != "1" ]]');
     expect(driver).toContain("EVIDENCE_WRITTEN=1");
     expect(driver).toContain('"runtimeFailure": False');
   });
 
-  it("validates current Stage 1-9 plus Grand Final evidence rather than the obsolete Stage 1-7 shape", () => {
-    expect(workflow).toContain('"stage-9-publication",');
-    expect(workflow).toContain('expected_pending = ["stage-10-archive"]');
-    expect(workflow).toContain("expected_extensions = [");
-    expect(workflow).toContain('"grand-final-publication",');
-    expect(workflow).toContain("required_invariants = {");
-    expect(workflow).toContain("Stages 1-9 and Grand Final extensions complete; Archive pending");
-    expect(workflow).not.toContain("Stages 1-7 complete; 8-10 pending");
+  it("delegates lifecycle truth to the semantic validator instead of workflow prose", () => {
+    expect(workflow).toContain("scripts/validate-v3-s14-evidence.ts");
+    expect(workflow).toContain("--require-complete");
+    expect(workflow).not.toContain("expected_pending =");
+    expect(workflow).not.toContain("required_invariants = {");
+    expect(workflow).not.toContain("Stages 1-9 and Grand Final extensions complete; Archive pending");
+    expect(validator).toContain("V3_S14_STAGES");
+    expect(validator).toContain("V3_S14_CONTEST_EXTENSIONS");
+    expect(validator).toContain("V3_S14_FINAL_LIFECYCLE_STATE");
   });
 
   it("validates canonical failure phase without discarding useful sub-stage diagnostics", () => {
-    expect(workflow).toContain("failure_phase = data.get(\"failurePhase\")");
-    expect(workflow).toContain('failure_phase == "unknown"');
-    expect(workflow).toContain("failure_phase not in pending_stages and failure_phase not in pending_extensions");
-    expect(workflow).not.toContain("failure_stage not in data.get(\"pendingStages\", [])");
+    expect(validator).toContain("failurePhase");
+    expect(validator).toContain("failureStage diagnostics");
+    expect(validator).toContain("non-zero exitCode diagnostic");
+    expect(validator).toContain("must not manufacture archived completion");
   });
 
-  it("validates and uploads the complete sanitized evidence directory even when rehearsal fails", () => {
+  it("validates and uploads the evidence directory even when rehearsal fails", () => {
     expect(workflow).toContain("id: rehearsal");
-    expect(workflow).toContain("Validate exact-SHA rehearsal evidence");
+    expect(workflow).toContain("Validate exact-SHA S14 evidence");
     expect(workflow).toContain("REHEARSAL_OUTCOME: ${{ steps.rehearsal.outcome }}");
-    expect(workflow).toContain('if data.get("runtimeFailure") is not True');
+    expect(workflow).toContain("failed S14 did not emit partial/failure evidence");
     expect(workflow).toContain("path: v3-release-evidence/");
-    expect(workflow).toContain('if-no-files-found: error');
+    expect(workflow).toContain("if-no-files-found: error");
   });
 });
