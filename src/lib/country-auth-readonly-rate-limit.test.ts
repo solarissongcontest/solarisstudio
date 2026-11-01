@@ -33,15 +33,16 @@ describe("country auth protection during restricted platform modes", () => {
     expect(gateMigration).not.toContain("if session_user = 'service_role'");
   });
 
-  it("keeps S13 registration when available without blocking pre-S13 production", () => {
+  it("keeps canonical S13 registration when available without blocking pre-S13 production", () => {
     expect(gateMigration).toContain(
       "to_regprocedure(\n       'public.v3_register_migration_contract(text,integer,text,boolean,text,text)'",
     );
+    expect(gateMigration).toContain("execute $registration$");
     expect(gateMigration).toContain(
-      "perform public.v3_register_migration_contract(",
+      "select public.v3_register_migration_contract(",
     );
     expect(gateMigration).toContain(
-      "do not make this emergency\n-- authentication-protection repair depend on unrelated framework adoption",
+      "only executing it when that framework exists",
     );
   });
 
@@ -82,7 +83,7 @@ describe("country auth protection during restricted platform modes", () => {
     expect(recoveryRehearsal).toContain('stage "platform-mode"');
     expect(recoveryRehearsal).toContain("set mode = :'recovery_mode'");
     expect(recoveryRehearsal.indexOf('stage "platform-mode"')).toBeGreaterThan(
-      recoveryRehearsal.indexOf('stage "country-account-enrich"'),
+      recoveryRehearsal.indexOf('stage "country-account-enrich"),
     );
     expect(recoveryRehearsal.indexOf('stage "recovery-classification"')).toBeGreaterThan(
       recoveryRehearsal.indexOf('stage "platform-mode"'),
