@@ -13,10 +13,11 @@ const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
 const browserAuditWorkflow = source(".github/workflows/browser-audit.yml");
 
 describe("PR Browser Audit bounded smoke and route isolation contract", () => {
-  it("keeps PR smoke bounded and retry-free while reporting every representative failure", () => {
+  it("keeps browser CI retry-free while reporting every selected failure", () => {
     expect(playwrightConfig).toContain('process.env.GITHUB_EVENT_NAME === "pull_request"');
     expect(playwrightConfig).toContain("timeout: representativeCI ? 90_000");
-    expect(playwrightConfig).toContain("retries: representativeCI ? 0");
+    expect(playwrightConfig).toContain("retries: 0");
+    expect(playwrightConfig).not.toMatch(/retries:\s*[^\n]*\?\s*1/);
     expect(playwrightConfig).toContain("maxFailures: 0");
     expect(playwrightConfig).not.toContain("maxFailures: prSmoke ? 1 : 0");
   });
