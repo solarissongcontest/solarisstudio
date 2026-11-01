@@ -75,13 +75,14 @@ export function usePublishedRulebook() {
     applyPublishedRulebookRelease(query.data ?? null);
   }, [hydrated, query.data]);
 
-  const fetched = hydrated ? query.data : undefined;
-  const data = fetched && isPublishedReleaseCompatibleWithBundledCanon(fetched) ? fetched : undefined;
+  const data = hydrated ? query.data : undefined;
+  const effectiveData =
+    data && isPublishedReleaseCompatibleWithBundledCanon(data) ? data : undefined;
 
   return {
     ...query,
-    data,
-    version: data?.version ?? BUNDLED_RULEBOOK_META.version,
+    data: effectiveData,
+    version: effectiveData?.version ?? BUNDLED_RULEBOOK_META.version,
   };
 }
 
