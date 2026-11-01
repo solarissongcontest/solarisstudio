@@ -6,6 +6,18 @@
  * The outer capsule stays quiet; the selected lens carries the visual character.
  */
 
+@property --v3-liquid-optical-scale-x {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0.84;
+}
+
+@property --v3-liquid-optical-scale-y {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0.90;
+}
+
 [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
   color: var(--v3-text-secondary);
   -webkit-backdrop-filter: none;
@@ -81,15 +93,16 @@
 
 /*
  * The lens keeps a slot-sized interaction box for existing gesture physics, but
- * its rendered material is intentionally smaller through the independent scale
- * property. That changes the visible composition without shrinking the tab hit
- * target or destabilising the drag hot path.
+ * its rendered material is intentionally smaller through optical scale variables
+ * composed after physical translation in the transform chain. That preserves
+ * the selected slot center in WebKit while leaving the tab hit target untouched.
  */
 [data-solaris-v3] .v3-liquid-tabbar__lens {
+  --v3-liquid-optical-scale-x: 0.84;
+  --v3-liquid-optical-scale-y: 0.90;
   z-index: 2;
   overflow: visible;
   isolation: isolate;
-  scale: 0.84 0.90;
   border: 1px solid rgba(249, 253, 255, 0.25);
   pointer-events: none;
   background:
@@ -106,14 +119,15 @@
     inset -1px 0 0 rgba(255, 180, 225, 0.045);
   transition:
     transform var(--v3-motion-standard) var(--v3-ease-spring),
-    scale 210ms cubic-bezier(0.18, 0.88, 0.24, 1),
+    --v3-liquid-optical-scale-x 210ms cubic-bezier(0.18, 0.88, 0.24, 1),
+    --v3-liquid-optical-scale-y 210ms cubic-bezier(0.18, 0.88, 0.24, 1),
     border-radius var(--v3-motion-fast) var(--v3-ease-enter),
     border-color var(--v3-motion-fast) var(--v3-ease-enter),
     background var(--v3-motion-fast) var(--v3-ease-enter),
     box-shadow 210ms cubic-bezier(0.18, 0.88, 0.24, 1),
     -webkit-backdrop-filter var(--v3-motion-fast) var(--v3-ease-enter),
     backdrop-filter var(--v3-motion-fast) var(--v3-ease-enter);
-  will-change: transform, scale, border-radius;
+  will-change: transform, border-radius;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__lens::before,
@@ -152,9 +166,10 @@
 
 /* Immediate touch-down feedback before the long-press threshold. */
 [data-solaris-v3]
-  .v3-liquid-tabbar__material:has(.v3-liquid-tabbar__item[data-active="true"]:active)
+  .v3-liquid-tabbar__material:not([data-held="true"]):has(.v3-liquid-tabbar__item[data-active="true"]:active)
   .v3-liquid-tabbar__lens {
-  scale: 0.80 0.86;
+  --v3-liquid-optical-scale-x: 0.80;
+  --v3-liquid-optical-scale-y: 0.86;
   border-color: rgba(249, 253, 255, 0.21);
   box-shadow:
     0 4px 12px rgba(0, 3, 18, 0.11),
@@ -175,7 +190,8 @@
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__material[data-held="true"] .v3-liquid-tabbar__lens {
-  scale: 0.98 1.02;
+  --v3-liquid-optical-scale-x: 0.98;
+  --v3-liquid-optical-scale-y: 1.02;
   border-color: rgba(249, 253, 255, 0.34);
   background:
     radial-gradient(108% 148% at 35% -24%, rgba(255, 255, 255, 0.31), transparent 46%),
@@ -198,7 +214,8 @@
 
 [data-solaris-v3] .v3-liquid-tabbar__material[data-dragging="true"] .v3-liquid-tabbar__lens {
   transition:
-    scale 120ms cubic-bezier(0.2, 0.85, 0.2, 1),
+    --v3-liquid-optical-scale-x 120ms cubic-bezier(0.2, 0.85, 0.2, 1),
+    --v3-liquid-optical-scale-y 120ms cubic-bezier(0.2, 0.85, 0.2, 1),
     border-color 120ms linear,
     box-shadow 120ms linear;
 }
@@ -299,7 +316,8 @@
 }
 
 [data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__lens {
-  scale: 0.80 0.88;
+  --v3-liquid-optical-scale-x: 0.80;
+  --v3-liquid-optical-scale-y: 0.88;
 }
 
 /* Follow the existing shell contract: software keyboard removes bottom chrome. */
@@ -328,10 +346,11 @@ html[data-solaris-keyboard-open] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabb
   }
 
   [data-solaris-v3]
-    .v3-liquid-tabbar__material:has(.v3-liquid-tabbar__item[data-active="true"]:active)
+    .v3-liquid-tabbar__material:not([data-held="true"]):has(.v3-liquid-tabbar__item[data-active="true"]:active)
     .v3-liquid-tabbar__lens,
   [data-solaris-v3] .v3-liquid-tabbar__material[data-held="true"] .v3-liquid-tabbar__lens {
-    scale: 0.84 0.90;
+    --v3-liquid-optical-scale-x: 0.84;
+    --v3-liquid-optical-scale-y: 0.90;
   }
 }
 
