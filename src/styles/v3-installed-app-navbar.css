@@ -21,6 +21,7 @@
     max-height: 64px;
     bottom: calc(var(--solaris-app-safe-bottom) + 10px);
     transform: translateX(-50%);
+    pointer-events: auto;
   }
 
   [data-solaris-v3] .solaris-app-tabbar-material {
