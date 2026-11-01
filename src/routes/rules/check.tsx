@@ -64,7 +64,7 @@ export function RuleCheckerPage() {
                 <SolarisDepthEyebrow tone="primary">Rule checker</SolarisDepthEyebrow>
                 <h1 className="mt-2 text-2xl font-bold tracking-[-0.03em] sm:text-3xl">Check an entry</h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Apply a small set of objective eligibility checks. This is structured guidance, not an official TSBC eligibility decision.
+                  Apply a small set of objective eligibility checks. It is guidance, not an official TSBC eligibility decision.
                 </p>
                 <GovernanceStatusStrip context="rules" className="mt-3" />
               </div>
