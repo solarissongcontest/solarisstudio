@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const workflow = readFileSync(resolve(process.cwd(), ".github/workflows/ci.yml"), "utf8");
+const root = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+const workflow = root(".github/workflows/ci.yml");
 
 function step(name: string) {
   const marker = `      - name: ${name}\n`;
@@ -36,6 +37,18 @@ describe("Quality workflow diagnostic integrity", () => {
     expect(finalGate).toContain("SOURCE_CHECK_OUTCOME: ${{ steps.tracked_source_check.outcome }}");
     expect(finalGate).toContain('if [ "$outcome" != "success" ]');
     expect(finalGate).toContain('exit "$failed"');
+  });
+
+  it("runs the repository-declared Vitest suite instead of a second test collector", () => {
+    const unit = step("Unit tests");
+    const packageJson = JSON.parse(root("package.json")) as { scripts?: Record<string, string> };
+    const vitestConfig = root("vitest.config.ts");
+
+    expect(packageJson.scripts?.test).toBe("vitest run");
+    expect(vitestConfig).toContain('environment: "node"');
+    expect(vitestConfig).toContain('include: ["src/**/*.test.ts", "src/**/*.test.tsx"]');
+    expect(unit).toContain("bun run test 2>&1");
+    expect(unit).not.toMatch(/(^|\s)bun test(\s|$)/m);
   });
 
   it("binds retained diagnostics to the exact checked-out candidate", () => {
