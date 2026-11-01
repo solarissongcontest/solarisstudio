@@ -51,14 +51,15 @@ describe("Quality workflow diagnostic integrity", () => {
     expect(unit).not.toMatch(/(^|\s)bun test(\s|$)/m);
   });
 
-  it("binds retained diagnostics to the exact checked-out candidate", () => {
+  it("binds retained diagnostics and artifact identity to the exact candidate", () => {
     const unit = step("Unit tests");
     const lint = step("Lint");
     const manifest = step("Write Quality diagnostic manifest");
-    const upload = step("Upload Quality diagnostic manifest");
+    const diagnosticUpload = step("Upload Quality diagnostic manifest");
+    const exactShaExpression = "${{ github.event.pull_request.head.sha || github.sha }}";
 
     for (const diagnosticStep of [unit, lint]) {
-      expect(diagnosticStep).toContain("QUALITY_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}");
+      expect(diagnosticStep).toContain(`QUALITY_SOURCE_SHA: ${exactShaExpression}`);
       expect(diagnosticStep).toContain('echo "candidate_sha=$QUALITY_SOURCE_SHA"');
       expect(diagnosticStep).toContain('echo "run_id=$GITHUB_RUN_ID"');
       expect(diagnosticStep).toContain('echo "run_attempt=$GITHUB_RUN_ATTEMPT"');
@@ -66,8 +67,11 @@ describe("Quality workflow diagnostic integrity", () => {
 
     expect(manifest).toContain('checkout_sha="$(git rev-parse HEAD');
     expect(manifest).toContain('if [ "$checkout_sha" != "$expected" ]');
-    expect(upload).toContain("if-no-files-found: error");
-    expect(upload).toContain("retention-days: 7");
+    expect(step("Upload unit test report")).toContain(`name: unit-test-report-${exactShaExpression}`);
+    expect(step("Upload lint report")).toContain(`name: lint-report-${exactShaExpression}`);
+    expect(diagnosticUpload).toContain(`name: quality-diagnostics-${exactShaExpression}`);
+    expect(diagnosticUpload).toContain("if-no-files-found: error");
+    expect(diagnosticUpload).toContain("retention-days: 7");
   });
 
   it("does not retry or quarantine deterministic unit failures into a green result", () => {
