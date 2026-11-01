@@ -138,12 +138,23 @@ async function measureCompact(page: Page, expandedHeight: number) {
     spacer.style.width = "1px";
     spacer.style.pointerEvents = "none";
     document.body.append(spacer);
-    window.scrollTo(0, 420);
-    window.dispatchEvent(new Event("scroll"));
+    window.scrollTo(0, 0);
   });
-  await expect
-    .poll(() => page.evaluate(() => window.scrollY))
-    .toBeGreaterThan(140);
+
+  // Let React's reset/listener effects settle before producing genuine downward
+  // travel. A single synthetic jump immediately after domcontentloaded can race
+  // the reset effect, leaving lastY initialized to the post-jump position and
+  // testing hydration timing rather than the responsive-bar contract.
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+  );
+  await page.evaluate(() => window.scrollTo(0, 190));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(140);
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+  );
+  await page.evaluate(() => window.scrollTo(0, 420));
+
   const bar = page.locator(".solaris-app-tabbar");
   await expect(bar).toHaveAttribute("data-collapsed", "true");
   // The React state attribute can flip before WebKit has exposed the resulting
