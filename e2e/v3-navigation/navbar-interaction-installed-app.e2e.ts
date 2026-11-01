@@ -5,7 +5,7 @@ import { prepareNavbarInstalledContext } from "./navbar-local-rollout";
 test.describe.configure({ retries: 0 });
 
 test(
-  "installed app shell survives representative navigation without duplicate chrome: selected lens visibly engages, drags and snaps",
+  "installed app shell survives representative navigation without duplicate chrome: authoritative selected lens visibly engages, drags and snaps",
   async ({ browser }, testInfo) => {
     test.skip(
       testInfo.project.name !== "ios-pwa-portrait",
@@ -20,11 +20,12 @@ test(
     const page = await context.newPage();
     await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });
 
-    const nav = page.locator("[data-v3-liquid-tabbar]");
-    const material = nav.locator(".v3-liquid-tabbar__material");
-    const lens = nav.locator(".v3-liquid-tabbar__lens");
+    const nav = page.locator(".solaris-app-tabbar");
+    const material = nav.locator(".solaris-app-tabbar-material");
+    const lens = nav.locator(".solaris-app-tab-indicator");
     const me = nav.getByRole("link", { name: /^Me(?:,|$)/ });
     await expect(nav).toBeVisible();
+    await expect(page.locator("[data-v3-liquid-tabbar]:visible")).toHaveCount(0);
     await expect(me).toHaveAttribute("aria-current", "page");
 
     const restingLens = await lens.boundingBox();
@@ -46,6 +47,11 @@ test(
     expect(heldLens.width).toBeGreaterThan(restingLens.width * 1.1);
     expect(heldLens.height).toBeGreaterThan(restingLens.height * 1.08);
 
+    await testInfo.attach("navbar-390-held.png", {
+      body: await nav.screenshot({ animations: "disabled", caret: "hide" }),
+      contentType: "image/png",
+    });
+
     await page.mouse.move(startX - 72, startY, { steps: 4 });
     const draggedLens = await lens.boundingBox();
     expect(draggedLens).not.toBeNull();
@@ -53,8 +59,15 @@ test(
     expect(draggedLens.x).toBeLessThan(heldLens.x - 20);
     expect(draggedLens.width).toBeGreaterThanOrEqual(heldLens.width);
 
+    await testInfo.attach("navbar-390-dragged.png", {
+      body: await nav.screenshot({ animations: "disabled", caret: "hide" }),
+      contentType: "image/png",
+    });
+
     await page.mouse.up();
     await expect(page).toHaveURL(/\/results(?:[/?#]|$)/);
+    await expect(nav).toBeVisible();
+    await expect(page.locator("[data-v3-liquid-tabbar]:visible")).toHaveCount(0);
     await expect(material).toHaveAttribute("data-held", "false");
     await expect(nav.getByRole("link", { name: /^Results(?:,|$)/ })).toHaveAttribute(
       "aria-current",
@@ -64,7 +77,7 @@ test(
     await expect
       .poll(async () => {
         const selected = await nav
-          .locator('[data-v3-tab-index][aria-current="page"]')
+          .locator('[data-app-tab-index][aria-current="page"]')
           .boundingBox();
         const snapped = await lens.boundingBox();
         if (!selected || !snapped) return Number.POSITIVE_INFINITY;
