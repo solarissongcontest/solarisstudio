@@ -2,14 +2,28 @@ begin;
 
 -- S13 contract: forward-only operational-gate repair. This changes one
 -- fail-closed exception and does not backfill, rewrite, or delete user data.
-select public.v3_register_migration_contract(
-  'v3.auth.country-rate-limit-readonly-gate',
-  1,
-  'forward_fix_only',
-  false,
-  null,
-  'Keep the service-role-only country-auth abuse limiter operational while Solaris read_only/maintenance intentionally exposes authentication and recovery; all unrelated Data API writes remain blocked.'
-);
+--
+-- Production may intentionally lag the newer S13 migration-contract framework.
+-- Keep the canonical literal registration call for current stacks and migration
+-- metadata tooling, while only executing it when that framework exists.
+do $contract$
+begin
+  if to_regprocedure(
+       'public.v3_register_migration_contract(text,integer,text,boolean,text,text)'
+     ) is not null then
+    execute $registration$
+      select public.v3_register_migration_contract(
+        'v3.auth.country-rate-limit-readonly-gate',
+        1,
+        'forward_fix_only',
+        false,
+        null,
+        'Keep the service-role-only country-auth abuse limiter operational while Solaris read_only/maintenance intentionally exposes authentication and recovery; all unrelated Data API writes remain blocked.'
+      )
+    $registration$;
+  end if;
+end
+$contract$;
 
 -- Country-account authentication and recovery stay intentionally available on
 -- the maintenance Confirmation surface while the wider Data API is restricted.
