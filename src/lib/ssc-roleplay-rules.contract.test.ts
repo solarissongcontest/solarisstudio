@@ -25,6 +25,13 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(getRuleById("22.1")?.chapterNumber).toBe(22);
   });
 
+  it("carries the already-published v4.0.1 definitions into the bundled v4.1 canon", () => {
+    const terms = getRuleById("2.1")?.body.join(" ") ?? "";
+    expect(terms).toContain("Appeal: A formal request for TSBC to review a decision");
+    expect(terms).toContain("Head of Delegation (HoD)");
+    expect(terms).toContain("Withdrawal: The formal removal of a Country from an Edition");
+  });
+
   it("makes the six-completed-edition threshold explicit and searchable", () => {
     const dormant = getRuleById("22.5");
     const protectedCountry = getRuleById("22.4");
@@ -44,9 +51,20 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(compareRulebookVersions("4.1", "4.0")).toBe(1);
     expect(compareRulebookVersions("4.1.0", "4.1")).toBe(0);
     expect(compareRulebookVersions("4.2", "4.1")).toBe(1);
-    expect(isPublishedReleaseCompatibleWithBundledCanon({ version: "4.0" })).toBe(false);
+    expect(isPublishedReleaseCompatibleWithBundledCanon({ version: "4.0.1" })).toBe(false);
     expect(isPublishedReleaseCompatibleWithBundledCanon({ version: "4.1" })).toBe(true);
     expect(isPublishedReleaseCompatibleWithBundledCanon({ version: "4.2" })).toBe(true);
+  });
+
+  it("reconciles a lagging server history without pretending the bundled release has a recorded publish date", () => {
+    const governance = source("src/lib/rules-governance.ts");
+    const history = source("src/routes/rules/changes.tsx");
+    expect(governance).toContain("reconcileRulebookReleaseHistory");
+    expect(governance).toContain("compareRulebookVersions(serverCurrent.version, BUNDLED_RULEBOOK_META.version)");
+    expect(governance).toContain('change_kind: "added" as const');
+    expect(governance).toContain("serverCurrent?.version ?? null");
+    expect(history).toContain('"Current bundled"');
+    expect(history).toContain('"Bundled with this app version"');
   });
 
   it("keeps the Rules product visual, responsive and app-safe", () => {
@@ -57,6 +75,7 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     const checker = source("src/routes/rules/check.tsx");
     const journey = source("src/routes/rules/participating.tsx");
     const search = source("src/routes/rules/search.tsx");
+    const navigation = source("src/lib/public-navigation.ts");
 
     expect(home).toContain("Roleplay & Worldbuilding");
     expect(home).toContain("env(safe-area-inset-bottom)");
@@ -70,5 +89,7 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(checker).toContain("min-h-12");
     expect(journey).toContain("md:grid-cols-2");
     expect(search).toContain("findRoleplayQuickAnswer");
+    expect(navigation).toContain("Browse all 22 chapters");
+    expect(navigation).toContain('"/rules/chapters/roleplay-worldbuilding"');
   });
 });
