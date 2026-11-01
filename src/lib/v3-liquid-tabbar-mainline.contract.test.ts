@@ -29,6 +29,24 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
   });
 
+  it("keeps installed AppTabBar direct manipulation behind hold engagement", () => {
+    const installedTabs = source("src/components/app/AppTabBar.tsx");
+
+    expect(installedTabs).toContain("prefersReducedMotion()");
+    expect(installedTabs).toContain('data-solaris-keyboard-open');
+    expect(installedTabs).toContain("holdMovementExceeded(");
+    expect(installedTabs).toContain("engaged: false");
+    expect(installedTabs).toMatch(
+      /if \(!held\) return;[\s\S]*drag\.engaged = true;[\s\S]*setDragging\(true\)/,
+    );
+    expect(installedTabs).toMatch(
+      /moveHold\([\s\S]*if \(!drag\.engaged\)[\s\S]*holdMovementExceeded\(/,
+    );
+    expect(installedTabs).toMatch(
+      /if \(!drag\.engaged\) \{[\s\S]*clearDrag\(\);[\s\S]*return;[\s\S]*\}/,
+    );
+  });
+
   it("keeps the pointer-move hot path free of layout reads", () => {
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const moveStart = tabs.indexOf("const moveDrag =");
