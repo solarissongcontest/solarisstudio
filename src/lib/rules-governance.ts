@@ -6,6 +6,7 @@ import {
   BUNDLED_RULEBOOK_META,
   applyPublishedRulebookRelease,
   getRuleById,
+  isPublishedReleaseCompatibleWithBundledCanon,
   type RulebookRelease,
 } from "@/lib/ssc-rules/index";
 
@@ -67,13 +68,15 @@ export function usePublishedRulebook() {
 
   useEffect(() => {
     if (!hydrated) return;
-    // Apply the immutable overlay only after the first client snapshot is
-    // hydrated. This keeps sibling Rules consumers on the bundled baseline
-    // during hydration, even when a cached query is already available.
+    // Apply only releases that are at least as new as the bundled canon. A
+    // deployment can therefore ship a new structural chapter safely before an
+    // older database release pointer is advanced, without visually downgrading
+    // or relabelling the bundled rulebook.
     applyPublishedRulebookRelease(query.data ?? null);
   }, [hydrated, query.data]);
 
-  const data = hydrated ? query.data : undefined;
+  const fetched = hydrated ? query.data : undefined;
+  const data = fetched && isPublishedReleaseCompatibleWithBundledCanon(fetched) ? fetched : undefined;
 
   return {
     ...query,
