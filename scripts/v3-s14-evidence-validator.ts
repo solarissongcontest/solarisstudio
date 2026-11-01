@@ -26,16 +26,12 @@ function fail(message: string): never {
 }
 
 function asRecord(value: unknown, field: string): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    fail(`${field} must be an object`);
-  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) fail(`${field} must be an object`);
   return value as Record<string, unknown>;
 }
 
 function asStringArray(value: unknown, field: string): string[] {
-  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) {
-    fail(`${field} must be a string array`);
-  }
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) fail(`${field} must be a string array`);
   return value as string[];
 }
 
@@ -58,9 +54,7 @@ function assertCanonicalSubset(actual: string[], canonical: readonly string[], f
 
 function assertPrefix(actual: string[], canonical: readonly string[], field: string) {
   assertCanonicalSubset(actual, canonical, field);
-  if (actual.some((value, index) => value !== canonical[index])) {
-    fail(`${field} must be a canonical completion prefix`);
-  }
+  if (actual.some((value, index) => value !== canonical[index])) fail(`${field} must be a canonical completion prefix`);
 }
 
 function assertSanitized(value: unknown, path = "evidence") {
@@ -75,18 +69,19 @@ function assertSanitized(value: unknown, path = "evidence") {
   }
 }
 
-function validateIdentity(candidateSha: string, evidence: V3S14Evidence) {
+function validateIdentity(candidateSha: string, evidence: V3S14Evidence, requireCompleteIdentity: boolean) {
   const normalizedSha = candidateSha.trim().toLowerCase();
   if (!/^[0-9a-f]{40}$/.test(normalizedSha)) fail(`candidateSha is not a full 40-character Git SHA: ${candidateSha}`);
-  if (evidence.candidateSha !== normalizedSha) {
-    fail(`candidate SHA mismatch: ${String(evidence.candidateSha)} != ${normalizedSha}`);
-  }
+  if (evidence.candidateSha !== normalizedSha) fail(`candidate SHA mismatch: ${String(evidence.candidateSha)} != ${normalizedSha}`);
 
   const runIdentity = asRecord(evidence.runIdentity, "runIdentity");
   if (runIdentity.candidateSha !== normalizedSha) fail("runIdentity.candidateSha does not match exact candidate");
   if (typeof runIdentity.runId !== "string" || !runIdentity.runId) fail("runIdentity.runId is missing");
-  if (typeof runIdentity.databaseFingerprint !== "string" || !runIdentity.databaseFingerprint) {
-    fail("runIdentity.databaseFingerprint is missing");
+  if (
+    requireCompleteIdentity &&
+    (typeof runIdentity.databaseFingerprint !== "string" || !runIdentity.databaseFingerprint)
+  ) {
+    fail("runIdentity.databaseFingerprint is missing from complete evidence");
   }
 }
 
@@ -116,9 +111,7 @@ function validateProgress(evidence: V3S14Evidence) {
     ["implementedInvariants", invariantIds],
     ["implementedFailureInjections", failureInjectionIds],
   ] as const) {
-    if (evidence[field] !== undefined) {
-      assertCanonicalSubset(asStringArray(evidence[field], field), canonical, field);
-    }
+    if (evidence[field] !== undefined) assertCanonicalSubset(asStringArray(evidence[field], field), canonical, field);
   }
 
   return { completedStages, pendingStages, completedExtensions, pendingExtensions, blockedExtensions };
@@ -186,22 +179,14 @@ function validateFailureEvidence(evidence: V3S14Evidence) {
   }
 }
 
-export function validateV3S14Evidence({
-  candidateSha,
-  evidence,
-  requireComplete = false,
-}: ValidateV3S14EvidenceOptions): V3S14Evidence {
+export function validateV3S14Evidence({ candidateSha, evidence, requireComplete = false }: ValidateV3S14EvidenceOptions): V3S14Evidence {
   assertSanitized(evidence);
-  validateIdentity(candidateSha, evidence);
+  const complete = requireComplete || evidence.passed === true;
+  validateIdentity(candidateSha, evidence, complete);
   validateSeed(evidence);
 
-  if (requireComplete) {
-    validateCompleteEvidence(evidence);
-  } else if (evidence.passed === true) {
-    validateCompleteEvidence(evidence);
-  } else {
-    validateFailureEvidence(evidence);
-  }
+  if (complete) validateCompleteEvidence(evidence);
+  else validateFailureEvidence(evidence);
 
   return evidence;
 }
