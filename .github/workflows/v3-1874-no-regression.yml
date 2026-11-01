@@ -1,0 +1,292 @@
+name: V3 #1874 no-regression certification
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-1874-no-regression-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+
+env:
+  VITE_SUPABASE_URL: http://127.0.0.1:54321
+  VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+  SUPABASE_URL: http://127.0.0.1:54321
+  SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+  VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+  VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+  CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+  CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+
+jobs:
+  baseline:
+    name: Exact current-main baseline
+    if: github.event.pull_request.number == 1874
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact candidate graph
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Resolve and verify reconciled main parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          parent_count="$(git rev-list --parents -n 1 HEAD | awk '{print NF-1}')"
+          if [ "$parent_count" -lt 2 ]; then
+            echo "::error::Final #1874 candidate must be a two-parent reconciliation commit before certification."
+            exit 1
+          fi
+          base_sha="$(git rev-parse HEAD^2)"
+          git fetch --no-tags --depth=1 origin main
+          current_main="$(git rev-parse FETCH_HEAD)"
+          if [ "$base_sha" != "$current_main" ]; then
+            echo "::error::#1874 second parent $base_sha is not current main $current_main"
+            exit 1
+          fi
+          echo "BASE_SHA=$base_sha" >> "$GITHUB_ENV"
+          git checkout --detach "$base_sha"
+          test "$(git rev-parse HEAD)" = "$base_sha"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Capture exact main unit transcript
+        shell: bash
+        run: |
+          set +e
+          bun test 2>&1 | tee unit-test-output.txt
+          printf '%s\n' "${PIPESTATUS[0]}" > unit-test-status.txt
+          exit 0
+
+      - name: Capture exact main lint diagnostics
+        shell: bash
+        run: |
+          set +e
+          bun run lint 2>&1 | tee lint-output.txt
+          printf '%s\n' "${PIPESTATUS[0]}" > lint-status.txt
+          bunx eslint . -f json > eslint-diagnostic.json
+          printf '%s\n' "$?" > eslint-json-status.txt
+          exit 0
+
+      - name: Normalize exact main blocking ESLint diagnostics
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const rows = JSON.parse(fs.readFileSync('eslint-diagnostic.json', 'utf8'));
+          const errors = [];
+          for (const result of rows) {
+            const file = path.relative(process.cwd(), result.filePath).replaceAll('\\', '/');
+            for (const message of result.messages ?? []) {
+              if (message.severity !== 2) continue;
+              errors.push({
+                file,
+                line: message.line ?? 1,
+                column: message.column ?? 1,
+                endLine: message.endLine ?? message.line ?? 1,
+                endColumn: message.endColumn ?? message.column ?? 1,
+                rule: message.ruleId ?? 'eslint',
+                message: String(message.message ?? 'ESLint diagnostic'),
+              });
+            }
+          }
+          errors.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+          fs.writeFileSync('eslint-errors.json', JSON.stringify(errors, null, 2) + '\n');
+          NODE
+
+      - name: Upload exact main evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1874-baseline-${{ github.event.pull_request.head.sha }}
+          path: |
+            unit-test-output.txt
+            unit-test-status.txt
+            lint-output.txt
+            lint-status.txt
+            eslint-diagnostic.json
+            eslint-json-status.txt
+            eslint-errors.json
+          if-no-files-found: error
+          retention-days: 14
+
+  candidate:
+    name: Exact #1874 candidate
+    if: github.event.pull_request.number == 1874
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Capture exact candidate unit transcript
+        shell: bash
+        run: |
+          set +e
+          bun test 2>&1 | tee unit-test-output.txt
+          printf '%s\n' "${PIPESTATUS[0]}" > unit-test-status.txt
+          exit 0
+
+      - name: Capture exact candidate lint diagnostics
+        shell: bash
+        run: |
+          set +e
+          bun run lint 2>&1 | tee lint-output.txt
+          printf '%s\n' "${PIPESTATUS[0]}" > lint-status.txt
+          bunx eslint . -f json > eslint-diagnostic.json
+          printf '%s\n' "$?" > eslint-json-status.txt
+          exit 0
+
+      - name: Normalize exact candidate blocking ESLint diagnostics
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const rows = JSON.parse(fs.readFileSync('eslint-diagnostic.json', 'utf8'));
+          const errors = [];
+          for (const result of rows) {
+            const file = path.relative(process.cwd(), result.filePath).replaceAll('\\', '/');
+            for (const message of result.messages ?? []) {
+              if (message.severity !== 2) continue;
+              errors.push({
+                file,
+                line: message.line ?? 1,
+                column: message.column ?? 1,
+                endLine: message.endLine ?? message.line ?? 1,
+                endColumn: message.endColumn ?? message.column ?? 1,
+                rule: message.ruleId ?? 'eslint',
+                message: String(message.message ?? 'ESLint diagnostic'),
+              });
+            }
+          }
+          errors.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+          fs.writeFileSync('eslint-errors.json', JSON.stringify(errors, null, 2) + '\n');
+          NODE
+
+      - name: Upload exact candidate evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1874-candidate-${{ github.event.pull_request.head.sha }}
+          path: |
+            unit-test-output.txt
+            unit-test-status.txt
+            lint-output.txt
+            lint-status.txt
+            eslint-diagnostic.json
+            eslint-json-status.txt
+            eslint-errors.json
+          if-no-files-found: error
+          retention-days: 14
+
+  compare:
+    name: Exact unit and lint delta certification
+    if: github.event.pull_request.number == 1874
+    needs: [baseline, candidate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact candidate comparator
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Download exact main evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: v3-1874-baseline-${{ github.event.pull_request.head.sha }}
+          path: baseline
+
+      - name: Download exact candidate evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: v3-1874-candidate-${{ github.event.pull_request.head.sha }}
+          path: candidate
+
+      - name: Compare deterministic unit failure identities
+        run: |
+          node scripts/compare-bun-test-failures.mjs \
+            baseline/unit-test-output.txt baseline/unit-test-status.txt \
+            candidate/unit-test-output.txt candidate/unit-test-status.txt \
+            v3-1874-unit-no-regression.json
+
+      - name: Compare blocking ESLint diagnostic identities
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const baseline = JSON.parse(fs.readFileSync('baseline/eslint-errors.json', 'utf8'));
+          const candidate = JSON.parse(fs.readFileSync('candidate/eslint-errors.json', 'utf8'));
+          const key = (entry) => JSON.stringify(entry);
+          const baseKeys = new Set(baseline.map(key));
+          const candidateKeys = new Set(candidate.map(key));
+          const shared = candidate.filter((entry) => baseKeys.has(key(entry)));
+          const introduced = candidate.filter((entry) => !baseKeys.has(key(entry)));
+          const resolved = baseline.filter((entry) => !candidateKeys.has(key(entry)));
+          const report = {
+            baseSha: require('child_process').execFileSync('git', ['rev-parse', 'HEAD^2'], { encoding: 'utf8' }).trim(),
+            candidateSha: require('child_process').execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+            mainErrors: baseline.length,
+            candidateErrors: candidate.length,
+            sharedInheritedErrors: shared.length,
+            newCandidateErrors: introduced.length,
+            resolvedInheritedErrors: resolved.length,
+            introduced,
+            resolved,
+          };
+          fs.writeFileSync('v3-1874-lint-no-regression.json', JSON.stringify(report, null, 2) + '\n');
+          if (introduced.length) {
+            console.error(`Introduced blocking ESLint diagnostics: ${introduced.length}`);
+            process.exit(1);
+          }
+          NODE
+
+      - name: Upload exact-head no-regression certification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1874-no-regression-${{ github.event.pull_request.head.sha }}
+          path: |
+            v3-1874-unit-no-regression.json
+            v3-1874-lint-no-regression.json
+          if-no-files-found: error
+          retention-days: 30
