@@ -23,6 +23,8 @@ describe("SSC rulebook module architecture", () => {
     expect(canon).toContain("export const SSC_RULEBOOK");
     expect(current).toContain("ROLEPLAY_CHAPTER");
     expect(current).toContain('version: "4.1"');
+    expect(current).toContain("PUBLISHED_4_0_1_RULE_2_1_BODY");
+    expect(current).toContain("carryPublishedDefinitionWording");
     expect(roleplay).toContain('number: 22');
     expect(roleplay).toContain('id: "22.5"');
     expect(roleplay).toContain("six consecutive completed SSC Editions");
@@ -51,6 +53,7 @@ describe("SSC rulebook module architecture", () => {
     expect(governance).not.toContain("RULE_PATCH_FIELDS");
     expect(governance).not.toContain("BASE_FLAT_RULES_BY_ID");
     expect(governance).not.toContain("resetRulebookBaseline");
+    expect(governance).toContain("reconcileRulebookReleaseHistory");
   });
 
   it("keeps search aliases as data rather than duplicate rule wording", () => {
