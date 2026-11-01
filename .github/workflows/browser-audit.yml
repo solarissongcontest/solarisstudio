@@ -69,83 +69,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
-          diagnostic_log="$RUNNER_TEMP/browser-install-diagnostic.log"
-          metadata_log="$RUNNER_TEMP/browser-install-metadata.txt"
-          : > "$diagnostic_log"
-          : > "$metadata_log"
-
-          {
-            echo "runner_os=${RUNNER_OS:-unknown}"
-            echo "runner_arch=${RUNNER_ARCH:-unknown}"
-            echo "node_version=$(node --version)"
-            echo "bun_version=$(bun --version)"
-            echo "playwright_cli=$(bunx playwright --version)"
-            echo "playwright_test=$(node -p 'require("@playwright/test/package.json").version')"
-            echo "playwright_core=$(node -p 'require("playwright-core/package.json").version')"
-            echo "PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-<unset>}"
-            echo "PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT=${PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT:-<unset>}"
-            for name in PLAYWRIGHT_DOWNLOAD_HOST PLAYWRIGHT_CHROMIUM_DOWNLOAD_HOST PLAYWRIGHT_WEBKIT_DOWNLOAD_HOST HTTP_PROXY HTTPS_PROXY NO_PROXY; do
-              if [ -n "${!name:-}" ]; then
-                echo "${name}=<set>"
-              else
-                echo "${name}=<unset>"
-              fi
-            done
-            echo "requested_browsers=chromium,webkit"
-            node --input-type=module <<'NODE'
-          import fs from "node:fs";
-          const manifest = JSON.parse(fs.readFileSync("node_modules/playwright-core/browsers.json", "utf8"));
-          for (const browser of manifest.browsers ?? []) {
-            if (!new Set(["chromium", "webkit"]).has(browser.name)) continue;
-            console.log(`browser=${browser.name}`);
-            console.log(`revision=${browser.revision ?? "unknown"}`);
-            console.log(`browserVersion=${browser.browserVersion ?? "unknown"}`);
-            console.log(`installByDefault=${browser.installByDefault ?? "unknown"}`);
-          }
-          NODE
-          } | tee "$metadata_log" | tee -a "$diagnostic_log"
-
           for browser in chromium webkit; do
             installed=0
-            final_status=1
             for attempt in 1 2 3; do
-              stdout_log="$RUNNER_TEMP/browser-install-${browser}-attempt-${attempt}.stdout.log"
-              stderr_log="$RUNNER_TEMP/browser-install-${browser}-attempt-${attempt}.stderr.log"
-              trace_log="$RUNNER_TEMP/browser-install-${browser}-attempt-${attempt}.trace.log"
-              : > "$stdout_log"
-              : > "$stderr_log"
-              : > "$trace_log"
-
-              {
-                echo "=== browser=${browser} attempt=${attempt}/3 ==="
-                echo 'command=bunx playwright install "$browser"'
-              } | tee -a "$diagnostic_log"
-
-              set +e
-              exec 9>>"$trace_log"
-              export BASH_XTRACEFD=9
-              set -x
-              bunx playwright install "$browser" >"$stdout_log" 2>"$stderr_log"
-              status=$?
-              set +x
-              unset BASH_XTRACEFD
-              exec 9>&-
-              set -e
-              final_status="$status"
-
-              {
-                echo "--- shell trace ---"
-                cat "$trace_log"
-                echo "--- stdout ---"
-                cat "$stdout_log"
-                echo "--- stderr ---"
-                cat "$stderr_log"
-                echo "exit_code=${status}"
-                echo "=== end browser=${browser} attempt=${attempt}/3 ==="
-              } | tee -a "$diagnostic_log"
-
-              if [ "$status" -eq 0 ]; then
+              if bunx playwright install "$browser"; then
                 installed=1
                 break
               fi
@@ -154,24 +81,10 @@ jobs:
               fi
             done
             if [ "$installed" -ne 1 ]; then
-              echo "Failed to install ${browser} after three bounded attempts; exit code ${final_status}." | tee -a "$diagnostic_log"
-              exit "$final_status"
+              echo "Failed to install ${browser} after three bounded attempts."
+              exit 1
             fi
           done
-
-      - name: Upload browser install diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: browser-install-diagnostics-${{ github.sha }}
-          path: |
-            ${{ runner.temp }}/browser-install-diagnostic.log
-            ${{ runner.temp }}/browser-install-metadata.txt
-            ${{ runner.temp }}/browser-install-*.stdout.log
-            ${{ runner.temp }}/browser-install-*.stderr.log
-            ${{ runner.temp }}/browser-install-*.trace.log
-          if-no-files-found: error
-          retention-days: 14
 
       - name: Start isolated local Supabase for browser audit
         shell: bash
