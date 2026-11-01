@@ -79,6 +79,23 @@
       background-color 140ms ease;
   }
 
+  /*
+   * app-shell.css historically translated the indicator by active-index.
+   * V3 now positions the lens with `left` so its optical width can be smaller
+   * than the semantic slot. This higher-specificity rule deliberately owns the
+   * transform for every active index and leaves transform-space exclusively to
+   * direct-manipulation drag/hold physics. Without it, the legacy translation
+   * and the V3 `left` offset are applied together and the lens can land outside
+   * the capsule.
+   */
+  [data-solaris-v3] .solaris-app-tabbar-material[data-active-index] .solaris-app-tab-indicator {
+    transform:
+      translateY(-50%)
+      translateX(var(--solaris-tab-drag-x))
+      scaleX(var(--solaris-tab-drag-scale-x))
+      scale(var(--solaris-tab-hold-scale-x), var(--solaris-tab-hold-scale-y));
+  }
+
   [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="0"] .solaris-app-tab-indicator {
     left: calc(2.2% + 5.56px);
   }
