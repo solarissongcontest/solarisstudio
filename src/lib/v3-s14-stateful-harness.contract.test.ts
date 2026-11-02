@@ -157,6 +157,11 @@ describe("S14 stateful full-contest harness", () => {
 
   it("resolves incomplete inputs then proves immutable semifinal Results v1 equals canonical v2", () => {
     expect(stage8).toContain("studio2_execute_result_operation");
+    expect(stage8).toContain("review_semifinal_jury_ballots_valid");
+    expect(stage8).toContain("studio2_jury_ballot_review_preview");
+    expect(stage8).toContain("studio2_apply_jury_ballot_review");
+    expect(stage8).toContain("juryIncompleteCount");
+    expect(stage8).toContain("juryPendingReviewCount");
     expect(stage8).toContain("studio2_jury_dnv_preview");
     expect(stage8).toContain("studio2_apply_jury_dnv");
     expect(stage8).toContain("private.studio2_result_preconditions");

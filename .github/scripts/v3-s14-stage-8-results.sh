@@ -9,6 +9,40 @@ service_exec() {
   psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "set \"request.jwt.claim.role\"='service_role'; set \"request.jwt.claims\"='{\"role\":\"service_role\"}'; $1" >/dev/null
 }
 
+review_semifinal_jury_ballots_valid() {
+  log "Stage 8: resolve all 64 submitted semifinal Jury ballots through governed review"
+  local index=0 ballot_id expected_version operation_id
+
+  while IFS= read -r ballot_id; do
+    [[ -n "$ballot_id" ]] || continue
+    index=$((index + 1))
+
+    rpc_request "$ORGANIZER_A_TOKEN" studio2_jury_ballot_review_preview \
+      "{\"p_ballot_id\":\"$ballot_id\",\"p_target_status\":\"valid\"}"
+    expect_success "preview semifinal Jury ballot $index as valid"
+    expected_version="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
+    [[ "$expected_version" =~ ^[0-9]+$ ]] || fail "Semifinal Jury review preview $index returned invalid expectedVersion: $HTTP_BODY"
+
+    operation_id="14000000-0000-4008-8050-$(printf '%012d' "$index")"
+    rpc_request "$ORGANIZER_A_TOKEN" studio2_apply_jury_ballot_review \
+      "{\"p_ballot_id\":\"$ballot_id\",\"p_target_status\":\"valid\",\"p_reason\":null,\"p_operation_id\":\"$operation_id\",\"p_idempotency_key\":\"s14-semi-jury-valid-$index\",\"p_expected_version\":$expected_version}"
+    expect_success "review semifinal Jury ballot $index as valid"
+    expect_json "semifinal Jury ballot $index valid" status valid
+  done < <(
+    db_scalar "
+select id::text
+from public.jury_ballot_submissions
+where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid)
+  and status='submitted'
+order by show_id,voter_country_id,id;
+"
+  )
+
+  [[ "$index" == "64" ]] || fail "Stage 8 reviewed $index submitted semifinal Jury ballots instead of 64"
+  [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and status='valid';")" == "64" ]] || fail "not all 64 submitted semifinal Jury ballots became valid"
+  [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and status in ('submitted','needs_review');")" == "0" ]] || fail "pending semifinal Jury review remains before Results integrity resolution"
+}
+
 resolve_missing_jury_ballot_as_dnv() {
   local show_id="$1" ordinal="$2"
   local voter_id voter_country_id preview_version op_id
@@ -178,9 +212,21 @@ run_s14_stage_8_results() {
     [[ "$televote_count" == "$participant_count" ]] || fail "show $show_id has $televote_count canonical Televote rows for $participant_count participants"
   done
 
+  # Resolve all submitted ballots through the canonical Organizer review
+  # lifecycle first. After this, the only incomplete Jury inputs must be the two
+  # intentionally missing Stage 6 ballots.
+  review_semifinal_jury_ballots_valid
+
+  for show_id in "$SEMI_ONE_ID" "$SEMI_TWO_ID"; do
+    incomplete="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'juryIncompleteCount');")"
+    conflicts="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'juryConflictCount');")"
+    pending="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'juryPendingReviewCount');")"
+    [[ "$incomplete" == "1" && "$conflicts" == "0" && "$pending" == "0" ]] ||       fail "show $show_id did not narrow Jury integrity to exactly one missing ballot (incomplete=$incomplete conflicts=$conflicts pending=$pending)"
+  done
+
   # Calculation must fail while the two intentionally missing Jury ballots from
-  # Stage 6 remain unresolved. This proves Results consumes canonical integrity
-  # state rather than silently treating missing ballots as zero.
+  # Stage 6 remain unresolved. This now proves the missing ballots themselves,
+  # rather than pending review state, block canonical Results calculation.
   initial_version="$(db_scalar "select coalesce((select calculation_version from public.studio2_result_operations where show_id='$SEMI_ONE_ID'::uuid),0);")"
   rpc_request "$ORGANIZER_A_TOKEN" studio2_execute_result_operation "{\"p_show_id\":\"$SEMI_ONE_ID\",\"p_action\":\"calculate\",\"p_reason\":\"S14 must reject incomplete Jury input\",\"p_execution_id\":\"14000000-0000-4008-8000-000000000001\",\"p_expected_version\":$initial_version}"
   expect_failure "Results calculation with missing Jury ballot"
@@ -192,8 +238,22 @@ run_s14_stage_8_results() {
   [[ "$(db_scalar "select count(*) from public.jury_ballot_statuses where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and status='did_not_vote';")" == "2" ]] || fail "S14 did not preserve exactly two authorized DNV resolutions"
 
   for show_id in "$SEMI_ONE_ID" "$SEMI_TWO_ID"; do
-    ready="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'calculationReady');")"
-    [[ "$ready" == "true" ]] || fail "show $show_id is still not calculation-ready after integrity resolution"
+    dnv="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'juryDnvCount');")"
+    incomplete="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'juryIncompleteCount');")"
+    conflicts="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'juryConflictCount');")"
+    pending="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'juryPendingReviewCount');")"
+    jury_ready="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'juryReady');")"
+    televote_ready="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'televoteReady');")"
+    calculation_ready="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'calculationReady');")"
+
+    [[ "$dnv" == "1" \
+      && "$incomplete" == "0" \
+      && "$conflicts" == "0" \
+      && "$pending" == "0" \
+      && "$jury_ready" == "true" \
+      && "$televote_ready" == "true" \
+      && "$calculation_ready" == "true" ]] || \
+      fail "show $show_id is not calculation-ready after integrity resolution (dnv=$dnv incomplete=$incomplete conflicts=$conflicts pending=$pending juryReady=$jury_ready televoteReady=$televote_ready calculationReady=$calculation_ready)"
   done
 
   current_version="$(db_scalar "select coalesce((select calculation_version from public.studio2_result_operations where show_id='$SEMI_ONE_ID'::uuid),0);")"
