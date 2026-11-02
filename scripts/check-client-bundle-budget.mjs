@@ -2,6 +2,11 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 
+import {
+  CLIENT_BUNDLE_BUDGET,
+  evaluateClientBundleBudget,
+} from "./lib/client-bundle-budget.mjs";
+
 const ROOTS = [
   ".output/public/assets",
   "dist/client/assets",
@@ -17,30 +22,18 @@ if (!assetRoot) {
   process.exit(1);
 }
 
-const BUDGETS = {
-  maxSingleJsRaw: 1_050 * 1024,
-  maxSingleJsGzip: 300 * 1024,
-  maxSingleCssGzip: 45 * 1024,
-  maxTotalJsCssGzip: 2_200 * 1024,
-  maxAppShellCssGzip: 15 * 1024,
-  maxGlobalStylesCssGzip: 48 * 1024,
-};
-
 function measureAsset(name, bytes) {
   return {
     name,
-    type: name.endsWith(".js") ? "js" : "css",
-    raw: bytes.byteLength,
-    gzip: gzipSync(bytes, { level: 9 }).byteLength,
+    rawBytes: bytes.byteLength,
+    gzipBytes: gzipSync(bytes, { level: 9 }).byteLength,
   };
 }
 
 function isPublicPassthrough(name, outputBytes) {
   const sourcePath = join(PUBLIC_ASSET_ROOT, name);
   if (!existsSync(sourcePath)) return false;
-
-  const sourceBytes = readFileSync(sourcePath);
-  return sourceBytes.equals(outputBytes);
+  return readFileSync(sourcePath).equals(outputBytes);
 }
 
 const measuredAssets = readdirSync(assetRoot)
@@ -53,38 +46,32 @@ const measuredAssets = readdirSync(assetRoot)
     };
   });
 
-const publicPassthrough = measuredAssets.filter((file) => file.publicPassthrough);
-const files = measuredAssets.filter((file) => !file.publicPassthrough);
+const publicPassthrough = measuredAssets.filter((asset) => asset.publicPassthrough);
+const generatedAssets = measuredAssets
+  .filter((asset) => !asset.publicPassthrough)
+  .map(({ name, rawBytes, gzipBytes }) => ({ name, rawBytes, gzipBytes }));
 
-if (!files.length) {
+if (!generatedAssets.length) {
   console.error(
     `Solaris client budget: no generated JS/CSS assets found in ${assetRoot}.`,
   );
   process.exit(1);
 }
 
-const js = files.filter((file) => file.type === "js");
-const css = files.filter((file) => file.type === "css");
-const largestJsRaw = [...js].sort((a, b) => b.raw - a.raw)[0];
-const largestJsGzip = [...js].sort((a, b) => b.gzip - a.gzip)[0];
-const largestCssGzip = [...css].sort((a, b) => b.gzip - a.gzip)[0];
-const totalGzip = files.reduce((sum, file) => sum + file.gzip, 0);
+const result = evaluateClientBundleBudget(generatedAssets);
+const js = result.relevantAssets.filter((asset) => asset.name.endsWith(".js"));
+const css = result.relevantAssets.filter((asset) => asset.name.endsWith(".css"));
+const largestJsRaw = [...js].sort((a, b) => b.rawBytes - a.rawBytes)[0];
+const largestJsGzip = [...js].sort((a, b) => b.gzipBytes - a.gzipBytes)[0];
+const largestCssGzip = [...css].sort((a, b) => b.gzipBytes - a.gzipBytes)[0];
 const passthroughGzip = publicPassthrough.reduce(
-  (sum, file) => sum + file.gzip,
+  (sum, asset) => sum + asset.gzipBytes,
   0,
 );
-const appShell = css.find((file) => /^app-shell-.*\.css$/.test(file.name));
-const globalStyles = css.find((file) => /^styles-.*\.css$/.test(file.name));
+const appShell = css.find((asset) => /^app-shell-.*\.css$/.test(asset.name));
+const globalStyles = css.find((asset) => /^(?:styles|index)-.*\.css$/.test(asset.name));
 
-const kb = (bytes) => (bytes / 1024).toFixed(1);
-const failures = [];
-
-function enforce(label, actual, limit, file) {
-  if (actual <= limit) return;
-  failures.push(
-    `${label}: ${kb(actual)} KiB > ${kb(limit)} KiB${file ? ` (${file})` : ""}`,
-  );
-}
+const kib = (bytes) => (bytes / 1024).toFixed(1);
 
 function escapeWorkflowCommand(value) {
   return String(value)
@@ -100,82 +87,49 @@ function emitWorkflowAnnotation(level, title, message) {
   );
 }
 
-enforce(
-  "Largest JS raw",
-  largestJsRaw?.raw ?? 0,
-  BUDGETS.maxSingleJsRaw,
-  largestJsRaw?.name,
-);
-enforce(
-  "Largest JS gzip",
-  largestJsGzip?.gzip ?? 0,
-  BUDGETS.maxSingleJsGzip,
-  largestJsGzip?.name,
-);
-enforce(
-  "Largest CSS gzip",
-  largestCssGzip?.gzip ?? 0,
-  BUDGETS.maxSingleCssGzip,
-  largestCssGzip?.name,
-);
-enforce("Total JS + CSS gzip", totalGzip, BUDGETS.maxTotalJsCssGzip);
-if (appShell) {
-  enforce(
-    "App shell CSS gzip",
-    appShell.gzip,
-    BUDGETS.maxAppShellCssGzip,
-    appShell.name,
-  );
-}
-if (globalStyles) {
-  enforce(
-    "Global styles CSS gzip",
-    globalStyles.gzip,
-    BUDGETS.maxGlobalStylesCssGzip,
-    globalStyles.name,
-  );
-}
-
 const diagnosticSummary = [
   `root=${assetRoot}`,
-  `generated=${files.length}`,
+  `generated=${result.relevantAssets.length}`,
   `passthrough=${publicPassthrough.length}`,
-  `passthrough_gzip=${kb(passthroughGzip)} KiB`,
-  `largest_js_raw=${largestJsRaw?.name ?? "n/a"}:${kb(largestJsRaw?.raw ?? 0)} KiB`,
-  `largest_js_gzip=${largestJsGzip?.name ?? "n/a"}:${kb(largestJsGzip?.gzip ?? 0)} KiB`,
-  `largest_css_gzip=${largestCssGzip?.name ?? "n/a"}:${kb(largestCssGzip?.gzip ?? 0)} KiB`,
-  `total_gzip=${kb(totalGzip)} KiB`,
-  `app_shell_gzip=${appShell ? `${kb(appShell.gzip)} KiB` : "n/a"}`,
-  `global_styles_gzip=${globalStyles ? `${kb(globalStyles.gzip)} KiB` : "n/a"}`,
+  `passthrough_gzip=${kib(passthroughGzip)} KiB`,
+  `largest_js_raw=${largestJsRaw?.name ?? "n/a"}:${kib(largestJsRaw?.rawBytes ?? 0)} KiB`,
+  `largest_js_gzip=${largestJsGzip?.name ?? "n/a"}:${kib(largestJsGzip?.gzipBytes ?? 0)} KiB`,
+  `largest_css_gzip=${largestCssGzip?.name ?? "n/a"}:${kib(largestCssGzip?.gzipBytes ?? 0)} KiB`,
+  `total_gzip=${kib(result.totalGzip)} KiB`,
+  `budget_gzip=${kib(CLIENT_BUNDLE_BUDGET.maxTotalJsCssGzip)} KiB`,
+  `app_shell_gzip=${appShell ? `${kib(appShell.gzipBytes)} KiB` : "n/a"}`,
+  `global_styles_gzip=${globalStyles ? `${kib(globalStyles.gzipBytes)} KiB` : "n/a"}`,
 ].join("; ");
 
 console.log("Solaris Studio client performance budget");
-console.log(`  generated assets: ${files.length} from ${assetRoot}`);
+console.log(`  generated assets: ${result.relevantAssets.length} from ${assetRoot}`);
 if (publicPassthrough.length) {
   console.log(
-    `  public passthrough assets: ${publicPassthrough.length} excluded · ${kb(passthroughGzip)} KiB gzip`,
+    `  public passthrough assets: ${publicPassthrough.length} excluded · ${kib(passthroughGzip)} KiB gzip`,
   );
 }
 console.log(
-  `  largest JS raw: ${largestJsRaw?.name ?? "n/a"} · ${kb(largestJsRaw?.raw ?? 0)} KiB`,
+  `  largest JS raw: ${largestJsRaw?.name ?? "n/a"} · ${kib(largestJsRaw?.rawBytes ?? 0)} KiB`,
 );
 console.log(
-  `  largest JS gzip: ${largestJsGzip?.name ?? "n/a"} · ${kb(largestJsGzip?.gzip ?? 0)} KiB`,
+  `  largest JS gzip: ${largestJsGzip?.name ?? "n/a"} · ${kib(largestJsGzip?.gzipBytes ?? 0)} KiB`,
 );
 console.log(
-  `  largest CSS gzip: ${largestCssGzip?.name ?? "n/a"} · ${kb(largestCssGzip?.gzip ?? 0)} KiB`,
+  `  largest CSS gzip: ${largestCssGzip?.name ?? "n/a"} · ${kib(largestCssGzip?.gzipBytes ?? 0)} KiB`,
 );
-console.log(`  total JS + CSS gzip: ${kb(totalGzip)} KiB`);
-if (appShell) console.log(`  app shell CSS gzip: ${kb(appShell.gzip)} KiB`);
-if (globalStyles) console.log(`  global styles CSS gzip: ${kb(globalStyles.gzip)} KiB`);
+console.log(
+  `  total JS + CSS gzip: ${kib(result.totalGzip)} KiB / ${kib(CLIENT_BUNDLE_BUDGET.maxTotalJsCssGzip)} KiB`,
+);
+if (appShell) console.log(`  app shell CSS gzip: ${kib(appShell.gzipBytes)} KiB`);
+if (globalStyles) console.log(`  global styles CSS gzip: ${kib(globalStyles.gzipBytes)} KiB`);
 
-if (failures.length) {
+if (result.failures.length) {
   console.error("\nClient performance budget exceeded:");
-  for (const failure of failures) console.error(`  - ${failure}`);
+  for (const failure of result.failures) console.error(`  - ${failure.message}`);
   emitWorkflowAnnotation(
     "error",
     "Client performance budget exceeded",
-    `${failures.join(" | ")} | ${diagnosticSummary}`,
+    `${result.failures.map(({ message }) => message).join(" | ")} | ${diagnosticSummary}`,
   );
   process.exit(1);
 }
