@@ -23,6 +23,17 @@ describe("S14 canonical Televote Stage 7", () => {
     expect(stage7).toContain("count(*)<>5");
   });
 
+  it("projects only active show participants into each bound Televote round", () => {
+    expect(stage7).toContain("coalesce(p.participation_status,'confirmed')='confirmed'");
+    expect(stage7).toContain('active_count="$(db_scalar');
+    expect(stage7).toContain('round_entry_count="$(db_scalar');
+    expect(stage7).toContain('round_country_count="$(db_scalar');
+    expect(stage7).toContain('[[ "$round_entry_count" == "$active_count" ]]');
+    expect(stage7).toContain('[[ "$round_country_count" == "$active_count" ]]');
+    expect(stage7).toContain('[[ "$matched_count" == "$active_count" ]]');
+    expect(stage7).not.toContain('== "33" ]] || fail "S14 Televote round');
+  });
+
   it("keeps governed open/close authority and durable lifecycle evidence", () => {
     expect(stage7).toContain("studio2_round_status_change_preview");
     expect(stage7).toContain("studio2_apply_round_status_change");
