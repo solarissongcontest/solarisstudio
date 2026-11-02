@@ -177,6 +177,12 @@ describe("S14 stateful full-contest harness", () => {
     expect(driver).toContain('lifecycle" == "2:2:2:2"');
     expect(driver).toContain("S14_RESULTS_VERSION_2_COMPLETE");
     expect(resultsAdapter).toContain("convertRound");
+    expect(resultsAdapter).toContain("ROBUST_TELEVOTE_ENGINE_VERSION");
+    expect(resultsAdapter).toContain("convertRobustRound");
+    expect(resultsAdapter).toContain("DEFAULT_ROBUST_TELEVOTE_CONFIG");
+    expect(resultsAdapter).toContain("engineVersion === ROBUST_TELEVOTE_ENGINE_VERSION");
+    expect(resultsAdapter).toContain("engine_version: ROBUST_TELEVOTE_ENGINE_VERSION");
+    expect(resultsAdapter).not.toContain("supports only the canonical");
     expect(resultsAdapter).toContain("refusing non-local Supabase URL");
     expect(resultsAdapter).toContain('from("televote_votes")');
     expect(resultsAdapter).toContain('from("round_results")');
