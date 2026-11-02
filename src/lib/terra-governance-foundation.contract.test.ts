@@ -12,10 +12,18 @@ import {
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const migration = (name: string) => source(`supabase/migrations/${name}`);
 
-const [tg1Name, tg2CoreName, tg2AccessName] = TERRA_GOVERNANCE_FOUNDATION_MIGRATIONS;
+const [
+  tg1Name,
+  tg2CoreName,
+  tg2AccessName,
+  tg2OfficeAlignmentName,
+  tg2OfficeDependentsName,
+] = TERRA_GOVERNANCE_FOUNDATION_MIGRATIONS;
 const tg1 = migration(tg1Name);
 const tg2Core = migration(tg2CoreName);
 const tg2Access = migration(tg2AccessName);
+const tg2OfficeAlignment = migration(tg2OfficeAlignmentName);
+const tg2OfficeDependents = migration(tg2OfficeDependentsName);
 
 describe("Terra Solaris Governance TG1/TG2 foundation", () => {
   it("preserves country_accounts as current authority and stores history around it", () => {
@@ -66,6 +74,24 @@ describe("Terra Solaris Governance TG1/TG2 foundation", () => {
     expect(tg2Core).toContain("'unity','secretary-general','Secretary-General'");
     expect(tg2Core).toMatch(/'guard','chairperson','Chairperson',[\s\S]*?'election',2,/);
     expect(tg2Core).toMatch(/'unity','secretary-general','Secretary-General',[\s\S]*?'election',2,/);
+  });
+
+  it("adopts canonical office-term timestamps/statuses without leaving stale dependents", () => {
+    expect(tg2OfficeAlignment).toContain("rename column starts_at to started_at");
+    expect(tg2OfficeAlignment).toContain("rename column ends_at to actual_end_at");
+    expect(tg2OfficeAlignment).toContain("add column scheduled_end_at timestamptz");
+    expect(tg2OfficeAlignment).toContain("'scheduled','active','ended','removed','resigned'");
+    expect(tg2OfficeAlignment).toContain("public.v3_register_migration_contract");
+
+    expect(tg2OfficeDependents).toContain("create or replace function public.world_access_allowed");
+    expect(tg2OfficeDependents).toContain("create or replace function public.world_organization_projection_v1");
+    expect(tg2OfficeDependents).toContain("term_row.actual_end_at is null");
+    expect(tg2OfficeDependents).not.toContain("term_row.ends_at");
+    expect(tg2OfficeDependents).not.toContain("term_row.starts_at");
+    expect(tg2OfficeDependents).toContain("'startedAt', term_row.started_at");
+    expect(tg2OfficeDependents).toContain("'scheduledEndAt', term_row.scheduled_end_at");
+    expect(tg2OfficeDependents).toContain("'actualEndAt', term_row.actual_end_at");
+    expect(tg2OfficeDependents).toContain("public.v3_register_migration_contract");
   });
 
   it("makes proxy effectiveness expire at server time even before materialized cleanup", () => {
@@ -124,9 +150,9 @@ describe("Terra Solaris Governance TG1/TG2 foundation", () => {
       tg1.indexOf("create or replace function public.world_country_identity_v1"),
       tg1.indexOf("create or replace function public.world_bind_country_controller_person_v1"),
     );
-    const organizationProjection = tg2Access.slice(
-      tg2Access.indexOf("create or replace function public.world_organization_projection_v1"),
-      tg2Access.indexOf("create or replace function public.world_assign_organization_representative_v1"),
+    const organizationProjection = tg2OfficeDependents.slice(
+      tg2OfficeDependents.indexOf("create or replace function public.world_organization_projection_v1"),
+      tg2OfficeDependents.indexOf("revoke all on function public.world_organization_projection_v1"),
     );
     expect(countryProjection).not.toContain("user_id");
     expect(organizationProjection).not.toContain("user_id");
