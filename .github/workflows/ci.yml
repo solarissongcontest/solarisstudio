@@ -173,6 +173,18 @@ jobs:
         id: client_budget
         run: bun run budget:client
 
+      - name: Upload client bundle diagnostics
+        if: ${{ always() && steps.production_build.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-bundle-diagnostics-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            client-bundle-budget-report.json
+            dist/client-bundle-ownership.json
+            dist/.vite/manifest.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Verify route tree was generated
         id: route_tree_generated
         shell: bash
