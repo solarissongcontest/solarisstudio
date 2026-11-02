@@ -90,7 +90,7 @@ jobs:
         run: |
           set -euo pipefail
           export V3_CANDIDATE_SHA="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
-          bash .github/scripts/v3-full-contest-rehearsal.sh
+          bash .github/scripts/v3-s14-run-with-diagnostics.sh
 
       - name: Validate exact-SHA S14 evidence
         if: always()
@@ -123,6 +123,43 @@ jobs:
               bun run scripts/validate-v3-s14-evidence.ts \
                 --file "$partial" \
                 --candidate-sha "$sha"
+
+              failure_stage="$(python3 - "$partial" <<'PY'
+          import json
+          import sys
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              evidence = json.load(handle)
+          print(evidence.get("failureStage") or evidence.get("failurePhase") or "")
+          PY
+          )"
+              if [[ "$failure_stage" == "stage-8-results" ]]; then
+                diagnostic="$V3_RELEASE_EVIDENCE_DIR/s14-stage8-diagnostic.json"
+                [[ -s "$diagnostic" ]] || {
+                  echo "::error::Stage 8 failure did not emit s14-stage8-diagnostic.json"
+                  exit 1
+                }
+                python3 - "$diagnostic" "$sha" <<'PY'
+          import json
+          import sys
+
+          path, expected_sha = sys.argv[1], sys.argv[2]
+          with open(path, encoding="utf-8") as handle:
+              diagnostic = json.load(handle)
+
+          if diagnostic.get("stage") != "stage-8-results":
+              raise SystemExit("Stage 8 diagnostic has wrong stage identity")
+          if diagnostic.get("candidateSha") != expected_sha:
+              raise SystemExit(
+                  f"Stage 8 diagnostic candidate mismatch: {diagnostic.get('candidateSha')} != {expected_sha}"
+              )
+          if not isinstance(diagnostic.get("rehearsalExitCode"), int) or diagnostic["rehearsalExitCode"] == 0:
+              raise SystemExit("Stage 8 diagnostic did not preserve the original nonzero rehearsal exit")
+          if not diagnostic.get("failedPhase"):
+              raise SystemExit("Stage 8 diagnostic did not identify a failed phase")
+          if not isinstance(diagnostic.get("error"), dict):
+              raise SystemExit("Stage 8 diagnostic did not include an error object")
+          PY
+              fi
               ;;
             *)
               echo "::error::unexpected rehearsal step outcome: $REHEARSAL_OUTCOME"
