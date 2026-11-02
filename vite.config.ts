@@ -25,11 +25,18 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         output: {
-          // The production report shows hundreds of tiny Lucide icon chunks.
-          // Group only the already-used Lucide modules so their aggregate gzip
-          // is not dominated by repeated per-chunk framing/import overhead.
+          // Production evidence showed repeated gzip framing across hundreds of
+          // tiny Lucide chunks and several TanStack Router helper chunks. Keep
+          // package behavior unchanged while consolidating only those vendor
+          // modules into stable emitted groups.
           codeSplitting: {
-            groups: [{ name: "vendor-icons", test: /[\\/]node_modules[\\/]lucide-react[\\/]/ }],
+            groups: [
+              { name: "vendor-icons", test: /[\\/]node_modules[\\/]lucide-react[\\/]/ },
+              {
+                name: "vendor-router",
+                test: /[\\/]node_modules[\\/]@tanstack[\\/]react-router[\\/]/,
+              },
+            ],
           },
         },
       },
