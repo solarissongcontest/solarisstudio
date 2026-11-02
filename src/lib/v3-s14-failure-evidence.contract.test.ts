@@ -58,7 +58,9 @@ describe("S14 exact-SHA runtime failure evidence", () => {
     expect(workflow).toContain("id: rehearsal");
     expect(workflow).toContain("Validate exact-SHA S14 evidence");
     expect(workflow).toContain("REHEARSAL_OUTCOME: ${{ steps.rehearsal.outcome }}");
-    expect(workflow).toContain('if data.get("runtimeFailure") is not True');
+    expect(workflow).toContain(
+      'data.get("passed") is not False or data.get("partial") is not True or data.get("runtimeFailure") is not True',
+    );
     expect(workflow).toContain("path: v3-release-evidence/");
     expect(workflow).toContain("if-no-files-found: error");
   });
