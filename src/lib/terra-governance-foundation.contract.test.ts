@@ -111,7 +111,9 @@ describe("Terra Solaris Governance TG1/TG2 foundation", () => {
   });
 
   it("registers every TG2 capability in both TypeScript and the database catalogue", () => {
-    const registryCapabilities = TERRA_GOVERNANCE_DOMAIN_REGISTRY.flatMap((domain) => domain.capabilities);
+    const registryCapabilities = TERRA_GOVERNANCE_DOMAIN_REGISTRY.filter(
+      (domain) => domain.wave === "TG2",
+    ).flatMap((domain) => domain.capabilities);
     for (const capability of new Set(registryCapabilities)) {
       expect(SOLARIS_CAPABILITIES).toContain(capability);
       expect(tg2Core).toContain(`'${capability}'`);
