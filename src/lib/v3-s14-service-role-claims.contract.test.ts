@@ -20,6 +20,14 @@ function functionBody(sql: string, name: string) {
 }
 
 describe("V3 service-role request claim compatibility", () => {
+  it("declares S13 migration adoption explicitly", () => {
+    expect(compatibility).toContain("insert into private.v3_migration_contracts");
+    expect(compatibility).toContain("'v3.s14.service-role-claim-compatibility'");
+    expect(compatibility).toContain("'forward_fix_only'");
+    expect(compatibility).toContain("destructive");
+    expect(compatibility).toContain("false");
+  });
+
   it("recognizes service-role requests from legacy scalar or JSON JWT claims", () => {
     const body = functionBody(compatibility, "private.studio2_request_is_service_role");
 
