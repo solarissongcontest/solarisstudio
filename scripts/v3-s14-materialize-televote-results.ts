@@ -274,30 +274,55 @@ async function main() {
     fail(`published Televote result does not exactly match show ${showId}`);
   }
 
-  const { count: existingVotes, error: existingVoteError } = await db
-    .from("televote_votes")
-    .select("id", { count: "exact", head: true })
-    .eq("show_id", showId);
-  if (existingVoteError) fail(existingVoteError.message);
-  if ((existingVotes ?? 0) !== 0) fail(`show ${showId} already has canonical Televote vote rows`);
-
-  const canonicalVotes = rows.map((row) => ({
-    edition_id: editionId,
-    show_id: showId,
-    country_id: countryByCode.get(row.country_code),
-    points: row.final_points,
+  const expectedCanonical = rows.map((row) => ({
+    country_id: countryByCode.get(row.country_code) ?? null,
+    points: Number(row.final_points),
   }));
-  if (canonicalVotes.some((row) => !row.country_id)) fail(`could not resolve every Televote result country`);
-  const { error: canonicalInsertError } = await db.from("televote_votes").insert(canonicalVotes);
-  if (canonicalInsertError) fail(canonicalInsertError.message);
+  if (expectedCanonical.some((row) => !row.country_id)) {
+    fail(`could not resolve every Televote result country`);
+  }
+  expectedCanonical.sort((left, right) => String(left.country_id).localeCompare(String(right.country_id)));
 
-  const { count: canonicalCount, error: canonicalCountError } = await db
+  const { data: canonicalVotes, error: canonicalVoteError } = await db
     .from("televote_votes")
-    .select("id", { count: "exact", head: true })
+    .select("edition_id,show_id,country_id,points")
     .eq("show_id", showId);
-  if (canonicalCountError) fail(canonicalCountError.message);
-  if (canonicalCount !== rows.length) fail(`canonical Televote projection is incomplete for show ${showId}`);
+  if (canonicalVoteError) fail(canonicalVoteError.message);
+  if ((canonicalVotes ?? []).some((row) => String(row.edition_id) !== editionId || String(row.show_id) !== showId)) {
+    fail(`canonical Televote projection escaped show/edition scope for ${showId}`);
+  }
+  const actualCanonical = (canonicalVotes ?? [])
+    .map((row) => ({
+      country_id: row.country_id ? String(row.country_id) : null,
+      points: Number(row.points ?? 0),
+    }))
+    .sort((left, right) => String(left.country_id).localeCompare(String(right.country_id)));
+  if (JSON.stringify(actualCanonical) !== JSON.stringify(expectedCanonical)) {
+    fail(`canonical Televote projection does not match published round ${roundId}`);
+  }
 
+  const { data: projectionStatus, error: projectionStatusError } = await db.rpc(
+    "studio2_televote_projection_status",
+    { p_show_id: showId },
+  );
+  if (projectionStatusError) fail(projectionStatusError.message);
+  if (!projectionStatus || typeof projectionStatus !== "object") {
+    fail(`canonical Televote projection status is missing for show ${showId}`);
+  }
+  const status = projectionStatus as Record<string, unknown>;
+  if (
+    status.managed !== true
+    || String(status.sourceType ?? "") !== "round"
+    || String(status.sourceId ?? "") !== roundId
+    || Number(status.sourceVersion ?? -1) !== version
+    || Number(status.rowCount ?? -1) !== expectedCanonical.length
+    || Number(status.pointsTotal ?? -1) !== storedTotal
+    || Number(status.televoteVoteRows ?? -1) !== expectedCanonical.length
+  ) {
+    fail(`canonical Televote projection provenance mismatch for round ${roundId}`);
+  }
+
+  const canonicalCount = actualCanonical.length;
   process.stdout.write(`${JSON.stringify({
     roundId,
     showId,
