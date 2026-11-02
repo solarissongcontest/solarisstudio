@@ -203,6 +203,34 @@ revoke all on function public.world_organization_projection_v1(text)
 grant execute on function public.world_organization_projection_v1(text)
   to anon, authenticated, service_role;
 
+-- Execute both SQL-language dependents after the rename so clean replay and
+-- current-main upgrade fail at migration time if a future edit leaves either
+-- function bound to removed office-term columns. These are read-only calls.
+do $smoke$
+declare
+  v_guard_id uuid;
+begin
+  select organization_row.id
+  into v_guard_id
+  from public.world_organizations organization_row
+  where organization_row.slug = 'guard';
+
+  if v_guard_id is null then
+    raise exception 'TG2 canonical GUARD seed missing before dependent smoke check';
+  end if;
+
+  perform public.world_organization_projection_v1('guard');
+  perform public.world_access_allowed(
+    'world.organization.view_private',
+    v_guard_id,
+    null,
+    null,
+    null,
+    null
+  );
+end
+$smoke$;
+
 -- Semantic migration adoption. No destructive data operation occurs here; the
 -- function definitions are simply rebound to the canonical TG2 schema.
 do $contract$
