@@ -10,6 +10,18 @@ const browserAudit = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
 
 export default defineConfig({
   vite: {
+    build: {
+      rolldownOptions: {
+        output: {
+          // The production report shows hundreds of tiny Lucide icon chunks.
+          // Group only the already-used Lucide modules so their aggregate gzip
+          // is not dominated by repeated per-chunk framing/import overhead.
+          codeSplitting: {
+            groups: [{ name: "vendor-icons", test: /[\\/]node_modules[\\/]lucide-react[\\/]/ }],
+          },
+        },
+      },
+    },
     optimizeDeps: {
       // Browser Audit exercises the complete generated route tree against the
       // dev server. Scan it up front so opening a previously untouched lazy
