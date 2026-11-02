@@ -128,18 +128,29 @@ for line in lines[failure_index : min(len(lines), failure_index + 80)]:
         fail_message = sanitize(line.split("FAIL:", 1)[1].strip())
         break
 
+adapter_error = None
+adapter_error_line = None
+for line in reversed(lines[max(0, failure_index - 120) : failure_index + 1]):
+    if "[v3-s14-results-adapter]" not in line:
+        continue
+    adapter_error_line = sanitize(line.strip())
+    adapter_error = sanitize(line.split("[v3-s14-results-adapter]", 1)[1].strip())
+    if adapter_error:
+        break
+
 context = []
-for line in lines[max(0, failure_index - 3) : min(len(lines), failure_index + 16)]:
+for line in lines[max(0, failure_index - 120) : min(len(lines), failure_index + 16)]:
     clean = sanitize(line.strip())
     if not clean:
         continue
     if (
         "RESULTS_STAGE8 " in clean
+        or "[v3-s14-results-adapter]" in clean
         or "FAIL:" in clean
         or re.search(r"(?i)\b(error|exception|fatal|returned HTTP|psql:)\b", clean)
     ):
         context.append(clean[:800])
-context = context[:10]
+context = context[-10:]
 
 error_body = None
 if fail_message:
@@ -227,9 +238,10 @@ diagnostic = {
         or ("unmarked_stage8_failure" if not failure_marker else None),
         "code": rpc_code,
         "httpStatus": http_status,
-        "message": (error_body or {}).get("message") if error_body else fail_message,
+        "message": adapter_error or ((error_body or {}).get("message") if error_body else fail_message),
         "details": (error_body or {}).get("details") if error_body else None,
         "hint": (error_body or {}).get("hint") if error_body else None,
+        "adapterLine": adapter_error_line,
         "failureLine": fail_message,
     },
     "context": context,
