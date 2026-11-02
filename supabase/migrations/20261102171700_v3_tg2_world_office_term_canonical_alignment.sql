@@ -6,6 +6,26 @@ begin;
 -- plan's country/edition field names and align only the time/status vocabulary
 -- that the initial TG2 foundation created provisionally.
 
+-- Register the destructive/forward-only migration contract before any schema
+-- contraction or row normalization, as required by the canonical S13 doctrine.
+-- This alignment only targets the TG2 table created immediately before it in
+-- the same unreleased foundation series; no historical office terms are
+-- fabricated or inferred.
+do $contract$
+begin
+  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
+    perform public.v3_register_migration_contract(
+      'v3.tg2.world-office-term-canonical-alignment',
+      1,
+      'forward_fix_only',
+      true,
+      null,
+      'Align the unreleased TG2 office-term schema to canonical started/scheduled-end/actual-end vocabulary and canonical term/status values before downstream Governance work depends on it.'
+    );
+  end if;
+end
+$contract$;
+
 alter table public.world_office_terms
   drop constraint if exists world_office_term_kind_check,
   drop constraint if exists world_office_term_status_check,
