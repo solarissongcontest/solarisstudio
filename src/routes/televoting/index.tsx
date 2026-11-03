@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Clock3, ShieldCheck, Vote } from "lucide-react";
+import { Clock3, ShieldCheck } from "lucide-react";
 
 import {
   ParticipationRouteChrome,
@@ -14,6 +14,7 @@ import { TelevotingBoothWithReceipt } from "@/components/televoting/TelevotingBo
 import { Button } from "@/components/ui/button";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { getMergedTelevotingServerStatus } from "@/integrations/televoting/status.functions";
+import { resolveTelevotingAvailability } from "@/lib/v3-televote-availability";
 
 export const Route = createFileRoute("/televoting/")({
   head: () => ({
@@ -117,21 +118,36 @@ function TelevotingPage() {
   const queryClient = useQueryClient();
   const getServerStatus = useServerFn(getMergedTelevotingServerStatus);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch: refetchRound } = useQuery({
     queryKey: ["merged-televoting-open-round"],
     queryFn: loadOpenRound,
     refetchInterval: 60_000,
     refetchOnWindowFocus: false,
   });
 
-  const { data: serverStatus } = useQuery({
-    queryKey: ["merged-televoting-server-status"],
+  const {
+    data: serverStatus,
+    isPending: statusPending,
+    isError: statusError,
+    refetch: refetchStatus,
+  } = useQuery({
+    // A newly opened round must not inherit readiness from a previous round.
+    queryKey: ["merged-televoting-server-status", data?.round.id],
     queryFn: () => getServerStatus(),
+    enabled: Boolean(data),
     staleTime: 30_000,
+    // When the backend is unavailable, recover automatically. Do not poll a
+    // healthy backend or make status requests when there is no open round.
+    refetchInterval: (query) => query.state.data?.votingReady ? false : 60_000,
+    retry: 1,
   });
+  const availability = resolveTelevotingAvailability(serverStatus, statusPending, statusError);
 
   useEffect(() => {
-    const refresh = () => void queryClient.invalidateQueries({ queryKey: ["merged-televoting-open-round"] });
+    const refresh = () => {
+      void queryClient.invalidateQueries({ queryKey: ["merged-televoting-open-round"] });
+      void queryClient.invalidateQueries({ queryKey: ["merged-televoting-server-status"] });
+    };
     const channel = televotingSupabase
       .channel("merged-televoting-open-round")
       .on("postgres_changes", { event: "*", schema: "televoting", table: "rounds" }, refresh)
@@ -163,8 +179,10 @@ function TelevotingPage() {
           <ParticipationStatusPanel
             tone="danger"
             title="Voting data could not be loaded"
-            description="The live round could not be read. Please try again shortly."
-          />
+            description="The live round could not be read. Your ballot has not been submitted."
+          >
+            <Button type="button" variant="outline" onClick={() => void refetchRound()}>Try again</Button>
+          </ParticipationStatusPanel>
         ) : !data ? (
           <ParticipationStatusPanel
             icon={<Clock3 className="size-5" />}
@@ -186,13 +204,19 @@ function TelevotingPage() {
               </div>
             </section>
 
-            {serverStatus?.votingReady ? (
+            {availability === "ready" ? (
               <TelevotingBoothWithReceipt
+                key={data.round.id}
                 roundId={data.round.id}
                 roundName={data.round.name}
                 editionName={data.round.editions?.name ?? null}
                 entries={data.entries}
                 selfVotingMode={data.round.self_voting_mode}
+              />
+            ) : availability === "checking" ? (
+              <ParticipationStatusPanel
+                title="Checking voting availability"
+                description="Confirming that the voting service can accept ballots before opening the booth."
               />
             ) : (
               <>
@@ -213,12 +237,12 @@ function TelevotingPage() {
                 </section>
 
                 <ParticipationStatusPanel
-                  tone="warning"
+                  tone={availability === "error" ? "danger" : "warning"}
                   icon={<ShieldCheck className="size-5" />}
-                  title="Voting is temporarily unavailable"
-                  description="This voting round is visible, but ballots cannot be submitted right now. Please try again shortly."
+                  title={availability === "error" ? "Voting availability could not be checked" : "Voting is temporarily unavailable"}
+                  description="This round is visible, but Solaris cannot confirm that the voting service is ready. No vote has been submitted. You can retry safely."
                 >
-                  <Button disabled><Vote className="size-4" /> Enter voting booth</Button>
+                  <Button type="button" variant="outline" onClick={() => void refetchStatus()}>Check availability again</Button>
                 </ParticipationStatusPanel>
               </>
             )}
