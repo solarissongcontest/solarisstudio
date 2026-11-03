@@ -51,15 +51,16 @@ export type V3OrganizerReadinessFactor = {
 };
 
 export type V3OrganizerReadiness = {
-  /** An absent or incomplete edition-health RPC must not be presented as a verified zero score. */
-  assessmentStatus: "verified" | "unavailable";
-  overall: number;
   blocking: V3OrganizerReadinessFactor[];
   incomplete: V3OrganizerReadinessFactor[];
   ready: V3OrganizerReadinessFactor[];
   calculatedAt: string;
   stateVersion: string;
-};
+} & (
+  | { assessmentStatus: "verified"; overall: number }
+  // Enforce the absence of a score at the type boundary, not only in the UI.
+  | { assessmentStatus: "unavailable"; overall: null }
+);
 
 export type V3OrganizerAttentionItem = {
   id: string;
@@ -234,7 +235,7 @@ function buildReadiness(
   if (!verified) {
     return {
       assessmentStatus: "unavailable",
-      overall: 0,
+      overall: null,
       blocking: [],
       incomplete: [],
       ready: [],
