@@ -251,6 +251,7 @@ export const TERRA_GOVERNANCE_TG4_MIGRATIONS = [
   "20261103165000_v3_tg4_world_document_archive_projection.sql",
   "20261103165500_v3_tg4_world_document_hardening.sql",
   "20261103165700_v3_tg4_world_document_identity_scope.sql",
+  "20261103165900_v3_tg4_world_document_hierarchy_integrity.sql",
 ] as const;
 
 export const TERRA_GOVERNANCE_TG4_EVENT_TYPES = [
