@@ -158,10 +158,9 @@ function IntegrityPreclearanceWorkspace() {
           }
         />
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Metric label="Private questions" value={questions.length} tone="info" />
           <Metric label="Rulings on selected case" value={rulingsQuery.data?.length ?? 0} tone={(rulingsQuery.data?.length ?? 0) ? "ready" : "attention"} />
-          <Metric label="Public leakage" value={0} tone="ready" suffix="case provenance stays internal" />
         </div>
 
         <AdminCard className="mt-4">
