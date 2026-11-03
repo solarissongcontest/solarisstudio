@@ -98,10 +98,24 @@ export function fantasyRosterReady(input: {
   selected: readonly string[];
   choices: readonly V3FantasyChoice[];
 }) {
-  return (
-    input.selected.length === input.game.roster_size &&
-    fantasyBudgetUsed(input.selected, input.choices) <= input.game.budget
+  if (input.selected.length !== input.game.roster_size || new Set(input.selected).size !== input.selected.length) {
+    return false;
+  }
+
+  const eligibleCosts = new Map(
+    input.choices
+      .filter((choice) =>
+        choice.game_id === input.game.id &&
+        choice.eligible &&
+        Number.isFinite(choice.cost) &&
+        choice.cost >= 0,
+      )
+      .map((choice) => [choice.country_id, choice.cost]),
   );
+  if (!input.selected.every((countryId) => eligibleCosts.has(countryId))) return false;
+
+  const total = input.selected.reduce((sum, countryId) => sum + eligibleCosts.get(countryId)!, 0);
+  return Number.isFinite(input.game.budget) && total <= input.game.budget;
 }
 
 export function fantasyStateLabel(state: V3FantasyState) {

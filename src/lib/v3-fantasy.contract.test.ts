@@ -17,6 +17,23 @@ const projection = source("src/lib/v3-fantasy.ts");
     expect(route).toContain('queryKey: ["fantasy-my-team-entries", myTeam.data?.id]');
   });
 
+  it("exposes all games and historical editions in both installed-app and web Fantasy", () => {
+    expect(route).toContain("games={games.data ?? []}");
+    expect(route).toContain("onGame={selectGame}");
+    expect(screen).toContain("availableGames.length > 1");
+    expect(screen).toContain("onChange={(event) => onGame?.(event.target.value)}");
+    expect(route).toContain("onChange={(event) => selectGame(event.target.value)}");
+    expect(route).toContain("setSelected([])");
+    expect(route).toContain('setCaptain("")');
+  });
+
+  it("makes invalid or retired saved Fantasy entries removable before a new submission", () => {
+    expect(screen).toContain("invalidSelection.length");
+    expect(screen).toContain("onClick={() => onToggle(id)}");
+    expect(screen).toContain("no longer eligible");
+    expect(projection).toContain("eligibleCosts.has(countryId)");
+  });
+
   it("keeps roster mutation on the existing server-authoritative Fantasy writer", () => {
     expect(route).toContain('.rpc("submit_fantasy_team"');
     expect(route).toContain("_game_id: activeGame.id");

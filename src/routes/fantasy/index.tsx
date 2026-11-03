@@ -50,6 +50,12 @@ function FantasyPage() {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const queryClient = useQueryClient();
 
+  const selectGame = (nextGameId: string) => {
+    setGameId(nextGameId);
+    setSelected([]);
+    setCaptain("");
+  };
+
   useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 15_000);
     return () => window.clearInterval(timer);
@@ -189,6 +195,8 @@ function FantasyPage() {
       <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
         <V3FantasyScreen
           game={activeGame}
+          games={games.data ?? []}
+          onGame={selectGame}
           choices={choices.data ?? []}
           countries={countryMap}
           selected={selected}
@@ -229,7 +237,7 @@ function FantasyPage() {
           {games.data && games.data.length > 1 ? (
             <label className="mb-4 block text-xs font-semibold text-muted-foreground">
               Game
-              <select value={activeGame.id} onChange={(event) => { setGameId(event.target.value); setSelected([]); setCaptain(""); }} className="mt-1.5 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground sm:max-w-sm">
+              <select value={activeGame.id} onChange={(event) => selectGame(event.target.value)} className="mt-1.5 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground sm:max-w-sm">
                 {games.data.map((game) => <option key={game.id} value={game.id}>{game.name}</option>)}
               </select>
             </label>

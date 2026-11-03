@@ -65,6 +65,13 @@ export function V3FantasyScreen({
   const rosterProgress = game.roster_size > 0 ? (selected.length / game.roster_size) * 100 : 0;
   const budgetProgress = game.budget > 0 ? (cost / game.budget) * 100 : 0;
   const locked = !editable;
+  const invalidSelection = selected.filter((id) => !choices.some((choice) =>
+    choice.game_id === game.id &&
+    choice.country_id === id &&
+    choice.eligible &&
+    Number.isFinite(choice.cost) &&
+    choice.cost >= 0,
+  ));
 
   return (
     <V3Screen className="pb-8">
@@ -171,6 +178,22 @@ export function V3FantasyScreen({
             <p className="mt-3 flex items-center gap-2 text-sm text-[var(--v3-text-secondary)]">
               <LockKeyhole className="size-4" aria-hidden="true" /> This roster is no longer editable in the current game state.
             </p>
+          ) : null}
+          {invalidSelection.length ? (
+            <div className="mt-3 space-y-2 text-sm text-[var(--v3-danger)]" role="alert">
+              <p>One or more saved countries are no longer eligible. Remove them to update your roster.</p>
+              {invalidSelection.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  disabled={locked}
+                  onClick={() => onToggle(id)}
+                  className="mr-2 min-h-11 rounded-xl border border-current px-3 text-left disabled:opacity-50"
+                >
+                  Remove {countries.get(id)?.name ?? "unavailable country"}
+                </button>
+              ))}
+            </div>
           ) : null}
           {cost > game.budget ? <p className="mt-3 text-sm text-[var(--v3-danger)]">Budget exceeded.</p> : null}
           {submitError ? <p className="mt-3 text-sm text-[var(--v3-danger)]" role="alert">{submitError}</p> : null}

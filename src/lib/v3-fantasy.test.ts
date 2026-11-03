@@ -53,6 +53,11 @@ describe("V3 Fantasy projection", () => {
     expect(fantasyRosterReady({ game, selected: ["country-a", "country-b"], choices })).toBe(true);
     expect(fantasyRosterReady({ game, selected: ["country-b", "country-c"], choices })).toBe(false);
     expect(fantasyRosterReady({ game, selected: ["country-a"], choices })).toBe(false);
+    expect(fantasyRosterReady({ game, selected: ["country-a", "country-a"], choices })).toBe(false);
+    expect(fantasyRosterReady({ game, selected: ["country-a", "not-a-country"], choices })).toBe(false);
+    expect(fantasyRosterReady({ game, selected: ["country-a", "country-b"], choices: choices.map((choice) => choice.country_id === "country-b" ? { ...choice, eligible: false } : choice) })).toBe(false);
+    expect(fantasyRosterReady({ game, selected: ["country-a", "country-b"], choices: choices.map((choice) => choice.country_id === "country-b" ? { ...choice, game_id: "another-game" } : choice) })).toBe(false);
+    expect(fantasyRosterReady({ game, selected: ["country-a", "country-b"], choices: choices.map((choice) => choice.country_id === "country-b" ? { ...choice, cost: Number.NaN } : choice) })).toBe(false);
   });
 
   it("only exposes editing while the authoritative lifecycle still permits roster changes", () => {
