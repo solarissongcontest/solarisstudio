@@ -162,7 +162,36 @@ describe("projectV3Participate", () => {
     });
 
     expect(projection.voting.jury?.id).toBe("jury-current");
+    expect(projection.voting.currentCount).toBe(0); // Upcoming is not open.
+  });
+
+  it("counts only open voting actions as current, never future or waiting windows", () => {
+    const juryUpcoming = action("future-jury", {
+      kind: "jury",
+      sourceState: "upcoming",
+      deliveryClass: "required",
+    });
+    const voteOpen = action("open-televote", {
+      kind: "televote",
+      sourceState: "available",
+      deliveryClass: "optional",
+    });
+    const projection = projectV3Participate({
+      actions: [juryUpcoming, voteOpen],
+      journey: [],
+    });
     expect(projection.voting.currentCount).toBe(1);
+    expect(projection.voting.jury?.sourceState).toBe("upcoming");
+    expect(projection.voting.televote?.sourceState).toBe("available");
+
+    const waiting = projectV3Participate({
+      actions: [
+        { ...juryUpcoming, sourceState: "waiting" },
+        { ...voteOpen, sourceState: "finished", completed: true },
+      ],
+      journey: [],
+    });
+    expect(waiting.voting.currentCount).toBe(0);
   });
 
   it("does not invent closed or unavailable voting truth when no canonical action exists", () => {
