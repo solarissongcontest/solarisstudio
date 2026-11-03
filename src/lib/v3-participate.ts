@@ -31,6 +31,10 @@ function currentVotingAction(
   kind: "jury" | "televote",
 ) {
   return (
+    // A new open ballot must not disappear behind an older blocked ballot:
+    // sortSolarisTasks intentionally ranks "problem" ahead of "needs_attention"
+    // for the Task Center, but the Voting overview owns availability first.
+    actions.find((action) => action.kind === kind && isCurrentVotingAction(action)) ??
     actions.find((action) => action.kind === kind && !action.completed) ??
     actions.find((action) => action.kind === kind) ??
     null
