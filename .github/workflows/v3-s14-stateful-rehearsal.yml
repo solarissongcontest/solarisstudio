@@ -23,7 +23,7 @@ concurrency:
 jobs:
   rehearsal:
     name: Stateful local contest rehearsal
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
       V3_VERIFICATION_TARGET: local
