@@ -19,12 +19,12 @@ begin
   -- Validate the final aggregate state rather than an intermediate draft tree.
   with recursive ancestors as (
     select
-      row.provision_id,
-      row.parent_provision_id,
-      array[row.provision_id]::uuid[] as visited,
+      seed_row.provision_id,
+      seed_row.parent_provision_id,
+      array[seed_row.provision_id]::uuid[] as visited,
       false as is_cycle
-    from public.world_document_version_provisions row
-    where row.id = new.id
+    from public.world_document_version_provisions seed_row
+    where seed_row.id = new.id
 
     union all
 
