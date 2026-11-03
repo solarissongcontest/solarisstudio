@@ -31,10 +31,10 @@ describe("public Televote route lifecycle wiring", () => {
     expect(route).toMatch(/<TelevotingBoothWithReceipt\s+key=\{data\.round\.id\}/);
   });
 
-  it("checks readiness only for an open round and refreshes after failure", () => {
+  it("checks readiness only for an open round and retries after errors despite cached success", () => {
     expect(route).toContain('queryKey: ["merged-televoting-server-status", data?.round.id]');
     expect(route).toContain("enabled: Boolean(data)");
-    expect(route).toContain("refetchInterval: (query) => query.state.data?.votingReady ? false : 60_000");
+    expect(route).toContain("refetchInterval: (query) => query.state.data?.votingReady && !query.state.error ? false : 60_000");
     expect(route).toContain("refetch: refetchStatus");
     expect(route).toContain("resolveTelevotingAvailability(serverStatus, statusPending, statusError)");
   });
