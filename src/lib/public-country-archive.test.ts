@@ -255,6 +255,32 @@ describe("buildPublicCountryArchive", () => {
     expect(archive.televote.map((row) => row.id)).toEqual(["t1", "t23"]);
   });
 
+  it("never assigns show-specific running order or qualification to an edition entry", () => {
+    const input = baseInput();
+    input.shows[0].publication_config.running_order = true;
+    input.shows[0].publication_config.qualifiers = true;
+    input.participants.push({
+      ...input.participants[0],
+      id: "edition-only",
+      show_id: null,
+    });
+
+    const archive = buildPublicCountryArchive(input);
+    const appearance = archive.participants.find((row) => row.id === "p1");
+    const canonical = archive.participants.find((row) => row.id === "edition-only");
+
+    // The specific published show is authorized to disclose its own stage fields.
+    expect(appearance?.running_order).toBe(4);
+    expect(appearance?.qualified).toBe(true);
+
+    // A showless canonical row is *not* a performance or qualifier decision:
+    // public_safe_participants also returns null for both these fields.
+    expect(canonical?.artist).toBe("Artist");
+    expect(canonical?.song).toBe("Song");
+    expect(canonical?.running_order).toBeNull();
+    expect(canonical?.qualified).toBeNull();
+  });
+
   it("retains correctly published edition-level canonical entries", () => {
     const input = baseInput();
     input.participants.push({
