@@ -387,6 +387,8 @@ PY
 }
 
 run_stage stage-1-setup run_s14_stage_1_setup
+log "S14: qualification null-rank PostgreSQL regression"
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$SCRIPT_DIR/v3-s14-qualification-null-rank-regression.sql"
 DATABASE_FINGERPRINT="$(db_scalar "select current_database() || ':' || pg_postmaster_start_time()::text;")"
 [[ -n "$DATABASE_FINGERPRINT" ]] || fail "could not capture persistent local database fingerprint after S14 setup"
 assert_same_persistent_contest
