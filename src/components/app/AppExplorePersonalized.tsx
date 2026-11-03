@@ -6,7 +6,7 @@ import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import { useMyFollows } from "@/lib/engagement-data";
 import { writeOfflinePublicIndex } from "@/lib/app-offline-snapshot";
 import { useFanSession } from "@/lib/prediction-data";
-import { isShowPublic } from "@/lib/publication";
+import { publicShowsForDiscovery, visibleRecentShowDestinations } from "@/lib/v3-show-public-discovery";
 import {
   readPublicRecents,
   type PublicRecentDestination,
@@ -19,6 +19,18 @@ export function AppExplorePersonalized() {
   const countries = useCountries();
   const editions = useEditions();
   const shows = useAllShows();
+  const publicEditions = useMemo(
+    () => (editions.data ?? []).filter((edition) => edition.published === true),
+    [editions.data],
+  );
+  const publicShows = useMemo(
+    () => publicShowsForDiscovery(shows.data ?? [], publicEditions),
+    [shows.data, publicEditions],
+  );
+  const visibleRecents = useMemo(
+    () => visibleRecentShowDestinations(recents, publicShows),
+    [recents, publicShows],
+  );
 
   useEffect(() => {
     setRecents(readPublicRecents().slice(0, 4));
@@ -28,15 +40,15 @@ export function AppExplorePersonalized() {
     if (!countries.data || !editions.data || !shows.data) return;
     writeOfflinePublicIndex({
       countries: countries.data,
-      editions: editions.data,
-      shows: shows.data.filter((show) => isShowPublic(show)),
+      editions: publicEditions,
+      shows: publicShows,
     });
-  }, [countries.data, editions.data, shows.data]);
+  }, [countries.data, editions.data, publicEditions, publicShows, shows.data]);
 
   const followed = useMemo(() => {
     const countryById = new Map((countries.data ?? []).map((item) => [item.id, item]));
-    const editionById = new Map((editions.data ?? []).map((item) => [item.id, item]));
-    const showById = new Map((shows.data ?? []).map((item) => [item.id, item]));
+    const editionById = new Map(publicEditions.map((item) => [item.id, item]));
+    const showById = new Map(publicShows.map((item) => [item.id, item]));
 
     return (follows.data?.follows ?? [])
       .map((follow) => {
@@ -67,6 +79,7 @@ export function AppExplorePersonalized() {
             : null;
         }
 
+        if (follow.entity_type !== "show") return null;
         const show = showById.get(follow.entity_id);
         return show
           ? { id: follow.id, label: show.name, meta: "Show", to: `/shows/${show.id}` }
@@ -83,11 +96,11 @@ export function AppExplorePersonalized() {
         } => Boolean(item),
       )
       .slice(0, 4);
-  }, [countries.data, editions.data, follows.data?.follows, shows.data]);
+  }, [countries.data, follows.data?.follows, publicEditions, publicShows]);
 
   return (
     <div className="space-y-5" data-solaris-app-explore-personalized>
-      {recents.length ? (
+      {visibleRecents.length ? (
         <section aria-labelledby="app-explore-recent">
           <div className="solaris-app-section-heading">
             <p>Continue</p>
@@ -97,7 +110,7 @@ export function AppExplorePersonalized() {
             </h2>
           </div>
           <div className="solaris-app-grouped-list">
-            {recents.map((item) => (
+            {visibleRecents.map((item) => (
               <Link key={item.path} to={item.path as any} className="solaris-app-list-row">
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-semibold">{item.label}</span>
