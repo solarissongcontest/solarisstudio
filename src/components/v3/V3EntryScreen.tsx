@@ -413,6 +413,19 @@ export function V3EntryScreen({
         {projection.versionHistory.length ? (
           <V3Section title="Version history">
             <V3Surface className="overflow-hidden" data-v3-entry-version-history="">
+              {projection.versionHistorySubject ? (
+                <p
+                  className="border-b border-[var(--v3-border-subtle)] px-4 py-3 text-sm text-[var(--v3-text-secondary)]"
+                  data-v3-entry-version-history-subject={projection.versionHistorySubject.entryId}
+                >
+                  Showing revisions for <span className="font-semibold text-[var(--v3-text-primary)]">
+                    {projection.versionHistorySubject.label}
+                  </span>
+                  {projection.versionHistorySubject.source === "national_final"
+                    ? " · National Final candidate"
+                    : " · Internal entry"}
+                </p>
+              ) : null}
               {projection.versionHistory.map((version, index) => (
                 <div
                   key={version.id}
