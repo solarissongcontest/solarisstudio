@@ -57,6 +57,9 @@ describe("System V3 S9 operation trace", () => {
     expect(integrityMigration).toContain("'receiptState', case");
     expect(integrityMigration).toContain("'completedDeliveriesMissingReceipts'");
     expect(integrityMigration).toContain("'noncompletedDeliveriesWithReceipts'");
+    expect(integrityMigration).toContain("'orphanConsumerKeys'");
+    expect(integrityMigration).toContain("'orphanConsumerReceipts'");
+    expect(integrityMigration).toContain("delivery.event_id is null");
     expect(integrityMigration).toContain("consumer_receipt.consumer_key = delivery.consumer_key");
     expect(integrityMigration).toContain("studio2_access_allowed('system.read', null, false)");
     expect(integrityMigration).not.toContain("event_row.payload");
@@ -65,6 +68,7 @@ describe("System V3 S9 operation trace", () => {
     expect(integrityMigration).not.toContain("result_metadata");
     expect(rehearsal).toContain("missing_completed_receipt");
     expect(rehearsal).toContain("unexpected_noncompleted_receipt");
+    expect(rehearsal).toContain("trace.orphan-receipt");
     expect(rehearsal).toContain("eventCorrelationMismatches");
   });
 
