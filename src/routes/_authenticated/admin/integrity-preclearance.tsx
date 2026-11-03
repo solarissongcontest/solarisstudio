@@ -236,7 +236,7 @@ function SelectedCaseWorkspace({
           ) : null}
         </AdminCard>
 
-        <RulingComposer detail={detail} onChanged={onChanged} />
+        <RulingComposer key={detail.case.id} detail={detail} onChanged={onChanged} />
       </div>
 
       <AdminCard>
