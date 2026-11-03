@@ -103,9 +103,12 @@ function sanitiseParticipant(
     spotify_url: songVisible ? source.spotify_url ?? null : null,
     apple_music_url: songVisible ? source.apple_music_url ?? null : null,
     notes: null,
-    running_order: publication.running_order ? participant.running_order : null,
+    // An edition-level canonical entry has no show-specific performance slot
+    // or qualification decision. Keep parity with public_safe_participants:
+    // only an actual public show appearance can release those stage fields.
+    running_order: participant.show_id && publication.running_order ? participant.running_order : null,
     semi_final: publication.semi_split ? participant.semi_final : "",
-    qualified: publication.qualifiers ? participant.qualified : null,
+    qualified: participant.show_id && publication.qualifiers ? participant.qualified : null,
   } as Participant;
 }
 
