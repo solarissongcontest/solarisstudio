@@ -150,7 +150,11 @@ export function buildPublicCountryArchive(
     if (!publishedEditionIds.has(participant.edition_id)) return [];
 
     if (participant.show_id) {
-      const publication = publicationByShow.get(participant.show_id);
+      const show = showById.get(participant.show_id);
+      // A public show cannot authorize a participant from a different edition.
+      // Legacy rows and privileged reads may contain inconsistent show links.
+      if (!show || show.edition_id !== participant.edition_id) return [];
+      const publication = publicationByShow.get(show.id);
       if (!publication?.participants) return [];
       return [sanitiseParticipant(participant, publication)];
     }
@@ -170,7 +174,8 @@ export function buildPublicCountryArchive(
   );
   const results = competingResults.filter((result) => {
     if (!publishedEditionIds.has(result.edition_id) || !result.show_id) return false;
-    return showPublishesResults(showById.get(result.show_id));
+    const show = showById.get(result.show_id);
+    return show?.edition_id === result.edition_id && showPublishesResults(show);
   });
 
   // These tables contain directional voting detail. Aggregate result totals can
@@ -178,12 +183,14 @@ export function buildPublicCountryArchive(
   // enter public country analytics when detailed voting is released.
   const jury = input.jury.filter((vote) => {
     if (!publishedEditionIds.has(vote.edition_id) || !vote.show_id) return false;
-    return publicationByShow.get(vote.show_id)?.detailed_voting === true;
+    const show = showById.get(vote.show_id);
+    return show?.edition_id === vote.edition_id && publicationByShow.get(show.id)?.detailed_voting === true;
   });
 
   const televote = input.televote.filter((vote) => {
     if (!publishedEditionIds.has(vote.edition_id) || !vote.show_id) return false;
-    return publicationByShow.get(vote.show_id)?.detailed_voting === true;
+    const show = showById.get(vote.show_id);
+    return show?.edition_id === vote.edition_id && publicationByShow.get(show.id)?.detailed_voting === true;
   });
 
   return {
