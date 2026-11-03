@@ -33,6 +33,7 @@ jobs:
       V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
       V3_S14_ALLOW_PARTIAL: "0"
       V3_S14_REQUIRE_COMPLETE: "1"
+      LOCAL_SUPABASE_URL: http://127.0.0.1:54321
     steps:
       - name: Checkout exact feature head
         uses: actions/checkout@v4
@@ -69,10 +70,10 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(supabase status -o env)"
-          case "$API_URL" in
-            http://127.0.0.1:*|http://localhost:*) ;;
-            *) echo "::error::Refusing S14 against non-local Supabase API_URL=$API_URL"; exit 1 ;;
-          esac
+          if [[ "$API_URL" != "$LOCAL_SUPABASE_URL" ]]; then
+            echo "::error::Refusing audit server with hosted Supabase URL: $API_URL"
+            exit 1
+          fi
           export VITE_SUPABASE_URL="$API_URL"
           export SUPABASE_URL="$API_URL"
           export E2E_SUPABASE_URL="$API_URL"
