@@ -54,6 +54,22 @@ jobs:
       - name: Install Playwright Chromium
         run: bunx playwright install --with-deps chromium
 
+      - name: Verify S14 replay and local-only contracts before contest startup
+        shell: bash
+        run: |
+          set -euo pipefail
+          bunx vitest run \
+            src/lib/ci-egress-safety.contract.test.ts \
+            src/lib/v3-s14-stage7-deadline-command-identity.contract.test.ts \
+            src/lib/v3-qualification-null-rank-reset.contract.test.ts
+          for script in \
+            .github/scripts/v3-s14-stage-7-genuine-deadline.sh \
+            .github/scripts/v3-s14-grand-final-voting.sh \
+            .github/scripts/v3-full-contest-rehearsal.sh; do
+            bash -n "$script"
+          done
+
+
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
