@@ -103,7 +103,7 @@ describe("country-account confirmation state", () => {
     expect(countryConfirmationOverviewMessage("satisfied", true, false)).toContain("is satisfied");
     expect(countryConfirmationOverviewMessage("waived", false, false)).toContain("waived");
     expect(countryConfirmationOverviewMessage("invalidated", true, false)).toContain("invalidated");
-    expect(countryConfirmationOverviewMessage(null, false, true)).toContain("earlier edition");
+    expect(countryConfirmationOverviewMessage(null, false, true)).toContain("another edition");
     expect(countryConfirmationOverviewMessage(null, true, false)).toContain("alone does not prove completion");
   });
 });
