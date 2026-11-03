@@ -55,6 +55,8 @@ For every major system, eventual certification must define **normal, contest-day
 - optional `V3_CAPACITY_METHOD`, `V3_CAPACITY_HEADERS_JSON`, `V3_CAPACITY_BODY`.
 - optional loopback `DB_URL` for PostgreSQL activity, lock/connection pressure and canonical DomainEvent queue/retry measurements.
 - when `DB_URL` is present, `V3_CAPACITY_DB_SAMPLE_MS` is required so mid-run pressure is sampled at an explicit interval rather than hidden behind a magic default.
+- when `DB_URL` is present, `V3_CAPACITY_DB_QUERY_TIMEOUT_MS` is also required to give every local PostgreSQL sampling command an explicit execution deadline.
+- request/DB timer values must be within Node's supported timer range (1–2,147,483,647 ms); larger values are rejected instead of silently clamping to approximately 1 ms.
 - optional `V3_CAPACITY_OUTPUT` for the JSON report.
 
 The harness has **no default request count, concurrency, duration target or pass/fail latency threshold**. The four safety limits are also required explicit operator decisions; the harness must reject unsafe/non-integer values and abort when it sees unexpectedly large responses. Choose request/concurrency ceilings and the timeout/response-size bounds from the same documented local rehearsal plan, never from an assumed production quota. No automated test needs hosted Supabase to exercise these guards.
@@ -75,6 +77,7 @@ V3_CAPACITY_LOAD_SOURCE=<documented-source> \
 V3_CAPACITY_LOAD_RATIONALE='<why-this-load-shape>' \
 DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
 V3_CAPACITY_DB_SAMPLE_MS=<explicit-sampling-interval> \
+V3_CAPACITY_DB_QUERY_TIMEOUT_MS=<approved-db-query-timeout-ms> \
 node .github/scripts/v3-s12-local-capacity-rehearsal.mjs
 ```
 
@@ -148,7 +151,7 @@ For smoke-style local runs, `V3_CAPACITY_REQUIRE_ALL_SUCCESS=1` can fail the pro
 - exact repository SHA and runtime build identity,
 - scenario ID and endpoint/workflow mapping,
 - source and rationale for request count/concurrency/duration,
-- local database sampling interval when attached,
+- local database sampling interval and database query timeout when attached,
 - local runtime/database versions,
 - start/end timestamps,
 - complete JSON report,
