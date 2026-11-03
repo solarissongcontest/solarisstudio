@@ -58,9 +58,15 @@ export type SyncHealthSummary = {
 };
 
 export async function loadUnifiedSyncHealthServer(): Promise<SyncHealthSummary> {
-  const { requireSolarisOrganizerServer } = await import("@/integrations/supabase/organizer.server");
+  const { requireSolarisCapabilityServer } = await import(
+    "@/integrations/supabase/capabilities.server"
+  );
+  await requireSolarisCapabilityServer("system.read", null);
+
+  // The service-role client is deliberately loaded only after the caller's
+  // canonical system.read capability has been verified above. Route visibility
+  // is not an authorization boundary for this privileged diagnostic projection.
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await requireSolarisOrganizerServer();
   const db = supabaseAdmin as any;
 
   const runtimeProbe = (async (): Promise<TelevotingRuntimeHealth> => {
