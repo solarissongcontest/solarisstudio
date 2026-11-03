@@ -179,7 +179,7 @@ function TelevotingPage() {
           <ParticipationStatusPanel
             tone="danger"
             title="Voting data could not be loaded"
-            description="The live round could not be read. Your ballot has not been submitted."
+            description="The live round could not be read. Retry to check the round; this action will not submit a ballot."
           >
             <Button type="button" variant="outline" onClick={() => void refetchRound()}>Try again</Button>
           </ParticipationStatusPanel>
@@ -240,7 +240,7 @@ function TelevotingPage() {
                   tone={availability === "error" ? "danger" : "warning"}
                   icon={<ShieldCheck className="size-5" />}
                   title={availability === "error" ? "Voting availability could not be checked" : "Voting is temporarily unavailable"}
-                  description="This round is visible, but Solaris cannot confirm that the voting service is ready. No vote has been submitted. You can retry safely."
+                  description="This round is visible, but Solaris cannot verify voting readiness. A previous submission is not affected. Checking again does not submit a ballot."
                 >
                   <Button type="button" variant="outline" onClick={() => void refetchStatus()}>Check availability again</Button>
                 </ParticipationStatusPanel>
