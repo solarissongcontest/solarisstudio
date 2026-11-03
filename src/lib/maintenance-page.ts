@@ -141,6 +141,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
   </script>
   <link rel="stylesheet" href="/assets/terraos-maintenance.css?v=${MAINTENANCE_ASSET_REVISION}" />
   <link rel="stylesheet" href="/assets/terraos-maintenance-story.css?v=${MAINTENANCE_ASSET_REVISION}" data-terraos-story-styles="true" />
+  <link rel="stylesheet" href="/assets/terraos-top-safe.css?v=${MAINTENANCE_ASSET_REVISION}" />
   <title>TerraOS 3 — Solaris Studio</title>
 </head>
 <body>
