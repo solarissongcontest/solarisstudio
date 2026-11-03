@@ -100,6 +100,12 @@ describe("V3 Organizer projection", () => {
     expect(projection.risk).toBe("elevated");
   });
 
+  it("does not certify missing health evidence", () => {
+    const p = buildV3OrganizerProjection({ edition, actorId: "organizer-1", live, tasks: [], health: null });
+    expect(p.readiness.assessmentStatus).toBe("unavailable");
+    expect(p.readiness.ready).toEqual([]);
+  });
+
   it("stays normal only when both live state and unresolved task pressure are clear", () => {
     const projection = buildV3OrganizerProjection({
       edition,
