@@ -221,12 +221,12 @@ export function renderJuryShareSvg(
     result.push(
       '<g data-jury-row="' + row.points + '">',
       '<rect x="' + left + '" y="' + y + '" width="' + rowWidth +
-        '" height="' + rowHeight + '" rx="26" fill="' + fill + '"/>',
+        '" height="' + rowHeight + '" rx="' + model.design.rowRadius + '" fill="' + fill + '"/>',
     );
     if (glass && !row.emphasized) {
       result.push('<rect x="' + left + '" y="' + y + '" width="' + rowWidth +
         '" height="' + rowHeight +
-        '" rx="26" fill="url(#glass)" stroke="#E4F5FF" stroke-opacity=".24"/>');
+        '" rx="' + model.design.rowRadius + '" fill="url(#glass)" stroke="#E4F5FF" stroke-opacity=".24"/>');
     }
     result.push(
       '<rect x="95" y="' + (y + 15) + '" width="98" height="62" rx="8" fill="' +
