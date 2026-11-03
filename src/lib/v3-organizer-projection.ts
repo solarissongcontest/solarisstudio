@@ -440,9 +440,9 @@ export function buildV3OrganizerProjection(input: {
     domains: buildDomains(input.edition, input.tasks, input.live),
     systemHealth: {
       state:
-        input.live.overallHealth === "critical"
+        input.live.overallHealth === "critical" || readiness.blocking.length > 0
           ? "partial_outage"
-          : input.live.overallHealth === "attention"
+          : input.live.overallHealth === "attention" || readiness.incomplete.length > 0
             ? "degraded"
             : input.live.overallHealth === "healthy" && readiness.assessmentStatus === "verified"
               ? "healthy"
