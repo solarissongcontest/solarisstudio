@@ -17,6 +17,10 @@ export function resolveCountryConfirmationRoundState(
 
 export function preferredCountryConfirmationResponse(
   responses: readonly CountryConfirmationResponse[],
+  editionId?: string | null,
 ): CountryConfirmationResponse | null {
-  return responses.find((response) => response.can_edit) ?? responses[0] ?? null;
+  const eligible = editionId
+    ? responses.filter((response) => response.edition_id === editionId)
+    : responses;
+  return eligible.find((response) => response.can_edit) ?? eligible[0] ?? null;
 }
