@@ -74,7 +74,6 @@ describe("Public V3 P9 artist/song identity", () => {
     expect(first.entryId).not.toBe(second.entryId);
   });
 
-
   it("derives detail URLs from canonical opaque IDs instead of trusting a stale href", () => {
     const artist = firstClassMusicIdentity({
       kind: "artist",
@@ -86,6 +85,9 @@ describe("Public V3 P9 artist/song identity", () => {
       publicEntityId: "song:stable:1",
       label: "Original song",
     });
+    if (!musicIdentityIsRoutable(artist) || !musicIdentityIsRoutable(song)) {
+      throw new Error("Expected first-class music identities");
+    }
 
     // Even a compromised or stale presentation object must never control
     // the navigation destination independently of the canonical identity.
@@ -110,6 +112,9 @@ describe("Public V3 P9 artist/song identity", () => {
       publicEntityId: "durable-artist-id",
       label: "Artist",
     });
+    if (!musicIdentityIsRoutable(artist)) {
+      throw new Error("Expected a first-class artist identity");
+    }
     expect(musicIdentityIsRoutable({ ...artist, publicEntityId: ".." })).toBe(false);
     expect(musicEntityHref({ ...artist, publicEntityId: ".." })).toBeNull();
   });
