@@ -46,7 +46,7 @@ export function FlagFrame({ image, alt, fallback, crop, className, imageClassNam
     <span data-flag-frame="standard" data-flag-chip={chip ? "true" : undefined} className={cn("flag-media-frame rounded-[.6rem]", className)} style={style}>
       {image && !failed
         ? <FlagMedia image={image} alt={alt} crop={crop} className={imageClassName} loading={loading} decoding="async" onError={() => setFailed(true)} />
-        : <span className="flag-media-fallback" aria-label={`${alt} unavailable`}>{fallback}</span>}
+        : <span className="flag-media-fallback" role="img" aria-label={`${alt} unavailable`}>{fallback}</span>}
     </span>
   );
 }
