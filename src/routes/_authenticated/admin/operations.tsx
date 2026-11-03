@@ -102,22 +102,22 @@ function OrganizerOverview() {
               </div>
               <AdminStatus
                 tone={
-                  projection.readiness.assessmentStatus === "unavailable"
-                    ? "neutral"
-                    : projection.risk === "critical"
+                  projection.risk === "critical"
                     ? "blocked"
                     : projection.risk === "elevated"
                       ? "attention"
-                      : "ready"
+                      : projection.readiness.assessmentStatus === "unavailable"
+                        ? "neutral"
+                        : "ready"
                 }
               >
-                {projection.readiness.assessmentStatus === "unavailable"
-                  ? "Readiness unverified"
-                  : projection.risk === "critical"
+                {projection.risk === "critical"
                   ? "Critical attention"
                   : projection.risk === "elevated"
                     ? "Needs attention"
-                    : "On track"}
+                    : projection.readiness.assessmentStatus === "unavailable"
+                      ? "Readiness unverified"
+                      : "On track"}
               </AdminStatus>
             </section>
 
