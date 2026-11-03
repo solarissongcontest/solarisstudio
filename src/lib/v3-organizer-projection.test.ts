@@ -110,4 +110,54 @@ describe("V3 Organizer projection", () => {
     expect(projection.tasks.total).toBe(0);
     expect(projection.risk).toBe("normal");
   });
+
+  it("changes projection versions when canonical task actions or readiness change", () => {
+    const originalTask = task("review", "high", "open", "2026-11-05T12:00:00Z");
+    const base = {
+      edition,
+      live,
+      actorId: "organizer-1",
+      tasks: [originalTask],
+      serverTime: "2026-11-04T12:00:00Z",
+    };
+    const version = (input: typeof base) => buildV3OrganizerProjection(input).stateVersion;
+    const initial = version(base);
+
+    const changed = [
+      { ...base, actorId: "organizer-2" },
+      { ...base, tasks: [{ ...originalTask, assignedTo: "organizer-1" }] },
+      { ...base, tasks: [{ ...originalTask, dueAt: "2026-11-04T15:00:00Z" }] },
+      { ...base, tasks: [{ ...originalTask, title: "Review immediately" }] },
+      { ...base, tasks: [{ ...originalTask, description: "Evidence changed" }] },
+      { ...base, tasks: [{ ...originalTask, href: "/admin/entries/ssc-22" }] },
+      { ...base, tasks: [{ ...originalTask, operationalState: "blocked" as const }] },
+      { ...base, live: { ...live, overallHealth: "critical" as const } },
+      { ...base, live: { ...live, ballots: { received: 6, expected: 8, completion: 75 } } },
+      { ...base, edition: { ...edition, name: "SSC 22 updated" } },
+      { ...base, health: { progress: 55, critical_count: 1 } },
+      { ...base, activeShow: { id: "show-1", label: "Grand Final", kind: "grand-final", status: "live" } },
+      { ...base, contextVersion: 2 },
+      { ...base, upcoming: [{ id: "due-1", label: "Jury closes", detail: "Final deadline", at: "2026-11-05T10:00:00Z", route: "/admin/jury/ssc-22" }] },
+    ];
+    for (const updated of changed) {
+      expect(version(updated)).not.toBe(initial);
+    }
+  });
+
+  it("keeps a stable state version across server-clock-only refreshes", () => {
+    const base = {
+      edition,
+      live,
+      actorId: "organizer-1",
+      tasks: [task("review", "normal")],
+      serverTime: "2026-11-04T12:00:00Z",
+    };
+    const first = buildV3OrganizerProjection(base).stateVersion;
+    const later = buildV3OrganizerProjection({
+      ...base,
+      serverTime: "2026-11-04T12:05:00Z",
+    }).stateVersion;
+    expect(later).toBe(first);
+  });
+
 });
