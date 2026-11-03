@@ -384,13 +384,6 @@ export function buildV3OrganizerProjection(input: {
   const topTasks = unresolved.slice(0, 5);
   const top = topTasks.map(summarizeTask);
 
-  const risk: V3OrganizerRisk =
-    input.live.overallHealth === "critical" || critical > 0
-      ? "critical"
-      : input.live.overallHealth === "attention" || high > 0 || waiting > 0
-        ? "elevated"
-        : "normal";
-
   const recentChanges = input.recentChanges ?? [];
   const stateVersion = buildStateVersion({
     edition: input.edition,
@@ -399,6 +392,16 @@ export function buildV3OrganizerProjection(input: {
     health: input.health,
     recentChanges,
   });
+  const readiness = buildReadiness(input.edition, input.health, serverTime, stateVersion);
+
+  // A critical health finding must remain visible even when no canonical Task
+  // has yet materialized for it. Missing health evidence is not a clean bill.
+  const risk: V3OrganizerRisk =
+    input.live.overallHealth === "critical" || critical > 0 || readiness.blocking.length > 0
+      ? "critical"
+      : input.live.overallHealth === "attention" || high > 0 || waiting > 0 || readiness.incomplete.length > 0
+        ? "elevated"
+        : "normal";
 
   const label = input.edition.editionNumber == null
     ? input.edition.name
@@ -416,7 +419,7 @@ export function buildV3OrganizerProjection(input: {
     },
     edition: input.edition,
     activeShow: input.activeShow,
-    readiness: buildReadiness(input.edition, input.health, serverTime, stateVersion),
+    readiness,
     attention: topTasks.map((task) => ({
       id: task.id,
       severity: task.priority,
@@ -441,11 +444,13 @@ export function buildV3OrganizerProjection(input: {
           ? "partial_outage"
           : input.live.overallHealth === "attention"
             ? "degraded"
-            : input.live.overallHealth === "healthy"
+            : input.live.overallHealth === "healthy" && readiness.assessmentStatus === "verified"
               ? "healthy"
               : "unknown",
       detail:
-        Number(input.health?.issues_count ?? 0) > 0
+        readiness.assessmentStatus === "unavailable"
+          ? "Edition health assessment unavailable"
+          : Number(input.health?.issues_count ?? 0) > 0
           ? `${Number(input.health?.issues_count ?? 0)} health ${Number(input.health?.issues_count ?? 0) === 1 ? "issue" : "issues"}`
           : "No known edition health issue",
       issueCount: Number(input.health?.issues_count ?? input.live.issues.total ?? 0),
