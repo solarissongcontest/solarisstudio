@@ -80,6 +80,7 @@ describe("V3 Jury Share deterministic SVG renderer", () => {
     expect(svg.match(/data-jury-row="/g)).toHaveLength(10);
     expect(svg.match(/<image /g)).toHaveLength(11);
     expect(svg).toContain('data-jury-row="12"');
+    expect(svg).toContain('rx="28"');
     expect(svg).toContain('data-jury-row="1"');
     expect(svg).toContain(">08</text>");
     expect(svg).toContain(">01</text>");
