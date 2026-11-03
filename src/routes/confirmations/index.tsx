@@ -236,7 +236,7 @@ function ConfirmationsPage() {
         { to: "/confirmations/next-in-line", label: "Next in Line" },
       ]}
       maxWidth="max-w-6xl"
-      editionLabel={selected?.edition_name ?? rounds[0]?.edition_name ?? "Solaris Song Contest"}
+      editionLabel={overviewRound?.edition_name ?? "Solaris Song Contest"}
       phaseLabel={selected ? "Confirmation task" : "Confirmations"}
     >
       <div className="confirmations-theme">
@@ -278,18 +278,18 @@ function ConfirmationsPage() {
                   onClick={() => void editCountryAccountResponse(preferredAccountResponse)}
                   className="shrink-0"
                 >
-                {preferredAccountResponse.can_edit ? (
-                  <>
-                    <PencilLine className="size-4" />
-                    {openingRoundId === preferredAccountResponse.round_id
-                      ? "Opening…"
-                      : "Edit your response"}
-                  </>
-                ) : (
-                  <>
-                    <LockKeyhole className="size-4" /> Editing closed
-                  </>
-                )}
+                  {preferredAccountResponse.can_edit ? (
+                    <>
+                      <PencilLine className="size-4" />
+                      {openingRoundId === preferredAccountResponse.round_id
+                        ? "Opening…"
+                        : "Edit your response"}
+                    </>
+                  ) : (
+                    <>
+                      <LockKeyhole className="size-4" /> Editing closed
+                    </>
+                  )}
                 </Button>
               ) : null}
             </div>
