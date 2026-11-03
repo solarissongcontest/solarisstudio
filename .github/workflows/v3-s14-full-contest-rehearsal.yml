@@ -223,7 +223,7 @@ jobs:
               pending_extensions = data.get("pendingContestExtensions", [])
               if not isinstance(pending_stages, list) or not isinstance(pending_extensions, list):
                   raise SystemExit("failed S14 evidence has invalid pending phase collections")
-              standalone_failure_phases = {"bootstrap", "results-runtime-reconciliation"}
+              standalone_failure_phases = {"bootstrap", "results-runtime-reconciliation", "final-evidence"}
               if (
                   failure_phase not in standalone_failure_phases
                   and failure_phase not in pending_stages
