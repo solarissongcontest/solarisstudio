@@ -10,11 +10,11 @@ const projection = source("src/lib/v3-fantasy.ts");
  describe("V3 Fantasy architecture", () => {
   it("restores the signed-in user's canonical saved roster from RLS-scoped team entries", () => {
     expect(route).toContain('.from("fantasy_teams")');
-    expect(route).toContain('.eq("profile_id", user.id)');
+    expect(route).toContain('.eq("profile_id", viewerId)');
     expect(route).toContain('.from("fantasy_team_entries")');
     expect(route).toContain('.eq("team_id", myTeam.data!.id)');
     expect(route).toContain("restoreV3FantasyRoster(myTeam.data, myTeamEntries.data)");
-    expect(route).toContain('queryKey: ["fantasy-my-team-entries", myTeam.data?.id]');
+    expect(route).toContain('queryKey: ["fantasy-my-team-entries", viewerId, myTeam.data?.id]');
   });
 
   it("exposes all games and historical editions in both installed-app and web Fantasy", () => {
@@ -34,11 +34,24 @@ const projection = source("src/lib/v3-fantasy.ts");
     expect(projection).toContain("eligibleCosts.has(countryId)");
   });
 
+  it("never reuses private Fantasy team caches or drafts across accounts or games", () => {
+    expect(route).toContain("useFanSession()");
+    expect(route).toContain('queryKey: ["fantasy-my-team", activeGame?.id, viewerId]');
+    expect(route).toContain('queryKey: ["fantasy-my-team-entries", viewerId, myTeam.data?.id]');
+    expect(route).toContain("myTeam.data?.profile_id === viewerId");
+    expect(route).toContain("auth.user?.id !== viewerId");
+    expect(route).toContain("gcTime: 0");
+    expect(route).toContain('const rosterScope = `${viewerId ?? "anonymous"}:${activeGame?.id ?? "none"}`');
+    expect(route).toContain("draftScope === rosterScope ? selected : []");
+    expect(route).toContain("draftScope === rosterScope ? captain :");
+    expect(route).toContain("viewerId={viewerId}");
+  });
+
   it("keeps roster mutation on the existing server-authoritative Fantasy writer", () => {
     expect(route).toContain('.rpc("submit_fantasy_team"');
     expect(route).toContain("_game_id: activeGame.id");
-    expect(route).toContain("_country_ids: selected");
-    expect(route).toContain("_captain_country_id: captain || null");
+    expect(route).toContain("_country_ids: rosterSelected");
+    expect(route).toContain("_captain_country_id: rosterCaptain || null");
     expect(route).not.toContain("localStorage");
     expect(route).not.toContain("sessionStorage");
   });

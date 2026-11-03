@@ -10,6 +10,7 @@ import { V3FantasyScreen } from "@/components/v3/V3FantasyScreen";
 import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
 import { supabase } from "@/integrations/supabase/client";
 import { useCountries } from "@/lib/data";
+import { useFanSession } from "@/lib/prediction-data";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import {
   canEditV3FantasyRoster,
@@ -36,6 +37,8 @@ export const Route = createFileRoute("/fantasy/")({
 
 function FantasyPage() {
   const { isAppMode, platformResolved } = useSolarisApp();
+  const session = useFanSession();
+  const viewerId = session.data?.id ?? null;
   const rollout = useV3RolloutProbe(platformResolved && isAppMode);
   const feature = useQuery({
     queryKey: ["studio2-feature", "fantasy_ssc"],
@@ -47,11 +50,13 @@ function FantasyPage() {
   const [gameId, setGameId] = useState<string>("");
   const [selected, setSelected] = useState<string[]>([]);
   const [captain, setCaptain] = useState<string>("");
+  const [draftScope, setDraftScope] = useState("");
   const [nowMs, setNowMs] = useState(() => Date.now());
   const queryClient = useQueryClient();
 
   const selectGame = (nextGameId: string) => {
     setGameId(nextGameId);
+    setDraftScope("");
     setSelected([]);
     setCaptain("");
   };
@@ -73,6 +78,11 @@ function FantasyPage() {
     refetchOnWindowFocus: true,
   });
   const activeGame = games.data?.find((game) => game.id === gameId) ?? games.data?.[0] ?? null;
+  const rosterScope = `${viewerId ?? "anonymous"}:${activeGame?.id ?? "none"}`;
+  // State from a prior account or game is never displayed or submitted while
+  // the new caller-scoped canonical team is still being resolved.
+  const rosterSelected = draftScope === rosterScope ? selected : [];
+  const rosterCaptain = draftScope === rosterScope ? captain : "";
 
   const choices = useQuery({
     enabled: Boolean(activeGame),
@@ -85,20 +95,23 @@ function FantasyPage() {
   });
 
   const myTeam = useQuery({
-    enabled: Boolean(activeGame),
-    queryKey: ["fantasy-my-team", activeGame?.id],
+    enabled: Boolean(activeGame && viewerId),
+    queryKey: ["fantasy-my-team", activeGame?.id, viewerId],
     queryFn: async () => {
-      const user = (await supabase.auth.getUser()).data.user;
-      if (!user) return null;
-      const { data, error } = await (supabase as any).from("fantasy_teams").select("*").eq("game_id", activeGame!.id).eq("profile_id", user.id).maybeSingle();
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !viewerId || auth.user?.id !== viewerId) {
+        throw new Error("Fantasy account changed. Refresh your session before continuing.");
+      }
+      const { data, error } = await (supabase as any).from("fantasy_teams").select("*").eq("game_id", activeGame!.id).eq("profile_id", viewerId).maybeSingle();
       if (error) throw error;
       return data as V3FantasyTeam | null;
     },
+    gcTime: 0,
   });
 
   const myTeamEntries = useQuery({
-    enabled: Boolean(myTeam.data?.id),
-    queryKey: ["fantasy-my-team-entries", myTeam.data?.id],
+    enabled: Boolean(viewerId && myTeam.data?.profile_id === viewerId && myTeam.data?.id),
+    queryKey: ["fantasy-my-team-entries", viewerId, myTeam.data?.id],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("fantasy_team_entries")
@@ -108,14 +121,16 @@ function FantasyPage() {
       if (error) throw error;
       return (data ?? []) as V3FantasyTeamEntry[];
     },
+    gcTime: 0,
   });
 
   useEffect(() => {
-    if (myTeam.isLoading || myTeamEntries.isLoading) return;
+    if (session.isLoading || myTeam.isLoading || myTeamEntries.isLoading || myTeam.isError || myTeamEntries.isError) return;
     const restored = restoreV3FantasyRoster(myTeam.data, myTeamEntries.data);
+    setDraftScope(rosterScope);
     setSelected(restored.selected);
     setCaptain(restored.captain);
-  }, [activeGame?.id, myTeam.data, myTeam.isLoading, myTeamEntries.data, myTeamEntries.isLoading]);
+  }, [rosterScope, session.isLoading, myTeam.data, myTeam.isLoading, myTeam.isError, myTeamEntries.data, myTeamEntries.isLoading, myTeamEntries.isError]);
 
   const leaderboard = useQuery({
     enabled: Boolean(activeGame),
@@ -130,20 +145,24 @@ function FantasyPage() {
   const submit = useMutation({
     mutationFn: async () => {
       if (!activeGame) throw new Error("Fantasy game is unavailable.");
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !viewerId || auth.user?.id !== viewerId) {
+        throw new Error("Fantasy account changed. Sign in again before saving.");
+      }
       const { error } = await (supabase as any).rpc("submit_fantasy_team", {
         _game_id: activeGame.id,
-        _country_ids: selected,
-        _captain_country_id: captain || null,
+        _country_ids: rosterSelected,
+        _captain_country_id: rosterCaptain || null,
       });
       if (error) throw error;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team", activeGame?.id] });
+      await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team", activeGame?.id, viewerId] });
       await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team-entries"] });
     },
   });
 
-  const cost = fantasyBudgetUsed(selected, choices.data ?? []);
+  const cost = fantasyBudgetUsed(rosterSelected, choices.data ?? []);
   const fantasyState = resolveV3FantasyState({ game: activeGame, team: myTeam.data ?? null, nowMs });
   const editable = canEditV3FantasyRoster(fantasyState);
   const locked = !editable;
@@ -162,13 +181,15 @@ function FantasyPage() {
 
   const toggle = (id: string) => {
     if (locked) return;
+    setDraftScope(rosterScope);
     setSelected((current) => {
-      if (current.includes(id)) {
-        if (captain === id) setCaptain("");
-        return current.filter((item) => item !== id);
+      const scoped = draftScope === rosterScope ? current : [];
+      if (scoped.includes(id)) {
+        if (rosterCaptain === id) setCaptain("");
+        return scoped.filter((item) => item !== id);
       }
-      if (!activeGame || current.length >= activeGame.roster_size) return current;
-      return [...current, id];
+      if (!activeGame || scoped.length >= activeGame.roster_size) return scoped;
+      return [...scoped, id];
     });
   };
 
@@ -177,7 +198,7 @@ function FantasyPage() {
   }
 
   if (v3Enabled) {
-    if (games.isLoading || choices.isLoading || myTeam.isLoading || myTeamEntries.isLoading) {
+    if (session.isLoading || games.isLoading || choices.isLoading || myTeam.isLoading || myTeamEntries.isLoading) {
       return (
         <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
           <V3Screen><V3Surface className="p-5"><p role="status">Loading Fantasy game…</p></V3Surface></V3Screen>
@@ -199,17 +220,17 @@ function FantasyPage() {
           onGame={selectGame}
           choices={choices.data ?? []}
           countries={countryMap}
-          selected={selected}
-          captain={captain}
+          selected={rosterSelected}
+          captain={rosterCaptain}
           cost={cost}
           state={fantasyState}
           team={myTeam.data ?? null}
           standings={leaderboard.data ?? []}
-          viewerId={rollout.data?.userId ?? null}
+          viewerId={viewerId}
           submitting={submit.isPending}
           submitError={submit.isError ? (submit.error instanceof Error ? submit.error.message : "Roster could not be saved.") : null}
           onToggle={toggle}
-          onCaptain={setCaptain}
+          onCaptain={(id) => { setDraftScope(rosterScope); setCaptain(id); }}
           onSubmit={() => submit.mutate()}
         />
       </V3AppShell>
@@ -245,7 +266,7 @@ function FantasyPage() {
 
           <Panel title={activeGame.name} description={windowDescription}>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <StatTile label="Roster" value={`${selected.length}/${activeGame.roster_size}`} />
+              <StatTile label="Roster" value={`${rosterSelected.length}/${activeGame.roster_size}`} />
               <StatTile label="Budget used" value={`${cost}/${activeGame.budget}`} />
               <StatTile label="Scoring" value={activeGame.scoring_version} />
               <StatTile label="Captain bonus" value={`×${activeGame.captain_multiplier}`} />
@@ -256,7 +277,7 @@ function FantasyPage() {
             {(choices.data ?? []).map((choice) => {
               const country = countryMap.get(choice.country_id);
               if (!country) return null;
-              const checked = selected.includes(choice.country_id);
+              const checked = rosterSelected.includes(choice.country_id);
               return (
                 <label key={choice.country_id} className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 ${checked ? "border-primary/45 bg-primary/5" : "border-border bg-surface"}`}>
                   <input type="checkbox" checked={checked} disabled={locked} onChange={() => toggle(choice.country_id)} className="size-4" />
@@ -269,16 +290,16 @@ function FantasyPage() {
           </div>
 
           <Panel title="Captain" description="Optional. The captain multiplier is applied after the normal v1 score." className="mt-5">
-            <select disabled={locked || !selected.length} value={captain} onChange={(event) => setCaptain(event.target.value)} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm sm:max-w-sm">
+            <select disabled={locked || !rosterSelected.length} value={rosterCaptain} onChange={(event) => { setDraftScope(rosterScope); setCaptain(event.target.value); }} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm sm:max-w-sm">
               <option value="">No captain</option>
-              {selected.map((id) => <option key={id} value={id}>{countryMap.get(id)?.name ?? id}</option>)}
+              {rosterSelected.map((id) => <option key={id} value={id}>{countryMap.get(id)?.name ?? id}</option>)}
             </select>
           </Panel>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
-              disabled={locked || submit.isPending || selected.length !== activeGame.roster_size || cost > activeGame.budget}
+              disabled={locked || !viewerId || submit.isPending || rosterSelected.length !== activeGame.roster_size || cost > activeGame.budget}
               onClick={() => submit.mutate()}
               className="min-h-11 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
