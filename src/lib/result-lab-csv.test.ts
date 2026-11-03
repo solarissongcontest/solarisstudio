@@ -21,6 +21,7 @@ describe("Result Lab CSV export", () => {
   it.each([
     ["equals", "=2+2"],
     ["plus", "+SUM(A1:A2)"],
+    ["formula with quotes", '=HYPERLINK("https://example.invalid","Open")'],
     ["minus", "-1+2"],
     ["at sign", "@SUM(1,2)"],
     ["tab prefix", "\t=2+2"],
@@ -37,8 +38,9 @@ describe("Result Lab CSV export", () => {
   it("quotes embedded CSV characters and leaves ordinary country names unchanged", () => {
     const csv = resultLabCsv([exampleRow('Old "Oland", New Oland')]);
 
-    expect(csv).toContain('"Old ""Oland"", New Oland"');
-    expect(csv).not.toContain("\\'Old");
+    expect(csv.split("\n")[1]).toBe(
+      '"1","Old ""Oland"", New Oland","22","12","10","2","-1"',
+    );
   });
 
   it("preserves numeric negative rank differences and exact column values", () => {
