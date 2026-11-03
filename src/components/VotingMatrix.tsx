@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   matchVoterKey,
   voterOptionsFromVoters,
@@ -23,6 +23,8 @@ export function VotingMatrix({
   order,
   topPoint = 12,
   voters,
+  selectedEntryId,
+  onSelectedEntryChange,
 }: {
   votes: JuryVote[];
   countries: Map<string, Country>;
@@ -30,8 +32,13 @@ export function VotingMatrix({
   topPoint?: number;
   /** Optional voter roster; when provided, columns resolve to these entities instead of plain countries. */
   voters?: Voter[];
+  /** Optional receiving-entry focus. Invalid ids fail safely back to the complete matrix. */
+  selectedEntryId?: string;
+  /** When provided, exposes the canonical P25 entry filter as a controlled selection. */
+  onSelectedEntryChange?: (countryId: string | undefined) => void;
 }) {
   const [hover, setHover] = useState<{ from: string; to: string } | null>(null);
+  const entryFilterId = useId();
 
   /*
    * Use the same canonical voter resolver as the organizer/editor surfaces.
@@ -83,17 +90,58 @@ export function VotingMatrix({
   const columns = voterList.length
     ? voterList.map((voter) => voter.key)
     : order.map((id) => `c:${id}`);
-  const rows = [...order].sort((a, b) => (totals.get(b) ?? 0) - (totals.get(a) ?? 0));
+  const rankedRows = [...order].sort(
+    (a, b) => (totals.get(b) ?? 0) - (totals.get(a) ?? 0),
+  );
+  const visibleRows =
+    selectedEntryId && rankedRows.includes(selectedEntryId)
+      ? [selectedEntryId]
+      : rankedRows;
+  const rankByCountry = new Map(
+    rankedRows.map((countryId, index) => [countryId, index + 1]),
+  );
 
   if (!order.length) return <p className="text-sm text-muted-foreground">No votes yet.</p>;
 
   return (
     <div className="min-w-0">
+      {onSelectedEntryChange ? (
+        <div className="mb-4 rounded-xl border border-border/70 bg-surface/35 p-3">
+          <label
+            htmlFor={entryFilterId}
+            className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground"
+          >
+            Focus entry
+          </label>
+          <select
+            id={entryFilterId}
+            value={selectedEntryId && rankedRows.includes(selectedEntryId) ? selectedEntryId : ""}
+            onChange={(event) =>
+              onSelectedEntryChange(event.target.value || undefined)
+            }
+            className="mt-2 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value="">All entries</option>
+            {rankedRows.map((countryId) => {
+              const country = countries.get(countryId);
+              return (
+                <option key={countryId} value={countryId}>
+                  {country?.name ?? countryId}
+                </option>
+              );
+            })}
+          </select>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            Focus one receiving entry without changing the published result. This selection can be shared in the page URL.
+          </p>
+        </div>
+      ) : null}
+
       <div className="space-y-2 sm:hidden">
         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
           Jury ranking
         </p>
-        {rows.map((to, index) => {
+        {visibleRows.map((to) => {
           const country = countries.get(to);
           return (
             <div
@@ -102,7 +150,7 @@ export function VotingMatrix({
             >
               <span className="flex min-w-0 items-center gap-2">
                 <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
-                  {index + 1}
+                  {rankByCountry.get(to)}
                 </span>
                 {country?.flag_image ? (
                   <FlagMedia
@@ -129,203 +177,223 @@ export function VotingMatrix({
         </summary>
         <div className="scroll-slim overflow-auto border-t border-border/60">
           <table className="w-full border-separate border-spacing-0 text-xs">
-        <thead>
-          <tr>
-            <th className="sticky left-0 z-20 bg-background/90 px-2 py-2 text-left font-medium backdrop-blur">
-              Receiving ↓ / Voting →
-            </th>
-            {columns.map((colKey) => {
-              const c = displayFor(colKey);
-              return (
+            <caption className="sr-only">
+              Detailed jury voting matrix. Rows receive points and columns give them.
+            </caption>
+            <thead>
+              <tr>
                 <th
-                  key={colKey}
-                  className={cn(
-                    "px-1 py-2 text-center align-bottom font-medium transition-colors",
-                    hover?.from === colKey && "bg-surface-strong",
-                  )}
-                  title={c?.name}
+                  scope="col"
+                  className="sticky left-0 z-20 bg-background/90 px-2 py-2 text-left font-medium backdrop-blur"
                 >
-                  <span className="flex flex-col items-center gap-1">
-                    {c?.flag_image ? (
-                      <FlagMedia
-                        image={c.flag_image}
-                        alt={c.name}
-                        loading="lazy"
-                        decoding="async"
-                        className="h-4 w-6 rounded-[.3rem] object-cover"
-                      />
-                    ) : null}
-                    <span className="numeric max-w-[4.5rem] truncate text-[10px] text-muted-foreground">
-                      {c?.short_code ?? c?.name}
-                    </span>
-                  </span>
+                  Receiving ↓ / Voting →
                 </th>
-              );
-            })}
-            <th className="px-2 py-2 text-right font-medium">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((to) => {
-            const rc = countries.get(to);
-            return (
-              <tr key={to} className={cn(hover?.to === to && "bg-surface/60")}>
-                <th className="sticky left-0 z-10 max-w-44 truncate bg-background/90 px-2 py-1 text-left font-normal backdrop-blur">
-                  <span className="flex items-center gap-2">
-                    {rc?.flag_image ? (
-                      <FlagMedia
-                        image={rc.flag_image}
-                        alt={rc.name}
-                        loading="lazy"
-                        decoding="async"
-                        className="h-4 w-6 rounded-[.3rem] object-cover"
-                      />
-                    ) : null}
-                    <span className="truncate">{rc?.name}</span>
-                  </span>
-                </th>
-                {columns.map((from) => {
-                  const val = cell.get(`${from}>${to}`);
-                  const isTop = val === topPoint;
-                  const fromDisplay = displayFor(from);
-                  const isSelf = fromDisplay?.countryId === to;
+                {columns.map((colKey) => {
+                  const c = displayFor(colKey);
                   return (
-                    <td
-                      key={from}
-                      onMouseEnter={() => setHover({ from, to })}
-                      onMouseLeave={() => setHover(null)}
-                      title={
-                        val
-                          ? `${fromDisplay?.name} → ${rc?.name}: ${val}`
-                          : `${fromDisplay?.name} → ${rc?.name}`
-                      }
+                    <th
+                      key={colKey}
+                      scope="col"
                       className={cn(
-                        "numeric border border-border/40 px-1 py-1 text-center transition-colors",
-                        isSelf && "bg-muted/40",
-                        hover?.from === from && "bg-surface-strong",
-                        isTop && "font-bold text-[var(--gold)]",
+                        "px-1 py-2 text-center align-bottom font-medium transition-colors",
+                        hover?.from === colKey && "bg-surface-strong",
                       )}
-                      style={
-                        val && !isTop
-                          ? {
-                              background: `color-mix(in oklab, var(--jury) ${Math.min(val * 6, 55)}%, transparent)`,
-                            }
-                          : undefined
-                      }
+                      title={c?.name}
                     >
-                      {val ?? ""}
-                    </td>
+                      <span className="flex flex-col items-center gap-1">
+                        {c?.flag_image ? (
+                          <FlagMedia
+                            image={c.flag_image}
+                            alt={c.name}
+                            loading="lazy"
+                            decoding="async"
+                            className="h-4 w-6 rounded-[.3rem] object-cover"
+                          />
+                        ) : null}
+                        <span className="numeric max-w-[4.5rem] truncate text-[10px] text-muted-foreground">
+                          {c?.short_code ?? c?.name}
+                        </span>
+                      </span>
+                    </th>
                   );
                 })}
-                <td className="numeric px-2 py-1 text-right font-semibold">
-                  {totals.get(to) ?? 0}
-                </td>
+                <th scope="col" className="px-2 py-2 text-right font-medium">Total</th>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {visibleRows.map((to) => {
+                const rc = countries.get(to);
+                return (
+                  <tr key={to} className={cn(hover?.to === to && "bg-surface/60")}>
+                    <th
+                      scope="row"
+                      className="sticky left-0 z-10 max-w-44 truncate bg-background/90 px-2 py-1 text-left font-normal backdrop-blur"
+                    >
+                      <span className="flex items-center gap-2">
+                        {rc?.flag_image ? (
+                          <FlagMedia
+                            image={rc.flag_image}
+                            alt={rc.name}
+                            loading="lazy"
+                            decoding="async"
+                            className="h-4 w-6 rounded-[.3rem] object-cover"
+                          />
+                        ) : null}
+                        <span className="truncate">{rc?.name}</span>
+                      </span>
+                    </th>
+                    {columns.map((from) => {
+                      const val = cell.get(`${from}>${to}`);
+                      const isTop = val === topPoint;
+                      const fromDisplay = displayFor(from);
+                      const isSelf = fromDisplay?.countryId === to;
+                      return (
+                        <td
+                          key={from}
+                          onMouseEnter={() => setHover({ from, to })}
+                          onMouseLeave={() => setHover(null)}
+                          title={
+                            val
+                              ? `${fromDisplay?.name} → ${rc?.name}: ${val}`
+                              : `${fromDisplay?.name} → ${rc?.name}`
+                          }
+                          className={cn(
+                            "numeric border border-border/40 px-1 py-1 text-center transition-colors",
+                            isSelf && "bg-muted/40",
+                            hover?.from === from && "bg-surface-strong",
+                            isTop && "font-bold text-[var(--gold)]",
+                          )}
+                          style={
+                            val && !isTop
+                              ? {
+                                  background: `color-mix(in oklab, var(--jury) ${Math.min(val * 6, 55)}%, transparent)`,
+                                }
+                              : undefined
+                          }
+                        >
+                          {val ?? ""}
+                        </td>
+                      );
+                    })}
+                    <td className="numeric px-2 py-1 text-right font-semibold">
+                      {totals.get(to) ?? 0}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </details>
 
       <div className="scroll-slim hidden overflow-auto sm:block">
-<table className="w-full border-separate border-spacing-0 text-xs">
-        <thead>
-          <tr>
-            <th className="sticky left-0 z-20 bg-background/90 px-2 py-2 text-left font-medium backdrop-blur">
-              Receiving ↓ / Voting →
-            </th>
-            {columns.map((colKey) => {
-              const c = displayFor(colKey);
-              return (
-                <th
-                  key={colKey}
-                  className={cn(
-                    "px-1 py-2 text-center align-bottom font-medium transition-colors",
-                    hover?.from === colKey && "bg-surface-strong",
-                  )}
-                  title={c?.name}
-                >
-                  <span className="flex flex-col items-center gap-1">
-                    {c?.flag_image ? (
-                      <FlagMedia
-                        image={c.flag_image}
-                        alt={c.name}
-                        loading="lazy"
-                        decoding="async"
-                        className="h-4 w-6 rounded-[.3rem] object-cover"
-                      />
-                    ) : null}
-                    <span className="numeric max-w-[4.5rem] truncate text-[10px] text-muted-foreground">
-                      {c?.short_code ?? c?.name}
+        <table className="w-full border-separate border-spacing-0 text-xs">
+          <caption className="sr-only">
+            Detailed jury voting matrix. Rows receive points and columns give them.
+          </caption>
+          <thead>
+            <tr>
+              <th
+                scope="col"
+                className="sticky left-0 z-20 bg-background/90 px-2 py-2 text-left font-medium backdrop-blur"
+              >
+                Receiving ↓ / Voting →
+              </th>
+              {columns.map((colKey) => {
+                const c = displayFor(colKey);
+                return (
+                  <th
+                    key={colKey}
+                    scope="col"
+                    className={cn(
+                      "px-1 py-2 text-center align-bottom font-medium transition-colors",
+                      hover?.from === colKey && "bg-surface-strong",
+                    )}
+                    title={c?.name}
+                  >
+                    <span className="flex flex-col items-center gap-1">
+                      {c?.flag_image ? (
+                        <FlagMedia
+                          image={c.flag_image}
+                          alt={c.name}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-4 w-6 rounded-[.3rem] object-cover"
+                        />
+                      ) : null}
+                      <span className="numeric max-w-[4.5rem] truncate text-[10px] text-muted-foreground">
+                        {c?.short_code ?? c?.name}
+                      </span>
                     </span>
-                  </span>
-                </th>
+                  </th>
+                );
+              })}
+              <th scope="col" className="px-2 py-2 text-right font-medium">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleRows.map((to) => {
+              const rc = countries.get(to);
+              return (
+                <tr key={to} className={cn(hover?.to === to && "bg-surface/60")}>
+                  <th
+                    scope="row"
+                    className="sticky left-0 z-10 max-w-44 truncate bg-background/90 px-2 py-1 text-left font-normal backdrop-blur"
+                  >
+                    <span className="flex items-center gap-2">
+                      {rc?.flag_image ? (
+                        <FlagMedia
+                          image={rc.flag_image}
+                          alt={rc.name}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-4 w-6 rounded-[.3rem] object-cover"
+                        />
+                      ) : null}
+                      <span className="truncate">{rc?.name}</span>
+                    </span>
+                  </th>
+                  {columns.map((from) => {
+                    const val = cell.get(`${from}>${to}`);
+                    const isTop = val === topPoint;
+                    const fromDisplay = displayFor(from);
+                    const isSelf = fromDisplay?.countryId === to;
+                    return (
+                      <td
+                        key={from}
+                        onMouseEnter={() => setHover({ from, to })}
+                        onMouseLeave={() => setHover(null)}
+                        title={
+                          val
+                            ? `${fromDisplay?.name} → ${rc?.name}: ${val}`
+                            : `${fromDisplay?.name} → ${rc?.name}`
+                        }
+                        className={cn(
+                          "numeric border border-border/40 px-1 py-1 text-center transition-colors",
+                          isSelf && "bg-muted/40",
+                          hover?.from === from && "bg-surface-strong",
+                          isTop && "font-bold text-[var(--gold)]",
+                        )}
+                        style={
+                          val && !isTop
+                            ? {
+                                background: `color-mix(in oklab, var(--jury) ${Math.min(val * 6, 55)}%, transparent)`,
+                              }
+                            : undefined
+                        }
+                      >
+                        {val ?? ""}
+                      </td>
+                    );
+                  })}
+                  <td className="numeric px-2 py-1 text-right font-semibold">
+                    {totals.get(to) ?? 0}
+                  </td>
+                </tr>
               );
             })}
-            <th className="px-2 py-2 text-right font-medium">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((to) => {
-            const rc = countries.get(to);
-            return (
-              <tr key={to} className={cn(hover?.to === to && "bg-surface/60")}>
-                <th className="sticky left-0 z-10 max-w-44 truncate bg-background/90 px-2 py-1 text-left font-normal backdrop-blur">
-                  <span className="flex items-center gap-2">
-                    {rc?.flag_image ? (
-                      <FlagMedia
-                        image={rc.flag_image}
-                        alt={rc.name}
-                        loading="lazy"
-                        decoding="async"
-                        className="h-4 w-6 rounded-[.3rem] object-cover"
-                      />
-                    ) : null}
-                    <span className="truncate">{rc?.name}</span>
-                  </span>
-                </th>
-                {columns.map((from) => {
-                  const val = cell.get(`${from}>${to}`);
-                  const isTop = val === topPoint;
-                  const fromDisplay = displayFor(from);
-                  const isSelf = fromDisplay?.countryId === to;
-                  return (
-                    <td
-                      key={from}
-                      onMouseEnter={() => setHover({ from, to })}
-                      onMouseLeave={() => setHover(null)}
-                      title={
-                        val
-                          ? `${fromDisplay?.name} → ${rc?.name}: ${val}`
-                          : `${fromDisplay?.name} → ${rc?.name}`
-                      }
-                      className={cn(
-                        "numeric border border-border/40 px-1 py-1 text-center transition-colors",
-                        isSelf && "bg-muted/40",
-                        hover?.from === from && "bg-surface-strong",
-                        isTop && "font-bold text-[var(--gold)]",
-                      )}
-                      style={
-                        val && !isTop
-                          ? {
-                              background: `color-mix(in oklab, var(--jury) ${Math.min(val * 6, 55)}%, transparent)`,
-                            }
-                          : undefined
-                      }
-                    >
-                      {val ?? ""}
-                    </td>
-                  );
-                })}
-                <td className="numeric px-2 py-1 text-right font-semibold">
-                  {totals.get(to) ?? 0}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
       </div>
     </div>
   );
