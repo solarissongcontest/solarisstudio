@@ -38,6 +38,19 @@ function currentVotingAction(
 }
 
 /**
+ * "Current" means a server-authoritative voting window can be acted on now.
+ * An upcoming, waiting, finished or completed voting task may still be shown
+ * in the overview, but must not inflate the current-action count.
+ */
+function isCurrentVotingAction(action: V3ActionProjection | null): boolean {
+  return Boolean(
+    action &&
+    !action.completed &&
+    (action.sourceState === "available" || action.sourceState === "needs_attention"),
+  );
+}
+
+/**
  * Participate is a presentation projection over the exact same V3 bootstrap
  * that feeds Home. It deliberately does not create another task source or
  * infer workflow truth from routes.
@@ -114,7 +127,7 @@ export function projectV3Participate(
     voting: {
       jury,
       televote,
-      currentCount: Number(Boolean(jury && !jury.completed)) + Number(Boolean(televote && !televote.completed)),
+      currentCount: Number(isCurrentVotingAction(jury)) + Number(isCurrentVotingAction(televote)),
     },
     needsAttention,
     next,
