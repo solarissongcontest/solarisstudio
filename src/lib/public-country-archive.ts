@@ -175,7 +175,7 @@ export function buildPublicCountryArchive(
   const results = competingResults.filter((result) => {
     if (!publishedEditionIds.has(result.edition_id) || !result.show_id) return false;
     const show = showById.get(result.show_id);
-    return show?.edition_id === result.edition_id && showPublishesResults(show);
+    return Boolean(show && show.edition_id === result.edition_id && showPublishesResults(show));
   });
 
   // These tables contain directional voting detail. Aggregate result totals can
@@ -184,13 +184,21 @@ export function buildPublicCountryArchive(
   const jury = input.jury.filter((vote) => {
     if (!publishedEditionIds.has(vote.edition_id) || !vote.show_id) return false;
     const show = showById.get(vote.show_id);
-    return show?.edition_id === vote.edition_id && publicationByShow.get(show.id)?.detailed_voting === true;
+    return Boolean(
+      show &&
+      show.edition_id === vote.edition_id &&
+      publicationByShow.get(show.id)?.detailed_voting === true,
+    );
   });
 
   const televote = input.televote.filter((vote) => {
     if (!publishedEditionIds.has(vote.edition_id) || !vote.show_id) return false;
     const show = showById.get(vote.show_id);
-    return show?.edition_id === vote.edition_id && publicationByShow.get(show.id)?.detailed_voting === true;
+    return Boolean(
+      show &&
+      show.edition_id === vote.edition_id &&
+      publicationByShow.get(show.id)?.detailed_voting === true,
+    );
   });
 
   return {
