@@ -99,7 +99,7 @@ all_extensions = [
 def canonical_failure_phase(detail):
     if detail == "bootstrap":
         return "bootstrap"
-    for phase in [*all_stages, *all_extensions, "results-runtime-reconciliation"]:
+    for phase in [*all_stages, *all_extensions, "results-runtime-reconciliation", "final-evidence"]:
         if detail == phase or detail.startswith(f"{phase}:"):
             return phase
     return "unknown"
@@ -283,7 +283,9 @@ write_final_evidence() {
   publication_hash="$(s14_publication_evidence_hash)"
   receipt_count="$(db_scalar "select count(*) from public.studio2_operation_receipts;")"
   archive_event_id="$(db_scalar "select id::text from private.v3_domain_events where operation_id='$S14_ARCHIVE_OPERATION_ID'::uuid and event_type='edition.archived' limit 1;")"
-  archive_outbox_id="$(db_scalar "select id::text from private.v3_domain_event_outbox where event_id='$archive_event_id'::uuid and consumer_key='edition.tasks' limit 1;")"
+  # Outbox deliveries have a composite primary key (event_id, consumer_key),
+  # not an id column. Retain the complete natural key and require completion.
+  archive_outbox_id="$(db_scalar "select event_id::text || ':' || consumer_key from private.v3_domain_event_outbox where event_id='$archive_event_id'::uuid and consumer_key='edition.tasks' and status='completed' limit 1;")"
   archive_consumer_receipt_count="$(db_scalar "select count(*) from private.v3_domain_event_consumer_receipts where event_id='$archive_event_id'::uuid and consumer_key='edition.tasks';")"
 
   [[ -n "$result_hash" && -n "$publication_hash" && -n "$archive_event_id" && -n "$archive_outbox_id" ]] || \
@@ -417,5 +419,8 @@ run_stage stage-10-archive run_s14_stage_10_archive
 [[ "${#COMPLETED_CONTEST_EXTENSIONS[@]}" == "${#ALL_CONTEST_EXTENSIONS[@]}" ]] || fail "release-grade S14 evidence cannot be written with missing contest extensions"
 [[ "$(db_scalar "select state from public.studio2_edition_runtime where edition_id='$EDITION_ID'::uuid;")" == "archived" ]] || fail "release-grade S14 evidence requires canonical archived state"
 
+# All lifecycle stages have completed. Failures here belong to final evidence
+# materialization, not to the already-proven canonical Archive transition.
+CURRENT_STAGE="final-evidence"
 write_final_evidence
 log "S14 full persistent contest rehearsal passed through canonical Archive."
