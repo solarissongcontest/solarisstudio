@@ -62,6 +62,7 @@ jobs:
             src/lib/ci-egress-safety.contract.test.ts \
             src/lib/v3-s14-stage7-deadline-command-identity.contract.test.ts \
             src/lib/v3-s14-stage7-failure-detail.contract.test.ts \
+            src/lib/v3-s14-grand-final-failure-evidence.contract.test.ts \
             src/lib/v3-qualification-null-rank-reset.contract.test.ts
           for script in \
             .github/scripts/v3-s14-stage-7-genuine-deadline.sh \
