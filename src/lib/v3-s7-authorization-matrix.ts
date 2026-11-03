@@ -45,6 +45,7 @@ export type V3AuthorizationObjectType =
   | "world_representation"
   | "world_proxy"
   | "world_office"
+  | "world_document"
   | "host"
   | "story";
 
@@ -233,6 +234,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
       "world_representation",
       "world_proxy",
       "world_office",
+      "world_document",
       "country",
     ],
     domainSafeguards: [
@@ -272,6 +274,7 @@ const CRITICAL_EFFECT_CAPABILITIES = new Set<SolarisCapability>([
   "results.publish",
   "integrity.sanction",
   "publishing.publish",
+  "world.document.publish",
   "system.manage",
   "permissions.manage",
 ]);
