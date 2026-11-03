@@ -140,8 +140,17 @@ function IntegrityPreclearanceWorkspace() {
   });
 
   const refresh = async () => {
-    await casesQuery.refetch();
-    if (caseId) await Promise.all([detailQuery.refetch(), rulingsQuery.refetch()]);
+    const refreshedQueue = await casesQuery.refetch();
+    const refreshedSelection = resolvePrivateRuleQuestionSelection(
+      refreshedQueue.data,
+      selectedCase,
+      refreshedQueue.isSuccess,
+    );
+    // Do not refetch an old private case after it disappeared from the queue.
+    // A new selection gets its own keyed queries automatically.
+    if (caseId && refreshedSelection.caseId === caseId) {
+      await Promise.all([detailQuery.refetch(), rulingsQuery.refetch()]);
+    }
   };
 
   return (
