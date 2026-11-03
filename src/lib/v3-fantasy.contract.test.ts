@@ -27,11 +27,21 @@ const projection = source("src/lib/v3-fantasy.ts");
     expect(route).toContain('setCaptain("")');
   });
 
-  it("makes invalid or retired saved Fantasy entries removable before a new submission", () => {
+  it("makes invalid or retired saved Fantasy entries removable on both app and web before resubmission", () => {
     expect(screen).toContain("invalidSelection.length");
     expect(screen).toContain("onClick={() => onToggle(id)}");
     expect(screen).toContain("no longer eligible");
+    expect(route).toContain("ineligibleSavedCountries.length > 0");
+    expect(route).toContain("Review your saved roster");
+    expect(route).toContain("!rosterReady");
     expect(projection).toContain("eligibleCosts.has(countryId)");
+  });
+
+  it("does not present an unavailable or unauthorized game as a legitimate empty state", () => {
+    expect(route).toContain("const loadingError = session.isError || games.isError || choices.isError || myTeam.isError || myTeamEntries.isError");
+    expect(route).toContain("Fantasy data could not be loaded");
+    expect(route).toContain("No roster changes have been submitted");
+    expect(route).toContain("Retry loading");
   });
 
   it("never reuses private Fantasy team caches or drafts across accounts or games", () => {
@@ -48,6 +58,7 @@ const projection = source("src/lib/v3-fantasy.ts");
   });
 
   it("keeps roster mutation on the existing server-authoritative Fantasy writer", () => {
+    expect(route).toContain("fantasyRosterReady({ game: activeGame, selected: rosterSelected, choices: choices.data ?? [] })");
     expect(route).toContain('.rpc("submit_fantasy_team"');
     expect(route).toContain("_game_id: activeGame.id");
     expect(route).toContain("_country_ids: rosterSelected");

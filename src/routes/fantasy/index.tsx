@@ -15,6 +15,7 @@ import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import {
   canEditV3FantasyRoster,
   fantasyBudgetUsed,
+  fantasyRosterReady,
   resolveV3FantasyState,
   restoreV3FantasyRoster,
   type V3FantasyChoice,
@@ -145,6 +146,9 @@ function FantasyPage() {
   const submit = useMutation({
     mutationFn: async () => {
       if (!activeGame) throw new Error("Fantasy game is unavailable.");
+      if (!fantasyRosterReady({ game: activeGame, selected: rosterSelected, choices: choices.data ?? [] })) {
+        throw new Error("Review your roster eligibility, size and budget before saving.");
+      }
       const { data: auth, error: authError } = await supabase.auth.getUser();
       if (authError || !viewerId || auth.user?.id !== viewerId) {
         throw new Error("Fantasy account changed. Sign in again before saving.");
@@ -163,6 +167,15 @@ function FantasyPage() {
   });
 
   const cost = fantasyBudgetUsed(rosterSelected, choices.data ?? []);
+  const rosterReady = Boolean(
+    activeGame && fantasyRosterReady({ game: activeGame, selected: rosterSelected, choices: choices.data ?? [] }),
+  );
+  const ineligibleSavedCountries = choices.isSuccess && activeGame
+    ? rosterSelected.filter((id) => !choices.data?.some((choice) =>
+        choice.game_id === activeGame.id && choice.country_id === id && choice.eligible && Number.isFinite(choice.cost) && choice.cost >= 0,
+      ))
+    : [];
+  const loadingError = session.isError || games.isError || choices.isError || myTeam.isError || myTeamEntries.isError;
   const fantasyState = resolveV3FantasyState({ game: activeGame, team: myTeam.data ?? null, nowMs });
   const editable = canEditV3FantasyRoster(fantasyState);
   const locked = !editable;
@@ -202,6 +215,17 @@ function FantasyPage() {
       return (
         <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
           <V3Screen><V3Surface className="p-5"><p role="status">Loading Fantasy game…</p></V3Surface></V3Screen>
+        </V3AppShell>
+      );
+    }
+    if (loadingError) {
+      return (
+        <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
+          <V3Screen><V3Surface className="p-5">
+            <h1 className="text-xl font-semibold">Fantasy data could not be loaded</h1>
+            <p role="alert" className="mt-2 text-sm text-[var(--v3-text-secondary)]">Your account or Fantasy game could not be verified. No roster changes have been submitted.</p>
+            <button type="button" className="mt-4 min-h-11 rounded-xl border px-4 text-sm font-semibold" onClick={() => window.location.reload()}>Retry loading</button>
+          </V3Surface></V3Screen>
         </V3AppShell>
       );
     }
@@ -249,6 +273,11 @@ function FantasyPage() {
         <Panel><p className="text-sm text-muted-foreground">Checking Fantasy rollout…</p></Panel>
       ) : feature.isError || feature.data !== true ? (
         <Panel title="Fantasy SSC is not enabled yet"><p className="text-sm text-muted-foreground">The product is installed but remains behind its rollout flag until production verification is complete.</p></Panel>
+      ) : loadingError ? (
+        <Panel title="Fantasy data could not be loaded">
+          <p role="alert" className="text-sm text-muted-foreground">Your account or Fantasy game could not be verified. No roster changes have been submitted.</p>
+          <button type="button" className="mt-3 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold" onClick={() => window.location.reload()}>Retry loading</button>
+        </Panel>
       ) : games.isLoading ? (
         <Panel><p className="text-sm text-muted-foreground">Loading Fantasy games…</p></Panel>
       ) : !activeGame ? (
@@ -289,6 +318,19 @@ function FantasyPage() {
             })}
           </div>
 
+          {ineligibleSavedCountries.length > 0 ? (
+            <Panel title="Review your saved roster" className="mt-5">
+              <p role="alert" className="text-sm text-destructive">One or more saved countries are no longer eligible. Remove them before saving a revised roster.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {ineligibleSavedCountries.map((id) => (
+                  <button type="button" key={id} disabled={locked} onClick={() => toggle(id)} className="min-h-11 rounded-xl border border-destructive px-3 text-sm disabled:opacity-50">
+                    Remove {countryMap.get(id)?.name ?? "unavailable country"}
+                  </button>
+                ))}
+              </div>
+            </Panel>
+          ) : null}
+
           <Panel title="Captain" description="Optional. The captain multiplier is applied after the normal v1 score." className="mt-5">
             <select disabled={locked || !rosterSelected.length} value={rosterCaptain} onChange={(event) => { setDraftScope(rosterScope); setCaptain(event.target.value); }} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm sm:max-w-sm">
               <option value="">No captain</option>
@@ -299,7 +341,7 @@ function FantasyPage() {
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
-              disabled={locked || !viewerId || submit.isPending || rosterSelected.length !== activeGame.roster_size || cost > activeGame.budget}
+              disabled={locked || !viewerId || submit.isPending || !rosterReady}
               onClick={() => submit.mutate()}
               className="min-h-11 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
