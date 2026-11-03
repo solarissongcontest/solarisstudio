@@ -165,6 +165,34 @@ describe("projectV3Participate", () => {
     expect(projection.voting.currentCount).toBe(0); // Upcoming is not open.
   });
 
+  it("prefers an actionable current jury ballot over an older blocked ballot", () => {
+    const pastBlocked = action("old-jury-closed", {
+      kind: "jury",
+      sourceState: "problem",
+      deliveryClass: "required",
+      actionRequired: false,
+    });
+    const currentOpen = action("new-jury-open", {
+      kind: "jury",
+      sourceState: "needs_attention",
+      deliveryClass: "required",
+      actionRequired: true,
+    });
+
+    // The task engine ranks problem ahead of needs_attention, but the voting
+    // overview must present the open ballot rather than claiming no window.
+    const projection = projectV3Participate({
+      actions: [pastBlocked, currentOpen],
+      journey: [],
+    });
+    expect(projection.voting.jury?.id).toBe("new-jury-open");
+    expect(projection.voting.currentCount).toBe(1);
+    expect(projection.needsAttention.map((item) => item.id)).toEqual([
+      "old-jury-closed",
+      "new-jury-open",
+    ]);
+  });
+
   it("counts only open voting actions as current, never future or waiting windows", () => {
     const juryUpcoming = action("future-jury", {
       kind: "jury",
