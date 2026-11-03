@@ -74,6 +74,18 @@ export function resolveV3FantasyState(input: {
   return "open";
 }
 
+/**
+ * Keep a user's unsaved roster through background refreshes. Switching accounts
+ * or games is a different authority scope and must restore that scope instead.
+ */
+export function shouldRestoreV3FantasyRoster(input: {
+  rosterScope: string;
+  draftScope: string;
+  draftDirty: boolean;
+}) {
+  return !input.draftDirty || input.rosterScope !== input.draftScope;
+}
+
 export function restoreV3FantasyRoster(
   team: V3FantasyTeam | null | undefined,
   entries: readonly V3FantasyTeamEntry[] | null | undefined,

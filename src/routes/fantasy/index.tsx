@@ -18,6 +18,7 @@ import {
   fantasyRosterReady,
   resolveV3FantasyState,
   restoreV3FantasyRoster,
+  shouldRestoreV3FantasyRoster,
   type V3FantasyChoice,
   type V3FantasyGame,
   type V3FantasyStanding,
@@ -52,12 +53,14 @@ function FantasyPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [captain, setCaptain] = useState<string>("");
   const [draftScope, setDraftScope] = useState("");
+  const [draftDirty, setDraftDirty] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const queryClient = useQueryClient();
 
   const selectGame = (nextGameId: string) => {
     setGameId(nextGameId);
     setDraftScope("");
+    setDraftDirty(false);
     setSelected([]);
     setCaptain("");
   };
@@ -127,11 +130,14 @@ function FantasyPage() {
 
   useEffect(() => {
     if (session.isLoading || myTeam.isLoading || myTeamEntries.isLoading || myTeam.isError || myTeamEntries.isError) return;
+    // A background refetch must never erase unsaved local changes. A different
+    // game/account scope, however, must always restore its own canonical team.
+    if (!shouldRestoreV3FantasyRoster({ rosterScope, draftScope, draftDirty })) return;
     const restored = restoreV3FantasyRoster(myTeam.data, myTeamEntries.data);
     setDraftScope(rosterScope);
     setSelected(restored.selected);
     setCaptain(restored.captain);
-  }, [rosterScope, session.isLoading, myTeam.data, myTeam.isLoading, myTeam.isError, myTeamEntries.data, myTeamEntries.isLoading, myTeamEntries.isError]);
+  }, [rosterScope, draftScope, draftDirty, session.isLoading, myTeam.data, myTeam.isLoading, myTeam.isError, myTeamEntries.data, myTeamEntries.isLoading, myTeamEntries.isError]);
 
   const leaderboard = useQuery({
     enabled: Boolean(activeGame),
@@ -163,6 +169,9 @@ function FantasyPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team", activeGame?.id, viewerId] });
       await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team-entries"] });
+      // A successful server acknowledgement has now been reconciled; the next
+      // authoritative snapshot may replace this submitted local draft.
+      setDraftDirty(false);
     },
   });
 
@@ -193,8 +202,9 @@ function FantasyPage() {
     feature.data === true;
 
   const toggle = (id: string) => {
-    if (locked) return;
+    if (locked || submit.isPending) return;
     setDraftScope(rosterScope);
+    setDraftDirty(true);
     setSelected((current) => {
       const scoped = draftScope === rosterScope ? current : [];
       if (scoped.includes(id)) {
@@ -246,6 +256,7 @@ function FantasyPage() {
           countries={countryMap}
           selected={rosterSelected}
           captain={rosterCaptain}
+          dirty={draftScope === rosterScope && draftDirty}
           cost={cost}
           state={fantasyState}
           team={myTeam.data ?? null}
@@ -254,7 +265,7 @@ function FantasyPage() {
           submitting={submit.isPending}
           submitError={submit.isError ? (submit.error instanceof Error ? submit.error.message : "Roster could not be saved.") : null}
           onToggle={toggle}
-          onCaptain={(id) => { setDraftScope(rosterScope); setCaptain(id); }}
+          onCaptain={(id) => { if (!submit.isPending) { setDraftScope(rosterScope); setDraftDirty(true); setCaptain(id); } }}
           onSubmit={() => submit.mutate()}
         />
       </V3AppShell>
@@ -278,8 +289,8 @@ function FantasyPage() {
           <p role="alert" className="text-sm text-muted-foreground">Your account or Fantasy game could not be verified. No roster changes have been submitted.</p>
           <button type="button" className="mt-3 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold" onClick={() => window.location.reload()}>Retry loading</button>
         </Panel>
-      ) : games.isLoading ? (
-        <Panel><p className="text-sm text-muted-foreground">Loading Fantasy games…</p></Panel>
+      ) : session.isLoading || games.isLoading || choices.isLoading || myTeam.isLoading || myTeamEntries.isLoading ? (
+        <Panel><p role="status" className="text-sm text-muted-foreground">Loading Fantasy game and your saved roster…</p></Panel>
       ) : !activeGame ? (
         <Panel title="No Fantasy game is open"><p className="text-sm text-muted-foreground">An Organizer has not published a Fantasy roster window yet.</p></Panel>
       ) : (
@@ -287,7 +298,7 @@ function FantasyPage() {
           {games.data && games.data.length > 1 ? (
             <label className="mb-4 block text-xs font-semibold text-muted-foreground">
               Game
-              <select value={activeGame.id} onChange={(event) => selectGame(event.target.value)} className="mt-1.5 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground sm:max-w-sm">
+              <select value={activeGame.id} disabled={submit.isPending} onChange={(event) => selectGame(event.target.value)} className="mt-1.5 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground sm:max-w-sm">
                 {games.data.map((game) => <option key={game.id} value={game.id}>{game.name}</option>)}
               </select>
             </label>
@@ -309,7 +320,7 @@ function FantasyPage() {
               const checked = rosterSelected.includes(choice.country_id);
               return (
                 <label key={choice.country_id} className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 ${checked ? "border-primary/45 bg-primary/5" : "border-border bg-surface"}`}>
-                  <input type="checkbox" checked={checked} disabled={locked} onChange={() => toggle(choice.country_id)} className="size-4" />
+                  <input type="checkbox" checked={checked} disabled={locked || submit.isPending} onChange={() => toggle(choice.country_id)} className="size-4" />
                   <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="sm" />
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">{country.name}</span>
                   <span className="text-xs font-bold tabular-nums">{choice.cost}</span>
@@ -323,7 +334,7 @@ function FantasyPage() {
               <p role="alert" className="text-sm text-destructive">One or more saved countries are no longer eligible. Remove them before saving a revised roster.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {ineligibleSavedCountries.map((id) => (
-                  <button type="button" key={id} disabled={locked} onClick={() => toggle(id)} className="min-h-11 rounded-xl border border-destructive px-3 text-sm disabled:opacity-50">
+                  <button type="button" key={id} disabled={locked || submit.isPending} onClick={() => toggle(id)} className="min-h-11 rounded-xl border border-destructive px-3 text-sm disabled:opacity-50">
                     Remove {countryMap.get(id)?.name ?? "unavailable country"}
                   </button>
                 ))}
@@ -332,11 +343,15 @@ function FantasyPage() {
           ) : null}
 
           <Panel title="Captain" description="Optional. The captain multiplier is applied after the normal v1 score." className="mt-5">
-            <select disabled={locked || !rosterSelected.length} value={rosterCaptain} onChange={(event) => { setDraftScope(rosterScope); setCaptain(event.target.value); }} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm sm:max-w-sm">
+            <select disabled={locked || submit.isPending || !rosterSelected.length} value={rosterCaptain} onChange={(event) => { setDraftScope(rosterScope); setDraftDirty(true); setCaptain(event.target.value); }} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm sm:max-w-sm">
               <option value="">No captain</option>
               {rosterSelected.map((id) => <option key={id} value={id}>{countryMap.get(id)?.name ?? id}</option>)}
             </select>
           </Panel>
+
+          {draftScope === rosterScope && draftDirty ? (
+            <p role="status" className="mt-3 text-sm font-medium text-muted-foreground">Unsaved roster changes. Only a successful save is official.</p>
+          ) : null}
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button

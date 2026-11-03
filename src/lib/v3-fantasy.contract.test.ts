@@ -57,6 +57,17 @@ const projection = source("src/lib/v3-fantasy.ts");
     expect(route).toContain("viewerId={viewerId}");
   });
 
+  it("retains unsaved local edits across background refetch without accepting a different account's draft", () => {
+    expect(route).toContain("shouldRestoreV3FantasyRoster({ rosterScope, draftScope, draftDirty })");
+    expect(route).toContain("setDraftDirty(true)");
+    expect(route).toContain("setDraftDirty(false)");
+    expect(route).toContain("if (locked || submit.isPending) return;");
+    expect(route).toContain("dirty={draftScope === rosterScope && draftDirty}");
+    expect(screen).toContain("disabled={locked || submitting}");
+    expect(screen).toContain("Unsaved roster changes");
+    expect(projection).toContain("input.rosterScope !== input.draftScope");
+  });
+
   it("keeps roster mutation on the existing server-authoritative Fantasy writer", () => {
     expect(route).toContain("fantasyRosterReady({ game: activeGame, selected: rosterSelected, choices: choices.data ?? [] })");
     expect(route).toContain('.rpc("submit_fantasy_team"');

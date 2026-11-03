@@ -6,6 +6,7 @@ import {
   fantasyRosterReady,
   resolveV3FantasyState,
   restoreV3FantasyRoster,
+  shouldRestoreV3FantasyRoster,
   type V3FantasyGame,
 } from "./v3-fantasy";
 
@@ -41,6 +42,13 @@ describe("V3 Fantasy projection", () => {
       ],
     );
     expect(restored).toEqual({ selected: ["country-a", "country-b"], captain: "country-b" });
+  });
+
+  it("preserves unsaved drafts on refetch but restores on account or game switch", () => {
+    expect(shouldRestoreV3FantasyRoster({ rosterScope: "A:game-1", draftScope: "A:game-1", draftDirty: true })).toBe(false);
+    expect(shouldRestoreV3FantasyRoster({ rosterScope: "A:game-1", draftScope: "A:game-1", draftDirty: false })).toBe(true);
+    expect(shouldRestoreV3FantasyRoster({ rosterScope: "B:game-1", draftScope: "A:game-1", draftDirty: true })).toBe(true);
+    expect(shouldRestoreV3FantasyRoster({ rosterScope: "A:game-2", draftScope: "A:game-1", draftDirty: true })).toBe(true);
   });
 
   it("derives roster readiness from exact size and server-published costs", () => {
