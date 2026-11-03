@@ -1,4 +1,5 @@
 import type { JuryVote, ResultRow, Show } from "./data";
+import { isShowPublic, resolveShowPublication } from "./publication";
 
 export type StoryKind =
   | "closest-battle"
@@ -65,15 +66,27 @@ function storyHref(showId: string, storyId: string) {
   return `/shows/${showId}?tab=stories&story=${encodeURIComponent(storyId)}`;
 }
 
-/** Build reproducible editorial cards from archived result rows only. */
+/** Build public result stories without inferring unpublished result layers. */
 export function buildShowStories(options: StoryOptions): ResultStory[] {
+  const publication = resolveShowPublication(options.show);
+  if (!isShowPublic(options.show) || !publication.results) return [];
+
   const rows = options.results
-    .filter((row) => row.show_id === options.show.id && row.final_rank != null)
+    .filter(
+      (row) =>
+        row.show_id === options.show.id &&
+        row.edition_id === options.show.edition_id &&
+        row.final_rank != null,
+    )
     .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999));
 
   if (rows.length < 2) return [];
 
-  const channels = activeVotingChannels(options.show);
+  const configuredChannels = activeVotingChannels(options.show);
+  const channels = {
+    jury: configuredChannels.jury && publication.jury_results,
+    televote: configuredChannels.televote && publication.televote_results,
+  };
   const stories: ResultStory[] = [];
   const closest = rows
     .slice(1)
@@ -105,14 +118,14 @@ export function buildShowStories(options: StoryOptions): ResultStory[] {
   const ballots = new Map<string, JuryVote[]>();
   if (channels.jury) {
     options.jury
-      .filter((vote) => vote.show_id === options.show.id)
+      .filter((vote) => vote.show_id === options.show.id && vote.edition_id === options.show.edition_id)
       .forEach((vote) => {
         ballots.set(vote.voter_country_id, [...(ballots.get(vote.voter_country_id) ?? []), vote]);
       });
   }
 
   const decisive =
-    channels.jury && winningMargin > 0
+    channels.jury && publication.detailed_voting && winningMargin > 0
       ? [...ballots.entries()]
           .map(([voterId, votes]) => {
             const winnerPoints =
@@ -227,24 +240,35 @@ export function buildShowStories(options: StoryOptions): ResultStory[] {
     }
   }
 
+  // A show does not know the chronological order of other editions. Report only
+  // a verifiable high across the *published* archive, never an invented
+  // "new record at the time" based on later or unreleased editions.
   const showById = new Map((options.allShows ?? []).map((show) => [show.id, show]));
-  const previousBest = (options.allResults ?? [])
-    .filter(
-      (row) =>
-        row.show_id !== options.show.id &&
-        showById.get(row.show_id ?? "")?.kind === options.show.kind,
-    )
+  const otherPublishedHigh = (options.allResults ?? [])
+    .filter((row) => {
+      const comparedShow = showById.get(row.show_id ?? "");
+      return (
+        comparedShow?.id !== options.show.id &&
+        comparedShow?.kind === options.show.kind &&
+        comparedShow.edition_id === row.edition_id &&
+        isShowPublic(comparedShow) &&
+        resolveShowPublication(comparedShow).results &&
+        row.final_rank != null &&
+        Number.isFinite(row.total_points)
+      );
+    })
     .reduce((maximum, row) => Math.max(maximum, row.total_points), 0);
 
-  if (previousBest > 0 && winner.total_points > previousBest) {
+  if (otherPublishedHigh > 0 && winner.total_points > otherPublishedHigh) {
     const id = "record";
+    const showKind = options.show.kind.replace("-", " ");
     stories.push({
       id,
       kind: id,
       priority: 98,
-      headline: `${label(options.labels, winner.country_id)} set a new ${options.show.kind.replace("-", " ")} points record`,
-      explanation: `The winning score passed the previous record by ${winner.total_points - previousBest} points.`,
-      metricLabel: "New record",
+      headline: `${label(options.labels, winner.country_id)} holds the highest published ${showKind} points total`,
+      explanation: `Its score is ${winner.total_points - otherPublishedHigh} points above the next-highest published ${showKind} score.`,
+      metricLabel: "Published high",
       metricValue: `${winner.total_points} pts`,
       countryIds: [winner.country_id],
       href: storyHref(options.show.id, id),
