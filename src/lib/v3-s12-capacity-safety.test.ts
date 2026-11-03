@@ -36,7 +36,10 @@ function runHarness(overrides: Record<string, string> = {}): Promise<HarnessResu
         ...safeEnv,
         ...overrides,
         // A production Supabase environment must never be inherited as a test target.
-        DB_URL: "",
+        // The only permitted override is the literal synthetic loopback DSN below.
+        DB_URL: overrides.DB_URL === "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+          ? overrides.DB_URL
+          : "",
       },
     });
     let stdout = "";
@@ -97,7 +100,23 @@ describe("S12 local capacity harness resource safety", () => {
     expect(tooMuchConcurrency.stderr).toContain("exceeds explicit V3_CAPACITY_SAFETY_MAX_CONCURRENCY");
   });
 
-  it("rejects an oversized Content-Length without buffering that payload", async () => {
+  it("rejects a timer that Node would silently clamp to one millisecond", async () => {
+    const result = await runHarness({ V3_CAPACITY_REQUEST_TIMEOUT_MS: "2147483648" });
+    expect(result.code).not.toBe(0);
+    expect(result.stderr).toContain("exceeds Node's maximum timer delay");
+  });
+
+  it("validates the local PostgreSQL sampler timer before running any database queries", async () => {
+    const result = await runHarness({
+      DB_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+      V3_CAPACITY_DB_SAMPLE_MS: "2147483648",
+      V3_CAPACITY_DB_QUERY_TIMEOUT_MS: "1000",
+    });
+    expect(result.code).not.toBe(0);
+    expect(result.stderr).toContain("V3_CAPACITY_DB_SAMPLE_MS exceeds Node's maximum timer delay");
+  });
+
+    it("rejects an oversized Content-Length without buffering that payload", async () => {
     await withLocalServer((_request, response) => {
       response.setHeader("Content-Length", "2048");
       response.end("x".repeat(2048));
