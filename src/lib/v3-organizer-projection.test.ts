@@ -144,6 +144,28 @@ describe("V3 Organizer projection", () => {
     }
   });
 
+  it("keeps tied tasks and their fingerprint stable across RPC row ordering", () => {
+    const firstTask = task("task-a", "high");
+    const secondTask = task("task-b", "high");
+    const options = { edition, live, actorId: "organizer-1" };
+
+    const first = buildV3OrganizerProjection({
+      ...options,
+      tasks: [secondTask, firstTask],
+      serverTime: "2026-11-04T12:00:00Z",
+    });
+    const reordered = buildV3OrganizerProjection({
+      ...options,
+      tasks: [firstTask, secondTask],
+      serverTime: "2026-11-04T12:01:00Z",
+    });
+
+    expect(first.tasks.top.map((item) => item.id)).toEqual(["task-a", "task-b"]);
+    expect(reordered.tasks.top.map((item) => item.id)).toEqual(["task-a", "task-b"]);
+    expect(reordered.stateVersion).toBe(first.stateVersion);
+    expect(reordered.readiness.stateVersion).toBe(first.readiness.stateVersion);
+  });
+
   it("keeps a stable state version across server-clock-only refreshes", () => {
     const base = {
       edition,
