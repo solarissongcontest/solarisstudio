@@ -60,6 +60,17 @@ function assertLocalUrl(key: string, rawValue: string) {
     throw new Error(`${key} is set but is not a valid URL; refusing automated V3 verification`);
   }
 
+  // A libpq URI's query parameters can redirect a loopback-looking DB URL.
+  // Deny all explicit connection-authority overrides before any test traffic.
+  const overrideKeys = new Set(["host", "hostaddr", "service"]);
+  for (const [parameter] of parsed.searchParams) {
+    if (overrideKeys.has(parameter.toLowerCase())) {
+      throw new Error(
+        `${key} contains a ${parameter} authority override; refusing ambiguous Supabase connection routing in automated V3 verification`,
+      );
+    }
+  }
+
   if (!loopbackHost(parsed.hostname)) {
     throw new Error(
       `${key} points at non-local host ${parsed.hostname}; automated Solaris V3 verification must fail closed instead of using hosted Supabase`,

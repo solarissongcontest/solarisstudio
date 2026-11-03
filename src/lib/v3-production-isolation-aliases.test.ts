@@ -40,6 +40,32 @@ describe("V3 production isolation Supabase CLI aliases", () => {
     ).toThrow(/DB_URL points at non-local host db\.example-project\.supabase\.co/);
   });
 
+  it("rejects a PostgreSQL host query override hiding behind a loopback authority", () => {
+    expect(() =>
+      assertV3ProductionIsolation({
+        DB_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres?host=db.example.supabase.co",
+      }),
+    ).toThrow(/DB_URL contains a host authority override/);
+  });
+
+  it("rejects hostaddr, service and encoded host overrides on a local URL", () => {
+    for (const query of ["hostaddr=203.0.113.5", "service=hosted-production", "%68ost=external-host"]) {
+      expect(() =>
+        assertV3ProductionIsolation({
+          DB_URL: `postgresql://postgres:postgres@localhost:54322/postgres?${query}`,
+        }),
+      ).toThrow(/DB_URL contains a .* authority override/);
+    }
+  });
+
+  it("accepts harmless PostgreSQL query parameters on an explicit loopback target", () => {
+    expect(
+      assertV3ProductionIsolation({
+        DB_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres?application_name=solaris_s14",
+      }).loopbackOnly,
+    ).toBe(true);
+  });
+
   it("treats the CLI SERVICE_ROLE_KEY alias as privileged Supabase authority", () => {
     expect(() =>
       assertV3ProductionIsolation({
