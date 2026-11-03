@@ -170,7 +170,10 @@ function sortedUnresolved(tasks: readonly OrganizerTaskV5[]) {
       if (priority) return priority;
       const due = dueTime(a.dueAt) - dueTime(b.dueAt);
       if (due) return due;
-      return a.openedAt.localeCompare(b.openedAt);
+      const opened = a.openedAt.localeCompare(b.openedAt);
+      if (opened) return opened;
+      // Stable tie-break: RPC row order is not an operational priority.
+      return a.id.localeCompare(b.id);
     });
 }
 
@@ -322,7 +325,7 @@ function buildStateVersion(input: {
     input.activeShow ?? null,
     input.live,
     input.health ?? null,
-    input.tasks.map((task) => [
+    [...input.tasks].sort((a, b) => a.id.localeCompare(b.id)).map((task) => [
       task.id,
       task.editionId,
       task.countryId,
