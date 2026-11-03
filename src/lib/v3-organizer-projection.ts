@@ -304,18 +304,44 @@ function buildStateVersion(input: {
   edition: V3OrganizerEditionProjection;
   tasks: readonly OrganizerTaskV5[];
   live: ControlRoomModel;
+  actorId: string;
+  contextVersion?: number;
+  activeShow?: { id: string; label: string; status: string; kind: string };
   health?: V3OrganizerHealthInput | null;
+  upcoming?: readonly V3OrganizerUpcomingItem[];
   recentChanges?: readonly V3OrganizerRecentChange[];
 }) {
+  // This is a projection fingerprint, not an authoritative contest revision.
+  // Every input that can change the visible Organizer projection must affect
+  // it, including actor-specific assignment and canonical task deadlines.
+  // Do not include serverTime: an otherwise unchanged refresh is not a new state.
   const source = JSON.stringify([
-    input.edition.id,
-    input.edition.status,
-    input.live.editionState,
-    input.live.subsystems,
-    input.health?.progress ?? null,
-    input.health?.issues_count ?? null,
-    input.tasks.map((task) => [task.id, task.state, task.priority, task.lastEvaluatedAt]),
-    input.recentChanges?.map((change) => [change.id, change.createdAt]) ?? [],
+    input.edition,
+    input.actorId,
+    input.contextVersion ?? 1,
+    input.activeShow ?? null,
+    input.live,
+    input.health ?? null,
+    input.tasks.map((task) => [
+      task.id,
+      task.editionId,
+      task.countryId,
+      task.assignedTo,
+      task.sourceKind,
+      task.taskType,
+      task.priority,
+      task.state,
+      task.operationalState ?? null,
+      task.title,
+      task.description,
+      task.href,
+      task.dueAt,
+      task.openedAt,
+      task.resolvedAt,
+      task.lastEvaluatedAt,
+    ]),
+    input.upcoming ?? [],
+    input.recentChanges ?? [],
   ]);
   let hash = 2166136261;
   for (let index = 0; index < source.length; index += 1) {
@@ -358,7 +384,11 @@ export function buildV3OrganizerProjection(input: {
     edition: input.edition,
     tasks: input.tasks,
     live: input.live,
+    actorId: input.actorId,
+    contextVersion: input.contextVersion,
+    activeShow: input.activeShow,
     health: input.health,
+    upcoming: input.upcoming,
     recentChanges,
   });
 
