@@ -62,6 +62,21 @@ describe("Command Assistant projection insights", () => {
     expect(insight.nextAction).toEqual({ label: "Resolve results blocker", route: "/admin/results" });
   });
 
+  it("never manufactures a readiness score when the health source is unavailable", () => {
+    const unavailable = projection();
+    unavailable.readiness = {
+      ...unavailable.readiness,
+      assessmentStatus: "unavailable",
+      overall: 0,
+      blocking: [],
+      incomplete: [],
+      ready: [],
+    };
+    const insight = buildCommandAssistantInsight("What needs my attention?", unavailable);
+    expect(insight.summary).toContain("readiness could not be verified");
+    expect(insight.summary).not.toContain("0% readiness");
+  });
+
   it("falls back to the edition blocker/task projection for generic wording", () => {
     const insight = buildCommandAssistantInsight("What needs my attention?", projection());
     expect(insight.domain).toBe("overview");
