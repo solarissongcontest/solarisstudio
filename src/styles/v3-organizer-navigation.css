@@ -46,6 +46,7 @@
 }
 
 html[data-solaris-keyboard-open] .admin-mobile-nav[data-v6-organizer-tabbar] {
+  visibility: hidden;
   opacity: 0;
   transform: translateY(calc(100% + env(safe-area-inset-bottom) + 2rem));
   pointer-events: none;

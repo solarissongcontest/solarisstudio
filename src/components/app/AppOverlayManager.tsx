@@ -9,6 +9,64 @@ import type { AppConnectivitySnapshot } from "@/lib/app-connectivity";
 
 const TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview";
 
+const PERSISTENT_NAVIGATION_SELECTOR = [
+  ".solaris-app-tabbar",
+  "[data-v3-liquid-tabbar]",
+  ".admin-mobile-nav[data-v6-organizer-tabbar]",
+].join(",");
+
+const OVERLAY_NAV_INERT_OWNER = "data-solaris-overlay-nav-inert-owner";
+const OVERLAY_NAV_ARIA_OWNER = "data-solaris-overlay-nav-aria-owner";
+const OVERLAY_NAV_ARIA_PREVIOUS = "data-solaris-overlay-nav-aria-previous";
+const OVERLAY_NAV_ARIA_ABSENT = "__absent__";
+
+function setPersistentNavigationIsolation(blocked: boolean) {
+  if (typeof document === "undefined") return;
+
+  document
+    .querySelectorAll<HTMLElement>(PERSISTENT_NAVIGATION_SELECTOR)
+    .forEach((navigation) => {
+      if (blocked) {
+        const focused = document.activeElement;
+        if (focused instanceof HTMLElement && navigation.contains(focused)) {
+          // Do not leave keyboard/screen-reader focus parked inside chrome that
+          // is about to become inert/aria-hidden. The opening dialog/sheet or
+          // active form owns its own focus destination/restoration semantics.
+          focused.blur();
+        }
+        if (!navigation.hasAttribute("inert")) {
+          navigation.setAttribute("inert", "");
+          navigation.setAttribute(OVERLAY_NAV_INERT_OWNER, "overlay-manager");
+        }
+        if (navigation.getAttribute("aria-hidden") !== "true") {
+          const previousAriaHidden = navigation.getAttribute("aria-hidden");
+          navigation.setAttribute(
+            OVERLAY_NAV_ARIA_PREVIOUS,
+            previousAriaHidden ?? OVERLAY_NAV_ARIA_ABSENT,
+          );
+          navigation.setAttribute("aria-hidden", "true");
+          navigation.setAttribute(OVERLAY_NAV_ARIA_OWNER, "overlay-manager");
+        }
+        return;
+      }
+
+      if (navigation.getAttribute(OVERLAY_NAV_INERT_OWNER) === "overlay-manager") {
+        navigation.removeAttribute("inert");
+        navigation.removeAttribute(OVERLAY_NAV_INERT_OWNER);
+      }
+      if (navigation.getAttribute(OVERLAY_NAV_ARIA_OWNER) === "overlay-manager") {
+        const previousAriaHidden = navigation.getAttribute(OVERLAY_NAV_ARIA_PREVIOUS);
+        if (previousAriaHidden && previousAriaHidden !== OVERLAY_NAV_ARIA_ABSENT) {
+          navigation.setAttribute("aria-hidden", previousAriaHidden);
+        } else {
+          navigation.removeAttribute("aria-hidden");
+        }
+        navigation.removeAttribute(OVERLAY_NAV_ARIA_PREVIOUS);
+        navigation.removeAttribute(OVERLAY_NAV_ARIA_OWNER);
+      }
+    });
+}
+
 export function AppOverlayManager({
   isAppMode,
   pathname,
@@ -67,6 +125,54 @@ export function AppOverlayManager({
       root.removeAttribute("data-solaris-feature-overlay-open");
       delete root.dataset.solarisOverlayKind;
       delete root.dataset.solarisChromeOwner;
+    };
+  }, [teaserPreview]);
+
+  useEffect(() => {
+    if (teaserPreview || typeof document === "undefined") return;
+
+    const root = document.documentElement;
+    let navigationBlocked = false;
+    const rootBlocksNavigation = () =>
+      root.hasAttribute("data-solaris-feature-overlay-open") ||
+      root.hasAttribute("data-solaris-keyboard-open");
+
+    const syncNavigationIsolation = () => {
+      const blocked = rootBlocksNavigation();
+      if (blocked) {
+        setPersistentNavigationIsolation(true);
+      } else if (navigationBlocked) {
+        // Scan once when leaving the blocked state to restore only attributes
+        // owned by this manager. Ordinary unblocked DOM churn does no nav scan.
+        setPersistentNavigationIsolation(false);
+      }
+      navigationBlocked = blocked;
+    };
+
+    syncNavigationIsolation();
+
+    const rootObserver = new MutationObserver(syncNavigationIsolation);
+    rootObserver.observe(root, {
+      attributes: true,
+      attributeFilter: [
+        "data-solaris-feature-overlay-open",
+        "data-solaris-keyboard-open",
+      ],
+    });
+
+    // Persistent chrome may mount after a keyboard/sheet already owns the
+    // viewport. Only blocked-state insertions need a selector scan; normal page
+    // rendering stays off this document-wide isolation path.
+    const mountObserver = new MutationObserver(() => {
+      if (!navigationBlocked) return;
+      setPersistentNavigationIsolation(true);
+    });
+    mountObserver.observe(document.body, { subtree: true, childList: true });
+
+    return () => {
+      rootObserver.disconnect();
+      mountObserver.disconnect();
+      setPersistentNavigationIsolation(false);
     };
   }, [teaserPreview]);
 

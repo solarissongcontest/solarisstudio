@@ -47,7 +47,7 @@ export function OrganizerV6MobileChrome() {
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const navigate = useNavigate();
   const screen = resolveOrganizerV6Screen(pathname);
-  const { editionId } = useAdminContext();
+  const { editionId, contextVersion } = useAdminContext();
   const { data: editions = [] } = useEditions();
   const backend = useOrganisationBackendContract();
   const tasksSupported = backend.data?.capabilities.organizerTasks === true;
@@ -175,6 +175,7 @@ export function OrganizerV6MobileChrome() {
 
   return (
     <OrganizerV6TabBar
+      key={`organizer-navigation:${contextVersion}`}
       pathname={pathname}
       mode={screen.tabbar}
       items={mobileItems.map((item): OrganizerV6TabItem => ({

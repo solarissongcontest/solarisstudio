@@ -49,9 +49,12 @@ describe("V3 Organizer reversible cutover", () => {
   });
 
   it("locks navigation, interaction generation and route memory to the selected edition context", () => {
+    expect(mobile).toContain("const { editionId, contextVersion } = useAdminContext()");
     expect(mobile).toContain("const navigationScope = activeEdition?.id ?? null");
     expect(mobile).toContain("const navigationMemoryReady = navigationScope != null");
-    expect(mobile).toContain('const navigationInteractionKey = navigationScope ?? "unscoped"');
+    expect(mobile).toContain(
+      'const navigationInteractionKey = `${navigationScope ?? "unscoped"}:${contextVersion}`',
+    );
     expect(mobile).toContain("key={navigationInteractionKey}");
     expect(mobile).toContain('data-organizer-v3-memory-ready={navigationMemoryReady ? "true" : "false"}');
     expect(mobile).toContain("navigationScope,");

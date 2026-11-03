@@ -47,6 +47,51 @@ describe("V3 top-level swipe foundation", () => {
     expect(surface).toContain("tabIndex={-1}");
   });
 
+  it("clears compositor-owned progress, transforms and pointer capture on interruption reset", () => {
+    const surface = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+
+    expect(surface).toContain('track.style.setProperty("--v3-page-swipe-x", "0px")');
+    expect(surface).toContain('material?.style.setProperty("--v3-liquid-drag-x", "0px")');
+    expect(surface).toContain('root.removeAttribute("data-v3-navigation-progress-owner")');
+    expect(surface).toContain("surface.releasePointerCapture?.(drag.pointerId)");
+    expect(surface).toContain("const interrupt = () => resetSurface();");
+    expect(surface).toContain('window.addEventListener("pagehide", interrupt)');
+    expect(surface).toContain("window.addEventListener(APP_RESUME_EVENT, interrupt)");
+    expect(surface).toContain('document.addEventListener("visibilitychange", hidden)');
+    expect(surface).toMatch(/data-solaris-feature-overlay-open[\s\S]*data-solaris-keyboard-open/);
+  });
+
+  it("keeps logical page progress while mirroring physical composition in RTL", () => {
+    const surface = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+    const css = source("src/styles/v3-top-level-swipe.css");
+
+    expect(surface).toContain("layoutDirection: layoutDirectionFor(event.currentTarget)");
+    expect(surface).toContain("direction: drag.layoutDirection");
+    expect(surface).toContain("resolveV3PhysicalInlineSign(state.layoutDirection)");
+    expect(surface).toContain(
+      "const offsetRatio = (activeIndex - boundedProgress) * physicalInlineSign",
+    );
+    expect(surface).toContain(
+      "(boundedProgress - activeIndex) * state.lensStepWidth * physicalInlineSign",
+    );
+    expect(css).toContain(".v3-top-level-swipe-surface:dir(rtl)");
+    expect(css).toMatch(/page--previous[\s\S]*translate3d\(100%, 0, 0\)/);
+    expect(css).toMatch(/page--next[\s\S]*translate3d\(-100%, 0, 0\)/);
+  });
+
+  it("preserves native nested-horizontal ownership until the recognizer claims a horizontal drag", () => {
+    const surface = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+    const css = source("src/styles/v3-top-level-swipe.css");
+
+    expect(css).not.toContain("touch-action: pan-y pinch-zoom");
+    expect(css).toMatch(/data-v3-top-level-swipe-enabled="true"[\s\S]*touch-action: auto/);
+    expect(surface).toContain("elementBlocksV3TopLevelSwipe(event.target)");
+    expect(surface).toContain('surface.addEventListener("touchmove", preventOwnedHorizontalTouchPan');
+    expect(surface).toContain("passive: false");
+    expect(surface).toContain("event.touches.length !== 1");
+    expect(surface).toContain('if (owner === "horizontal") event.preventDefault()');
+  });
+
   it("keeps page, lens and icon motion on one continuous visual progress", () => {
     const surface = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
 
