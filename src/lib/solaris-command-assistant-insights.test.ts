@@ -67,7 +67,7 @@ describe("Command Assistant projection insights", () => {
     unavailable.readiness = {
       ...unavailable.readiness,
       assessmentStatus: "unavailable",
-      overall: 0,
+      overall: null,
       blocking: [],
       incomplete: [],
       ready: [],
