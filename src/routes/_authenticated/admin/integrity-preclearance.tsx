@@ -122,11 +122,13 @@ function IntegrityPreclearanceWorkspace() {
     queryFn: () => rpc<CaseListItem[]>("admin_integrity_cases"),
   });
   const questions = useMemo(
-    () => (casesQuery.data ?? []).filter((item) => item.case_kind === "rule_question"),
-    [casesQuery.data],
+    () => (casesQuery.isSuccess ? casesQuery.data : []).filter((item) => item.case_kind === "rule_question"),
+    [casesQuery.data, casesQuery.isSuccess],
   );
   const [selectedCase, setSelectedCase] = useState("");
-  const caseId = selectedCase || questions[0]?.id || "";
+  // A stale selection must never remain actionable after it leaves the
+  // verified private-rule-question queue.
+  const caseId = questions.find((item) => item.id === selectedCase)?.id ?? questions[0]?.id ?? "";
 
   const detailQuery = useQuery({
     queryKey: ["admin-integrity-case", "preclearance", caseId],
@@ -140,7 +142,8 @@ function IntegrityPreclearanceWorkspace() {
   });
 
   const refresh = async () => {
-    await Promise.all([casesQuery.refetch(), detailQuery.refetch(), rulingsQuery.refetch()]);
+    await casesQuery.refetch();
+    if (caseId) await Promise.all([detailQuery.refetch(), rulingsQuery.refetch()]);
   };
 
   return (
@@ -159,8 +162,8 @@ function IntegrityPreclearanceWorkspace() {
         />
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Metric label="Private questions" value={questions.length} tone="info" />
-          <Metric label="Rulings on selected case" value={rulingsQuery.data?.length ?? 0} tone={(rulingsQuery.data?.length ?? 0) ? "ready" : "attention"} />
+          <Metric label="Private questions" value={casesQuery.isSuccess ? questions.length : null} tone="info" />
+          <Metric label="Rulings on selected case" value={caseId && rulingsQuery.isSuccess ? rulingsQuery.data.length : null} tone={rulingsQuery.data?.length ? "ready" : "attention"} />
         </div>
 
         <AdminCard className="mt-4">
@@ -170,9 +173,10 @@ function IntegrityPreclearanceWorkspace() {
               <select
                 value={caseId}
                 onChange={(event) => setSelectedCase(event.target.value)}
+                disabled={!casesQuery.isSuccess}
                 className="mt-2 min-h-11 w-full rounded-xl border px-3 text-sm"
               >
-                {!questions.length ? <option value="">No private rule questions</option> : null}
+                {!questions.length ? <option value="">{casesQuery.isPending ? "Loading rule questions" : casesQuery.isError ? "Rule questions unavailable" : "No private rule questions"}</option> : null}
                 {questions.map((item) => (
                   <option key={item.id} value={item.id}>{item.public_code} · {item.summary}</option>
                 ))}
@@ -182,11 +186,19 @@ function IntegrityPreclearanceWorkspace() {
           </div>
         </AdminCard>
 
-        {!caseId ? (
-          <AdminCard className="mt-4"><EmptyState text="No protected rule questions are waiting in the Integrity Centre." /></AdminCard>
-        ) : detailQuery.isLoading ? (
+        {casesQuery.isPending ? (
           <AdminCard className="mt-4"><LoadingState /></AdminCard>
-        ) : detailQuery.data ? (
+        ) : casesQuery.isError ? (
+          <AdminCard className="mt-4"><EmptyState text="The private rule-question queue could not be verified. Refresh before issuing a ruling." /></AdminCard>
+        ) : !caseId ? (
+          <AdminCard className="mt-4"><EmptyState text="No protected rule questions are waiting in the Integrity Centre." /></AdminCard>
+        ) : detailQuery.isPending || rulingsQuery.isPending ? (
+          <AdminCard className="mt-4"><LoadingState /></AdminCard>
+        ) : detailQuery.isError ? (
+          <AdminCard className="mt-4"><EmptyState text="The selected private rule question could not be verified. Refresh before issuing a ruling." /></AdminCard>
+        ) : rulingsQuery.isError ? (
+          <AdminCard className="mt-4"><EmptyState text="Ruling history could not be verified. Refresh before issuing another ruling or interpretation draft." /></AdminCard>
+        ) : detailQuery.data?.case.id === caseId && detailQuery.data.case.case_kind === "rule_question" ? (
           <SelectedCaseWorkspace
             detail={detailQuery.data}
             rulings={rulingsQuery.data ?? []}
@@ -513,8 +525,8 @@ function outcomeClass(outcome: PreclearanceOutcome) {
   return "border-sky-200/15 bg-sky-200/[0.05] text-sky-100";
 }
 
-function Metric({ label, value, tone, suffix }: { label: string; value: number; tone: "blocked" | "attention" | "ready" | "info"; suffix?: string }) {
-  return <AdminCard className="!p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-2xl font-black">{value}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.12em] text-muted-foreground">{label}</p></div><AdminStatus tone={tone}>{suffix ?? (value ? "Available" : "None")}</AdminStatus></div></AdminCard>;
+function Metric({ label, value, tone, suffix }: { label: string; value: number | null; tone: "blocked" | "attention" | "ready" | "info"; suffix?: string }) {
+  return <AdminCard className="!p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-2xl font-black">{value ?? "—"}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.12em] text-muted-foreground">{label}</p></div><AdminStatus tone={value === null ? "attention" : tone}>{value === null ? "Not verified" : suffix ?? (value ? "Available" : "None")}</AdminStatus></div></AdminCard>;
 }
 
 function LoadingState() {
