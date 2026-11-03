@@ -46,7 +46,7 @@ export function countryConfirmationOverviewMessage(
       return hasEditionResponse
         ? "A response is saved for this edition, but its requirement status is unavailable here. A saved response alone does not prove completion."
         : hasOtherEditionResponse
-          ? "Your earlier edition Confirmation remains saved in history, but it does not confirm participation in this edition."
+          ? "A Confirmation from another edition remains saved in history, but it does not confirm participation in this edition."
           : "No edition-level Confirmation requirement or response is currently recorded here.";
   }
 }
