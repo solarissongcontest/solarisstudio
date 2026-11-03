@@ -17,7 +17,9 @@ export type V3ParticipateProjection = {
   next: readonly V3ActionProjection[];
   waiting: readonly V3ActionProjection[];
   optionalNow: readonly V3ActionProjection[];
+  optionalUpcoming: readonly V3ActionProjection[];
   completed: readonly V3ActionProjection[];
+  closed: readonly V3ActionProjection[];
 };
 
 function isOptional(action: V3ActionProjection) {
@@ -54,32 +56,51 @@ export function projectV3Participate(
   const next: V3ActionProjection[] = [];
   const waiting: V3ActionProjection[] = [];
   const optionalNow: V3ActionProjection[] = [];
+  const optionalUpcoming: V3ActionProjection[] = [];
   const completed: V3ActionProjection[] = [];
+  const closed: V3ActionProjection[] = [];
 
   for (const action of bootstrap.actions) {
+    // A closed optional voting window is not a completed submission. The task
+    // engine deliberately distinguishes "finished" from "completed".
+    if (action.sourceState === "finished") {
+      closed.push(action);
+      continue;
+    }
     if (action.completed) {
       completed.push(action);
       continue;
     }
 
-    // Server-owned waiting truth outranks presentation class. This includes an
-    // optional action whose window has not opened yet: it is optional, but it is
-    // not "Optional now" until the canonical action state says it is available.
-    if (action.sourceState === "waiting") {
-      waiting.push(action);
-      continue;
-    }
-
-    if (isOptional(action)) {
-      optionalNow.push(action);
-      continue;
-    }
-
-    if (action.actionRequired) {
+    // A required problem stays visible even when the participant cannot edit
+    // it yet. actionRequired controls ability to act, not whether the problem
+    // exists. Never promote optional tasks into required attention.
+    if (!isOptional(action) && (
+      action.sourceState === "problem" || action.sourceState === "needs_attention"
+    )) {
       needsAttention.push(action);
       continue;
     }
 
+    // State, not the presence of a deadline or urgency, determines whether
+    // something is open. Future optional windows stay out of "Optional now".
+    if (action.sourceState === "waiting") {
+      waiting.push(action);
+      continue;
+    }
+    if (action.sourceState === "upcoming") {
+      if (isOptional(action)) optionalUpcoming.push(action);
+      else next.push(action);
+      continue;
+    }
+    if (isOptional(action)) {
+      optionalNow.push(action);
+      continue;
+    }
+    if (action.actionRequired) {
+      needsAttention.push(action);
+      continue;
+    }
     next.push(action);
   }
 
@@ -93,12 +114,14 @@ export function projectV3Participate(
     voting: {
       jury,
       televote,
-      currentCount: Number(Boolean(jury)) + Number(Boolean(televote)),
+      currentCount: Number(Boolean(jury && !jury.completed)) + Number(Boolean(televote && !televote.completed)),
     },
     needsAttention,
     next,
     waiting,
     optionalNow,
+    optionalUpcoming,
     completed,
+    closed,
   };
 }

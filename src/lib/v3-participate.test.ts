@@ -192,6 +192,65 @@ describe("projectV3Participate", () => {
     expect(projection.voting.televote?.id).toBe("urgent-public-vote");
   });
 
+  it("does not present a future optional televote as open or as required upcoming work", () => {
+    const scheduledTelevote = action("televote-scheduled", {
+      kind: "televote",
+      sourceState: "upcoming",
+      deliveryClass: "optional",
+      opensAt: "2026-11-20T18:00:00.000Z",
+      deadline: "2026-11-20T20:00:00.000Z",
+    });
+
+    const projection = projectV3Participate({
+      actions: [scheduledTelevote],
+      journey: [],
+    });
+
+    expect(projection.optionalUpcoming.map((item) => item.id)).toEqual(["televote-scheduled"]);
+    expect(projection.optionalNow).toEqual([]);
+    expect(projection.next).toEqual([]);
+    expect(projection.needsAttention).toEqual([]);
+    expect(projection.voting.televote?.sourceState).toBe("upcoming");
+  });
+
+  it("keeps a required review problem visible even when editing is not authorized", () => {
+    const uneditableProblem = action("entry-declined", {
+      kind: "entry",
+      sourceState: "problem",
+      deliveryClass: "required",
+      impact: "blocking",
+      actionRequired: false,
+    });
+
+    const projection = projectV3Participate({
+      actions: [uneditableProblem],
+      journey: [],
+    });
+
+    expect(projection.needsAttention.map((item) => item.id)).toEqual(["entry-declined"]);
+    expect(projection.next).toEqual([]);
+    expect(projection.optionalNow).toEqual([]);
+  });
+
+  it("does not claim an expired optional voting window is a completed submission", () => {
+    const expiredUnsubmitted = action("expired-televote", {
+      kind: "televote",
+      sourceState: "finished",
+      deliveryClass: "optional",
+      completed: true,
+    });
+
+    const projection = projectV3Participate({
+      actions: [expiredUnsubmitted],
+      journey: [],
+    });
+
+    expect(projection.closed.map((item) => item.id)).toEqual(["expired-televote"]);
+    expect(projection.completed).toEqual([]);
+    expect(projection.optionalNow).toEqual([]);
+    expect(projection.voting.currentCount).toBe(0);
+  });
+
   it("uses journey evidence as-is instead of inventing missing responsibilities", () => {
     const projection = projectV3Participate({ actions: [], journey });
 
