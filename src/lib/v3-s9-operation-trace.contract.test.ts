@@ -6,6 +6,10 @@ const migration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20261016064000_v3_s9_operation_trace.sql"),
   "utf8",
 );
+const integrityMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20261104013000_v3_s9_operation_trace_integrity.sql"),
+  "utf8",
+);
 const rehearsal = readFileSync(
   resolve(process.cwd(), ".github/scripts/v3-s9-operation-trace-rehearsal.sh"),
   "utf8",
@@ -38,6 +42,27 @@ describe("System V3 S9 operation trace", () => {
     expect(migration).not.toContain("request_fingerprint");
     expect(migration).not.toContain("last_error_metadata");
     expect(migration).not.toContain("result_metadata");
+  });
+
+  it("surfaces canonical correlation and delivery-receipt inconsistencies without leaking payloads", () => {
+    expect(integrityMigration).toContain("create or replace function public.admin_system_operation_trace(");
+    expect(integrityMigration).toContain("'schemaVersion', 2");
+    expect(integrityMigration).toContain("'eventCorrelationId', event_row.correlation_id");
+    expect(integrityMigration).toContain("'correlationMatchesOperation', event_row.correlation_id = v_operation.correlation_id");
+    expect(integrityMigration).toContain("'eventCorrelationMismatches'");
+    expect(integrityMigration).toContain("event_row.correlation_id is distinct from v_operation.correlation_id");
+    expect(integrityMigration).toContain("'receiptState', case");
+    expect(integrityMigration).toContain("'completedDeliveriesMissingReceipts'");
+    expect(integrityMigration).toContain("'noncompletedDeliveriesWithReceipts'");
+    expect(integrityMigration).toContain("consumer_receipt.consumer_key = delivery.consumer_key");
+    expect(integrityMigration).toContain("studio2_access_allowed('system.read', null, false)");
+    expect(integrityMigration).not.toContain("event_row.payload");
+    expect(integrityMigration).not.toContain("v_operation.result");
+    expect(integrityMigration).not.toContain("last_error_metadata");
+    expect(integrityMigration).not.toContain("result_metadata");
+    expect(rehearsal).toContain("missing_completed_receipt");
+    expect(rehearsal).toContain("unexpected_noncompleted_receipt");
+    expect(rehearsal).toContain("eventCorrelationMismatches");
   });
 
   it("keeps browser access protected and rehearses on isolated local Supabase", () => {
