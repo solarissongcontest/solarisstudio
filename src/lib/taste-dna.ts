@@ -159,6 +159,10 @@ export function buildTasteDna({
   if (ranking.length < 3 || results.length < 3) return null;
 
   const universe = results.map((entry) => entry.id);
+  const publishedIds = new Set(universe);
+  // Filling omitted entries with the official order must not invent a user's taste.
+  if (new Set(ranking.filter((id) => publishedIds.has(id))).size < 3) return null;
+
   const fanRanking = uniqueRanking(ranking, universe);
   const juryRanking = rankingFromScores(results, (entry) => entry.juryPoints);
   const televoteRanking = rankingFromScores(results, (entry) => entry.televotePoints);
@@ -189,6 +193,12 @@ export function buildTasteDna({
   else personalityLabel = "Certified chaos voter";
 
   const juryMatches = juryBallots
+    .map((ballot) => ({
+      ...ballot,
+      // Only published-field entries count. Duplicates or stale IDs must never
+      // create a fake opposite jury or distort a genuine match.
+      ranking: [...new Set(ballot.ranking.filter((id) => publishedIds.has(id)))],
+    }))
     .filter((ballot) => ballot.ranking.length)
     .map((ballot) => ({
       key: ballot.key,
