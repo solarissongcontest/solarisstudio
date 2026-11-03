@@ -37,13 +37,13 @@ function nonEmpty(value: string, label: string) {
  * display labels or a caller-supplied href. Reject "." and ".." because URL
  * parsers normalize even percent-encoded dot-only path segments.
  */
-function canonicalMusicPath(kind: V3MusicEntityKind, publicEntityId: string): string {
-  const id = nonEmpty(publicEntityId, "Public entity id");
-  if (id === "." || id === "..") {
+function canonicalMusicPath(kind: V3MusicEntityKind, rawPublicEntityId: string): string {
+  const publicEntityId = nonEmpty(rawPublicEntityId, "Public entity id");
+  if (publicEntityId === "." || publicEntityId === "..") {
     throw new Error("Public entity id is not a valid path segment");
   }
 
-  return `/${kind === "artist" ? "artists" : "songs"}/${encodeURIComponent(id)}`;
+  return `/${kind === "artist" ? "artists" : "songs"}/${encodeURIComponent(publicEntityId)}`;
 }
 
 export function entryBoundMusicIdentity(input: {
