@@ -5,6 +5,15 @@ begin;
 -- immutable consumer receipt. Diagnostics only: no canonical state mutation.
 -- The trace stays exact-operation scoped, system.read-gated and payload-free.
 
+select public.v3_register_migration_contract(
+  'v3.s9.operation-trace-receipt-integrity',
+  2,
+  'forward_fix_only',
+  false,
+  null,
+  'Expose S9 operation correlation and delivery-receipt inconsistencies without changing canonical event or delivery authority.'
+);
+
 create or replace function public.admin_system_operation_trace(
   p_operation_id uuid
 )
