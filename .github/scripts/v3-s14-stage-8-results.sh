@@ -175,11 +175,12 @@ recover_results_worker_after_crash() {
   event_id="$(db_scalar "select id::text from private.v3_domain_events where operation_id='$operation_id'::uuid and event_type='results.calculated';")"
   [[ -n "$event_id" ]] || fail "Results worker-crash injection has no calculated DomainEvent"
 
-  first_claim="$(service_value "select event_id::text from public.studio2_claim_domain_event_deliveries('results.tasks','s14-crash-worker',100,1);")"
+  first_claim="$(service_value "select event_id::text from public.studio2_claim_domain_event_deliveries('results.tasks','s14-crash-worker',100,5);")"
   printf '%s\n' "$first_claim" | grep -Fxq "$event_id" || fail "crash worker did not lease Results event $event_id"
   # Deliberately do not process the lease. This models a worker dying after
-  # claim. After expiry, the same durable outbox row must become claimable.
-  sleep 2
+  # claim. Wait beyond the minimum valid five-second lease so the same durable
+  # outbox row becomes genuinely reclaimable by a replacement worker.
+  sleep 6
   second_claim="$(service_value "select event_id::text from public.studio2_claim_domain_event_deliveries('results.tasks','s14-recovery-worker',100,60);")"
   printf '%s\n' "$second_claim" | grep -Fxq "$event_id" || fail "expired Results lease was not reclaimable after worker crash"
   while IFS= read -r claimed; do
@@ -221,7 +222,8 @@ run_s14_stage_8_results() {
     incomplete="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'juryIncompleteCount');")"
     conflicts="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'juryConflictCount');")"
     pending="$(service_value "select (private.studio2_result_preconditions('$show_id'::uuid)->>'juryPendingReviewCount');")"
-    [[ "$incomplete" == "1" && "$conflicts" == "0" && "$pending" == "0" ]] ||       fail "show $show_id did not narrow Jury integrity to exactly one missing ballot (incomplete=$incomplete conflicts=$conflicts pending=$pending)"
+    [[ "$incomplete" == "1" && "$conflicts" == "0" && "$pending" == "0" ]] || \
+      fail "show $show_id did not narrow Jury integrity to exactly one missing ballot (incomplete=$incomplete conflicts=$conflicts pending=$pending)"
   done
 
   # Calculation must fail while the two intentionally missing Jury ballots from
