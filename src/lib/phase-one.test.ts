@@ -4,6 +4,7 @@ import type { Edition, JuryVote, Participant, ResultRow, Show } from "./data";
 import { computeCountryForm } from "./form";
 import { computeRelationship } from "./stats";
 import { buildShowStories } from "./stories";
+import { FULL_PUBLICATION_CONFIG } from "./publication";
 
 const edition = (id: string, number: number): Edition =>
   ({
@@ -34,7 +35,7 @@ const show = (id: string, editionId: string): Show =>
     theme_id: null,
     voting_config: {},
     broadcast_config: {},
-    publication_config: {},
+    publication_config: { ...FULL_PUBLICATION_CONFIG },
   }) as Show;
 
 const result = (
