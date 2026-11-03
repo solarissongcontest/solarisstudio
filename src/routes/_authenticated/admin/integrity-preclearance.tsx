@@ -25,6 +25,7 @@ import {
   type IntegrityPreclearanceRuling,
   type PreclearanceOutcome,
 } from "@/lib/integrity-preclearance";
+import { resolvePrivateRuleQuestionSelection } from "@/lib/v3-organizer-preclearance-case-selection";
 import { getRuleById, SSC_RULES } from "@/lib/ssc-rules-v4";
 
 export const Route = createFileRoute("/_authenticated/admin/integrity-preclearance")({
@@ -121,14 +122,11 @@ function IntegrityPreclearanceWorkspace() {
     queryKey: ["admin-integrity-cases", "preclearance"],
     queryFn: () => rpc<CaseListItem[]>("admin_integrity_cases"),
   });
-  const questions = useMemo(
-    () => (casesQuery.isSuccess ? casesQuery.data : []).filter((item) => item.case_kind === "rule_question"),
-    [casesQuery.data, casesQuery.isSuccess],
-  );
   const [selectedCase, setSelectedCase] = useState("");
-  // A stale selection must never remain actionable after it leaves the
-  // verified private-rule-question queue.
-  const caseId = questions.find((item) => item.id === selectedCase)?.id ?? questions[0]?.id ?? "";
+  const { questions, caseId } = useMemo(
+    () => resolvePrivateRuleQuestionSelection(casesQuery.data, selectedCase, casesQuery.isSuccess),
+    [casesQuery.data, casesQuery.isSuccess, selectedCase],
+  );
 
   const detailQuery = useQuery({
     queryKey: ["admin-integrity-case", "preclearance", caseId],
