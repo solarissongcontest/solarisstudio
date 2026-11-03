@@ -51,6 +51,8 @@ export type V3OrganizerReadinessFactor = {
 };
 
 export type V3OrganizerReadiness = {
+  /** An absent or incomplete edition-health RPC must not be presented as a verified zero score. */
+  assessmentStatus: "verified" | "unavailable";
   overall: number;
   blocking: V3OrganizerReadinessFactor[];
   incomplete: V3OrganizerReadinessFactor[];
@@ -212,8 +214,37 @@ function buildReadiness(
   serverTime: string,
   stateVersion: string,
 ): V3OrganizerReadiness {
-  const progress = Math.max(0, Math.min(100, Number(health?.progress ?? 0)));
-  const critical = Math.max(0, Number(health?.critical_count ?? 0));
+  // The health RPC can be unavailable during a schema compatibility window.
+  // Missing counters must never silently become zero and mark unassessed areas ready.
+  const counters = [
+    health?.issues_count,
+    health?.critical_count,
+    health?.missing_songs,
+    health?.missing_artists,
+    health?.running_issues,
+    health?.jury_issues,
+    health?.televote_issues,
+    health?.result_issues,
+  ];
+  const verified =
+    typeof health?.progress === "number" &&
+    Number.isFinite(health.progress) &&
+    health.progress >= 0 && health.progress <= 100 &&
+    counters.every((value) => typeof value === "number" && Number.isFinite(value) && value >= 0);
+  if (!verified) {
+    return {
+      assessmentStatus: "unavailable",
+      overall: 0,
+      blocking: [],
+      incomplete: [],
+      ready: [],
+      calculatedAt: serverTime,
+      stateVersion,
+    };
+  }
+
+  const progress = health.progress;
+  const critical = health.critical_count ?? 0;
   const incomplete = [
     factor("entries", Number(health?.missing_songs ?? 0) + Number(health?.missing_artists ?? 0), "Entry metadata", `/admin/entries/${edition.slug}`),
     factor("running-order", Number(health?.running_issues ?? 0), "Running order", `/admin/lineup-sync/${edition.slug}`),
@@ -242,7 +273,7 @@ function buildReadiness(
     .filter((item) => !incompleteIds.has(item.id))
     .map((item) => ({ ...item, detail: "No current readiness issue" }));
 
-  return { overall: progress, blocking, incomplete, ready, calculatedAt: serverTime, stateVersion };
+  return { assessmentStatus: "verified", overall: progress, blocking, incomplete, ready, calculatedAt: serverTime, stateVersion };
 }
 
 function domainMeta(edition: V3OrganizerEditionProjection): Record<V3OrganizerDomainKey, { label: string; route: string }> {
@@ -314,6 +345,13 @@ function buildStateVersion(input: {
     input.live.subsystems,
     input.health?.progress ?? null,
     input.health?.issues_count ?? null,
+    input.health?.critical_count ?? null,
+    input.health?.missing_songs ?? null,
+    input.health?.missing_artists ?? null,
+    input.health?.running_issues ?? null,
+    input.health?.jury_issues ?? null,
+    input.health?.televote_issues ?? null,
+    input.health?.result_issues ?? null,
     input.tasks.map((task) => [task.id, task.state, task.priority, task.lastEvaluatedAt]),
     input.recentChanges?.map((change) => [change.id, change.createdAt]) ?? [],
   ]);
