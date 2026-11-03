@@ -74,6 +74,60 @@ describe("Public V3 P9 artist/song identity", () => {
     expect(first.entryId).not.toBe(second.entryId);
   });
 
+
+  it("derives detail URLs from canonical opaque IDs instead of trusting a stale href", () => {
+    const artist = firstClassMusicIdentity({
+      kind: "artist",
+      publicEntityId: "artist:stable:1",
+      label: "Original artist",
+    });
+    const song = firstClassMusicIdentity({
+      kind: "song",
+      publicEntityId: "song:stable:1",
+      label: "Original song",
+    });
+
+    // Even a compromised or stale presentation object must never control
+    // the navigation destination independently of the canonical identity.
+    expect(musicEntityHref({ ...artist, href: "https://attacker.example/collect" })).toBe(
+      "/artists/artist%3Astable%3A1",
+    );
+    expect(musicEntityHref({ ...song, href: "/artists/wrong-song" })).toBe(
+      "/songs/song%3Astable%3A1",
+    );
+    expect(musicEntityHref({ ...artist, label: "Renamed artist" })).toBe(musicEntityHref(artist));
+  });
+
+  it("rejects normalized dot segments instead of navigating outside music detail routes", () => {
+    for (const id of [".", ".."]) {
+      expect(() =>
+        firstClassMusicIdentity({ kind: "song", publicEntityId: id, label: "Song" }),
+      ).toThrow("Public entity id is not a valid path segment");
+    }
+
+    const artist = firstClassMusicIdentity({
+      kind: "artist",
+      publicEntityId: "durable-artist-id",
+      label: "Artist",
+    });
+    expect(musicIdentityIsRoutable({ ...artist, publicEntityId: ".." })).toBe(false);
+    expect(musicEntityHref({ ...artist, publicEntityId: ".." })).toBeNull();
+  });
+
+  it("preserves distinct opaque URLs when artists or songs have identical labels", () => {
+    const first = firstClassMusicIdentity({
+      kind: "song",
+      publicEntityId: "song-1",
+      label: "Same title",
+    });
+    const second = firstClassMusicIdentity({
+      kind: "song",
+      publicEntityId: "song-2",
+      label: "Same title",
+    });
+    expect(musicEntityHref(first)).not.toBe(musicEntityHref(second));
+  });
+
   it("rejects blank identity inputs", () => {
     expect(() =>
       entryBoundMusicIdentity({ kind: "song", entryId: " ", label: "Title" }),
