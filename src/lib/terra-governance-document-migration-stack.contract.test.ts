@@ -52,6 +52,7 @@ describe("Terra Solaris Governance TG4 migration stack", () => {
       "v3.tg4.world-document-identity-scope",
       "v3.tg4.world-document-hierarchy-integrity",
       "v3.tg4.world-document-hierarchy-cycles",
+      "v3.tg4.world-document-published-provision-guard",
     ];
 
     expect(TERRA_GOVERNANCE_TG4_MIGRATIONS).toHaveLength(expectedContracts.length);
