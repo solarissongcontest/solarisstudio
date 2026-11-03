@@ -55,7 +55,9 @@ function timingMeta(action: V3ActionProjection, delegationLabel?: string | null)
   // Future voting must show its opening time before its closing deadline.
   const timing = action.sourceState === "upcoming"
     ? opensAt ? `Opens ${opensAt}` : null
-    : deadline ? `Closes ${deadline}` : null;
+    : action.sourceState === "finished"
+      ? deadline ? `Closed ${deadline}` : null
+      : deadline ? `Closes ${deadline}` : null;
   const values = [timing, delegationLabel ?? null].filter(Boolean) as string[];
 
   if (!values.length) return undefined;
