@@ -48,6 +48,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # The S14 Grand Final uses real Playwright browser workflows.
+      # Download the browser matching the locked Playwright package before seeding the contest.
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
