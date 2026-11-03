@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -94,5 +96,20 @@ describe("Organizer jury-window review scope", () => {
     expect(isJuryWindowReviewScopeCurrent(scope, { ...scope, editionId: "edition-23" })).toBe(false);
     expect(isJuryWindowReviewScopeCurrent(scope, { ...scope, showId: null })).toBe(false);
     expect(isJuryWindowReviewScopeCurrent(null, scope)).toBe(false);
+  });
+});
+
+describe("production Organizer jury control wiring", () => {
+  it("does not expose an action or confirm a review without a healthy scoped read", () => {
+    const control = readFileSync(
+      resolve(process.cwd(), "src/components/admin/JuryVotingWindowControl.tsx"),
+      "utf8",
+    );
+    expect(control).toContain("resolveJuryWindowReadState({");
+    expect(control).toContain("hasError: isError || isRefetchError");
+    expect(control).toContain("!windowReady");
+    expect(control).toContain("open={Boolean(currentPendingChange)}");
+    expect(control).toContain("isJuryWindowReviewScopeCurrent(pending.preview");
+    expect(control).toContain("Retry status check");
   });
 });
