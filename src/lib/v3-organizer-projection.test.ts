@@ -106,6 +106,47 @@ describe("V3 Organizer projection", () => {
     expect(p.readiness.ready).toEqual([]);
   });
 
+  it("does not infer readiness from partial or invalid health snapshots", () => {
+    const snapshots = [
+      { progress: 100, issues_count: 0, critical_count: 0 },
+      { progress: Number.NaN, issues_count: 0, critical_count: 0 },
+      { progress: 120, issues_count: 0, critical_count: 0 },
+    ];
+    for (const health of snapshots) {
+      const projection = buildV3OrganizerProjection({
+        edition, actorId: "organizer-1", live, tasks: [], health,
+      });
+      expect(projection.readiness.assessmentStatus).toBe("unavailable");
+      expect(projection.readiness.ready).toEqual([]);
+    }
+  });
+
+  it("projects verified readiness and invalidates the state version for changed health counts", () => {
+    const health = {
+      progress: 83,
+      issues_count: 1,
+      critical_count: 0,
+      missing_songs: 1,
+      missing_artists: 0,
+      running_issues: 0,
+      jury_issues: 0,
+      televote_issues: 0,
+      result_issues: 0,
+    };
+    const original = buildV3OrganizerProjection({
+      edition, actorId: "organizer-1", live, tasks: [], health,
+    });
+    const updated = buildV3OrganizerProjection({
+      edition, actorId: "organizer-1", live, tasks: [],
+      health: { ...health, missing_songs: 0, jury_issues: 1 },
+    });
+    expect(original.readiness.assessmentStatus).toBe("verified");
+    expect(original.readiness.overall).toBe(83);
+    expect(original.readiness.incomplete.map(({ id }) => id)).toEqual(["entries"]);
+    expect(updated.readiness.incomplete.map(({ id }) => id)).toEqual(["jury"]);
+    expect(updated.stateVersion).not.toBe(original.stateVersion);
+  });
+
   it("stays normal only when both live state and unresolved task pressure are clear", () => {
     const projection = buildV3OrganizerProjection({
       edition,
