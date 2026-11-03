@@ -138,7 +138,7 @@ function TelevotingPage() {
     staleTime: 30_000,
     // When the backend is unavailable, recover automatically. Do not poll a
     // healthy backend or make status requests when there is no open round.
-    refetchInterval: (query) => query.state.data?.votingReady ? false : 60_000,
+    refetchInterval: (query) => query.state.data?.votingReady && !query.state.error ? false : 60_000,
     retry: 1,
   });
   const availability = resolveTelevotingAvailability(serverStatus, statusPending, statusError);
