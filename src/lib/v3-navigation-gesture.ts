@@ -27,7 +27,7 @@ const HORIZONTAL_BLOCK_SELECTOR = [
   'textarea',
   'select',
   'button',
-  '[contenteditable="true"]',
+  '[contenteditable]:not([contenteditable="false"])',
   '.overflow-x-auto',
   '.overflow-x-scroll',
 ].join(",");
