@@ -13,10 +13,11 @@ function fail(message) {
 
 function positiveInteger(name) {
   const raw = process.env[name];
-  if (!raw || !/^\d+$/.test(raw) || Number(raw) < 1) {
-    fail(`${name} must be an explicit positive integer; no synthetic load is guessed`);
+  const parsed = Number(raw);
+  if (!raw || !/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(parsed)) {
+    fail(`${name} must be an explicit positive safe integer; no synthetic load is guessed`);
   }
-  return Number(raw);
+  return parsed;
 }
 
 function requiredText(name) {
@@ -61,8 +62,18 @@ if (!targetRaw) fail("V3_CAPACITY_URL is required");
 const target = assertLoopbackUrl(targetRaw, "V3_CAPACITY_URL");
 const requestCount = positiveInteger("V3_CAPACITY_REQUESTS");
 const concurrency = positiveInteger("V3_CAPACITY_CONCURRENCY");
+const safetyMaxRequests = positiveInteger("V3_CAPACITY_SAFETY_MAX_REQUESTS");
+const safetyMaxConcurrency = positiveInteger("V3_CAPACITY_SAFETY_MAX_CONCURRENCY");
+const requestTimeoutMs = positiveInteger("V3_CAPACITY_REQUEST_TIMEOUT_MS");
+const maxResponseBytes = positiveInteger("V3_CAPACITY_MAX_RESPONSE_BYTES");
 if (concurrency > requestCount) {
   fail("V3_CAPACITY_CONCURRENCY cannot exceed V3_CAPACITY_REQUESTS");
+}
+if (requestCount > safetyMaxRequests) {
+  fail("V3_CAPACITY_REQUESTS exceeds explicit V3_CAPACITY_SAFETY_MAX_REQUESTS");
+}
+if (concurrency > safetyMaxConcurrency) {
+  fail("V3_CAPACITY_CONCURRENCY exceeds explicit V3_CAPACITY_SAFETY_MAX_CONCURRENCY");
 }
 
 const scenarioId = requiredText("V3_CAPACITY_SCENARIO_ID");
@@ -307,27 +318,82 @@ let transportErrors = 0;
 let responseBytes = 0;
 const statusCounts = new Map();
 
+class CapacitySafetyError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "CapacitySafetyError";
+  }
+}
+
+// Streaming and a per-response cap avoid allocating an unbounded arrayBuffer
+// when a local service unexpectedly returns a large payload.
+async function readBoundedResponse(response) {
+  const lengthHeader = response.headers.get("content-length");
+  const advertisedLength = lengthHeader === null ? null : Number(lengthHeader);
+  if (advertisedLength !== null && advertisedLength > maxResponseBytes) {
+    throw new CapacitySafetyError(
+      `response Content-Length exceeds V3_CAPACITY_MAX_RESPONSE_BYTES (${maxResponseBytes})`,
+    );
+  }
+  if (!response.body) return 0;
+
+  const reader = response.body.getReader();
+  let bytes = 0;
+  let completed = false;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        completed = true;
+        return bytes;
+      }
+      bytes += value.byteLength;
+      if (bytes > maxResponseBytes) {
+        throw new CapacitySafetyError(
+          `response exceeded V3_CAPACITY_MAX_RESPONSE_BYTES (${maxResponseBytes})`,
+        );
+      }
+    }
+  } finally {
+    if (!completed) await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+
+let safetyFailure = null;
+const activeRequests = new Set();
 async function worker() {
-  while (true) {
+  while (!safetyFailure) {
     const requestIndex = nextIndex++;
     if (requestIndex >= requestCount) return;
 
     const started = performance.now();
+    const controller = new AbortController();
+    activeRequests.add(controller);
+    const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
     try {
       const response = await fetch(target, {
         method,
         headers,
         body: method === "GET" || method === "DELETE" ? undefined : body,
         redirect: "manual",
+        signal: controller.signal,
       });
-      const buffer = await response.arrayBuffer();
-      responseBytes += buffer.byteLength;
+      const receivedBytes = await readBoundedResponse(response);
+      responseBytes += receivedBytes;
       statusCounts.set(response.status, (statusCounts.get(response.status) ?? 0) + 1);
       if (response.ok) successes += 1;
       else httpErrors += 1;
-    } catch {
-      transportErrors += 1;
+    } catch (error) {
+      if (error instanceof CapacitySafetyError) {
+        safetyFailure ??= error;
+        for (const active of activeRequests) active.abort();
+      } else if (!safetyFailure) {
+        transportErrors += 1;
+      }
     } finally {
+      clearTimeout(timeout);
+      activeRequests.delete(controller);
       latencies.push(performance.now() - started);
       sampleMemory();
     }
@@ -370,6 +436,9 @@ const endedAt = new Date().toISOString();
 
 if (dbSamplerTimer) clearInterval(dbSamplerTimer);
 if (dbSampleInFlight) await dbSampleInFlight;
+if (safetyFailure) {
+  fail(`local capacity rehearsal stopped by safety budget: ${safetyFailure.message}`);
+}
 if (dbSamplerError) {
   fail(`periodic local database sampling failed: ${dbSamplerError instanceof Error ? dbSamplerError.message : String(dbSamplerError)}`);
 }
@@ -402,6 +471,10 @@ const report = {
   requestedLoad: {
     requests: requestCount,
     concurrency,
+    safetyMaxRequests,
+    safetyMaxConcurrency,
+    requestTimeoutMs,
+    maxResponseBytes,
     databaseSampleIntervalMs: dbSampleIntervalMs,
   },
   runtime: {
