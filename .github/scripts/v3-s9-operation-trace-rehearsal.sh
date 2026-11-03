@@ -44,6 +44,8 @@ assert trace['schemaVersion'] == 2
 assert trace['summary']['eventCorrelationMismatches'] == 0
 assert trace['summary']['completedDeliveriesMissingReceipts'] == 0
 assert trace['summary']['noncompletedDeliveriesWithReceipts'] == 0
+assert trace['summary']['orphanConsumerReceipts'] == 0
+assert trace['events'][0]['orphanConsumerKeys'] == []
 assert trace['events'][0]['correlationMatchesOperation'] is True
 assert {d['receiptState'] for d in trace['events'][0]['deliveries']} == {'consistent'}
 serialized=json.dumps(trace, sort_keys=True)
@@ -57,7 +59,7 @@ log "PASS: authorized trace has correlation and no private payload metadata"
 log "A deliberately inconsistent event and delivery ledger must be diagnosable"
 INCONSISTENT_EVENT_ID='00000000-0000-4000-8000-00000000a904'
 INCONSISTENT_CORRELATION_ID='00000000-0000-4000-8000-00000000a905'
-db_exec "insert into private.v3_domain_events(id,event_type,aggregate_type,aggregate_id,aggregate_version,operation_id,correlation_id,actor_id,payload) values ('$INCONSISTENT_EVENT_ID','test.traced-inconsistent','test','trace-target-inconsistent',1,'$OPERATION_ID','$INCONSISTENT_CORRELATION_ID','$ADMIN_ID',jsonb_build_object('secret','$SECRET')); insert into private.v3_domain_event_outbox(event_id,consumer_key,status,attempt_count,completed_at) values ('$INCONSISTENT_EVENT_ID','trace.missing-receipt','completed',1,now()); insert into private.v3_domain_event_outbox(event_id,consumer_key,status,attempt_count) values ('$INCONSISTENT_EVENT_ID','trace.unexpected-receipt','pending',0); insert into private.v3_domain_event_consumer_receipts(event_id,consumer_key,result_metadata) values ('$INCONSISTENT_EVENT_ID','trace.unexpected-receipt',jsonb_build_object('secret','$SECRET'));"
+db_exec "insert into private.v3_domain_events(id,event_type,aggregate_type,aggregate_id,aggregate_version,operation_id,correlation_id,actor_id,payload) values ('$INCONSISTENT_EVENT_ID','test.traced-inconsistent','test','trace-target-inconsistent',1,'$OPERATION_ID','$INCONSISTENT_CORRELATION_ID','$ADMIN_ID',jsonb_build_object('secret','$SECRET')); insert into private.v3_domain_event_outbox(event_id,consumer_key,status,attempt_count,completed_at) values ('$INCONSISTENT_EVENT_ID','trace.missing-receipt','completed',1,now()); insert into private.v3_domain_event_outbox(event_id,consumer_key,status,attempt_count) values ('$INCONSISTENT_EVENT_ID','trace.unexpected-receipt','pending',0); insert into private.v3_domain_event_consumer_receipts(event_id,consumer_key,result_metadata) values ('$INCONSISTENT_EVENT_ID','trace.unexpected-receipt',jsonb_build_object('secret','$SECRET')),('$INCONSISTENT_EVENT_ID','trace.orphan-receipt',jsonb_build_object('secret','$SECRET'));"
 INCONSISTENT_TRACE="$(db_scalar "set role authenticated; set request.jwt.claim.sub = '$ADMIN_ID'; select public.admin_system_operation_trace('$OPERATION_ID')::text;")"
 python3 - "$INCONSISTENT_TRACE" "$INCONSISTENT_EVENT_ID" "$SECRET" <<'PY'
 import json,sys
@@ -67,8 +69,10 @@ assert trace['summary']['eventCount'] == 2
 assert trace['summary']['eventCorrelationMismatches'] == 1
 assert trace['summary']['completedDeliveriesMissingReceipts'] == 1
 assert trace['summary']['noncompletedDeliveriesWithReceipts'] == 1
+assert trace['summary']['orphanConsumerReceipts'] == 1
 event=next(event for event in trace['events'] if event['eventId'] == event_id)
 assert event['correlationMatchesOperation'] is False
+assert event['orphanConsumerKeys'] == ['trace.orphan-receipt']
 deliveries={delivery['consumerKey']:delivery for delivery in event['deliveries']}
 assert deliveries['trace.missing-receipt']['receiptState'] == 'missing_completed_receipt'
 assert deliveries['trace.unexpected-receipt']['receiptState'] == 'unexpected_noncompleted_receipt'
