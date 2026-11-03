@@ -20,6 +20,18 @@ function positiveInteger(name) {
   return parsed;
 }
 
+// Node timers clamp values above this runtime maximum to approximately 1 ms.
+// Reject overflow instead of silently turning an intended long timeout into a hot loop.
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
+function boundedTimerMilliseconds(name) {
+  const milliseconds = positiveInteger(name);
+  if (milliseconds > MAX_TIMER_DELAY_MS) {
+    fail(`${name} exceeds Node's maximum timer delay (${MAX_TIMER_DELAY_MS} ms)`);
+  }
+  return milliseconds;
+}
+
 function requiredText(name) {
   const value = process.env[name]?.trim();
   if (!value) fail(`${name} is required`);
@@ -64,7 +76,7 @@ const requestCount = positiveInteger("V3_CAPACITY_REQUESTS");
 const concurrency = positiveInteger("V3_CAPACITY_CONCURRENCY");
 const safetyMaxRequests = positiveInteger("V3_CAPACITY_SAFETY_MAX_REQUESTS");
 const safetyMaxConcurrency = positiveInteger("V3_CAPACITY_SAFETY_MAX_CONCURRENCY");
-const requestTimeoutMs = positiveInteger("V3_CAPACITY_REQUEST_TIMEOUT_MS");
+const requestTimeoutMs = boundedTimerMilliseconds("V3_CAPACITY_REQUEST_TIMEOUT_MS");
 const maxResponseBytes = positiveInteger("V3_CAPACITY_MAX_RESPONSE_BYTES");
 if (concurrency > requestCount) {
   fail("V3_CAPACITY_CONCURRENCY cannot exceed V3_CAPACITY_REQUESTS");
@@ -104,11 +116,13 @@ if (process.env.V3_CAPACITY_HEADERS_JSON) {
 const body = process.env.V3_CAPACITY_BODY;
 const dbRaw = process.env.DB_URL;
 if (dbRaw) assertLoopbackUrl(dbRaw, "DB_URL");
-const dbSampleIntervalMs = dbRaw ? positiveInteger("V3_CAPACITY_DB_SAMPLE_MS") : null;
+const dbSampleIntervalMs = dbRaw ? boundedTimerMilliseconds("V3_CAPACITY_DB_SAMPLE_MS") : null;
+const dbQueryTimeoutMs = dbRaw ? boundedTimerMilliseconds("V3_CAPACITY_DB_QUERY_TIMEOUT_MS") : null;
 
 async function psqlScalar(query) {
   const { stdout } = await execFileAsync("psql", [dbRaw, "-Atq", "-c", query], {
     encoding: "utf8",
+    timeout: dbQueryTimeoutMs,
   });
   return stdout.trim();
 }
@@ -476,6 +490,7 @@ const report = {
     requestTimeoutMs,
     maxResponseBytes,
     databaseSampleIntervalMs: dbSampleIntervalMs,
+    databaseQueryTimeoutMs: dbQueryTimeoutMs,
   },
   runtime: {
     nodeVersion: process.version,
