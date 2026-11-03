@@ -185,7 +185,7 @@ export const TERRA_GOVERNANCE_DOMAIN_REGISTRY: readonly TerraGovernanceDomainOwn
   {
     id: "world-documents",
     wave: "TG4",
-    implementationState: "foundation",
+    implementationState: "implemented",
     canonicalOwner: "generic institutional legal document Work/Version/Provision/Artifact state",
     canonicalTables: [
       "public.world_documents",
@@ -202,6 +202,7 @@ export const TERRA_GOVERNANCE_DOMAIN_REGISTRY: readonly TerraGovernanceDomainOwn
       "public.studio2_operation_receipts",
       "private.v3_domain_events",
       "private.v3_domain_event_outbox",
+      "private.v3_domain_event_consumer_receipts",
     ],
     commands: [
       "world.document.create",
@@ -209,7 +210,11 @@ export const TERRA_GOVERNANCE_DOMAIN_REGISTRY: readonly TerraGovernanceDomainOwn
       "world.document.version.update_draft",
       "world.document.version.publish",
     ],
-    projections: ["public.world_get_document_index_v1", "public.world_get_document_v1"],
+    projections: [
+      "public.world_get_document_index_v1",
+      "public.world_get_document_v1",
+      "public.world_get_document_archive_v1",
+    ],
     eventTypes: [
       "world.document.created",
       "world.document.version_created",
@@ -222,6 +227,7 @@ export const TERRA_GOVERNANCE_DOMAIN_REGISTRY: readonly TerraGovernanceDomainOwn
       "Provision semantic identity survives renumbering and relocation between versions.",
       "Artifacts are representations; the structured Version remains authoritative.",
       "Existing V3 Archive remains the historical owner; TG4 does not create a world_archive truth store.",
+      "Full exact-head CI certification is deferred until the stacked PR is retargeted to main because repository workflows only trigger for main-targeting pull requests.",
     ],
   },
 ] as const;
@@ -244,6 +250,7 @@ export const TERRA_GOVERNANCE_TG4_MIGRATIONS = [
   "20261103164000_v3_tg4_world_document_commands.sql",
   "20261103165000_v3_tg4_world_document_archive_projection.sql",
   "20261103165500_v3_tg4_world_document_hardening.sql",
+  "20261103165700_v3_tg4_world_document_identity_scope.sql",
 ] as const;
 
 export const TERRA_GOVERNANCE_TG4_EVENT_TYPES = [
