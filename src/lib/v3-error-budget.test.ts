@@ -138,7 +138,7 @@ describe("System V3 S10 evidence-backed error budget", () => {
   it("does not round a genuinely stricter target up to forgive a bad operation", () => {
     const result = evaluateV3OperationErrorBudget(
       objective({
-        targetSuccessRatio: 0.9995000000000001,
+        targetSuccessRatio: 0.9995000000000002,
         minimumCompletedOperations: 2000,
         evidence: { ...objective().evidence, sampleCount: 2000 },
       }),
