@@ -23,7 +23,7 @@ describe("Terra Solaris TG4 legal-source provenance privacy", () => {
       "revoke select on table public.world_document_versions from anon, authenticated",
     );
     const grant = source.match(
-      /grant select \(([\s\S]*?)\) on table public\.world_document_versions to anon, authenticated;/,
+      /grant select \(([^)]*)\) on table public\.world_document_versions to anon, authenticated;/,
     )?.[1];
     expect(grant).toBeDefined();
     expect(grant).toContain("structured_content");
@@ -37,7 +37,7 @@ describe("Terra Solaris TG4 legal-source provenance privacy", () => {
       "revoke select on table public.world_document_artifacts from anon, authenticated",
     );
     const grant = source.match(
-      /grant select \(([\s\S]*?)\) on table public\.world_document_artifacts to anon, authenticated;/,
+      /grant select \(([^)]*)\) on table public\.world_document_artifacts to anon, authenticated;/,
     )?.[1];
     expect(grant).toBeDefined();
     expect(grant).toContain("artifact_format");
