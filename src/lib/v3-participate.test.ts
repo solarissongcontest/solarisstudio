@@ -162,7 +162,64 @@ describe("projectV3Participate", () => {
     });
 
     expect(projection.voting.jury?.id).toBe("jury-current");
+    expect(projection.voting.currentCount).toBe(0); // Upcoming is not open.
+  });
+
+  it("prefers an actionable current jury ballot over an older blocked ballot", () => {
+    const pastBlocked = action("old-jury-closed", {
+      kind: "jury",
+      sourceState: "problem",
+      deliveryClass: "required",
+      actionRequired: false,
+    });
+    const currentOpen = action("new-jury-open", {
+      kind: "jury",
+      sourceState: "needs_attention",
+      deliveryClass: "required",
+      actionRequired: true,
+    });
+
+    // The task engine ranks problem ahead of needs_attention, but the voting
+    // overview must present the open ballot rather than claiming no window.
+    const projection = projectV3Participate({
+      actions: [pastBlocked, currentOpen],
+      journey: [],
+    });
+    expect(projection.voting.jury?.id).toBe("new-jury-open");
     expect(projection.voting.currentCount).toBe(1);
+    expect(projection.needsAttention.map((item) => item.id)).toEqual([
+      "old-jury-closed",
+      "new-jury-open",
+    ]);
+  });
+
+  it("counts only open voting actions as current, never future or waiting windows", () => {
+    const juryUpcoming = action("future-jury", {
+      kind: "jury",
+      sourceState: "upcoming",
+      deliveryClass: "required",
+    });
+    const voteOpen = action("open-televote", {
+      kind: "televote",
+      sourceState: "available",
+      deliveryClass: "optional",
+    });
+    const projection = projectV3Participate({
+      actions: [juryUpcoming, voteOpen],
+      journey: [],
+    });
+    expect(projection.voting.currentCount).toBe(1);
+    expect(projection.voting.jury?.sourceState).toBe("upcoming");
+    expect(projection.voting.televote?.sourceState).toBe("available");
+
+    const waiting = projectV3Participate({
+      actions: [
+        { ...juryUpcoming, sourceState: "waiting" },
+        { ...voteOpen, sourceState: "finished", completed: true },
+      ],
+      journey: [],
+    });
+    expect(waiting.voting.currentCount).toBe(0);
   });
 
   it("does not invent closed or unavailable voting truth when no canonical action exists", () => {
@@ -190,6 +247,65 @@ describe("projectV3Participate", () => {
     expect(projection.needsAttention).toEqual([]);
     expect(projection.optionalNow.map((item) => item.id)).toEqual(["urgent-public-vote"]);
     expect(projection.voting.televote?.id).toBe("urgent-public-vote");
+  });
+
+  it("does not present a future optional televote as open or as required upcoming work", () => {
+    const scheduledTelevote = action("televote-scheduled", {
+      kind: "televote",
+      sourceState: "upcoming",
+      deliveryClass: "optional",
+      opensAt: "2026-11-20T18:00:00.000Z",
+      deadline: "2026-11-20T20:00:00.000Z",
+    });
+
+    const projection = projectV3Participate({
+      actions: [scheduledTelevote],
+      journey: [],
+    });
+
+    expect(projection.optionalUpcoming.map((item) => item.id)).toEqual(["televote-scheduled"]);
+    expect(projection.optionalNow).toEqual([]);
+    expect(projection.next).toEqual([]);
+    expect(projection.needsAttention).toEqual([]);
+    expect(projection.voting.televote?.sourceState).toBe("upcoming");
+  });
+
+  it("keeps a required review problem visible even when editing is not authorized", () => {
+    const uneditableProblem = action("entry-declined", {
+      kind: "entry",
+      sourceState: "problem",
+      deliveryClass: "required",
+      impact: "blocking",
+      actionRequired: false,
+    });
+
+    const projection = projectV3Participate({
+      actions: [uneditableProblem],
+      journey: [],
+    });
+
+    expect(projection.needsAttention.map((item) => item.id)).toEqual(["entry-declined"]);
+    expect(projection.next).toEqual([]);
+    expect(projection.optionalNow).toEqual([]);
+  });
+
+  it("does not claim an expired optional voting window is a completed submission", () => {
+    const expiredUnsubmitted = action("expired-televote", {
+      kind: "televote",
+      sourceState: "finished",
+      deliveryClass: "optional",
+      completed: true,
+    });
+
+    const projection = projectV3Participate({
+      actions: [expiredUnsubmitted],
+      journey: [],
+    });
+
+    expect(projection.closed.map((item) => item.id)).toEqual(["expired-televote"]);
+    expect(projection.completed).toEqual([]);
+    expect(projection.optionalNow).toEqual([]);
+    expect(projection.voting.currentCount).toBe(0);
   });
 
   it("uses journey evidence as-is instead of inventing missing responsibilities", () => {

@@ -17,7 +17,9 @@ export type V3ParticipateProjection = {
   next: readonly V3ActionProjection[];
   waiting: readonly V3ActionProjection[];
   optionalNow: readonly V3ActionProjection[];
+  optionalUpcoming: readonly V3ActionProjection[];
   completed: readonly V3ActionProjection[];
+  closed: readonly V3ActionProjection[];
 };
 
 function isOptional(action: V3ActionProjection) {
@@ -29,9 +31,26 @@ function currentVotingAction(
   kind: "jury" | "televote",
 ) {
   return (
+    // A new open ballot must not disappear behind an older blocked ballot:
+    // sortSolarisTasks intentionally ranks "problem" ahead of "needs_attention"
+    // for the Task Center, but the Voting overview owns availability first.
+    actions.find((action) => action.kind === kind && isCurrentVotingAction(action)) ??
     actions.find((action) => action.kind === kind && !action.completed) ??
     actions.find((action) => action.kind === kind) ??
     null
+  );
+}
+
+/**
+ * "Current" means a server-authoritative voting window can be acted on now.
+ * An upcoming, waiting, finished or completed voting task may still be shown
+ * in the overview, but must not inflate the current-action count.
+ */
+function isCurrentVotingAction(action: V3ActionProjection | null): boolean {
+  return Boolean(
+    action &&
+    !action.completed &&
+    (action.sourceState === "available" || action.sourceState === "needs_attention"),
   );
 }
 
@@ -54,32 +73,51 @@ export function projectV3Participate(
   const next: V3ActionProjection[] = [];
   const waiting: V3ActionProjection[] = [];
   const optionalNow: V3ActionProjection[] = [];
+  const optionalUpcoming: V3ActionProjection[] = [];
   const completed: V3ActionProjection[] = [];
+  const closed: V3ActionProjection[] = [];
 
   for (const action of bootstrap.actions) {
+    // A closed optional voting window is not a completed submission. The task
+    // engine deliberately distinguishes "finished" from "completed".
+    if (action.sourceState === "finished") {
+      closed.push(action);
+      continue;
+    }
     if (action.completed) {
       completed.push(action);
       continue;
     }
 
-    // Server-owned waiting truth outranks presentation class. This includes an
-    // optional action whose window has not opened yet: it is optional, but it is
-    // not "Optional now" until the canonical action state says it is available.
-    if (action.sourceState === "waiting") {
-      waiting.push(action);
-      continue;
-    }
-
-    if (isOptional(action)) {
-      optionalNow.push(action);
-      continue;
-    }
-
-    if (action.actionRequired) {
+    // A required problem stays visible even when the participant cannot edit
+    // it yet. actionRequired controls ability to act, not whether the problem
+    // exists. Never promote optional tasks into required attention.
+    if (!isOptional(action) && (
+      action.sourceState === "problem" || action.sourceState === "needs_attention"
+    )) {
       needsAttention.push(action);
       continue;
     }
 
+    // State, not the presence of a deadline or urgency, determines whether
+    // something is open. Future optional windows stay out of "Optional now".
+    if (action.sourceState === "waiting") {
+      waiting.push(action);
+      continue;
+    }
+    if (action.sourceState === "upcoming") {
+      if (isOptional(action)) optionalUpcoming.push(action);
+      else next.push(action);
+      continue;
+    }
+    if (isOptional(action)) {
+      optionalNow.push(action);
+      continue;
+    }
+    if (action.actionRequired) {
+      needsAttention.push(action);
+      continue;
+    }
     next.push(action);
   }
 
@@ -93,12 +131,14 @@ export function projectV3Participate(
     voting: {
       jury,
       televote,
-      currentCount: Number(Boolean(jury)) + Number(Boolean(televote)),
+      currentCount: Number(isCurrentVotingAction(jury)) + Number(isCurrentVotingAction(televote)),
     },
     needsAttention,
     next,
     waiting,
     optionalNow,
+    optionalUpcoming,
     completed,
+    closed,
   };
 }

@@ -26,6 +26,7 @@ export type V3ParticipateScreenProps = {
 };
 
 function toneForAction(action: V3ActionProjection) {
+  if (action.sourceState === "finished") return "neutral" as const;
   if (action.sourceState === "problem") return "problem" as const;
   if (action.urgency === "immediate" || action.urgency === "high") return "urgent" as const;
   if (action.actionRequired) return "required" as const;
@@ -34,10 +35,11 @@ function toneForAction(action: V3ActionProjection) {
 }
 
 function statusToneForAction(action: V3ActionProjection): V3StatusTone {
+  if (action.sourceState === "finished") return "neutral";
   if (action.sourceState === "problem") return "danger";
   if (action.completed) return "success";
+  if (action.sourceState === "upcoming" || action.sourceState === "waiting") return "progress";
   if (action.actionRequired) return "required";
-  if (action.sourceState === "waiting") return "progress";
   return "neutral";
 }
 
@@ -49,8 +51,13 @@ function formatActionTime(value: string) {
 
 function timingMeta(action: V3ActionProjection, delegationLabel?: string | null) {
   const deadline = action.deadline ? formatActionTime(action.deadline) : null;
-  const opensAt = !deadline && action.opensAt ? formatActionTime(action.opensAt) : null;
-  const timing = deadline ? `Closes ${deadline}` : opensAt ? `Opens ${opensAt}` : null;
+  const opensAt = action.opensAt ? formatActionTime(action.opensAt) : null;
+  // Future voting must show its opening time before its closing deadline.
+  const timing = action.sourceState === "upcoming"
+    ? opensAt ? `Opens ${opensAt}` : null
+    : action.sourceState === "finished"
+      ? deadline ? `Closed ${deadline}` : null
+      : deadline ? `Closes ${deadline}` : null;
   const values = [timing, delegationLabel ?? null].filter(Boolean) as string[];
 
   if (!values.length) return undefined;
@@ -92,10 +99,12 @@ function ActionList({
 }
 
 function votingStateLabel(action: V3ActionProjection) {
-  if (action.completed) return action.kind === "jury" ? "Submitted" : "Finished";
-  if (action.sourceState === "problem") return "Needs attention";
+  if (action.sourceState === "finished") return "Closed";
+  if (action.completed) return "Submitted";
+  if (action.sourceState === "problem" || action.sourceState === "needs_attention") return "Needs attention";
   if (action.sourceState === "available") return "Open";
-  if (action.sourceState === "waiting") return action.opensAt ? "Upcoming" : "Waiting";
+  if (action.sourceState === "upcoming") return "Upcoming";
+  if (action.sourceState === "waiting") return "Waiting";
   return "Current";
 }
 
@@ -223,6 +232,12 @@ export function V3ParticipateScreen({
         </V3Section>
       ) : null}
 
+      {participate.optionalUpcoming.length ? (
+        <V3Section title="Optional later" meta={<V3StatusChip>Upcoming</V3StatusChip>}>
+          <ActionList actions={participate.optionalUpcoming} progressByActionId={progressByActionId} delegationLabel={delegationLabel} />
+        </V3Section>
+      ) : null}
+
       {participate.completed.length ? (
         <V3Section title="Completed" meta={`${participate.completed.length} recorded`}>
           <details className="border-y border-white/[0.07]">
@@ -232,6 +247,21 @@ export function V3ParticipateScreen({
             <div className="space-y-2 pb-3">
               {participate.completed.slice(0, 8).map((action) => (
                 <V3ActionCard key={action.id} title={action.title} description={action.description} tone="complete" to={action.route} trailing={false} />
+              ))}
+            </div>
+          </details>
+        </V3Section>
+      ) : null}
+
+      {participate.closed.length ? (
+        <V3Section title="Closed opportunities" meta={`${participate.closed.length} closed`}>
+          <details className="border-y border-white/[0.07]">
+            <summary className="min-h-11 cursor-pointer list-none py-3 text-sm font-semibold text-white/72 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45">
+              View closed activities
+            </summary>
+            <div className="space-y-2 pb-3">
+              {participate.closed.slice(0, 8).map((action) => (
+                <V3ActionCard key={action.id} title={action.title} description={action.description} tone="neutral" to={action.route} trailing={false} />
               ))}
             </div>
           </details>
