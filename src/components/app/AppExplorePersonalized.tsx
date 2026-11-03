@@ -28,12 +28,12 @@ export function AppExplorePersonalized() {
     [shows.data, publicEditions],
   );
   const visibleRecents = useMemo(
-    () => visibleRecentShowDestinations(recents, publicShows),
+    () => visibleRecentShowDestinations(recents, publicShows).slice(0, 4),
     [recents, publicShows],
   );
 
   useEffect(() => {
-    setRecents(readPublicRecents().slice(0, 4));
+    setRecents(readPublicRecents());
   }, []);
 
   useEffect(() => {
