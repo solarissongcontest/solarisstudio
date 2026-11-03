@@ -103,6 +103,7 @@ describe("V3 Organizer projection", () => {
   it("does not certify missing health evidence", () => {
     const p = buildV3OrganizerProjection({ edition, actorId: "organizer-1", live, tasks: [], health: null });
     expect(p.readiness.assessmentStatus).toBe("unavailable");
+    expect(p.readiness.overall).toBeNull();
     expect(p.readiness.ready).toEqual([]);
     expect(p.systemHealth.state).toBe("unknown");
     expect(p.systemHealth.detail).toContain("unavailable");
