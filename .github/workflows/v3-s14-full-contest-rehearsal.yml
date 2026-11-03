@@ -27,7 +27,7 @@ concurrency:
 jobs:
   stateful-rehearsal:
     name: One-state contest lifecycle through Archive + S15 zero-orphan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
