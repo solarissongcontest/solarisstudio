@@ -94,6 +94,10 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # This runner exercises the same S14 Grand Final Playwright browser paths.
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
       - name: Start disposable local Supabase
         run: supabase start
 
