@@ -4,6 +4,10 @@ import { describe, expect, it } from "vitest";
 
 const driver = readFileSync(".github/scripts/v3-full-contest-rehearsal.sh", "utf8");
 const workflow = readFileSync(".github/workflows/v3-s14-full-contest-rehearsal.yml", "utf8");
+const outboxSchema = readFileSync(
+  "supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql",
+  "utf8",
+);
 
 describe("S14 Grand Final failure evidence", () => {
   it("tracks contest extensions as first-class runtime failure stages", () => {
@@ -61,6 +65,31 @@ describe("S14 Grand Final failure evidence", () => {
   it("does not preserve the resolved #651 synthetic blocker", () => {
     expect(driver).not.toContain("#651 canonical Televote publication/readiness mismatch");
     expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"');
+  });
+
+  it("records Archive outbox provenance using the real composite key", () => {
+    expect(outboxSchema).toContain("primary key (event_id, consumer_key)");
+    expect(driver).toContain(
+      "select event_id::text || ':' || consumer_key from private.v3_domain_event_outbox",
+    );
+    expect(driver).toContain(
+      "and consumer_key='edition.tasks' and status='completed' limit 1;",
+    );
+    expect(driver).not.toContain(
+      "select id::text from private.v3_domain_event_outbox",
+    );
+    expect(driver).toContain('"outboxId": archive_outbox_id');
+  });
+
+  it("classifies failures during final evidence writing without blaming completed Archive", () => {
+    expect(driver).toContain('CURRENT_STAGE="final-evidence"');
+    expect(driver).toContain(
+      '"results-runtime-reconciliation", "final-evidence"',
+    );
+    expect(workflow).toContain('"results-runtime-reconciliation", "final-evidence"');
+    expect(driver.indexOf('CURRENT_STAGE="final-evidence"')).toBeGreaterThan(
+      driver.indexOf("run_stage stage-10-archive run_s14_stage_10_archive"),
+    );
   });
 
   it("keeps the merged stateful driver syntactically valid", () => {
