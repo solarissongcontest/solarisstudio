@@ -13,9 +13,7 @@ describe("Preclearance case isolation", () => {
   });
 
   it("does not retain a removed, unauthorized, or out-of-date selected question", () => {
-    expect(source).toContain("casesQuery.isSuccess ? casesQuery.data : []");
-    expect(source).toContain('item.case_kind === "rule_question"');
-    expect(source).toContain("questions.find((item) => item.id === selectedCase)?.id");
+    expect(source).toContain("resolvePrivateRuleQuestionSelection(casesQuery.data, selectedCase, casesQuery.isSuccess)");
     expect(source).toContain('disabled={!casesQuery.isSuccess}');
     expect(source).toContain('detailQuery.data?.case.id === caseId');
     expect(source).toContain('detailQuery.data.case.case_kind === "rule_question"');
