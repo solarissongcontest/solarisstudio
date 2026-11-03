@@ -2,7 +2,8 @@ begin;
 
 -- S9 forward fix: show when a DomainEvent's correlation diverges from its
 -- operation or when an outbox delivery's terminal state disagrees with its
--- immutable consumer receipt. Diagnostics only: no canonical state mutation.
+-- immutable consumer receipt, including receipts without any matching outbox
+-- delivery. Diagnostics only: no canonical state mutation.
 -- The trace stays exact-operation scoped, system.read-gated and payload-free.
 
 select public.v3_register_migration_contract(
@@ -58,6 +59,15 @@ begin
         'showId', event_row.show_id,
         'occurredAt', event_row.occurred_at,
         'schemaVersion', event_row.schema_version,
+        'orphanConsumerKeys', coalesce((
+          select jsonb_agg(consumer_receipt.consumer_key order by consumer_receipt.consumer_key)
+          from private.v3_domain_event_consumer_receipts consumer_receipt
+          left join private.v3_domain_event_outbox delivery
+            on delivery.event_id = consumer_receipt.event_id
+           and delivery.consumer_key = consumer_receipt.consumer_key
+          where consumer_receipt.event_id = event_row.id
+            and delivery.event_id is null
+        ), '[]'::jsonb),
         'deliveries', coalesce((
           select jsonb_agg(
             jsonb_build_object(
@@ -140,6 +150,17 @@ begin
          and consumer_receipt.consumer_key = delivery.consumer_key
         where event_row.operation_id = p_operation_id
           and delivery.status <> 'completed'
+      ),
+      'orphanConsumerReceipts', (
+        select count(*)
+        from private.v3_domain_events event_row
+        join private.v3_domain_event_consumer_receipts consumer_receipt
+          on consumer_receipt.event_id = event_row.id
+        left join private.v3_domain_event_outbox delivery
+          on delivery.event_id = consumer_receipt.event_id
+         and delivery.consumer_key = consumer_receipt.consumer_key
+        where event_row.operation_id = p_operation_id
+          and delivery.event_id is null
       ),
       'pendingDeliveries', (
         select count(*)
