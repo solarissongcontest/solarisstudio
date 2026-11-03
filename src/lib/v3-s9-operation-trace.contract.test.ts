@@ -45,6 +45,9 @@ describe("System V3 S9 operation trace", () => {
   });
 
   it("surfaces canonical correlation and delivery-receipt inconsistencies without leaking payloads", () => {
+    expect(integrityMigration).toContain("v3_register_migration_contract(");
+    expect(integrityMigration).toContain("'v3.s9.operation-trace-receipt-integrity'");
+    expect(integrityMigration).toContain("'forward_fix_only'");
     expect(integrityMigration).toContain("create or replace function public.admin_system_operation_trace(");
     expect(integrityMigration).toContain("'schemaVersion', 2");
     expect(integrityMigration).toContain("'eventCorrelationId', event_row.correlation_id");
