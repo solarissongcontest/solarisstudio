@@ -164,7 +164,7 @@ function ConfirmationsPage() {
       !latest || round.edition_number > latest.edition_number ? round : latest,
     null,
   );
-  const overviewEditionId = overviewRound?.edition_id ?? null;
+  const overviewEditionId = overviewRound?.edition_id ?? accountRequirements[0]?.edition_id ?? accountResponses[0]?.edition_id ?? null;
   const preferredAccountResponse = preferredCountryConfirmationResponse(
     accountResponses,
     overviewEditionId,
