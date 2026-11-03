@@ -8,6 +8,40 @@ export type MergedTelevoteConversionState = Awaited<
   ReturnType<typeof getMergedTelevoteConversionServer>
 >;
 
+type StoredCalculationRow = {
+  country_code: string;
+  calculation_version: number;
+  final_points: number;
+};
+
+function parseStoredCalculationRows(value: unknown): StoredCalculationRow[] {
+  if (!Array.isArray(value)) {
+    throw new Error("Calculation readback result rows must be an array");
+  }
+  return value.map((item: unknown, index: number): StoredCalculationRow => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw new Error(`Calculation readback row ${index} is invalid`);
+    }
+    const row = item as Record<string, unknown>;
+    if (
+      typeof row.country_code !== "string" ||
+      row.country_code.trim() === "" ||
+      typeof row.calculation_version !== "number" ||
+      !Number.isSafeInteger(row.calculation_version) ||
+      typeof row.final_points !== "number" ||
+      !Number.isSafeInteger(row.final_points) ||
+      row.final_points < 0
+    ) {
+      throw new Error(`Calculation readback row ${index} has invalid result fields`);
+    }
+    return {
+      country_code: row.country_code,
+      calculation_version: row.calculation_version,
+      final_points: row.final_points,
+    };
+  });
+}
+
 export type OfficialCalculationReadbackResult = {
   version: number;
   distributedTotal: number;
@@ -33,15 +67,16 @@ function assertCommittedCalculationState(
   if (state.round.results_outdated) {
     throw new Error("Calculation readback is still marked outdated");
   }
-  if (state.stored.length !== state.participants.length) {
+  const storedRows = parseStoredCalculationRows(state.stored);
+  if (storedRows.length !== state.participants.length) {
     throw new Error(
-      `Calculation readback returned ${state.stored.length} result rows for ${state.participants.length} participants`,
+      `Calculation readback returned ${storedRows.length} result rows for ${state.participants.length} participants`,
     );
   }
 
   const participants = new Set(state.participants);
   const resultCodes = new Set(
-    state.stored.map((row) => String(row.country_code)),
+    storedRows.map((row) => row.country_code),
   );
   if (
     resultCodes.size !== participants.size ||
@@ -50,8 +85,8 @@ function assertCommittedCalculationState(
     throw new Error("Calculation readback result rows do not match the round lineup");
   }
   if (
-    state.stored.some(
-      (row) => Number(row.calculation_version) !== expectedVersion,
+    storedRows.some(
+      (row) => row.calculation_version !== expectedVersion,
     )
   ) {
     throw new Error("Calculation readback contains rows from another version");
@@ -64,8 +99,8 @@ function resultSummaryFromState(
 ) {
   return {
     version,
-    distributedTotal: state.stored.reduce(
-      (total, row) => total + Number(row.final_points ?? 0),
+    distributedTotal: parseStoredCalculationRows(state.stored).reduce(
+      (total, row) => total + row.final_points,
       0,
     ),
     totalPoints: Number(state.round.total_points_to_distribute),

@@ -21,7 +21,15 @@ describe("S14 Grand Final result calculation readback", () => {
     expect(readback).toContain("state.round.calculation_version !== expectedVersion");
     expect(readback).toContain('state.round.results_status !== "calculated"');
     expect(readback).toContain("state.round.results_outdated");
-    expect(readback).toContain("state.stored.length !== state.participants.length");
+    expect(readback).toContain(
+      "const storedRows = parseStoredCalculationRows(state.stored)",
+    );
+    expect(readback).toContain(
+      "storedRows.length !== state.participants.length",
+    );
+    expect(readback).toContain(
+      "Calculation readback row ${index} has invalid result fields",
+    );
     expect(readback).toContain("Calculation readback contains rows from another version");
   });
 
