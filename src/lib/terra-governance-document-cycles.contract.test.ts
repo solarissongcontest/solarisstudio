@@ -20,7 +20,7 @@ describe("Terra Solaris Governance TG4 provision hierarchy cycle protection", ()
 
   it("traverses the final same-Version parent graph instead of relying on direct self-parent checks", () => {
     expect(sql).toContain("with recursive ancestors as");
-    expect(sql).toContain("where row.id = new.id");
+    expect(sql).toContain("where seed_row.id = new.id");
     expect(sql).toContain("parent.document_version_id = new.document_version_id");
     expect(sql).toContain("parent.provision_id = ancestor.parent_provision_id");
     expect(sql).toContain("parent.provision_id = any(ancestor.visited)");
