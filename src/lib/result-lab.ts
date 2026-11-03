@@ -445,7 +445,7 @@ export function resultLabCsv(rows: ResultLabRow[]) {
     // Prefix only suspicious text values; legitimate negative numeric ranks
     // remain numbers, and the original published names remain unchanged.
     const safeText =
-      typeof value === "string" && /^[\s\u0000-\u001f]*[=+\-@]/u.test(text)
+      typeof value === "string" && /^[\s\p{Cc}]*[=+\-@]/u.test(text)
         ? `'${text}`
         : text;
     return `"${safeText.replaceAll('"', '""')}"`;
