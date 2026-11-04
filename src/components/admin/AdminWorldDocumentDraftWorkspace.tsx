@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { AlertCircle, CheckCircle2, FilePlus2, RefreshCw } from "lucide-react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
+import { WorldDocumentProvisionEditor } from "@/components/admin/WorldDocumentProvisionEditor";
 import { AdminPageHeader } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
@@ -17,6 +18,12 @@ import {
   type WorldDocumentKind,
   type WorldDocumentVisibility,
 } from "@/lib/world-document-draft-model";
+import {
+  MAX_WORLD_PROVISIONS_IN_EDITOR,
+  toWorldProvisionCommandRows,
+  validateWorldDocumentProvisions,
+  type WorldDocumentProvision,
+} from "@/lib/world-document-provisions";
 
 type Organization = { id: string; slug: string; short_name: string; official_name: string };
 type Review = {
@@ -87,6 +94,7 @@ export function AdminWorldDocumentDraftWorkspace() {
   const [visibility, setVisibility] = useState<WorldDocumentVisibility>("public");
   const [draftTitle, setDraftTitle] = useState("");
   const [draftText, setDraftText] = useState("");
+  const [draftProvisions, setDraftProvisions] = useState<WorldDocumentProvision[]>([]);
   const [operation, setOperation] = useState<OperationState | null>(null);
   const [notice, setNotice] = useState("");
 
@@ -150,10 +158,36 @@ export function AdminWorldDocumentDraftWorkspace() {
     },
   });
 
+  const pendingDraft = snapshot.data?.pendingDraft;
+  const pendingDraftDetails = useQuery({
+    queryKey: ["tg4-organizer-unpublished-version", organizationSlug, documentSlug, pendingDraft?.versionNumber],
+    enabled: Boolean(snapshot.data?.allowedActions.manage && organization && pendingDraft),
+    staleTime: 0,
+    retry: 1,
+    queryFn: async () => {
+      if (!pendingDraft || !snapshot.data) throw new Error("An exact unpublished version is required.");
+      const { data, error } = await db.rpc("world_get_document_v1", {
+        p_organization_slug: organizationSlug,
+        p_document_slug: documentSlug,
+        p_version_number: pendingDraft.versionNumber,
+      });
+      if (error) throw error;
+      const value = parseWorldDocumentDraftSnapshot(data);
+      if (value.documentId !== snapshot.data.documentId ||
+          value.organization.organizationId !== snapshot.data.organization.organizationId ||
+          value.version?.versionId !== pendingDraft.versionId ||
+          value.version.publicationState !== "draft") {
+        throw new Error("The selected unpublished version no longer matches canonical history.");
+      }
+      return value;
+    },
+  });
+
   useEffect(() => {
-    setDraftTitle(snapshot.data?.version?.publicationState === "draft"
-      ? snapshot.data.version.title : "");
-    setDraftText("");
+    const source = snapshot.data?.version;
+    setDraftTitle(source?.publicationState === "published" ? source.title : snapshot.data?.title ?? "");
+    setDraftText(source?.publicationState === "published" ? source.plainText : "");
+    setDraftProvisions(source?.publicationState === "published" ? source.provisions : []);
   }, [snapshot.data?.version?.versionId, snapshot.data?.documentId]);
 
   const switchOrganization = (slug: string) => {
@@ -223,26 +257,41 @@ export function AdminWorldDocumentDraftWorkspace() {
     const doc = snapshot.data;
     if (!doc?.allowedActions.manage || !doc.revision || !organization ||
         doc.hasUnpublishedDraft) return;
-    const validation = validateWorldDocumentDraft({ title: draftTitle, plainText: draftText });
+    const validation = validateWorldDocumentDraft({ title: draftTitle, plainText: draftText })
+      ?? validateWorldDocumentProvisions(draftProvisions);
     if (validation) { setNotice(validation); return; }
+    const provisions = toWorldProvisionCommandRows(draftProvisions);
+    // The complete version snapshot is used for a new draft; a source version
+    // is never overwritten. Its structured root and retained provision keys
+    // must not disappear merely because this form edits plain text.
+    const structuredContent = doc.version?.structuredContent ?? {};
+    const sourceVersionId = doc.version?.publicationState === "published"
+      ? doc.version.versionId : null;
     openReview("world.document.version.create", "world_create_document_version_v1",
-      { documentId: doc.documentId, title: draftTitle.trim(), expectedDocumentRevision: doc.revision },
+      {
+        documentId: doc.documentId, title: draftTitle.trim(),
+        plainText: draftText, structuredContent, provisions,
+        sourceVersionId, expectedDocumentRevision: doc.revision,
+      },
       {
         p_document_id: doc.documentId,
         p_title: draftTitle.trim(),
-        p_structured_content: {},
+        p_structured_content: structuredContent,
         p_plain_text: draftText,
         p_effective_from: null,
         p_effective_to: null,
-        p_source_version_id: doc.version?.versionId ?? null,
+        p_source_version_id: sourceVersionId,
         p_source_description: null,
         p_source_provenance: {},
-        p_provisions: [],
+        p_provisions: provisions,
         p_expected_document_revision: doc.revision,
       },
-      "Create a new unpublished legal draft",
+      "Create a new unpublished structured legal draft",
       [organization.official_name, doc.title, `Draft title: ${draftTitle.trim()}`,
-        `Based on revision ${doc.revision}`, "No publication or member notification"],
+        `Source version: ${doc.version?.versionNumber ?? "first"}`,
+        `Structured provisions: ${provisions.length}`,
+        `Based on document revision ${doc.revision}`,
+        "No publication, history replacement or member notification"],
       doc.slug,
     );
   };
@@ -408,9 +457,59 @@ export function AdminWorldDocumentDraftWorkspace() {
                   ) : !snapshot.data.allowedActions.manage ? (
                     <p role="alert">Your account lacks the institution document-management capability. The server remains authoritative.</p>
                   ) : snapshot.data.hasUnpublishedDraft ? (
-                    <div className="space-y-2 border-l-2 border-primary pl-4">
-                      <p className="font-semibold">An unpublished draft already exists.</p>
-                      <p className="text-sm text-muted-foreground">Version {snapshot.data.version.versionNumber} is held for editing. This creation-only workspace will not overwrite its structured provisions, provenance or content.</p>
+                    <div className="space-y-4 border-l-2 border-primary pl-4">
+                      <p className="font-semibold">An unpublished version already exists.</p>
+                      <p className="text-sm text-muted-foreground">
+                        Version {pendingDraft?.versionNumber} · {pendingDraft?.title}.
+                        A second draft cannot be created from this workspace until the
+                        current version is resolved through the governed lifecycle.
+                      </p>
+                      {pendingDraftDetails.isPending ? (
+                        <p role="status" className="text-sm">Reading the exact pending version…</p>
+                      ) : pendingDraftDetails.isError || !pendingDraftDetails.data?.version ? (
+                        <div role="alert" className="space-y-2">
+                          <p>Unpublished text is not available. Do not assume it is empty.</p>
+                          <button type="button" className={secondaryClass}
+                            onClick={() => void pendingDraftDetails.refetch()}>Retry version read</button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-xs text-muted-foreground">
+                            Read-only unpublished text · revision {pendingDraftDetails.data.version.revision}
+                          </p>
+                          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-border/60 p-3 font-sans text-sm leading-6">
+                            {pendingDraftDetails.data.version.plainText || "No plain-text body"}
+                          </pre>
+                          <p className="text-sm font-semibold">
+                            {pendingDraftDetails.data.version.provisions.length} preserved structured provisions
+                          </p>
+                          <ul className="max-h-64 space-y-2 overflow-auto text-sm">
+                            {pendingDraftDetails.data.version.provisions.slice(0, 20).map((row) => (
+                              <li key={row.semanticKey}>
+                                <span className="font-medium">{row.displayLabel || row.semanticKey}</span>
+                                {row.heading ? ` · ${row.heading}` : ""}
+                              </li>
+                            ))}
+                          </ul>
+                          {pendingDraftDetails.data.version.provisions.length > 20 && (
+                            <p className="text-xs text-muted-foreground">
+                              Showing the first 20 provisions. No data has been modified.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Draft replacement is intentionally disabled until a canonical
+                        read model includes the provenance fields required to preserve all legal content.
+                      </p>
+                    </div>
+                  ) : snapshot.data.version && snapshot.data.version.provisions.length > MAX_WORLD_PROVISIONS_IN_EDITOR ? (
+                    <div role="alert" className="space-y-2">
+                      <p>The source has {snapshot.data.version.provisions.length} structured provisions,
+                        exceeding this workspace's safe editing limit of {MAX_WORLD_PROVISIONS_IN_EDITOR}.</p>
+                      <p className="text-sm text-muted-foreground">
+                        A new draft is blocked instead of accidentally discarding or truncating legal text.
+                      </p>
                     </div>
                   ) : (
                     <form className="space-y-4" onSubmit={reviewVersion}>
@@ -426,13 +525,20 @@ export function AdminWorldDocumentDraftWorkspace() {
                         <input className={fieldClass} required maxLength={180} value={draftTitle}
                           onChange={(e) => setDraftTitle(e.target.value)} />
                       </label>
-                      <label className="block space-y-1 text-sm">Plain legal text
-                        <textarea className={fieldClass + " min-h-64 resize-y leading-6"} required maxLength={100000}
+                      <label className="block space-y-1 text-sm">Document plain-text body
+                        <textarea className={fieldClass + " min-h-48 resize-y leading-6"} required maxLength={100000}
                           value={draftText} onChange={(e) => setDraftText(e.target.value)}
-                          placeholder="Enter the draft legal text. Nothing is published at this stage." />
+                          placeholder="Enter the document-level text. Article text lives in the structured provisions below." />
                       </label>
+                      <WorldDocumentProvisionEditor
+                        rows={draftProvisions}
+                        onChange={setDraftProvisions}
+                        disabled={Boolean(operation && ["review", "checking", "reconcile"].includes(operation.status))}
+                      />
                       <p className="text-xs leading-5 text-muted-foreground">
-                        This plain-text draft starts with no structured provisions. It must be reviewed and prepared through the governed legal publication workflow before it can become effective.
+                        The new version inherits the source's structured content and persistent provision keys.
+                        Removing an article excludes it from the new unpublished version but does not erase history.
+                        Only the canonical server can publish legal text or change its effective date.
                       </p>
                       <button type="submit" className={buttonClass}
                         disabled={!snapshot.data.revision || Boolean(operation && ["review","checking","reconcile"].includes(operation.status))}>
