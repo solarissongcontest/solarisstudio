@@ -91,6 +91,28 @@ describe("public institutional legal text comparison", () => {
     expect(changes.find((c) => c.key === "amended")?.before?.text).toBe("Line one\n  Line two");
   });
 
+  it("compares legacy unstructured legal text without pretending it contains numbered provisions", () => {
+    const previous = parsePublicWorldDocumentVersion({
+      ...document(baseVersion, []),
+      version: { ...baseVersion, plainText: "Old legal text\n  Paragraph two", provisions: [] },
+    }, "guard", "charter", 1, "doc-1");
+    const current = parsePublicWorldDocumentVersion({
+      ...document(nextVersion, []),
+      version: { ...nextVersion, plainText: "New legal text\n  Paragraph two", provisions: [] },
+    }, "guard", "charter", 2, "doc-1");
+    const diff = comparePublicWorldVersions(previous, current);
+    expect(diff).toHaveLength(1);
+    expect(diff[0].key).toBe("__document_plain_text__");
+    expect(diff[0].kind).toBe("modified");
+    expect(diff[0].before?.text).toBe("Old legal text\n  Paragraph two");
+  });
+
+  it("refuses to report a law unchanged when published source text is missing", () => {
+    const before = parsePublicWorldDocumentVersion(document(baseVersion, []), "guard", "charter", 1, "doc-1");
+    const after = parsePublicWorldDocumentVersion(document(nextVersion, []), "guard", "charter", 2, "doc-1");
+    expect(() => comparePublicWorldVersions(before, after)).toThrow(/text is missing/);
+  });
+
   it("rejects comparisons across documents or in reverse order", () => {
     const before = parsePublicWorldDocumentVersion(document(baseVersion, []), "guard", "charter", 1, "doc-1");
     const after = parsePublicWorldDocumentVersion(document(nextVersion, []), "guard", "charter", 2, "doc-1");
