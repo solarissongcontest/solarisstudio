@@ -174,6 +174,9 @@ describe("installed app navigation state", () => {
     rememberAppLocation("/jury-voting", "", 620, storage);
     rememberAppLocation("/confirmations", "", 430, storage);
     rememberAppLocation("/broadcast", "", 250, storage);
+    rememberAppLocation("/broadcast/show-123", "", 250, storage);
+    rememberAppLocation("/show-mode", "", 250, storage);
+    rememberAppLocation("/show-mode/round-123", "", 250, storage);
 
     expect(getAppTabDestination("participate", true, storage)).toMatchObject({
       pathname: "/participate",
@@ -183,6 +186,39 @@ describe("installed app navigation state", () => {
     // Critical workflow navigation still resolves its semantic tab for proper
     // direct links, but must not change primary tab memory.
     expect(appTabForLocation("/televoting")).toBe("participate");
+    // The similarly named published analysis route is a normal Results page.
+    rememberAppLocation("/broadcast-intelligence", "", 120, storage);
+    expect(getAppTabDestination("results", true, storage)).toMatchObject({
+      pathname: "/broadcast-intelligence",
+      scrollY: 120,
+    });
+  });
+
+  it("purges formerly persisted Broadcast and Show Mode roots on read", () => {
+    const storage = new MemoryStorage();
+    const obsolete = (pathname: string) => ({
+      pathname,
+      searchStr: "",
+      scrollY: 610,
+      visitedAt: new Date().toISOString(),
+    });
+    storage.setItem(
+      APP_NAVIGATION_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        activeTab: "home",
+        tabs: {
+          home: {
+            current: obsolete("/broadcast"),
+            history: [obsolete("/show-mode/archived"), obsolete("/broadcast")],
+          },
+        },
+      }),
+    );
+
+    const state = readAppNavigationState(storage);
+    expect(state.tabs.home).toBeUndefined();
+    expect(getAppTabDestination("home", true, storage).pathname).toBe("/");
   });
 
   it("recovers the latest safe history page when persisted current is critical", () => {

@@ -123,7 +123,12 @@ export function appTabForPath(pathname: string): AppTabId | null {
  * become the automatic destination of a primary tab or restored cold launch.
  */
 function memorySafeAppTab(pathname: string, searchStr = ""): AppTabId | null {
-  if (!safePath(pathname)) return null;
+  // The registry recognizes /broadcast/:showId as immersive, while an exact
+  // /broadcast (or future /show-mode/* variant) may resolve to its generic
+  // fallback. Never persist those live-production routes as ordinary tab
+  // history, even during incremental route/registry cutover. This matches the
+  // existing cold-launch exclusion without rejecting /broadcast-intelligence.
+  if (!safePath(pathname) || /^\/(?:broadcast|show-mode)(?:\/|$)/.test(pathname)) return null;
   const screen = resolveSolarisAppScreen(pathname, searchStr);
   if (
     screen.behavior.criticalTask ||
