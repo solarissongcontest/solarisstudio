@@ -1,0 +1,86 @@
+name: V3 TG3 World Office History Preflight
+
+on:
+  push:
+    branches:
+      - v3/swarm-wave2/tg3-office-history-1104-aux7
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/v3-world-office-history-preflight.yml"
+      - "src/lib/v3-world-office-history*"
+      - "src/components/world/WorldOfficeHistory.tsx"
+      - "src/routes/world/organizations/**office-history.tsx"
+      - "scripts/rehearse-v3-world-office-history.*"
+      - "supabase/migrations/*v3_tg3_public_office_history.sql"
+      - "supabase/migrations/*v3_tg3_public_world_rollout_flag.sql"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tg3-office-history-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: Exact-head TG3 history quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Force fully local Supabase configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "VITE_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_tg3_local_only"
+            echo "SUPABASE_URL=http://127.0.0.1:54321"
+            echo "SUPABASE_PUBLISHABLE_KEY=sb_publishable_tg3_local_only"
+            echo "SUPABASE_PROJECT_ID=local"
+            echo "SUPABASE_PROJECT_REF=local"
+            echo "VITE_SUPABASE_PROJECT_ID=local"
+            echo "VITE_SUPABASE_PROJECT_REF=local"
+            echo "V3_VERIFICATION_TARGET=local"
+            echo "VITE_CONFIRMATIONS_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=sb_publishable_tg3_local_only"
+            echo "CONFIRMATIONS_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=sb_publishable_tg3_local_only"
+          } >> "$GITHUB_ENV"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install frozen dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify production isolation
+        run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Verify S13 migration contracts
+        run: bun run scripts/check-v3-s13-migration-adoption.ts --require-clean
+
+      - name: Run TG3 history unit and source contracts
+        run: bunx vitest run src/lib/v3-world-office-history.test.ts src/lib/v3-world-office-history.contract.test.ts
+
+      - name: Typecheck complete application
+        run: bun run typecheck
+
+      - name: Build and generate TanStack routes
+        run: bun run build
+
+      - name: Print evidence commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "VERIFIED_SHA=$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
