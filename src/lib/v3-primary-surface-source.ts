@@ -20,6 +20,7 @@ import {
   type VotingTaskInput,
 } from "./participation-os";
 import { isShowPublic, showPublishesResults } from "./publication";
+import { resolveScheduleState } from "./solaris-schedule";
 import type { PublicRound } from "./confirmation-rounds.functions";
 import type { V3ShowState } from "./v3-domain-state";
 import type {
@@ -304,12 +305,19 @@ function runtimeForOpenTelevote(input: {
   publicPhase: string;
   liveShow: Show | undefined;
   televote: VotingTaskInput | null;
+  now: number;
 }): { runtime: EditionRuntimeState | null; show: V3ShowState | null } {
+  const voteSchedule = input.televote ? resolveScheduleState({
+    status: input.televote.status,
+    opensAt: input.televote.opensAt,
+    closesAt: input.televote.closesAt,
+  }, input.now) : "closed";
   if (
     !input.edition ||
     input.publicPhase === "post_edition" ||
     input.publicPhase === "between_editions" ||
-    input.televote?.status !== "open"
+    input.televote?.status !== "open" ||
+    (voteSchedule !== "open" && voteSchedule !== "closing-soon")
   ) {
     return { runtime: null, show: null };
   }
@@ -395,6 +403,7 @@ export function assembleV3PrimarySurfaceSnapshot(
     publicPhase: publicContest.phase,
     liveShow,
     televote: scopedTelevote,
+    now: serverTime.ms,
   });
 
   return {
