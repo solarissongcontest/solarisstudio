@@ -17,6 +17,7 @@ import {
 import { checkEntryDuplicate } from "@/lib/public.functions";
 import { isValidUrl, offsetTimestamp } from "@/lib/ssc";
 import {
+  authoritativeNextInLineSubmissionId,
   nextInLineDraftFingerprint,
   nextInLineDuplicateKey,
   nextInLineReviewReadiness,
@@ -61,6 +62,7 @@ export function NextInLineCompetition() {
   const [loadingCountry, setLoadingCountry] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [submissionReference, setSubmissionReference] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [edition, setEdition] = useState<NextInLineEdition | null>(null);
@@ -257,6 +259,15 @@ export function NextInLineCompetition() {
       });
 
       if (result.ok) {
+        const reference = authoritativeNextInLineSubmissionId(result, {
+          editionId: edition!.id,
+          sourceSubmissionId,
+        });
+        if (!reference) {
+          setError("The server did not confirm the identity of this submission. Check its status before trying again.");
+          return;
+        }
+        setSubmissionReference(reference);
         setDone(true);
         return;
       }
@@ -330,8 +341,21 @@ export function NextInLineCompetition() {
               </div>
               <h2 className="mt-5 text-2xl font-semibold">Next in Line entry submitted</h2>
               <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
-                {country}'s song is saved for the separate Next in Line competition.
+                {country}'s song was accepted by the server for the separate Next in Line competition.
               </p>
+              {submissionReference ? (
+                <div className="mx-auto mt-5 max-w-lg border-t border-border pt-4 text-left">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Server-confirmed submission reference
+                  </p>
+                  <code className="mt-2 block break-all text-sm text-foreground" data-next-in-line-submission-reference="">
+                    {submissionReference}
+                  </code>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                    Keep this reference if you need help finding your submission. It is not an official operation receipt.
+                  </p>
+                </div>
+              ) : null}
             </div>
           </Panel>
         ) : (
