@@ -64,7 +64,11 @@ function date(value: unknown, label: string): string {
     throw new Error("Invalid public membership history: " + label);
   }
   const [year, month, day] = match.slice(1, 4).map(Number);
-  const calendar = new Date(Date.UTC(year, month - 1, day));
+  // Date.UTC applies a historical 1900 offset to years 00–99. Use
+  // setUTCFullYear so early ISO years can be validated without rewriting history.
+  const calendar = new Date(0);
+  calendar.setUTCFullYear(year, month - 1, day);
+  calendar.setUTCHours(0, 0, 0, 0);
   if (
     calendar.getUTCFullYear() !== year ||
     calendar.getUTCMonth() + 1 !== month ||
