@@ -10,6 +10,16 @@ const rpc = migration.split(
 )[1]?.split("$$;")[0] ?? "";
 
 describe("V3 Reference literal public-search regression", () => {
+  it("registers the migration with S13 before replacing the RPC", () => {
+    expect(migration).toContain("public.v3_register_migration_contract(");
+    expect(migration).toContain("'v3.public.reference-literal-search'");
+    expect(migration).toContain("'forward_fix_only'");
+    expect(migration).toContain("'Use literal bounded search matching");
+    expect(migration.indexOf("public.v3_register_migration_contract(")).toBeLessThan(
+      migration.indexOf("create or replace function public.solaris_public_search("),
+    );
+  });
+
   it("retains the existing callable public-search contract", () => {
     expect(rpc).toContain("search_query text");
     expect(rpc).toContain("result_limit integer default 30");
