@@ -71,7 +71,7 @@ function isSafeRootRelativePath(path: string) {
       !decoded.includes("#") &&
       !/\/(?:\.{1,2})(?:\/|$)/.test(decoded) &&
       !containsControlCharacter(decoded) &&
-      !/\/%(?:2f|5c|00|25)/i.test(path) &&
+      !/%(?:2f|5c|00|25)/i.test(path) &&
       path.split("/").length === decoded.split("/").length
     );
   } catch {
