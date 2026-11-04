@@ -1,0 +1,121 @@
+name: V3 S15 private read projections local rehearsal
+
+on:
+  push:
+    branches:
+      - v3/s15-system-participant-activity-contract-20261104
+      - v3/s15-confirmation-exact-edition-projections-20261104
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s15-private-read-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-only-projection-rehearsal:
+    name: Local replay and negative authorization
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      V3_VERIFICATION_TARGET: local
+      V3_SEED_TARGET: local
+      V3_CLEANUP_TARGET: local
+      V3_SERVICE_ROLE_SCOPE: local
+      LOCAL_SUPABASE_URL: http://127.0.0.1:54321
+    steps:
+      - name: Checkout exact pushed commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Verify exact candidate
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -f supabase/config.toml
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Set up pinned Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Verify Docker and local PostgreSQL client
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker info >/dev/null
+          supabase --version
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Install locked JS dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run focused architecture tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f .github/scripts/v3-s15-participant-activity-rehearsal.sh ]]; then
+            bash -n .github/scripts/v3-s15-participant-activity-rehearsal.sh
+            bunx vitest run \
+              src/lib/v3-participant-activity-system.contract.test.ts \
+              src/lib/v3-participant-activity.contract.test.ts \
+              src/lib/v3-participant-activity.test.ts
+          elif [[ -f .github/scripts/v3-s15-confirmation-projections-rehearsal.sh ]]; then
+            bash -n .github/scripts/v3-s15-confirmation-projections-rehearsal.sh
+            bunx vitest run \
+              src/lib/v3-confirmation-review-projection.contract.test.ts \
+              src/lib/v3-confirmation-recovery-projection.contract.test.ts \
+              src/lib/v3-s13-migration-adoption-audit.test.ts
+          else
+            echo "::error::No S15 runtime projection rehearsal found"
+            exit 1
+          fi
+
+      - name: Start disposable local Supabase
+        run: supabase start
+
+      - name: Refuse non-loopback before local database reset
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          case "$API_URL" in
+            http://127.0.0.1:*|http://localhost:*) ;;
+            *) echo "::error::Non-local API URL"; exit 1 ;;
+          esac
+          case "$DB_URL" in
+            postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
+            *) echo "::error::Non-local Postgres URL"; exit 1 ;;
+          esac
+
+      - name: Replay all migrations on isolated local stack
+        run: supabase db reset --local --no-seed
+
+      - name: Exercise caller and exact-edition authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f .github/scripts/v3-s15-participant-activity-rehearsal.sh ]]; then
+            bash .github/scripts/v3-s15-participant-activity-rehearsal.sh
+          else
+            bash .github/scripts/v3-s15-confirmation-projections-rehearsal.sh
+          fi
+
+      - name: Stop disposable local Supabase
+        if: always()
+        shell: bash
+        run: supabase stop --no-backup || true
