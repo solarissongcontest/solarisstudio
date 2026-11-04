@@ -315,6 +315,53 @@ end
 $controller$;
 reset role;
 
+
+-- Closing a meeting must block NEW roll-call actions, while allowing the
+-- exact receipt of an already successful attendance action to be recovered.
+-- This is not a new session transition; only a rollback-only fixture update.
+do $close_fixture$
+declare v jsonb:=current_setting('solaris.tg6_attendance_fixture')::jsonb;
+begin
+ update public.world_sessions set status='concluded'
+ where id=(v->>'sessionId')::uuid;
+end
+$close_fixture$;
+
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $closed_replay$
+declare
+ v jsonb:=current_setting('solaris.tg6_attendance_fixture')::jsonb;
+ v_op uuid:=(v->>'operationId')::uuid;
+ v_replayed jsonb;
+begin
+ perform set_config('request.jwt.claim.sub',v->>'manager',true);
+ perform set_config('request.jwt.claims',jsonb_build_object(
+  'sub',v->>'manager','role','authenticated')::text,true);
+ v_replayed:=public.world_record_session_attendance_v1(
+   (v->>'sessionId')::uuid,(v->>'countryId')::uuid,
+   (v->>'representationId')::uuid,'present',null,null,
+   v_op,'tg6-attendance:'||v_op::text
+ );
+ if v_replayed->>'status'<>'succeeded'
+   or coalesce((v_replayed->>'replayed')::boolean,false) is not true
+   or v_replayed #>> '{result,revision}' <> '1' then
+   raise exception 'TG6_ATTENDANCE_CLOSED_RECEIPT_REPLAY_LOST';
+ end if;
+ begin
+   perform public.world_record_session_attendance_v1(
+     (v->>'sessionId')::uuid,(v->>'countryId')::uuid,
+     (v->>'representationId')::uuid,'present',null,3,
+     gen_random_uuid(),'tg6-closed-write:'||gen_random_uuid()::text
+   );
+   raise exception 'TG6_ATTENDANCE_CLOSED_SESSION_WRITE_ALLOWED';
+ exception when check_violation then null;
+ end;
+ raise notice 'PASS: TG6 closed-session operation receipt replays but no new attendance writes';
+end
+$closed_replay$;
+reset role;
+
 rollback;
 do $rollback$
 begin
