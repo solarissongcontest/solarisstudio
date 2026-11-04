@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_sha:
-        description: Optional exact commit SHA. Defaults to the dispatched branch SHA.
+        description: Optional exact commit SHA; must match the commit selected by workflow dispatch.
         required: false
         type: string
       require_complete:
@@ -50,7 +50,14 @@ jobs:
             exit 1
           fi
           requested="$(printf '%s' "$requested" | tr '[:upper:]' '[:lower:]')"
-          echo "sha=$requested" >> "$GITHUB_OUTPUT"
+          dispatched="$(printf '%s' "$DISPATCH_SHA" | tr '[:upper:]' '[:lower:]')"
+          # Do not execute an arbitrarily supplied commit with default-branch cache access.
+          # To rehearse a PR branch, dispatch the workflow on that branch at its exact head.
+          if [[ "$requested" != "$dispatched" ]]; then
+            echo "::error::candidate_sha must match the dispatched commit $dispatched; select the desired branch/ref when dispatching"
+            exit 1
+          fi
+          echo "sha=$dispatched" >> "$GITHUB_OUTPUT"
 
           if [[ "$REQUIRE_COMPLETE" == "true" ]]; then
             echo "V3_S14_ALLOW_PARTIAL=0" >> "$GITHUB_ENV"
@@ -65,7 +72,8 @@ jobs:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.identity.outputs.sha }}
+          # The dispatch's immutable commit, never an untrusted input-controlled checkout.
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: Verify exact checkout
