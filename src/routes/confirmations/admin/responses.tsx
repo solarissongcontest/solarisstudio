@@ -264,7 +264,7 @@ function ConfirmationResponsesList() {
     responseGenerationRef.current += 1;
     loadingMoreRef.current = false;
     setLoadingMoreResponses(false);
-  }, [editionId]);
+  }, [editionId, responseReloadNonce]);
 
   useEffect(() => {
     let alive = true;
