@@ -22,6 +22,7 @@ declare
  v_other_rep uuid := gen_random_uuid();
  v_observer_rep uuid := gen_random_uuid();
  v_proxy uuid := gen_random_uuid();
+ v_foreign_proxy uuid := gen_random_uuid();
  v_session uuid := gen_random_uuid();
 begin
  insert into auth.users(id,aud,role,email,created_at,updated_at) values
@@ -77,20 +78,49 @@ begin
  insert into public.world_representation_proxies(
    id,representation_id,proxy_person_id,session_id,
    valid_from,valid_until,status,reason,approved_at,revision)
- values(v_proxy,v_rep,v_proxy_person,v_session,
+ values
+ (v_proxy,v_rep,v_proxy_person,v_session,
    now()-interval '15 minutes',now()+interval '45 minutes',
-   'approved','TG6 local approved proxy',now()-interval '5 minutes',1);
+   'approved','TG6 local approved proxy',now()-interval '5 minutes',1),
+ (v_foreign_proxy,v_other_rep,v_proxy_person,null,
+   now()-interval '15 minutes',now()+interval '45 minutes',
+   'approved','TG6 foreign organization proxy',now()-interval '5 minutes',1);
 
  perform set_config('solaris.tg6_attendance_fixture',jsonb_build_object(
   'manager',v_manager,'controller',v_controller,'outsider',v_outsider,
   'sessionId',v_session,'countryId',v_country,
   'representationId',v_rep,'otherRepresentationId',v_other_rep,
   'observerCountryId',v_observer_country,'observerRepresentationId',v_observer_rep,
-  'proxyId',v_proxy,
+  'proxyId',v_proxy,'foreignProxyId',v_foreign_proxy,
   'operationId',gen_random_uuid()
  )::text,true);
 end
 $fixture$;
+
+-- Even privileged direct writes must not bypass session/representation and
+-- proxy-identity structural FK-like invariants.
+do $direct_identity$
+declare v jsonb:=current_setting('solaris.tg6_attendance_fixture')::jsonb;
+begin
+ begin
+   insert into public.world_session_attendance
+     (session_id,country_id,representation_id,status)
+   values((v->>'sessionId')::uuid,(v->>'countryId')::uuid,
+          (v->>'otherRepresentationId')::uuid,'present');
+   raise exception 'TG6_ATTENDANCE_DIRECT_FOREIGN_REP_BYPASS';
+ exception when check_violation then null;
+ end;
+ begin
+   insert into public.world_session_attendance
+     (session_id,country_id,representation_id,status,proxy_id)
+   values((v->>'sessionId')::uuid,(v->>'countryId')::uuid,
+          (v->>'representationId')::uuid,'proxy',(v->>'foreignProxyId')::uuid);
+   raise exception 'TG6_ATTENDANCE_DIRECT_FOREIGN_PROXY_BYPASS';
+ exception when check_violation then null;
+ end;
+ raise notice 'PASS: TG6 structural identity trigger rejects privileged foreign links';
+end
+$direct_identity$;
 
 set local role anon;
 set local request.jwt.claim.role='anon';
