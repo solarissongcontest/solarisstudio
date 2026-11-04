@@ -150,6 +150,58 @@ test("representative non-country dynamic route passes desktop audit", async ({ p
   await auditRoutes(page, representativeDynamic, testInfo);
 });
 
+test("Country directory renders the correct mobile-web and desktop browse composition", async ({ page }, testInfo) => {
+  test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
+  await page.goto("/countries", { waitUntil: "domcontentloaded" });
+  const directory = page.locator("[data-country-directory-experience]");
+  const mobile = ["public-320", "public-390"].includes(testInfo.project.name);
+  await expect(directory).toHaveAttribute(
+    "data-country-directory-experience", mobile ? "mobile-web" : "desktop-web",
+  );
+  await expect(page.getByRole("heading", { name: "Countries", exact: true })).toHaveCount(1);
+  if (mobile) {
+    await expect(page.locator("[data-country-directory-web-header]")).toBeVisible();
+    await expect(directory.locator(".v3-countries-web-list")).toBeVisible();
+    await expect(directory.locator(".v3-countries-region-rail")).toHaveCount(0);
+    await expect(directory.getByRole("combobox", { name: "Filter by region" })).toBeVisible();
+  } else {
+    await expect(directory.locator(".v3-countries-region-rail")).toBeVisible();
+    await expect(directory.locator(".v3-countries-desktop-grid")).toBeVisible();
+    await expect(page.locator("[data-country-directory-web-header]")).toHaveCount(0);
+  }
+  await expect(directory.getByRole("searchbox", { name: "Search countries" })).toBeVisible();
+  await expect(directory.locator('a[href^="/countries/"]').first()).toBeVisible();
+  const ratio = await directory.locator('[data-flag-frame="standard"]').first().evaluate((frame) => {
+    const bounds = frame.getBoundingClientRect();
+    return bounds.width / bounds.height;
+  });
+  expect(ratio, "Country flags should remain 3:2 in every website directory").toBeCloseTo(1.5, 1);
+  if (["public-390", "public-1440"].includes(testInfo.project.name)) {
+    await testInfo.attach(`country-directory-${testInfo.project.name}.png`, {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+  }
+  const search = directory.getByRole("searchbox", { name: "Search countries" });
+  await search.fill("zz-no-such-solaris-country");
+  await expect(directory.getByText("No countries found")).toBeVisible();
+  await search.fill("");
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow, "Country directory must not overflow the browser viewport").toBeLessThanOrEqual(2);
+  if (!mobile) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(directory).toHaveAttribute("data-country-directory-experience", "mobile-web");
+    await expect(directory.locator(".v3-countries-web-list")).toBeVisible();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(directory).toHaveAttribute("data-country-directory-experience", "desktop-web");
+  }
+  // The directory is a navigation surface, not just a visually correct catalogue.
+  await directory.locator('a[href^="/countries/"]').first().click();
+  await expect(page).toHaveURL(/\/countries\/[^/]+\/?$/);
+});
+
 test("Country Glass atmosphere and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {
   test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
   test.skip(process.env.E2E_REAL_DATA !== "1", "Abeven Glass and SSC20 require the real archive, which the seeded audit runner does not contain.");
@@ -224,10 +276,12 @@ test("real country directory flags share their canonical crop", async ({ page },
   // The current database spells these two names Ampsia and Aquliateria.
   // The wide/square/tall fixture additionally covers unusual source ratios.
   const names = ["Abeven", "Adelanor", "Alberia", "Ampsia", "Aotea", "Aquliateria"];
-  await expect(page.locator(".directory-country-card").first()).toBeVisible();
+  const directory = page.locator("[data-country-directory-experience]");
+  const search = directory.getByRole("searchbox", { name: "Search countries" });
+  await expect(directory.locator('a[href^="/countries/"]').first()).toBeVisible();
   for (const name of names) {
-    await page.getByPlaceholder("Country, artist or song…").fill(name);
-    const card = page.locator(".directory-country-card").filter({ hasText: name }).first();
+    await search.fill(name);
+    const card = directory.locator('a[href^="/countries/"]').filter({ hasText: name }).first();
     await expect(card, `${name} directory card`).toBeVisible();
     const frame = card.locator('[data-flag-frame="standard"]');
     await expect(frame).toBeVisible();
@@ -242,7 +296,7 @@ test("real country directory flags share their canonical crop", async ({ page },
     expect(result.covered, `${name} must reach every frame edge`).toBe(true);
     expect(result.transform, `${name} must have no independent axis scaling`).not.toMatch(/matrix\([^,]+,\s*[^,]+,\s*[^,]+,/);
   }
-  await page.getByPlaceholder("Country, artist or song…").fill("");
+  await search.fill("");
   if (testInfo.project.name === "public-390") {
     await testInfo.attach("country-directory-six-flags-390.png", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
   }
@@ -268,13 +322,31 @@ test("representative page families remain usable at 200% text size", async ({ pa
   );
 
   const context = page.context();
-  for (const route of ["/editions", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
+  for (const route of ["/countries", "/editions", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
     const routePage = await context.newPage();
     try {
       await routePage.goto(route, { waitUntil: "domcontentloaded" });
+      // Country discovery deliberately waits for runtime app/website identity
+      // before mounting its heading. A DOMContentLoaded-only check can inspect
+      // that short-lived boot state instead of the actual country directory.
+      // Wait for the real page first; do not hide a missing heading after zoom.
+      if (route === "/countries") {
+        await expect(
+          routePage.locator("[data-country-directory-boot]"),
+          "Countries runtime boot must finish before accessibility verification",
+        ).toHaveCount(0, { timeout: 15_000 });
+      }
+      await expect(
+        routePage.locator("h1:visible"),
+        `${route} must expose one visible heading before text enlargement`,
+      ).toHaveCount(1, { timeout: 15_000 });
       await routePage.evaluate(() => {
         document.documentElement.style.fontSize = "200%";
       });
+      await expect(
+        routePage.locator("h1:visible"),
+        `${route} must retain one visible heading after text enlargement`,
+      ).toHaveCount(1);
       await routePage.waitForTimeout(100);
 
       const geometry = await routePage.evaluate(() => ({

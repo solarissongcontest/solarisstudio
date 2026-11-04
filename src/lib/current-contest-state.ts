@@ -233,13 +233,23 @@ export function resolvePublicEditionState({
 
   // Historical completion is authoritative. A stale show runtime flag must
   // never resurrect Live on an archived or completed edition.
+  const publicLiveShow = exactLiveShow(editionShows);
+  const publishedFinalResult = finalResultPublished(edition, editionShows, results);
+  const lifecyclePhase = phaseFromLifecycle(lifecycle);
+  // Operational Live / Results lifecycle states are not publication grants.
+  // Only a public live show or public Final ranking may announce those phases.
+  const fallbackPhase = lifecyclePhase === "results_published"
+    ? "results_pending"
+    : lifecyclePhase === "live"
+      ? "pre_show"
+      : lifecyclePhase;
   const phase = isTerminalLifecycle(lifecycle)
     ? "post_edition"
-    : exactLiveShow(editionShows)
+    : publicLiveShow
       ? "live"
-      : finalResultPublished(edition, editionShows, results)
+      : publishedFinalResult
         ? "results_published"
-        : phaseFromLifecycle(lifecycle);
+        : fallbackPhase;
 
   return {
     edition,
