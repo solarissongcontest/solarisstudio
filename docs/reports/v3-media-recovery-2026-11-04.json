@@ -1,0 +1,66 @@
+{
+  "report_type": "source-metadata-only-not-byte-verified",
+  "inspection_date": "2026-11-04",
+  "initial_main_sha": "51b4055f4c7d39a41d50d8772442577c21f0df31",
+  "source": {
+    "id": "oxtbskojiexkaspputvo",
+    "name": "solaris-studio-production",
+    "region": "eu-north-1",
+    "read_access": "verified"
+  },
+  "destination": {
+    "id": "dkxmnvekiopyesuzggeu",
+    "name": "Solaris Studio",
+    "region": "eu-central-1",
+    "read_access": "denied_using_both_available_supabase_connections"
+  },
+  "source_storage_metadata": {
+    "country-media": {
+      "public": true,
+      "records": 47,
+      "metadata_bytes": 20266139
+    },
+    "edition-artwork": {
+      "public": true,
+      "records": 7,
+      "metadata_bytes": 5407023
+    },
+    "country-fonts": {
+      "public": true,
+      "records": 0,
+      "metadata_bytes": 0
+    },
+    "beta-feedback": {
+      "public": false,
+      "records": 1,
+      "metadata_bytes": 1179829
+    },
+    "integrity-evidence": {
+      "public": false,
+      "records": 0,
+      "metadata_bytes": 0
+    }
+  },
+  "source_reference_metadata_counts": {
+    "country_media_rows": 10,
+    "country_themes_with_background_image_path": 8,
+    "editions_with_artwork_path": 7,
+    "historical_country_identity_flag_values": 17,
+    "current_country_flag_values": 58
+  },
+  "source_actual_bytes_downloaded": 0,
+  "destination_actual_bytes_downloaded": 0,
+  "sha256_verified_object_count": 0,
+  "destination_inventory": "blocked",
+  "production_objects_transferred": 0,
+  "database_references_restored": 0,
+  "public_media_published_to_r2": 0,
+  "private_paths_redacted": true,
+  "source_retained_for_rollback": true,
+  "blockers": [
+    "Destination Supabase project not accessible through available connector identities",
+    "Current connector does not provide Supabase Storage binary download/upload endpoints",
+    "No approved live byte-level recovery manifest or production write authorization",
+    "No authorized canonical database reference-recovery command applied"
+  ]
+}
