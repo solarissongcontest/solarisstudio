@@ -57,6 +57,23 @@ const str = (value: unknown): string | null =>
 const revision = (value: unknown): number | null =>
   Number.isSafeInteger(value) && (value as number) >= 1 ? value as number : null;
 
+/**
+ * Compare whole legal form state (including article identity, hierarchy and order),
+ * not just displayed text. This signature stays in component memory only.
+ */
+export function worldDocumentDraftSignature(input: {
+  title: string;
+  plainText: string;
+  provisions: readonly WorldDocumentProvision[];
+}): string {
+  return JSON.stringify([input.title, input.plainText, input.provisions]);
+}
+
+/** The TG4 index applies the authoritative full-text filter server-side. */
+export function normalizeWorldDocumentSearch(input: string): string {
+  return input.trim().slice(0, 120);
+}
+
 export function toWorldDocumentSlug(value: string): string {
   return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 90);
