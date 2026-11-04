@@ -169,6 +169,14 @@ run_s14_grand_final_results() {
     fail "Grand Final voting/review checkpoint is neither fresh nor safely resumable"
   fi
 
+  # Prove official Televote source receipt retry semantics against real
+  # published local S14 data, including retained withdrawn Results history.
+  [[ "${API_URL:-}" == http://127.0.0.1:* ]] || fail "S14 Televote history regression requires loopback Supabase"
+  psql "$DB_URL" -v ON_ERROR_STOP=1 \
+    -v show_id="$FINAL_ID" -v round_id="$S14_FINAL_TELEVOTE_ROUND_ID" \
+    -f .github/scripts/v3-s14-televote-sync-history-regression.sql \
+    > /tmp/s14-televote-sync-history-regression.log
+
   # The System fix may choose a projection or another versioned published-source
   # contract, but QA proves the observable invariant rather than a specific
   # storage design: the real publication makes Studio ready and the points Studio
