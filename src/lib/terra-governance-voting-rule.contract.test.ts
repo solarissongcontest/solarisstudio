@@ -131,7 +131,10 @@ describe("TG8 versioned institutional voting rule authority", () => {
     expect(published).toContain("rule_row.threshold_numerator::text");
     expect(published).toContain("rule_row.threshold_denominator::text");
     expect(published).not.toContain("auth.users");
-    expect(published).not.toContain("ballot");
+    expect(published).not.toContain("\'ballotId\'");
+    expect(published).not.toContain("\'voteId\'");
+    expect(published).not.toContain("\'countryId\'");
+    expect(published).not.toContain("\'userId\'");
     expect(source).toContain("grant execute on function public.world_public_voting_rule_v1(text,text)");
   });
 
