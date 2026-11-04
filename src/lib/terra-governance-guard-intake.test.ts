@@ -44,7 +44,7 @@ describe("TG5A GUARD voluntary membership intake", () => {
 
   it("keeps admission distinct from application status and redacts errors", () => {
     expect(guardApplicationStatusLabel("introduced")).toContain("General Assembly");
-    expect(guardApplicationStatusLabel("approved")).toBe("Approved");
+    expect(guardApplicationStatusLabel("approved")).toContain("activation not yet confirmed");
     const diagnostic = "sensitive-sql-details-table-user-email";
     expect(guardIntakeErrorMessage({ message: diagnostic })).not.toContain(diagnostic);
     expect(guardIntakeErrorMessage({ code: "42501", message: "AUTHORIZATION" }))
@@ -80,7 +80,8 @@ describe("TG5A GUARD voluntary membership intake", () => {
   it("never grants browser write access or leaks applications across countries", () => {
     expect(migration).toContain("alter table public.world_membership_applications enable row level security");
     expect(migration).toContain("revoke all on public.world_membership_applications from public, anon, authenticated");
-    expect(migration).toContain("grant select on public.world_membership_applications to authenticated");
+    expect(migration).toContain("revoke all on public.world_membership_applications from public, anon, authenticated, service_role");
+    expect(migration).toContain("grant select on public.world_membership_applications to authenticated, service_role");
     expect(migration).toContain("account_row.country_id = world_membership_applications.country_id");
     expect(migration).not.toMatch(/grant (insert|update|delete|all) on public\.world_membership_applications to (anon|authenticated)/);
     expect(migration).toContain("revoke all on function public.world_submit_guard_membership_application_v1(");
@@ -95,6 +96,8 @@ describe("TG5A GUARD voluntary membership intake", () => {
     expect(route).toContain("requestRef.current = { fields: normalized, operation }");
     expect(route).toContain("Retry same operation");
     expect(route).toContain("Check server status");
+    expect(route).toContain("!confirmation && !submit.isPending");
+    expect(route).toContain("const pendingApplication = intake.data?.applications.find");
     expect(route).toContain("role=\"alert\"");
     expect(route).toContain("aria-invalid");
     expect(route).not.toContain(".from(\"world_membership_applications\").insert");
