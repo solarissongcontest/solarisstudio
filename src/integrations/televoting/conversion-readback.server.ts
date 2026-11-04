@@ -1,6 +1,6 @@
 import {
   getMergedTelevoteConversionServer,
-  loadMergedConversionRound,
+  CalculationCommitResponseError,
   runMergedOfficialCalculationServer,
 } from "@/integrations/televoting/conversion.server";
 
@@ -121,13 +121,10 @@ function resultSummaryFromState(
 export async function runMergedOfficialCalculationWithReadbackServer(
   roundId: string,
 ): Promise<OfficialCalculationReadbackResult> {
-  const before = await loadMergedConversionRound(roundId);
-  const expectedVersion = before.calculation_version + 1;
-
   try {
     const calculation = await runMergedOfficialCalculationServer(roundId);
     const state = await getMergedTelevoteConversionServer(roundId);
-    assertCommittedCalculationState(state, expectedVersion);
+    assertCommittedCalculationState(state, calculation.version);
     return {
       version: calculation.version,
       distributedTotal: calculation.distributedTotal,
@@ -136,15 +133,14 @@ export async function runMergedOfficialCalculationWithReadbackServer(
       reconciledAfterUncertainOutcome: false,
     };
   } catch (caught) {
-    const message = caught instanceof Error ? caught.message : String(caught);
-    if (!message.startsWith("Calculation commit returned unexpected version")) {
+    if (!(caught instanceof CalculationCommitResponseError)) {
       throw caught;
     }
 
     const state = await getMergedTelevoteConversionServer(roundId);
-    assertCommittedCalculationState(state, expectedVersion);
+    assertCommittedCalculationState(state, caught.attemptedVersion);
     return {
-      ...resultSummaryFromState(state, expectedVersion),
+      ...resultSummaryFromState(state, caught.attemptedVersion),
       state,
       reconciledAfterUncertainOutcome: true,
     };
