@@ -57,6 +57,9 @@ begin
     (v_country, 'TG2 Privacy Country', 'ZZP'),
     (v_other_country, 'TG2 Other Country', 'ZZQ');
 
+  insert into public.country_accounts (user_id, country_id)
+  values (v_self, v_country), (v_other, v_other_country);
+
   -- TG1 durable identity rows are public only through their safe projection;
   -- raw user_id linkage must not leak via generic delegation.read.
   insert into public.world_country_control_terms
@@ -331,6 +334,52 @@ begin
 end
 $expired_manager$;
 reset role;
+
+-- Simulate the independent canonical account transfer/suspension paths inside
+-- savepoints. History is deliberately left open: a public current-controller
+-- projection must fail closed rather than report a former controller as current.
+savepoint tg1_transfer_projection_fixture;
+update public.country_accounts
+set user_id = (current_setting('solaris.tg2_identity_privacy_fixture')::jsonb ->> 'outsiderUserId')::uuid
+where country_id = (current_setting('solaris.tg2_identity_privacy_fixture')::jsonb ->> 'countryId')::uuid;
+do $stale_transfer$
+declare
+  v jsonb := current_setting('solaris.tg2_identity_privacy_fixture')::jsonb;
+begin
+  if exists (
+    select 1 from public.world_country_identity_v1((v ->> 'countryId')::uuid)
+    where controller_person_id is not null
+       or controller_display_name is not null
+       or control_started_at is not null
+  ) then
+    raise exception 'TG1_CONTROLLER_PROJECTION_STALE_TRANSFER_LEAK';
+  end if;
+  raise notice 'PASS: TG1 transfer does not present previous history as active controller';
+end
+$stale_transfer$;
+rollback to savepoint tg1_transfer_projection_fixture;
+
+savepoint tg1_inactive_projection_fixture;
+update public.country_accounts
+set status = 'suspended'
+where country_id = (current_setting('solaris.tg2_identity_privacy_fixture')::jsonb ->> 'countryId')::uuid;
+do $inactive_controller$
+declare
+  v jsonb := current_setting('solaris.tg2_identity_privacy_fixture')::jsonb;
+begin
+  if exists (
+    select 1 from public.world_country_identity_v1((v ->> 'countryId')::uuid)
+    where controller_person_id is not null
+       or controller_display_name is not null
+       or control_started_at is not null
+  ) then
+    raise exception 'TG1_CONTROLLER_PROJECTION_INACTIVE_ACCOUNT_LEAK';
+  end if;
+  raise notice 'PASS: TG1 inactive account does not surface current controller identity';
+end
+$inactive_controller$;
+rollback to savepoint tg1_inactive_projection_fixture;
+
 
 rollback;
 
