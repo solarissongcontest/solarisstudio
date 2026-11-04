@@ -260,7 +260,7 @@ describe("S14 stateful full-contest harness", () => {
     expect(driver).toContain("S14_RESULTS_RECONCILE_IDEMPOTENCY_KEY");
     expect(driver).toContain("private.v3_edition_final_results_ready");
     expect(driver).toContain("studio2_transition_edition_v3");
-    expect(driver).toContain('p_to\\\":\\\"results');
+    expect(driver).toContain('p_to\\":\\"results');
     expect(driver).toContain("replay exact S14 Results reconciliation");
     expect(driver).toContain("studio2_reconcile_operation");
     expect(driver).toContain("S14_RESULTS_RUNTIME_RECONCILIATION_COMPLETE");
