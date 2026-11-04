@@ -7,6 +7,9 @@ alter table public.world_representation_proxies
   add column if not exists approved_at timestamptz;
 
 alter table public.world_representation_proxies
+  add column if not exists revocation_reason text;
+
+alter table public.world_representation_proxies
   add constraint world_proxy_session_id_fk
   foreign key (session_id) references public.world_sessions(id)
   on update restrict on delete restrict;
@@ -419,6 +422,131 @@ begin
 end
 $decide$;
 
+-- An approved acting proxy must be immediately revocable; expiry alone is
+-- insufficient when consent or institutional authority changes. Revocation
+-- retains immutable person/session history and invalidates time-effectiveness.
+create or replace function public.world_revoke_proxy_v1(
+  p_proxy_id uuid,
+  p_expected_revision bigint,
+  p_reason text,
+  p_operation_id uuid,
+  p_idempotency_key text,
+  p_correlation_id uuid default null
+)
+returns jsonb language plpgsql security definer
+set search_path = pg_catalog
+as $revoke$
+declare
+  v_actor uuid := auth.uid();
+  v_representation_id uuid;
+  v_rep public.world_organization_representations%rowtype;
+  v_proxy public.world_representation_proxies%rowtype;
+  v_organ_id uuid;
+  v_allowed_by_country boolean := false;
+  v_allowed_by_institution boolean := false;
+  v_reason text := btrim(coalesce(p_reason,''));
+  v_operation jsonb;
+  v_operation_id uuid;
+  v_result jsonb;
+begin
+  if v_actor is null or p_proxy_id is null or p_expected_revision is null
+     or p_operation_id is null or p_idempotency_key is null
+  then
+    raise exception using errcode='42501',message='AUTHORIZATION';
+  end if;
+  if length(v_reason) not between 5 and 500 then
+    raise exception using errcode='22023',message='VALIDATION';
+  end if;
+
+  -- Match approval's lock ordering so revocation and approval cannot race.
+  select representation_id into v_representation_id
+  from public.world_representation_proxies where id=p_proxy_id;
+  if v_representation_id is null then
+    raise exception using errcode='42501',message='AUTHORIZATION';
+  end if;
+  select * into v_rep from public.world_organization_representations
+  where id=v_representation_id for update;
+  select * into v_proxy from public.world_representation_proxies
+  where id=p_proxy_id and representation_id=v_rep.id for update;
+  if v_proxy.id is null then
+    raise exception using errcode='42501',message='AUTHORIZATION';
+  end if;
+
+  if v_proxy.session_id is not null then
+    select s.organ_id into v_organ_id
+    from public.world_sessions s
+    where s.id=v_proxy.session_id
+      and s.organization_id=v_rep.organization_id;
+  end if;
+  if v_proxy.session_id is not null and v_organ_id is null then
+    raise exception using errcode='23514',message='SESSION_NOT_ELIGIBLE';
+  end if;
+
+  v_allowed_by_country := (
+    (v_rep.user_id=v_actor or exists (
+      select 1 from public.country_accounts ca
+      where ca.country_id=v_rep.country_id
+        and ca.user_id=v_actor and ca.status='active'
+    ))
+    and public.world_access_allowed(
+      'world.proxy.request',v_rep.organization_id,v_rep.country_id,
+      null,'representation',v_rep.id
+    )
+  );
+  v_allowed_by_institution := public.world_access_allowed(
+    'world.proxy.approve',v_rep.organization_id,v_rep.country_id,
+    v_organ_id,'proxy',v_proxy.id
+  );
+  if not (v_allowed_by_country or v_allowed_by_institution) then
+    raise exception using errcode='42501',message='AUTHORIZATION';
+  end if;
+
+  v_operation := private.studio2_claim_operation(
+    p_operation_id,p_idempotency_key,coalesce(p_correlation_id,p_operation_id),
+    'world.proxy.revoke','R2',
+    jsonb_build_object('proxyId',v_proxy.id,
+      'representationId',v_rep.id,'organizationId',v_rep.organization_id,
+      'countryId',v_rep.country_id,'subjectType','world_proxy'),
+    jsonb_build_object('expectedRevision',p_expected_revision,'reason',v_reason)
+  );
+  v_operation_id := (v_operation->>'operationId')::uuid;
+  if coalesce((v_operation->>'replayed')::boolean,false) then
+    return public.studio2_reconcile_operation(v_operation_id)
+      || jsonb_build_object('replayed',true);
+  end if;
+  if v_proxy.revision <> p_expected_revision then
+    raise exception using errcode='40001',message='VERSION_CONFLICT';
+  end if;
+  if v_proxy.status not in ('requested','approved')
+     or v_proxy.revoked_at is not null
+     or v_proxy.valid_until <= now()
+  then
+    raise exception using errcode='23514',message='STATE_CHANGED';
+  end if;
+
+  update public.world_representation_proxies
+  set status='revoked',revoked_at=now(),
+      revocation_reason=v_reason,revision=revision+1
+  where id=v_proxy.id;
+
+  perform private.v3_emit_domain_event(
+    'world.proxy.revoked','world_proxy',v_proxy.id::text,
+    v_proxy.revision+1,v_operation_id,null,null,
+    jsonb_build_object('proxyId',v_proxy.id,
+      'representationId',v_rep.id,'organizationId',v_rep.organization_id,
+      'countryId',v_rep.country_id,'status','revoked'),
+    1,array[]::text[]
+  );
+  v_result := jsonb_build_object(
+    'ok',true,'proxyId',v_proxy.id,'status','revoked',
+    'revision',v_proxy.revision+1,'operationId',v_operation_id
+  );
+  perform private.studio2_complete_operation(v_operation_id,v_result);
+  return public.studio2_reconcile_operation(v_operation_id)
+    || jsonb_build_object('replayed',false);
+end
+$revoke$;
+
 -- A bounded reviewer inbox must filter EACH item using its exact institutional
 -- scope. Checking the organization once would leak country-/object-granted
 -- private proxy requests.
@@ -546,6 +674,14 @@ comment on function public.world_proxy_review_queue_v1(uuid) is
   'TG6 maximum 25 reviewable proxy requests; item-by-item canonical world.proxy.approve check, no raw login identifiers and no cross-organization session leakage.';
 comment on function public.world_my_proxy_requests_v1(uuid) is
   'TG6 latest 20 proxy requests for an active country controller; no other country histories or auth-user IDs. timeEffective is only a time window indicator, not an authorization to cast a ballot.';
+
+revoke all on function public.world_revoke_proxy_v1(uuid,bigint,text,uuid,text,uuid)
+  from public,anon,authenticated;
+grant execute on function public.world_revoke_proxy_v1(uuid,bigint,text,uuid,text,uuid)
+  to authenticated,service_role;
+
+comment on function public.world_revoke_proxy_v1(uuid,bigint,text,uuid,text,uuid) is
+  'TG6 immediately revoke an unexpired acting proxy using current country control or institutionally scoped approval authority, CAS and R2 receipt; no ballot authority granted.';
 
 revoke all on function public.world_request_proxy_v1(
   uuid,uuid,uuid,timestamptz,timestamptz,text,bigint,uuid,text,uuid
