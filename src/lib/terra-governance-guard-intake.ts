@@ -240,3 +240,68 @@ export function guardIntakeErrorMessage(error: unknown): string {
   // Never echo raw PostgREST diagnostics or sensitive input into participant UI.
   return "The request could not be confirmed. Check your application status before retrying.";
 }
+
+
+/** A withdrawal retry must preserve its operation identity after an uncertain response. */
+export function newGuardWithdrawalOperation(): GuardIntakeOperation {
+  const id = crypto.randomUUID();
+  return { operationId: id, idempotencyKey: "guard-application-withdraw:" + id };
+}
+
+export function parseGuardWithdrawalReceipt(
+  value: unknown,
+  expected: {
+    operationId: string;
+    organizationId: string;
+    countryId: string;
+    applicationId: string;
+    revision: number;
+  },
+): { applicationId: string; operationId: string; revision: number } {
+  const envelope = isRecord(value) ? value : null;
+  const result = envelope && isRecord(envelope.result) ? envelope.result : null;
+  if (!result || envelope?.status !== "succeeded" ||
+      envelope.operationId !== expected.operationId ||
+      result.ok !== true ||
+      result.applicationId !== expected.applicationId ||
+      result.organizationId !== expected.organizationId ||
+      result.countryId !== expected.countryId ||
+      result.status !== "withdrawn" ||
+      !Number.isSafeInteger(result.revision) ||
+      result.revision !== expected.revision + 1) {
+    throw new Error("The withdrawal receipt could not be verified. Refresh the server status before taking another action.");
+  }
+  return {
+    applicationId: expected.applicationId,
+    operationId: expected.operationId,
+    revision: result.revision as number,
+  };
+}
+
+export async function withdrawGuardApplication(args: {
+  organizationId: string;
+  countryId: string;
+  applicationId: string;
+  revision: number;
+  operation: GuardIntakeOperation;
+}): Promise<{ applicationId: string; operationId: string; revision: number }> {
+  if (!Number.isSafeInteger(args.revision) || args.revision < 1) {
+    throw new Error("Refresh your current application before withdrawing.");
+  }
+  const { data, error } = await supabase.rpc("world_withdraw_guard_application_v1", {
+    p_organization_id: args.organizationId,
+    p_country_id: args.countryId,
+    p_application_id: args.applicationId,
+    p_expected_revision: args.revision,
+    p_operation_id: args.operation.operationId,
+    p_idempotency_key: args.operation.idempotencyKey,
+  });
+  if (error) throw error;
+  return parseGuardWithdrawalReceipt(data, {
+    operationId: args.operation.operationId,
+    organizationId: args.organizationId,
+    countryId: args.countryId,
+    applicationId: args.applicationId,
+    revision: args.revision,
+  });
+}
