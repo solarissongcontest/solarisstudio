@@ -37,6 +37,12 @@ International routes and readers.
   public browser since those records need separate publication authority.
 - React Query caching, debounced directory search, bounded requests, no
   polling, limited retry and scoped reads protect backend egress.
+- Every public Supabase read is now isolated in a narrow transport adapter:
+  24-country and 12-membership row bounds, a maximum page index of 1,000,
+  exact-count consistency checks and deterministic ordering. Public
+  institution-name reads are capped at 24 IDs for the two displayed pages.
+  No unscoped membership scan or private controller/representative query is
+  performed, and query-level tests enforce the call contracts.
 - Responsive content hierarchy, accessible search/controls, recovery states,
   and a link back to the existing SSC country profile.
 - Focused Vitest contract tests verify malformed data and pagination-count
@@ -47,6 +53,8 @@ International routes and readers.
 
 - `src/lib/world-country-international.ts`
 - `src/lib/world-country-international.test.ts`
+- `src/lib/world-country-international-queries.ts`
+- `src/lib/world-country-international-queries.test.ts`
 - `src/components/world/WorldCountryRolloutGate.test.tsx`
 - `src/components/world/WorldCountryInternational.tsx`
 - `src/routes/world/countries/index.tsx`
@@ -77,7 +85,13 @@ were edited.
   connected GitHub, stripped TypeScript type-only syntax in memory, and
   executed all **10 original pure-model test callbacks** with the relevant
   assertion matchers in an isolated JavaScript compatibility runner.
-  Result: **10 tests / 66 assertions passed**.
+  Result: **10 tests / 71 assertions passed** after leap-year and invalid-calendar regression additions.
+- Ten additional query-contract test cases are committed with a fake
+  PostgREST/Supabase client. In the isolated source-compatible runner, 9 test
+  callbacks passed (75 assertions); the tenth hit a missing matcher in the
+  harness, then the same committed function was checked separately with
+  5 passing assertions for empty, duplicate, oversized and malformed
+  institution scopes. These are not official Vitest results.
 - The React server-rendering gate tests are authored but **not executed**
   in this connector workspace. They must run under real Vitest/React Query
   in exact-head CI.
@@ -101,3 +115,19 @@ were edited.
 - Exact-head build, typecheck, lint, local database migration rehearsal and
   mobile/desktop browser testing remain required before release sign-off.
   No hosted production Supabase test traffic is permitted.
+
+## Read-contract continuation (2026-11-04)
+
+All public Country International reads are extracted from React and can be
+reviewed or tested without mounting the app or connecting to hosted Supabase.
+The country directory, exact identity lookup, current/former membership
+queries, public institution publication check and rollout decision share one
+purpose-built transport module. Tests include row selection, filter grammar,
+country scoping, date semantics, error handling, paging and private-row
+suppression. The public membership model also refuses impossible calendar
+dates such as February 30.
+
+**Unverified release gates** remain: official Vitest/React test execution,
+TypeScript, lint/build, local TG2 migration rehearsal, mobile/desktop browser
+smoke tests, and integration with the upstream #1888 and sibling #1934.
+The branch should not be merged or published before these pass.
