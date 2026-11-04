@@ -87,6 +87,12 @@ function optionalString(input: unknown): string | null {
   return typeof input === "string" && input.trim() ? input.trim() : null;
 }
 
+// Legal text is historically significant. Never normalize whitespace or
+// reinterpret its markup: the UI renders this value as plain React text.
+function plainText(input: unknown): string {
+  return typeof input === "string" ? input : "";
+}
+
 function versionNumber(input: unknown): number {
   if (!Number.isSafeInteger(input) || (input as number) < 1) {
     throw new Error("Invalid institutional document version");
@@ -169,7 +175,7 @@ export function parseWorldDocumentDetail(input: unknown): WorldDocumentDetail | 
       provisionId: string(provision.provisionId, "provision id"),
       displayLabel: optionalString(provision.displayLabel) ?? "",
       heading: optionalString(provision.heading) ?? "",
-      bodyPlainText: optionalString(provision.bodyPlainText) ?? "",
+      bodyPlainText: plainText(provision.bodyPlainText),
       anchor,
       parentSemanticKey: optionalString(provision.parentSemanticKey),
     };
@@ -203,7 +209,7 @@ export function parseWorldDocumentDetail(input: unknown): WorldDocumentDetail | 
       versionNumber: versionNumber(version.versionNumber),
       title: string(version.title, "version title"),
       publicationState,
-      plainText: optionalString(version.plainText) ?? "",
+      plainText: plainText(version.plainText),
       publishedAt: optionalString(version.publishedAt),
       effectiveFrom: optionalString(version.effectiveFrom),
       effectiveTo: optionalString(version.effectiveTo),
