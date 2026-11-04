@@ -190,6 +190,30 @@ export function assertApprovedWrite({ approval, key, digest, now = new Date(), c
     throw new Error('Recovery approval signature invalid');
   }
 }
+/** Legacy public bucket placement alone does not authorize publication in V3.
+ * A protected signed change approval must contain existing canonical publication
+ * and media-validation evidence for every public asset. Unknown buckets fail closed.
+ */
+export function assertAssetClearance(entry, approval) {
+  const permitted = new Set(['country-media', 'edition-artwork', 'beta-feedback']);
+  if (!permitted.has(entry.bucket)) throw new Error('Bucket not approved for this recovery operation');
+  const identity = entry.bucket + '/' + validatePath(entry.path) + '#' + entry.source_sha256;
+  const matching = (approval.asset_clearances || []).filter(a => a && a.identity === identity);
+  if (matching.length !== 1) throw new Error('Missing or duplicate per-asset clearance');
+  const clearance = matching[0];
+  if (entry.bucket === 'beta-feedback') {
+    if (entry.private !== true || clearance.visibility !== 'retain_private') {
+      throw new Error('Private asset clearance must retain private visibility');
+    }
+  } else if (entry.private !== false || clearance.visibility !== 'already_published' ||
+      typeof clearance.canonical_subject_id !== 'string' || !clearance.canonical_subject_id.trim() ||
+      typeof clearance.publication_evidence_id !== 'string' || !clearance.publication_evidence_id.trim() ||
+      typeof clearance.validation_evidence_id !== 'string' || !clearance.validation_evidence_id.trim()) {
+    throw new Error('Public restore requires existing canonical publication and media validation evidence');
+  }
+  return identity;
+}
+
 export async function transferVerifiedMissing({ source, destination, entry, onVerified }) {
   if (entry.status !== 'missing_destination') return { status: 'skipped', reason: entry.status };
   validatePath(entry.path);
