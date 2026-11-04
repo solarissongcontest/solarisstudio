@@ -228,7 +228,7 @@ function buildResultRows(input: {
   countries: readonly Country[];
   publication: PublicationConfig;
 }): V3ResultEntryInput[] {
-  const displayMap = entityDisplayMap(input.entities, input.countries);
+  const displayMap = entityDisplayMap([...input.entities], [...input.countries]);
   return input.rows.flatMap((row) => {
     const display = displayMap.get(entityKeyOf(row));
     if (!display || row.final_rank == null || row.final_rank <= 0) return [];
