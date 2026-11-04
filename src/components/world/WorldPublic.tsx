@@ -266,13 +266,14 @@ export function WorldDirectory() {
   );
 }
 
-type WorldCountry = { id: string; name: string; short_code: string; flag_image: string | null; accent_color: string };
+const WORLD_MEMBER_PAGE_SIZE = 24;
+type WorldCountry = { id: string; name: string; short_code: string; flag_image: string | null; accent_color: string | null };
 function parseCountryRows(raw: unknown): WorldCountry[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter((row): row is WorldCountry =>
     !!row && typeof row === "object" && typeof row.id === "string" &&
     typeof row.name === "string" && typeof row.short_code === "string" &&
-    typeof row.accent_color === "string");
+    (row.accent_color == null || typeof row.accent_color === "string"));
 }
 
 export function WorldOrganizationPage({
@@ -282,6 +283,8 @@ export function WorldOrganizationPage({
   view: WorldView;
   onViewChange: (view: WorldView) => void;
 }) {
+  const [memberPage, setMemberPage] = useState(0);
+  useEffect(() => { setMemberPage(0); }, [slug]);
   const projection = useQuery({
     queryKey: ["world", "public", "organization", slug],
     queryFn: () => fetchWorldProjection(slug),
@@ -291,12 +294,16 @@ export function WorldOrganizationPage({
   const currentMembers = useMemo(() =>
     projection.data ? currentWorldMemberships(projection.data) : [],
     [projection.data]);
+  const visibleMembers = useMemo(
+    () => currentMembers.slice(memberPage * WORLD_MEMBER_PAGE_SIZE, (memberPage + 1) * WORLD_MEMBER_PAGE_SIZE),
+    [currentMembers, memberPage],
+  );
   const countryIds = useMemo(() =>
-    [...new Set(currentMembers.map((member) => member.countryId))].sort(),
-    [currentMembers]);
+    [...new Set(visibleMembers.map((member) => member.countryId))].sort(),
+    [visibleMembers]);
   const countries = useQuery({
     queryKey: ["world", "public", "member-countries", countryIds],
-    enabled: countryIds.length > 0,
+    enabled: view === "members" && countryIds.length > 0,
     retry: false,
     staleTime: 300_000,
     queryFn: async () => {
@@ -410,7 +417,7 @@ export function WorldOrganizationPage({
               {!currentMembers.length ? <p className="mt-6 rounded-xl border border-border px-5 py-7 text-sm text-muted-foreground">No current memberships have been recorded. This does not imply the institution has no historical members.</p> : null}
               {countries.isSuccess && currentMembers.length ? (
                 <div className="mt-5 divide-y divide-border" aria-label="Current member countries">
-                  {currentMembers.map((member) => {
+                  {visibleMembers.map((member) => {
                     const country = countryMap.get(member.countryId);
                     return (
                       <div key={member.id} className="flex min-h-16 items-center gap-3 py-3">
@@ -424,6 +431,23 @@ export function WorldOrganizationPage({
                     );
                   })}
                 </div>
+              ) : null}
+              {currentMembers.length > WORLD_MEMBER_PAGE_SIZE ? (
+                <nav aria-label="Member country pages" className="mt-6 flex items-center justify-between gap-3 border-t border-border pt-5">
+                  <button type="button" disabled={memberPage === 0}
+                    onClick={() => setMemberPage((page) => Math.max(0, page - 1))}
+                    className="min-h-11 rounded-xl border border-border px-4 text-sm font-medium disabled:opacity-40">
+                    Previous
+                  </button>
+                  <span className="text-xs text-muted-foreground">
+                    Page {memberPage + 1} of {Math.ceil(currentMembers.length / WORLD_MEMBER_PAGE_SIZE)}
+                  </span>
+                  <button type="button" disabled={(memberPage + 1) * WORLD_MEMBER_PAGE_SIZE >= currentMembers.length}
+                    onClick={() => setMemberPage((page) => page + 1)}
+                    className="min-h-11 rounded-xl border border-border px-4 text-sm font-medium disabled:opacity-40">
+                    Next
+                  </button>
+                </nav>
               ) : null}
             </section>
           ) : null}
