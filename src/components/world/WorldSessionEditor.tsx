@@ -261,7 +261,7 @@ export function WorldSessionEditor() {
                 This will create a publicly visible institutional session. It cannot be undone from this screen.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
-                <button type="button" onClick={() => setReviewing(false)} disabled={submitting}
+                <button type="button" onClick={() => setReviewing(false)} disabled={submitting || Boolean(pending.current)}
                   className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold">
                   Edit details
                 </button>
