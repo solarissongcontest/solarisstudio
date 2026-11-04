@@ -36,7 +36,11 @@ describe("V3 Televote public RLS boundary", () => {
     expect(migration).toContain("security definer");
     expect(migration).toContain("set search_path = pg_catalog, public");
     expect(migration).toContain("from public.televoting_round_bindings binding");
+    expect(migration).toContain("join televoting.rounds source_round");
+    expect(migration).toContain("source_round.id = p_round_id");
+    expect(migration).toContain("source_round.edition_id::text = binding.remote_edition_id");
     expect(migration).toContain("join public.shows show_row");
+    expect(migration).toContain("show_row.edition_id = binding.edition_id");
     expect(migration).toContain("show_row.published = true");
     expect(migration).toContain(
       "grant execute on function public.v3_public_televote_round_show_visible(uuid)",

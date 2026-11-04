@@ -64,8 +64,12 @@ as $visible$
   select exists (
     select 1
     from public.televoting_round_bindings binding
+    join televoting.rounds source_round
+      on source_round.id = p_round_id
+     and source_round.edition_id::text = binding.remote_edition_id
     join public.shows show_row
       on show_row.id = binding.show_id
+     and show_row.edition_id = binding.edition_id
     where binding.remote_round_id = p_round_id::text
       and binding.show_id is not null
       and show_row.published = true

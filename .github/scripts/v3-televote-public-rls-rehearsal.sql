@@ -1,7 +1,8 @@
 -- Disposable transactional fixtures; executed only by the loopback-only runner.
 begin;
 insert into public.editions(id,name,slug,edition_number,status,published)
-values ('16320000-0000-4000-8000-000000000001','RLS boundary','rls-boundary-1632',991632,'draft',false);
+values ('16320000-0000-4000-8000-000000000001','RLS boundary','rls-boundary-1632',991632,'draft',false),
+ ('16320000-0000-4000-8000-000000000004','Other RLS edition','rls-boundary-other-1632',991633,'draft',false);
 insert into public.shows(id,edition_id,name,published) values
  ('16320000-0000-4000-8000-000000000002','16320000-0000-4000-8000-000000000001','Public show',true),
  ('16320000-0000-4000-8000-000000000003','16320000-0000-4000-8000-000000000001','Private show',false);
@@ -13,15 +14,24 @@ insert into televoting.rounds(id,edition_id,name,status,results_status) values
  ('16320000-0000-4000-8000-000000000013','16320000-0000-4000-8000-000000000010','published','closed','published'),
  ('16320000-0000-4000-8000-000000000014','16320000-0000-4000-8000-000000000010','show-closed','closed','draft'),
  ('16320000-0000-4000-8000-000000000015','16320000-0000-4000-8000-000000000010','private-show','closed','draft'),
- ('16320000-0000-4000-8000-000000000016','16320000-0000-4000-8000-000000000010','unbound','closed','draft');
+ ('16320000-0000-4000-8000-000000000016','16320000-0000-4000-8000-000000000010','unbound','closed','draft'),
+ ('16320000-0000-4000-8000-000000000017','16320000-0000-4000-8000-000000000010','foreign-local','closed','draft'),
+ ('16320000-0000-4000-8000-000000000018','16320000-0000-4000-8000-000000000010','foreign-remote','closed','draft');
 insert into public.televoting_round_bindings(remote_round_id,remote_edition_id,edition_id,show_id,source_mode)
 select r.id::text,r.edition_id::text,'16320000-0000-4000-8000-000000000001'::uuid,
  case when r.name='private-show' then '16320000-0000-4000-8000-000000000003'::uuid
  else '16320000-0000-4000-8000-000000000002'::uuid end,'show'
 from televoting.rounds r where r.name in ('draft','show-closed','private-show')
 and r.edition_id='16320000-0000-4000-8000-000000000010';
+-- These deliberately inconsistent bindings are accepted by the current FK
+-- structure. Neither may expose a closed unpublished round through a different
+-- local edition or through mismatched remote-edition metadata.
+insert into public.televoting_round_bindings(remote_round_id,remote_edition_id,edition_id,show_id,source_mode) values
+ ('16320000-0000-4000-8000-000000000017','16320000-0000-4000-8000-000000000010','16320000-0000-4000-8000-000000000004','16320000-0000-4000-8000-000000000002','show'),
+ ('16320000-0000-4000-8000-000000000018','16320000-0000-4000-8000-000000000019','16320000-0000-4000-8000-000000000001','16320000-0000-4000-8000-000000000002','show');
 insert into televoting.round_entries(round_id,entry_key,country_code)
-select id,'country:XRL','XRL' from televoting.rounds where edition_id='16320000-0000-4000-8000-000000000010';
+select id,'country:XRL','XRL' from televoting.rounds
+where id between '16320000-0000-4000-8000-000000000011'::uuid and '16320000-0000-4000-8000-000000000016'::uuid;
 -- Canonical round_entries_sync_countries creates country membership; do not
 -- insert duplicate membership rows or disable the synchronization trigger.
 insert into auth.users(id,aud,role,email,created_at,updated_at) values
@@ -39,7 +49,7 @@ begin
  select array_agg(name order by name) into v_names from televoting.rounds
  where edition_id='16320000-0000-4000-8000-000000000010';
  if v_names is distinct from (case when p_organizer then
- array['draft','open','private-show','published','show-closed','unbound']
+ array['draft','foreign-local','foreign-remote','open','private-show','published','show-closed','unbound']
  else array['open','published','show-closed'] end) then
    raise exception 'Unexpected round visibility: %',v_names;
  end if;
@@ -54,6 +64,8 @@ begin
  if not public.v3_public_televote_round_show_visible('16320000-0000-4000-8000-000000000014')
  or public.v3_public_televote_round_show_visible('16320000-0000-4000-8000-000000000015')
  or public.v3_public_televote_round_show_visible('16320000-0000-4000-8000-000000000016')
+ or public.v3_public_televote_round_show_visible('16320000-0000-4000-8000-000000000017')
+ or public.v3_public_televote_round_show_visible('16320000-0000-4000-8000-000000000018')
  or public.v3_public_televote_round_show_visible(null) then
    raise exception 'Show binding predicate leaked private or missing binding';
  end if;
