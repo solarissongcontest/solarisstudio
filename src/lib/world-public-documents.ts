@@ -383,6 +383,25 @@ export function resolveWorldDocumentFragment(
   ) ? target : null;
 }
 
+/**
+ * Legal-history links fail closed. An invalid explicit ?version= must never
+ * silently display the current published revision as though it were the
+ * requested historical text.
+ *
+ * undefined: no version was requested, so read the current published revision.
+ * number: exact positive canonical decimal revision requested.
+ * null: an explicit but malformed version was requested; DO NOT fetch.
+ */
+export function parseWorldDocumentVersionQuery(input: unknown): number | null | undefined {
+  if (input === undefined) return undefined;
+  if (typeof input === "number") {
+    return Number.isSafeInteger(input) && input >= 1 ? input : null;
+  }
+  if (typeof input !== "string" || !/^[1-9][0-9]*$/.test(input)) return null;
+  const version = Number(input);
+  return Number.isSafeInteger(version) ? version : null;
+}
+
 export function normalizeWorldSearch(query: string): string {
   return query.trim().slice(0, MAX_SEARCH);
 }
