@@ -172,6 +172,47 @@ describe("V3 release evidence truthfulness", () => {
     }
   });
 
+
+  it("rejects bare, partial, stale, or duplicated S16 certification success flags", () => {
+    const categoryFiles = [
+      ["canonical-ci", "s16-canonical-ci.json"],
+      ["migration-rehearsal", "s16-migration-rehearsal.json"],
+      ["authorization-security", "s16-authorization-security.json"],
+      ["production-isolation", "s16-production-isolation.json"],
+      ["system-hardening", "s16-system-hardening.json"],
+      ["public-acceptance", "s16-public-acceptance.json"],
+      ["organizer-acceptance", "s16-organizer-acceptance.json"],
+      ["navigation-acceptance", "s16-navigation-acceptance.json"],
+      ["accessibility", "s16-accessibility.json"],
+      ["responsive-behavior", "s16-responsive-behavior.json"],
+      ["full-contest-rehearsal", "s14-full-contest.json"],
+      ["registry-zero-gap", "s15-zero-orphan.json"],
+    ] as const;
+    const valid = {
+      schemaVersion: 1,
+      candidateSha: SHA,
+      certified: true,
+      categories: categoryFiles.map(([id, evidenceFilename]) => ({
+        id, evidenceFilename, passed: true, evidenceCandidateSha: SHA,
+      })),
+    };
+    expect(check("s16-certification.json", valid)).toBeNull();
+    expect(check("s16-certification.json", { certified: true, candidateSha: SHA })).not.toBeNull();
+    for (const change of [
+      { schemaVersion: 2 },
+      { categories: valid.categories.slice(0, -1) },
+      { categories: [...valid.categories.slice(0, -1), valid.categories[0]] },
+      { categories: valid.categories.map((item, index) =>
+          index === 0 ? { ...item, passed: false } : item) },
+      { categories: valid.categories.map((item, index) =>
+          index === 0 ? { ...item, evidenceCandidateSha: "b".repeat(40) } : item) },
+      { categories: valid.categories.map((item, index) =>
+          index === 0 ? { ...item, evidenceFilename: "unrelated.json" } : item) },
+    ]) {
+      expect(check("s16-certification.json", { ...valid, ...change })).not.toBeNull();
+    }
+  });
+
   it("does not interpret failed rehearsal or blocked advisory as passing evidence", () => {
     // The release guard separately requires the success boolean; this function
     // checks consistency of affirmative claims rather than granting success.
