@@ -41,12 +41,17 @@ as $snapshot$
 begin
   -- Check the OLD state first. A concluded term must never become active
   -- again, switch holder or office, or otherwise rewrite political history.
-  -- An auth-account deletion can still null holder_user_id without changing
+  -- An auth-account deletion can still null holder_user_id, but another login
+  -- may never be attached to a concluded term. Neither operation changes
   -- the historical durable person or presentation labels.
   if tg_op = 'UPDATE' and old.status in ('ended', 'removed', 'resigned') then
     if new.status is distinct from old.status
       or new.office_id is distinct from old.office_id
       or new.holder_person_id is distinct from old.holder_person_id
+      or (
+        new.holder_user_id is distinct from old.holder_user_id
+        and new.holder_user_id is not null
+      )
       or new.represented_country_id is distinct from old.represented_country_id
       or new.start_edition_id is distinct from old.start_edition_id
       or new.end_edition_id is distinct from old.end_edition_id
