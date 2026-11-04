@@ -62,6 +62,35 @@ describe('Studio 2 Phase 12 Storytelling & Anniversary architecture', () => {
     expect(route).toContain('crypto.randomUUID()');
   });
 
+  it('preserves the first execution identity for an exact semantic retry', () => {
+    expect(service).toContain('pendingStoryExecutionIds = new Map<string, string>()');
+    expect(service).toContain('storyOperationFingerprint(input, reason)');
+    expect(service).toContain('executionIdForStoryOperation(fingerprint, input.executionId)');
+    expect(service).toContain('p_execution_id: executionId');
+    expect(service).toContain('expectedRevision: input.expectedRevision ?? null');
+    expect(service).toContain('itemId: input.itemId ?? null');
+    expect(service).toContain('payload: input.payload ?? {}');
+  });
+
+  it('retires retry identity only after a matching authoritative receipt', () => {
+    expect(service).toContain('validateStoryOperationExecution(parseExecution(data)');
+    expect(service).toContain("mismatches.push('executionId')");
+    expect(service).toContain("mismatches.push('editionId')");
+    expect(service).toContain("mismatches.push('action')");
+    expect(service).toContain("mismatches.push('reason')");
+    expect(service).toContain("mismatches.push('itemId')");
+    expect(service.indexOf('validateStoryOperationExecution(parseExecution(data)')).toBeLessThan(
+      service.indexOf('pendingStoryExecutionIds.delete(fingerprint)'),
+    );
+    expect(service).not.toContain('finally {\n    pendingStoryExecutionIds.delete(fingerprint)');
+  });
+
+  it('keeps the pending identity cache bounded', () => {
+    expect(service).toContain('MAX_PENDING_STORY_EXECUTIONS = 64');
+    expect(service).toContain('pendingStoryExecutionIds.size >= MAX_PENDING_STORY_EXECUTIONS');
+    expect(service).toContain('pendingStoryExecutionIds.delete(oldest)');
+  });
+
   it('keeps editorial lifecycle tables RPC-only and public projections deliberately narrow', () => {
     expect(migration).toContain('revoke all on table public.studio2_storylines from public, anon, authenticated');
     expect(migration).toContain('revoke all on table public.studio2_storyline_items from public, anon, authenticated');

@@ -62,6 +62,7 @@ describe("System V3 S1 registries", () => {
       "acknowledgement.recorded",
       "confirmation.submitted",
       "confirmation.window_changed",
+      "edition.archived",
       "entry.changes_requested",
       "entry.reviewed",
       "entry.submitted",
@@ -96,6 +97,19 @@ describe("System V3 S1 registries", () => {
         .filter((item) => !migrated.has(item.eventType))
         .every((item) => item.implementationState === "declared"),
     ).toBe(true);
+  });
+
+  it("records Archive as an event-backed Edition consequence", () => {
+    const archive = v3DomainConsequence("edition.archived");
+    expect(archive?.implementationState).toBe("event-backed");
+    expect(archive?.ownerDomain).toBe("edition");
+    expect(archive?.evidence).toEqual(
+      expect.arrayContaining([
+        "supabase/migrations/20261019112100_v3_s14_archive_consequence_reconciliation.sql",
+        "src/lib/v3-s14-archive-consequences.contract.test.ts",
+        ".github/scripts/v3-s14-archive-system-rehearsal.sh",
+      ]),
+    );
   });
 
   it("only connects notifications where a current producer is explicitly evidenced", () => {

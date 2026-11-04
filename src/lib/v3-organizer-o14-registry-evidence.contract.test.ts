@@ -50,13 +50,20 @@ describe("V3 Organizer platform and anniversary capability evidence", () => {
     expect(reviewContract).toContain("guards the legacy write against a race after the live read");
   });
 
-  it("does not promote the still-ungoverned System Settings surface", () => {
-    expect(statusFor("workspace-system-settings")).toBe("planned");
+  it("reports System Settings as building from the merged exact-edition reminder boundary", () => {
+    const reminderContract = source("src/lib/v3-organizer-system-reminder-scope.contract.test.ts");
+
+    expect(statusFor("workspace-system-settings")).toBe("building");
+    expect(reminderContract).toContain("binds reminder reads to the live Organizer edition");
+    expect(reminderContract).toContain("binds the operational schedule to the same live Organizer edition");
+    expect(reminderContract).toContain("re-reads a reminder and narrows completion updates by edition and prior state");
+    expect(reminderContract).toContain("does not pretend compatibility reminder CRUD closes System #1074");
   });
 
   it("keeps every evidence-backed mutation surface in this slice below parity while System gaps remain open", () => {
     expect(statusFor("workspace-feature-rollout")).not.toBe("parity");
     expect(statusFor("workspace-all-editions")).not.toBe("parity");
     expect(statusFor("workspace-anniversary-dates")).not.toBe("parity");
+    expect(statusFor("workspace-system-settings")).not.toBe("parity");
   });
 });

@@ -3,6 +3,7 @@ import {
   applyProductionDesign,
   createProductionDesignCommandIdentity,
   loadProductionDesignProjection,
+  loadProductionDesignResetReview,
   reconcileProductionDesignOperation,
   type ProductionDesignRpcClient,
 } from "./v3-production-design";
@@ -64,6 +65,38 @@ describe("V3 Production Design client authority adapter", () => {
       "admin_production_design_projection",
       { p_edition_id: "edition-22", p_show_id: null },
     );
+  });
+
+  it("reviews reset with edition-wide CAS and rejects out-of-edition target", async () => {
+    const client = clientWithResponses({
+      data: {
+        schemaVersion: 1, editionId: "edition-22", showId: null,
+        stateVersion: "b".repeat(64),
+        state: { shows: [{ id: "semi-1", broadcastConfig: { source: true } }, { id: "final" }] },
+        serverTime: "2026-11-04T20:30:00Z",
+      },
+      error: null,
+    });
+    const review = await loadProductionDesignResetReview(
+      { editionId: "edition-22", targetShowId: "final" }, client,
+    );
+    expect(review).toMatchObject({ showId: null, resetTargetShowId: "final", stateVersion: "b".repeat(64) });
+    expect(client.rpc).toHaveBeenCalledWith(
+      "admin_production_design_projection",
+      { p_edition_id: "edition-22", p_show_id: null },
+    );
+
+    const foreignClient = clientWithResponses({
+      data: {
+        schemaVersion: 1, editionId: "edition-22", showId: null,
+        stateVersion: "c".repeat(64), state: { shows: [{ id: "semi-1" }] },
+        serverTime: "2026-11-04T20:30:00Z",
+      },
+      error: null,
+    });
+    await expect(loadProductionDesignResetReview(
+      { editionId: "edition-22", targetShowId: "foreign" }, foreignClient,
+    )).rejects.toThrow("outside the reviewed edition");
   });
 
   it("sends the reviewed state version and one operation identity to the atomic command", async () => {

@@ -8,6 +8,7 @@ function source(path: string) {
 
 describe("public Core Web Vitals telemetry contract", () => {
   const telemetry = source("src/lib/public-web-vitals.ts");
+  const privacy = source("src/lib/public-ux-privacy.ts");
   const root = source("src/routes/__root.tsx");
   const migration = source(
     "supabase/migrations/20260919201129_public_web_vitals_telemetry.sql",
@@ -20,8 +21,22 @@ describe("public Core Web Vitals telemetry contract", () => {
     expect(telemetry).toContain('"layout-shift"');
     expect(telemetry).toContain('type: "event"');
     expect(telemetry).toContain("window.location.pathname");
+    expect(telemetry).toContain("sanitizePublicUxPath(window.location.pathname)");
     expect(telemetry).not.toContain("window.location.search");
     expect(telemetry).not.toContain("userAgent");
+  });
+
+  it("honors the same browser privacy boundary as interaction telemetry", () => {
+    expect(telemetry).toContain("publicUxTelemetryAllowed(window.navigator)");
+    expect(privacy).toContain("globalPrivacyControl");
+    expect(privacy).toContain('doNotTrack !== "1"');
+  });
+
+  it("stops sibling field-metric writes after the backend rejects telemetry", () => {
+    expect(telemetry).toContain("let webVitalsWriteDisabled = false;");
+    expect(telemetry).toContain("if (webVitalsWriteDisabled) return;");
+    expect(telemetry).toContain("if (error) webVitalsWriteDisabled = true;");
+    expect(telemetry).toContain("webVitalsWriteDisabled = true;");
   });
 
   it("starts collection once from the app root", () => {

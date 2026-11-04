@@ -137,6 +137,25 @@ export async function loadProductionDesignProjection(
   };
 }
 
+/**
+ * Review reset against the entire edition: source defaults may come from
+ * another show, so target-only CAS is never sufficient.
+ */
+export async function loadProductionDesignResetReview(
+  input: { editionId: string; targetShowId: string },
+  client: ProductionDesignRpcClient = rpcClient,
+): Promise<ProductionDesignProjection & { resetTargetShowId: string }> {
+  const targetShowId = requiredString(input.targetShowId, "targetShowId").trim();
+  const projection = await loadProductionDesignProjection(
+    { editionId: input.editionId, showId: null }, client,
+  );
+  const shows = Array.isArray(projection.state.shows) ? projection.state.shows : [];
+  if (!shows.some((value) => objectOrNull(value)?.id === targetShowId)) {
+    throw new Error("Production reset target is outside the reviewed edition.");
+  }
+  return { ...projection, resetTargetShowId: targetShowId };
+}
+
 export async function applyProductionDesign(
   input: {
     editionId: string;

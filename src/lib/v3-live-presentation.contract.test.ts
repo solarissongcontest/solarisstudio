@@ -8,6 +8,12 @@ const source = () =>
     "utf8",
   );
 
+const gate = () =>
+  readFileSync(
+    resolve(process.cwd(), "src/components/v3/V3LiveRouteGate.tsx"),
+    "utf8",
+  );
+
 describe("Public V3 Live presentation", () => {
   it("surfaces uncertainty instead of fabricating the current performer", () => {
     const screen = source();
@@ -37,6 +43,31 @@ describe("Public V3 Live presentation", () => {
     expect(screen).not.toContain("runningOrder[0]");
   });
 
+  it("shows server-owned timing without promoting timestamps into browser authority", () => {
+    const screen = source();
+
+    expect(screen).toContain('title="Show timing"');
+    expect(screen).toContain("experience.timing.scheduledStart");
+    expect(screen).toContain("experience.timing.liveStartedAt");
+    expect(screen).toContain("experience.voting.openedAt");
+    expect(screen).toContain("experience.voting.closedAt");
+    expect(screen).toContain("experience.timing.resultsStartedAt");
+    expect(screen).toContain("experience.timing.endedAt");
+    expect(screen).toContain("do not independently advance");
+    expect(screen).not.toContain("setTimeout(");
+    expect(screen).not.toContain("setInterval(");
+  });
+
+  it("keeps Edition context connected to canonical Public discovery", () => {
+    const screen = source();
+    const routeGate = gate();
+
+    expect(routeGate).toContain("edition={bundle.data.edition}");
+    expect(screen).toContain("Edition context");
+    expect(screen).toContain('href={`/editions/${edition.slug}`}');
+    expect(screen).toContain("Open edition");
+  });
+
   it("keeps refresh accessible and reduced-motion safe", () => {
     const screen = source();
 
@@ -44,5 +75,25 @@ describe("Public V3 Live presentation", () => {
     expect(screen).toContain("disabled={refreshing}");
     expect(screen).toContain("motion-safe:animate-spin");
     expect(screen).toContain('aria-live="polite"');
+  });
+
+  it("surfaces stale authoritative snapshots instead of pretending they are current", () => {
+    const screen = source();
+
+    expect(screen).toContain("degraded = false");
+    expect(screen).toContain('data-v3-live-degraded-snapshot=""');
+    expect(screen).toContain("Live connection interrupted");
+    expect(screen).toContain("last authoritative Solaris snapshot");
+    expect(screen).toContain("Refresh to reconcile with the current show state");
+    expect(screen).toContain('degraded ? "Retry refresh" : "Refresh"');
+  });
+
+  it("also marks a cached empty snapshot stale when reconnect fails", () => {
+    const screen = source();
+
+    expect(screen).toContain("if (!experience)");
+    expect(screen).toContain("The last authoritative snapshot had no public show");
+    expect(screen).toContain("That state may now be stale");
+    expect(screen).toContain('refreshing ? "Refreshing…" : "Retry refresh"');
   });
 });

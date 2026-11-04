@@ -213,7 +213,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-beta-2-feedback" ||
     id === "workspace-beta-1-archive" ||
     id === "workspace-system-health" ||
-    id === "workspace-delivery-jobs"
+    id === "workspace-delivery-jobs" ||
+    id === "workspace-system-settings"
   ) {
     return "building";
   }

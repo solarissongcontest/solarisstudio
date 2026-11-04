@@ -224,7 +224,7 @@ grant execute on function public.admin_production_design_projection(uuid, uuid)
   to authenticated, service_role;
 
 comment on function public.admin_production_design_projection(uuid, uuid) is
-  'Bounded exact-edition Design/Broadcast projection with a deterministic CAS state version. Requires edition.manage.';
+  'Exact-edition Design/Broadcast CAS. For show_reset review request p_show_id=NULL: its state version includes every inherited source show. Requires edition.manage.';
 
 create or replace function public.admin_apply_production_design(
   p_edition_id uuid,
@@ -244,6 +244,8 @@ declare
   v_request jsonb := coalesce(p_request, '{}'::jsonb);
   v_mode text := nullif(btrim(coalesce(p_request ->> 'mode', '')), '');
   v_show_id uuid;
+  -- A reset may inherit defaults from another show in the edition.
+  v_snapshot_show_id uuid;
   v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
   v_expected text := lower(nullif(btrim(coalesce(p_expected_state_version, '')), ''));
   v_before jsonb;
@@ -339,6 +341,10 @@ begin
   v_effective_broadcast := v_broadcast_config
     || jsonb_build_object('scoreboard', v_scoreboard_config);
 
+  -- The existing edition-wide projection contains every potential source B.
+  -- A show_reset must use that reviewed hash, never just target A's hash.
+  v_snapshot_show_id := case when v_mode = 'show_reset' then null else v_show_id end;
+
   -- One edition lock serializes canonical Production design changes without a
   -- global lock and closes the legacy browser-loop race during cutover.
   perform pg_advisory_xact_lock(
@@ -359,12 +365,24 @@ begin
     raise exception 'Missing Solaris capability: edition.manage' using errcode = '42501';
   end if;
 
-  if v_show_id is null then
+  if v_snapshot_show_id is null then
+    -- Reset and edition_default lock every inherited source BEFORE CAS.
+    -- This serializes changes to source show B against resetting target A.
     perform 1
     from public.shows show_row
     where show_row.edition_id = p_edition_id
     order by show_row.id
     for update;
+
+    if v_mode = 'show_reset' then
+      select show_row.* into v_show
+      from public.shows show_row
+      where show_row.id = v_show_id
+        and show_row.edition_id = p_edition_id;
+      if v_show.id is null then
+        raise exception 'Show is outside the reviewed edition' using errcode = '42501';
+      end if;
+    end if;
   else
     select show_row.*
     into v_show
@@ -389,12 +407,12 @@ begin
     select show_row.theme_id
     from public.shows show_row
     where show_row.edition_id = p_edition_id
-      and (v_show_id is null or show_row.id = v_show_id)
+      and (v_snapshot_show_id is null or show_row.id = v_show_id)
   )
   order by theme_row.id
   for update;
 
-  v_before := private.v3_production_design_snapshot(p_edition_id, v_show_id);
+  v_before := private.v3_production_design_snapshot(p_edition_id, v_snapshot_show_id);
   v_before_version := private.v3_production_design_state_version(v_before);
 
   v_claim := private.studio2_claim_operation(
@@ -752,7 +770,7 @@ begin
       ) into v_event_id;
     end if;
 
-    v_after := private.v3_production_design_snapshot(p_edition_id, v_show_id);
+    v_after := private.v3_production_design_snapshot(p_edition_id, v_snapshot_show_id);
     v_after_version := private.v3_production_design_state_version(v_after);
 
     v_result := jsonb_build_object(
@@ -798,7 +816,7 @@ grant execute on function public.admin_apply_production_design(
 ) to authenticated, service_role;
 
 comment on function public.admin_apply_production_design(uuid, jsonb, text, uuid, text, text) is
-  'Atomic exact-edition R2 Design/Broadcast mutation. Uses deterministic reviewed-state CAS, S2 idempotency/receipt, audit and existing edition.changed/show.changed S4 event contracts.';
+  'Atomic exact-edition R2 Design/Broadcast mutation. Reset locks and hashes the full edition, including inherited source shows, before CAS. Uses canonical S2 receipts and S4 events.';
 
 notify pgrst, 'reload schema';
 

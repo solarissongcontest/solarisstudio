@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const migration = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20261020093000_v3_production_design_authority.sql",
+    "supabase/migrations/20261104212500_v3_production_design_authority.sql",
   ),
   "utf8",
 );
@@ -43,6 +43,18 @@ describe("V3 Production Design authority", () => {
     expect(body).toContain("private.v3_production_design_state_version(v_snapshot)");
     expect(body).toContain("'stateVersion'");
     expect(body).toContain("'serverTime'");
+  });
+
+  it("pins reset CAS to all inherited source shows rather than just target A", () => {
+    const body = functionBody("public.admin_apply_production_design(", "apply");
+    expect(body).toContain("v_snapshot_show_id := case when v_mode = 'show_reset' then null else v_show_id end;");
+    expect(body).toContain("if v_snapshot_show_id is null then");
+    expect(body).toMatch(/where show_row\.edition_id = p_edition_id\s+order by show_row\.id\s+for update;/);
+    expect(body).toContain("if v_mode = 'show_reset' then");
+    expect(body).toContain("and (v_snapshot_show_id is null or show_row.id = v_show_id)");
+    expect(body).toContain("private.v3_production_design_snapshot(p_edition_id, v_snapshot_show_id)");
+    expect(body).toContain("v_before_version is distinct from v_expected");
+    expect(body.indexOf("v_before := private.v3_production_design_snapshot")).toBeGreaterThan(body.indexOf("for update;"));
   });
 
   it("serializes one exact edition and fails closed on stale reviewed state", () => {

@@ -103,9 +103,12 @@ function sanitiseParticipant(
     spotify_url: songVisible ? source.spotify_url ?? null : null,
     apple_music_url: songVisible ? source.apple_music_url ?? null : null,
     notes: null,
-    running_order: publication.running_order ? participant.running_order : null,
+    // An edition-level canonical entry has no show-specific performance slot
+    // or qualification decision. Keep parity with public_safe_participants:
+    // only an actual public show appearance can release those stage fields.
+    running_order: participant.show_id && publication.running_order ? participant.running_order : null,
     semi_final: publication.semi_split ? participant.semi_final : "",
-    qualified: publication.qualifiers ? participant.qualified : null,
+    qualified: participant.show_id && publication.qualifiers ? participant.qualified : null,
   } as Participant;
 }
 
@@ -150,7 +153,11 @@ export function buildPublicCountryArchive(
     if (!publishedEditionIds.has(participant.edition_id)) return [];
 
     if (participant.show_id) {
-      const publication = publicationByShow.get(participant.show_id);
+      const show = showById.get(participant.show_id);
+      // A public show cannot authorize a participant from a different edition.
+      // Legacy rows and privileged reads may contain inconsistent show links.
+      if (!show || show.edition_id !== participant.edition_id) return [];
+      const publication = publicationByShow.get(show.id);
       if (!publication?.participants) return [];
       return [sanitiseParticipant(participant, publication)];
     }
@@ -170,7 +177,8 @@ export function buildPublicCountryArchive(
   );
   const results = competingResults.filter((result) => {
     if (!publishedEditionIds.has(result.edition_id) || !result.show_id) return false;
-    return showPublishesResults(showById.get(result.show_id));
+    const show = showById.get(result.show_id);
+    return Boolean(show && show.edition_id === result.edition_id && showPublishesResults(show));
   });
 
   // These tables contain directional voting detail. Aggregate result totals can
@@ -178,12 +186,22 @@ export function buildPublicCountryArchive(
   // enter public country analytics when detailed voting is released.
   const jury = input.jury.filter((vote) => {
     if (!publishedEditionIds.has(vote.edition_id) || !vote.show_id) return false;
-    return publicationByShow.get(vote.show_id)?.detailed_voting === true;
+    const show = showById.get(vote.show_id);
+    return Boolean(
+      show &&
+      show.edition_id === vote.edition_id &&
+      publicationByShow.get(show.id)?.detailed_voting === true,
+    );
   });
 
   const televote = input.televote.filter((vote) => {
     if (!publishedEditionIds.has(vote.edition_id) || !vote.show_id) return false;
-    return publicationByShow.get(vote.show_id)?.detailed_voting === true;
+    const show = showById.get(vote.show_id);
+    return Boolean(
+      show &&
+      show.edition_id === vote.edition_id &&
+      publicationByShow.get(show.id)?.detailed_voting === true,
+    );
   });
 
   return {
