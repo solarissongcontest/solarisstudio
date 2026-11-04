@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -29,6 +29,7 @@ import {
   type ConfirmationEdition,
 } from "@/integrations/confirmations/admin";
 import { loadAllConfirmationResponsesForEdition } from "@/integrations/confirmations/v3-projections";
+import { isCurrentConfirmationCountriesRequest } from "@/lib/confirmation-countries-edition-guard";
 
 type Entry = {
   id: string;
@@ -99,50 +100,75 @@ function DelegationsAdminOverview() {
   const { editionId: organizerEditionId } = useAdminContext();
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
   const [responses, setResponses] = useState<ResponseRow[]>([]);
+  const [loadedScope, setLoadedScope] = useState<{ editionId: string; generation: number } | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const generationRef = useRef(0);
+  const organizerEditionIdRef = useRef(organizerEditionId);
+  organizerEditionIdRef.current = organizerEditionId;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
-    // On an edition switch, discard the previous edition's private review
-    // history before any asynchronous response can resolve.
+    const request = { editionId: organizerEditionId, generation: ++generationRef.current };
+    const isCurrent = () => alive && isCurrentConfirmationCountriesRequest(request, {
+      editionId: organizerEditionIdRef.current,
+      generation: generationRef.current,
+    });
+
     setResponses([]);
+    setLoadedScope(null);
     setError(null);
     setLoading(true);
 
     void (async () => {
       try {
         const editionRows = await loadConfirmationEditions();
-        if (!alive) return;
+        if (!isCurrent()) return;
         setEditions(editionRows);
-        const selected = editionRows.find((edition) => edition.id === organizerEditionId)?.id;
+        const selected = editionRows.find((edition) => edition.id === request.editionId)?.id;
         if (!selected) return;
         const batch = await loadAllConfirmationResponsesForEdition<ResponseRow>(selected);
-        if (!alive) return;
+        if (!isCurrent()) return;
+        // The shared paginated projection already rejects foreign-edition rows.
+        // Keep the loaded scope separate from the Organizer context so that a
+        // B render can never consume A's responses before effects clear them.
+        if (batch.rows.some((response) => response.editions?.id !== selected)) {
+          throw new Error("Delegation overview crossed the selected Organizer edition boundary.");
+        }
         setResponses(batch.rows);
+        setLoadedScope(request);
       } catch (caught) {
-        if (alive) {
+        if (isCurrent()) {
           setResponses([]);
+          setLoadedScope(null);
           setError(caught instanceof Error ? caught.message : "Could not load delegation data.");
         }
       } finally {
-        if (alive) setLoading(false);
+        if (isCurrent()) setLoading(false);
       }
     })();
 
-    return () => {
-      alive = false;
-    };
-  }, [organizerEditionId]);
+    return () => { alive = false; };
+  }, [organizerEditionId, reloadNonce]);
 
   const activeEdition = useMemo(
     () => editions.find((edition) => edition.id === organizerEditionId) ?? null,
     [editions, organizerEditionId],
   );
 
+  const hasCurrentDelegationData = loadedScope !== null &&
+    isCurrentConfirmationCountriesRequest(loadedScope, {
+      editionId: organizerEditionId,
+      generation: generationRef.current,
+    }) &&
+    !loading &&
+    !error;
   const activeResponses = useMemo(
-    () => responses.filter((response) => response.editions?.id === activeEdition?.id),
-    [activeEdition?.id, responses],
+    () => hasCurrentDelegationData
+      ? responses.filter((response) => response.editions?.id === organizerEditionId)
+      : [],
+    [hasCurrentDelegationData, organizerEditionId, responses],
   );
 
   const triageCounts = useMemo(() => {
@@ -210,7 +236,7 @@ function DelegationsAdminOverview() {
         }
       />
 
-      {loading ? (
+      {loading || (Boolean(activeEdition) && !hasCurrentDelegationData && !error) ? (
         <AdminCard>
           <p className="py-7 text-center text-sm text-muted-foreground">Loading delegation status…</p>
         </AdminCard>
@@ -219,6 +245,7 @@ function DelegationsAdminOverview() {
           <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-4 text-sm leading-relaxed text-rose-100">
             {error}
           </div>
+          <button type="button" className="admin-action-secondary mt-3" onClick={() => setReloadNonce((value) => value + 1)}>Retry delegation overview</button>
         </AdminCard>
       ) : !activeEdition ? (
         <AdminCard>
