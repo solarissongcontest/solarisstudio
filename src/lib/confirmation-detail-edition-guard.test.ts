@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { isConfirmationDetailInOrganizerScope } from "./confirmation-detail-edition-guard";
+import { isConfirmationDetailInOrganizerScope, isPendingConfirmationEntryReviewInScope, isSuccessfulConfirmationEntryReviewReceipt } from "./confirmation-detail-edition-guard";
 
 describe("Organizer Confirmation detail edition isolation", () => {
   const response = { id: "response-1", edition: { id: "edition-a" } };
@@ -168,5 +168,74 @@ describe("Organizer Confirmation detail edition isolation", () => {
     expect(source).toContain("if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId) || deleting) return;");
     expect(source).toContain("if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)) return;");
     expect(source).toContain("currentScopeRef.current.editionId !== organizerEditionId");
+  });
+
+  it("only reconciles the unresolved Entry review for its exact candidate, response, edition and type", () => {
+    const pending = {
+      operationId: "operation-a",
+      entryId: "entry-a",
+      submissionId: "response-a",
+      editionId: "edition-a",
+      targetType: "national_final" as const,
+    };
+    const current = {
+      entryId: "entry-a",
+      submissionId: "response-a",
+      editionId: "edition-a",
+      targetType: "national_final" as const,
+    };
+    expect(isPendingConfirmationEntryReviewInScope(pending, current)).toBe(true);
+    expect(isPendingConfirmationEntryReviewInScope({ ...pending, operationId: "" }, current)).toBe(false);
+    expect(isPendingConfirmationEntryReviewInScope(pending, { ...current, entryId: "entry-b" })).toBe(false);
+    expect(isPendingConfirmationEntryReviewInScope(pending, { ...current, submissionId: "response-b" })).toBe(false);
+    expect(isPendingConfirmationEntryReviewInScope(pending, { ...current, editionId: "edition-b" })).toBe(false);
+    expect(isPendingConfirmationEntryReviewInScope(pending, { ...current, editionId: null })).toBe(false);
+    expect(isPendingConfirmationEntryReviewInScope(pending, { ...current, targetType: "internal" })).toBe(false);
+  });
+
+  it("requires a successful canonical receipt with the original Entry review operation ID", () => {
+    expect(isSuccessfulConfirmationEntryReviewReceipt({ status: "succeeded", operationId: "original" }, "original")).toBe(true);
+    expect(isSuccessfulConfirmationEntryReviewReceipt({ status: "succeeded", operationId: "other" }, "original")).toBe(false);
+    expect(isSuccessfulConfirmationEntryReviewReceipt({ status: "pending", operationId: "original" }, "original")).toBe(false);
+    expect(isSuccessfulConfirmationEntryReviewReceipt({ status: "failed", operationId: "original" }, "original")).toBe(false);
+    expect(isSuccessfulConfirmationEntryReviewReceipt(null, "original")).toBe(false);
+    expect(isSuccessfulConfirmationEntryReviewReceipt({ status: "succeeded", operationId: "original" }, "")).toBe(false);
+  });
+
+  it("never starts a second Entry review before reconciling an uncertain earlier one", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    const start = source.indexOf('  async function review(nextStatus:');
+    const end = source.indexOf('  async function chooseWinner()', start);
+    const review = source.slice(start, end);
+    const unresolved = review.indexOf("const unresolved = unresolvedReviewOperationRef.current;");
+    const reconciliation = review.indexOf("await recoverReview(unresolved.operationId)");
+    const preview = review.indexOf('"studio2_confirmation_entry_review_preview"');
+    const stored = review.indexOf("unresolvedReviewOperationRef.current = {");
+    const apply = review.indexOf('"studio2_apply_confirmation_entry_review"');
+    const receipt = review.indexOf("isSuccessfulConfirmationEntryReviewReceipt(canonicalReceipt, command.operationId)");
+    const release = review.indexOf("unresolvedReviewOperationRef.current = null;");
+    expect(source).toContain("const unresolvedReviewOperationRef = useRef<");
+    expect(unresolved).toBeGreaterThan(-1);
+    expect(reconciliation).toBeGreaterThan(unresolved);
+    expect(preview).toBeGreaterThan(reconciliation);
+    expect(stored).toBeGreaterThan(preview);
+    expect(apply).toBeGreaterThan(stored);
+    expect(receipt).toBeGreaterThan(apply);
+    expect(release).toBeGreaterThan(receipt);
+    expect(review).toContain("isPendingConfirmationEntryReviewInScope(unresolved, {");
+    expect(review).toContain("The prior operation ${unresolved.operationId} must be reconciled");
+    expect(review).toContain("Number.isSafeInteger(preview.expectedVersion)");
+  });
+
+  it("clears uncertain Entry operations only for a matching reconciled success or authoritative failure", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    const start = source.indexOf("  async function recoverReview(");
+    const end = source.indexOf("  async function review(", start);
+    const recover = source.slice(start, end);
+    expect(recover).toContain("reconciliation.receipt.operationId !== operationId");
+    expect(recover).toContain('reconciliation.receipt.status === "failed"');
+    expect(recover).toContain("isSuccessfulConfirmationEntryReviewReceipt(reconciliation.receipt, operationId)");
+    expect(recover.split("unresolvedReviewOperationRef.current = null;").length - 1).toBe(2);
+    expect(recover).toContain("await onChanged();");
   });
 });
