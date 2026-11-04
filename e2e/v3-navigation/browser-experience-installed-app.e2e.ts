@@ -19,31 +19,12 @@ test(
       viewport: { width: 390, height: 844 },
       reducedMotion: "reduce",
     });
-    const { baseURL } = await prepareNavbarInstalledContext(context);
-
-    // The shared local fixture sets navigator.standalone=true to exercise the
-    // installed app. Override it in a later init script for *browser mode*.
-    await context.addInitScript(() => {
-      Object.defineProperty(navigator, "standalone", {
-        configurable: true,
-        value: false,
-      });
-      const originalMatchMedia = window.matchMedia.bind(window);
-      window.matchMedia = ((query: string) => {
-        if (query !== "(display-mode: standalone)") return originalMatchMedia(query);
-        return {
-          matches: false,
-          media: query,
-          onchange: null,
-          addListener: () => undefined,
-          removeListener: () => undefined,
-          addEventListener: () => undefined,
-          removeEventListener: () => undefined,
-          dispatchEvent: () => false,
-        } as MediaQueryList;
-      }) as typeof window.matchMedia;
+    const { baseURL } = await prepareNavbarInstalledContext(context, {
+      experience: "web",
     });
 
+    // A single fixture script owns both the auth session and browser runtime.
+    // Separate addInitScript calls have undefined evaluation order in Playwright.
     const page = await context.newPage();
     await page.goto(`${baseURL}/records`, { waitUntil: "domcontentloaded" });
     const shell = page.locator('[data-v3-shell-experience="web"]');

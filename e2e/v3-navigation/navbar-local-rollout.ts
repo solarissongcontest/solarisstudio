@@ -124,7 +124,10 @@ async function setFeature(
   expect(response.ok, `Local ${key} navbar rollout mutation must succeed: ${body}`).toBeTruthy();
 }
 
-export async function prepareNavbarInstalledContext(context: BrowserContext) {
+export async function prepareNavbarInstalledContext(
+  context: BrowserContext,
+  { experience = "installed" }: { experience?: "installed" | "web" } = {},
+) {
   const config = requiredLocalConfig();
   const [organizer, country] = await Promise.all([
     fetchSession(
@@ -168,15 +171,15 @@ export async function prepareNavbarInstalledContext(context: BrowserContext) {
     },
   ]);
   await context.addInitScript(
-    ({ key, value }) => {
+    ({ key, value, standalone }) => {
       localStorage.setItem(key, JSON.stringify(value));
       localStorage.setItem("solaris:app-first-run-complete:v1", "1");
-      Object.defineProperty(navigator, "standalone", { configurable: true, value: true });
+      Object.defineProperty(navigator, "standalone", { configurable: true, value: standalone });
       const originalMatchMedia = window.matchMedia.bind(window);
       window.matchMedia = ((query: string) => {
         if (query === "(display-mode: standalone)") {
           return {
-            matches: true,
+            matches: standalone,
             media: query,
             onchange: null,
             addListener: () => undefined,
@@ -189,7 +192,11 @@ export async function prepareNavbarInstalledContext(context: BrowserContext) {
         return originalMatchMedia(query);
       }) as typeof window.matchMedia;
     },
-    { key: `sb-${projectRef}-auth-token`, value: country },
+    {
+      key: `sb-${projectRef}-auth-token`,
+      value: country,
+      standalone: experience === "installed",
+    },
   );
 
   return { baseURL: config.baseURL, country };

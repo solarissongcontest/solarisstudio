@@ -57,4 +57,16 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(css).toContain("env(safe-area-inset-bottom)");
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
   });
+  it("selects browser runtime in a single init script without racing installed detection", () => {
+    const fixture = read("e2e/v3-navigation/navbar-local-rollout.ts");
+    const probe = read("e2e/v3-navigation/browser-experience-installed-app.e2e.ts");
+    expect(fixture).toContain('experience = "installed"');
+    expect(fixture).toContain('standalone: experience === "installed"');
+    expect(fixture).toContain('value: standalone');
+    expect(fixture).toContain('matches: standalone');
+    expect(probe).toContain('experience: "web"');
+    expect(probe).not.toContain("context.addInitScript(");
+    expect(probe).toContain("await prepareNavbarInstalledContext(context, {");
+  });
+
 });
