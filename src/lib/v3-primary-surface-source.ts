@@ -272,7 +272,7 @@ function assertAdditionalTaskEditionScope(
     // Edition-specific HOD actions belong to the exact selected edition.
     // Unscoped global actions are allowed, but foreign edition tasks must not
     // silently enter Home/Participate after a source/query regression.
-    if (task.editionId != null && task.editionId !== selectedEditionId) {
+    if (task.editionId !== null && task.editionId !== selectedEditionId) {
       throw new Error("V3 additional task belongs to a different Solaris edition.");
     }
   }
