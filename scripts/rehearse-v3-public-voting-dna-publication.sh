@@ -91,4 +91,44 @@ for role in anon authenticated; do
   [[ "$(role_value "$role" "jsonb_array_length(public.v3_public_country_voting_dna('$COUNTRY_ID')->'results')")" == '0' ]] || fail "${role} retained Result rows after generic Results were hidden"
 done
 
+log "Rehearsing raw Jury anonymity and show-less history in a rolled-back local transaction"
+jury_visibility="$(psql "$DB_URL" -X -v ON_ERROR_STOP=1 -qAt <<SQL
+begin;
+insert into public.countries(id,name,short_code)
+values ('00000000-0000-4000-8000-00000000da28','Voting DNA Jury Voter','V28');
+insert into public.contest_entities(edition_id,entity_type,country_id,display_name,abbreviation)
+values
+  ('$EDITION_ID','global','$COUNTRY_ID','Voting DNA Boundary Country','V27'),
+  ('$EDITION_ID','global','00000000-0000-4000-8000-00000000da28','Voting DNA Jury Voter','V28');
+insert into public.jury_votes(id,edition_id,show_id,voter_country_id,receiving_country_id,points)
+values
+  ('00000000-0000-4000-8000-00000000bb27','$EDITION_ID',null,'00000000-0000-4000-8000-00000000da28','$COUNTRY_ID',1),
+  ('00000000-0000-4000-8000-00000000bb28','$EDITION_ID','$SHOW_ID','00000000-0000-4000-8000-00000000da28','$COUNTRY_ID',2);
+set local role anon;
+select 'anon_private=' || count(*) from public.jury_votes
+where id in ('00000000-0000-4000-8000-00000000bb27','00000000-0000-4000-8000-00000000bb28');
+set local role authenticated;
+select 'auth_private=' || count(*) from public.jury_votes
+where id in ('00000000-0000-4000-8000-00000000bb27','00000000-0000-4000-8000-00000000bb28');
+set local role postgres;
+update public.shows
+set publication_config = jsonb_set(publication_config, '{detailed_voting}', 'true'::jsonb)
+where id='$SHOW_ID';
+set local role anon;
+select 'anon_published=' || count(*) from public.jury_votes
+where id = '00000000-0000-4000-8000-00000000bb28';
+select 'anon_showless=' || count(*) from public.jury_votes
+where id = '00000000-0000-4000-8000-00000000bb27';
+set local role authenticated;
+select 'auth_published=' || count(*) from public.jury_votes
+where id = '00000000-0000-4000-8000-00000000bb28';
+select 'auth_showless=' || count(*) from public.jury_votes
+where id = '00000000-0000-4000-8000-00000000bb27';
+rollback;
+SQL
+)"
+expected_jury_visibility="$(printf '%s\n' 'anon_private=0' 'auth_private=0' 'anon_published=1' 'anon_showless=0' 'auth_published=1' 'auth_showless=0')"
+[[ "$jury_visibility" == "$expected_jury_visibility" ]] ||
+  fail "Raw Jury publication role matrix diverged from expected privacy/show boundary"
+
 log "System V3 Public Voting DNA publication-boundary rehearsal passed"

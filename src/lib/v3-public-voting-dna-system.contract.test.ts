@@ -186,6 +186,20 @@ describe("V3 Public Voting DNA System publication boundary", () => {
     );
   });
 
+  it("exercises real anonymous/authenticated Jury table policy on disposable fixtures", () => {
+    expect(rehearsal).toContain("Rehearsing raw Jury anonymity and show-less history");
+    expect(rehearsal).toContain("insert into public.jury_votes");
+    expect(rehearsal).toContain("set local role anon;");
+    expect(rehearsal).toContain("set local role authenticated;");
+    expect(rehearsal).toContain("anon_private=0");
+    expect(rehearsal).toContain("auth_private=0");
+    expect(rehearsal).toContain("anon_published=1");
+    expect(rehearsal).toContain("anon_showless=0");
+    expect(rehearsal).toContain("auth_published=1");
+    expect(rehearsal).toContain("auth_showless=0");
+    expect(rehearsal).toContain("rollback;");
+  });
+
   it("rehearses the real caller boundary on local Supabase and fails closed against hosted endpoints", () => {
     expect(rehearsal).toContain("local_api_pattern='^http://(127[.]0[.]0[.]1|localhost):[0-9]+$'");
     expect(rehearsal).toContain("local_db_pattern='^postgres(ql)?://postgres:postgres@(127[.]0[.]0[.]1|localhost):[0-9]+/postgres$'");
