@@ -36,7 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
-import { isConfirmationDetailInOrganizerScope } from "@/lib/confirmation-detail-edition-guard";
+import { isConfirmationDetailInOrganizerScope, isPendingConfirmationEntryReviewInScope, isSuccessfulConfirmationEntryReviewReceipt } from "@/lib/confirmation-detail-edition-guard";
 import { reconcileSystemOperation } from "@/lib/system-operation.functions";
 import { normalizeSystemReceipt } from "@/lib/system-receipt";
 import { toSystemError } from "@/lib/system-error";
@@ -308,7 +308,7 @@ function EntryReviewCard({
           "This Entry review failed authoritatively. Reopen the current response before another decision.",
       );
     }
-    if (reconciliation.receipt.status !== "succeeded") {
+    if (!isSuccessfulConfirmationEntryReviewReceipt(reconciliation.receipt, operationId)) {
       throw new Error(
         "This Entry review is still processing. Reconcile the same operation before another decision.",
       );
@@ -338,10 +338,12 @@ function EntryReviewCard({
     try {
       const unresolved = unresolvedReviewOperationRef.current;
       if (unresolved) {
-        if (unresolved.entryId !== entry.id ||
-            unresolved.submissionId !== submissionId ||
-            unresolved.editionId !== (editionId ?? null) ||
-            unresolved.targetType !== targetType) {
+        if (!isPendingConfirmationEntryReviewInScope(unresolved, {
+          entryId: entry.id,
+          submissionId,
+          editionId: editionId ?? null,
+          targetType,
+        })) {
           throw new Error(
             "A previous Entry review still has an unresolved operation. Reopen its exact response and reconcile it before another decision.",
           );
@@ -434,8 +436,7 @@ function EntryReviewCard({
         throw new Error(systemError.message);
       }
       const canonicalReceipt = normalizeSystemReceipt(mutation.data);
-      if (!canonicalReceipt || canonicalReceipt.status !== "succeeded" ||
-          canonicalReceipt.operationId !== command.operationId) {
+      if (!isSuccessfulConfirmationEntryReviewReceipt(canonicalReceipt, command.operationId)) {
         if (await recoverReview(command.operationId)) return;
         throw new Error(
           "The review response could not be verified. Reconcile the operation before retrying.",
