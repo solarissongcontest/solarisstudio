@@ -106,6 +106,64 @@ describe("public contest state", () => {
     expect(state.statusLabel).toBe("Live");
   });
 
+  it("does not announce a private or publication-locked show as Live", () => {
+    for (const privateShow of [
+      show({ published: false, status: "live" }),
+      show({
+        published: true,
+        status: "live",
+        publication_config: {
+          participants: false,
+          artists: false,
+          songs: false,
+          semi_split: false,
+          running_order: false,
+          qualifiers: false,
+          results: false,
+          jury_results: false,
+          televote_results: false,
+          detailed_voting: false,
+        },
+      }),
+    ]) {
+      const state = resolvePublicContestState({
+        editions: [edition({ status: "active" })],
+        shows: [privateShow],
+        results: [],
+      });
+
+      expect(state.phase).toBe("submissions");
+      expect(state.statusLabel).not.toBe("Live");
+    }
+  });
+
+  it("does not announce Results for an unpublished final, even with result flags and rows", () => {
+    const state = resolvePublicContestState({
+      editions: [edition({ status: "active" })],
+      shows: [
+        show({
+          published: false,
+          publication_config: {
+            participants: true,
+            artists: true,
+            songs: true,
+            semi_split: true,
+            running_order: true,
+            qualifiers: true,
+            results: true,
+            jury_results: true,
+            televote_results: true,
+            detailed_voting: true,
+          },
+        }),
+      ],
+      results: [result()],
+    });
+
+    expect(state.phase).toBe("submissions");
+    expect(state.statusLabel).not.toBe("Results");
+  });
+
   it("does not call prepared result rows published when the show result layer is private", () => {
     const state = resolvePublicContestState({
       editions: [edition({ status: "active" })],
