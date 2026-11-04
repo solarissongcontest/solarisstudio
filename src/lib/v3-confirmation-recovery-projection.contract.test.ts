@@ -33,13 +33,28 @@ describe("V3 exact-edition Confirmation recovery projection", () => {
     );
   });
 
-  it("requires authentication and exact-edition Confirmation read authority", () => {
+  it("requires exact-edition Confirmation management authority for recovery credentials", () => {
     expect(migration).toContain("if auth.uid() is null then");
     expect(migration).toContain("p_edition_id uuid");
     expect(migration).toContain(
+      "public.studio2_access_allowed('confirmation.manage', p_edition_id, false)",
+    );
+    expect(migration).not.toContain(
       "private.solaris_confirmation_admin_read_allowed(p_edition_id, false)",
     );
     expect(readAuthority).toContain("'confirmation.read'");
+    // The legacy credential endpoint already requires confirmation.manage.
+    // A scoped replacement may narrow the edition, not weaken the permission.
+    const compatibility = readFileSync(
+      resolve(
+        process.cwd(),
+        "supabase/migrations/20261017201000_confirmation_maintenance_postgrest_path_and_reads.sql",
+      ),
+      "utf8",
+    );
+    expect(compatibility).toContain(
+      "'public.studio2_access_allowed(''confirmation.manage'', null, true)'",
+    );
     expect(migration).toContain("message = 'EDITION_NOT_FOUND'");
     expect(migration).toContain("message = 'AUTHORIZATION'");
   });
