@@ -10,6 +10,7 @@ export interface PublicOfficeTerm {
   officeId: string;
   officeTitle: string;
   holderDisplayName: string;
+  representedCountryName: string | null;
   termKind: string;
   status: "ended" | "removed" | "resigned";
   startedAt: string;
@@ -113,6 +114,7 @@ export function parsePublicOfficeHistoryPage(
       officeId: text(row.officeId),
       officeTitle: text(row.officeTitle),
       holderDisplayName: text(row.holderDisplayName),
+      representedCountryName: nullableText(row.representedCountryName),
       termKind: text(row.termKind),
       status: status as PublicOfficeTerm["status"],
       startedAt,
