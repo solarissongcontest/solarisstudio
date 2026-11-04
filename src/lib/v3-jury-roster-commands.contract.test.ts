@@ -117,12 +117,24 @@ describe("V3 Jury roster command authority", () => {
       "create or replace function public.studio2_apply_jury_roster_change(",
       "-- Reuse the established Jury responsibility consequence channel",
     );
-    const updateBranch = apply.slice(apply.indexOf("elsif v_kind = 'update'"), apply.indexOf("elsif v_kind = 'reorder'"));
-    expect(updateBranch).toContain("set name = v_name");
-    expect(updateBranch).not.toContain("edition_id =");
-    expect(updateBranch).not.toContain("show_id =");
-    expect(updateBranch).not.toContain("country_id =");
-    expect(updateBranch).not.toContain("contest_entity_id =");
+    const updateBranch = apply.slice(
+      apply.indexOf("elsif v_kind = 'update'"),
+      apply.indexOf("elsif v_kind = 'reorder'"),
+    );
+    // Authorization WHERE clauses MUST bind edition/show; only the actual
+    // UPDATE SET assignments may be prohibited from changing those fields.
+    expect(updateBranch).toContain("voter.edition_id = p_edition_id");
+    expect(updateBranch).toContain("voter.show_id = p_show_id");
+    expect([...updateBranch.matchAll(/\\bupdate\\s+public\\.voters\\b/gi)]).toHaveLength(1);
+    const assignments = [...updateBranch.matchAll(
+      /\\bupdate\\s+public\\.voters\\s+set\\s+([\\s\\S]*?)\\s+where\\s+id\\s*=\\s*v_voter_id\\s*;/gi,
+    )];
+    expect(assignments).toHaveLength(1);
+    const setClause = assignments[0]?.[1] ?? "";
+    expect(setClause).toContain("name = v_name");
+    for (const immutableField of ["edition_id", "show_id", "country_id", "contest_entity_id"]) {
+      expect(setClause).not.toMatch(new RegExp(`\\\\b${immutableField}\\\\s*=`, "i"));
+    }
   });
 
   it("writes audit evidence and reuses the canonical Jury task reconciliation channel exactly once", () => {
