@@ -137,14 +137,14 @@ export function addWorldDocumentProvision(
   rows: readonly WorldDocumentProvision[],
 ): WorldDocumentProvision[] {
   if (rows.length >= MAX_WORLD_PROVISIONS_IN_EDITOR) return [...rows];
-  let number = 1;
-  while (rows.some((row) => row.semanticKey === `article.${number}` ||
-                             row.anchor === `article-${number}`)) number++;
+  // Never automatically allocate semantic identity from this version's rows:
+  // an apparently unused key may already exist in an older permanent version.
+  // The author must explicitly choose a stable Work-wide identifier.
   return [...rows, {
-    semanticKey: `article.${number}`,
-    anchor: `article-${number}`,
+    semanticKey: "",
+    anchor: "",
     parentSemanticKey: null,
-    displayLabel: `Article ${number}`,
+    displayLabel: "",
     heading: "",
     bodyPlainText: "",
     bodyStructured: {},
