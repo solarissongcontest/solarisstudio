@@ -60,5 +60,8 @@ describe("V3 Public breadcrumb request budget", () => {
     expect(source).toContain('const showId = decodeURIComponent(showMatch[1]);');
     expect(source).toContain('showId.includes("/")');
     expect(source).toContain('catch {');
+    expect(source).toContain('if (target.kind === "invalid") return null;');
+    expect(source).toContain('if (!showId || showId.includes("/")) return { kind: "invalid" };');
+    expect(source).toContain('return { kind: "invalid" };');
   });
 });

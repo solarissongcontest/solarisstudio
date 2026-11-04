@@ -20,7 +20,8 @@ type BreadcrumbDataTarget =
   | { kind: "country" }
   | { kind: "edition" }
   | { kind: "show"; showId: string }
-  | { kind: "static" };
+  | { kind: "static" }
+  | { kind: "invalid" };
 
 function breadcrumbDataTarget(pathname: string): BreadcrumbDataTarget {
   if (/^\/(?:countries|wiki)\/[^/]+\/?$/i.test(pathname)) {
@@ -36,10 +37,10 @@ function breadcrumbDataTarget(pathname: string): BreadcrumbDataTarget {
     try {
       // Malformed or encoded-slash IDs must not crash global navigation.
       const showId = decodeURIComponent(showMatch[1]);
-      if (!showId || showId.includes("/")) return { kind: "static" };
+      if (!showId || showId.includes("/")) return { kind: "invalid" };
       return { kind: "show", showId };
     } catch {
-      return { kind: "static" };
+      return { kind: "invalid" };
     }
   }
 
@@ -70,6 +71,8 @@ export function PublicBreadcrumbs({ pathname }: { pathname: string }) {
     );
   }
 
+  // An invalid Show URL must not fall through to the older decoder.
+  if (target.kind === "invalid") return null;
   return <BreadcrumbView pathname={pathname} />;
 }
 
