@@ -47,6 +47,8 @@ describe("country page presentation ownership", () => {
     expect(wiki).toContain('layoutMode === "mobile-web"');
     expect(wiki).toContain("aspect-[3/2]");
     expect(css).toContain('[data-wiki-layout-mode="mobile-web"]');
+    expect(css).toContain("overflow-wrap: anywhere;");
+    expect(css).toContain("font-size: clamp(.875rem, 4.5vw, 1.25rem);");
     expect(css).not.toContain(":root {");
   });
 
