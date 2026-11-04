@@ -1,0 +1,40 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+import { SOLARIS_FEATURE_FLAGS } from "./feature-flags";
+import { STUDIO2_PRODUCT_SURFACES } from "./studio2-product-surfaces";
+
+const file = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+
+describe("Terra Solaris TG3 discovery rollout", () => {
+  it("registers the public World key in the canonical flag and product registries", () => {
+    expect(SOLARIS_FEATURE_FLAGS).toContain("terra_world_public");
+    expect(STUDIO2_PRODUCT_SURFACES.terra_world_public).toMatchObject({
+      route: "/world",
+      audience: "public",
+      state: "integrated",
+    });
+  });
+
+  it("persists a dark-by-default boolean rollout while retaining historical flag keys", () => {
+    const source = file("supabase/migrations/20261104121000_v3_tg3_world_public_rollout_flag.sql");
+    expect(source).toContain("add constraint studio2_feature_flags_key_check check");
+    expect(source).toContain("'terra_world_public'");
+    expect(source).toContain("'solaris_app_v3_live'");
+    expect(source).toContain("'solaris_app_v3_organizer'");
+    expect(source).toContain("('terra_world_public', false, false");
+    expect(source).toContain("on conflict (key) do nothing");
+  });
+
+  it("makes both Explore experiences discover World only after canonical rollout", () => {
+    const entry = file("src/components/world/WorldExploreEntry.tsx");
+    const legacy = file("src/routes/explore/index.tsx");
+    const v3 = file("src/components/v3/V3ExploreScreen.tsx");
+    expect(entry).toContain("fetchWorldPublicEnabled");
+    expect(entry).toContain('if (rollout.data !== true) return null');
+    expect(entry).toContain('to="/world"');
+    expect(legacy).toContain('<WorldExploreEntry variant="legacy" />');
+    expect(v3).toContain('<WorldExploreEntry variant="v3" />');
+  });
+});
