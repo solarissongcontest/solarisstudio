@@ -112,7 +112,9 @@ export function inspectV3CronMigrations(
 
   for (const migration of [...migrations].sort((a, b) => a.path.localeCompare(b.path))) {
     const source = withoutSqlComments(migration.sql);
-    for (const call of outsideSqlStrings(source).matchAll(/\bcron\s*\.\s*schedule\s*\(/gi)) {
+    // Preserve offsets while normalizing PostgreSQL's quoted function identifiers.
+    const code = outsideSqlStrings(source.replace(/"cron"/gi, " cron ").replace(/"schedule"/gi, " schedule "));
+    for (const call of code.matchAll(/\bcron\s*\.\s*schedule\s*\(/gi)) {
       const afterCall = source.slice((call.index ?? 0) + call[0].length);
       // Only an explicit literal first argument gives a verifiable job identity.
       // A dynamic name cannot be silently omitted from the S15 inventory.
