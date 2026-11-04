@@ -14,7 +14,7 @@ export type WorldSession = {
   sequenceNumber: number;
   startsAt: string;
   endsAt: string;
-  status: "scheduled" | "open" | "recessed" | "concluded" | "archived";
+  status: "scheduled" | "open" | "recessed" | "concluded" | "cancelled" | "archived";
   venueType: string;
   venueLabel: string | null;
   revision: number;
@@ -36,6 +36,8 @@ export type WorldSessionDetail = WorldSession & {
 
 export type WorldManageAgenda = {
   id: string;
+  organizationId: string;
+  organId: string;
   revision: number;
   status: string;
   items: Array<{
@@ -80,10 +82,12 @@ const revision = (value: unknown): value is number =>
   Number.isSafeInteger(value) && (value as number) >= 1;
 const date = (value: unknown): value is string =>
   string(value) && Number.isFinite(Date.parse(value));
-const sessionStatuses = new Set(["scheduled", "open", "recessed", "concluded", "archived"]);
+const sessionStatuses = new Set(["scheduled", "open", "recessed", "concluded", "cancelled", "archived"]);
 const agendaStatuses = new Set(["scheduled", "active", "postponed", "completed"]);
 const optionalString = (value: unknown): value is string | null =>
   value === null || string(value);
+const safeExternalUrl = (value: unknown): value is string | null =>
+  value === null || (string(value) && /^https:\/\/[^\s]+$/i.test(value));
 
 function invalid(label: string): never {
   throw new WorldSessionProjectionError("Invalid world session " + label + " projection");
@@ -117,7 +121,7 @@ export function parseWorldSession(row: unknown): WorldSession {
 
 export function parseWorldSessionDetail(row: unknown): WorldSessionDetail | null {
   if (row === null) return null;
-  if (!object(row) || !Array.isArray(row.agenda) || !optionalString(row.externalUrl)) {
+  if (!object(row) || !Array.isArray(row.agenda) || !safeExternalUrl(row.externalUrl)) {
     return invalid("detail");
   }
   const session = parseWorldSession(row);
@@ -139,7 +143,8 @@ export function parseWorldSessionDetail(row: unknown): WorldSessionDetail | null
 }
 
 export function parseWorldManageAgenda(row: unknown): WorldManageAgenda {
-  if (!object(row) || !uuid(row.id) || !revision(row.revision) ||
+  if (!object(row) || !uuid(row.id) || !uuid(row.organizationId) ||
+      !uuid(row.organId) || !revision(row.revision) ||
       !string(row.status) || !Array.isArray(row.items)) return invalid("manager");
   const items = row.items.map((item: unknown) => {
     if (!object(item) || !uuid(item.id) || !revision(item.revision) ||
@@ -154,7 +159,8 @@ export function parseWorldManageAgenda(row: unknown): WorldManageAgenda {
       revision: item.revision,
     };
   });
-  return { id: row.id, revision: row.revision, status: row.status, items };
+  return { id: row.id, organizationId: row.organizationId, organId: row.organId,
+    revision: row.revision, status: row.status, items };
 }
 
 export function parseWorldReceipt(row: unknown): WorldOperationReceipt {
@@ -335,6 +341,65 @@ export async function reorderWorldAgenda(input: {
   return parseWorldReceipt(await rpc("world_agenda_reorder_v1", {
     p_session_id: input.sessionId,
     p_item_ids: input.itemIds,
+    p_expected_revision: input.expectedRevision,
+    p_operation_id: input.operationId,
+    p_idempotency_key: input.idempotencyKey,
+  }));
+}
+
+
+export async function canManageWorldSession(
+  organizationId: string,
+  organId: string,
+): Promise<boolean> {
+  if (!uuid(organizationId) || !uuid(organId)) return false;
+  const data = await rpc("world_access_allowed", {
+    p_capability: "world.session.manage",
+    p_organization_id: organizationId,
+    p_country_id: null,
+    p_organ_id: organId,
+    p_object_type: null,
+    p_object_id: null,
+  });
+  return data === true;
+}
+
+export async function transitionWorldSession(input: {
+  sessionId: string;
+  targetStatus: "open" | "recessed" | "concluded" | "cancelled" | "archived";
+  expectedRevision: number;
+  operationId: string;
+  idempotencyKey: string;
+}): Promise<WorldOperationReceipt> {
+  if (!uuid(input.sessionId) || !revision(input.expectedRevision) ||
+      !uuid(input.operationId) || !input.idempotencyKey.trim() ||
+      !["open", "recessed", "concluded", "cancelled", "archived"].includes(input.targetStatus)) {
+    throw new Error("Invalid session operation. Refresh official session state.");
+  }
+  return parseWorldReceipt(await rpc("world_session_transition_v1", {
+    p_session_id: input.sessionId,
+    p_target_status: input.targetStatus,
+    p_expected_revision: input.expectedRevision,
+    p_operation_id: input.operationId,
+    p_idempotency_key: input.idempotencyKey,
+  }));
+}
+
+export async function publishWorldAgenda(input: {
+  sessionId: string;
+  itemId: string;
+  expectedRevision: number;
+  operationId: string;
+  idempotencyKey: string;
+}): Promise<WorldOperationReceipt> {
+  if (!uuid(input.sessionId) || !uuid(input.itemId) ||
+      !revision(input.expectedRevision) || !uuid(input.operationId) ||
+      !input.idempotencyKey.trim()) {
+    throw new Error("Invalid agenda publication request. Refresh official state.");
+  }
+  return parseWorldReceipt(await rpc("world_agenda_publish_v1", {
+    p_session_id: input.sessionId,
+    p_item_id: input.itemId,
     p_expected_revision: input.expectedRevision,
     p_operation_id: input.operationId,
     p_idempotency_key: input.idempotencyKey,
