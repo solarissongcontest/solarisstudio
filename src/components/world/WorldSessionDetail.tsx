@@ -66,11 +66,10 @@ export function WorldSessionDetail({ sessionId }: { sessionId: string }) {
                 <div>
                   <p className="font-semibold">Venue</p>
                   <p className="mt-1 text-muted-foreground">{session.data.venueLabel || session.data.venueType}</p>
-                  {session.data.externalUrl ? (
-                    <a href={session.data.externalUrl} target="_blank" rel="noopener noreferrer"
-                      className="mt-2 inline-flex min-h-11 items-center text-primary underline underline-offset-4">
-                      Official meeting link
-                    </a>
+                  {session.data.venueType === "external" ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      External meeting links are available to authorized institutional managers.
+                    </p>
                   ) : null}
                 </div>
               </div>
