@@ -48,14 +48,37 @@ begin
     return new;
   end if;
 
-  if tg_op = 'INSERT' then
-    v_capture := true;
-  else
-    v_capture := old.status not in ('ended', 'removed', 'resigned')
-      or new.holder_person_id is distinct from old.holder_person_id
+  if tg_op = 'UPDATE' and old.status in ('ended', 'removed', 'resigned') then
+    -- Closed constitutional history is immutable. Account unlinking (for
+    -- example, deletion of a login) may still null holder_user_id, but the
+    -- canonical person and all political term facts cannot be rewritten.
+    -- Formal historical corrections must use an audited correction record,
+    -- not silently mutate a concluded term.
+    if new.status is distinct from old.status
       or new.office_id is distinct from old.office_id
-      or new.represented_country_id is distinct from old.represented_country_id;
+      or new.holder_person_id is distinct from old.holder_person_id
+      or new.represented_country_id is distinct from old.represented_country_id
+      or new.start_edition_id is distinct from old.start_edition_id
+      or new.end_edition_id is distinct from old.end_edition_id
+      or new.started_at is distinct from old.started_at
+      or new.scheduled_end_at is distinct from old.scheduled_end_at
+      or new.actual_end_at is distinct from old.actual_end_at
+      or new.term_kind is distinct from old.term_kind
+      or new.predecessor_term_id is distinct from old.predecessor_term_id
+      or new.succession_reason is distinct from old.succession_reason then
+      raise exception 'WORLD_CLOSED_OFFICE_TERM_IMMUTABLE'
+        using errcode = '23514';
+    end if;
+    -- Do not accept even a privileged direct rewrite of presentation labels.
+    new.holder_display_name_snapshot := old.holder_display_name_snapshot;
+    new.office_title_snapshot := old.office_title_snapshot;
+    new.represented_country_name_snapshot := old.represented_country_name_snapshot;
+    return new;
   end if;
+
+  -- INSERT of an already-completed imported term and active-to-closed
+  -- transitions both snapshot the current canonical holder/office labels.
+  v_capture := true;
 
   if v_capture then
     select holder.display_name, office.title, country.name
@@ -66,10 +89,6 @@ begin
     join public.world_organization_offices office on office.id = new.office_id
     left join public.countries country on country.id = new.represented_country_id
     where holder.id = new.holder_person_id;
-  else
-    new.holder_display_name_snapshot := old.holder_display_name_snapshot;
-    new.office_title_snapshot := old.office_title_snapshot;
-    new.represented_country_name_snapshot := old.represented_country_name_snapshot;
   end if;
 
   if nullif(btrim(new.holder_display_name_snapshot), '') is null
