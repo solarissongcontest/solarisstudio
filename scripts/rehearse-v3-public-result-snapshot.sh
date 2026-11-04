@@ -31,7 +31,17 @@ db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_ID',
 db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_ID','Public Snapshot Edition',2026,'public-snapshot-edition',9952,'active',true);"
 db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published,publication_config) values ('$SHOW_ID','$EDITION_ID','Public Snapshot Final','final',1,false,'{}'::jsonb);"
 db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_ID','$SHOW_ID','$COUNTRY_ID',12,10,22,1);"
-db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,last_calculated_at,reviewed_version,reviewed_at,locked_version,locked_at,reveal_ready_version,reveal_ready_at) values ('$SHOW_ID','$EDITION_ID',1,now(),1,now(),1,now(),1,now());"
+db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,last_calculated_at,reviewed_version,reviewed_at,locked_version,locked_at,reveal_ready_version,reveal_ready_at) values ('$SHOW_ID','$EDITION_ID',1,now(),1,now(),1,now(),1,now())
+on conflict (show_id) do update set
+ calculation_version=excluded.calculation_version,
+ last_calculated_at=excluded.last_calculated_at,
+ reviewed_version=excluded.reviewed_version,
+ reviewed_at=excluded.reviewed_at,
+ locked_version=excluded.locked_version,
+ locked_at=excluded.locked_at,
+ reveal_ready_version=excluded.reveal_ready_version,
+ reveal_ready_at=excluded.reveal_ready_at
+ where public.studio2_result_operations.edition_id=excluded.edition_id;"
 
 [[ "$(db_value "select count(*) from private.v3_result_versions where show_id='$SHOW_ID' and version=1;")" == '1' ]] || fail "immutable result version 1 was not captured"
 [[ "$(anon_value "public.v3_public_published_result_snapshot('$SHOW_ID') is null")" == 't' ]] || fail "private show exposed a result snapshot"

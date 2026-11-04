@@ -31,7 +31,12 @@ db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_ID',
 db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_ID','S5 Results Consequences',2026,'s5-results-consequences',9961,'active',false);"
 db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published) values ('$SHOW_ID','$EDITION_ID','S5 Results Final','final',1,false);"
 db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_ID','$SHOW_ID','$COUNTRY_ID',12,10,22,1);"
-db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,reviewed_version,locked_version) values ('$SHOW_ID','$EDITION_ID',1,1,1);"
+db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,reviewed_version,locked_version) values ('$SHOW_ID','$EDITION_ID',1,1,1)
+on conflict (show_id) do update set
+ calculation_version=excluded.calculation_version,
+ reviewed_version=excluded.reviewed_version,
+ locked_version=excluded.locked_version
+ where public.studio2_result_operations.edition_id=excluded.edition_id;"
 
 insert_execution() {
   local execution_id="$1" action="$2"

@@ -36,7 +36,17 @@ db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_ID',
 db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_A','S3 Results A',2026,'s3-results-a',9931,'active',false),('$EDITION_B','S3 Results B',2026,'s3-results-b',9932,'active',false);"
 db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published) values ('$SHOW_ID','$EDITION_A','S3 Results Final','final',1,false);"
 db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_A','$SHOW_ID','$COUNTRY_ID',12,-2,10,1);"
-db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,reviewed_version,locked_version,reveal_ready_version) values ('$SHOW_ID','$EDITION_A',1,1,1,1);"
+# A newer show-insert trigger may already have seeded this authority row.
+# Preserve the existing S3 invariant checks in both migration paths.
+db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,reviewed_version,locked_version,reveal_ready_version)
+values ('$SHOW_ID','$EDITION_A',1,1,1,1)
+on conflict (show_id) do update
+set calculation_version=excluded.calculation_version,
+reviewed_version=excluded.reviewed_version,
+locked_version=excluded.locked_version,
+reveal_ready_version=excluded.reveal_ready_version
+where public.studio2_result_operations.edition_id=excluded.edition_id;"
+[[ "$(db_value "select count(*) from public.studio2_result_operations where show_id='$SHOW_ID' and edition_id='$EDITION_A' and calculation_version=1 and reviewed_version=1 and locked_version=1 and reveal_ready_version=1;")" == '1' ]] || fail "S3 result version/scope differs from expected fixture"
 
 [[ "$(db_value "select result_row_count from private.v3_result_versions where show_id='$SHOW_ID' and version=1;")" == '1' ]] || fail "calculation version did not capture exactly one result row"
 [[ "$(db_value "select result_rows->0->>'televotePoints' from private.v3_result_versions where show_id='$SHOW_ID' and version=1;")" == '-2' ]] || fail "supported negative televote adjustment was not preserved"
