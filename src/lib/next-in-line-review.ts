@@ -117,3 +117,32 @@ export function nextInLineReviewReadiness(
   }
   return { ready: true };
 }
+
+
+/**
+ * The existing SQL mutation returns the persisted submission UUID together
+ * with its edition and source-submission IDs. The browser must not interpret
+ * a bare ok=true or an unrelated record as proof that *this* draft was saved.
+ * This reference identifies the canonical row; it is not a V3 operation
+ * receipt or an authorization token.
+ */
+export function authoritativeNextInLineSubmissionId(
+  acknowledgement: {
+    ok: boolean;
+    submission_id?: unknown;
+    edition_id?: unknown;
+    source_submission_id?: unknown;
+  },
+  expected: { editionId: string; sourceSubmissionId: string },
+): string | null {
+  const id = acknowledgement.submission_id;
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (
+    acknowledgement.ok !== true ||
+    typeof id !== "string" ||
+    !uuid.test(id) ||
+    acknowledgement.edition_id !== expected.editionId ||
+    acknowledgement.source_submission_id !== expected.sourceSubmissionId
+  ) return null;
+  return id;
+}
