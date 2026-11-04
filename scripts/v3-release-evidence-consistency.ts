@@ -33,6 +33,7 @@ export function releaseEvidenceConsistencyFailure(
     if (
       !counts ||
       !Number.isSafeInteger(counts.findings) ||
+      (counts.findings as number) < 0 ||
       !Number.isSafeInteger(counts.releaseBlocking) ||
       (counts.releaseBlocking as number) !== 0
     ) {
