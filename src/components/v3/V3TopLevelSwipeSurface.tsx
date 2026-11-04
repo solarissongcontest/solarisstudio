@@ -26,6 +26,10 @@ import {
   type V3LayoutDirection,
   type V3SwipeIntent,
 } from "@/lib/v3-navigation-gesture";
+import {
+  resolveV3SwipePointerStart,
+  v3SwipeTouchStillSingle,
+} from "@/lib/v3-page-swipe-pointer-ownership";
 import { resolveV3TabIconVisualState } from "@/lib/v3-navigation-visual-progress";
 import "@/styles/v3-top-level-swipe.css";
 
@@ -332,7 +336,11 @@ export function V3TopLevelSwipeSurface({
 
     const preventOwnedHorizontalTouchPan = (event: TouchEvent) => {
       const drag = dragRef.current;
-      if (!drag || event.touches.length !== 1) return;
+      if (!drag) return;
+      if (!v3SwipeTouchStillSingle(event.touches.length)) {
+        resetSurface();
+        return;
+      }
 
       const touch = event.touches[0];
       if (!touch) return;
@@ -353,10 +361,21 @@ export function V3TopLevelSwipeSurface({
     return () => {
       surface.removeEventListener("touchmove", preventOwnedHorizontalTouchPan);
     };
-  }, []);
+  }, [resetSurface]);
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pointerDecision = resolveV3SwipePointerStart({
+      activePointerId: dragRef.current?.pointerId ?? null,
+      incomingPointerId: event.pointerId,
+      isPrimary: event.isPrimary,
+      pointerType: event.pointerType,
+    });
+    if (pointerDecision === "cancel") {
+      resetSurface();
+      return;
+    }
     if (
+      pointerDecision !== "start" ||
       !enabled ||
       committedTargetRef.current != null ||
       prefersReducedMotion() ||
