@@ -68,6 +68,29 @@ function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+/** Only a server-issued keyset cursor may influence the private Activity read. */
+export function validateV3ParticipantActivityCursor(value: unknown): V3ParticipantActivityCursor {
+  if (value == null) return { before: null, operationId: null };
+  const record = objectValue(value);
+  if (!record || Object.keys(record).some((key) => key !== "before" && key !== "operationId")) {
+    throw new Error("Invalid Activity pagination input.");
+  }
+  const before = record.before ?? null;
+  const operationId = record.operationId ?? null;
+  if (before === null && operationId === null) {
+    return { before: null, operationId: null };
+  }
+  if (
+    typeof before !== "string" ||
+    !Number.isFinite(Date.parse(before)) ||
+    typeof operationId !== "string" ||
+    !CURSOR_OPERATION_ID.test(operationId)
+  ) {
+    throw new Error("Activity requires a complete timestamp and operation cursor.");
+  }
+  return { before, operationId };
+}
+
 function hasUnsafeControlCharacter(value: string) {
   for (let index = 0; index < value.length; index += 1) {
     const codePoint = value.charCodeAt(index);
