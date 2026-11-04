@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { filterCountryDirectory } from "./v3-country-directory-filters";
+import { countryDirectoryRegionOptions, filterCountryDirectory } from "./v3-country-directory-filters";
 
 const countries = [
   { id: "a", name: "Aotea", short_code: "AOT", native_name: "Aotearoa", region: "Atlas" },
@@ -59,6 +59,39 @@ describe("V3 countries directory filters", () => {
         participatingCountryIds: new Set(),
       }).map((country) => country.id),
     ).toEqual(["b"]);
+  });
+
+  it("keeps uncategorised countries filterable and region facets scoped to the chosen collection", () => {
+    const fixture = [
+      ...countries,
+      { id: "d", name: "Norzea", short_code: "NOR", region: null },
+      { id: "e", name: "Yaria", short_code: "YAR", region: " Hydra " },
+    ];
+    const currentIds = new Set(["b", "e"]);
+    expect(countryDirectoryRegionOptions(fixture, {
+      participatingOnly: false,
+      participatingCountryIds: currentIds,
+    })).toEqual([
+      { name: "Atlas", count: 1 },
+      { name: "Hydra", count: 3 },
+      { name: "Other", count: 1 },
+    ]);
+    expect(countryDirectoryRegionOptions(fixture, {
+      participatingOnly: true,
+      participatingCountryIds: currentIds,
+    })).toEqual([{ name: "Hydra", count: 2 }]);
+    expect(filterCountryDirectory(fixture, {
+      search: "",
+      region: "Other",
+      participatingOnly: false,
+      participatingCountryIds: currentIds,
+    }).map((country) => country.id)).toEqual(["d"]);
+    expect(filterCountryDirectory(fixture, {
+      search: "hydra",
+      region: "all",
+      participatingOnly: false,
+      participatingCountryIds: currentIds,
+    }).map((country) => country.id)).toEqual(["b", "c", "e"]);
   });
 
   it("uses one consistent directory for the full current lineup and the country archive", () => {

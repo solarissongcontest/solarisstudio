@@ -13,7 +13,7 @@ import { FlagFrame } from "@/components/FlagMedia";
 import type { CountryDirectoryPresentation } from "@/lib/country-directory-presentation";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { type Country, useCountries, useEditions } from "@/lib/data";
-import { filterCountryDirectory } from "@/lib/v3-country-directory-filters";
+import { countryDirectoryRegionOptions, filterCountryDirectory } from "@/lib/v3-country-directory-filters";
 import { usePublicEditionParticipants } from "@/lib/public-participants";
 import {
   buildCountryDiscovery,
@@ -54,6 +54,16 @@ export function V3CountriesDiscoveryScreen({
     () => new Set(discovery.participating.map((country) => country.id)),
     [discovery.participating],
   );
+  const regionOptions = useMemo(
+    () => countryDirectoryRegionOptions(countriesQuery.data ?? [], {
+      participatingOnly: participatingOnly && Boolean(activeEdition),
+      participatingCountryIds,
+    }),
+    [countriesQuery.data, participatingOnly, activeEdition, participatingCountryIds],
+  );
+  const collectionCount = participatingOnly && activeEdition
+    ? discovery.participating.length
+    : countriesQuery.data?.length ?? 0;
   const filtered = useMemo(
     () =>
       filterCountryDirectory(countriesQuery.data ?? [], {
@@ -123,6 +133,7 @@ export function V3CountriesDiscoveryScreen({
               aria-label={`SSC ${discovery.currentEdition.edition_number ?? "current"}: ${discovery.participating.length} participating countries`}
               onClick={() => {
                 setParticipatingOnly(true);
+                setRegion("all");
                 setVisibleCount(BROWSE_PAGE_SIZE);
               }}
               className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${participatingOnly ? "border-primary bg-primary/15 text-foreground" : "border-border bg-surface text-muted-foreground"}`}
@@ -135,6 +146,7 @@ export function V3CountriesDiscoveryScreen({
               aria-label={`All ${countriesQuery.data?.length ?? 0} countries`}
               onClick={() => {
                 setParticipatingOnly(false);
+                setRegion("all");
                 setVisibleCount(BROWSE_PAGE_SIZE);
               }}
               className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${!participatingOnly ? "border-primary bg-primary/15 text-foreground" : "border-border bg-surface text-muted-foreground"}`}
@@ -150,13 +162,13 @@ export function V3CountriesDiscoveryScreen({
               <button type="button" aria-pressed={region === "all"}
                 className={region === "all" ? "is-selected" : undefined}
                 onClick={() => { setRegion("all"); setVisibleCount(BROWSE_PAGE_SIZE); }}>
-                <span>All regions</span><span>{countriesQuery.data?.length ?? 0}</span>
+                <span>All regions</span><span>{collectionCount}</span>
               </button>
-              {discovery.regions.map((item) => (
+              {regionOptions.map((item) => (
                 <button key={item.name} type="button" aria-pressed={region === item.name}
                   className={region === item.name ? "is-selected" : undefined}
                   onClick={() => { setRegion(item.name); setVisibleCount(BROWSE_PAGE_SIZE); }}>
-                  <span>{item.name}</span><span>{item.countries.length}</span>
+                  <span>{item.name}</span><span>{item.count}</span>
                 </button>
               ))}
             </aside>
@@ -191,7 +203,7 @@ export function V3CountriesDiscoveryScreen({
                   <h2>Filter by region</h2>
                 </div>
                 <div className="mt-3">
-                  {["all", ...discovery.regions.map((item) => item.name)].map((item) => {
+                  {["all", ...regionOptions.map((item) => item.name)].map((item) => {
                     const active = region === item;
                     return (
                       <SheetClose key={item} asChild>
@@ -219,7 +231,7 @@ export function V3CountriesDiscoveryScreen({
                 <select aria-label="Filter by region" value={region}
                   onChange={(event) => { setRegion(event.target.value); setVisibleCount(BROWSE_PAGE_SIZE); }}>
                   <option value="all">All regions</option>
-                  {discovery.regions.map((item) => (
+                  {regionOptions.map((item) => (
                     <option key={item.name} value={item.name}>{item.name}</option>
                   ))}
                 </select>
@@ -317,7 +329,7 @@ export function V3CountriesDiscoveryScreen({
       ) : null}
 
 
-      {presentation === "installed-app" && discovery.regions.length > 0 ? (
+      {presentation === "installed-app" && regionOptions.length > 0 ? (
         <section className="v3-countries-secondary" aria-labelledby="countries-regions">
           <AppSectionHeader
             eyebrow="Explore by region"
@@ -325,7 +337,7 @@ export function V3CountriesDiscoveryScreen({
             id="countries-regions"
           />
           <div className="v3-countries-regions grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {discovery.regions.map((item) => (
+            {regionOptions.map((item) => (
               <button
                 key={item.name}
                 type="button"
@@ -338,7 +350,7 @@ export function V3CountriesDiscoveryScreen({
               >
                 <span className="block text-sm font-semibold">{item.name}</span>
                 <span className="mt-1 block text-xs text-muted-foreground">
-                  {item.countries.length} countr{item.countries.length === 1 ? "y" : "ies"}
+                  {item.count} countr{item.count === 1 ? "y" : "ies"}
                 </span>
               </button>
             ))}
