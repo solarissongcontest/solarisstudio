@@ -1,15 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  ChevronDown,
-  Compass,
-  Home,
-  Menu,
-  Trophy,
-  User,
-  Vote,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronDown, Compass, Menu, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
 import { AppAdaptiveWorkspace } from "@/components/app/AppAdaptiveWorkspace";
@@ -38,7 +28,7 @@ import {
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
-import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
+import { publicAreaForPath } from "@/lib/public-navigation";
 import {
   publicCanvasForArchetype,
   publicLayoutTokenForArchetype,
@@ -79,14 +69,6 @@ const EMPTY_ACCESS: AccountAccess = {
   countryStatus: null,
   suspensionReason: null,
   schemaReady: true,
-};
-
-const GLOBAL_ICON_BY_AREA: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
-  home: Home,
-  explore: Compass,
-  participate: Vote,
-  results: Trophy,
-  me: User,
 };
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -262,13 +244,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       publicArea === "participate" ||
       publicArea === "results" ||
       publicArea === "help");
-  const quickNavigation = globalAreas.map((item) => ({
-    to: item.to,
-    label: item.label,
-    icon: GLOBAL_ICON_BY_AREA[item.id],
-    active: !pathname.startsWith("/site-directory") && publicArea === item.id,
-  }));
-
   return (
     <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
       <div className="relative isolate min-h-screen overflow-x-clip">
@@ -295,18 +270,33 @@ export function AppShell({ children }: { children: ReactNode }) {
                 />
               </nav>
 
-              <SheetTrigger asChild>
-                <button
-                  type="button"
-                  className="ml-auto grid h-11 w-11 place-items-center rounded-xl border border-border/75 bg-surface/70 transition-[background-color,transform] duration-150 ease-out active:scale-[0.96] motion-reduce:active:scale-100 lg:hidden"
-                  aria-label="Open navigation"
-                  disabled={!navigationReady}
-                  aria-busy={!navigationReady}
-                  aria-expanded={menuOpen}
+              <nav className="ml-auto flex shrink-0 items-center gap-1.5 lg:hidden" aria-label="Mobile website navigation">
+                <Link
+                  to="/explore"
+                  aria-label="Explore Solaris"
+                  aria-current={pathname === "/explore" ? "page" : undefined}
+                  onClick={() => trackPublicUxEvent("public_nav_clicked", {
+                    target: "/explore",
+                    metadata: { area: "explore", source: "mobile_web_header" },
+                  })}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
-                  <Menu className="h-5 w-5" />
-                </button>
-              </SheetTrigger>
+                  <Compass className="h-4 w-4" aria-hidden="true" />
+                  <span className="hidden min-[370px]:inline">Explore</span>
+                </Link>
+                <SheetTrigger asChild>
+                  <button
+                    type="button"
+                    className="grid h-11 w-11 place-items-center rounded-lg border border-border/75 bg-surface/70 transition-colors hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    aria-label="Open navigation"
+                    disabled={!navigationReady}
+                    aria-busy={!navigationReady}
+                    aria-expanded={menuOpen}
+                  >
+                    <Menu className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </SheetTrigger>
+              </nav>
             </div>
           </header>
         ) : null}
@@ -401,7 +391,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               : undefined
           }
           className={cn(
-            "app-main relative z-10 mx-auto w-full min-w-0 px-3 pb-24 pt-4 sm:px-5 sm:pb-24 sm:pt-6 lg:px-8 lg:py-8 2xl:px-10",
+            "app-main relative z-10 mx-auto w-full min-w-0 px-3 pt-4 sm:px-5 sm:pt-6 lg:px-8 lg:py-8 2xl:px-10",
+            isAppMode ? "pb-24 sm:pb-24" : "pb-8 sm:pb-12",
             publicCanvasForArchetype(publicArchetype),
           )}
         >
@@ -489,44 +480,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           />
         ) : null}
 
-        {!isAppMode && !isMySolarisWorkspace && (
-          <nav
-            className="mobile-quick-nav fixed inset-x-0 bottom-0 z-50 border-t border-border/70 px-2 pt-1.5 lg:hidden"
-            style={{ paddingBottom: "max(.4rem, env(safe-area-inset-bottom))" }}
-            aria-label="Primary navigation"
-          >
-            <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
-              {quickNavigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.label}
-                    to={item.to as any}
-                    aria-current={item.active ? "page" : undefined}
-                    onClick={() =>
-                      trackPublicUxEvent("public_nav_clicked", {
-                        target: item.to,
-                        metadata: {
-                          area:
-                            globalAreas.find((area) => area.to === item.to)?.id ??
-                            (item.to === "/auth" ? "me" : "unknown"),
-                          source: "mobile_bottom",
-                        },
-                      })
-                    }
-                    className={cn(
-                      "flex min-h-13 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-semibold transition-colors",
-                      item.active ? "bg-surface-strong text-foreground" : "text-muted-foreground",
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-        )}
       </div>
     </Sheet>
   );
