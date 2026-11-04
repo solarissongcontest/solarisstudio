@@ -56,6 +56,16 @@ security definer
 set search_path = pg_catalog
 as $snapshot$
 begin
+  if tg_op = 'DELETE' then
+    -- A concluded constitutional term is a permanent history row. Login
+    -- deletion uses holder_user_id ON DELETE SET NULL, not row deletion.
+    if old.status in ('ended', 'removed', 'resigned') then
+      raise exception 'WORLD_CLOSED_OFFICE_TERM_IMMUTABLE'
+        using errcode = '23514';
+    end if;
+    return old;
+  end if;
+
   -- Check the OLD state first. A concluded term must never become active
   -- again, switch holder or office, or otherwise rewrite political history.
   -- An auth-account deletion can still null holder_user_id, but another login
@@ -123,7 +133,7 @@ revoke all on function private.world_capture_closed_office_term_labels()
   from public, anon, authenticated;
 
 create trigger world_office_terms_capture_closed_labels
-before insert or update on public.world_office_terms
+before insert or update or delete on public.world_office_terms
 for each row execute function private.world_capture_closed_office_term_labels();
 
 alter table public.world_office_terms
