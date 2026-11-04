@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Building2, Globe2, Search, Users, Vote } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, Globe2, Search, Users } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
