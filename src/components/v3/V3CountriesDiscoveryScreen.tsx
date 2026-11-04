@@ -104,18 +104,12 @@ export function V3CountriesDiscoveryScreen({
             : "TERRA SOLARIS · COUNTRY ARCHIVE"}
         </p>
         <h2 id="countries-page-title" className="v3-countries-title">
-          {presentation === "installed-app"
-            ? "Meet the countries"
-            : presentation === "mobile-web"
-              ? "Browse all countries"
-              : "Country explorer"}
+          {presentation === "installed-app" ? "Meet the countries" : "Country explorer"}
         </h2>
         <p className="v3-countries-lead">
-          {presentation === "mobile-web"
-            ? `${countriesQuery.data?.length ?? 0} countries · Search by name or region, then open a country profile.`
-            : discovery.currentEdition
-              ? `${discovery.participating.length} published delegations in this edition. Browse the full country directory or filter to the current lineup.`
-              : "Discover the countries of Terra Solaris, their regions and their histories."}
+          {discovery.currentEdition
+            ? `${discovery.participating.length} published delegations in this edition. Browse the full country directory or filter to the current lineup.`
+            : "Discover the countries of Terra Solaris, their regions and their histories."}
         </p>
       </header>
       )}
