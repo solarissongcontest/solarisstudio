@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, CalendarDays, History, Landmark } from "lucide-react";
 
 import {
   historicalTermEditionLabel,
   loadPublicOfficeHistory,
+  loadWorldHistoryRolloutEnabled,
   type PublicOfficeHistoryCursor,
   type PublicOfficeTerm,
 } from "@/lib/v3-world-office-history";
@@ -85,9 +86,16 @@ function OfficeTermRow({ term }: { term: PublicOfficeTerm }) {
 /** Public historical terms only. It never infers an office from current users. */
 export function WorldOfficeHistory({ slug }: { slug: string }) {
   const [selectedOffice, setSelectedOffice] = useState("");
+  const rollout = useQuery({
+    queryKey: ["world", "public", "rollout"],
+    queryFn: loadWorldHistoryRolloutEnabled,
+    staleTime: 45_000,
+    retry: false,
+  });
   const query = useInfiniteQuery({
     queryKey: ["v3-world-office-history", slug.toLowerCase(), selectedOffice],
     initialPageParam: null as PublicOfficeHistoryCursor | null,
+    enabled: rollout.data === true,
     queryFn: ({ pageParam }) => loadPublicOfficeHistory(slug, pageParam, selectedOffice || null),
     getNextPageParam: (lastPage) => lastPage?.nextCursor ?? undefined,
     staleTime: 10 * 60_000,
@@ -152,7 +160,13 @@ export function WorldOfficeHistory({ slug }: { slug: string }) {
       ) : null}
 
       <section aria-label="Previous institutional office terms" className="mt-6" aria-live="polite">
-        {query.isPending ? (
+        {rollout.isPending ? (
+          <HistoryState title="Checking World availability" detail="Confirming whether public Terra Solaris institutions are available." />
+        ) : rollout.isError ? (
+          <HistoryState title="World availability unavailable" detail="The public World rollout decision could not be verified. No institutional history has been loaded." retry={() => void rollout.refetch()} />
+        ) : rollout.data !== true ? (
+          <HistoryState title="World history is not yet available" detail="This public history page is disabled until the canonical World rollout is enabled." />
+        ) : query.isPending ? (
           <HistoryState title="Loading institutional history" detail="Reading completed terms from the canonical public governance archive." />
         ) : query.isError && !query.isFetchNextPageError ? (
           <HistoryState title="Historical record unavailable" detail="The public history could not be retrieved. No inferred or cached officeholders are substituted." retry={() => void query.refetch()} />
