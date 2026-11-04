@@ -28,4 +28,12 @@ describe("TG10 organization follow preference contracts",()=>{
   expect(runner).toContain("Refusing non-loopback database");
   expect(runner).toContain('psql "$DB_URL"');
  });
+ it("wires executable follow checks into both local migration paths", () => {
+  const workflow = read(".github/workflows/rules-integrity-migration-rehearsal.yml");
+  const productionUpgrade = read(".github/scripts/v3-production-head-upgrade-rehearsal.sh");
+  expect((workflow.match(/rehearse-v3-world-organization-follows\.sh/g) ?? []).length).toBe(2);
+  expect(workflow).toContain("disposable clean database");
+  expect(workflow).toContain("after current-main upgrade");
+  expect(productionUpgrade).toContain('bash "$ROOT/scripts/rehearse-v3-world-organization-follows.sh"');
+ });
 });

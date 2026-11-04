@@ -170,4 +170,7 @@ for rehearsal in \
     bash "$ROOT/.github/scripts/$rehearsal"
   done
 
+log "Rehearsing TG10 organization follows after production-head-equivalent local upgrade"
+bash "$ROOT/scripts/rehearse-v3-world-organization-follows.sh"
+
 log "Production-head-equivalent upgrade passed: $PRODUCTION_HEAD -> $LATEST_HEAD ($expected_delta migrations)"

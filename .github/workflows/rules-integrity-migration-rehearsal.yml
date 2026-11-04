@@ -13,6 +13,8 @@ on:
       - ".github/scripts/run-rules-integrity-security-rehearsal.sh"
       - ".github/scripts/v3-tg2-identity-linkage-privacy-rehearsal.sh"
       - ".github/scripts/v3-tg2-identity-linkage-privacy-rehearsal.sql"
+      - "scripts/rehearse-v3-world-organization-follows.sql"
+      - "scripts/rehearse-v3-world-organization-follows.sh"
       - ".github/scripts/pr450-deadline-scope-rehearsal.sh"
       - ".github/scripts/v3-confirmation-security-rehearsal.sh"
       - ".github/scripts/v3-s3-confirmation-invariants-rehearsal.sh"
@@ -75,6 +77,10 @@ jobs:
       - name: Verify TG2 identity-linkage privacy on the clean local stack
         shell: bash
         run: bash .github/scripts/v3-tg2-identity-linkage-privacy-rehearsal.sh
+
+      - name: Rehearse TG10 organization follows on disposable clean database
+        shell: bash
+        run: bash scripts/rehearse-v3-world-organization-follows.sh
 
       - name: Prove System V3 operation receipt semantics
         shell: bash
@@ -208,6 +214,12 @@ jobs:
         run: |
           cd /tmp/solaris-main
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-tg2-identity-linkage-privacy-rehearsal.sh"
+
+      - name: Rehearse TG10 organization follows after current-main upgrade
+        shell: bash
+        run: |
+          cd /tmp/solaris-main
+          bash "$GITHUB_WORKSPACE/scripts/rehearse-v3-world-organization-follows.sh"
 
       - name: Verify legacy Entry observations do not fabricate approval evidence
         run: |
