@@ -378,6 +378,7 @@ test("installed app shell survives representative navigation without duplicate c
   for (const route of [
     "/",
     "/explore",
+    "/countries",
     "/editions",
     "/wiki",
     "/shows",

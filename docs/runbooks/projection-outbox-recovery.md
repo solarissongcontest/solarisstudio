@@ -50,7 +50,7 @@ A projection rebuild is permitted only when the canonical reconciliation registr
 - the repair has an explicit non-global scope;
 - the required edition/show/actor/operation scope is supplied as a valid UUID.
 
-The planner normalizes each plan to the one scope identifier required by its canonical contract and drops irrelevant scope fields. The planner refuses global recovery. Batch planning is capped at 25 independently scoped items, rejects duplicate normalized targets and fails closed when any item lacks a safe canonical path.
+The planner normalizes each plan to the one scope identifier required by its canonical contract, canonicalizes UUID letter casing so the same PostgreSQL UUID cannot be scheduled twice, and drops irrelevant scope fields. The planner refuses global recovery. Batch planning is capped at 25 independently scoped items, rejects duplicate normalized targets and fails closed when any item lacks a safe canonical path.
 
 Current examples already supported by the canonical registry include:
 
