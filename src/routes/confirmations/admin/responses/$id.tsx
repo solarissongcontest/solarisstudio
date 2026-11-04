@@ -128,6 +128,8 @@ type ResponseDetail = {
 };
 
 type TechnicalData = {
+  edition_id: string;
+  submission_id: string;
   ip_history: Array<{
     id: string;
     ip_address: string;
@@ -718,15 +720,25 @@ function ResponseDetailPage() {
     if (!organizerEditionId) return;
     setTechnicalError(null);
     const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
-      "admin_confirmation_technical",
-      { _submission_id: id },
+      "admin_confirmation_technical_for_edition",
+      { _edition_id: organizerEditionId, _submission_id: id },
     );
-    if (responseLoadGenerationRef.current !== generation) return;
+    if (responseLoadGenerationRef.current !== generation ||
+        currentScopeRef.current.responseId !== id ||
+        currentScopeRef.current.editionId !== organizerEditionId) return;
     if (rpcError) {
       setTechnicalError(rpcError.message);
       return;
     }
-    setTechnical(result as unknown as TechnicalData);
+    const technicalDetail = result as unknown as TechnicalData | null;
+    if (!technicalDetail ||
+        technicalDetail.edition_id !== organizerEditionId ||
+        technicalDetail.submission_id !== id) {
+      setTechnical(null);
+      setTechnicalError("Technical data did not match the exact Organizer edition and response.");
+      return;
+    }
+    setTechnical(technicalDetail);
   }, [id, organizerEditionId]);
 
   const load = useCallback(async () => {
@@ -752,8 +764,8 @@ function ResponseDetailPage() {
       }
 
       const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
-        "admin_confirmation_response",
-        { _submission_id: id },
+        "admin_confirmation_response_for_edition",
+        { _edition_id: organizerEditionId, _submission_id: id },
       );
       if (!isCurrent()) return;
       if (rpcError) throw rpcError;
@@ -967,7 +979,8 @@ function ResponseDetailPage() {
       // Recheck the exact response immediately before entering the privileged
       // reconciliation boundary. The confirmation sheet reviewed the current
       // response, not a mutable or outdated historical snapshot.
-      const fresh = await confirmationsSupabase.rpc("admin_confirmation_response", {
+      const fresh = await confirmationsSupabase.rpc("admin_confirmation_response_for_edition", {
+        _edition_id: organizerEditionId,
         _submission_id: id,
       });
       if (fresh.error) throw fresh.error;
