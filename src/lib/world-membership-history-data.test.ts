@@ -42,15 +42,15 @@ describe("TG2 public membership history data boundary", () => {
       data: { id: "11111111-1111-1111-1111-111111111111", name: "Oland", short_code: "OL", flag_image: null },
       error: null,
     });
-    const eq = vi.fn().mockReturnValue({ maybeSingle });
-    const select = vi.fn().mockReturnValue({ eq });
+    const ilike = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ ilike });
     mock.from.mockReturnValue({ select });
     expect(await fetchWorldMembershipCountry("ol")).toEqual({
       id: "11111111-1111-1111-1111-111111111111", name: "Oland", code: "OL", flagImage: null,
     });
     expect(mock.from).toHaveBeenCalledWith("countries");
     expect(select).toHaveBeenCalledWith("id,name,short_code,flag_image");
-    expect(eq).toHaveBeenCalledWith("short_code", "OL");
+    expect(ilike).toHaveBeenCalledWith("short_code", "OL");
     expect(maybeSingle).toHaveBeenCalledTimes(1);
   });
 
@@ -74,7 +74,7 @@ describe("TG2 public membership history data boundary", () => {
     });
     mock.from.mockReturnValue({
       select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({ maybeSingle }),
+        ilike: vi.fn().mockReturnValue({ maybeSingle }),
       }),
     });
     await expect(fetchWorldMembershipCountry("OL")).rejects.toThrow(
@@ -113,7 +113,7 @@ describe("TG2 public membership history data boundary", () => {
     const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: failure });
     mock.from.mockReturnValue({
       select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({ maybeSingle }),
+        ilike: vi.fn().mockReturnValue({ maybeSingle }),
       }),
     });
     await expect(fetchWorldMembershipCountry("OL")).rejects.toThrow(
