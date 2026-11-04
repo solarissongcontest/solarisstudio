@@ -35,7 +35,7 @@ import {
   type ConfirmationRoundChangePreview,
 } from "@/integrations/confirmations/admin";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
-import { assertConfirmationRoundPreviewMatchesRequest, isCurrentConfirmationRoundReview } from "@/lib/confirmation-round-review-scope";
+import { assertConfirmationRoundPreviewMatchesRequest, assertConfirmationRoundReceiptMatchesRequest, isCurrentConfirmationRoundReview } from "@/lib/confirmation-round-review-scope";
 
 export const Route = createFileRoute("/confirmations/admin/rounds")({
   head: () => ({
@@ -354,6 +354,7 @@ function RoundsPage() {
     applyInFlightRef.current = true;
     setBusy(true);
     if (pending.roundId) setRoundBusy(pending.roundId);
+    let receiptVerified = false;
 
     try {
       const receipt = await applyConfirmationRoundChange({
@@ -364,6 +365,13 @@ function RoundsPage() {
         idempotencyKey: pending.idempotencyKey,
         expectedVersion: pending.preview.expectedVersion,
       });
+      assertConfirmationRoundReceiptMatchesRequest({
+        roundId: pending.roundId,
+        changeKind: pending.kind,
+        operationId: pending.operationId,
+        expectedVersion: pending.preview.expectedVersion,
+      }, receipt);
+      receiptVerified = true;
 
       if (!isCurrentConfirmationRoundReview(request, reviewScopeRef.current)) {
         toast.warning(
@@ -396,8 +404,15 @@ function RoundsPage() {
         toast.success("Round configuration updated.");
       }
     } catch (caught) {
-      if (isCurrentConfirmationRoundReview(request, reviewScopeRef.current)) {
-        toast.error(caught instanceof Error ? caught.message : "Round change could not be applied.");
+      if (receiptVerified) {
+        // A verified canonical apply has already committed. A failed *read*
+        // must never be reported as a failed mutation or prompt a second apply.
+        if (isCurrentConfirmationRoundReview(request, reviewScopeRef.current)) {
+          setError("Round change was applied, but the refreshed round list is unavailable. Reload this edition before changing any rounds again.");
+        }
+        toast.warning("Round change was applied, but the round list could not be refreshed. Reload before editing again.");
+      } else if (isCurrentConfirmationRoundReview(request, reviewScopeRef.current)) {
+        toast.error(caught instanceof Error ? caught.message : "Round change could not be verified. Inspect the current edition before retrying.");
       } else {
         toast.warning(
           "The previous edition's round operation has an uncertain result. Inspect its current state before retrying.",
