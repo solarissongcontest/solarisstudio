@@ -36,6 +36,27 @@
   /* Real country data can contain long localized labels and non-numeric values.
      Keep the compact three-stat strip readable at 320px and at increased text
      sizes without making the entire browser page horizontally scroll. */
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-description[data-collapsed="true"] {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-description-toggle {
+    display: inline-flex;
+    min-block-size: 44px;
+    align-items: center;
+    margin-block-start: .25rem;
+    padding: 0 .25rem;
+    border-radius: .25rem;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-description-toggle:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+  }
+
   .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-masthead dl > div {
     min-inline-size: 0;
     overflow-wrap: anywhere;
