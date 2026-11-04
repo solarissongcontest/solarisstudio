@@ -135,6 +135,18 @@ describe("TG5A GUARD voluntary membership intake", () => {
     expect(migration).not.toMatch(/create table public\.guard_/i);
   });
 
+  it("locks current country authority and GUARD availability before accepting intake", () => {
+    const submit = migration.slice(
+      migration.indexOf("create or replace function public.world_submit_guard_membership_application_v1("),
+      migration.indexOf("$submit$;"),
+    );
+    expect(submit).toMatch(/perform 1 from public\.country_accounts account_row[\s\S]*?for share;/);
+    expect(submit).toMatch(/perform 1 from public\.world_organizations org[\s\S]*?for share;/);
+    expect(submit.indexOf("for share;")).toBeLessThan(submit.indexOf("private.studio2_claim_operation("));
+    expect(submit).toContain("if not found or not public.world_access_allowed(");
+    expect(submit).not.toContain("or not exists (\n        select 1 from public.country_accounts account_row");
+  });
+
   it("requires real country authority plus world-scoped capability and current state", () => {
     expect(migration).toContain("account_row.user_id = v_actor");
     expect(migration).toContain("account_row.status = 'active'");

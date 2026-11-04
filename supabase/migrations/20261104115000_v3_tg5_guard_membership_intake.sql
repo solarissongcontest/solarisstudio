@@ -79,27 +79,33 @@ declare
   v_contributions text := btrim(coalesce(p_contributions, ''));
   v_commitment text := btrim(coalesce(p_international_commitment, ''));
 begin
-  if v_actor is null or p_country_id is null or p_organization_id is null
-      or not exists (
-        select 1 from public.country_accounts account_row
-        where account_row.country_id = p_country_id
-          and account_row.user_id = v_actor
-          and account_row.status = 'active'
-      )
-      or not public.world_access_allowed(
-        'world.membership.apply', p_organization_id, p_country_id, null, null, null
-      ) then
+  if v_actor is null or p_country_id is null or p_organization_id is null then
     raise exception using errcode = '42501', message = 'AUTHORIZATION';
   end if;
 
-  -- The first intake is GUARD-specific: UNITY membership is automatic/rejoin-governed.
-  if not exists (
-    select 1 from public.world_organizations org
-    where org.id = p_organization_id
-      and org.slug = 'guard'
-      and org.status = 'active'
-      and org.public_visibility = 'public'
+  -- Keep authorization tied to the current controller until this transaction
+  -- commits. Use the same account-then-organization lock order as withdrawal,
+  -- so a concurrent country transfer cannot authorize a former controller.
+  perform 1 from public.country_accounts account_row
+  where account_row.country_id = p_country_id
+    and account_row.user_id = v_actor
+    and account_row.status = 'active'
+  for share;
+  if not found or not public.world_access_allowed(
+    'world.membership.apply', p_organization_id, p_country_id, null, null, null
   ) then
+    raise exception using errcode = '42501', message = 'AUTHORIZATION';
+  end if;
+
+  -- Lock the GUARD source row while checking availability. A concurrent
+  -- suspension or deactivation must not race with an accepted application.
+  perform 1 from public.world_organizations org
+  where org.id = p_organization_id
+    and org.slug = 'guard'
+    and org.status = 'active'
+    and org.public_visibility = 'public'
+  for share;
+  if not found then
     raise exception using errcode = '22023', message = 'APPLICATION_UNAVAILABLE';
   end if;
 
