@@ -46,6 +46,14 @@ describe("Terra Solaris public membership chronicle", () => {
     expect(() => parseWorldMembershipChronicle(projection([{ ...former, ended_at: null }]))).toThrow(/Inconsistent/);
     expect(() => parseWorldMembershipChronicle(projection([{ ...active, ended_at: "2020-01-01T00:00:00Z" }]))).toThrow(/Inconsistent/);
   });
+  it("sorts real membership instants, not ISO strings with different UTC offsets", () => {
+    const result = parseWorldMembershipChronicle(projection([
+      { ...active, id: "later", joined_at: "2026-10-01T00:30:00+01:00" },
+      { ...active, id: "earlier", joined_at: "2026-10-01T01:00:00+03:00" },
+    ]));
+    // 00:30+01:00 is 23:30Z; 01:00+03:00 is 22:00Z.
+    expect(result.records.map((entry) => entry.id)).toEqual(["later", "earlier"]);
+  });
   it("fails closed when country names, dates or exact counts cannot be verified", () => {
     expect(() => parseWorldMembershipChronicle({ ...projection([active]), countries: [] })).toThrow(/country identity/);
     expect(() => parseWorldMembershipChronicle({ ...projection([active]), count: null })).toThrow(/count/);

@@ -195,7 +195,7 @@ export function parseWorldMembershipChronicle(input: {
     records.push(membership);
   }
   records.sort((a, b) =>
-    b.joinedAt.localeCompare(a.joinedAt) || a.id.localeCompare(b.id)
+    Date.parse(b.joinedAt) - Date.parse(a.joinedAt) || a.id.localeCompare(b.id)
   );
   return {
     records,
