@@ -122,7 +122,7 @@ describe("public recents", () => {
     for (let index = 0; index < 10; index += 1) {
       rememberPublicRecent(`/countries/country-${index}`, `Path ${index}`, storage);
     }
-    rememberPublicRecent("/path-5", "Path five again", storage);
+    rememberPublicRecent("/countries/country-5", "Path five again", storage);
     const recents = readPublicRecents(storage);
     expect(recents).toHaveLength(8);
     expect(recents[0]?.path).toBe("/countries/country-5");
