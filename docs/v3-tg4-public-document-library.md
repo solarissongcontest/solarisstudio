@@ -36,7 +36,10 @@ This is defense-in-depth presentation filtering, not a substitute for TG4 server
 ## Product behavior
 
 - Responsive searchable library, institution filter, deliberate search submit and bounded expansion.
-- Published current-Version reader, provisions, section anchors, version history and older-version warning.
+- Published current-Version reader with durable provision deep links, legal-text provisions, version history and older-version warning.
+- On wide screens: document contents | legal text | version metadata; on phone/tablet: full contents via accessible bottom sheet.
+- Contents navigation includes every section instead of silently cutting off after forty. Stable IDs derive from TG4 semantic keys rather than mutable display numbering; legacy version anchors remain usable.
+- Cold deep links restore their section after the authorized RPC finishes, but only when the fragment belongs to that exact published Version.
 - Local in-document phrase search without extra Supabase requests.
 - Mobile contents disclosure and desktop contextual rail.
 - Loading, empty, unavailable, not found, error and retry states.
@@ -45,7 +48,9 @@ This is defense-in-depth presentation filtering, not a substitute for TG4 server
 
 ## Evidence and limitations
 
-Focused code tests are in src/lib/world-public-documents.test.ts. They must run in a repository checkout:
+Focused code tests are in src/lib/world-public-documents.test.ts. They must run in a repository checkout. The current source includes cases for semantic provision renumbering, full contents after section 40, missing or stale fragments and preservation of existing version anchors.
+
+On 2026-11-04, eleven runtime smoke checks of extracted type-erased pure source implementations passed in an isolated JavaScript environment. Those checks are useful functional evidence for the projection/fragment functions but are **not** the committed Vitest suite, TypeScript compilation or UI rendering tests:
 
 npx vitest run src/lib/world-public-documents.test.ts
 
