@@ -182,7 +182,10 @@ begin
     (new.organization_id,new.organ_id,new.sponsor_country_id,
      new.measure_type,new.category_code)
  then raise exception using errcode='23514',message='IMMUTABLE_MEASURE_IDENTITY'; end if;
- if old.identifier is not null and old.identifier is distinct from new.identifier
+ if old.identifier is not null and (
+      old.identifier is distinct from new.identifier
+      or old.short_title is distinct from new.short_title
+    )
  then raise exception using errcode='23514',message='IMMUTABLE_MEASURE_IDENTIFIER'; end if;
  if old.registered_at is not null and old.registered_at is distinct from new.registered_at
  then raise exception using errcode='23514',message='IMMUTABLE_MEASURE_REGISTRATION'; end if;
@@ -251,7 +254,8 @@ create or replace function public.world_measure_public_list_v1(
 as $measure_list$
  select coalesce(jsonb_agg(jsonb_build_object(
   'id',eligible.id,'organizationSlug',eligible.slug,'organName',eligible.organ_name,
-  'identifier',eligible.identifier,'measureType',eligible.measure_type,
+  'identifier',eligible.identifier,'shortTitle',eligible.short_title,
+  'measureType',eligible.measure_type,
   'categoryCode',eligible.category_code,
   'title',eligible.title,'summary',eligible.summary,'state',eligible.state,
   'sponsorCountryCode',eligible.sponsor_code,'submittedAt',eligible.submitted_at,
@@ -262,7 +266,7 @@ as $measure_list$
   -- Otherwise a private/unpublished newest row can consume a limit slot and
   -- hide a published one further down the institution's history.
   select m.id,o.slug,g.name as organ_name,
-    m.identifier,m.measure_type,m.category_code,v.title,v.summary,m.state,
+    m.identifier,m.short_title,m.measure_type,m.category_code,v.title,v.summary,m.state,
     c.short_code as sponsor_code,m.submitted_at,m.registered_at,m.revision
   from public.world_measures m
   join public.world_organizations o on o.id=m.organization_id
@@ -286,7 +290,8 @@ returns jsonb language sql stable security definer set search_path=pg_catalog
 as $measure_detail$
  select jsonb_build_object(
   'id',m.id,'organizationSlug',o.slug,'organName',g.name,
-  'identifier',m.identifier,'measureType',m.measure_type,'state',m.state,
+  'identifier',m.identifier,'shortTitle',m.short_title,
+  'measureType',m.measure_type,'state',m.state,
   'categoryCode',m.category_code,'categoryLabel',category.label,
   'sponsorCountryCode',c.short_code,'registeredAt',m.registered_at,
   'revision',m.revision,
@@ -541,6 +546,9 @@ begin
  update public.world_measures set
    state=p_target_state,
    identifier=case when p_target_state='registered' then btrim(p_identifier) else identifier end,
+   short_title=case when p_target_state='registered' and v_slug='guard'
+     then nullif(btrim(split_part(p_identifier,'.',6)),'')
+     else short_title end,
    registered_at=case when p_target_state='registered' then now() else registered_at end,
    visibility=case when p_target_state='registered' then 'public' else visibility end,
    procedural_note=case when p_target_state='needs_correction' then btrim(p_procedural_note) else null end,
