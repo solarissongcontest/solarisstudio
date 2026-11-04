@@ -61,8 +61,9 @@ begin
   -- An auth-account deletion can still null holder_user_id, but another login
   -- may never be attached to a concluded term. Neither operation changes
   -- the historical durable person or presentation labels.
-  if tg_op = 'UPDATE' and old.status in ('ended', 'removed', 'resigned') then
-    if new.status is distinct from old.status
+  if tg_op = 'UPDATE' then
+    if old.status in ('ended', 'removed', 'resigned') then
+      if new.status is distinct from old.status
       or new.office_id is distinct from old.office_id
       or new.holder_person_id is distinct from old.holder_person_id
       or (
@@ -85,8 +86,9 @@ begin
     end if;
     new.holder_display_name_snapshot := old.holder_display_name_snapshot;
     new.office_title_snapshot := old.office_title_snapshot;
-    new.represented_country_name_snapshot := old.represented_country_name_snapshot;
-    return new;
+      new.represented_country_name_snapshot := old.represented_country_name_snapshot;
+      return new;
+    end if;
   end if;
 
   if new.status not in ('ended', 'removed', 'resigned') then
