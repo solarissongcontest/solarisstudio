@@ -6,7 +6,7 @@ import {
   SOURCE_PROJECT, DESTINATION_PROJECT, validateProjectPair, verifyBytes, sha256,
   stableJson, assertApprovedWrite, inventoryPair, transferVerifiedMissing,
   recoveryDigest, proposeReferenceReconciliation, detectMime, assertAssetClearance,
-  buildSourceReferenceIndex,
+  buildSourceReferenceIndex, assertMediaRecoveryWritablePlatform,
 } from './v3-media-recovery-core.mjs';
 
 const png = Buffer.from([137,80,78,71,13,10,26,10,1,2,3,4,5]);
@@ -375,4 +375,12 @@ test('public legacy media cannot bypass existing image type or five-MiB cap', ()
     approval), /MIME policy/);
   assert.throws(() => assertAssetClearance({ ...entry, source_bytes: 5 * 1024 * 1024 + 1 },
     approval), /validation ceiling/);
+});
+
+test('recovery refuses read_only publication', () => {
+  assert.doesNotThrow(() => assertMediaRecoveryWritablePlatform('normal'));
+  assert.doesNotThrow(() => assertMediaRecoveryWritablePlatform('degraded'));
+  for (const mode of ['read_only', 'maintenance', null]) {
+    assert.throws(() => assertMediaRecoveryWritablePlatform(mode), /blocks media recovery publication/);
+  }
 });
