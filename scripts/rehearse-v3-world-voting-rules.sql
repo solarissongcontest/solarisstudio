@@ -290,6 +290,17 @@ begin
     raise exception 'TG8_IMMUTABLE_RULE_HISTORY_DELETE_ALLOWED';
   exception when check_violation then null;
   end;
+  -- Server publication must remain blocked even for a configured ACTIVE
+  -- rule until the independent TG8 feature flag is explicitly enabled.
+  if public.world_public_voting_rule_v1(v->>'organizationSlug','legislative') is not null then
+    raise exception 'TG8_PUBLIC_RULE_VISIBLE_BEFORE_ROLLOUT';
+  end if;
+  update public.studio2_feature_flags
+  set enabled=true
+  where key='terra_world_voting_rules';
+  if not found then
+    raise exception 'TG8_VOTING_RULE_ROLLOUT_FLAG_NOT_REGISTERED';
+  end if;
   raise notice 'PASS: rule revisions are immutable; only active exact rule snapshots can be frozen';
 end
 $verify$;
