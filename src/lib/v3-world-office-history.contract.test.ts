@@ -22,6 +22,10 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(migration).toContain("o.public_visibility = 'public'");
     expect(migration).toContain("t.status in ('ended', 'removed', 'resigned')");
     expect(migration).toContain("t.actual_end_at is not null");
+    expect(migration).toContain("public.studio2_feature_enabled('terra_world_public', null) is not true");
+    expect(rehearsal).toContain("TG3_HISTORY_DIRECT_RPC_ROLLOUT_BYPASS");
+    expect(rehearsal).toContain("TG3_HISTORY_ENABLED_WORLD_RPC_UNAVAILABLE");
+    expect(rehearsal).toContain("TG3_HISTORY_DIRECT_RPC_REMAINS_OPEN_AFTER_DISABLE");
     expect(migration).toContain("limit p_limit + 1");
     expect(migration).toContain("p_limit > 20");
     expect(migration).toContain("(t.started_at, t.id) < (p_cursor_started_at, p_cursor_term_id)");
@@ -46,6 +50,10 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(migration).toContain("before insert or update on public.world_office_terms");
     expect(migration).toContain("WORLD_CLOSED_OFFICE_TERM_IMMUTABLE");
     expect(migration).toContain("new.holder_user_id is not null");
+    expect(migration).toContain("new.revision is distinct from old.revision");
+    expect(migration).toContain("new.created_at is distinct from old.created_at");
+    expect(rehearsal).toContain("TG3_HISTORY_REVISION_REWRITE_WAS_NOT_BLOCKED");
+    expect(rehearsal).toContain("TG3_HISTORY_CREATION_REWRITE_WAS_NOT_BLOCKED");
     expect(migration).toContain("new.holder_user_id is distinct from old.holder_user_id");
     const closedGuard = migration.indexOf("if tg_op = 'UPDATE' and old.status");
     const activeGuard = migration.indexOf("if new.status not in ('ended', 'removed', 'resigned')");
@@ -121,6 +129,10 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(rolloutMigration).toContain("on conflict (key) do nothing");
     expect(rolloutMigration).toContain("WORLD_PUBLIC_ROLLOUT_ALLOWLIST_CONSTRAINT_MISSING");
     expect(rolloutMigration).toContain("v3.tg3.public-world-rollout-flag");
+    expect(rolloutMigration.indexOf("v3_register_migration_contract")
+      < rolloutMigration.indexOf("drop constraint studio2_feature_flags_key_check")).toBe(true);
+    expect(migration.indexOf("v3_register_migration_contract")
+      < migration.indexOf("alter table public.world_office_terms")).toBe(true);
     expect(rolloutMigration).not.toContain("set enabled = true");
   });
 
