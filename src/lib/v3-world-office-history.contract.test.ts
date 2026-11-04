@@ -23,6 +23,9 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(migration).toContain("office.slug = lower(btrim(p_office_slug))");
     expect(migration).toContain("'hasMore'");
     expect(migration).toContain("'nextCursor'");
+    expect(migration).toContain("limit 100");
+    expect(migration).toContain("'officesTruncated'");
+    expect(source).toContain("typeof root.officesTruncated");
     expect(migration).not.toMatch(/offset p_offset|p_offset > 1000/);
   });
 
@@ -65,6 +68,7 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(source).toContain('"world_public_office_history_v1"');
     expect(screen).toContain("Load older terms");
     expect(screen).toContain("Filter by office");
+    expect(screen).toContain("Showing the first 100 offices");
     expect(screen).toContain("lastPage?.nextCursor");
     expect(screen).toContain("isFetchNextPageError");
     expect(screen).toContain("Retry older terms");
