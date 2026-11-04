@@ -43,6 +43,21 @@ describe("V3 authoritative Organizer Publication preview", () => {
     expect(source).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
 
+  it("rejects already-applied no-op preflights before privileged reads or source parsing", () => {
+    // studio2_show_publication_change_preview currently returns its
+    // alreadyApplied branch before the edition capability check. Never use it
+    // to authorize the service-role projection for a different Organizer.
+    const preflight = source.indexOf('"studio2_show_publication_change_preview"');
+    const reject = source.indexOf("if (rawPreflight.alreadyApplied === true)");
+    const parse = source.indexOf("const preflight = parsePreflight(rawPreflight)");
+    const adminRead = source.indexOf("supabaseAdmin as any");
+    expect(preflight).toBeGreaterThan(0);
+    expect(reject).toBeGreaterThan(preflight);
+    expect(parse).toBeGreaterThan(reject);
+    expect(adminRead).toBeGreaterThan(parse);
+    expect(source).toContain("A no-op is not an authorization grant");
+  });
+
   it("binds the reviewed Edition, Show and Publication version exactly", () => {
     expect(source).toContain("preflight.showId !== input.showId");
     expect(source).toContain("preflight.editionId !== input.editionId");

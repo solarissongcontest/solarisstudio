@@ -323,7 +323,18 @@ async function loadAuthorizedPreflight(input: {
   );
   if (error) throw error;
 
-  const preflight = parsePreflight(data);
+  // The canonical SQL preflight returns alreadyApplied BEFORE edition-scoped
+  // publishing capability checks. A no-op is not an authorization grant for
+  // private source reads, even when a caller has global Organizer identity.
+  // No mutation is needed in this state, so fail closed rather than treating
+  // its abbreviated response as a reviewed candidate.
+  const rawPreflight = asObject(data, "Publication preflight");
+  if (rawPreflight.alreadyApplied === true) {
+    throw new Error(
+      "This Publication state is already applied. Reload its public view instead of previewing privileged data.",
+    );
+  }
+  const preflight = parsePreflight(rawPreflight);
   if (
     preflight.showId !== input.showId ||
     preflight.editionId !== input.editionId
