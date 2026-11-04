@@ -26,3 +26,31 @@ export function isCurrentConfirmationRoundReview(
     request.epoch === current.epoch &&
     (previewEditionId === undefined || previewEditionId === request.editionId);
 }
+
+/** Verify the *server* reviewed exactly the command the Organizer requested.
+ * Round IDs are null for creation and required to match for all other kinds.
+ * Failing closed is safer than applying a different round's valid-looking
+ * version number or a stale impact sheet.
+ */
+export type ConfirmationRoundPreviewIdentity = Readonly<{
+  editionId: string;
+  roundId: string | null;
+  changeKind: string;
+}>;
+
+export function assertConfirmationRoundPreviewMatchesRequest(
+  request: ConfirmationRoundPreviewIdentity,
+  preview: ConfirmationRoundPreviewIdentity & Readonly<{ expectedVersion: number }>,
+): void {
+  if (!request.editionId ||
+      request.editionId !== preview.editionId ||
+      request.roundId !== preview.roundId ||
+      request.changeKind !== preview.changeKind ||
+      !Number.isSafeInteger(preview.expectedVersion) ||
+      preview.expectedVersion < 0) {
+    throw Object.assign(
+      new Error("Confirmation round impact preview does not match the reviewed edition, round, operation, or version. Nothing was applied."),
+      { status: 409 },
+    );
+  }
+}
