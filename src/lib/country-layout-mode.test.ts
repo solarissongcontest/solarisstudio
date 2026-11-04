@@ -75,6 +75,10 @@ describe("country page presentation ownership", () => {
     expect(css).not.toContain(":root {");
     expect(masthead).toContain("aspect-[3/2]");
     expect(masthead).toContain("FlagFrame");
+    expect(masthead).toContain("hasLongDescription");
+    expect(masthead).toContain("aria-controls={descriptionId}");
+    expect(masthead).toContain("aria-expanded={descriptionExpanded}");
+    expect(css).toContain('.country-mobile-web-description[data-collapsed="true"]');
     expect(masthead).not.toContain("useAllResults");
     expect(masthead).not.toContain("supabase");
   });
