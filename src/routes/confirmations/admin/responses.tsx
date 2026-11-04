@@ -15,6 +15,7 @@ import {
   type ConfirmationEdition,
 } from "@/integrations/confirmations/admin";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { isActiveAcceptedConfirmationWinner, isCurrentConfirmationResponsePage } from "@/lib/confirmation-response-page-guard";
 import {
   loadConfirmationResponsesPage,
   type ConfirmationProjectionCursor,
@@ -165,8 +166,10 @@ function responseCardState(row: ResponseRow): CardState {
     const entries = activeNfEntries(row);
     if (!entries.length || row.nf_entries_unknown) return "neutral";
     if (entries.some((entry) => entry.review_status === "declined")) return "issue";
-    if (entries.some((entry) => !entry.review_status || entry.review_status === "pending")) return "review";
-    return row.national_finals?.winning_entry_id ? "ready" : "neutral";
+    if (entries.some((entry) => entry.review_status !== "accepted")) return "review";
+    const winnerId = row.national_finals?.winning_entry_id;
+    if (!winnerId) return "neutral";
+    return isActiveAcceptedConfirmationWinner(entries, winnerId) ? "ready" : "issue";
   }
   return "neutral";
 }
@@ -241,6 +244,11 @@ function ConfirmationResponsesList() {
   const [rows, setRows] = useState<ResponseRow[]>([]);
   const [nextRows, setNextRows] = useState<NextInLineRow[]>([]);
   const [loadingEditions, setLoadingEditions] = useState(true);
+  const [editionLoadError, setEditionLoadError] = useState<string | null>(null);
+  const [editionLoadNonce, setEditionLoadNonce] = useState(0);
+  const [loadingNextLine, setLoadingNextLine] = useState(false);
+  const [nextLineError, setNextLineError] = useState<string | null>(null);
+  const [nextLineReloadNonce, setNextLineReloadNonce] = useState(0);
   const [loadingResponses, setLoadingResponses] = useState(false);
   const [loadingMoreResponses, setLoadingMoreResponses] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -252,28 +260,38 @@ function ConfirmationResponsesList() {
   const [responseCursor, setResponseCursor] = useState<ConfirmationProjectionCursor | null>(null);
   const [responseTotalCount, setResponseTotalCount] = useState(0);
   const [responseStateVersion, setResponseStateVersion] = useState<string | null>(null);
+  const [responseReloadNonce, setResponseReloadNonce] = useState(0);
+  // A request from edition A must not commit after A → B → A, even if its
+  // edition id matches again. A generation also releases an abandoned load.
+  const responseGenerationRef = useRef(0);
+  const loadingMoreRef = useRef(false);
 
   useEffect(() => {
     activeEditionRef.current = editionId;
-  }, [editionId]);
+    responseGenerationRef.current += 1;
+    loadingMoreRef.current = false;
+    setLoadingMoreResponses(false);
+  }, [editionId, responseReloadNonce]);
 
   useEffect(() => {
     let alive = true;
+    setLoadingEditions(true);
+    setEditionLoadError(null);
     void (async () => {
       try {
         const editionRows = await loadConfirmationEditions();
         if (!alive) return;
         setEditions(editionRows);
-        const selected = editionRows.find((edition) => edition.id === organizerEditionId)?.id ?? "";
-        setEditionId(selected);
+        // The global Organizer context is authoritative. Avoid restoring the
+        // edition value captured by a delayed metadata request.
       } catch (caught) {
-        if (alive) setError(caught instanceof Error ? caught.message : "Editions could not be loaded.");
+        if (alive) setEditionLoadError(caught instanceof Error ? caught.message : "Editions could not be loaded.");
       } finally {
         if (alive) setLoadingEditions(false);
       }
     })();
     return () => { alive = false; };
-  }, []);
+  }, [editionLoadNonce]);
 
   useEffect(() => {
     const nextEditionId = editions.find((edition) => edition.id === organizerEditionId)?.id ?? "";
@@ -316,36 +334,55 @@ function ConfirmationResponsesList() {
     })();
 
     return () => { alive = false; };
-  }, [editionId]);
+  }, [editionId, responseReloadNonce]);
 
   useEffect(() => {
     let alive = true;
     setNextRows([]);
+    setNextLineError(null);
+    setLoadingNextLine(Boolean(editionId));
     if (!editionId) return () => { alive = false; };
 
     void (async () => {
-      const result = await confirmationsSupabase.rpc("admin_confirmation_next_in_line", {
-        _edition_id: editionId,
-      });
-      if (!alive) return;
-      if (result.error) {
-        setError((current) => current ?? result.error.message);
-      } else {
-        setNextRows(Array.isArray(result.data) ? (result.data as unknown as NextInLineRow[]) : []);
+      try {
+        const result = await confirmationsSupabase.rpc("admin_confirmation_next_in_line", {
+          _edition_id: editionId,
+        });
+        if (!alive) return;
+        if (result.error) throw result.error;
+        if (!Array.isArray(result.data)) {
+          throw new Error("Next in Line returned an invalid edition-scoped response.");
+        }
+        const returned = result.data as unknown as NextInLineRow[];
+        if (returned.some((row) => row.edition_id !== editionId)) {
+          throw new Error("Next in Line returned a response from another Organizer edition.");
+        }
+        setNextRows(returned);
+      } catch (caught) {
+        if (alive) setNextLineError(caught instanceof Error ? caught.message : "Next in Line responses could not be loaded.");
+      } finally {
+        if (alive) setLoadingNextLine(false);
       }
     })();
 
     return () => { alive = false; };
-  }, [editionId]);
+  }, [editionId, nextLineReloadNonce]);
 
   async function loadMoreResponses() {
-    if (!editionId || !responseCursor || loadingMoreResponses) return;
-    const requestedEditionId = editionId;
+    // Use a synchronous in-flight ref: two clicks before React commits the
+    // pending state must never issue duplicate pages.
+    if (!editionId || !responseCursor || loadingMoreRef.current || editionId !== organizerEditionId) return;
+    const request = { editionId, generation: responseGenerationRef.current };
     const requestedCursor = responseCursor;
+    const isCurrent = () => isCurrentConfirmationResponsePage(request, {
+      editionId: activeEditionRef.current,
+      generation: responseGenerationRef.current,
+    }) && activeEditionRef.current === organizerEditionId;
+    loadingMoreRef.current = true;
     setLoadingMoreResponses(true);
     try {
-      const page = await loadConfirmationResponsesPage<ResponseRow>(requestedEditionId, requestedCursor);
-      if (activeEditionRef.current !== requestedEditionId) return;
+      const page = await loadConfirmationResponsesPage<ResponseRow>(request.editionId, requestedCursor);
+      if (!isCurrent()) return;
       setRows((current) => {
         const byId = new Map(current.map((row) => [row.id, row]));
         page.rows.forEach((row) => byId.set(row.id, row));
@@ -355,28 +392,36 @@ function ConfirmationResponsesList() {
       setResponseTotalCount(page.totalCount);
       setResponseStateVersion(page.stateVersion);
     } catch (caught) {
-      if (activeEditionRef.current === requestedEditionId) {
+      if (isCurrent()) {
         setError(caught instanceof Error ? caught.message : "More responses could not be loaded.");
       }
     } finally {
-      if (activeEditionRef.current === requestedEditionId) setLoadingMoreResponses(false);
+      // The edition-switch effect already released old requests. Never let
+      // an abandoned request relock the new edition's pagination.
+      if (isCurrent()) {
+        loadingMoreRef.current = false;
+        setLoadingMoreResponses(false);
+      }
     }
   }
 
-  const rounds = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; edition_id: string }>();
-    rows.forEach((row) => {
-      const round = row.submission_rounds;
-      if (round?.edition_id === editionId) map.set(round.id, round);
-    });
-    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [editionId, rows]);
+  // Canonical edition metadata owns the round list. Deriving it from just
+  // the first response page makes valid rounds disappear until pagination.
+  const rounds = useMemo(
+    () => (editions.find((item) => item.id === editionId)?.rounds ?? [])
+      .map((round) => ({ id: round.id, name: round.name, edition_id: round.edition_id }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [editionId, editions],
+  );
 
   useEffect(() => {
     if (roundId !== "all" && !rounds.some((round) => round.id === roundId)) setRoundId("all");
   }, [roundId, rounds]);
 
   const filtered = useMemo(() => {
+    // Hide prior-edition private rows during the render before the context
+    // synchronization effect has cleared the state.
+    if (!editionId || editionId !== organizerEditionId) return [];
     const term = query.trim().toLowerCase();
     return rows
       .filter((row) => {
@@ -401,20 +446,22 @@ function ConfirmationResponsesList() {
         const priority = statePriority(responseCardState(a)) - statePriority(responseCardState(b));
         return priority || new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime();
       });
-  }, [editionId, filter, query, roundId, rows]);
+  }, [editionId, filter, organizerEditionId, query, roundId, rows]);
 
   const filteredNext = useMemo(() => {
+    if (!editionId || editionId !== organizerEditionId) return [];
     const term = query.trim().toLowerCase();
     return nextRows.filter((row) => {
       if (row.edition_id !== editionId) return false;
       return !term || [row.country, row.artist ?? "", row.song_title ?? "", row.selection_type]
         .join(" ").toLowerCase().includes(term);
     });
-  }, [editionId, nextRows, query]);
+  }, [editionId, nextRows, organizerEditionId, query]);
 
-  const reviewCount = rows.filter((row) => responseCardState(row) === "review").length;
-  const issueCount = rows.filter((row) => responseCardState(row) === "issue").length;
-  const readyCount = rows.filter((row) => responseCardState(row) === "ready").length;
+  const visibleRows = editionId === organizerEditionId ? rows : [];
+  const reviewCount = visibleRows.filter((row) => responseCardState(row) === "review").length;
+  const issueCount = visibleRows.filter((row) => responseCardState(row) === "issue").length;
+  const readyCount = visibleRows.filter((row) => responseCardState(row) === "ready").length;
   const loading = loadingEditions || (Boolean(editionId) && loadingResponses);
 
   return (
@@ -439,7 +486,7 @@ function ConfirmationResponsesList() {
             <Metric label="Ready" value={readyCount} tone="emerald" />
           </div>
           <p className="mb-4 text-xs text-muted-foreground">
-            Loaded {rows.length} of {responseTotalCount} response{responseTotalCount === 1 ? "" : "s"}
+            Loaded {visibleRows.length} of {editionId === organizerEditionId ? responseTotalCount : 0} responses. Review, problem and ready counts reflect loaded responses only; load more before concluding an edition is clear
             {responseStateVersion ? ` · canonical state ${responseStateVersion.slice(-12)}` : ""}.
           </p>
         </>
@@ -466,7 +513,7 @@ function ConfirmationResponsesList() {
 
           {mode === "confirmations" ? (
             <select disabled={!editionId} value={roundId} onChange={(event) => setRoundId(event.target.value)} className="min-h-11 rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground [color-scheme:dark] disabled:opacity-45">
-              <option value="all">All loaded rounds</option>
+              <option value="all">All rounds</option>
               {rounds.map((round) => <option key={round.id} value={round.id}>{round.name}</option>)}
             </select>
           ) : <div className="hidden md:block" />}
@@ -486,14 +533,33 @@ function ConfirmationResponsesList() {
 
       {loading ? (
         <AdminCard className="py-8 text-center text-sm text-muted-foreground">Loading exact-edition responses…</AdminCard>
+      ) : editionLoadError ? (
+        <AdminCard className="mb-4 border-rose-200/20 bg-rose-200/[0.045]">
+          <AdminEmptyState
+            icon={ShieldAlert}
+            title="Organizer editions could not be loaded"
+            description={editionLoadError}
+          />
+          <button type="button" onClick={() => setEditionLoadNonce((nonce) => nonce + 1)}
+            className="admin-action-secondary mt-3">Retry edition list</button>
+        </AdminCard>
       ) : error ? (
         <AdminCard className="mb-4 border-rose-200/20 bg-rose-200/[0.045]">
-          <div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" /><div><p className="font-semibold">Responses could not be loaded</p><p className="mt-1 text-sm text-muted-foreground">{error}</p></div></div>
+          <div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" /><div><p className="font-semibold">Responses could not be loaded</p><p className="mt-1 text-sm text-muted-foreground">{error}</p><button type="button" disabled={!editionId || editionId !== organizerEditionId || loadingResponses} onClick={() => setResponseReloadNonce((nonce) => nonce + 1)} className="admin-action-secondary mt-3">Reload current edition</button></div></div>
         </AdminCard>
       ) : !editionId ? (
         <AdminCard><AdminEmptyState icon={CircleAlert} title="Select an edition" description="Entry Review is edition-scoped. Solaris will not combine historical response queues or substitute a globally active or newest edition." /></AdminCard>
       ) : mode === "next_in_line" ? (
-        filteredNext.length ? (
+        loadingNextLine ? (
+          <AdminCard className="py-8 text-center text-sm text-muted-foreground">Loading Next in Line for this edition…</AdminCard>
+        ) : nextLineError ? (
+          <AdminCard className="border-rose-200/20 bg-rose-200/[0.045]">
+            <AdminEmptyState icon={ShieldAlert} title="Next in Line could not be loaded" description={nextLineError} />
+            <button type="button" disabled={!editionId || editionId !== organizerEditionId}
+              onClick={() => setNextLineReloadNonce((nonce) => nonce + 1)}
+              className="admin-action-secondary mt-3">Retry Next in Line</button>
+          </AdminCard>
+        ) : filteredNext.length ? (
           <section className="grid gap-3 lg:grid-cols-2">
             {filteredNext.map((row) => (
               <AdminCard key={row.id} className="!p-4">
@@ -510,6 +576,9 @@ function ConfirmationResponsesList() {
             const internal = row.internal_entries;
             const nf = row.national_finals;
             const activeEntries = activeNfEntries(row);
+            const allEntriesAccepted = activeEntries.length > 0 &&
+              activeEntries.every((entry) => entry.review_status === "accepted");
+            const acceptedWinner = isActiveAcceptedConfirmationWinner(activeEntries, nf?.winning_entry_id);
             const entrySummary = !row.participating
               ? "Not participating"
               : row.selection_method === "internal"
@@ -520,7 +589,7 @@ function ConfirmationResponsesList() {
             return (
               <AdminCard key={row.id} className={`!p-4 transition-shadow ${cardGlow(state)}`}>
                 <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="admin-section-label">{row.editions ? `SSC ${row.editions.edition_number}` : "SSC"} · {row.submission_rounds?.name ?? "Confirmation"}</p><h2 className="mt-1 truncate text-lg font-bold tracking-[-.02em]">{row.country}</h2><p className="mt-1 truncate text-xs text-muted-foreground">@{row.instagram_username.replace(/^@/, "")}</p></div><StateBadge state={state} /></div>
-                <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.022] p-3"><p className="text-sm font-semibold leading-snug">{entrySummary}</p>{row.selection_method === "national_final" && activeEntries.length > 0 ? <p className="mt-1 text-xs text-muted-foreground">{nf?.winning_entry_id ? "National Final winner selected" : activeEntries.every((entry) => entry.review_status === "accepted") ? "All songs reviewed · waiting for winner" : "National Final songs still need review"}</p> : null}</div>
+                <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.022] p-3"><p className="text-sm font-semibold leading-snug">{entrySummary}</p>{row.selection_method === "national_final" && activeEntries.length > 0 ? <p className="mt-1 text-xs text-muted-foreground">{acceptedWinner && allEntriesAccepted ? "National Final winner selected" : nf?.winning_entry_id && !acceptedWinner ? "Winner selection needs review" : allEntriesAccepted ? "All songs reviewed · waiting for winner" : "National Final songs still need review"}</p> : null}</div>
                 <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>{new Date(row.submitted_at).toLocaleDateString()}</span><span>{row.locked ? "Locked" : row.editing_allowed ? "Editing allowed" : "Editing closed"}</span></div>
                 <Link to="/confirmations/admin/responses/$id" params={{ id: row.id }} className={state === "review" || state === "issue" ? "admin-action-primary mt-4 w-full" : "admin-action-secondary mt-4 w-full"}>{state === "review" ? "Review response" : state === "issue" ? "Fix response" : "Open response"}</Link>
               </AdminCard>
