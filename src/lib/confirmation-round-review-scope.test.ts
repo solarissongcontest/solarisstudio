@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { assertConfirmationRoundPreviewMatchesRequest, assertConfirmationRoundReceiptMatchesRequest, isCurrentConfirmationRoundReview } from "./confirmation-round-review-scope";
+import { assertConfirmationRoundPreviewMatchesRequest, assertConfirmationRoundReceiptMatchesRequest, isCurrentConfirmationRoundReview, validateConfirmationRoundFormFields } from "./confirmation-round-review-scope";
 
 describe("Organizer Confirmation round review context", () => {
   const request = { editionId: "edition-a", epoch: 4 };
@@ -140,5 +140,50 @@ describe("Organizer Confirmation round review context", () => {
     expect(refresh).toBeGreaterThan(committed);
     expect(apply).toContain("if (receiptVerified) {");
     expect(apply).toContain("Round change was applied, but the round list could not be refreshed.");
+  });
+
+  it("parses valid local round schedules without silently altering the submitted civil time", () => {
+    const local = "2026-11-05T09:30";
+    const validated = validateConfirmationRoundFormFields({
+      opensAtLocal: local,
+      closesAtLocal: "2026-11-06T15:00",
+      responseLimit: " 42 ",
+    });
+    expect(validated.opensAt).toBe(new Date(local).toISOString());
+    expect(validated.closesAt).toBe(new Date("2026-11-06T15:00").toISOString());
+    expect(validated.responseLimit).toBe(42);
+    expect(validateConfirmationRoundFormFields({
+      opensAtLocal: "", closesAtLocal: "", responseLimit: "",
+    })).toEqual({ opensAt: null, closesAt: null, responseLimit: null });
+  });
+
+  it("rejects invalid civil dates, impossible times and backwards schedules", () => {
+    const basic = { opensAtLocal: "2026-11-05T09:30", closesAtLocal: "", responseLimit: "" };
+    expect(() => validateConfirmationRoundFormFields({ ...basic, opensAtLocal: "2026-02-30T09:30" })).toThrow();
+    expect(() => validateConfirmationRoundFormFields({ ...basic, opensAtLocal: "2026-11-05T25:30" })).toThrow();
+    expect(() => validateConfirmationRoundFormFields({ ...basic, opensAtLocal: "not a date" })).toThrow();
+    expect(() => validateConfirmationRoundFormFields({
+      ...basic, closesAtLocal: "2026-11-05T09:30",
+    })).toThrow("Closing time must be after opening time.");
+    expect(() => validateConfirmationRoundFormFields({
+      ...basic, closesAtLocal: "2026-11-05T08:00",
+    })).toThrow();
+  });
+
+  it("prevents PostgreSQL integer overflow and invalid round capacity before impact review", () => {
+    const input = { opensAtLocal: "", closesAtLocal: "", responseLimit: "" };
+    for (const responseLimit of ["0", "-1", "1.5", "foo", "01", "2147483648", "9007199254740993"]) {
+      expect(() => validateConfirmationRoundFormFields({ ...input, responseLimit })).toThrow();
+    }
+    expect(validateConfirmationRoundFormFields({ ...input, responseLimit: "2147483647" }).responseLimit).toBe(2147483647);
+    const route = readFileSync("src/routes/confirmations/admin/rounds.tsx", "utf8");
+    const start = route.indexOf("  async function submit()");
+    const end = route.indexOf("  async function requestStatusChange(", start);
+    const submit = route.slice(start, end);
+    expect(submit.indexOf("validateConfirmationRoundFormFields({")).toBeGreaterThanOrEqual(0);
+    expect(submit.indexOf("validateConfirmationRoundFormFields({")).toBeLessThan(submit.indexOf("await prepareChange({"));
+    expect(submit).toContain("opensAt: validated.opensAt");
+    expect(submit).toContain("responseLimit: validated.responseLimit");
+    expect(submit).not.toContain("new Date(form.opens_at).toISOString()");
   });
 });
