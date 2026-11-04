@@ -828,10 +828,30 @@ function ResponseDetailPage() {
     }
     syncInFlightRef.current = true;
     const requestedGeneration = responseLoadGenerationRef.current;
+    const reviewedSnapshot = JSON.stringify(data);
+    const isStillCurrent = () =>
+      requestedGeneration === responseLoadGenerationRef.current &&
+      currentScopeRef.current.responseId === id &&
+      currentScopeRef.current.editionId === organizerEditionId;
     try {
-      const result = await syncSnapshot(data);
-      if (requestedGeneration !== responseLoadGenerationRef.current ||
-          currentScopeRef.current.editionId !== organizerEditionId) {
+      // Recheck the exact response immediately before entering the privileged
+      // reconciliation boundary. The confirmation sheet reviewed the current
+      // response, not a mutable or outdated historical snapshot.
+      const fresh = await confirmationsSupabase.rpc("admin_confirmation_response", {
+        _submission_id: id,
+      });
+      if (fresh.error) throw fresh.error;
+      if (!isStillCurrent()) {
+        throw new Error("Organizer edition changed during reconciliation preflight. Nothing was submitted.");
+      }
+      const liveDetail = fresh.data as ResponseDetail | null;
+      if (!isConfirmationDetailInOrganizerScope(liveDetail, id, organizerEditionId) ||
+          JSON.stringify(liveDetail) !== reviewedSnapshot) {
+        setSyncReviewOpen(false);
+        throw new Error("This Confirmation changed since it was reviewed. Reload the exact edition and review its current state before applying.");
+      }
+      const result = await syncSnapshot(liveDetail);
+      if (!isStillCurrent()) {
         toast.warning("Reconciliation completed after an edition switch. Verify the previous edition's canonical state before retrying.");
       } else if (result.ok) {
         toast.success("Synced with Solaris Studio");
