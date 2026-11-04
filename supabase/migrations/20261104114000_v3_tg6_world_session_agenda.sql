@@ -91,7 +91,7 @@ revoke all on public.world_sessions,public.world_agenda_items
   from public,anon,authenticated;
 -- Only authorized functions can read or mutate. The public projection filters
 -- visibility and agenda publication independently, not by relying on RLS bypass.
-grant all on public.world_sessions, public.world_agenda_items to service_role;
+revoke all on public.world_sessions, public.world_agenda_items from service_role;
 
 create or replace function public.world_session_schedule_v1(p_organization_slug text default null)
 returns jsonb language sql stable security definer set search_path = pg_catalog
@@ -192,7 +192,7 @@ begin
   if p_organization_id is null or p_organ_id is null or
      nullif(btrim(p_title),'') is null or length(btrim(p_title)) > 180 or
      p_starts_at is null or p_ends_at is null or p_ends_at <= p_starts_at or
-     p_starts_at < now() - interval '5 minutes' or
+     p_venue_type is null or
      p_venue_type not in ('online','external','physical','hybrid') or
      (p_external_url is not null and p_external_url !~ '^https://[^[:space:]]+$')
   then raise exception using errcode='22023',message='VALIDATION'; end if;
@@ -215,6 +215,9 @@ begin
   if coalesce((v_claim ->> 'replayed')::boolean,false) then
     return public.studio2_reconcile_operation(v_operation_id)
       || jsonb_build_object('replayed',true);
+  end if;
+  if p_starts_at < now() - interval '5 minutes' then
+    raise exception using errcode='22023',message='PAST_SESSION_START';
   end if;
   select coalesce(max(sequence_number),0)+1 into v_sequence
   from public.world_sessions where organ_id=p_organ_id;
@@ -258,12 +261,143 @@ begin
   if v_session.id is null or not public.world_access_allowed(
     'world.agenda.manage',v_session.organization_id,null,v_session.organ_id,null,null
   ) then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
+  if nullif(btrim(p_title),'') is null or length(btrim(p_title)) > 180 or
+     p_item_type is null or p_item_type !~ '^[a-z][a-z0-9_]{0,39}
+    raise exception using errcode='22023',message='VALIDATION'; end if;
+  v_claim := private.studio2_claim_operation(
+    p_operation_id,p_idempotency_key,coalesce(p_correlation_id,p_operation_id),
+    'world.agenda.append','R2',
+    jsonb_build_object('sessionId',p_session_id,'subjectType','world_agenda_item'),
+    jsonb_build_object('title',btrim(p_title),'itemType',p_item_type,
+      'description',p_description,'publish',p_publish,
+      'expectedRevision',p_expected_revision)
+  );
+  v_operation_id := (v_claim ->> 'operationId')::uuid;
+  if coalesce((v_claim ->> 'replayed')::boolean,false) then
+    return public.studio2_reconcile_operation(v_operation_id)
+      || jsonb_build_object('replayed',true);
+  end if;
+  -- Replays must succeed even after this session revision advances.
   if v_session.status not in ('scheduled','open','recessed') then
     raise exception using errcode='23514',message='STATE_CHANGED'; end if;
   if p_expected_revision is null or p_expected_revision <> v_session.revision then
     raise exception using errcode='40001',message='VERSION_CONFLICT'; end if;
-  if nullif(btrim(p_title),'') is null or length(btrim(p_title)) > 180 or
-     p_item_type !~ '^[a-z][a-z0-9_]{0,39}$' then
+  select coalesce(max(position),0)+1 into v_position
+  from public.world_agenda_items where session_id=p_session_id;
+  insert into public.world_agenda_items(session_id,position,item_type,title,description,state)
+  values(p_session_id,v_position,p_item_type,btrim(p_title),
+    nullif(btrim(coalesce(p_description,'')),''),
+    case when coalesce(p_publish,false) then 'scheduled' else 'draft' end)
+  returning id into v_item_id;
+  update public.world_sessions set revision=revision+1,updated_at=now()
+  where id=p_session_id;
+  perform private.v3_emit_domain_event(
+    'world.agenda.appended','world_session',p_session_id::text,
+    v_session.revision+1,v_operation_id,null,null,
+    jsonb_build_object('sessionId',p_session_id,'itemId',v_item_id,
+      'published',coalesce(p_publish,false)),1,array[]::text[]
+  );
+  v_result := jsonb_build_object('ok',true,'sessionId',p_session_id,
+    'itemId',v_item_id,'position',v_position,'revision',v_session.revision+1,
+    'operationId',v_operation_id);
+  perform private.studio2_complete_operation(v_operation_id,v_result);
+  return public.studio2_reconcile_operation(v_operation_id)
+    || jsonb_build_object('replayed',false);
+end
+$append$;
+
+create or replace function public.world_agenda_reorder_v1(
+  p_session_id uuid,p_item_ids uuid[],p_expected_revision bigint,
+  p_operation_id uuid,p_idempotency_key text,p_correlation_id uuid default null
+) returns jsonb language plpgsql security definer set search_path = pg_catalog
+as $reorder$
+declare
+  v_session public.world_sessions%rowtype;
+  v_claim jsonb;
+  v_operation_id uuid;
+  v_expected integer;
+  v_provided integer;
+  v_result jsonb;
+begin
+  select * into v_session from public.world_sessions where id=p_session_id for update;
+  if v_session.id is null or not public.world_access_allowed(
+    'world.agenda.manage',v_session.organization_id,null,v_session.organ_id,null,null
+  ) then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
+  select count(*) into v_expected from public.world_agenda_items where session_id=p_session_id;
+  select count(*) into v_provided from unnest(p_item_ids) as item(id);
+  if p_item_ids is null or v_provided <> v_expected
+     or (select count(distinct item.id) from unnest(p_item_ids) as item(id)) <> v_provided
+     or exists (
+       select 1 from unnest(p_item_ids) as item(id)
+       where item.id is null or not exists (
+         select 1 from public.world_agenda_items a
+         where a.id=item.id and a.session_id=p_session_id
+       )
+     )
+  then raise exception using errcode='22023',message='INVALID_AGENDA_ORDER'; end if;
+  v_claim := private.studio2_claim_operation(
+    p_operation_id,p_idempotency_key,coalesce(p_correlation_id,p_operation_id),
+    'world.agenda.reorder','R2',
+    jsonb_build_object('sessionId',p_session_id,'subjectType','world_session'),
+    jsonb_build_object('itemIds',to_jsonb(p_item_ids),'expectedRevision',p_expected_revision)
+  );
+  v_operation_id := (v_claim ->> 'operationId')::uuid;
+  if coalesce((v_claim ->> 'replayed')::boolean,false) then
+    return public.studio2_reconcile_operation(v_operation_id)
+      || jsonb_build_object('replayed',true);
+  end if;
+  -- This guard follows the idempotency replay decision.
+  if v_session.status not in ('scheduled','open','recessed') then
+    raise exception using errcode='23514',message='STATE_CHANGED'; end if;
+  if p_expected_revision is null or p_expected_revision <> v_session.revision then
+    raise exception using errcode='40001',message='VERSION_CONFLICT'; end if;
+  update public.world_agenda_items a
+  set position=ordered.position,revision=a.revision+1,updated_at=now()
+  from unnest(p_item_ids) with ordinality as ordered(id,position)
+  where a.id=ordered.id and a.session_id=p_session_id;
+  update public.world_sessions set revision=revision+1,updated_at=now()
+  where id=p_session_id;
+  perform private.v3_emit_domain_event(
+    'world.agenda.reordered','world_session',p_session_id::text,
+    v_session.revision+1,v_operation_id,null,null,
+    jsonb_build_object('sessionId',p_session_id,'items',v_provided),1,array[]::text[]
+  );
+  v_result := jsonb_build_object('ok',true,'sessionId',p_session_id,
+    'revision',v_session.revision+1,'operationId',v_operation_id);
+  perform private.studio2_complete_operation(v_operation_id,v_result);
+  return public.studio2_reconcile_operation(v_operation_id)
+    || jsonb_build_object('replayed',false);
+end
+$reorder$;
+
+revoke all on function public.world_session_schedule_v1(text),
+  public.world_session_detail_v1(uuid), public.world_session_manage_v1(uuid),
+  public.world_session_create_v1(uuid,uuid,text,timestamptz,timestamptz,text,text,text,uuid,uuid,text,uuid),
+  public.world_agenda_append_v1(uuid,text,text,text,boolean,bigint,uuid,text,uuid),
+  public.world_agenda_reorder_v1(uuid,uuid[],bigint,uuid,text,uuid)
+from public,anon,authenticated;
+grant execute on function public.world_session_schedule_v1(text),
+  public.world_session_detail_v1(uuid) to anon,authenticated,service_role;
+grant execute on function public.world_session_manage_v1(uuid),
+  public.world_session_create_v1(uuid,uuid,text,timestamptz,timestamptz,text,text,text,uuid,uuid,text,uuid),
+  public.world_agenda_append_v1(uuid,text,text,text,boolean,bigint,uuid,text,uuid),
+  public.world_agenda_reorder_v1(uuid,uuid[],bigint,uuid,text,uuid)
+to authenticated;
+
+do $contract$
+begin
+ if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
+   perform public.v3_register_migration_contract(
+     'v3.tg6.world-session-agenda',1,'forward_fix_only',false,null,
+     'Server-authorized world session scheduling and agenda CAS with public-safe read projections.'
+   );
+ end if;
+end
+$contract$;
+
+notify pgrst,'reload schema';
+commit;
+ then
     raise exception using errcode='22023',message='VALIDATION'; end if;
   v_claim := private.studio2_claim_operation(
     p_operation_id,p_idempotency_key,coalesce(p_correlation_id,p_operation_id),
