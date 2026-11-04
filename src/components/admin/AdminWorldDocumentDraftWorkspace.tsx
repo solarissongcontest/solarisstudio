@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { AlertCircle, CheckCircle2, FilePlus2, RefreshCw } from "lucide-react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -96,6 +96,7 @@ export function AdminWorldDocumentDraftWorkspace() {
   const [draftText, setDraftText] = useState("");
   const [draftProvisions, setDraftProvisions] = useState<WorldDocumentProvision[]>([]);
   const [operation, setOperation] = useState<OperationState | null>(null);
+  const executing = useRef<Set<string>>(new Set());
   const [notice, setNotice] = useState("");
 
   const organizations = useQuery({
@@ -175,7 +176,7 @@ export function AdminWorldDocumentDraftWorkspace() {
       const value = parseWorldDocumentDraftSnapshot(data);
       if (value.documentId !== snapshot.data.documentId ||
           value.organization.organizationId !== snapshot.data.organization.organizationId ||
-          value.version?.versionId !== pendingDraft.versionId ||
+          !value.version || value.version.versionId !== pendingDraft.versionId ||
           value.version.publicationState !== "draft") {
         throw new Error("The selected unpublished version no longer matches canonical history.");
       }
@@ -257,7 +258,10 @@ export function AdminWorldDocumentDraftWorkspace() {
     const doc = snapshot.data;
     if (!doc?.allowedActions.manage || !doc.revision || !organization ||
         doc.hasUnpublishedDraft) return;
-    const validation = validateWorldDocumentDraft({ title: draftTitle, plainText: draftText })
+    const validation = validateWorldDocumentDraft({
+      title: draftTitle, plainText: draftText,
+      hasProvisions: draftProvisions.length > 0,
+    })
       ?? validateWorldDocumentProvisions(draftProvisions);
     if (validation) { setNotice(validation); return; }
     const provisions = toWorldProvisionCommandRows(draftProvisions);
@@ -308,6 +312,8 @@ export function AdminWorldDocumentDraftWorkspace() {
     const active = operation;
     if (!active || (send && active.status !== "review") || active.status === "checking") return;
     const { review } = active;
+    if (executing.current.has(review.operationId)) return;
+    executing.current.add(review.operationId);
     setOperation({ review, status: "checking", message: "Checking the canonical operation receipt…" });
     let transportError: unknown = null;
     if (send) {
@@ -318,6 +324,7 @@ export function AdminWorldDocumentDraftWorkspace() {
     }
     if (transportError && definitiveFailure(transportError)) {
       setOperation({ review, status: "failed", message: messageForError(transportError) });
+      executing.current.delete(review.operationId);
       return;
     }
     try {
@@ -344,6 +351,8 @@ export function AdminWorldDocumentDraftWorkspace() {
       setOperation({ review, status: "reconcile",
         message: transportError ? messageForError(transportError)
           : "The canonical receipt is unavailable. Do not create a second operation." });
+    } finally {
+      executing.current.delete(review.operationId);
     }
   };
 
@@ -526,7 +535,7 @@ export function AdminWorldDocumentDraftWorkspace() {
                           onChange={(e) => setDraftTitle(e.target.value)} />
                       </label>
                       <label className="block space-y-1 text-sm">Document plain-text body
-                        <textarea className={fieldClass + " min-h-48 resize-y leading-6"} required maxLength={100000}
+                        <textarea className={fieldClass + " min-h-48 resize-y leading-6"} required={!draftProvisions.length} maxLength={100000}
                           value={draftText} onChange={(e) => setDraftText(e.target.value)}
                           placeholder="Enter the document-level text. Article text lives in the structured provisions below." />
                       </label>
