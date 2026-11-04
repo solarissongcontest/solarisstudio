@@ -436,7 +436,9 @@ export function WorldDocumentReaderScreen({
                         </ul>
                       </>
                     ) : plainTextMatch
-                      ? "Phrase found in the complete version text. Expand \"Complete published text\" below."
+                      ? detail?.version.provisions.length
+                        ? "Phrase found in the complete version text. Expand \"Complete published text\" below."
+                        : "Phrase found in the published version text below."
                       : "No matching text in this version."}
                   </div>
                 )}
