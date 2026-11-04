@@ -33,9 +33,7 @@ function CountriesPage() {
   // Avoid flashing website navigation before installed-app identity resolves.
   if (!platformResolved) {
     return (
-      <div data-country-directory-boot="" className="mx-auto max-w-5xl px-4 py-14 text-sm text-muted-foreground" role="status">
-        Opening Countries…
-      </div>
+      <div data-country-directory-boot="" className="min-h-20 w-full" role="status" aria-label="Opening countries" />
     );
   }
   return presentation === "installed-app"
