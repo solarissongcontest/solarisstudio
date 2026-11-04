@@ -16,6 +16,22 @@ const ALL_PUBLIC_PERSONAS = [
  */
 export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
   {
+    id: "world-institutions",
+    sourceFeatureFlags: [],
+    legacyRoutes: ["/world", "/world/*"],
+    legacyComponents: [],
+    backendOwners: ["world_organizations", "world_organization_projection_v1", "country-identity"],
+    personas: ALL_PUBLIC_PERSONAS,
+    authRequirement: "public",
+    classification: "redesign",
+    targetArea: "explore",
+    targetRoute: "/world",
+    specificationStatus: "building",
+    acceptanceScenarioId: "public.terra-governance-tg3-directory-and-institution",
+    migrationEvidence:
+      "TG3 directory, official public institution overview, membership and leadership routes. Dependent on TG1/TG2 #1888; mainline integration, responsive browser evidence and Explore navigation cutover remain unproven.",
+  },
+  {
     id: "prediction-league",
     sourceFeatureFlags: [],
     legacyRoutes: ["/prediction-league", "/prediction-league/*"],
