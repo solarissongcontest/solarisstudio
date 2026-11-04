@@ -230,6 +230,33 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
     });
 
     expect(snapshot.tasks).toContainEqual(hodTask);
+
+    const globalTask: SolarisTask = {
+      ...hodTask,
+      id: "global:organizer-notice",
+      editionId: null,
+      title: "General notice",
+    };
+    const withGlobal = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      viewer: { id: "user-1", displayName: null },
+      delegation: { id: "country-oland", name: "Oland" },
+      additionalTasks: [hodTask, globalTask],
+    });
+    expect(withGlobal.tasks).toContainEqual(globalTask);
+
+    expect(() =>
+      assembleV3PrimarySurfaceSnapshot({
+        ...base(),
+        viewer: { id: "user-1", displayName: null },
+        delegation: { id: "country-oland", name: "Oland" },
+        additionalTasks: [{
+          ...hodTask,
+          editionId: "edition-21",
+          priority: 999,
+        }],
+      }),
+    ).toThrow(/additional task belongs to a different Solaris edition/);
   });
 
   it("keeps open public televoting in signed-in Participate parity", () => {
