@@ -282,6 +282,7 @@ function EntryReviewCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<SystemReceipt | null>(null);
+  const mutationInFlightRef = useRef(false);
   const reconcileOperation = useServerFn(reconcileSystemOperation);
   const status = reviewLabel(entry);
 
@@ -304,6 +305,7 @@ function EntryReviewCard({
   }
 
   async function review(nextStatus: "pending" | "accepted" | "declined" | "removed") {
+    if (mutationInFlightRef.current) return;
     if (!isScopeCurrent()) {
       setError("Organizer edition or response changed. Reopen the current submission before reviewing.");
       return;
@@ -313,6 +315,7 @@ function EntryReviewCard({
       return;
     }
 
+    mutationInFlightRef.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -411,16 +414,18 @@ function EntryReviewCard({
     } catch (caught) {
       setError(toSystemError(caught).message);
     } finally {
+      mutationInFlightRef.current = false;
       setBusy(false);
     }
   }
 
   async function chooseWinner() {
-    if (!onWinner || !isScopeCurrent()) return;
+    if (mutationInFlightRef.current || !onWinner || !isScopeCurrent()) return;
     if (!reason.trim()) {
       setError("Add an organiser reason before selecting the winner.");
       return;
     }
+    mutationInFlightRef.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -431,16 +436,18 @@ function EntryReviewCard({
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Winner could not be selected.");
     } finally {
+      mutationInFlightRef.current = false;
       setBusy(false);
     }
   }
 
   async function clearWinner() {
-    if (!onClearWinner || !isScopeCurrent()) return;
+    if (mutationInFlightRef.current || !onClearWinner || !isScopeCurrent()) return;
     if (!reason.trim()) {
       setError("Add an organiser reason before clearing the winner.");
       return;
     }
+    mutationInFlightRef.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -451,6 +458,7 @@ function EntryReviewCard({
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Winner could not be cleared.");
     } finally {
+      mutationInFlightRef.current = false;
       setBusy(false);
     }
   }
