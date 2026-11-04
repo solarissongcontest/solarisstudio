@@ -1,4 +1,5 @@
-import { useInfiniteQuery, useMemo } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 import {
   v3ParticipantActivityQueryKey,
