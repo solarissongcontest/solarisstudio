@@ -38,7 +38,7 @@ describe("V3 Results reviewed-input CAS", () => {
       expect(migration).toContain(`on ${relation}`);
     }
 
-    expect(migration).toContain("update of voting_config, published, publication_config on public.shows");
+    expect(migration).toContain("update of voting_config on public.shows");
     expect(migration).toContain("private.studio2_bump_result_review_basis");
     expect(migration).toContain("review_basis_version = public.studio2_result_operations.review_basis_version + 1");
   });
@@ -63,6 +63,19 @@ describe("V3 Results reviewed-input CAS", () => {
     expect(migration).toContain("studio2_results_review_basis_jury_submissions");
   });
 
+  it("does not undo a reviewed Results release during canonical publication", () => {
+    const showChange = migration.slice(
+      migration.indexOf("create or replace function private.studio2_result_review_basis_show_changed("),
+      migration.indexOf("revoke all on function private.studio2_result_review_basis_show_changed("),
+    );
+    expect(showChange).toContain("if new.voting_config is distinct from old.voting_config then");
+    expect(showChange).not.toContain("or new.published is distinct from old.published");
+    expect(showChange).not.toContain("or new.publication_config is distinct from old.publication_config");
+    expect(migration).toContain(
+      "studio2_results_review_basis_shows after insert or update of voting_config on public.shows",
+    );
+  });
+
   it("locks the authority row NOWAIT to abort conflicting result-row mutations without deadlock", () => {
     const bump = migration.slice(
       migration.indexOf("create or replace function private.studio2_bump_result_review_basis("),
@@ -77,7 +90,7 @@ describe("V3 Results reviewed-input CAS", () => {
 
   it("installs show creation invalidation BEFORE the backfill to cover concurrent show inserts", () => {
     const triggerIndex = migration.indexOf("studio2_results_review_basis_shows after insert or update of");
-    const backfillIndex = migration.indexOf("from public.shows s\\non conflict (show_id) do nothing");
+    const backfillIndex = migration.indexOf("from public.shows s\non conflict (show_id) do nothing");
     expect(triggerIndex).toBeGreaterThan(0);
     expect(backfillIndex).toBeGreaterThan(triggerIndex);
     expect(migration).toContain("perform private.studio2_bump_result_review_basis(new.id)");

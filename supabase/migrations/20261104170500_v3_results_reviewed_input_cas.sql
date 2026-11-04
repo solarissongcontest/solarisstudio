@@ -184,11 +184,12 @@ begin
     return new;
   end if;
 
-  -- Only fields consumed by the current Results readiness/publication boundary
-  -- invalidate a review. Cosmetic show edits do not manufacture stale reviews.
-  if new.voting_config is distinct from old.voting_config
-     or new.published is distinct from old.published
-     or new.publication_config is distinct from old.publication_config then
+  -- Only canonical voting inputs invalidate finalized result versions.
+  -- The publication lifecycle already validates and freezes its source result
+  -- version. Invalidating reviewed/locked/reveal-ready pointers AFTER a show
+  -- becomes public would incorrectly reject a legitimate release (the
+  -- published Results guard rightly forbids changing that authority row).
+  if new.voting_config is distinct from old.voting_config then
     perform private.studio2_bump_result_review_basis(new.id);
   end if;
 
@@ -229,7 +230,7 @@ begin
   execute 'create trigger studio2_results_review_basis_results after insert or update or delete on public.results for each row execute function private.studio2_result_review_basis_row_changed()';
 
   execute 'drop trigger if exists studio2_results_review_basis_shows on public.shows';
-  execute 'create trigger studio2_results_review_basis_shows after insert or update of voting_config, published, publication_config on public.shows for each row execute function private.studio2_result_review_basis_show_changed()';
+  execute 'create trigger studio2_results_review_basis_shows after insert or update of voting_config on public.shows for each row execute function private.studio2_result_review_basis_show_changed()';
 end
 $triggers$;
 
