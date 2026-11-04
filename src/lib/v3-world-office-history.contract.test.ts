@@ -26,8 +26,25 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(migration).not.toMatch(/offset p_offset|p_offset > 1000/);
   });
 
+  it("keeps concluded holder, office, and represented-country labels frozen", () => {
+    expect(migration).toContain("holder_display_name_snapshot");
+    expect(migration).toContain("office_title_snapshot");
+    expect(migration).toContain("represented_country_name_snapshot");
+    expect(migration).toContain("private.world_capture_closed_office_term_labels");
+    expect(migration).toContain("new.holder_display_name_snapshot := old.holder_display_name_snapshot");
+    expect(migration).toContain("new.office_title_snapshot := old.office_title_snapshot");
+    expect(migration).toContain("new.represented_country_name_snapshot := old.represented_country_name_snapshot");
+    expect(migration).toContain("before insert or update on public.world_office_terms");
+    expect(migration).toContain("'holderDisplayName', p.holder_name");
+    expect(migration).toContain("'representedCountryName', p.represented_country_name");
+    expect(screen).toContain("Represented country: {term.representedCountryName}");
+  });
+
   it("never exposes login-linked office identities or private institutional grants", () => {
     expect(migration).toContain("holder.display_name");
+    expect(migration).toContain("t.holder_display_name_snapshot as holder_name");
+    expect(migration).toContain("t.office_title_snapshot as office_title");
+    expect(migration).not.toContain("holder.display_name as holder_name");
     expect(migration).not.toContain("holder_user_id");
     expect(migration).not.toContain("auth.users");
     expect(migration).not.toContain("world_capability_grant_scopes");
