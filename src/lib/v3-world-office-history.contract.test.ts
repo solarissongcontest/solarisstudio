@@ -101,6 +101,9 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(source).toContain("return data === true");
     expect(screen).toContain('queryKey: ["world", "public", "rollout"]');
     expect(screen).toContain("enabled: rollout.data === true");
+    expect(screen).toContain("const visiblePages = rollout.data === true ? query.data?.pages : undefined");
+    expect(screen).toContain("visiblePages?.flatMap");
+    expect(screen).not.toContain("const items = query.data?.pages.flatMap");
     expect(screen).toContain("rollout.data !== true");
     expect(screen).toContain("World history is not yet available");
   });
