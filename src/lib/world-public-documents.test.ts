@@ -11,6 +11,7 @@ import {
   parseWorldDocumentIndex,
   parseWorldDocumentIndexPage,
   parseWorldDocumentVersionQuery,
+  shouldRetryPublicWorldDocumentRead,
   publicWorldDocumentOutline,
   resolveWorldDocumentFragment,
   worldProvisionTargetId,
@@ -165,6 +166,18 @@ describe("TG4 public institutional document library", () => {
       vi.unstubAllGlobals();
       vi.unstubAllEnvs();
     }
+  });
+
+  it("never retries a 402 service restriction, denied authorization, or malformed request", () => {
+    expect(shouldRetryPublicWorldDocumentRead(0, { status: 402 })).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, { status: 401 })).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, { status: 403 })).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, { status: 404 })).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, { status: 422 })).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, new Error("Supabase service restriction 402"))).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, { status: 503 })).toBe(true);
+    expect(shouldRetryPublicWorldDocumentRead(0, new Error("temporary connection error"))).toBe(true);
+    expect(shouldRetryPublicWorldDocumentRead(1, { status: 503 })).toBe(false);
   });
 
   it("fails closed on explicit invalid legal-history versions instead of showing current text", () => {
