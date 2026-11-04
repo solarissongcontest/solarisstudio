@@ -485,17 +485,9 @@ begin
   on conflict (show_id, contest_entity_id) where show_id is not null and contest_entity_id is not null
   do update set edition_id = excluded.edition_id, updated_at = now();
 
-  update public.results r
-  set final_rank = null,
-      updated_at = now()
-  where r.show_id = _show_id
-    and not exists (
-      select 1
-      from public.participants p
-      where p.show_id = _show_id
-        and coalesce(p.participation_status, 'confirmed') = 'confirmed'
-        and coalesce(p.country_id, p.contest_entity_id) = coalesce(r.country_id, r.contest_entity_id)
-    );
+  -- Never mutate withdrawn/disqualified historical Results as a by-product
+  -- of active recomputation. Their score/rank and timestamp remain archival
+  -- evidence; only confirmed Results rows are materialized and ranked.
 
   -- Mutation and verifier share one canonical scoring/tie-break projection.
   update public.results r
