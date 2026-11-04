@@ -166,6 +166,12 @@ describe("TG3 world publication-safe projections", () => {
     expect(result.organizations).toHaveLength(1);
   });
 
+  it("rejects missing count proof instead of displaying a false zero", async () => {
+    mocks.chain.range.mockResolvedValueOnce({ data: [row], count: null, error: null });
+    await expect(fetchWorldDirectory({ term: "", filter: "all", page: 0 }))
+      .rejects.toThrow("count could not be verified");
+  });
+
   it("filters current state without broadening public visibility", async () => {
     await fetchWorldDirectory({ term: "", filter: "current", page: 0 });
     expect(mocks.chain.in).toHaveBeenCalledWith("status", ["active", "recognized", "suspended"]);
