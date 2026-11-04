@@ -53,13 +53,23 @@ function text(value: unknown, label: string): string {
   return value.trim();
 }
 
-function optionalText(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
 function date(value: unknown, label: string): string {
   const input = text(value, label);
-  if (!Number.isFinite(Date.parse(input))) {
+  // The TG2 RPC returns PostgreSQL timestamptz values in ISO-8601.
+  // Do not let Date.parse silently normalize invalid calendar dates or accept
+  // locale-dependent strings when they are presented as official history.
+  const match = /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.exec(input);
+  const parsed = Date.parse(input);
+  if (!match || !Number.isFinite(parsed)) {
+    throw new Error("Invalid public membership history: " + label);
+  }
+  const [year, month, day] = match.slice(1, 4).map(Number);
+  const calendar = new Date(Date.UTC(year, month - 1, day));
+  if (
+    calendar.getUTCFullYear() !== year ||
+    calendar.getUTCMonth() + 1 !== month ||
+    calendar.getUTCDate() !== day
+  ) {
     throw new Error("Invalid public membership history: " + label);
   }
   return input;
@@ -111,7 +121,22 @@ export function readWorldCountryMembership(
         joinedAt,
         endedAt,
       };
-    }).sort((a, b) => Date.parse(b.joinedAt) - Date.parse(a.joinedAt));
+    }).sort((a, b) => Date.parse(b.joinedAt) - Date.parse(a.joinedAt) || a.id.localeCompare(b.id));
+
+  // The SQL model permits only one unconcluded membership per country and
+  // organization. Fail closed rather than displaying a guessed current term
+  // if a projection is duplicated, stale or internally contradictory.
+  if (new Set(members.map((row) => row.id)).size !== members.length ||
+      members.filter((row) => row.endedAt === null).length > 1) {
+    throw new Error("Contradictory public membership history: duplicate or multiple current terms");
+  }
+  for (let index = 1; index < members.length; index += 1) {
+    const newer = members[index - 1];
+    const older = members[index];
+    if (!older.endedAt || Date.parse(older.endedAt) > Date.parse(newer.joinedAt)) {
+      throw new Error("Contradictory public membership history: overlapping terms");
+    }
+  }
 
   const representatives: WorldRepresentationPeriod[] = list(projection.representatives, "representatives")
     .filter((row) => row.countryId === countryId)
@@ -132,7 +157,11 @@ export function readWorldCountryMembership(
         startsAt,
         endsAt,
       };
-    }).sort((a, b) => Date.parse(b.startsAt) - Date.parse(a.startsAt));
+    }).sort((a, b) => Date.parse(b.startsAt) - Date.parse(a.startsAt) || a.id.localeCompare(b.id));
+
+  if (new Set(representatives.map((row) => row.id)).size !== representatives.length) {
+    throw new Error("Contradictory public membership history: repeated representative");
+  }
 
   const currentOffices: WorldCountryOffice[] = list(projection.offices, "offices")
     .flatMap((row): WorldCountryOffice[] => {
