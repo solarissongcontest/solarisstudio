@@ -18,8 +18,9 @@ describe("TG2 organ ownership integrity", () => {
     expect(foundation).toContain("create table public.world_organization_organs");
     expect(foundation).toContain("create table public.world_organization_offices");
     expect(foundation).toContain("create table public.world_capability_grant_scopes");
-    expect(migration).toContain("world_organization_organs_id_org_uid");
-    expect(migration).toMatch(/unique\s*\(id,\s*organization_id\)/i);
+    expect(migration).toContain("create unique index if not exists world_organs_id_organization_uidx");
+    expect(migration).toMatch(/on public\.world_organization_organs\(id,\s*organization_id\)/i);
+    expect(migration).not.toContain("add constraint world_organization_organs_id_org_uid");
     expect(migration).toContain("'forward_fix_only'");
   });
 
