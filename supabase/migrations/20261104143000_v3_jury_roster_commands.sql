@@ -582,7 +582,7 @@ begin
     v_flag_image := nullif(btrim(coalesce(v_payload ->> 'flagImage', '')), '');
     v_accent_color := coalesce(nullif(btrim(coalesce(v_payload ->> 'accentColor', '')), ''), '#8888aa');
 
-    if v_kind_value not in ('country', 'external-country', 'organisation', 'person', 'custom')
+    if v_kind_value not in ('country', 'external-country', 'organization', 'person', 'custom')
        or v_name is null
        or char_length(v_name) > 160
        or (v_country_id is null and v_entity_id is null and v_kind_value = 'country') then

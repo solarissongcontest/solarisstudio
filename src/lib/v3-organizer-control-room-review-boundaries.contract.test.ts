@@ -18,6 +18,16 @@ describe('V3 Organizer Control Room consequence reviews', () => {
     expect(route).not.toContain("onClick={() => transitionEdition.mutate({ to: transition.to })}");
   });
 
+  it('passes the exact reviewed runtime version through the mutation instead of rereading mutable snapshot state', () => {
+    expect(route).toContain('expectedVersion: number;');
+    expect(route).toContain('expectedVersion,');
+    expect(route).toContain('expectedVersion: pendingReview.runtimeVersion');
+    const reviewedCheck = route.indexOf('snapshot.runtime.version !== pendingReview.runtimeVersion');
+    const reviewedVersion = route.indexOf('expectedVersion: pendingReview.runtimeVersion');
+    expect(reviewedCheck).toBeGreaterThan(-1);
+    expect(reviewedVersion).toBeGreaterThan(reviewedCheck);
+  });
+
   it('reviews second-operator approval instead of approving from the list button', () => {
     expect(route).toContain('openApprovalReview(approval)');
     expect(route).toContain('Second-operator approval');

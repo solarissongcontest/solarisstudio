@@ -4,6 +4,7 @@ import type {
   Beta3FirstClickRunCount,
   Beta3FirstClickTargetCount,
 } from "@/lib/beta3-release-evidence";
+import { sanitizePublicUxPath, sanitizePublicUxTarget } from "./public-ux-privacy";
 
 export type PublicUxCount = {
   count: number;
@@ -132,7 +133,7 @@ function parseWebVitals(value: unknown): PublicWebVitalsMetrics {
     ? raw.routes
         .filter((item: any) => item && typeof item === "object")
         .map((item: any): PublicWebVitalRouteMetric => ({
-          pathname: String(item.pathname ?? "/"),
+          pathname: sanitizePublicUxPath(String(item.pathname ?? "/")),
           metric: item.metric === "INP" || item.metric === "CLS" ? item.metric : "LCP",
           device: item.device === "mobile" || item.device === "tablet" ? item.device : "desktop",
           samples: number(item.samples),
@@ -165,16 +166,16 @@ function parseMetrics(value: unknown): PublicUxMetrics {
       users: number(raw.totals?.users),
     },
     navigation: {
-      topDestinations: rows(raw.navigation?.topDestinations),
-      firstClicks: rows(raw.navigation?.firstClicks),
+      topDestinations: destinationRows(raw.navigation?.topDestinations),
+      firstClicks: destinationRows(raw.navigation?.firstClicks),
     },
     search: {
       opened: number(raw.search?.opened),
       submitted: number(raw.search?.submitted),
       noResults: number(raw.search?.noResults),
       resultClicks: number(raw.search?.resultClicks),
-      clickedGroups: rows(raw.search?.clickedGroups),
-      queryLengthBuckets: rows(raw.search?.queryLengthBuckets),
+      clickedGroups: groupRows(raw.search?.clickedGroups),
+      queryLengthBuckets: groupRows(raw.search?.queryLengthBuckets),
       rescueSessions: number(raw.search?.rescueSessions),
     },
     friction: {
@@ -182,26 +183,58 @@ function parseMetrics(value: unknown): PublicUxMetrics {
       repeatedSectionSessions: number(raw.friction?.repeatedSectionSessions),
     },
     tasks: Array.isArray(raw.tasks)
-      ? raw.tasks.map((item: any) => ({
-          target: String(item?.target ?? "unknown"),
+      ? raw.tasks.map((item: any): PublicUxTaskMetric => ({
+          target: sanitizePublicUxTarget(String(item?.target ?? "")) ?? "redacted",
           started: number(item?.started),
           completed: number(item?.completed),
           completionRate: number(item?.completionRate),
         }))
       : [],
-    devices: rows(raw.devices),
+    devices: groupRows(raw.devices),
   };
 }
 
-function rows(value: unknown) {
-  return Array.isArray(value)
-    ? value
-        .filter((item) => item && typeof item === "object")
-        .map((item) => ({
-          ...(item as Record<string, unknown>),
-          count: number((item as any).count),
-        }))
-    : [];
+function destinationRows(value: unknown): PublicUxDestinationCount[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((item) => item && typeof item === "object")
+    .map((item): PublicUxDestinationCount => {
+      const row = item as Record<string, unknown>;
+      const result: PublicUxDestinationCount = { count: number(row.count) };
+
+      if (typeof row.target === "string") {
+        result.target = sanitizePublicUxTarget(row.target);
+      }
+      if (typeof row.destination === "string") {
+        result.destination = sanitizePublicUxTarget(row.destination);
+      }
+
+      return result;
+    });
+}
+
+function groupRows(value: unknown): PublicUxGroupCount[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((item) => item && typeof item === "object")
+    .map((item): PublicUxGroupCount => {
+      const row = item as Record<string, unknown>;
+      const result: PublicUxGroupCount = { count: number(row.count) };
+
+      if (typeof row.group_name === "string") {
+        result.group_name = row.group_name.slice(0, 120);
+      }
+      if (typeof row.bucket === "string") {
+        result.bucket = row.bucket.slice(0, 120);
+      }
+      if (typeof row.device === "string") {
+        result.device = row.device.slice(0, 120);
+      }
+
+      return result;
+    });
 }
 
 function number(value: unknown) {
@@ -228,12 +261,18 @@ function parseBeta3FirstClickEvidence(value: unknown): Beta3FirstClickEvidence {
     firstClicks: Array.isArray(raw.firstClicks)
       ? raw.firstClicks
           .filter((item: any) => item && typeof item === "object")
-          .map((item: any): Beta3FirstClickTargetCount => ({
-            task: String(item.task ?? ""),
-            target: String(item.target ?? ""),
-            count: number(item.count),
-          }))
-          .filter((item: Beta3FirstClickTargetCount) => item.task && item.target)
+          .map((item: any): Beta3FirstClickTargetCount | null => {
+            const target = sanitizePublicUxTarget(String(item.target ?? ""));
+            if (!target) return null;
+            return {
+              task: String(item.task ?? ""),
+              target,
+              count: number(item.count),
+            };
+          })
+          .filter((item: Beta3FirstClickTargetCount | null): item is Beta3FirstClickTargetCount =>
+            Boolean(item?.task && item.target),
+          )
       : [],
   };
 }

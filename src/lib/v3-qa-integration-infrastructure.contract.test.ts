@@ -10,6 +10,7 @@ const integrity = source("scripts/check-v3-release-integrity.ts");
 const statusTransitions = source("scripts/check-v3-capability-status-transitions.ts");
 const s14 = source("scripts/check-v3-s14-rehearsal-readiness.ts");
 const s15 = source("scripts/check-v3-s15-zero-orphan-readiness.ts");
+const s15Core = source("scripts/check-v3-s15-zero-orphan-readiness-core.ts");
 const quality = source(".github/workflows/ci.yml");
 const preflight = source(".github/workflows/v3-release-candidate-preflight.yml");
 
@@ -85,10 +86,13 @@ describe("V3 QA integration infrastructure", () => {
   });
 
   it("keeps S15 zero-orphan readiness cross-system instead of route-only", () => {
-    for (const marker of ["SYSTEM_CONCEPT_ORPHAN", "PHYSICAL_OWNER_PENDING", "CONSEQUENCE_ORPHAN", "WORKFLOW_ORPHAN", "API_OWNER_ORPHAN", "SEARCH_OWNER_ORPHAN", "NOTIFICATION_CATEGORY_OWNER_ORPHAN", "NOTIFICATION_PROVIDER_OWNER_ORPHAN", "PUBLIC_CUTOVER_UNRESOLVED", "ORGANIZER_CUTOVER_UNRESOLVED"]) expect(s15).toContain(marker);
+    for (const marker of ["SYSTEM_CONCEPT_ORPHAN", "PHYSICAL_OWNER_PENDING", "CONSEQUENCE_ORPHAN", "WORKFLOW_ORPHAN", "API_OWNER_ORPHAN", "SEARCH_OWNER_ORPHAN", "NOTIFICATION_CATEGORY_OWNER_ORPHAN", "NOTIFICATION_PROVIDER_OWNER_ORPHAN", "PUBLIC_CUTOVER_UNRESOLVED", "ORGANIZER_CUTOVER_UNRESOLVED"]) expect(`${s15}\n${s15Core}`).toContain(marker);
   });
 
   it("rescans every canonical S15 discovery surface in the final zero-orphan report", () => {
+    expect(s15).toContain("check-v3-s15-zero-orphan-readiness-core.ts");
+    expect(s15).toContain("...core.inventory");
+
     for (const marker of [
       "SYSTEM_COMMAND_ORPHAN",
       "SYSTEM_EVENT_ORPHAN",
@@ -104,7 +108,7 @@ describe("V3 QA integration infrastructure", () => {
       "PUBLIC_SOURCE_SURFACE_ORPHAN",
       "NOTIFICATION_DEEP_LINK_ORPHAN",
       "NOTIFICATION_DYNAMIC_DEEP_LINK_ORPHAN",
-    ]) expect(s15).toContain(marker);
+    ]) expect(s15Core).toContain(marker);
     for (const inventoryKey of [
       "runtimeRoutes",
       "legacyAliases",
@@ -112,11 +116,11 @@ describe("V3 QA integration infrastructure", () => {
       "organizerControls",
       "publicSourceSurfaces",
       "notificationDeepLinks",
-    ]) expect(s15).toContain(inventoryKey);
-    expect(s15).toContain("src/routes");
-    expect(s15).toContain("SOLARIS_FEATURE_FLAGS");
-    expect(s15).toContain("SOLARIS_V6_FEATURE_SURFACES");
-    expect(s15).toContain("V3_ORGANIZER_DISCOVERED_IDS");
+    ]) expect(s15Core).toContain(inventoryKey);
+    expect(s15Core).toContain("src/routes");
+    expect(s15Core).toContain("SOLARIS_FEATURE_FLAGS");
+    expect(s15Core).toContain("SOLARIS_V6_FEATURE_SURFACES");
+    expect(s15Core).toContain("V3_ORGANIZER_DISCOVERED_IDS");
   });
 
   it("binds final release evidence to external runtime artifacts for one exact SHA", () => {

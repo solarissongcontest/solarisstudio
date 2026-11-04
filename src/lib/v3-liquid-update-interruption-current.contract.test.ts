@@ -8,20 +8,24 @@ function source(path: string) {
 }
 
 describe("V3 Liquid navigation update interruption safety", () => {
-  it("blocks replacement reloads for the direct lens lifecycle", () => {
+  it("blocks replacement reloads only once the direct lens gesture is engaged", () => {
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
-    const start = tabs.indexOf("const startDrag =");
-    const move = tabs.indexOf("const moveDrag =", start);
+    const blockerCall = tabs.indexOf("setAppUpdateBlocker(");
+    const holdEffectStart = tabs.lastIndexOf("useEffect", blockerCall);
+    const nextEffect = tabs.indexOf("useEffect", blockerCall + 1);
+    const holdBlock = tabs.slice(holdEffectStart, nextEffect);
     const reset = tabs.indexOf("const resetDragDom =");
     const clear = tabs.indexOf("const clearDrag =", reset);
-    const startBlock = tabs.slice(start, move);
     const resetBlock = tabs.slice(reset, clear);
 
     expect(tabs).toContain(
       'const V3_LIQUID_LENS_UPDATE_BLOCKER = "v3-liquid-lens-drag"',
     );
-    expect(startBlock).toContain("setAppUpdateBlocker(");
-    expect(startBlock).toContain("V3_LIQUID_LENS_UPDATE_BLOCKER");
+    expect(holdBlock).toContain("if (!held) return;");
+    expect(holdBlock).toContain("if (!drag || drag.engaged) return;");
+    expect(holdBlock).toContain("drag.engaged = true;");
+    expect(holdBlock).toContain("setAppUpdateBlocker(");
+    expect(holdBlock).toContain("V3_LIQUID_LENS_UPDATE_BLOCKER");
     expect(resetBlock).toContain(
       "clearAppUpdateBlocker(V3_LIQUID_LENS_UPDATE_BLOCKER)",
     );

@@ -135,7 +135,47 @@ type RpcClient = {
   rpc(name: string, args?: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
 };
 
+type StoryOperationInput = {
+  editionId: string;
+  action: StoryOperationAction;
+  reason: string;
+  executionId: string;
+  expectedRevision?: number | null;
+  itemId?: string | null;
+  payload?: Record<string, unknown>;
+};
+
 const rpcClient = supabase as unknown as RpcClient;
+
+// A response can disappear after the authoritative transaction committed. Keep
+// the first execution identity for the exact semantic command so a retry asks
+// the server for the existing immutable receipt instead of minting a duplicate
+// Storytelling operation. The cache is deliberately bounded.
+const pendingStoryExecutionIds = new Map<string, string>();
+const MAX_PENDING_STORY_EXECUTIONS = 64;
+
+function storyOperationFingerprint(input: StoryOperationInput, reason: string): string {
+  return JSON.stringify({
+    editionId: input.editionId,
+    action: input.action,
+    expectedRevision: input.expectedRevision ?? null,
+    itemId: input.itemId ?? null,
+    reason,
+    payload: input.payload ?? {},
+  });
+}
+
+function executionIdForStoryOperation(fingerprint: string, proposedExecutionId: string): string {
+  const existing = pendingStoryExecutionIds.get(fingerprint);
+  if (existing) return existing;
+
+  if (pendingStoryExecutionIds.size >= MAX_PENDING_STORY_EXECUTIONS) {
+    const oldest = pendingStoryExecutionIds.keys().next().value;
+    if (oldest) pendingStoryExecutionIds.delete(oldest);
+  }
+  pendingStoryExecutionIds.set(fingerprint, proposedExecutionId);
+  return proposedExecutionId;
+}
 
 function object(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`Invalid ${label}`);
@@ -261,6 +301,22 @@ function parseExecution(value: unknown): StoryOperationExecution {
   };
 }
 
+export function validateStoryOperationExecution(
+  execution: StoryOperationExecution,
+  request: Pick<StoryOperationInput, 'editionId' | 'action' | 'itemId'> & { executionId: string; reason: string },
+): StoryOperationExecution {
+  const mismatches: string[] = [];
+  if (execution.executionId !== request.executionId) mismatches.push('executionId');
+  if (execution.editionId !== request.editionId) mismatches.push('editionId');
+  if (execution.action !== request.action) mismatches.push('action');
+  if (execution.reason !== request.reason) mismatches.push('reason');
+  if (request.itemId && execution.itemId !== request.itemId) mismatches.push('itemId');
+  if (mismatches.length) {
+    throw new Error(`Story operation receipt does not match the requested command (${mismatches.join(', ')}).`);
+  }
+  return execution;
+}
+
 function parsePublicStorySummary(value: unknown): PublicStorySummary {
   const row = object(value, 'public story summary');
   return {
@@ -344,15 +400,7 @@ export async function loadStudio2Storytelling(editionId: string): Promise<Storyt
   return parseStorytellingSnapshot(await rpc('studio2_storytelling_snapshot', { p_edition_id: editionId }));
 }
 
-export async function executeStudio2StoryOperation(input: {
-  editionId: string;
-  action: StoryOperationAction;
-  reason: string;
-  executionId: string;
-  expectedRevision?: number | null;
-  itemId?: string | null;
-  payload?: Record<string, unknown>;
-}): Promise<StoryOperationExecution> {
+export async function executeStudio2StoryOperation(input: StoryOperationInput): Promise<StoryOperationExecution> {
   const reason = input.reason.trim();
   if (!input.editionId) throw new Error('Edition is required.');
   if (!STORY_OPERATION_ACTIONS.includes(input.action)) throw new Error('Unsupported story operation.');
@@ -362,15 +410,29 @@ export async function executeStudio2StoryOperation(input: {
     throw new Error('Expected storyline revision is invalid.');
   }
 
-  return parseExecution(await rpc('studio2_execute_story_operation', {
+  const fingerprint = storyOperationFingerprint(input, reason);
+  const executionId = executionIdForStoryOperation(fingerprint, input.executionId);
+  const data = await rpc('studio2_execute_story_operation', {
     p_edition_id: input.editionId,
     p_action: input.action,
     p_reason: reason,
-    p_execution_id: input.executionId,
+    p_execution_id: executionId,
     p_expected_revision: input.expectedRevision ?? null,
     p_item_id: input.itemId ?? null,
     p_payload: input.payload ?? {},
-  }));
+  });
+  const execution = validateStoryOperationExecution(parseExecution(data), {
+    executionId,
+    editionId: input.editionId,
+    action: input.action,
+    itemId: input.itemId ?? null,
+    reason,
+  });
+  // Retire a pending retry identity only after an authoritative receipt proves
+  // it belongs to this exact semantic command. Network/RPC/validation failures
+  // leave the identity available for a safe replay attempt.
+  pendingStoryExecutionIds.delete(fingerprint);
+  return execution;
 }
 
 export async function loadPublicStorylines(limit = 20): Promise<PublicStorySummary[]> {

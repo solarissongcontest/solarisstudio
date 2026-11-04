@@ -108,32 +108,56 @@ function domainTabs(
     case "more":
       return [
         tab("Overview", "/admin/more", (path) => path.startsWith("/admin/more")),
-        tab("Trust & Governance", "/admin/integrity-investigations", governanceActive),
+        tab("Governance", "/admin/integrity-investigations", governanceActive),
         tab(
-          "People & access",
+          "Platform",
           "/admin/access-permissions",
           (path) =>
             path.startsWith("/admin/access-permissions") ||
-            path.startsWith("/admin/country-accounts") ||
-            path.startsWith("/admin/hod-history"),
+            path.startsWith("/admin/country-accounts"),
+        ),
+        tab(
+          "Integrations",
+          "/admin/sync-health",
+          (path) =>
+            path.startsWith("/admin/sync-health") ||
+            path.startsWith("/admin/system-operations"),
+        ),
+        tab(
+          "Engagement",
+          "/admin/predictions",
+          (path) =>
+            path.startsWith("/admin/predictions") ||
+            path.startsWith("/admin/fantasy") ||
+            path.startsWith("/admin/community-moderation") ||
+            path === "/admin/anniversary" ||
+            path.startsWith("/admin/anniversary/"),
+        ),
+        tab(
+          "Product QA",
+          "/admin/feedback-studies",
+          (path) =>
+            path.startsWith("/admin/feedback-studies") ||
+            path.startsWith("/admin/beta-test") ||
+            path.startsWith("/admin/admin-beta-feedback") ||
+            path.startsWith("/admin/public-ux"),
         ),
         tab(
           "System",
           "/admin/system",
           (path) =>
-            path.startsWith("/admin/system") ||
-            path.startsWith("/admin/system-operations") ||
-            path.startsWith("/admin/sync-health") ||
-            path.startsWith("/admin/feature-rollout") ||
-            path.startsWith("/admin/anniversary"),
+            path === "/admin/system" ||
+            path.startsWith("/admin/system/") ||
+            path.startsWith("/admin/feature-rollout"),
         ),
         tab(
-          "QA",
-          "/admin/admin-beta-feedback",
+          "Historical tools",
+          "/admin/editions",
           (path) =>
-            path.startsWith("/admin/beta") ||
-            path.startsWith("/admin/admin-beta") ||
-            path.startsWith("/admin/public-ux"),
+            path.startsWith("/admin/editions") ||
+            path.startsWith("/admin/hod-history") ||
+            path.startsWith("/admin/time-machine") ||
+            path.startsWith("/admin/anniversary-dates"),
         ),
       ];
   }

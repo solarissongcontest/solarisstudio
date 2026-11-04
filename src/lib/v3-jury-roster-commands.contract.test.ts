@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20261019224500_v3_jury_roster_commands.sql"),
+  resolve(process.cwd(), "supabase/migrations/20261104143000_v3_jury_roster_commands.sql"),
   "utf8",
 );
 
@@ -21,6 +21,12 @@ describe("V3 Jury roster command authority", () => {
     expect(migration).toContain("'v3.s7.jury-roster-commands'");
     expect(migration).not.toContain("'20261019224500_v3_jury_roster_commands'");
     expect(migration).toContain("'forward_fix_only'");
+  });
+
+  it("accepts canonical voter.kind values and rejects incompatible spellings", () => {
+    expect(migration).toContain("'country', 'external-country', 'organization', 'person', 'custom'");
+    expect(migration).not.toContain("'country', 'external-country', 'organisation', 'person', 'custom'");
+    expect(migration).toContain("v_kind_value := lower(btrim(coalesce(v_payload ->> 'kind', '')))");
   });
 
   it("gives the show roster one canonical monotonic version, including legacy compatibility writes", () => {

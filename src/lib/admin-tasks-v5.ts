@@ -12,6 +12,9 @@ export type OrganizerTaskOperationalState =
   | "failed"
   | "overdue"
   | "resolved";
+export type OrganizerTaskClassification =
+  | OrganizerTaskOperationalState
+  | "unclassified";
 
 const ORGANIZER_TASK_OPERATIONAL_STATES = new Set<OrganizerTaskOperationalState>([
   "actionable",
@@ -140,23 +143,34 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
   });
 }
 
+/**
+ * Resolve only state that is authoritative in the task payload.
+ *
+ * The legacy `open | waiting | resolved` state can prove waiting/resolved, while
+ * richer open-task semantics must come from the canonical operationalState
+ * projection. A due timestamp is display metadata and must never be promoted to
+ * workflow truth with the browser clock.
+ */
 export function resolveOrganizerTaskOperationalState(
   task: OrganizerTaskV5,
-  nowMs = Date.now(),
-): OrganizerTaskOperationalState {
+): OrganizerTaskClassification {
   if (task.state === "resolved") return "resolved";
   if (task.state === "waiting") return "waiting";
+  if (task.operationalState) return task.operationalState;
+  return "unclassified";
+}
 
-  if (task.operationalState && task.operationalState !== "resolved") {
-    return task.operationalState;
-  }
-
-  if (task.dueAt) {
-    const dueMs = Date.parse(task.dueAt);
-    if (Number.isFinite(dueMs) && dueMs <= nowMs) return "overdue";
-  }
-
-  return "actionable";
+/**
+ * Rich-state metrics and filters are only truthful when every unresolved task
+ * can be classified from canonical evidence. One modern row must not make a
+ * partially legacy queue look fully authoritative.
+ */
+export function hasCompleteOrganizerTaskOperationalEvidence(
+  tasks: OrganizerTaskV5[],
+) {
+  return tasks.every(
+    (task) => resolveOrganizerTaskOperationalState(task) !== "unclassified",
+  );
 }
 
 export async function loadOrganizerTasksV5(
@@ -186,8 +200,10 @@ export async function loadOrganizerTaskCountV5(
     p_edition_id: exactEditionId,
   });
   if (error) throw new Error(error.message || "Organizer task count could not be loaded.");
-  const value = Number(data ?? 0);
-  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
+  if (typeof data !== "number" || !Number.isSafeInteger(data) || data < 0) {
+    throw new Error("Organizer task count returned an invalid authoritative payload.");
+  }
+  return data;
 }
 
 function shouldRetryOrganizerTaskQuery(failureCount: number, error: Error) {
