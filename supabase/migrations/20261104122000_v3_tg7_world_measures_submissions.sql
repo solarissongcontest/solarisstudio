@@ -393,7 +393,7 @@ begin
  join public.world_organizations o on o.id=g.organization_id
  where g.id=p_organ_id and g.organization_id=p_organization_id
    and g.status='active' and o.status='active'
- for share of g;
+ for share of g,o;
  if not found then raise exception using errcode='23503',message='INVALID_ORGAN'; end if;
  perform 1 from public.world_organization_memberships membership
  where membership.organization_id=p_organization_id
@@ -493,23 +493,29 @@ begin
  then raise exception using errcode='22023',message='PROCEDURAL_NOTE_REQUIRED'; end if;
  if p_target_state='registered' then
    -- Eligibility and active organ status may have changed after submission.
-   if not exists (select 1 from public.world_organization_memberships membership
-      where membership.organization_id=v_measure.organization_id
-        and membership.country_id=v_measure.sponsor_country_id
-        and membership.ended_at is null and membership.status='member')
-   then raise exception using errcode='23514',message='SPONSOR_NOT_MEMBER'; end if;
-   if not exists (select 1 from public.world_organization_organs g
+   -- Lock the same institution/sponsor rows in the same order as submission.
+   -- Eligibility cannot flip between the review decision and registration.
+   perform 1 from public.world_organization_organs g
       join public.world_organizations o on o.id=g.organization_id
       where g.id=v_measure.organ_id and g.organization_id=v_measure.organization_id
-        and g.status='active' and o.status='active')
-   then raise exception using errcode='23514',message='INVALID_ORGAN'; end if;
-   if v_measure.category_code is not null and not exists (
-      select 1 from public.world_measure_categories category
+        and g.status='active' and o.status='active'
+      for share of g,o;
+   if not found then raise exception using errcode='23514',message='INVALID_ORGAN'; end if;
+   perform 1 from public.world_organization_memberships membership
+      where membership.organization_id=v_measure.organization_id
+        and membership.country_id=v_measure.sponsor_country_id
+        and membership.ended_at is null and membership.status='member'
+      for share of membership;
+   if not found then raise exception using errcode='23514',message='SPONSOR_NOT_MEMBER'; end if;
+   if v_measure.category_code is not null then
+      perform 1 from public.world_measure_categories category
       where category.organization_id=v_measure.organization_id
         and category.code=v_measure.category_code and category.active
         and (category.effective_from is null or category.effective_from<=now())
         and (category.effective_to is null or category.effective_to>now())
-   ) then raise exception using errcode='22023',message='INVALID_CATEGORY'; end if;
+      for share of category;
+      if not found then raise exception using errcode='22023',message='INVALID_CATEGORY'; end if;
+   end if;
    if nullif(btrim(p_identifier),'') is null or length(btrim(p_identifier))>160
    then raise exception using errcode='22023',message='IDENTIFIER_REQUIRED'; end if;
    select slug into v_slug from public.world_organizations where id=v_measure.organization_id;
@@ -590,11 +596,20 @@ begin
    raise exception using errcode='40001',message='VERSION_CONFLICT'; end if;
  if v_measure.state<>'needs_correction' then
    raise exception using errcode='23514',message='STATE_CHANGED'; end if;
- if not exists(select 1 from public.world_organization_memberships membership
+ -- A returned measure cannot be resubmitted into a dissolved institution.
+ -- Lock active institution and sponsor membership until the version is appended.
+ perform 1 from public.world_organization_organs g
+   join public.world_organizations o on o.id=g.organization_id
+   where g.id=v_measure.organ_id and g.organization_id=v_measure.organization_id
+     and g.status='active' and o.status='active'
+   for share of g,o;
+ if not found then raise exception using errcode='23514',message='INVALID_ORGAN'; end if;
+ perform 1 from public.world_organization_memberships membership
    where membership.organization_id=v_measure.organization_id
      and membership.country_id=v_measure.sponsor_country_id
-     and membership.ended_at is null and membership.status='member')
- then raise exception using errcode='23514',message='SPONSOR_NOT_MEMBER'; end if;
+     and membership.ended_at is null and membership.status='member'
+   for share of membership;
+ if not found then raise exception using errcode='23514',message='SPONSOR_NOT_MEMBER'; end if;
  select coalesce(max(version_number),0)+1 into v_version_number
  from public.world_measure_versions where measure_id=p_measure_id;
  insert into public.world_measure_versions(
