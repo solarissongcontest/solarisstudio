@@ -381,6 +381,7 @@
         // Filter before applying the eight-entry display limit. Old private
         // rows cannot crowd out legitimate public recents on shared devices.
         for (const item of (Array.isArray(recents) ? recents.slice(0, 64) : [])) {
+          if (!item || typeof item.visitedAt !== "number") continue;
           const row = makeRow(item, "Recent");
           if (!row) continue;
           recentList.append(row);
