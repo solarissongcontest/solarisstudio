@@ -45,6 +45,15 @@ describe("Organizer Confirmation response pagination epoch", () => {
     expect(source).toContain("loadingMoreRef.current || editionId !== organizerEditionId");
   });
 
+  it("restarts exact-edition pagination after an invalidated snapshot without accepting old pages", () => {
+    const route = readFileSync("src/routes/confirmations/admin/responses.tsx", "utf8");
+    expect(route).toContain("const [responseReloadNonce, setResponseReloadNonce] = useState(0)");
+    expect(route).toContain("}, [editionId, responseReloadNonce]);");
+    expect(route).toContain("setResponseReloadNonce((nonce) => nonce + 1)");
+    expect(route).toContain("Reload current edition");
+    expect(route).toContain("responseGenerationRef.current += 1;");
+  });
+
   it("keeps the round selector based on canonical edition metadata, not the first response page", () => {
     const source = readFileSync(
       "src/routes/confirmations/admin/responses.tsx", "utf8",
