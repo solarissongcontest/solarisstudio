@@ -90,11 +90,13 @@ describe("TG4 public institutional document library", () => {
       "Content-Type": "application/json",
       apikey: publishable,
     });
+    const requestController = new AbortController();
     const request = anonymousWorldRpcRequest(publishable, {
       p_organization_slug: null,
       p_query: "charter",
       p_limit: 100,
-    });
+    }, requestController.signal);
+    expect(request.signal).toBe(requestController.signal);
     expect(request.method).toBe("POST");
     expect(request.credentials).toBe("omit");
     expect(request.cache).toBe("no-store");
@@ -138,11 +140,12 @@ describe("TG4 public institutional document library", () => {
       });
     vi.stubGlobal("fetch", fetchMock);
     try {
-      const index = await getWorldDocumentIndex({ search: " charter ", limit: 25 });
+      const queryController = new AbortController();
+      const index = await getWorldDocumentIndex({ search: " charter ", limit: 25 }, queryController.signal);
       expect(index).toHaveLength(1);
       const detail = await getWorldDocumentDetail({
         organization: "guard", document: "charter", version: 2,
-      });
+      }, queryController.signal);
       expect(detail?.version.versionNumber).toBe(2);
       expect(fetchMock).toHaveBeenCalledTimes(2);
       const indexCall = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
@@ -151,6 +154,8 @@ describe("TG4 public institutional document library", () => {
       expect(detailCall[0]).toBe("http://127.0.0.1:54321/rest/v1/rpc/world_get_document_v1");
       expect(indexCall[1].credentials).toBe("omit");
       expect(detailCall[1].credentials).toBe("omit");
+      expect(indexCall[1].signal).toBe(queryController.signal);
+      expect(detailCall[1].signal).toBe(queryController.signal);
       expect(indexCall[1].headers).not.toHaveProperty("Authorization");
       expect(detailCall[1].headers).not.toHaveProperty("Authorization");
       expect(JSON.parse(String(indexCall[1].body))).toEqual({
@@ -174,6 +179,7 @@ describe("TG4 public institutional document library", () => {
     expect(shouldRetryPublicWorldDocumentRead(0, { status: 401 })).toBe(false);
     expect(shouldRetryPublicWorldDocumentRead(0, { status: 403 })).toBe(false);
     expect(shouldRetryPublicWorldDocumentRead(0, { status: 404 })).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, { name: "AbortError" })).toBe(false);
     expect(shouldRetryPublicWorldDocumentRead(0, { status: 422 })).toBe(false);
     expect(shouldRetryPublicWorldDocumentRead(0, new Error("Supabase service restriction 402"))).toBe(false);
     expect(shouldRetryPublicWorldDocumentRead(0, { status: 503 })).toBe(true);
