@@ -252,6 +252,7 @@ as $measure_list$
  select coalesce(jsonb_agg(jsonb_build_object(
   'id',eligible.id,'organizationSlug',eligible.slug,'organName',eligible.organ_name,
   'identifier',eligible.identifier,'measureType',eligible.measure_type,
+  'categoryCode',eligible.category_code,
   'title',eligible.title,'summary',eligible.summary,'state',eligible.state,
   'sponsorCountryCode',eligible.sponsor_code,'submittedAt',eligible.submitted_at,
   'registeredAt',eligible.registered_at,'revision',eligible.revision
@@ -261,7 +262,7 @@ as $measure_list$
   -- Otherwise a private/unpublished newest row can consume a limit slot and
   -- hide a published one further down the institution's history.
   select m.id,o.slug,g.name as organ_name,
-    m.identifier,m.measure_type,v.title,v.summary,m.state,
+    m.identifier,m.measure_type,m.category_code,v.title,v.summary,m.state,
     c.short_code as sponsor_code,m.submitted_at,m.registered_at,m.revision
   from public.world_measures m
   join public.world_organizations o on o.id=m.organization_id
@@ -286,6 +287,7 @@ as $measure_detail$
  select jsonb_build_object(
   'id',m.id,'organizationSlug',o.slug,'organName',g.name,
   'identifier',m.identifier,'measureType',m.measure_type,'state',m.state,
+  'categoryCode',m.category_code,'categoryLabel',category.label,
   'sponsorCountryCode',c.short_code,'registeredAt',m.registered_at,
   'revision',m.revision,
   'currentVersion',jsonb_build_object('id',v.id,'number',v.version_number,
@@ -309,6 +311,10 @@ as $measure_detail$
  join public.world_measure_versions v on v.id=m.current_version_id
     and v.measure_id=m.id and v.publication_state='published'
  join public.countries c on c.id=m.sponsor_country_id
+ -- Retired/inactive codes remain resolvable for already-published measures.
+ -- The publication gate below still prevents exposing private code references.
+ left join public.world_measure_categories category
+   on category.organization_id=m.organization_id and category.code=m.category_code
  where m.id=p_measure_id and m.visibility='public'
    and m.registered_at is not null
    and m.state in ('registered','scheduled','under_debate','voting',
