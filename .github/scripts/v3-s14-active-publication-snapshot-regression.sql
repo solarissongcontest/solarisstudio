@@ -18,6 +18,7 @@ DECLARE
   v_history jsonb;
   v_original jsonb;
   v_response jsonb;
+  v_readback jsonb;
   v_preview jsonb;
   v_public jsonb;
   v_raw_count integer;
@@ -166,7 +167,33 @@ BEGIN
     v_publish := gen_random_uuid();
     v_response := public.studio2_apply_show_publication_change(v_show,'public',v_config,null,v_publish,v_publish::text,v_expected);
     IF v_response->>'state' <> 'public' THEN RAISE EXCEPTION 'Canonical publication failed'; END IF;
+
+    -- A published show must reuse its retained control, rather than attempt
+    -- an INSERT with public state but no immutable source-version pointer.
+    -- Re-preview/current-version no-op readback cannot mint receipts or versions.
+    -- Original stale-version CAS replay is a separate command contract.
+    FOR i IN 1..2 LOOP
+      v_preview := public.studio2_show_publication_change_preview(v_show,'public',v_config,null);
+      IF (v_preview->>'expectedVersion')::bigint IS DISTINCT FROM (v_response->>'version')::bigint
+         OR (v_preview->>'sourceResultVersion')::bigint IS DISTINCT FROM 2 THEN
+        RAISE EXCEPTION 'Published preview changed retained version provenance';
+      END IF;
+      v_readback := public.studio2_apply_show_publication_change(
+        v_show,'public',v_config,null,v_publish,v_publish::text,(v_preview->>'expectedVersion')::bigint);
+      IF v_readback->>'alreadyApplied' IS DISTINCT FROM 'true'
+         OR (v_readback->>'version')::bigint IS DISTINCT FROM (v_response->>'version')::bigint THEN
+        RAISE EXCEPTION 'Published control reinitialization did not recover committed state';
+      END IF;
+    END LOOP;
     EXECUTE 'reset role';
+    IF (SELECT count(*) FROM public.studio2_operation_receipts
+        WHERE operation_id=v_publish AND command='publication.show.change' AND status='succeeded') <> 1 THEN
+      RAISE EXCEPTION 'Published preview duplicated or lost the publication receipt';
+    END IF;
+    IF (SELECT count(*) FROM private.v3_domain_events
+        WHERE operation_id=v_publish AND event_type='publication.changed') <> 1 THEN
+      RAISE EXCEPTION 'Published preview duplicated or lost the publication consequence';
+    END IF;
 
     PERFORM set_config('request.jwt.claims','{"role":"anon"}',true);
     PERFORM set_config('request.jwt.claim.role','anon',true);
