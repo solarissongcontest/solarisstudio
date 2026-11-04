@@ -128,7 +128,7 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(editions).toContain("solaris-app-edition-row");
     expect(countries).toContain("AppCountriesPage");
     expect(countries).toContain("<AppScreen>");
-    expect(countries).toContain("<V3CountriesDiscoveryScreen />");
+    expect(countries).toContain('<V3CountriesDiscoveryScreen presentation="installed-app" />');
     expect(shows).toContain("AppShowsPage");
     expect(shows).toContain("<AppScreen>");
     expect(shows).toContain("<V3ShowsDiscoveryScreen />");
