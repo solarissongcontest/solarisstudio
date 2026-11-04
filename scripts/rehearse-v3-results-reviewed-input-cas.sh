@@ -108,6 +108,36 @@ begin
   ) then
     raise exception 'INPUT_MUTATION_ERASED_IMMUTABLE_RESULT_VERSION';
   end if;
+  -- Pretend a service caller kept the old Organizer preview after the
+  -- canonical voting input advanced. The RPC must fail before it invokes
+  -- the existing Results lifecycle engine and must keep the evidence.
+  perform set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  begin
+    perform public.studio2_execute_result_operation_v2(
+      '00000000-0000-4000-8000-00000000b152',
+      'review',
+      'Stale reviewed-input preflight fixture',
+      '00000000-0000-4000-8000-00000000f152',
+      1,
+      (select basis from v3_cas_before)
+    );
+    raise exception 'STALE_REVIEWED_INPUT_WAS_ACCEPTED';
+  exception when sqlstate 'PT409' then
+    if not exists (
+      select 1 from public.studio2_result_operations op, v3_cas_before b
+      where op.show_id='00000000-0000-4000-8000-00000000b152'
+        and op.review_basis_version > b.basis
+        and op.reviewed_version is null
+    ) then
+      raise exception 'STALE_REVIEW_REJECTION_CHANGED_AUTHORITY';
+    end if;
+  end;
+  if exists (
+    select 1 from public.studio2_result_operation_executions
+    where execution_id='00000000-0000-4000-8000-00000000f152'
+  ) then
+    raise exception 'STALE_REVIEW_EXECUTED_MUTATION';
+  end if;
   if not exists (
     select 1 from pg_trigger t
     where t.tgrelid='public.jury_ballot_submissions'::regclass

@@ -113,6 +113,20 @@ describe("V3 Results reviewed-input CAS", () => {
     expect(bump.indexOf("for update nowait")).toBeLessThan(bump.indexOf("update public.studio2_result_operations"));
   });
 
+  it("executes a negative reviewed-commit stale-input CAS without emitting a receipt", () => {
+    const runner = readFileSync(
+      resolve(process.cwd(), "scripts/rehearse-v3-results-reviewed-input-cas.sh"),
+      "utf8",
+    );
+    expect(runner).toContain("studio2_execute_result_operation_v2(");
+    expect(runner).toContain("(select basis from v3_cas_before)");
+    expect(runner).toContain("exception when sqlstate 'PT409'");
+    expect(runner).toContain("STALE_REVIEWED_INPUT_WAS_ACCEPTED");
+    expect(runner).toContain("STALE_REVIEW_EXECUTED_MUTATION");
+    expect(runner).toContain("ST ALE".replace(" ", ""));
+    expect(runner).toContain("rollback;");
+  });
+
   it("maintains the existing S3 result-version rehearsal with a pre-seeded authority row", () => {
     const script = readFileSync(
       resolve(process.cwd(), ".github/scripts/v3-s3-results-invariants-rehearsal.sh"), "utf8",
