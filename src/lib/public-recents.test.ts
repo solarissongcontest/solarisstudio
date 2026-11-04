@@ -56,8 +56,15 @@ describe("public recents", () => {
     for (const path of [
       "https://example.com/path",
       "//example.com/path",
-      "/\\example.com/path",
-      "/countries/oland\n/unsafe",
+      "/\\\\example.com/path",
+      "/countries/oland\\n/unsafe",
+      "/countries/../auth",
+      "/countries/oland?token=private",
+      "/countries/oland#private",
+      "/countries/%2fauth",
+      "/countries/%E0%A4%A",
+      "/countries/%2e%2e",
+      "/countries/oland//edit",
     ]) {
       expect(shouldRememberPublicPath(path), path).toBe(false);
     }
@@ -101,8 +108,12 @@ describe("public recents", () => {
     expect(() => clearPublicRecents()).not.toThrow();
 
     const blockedStorage = {
-      getItem: () => { throw new Error("Storage denied"); },
-      setItem: () => { throw new Error("Storage denied"); },
+      getItem: () => {
+        throw new Error("Storage denied");
+      },
+      setItem: () => {
+        throw new Error("Storage denied");
+      },
     };
     expect(readPublicRecents(blockedStorage)).toEqual([]);
     expect(() => rememberPublicRecent("/countries/oland", "Oland", blockedStorage)).not.toThrow();
