@@ -62,7 +62,10 @@ describe("V3 Public Voting DNA System publication boundary", () => {
       );
     }
 
-    expect(anonPolicy).toContain(
+    // Anonymous callers cannot take the Organizer preview path, even if
+    // future capability resolution accidentally changes its anon behavior.
+    expect(anonPolicy).not.toContain("studio2_access_allowed");
+    expect(authenticatedPolicy).toContain(
       "studio2_access_allowed('results.preview', edition_id, false)",
     );
     expect(authenticatedPolicy).toContain(
@@ -71,6 +74,24 @@ describe("V3 Public Voting DNA System publication boundary", () => {
     expect(authenticatedPolicy).toContain(
       "studio2_access_allowed('results.preview', edition_id, false)",
     );
+  });
+
+  it("refuses cross-edition Jury data even when the referenced show publishes detailed voting", () => {
+    // The historical Jury table has separate FKs for edition and show, so the
+    // public SECURITY DEFINER projection must enforce their relationship.
+    const detailedVotes = between(
+      migration,
+      "with detailed_votes as (",
+      "  detailed_scope as (",
+    );
+    expect(detailedVotes).toContain("from public.jury_votes vote");
+    expect(detailedVotes).toMatch(
+      /join public\.shows vote_show\s+on vote_show\.id = vote\.show_id\s+and vote_show\.edition_id = vote\.edition_id/,
+    );
+    expect(detailedVotes).toContain(
+      "show_publication_enabled(vote.show_id, 'detailed_voting')",
+    );
+    expect(detailedVotes).toContain("edition.published = true");
   });
 
   it("keeps generic, Jury and Televote projection authority independent", () => {

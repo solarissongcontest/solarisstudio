@@ -42,7 +42,7 @@ using (
     and public.show_publication_enabled(show_id, 'jury_results')
     and public.show_publication_enabled(show_id, 'televote_results')
   )
-  or public.studio2_access_allowed('results.preview', edition_id, false)
+  -- Preview is never an anonymous capability: only public layers qualify.
 );
 
 drop policy if exists "solaris consolidated authenticated read" on public.results;
@@ -78,6 +78,11 @@ as $function$
       coalesce(vote.receiving_country_id, receiving_entity.country_id) as receiving_country_id,
       vote.points
     from public.jury_votes vote
+    -- jury_votes has independent edition/show FKs, not a composite scope FK.
+    -- A mismatched show must never borrow another edition's publication gate.
+    join public.shows vote_show
+      on vote_show.id = vote.show_id
+     and vote_show.edition_id = vote.edition_id
     join public.editions edition on edition.id = vote.edition_id
     left join public.contest_entities voter_entity
       on voter_entity.id = vote.voter_entity_id
