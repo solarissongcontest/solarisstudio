@@ -6,11 +6,11 @@ import { fetchWorldPublicEnabled } from "@/lib/terra-world-public";
 import { V3ActionCard, V3Section } from "@/components/v3/V3Foundation";
 
 /**
- * The single, rollout-aware Explore entrance to Terra Solaris.
- * No public World queries run merely because Explore is opened; we only ask
- * the existing boolean flag RPC and reuse the same cache as WorldPublicGate.
+ * Legacy/web Explore entrance. A failed, pending, or disabled server decision
+ * never advertises a World surface which may not yet be migrated.
+ * This shares the boolean rollout cache with the actual World route gate.
  */
-export function WorldExploreEntry({ variant }: { variant: "legacy" | "v3" }) {
+export function WorldExploreEntry() {
   const rollout = useQuery({
     queryKey: ["world", "public", "rollout"],
     queryFn: fetchWorldPublicEnabled,
@@ -18,22 +18,7 @@ export function WorldExploreEntry({ variant }: { variant: "legacy" | "v3" }) {
     retry: false,
   });
 
-  // An unknown, disabled or failing rollout must never promise a live feature.
   if (rollout.data !== true) return null;
-
-  if (variant === "v3") {
-    return (
-      <V3Section title="Terra Solaris" meta="Beyond the contest">
-        <V3ActionCard
-          title="Explore the world"
-          description="GUARD, UNITY, international organizations and the countries of Terra Solaris"
-          icon={Globe2}
-          tone="neutral"
-          to="/world"
-        />
-      </V3Section>
-    );
-  }
 
   return (
     <section className="public-hub-section" aria-labelledby="explore-world-heading">
@@ -55,5 +40,21 @@ export function WorldExploreEntry({ variant }: { variant: "legacy" | "v3" }) {
         <span aria-hidden="true" className="text-muted-foreground group-hover:text-foreground">›</span>
       </Link>
     </section>
+  );
+}
+
+/** Pure V3 presentation, deliberately safe for the static TerraOS preview. */
+export function WorldV3ExploreEntry({ enabled }: { enabled: boolean }) {
+  if (!enabled) return null;
+  return (
+    <V3Section title="Terra Solaris" meta="Beyond the contest">
+      <V3ActionCard
+        title="Explore the world"
+        description="GUARD, UNITY, international organizations and the countries of Terra Solaris"
+        icon={Globe2}
+        tone="neutral"
+        to="/world"
+      />
+    </V3Section>
   );
 }
