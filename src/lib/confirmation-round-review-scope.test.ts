@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { assertConfirmationRoundPreviewMatchesRequest, isCurrentConfirmationRoundReview } from "./confirmation-round-review-scope";
+import { assertConfirmationRoundPreviewMatchesRequest, assertConfirmationRoundReceiptMatchesRequest, isCurrentConfirmationRoundReview } from "./confirmation-round-review-scope";
 
 describe("Organizer Confirmation round review context", () => {
   const request = { editionId: "edition-a", epoch: 4 };
@@ -72,5 +72,73 @@ describe("Organizer Confirmation round review context", () => {
     );
     expect(route).toContain("reviewScopeRef.current.organizerEditionId,");
     expect(route).toContain("A round operation completed for a previous edition.");
+  });
+
+  it("accepts only a canonical receipt for the exact reviewed round command and operation", () => {
+    const request = {
+      roundId: "5c74f40e-3083-48a8-8fe4-eb79201e5c96",
+      changeKind: "editing",
+      operationId: "825b8563-5124-4bef-83fb-1a06d97555a7",
+      expectedVersion: 4,
+    };
+    const receipt = {
+      ok: true,
+      changeKind: "editing",
+      riskClass: "R2",
+      roundId: request.roundId,
+      operationId: request.operationId,
+      previousVersion: 4,
+      version: 5,
+      affectedResponses: 3,
+    };
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(request, receipt)).not.toThrow();
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(request, null)).toThrow();
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(request, { ...receipt, ok: false })).toThrow();
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(request, { ...receipt, roundId: "other-round" })).toThrow();
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(request, { ...receipt, changeKind: "delete" })).toThrow();
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(request, { ...receipt, operationId: "other-operation" })).toThrow();
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(request, { ...receipt, riskClass: "R3" })).toThrow();
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(request, { ...receipt, previousVersion: 3 })).toThrow();
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(request, { ...receipt, version: 3 })).toThrow();
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(request, { ...receipt, affectedResponses: -1 })).toThrow();
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(request, { ...receipt, affectedResponses: Number.NaN })).toThrow();
+  });
+
+  it("accepts the create receipt's new server-generated ID and the deletion receipt's R3 risk", () => {
+    const operationId = "825b8563-5124-4bef-83fb-1a06d97555a7";
+    const create = { roundId: null, changeKind: "create", operationId, expectedVersion: 0 };
+    const createdReceipt = {
+      ok: true,
+      changeKind: "create",
+      riskClass: "R2",
+      roundId: "5c74f40e-3083-48a8-8fe4-eb79201e5c96",
+      operationId,
+      previousVersion: 0,
+      version: 1,
+      affectedResponses: 0,
+    };
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(create, createdReceipt)).not.toThrow();
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(create, { ...createdReceipt, roundId: null })).toThrow();
+    const deletion = { roundId: createdReceipt.roundId, changeKind: "delete", operationId, expectedVersion: 1 };
+    const deletedReceipt = { ...createdReceipt, riskClass: "R3", changeKind: "delete", previousVersion: 1, version: 2 };
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(deletion, deletedReceipt)).not.toThrow();
+    expect(() => assertConfirmationRoundReceiptMatchesRequest(deletion, { ...deletedReceipt, riskClass: "R2" })).toThrow();
+  });
+
+  it("does not mistake a failed post-commit refresh for a failed round mutation", () => {
+    const route = readFileSync("src/routes/confirmations/admin/rounds.tsx", "utf8");
+    const start = route.indexOf("  async function applyPendingChange()");
+    const end = route.indexOf("  function cancelPendingChange()", start);
+    const apply = route.slice(start, end);
+    const rpc = apply.indexOf("await applyConfirmationRoundChange({");
+    const verify = apply.indexOf("assertConfirmationRoundReceiptMatchesRequest({");
+    const committed = apply.indexOf("receiptVerified = true;");
+    const refresh = apply.indexOf("await refresh(request.editionId);");
+    expect(rpc).toBeGreaterThanOrEqual(0);
+    expect(verify).toBeGreaterThan(rpc);
+    expect(committed).toBeGreaterThan(verify);
+    expect(refresh).toBeGreaterThan(committed);
+    expect(apply).toContain("if (receiptVerified) {");
+    expect(apply).toContain("Round change was applied, but the round list could not be refreshed.");
   });
 });
