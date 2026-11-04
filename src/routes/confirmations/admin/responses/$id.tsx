@@ -36,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
+import { isConfirmationDetailInOrganizerScope } from "@/lib/confirmation-detail-edition-guard";
 import { reconcileSystemOperation } from "@/lib/system-operation.functions";
 import { normalizeSystemReceipt } from "@/lib/system-receipt";
 import { toSystemError } from "@/lib/system-error";
@@ -709,7 +710,7 @@ function ResponseDetailPage() {
       if (rpcError) throw rpcError;
 
       const detail = result as unknown as ResponseDetail | null;
-      if (detail?.id !== id || detail.edition?.id !== organizerEditionId) {
+      if (!isConfirmationDetailInOrganizerScope(detail, id, organizerEditionId)) {
         throw new Error(
           "This confirmation response does not belong to the selected Organizer edition. Select its edition before opening private details.",
         );
@@ -802,7 +803,7 @@ function ResponseDetailPage() {
   }
 
   async function manualSync() {
-    if (!data || data.edition?.id !== organizerEditionId ||
+    if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId) ||
         currentScopeRef.current.responseId !== id ||
         currentScopeRef.current.editionId !== organizerEditionId) {
       toast.error("Select the response's exact Organizer edition before syncing.");
@@ -831,7 +832,7 @@ function ResponseDetailPage() {
   }
 
   async function createEditLink() {
-    if (!data || data.edition?.id !== organizerEditionId) return;
+    if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)) return;
     setCreatingLink(true);
     try {
       const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
@@ -874,7 +875,7 @@ function ResponseDetailPage() {
   }
 
   async function deleteResponse() {
-    if (!data || data.edition?.id !== organizerEditionId || deleting) return;
+    if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId) || deleting) return;
 
     setDeleting(true);
     try {
@@ -905,7 +906,7 @@ function ResponseDetailPage() {
     );
   }
 
-  if (!data || !organizerEditionId || data.edition?.id !== organizerEditionId) {
+  if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)) {
     return (
       <div className="admin-page pb-5">
         <AdminPageHeader
