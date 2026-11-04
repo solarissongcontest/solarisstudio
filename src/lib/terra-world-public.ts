@@ -155,17 +155,6 @@ export function parseWorldDirectoryRows(raw: unknown): WorldOrganization[] {
   });
 }
 
-/** GUARD and UNITY remain discoverable even after the general directory grows. */
-export async function fetchWorldFeaturedOrganizations(): Promise<WorldOrganization[]> {
-  const { data, error } = await (supabase as any).from("world_organizations")
-    .select("id,slug,official_name,short_name,type,description,status,public_visibility")
-    .eq("public_visibility", "public")
-    .in("slug", ["guard", "unity"])
-    .order("short_name", { ascending: true });
-  if (error) throw new Error("Featured world institutions are temporarily unavailable.");
-  return parseWorldDirectoryRows(data);
-}
-
 export async function fetchWorldDirectory(input: {
   term: string; filter: WorldDirectoryFilter; page: number;
 }): Promise<WorldDirectoryResponse> {
