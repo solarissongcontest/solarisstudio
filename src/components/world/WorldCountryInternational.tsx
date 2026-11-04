@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Globe2, Landmark, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { PageHeader } from "@/components/AppShell";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
@@ -25,8 +25,59 @@ import {
 } from "@/lib/world-country-international";
 
 const COUNTRY_COLUMNS = "id,name,short_code,region,flag_image,accent_color";
-const MEMBERSHIP_COLUMNS = "id,country_id,organization_id,membership_type,status,joined_edition_id,ended_edition_id,ended_at";
+const MEMBERSHIP_COLUMNS = "id,country_id,organization_id,membership_type,status,joined_at,ended_at";
 type Phase = "current" | "historical";
+
+const membershipDate = (value: string): string => new Intl.DateTimeFormat("en", {
+  day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+}).format(new Date(value));
+
+/**
+ * Guard independently until #1934's shared WorldPublicGate is on the
+ * integration branch. Use its identical flag RPC and query cache key.
+ * Children are not mounted while publication is disabled or unverified.
+ */
+export function WorldCountryRolloutGate({ children }: { children: ReactNode }) {
+  const rollout = useQuery({
+    queryKey: ["world", "public", "rollout"],
+    staleTime: 45_000,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("studio2_feature_enabled", {
+        p_key: "terra_world_public",
+        p_edition_id: null,
+      });
+      if (error || typeof data !== "boolean") {
+        throw new Error("World publication state could not be verified");
+      }
+      return data;
+    },
+  });
+
+  if (rollout.isPending) {
+    return <div className="mx-auto max-w-5xl px-4 py-8">
+      <ArchiveDataLoading label="Checking Terra Solaris availability…" />
+    </div>;
+  }
+  if (rollout.isError) {
+    return <div className="mx-auto max-w-5xl px-4 py-8">
+      <FailureState title="World availability could not be verified"
+        retry={() => void rollout.refetch()} />
+    </div>;
+  }
+  if (!rollout.data) {
+    return <div className="mx-auto max-w-5xl px-4 py-12">
+      <h1 className="text-2xl font-bold">Terra Solaris is not yet available</h1>
+      <p className="mt-2 max-w-prose text-sm leading-6 text-muted-foreground">
+        International records open when Terra Solaris is officially published.
+      </p>
+      <Link to="/explore" className="mt-5 inline-flex min-h-11 items-center font-semibold text-primary">
+        Return to Explore
+      </Link>
+    </div>;
+  }
+  return <>{children}</>;
+}
 
 function FailureState({ retry, title = "International records unavailable" }: { retry: () => void; title?: string }) {
   return <div role="alert" className="border-y border-border py-7">
@@ -81,7 +132,9 @@ export function WorldCountriesDirectory() {
     },
   });
 
-  const total = query.data?.count ?? 0;
+  // A failed revalidation may retain old React Query data. Never render it.
+  const visibleCountryData = query.isError ? undefined : query.data;
+  const total = visibleCountryData?.count ?? 0;
   const start = page * WORLD_COUNTRY_PAGE_SIZE;
   return <>
     <PageHeader eyebrow="Terra Solaris / Countries" title="Countries in the world"
@@ -109,7 +162,7 @@ export function WorldCountriesDirectory() {
       </p>
       {query.isPending ? <ArchiveDataLoading label="Loading public country identities…" /> : null}
       {query.isError ? <FailureState title="Countries unavailable" retry={() => void query.refetch()} /> : null}
-      {query.data && query.data.countries.length === 0 ? (
+      {visibleCountryData && visibleCountryData.countries.length === 0 ? (
         <div className="py-10">
           <h2 className="text-lg font-semibold">No matching countries</h2>
           <p className="mt-2 text-sm text-muted-foreground">Try a different country name or abbreviation.</p>
@@ -117,8 +170,8 @@ export function WorldCountriesDirectory() {
             className="mt-3 min-h-11 text-sm font-semibold text-primary">Clear search</button>
         </div>
       ) : null}
-      {query.data ? <div className="divide-y divide-border/60">
-        {query.data.countries.map((country) => <CountryRow key={country.id} country={country} />)}
+      {visibleCountryData ? <div className="divide-y divide-border/60">
+        {visibleCountryData.countries.map((country) => <CountryRow key={country.id} country={country} />)}
       </div> : null}
 
       {total > WORLD_COUNTRY_PAGE_SIZE ? (
@@ -210,7 +263,12 @@ function AffiliationGroup({
           <span className="block text-xs text-muted-foreground">{organization.officialName}</span>
           <span className="mt-1 block text-xs capitalize text-muted-foreground">
             {affiliation.membershipType} · {affiliation.status.replace(/_/g, " ")}
-            {phase === "historical" ? " · historical affiliation" : ""}
+          </span>
+          <span className="mt-1 block text-xs tabular-nums text-muted-foreground">
+            {phase === "current"
+              ? "Since " + membershipDate(affiliation.joinedAt)
+              : membershipDate(affiliation.joinedAt) + " to " + membershipDate(affiliation.endedAt!)}
+            {" · UTC"}
           </span>
         </span>
         <Landmark aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
@@ -254,9 +312,9 @@ export function WorldCountryInternational({ code }: { code: string }) {
   // This independently enforces the world_organizations PUBLIC RLS boundary
   // after the membership RLS boundary, including visibility changes mid-read.
   const organizationIds = useMemo(() => Array.from(new Set([
-    ...(current.data?.rows ?? []),
-    ...(historical.data?.rows ?? []),
-  ].map((item) => item.organizationId))), [current.data, historical.data]);
+    ...(current.isSuccess ? current.data?.rows ?? [] : []),
+    ...(historical.isSuccess ? historical.data?.rows ?? [] : []),
+  ].map((item) => item.organizationId))), [current.data, current.isSuccess, historical.data, historical.isSuccess]);
   const institutions = useQuery({
     queryKey: ["world", "country-international-public-institutions", organizationIds.join(",")],
     enabled: Boolean(identity.data) && organizationIds.length > 0,
@@ -317,13 +375,13 @@ export function WorldCountryInternational({ code }: { code: string }) {
         <AffiliationGroup title="Current memberships"
           description="Active memberships, associates, observers and suspended members recorded by each institution."
           phase="current" page={currentPage} setPage={setCurrentPage}
-          data={current.data} loading={current.isPending} error={current.isError}
+          data={current.isSuccess ? current.data : undefined} loading={current.isPending} error={current.isError}
           fetching={current.isFetching} institutions={institutions.data ?? []} retry={() => void current.refetch()} />
         <div className="border-t border-border" />
         <AffiliationGroup title="Former affiliations"
           description="Published historical terms. These records do not imply current membership."
           phase="historical" page={historyPage} setPage={setHistoryPage}
-          data={historical.data} loading={historical.isPending} error={historical.isError}
+          data={historical.isSuccess ? historical.data : undefined} loading={historical.isPending} error={historical.isError}
           fetching={historical.isFetching} institutions={institutions.data ?? []} retry={() => void historical.refetch()} />
       </> : null}
     </div>
