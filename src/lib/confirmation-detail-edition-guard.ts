@@ -10,11 +10,11 @@ export type ScopedConfirmationDetail = {
   edition?: { id?: string | null } | null;
 };
 
-export function isConfirmationDetailInOrganizerScope(
-  detail: ScopedConfirmationDetail | null | undefined,
+export function isConfirmationDetailInOrganizerScope<T extends ScopedConfirmationDetail>(
+  detail: T | null | undefined,
   expectedSubmissionId: string,
   organizerEditionId: string,
-): boolean {
+): detail is T {
   return Boolean(
     expectedSubmissionId &&
     organizerEditionId &&
