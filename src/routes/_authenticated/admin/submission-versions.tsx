@@ -103,7 +103,8 @@ async function loadResponse(id: string, editionId: string): Promise<ResponseDeta
   if (!editionId || !id) {
     throw new Error('Submission History requires an exact Organizer edition and response.');
   }
-  const { data, error } = await confirmationsSupabase.rpc('admin_confirmation_response', {
+  const { data, error } = await confirmationsSupabase.rpc('admin_confirmation_response_for_edition', {
+    _edition_id: editionId,
     _submission_id: id,
   });
   if (error) throw error;
