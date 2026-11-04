@@ -146,8 +146,11 @@ function nullableInteger(value: unknown, label: string) {
   return integerValue(value, label);
 }
 
-function optionalBoolean(value: unknown, fallback: boolean) {
-  return typeof value === "boolean" ? value : fallback;
+function requiredBoolean(value: unknown, label: string) {
+  if (typeof value !== "boolean") {
+    throw new Error(`Solaris returned an invalid ${label}.`);
+  }
+  return value;
 }
 
 function sameInstant(left: string, right: string) {
@@ -180,12 +183,6 @@ function editionLabel(edition: RawEdition) {
 function parsePreflight(value: unknown): PublicationPreflight {
   const row = asObject(value, "Publication preflight");
   const config = resolvePublicationConfig(asObject(row.config, "Publication config"));
-  const hasOutcomesFallback =
-    config.qualifiers ||
-    config.results ||
-    config.jury_results ||
-    config.televote_results ||
-    config.detailed_voting;
   return {
     showId: stringValue(row.showId, "Publication Show id"),
     editionId: stringValue(row.editionId, "Publication Edition id"),
@@ -199,9 +196,9 @@ function parsePreflight(value: unknown): PublicationPreflight {
       row.sourceResultVersion,
       "Publication Result source version",
     ),
-    hasOutcomes: optionalBoolean(row.hasOutcomes, hasOutcomesFallback),
-    resultReleaseReady: optionalBoolean(row.resultReleaseReady, true),
-    integrityClear: optionalBoolean(row.integrityClear, true),
+    hasOutcomes: requiredBoolean(row.hasOutcomes, "Publication outcomes flag"),
+    resultReleaseReady: requiredBoolean(row.resultReleaseReady, "Result release readiness"),
+    integrityClear: requiredBoolean(row.integrityClear, "Publication integrity state"),
   };
 }
 
