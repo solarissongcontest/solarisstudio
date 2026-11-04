@@ -73,7 +73,7 @@ function list(value: unknown): unknown[] {
 function organization(input: unknown, directory = false): WorldOrganization {
   const row = record(input);
   const slug = required(row.slug);
-  const status = required(directory ? row.status : row.status);
+  const status = required(row.status);
   if (!SLUG.test(slug) || !STATUSES.has(status)) throw new Error("Invalid institution identity");
   return {
     id: required(row.id),
