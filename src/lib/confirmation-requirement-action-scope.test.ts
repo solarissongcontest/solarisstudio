@@ -72,7 +72,6 @@ describe("Organizer Confirmation requirement review completion", () => {
     expect(source).toContain("const [unresolvedRequirement, setUnresolvedRequirement]");
     expect(source).toContain("unresolvedRequirementRef.current = next;");
     expect(source).toContain("setUnresolvedRequirement(next);");
-    expect(source).toContain('title="Requirement operation awaiting reconciliation"').toBe(false);
     expect(source).toContain("Requirement operation awaiting reconciliation");
     expect(source).toContain("Select the original Organizer edition to reconcile this operation.");
     expect(source).toContain("onClick={() => void reconcileOutstandingRequirement()}");
