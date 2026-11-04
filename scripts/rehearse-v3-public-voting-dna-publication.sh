@@ -41,7 +41,12 @@ publish_layers() {
     set state='public',version=version+1,
         frozen_config=private.studio2_normalise_publication_config('$config'::jsonb),
         source_show_updated_at=(select updated_at from public.shows where id='$SHOW_ID'),
-        source_result_version=1,
+        source_result_version=case
+          when private.studio2_publication_has_outcomes(
+            private.studio2_normalise_publication_config('$config'::jsonb)
+          ) then 1::bigint
+          else null::bigint
+        end,
         scheduled_for=null,scheduled_from_state=null,scheduled_by=null,scheduled_operation_id=null,
         last_failure=null,last_failure_at=null,updated_at=now()
     where show_id='$SHOW_ID';

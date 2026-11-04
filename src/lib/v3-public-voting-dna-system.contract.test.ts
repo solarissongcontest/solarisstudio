@@ -265,6 +265,9 @@ describe("V3 Public Voting DNA System publication boundary", () => {
     expect(rehearsal).toContain("reviewed_version,reviewed_at,locked_version,locked_at,reveal_ready_version,reveal_ready_at");
     expect(rehearsal).toContain("private.studio2_normalise_publication_config");
     expect(rehearsal).toContain("studio2_show_publication_controls");
+    expect(rehearsal).toContain("private.studio2_publication_has_outcomes(");
+    expect(rehearsal).toContain("then 1::bigint");
+    expect(rehearsal).toContain("else null::bigint");
     expect(rehearsal).toContain("source_result_version=1");
     expect(rehearsal).not.toContain("disable trigger");
 
