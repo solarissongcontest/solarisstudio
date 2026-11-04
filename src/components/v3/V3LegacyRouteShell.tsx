@@ -43,6 +43,11 @@ export function V3LegacyRouteShell({
           }
         `}</style>
         {children}
+        <div
+          className="v3-legacy-route-bottom-clearance"
+          data-v3-legacy-bottom-clearance=""
+          aria-hidden="true"
+        />
       </div>
     </V3AppShell>
   );
