@@ -81,6 +81,11 @@ describe("public recents", () => {
     expect(shouldRememberPublicPath("/editions/ssc-22")).toBe(true);
     expect(shouldRememberPublicPath("/shows/public-show-id")).toBe(true);
     expect(shouldRememberPublicPath("/rules/chapters/roleplay-worldbuilding")).toBe(true);
+    expect(shouldRememberPublicPath("/rules/22.1")).toBe(true);
+    expect(shouldRememberPublicPath("/rules/invade-country")).toBe(true);
+    expect(shouldRememberPublicPath("/rules/admin")).toBe(false);
+    expect(shouldRememberPublicPath("/rules/manage")).toBe(false);
+    expect(shouldRememberPublicPath("/rules/edit/private")).toBe(false);
   });
 
   it("filters old hub, utility, critical and malformed entries already stored on the device", () => {
