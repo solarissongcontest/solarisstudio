@@ -460,7 +460,7 @@ function CountryProfilePage() {
           className="solaris-app-entity-content"
         >
       <div
-        className={publishedDesign ? "country-profile-v8 country-design-v2" : "country-profile-v8"}
+        className={publishedDesign && countryLayoutMode !== "mobile-web" ? "country-profile-v8 country-design-v2" : "country-profile-v8"}
         data-country-layout-mode={countryLayoutMode}
         data-country-personality={countryLayoutMode === "mobile-web" || publishedDesign ? undefined : heroPersonality}
         data-country-composition={countryLayoutMode === "mobile-web" || publishedDesign ? undefined : sourcePersonality.compositionFamily}
