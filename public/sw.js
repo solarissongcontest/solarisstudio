@@ -41,16 +41,34 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
-function isCacheableStaticAsset(url) {
-  if (url.origin !== self.location.origin) return false;
-  if (url.pathname.startsWith("/api/")) return false;
-  if (url.pathname === "/sw.js") return false;
+// A same-origin file extension does not make uploaded or signed media public.
+// Persist only immutable build output and explicitly public application assets.
+const PUBLIC_SHELL_ASSETS = new Set([
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable.svg",
+  "/solaris-background.webp",
+  "/solaris-studio-mark.png",
+  "/favicon.ico",
+  "/favicon.svg",
+  "/apple-touch-icon.png",
+]);
 
-  return (
-    url.pathname.startsWith("/assets/") ||
-    url.pathname.startsWith("/_build/") ||
-    /\.(?:css|js|mjs|png|jpg|jpeg|webp|svg|ico|woff2?)$/i.test(url.pathname)
-  );
+function isCacheableStaticAsset(url, request) {
+  if (url.origin !== self.location.origin) return false;
+  if (request.cache === "no-store" || request.headers.has("authorization")) return false;
+  if (/%(?:2f|5c|00)/i.test(url.pathname) || url.pathname.includes("\\")) return false;
+
+  // Credential-bearing or signed asset queries must never persist in Cache Storage.
+  // Public icons only require v= for immutable cache-busting.
+  for (const [key, value] of url.searchParams) {
+    if (key !== "v" || !/^[a-zA-Z0-9._-]{1,80}$/.test(value)) return false;
+  }
+
+  const path = url.pathname;
+  if (PUBLIC_SHELL_ASSETS.has(path)) return true;
+  if (!path.startsWith("/assets/") && !path.startsWith("/_build/")) return false;
+  return /\.(?:css|js|mjs|png|jpg|jpeg|webp|svg|ico|woff2?)$/i.test(path);
 }
 
 async function networkNavigation(request) {
@@ -162,7 +180,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (isCacheableStaticAsset(url)) {
+  if (isCacheableStaticAsset(url, request)) {
     const { response, revalidation } = staleWhileRevalidate(request);
     event.respondWith(response);
     event.waitUntil(revalidation);
