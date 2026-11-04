@@ -35,6 +35,8 @@ const snapshot = (overrides: Record<string, unknown> = {}) => ({
     revision: 3,
     title: "GUARD Charter",
     plainText: "Article 1. Official text.",
+    structuredContent: { introduction: "Official" },
+    provisions: [],
     publicationState: "published",
     effectiveFrom: "2026-11-01T00:00:00Z",
   },
@@ -74,11 +76,14 @@ describe("TG4 governed institutional draft models", () => {
   it("detects a pending draft even when the canonical current version is published", () => {
     const doc = parseWorldDocumentDraftSnapshot(snapshot({
       history: [
-        { publicationState: "draft", versionId: "v2" },
+        { publicationState: "draft", versionId: "v2", versionNumber: 3, title: "Draft of GUARD Charter" },
         { publicationState: "published", versionId: "v1" },
       ],
     }));
     expect(doc.hasUnpublishedDraft).toBe(true);
+    expect(doc.pendingDraft).toEqual({
+      versionId: "v2", versionNumber: 3, title: "Draft of GUARD Charter",
+    });
     expect(doc.version?.publicationState).toBe("published");
   });
 
@@ -91,6 +96,7 @@ describe("TG4 governed institutional draft models", () => {
     }));
     expect(doc.revision).toBeNull();
     expect(doc.hasUnpublishedDraft).toBe(false);
+    expect(doc.pendingDraft).toBeNull();
   });
 
   it("never treats a receipt with a different operation or command as success", () => {
@@ -141,6 +147,12 @@ describe("TG4 governed institutional draft models", () => {
     expect(screen).toContain("studio2_reconcile_operation");
     expect(screen).toContain("p_expected_document_revision");
     expect(screen).toContain("hasUnpublishedDraft");
+    expect(screen).toContain("world_get_document_v1");
+    expect(screen).toContain("p_version_number: pendingDraft.versionNumber");
+    expect(screen).toContain("toWorldProvisionCommandRows");
+    expect(screen).toContain("p_structured_content: structuredContent");
+    expect(screen).toContain("p_provisions: provisions");
+    expect(screen).not.toContain("world_update_document_version_draft_v1");
     expect(screen).not.toMatch(/\.from\(["']world_document(?:s|_versions)["']\)/);
     expect(screen).not.toContain("world_publish_document_version_v1");
     expect(screen).not.toContain("service_role");
