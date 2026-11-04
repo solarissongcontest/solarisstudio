@@ -24,7 +24,9 @@ describe("public personalized Shows discovery", () => {
       show("public", "published-edition"),
       show("show-draft", "published-edition", { published: false }),
       show("edition-draft", "private-edition"),
-      show("no-public-layers", "published-edition", { publication_config: DEFAULT_PUBLICATION_CONFIG }),
+      show("no-public-layers", "published-edition", {
+        publication_config: DEFAULT_PUBLICATION_CONFIG,
+      }),
       show("orphan", "missing-edition"),
     ];
 
@@ -36,7 +38,9 @@ describe("public personalized Shows discovery", () => {
       show("legacy-visible", "published-edition", { publication_config: null }),
       show("legacy-hidden", "private-edition", { publication_config: null }),
     ];
-    expect(publicShowsForDiscovery(rows, editions).map((item) => item.id)).toEqual(["legacy-visible"]);
+    expect(publicShowsForDiscovery(rows, editions).map((item) => item.id)).toEqual([
+      "legacy-visible",
+    ]);
   });
 
   it("does not expose former shows from cached recent links", () => {
@@ -51,7 +55,11 @@ describe("public personalized Shows discovery", () => {
       [show("public", "published-edition"), show("edition-draft", "private-edition")],
       editions,
     );
-    expect(visibleRecentShowDestinations(recents, visible)).toEqual([recents[0], recents[2], recents[4]]);
+    expect(visibleRecentShowDestinations(recents, visible)).toEqual([
+      recents[0],
+      recents[2],
+      recents[4],
+    ]);
   });
 
   it("fails closed for show recents while public-show data is unavailable", () => {
