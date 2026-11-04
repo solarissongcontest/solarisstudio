@@ -62,6 +62,18 @@ describe("V3 authoritative Organizer Publication preview", () => {
     expect(source).toContain("A no-op is not an authorization grant");
   });
 
+  it("fails closed when the governed preflight omits integrity, readiness or outcome verification", () => {
+    // The canonical SQL preview returns all three boolean fields for a real
+    // candidate. Missing fields must not be treated as approval to read
+    // otherwise unpublished Result data.
+    expect(source).toContain('hasOutcomes: requiredBoolean(row.hasOutcomes');
+    expect(source).toContain('resultReleaseReady: requiredBoolean(row.resultReleaseReady');
+    expect(source).toContain('integrityClear: requiredBoolean(row.integrityClear');
+    expect(source).not.toContain("optionalBoolean");
+    expect(source).toContain("if (!preflight.integrityClear)");
+    expect(source).toContain("if (preflight.hasOutcomes && !preflight.resultReleaseReady)");
+  });
+
   it("binds the reviewed Edition, Show and Publication version exactly", () => {
     expect(source).toContain("preflight.showId !== input.showId");
     expect(source).toContain("preflight.editionId !== input.editionId");
