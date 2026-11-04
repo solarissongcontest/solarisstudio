@@ -95,6 +95,10 @@ export function normalizeWorldStatementVersion(value: unknown): number | null {
 }
 
 export function parseWorldStatementSummary(value: unknown): WorldStatementSummary {
+  if (object(value) && ((value.visibility !== undefined && value.visibility !== "public") ||
+    (value.organizationVisibility !== undefined && value.organizationVisibility !== "public"))) {
+    return invalid("publication boundary");
+  }
   if (!object(value) || !uuid(value.id) || !nonempty(value.title) ||
     !date(value.publishedAt) || !type(value.statementType) || !positive(value.revision) ||
     !slug(value.organizationSlug) || !nonempty(value.organizationName) ||
