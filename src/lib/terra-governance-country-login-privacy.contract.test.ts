@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const migration = source("supabase/migrations/20261104120600_v3_tg1_controller_login_privacy.sql");
+const currentProjection = source(
+  "supabase/migrations/20261104120700_v3_tg1_canonical_current_controller_projection.sql",
+);
 const tg1Foundation = source(
   "supabase/migrations/20261102170500_v3_tg1_world_country_control_foundation.sql",
 );
@@ -39,6 +42,23 @@ describe("TG1 controller history login linkage", () => {
     expect(migration).toContain("drop policy if exists world_country_control_terms_read");
     expect(migration).toContain("'forward_fix_only'");
     expect(migration).not.toMatch(/grant\s+(insert|update|delete|all)[\s\S]{0,120}\sto\s+(anon|authenticated)/i);
+  });
+
+  it("never reports a stale history term as the active country's controller", () => {
+    expect(currentProjection).toContain("create or replace function public.world_country_identity_v1");
+    expect(currentProjection).toContain("left join public.country_accounts account_row");
+    expect(currentProjection).toContain("account_row.status = 'active'");
+    expect(currentProjection).toContain("term.user_id = account_row.user_id");
+    expect(currentProjection).toContain("term.ended_at is null");
+    expect(currentProjection).toContain("'forward_fix_only'");
+    expect(currentProjection).not.toContain("update public.country_accounts");
+    const publicReturn = currentProjection.slice(
+      currentProjection.indexOf("returns table ("),
+      currentProjection.indexOf("language sql"),
+    );
+    expect(publicReturn).not.toMatch(/\buser_id\b/);
+    expect(identityRehearsal).toContain("TG1_CONTROLLER_PROJECTION_STALE_TRANSFER_LEAK");
+    expect(identityRehearsal).toContain("TG1_CONTROLLER_PROJECTION_INACTIVE_ACCOUNT_LEAK");
   });
 
   it("keeps the verified local-only rollback rehearsal as the executed negative test", () => {
