@@ -52,3 +52,16 @@ export function isJuryWindowReviewScopeCurrent(
       preview.showId === current.showId,
   );
 }
+
+/**
+ * A missing show parameter may select the first available show. An explicit
+ * invalid/stale show link must never silently target a different show.
+ */
+export function selectJuryWindowShow<T extends { id: string }>(
+  shows: readonly T[],
+  requestedShowId: string | null | undefined,
+): T | null {
+  const explicit = requestedShowId?.trim();
+  if (explicit) return shows.find((show) => show.id === explicit) ?? null;
+  return shows[0] ?? null;
+}
