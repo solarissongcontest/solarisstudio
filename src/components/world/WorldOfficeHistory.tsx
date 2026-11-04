@@ -143,7 +143,7 @@ export function WorldOfficeHistory({ slug }: { slug: string }) {
       <section aria-label="Previous institutional office terms" className="mt-6" aria-live="polite">
         {query.isPending ? (
           <HistoryState title="Loading institutional history" detail="Reading completed terms from the canonical public governance archive." />
-        ) : query.isError ? (
+        ) : query.isError && !query.isFetchNextPageError ? (
           <HistoryState title="Historical record unavailable" detail="The public history could not be retrieved. No inferred or cached officeholders are substituted." retry={() => void query.refetch()} />
         ) : !organization ? (
           <HistoryState title="Institution not found" detail="No public organization exists at this address. Restricted institutions are not disclosed." />
@@ -152,7 +152,18 @@ export function WorldOfficeHistory({ slug }: { slug: string }) {
             <ol className="mt-3 divide-y divide-border/70 border-t border-border/70">
               {items.map((term) => <OfficeTermRow key={term.id} term={term} />)}
             </ol>
-            {query.hasNextPage ? (
+            {query.isFetchNextPageError ? (
+              <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface/70 p-4">
+                <p className="text-sm text-muted-foreground">
+                  Older terms could not be loaded. Already verified history remains above.
+                </p>
+                <button type="button" onClick={() => void query.fetchNextPage()}
+                  disabled={query.isFetchingNextPage}
+                  className="min-h-11 rounded-xl border border-border bg-surface px-4 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60">
+                  Retry older terms
+                </button>
+              </div>
+            ) : query.hasNextPage ? (
               <button type="button" disabled={query.isFetchingNextPage}
                 onClick={() => void query.fetchNextPage()}
                 className="mt-5 min-h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm font-semibold hover:border-primary/40 disabled:opacity-60">
