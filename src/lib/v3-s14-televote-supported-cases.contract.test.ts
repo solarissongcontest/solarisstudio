@@ -160,6 +160,23 @@ describe("S14 canonical Televote Stage 7", () => {
     expect(driver).toContain('"passed": False');
   });
 
+  it("materializes only the persisted supported Televote engine, using real ballot-level V2 math", () => {
+    const adapter = source("scripts/v3-s14-materialize-televote-results.ts");
+    expect(adapter).toContain("ROBUST_TELEVOTE_ENGINE_VERSION");
+    expect(adapter).toContain("convertRobustRound({ participants, ballots, totalPoints, config })");
+    expect(adapter).toContain("allocationsBySubmission");
+    expect(adapter).toContain("duplicate allocation for ballot");
+    expect(adapter).toContain("row.effectivePoints");
+    expect(adapter).toContain("round_influence_results");
+    expect(adapter).toContain("analyseRobustInfluence({ participants, ballots, totalPoints, config })");
+    expect(adapter).toContain('engine_version: CALC_ENGINE_VERSION');
+    expect(adapter).toContain('engine_version: ROBUST_TELEVOTE_ENGINE_VERSION');
+    expect(adapter).toContain("unsupported persisted Televote engine");
+    expect(adapter).not.toContain("supports only the canonical");
+    expect(adapter).toContain('fail("No supported Televote calculation engine resolved")');
+    expect(adapter).toContain("V3_DESTRUCTIVE_VERIFICATION");
+  });
+
   it("keeps all Stage 7 shell modules syntactically valid", () => {
     expect(() => execFileSync("bash", ["-n", ".github/scripts/v3-s14-stage-7-public-voting.sh"], { stdio: "pipe" })).not.toThrow();
     expect(() => execFileSync("bash", ["-n", ".github/scripts/v3-s14-stage-7-genuine-deadline.sh"], { stdio: "pipe" })).not.toThrow();
