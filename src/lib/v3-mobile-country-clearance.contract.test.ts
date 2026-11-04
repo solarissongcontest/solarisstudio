@@ -14,6 +14,7 @@ describe("V3 country browsing and bottom navigation clearance", () => {
     expect(countries).toContain("<CountryTile key={country.id} country={country} />");
     expect(countries).toContain('className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4"');
     expect(countries).toContain("setVisibleCount((count) => count + BROWSE_PAGE_SIZE)");
+    expect(countries).toContain("participatingOnly && activeEdition ? filtered : filtered.slice(0, visibleCount)");
   });
 
   it("keeps the final content scrollable above the iOS floating bar while metrics settle", () => {
