@@ -253,6 +253,15 @@ describe("V3 Public Voting DNA System publication boundary", () => {
     expect(rehearsal).toContain("for role in anon authenticated; do");
     expect(rehearsal).toContain("set local role ${role};");
     expect(rehearsal).toContain("Voting DNA projection must remain SECURITY DEFINER");
+    // Exercise the real S3 reviewed/locked/reveal-ready publication state.
+    expect(rehearsal).toContain("insert into public.studio2_result_operations");
+    expect(rehearsal).toContain("private.v3_result_versions");
+    expect(rehearsal).toContain("reviewed_version,reviewed_at,locked_version,locked_at,reveal_ready_version,reveal_ready_at");
+    expect(rehearsal).toContain("private.studio2_normalise_publication_config");
+    expect(rehearsal).toContain("studio2_show_publication_controls");
+    expect(rehearsal).toContain("source_result_version=1");
+    expect(rehearsal).not.toContain("disable trigger");
+
     expect(rehearsal).toContain("Legacy Voting DNA must stay SECURITY INVOKER");
     expect(rehearsal).toContain("legacy Voting DNA leaks split result scores");
     expect(rehearsal).toContain("legacy Voting DNA leaks Televote points");
