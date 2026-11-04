@@ -249,8 +249,10 @@ function ComparisonBody({
   });
   const archive = !archiveQuery.isFetching && !archiveQuery.isError ? archiveQuery.data : null;
   const versions = archive?.versions ?? [];
-  const earlier = versions.find((v) => v.number === from) ?? versions[0];
-  const later = versions.find((v) => v.number === to) ?? versions[versions.length - 1];
+  // Explicit deep-linked version numbers are authoritative inputs. Never
+  // silently substitute another version if a requested number disappears.
+  const earlier = from == null ? versions[0] : versions.find((v) => v.number === from);
+  const later = to == null ? versions[versions.length - 1] : versions.find((v) => v.number === to);
   const pairValid = !!archive && !!earlier && !!later &&
     validateComparisonPair(archive, earlier.number, later.number);
 
@@ -271,6 +273,10 @@ function ComparisonBody({
   if (archiveQuery.isError) return <Panel title="History unavailable" detail="The institutional archive could not be verified. No historical text was restored from a stale cache." onRetry={() => void archiveQuery.refetch()} />;
   if (!archive) return <Panel title="Document not found" detail="This document does not have a public archive at the supplied address." />;
   if (versions.length < 2) return <Panel title="Not enough public versions" detail="At least two published or historical-source versions are required for comparison. Drafts remain unavailable." />;
+  if (!earlier || !later) return (
+    <Panel title="Historical version unavailable"
+      detail="One of the requested version numbers is not present in the published archive. Choose another version or return to the document reader." />
+  );
 
   return <>
     <div className="mb-7 grid items-end gap-4 sm:grid-cols-[1fr_1fr_auto]">
