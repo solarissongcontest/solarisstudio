@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { WorldOrganizationPage } from "@/components/world/WorldPublic";
+import { WorldOrganizationPage, WorldPublicGate } from "@/components/world/WorldPublic";
 
 type WorldSection = "overview" | "leadership" | "members";
 
@@ -25,10 +25,12 @@ function OrganizationRoute() {
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <WorldOrganizationPage
-      slug={slug}
-      view={tab}
-      onViewChange={(next) => void navigate({ search: { tab: next }, replace: true })}
-    />
+    <WorldPublicGate>
+      <WorldOrganizationPage
+        slug={slug}
+        view={tab}
+        onViewChange={(next) => void navigate({ search: { tab: next }, replace: true })}
+      />
+    </WorldPublicGate>
   );
 }
