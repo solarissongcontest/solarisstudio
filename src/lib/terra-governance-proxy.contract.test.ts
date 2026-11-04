@@ -193,6 +193,34 @@ describe("TG6 institutional acting-proxy authorization", () => {
     expect(fixture).toContain("TG6_PROXY_AUTHORIZED_REVIEW_QUEUE_MISSING");
   });
 
+  it("returns only durable same-country candidates to a current authorized requester", () => {
+    const candidateRpc = migration.slice(
+      migration.indexOf("create or replace function public.world_my_proxy_candidates_v1"),
+      migration.indexOf("revoke all on function public.world_my_proxy_candidates_v1"),
+    );
+    expect(candidateRpc).toContain("auth.uid()");
+    expect(candidateRpc).toContain("account_row.status='active'");
+    expect(candidateRpc).toContain("v_rep.country_id");
+    expect(candidateRpc).toContain("'world.proxy.request'");
+    expect(candidateRpc).toContain("'representation',v_rep.id");
+    expect(candidateRpc).toContain("member_row.status='member'");
+    expect(candidateRpc).toContain("assignment.country_id=v_rep.country_id");
+    expect(candidateRpc).toContain("term_row.country_id=v_rep.country_id");
+    expect(candidateRpc).toContain("person_row.id <> v_rep.person_id");
+    expect(candidateRpc).toContain("limit 40");
+    expect(candidateRpc).not.toContain("user_id',");
+    expect(candidateRpc).not.toContain("'authUserId'");
+    expect(migration).toContain("revoke all on function public.world_my_proxy_candidates_v1");
+    expect(request).toContain("assignment.person_id=p_proxy_person_id");
+    expect(request).toContain("term_row.person_id=p_proxy_person_id");
+    expect(request).toContain("assignment.country_id=v_rep.country_id");
+    expect(request).toContain("term_row.country_id=v_rep.country_id");
+    expect(fixture).toContain("TG6_PROXY_UNAUTHORIZED_CANDIDATE_ROSTER_LEAK");
+    expect(fixture).toContain("TG6_PROXY_VERIFIED_COUNTRY_CANDIDATE_MISSING");
+    expect(fixture).toContain("TG6_PROXY_UNRELATED_PERSON_EXPOSED_AS_CANDIDATE");
+    expect(fixture).toContain("TG6_PROXY_UNPROVEN_PERSON_ALLOWED");
+  });
+
   it("rehearses negative authorization and replay in rollback-only local Postgres", () => {
     for (const failure of [
       "TG6_PROXY_ANON_REQUEST_ALLOWED",
