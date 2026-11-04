@@ -11,12 +11,51 @@ import {
   currentWorldMemberships,
   fetchWorldDirectory,
   fetchFeaturedWorldOrganizations,
+  fetchWorldPublicEnabled,
   fetchWorldProjection,
   type WorldDirectoryFilter,
   type WorldOrganization,
 } from "@/lib/terra-world-public";
 
 type WorldView = "overview" | "leadership" | "members";
+
+/** No public world projection mounts before the canonical rollout RPC permits it. */
+export function WorldPublicGate({ children }: { children: ReactNode }) {
+  const rollout = useQuery({
+    queryKey: ["world", "public", "rollout"],
+    queryFn: fetchWorldPublicEnabled,
+    staleTime: 45_000,
+    retry: false,
+  });
+  if (rollout.isPending) {
+    return <PublicFrame><LoadingWorld label="Checking Terra Solaris availability" /></PublicFrame>;
+  }
+  if (rollout.isError) {
+    return (
+      <PublicFrame>
+        <QueryFailure message="World availability could not be verified. No institutional records were loaded." retry={() => void rollout.refetch()} />
+      </PublicFrame>
+    );
+  }
+  if (!rollout.data) {
+    return (
+      <PublicFrame>
+        <div className="max-w-2xl rounded-2xl border border-border p-6 sm:p-9">
+          <Kicker>Terra Solaris</Kicker>
+          <h1 className="mt-3 font-display text-3xl font-semibold">World is not yet available</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            Institutional discovery opens when this section is officially enabled.
+            The Solaris Song Contest archive remains available.
+          </p>
+          <Link to="/explore" className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground">
+            Return to Explore
+          </Link>
+        </div>
+      </PublicFrame>
+    );
+  }
+  return <>{children}</>;
+}
 
 function PublicFrame({ children }: { children: ReactNode }) {
   return (
