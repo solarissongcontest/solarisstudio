@@ -19,3 +19,14 @@ export function predictionReadStatus(
   if (queries.some((query) => query?.isLoading === true)) return "loading";
   return "ready";
 }
+
+/**
+ * Local prediction picks belong to exactly one round and authenticated fan.
+ * Never reuse an in-memory draft after a round or account switch.
+ */
+export function predictionDraftScope(
+  roundId: string | null | undefined,
+  viewerId: string | null | undefined,
+): string {
+  return JSON.stringify([roundId ?? null, viewerId ?? null]);
+}
