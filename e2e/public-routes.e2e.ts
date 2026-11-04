@@ -74,7 +74,7 @@ test("representative non-country dynamic route passes desktop audit", async ({ p
 });
 
 test("Country directory renders the correct mobile-web and desktop browse composition", async ({ page }, testInfo) => {
-  test.skip(!["public-320", "public-390", "public-1440"].includes(testInfo.project.name));
+  test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
   await page.goto("/countries", { waitUntil: "domcontentloaded" });
   const directory = page.locator("[data-country-directory-experience]");
   const mobile = testInfo.project.name !== "public-1440";
@@ -99,6 +99,12 @@ test("Country directory renders the correct mobile-web and desktop browse compos
     return bounds.width / bounds.height;
   });
   expect(ratio, "Country flags should remain 3:2 in every website directory").toBeCloseTo(1.5, 1);
+  if (["public-390", "public-1440"].includes(testInfo.project.name)) {
+    await testInfo.attach(`country-directory-${testInfo.project.name}.png`, {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+  }
   const search = directory.getByRole("searchbox", { name: "Search countries" });
   await search.fill("zz-no-such-solaris-country");
   await expect(directory.getByText("No countries found")).toBeVisible();
@@ -114,6 +120,9 @@ test("Country directory renders the correct mobile-web and desktop browse compos
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect(directory).toHaveAttribute("data-country-directory-experience", "desktop-web");
   }
+  // The directory is a navigation surface, not just a visually correct catalogue.
+  await directory.locator('a[href^="/countries/"]').first().click();
+  await expect(page).toHaveURL(/\/countries\/[^/]+\/?$/);
 });
 
 test("Country Glass atmosphere and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {
@@ -178,10 +187,12 @@ test("real country directory flags share their canonical crop", async ({ page },
   // The current database spells these two names Ampsia and Aquliateria.
   // The wide/square/tall fixture additionally covers unusual source ratios.
   const names = ["Abeven", "Adelanor", "Alberia", "Ampsia", "Aotea", "Aquliateria"];
-  await expect(page.locator(".directory-country-card").first()).toBeVisible();
+  const directory = page.locator("[data-country-directory-experience]");
+  const search = directory.getByRole("searchbox", { name: "Search countries" });
+  await expect(directory.locator('a[href^="/countries/"]').first()).toBeVisible();
   for (const name of names) {
-    await page.getByPlaceholder("Country, artist or song…").fill(name);
-    const card = page.locator(".directory-country-card").filter({ hasText: name }).first();
+    await search.fill(name);
+    const card = directory.locator('a[href^="/countries/"]').filter({ hasText: name }).first();
     await expect(card, `${name} directory card`).toBeVisible();
     const frame = card.locator('[data-flag-frame="standard"]');
     await expect(frame).toBeVisible();
@@ -196,7 +207,7 @@ test("real country directory flags share their canonical crop", async ({ page },
     expect(result.covered, `${name} must reach every frame edge`).toBe(true);
     expect(result.transform, `${name} must have no independent axis scaling`).not.toMatch(/matrix\([^,]+,\s*[^,]+,\s*[^,]+,/);
   }
-  await page.getByPlaceholder("Country, artist or song…").fill("");
+  await search.fill("");
   if (testInfo.project.name === "public-390") {
     await testInfo.attach("country-directory-six-flags-390.png", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
   }
@@ -222,7 +233,7 @@ test("representative page families remain usable at 200% text size", async ({ pa
   );
 
   const context = page.context();
-  for (const route of ["/editions", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
+  for (const route of ["/countries", "/editions", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
     const routePage = await context.newPage();
     try {
       await routePage.goto(route, { waitUntil: "domcontentloaded" });
