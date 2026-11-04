@@ -245,7 +245,9 @@ function buildReadiness(
     };
   }
 
-  const critical = health.critical_count ?? 0;
+  // The verified branch guarantees numeric counters; retain null-safe access
+  // so TypeScript does not mistake the external validation result for a type guard.
+  const critical = health?.critical_count ?? 0;
   const incomplete = [
     factor("entries", Number(health?.missing_songs ?? 0) + Number(health?.missing_artists ?? 0), "Entry metadata", `/admin/entries/${edition.slug}`),
     factor("running-order", Number(health?.running_issues ?? 0), "Running order", `/admin/lineup-sync/${edition.slug}`),
