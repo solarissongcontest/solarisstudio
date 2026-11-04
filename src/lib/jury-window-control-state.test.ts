@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   isJuryWindowReviewScopeCurrent,
   resolveJuryWindowReadState,
+  selectJuryWindowShow,
 } from "./jury-window-control-state";
 
 const editionId = "edition-22";
@@ -99,6 +100,23 @@ describe("Organizer jury-window review scope", () => {
   });
 });
 
+describe("Organizer jury-window show selector", () => {
+  const shows = [{ id: "semi-final" }, { id: "grand-final" }];
+
+  it("uses the first show only when no show was explicitly selected", () => {
+    expect(selectJuryWindowShow(shows, undefined)).toBe(shows[0]);
+    expect(selectJuryWindowShow(shows, null)).toBe(shows[0]);
+    expect(selectJuryWindowShow(shows, "")).toBe(shows[0]);
+    expect(selectJuryWindowShow([], undefined)).toBeNull();
+  });
+
+  it("never silently changes the show selected by an explicit deep link", () => {
+    expect(selectJuryWindowShow(shows, "grand-final")).toBe(shows[1]);
+    expect(selectJuryWindowShow(shows, "missing-show")).toBeNull();
+    expect(selectJuryWindowShow([], "grand-final")).toBeNull();
+  });
+});
+
 describe("production Organizer jury control wiring", () => {
   it("does not expose an action or confirm a review without a healthy scoped read", () => {
     const control = readFileSync(
@@ -111,5 +129,7 @@ describe("production Organizer jury control wiring", () => {
     expect(control).toContain("open={Boolean(currentPendingChange)}");
     expect(control).toContain("isJuryWindowReviewScopeCurrent(pending.preview");
     expect(control).toContain("Retry status check");
+    expect(control).toContain("selectJuryWindowShow(orderedShows, requestedShowId)");
+    expect(control).toContain("No voting-window operation is available for this link.");
   });
 });
