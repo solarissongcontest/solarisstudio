@@ -1,10 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, Clock3, ShieldCheck } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useMyCountryAccount } from "@/lib/country-account";
+import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import {
   EMPTY_GUARD_APPLICATION,
   GUARD_APPLICATION_LIMITS,
@@ -22,6 +23,11 @@ import {
 } from "@/lib/terra-governance-guard-intake";
 
 export const Route = createFileRoute("/world/membership/apply")({
+  beforeLoad: () => {
+    // TG5 intake is not an emergency Confirmation access path.
+    // Never activate a new governance workflow through the maintenance shell.
+    if (GLOBAL_MAINTENANCE_MODE) throw notFound();
+  },
   head: () => ({
     meta: [
       { title: "GUARD membership application — Solaris Studio" },
