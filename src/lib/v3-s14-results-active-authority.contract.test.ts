@@ -55,8 +55,13 @@ describe("S14 Results active identity, history and canonical rank authority", ()
 
   it("retains organizer-only, RLS-protected counterfactual influence evidence", () => {
     expect(current).toContain("alter table televoting.round_influence_results enable row level security");
-    expect(current).toContain("revoke insert, update, delete, truncate, references, trigger");
-    expect(current).toContain("from public, anon, authenticated");
-    expect(current).not.toContain("grant insert");
+    expect(current).toContain("revoke all on table televoting.round_influence_results from public, anon");
+    expect(current).toContain("revoke truncate, references, trigger");
+    expect(current).toContain("on table televoting.round_influence_results from authenticated");
+    // This is rebuildable analysis and the existing official calculation RPC
+    // is SECURITY INVOKER. Authenticated DML must remain capability-scoped.
+    expect(current).toContain("grant select, insert, update, delete");
+    expect(current).toContain("public.studio2_access_allowed('voting.manage', null, false)");
+    expect(current).toContain("with check (public.studio2_access_allowed('voting.manage', null, false))");
   });
 });
