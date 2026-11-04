@@ -332,7 +332,7 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await page.goto("/countries/BRW", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Browserland", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Current entry", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Recent SSC history", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Participation history", exact: true })).toBeVisible();
     await expect(page.locator(".country-profile-v8")).toHaveCount(0);
     await expect(primaryNav.getByRole("link", { name: "Explore", exact: true })).toHaveAttribute(
       "aria-current", "page",
