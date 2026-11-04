@@ -54,9 +54,9 @@ test(
     // Real browser Back/Forward navigation is part of the web experience.
     await page.setViewportSize({ width: 390, height: 844 });
     await webHeader.getByRole("link", { name: "Solaris Studio home" }).click();
-    await expect(page).toHaveURL(/\\/$/);
+    await expect.poll(() => new URL(page.url()).pathname).toBe("/");
     await page.goBack();
-    await expect(page).toHaveURL(/\\/records\\/?$/);
+    await expect.poll(() => new URL(page.url()).pathname).toMatch(new RegExp("^/records/?$"));
     await expect(page.locator("header.site-nav")).toBeVisible();
     await expect(page.locator(".solaris-app-tabbar:visible")).toHaveCount(0);
 
