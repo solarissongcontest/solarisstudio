@@ -25,6 +25,7 @@ import {
   type V3PrimarySurfaceServerSource,
 } from "@/lib/v3-primary-surface-bootstrap";
 import {
+  activeV3DelegationCountryId,
   assembleV3PrimarySurfaceSnapshot,
   countDistinctV3Delegations,
   countPendingAcknowledgementTasks,
@@ -186,10 +187,11 @@ async function loadDelegation(
     .from("country_accounts")
     .select("country_id,status")
     .eq("user_id", viewerId)
+    .eq("status", "active")
     .maybeSingle();
   throwIfError(account.error, "Could not load the signed-in delegation account");
 
-  const countryId = account.data?.country_id;
+  const countryId = activeV3DelegationCountryId(account.data);
   if (!countryId) return null;
 
   const country = await client
