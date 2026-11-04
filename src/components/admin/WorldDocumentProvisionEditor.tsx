@@ -35,7 +35,9 @@ export function WorldDocumentProvisionEditor({ rows, onChange, disabled = false 
         </h3>
         <p className="text-xs leading-5 text-muted-foreground">
           Choose a new permanent key for each new provision (never recycle an old key). Stable keys survive renumbering between versions. Titles, article labels and reading order
-          may change without replacing the provision's identity. All changes apply only to the new unpublished draft.
+          may change without replacing the provision's identity. Choose Repealed or Omitted
+          for formal provision-status changes rather than deleting a historic identity. All changes
+          apply only to the new unpublished draft.
         </p>
       </div>
 
@@ -82,6 +84,17 @@ export function WorldDocumentProvisionEditor({ rows, onChange, disabled = false 
                   onChange={(event) => update(index, { displayLabel: event.target.value })} />
               </label>
               <label className="space-y-1 text-xs font-semibold">
+                <span>Status in this draft version</span>
+                <select className={control} value={row.status}
+                  onChange={(event) => update(index, {
+                    status: event.target.value as WorldDocumentProvision["status"],
+                  })}>
+                  <option value="active">Active</option>
+                  <option value="repealed">Repealed</option>
+                  <option value="omitted">Omitted</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-xs font-semibold">
                 <span>Parent provision</span>
                 <select className={control} value={row.parentSemanticKey ?? ""}
                   onChange={(event) => update(index, { parentSemanticKey: event.target.value || null })}>
@@ -106,7 +119,9 @@ export function WorldDocumentProvisionEditor({ rows, onChange, disabled = false 
                 onChange={(event) => update(index, { bodyPlainText: event.target.value })} />
             </label>
             {row.status !== "active" && (
-              <p className="text-xs text-muted-foreground">Historical state: {row.status}. This editor preserves the source status.</p>
+              <p className="text-xs text-muted-foreground">
+                This new version explicitly marks the provision as {row.status}; its previous published state is unchanged.
+              </p>
             )}
           </fieldset>
         ))}
