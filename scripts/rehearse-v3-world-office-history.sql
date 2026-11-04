@@ -20,6 +20,33 @@ begin
     raise exception 'TG3_HISTORY_RPC_NOT_INSTALLED';
   end if;
 
+  if not exists (
+    select 1 from public.studio2_feature_flags
+    where key = 'terra_world_public'
+      and enabled is false
+      and admins_only is false
+  ) or public.studio2_feature_enabled('terra_world_public', null) is distinct from false then
+    raise exception 'TG3_WORLD_PUBLIC_DEFAULT_ROLLOUT_NOT_DISABLED';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_catalog.pg_constraint constraint_row
+    join pg_catalog.pg_class table_row on table_row.oid = constraint_row.conrelid
+    join pg_catalog.pg_namespace schema_row on schema_row.oid = table_row.relnamespace
+    where schema_row.nspname = 'public'
+      and table_row.relname = 'studio2_feature_flags'
+      and constraint_row.conname = 'studio2_feature_flags_key_check'
+      and pg_catalog.strpos(pg_catalog.pg_get_expr(
+        constraint_row.conbin, constraint_row.conrelid
+      ), 'prediction_league') > 0
+      and pg_catalog.strpos(pg_catalog.pg_get_expr(
+        constraint_row.conbin, constraint_row.conrelid
+      ), 'terra_world_public') > 0
+  ) then
+    raise exception 'TG3_WORLD_PUBLIC_FLAG_ALLOWLIST_REPLACED_EXISTING_KEYS';
+  end if;
+
   insert into public.world_organizations
     (slug, official_name, short_name, type, description, status, public_visibility)
   values
