@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { AlertCircle, CheckCircle2, FilePlus2, RefreshCw } from "lucide-react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -48,6 +48,13 @@ function requiredOrganization(value: unknown): Organization {
   return row as Organization;
 }
 
+function definitiveFailure(error: unknown): boolean {
+  const code = (error as { code?: unknown })?.code;
+  return typeof code === "string" && [
+    "22023", "23503", "23505", "23514", "42501", "40001", "PGRST202", "P0001",
+  ].includes(code);
+}
+
 function messageForError(error: unknown): string {
   const e = error as { message?: unknown; code?: unknown };
   if (e?.code === "40001" || String(e?.message).includes("VERSION_CONFLICT")) {
@@ -57,7 +64,7 @@ function messageForError(error: unknown): string {
   return "The action could not be confirmed. Reconcile its operation before considering another attempt.";
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-4 border-t border-border/70 pt-6">
       <h2 className="text-xl font-bold tracking-tight">{title}</h2>
@@ -112,8 +119,12 @@ export function AdminWorldDocumentDraftWorkspace() {
         p_limit: 100,
       });
       if (error) throw error;
-      return parseWorldDocumentIndex(data).filter((row) =>
-        row.organizationId === organization?.id && row.organizationSlug === organizationSlug);
+      const rows = parseWorldDocumentIndex(data);
+      if (rows.some((row) => row.organizationId !== organization?.id ||
+        row.organizationSlug !== organizationSlug)) {
+        throw new Error("The document index returned a different institution scope.");
+      }
+      return rows;
     },
   });
 
@@ -211,7 +222,7 @@ export function AdminWorldDocumentDraftWorkspace() {
     event.preventDefault();
     const doc = snapshot.data;
     if (!doc?.allowedActions.manage || !doc.revision || !organization ||
-        doc.version?.publicationState === "draft") return;
+        doc.hasUnpublishedDraft) return;
     const validation = validateWorldDocumentDraft({ title: draftTitle, plainText: draftText });
     if (validation) { setNotice(validation); return; }
     openReview("world.document.version.create", "world_create_document_version_v1",
@@ -255,6 +266,10 @@ export function AdminWorldDocumentDraftWorkspace() {
         const { error } = await db.rpc(review.rpcName, review.args);
         if (error) transportError = error;
       } catch (error) { transportError = error; }
+    }
+    if (transportError && definitiveFailure(transportError)) {
+      setOperation({ review, status: "failed", message: messageForError(transportError) });
+      return;
     }
     try {
       const receipt = await checkReceipt(review);
@@ -351,7 +366,7 @@ export function AdminWorldDocumentDraftWorkspace() {
                     <input className={fieldClass} maxLength={180} required value={createTitle}
                       onChange={(e) => {
                         setCreateTitle(e.target.value);
-                        if (!createSlug) setCreateSlug(toWorldDocumentSlug(e.target.value));
+                        if (!createSlug || createSlug === toWorldDocumentSlug(createTitle)) setCreateSlug(toWorldDocumentSlug(e.target.value));
                       }} />
                   </label>
                   <label className="block space-y-1 text-sm">Stable document identifier
@@ -392,7 +407,7 @@ export function AdminWorldDocumentDraftWorkspace() {
                     </div>
                   ) : !snapshot.data.allowedActions.manage ? (
                     <p role="alert">Your account lacks the institution document-management capability. The server remains authoritative.</p>
-                  ) : snapshot.data.version?.publicationState === "draft" ? (
+                  ) : snapshot.data.hasUnpublishedDraft ? (
                     <div className="space-y-2 border-l-2 border-primary pl-4">
                       <p className="font-semibold">An unpublished draft already exists.</p>
                       <p className="text-sm text-muted-foreground">Version {snapshot.data.version.versionNumber} is held for editing. This creation-only workspace will not overwrite its structured provisions, provenance or content.</p>
