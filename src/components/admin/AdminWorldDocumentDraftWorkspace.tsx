@@ -185,12 +185,19 @@ export function AdminWorldDocumentDraftWorkspace() {
     },
   });
 
+  const hydratedVersionIdentity = useRef<string | null>(null);
   useEffect(() => {
-    const source = snapshot.data?.version;
-    setDraftTitle(source?.publicationState === "published" ? source.title : snapshot.data?.title ?? "");
+    const current = snapshot.data;
+    const source = current?.version;
+    const identity = current ? `${current.documentId}:${source?.versionId ?? "no-version"}` : null;
+    // A background refresh at the SAME version must not destroy in-progress
+    // legal authoring. A document/version switch must hydrate independently.
+    if (identity === hydratedVersionIdentity.current) return;
+    hydratedVersionIdentity.current = identity;
+    setDraftTitle(source?.publicationState === "published" ? source.title : current?.title ?? "");
     setDraftText(source?.publicationState === "published" ? source.plainText : "");
     setDraftProvisions(source?.publicationState === "published" ? source.provisions : []);
-  }, [snapshot.data?.version?.versionId, snapshot.data?.documentId]);
+  }, [snapshot.data]);
 
   const switchOrganization = (slug: string) => {
     if (operation && operation.status !== "succeeded" && operation.status !== "failed") return;
