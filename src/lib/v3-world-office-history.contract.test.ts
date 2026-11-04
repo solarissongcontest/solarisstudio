@@ -43,6 +43,8 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(migration).toContain("new.represented_country_name_snapshot := old.represented_country_name_snapshot");
     expect(migration).toContain("before insert or update on public.world_office_terms");
     expect(migration).toContain("WORLD_CLOSED_OFFICE_TERM_IMMUTABLE");
+    expect(migration).toContain("new.holder_user_id is not null");
+    expect(migration).toContain("new.holder_user_id is distinct from old.holder_user_id");
     const closedGuard = migration.indexOf("if tg_op = 'UPDATE' and old.status");
     const activeGuard = migration.indexOf("if new.status not in ('ended', 'removed', 'resigned')");
     expect(closedGuard >= 0 && activeGuard > closedGuard).toBe(true);
@@ -100,6 +102,7 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(rehearsal).toContain("TG3_HISTORY_UNBOUNDED_LIMIT_NOT_REJECTED");
     expect(rehearsal).toContain("TG3_HISTORY_REOPEN_WAS_NOT_BLOCKED");
     expect(rehearsal).toContain("TG3_HISTORY_COUNTRY_REWRITE_WAS_NOT_BLOCKED");
+    expect(rehearsal).toContain("TG3_HISTORY_ACCOUNT_RELINK_WAS_NOT_BLOCKED");
     expect(rehearsal).toContain("WORLD_CLOSED_OFFICE_TERM_IMMUTABLE");
     expect(rehearsalRunner).toContain('V3_VERIFICATION_TARGET:-}');
     expect(rehearsalRunner).toContain("PGHOST=127.0.0.1");
