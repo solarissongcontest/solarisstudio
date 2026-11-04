@@ -31,7 +31,9 @@ describe("V3 shell permission resolution", () => {
     expect(source).toContain('aria-live="polite"');
     expect(source).toContain('isAppMode && accessReady && appScreen.chrome.toolbar !== "hidden"');
     expect(source).toContain('isAppMode && accessReady && appChrome.tabBar !== "hidden"');
-    expect(source).toContain('!isAppMode && accessReady && !isMySolarisWorkspace');
+    expect(source).toContain('aria-label="Mobile website navigation"');
+    expect(source).toContain("disabled={!navigationReady}");
+    expect(source).not.toContain('className="mobile-quick-nav');
     expect(source).toContain("disabled={!navigationReady}");
     expect(source).not.toContain("useEffect(() => setNavigationReady(true), [])");
   });

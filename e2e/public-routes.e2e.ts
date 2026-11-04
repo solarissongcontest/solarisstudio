@@ -53,6 +53,32 @@ for (const route of publicRouteAuditSet) {
   });
 }
 
+test("browser navigation stays a website header, not an installed-app bottom dock", async ({ page }, testInfo) => {
+  test.skip(!["public-320", "public-390", "public-1440"].includes(testInfo.project.name));
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("header.site-nav")).toBeVisible();
+  await expect(page.locator(".mobile-quick-nav")).toHaveCount(0);
+  await expect(page.locator(".solaris-app-tabbar")).toHaveCount(0);
+
+  const mobile = testInfo.project.name !== "public-1440";
+  const webNav = page.getByRole("navigation", { name: "Mobile website navigation" });
+  if (mobile) {
+    await expect(webNav).toBeVisible();
+    await expect(webNav.getByRole("link", { name: "Explore Solaris" })).toBeVisible();
+    const menu = webNav.getByRole("button", { name: "Open navigation" });
+    await expect(menu).toBeEnabled({ timeout: 20_000 });
+    await menu.click();
+    await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
+  } else {
+    await expect(webNav).toBeHidden();
+    await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+  }
+
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow, "Website header must not create horizontal scroll").toBeLessThanOrEqual(2);
+});
+
 test("real Country and Wiki pages pass collision and flag audits at this viewport", async ({ page, baseURL }, testInfo) => {
   const discovered = await sitemapRoutes(baseURL!);
   const country = discovered.find((route) => /^\/countries\/[^/]+$/.test(route));
