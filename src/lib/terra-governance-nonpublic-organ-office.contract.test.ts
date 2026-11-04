@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -48,6 +48,27 @@ describe("TG2 private organ / public office boundary", () => {
     expect(publicProjection).not.toMatch(/\bholder_user_id\b/);
     expect(publicProjection).not.toMatch(/\bproxy_user_id\b/);
     expect(migration).toContain("'forward_fix_only'");
+  });
+
+  it("rejects later migrations that accidentally replace the definer projection with a leaky one", () => {
+    const migrations = readdirSync(resolve(process.cwd(), "supabase/migrations"))
+      .filter((filename) => filename.endsWith(".sql"))
+      .sort();
+    const latestProjection = migrations
+      .filter((filename) =>
+        /^create or replace function public\.world_organization_projection_v1\b/im.test(
+          source(`supabase/migrations/${filename}`),
+        ),
+      )
+      .at(-1);
+    expect(latestProjection).toBeDefined();
+    const latestSource = source(`supabase/migrations/${latestProjection}`);
+    const latestPublicProjection = latestSource.slice(
+      latestSource.indexOf("create or replace function public.world_organization_projection_v1"),
+      latestSource.indexOf("revoke all on function public.world_organization_projection_v1"),
+    );
+    expect(latestPublicProjection).toContain("visible_organ.visibility = 'public'");
+    expect(latestPublicProjection).toContain("visible_organ.organization_id = office_row.organization_id");
   });
 
   it("has rollback-only true-role tests for anonymous, outsider, manager and public RPC", () => {
