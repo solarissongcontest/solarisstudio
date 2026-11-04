@@ -244,7 +244,7 @@ describe("TG4 public institutional document library", () => {
       },
     })).toThrow("Duplicate semantic provision identity");
     expect(() => worldProvisionTargetId("bad\nkey")).toThrow("Invalid semantic provision identity");
-    expect(() => worldProvisionTargetId("x".repeat(201))).toThrow();
+    expect(worldProvisionTargetId("x".repeat(201))).toBe("world-provision-" + "x".repeat(201));
     expect(() => worldProvisionTargetId("")).toThrow();
   });
 
