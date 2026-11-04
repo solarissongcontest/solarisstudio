@@ -117,6 +117,45 @@ export function newGuardIntakeOperation(): GuardIntakeOperation {
   return { operationId: id, idempotencyKey: `guard-intake:${id}` };
 }
 
+export type GuardConfirmedApplication = {
+  applicationId: string;
+  operationId: string;
+  status: "submitted";
+};
+
+/**
+ * Reject ambiguous/scope-mismatched acknowledgements. A successful HTTP
+ * response is not a durable receipt: only a succeeded canonical operation
+ * containing the matching country, organization and operation counts.
+ */
+export function parseGuardIntakeReceipt(
+  value: unknown,
+  expected: { operationId: string; organizationId: string; countryId: string },
+): GuardConfirmedApplication {
+  const envelope = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown> : null;
+  const result = envelope?.result && typeof envelope.result === "object" &&
+    !Array.isArray(envelope.result)
+    ? envelope.result as Record<string, unknown> : null;
+  if (
+    envelope?.status !== "succeeded" ||
+    envelope.operationId !== expected.operationId ||
+    result?.ok !== true ||
+    typeof result.applicationId !== "string" ||
+    result.applicationId.length < 30 ||
+    result.status !== "submitted" ||
+    result.organizationId !== expected.organizationId ||
+    result.countryId !== expected.countryId
+  ) {
+    throw new Error("The application response could not be verified. Check the server status before retrying.");
+  }
+  return {
+    applicationId: result.applicationId,
+    operationId: expected.operationId,
+    status: "submitted",
+  };
+}
+
 export async function submitGuardApplication(args: {
   organizationId: string;
   countryId: string;
@@ -138,18 +177,11 @@ export async function submitGuardApplication(args: {
     p_idempotency_key: args.operation.idempotencyKey,
   });
   if (error) throw error;
-  // The canonical operation RPC returns a *receipt envelope*, with the
-  // semantic result nested under result. A succeeded HTTP request is not enough.
-  const result = data?.result;
-  if (data?.status !== "succeeded" || result?.ok !== true ||
-      typeof result.applicationId !== "string" || result.status !== "submitted") {
-    throw new Error("The application response could not be verified. Check the server status before retrying.");
-  }
-  return {
-    applicationId: result.applicationId,
-    operationId: typeof data.operationId === "string" ? data.operationId : args.operation.operationId,
-    status: "submitted",
-  };
+  return parseGuardIntakeReceipt(data, {
+    operationId: args.operation.operationId,
+    organizationId: args.organizationId,
+    countryId: args.countryId,
+  });
 }
 
 export function guardApplicationStatusLabel(status: GuardMembershipApplicationRow["status"]): string {
