@@ -34,9 +34,8 @@ create index world_membership_applications_country_history_idx
   on public.world_membership_applications(country_id, submitted_at desc);
 
 alter table public.world_membership_applications enable row level security;
-revoke all on public.world_membership_applications from public, anon, authenticated;
-grant select on public.world_membership_applications to authenticated;
-grant all on public.world_membership_applications to service_role;
+revoke all on public.world_membership_applications from public, anon, authenticated, service_role;
+grant select on public.world_membership_applications to authenticated, service_role;
 
 create policy world_membership_applications_country_read
 on public.world_membership_applications for select to authenticated
