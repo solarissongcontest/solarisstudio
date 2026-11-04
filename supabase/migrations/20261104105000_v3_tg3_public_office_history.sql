@@ -3,6 +3,111 @@ begin;
 -- TG3: a public, read-only, cursor-paginated projection over the canonical
 -- TG2 office terms and durable people. Never expose login ids or private
 -- institutional grants, proxies or unpublished SSC edition numbers.
+-- Immutable presentation labels for concluded terms. Historical names must
+-- survive user removal, display-name changes and subsequent office renaming.
+-- These columns are written by the database, never trusted from an RPC caller.
+alter table public.world_office_terms
+  add column holder_display_name_snapshot text,
+  add column office_title_snapshot text,
+  add column represented_country_name_snapshot text;
+
+-- The foundation may have concluded rehearsal records when this is applied
+-- to an upgrade stack. Backfill with the best presently available canonical
+-- labels rather than inventing earlier names.
+update public.world_office_terms term_row
+set holder_display_name_snapshot = holder.display_name,
+    office_title_snapshot = office.title,
+    represented_country_name_snapshot = null
+from public.delegation_people holder,
+     public.world_organization_offices office
+where term_row.status in ('ended', 'removed', 'resigned')
+  and holder.id = term_row.holder_person_id
+  and office.id = term_row.office_id;
+
+-- Backfill represented countries separately. This avoids linking an unrelated
+-- country through a cross join and preserves legitimate null representation.
+update public.world_office_terms term_row
+set represented_country_name_snapshot = country.name
+from public.countries country
+where term_row.status in ('ended', 'removed', 'resigned')
+  and term_row.represented_country_id = country.id;
+
+create or replace function private.world_capture_closed_office_term_labels()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog
+as $snapshot$
+declare
+  v_capture boolean := false;
+begin
+  if new.status not in ('ended', 'removed', 'resigned') then
+    new.holder_display_name_snapshot := null;
+    new.office_title_snapshot := null;
+    new.represented_country_name_snapshot := null;
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    v_capture := true;
+  else
+    v_capture := old.status not in ('ended', 'removed', 'resigned')
+      or new.holder_person_id is distinct from old.holder_person_id
+      or new.office_id is distinct from old.office_id
+      or new.represented_country_id is distinct from old.represented_country_id;
+  end if;
+
+  if v_capture then
+    select holder.display_name, office.title, country.name
+    into new.holder_display_name_snapshot,
+         new.office_title_snapshot,
+         new.represented_country_name_snapshot
+    from public.delegation_people holder
+    join public.world_organization_offices office on office.id = new.office_id
+    left join public.countries country on country.id = new.represented_country_id
+    where holder.id = new.holder_person_id;
+  else
+    new.holder_display_name_snapshot := old.holder_display_name_snapshot;
+    new.office_title_snapshot := old.office_title_snapshot;
+    new.represented_country_name_snapshot := old.represented_country_name_snapshot;
+  end if;
+
+  if nullif(btrim(new.holder_display_name_snapshot), '') is null
+     or nullif(btrim(new.office_title_snapshot), '') is null then
+    raise exception 'WORLD_CLOSED_OFFICE_TERM_LABEL_MISSING'
+      using errcode = '23514';
+  end if;
+  return new;
+end
+$snapshot$;
+
+revoke all on function private.world_capture_closed_office_term_labels()
+  from public, anon, authenticated;
+
+create trigger world_office_terms_capture_closed_labels
+before insert or update on public.world_office_terms
+for each row execute function private.world_capture_closed_office_term_labels();
+
+alter table public.world_office_terms
+  add constraint world_closed_office_term_labels_check
+  check (
+    (status in ('ended','removed','resigned')
+      and nullif(btrim(holder_display_name_snapshot), '') is not null
+      and nullif(btrim(office_title_snapshot), '') is not null)
+    or
+    (status not in ('ended','removed','resigned')
+      and holder_display_name_snapshot is null
+      and office_title_snapshot is null
+      and represented_country_name_snapshot is null)
+  );
+
+comment on column public.world_office_terms.holder_display_name_snapshot is
+  'Frozen public label captured on terminal office-term transition, independent of subsequent profile/name edits.';
+comment on column public.world_office_terms.office_title_snapshot is
+  'Frozen constitutional office title on terminal transition.';
+comment on column public.world_office_terms.represented_country_name_snapshot is
+  'Frozen country name on terminal transition, if this officeholder represented a country.';
+
 create index if not exists world_office_terms_completed_history_idx
   on public.world_office_terms(office_id, started_at desc, id desc)
   where status in ('ended', 'removed', 'resigned')
@@ -49,8 +154,9 @@ begin
     select
       t.id,
       office.id as office_id,
-      office.title as office_title,
-      holder.display_name as holder_name,
+      t.office_title_snapshot as office_title,
+      t.holder_display_name_snapshot as holder_name,
+      t.represented_country_name_snapshot as represented_country_name,
       t.term_kind,
       t.status,
       t.started_at,
@@ -61,7 +167,6 @@ begin
     from public.world_office_terms t
     join public.world_organization_offices office on office.id = t.office_id
     join organization o on o.id = office.organization_id
-    join public.delegation_people holder on holder.id = t.holder_person_id
     left join public.editions start_edition on start_edition.id = t.start_edition_id
     left join public.editions end_edition on end_edition.id = t.end_edition_id
     where t.status in ('ended', 'removed', 'resigned')
@@ -102,6 +207,7 @@ begin
           'officeId', p.office_id,
           'officeTitle', p.office_title,
           'holderDisplayName', p.holder_name,
+          'representedCountryName', p.represented_country_name,
           'termKind', p.term_kind,
           'status', p.status,
           'startedAt', p.started_at,
