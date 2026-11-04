@@ -145,7 +145,8 @@ export function WorldPublicDocumentReader({
   organizationSlug, documentSlug, version,
 }: { organizationSlug: string; documentSlug: string; version?: number }) {
   const [find, setFind] = useState("");
-  const valid = isWorldDocumentSlug(organizationSlug) && isWorldDocumentSlug(documentSlug);
+  const valid = isWorldDocumentSlug(organizationSlug) && isWorldDocumentSlug(documentSlug)
+    && (version === undefined || (Number.isSafeInteger(version) && version > 0));
   const query = useQuery({
     queryKey: ["world", "public-document", organizationSlug, documentSlug, version ?? "current"],
     enabled: valid,
