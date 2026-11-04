@@ -63,6 +63,9 @@ export function auditV3ProductionMigrationFrontier(
     if (migration.name !== undefined && typeof migration.name !== "string") {
       errors.push(`Hosted migration ${migration.version} has a non-string name`);
     }
+    if (migration.version > cutover && (!migration.name || typeof migration.name !== "string")) {
+      errors.push(`Hosted post-cutover migration ${migration.version} lacks name evidence`);
+    }
     hosted.set(migration.version, migration);
   }
 
