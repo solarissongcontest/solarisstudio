@@ -23,7 +23,10 @@ describe("Organizer Confirmation detail edition isolation", () => {
     const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
     expect(source).not.toContain("await syncSnapshot(detail)");
     expect(source).toContain("async function manualSync()");
-    expect(source).toContain("const result = await syncSnapshot(data)");
+    expect(source).toContain("const result = await syncSnapshot(liveDetail)");
+    expect(source).toContain('const fresh = await confirmationsSupabase.rpc("admin_confirmation_response", {');
+    expect(source).toContain("JSON.stringify(liveDetail) !== reviewedSnapshot");
+    expect(source).toContain("if (!isStillCurrent())");
   });
 
   it("rejects wrong-edition response details before loading private technical data", () => {
