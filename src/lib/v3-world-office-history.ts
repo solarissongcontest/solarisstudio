@@ -99,7 +99,7 @@ export function parsePublicOfficeHistoryPage(
     const status = text(row?.status);
     const startedAt = text(row?.startedAt);
     const actualEndAt = text(row?.actualEndAt);
-    if (!row || !text(row.id) || !text(row.officeId)
+    if (!row || !UUID_PATTERN.test(text(row.id)) || !UUID_PATTERN.test(text(row.officeId))
         || !text(row.officeTitle) || !text(row.holderDisplayName)
         || !["ended", "removed", "resigned"].includes(status)
         || !startedAt || !actualEndAt
@@ -122,6 +122,15 @@ export function parsePublicOfficeHistoryPage(
       endEditionNumber: edition(row.endEditionNumber),
     };
   });
+  // A forged or defective cursor could make infinite-query replay the same
+  // public page indefinitely. Never trust an unbound continuation token.
+  if (new Set(terms.map((term) => term.id)).size !== terms.length
+      || (root.hasMore && (
+        terms.at(-1)?.id !== nextCursor?.termId
+        || terms.at(-1)?.startedAt !== nextCursor?.startedAt
+      ))) {
+    throw new Error("Invalid public office history continuation");
+  }
   return {
     organization: { slug, shortName: text(org.shortName), officialName: text(org.officialName) },
     offices,
