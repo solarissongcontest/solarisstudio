@@ -53,15 +53,12 @@ EDITION_ID='00000000-0000-4000-8000-00000000ed27'
 SHOW_ID='00000000-0000-4000-8000-00000000ab27'
 RESULT_ID='00000000-0000-4000-8000-00000000bc27'
 
-cleanup() {
-  db_exec "delete from public.results where id='$RESULT_ID';" || true
-  db_exec "delete from public.shows where id='$SHOW_ID';" || true
-  db_exec "delete from public.editions where id='$EDITION_ID';" || true
-  db_exec "delete from public.countries where id='$COUNTRY_ID';" || true
-}
-trap cleanup EXIT
-
-cleanup
+# This rehearsal runs only in a disposable locally reset Supabase instance.
+# Its captured result versions are immutable historical evidence: never disable
+# integrity guards or delete them merely for fixture teardown. Local Docker
+# resources are disposed by the workflow; running twice requires a fresh reset.
+[[ "$(db_value "select count(*) from public.countries where id='$COUNTRY_ID';")" == '0' ]] ||
+  fail "Fixture identities already exist: reset the isolated local database before rehearing"
 
 log "Seeding one published Result with split layers initially hidden"
 db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_ID','Voting DNA Boundary Country','V27');"
@@ -72,8 +69,8 @@ db_exec "insert into public.studio2_result_operations(show_id,edition_id,calcula
 [[ "$(db_value "select count(*) from private.v3_result_versions where show_id='$SHOW_ID' and version=1;")" == '1' ]] || fail "Immutable result version not captured before publication"
 publish_layers '{"results":true,"jury_results":false,"televote_results":false,"detailed_voting":false}'
 
-[[ "$(db_value "select prosecdef::text from pg_proc where oid='public.v3_public_country_voting_dna(uuid)'::regprocedure;")" == 't' ]] || fail "Voting DNA projection must remain SECURITY DEFINER"
-[[ "$(db_value "select prosecdef::text from pg_proc where oid='public.public_country_voting_dna(uuid)'::regprocedure;")" == 'f' ]] || fail "Legacy Voting DNA must stay SECURITY INVOKER so raw Results RLS cannot be bypassed"
+[[ "$(db_value "select prosecdef::text from pg_proc where oid='public.v3_public_country_voting_dna(uuid)'::regprocedure;")" == 'true' ]] || fail "Voting DNA projection must remain SECURITY DEFINER"
+[[ "$(db_value "select prosecdef::text from pg_proc where oid='public.public_country_voting_dna(uuid)'::regprocedure;")" == 'false' ]] || fail "Legacy Voting DNA must stay SECURITY INVOKER so raw Results RLS cannot be bypassed"
 [[ "$(db_value "select coalesce(array_to_string(proconfig, ','),'') from pg_proc where oid='public.v3_public_country_voting_dna(uuid)'::regprocedure;")" == 'search_path=""' ]] || fail "Voting DNA projection search_path is not fixed to empty"
 
 for role in anon authenticated; do

@@ -253,6 +253,12 @@ describe("V3 Public Voting DNA System publication boundary", () => {
     expect(rehearsal).toContain("for role in anon authenticated; do");
     expect(rehearsal).toContain("set local role ${role};");
     expect(rehearsal).toContain("Voting DNA projection must remain SECURITY DEFINER");
+    // PostgreSQL boolean::text yields "true"/"false", not psql's t/f display.
+    expect(rehearsal).toContain("== 'true' ]] || fail \"Voting DNA projection");
+    expect(rehearsal).toContain("== 'false' ]] || fail \"Legacy Voting DNA");
+    expect(rehearsal).toContain("reset the isolated local database");
+    expect(rehearsal).not.toContain("trap cleanup EXIT");
+    expect(rehearsal).not.toContain("delete from private.v3_result_versions");
     // Exercise the real S3 reviewed/locked/reveal-ready publication state.
     expect(rehearsal).toContain("insert into public.studio2_result_operations");
     expect(rehearsal).toContain("private.v3_result_versions");
