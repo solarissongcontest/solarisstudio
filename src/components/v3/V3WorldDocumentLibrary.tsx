@@ -40,6 +40,7 @@ function DocumentIndexRow({ item }: { item: WorldDocumentIndexRow }) {
     <Link
       to="/world/documents/$organization/$document"
       params={{ organization: item.organizationSlug, document: item.slug }}
+      search={{ version: undefined }}
       className="group flex min-h-24 items-start gap-4 border-b border-border/70 py-4 outline-offset-4 transition-colors hover:text-primary focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-primary"
     >
       <span className="mt-1 flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-hidden="true">
@@ -350,7 +351,7 @@ export function WorldDocumentReaderScreen({
           <section className="py-10">
             <h2 className="text-lg font-semibold">This public version is unavailable</h2>
             <p className="mt-2 text-sm text-muted-foreground">The record may not exist, may be unpublished, or may not be public. Browse the document library for available records.</p>
-            <Link to="/world/documents" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary">Browse published documents</Link>
+            <Link to="/world/documents" search={{ q: "", organization: "" }} className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary">Browse published documents</Link>
           </section>
         ) : (
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_14rem] xl:grid-cols-[13rem_minmax(0,1fr)_14rem]">
@@ -370,7 +371,7 @@ export function WorldDocumentReaderScreen({
                 {currentVersion && currentVersion.versionNumber !== detail.version.versionNumber && (
                   <p className="mt-4 border-l-2 border-primary pl-3 text-sm text-muted-foreground">
                     You are reading a historical version.{" "}
-                    <Link to="/world/documents/$organization/$document" params={{ organization, document }} className="font-semibold text-primary underline-offset-4 hover:underline">View the current published version</Link>.
+                    <Link to="/world/documents/$organization/$document" params={{ organization, document }} search={{ version: undefined }} className="font-semibold text-primary underline-offset-4 hover:underline">View the current published version</Link>.
                   </p>
                 )}
               </div>
