@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { WorldDirectory } from "@/components/world/WorldPublic";
+import { WorldDirectory, WorldPublicGate } from "@/components/world/WorldPublic";
 
 export const Route = createFileRoute("/world/organizations/")({
   head: () => ({
@@ -9,5 +9,9 @@ export const Route = createFileRoute("/world/organizations/")({
     ],
     links: [{ rel: "canonical", href: "https://studio.solaris-song-contest.workers.dev/world/organizations" }],
   }),
-  component: WorldDirectory,
+  component: WorldDirectoryRoute,
 });
+
+function WorldDirectoryRoute() {
+  return <WorldPublicGate><WorldDirectory /></WorldPublicGate>;
+}
