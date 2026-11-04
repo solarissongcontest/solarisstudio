@@ -174,6 +174,8 @@ main().catch(error => {
     'Missing or duplicate per-asset clearance',
     'Private asset clearance must retain private visibility',
     'Public restore requires existing canonical publication and media validation evidence',
+    'Legacy public asset must pass Solaris image MIME policy',
+    'Legacy public asset exceeds Solaris media validation ceiling',
     'Missing explicit production write acknowledgment',
     'Missing protected approval signing key',
     'Invalid, expired or mismatched recovery authorization',
