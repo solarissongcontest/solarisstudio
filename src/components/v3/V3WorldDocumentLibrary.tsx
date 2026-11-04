@@ -430,6 +430,16 @@ export function WorldDocumentReaderScreen({
               )}
             </article>
             <aside className="min-w-0 space-y-7 border-t border-border pt-6 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
+              {(detail.version.publicationState === "published" || detail.version.publicationState === "superseded") && (
+                <Link
+                  to="/world/documents/$organization/$document/print"
+                  params={{ organization, document }}
+                  search={{ version: detail.version.versionNumber }}
+                  className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 text-sm font-semibold text-primary hover:bg-surface/70"
+                >
+                  Print or save this Version as PDF
+                </Link>
+              )}
               <nav aria-label="Document versions">
                 <h3 className="text-xs font-bold uppercase tracking-[0.13em] text-muted-foreground">Version history</h3>
                 {detail.history.length === 0 ? (
