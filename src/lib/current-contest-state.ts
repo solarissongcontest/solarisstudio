@@ -231,10 +231,12 @@ export function resolvePublicEditionState({
   const lifecycle = normalizeLegacyEditionStatus(edition.status);
   const editionShows = shows.filter((show) => show.edition_id === edition.id);
 
-  const phase = exactLiveShow(editionShows)
-    ? "live"
-    : isTerminalLifecycle(lifecycle)
-      ? "post_edition"
+  // Historical completion is authoritative. A stale show runtime flag must
+  // never resurrect Live on an archived or completed edition.
+  const phase = isTerminalLifecycle(lifecycle)
+    ? "post_edition"
+    : exactLiveShow(editionShows)
+      ? "live"
       : finalResultPublished(edition, editionShows, results)
         ? "results_published"
         : phaseFromLifecycle(lifecycle);
