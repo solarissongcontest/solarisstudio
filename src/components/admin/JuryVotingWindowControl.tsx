@@ -1,13 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ExternalLink, LockKeyhole, RadioTower, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminCard, AdminConfirmSheet, AdminStatus } from "@/components/admin/AdminUI";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { useEdition, useShows } from "@/lib/data";
 import { resolveVoting } from "@/lib/voting";
+import {
+  isJuryWindowReviewScopeCurrent,
+  resolveJuryWindowReadState,
+  selectJuryWindowShow,
+} from "@/lib/jury-window-control-state";
 import { useOrganisationBackendContract } from "@/lib/organisation-backend-contract";
 
 const supabase = typedSupabase as any;
@@ -53,7 +58,12 @@ export function JuryVotingWindowControl() {
   const matchedSlug = match?.[1];
   const slug = matchedSlug ? decodeURIComponent(matchedSlug) : null;
   const { data: edition } = useEdition(slug ?? "");
-  const { data: shows = [] } = useShows(edition?.id);
+  const {
+    data: shows = [],
+    isLoading: showsLoading,
+    isError: showsError,
+    refetch: refetchShows,
+  } = useShows(edition?.id);
   const queryClient = useQueryClient();
   const backend = useOrganisationBackendContract();
   const juryOperationsSupported =
@@ -65,10 +75,16 @@ export function JuryVotingWindowControl() {
       ? (location.search as Record<string, unknown>).show
       : null;
   const orderedShows = [...shows].sort((a, b) => a.sort_order - b.sort_order);
-  const selectedShow =
-    orderedShows.find((show) => show.id === searchShow) ?? orderedShows[0] ?? null;
+  const requestedShowId = typeof searchShow === "string" ? searchShow : null;
+  const selectedShow = selectJuryWindowShow(orderedShows, requestedShowId);
 
-  const { data: windows = [], isLoading } = useQuery<WindowRow[]>({
+  // A reviewed R2 operation belongs to one exact edition/show. Never retain
+  // its confirmation across a context switch, even within the same route.
+  useEffect(() => {
+    setPendingChange(null);
+  }, [edition?.id, selectedShow?.id]);
+
+  const { data: windows, isLoading, isError, isRefetchError, refetch } = useQuery<WindowRow[]>({
     enabled: Boolean(edition?.id && slug),
     queryKey: ["jury-voting-windows", edition?.id],
     queryFn: async () => {
@@ -82,6 +98,23 @@ export function JuryVotingWindowControl() {
     staleTime: 5_000,
   });
 
+  const windowState = resolveJuryWindowReadState({
+    editionId: edition?.id,
+    showId: selectedShow?.id,
+    rows: windows,
+    isLoading,
+    hasError: isError || isRefetchError,
+  });
+  const windowReady = windowState === "open" || windowState === "closed";
+  const currentPendingChange =
+    windowReady &&
+    isJuryWindowReviewScopeCurrent(pendingChange?.preview, {
+      editionId: edition?.id,
+      showId: selectedShow?.id,
+    })
+      ? pendingChange
+      : null;
+
   const previewStatus = useMutation({
     mutationFn: async (status: "open" | "closed") => {
       if (!juryOperationsSupported) {
@@ -89,20 +122,43 @@ export function JuryVotingWindowControl() {
           "The production database does not yet support the safe jury-window operation contract.",
         );
       }
-      if (!selectedShow) throw new Error("Choose a show first");
+      if (!selectedShow || !edition?.id) throw new Error("Choose an edition and show first");
+      if (!windowReady) {
+        throw new Error("The current jury-window status could not be verified. Retry the status check.");
+      }
       const { data, error } = await supabase.rpc("studio2_jury_window_change_preview", {
         p_show_id: selectedShow.id,
         p_status: status,
       });
       if (error) throw error;
+      const preview = data as JuryWindowPreview;
+      if (
+        !isJuryWindowReviewScopeCurrent(preview, {
+          editionId: edition.id,
+          showId: selectedShow.id,
+        }) ||
+        preview.requestedStatus !== status
+      ) {
+        throw new Error("The jury-window preview did not match the selected edition, show or action.");
+      }
       return {
         status,
-        preview: data as JuryWindowPreview,
+        preview,
         operationId: crypto.randomUUID(),
         idempotencyKey: crypto.randomUUID(),
       } satisfies PendingWindowChange;
     },
     onSuccess: (pending) => {
+      if (
+        !isJuryWindowReviewScopeCurrent(pending.preview, {
+          editionId: edition?.id,
+          showId: selectedShow?.id,
+        })
+      ) {
+        setPendingChange(null);
+        toast.error("The selected jury show changed. Review the new context before making changes.");
+        return;
+      }
       if (pending.preview.alreadyApplied) {
         setPendingChange(null);
         toast.message(
@@ -121,6 +177,15 @@ export function JuryVotingWindowControl() {
 
   const setStatus = useMutation({
     mutationFn: async (pending: PendingWindowChange) => {
+      if (
+        !windowReady ||
+        !isJuryWindowReviewScopeCurrent(pending.preview, {
+          editionId: edition?.id,
+          showId: selectedShow?.id,
+        })
+      ) {
+        throw new Error("Jury context or status changed. Load and review a new operation.");
+      }
       const { data, error } = await supabase.rpc("studio2_apply_jury_voting_status", {
         p_show_id: pending.preview.showId,
         p_status: pending.status,
@@ -145,10 +210,44 @@ export function JuryVotingWindowControl() {
     },
   });
 
-  if (!slug || !edition || !selectedShow) return null;
+  if (!slug || !edition) return null;
 
-  const window = windows.find((row) => row.show_id === selectedShow.id) ?? null;
-  const open = window?.status === "open";
+  if (requestedShowId?.trim() && !selectedShow) {
+    return (
+      <AdminCard strong className="mb-4">
+        <p role="alert" className="text-sm text-rose-100">
+          {showsLoading
+            ? "Checking the selected jury show…"
+            : showsError
+              ? "Solaris could not verify the shows in this edition. Jury-window operations remain disabled."
+              : "This jury voting link refers to a show that does not belong to the selected edition. No voting-window operation is available for this link."}
+        </p>
+        {!showsLoading && showsError ? (
+          <button
+            type="button"
+            className="admin-action-secondary mt-3 !min-h-10"
+            onClick={() => void refetchShows()}
+          >
+            Retry show lookup
+          </button>
+        ) : null}
+        {!showsLoading && !showsError ? (
+          <Link
+            to="/admin/jury/$slug"
+            params={{ slug }}
+            search={{}}
+            className="admin-action-secondary mt-3 inline-flex !min-h-10"
+          >
+            Choose an edition show
+          </Link>
+        ) : null}
+      </AdminCard>
+    );
+  }
+
+  if (!selectedShow) return null;
+
+  const open = windowState === "open";
   const voting = resolveVoting(selectedShow.voting_config);
 
   return (
@@ -158,7 +257,13 @@ export function JuryVotingWindowControl() {
           <div className="flex flex-wrap items-center gap-2">
             <p className="admin-section-label">Country-account jury voting</p>
             <AdminStatus tone={open ? "ready" : "neutral"}>
-              {isLoading ? "Checking…" : open ? "Open" : "Closed"}
+              {windowState === "checking"
+                ? "Checking…"
+                : windowState === "unavailable"
+                  ? "Status unavailable"
+                  : open
+                    ? "Open"
+                    : "Closed"}
             </AdminStatus>
           </div>
           <h2 className="mt-1 text-base font-bold text-foreground">{selectedShow.name}</h2>
@@ -187,7 +292,8 @@ export function JuryVotingWindowControl() {
               disabled={
                 previewStatus.isPending ||
                 setStatus.isPending ||
-                !juryOperationsSupported
+                !juryOperationsSupported ||
+                !windowReady
               }
               onClick={() => previewStatus.mutate("closed")}
             >
@@ -201,7 +307,8 @@ export function JuryVotingWindowControl() {
                 previewStatus.isPending ||
                 setStatus.isPending ||
                 !voting.juryEnabled ||
-                !juryOperationsSupported
+                !juryOperationsSupported ||
+                !windowReady
               }
               onClick={() => previewStatus.mutate("open")}
             >
@@ -210,6 +317,22 @@ export function JuryVotingWindowControl() {
           )}
         </div>
       </div>
+
+      {windowState === "unavailable" ? (
+        <div role="alert" className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200/15 bg-rose-200/[0.05] p-3 text-xs text-rose-100">
+          <span>
+            The authoritative jury-window state could not be verified. Opening and closing are
+            disabled until the selected edition and show have been checked successfully.
+          </span>
+          <button
+            type="button"
+            className="admin-action-secondary !min-h-10"
+            onClick={() => void refetch()}
+          >
+            Retry status check
+          </button>
+        </div>
+      ) : null}
 
       {!voting.juryEnabled ? (
         <p className="mt-3 rounded-xl border border-amber-200/10 bg-amber-200/[0.045] p-3 text-xs text-amber-100">
@@ -224,34 +347,34 @@ export function JuryVotingWindowControl() {
       ) : null}
 
       <AdminConfirmSheet
-        open={Boolean(pendingChange)}
+        open={Boolean(currentPendingChange)}
         onClose={() => {
           if (!setStatus.isPending) setPendingChange(null);
         }}
         onConfirm={async () => {
-          if (pendingChange) await setStatus.mutateAsync(pendingChange);
+          if (currentPendingChange) await setStatus.mutateAsync(currentPendingChange);
         }}
         title={
-          pendingChange?.status === "open"
+          currentPendingChange?.status === "open"
             ? "Open country-account jury voting?"
             : "Close country-account jury voting?"
         }
         description={
-          pendingChange ? (
-            <JuryWindowImpactPreview pending={pendingChange} />
+          currentPendingChange ? (
+            <JuryWindowImpactPreview pending={currentPendingChange} />
           ) : (
             "Review the jury-window impact before continuing."
           )
         }
-        confirmLabel={pendingChange?.status === "open" ? "Open jury voting" : "Close jury voting"}
-        confirmationText={pendingChange?.preview.showName}
+        confirmLabel={currentPendingChange?.status === "open" ? "Open jury voting" : "Close jury voting"}
+        confirmationText={currentPendingChange?.preview.showName}
         confirmationHint={
-          pendingChange
-            ? `Type ${pendingChange.preview.showName} to confirm this R2 voting-window change`
+          currentPendingChange
+            ? `Type ${currentPendingChange.preview.showName} to confirm this R2 voting-window change`
             : undefined
         }
         busy={setStatus.isPending}
-        danger={pendingChange?.status === "closed"}
+        danger={currentPendingChange?.status === "closed"}
       />
     </AdminCard>
   );
