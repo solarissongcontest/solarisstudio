@@ -683,6 +683,97 @@ grant execute on function public.world_revoke_proxy_v1(uuid,bigint,text,uuid,tex
 comment on function public.world_revoke_proxy_v1(uuid,bigint,text,uuid,text,uuid) is
   'TG6 immediately revoke an unexpired acting proxy using current country control or institutionally scoped approval authority, CAS and R2 receipt; no ballot authority granted.';
 
+-- Participant proxy nomination draws only from REAL durable-person evidence
+-- for the requesting country. Global public representative rosters are not a
+-- suitable substitute: they can contain unrelated countries and do not prove
+-- an acting person belongs to this delegation. This is a private projection.
+create or replace function public.world_my_proxy_candidates_v1(
+  p_representation_id uuid
+)
+returns jsonb language plpgsql stable security definer
+set search_path = pg_catalog
+as $candidates$
+declare
+  v_rep public.world_organization_representations%rowtype;
+  v_actor uuid := auth.uid();
+  v_items jsonb;
+begin
+  if v_actor is null or p_representation_id is null then
+    return null;
+  end if;
+
+  select * into v_rep
+  from public.world_organization_representations
+  where id=p_representation_id
+    and ends_at is null
+    and voting_authority
+    and role='representative';
+
+  if v_rep.id is null
+     or not (
+       coalesce(v_rep.user_id=v_actor,false)
+       or exists (
+         select 1 from public.country_accounts account_row
+         where account_row.country_id=v_rep.country_id
+           and account_row.user_id=v_actor
+           and account_row.status='active'
+       )
+     )
+     or not public.world_access_allowed(
+       'world.proxy.request',
+       v_rep.organization_id,v_rep.country_id,
+       null,'representation',v_rep.id
+     )
+     or not exists (
+       select 1 from public.world_organization_memberships member_row
+       where member_row.organization_id=v_rep.organization_id
+         and member_row.country_id=v_rep.country_id
+         and member_row.ended_at is null
+         and member_row.status='member'
+     )
+  then
+    return null;
+  end if;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'personId',row.person_id,
+    'displayName',row.display_name
+  ) order by row.display_name,row.person_id),'[]'::jsonb)
+  into v_items
+  from (
+    select person_row.id as person_id,person_row.display_name
+    from public.delegation_people person_row
+    join (
+      select assignment.person_id
+      from public.delegation_hod_assignments assignment
+      where assignment.country_id=v_rep.country_id
+      union
+      select term_row.person_id
+      from public.world_country_control_terms term_row
+      where term_row.country_id=v_rep.country_id
+    ) proven on proven.person_id=person_row.id
+    where person_row.id <> v_rep.person_id
+      and length(btrim(person_row.display_name)) > 0
+    order by person_row.display_name,person_row.id
+    limit 40
+  ) row;
+
+  return jsonb_build_object(
+    'representationId',v_rep.id,
+    'revision',v_rep.revision,
+    'candidates',v_items
+  );
+end
+$candidates$;
+
+revoke all on function public.world_my_proxy_candidates_v1(uuid)
+  from public,anon,authenticated;
+grant execute on function public.world_my_proxy_candidates_v1(uuid)
+  to authenticated,service_role;
+
+comment on function public.world_my_proxy_candidates_v1(uuid) is
+  'TG6 bounded private proxy candidate roster for a current member representative or controlled country. Only person IDs/names with same-country HoD/control history proof; no linked auth identifiers or invented person matches.';
+
 revoke all on function public.world_request_proxy_v1(
   uuid,uuid,uuid,timestamptz,timestamptz,text,bigint,uuid,text,uuid
 ) from public,anon,authenticated;
