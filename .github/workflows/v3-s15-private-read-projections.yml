@@ -25,6 +25,18 @@ jobs:
       V3_CLEANUP_TARGET: local
       V3_SERVICE_ROLE_SCOPE: local
       LOCAL_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      VITE_SUPABASE_PROJECT_ID: local
+      VITE_SUPABASE_PROJECT_REF: local
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
     steps:
       - name: Checkout exact pushed commit
         uses: actions/checkout@v4
@@ -87,6 +99,19 @@ jobs:
             echo "::error::No S15 runtime projection rehearsal found"
             exit 1
           fi
+
+      - name: Generate typed TanStack routes in local-only build
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f src/routeTree.gen.ts
+          bun run build
+          test -s src/routeTree.gen.ts
+          if git ls-files --error-unmatch src/routeTree.gen.ts >/dev/null 2>&1; then
+            echo "::error::Generated route tree must remain untracked"
+            exit 1
+          fi
+          git check-ignore -q src/routeTree.gen.ts
 
       - name: Lint and typecheck combined S15 contracts
         shell: bash
