@@ -27,16 +27,20 @@ describe("Public V3 country current-entry semantics", () => {
     const source = read("src/integrations/v3/delegation-source.server.ts");
 
     expect(source).toContain('throwIfError(editionsResult.error, "Could not resolve the current public Solaris edition")');
-    expect(source).toContain("currentEditionId\n      ?");
-    expect(source).toContain(": null,");
+    expect(source).toContain("currentEntry: currentEditionId");
+    expect(source).toContain("entries.find((entry) => entry.editionId === currentEditionId)");
+    expect(source).toMatch(/currentEntry:\s*currentEditionId[\s\S]*?: null,/);
+    expect(source).not.toContain("currentEntry: entries[0]");
   });
 
-  it("keeps result and voting authority out of the delegation source", () => {
+  it("keeps raw result and voting authority out of the delegation source", () => {
     const source = read("src/integrations/v3/delegation-source.server.ts");
 
+    expect(source).toContain("loadV3ResultsBundle()");
     expect(source).not.toContain('.from("results")');
     expect(source).not.toContain('.from("jury_votes")');
     expect(source).not.toContain('.from("televotes")');
+    expect(source).not.toContain('.from("televote_votes")');
     expect(source).not.toContain(".insert(");
     expect(source).not.toContain(".update(");
   });

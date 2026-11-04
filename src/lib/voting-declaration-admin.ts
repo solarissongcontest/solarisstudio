@@ -1,5 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
+import {
+  readTabScopedEdition,
+  SOLARIS_TAB_EDITION_KEY,
+} from "@/lib/solaris-v6-edition-context";
 
 export type VotingDeclarationState =
   | "required"
@@ -10,6 +14,8 @@ export type VotingDeclarationState =
 
 export type VotingDeclarationInvalidationPreview = {
   id: string;
+  editionId: string;
+  expectedEditionId: string;
   state: VotingDeclarationState;
   declarationVersion: number;
   statementVersion: number;
@@ -28,6 +34,7 @@ export type VotingDeclarationInvalidationReceipt = {
   ok: true;
   alreadyApplied: boolean;
   id: string;
+  editionId: string;
   state: "invalidated";
   version: number;
   operationId: string | null;
@@ -89,6 +96,18 @@ function stateValue(value: unknown): VotingDeclarationState {
   return value;
 }
 
+function currentOrganizerEditionId() {
+  if (typeof window === "undefined") {
+    throw new Error("Voting declaration operations require an active Organizer browser context.");
+  }
+
+  const editionId = readTabScopedEdition(window.sessionStorage, SOLARIS_TAB_EDITION_KEY);
+  if (!editionId) {
+    throw new Error("Choose an Organizer edition before changing a voting declaration.");
+  }
+  return editionId;
+}
+
 async function rpc(name: string, args: Record<string, unknown> = {}) {
   const client = supabase as unknown as {
     rpc: (
@@ -104,15 +123,19 @@ async function rpc(name: string, args: Record<string, unknown> = {}) {
 export async function previewVotingDeclarationInvalidation(
   preflightId: string,
 ): Promise<VotingDeclarationInvalidationPreview> {
+  const editionId = currentOrganizerEditionId();
   const row = record(
     await rpc("studio2_voting_declaration_invalidation_preview", {
       p_preflight_id: preflightId,
+      p_expected_edition_id: editionId,
     }),
     "voting declaration invalidation preview",
   );
 
   const preview: VotingDeclarationInvalidationPreview = {
     id: text(row.id, "declaration id"),
+    editionId: text(row.editionId, "declaration edition id"),
+    expectedEditionId: text(row.expectedEditionId, "reviewed Organizer edition id"),
     state: stateValue(row.state),
     declarationVersion: nonNegativeInteger(row.declarationVersion, "declaration version"),
     statementVersion: nonNegativeInteger(row.statementVersion, "statement version"),
@@ -133,6 +156,9 @@ export async function previewVotingDeclarationInvalidation(
   if (preview.id !== preflightId) {
     throw new Error("Voting declaration preview returned evidence for a different declaration.");
   }
+  if (preview.editionId !== editionId || preview.expectedEditionId !== editionId) {
+    throw new Error("Voting declaration preview returned evidence outside the reviewed Organizer edition.");
+  }
   return preview;
 }
 
@@ -142,10 +168,15 @@ export async function applyVotingDeclarationInvalidation(input: {
   operationId?: string;
   idempotencyKey?: string;
 }): Promise<VotingDeclarationInvalidationReceipt> {
+  const editionId = currentOrganizerEditionId();
+  if (input.preview.editionId !== editionId || input.preview.expectedEditionId !== editionId) {
+    throw new Error("Organizer edition context changed after this voting declaration was reviewed.");
+  }
+
   const command = createOrganisationCommand({
     command: "integrity.declaration.invalidate",
     riskClass: "R2",
-    scope: { entityId: input.preview.id },
+    scope: { editionId, entityId: input.preview.id },
     payload: { reason: input.reason },
     expectedVersion: input.preview.declarationVersion,
     operationId: input.operationId,
@@ -155,6 +186,7 @@ export async function applyVotingDeclarationInvalidation(input: {
   const row = record(
     await rpc("studio2_apply_voting_declaration_invalidation", {
       p_preflight_id: input.preview.id,
+      p_expected_edition_id: editionId,
       p_reason: input.reason,
       p_operation_id: command.operationId,
       p_idempotency_key: command.idempotencyKey,
@@ -174,6 +206,10 @@ export async function applyVotingDeclarationInvalidation(input: {
   if (id !== input.preview.id) {
     throw new Error("Voting declaration invalidation returned a receipt for a different declaration.");
   }
+  const receiptEditionId = text(row.editionId, "declaration receipt edition id");
+  if (receiptEditionId !== editionId) {
+    throw new Error("Voting declaration invalidation returned a receipt for a different Organizer edition.");
+  }
   const state = stateValue(row.state);
   if (state !== "invalidated") {
     throw new Error("Voting declaration invalidation returned an unexpected declaration state.");
@@ -191,6 +227,7 @@ export async function applyVotingDeclarationInvalidation(input: {
     ok: true,
     alreadyApplied,
     id,
+    editionId: receiptEditionId,
     state: "invalidated",
     version,
     operationId,

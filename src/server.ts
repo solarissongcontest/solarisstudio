@@ -3,6 +3,11 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import {
+  attachMaintenanceFreshness,
+  MAINTENANCE_FRESHNESS_PATH,
+  maintenanceFreshnessResponse,
+} from "./lib/maintenance-freshness";
+import {
   GLOBAL_MAINTENANCE_MODE,
   isMaintenanceHodAppRouteAllowed,
   maintenanceHodAccessEnabled,
@@ -15,6 +20,11 @@ type ServerEntry = {
 };
 
 type ServerEnv = {
+  CF_VERSION_METADATA?: {
+    id?: string;
+    tag?: string;
+    timestamp?: string;
+  };
   MAINTENANCE_ADMIN_SECRET?: string;
   MAINTENANCE_HOD_ACCESS?: string;
   SUPABASE_URL?: string;
@@ -39,6 +49,10 @@ const MAINTENANCE_ASSET_PATHS = new Set([
   "/tsbc-maintenance-mark.svg",
   "/solaris-studio-mark.png",
   "/solaris-background.webp",
+  "/solaris-studio-social.jpg",
+  "/terraos-maintenance/blue-motion.svg",
+  "/terraos-maintenance/live-stage.svg",
+  "/terraos-maintenance/purple-tunnel.svg",
   "/favicon.ico",
   "/apple-touch-icon.png",
   "/icon-192.png",
@@ -80,6 +94,11 @@ function serverEnv(env: unknown) {
 function maintenanceSecret(env: unknown) {
   const workerEnv = serverEnv(env);
   return workerEnv?.MAINTENANCE_ADMIN_SECRET ?? process.env.MAINTENANCE_ADMIN_SECRET ?? "";
+}
+
+function maintenanceDeploymentVersion(env: unknown) {
+  const metadata = serverEnv(env)?.CF_VERSION_METADATA;
+  return metadata?.id ?? metadata?.tag ?? metadata?.timestamp ?? "unversioned";
 }
 
 function maintenanceHodRuntime(env: unknown) {
@@ -317,6 +336,28 @@ function handleMaintenanceAdminLogout(request: Request) {
   });
 }
 
+function isolateMaintenanceHodPortalMarkup(portal: string) {
+  const desktopMedia = "  @media (min-width: 1100px) {";
+  const hodDesktopStart = "    .hod-portal {";
+  const legacyStoryStart = "\n    .product-story {";
+  const tabletMedia = "\n  @media (min-width: 641px) and (max-width: 1099px)";
+
+  let isolated = portal;
+  const desktopIndex = isolated.indexOf(desktopMedia);
+  const hodIndex = isolated.indexOf(hodDesktopStart, Math.max(0, desktopIndex));
+  if (desktopIndex >= 0 && hodIndex > desktopIndex) {
+    isolated = isolated.slice(0, desktopIndex) + desktopMedia + "\n" + isolated.slice(hodIndex);
+  }
+
+  const storyIndex = isolated.indexOf(legacyStoryStart, Math.max(0, desktopIndex));
+  const tabletIndex = isolated.indexOf(tabletMedia, Math.max(0, storyIndex));
+  if (storyIndex >= 0 && tabletIndex > storyIndex) {
+    isolated = isolated.slice(0, storyIndex) + "\n  }\n" + isolated.slice(tabletIndex);
+  }
+
+  return isolated;
+}
+
 function maintenanceResponse(request: Request, env: unknown, includeHodPortal: boolean) {
   const headers = {
     "cache-control": "no-store, max-age=0",
@@ -326,14 +367,17 @@ function maintenanceResponse(request: Request, env: unknown, includeHodPortal: b
 
   if (request.method === "GET" || request.method === "HEAD") {
     let html = renderMaintenancePage();
+    if (new URL(request.url).pathname !== "/") {
+      html = html.replaceAll('href="#confirmation-access"', 'href="/#confirmation-access"');
+    }
     if (request.method === "GET" && includeHodPortal) {
       const hod = maintenanceHodRuntime(env);
       if (hod.enabled && hod.supabaseUrl && hod.publishableKey) {
-        const portal = renderMaintenanceHodPortal({
+        const portal = isolateMaintenanceHodPortalMarkup(renderMaintenanceHodPortal({
           supabaseUrl: hod.supabaseUrl,
           publishableKey: hod.publishableKey,
-        });
-        html = html.replace("          <footer>", `${portal}\n          <footer>`);
+        }));
+        html = html.replace("<footer>", `${portal}\n<footer>`);
       }
     }
 
@@ -438,6 +482,21 @@ export default {
         return handleMaintenanceAdminLogout(request);
       }
 
+      if (url.pathname === MAINTENANCE_FRESHNESS_PATH) {
+        const hasBypass =
+          GLOBAL_MAINTENANCE_MODE && (await hasValidMaintenanceBypass(request, secret));
+        if (!hasBypass) {
+          return new Response(null, {
+            status: 404,
+            headers: { "cache-control": "no-store, max-age=0" },
+          });
+        }
+        return maintenanceFreshnessResponse(
+          request.method,
+          maintenanceDeploymentVersion(env),
+        );
+      }
+
       const hodAppRouteAllowed = isMaintenanceHodAppRouteAllowed(
         url.pathname,
         request.method,
@@ -445,6 +504,7 @@ export default {
       );
       const teaserPreviewAllowed = isTerraOsTeaserPreviewRequest(url, request.method);
       const maintenanceAppAssetAllowed = isMaintenanceAppAssetPath(url.pathname);
+      let maintenanceAdminBypass = false;
 
       if (
         GLOBAL_MAINTENANCE_MODE &&
@@ -454,7 +514,7 @@ export default {
         !hodAppRouteAllowed
       ) {
         const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
-        const maintenanceAdminBypass =
+        maintenanceAdminBypass =
           !localE2EBypass && (await hasValidMaintenanceBypass(request, secret));
 
         if (!localE2EBypass && !maintenanceAdminBypass) {
@@ -489,7 +549,20 @@ export default {
 
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const normalized = await normalizeCatastrophicSsrResponse(response);
+
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        maintenanceAdminBypass &&
+        request.method === "GET"
+      ) {
+        return await attachMaintenanceFreshness(
+          normalized,
+          maintenanceDeploymentVersion(env),
+        );
+      }
+
+      return normalized;
     } catch (error) {
       console.error(error);
       return errorResponse();

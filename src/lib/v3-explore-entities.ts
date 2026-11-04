@@ -18,6 +18,19 @@ export type V3CountryEntrySummary = Omit<
   editionHref: string | null;
 };
 
+export type V3CountryCurrentResult = {
+  editionId: string;
+  editionLabel: string;
+  editionHref: string | null;
+  showId: string;
+  showName: string;
+  showHref: string;
+  rank: number;
+  points: number;
+  juryPoints: number | null;
+  televotePoints: number | null;
+};
+
 export type V3CountryExploreProjection = {
   kind: 'country';
   code: string;
@@ -28,6 +41,7 @@ export type V3CountryExploreProjection = {
   flag: CountryIdentityModel['flag'];
   colors: CountryIdentityModel['colors'];
   currentEntry: V3CountryEntrySummary | null;
+  currentResult: V3CountryCurrentResult | null;
   participationHistory: readonly V3CountryEntrySummary[];
   actions: CountryIdentityModel['actions'];
   resultsDestination: '/results';
@@ -120,6 +134,7 @@ function entryFromCountryHistory(
 export function buildV3CountryExploreProjection(
   country: CountryIdentityModel,
   editionHrefById: ReadonlyMap<string, string> = new Map(),
+  currentResult: V3CountryCurrentResult | null = null,
 ): V3CountryExploreProjection {
   const code = required(country.code, 'country code');
   const name = required(country.name, 'country name');
@@ -148,6 +163,20 @@ export function buildV3CountryExploreProjection(
     flag: { ...country.flag },
     colors: { ...country.colors },
     currentEntry,
+    currentResult: currentResult
+      ? {
+          editionId: required(currentResult.editionId, 'current result editionId'),
+          editionLabel: required(currentResult.editionLabel, 'current result editionLabel'),
+          editionHref: nullable(currentResult.editionHref),
+          showId: required(currentResult.showId, 'current result showId'),
+          showName: required(currentResult.showName, 'current result showName'),
+          showHref: required(currentResult.showHref, 'current result showHref'),
+          rank: currentResult.rank,
+          points: currentResult.points,
+          juryPoints: currentResult.juryPoints,
+          televotePoints: currentResult.televotePoints,
+        }
+      : null,
     participationHistory: country.history.map((entry) =>
       entryFromCountryHistory(entry, editionHrefById),
     ),

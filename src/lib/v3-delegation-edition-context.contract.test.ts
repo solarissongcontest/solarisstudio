@@ -10,7 +10,10 @@ describe("V3 Delegation Edition context", () => {
     expect(server).toContain('.eq("published", true)');
     expect(server).toContain("const editionHrefById = new Map<string, string>()");
     expect(server).toContain("editionHrefById.set(id, `/editions/${encodeURIComponent(slug)}`)");
-    expect(server).toContain("buildV3CountryExploreProjection(identity, editionHrefById)");
+    expect(server).toContain("projection: buildV3CountryExploreProjection(");
+    expect(server).toContain("profile.identity,");
+    expect(server).toContain("editionHrefById,");
+    expect(server).toContain("currentResult,");
     expect(server).not.toMatch(/editionLabel.*encodeURIComponent|slugify.*editionLabel/i);
   });
 

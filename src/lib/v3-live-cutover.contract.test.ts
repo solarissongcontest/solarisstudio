@@ -47,10 +47,13 @@ describe("Public V3 Live route cutover", () => {
     expect(source).not.toContain("V3BottomNavigation");
   });
 
-  it("preserves reversible fallback when rollout or focused Live data fails", () => {
+  it("preserves reversible initial fallback without discarding cached V3 authority on refetch errors", () => {
     const source = gate();
-    expect(source).toContain("rollout.isError || !rollout.data || !v3Enabled");
-    expect(source).toContain("bundle.isError || !bundle.data");
+    expect(source).toContain("if (!rollout.data || !v3Enabled)");
+    expect(source).toContain("if (!bundle.data)");
+    expect(source).not.toContain("rollout.isError || !rollout.data");
+    expect(source).not.toContain("bundle.isError || !bundle.data");
+    expect(source).toContain("rollout.isError || bundle.isError");
     expect(source.match(/return <>{fallback}<\/>;/g)?.length).toBe(2);
   });
 

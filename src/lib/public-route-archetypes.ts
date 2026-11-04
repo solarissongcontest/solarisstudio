@@ -1,3 +1,5 @@
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
+
 export type PublicRouteArchetype =
   | "home"
   | "hub"
@@ -12,17 +14,11 @@ export type PublicRouteArchetype =
 export function publicRouteArchetype(pathname: string): PublicRouteArchetype {
   if (pathname === "/") return "home";
 
-  if (/^\/integrity\/report(\/|$)/.test(pathname)) return "focused-task";
+  if (resolveSolarisAppScreen(pathname).behavior.criticalTask) return "focused-task";
 
   if (/^\/(guide|rules|integrity)(\/|$)/.test(pathname)) return "reading";
 
   if (/^\/(auth|reset|recover)(\/|$)/.test(pathname)) return "focused-task";
-
-  if (
-    /^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/.test(pathname)
-  ) {
-    return "focused-task";
-  }
 
   if (
     /^\/(analysis|relationships|records|scorecharts|pulse|broadcast-intelligence|result-lab)(\/|$)/.test(

@@ -158,9 +158,33 @@ describe("V3 Explore projection", () => {
     ]);
   });
 
+  it("converges Wiki and Encyclopedia into one discoverable Reference destination", () => {
+    const projection = buildV3ExploreRootProjection(rootInput());
+    expect(projection.archive.links).toEqual([
+      { key: "editions", label: "Editions", href: "/editions/" },
+      { key: "reference", label: "Reference", href: "/wiki" },
+    ]);
+    // A separately gated Reference deployment must not be assumed to be on.
+    // A Wiki compatibility route remains usable until that rollout is available.
+    expect(projection.archive.links).not.toContainEqual(
+      expect.objectContaining({ key: "encyclopedia" }),
+    );
+  });
+
+  it("uses an explicitly enabled canonical Reference route without duplicating the archive choice", () => {
+    const projection = buildV3ExploreRootProjection(
+      rootInput({ routes: { ...routes, reference: "/encyclopedia" } }),
+    );
+    expect(projection.archive.links).toEqual([
+      { key: "editions", label: "Editions", href: "/editions/" },
+      { key: "reference", label: "Reference", href: "/encyclopedia" },
+    ]);
+  });
+
   it("makes core public tools discoverable without exposing Live outside canonical live state", () => {
     const preShow = buildV3ExploreRootProjection(rootInput());
 
+    expect(preShow.currentEdition?.liveHref).toBeNull();
     expect(preShow.more).toEqual([
       { key: "results", label: "Results", href: "/results" },
       { key: "rules", label: "Rules", href: "/rules" },
@@ -174,6 +198,7 @@ describe("V3 Explore projection", () => {
       }),
     );
 
+    expect(live.currentEdition?.liveHref).toBe("/show-mode");
     expect(live.more[0]).toEqual({ key: "live", label: "Live", href: "/show-mode" });
     expect(live.more).toContainEqual({ key: "results", label: "Results", href: "/results" });
     expect(live.more).toContainEqual({ key: "rules", label: "Rules", href: "/rules" });

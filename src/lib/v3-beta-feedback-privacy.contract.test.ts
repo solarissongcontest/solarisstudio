@@ -52,4 +52,21 @@ describe("Public V3 Beta feedback privacy boundary", () => {
     expect(events).not.toContain("message_body");
     expect(events).not.toContain("vote_contents");
   });
+
+  it("honors browser privacy signals and sanitizes diagnostic route identity", () => {
+    const events = read("src/lib/public-ux-events.ts");
+    const privacy = read("src/lib/public-ux-privacy.ts");
+    const metrics = read("src/lib/public-ux-metrics.ts");
+
+    expect(events).toContain("privacyAllowsPublicUxTelemetry()");
+    expect(events).toContain("window.localStorage.removeItem(SESSION_KEY)");
+    expect(events).toContain("sanitizePublicUxPath(window.location.pathname)");
+    expect(events).toContain("sanitizePublicUxTarget(options.target)");
+    expect(privacy).toContain("globalPrivacyControl");
+    expect(privacy).toContain('doNotTrack !== "1"');
+    expect(privacy).toContain("UUID_SEGMENT");
+    expect(privacy).toContain("LONG_SECRETISH_SEGMENT");
+    expect(metrics).toContain("sanitizePublicUxPath(String(item.pathname ?? \"/\"))");
+    expect(metrics).toContain("sanitizePublicUxTarget(String(item?.target ?? \"\"))");
+  });
 });

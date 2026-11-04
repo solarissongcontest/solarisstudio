@@ -1,6 +1,7 @@
 import { Download, Share } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 
 type InstallPromptEvent = Event & {
@@ -19,16 +20,17 @@ function isIOSBrowser() {
   return /iP(?:hone|ad|od)/.test(navigator.userAgent);
 }
 
-function installPromptAllowedOnPath(pathname: string) {
-  return !(
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/confirmations") ||
-    pathname.startsWith("/jury-voting") ||
-    pathname.startsWith("/televoting") ||
-    pathname.startsWith("/next-in-line") ||
-    pathname.startsWith("/broadcast/")
-  );
+export function installPromptAllowedOnPath(pathname: string) {
+  if (
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
+    /^\/(auth|reset|recover)(\/|$)/.test(pathname)
+  ) {
+    return false;
+  }
+
+  const screen = resolveSolarisAppScreen(pathname);
+  return !screen.behavior.criticalTask && !screen.behavior.immersive;
 }
 
 export function AppInstallPrompt({ isAppMode }: { isAppMode: boolean }) {

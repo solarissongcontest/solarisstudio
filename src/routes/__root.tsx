@@ -34,6 +34,7 @@ import { RulesGovernanceContext } from "../components/rules/RulesGovernanceConte
 import { SolarisAmbientBackground } from "../components/SolarisAmbientBackground";
 import { SolarisAnniversaryCelebration } from "../components/SolarisAnniversaryCelebration";
 import { Toaster } from "../components/ui/sonner";
+import { V3RootLegacyCutover } from "../components/v3/V3RootLegacyCutover";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { appErrorPresentation, classifyAppError } from "../lib/app-error-state";
 import { useHydrationSafeRouterLocation } from "../lib/hydration-safe-router-location";
@@ -366,7 +367,7 @@ function RootComponent() {
           {!fullAdmin ? <SolarisAmbientBackground /> : null}
         </>
       ) : null}
-      {content}
+      <V3RootLegacyCutover>{content}</V3RootLegacyCutover>
       {!teaserPreview ? <ToolQuickGuide pathname={pathname} /> : null}
       {!teaserPreview ? <Toaster /> : null}
     </QueryClientProvider>

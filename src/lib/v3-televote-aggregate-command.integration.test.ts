@@ -4,12 +4,19 @@ import { describe, expect, it } from "vitest";
 
 const migrationPath = path.join(
   process.cwd(),
-  "supabase/migrations/20261019210000_v3_televote_aggregate_command.sql",
+  "supabase/migrations/20261104144000_v3_televote_aggregate_command.sql",
 );
 const migration = fs.readFileSync(migrationPath, "utf8");
 const normalized = migration.replace(/\s+/g, " ").toLowerCase();
 
 describe("V3 governed Televote aggregate totals", () => {
+  it("preserves the forward S13 contract and source-controlled migration identity", () => {
+    expect(migration).toContain("public.v3_register_migration_contract(");
+    expect(migration).toContain("'v3.system.televote-aggregate-command'");
+    expect(migration).toContain("'forward_fix_only'");
+    expect(migration).not.toContain("20261019210000_v3_televote_aggregate_command");
+  });
+
   it("moves the consequential write behind an authenticated capability-checked RPC", () => {
     expect(migration).toContain("public.studio2_update_televote_aggregate_totals");
     expect(migration).toContain("public.studio2_televote_aggregate_snapshot");

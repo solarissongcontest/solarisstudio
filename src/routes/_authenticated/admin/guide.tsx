@@ -17,16 +17,17 @@ export const Route = createFileRoute("/_authenticated/admin/guide")({
 const SECTIONS = [
   {
     title: "Start here",
-    description: "The quickest way to understand Solaris Organizer.",
+    description: "The quickest way to understand Solaris Organizer V3.",
     questions: [
       {
         question: "What is Solaris Organizer?",
         answer: (
           <>
-            Solaris Organizer is the private contest-management side of Solaris Studio. The main workspaces are
-            Delegations, Contest, Voting, Publish, Broadcast and Administration. Confirmations and public
-            televoting still have their own technical systems underneath, but you manage them through these normal
-            Organizer workflows.
+            Solaris Organizer is the private contest-management side of Solaris Studio and its V3 operational
+            control system. Its permanent destinations are Overview, Tasks, Control, Live and More. Specialist
+            systems such as Confirmations, Jury, Televote, Results and Broadcast still exist underneath, but
+            ordinary work should begin from the state or task that needs attention rather than from a technical
+            service name.
           </>
         ),
       },
@@ -35,7 +36,9 @@ const SECTIONS = [
         answer: (
           <>
             Start with <Link to="/admin/operations" className="font-semibold text-primary">Overview</Link>. It shows
-            the selected edition, readiness, important problems, deadlines and the next things that need attention.
+            the selected edition, readiness, important problems, deadlines, recent changes and the next recommended
+            action. If Solaris already knows what needs attention, you should not have to remember which specialist
+            page owns it.
           </>
         ),
       },
@@ -43,19 +46,32 @@ const SECTIONS = [
         question: "How do I choose which edition I am working on?",
         answer: (
           <>
-            Use the edition button in the top bar. Solaris Organizer keeps you in the same workspace when it can,
-            so switching editions from Contest or Voting should not make you hunt for the equivalent page again.
+            Use the edition context control in Organizer. Edition-scoped pages must show the selected edition near
+            the top of the page, and critical review or confirmation surfaces repeat that scope. Switching editions
+            should preserve the equivalent workspace where it is valid instead of silently substituting another
+            edition.
           </>
         ),
       },
       {
-        question: "What do the main Organizer sections mean?",
+        question: "What do the five main Organizer destinations mean?",
         answer: (
           <>
-            Delegations is for participation and submissions. Contest is for shows, entries and running order.
-            Voting is for rules, juries, public voting, integrity and results. Publish controls what visitors can
-            see. Broadcast controls design and presentation. Administration contains accounts, history and system
-            tools.
+            <strong>Overview</strong> explains what needs attention now. <strong>Tasks</strong> is the operational
+            action queue. <strong>Control</strong> contains deliberate contest-management workspaces such as
+            Delegations, Contest, Voting, Results &amp; Publication, Communications and Production. <strong>Live</strong>
+            is for operating the active show. <strong>More</strong> contains low-frequency, specialist, governance,
+            platform, Product QA and historical tools.
+          </>
+        ),
+      },
+      {
+        question: "Where are Delegations, Contest and Voting now?",
+        answer: (
+          <>
+            They are first-class domains inside <Link to="/admin/control" className="font-semibold text-primary">Control</Link>,
+            not competing top-level apps. This keeps the permanent navigation stable while preserving the specialist
+            workspaces organizers still need.
           </>
         ),
       },
@@ -63,14 +79,15 @@ const SECTIONS = [
   },
   {
     title: "Delegations",
-    description: "Participation, submissions, rounds and access.",
+    description: "Control → participation, confirmations, rounds and access.",
     questions: [
       {
         question: "Where do I review confirmation responses?",
         answer: (
           <>
-            Open Delegations, then Responses. The overview first shows how many submissions need organizer review,
-            need delegation changes, are ready or are still waiting.
+            Open Control, then Delegations and Confirmations. The overview should show which submissions need
+            organizer review, need delegation changes, are ready or are still waiting before you open an individual
+            response.
           </>
         ),
       },
@@ -78,8 +95,8 @@ const SECTIONS = [
         question: "Where do I open or schedule a submission round?",
         answer: (
           <>
-            Open Delegations, then Rounds. Use that page to create, open, close or schedule the waves in which
-            delegations can submit.
+            Open Control, then Delegations and Confirmations. Use the rounds workspace to create, open, close or
+            schedule the waves in which delegations can submit.
           </>
         ),
       },
@@ -87,8 +104,8 @@ const SECTIONS = [
         question: "Where do I see National Finals and delegation deadlines?",
         answer: (
           <>
-            Open Delegations, then Calendar. It is the place for submission rounds, National Finals, reveals and
-            other delegation dates.
+            Open the Delegations calendar from Control. It is the place for submission rounds, National Finals,
+            reveals and other delegation dates for the selected edition.
           </>
         ),
       },
@@ -96,9 +113,9 @@ const SECTIONS = [
         question: "How do I help a delegation regain access to its response?",
         answer: (
           <>
-            Open Delegations, then Access. Recovery codes remain available as a fallback. A correctly linked
-            signed-in country account can also open its own editable confirmation without a recovery code when
-            editing is allowed.
+            Open Control, then Delegations and Delegation access. Recovery access is a specialist fallback. A
+            correctly linked signed-in country account can also open its own editable confirmation without a recovery
+            code when canonical workflow state allows editing.
           </>
         ),
       },
@@ -106,9 +123,8 @@ const SECTIONS = [
         question: "Where did the old Confirmations Admin go?",
         answer: (
           <>
-            It is now presented as Delegations inside Solaris Organizer. The existing confirmation routes may still
-            exist internally for compatibility, but you should not need to think of Confirmations as a separate
-            admin product.
+            Its capability belongs to Control → Delegations. Existing confirmation routes may remain during
+            migration, but they are compatibility paths rather than a separate Organizer product model.
           </>
         ),
       },
@@ -116,32 +132,33 @@ const SECTIONS = [
   },
   {
     title: "Contest",
-    description: "Shows, entries, allocations, running order and participation.",
+    description: "Control → entries, media, shows, running order and participation.",
     questions: [
       {
         question: "How do I create a semi-final or final?",
         answer: (
           <>
-            Open Contest, then Shows. Create the show, choose its type and order, and save it before building the
-            line-up.
+            Open Control, then Contest and Shows. Create or review the show in the selected edition before building
+            its line-up. Consequential show operations must stay bound to the explicit edition and show context.
           </>
         ),
       },
       {
-        question: "How do I add or edit an entry?",
+        question: "How do I review an entry or media?",
         answer: (
           <>
-            Open Contest, then Entries. Choose the show and country, then edit the artist, song and entry details.
-            This workspace also handles allocations and running order.
+            Open Control, then Contest. Entry review and Media review show the current authoritative submission or
+            asset state, validation evidence and the valid next decisions. Request corrections instead of editing
+            participant-owned truth into a second copy.
           </>
         ),
       },
       {
-        question: "How do I bring confirmed countries into the contest?",
+        question: "How do I work with allocation and running order?",
         answer: (
           <>
-            Open Contest, then Sync. Use it to bring approved delegation information into a Solaris show without
-            rebuilding the line-up manually.
+            Open Control, then Contest and Running order. Use the edition/show-scoped workflow there rather than a
+            dashboard shortcut that creates separate mutation logic.
           </>
         ),
       },
@@ -149,8 +166,8 @@ const SECTIONS = [
         question: "Where do I mark a country withdrawn or disqualified?",
         answer: (
           <>
-            Open Contest, then Participation. Change the participation status there instead of deleting the country
-            or destroying its edition history.
+            Open Control, then Contest and Participant status. Change the participation state there instead of
+            deleting the country or destroying its edition history.
           </>
         ),
       },
@@ -158,32 +175,33 @@ const SECTIONS = [
   },
   {
     title: "Voting",
-    description: "Rules, juries, public voting, integrity and official results.",
+    description: "Control → rounds, Jury, Televote, declarations and integrity.",
     questions: [
       {
-        question: "Where do I change jury and public-vote rules?",
+        question: "Where do I manage voting state?",
         answer: (
           <>
-            Open Voting, then Rules. That is where you configure enabled vote types, point scales, weighting,
-            qualifiers and tie-break rules for the selected edition.
+            Open Control, then Voting. The overview links to the current round state, Jury, Televote, declarations
+            and integrity work for the selected edition. Opening or closing official voting is an authoritative
+            operation, not a browser-only toggle.
           </>
         ),
       },
       {
-        question: "Where do I enter or correct jury votes?",
+        question: "Where do I review Jury work?",
         answer: (
           <>
-            Open Voting, then Jury. Choose the jury or country, enter the ballot, review it and save. The jury
-            voting window is controlled from the Jury workspace rather than appearing on unrelated pages.
+            Open Control, then Voting and Jury. Use its operational state, ballot readiness and exceptions to decide
+            what needs intervention. Participant Jury submissions remain separate from Organizer review authority.
           </>
         ),
       },
       {
-        question: "How do I open public voting?",
+        question: "Where do I manage public voting?",
         answer: (
           <>
-            Open Voting, then Public voting. Choose the round and entries, check eligibility and timing, then open
-            voting when the round is ready.
+            Open Control, then Voting and Televote. Use the exact show/round context for intake, aggregate totals,
+            validation and operational state rather than inferring official voting state from a local timer.
           </>
         ),
       },
@@ -191,17 +209,8 @@ const SECTIONS = [
         question: "Where do I review suspicious ballots or friend-voting signals?",
         answer: (
           <>
-            Open Voting, then Integrity. Integrity warnings and friend-voting signals are evidence for organizer
-            review, not automatic proof that someone cheated.
-          </>
-        ),
-      },
-      {
-        question: "Where do I work with official public-vote totals and results?",
-        answer: (
-          <>
-            Open Voting, then Results. Use the public-voting result tools and the official televote totals for the
-            show, then review the combined result before publication.
+            Open Control, then Voting and Integrity. Integrity warnings and friend-voting signals are evidence for
+            organizer review, not automatic proof that someone cheated.
           </>
         ),
       },
@@ -209,23 +218,34 @@ const SECTIONS = [
         question: "Where did the old Televoting Admin go?",
         answer: (
           <>
-            It is now presented as the Public voting, Integrity and Results parts of Voting. The specialist backend
-            and old routes can remain internally, but organizers should navigate by the contest task instead.
+            Its capabilities are contextualized inside Control → Voting and Results &amp; Publication. Specialist
+            compatibility routes can remain while migration is incomplete, but the normal Organizer mental model is
+            the contest operation being performed.
           </>
         ),
       },
     ],
   },
   {
-    title: "Publish",
-    description: "Control exactly what becomes public.",
+    title: "Results & publication",
+    description: "Control → calculate, review, lock and deliberately publish official outcomes.",
     questions: [
+      {
+        question: "What is the Results lifecycle?",
+        answer: (
+          <>
+            Treat Results as a deliberate lifecycle: input, calculate, review, lock and publish. Do not use one
+            ambiguous button that quietly performs several official transitions at once.
+          </>
+        ),
+      },
       {
         question: "How do I choose what visitors can see?",
         answer: (
           <>
-            Open Publish for the selected edition. You can reveal countries, entries, running order, qualifiers,
-            results and detailed voting in stages. Keep anything private until it is actually ready.
+            Open Control, then Results &amp; Publication and the Publication workspace for the selected edition.
+            Public visibility is separate from calculation and review, so unpublished or unfinished result state
+            stays private until the relevant publication operation allows it.
           </>
         ),
       },
@@ -233,32 +253,33 @@ const SECTIONS = [
         question: "Does hiding a result delete it?",
         answer: (
           <>
-            No. Publication controls visibility. Making a result private should keep the underlying contest data so
-            it can be reviewed or published later.
-          </>
-        ),
-      },
-      {
-        question: "Should I publish results from the Voting page?",
-        answer: (
-          <>
-            Calculate and verify them in Voting, then control public visibility in Publish. Keeping calculation and
-            publication separate reduces the chance of accidentally revealing unfinished results.
+            No. Publication controls visibility. Historical and official contest data should normally remain
+            preserved so it can be reviewed, corrected or published according to the canonical lifecycle.
           </>
         ),
       },
     ],
   },
   {
-    title: "Broadcast",
-    description: "Artwork, themes, scoreboard and live presentation.",
+    title: "Production and Live",
+    description: "Configure presentation in Control; operate the active show in Live.",
     questions: [
       {
-        question: "Where do I change the edition design or scoreboard?",
+        question: "Where do I change the edition design or broadcast setup?",
         answer: (
           <>
-            Open Broadcast. The selected edition can have a default design, while individual shows can override it
-            when they need different artwork or presentation settings.
+            Open Control, then Production. Broadcast &amp; design and Edition theme configure the selected edition's
+            presentation. Configuration belongs in Control; live execution belongs in Live.
+          </>
+        ),
+      },
+      {
+        question: "What belongs in Live?",
+        answer: (
+          <>
+            Live is for operating the active show: show state, now/next, voting state, result readiness, live cues,
+            active incidents and the next valid operation. It should not become another permanent configuration
+            warehouse.
           </>
         ),
       },
@@ -266,32 +287,44 @@ const SECTIONS = [
         question: "What should I check before a live broadcast?",
         answer: (
           <>
-            Check the line-up, running order, voting status, official result data and publication plan first. Then
-            use Broadcast for the actual presentation and scoreboard setup.
+            Resolve blocking readiness items first, then verify show context, running order, voting state, official
+            result readiness and publication intent. Live should make the next operational decision clear without
+            requiring you to remember a chain of admin routes.
           </>
         ),
       },
     ],
   },
   {
-    title: "Administration and troubleshooting",
-    description: "Accounts, history, diagnostics and low-frequency controls.",
+    title: "Tasks, More and troubleshooting",
+    description: "Exception work, low-frequency tools, diagnostics and historical administration.",
     questions: [
       {
-        question: "Where do I manage country accounts?",
+        question: "What belongs in Tasks?",
         answer: (
           <>
-            Open Administration, then Accounts. That area manages the account attached to each delegation and its
-            access status.
+            Tasks is the exception/action queue. It can contain actionable, blocked, waiting, failed, overdue or
+            resolved operational work derived from canonical state. A notification is not automatically task truth,
+            and completed canonical work should resolve its task instead of requiring manual housekeeping.
           </>
         ),
       },
       {
-        question: "Where do I manage HOD history?",
+        question: "What belongs in More?",
         answer: (
           <>
-            Open Administration, then HOD history. Historical HOD assignments matter for country history and for
-            voting analysis that needs to distinguish different people managing the same country over time.
+            More is for low-frequency and specialist groups such as Governance, Platform, Integrations, Engagement,
+            Product QA, System and Historical tools. Anything routinely needed during ordinary contest operation
+            belongs in Control, Tasks, Live or a contextual action instead.
+          </>
+        ),
+      },
+      {
+        question: "Where do I manage country accounts or historical HOD data?",
+        answer: (
+          <>
+            Open More and the relevant platform or historical tool. These capabilities remain available without
+            competing with the everyday operational workspaces.
           </>
         ),
       },
@@ -299,26 +332,17 @@ const SECTIONS = [
         question: "What is System health?",
         answer: (
           <>
-            System health checks whether important Solaris data is synchronized and whether integrations have stale
-            or failed work. Start there if one Organizer area appears inconsistent with another.
+            System health helps diagnose synchronization, failed jobs and other operational inconsistencies. It is
+            an observability surface, not a substitute for the canonical state owned by each domain.
           </>
         ),
       },
       {
-        question: "Where are deadlines and the audit history?",
+        question: "How do I find a specialist page when I cannot remember where it is?",
         answer: (
           <>
-            Open Administration, then System. Deadlines, audit information and other low-frequency system controls
-            live there instead of competing with everyday contest tasks.
-          </>
-        ),
-      },
-      {
-        question: "How do I find a page when I cannot remember where it is?",
-        answer: (
-          <>
-            Use Search in the top bar or press Ctrl/Cmd + K. Search understands Organizer areas such as Delegations,
-            Contest, Voting, Publish and Administration as well as current-edition tools.
+            Start from Overview, Tasks or Control when Solaris already knows the operational context. For deliberate
+            specialist exploration, use More and Organizer search instead of memorizing legacy route names.
           </>
         ),
       },
@@ -332,7 +356,7 @@ function AdminGuidePage() {
       <AdminPageHeader
         eyebrow="Help"
         title="How to use the organizer tools"
-        description="Navigate by the contest task you are trying to complete, not by the technical service behind it."
+        description="Start from the operational state or task that matters, then move into the authoritative workspace when deliberate control is needed."
       />
       <GuideFAQ sections={SECTIONS} />
     </AdminPage>

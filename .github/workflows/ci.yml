@@ -4,11 +4,9 @@ on:
   push:
     branches:
       - main
-      - merge/confirmations
   pull_request:
     branches:
       - main
-      - audit/pr450-base-snapshot
   workflow_dispatch:
 
 permissions:
@@ -168,12 +166,15 @@ jobs:
           echo "The production build must regenerate it from src/routes."
 
       - name: Production build
+        id: production_build
         run: bun run build
 
       - name: Enforce client performance budget
+        id: client_budget
         run: bun run budget:client
 
       - name: Verify route tree was generated
+        id: route_tree_generated
         shell: bash
         run: |
           set -euo pipefail
@@ -184,6 +185,7 @@ jobs:
           echo "routeTree.gen.ts generated successfully."
 
       - name: Verify generated route tree is untracked
+        id: route_tree_untracked
         shell: bash
         run: |
           set -euo pipefail
@@ -198,13 +200,26 @@ jobs:
           echo "Generated route tree is correctly untracked and ignored."
 
       - name: TypeScript
+        id: typecheck
+        continue-on-error: true
         run: bun run typecheck
 
       - name: Unit tests
+        id: unit_tests
+        continue-on-error: true
         shell: bash
+        env:
+          QUALITY_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set +e
-          bun test 2>&1 | tee unit-test-output.txt
+          {
+            echo "candidate_sha=$QUALITY_SOURCE_SHA"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "step=unit-tests"
+            echo
+          } > unit-test-output.txt
+          bun run test 2>&1 | tee -a unit-test-output.txt
           status=${PIPESTATUS[0]}
           exit "$status"
 
@@ -212,20 +227,34 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-report
+          name: unit-test-report-${{ github.event.pull_request.head.sha || github.sha }}
           path: unit-test-output.txt
           if-no-files-found: ignore
           retention-days: 1
 
       - name: Lint
+        id: lint
+        continue-on-error: true
         shell: bash
+        env:
+          QUALITY_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set +e
-          bun run lint 2>&1 | tee lint-output.txt
+          {
+            echo "candidate_sha=$QUALITY_SOURCE_SHA"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "step=lint"
+            echo
+          } > lint-output.txt
+          bun run lint 2>&1 | tee -a lint-output.txt
           status=${PIPESTATUS[0]}
           exit "$status"
 
       - name: Verify CI did not mutate tracked source
+        id: tracked_source_check
+        if: always()
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -238,32 +267,105 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lint-report
+          name: lint-report-${{ github.event.pull_request.head.sha || github.sha }}
           path: lint-output.txt
           if-no-files-found: ignore
           retention-days: 1
 
+      - name: Write Quality diagnostic manifest
+        if: always()
+        shell: bash
+        env:
+          QUALITY_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BUILD_OUTCOME: ${{ steps.production_build.outcome }}
+          BUDGET_OUTCOME: ${{ steps.client_budget.outcome }}
+          ROUTE_GENERATED_OUTCOME: ${{ steps.route_tree_generated.outcome }}
+          ROUTE_UNTRACKED_OUTCOME: ${{ steps.route_tree_untracked.outcome }}
+          TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
+          UNIT_OUTCOME: ${{ steps.unit_tests.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          SOURCE_CHECK_OUTCOME: ${{ steps.tracked_source_check.outcome }}
+        run: |
+          set -euo pipefail
+          checkout_sha="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          expected="$(printf '%s' "$QUALITY_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          {
+            echo "candidate_sha=$expected"
+            echo "checkout_sha=$checkout_sha"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "production_build=${BUILD_OUTCOME:-not-run}"
+            echo "client_budget=${BUDGET_OUTCOME:-not-run}"
+            echo "route_tree_generated=${ROUTE_GENERATED_OUTCOME:-not-run}"
+            echo "route_tree_untracked=${ROUTE_UNTRACKED_OUTCOME:-not-run}"
+            echo "typecheck=${TYPECHECK_OUTCOME:-not-run}"
+            echo "unit_tests=${UNIT_OUTCOME:-not-run}"
+            echo "lint=${LINT_OUTCOME:-not-run}"
+            echo "tracked_source_check=${SOURCE_CHECK_OUTCOME:-not-run}"
+          } > quality-diagnostics.txt
+          if [ "$checkout_sha" != "$expected" ]; then
+            echo "::error::Quality diagnostic manifest is for checkout $checkout_sha, expected $expected"
+            exit 1
+          fi
+
+      - name: Upload Quality diagnostic manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-diagnostics-${{ github.event.pull_request.head.sha || github.sha }}
+          path: quality-diagnostics.txt
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Quality summary
         if: always()
         shell: bash
+        env:
+          QUALITY_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BUILD_OUTCOME: ${{ steps.production_build.outcome }}
+          BUDGET_OUTCOME: ${{ steps.client_budget.outcome }}
+          TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
+          UNIT_OUTCOME: ${{ steps.unit_tests.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          SOURCE_CHECK_OUTCOME: ${{ steps.tracked_source_check.outcome }}
         run: |
           {
             echo
             echo "### Solaris Studio quality run"
             echo
-            echo "- Fresh dependency install: attempted"
-            echo "- V3 production-isolation runtime guard: attempted"
-            echo "- V3 capability status-history guard: attempted when an exact base SHA exists"
-            echo "- V3 capability report: generated when registry modules loaded successfully"
-            echo "- V3 route/API/capability registry guard: attempted"
-            echo "- V3 search/notification/physical ownership guard: attempted"
-            echo "- System V3 S1 workflow dependency/consequence guard: attempted"
-            echo "- V3 structural release-integrity guard: attempted"
-            echo "- V3 live completion dashboard + S14/S15 readiness evidence: attempted and exact-source-SHA checked"
-            echo "- Fresh TanStack route generation: attempted when prior gates passed"
-            echo "- Generated route tree verification: attempted when build ran"
-            echo "- Production build and client budget: attempted when prior gates passed"
-            echo "- TypeScript: attempted when prior gates passed"
-            echo "- Unit tests: attempted when prior gates passed; output retained when produced"
-            echo "- Lint: attempted when prior gates passed"
+            echo "- Exact candidate SHA: \`$QUALITY_SOURCE_SHA\`"
+            echo "- Production build: \`${BUILD_OUTCOME:-not-run}\`"
+            echo "- Client performance budget: \`${BUDGET_OUTCOME:-not-run}\`"
+            echo "- TypeScript: \`${TYPECHECK_OUTCOME:-not-run}\`"
+            echo "- Unit tests: \`${UNIT_OUTCOME:-not-run}\`"
+            echo "- Lint: \`${LINT_OUTCOME:-not-run}\`"
+            echo "- Tracked-source mutation check: \`${SOURCE_CHECK_OUTCOME:-not-run}\`"
+            echo "- V3 production-isolation runtime guard: attempted before build/test execution"
+            echo "- V3 completion evidence: exact-source-SHA checked before build/test execution"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce collected Quality outcomes
+        if: always()
+        shell: bash
+        env:
+          TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
+          UNIT_OUTCOME: ${{ steps.unit_tests.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          SOURCE_CHECK_OUTCOME: ${{ steps.tracked_source_check.outcome }}
+        run: |
+          set -euo pipefail
+          failed=0
+          for check in \
+            "TypeScript:${TYPECHECK_OUTCOME:-not-run}" \
+            "Unit tests:${UNIT_OUTCOME:-not-run}" \
+            "Lint:${LINT_OUTCOME:-not-run}" \
+            "Tracked-source mutation check:${SOURCE_CHECK_OUTCOME:-not-run}"
+          do
+            name="${check%%:*}"
+            outcome="${check#*:}"
+            if [ "$outcome" != "success" ]; then
+              echo "::error::$name outcome is $outcome"
+              failed=1
+            fi
+          done
+          exit "$failed"

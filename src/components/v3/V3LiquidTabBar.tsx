@@ -30,7 +30,10 @@ import {
   resolveV3TabIconVisualState,
 } from "@/lib/v3-navigation-visual-progress";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
-import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
+import {
+  holdMovementExceeded,
+  useSolarisPressHold,
+} from "@/lib/use-solaris-press-hold";
 import { cn } from "@/lib/utils";
 import "@/styles/v3-liquid-tabbar.css";
 import "@/styles/v3-navigation-fixed-geometry.css";
@@ -51,9 +54,11 @@ type DragState = {
   pointerId: number;
   captureTarget: HTMLAnchorElement;
   startX: number;
+  startY: number;
   originIndex: number;
   previewIndex: number;
   moved: boolean;
+  engaged: boolean;
   lastX: number;
   lastAt: number;
   velocityX: number;
@@ -62,6 +67,11 @@ type DragState = {
   slotWidth: number;
   layoutDirection: V3LayoutDirection;
   tabIcons: SVGElement[];
+};
+
+type DragPreview = {
+  index: number;
+  pathname: string;
 };
 
 function triggerSelectionHaptic(duration = 8) {
@@ -99,15 +109,13 @@ export function V3LiquidTabBar({
     0,
     destinations.findIndex((destination) => destination.active),
   );
-  const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
-  const [dragging, setDragging] = useState(false);
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
   const [layoutDirection, setLayoutDirection] = useState<V3LayoutDirection>("ltr");
   const barRef = useRef<HTMLElement | null>(null);
   const materialRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<DragState | null>(null);
   const suppressClick = useRef(false);
   const lastPreviewHaptic = useRef(activeIndex);
-  const heldHapticFired = useRef(false);
   const { collapsed, expand } = useScrollResponsiveBar({
     enabled: true,
     resetKey: pathname,
@@ -119,6 +127,8 @@ export function V3LiquidTabBar({
     end: endHold,
   } = useSolarisPressHold();
 
+  const dragging = held;
+  const dragPreviewIndex = dragPreview?.pathname === pathname ? dragPreview.index : null;
   const previewIndex = dragPreviewIndex ?? activeIndex;
   const visualLensIndex = dragging ? activeIndex : previewIndex;
   const count = Math.max(1, destinations.length);
@@ -187,12 +197,18 @@ export function V3LiquidTabBar({
   );
 
   useEffect(() => {
-    if (!held) {
-      heldHapticFired.current = false;
-      return;
-    }
-    if (heldHapticFired.current) return;
-    heldHapticFired.current = true;
+    if (!held) return;
+    const drag = dragState.current;
+    if (!drag || drag.engaged) return;
+
+    drag.engaged = true;
+    drag.lastX = drag.startX;
+    drag.lastAt = performance.now();
+    setAppUpdateBlocker(
+      V3_LIQUID_LENS_UPDATE_BLOCKER,
+      true,
+      "Finish the current navigation gesture before updating.",
+    );
     triggerSelectionHaptic(10);
   }, [held]);
 
@@ -201,11 +217,6 @@ export function V3LiquidTabBar({
     lastPreviewHaptic.current = previewIndex;
     triggerSelectionHaptic(6);
   }, [dragging, previewIndex]);
-
-  useEffect(() => {
-    if (dragging || dragPreviewIndex == null || dragPreviewIndex !== activeIndex) return;
-    setDragPreviewIndex(null);
-  }, [activeIndex, dragPreviewIndex, dragging]);
 
   const tabRects = () => {
     const material = materialRef.current;
@@ -246,18 +257,16 @@ export function V3LiquidTabBar({
   const clearDrag = useCallback(() => {
     endHold();
     resetDragDom();
-    setDragging(false);
-    setDragPreviewIndex(null);
+    setDragPreview(null);
   }, [endHold, resetDragDom]);
 
   const settleDrag = useCallback(
     (targetIndex: number) => {
       endHold();
       resetDragDom();
-      setDragging(false);
-      setDragPreviewIndex(targetIndex);
+      setDragPreview({ index: targetIndex, pathname });
     },
-    [endHold, resetDragDom],
+    [endHold, pathname, resetDragDom],
   );
 
   useEffect(() => {
@@ -341,9 +350,11 @@ export function V3LiquidTabBar({
       pointerId: event.pointerId,
       captureTarget: event.currentTarget,
       startX: event.clientX,
+      startY: event.clientY,
       originIndex: index,
       previewIndex: index,
       moved: false,
+      engaged: false,
       lastX: event.clientX,
       lastAt: event.timeStamp,
       velocityX: 0,
@@ -355,19 +366,31 @@ export function V3LiquidTabBar({
     };
     lastPreviewHaptic.current = index;
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    setAppUpdateBlocker(
-      V3_LIQUID_LENS_UPDATE_BLOCKER,
-      true,
-      "Finish the current navigation gesture before updating.",
-    );
     beginHold(event.pointerId, event.clientX, event.clientY);
-    setDragging(true);
   };
 
   const moveDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    moveHold(event.pointerId, event.clientX, event.clientY);
+
+    if (!drag.engaged) {
+      moveHold(event.pointerId, event.clientX, event.clientY);
+      if (
+        holdMovementExceeded(
+          drag.startX,
+          drag.startY,
+          event.clientX,
+          event.clientY,
+        )
+      ) {
+        // Before the hold threshold, movement belongs to scrolling/other gesture
+        // owners. Do not let a fast swipe across the active tab become an
+        // accidental tab switch.
+        suppressClick.current = true;
+        clearDrag();
+      }
+      return;
+    }
 
     const rawDelta = event.clientX - drag.startX;
     const elapsed = Math.max(1, event.timeStamp - drag.lastAt);
@@ -419,7 +442,7 @@ export function V3LiquidTabBar({
     });
     if (nextPreview !== drag.previewIndex) {
       drag.previewIndex = nextPreview;
-      setDragPreviewIndex(nextPreview);
+      setDragPreview({ index: nextPreview, pathname });
     }
 
     if (drag.moved) event.preventDefault();
@@ -435,6 +458,13 @@ export function V3LiquidTabBar({
   const finishDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+
+    // Pending presses are still ordinary taps. Navigation remains owned by the
+    // semantic click path unless the hold threshold actually engaged the lens.
+    if (!drag.engaged) {
+      clearDrag();
+      return;
+    }
 
     const targetIndex = resolveTabDragTargetIndex({
       rawDelta: resolveV3LogicalHorizontalDelta(
@@ -453,8 +483,7 @@ export function V3LiquidTabBar({
       maxSteps: 1,
     });
     const moved = drag.moved;
-    const longPressed = held;
-    suppressClick.current = moved || longPressed;
+    suppressClick.current = true;
 
     try {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
@@ -462,9 +491,10 @@ export function V3LiquidTabBar({
       // Pointer capture may already have been released by the browser.
     }
 
-    // A completed long press is tactile/deformational only. It must not fall
-    // through into navigation on release.
-    if (longPressed || !moved || targetIndex === drag.originIndex) {
+    // Hold without a deliberate drag is tactile/deformational only. Engaged
+    // dragging may commit, but only to an adjacent destination selected by the
+    // existing displacement + velocity release physics.
+    if (!moved || targetIndex === drag.originIndex) {
       clearDrag();
       return;
     }
@@ -476,7 +506,7 @@ export function V3LiquidTabBar({
   const cancelDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    suppressClick.current = drag.moved || held;
+    suppressClick.current = drag.moved || drag.engaged;
     clearDrag();
   };
 

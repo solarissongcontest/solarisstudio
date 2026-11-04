@@ -20,8 +20,10 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import {
+  hasCompleteOrganizerTaskOperationalEvidence,
   resolveOrganizerTaskOperationalState,
   useOrganizerTasksV5,
+  type OrganizerTaskClassification,
   type OrganizerTaskFilter,
   type OrganizerTaskOperationalState,
   type OrganizerTaskPriority,
@@ -47,7 +49,7 @@ type TasksSearch = {
 
 type ClassifiedTask = {
   task: OrganizerTaskV5;
-  operationalState: OrganizerTaskOperationalState;
+  operationalState: OrganizerTaskClassification;
 };
 
 export const Route = createFileRoute("/_authenticated/admin/tasks")({
@@ -74,38 +76,41 @@ function OrganizerTasksPage() {
   const backendFilter = backendFilterForView(filter);
   const tasksQuery = useOrganizerTasksV5(editionId, backendFilter, tasksSupported);
   const rawTasks = tasksQuery.data ?? [];
-  const evaluatedAt = tasksQuery.dataUpdatedAt || Date.now();
   const classifiedTasks: ClassifiedTask[] = rawTasks.map((task) => ({
     task,
-    operationalState: resolveOrganizerTaskOperationalState(task, evaluatedAt),
+    operationalState: resolveOrganizerTaskOperationalState(task),
   }));
   const tasks = classifiedTasks.filter((item) => matchesViewFilter(item, filter));
-  const explicitOperationalEvidence = rawTasks.some((task) => task.operationalState !== null);
+  const completeOperationalEvidence = hasCompleteOrganizerTaskOperationalEvidence(rawTasks);
 
   const metricsAvailable =
     backend.isSuccess &&
     tasksSupported &&
     !tasksQuery.isLoading &&
     !tasksQuery.error;
-  const actionable = metricsAvailable
+  const richMetricsAvailable = metricsAvailable && completeOperationalEvidence;
+  const actionable = richMetricsAvailable
     ? countOperationalState(classifiedTasks, "actionable")
     : null;
-  const blocked = metricsAvailable && explicitOperationalEvidence
+  const blocked = richMetricsAvailable
     ? countOperationalState(classifiedTasks, "blocked")
     : null;
   const waiting = metricsAvailable
     ? countOperationalState(classifiedTasks, "waiting")
     : null;
-  const failed = metricsAvailable && explicitOperationalEvidence
+  const failed = richMetricsAvailable
     ? countOperationalState(classifiedTasks, "failed")
     : null;
-  const overdue = metricsAvailable
+  const overdue = richMetricsAvailable
     ? countOperationalState(classifiedTasks, "overdue")
     : null;
+  const filterRequiresRichState =
+    filter === "actionable" ||
+    filter === "blocked" ||
+    filter === "failed" ||
+    filter === "overdue";
   const classificationUnavailable =
-    (filter === "blocked" || filter === "failed") &&
-    metricsAvailable &&
-    !explicitOperationalEvidence;
+    filterRequiresRichState && metricsAvailable && !completeOperationalEvidence;
 
   return (
     <AdminPage>
@@ -142,7 +147,7 @@ function OrganizerTasksPage() {
         />
 
         {filter !== "resolved" ? (
-          <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5 sm:gap-3">
+          <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 xl:grid-cols-5">
             <Metric label="Actionable" value={actionable} tone="info" />
             <Metric label="Blocked" value={blocked} tone="blocked" />
             <Metric label="Waiting" value={waiting} tone="info" />
@@ -188,7 +193,7 @@ function OrganizerTasksPage() {
             <AdminEmptyState
               icon={AlertTriangle}
               title={`${filterLabel(filter)} classification is not available yet`}
-              description="The current Organizer Task payload does not expose explicit blocked/failed evidence. Solaris will not infer workflow state from priority, title text or notification severity."
+              description="At least one unresolved task does not expose canonical rich-state evidence. Solaris will not infer actionable, blocked, failed or overdue workflow state from priority, notification severity, due timestamps or the browser clock."
             />
           </AdminCard>
         ) : tasks.length ? (
@@ -226,7 +231,7 @@ function OrganizerTasksPage() {
         )}
 
         <p className="px-1 text-[11px] leading-5 text-muted-foreground">
-          Task state is recalculated from confirmation requirements and reviews, entries, required media, voting, results, integrations, incidents, governed approvals, Integrity work and paused edition subsystems. Blocked and failed are shown only when canonical task evidence explicitly reports them; priority is severity, not workflow state. There is intentionally no generic “Mark resolved” button.
+          Task state is derived from canonical domain evidence. Legacy waiting and resolved states remain authoritative; actionable, blocked, failed and overdue require explicit rich-state evidence from the task projection. Due timestamps are display metadata only and the browser clock never upgrades them into workflow truth. Priority is severity, not workflow state. There is intentionally no generic “Mark resolved” button.
         </p>
       </div>
     </AdminPage>
@@ -238,7 +243,7 @@ function TaskRow({
   operationalState,
 }: {
   task: OrganizerTaskV5;
-  operationalState: OrganizerTaskOperationalState;
+  operationalState: OrganizerTaskClassification;
 }) {
   return (
     <Link
@@ -254,6 +259,8 @@ function TaskRow({
           operationalState === "failed" ||
           operationalState === "overdue" ? (
           <AlertTriangle className="size-4 text-amber-100" />
+        ) : operationalState === "unclassified" ? (
+          <AlertTriangle className="size-4 text-muted-foreground" />
         ) : task.assignedTo ? (
           <UserRound className="size-4 text-muted-foreground" />
         ) : (
@@ -329,9 +336,10 @@ function countOperationalState(
 }
 
 function taskTone(
-  operationalState: OrganizerTaskOperationalState,
+  operationalState: OrganizerTaskClassification,
   priority: OrganizerTaskPriority,
 ) {
+  if (operationalState === "unclassified") return "neutral" as const;
   if (operationalState === "resolved") return "ready" as const;
   if (operationalState === "blocked" || operationalState === "failed") {
     return "blocked" as const;
@@ -348,8 +356,9 @@ function priorityTone(priority: OrganizerTaskPriority) {
   return "neutral" as const;
 }
 
-function operationalStateLabel(state: OrganizerTaskOperationalState) {
+function operationalStateLabel(state: OrganizerTaskClassification) {
   if (state === "overdue") return "Overdue / expired";
+  if (state === "unclassified") return "State unavailable";
   return humanize(state);
 }
 
@@ -388,7 +397,7 @@ function emptyDescription(filter: OrganizerTaskViewFilter) {
   if (filter === "blocked") return "No canonical task is explicitly blocked.";
   if (filter === "waiting") return "No governed approval or dependency is currently waiting.";
   if (filter === "failed") return "No canonical task is explicitly in a failed operational state.";
-  if (filter === "overdue") return "No unresolved task has passed its authoritative due time.";
+  if (filter === "overdue") return "No canonical task is explicitly overdue or expired.";
   if (filter === "resolved") return "Resolved task history will appear here after domain conditions close.";
   return "The canonical task sources currently evaluate as resolved.";
 }
