@@ -15,6 +15,7 @@ import {
   type ConfirmationEdition,
 } from "@/integrations/confirmations/admin";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { isCurrentConfirmationResponsePage } from "@/lib/confirmation-response-page-guard";
 import {
   loadConfirmationResponsesPage,
   type ConfirmationProjectionCursor,
@@ -252,9 +253,16 @@ function ConfirmationResponsesList() {
   const [responseCursor, setResponseCursor] = useState<ConfirmationProjectionCursor | null>(null);
   const [responseTotalCount, setResponseTotalCount] = useState(0);
   const [responseStateVersion, setResponseStateVersion] = useState<string | null>(null);
+  // A request from edition A must not commit after A → B → A, even if its
+  // edition id matches again. A generation also releases an abandoned load.
+  const responseGenerationRef = useRef(0);
+  const loadingMoreRef = useRef(false);
 
   useEffect(() => {
     activeEditionRef.current = editionId;
+    responseGenerationRef.current += 1;
+    loadingMoreRef.current = false;
+    setLoadingMoreResponses(false);
   }, [editionId]);
 
   useEffect(() => {
@@ -339,13 +347,20 @@ function ConfirmationResponsesList() {
   }, [editionId]);
 
   async function loadMoreResponses() {
-    if (!editionId || !responseCursor || loadingMoreResponses) return;
-    const requestedEditionId = editionId;
+    // Use a synchronous in-flight ref: two clicks before React commits the
+    // pending state must never issue duplicate pages.
+    if (!editionId || !responseCursor || loadingMoreRef.current || editionId !== organizerEditionId) return;
+    const request = { editionId, generation: responseGenerationRef.current };
     const requestedCursor = responseCursor;
+    const isCurrent = () => isCurrentConfirmationResponsePage(request, {
+      editionId: activeEditionRef.current,
+      generation: responseGenerationRef.current,
+    }) && activeEditionRef.current === organizerEditionId;
+    loadingMoreRef.current = true;
     setLoadingMoreResponses(true);
     try {
-      const page = await loadConfirmationResponsesPage<ResponseRow>(requestedEditionId, requestedCursor);
-      if (activeEditionRef.current !== requestedEditionId) return;
+      const page = await loadConfirmationResponsesPage<ResponseRow>(request.editionId, requestedCursor);
+      if (!isCurrent()) return;
       setRows((current) => {
         const byId = new Map(current.map((row) => [row.id, row]));
         page.rows.forEach((row) => byId.set(row.id, row));
@@ -355,28 +370,36 @@ function ConfirmationResponsesList() {
       setResponseTotalCount(page.totalCount);
       setResponseStateVersion(page.stateVersion);
     } catch (caught) {
-      if (activeEditionRef.current === requestedEditionId) {
+      if (isCurrent()) {
         setError(caught instanceof Error ? caught.message : "More responses could not be loaded.");
       }
     } finally {
-      if (activeEditionRef.current === requestedEditionId) setLoadingMoreResponses(false);
+      // The edition-switch effect already released old requests. Never let
+      // an abandoned request relock the new edition's pagination.
+      if (isCurrent()) {
+        loadingMoreRef.current = false;
+        setLoadingMoreResponses(false);
+      }
     }
   }
 
-  const rounds = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; edition_id: string }>();
-    rows.forEach((row) => {
-      const round = row.submission_rounds;
-      if (round?.edition_id === editionId) map.set(round.id, round);
-    });
-    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [editionId, rows]);
+  // Canonical edition metadata owns the round list. Deriving it from just
+  // the first response page makes valid rounds disappear until pagination.
+  const rounds = useMemo(
+    () => (editions.find((item) => item.id === editionId)?.rounds ?? [])
+      .map((round) => ({ id: round.id, name: round.name, edition_id: round.edition_id }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [editionId, editions],
+  );
 
   useEffect(() => {
     if (roundId !== "all" && !rounds.some((round) => round.id === roundId)) setRoundId("all");
   }, [roundId, rounds]);
 
   const filtered = useMemo(() => {
+    // Hide prior-edition private rows during the render before the context
+    // synchronization effect has cleared the state.
+    if (!editionId || editionId !== organizerEditionId) return [];
     const term = query.trim().toLowerCase();
     return rows
       .filter((row) => {
@@ -401,20 +424,22 @@ function ConfirmationResponsesList() {
         const priority = statePriority(responseCardState(a)) - statePriority(responseCardState(b));
         return priority || new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime();
       });
-  }, [editionId, filter, query, roundId, rows]);
+  }, [editionId, filter, organizerEditionId, query, roundId, rows]);
 
   const filteredNext = useMemo(() => {
+    if (!editionId || editionId !== organizerEditionId) return [];
     const term = query.trim().toLowerCase();
     return nextRows.filter((row) => {
       if (row.edition_id !== editionId) return false;
       return !term || [row.country, row.artist ?? "", row.song_title ?? "", row.selection_type]
         .join(" ").toLowerCase().includes(term);
     });
-  }, [editionId, nextRows, query]);
+  }, [editionId, nextRows, organizerEditionId, query]);
 
-  const reviewCount = rows.filter((row) => responseCardState(row) === "review").length;
-  const issueCount = rows.filter((row) => responseCardState(row) === "issue").length;
-  const readyCount = rows.filter((row) => responseCardState(row) === "ready").length;
+  const visibleRows = editionId === organizerEditionId ? rows : [];
+  const reviewCount = visibleRows.filter((row) => responseCardState(row) === "review").length;
+  const issueCount = visibleRows.filter((row) => responseCardState(row) === "issue").length;
+  const readyCount = visibleRows.filter((row) => responseCardState(row) === "ready").length;
   const loading = loadingEditions || (Boolean(editionId) && loadingResponses);
 
   return (
@@ -439,7 +464,7 @@ function ConfirmationResponsesList() {
             <Metric label="Ready" value={readyCount} tone="emerald" />
           </div>
           <p className="mb-4 text-xs text-muted-foreground">
-            Loaded {rows.length} of {responseTotalCount} response{responseTotalCount === 1 ? "" : "s"}
+            Loaded {visibleRows.length} of {editionId === organizerEditionId ? responseTotalCount : 0} responses. Review, problem and ready counts reflect loaded responses only; load more before concluding an edition is clear
             {responseStateVersion ? ` · canonical state ${responseStateVersion.slice(-12)}` : ""}.
           </p>
         </>
