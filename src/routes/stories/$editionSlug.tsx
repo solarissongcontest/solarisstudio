@@ -86,8 +86,12 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
 
         {storyQuery.isLoading ? (
           <EmptyStory title="Loading edition story…" copy="Reading the published narrative." />
-        ) : storyQuery.error ? (
-          <EmptyStory title="Story unavailable" copy={errorText(storyQuery.error)} />
+        ) : storyQuery.isError && !story ? (
+          <EmptyStory
+            title="Edition story could not be loaded"
+            copy="Solaris could not read this published story. This is a temporary loading error, not proof the story is unpublished."
+            onRetry={() => void storyQuery.refetch()}
+          />
         ) : !story ? (
           <EmptyStory title="No published story for this edition" copy="The edition may not have a reviewed storyline yet, or its storyline has been returned to draft for editing." />
         ) : (
@@ -133,12 +137,21 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
   );
 }
 
-function EmptyStory({ title, copy }: { title: string; copy: string }) {
+function EmptyStory({ title, copy, onRetry }: { title: string; copy: string; onRetry?: () => void }) {
   return (
-    <div className="mt-8 rounded-2xl border border-dashed border-border/70 bg-card/35 px-6 py-14 text-center">
-      <BookOpen className="mx-auto size-6 text-muted-foreground" />
+    <div className="mt-8 rounded-2xl border border-dashed border-border/70 bg-card/35 px-6 py-14 text-center" role={onRetry ? 'alert' : undefined}>
+      <BookOpen className="mx-auto size-6 text-muted-foreground" aria-hidden="true" />
       <h1 className="mt-4 text-xl font-bold">{title}</h1>
       <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">{copy}</p>
+      {onRetry ? (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl border border-border/70 px-4 text-sm font-semibold text-foreground hover:bg-surface/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          Try again
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -146,12 +159,4 @@ function EmptyStory({ title, copy }: { title: string; copy: string }) {
 function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function errorText(error: unknown) {
-  if (error instanceof Error) return error.message;
-  if (error && typeof error === 'object' && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
-    return (error as { message: string }).message;
-  }
-  return 'Unexpected story archive error.';
 }
