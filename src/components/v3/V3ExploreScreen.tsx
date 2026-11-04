@@ -1,4 +1,5 @@
 import { Archive, Compass, Search, Sparkles } from "lucide-react";
+import { WorldExploreEntry } from "@/components/world/WorldExploreEntry";
 
 import type {
   V3EditionExperience,
@@ -202,6 +203,8 @@ export function V3ExploreScreen({ projection, onOpenSearch }: V3ExploreScreenPro
           ))}
         </div>
       </V3Section>
+
+      <WorldExploreEntry variant="v3" />
 
       <V3Section
         title="Archive"
