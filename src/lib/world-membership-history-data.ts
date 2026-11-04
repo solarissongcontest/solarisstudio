@@ -15,7 +15,9 @@ export async function fetchWorldMembershipCountry(code: string): Promise<WorldMe
   if (!/^[A-Za-z0-9-]{1,12}$/.test(code)) return null;
   const { data, error } = await supabase.from("countries")
     .select("id,name,short_code,flag_image")
-    .eq("short_code", code.toUpperCase())
+    // Case-insensitive exact match. The route alphabet excludes SQL LIKE
+    // wildcards, so this never widens into pattern or multi-country search.
+    .ilike("short_code", code.toUpperCase())
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
