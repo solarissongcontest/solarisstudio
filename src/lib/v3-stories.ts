@@ -1,3 +1,5 @@
+import { SOLARIS_TIME_ZONE } from "./public-time";
+
 export type V3StoryMoment = {
   id?: string;
   sourceEventType: string | null;
@@ -51,3 +53,20 @@ export type V3StoryDetailBundle = {
   relatedStories: V3StorySummary[];
   generatedAt: string;
 };
+
+/**
+ * Story timelines are archival Solaris content, so their first render must be
+ * deterministic across SSR and hydration. Viewer-local formatting belongs in
+ * explicitly hydrated time UI, not in the server-rendered story body.
+ */
+export function formatV3StoryDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("en-GB", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: SOLARIS_TIME_ZONE,
+  }).format(date);
+}

@@ -82,8 +82,9 @@ export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
     classification: "merge",
     targetArea: "explore",
     targetRoute: "/explore",
-    specificationStatus: "mapped",
+    specificationStatus: "building",
     acceptanceScenarioId: "public.edition-story-discovery",
+    migrationEvidence: "Merged V3 published-only Story archive/detail projections, shared spoiler protection, Edition continuity, native-share/clipboard fallback, deterministic archive date presentation and exact-head Quality + responsive Browser Audit evidence. Remaining parity work includes richer related-entity/artwork coverage where canonical publication-safe source data exists.",
   },
   {
     id: "scorecharts",
