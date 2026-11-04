@@ -31,6 +31,7 @@ export type WorldDocumentVersion = {
   number: number;
   title: string;
   publicationState: "published" | "superseded";
+  plainText: string;
   publishedAt: string | null;
   effectiveFrom: string | null;
   effectiveTo: string | null;
@@ -136,6 +137,8 @@ export function parseWorldDocumentReader(
   const current = row(source.version);
   if (!VERSION_STATES.has(current.publicationState as string)) return null;
   const number = versionNumber(current.versionNumber);
+  const hash = optional(current.contentHash);
+  if (hash && !/^[0-9a-f]{64}$/.test(hash)) throw new Error("Invalid published document hash");
   if (expectedVersion !== undefined && number !== expectedVersion) {
     throw new Error("Legal-document version scope mismatch");
   }
@@ -186,10 +189,11 @@ export function parseWorldDocumentReader(
       number,
       title: text(current.title),
       publicationState: current.publicationState as "published" | "superseded",
+      plainText: optional(current.plainText) ?? "",
       publishedAt: optional(current.publishedAt),
       effectiveFrom: optional(current.effectiveFrom),
       effectiveTo: optional(current.effectiveTo),
-      contentHash: optional(current.contentHash),
+      contentHash: hash,
       provisions,
     },
     history,
