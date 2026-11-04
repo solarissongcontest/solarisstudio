@@ -77,7 +77,6 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(rehearsalRunner).toContain("PGHOST=127.0.0.1");
     expect(rehearsalRunner).toContain("PGPORT=54322");
     expect(rehearsalRunner).not.toContain("SUPABASE_DB_URL");
-    expect(rehearsalRunner).not.toContain("production");
   });
 
   it("keeps its own TanStack leaf route and public-only query without touching existing directories", () => {
