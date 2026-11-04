@@ -205,6 +205,16 @@ describe("TG4 governed institutional draft models", () => {
     expect(screen).toContain("confirmDiscard()");
     expect(screen).toContain("beforeunload");
     expect(screen).toContain("p_query: appliedSearch || null");
+    expect(screen).toContain("disabled={authoringLocked} value={createSlug}");
+    expect(screen).toContain("disabled={authoringLocked} onChange");
+    expect(screen).toContain("disabled={authoringLocked} value={kind}");
+    expect(screen).toContain("disabled={authoringLocked} value={visibility}");
+    expect(screen).toContain("reviewedFullText");
+    expect(screen).toContain("Inspect the complete outgoing legal draft");
+    expect(screen).toContain("I have inspected the complete outgoing legal text");
+    expect(screen).toContain("JSON.stringify(operation.review.args.p_structured_content");
+    expect(screen).toContain("JSON.stringify(row.bodyStructured");
+
     expect(screen).toContain("p_structured_content: structuredContent");
     expect(screen).toContain("p_provisions: provisions");
     expect(screen).toContain('db.rpc("world_access_allowed"');
