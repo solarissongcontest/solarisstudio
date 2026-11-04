@@ -386,6 +386,7 @@ declare
   v_claim jsonb;
   v_operation_id uuid;
   v_result jsonb;
+  v_event_type text;
 begin
   select * into v_session from public.world_sessions where id=p_session_id for update;
   if v_session.id is null or not public.world_access_allowed(
@@ -419,8 +420,14 @@ begin
   update public.world_sessions
   set status=p_target_status,revision=revision+1,updated_at=now()
   where id=p_session_id;
+  v_event_type := case p_target_status
+    when 'open' then 'world.session.opened'
+    when 'concluded' then 'world.session.closed'
+    when 'recessed' then 'world.session.recessed'
+    when 'cancelled' then 'world.session.cancelled'
+    else 'world.session.archived' end;
   perform private.v3_emit_domain_event(
-    'world.session.transitioned','world_session',p_session_id::text,
+    v_event_type,'world_session',p_session_id::text,
     v_session.revision+1,v_operation_id,null,null,
     jsonb_build_object('sessionId',p_session_id,'from',v_session.status,
       'to',p_target_status),1,array[]::text[]
