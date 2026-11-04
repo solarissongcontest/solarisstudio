@@ -7,7 +7,7 @@ describe("V3 old-to-current Storage recovery local-only regression", () => {
     // This test runner only invokes the pure fake-Storage suite, never the
     // manual CLI or real Supabase clients. Do not forward CI secrets to it.
     const output = execFileSync(
-      process.execPath,
+      "node",
       ["--test", resolve(process.cwd(), "scripts/lib/v3-media-recovery-core.test.mjs")],
       {
         cwd: process.cwd(),
