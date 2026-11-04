@@ -8,6 +8,7 @@ import { ConfirmationVersionHistory } from '@/components/admin/ConfirmationVersi
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { confirmationsSupabase } from '@/integrations/confirmations/client';
+import { isConfirmationDetailInOrganizerScope } from '@/lib/confirmation-detail-edition-guard';
 import { loadAllConfirmationResponsesForEdition } from '@/integrations/confirmations/v3-projections';
 import { loadConfirmationVersionSummariesForEdition } from '@/integrations/confirmations/v3-version-summary';
 import type { SubmissionSnapshot } from '@/lib/submission-versioning';
@@ -55,6 +56,7 @@ type VersionedResponseRow = ResponseRow & {
 
 type ResponseDetail = {
   id: string;
+  edition: { id: string } | null;
   participating: boolean;
   selection_method: string | null;
   entry_unknown: boolean;
@@ -97,12 +99,21 @@ async function loadResponses(editionId: string): Promise<VersionedResponseRow[]>
   });
 }
 
-async function loadResponse(id: string): Promise<ResponseDetail> {
+async function loadResponse(id: string, editionId: string): Promise<ResponseDetail> {
+  if (!editionId || !id) {
+    throw new Error('Submission History requires an exact Organizer edition and response.');
+  }
   const { data, error } = await confirmationsSupabase.rpc('admin_confirmation_response', {
     _submission_id: id,
   });
   if (error) throw error;
-  return data as unknown as ResponseDetail;
+  const detail = data as unknown as ResponseDetail | null;
+  if (!isConfirmationDetailInOrganizerScope(detail, id, editionId)) {
+    throw new Error(
+      'The Confirmation detail did not match the selected Organizer edition. History was not opened.',
+    );
+  }
+  return detail;
 }
 
 function currentSnapshot(detail: ResponseDetail): SubmissionSnapshot {
@@ -180,7 +191,7 @@ function SubmissionVersionsPage() {
   const detailQuery = useQuery({
     queryKey: ['confirmation-response-version-current', editionId ?? 'unscoped', activeId],
     enabled: Boolean(editionId && activeId),
-    queryFn: () => loadResponse(activeId),
+    queryFn: () => loadResponse(activeId, editionId),
   });
 
   const restoreScopeLabel = selected
