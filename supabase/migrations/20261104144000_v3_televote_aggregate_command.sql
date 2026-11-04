@@ -204,6 +204,13 @@ begin
     raise exception 'VALIDATION' using errcode = '22023';
   end if;
 
+  -- Authorize the claimed edition before checking whether a show exists
+  -- there. Unprivileged callers must not infer cross-edition show membership,
+  -- and a NULL capability resolution must never bypass the guard.
+  if public.studio2_access_allowed('voting.manage', p_edition_id, false) is not true then
+    raise exception 'Missing Solaris capability: voting.manage' using errcode = '42501';
+  end if;
+
   select show_row.*
   into v_show
   from public.shows show_row
@@ -211,9 +218,6 @@ begin
 
   if v_show.id is null or v_show.edition_id is distinct from p_edition_id then
     raise exception 'STATE_CHANGED' using errcode = 'P0001';
-  end if;
-  if not public.studio2_access_allowed('voting.manage', p_edition_id, false) then
-    raise exception 'Missing Solaris capability: voting.manage' using errcode = '42501';
   end if;
 
   select aggregate_version.version
@@ -311,6 +315,13 @@ begin
     raise exception 'VALIDATION' using errcode = '22023';
   end if;
 
+  -- Authorize the claimed edition before checking whether a show exists
+  -- there. Unprivileged callers must not infer cross-edition show membership,
+  -- and a NULL capability resolution must never bypass the guard.
+  if public.studio2_access_allowed('voting.manage', p_edition_id, false) is not true then
+    raise exception 'Missing Solaris capability: voting.manage' using errcode = '42501';
+  end if;
+
   select show_row.*
   into v_show
   from public.shows show_row
@@ -318,9 +329,6 @@ begin
 
   if v_show.id is null or v_show.edition_id is distinct from p_edition_id then
     raise exception 'STATE_CHANGED' using errcode = 'P0001';
-  end if;
-  if not public.studio2_access_allowed('voting.manage', p_edition_id, false) then
-    raise exception 'Missing Solaris capability: voting.manage' using errcode = '42501';
   end if;
 
   -- Canonicalize before claiming idempotency so equivalent client array order

@@ -8,13 +8,50 @@ const migrationPath = path.join(
 );
 const migration = fs.readFileSync(migrationPath, "utf8");
 const normalized = migration.replace(/\s+/g, " ").toLowerCase();
+const authorizationRunner = fs.readFileSync(
+  path.join(process.cwd(), ".github/scripts/v3-televote-aggregate-authorization-rehearsal.sh"), "utf8",
+);
+const authorizationWorkflow = fs.readFileSync(
+  path.join(process.cwd(), ".github/workflows/v3-televote-aggregate-authorization-rehearsal.yml"), "utf8",
+);
+
 
 describe("V3 governed Televote aggregate totals", () => {
+  it("proves anonymous denial and unprivileged edition scope on a disposable local database", () => {
+    expect(authorizationWorkflow).toContain("supabase db reset --local --no-seed");
+    expect(authorizationWorkflow).toContain("supabase stop --no-backup");
+    expect(authorizationWorkflow).not.toContain("secrets.");
+    expect(authorizationRunner).toContain("ANON_TELEVOTE_AGGREGATE_RPC_EXPOSED");
+    expect(authorizationRunner).toContain("UNAUTHORIZED_TELEVOTE_SNAPSHOT_SUCCEEDED");
+    expect(authorizationRunner).toContain("UNAUTHORIZED_TELEVOTE_MUTATION_SUCCEEDED");
+    expect(authorizationRunner).toContain("PRIVATE_TELEVOTE_AGGREGATE_READER_EXPOSED");
+    expect(authorizationRunner).toContain("Refusing hosted database");
+    expect(authorizationRunner).toContain("rollback;");
+  });
+
+
   it("preserves the forward S13 contract and source-controlled migration identity", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain("'v3.system.televote-aggregate-command'");
     expect(migration).toContain("'forward_fix_only'");
     expect(migration).not.toContain("20261019210000_v3_televote_aggregate_command");
+  });
+
+  it("authorizes the exact edition before exposing show membership, including NULL denials", () => {
+    for (const [signature, endMarker] of [
+      ["public.studio2_televote_aggregate_snapshot(", "$snapshot$;"],
+      ["public.studio2_update_televote_aggregate_totals(", "$command$;"],
+    ]) {
+      const start = migration.indexOf("create or replace function " + signature);
+      const end = migration.indexOf(endMarker, start);
+      const body = migration.slice(start, end);
+      const guard = body.indexOf("studio2_access_allowed('voting.manage', p_edition_id, false) is not true");
+      const showLookup = body.indexOf("from public.shows show_row");
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(guard).toBeGreaterThan(0);
+      expect(showLookup).toBeGreaterThan(guard);
+      expect(body).not.toContain("if not public.studio2_access_allowed('voting.manage'");
+    }
   });
 
   it("moves the consequential write behind an authenticated capability-checked RPC", () => {
