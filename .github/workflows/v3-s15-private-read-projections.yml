@@ -5,6 +5,7 @@ on:
     branches:
       - v3/s15-system-participant-activity-contract-20261104
       - v3/s15-confirmation-exact-edition-projections-20261104
+      - v3/s15-integration-20261104
 
 permissions:
   contents: read
@@ -74,16 +75,34 @@ jobs:
               src/lib/v3-participant-activity-system.contract.test.ts \
               src/lib/v3-participant-activity.contract.test.ts \
               src/lib/v3-participant-activity.test.ts
-          elif [[ -f .github/scripts/v3-s15-confirmation-projections-rehearsal.sh ]]; then
+          fi
+          if [[ -f .github/scripts/v3-s15-confirmation-projections-rehearsal.sh ]]; then
             bash -n .github/scripts/v3-s15-confirmation-projections-rehearsal.sh
             bunx vitest run \
               src/lib/v3-confirmation-review-projection.contract.test.ts \
               src/lib/v3-confirmation-recovery-projection.contract.test.ts \
               src/lib/v3-s13-migration-adoption-audit.test.ts
-          else
+          fi
+          if [[ ! -f .github/scripts/v3-s15-participant-activity-rehearsal.sh && ! -f .github/scripts/v3-s15-confirmation-projections-rehearsal.sh ]]; then
             echo "::error::No S15 runtime projection rehearsal found"
             exit 1
           fi
+
+      - name: Lint and typecheck combined S15 contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun run typecheck
+          files=()
+          for candidate in \
+            src/lib/v3-participant-activity-system.contract.test.ts \
+            src/lib/v3-confirmation-review-projection.contract.test.ts \
+            src/lib/v3-confirmation-recovery-projection.contract.test.ts
+          do
+            if [[ -f "$candidate" ]]; then files+=("$candidate"); fi
+          done
+          (( ${#files[@]} > 0 ))
+          bunx eslint --quiet "${files[@]}"
 
       - name: Start disposable local Supabase
         run: supabase start
@@ -111,7 +130,8 @@ jobs:
           set -euo pipefail
           if [[ -f .github/scripts/v3-s15-participant-activity-rehearsal.sh ]]; then
             bash .github/scripts/v3-s15-participant-activity-rehearsal.sh
-          else
+          fi
+          if [[ -f .github/scripts/v3-s15-confirmation-projections-rehearsal.sh ]]; then
             bash .github/scripts/v3-s15-confirmation-projections-rehearsal.sh
           fi
 
@@ -123,8 +143,17 @@ jobs:
           # second test starts from the independently validated S15 base and
           # applies ONLY the candidate migration delta.
           supabase stop --no-backup
-          git fetch --no-tags --depth=1 origin v3/s15-integration-20261104
-          base_sha="$(git rev-parse FETCH_HEAD)"
+          git fetch --no-tags --depth=30 origin v3/s15-integration-20261104
+          # On integrated S15, verify all three new migrations against the
+          # precise pre-System base. Feature PRs target current S15 instead.
+          if [[ "$GITHUB_REF_NAME" == "v3/s15-integration-20261104" ]]; then
+            base_sha="5748af8fd62aa313df7cc6da722d6d1a53824693"
+            git cat-file -e "$base_sha^{commit}" || {
+              echo "::error::Pre-System S15 base SHA missing"; exit 1;
+            }
+          else
+            base_sha="$(git rev-parse FETCH_HEAD)"
+          fi
           echo "Upgrading exact S15 base: $base_sha"
           git worktree add --detach /tmp/solaris-s15-upgrade-base "$base_sha"
           cd /tmp/solaris-s15-upgrade-base
@@ -156,7 +185,8 @@ jobs:
           supabase migration up --local --include-all
           if [[ -f "$GITHUB_WORKSPACE/.github/scripts/v3-s15-participant-activity-rehearsal.sh" ]]; then
             bash "$GITHUB_WORKSPACE/.github/scripts/v3-s15-participant-activity-rehearsal.sh"
-          else
+          fi
+          if [[ -f "$GITHUB_WORKSPACE/.github/scripts/v3-s15-confirmation-projections-rehearsal.sh" ]]; then
             bash "$GITHUB_WORKSPACE/.github/scripts/v3-s15-confirmation-projections-rehearsal.sh"
           fi
 
