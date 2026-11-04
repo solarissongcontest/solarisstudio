@@ -89,6 +89,28 @@ describe("TG6 institutional session/agenda authority contracts", () => {
     expect(sql).toMatch(/deferrable initially deferred/);
   });
 
+  it("keeps lifecycle transitions and draft publishing canonical and reviewed", () => {
+    const lifecycle = functionBody("world_session_transition_v1", "transition");
+    const publish = functionBody("world_agenda_publish_v1", "publish");
+    expect(lifecycle).toMatch(/world_access_allowed\(\s*'world\.session\.manage'/);
+    expect(lifecycle).toMatch(/'scheduled' and p_target_status in \('open','cancelled'\)/);
+    expect(lifecycle).toMatch(/'recessed' and p_target_status in \('open','concluded'\)/);
+    expect(lifecycle).toMatch(/world\.session\.transitioned/);
+    expect(publish).toMatch(/world_access_allowed\(\s*'world\.agenda\.manage'/);
+    expect(publish).toMatch(/v_item\.state <> 'draft'/);
+    expect(publish).toMatch(/world\.agenda\.published/);
+    for (const body of [lifecycle, publish]) {
+      expect(body.indexOf("v_claim ->> 'replayed'"))
+        .toBeLessThan(body.indexOf("message='VERSION_CONFLICT'"));
+      expect(body).toMatch(/studio2_reconcile_operation/);
+      expect(body).toMatch(/private\.studio2_complete_operation/);
+      expect(body).toMatch(/private\.v3_emit_domain_event/);
+    }
+    expect(sql).toMatch(/grant execute on function public\.world_session_manage_v1/);
+    expect(sql).toMatch(/public\.world_session_transition_v1\(uuid,text,bigint,uuid,text,uuid\)/);
+    expect(sql).toMatch(/public\.world_agenda_publish_v1\(uuid,uuid,bigint,uuid,text,uuid\)/);
+  });
+
   it("makes TG6 limitations explicit instead of claiming attendance/voting parity", () => {
     expect(TERRA_GOVERNANCE_TG6.notYetImplemented).toContain(
       "attendance and representative/proxy roll call",
