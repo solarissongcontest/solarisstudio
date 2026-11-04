@@ -125,3 +125,11 @@
     backdrop-filter: none;
   }
 }
+
+/* The installed iPad dock becomes a left rail. V3 does not mount legacy
+   .app-main, so its own shell must reserve the same clear space. */
+@media (min-width: 900px) {
+  html[data-solaris-app] [data-solaris-v3] .v3-installed-app-layout {
+    padding-left: calc(7.35rem + env(safe-area-inset-left));
+  }
+}

@@ -20,6 +20,7 @@ import {
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { holdMovementExceeded, useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
+import { resolveV3LogicalHorizontalDelta, type V3LayoutDirection } from "@/lib/v3-navigation-gesture";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +44,7 @@ type DragState = {
   originIndex: number;
   moved: boolean;
   engaged: boolean;
+  layoutDirection: V3LayoutDirection;
 };
 
 function isPrimaryArea(value: string): value is PrimaryArea {
@@ -61,12 +63,17 @@ export function AppTabBar({
   signedIn,
   participateBadge = 0,
   meBadge = 0,
+  onSelectV3Tab,
+  v3TabHref,
 }: {
   pathname: string;
   searchStr?: string;
   signedIn: boolean;
   participateBadge?: number;
   meBadge?: number;
+  /** V3 shell owns scoped navigation memory; legacy AppShell retains its own store. */
+  onSelectV3Tab?: (area: PrimaryArea) => void;
+  v3TabHref?: (area: PrimaryArea) => string;
 }) {
   const navigate = useNavigate();
   const chrome = resolveAppRouteChrome(pathname, searchStr);
@@ -183,6 +190,10 @@ export function AppTabBar({
   const openTab = (index: number) => {
     const area = PUBLIC_GLOBAL_AREAS[index];
     if (!area) return;
+    if (onSelectV3Tab) {
+      onSelectV3Tab(area.id);
+      return;
+    }
     const target = getAppTabDestination(area.id, signedIn);
     const root = appTabRoot(area.id, signedIn);
     if (appEntryHref(target) !== root || target.scrollY > 0) {
@@ -203,6 +214,10 @@ export function AppTabBar({
   const activateCurrentTab = (index: number) => {
     const area = PUBLIC_GLOBAL_AREAS[index];
     if (!area) return;
+    if (onSelectV3Tab) {
+      onSelectV3Tab(area.id);
+      return;
+    }
     const root = appTabRoot(area.id, signedIn);
     const normalizedPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
     const normalizedRoot = root.endsWith("/") && root !== "/" ? root.slice(0, -1) : root;
@@ -277,6 +292,9 @@ export function AppTabBar({
     index: number,
     active: boolean,
   ) => {
+    // Reset suppression before eligibility checks so a prior cancelled swipe
+    // can never swallow the next legitimate pointer gesture.
+    suppressClick.current = false;
     if (
       !active ||
       collapsed ||
@@ -286,7 +304,6 @@ export function AppTabBar({
       (event.pointerType === "mouse" && event.button !== 0)
     ) return;
 
-    suppressClick.current = false;
     dragState.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -294,6 +311,7 @@ export function AppTabBar({
       originIndex: index,
       moved: false,
       engaged: false,
+      layoutDirection: getComputedStyle(materialRef.current ?? event.currentTarget).direction === "rtl" ? "rtl" : "ltr",
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginHold(event.pointerId, event.clientX, event.clientY);
@@ -334,8 +352,8 @@ export function AppTabBar({
     const maxCenter = lastRect ? lastRect.left + lastRect.width / 2 : originCenter;
     const response = resolveElasticDrag({
       rawDelta: event.clientX - drag.startX,
-      minDelta: minCenter - originCenter,
-      maxDelta: maxCenter - originCenter,
+      minDelta: Math.min(minCenter - originCenter, maxCenter - originCenter),
+      maxDelta: Math.max(minCenter - originCenter, maxCenter - originCenter),
       slotWidth: origin.width,
     });
 
@@ -349,7 +367,7 @@ export function AppTabBar({
     material?.setAttribute("data-drag-direction", response.direction);
 
     const preview = resolveTabDragTargetIndex({
-      rawDelta: event.clientX - drag.startX,
+      rawDelta: resolveV3LogicalHorizontalDelta(event.clientX - drag.startX, drag.layoutDirection),
       originIndex: drag.originIndex,
       slotWidth: origin.width,
       itemCount: PUBLIC_GLOBAL_AREAS.length,
@@ -372,7 +390,7 @@ export function AppTabBar({
     const rects = tabRects();
     const origin = rects[drag.originIndex];
     const targetIndex = resolveTabDragTargetIndex({
-      rawDelta: event.clientX - drag.startX,
+      rawDelta: resolveV3LogicalHorizontalDelta(event.clientX - drag.startX, drag.layoutDirection),
       originIndex: drag.originIndex,
       slotWidth: origin?.width ?? 1,
       itemCount: PUBLIC_GLOBAL_AREAS.length,
@@ -392,10 +410,10 @@ export function AppTabBar({
     if (!moved || targetIndex === drag.originIndex) return;
     const area = PUBLIC_GLOBAL_AREAS[targetIndex];
     if (!area) return;
-    const target = getAppTabDestination(area.id, signedIn);
+    const targetHref = v3TabHref?.(area.id) ?? appEntryHref(getAppTabDestination(area.id, signedIn));
 
     trackPublicUxEvent("public_nav_clicked", {
-      target: appEntryHref(target),
+      target: targetHref,
       metadata: { area: area.id, source: "app_tabbar_drag" },
     });
     openTab(targetIndex);
@@ -476,7 +494,7 @@ export function AppTabBar({
 
                 event.preventDefault();
                 trackPublicUxEvent("public_nav_clicked", {
-                  target: active ? pathname : appEntryHref(getAppTabDestination(area.id, signedIn)),
+                  target: active ? pathname : (v3TabHref?.(area.id) ?? appEntryHref(getAppTabDestination(area.id, signedIn))),
                   metadata: {
                     area: area.id,
                     source: active ? "app_tabbar_active" : "app_tabbar_restore",
