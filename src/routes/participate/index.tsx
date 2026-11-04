@@ -291,10 +291,12 @@ function LegacyParticipatePage() {
           priority: 30,
         };
 
+    // A cached status is not proof of a currently open voting window once
+    // its refresh fails. Do not advertise stale availability or closure.
     return sortParticipationActions([
-      ...(!confirmationsQuery.isError || confirmationsQuery.data ? [confirmationAction] : []),
-      ...(!televoteQuery.isError || televoteQuery.data ? [televoteAction] : []),
-      ...(!juryQuery.isError || juryQuery.data ? [juryAction] : []),
+      ...(!confirmationsQuery.isError ? [confirmationAction] : []),
+      ...(!televoteQuery.isError ? [televoteAction] : []),
+      ...(!juryQuery.isError ? [juryAction] : []),
     ]);
   }, [
     confirmationsQuery.data,
