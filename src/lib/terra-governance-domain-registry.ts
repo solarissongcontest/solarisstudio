@@ -190,6 +190,7 @@ export const TERRA_GOVERNANCE_FOUNDATION_MIGRATIONS = [
   "20261102171600_v3_tg2_world_institution_access.sql",
   "20261102171700_v3_tg2_world_office_term_canonical_alignment.sql",
   "20261102171800_v3_tg2_world_office_term_dependents.sql",
+  "20261104115831_v3_tg2_world_identity_linkage_privacy.sql",
 ] as const;
 
 export const TERRA_GOVERNANCE_FOUNDATION_EVENT_TYPES = [

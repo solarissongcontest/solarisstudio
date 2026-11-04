@@ -13,6 +13,12 @@ const TOOL_GROUPS = [
     description: "See what is happening now.",
     tools: [
       {
+        to: "/calendar",
+        title: "Show calendar",
+        description: "Check published show times and save an edition schedule to your phone or desktop calendar.",
+        eyebrow: "Public schedule",
+      },
+      {
         to: "/pulse",
         title: "Solaris Pulse",
         description: "See recent updates, countries you follow, record changes and prediction movement.",

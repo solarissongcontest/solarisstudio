@@ -4,18 +4,22 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("V3 Public completion Chat 3 discovery roots", () => {
-  it("keeps Countries as discovery first and the complete directory secondary", () => {
+  it("keeps one editorial Countries headline and a full current-edition collection", () => {
     const route = source("src/routes/countries/index.tsx");
     const screen = source("src/components/v3/V3CountriesDiscoveryScreen.tsx");
 
     expect(route).toContain("V3CountriesDiscoveryScreen");
-    expect(screen).toContain('eyebrow={discovery.currentEdition ? "Current edition" : "Between editions"}');
+    expect(screen).toContain('id="countries-page-title"');
+    expect(screen).toContain('className="v3-countries-title"');
+    expect(screen).toContain("Meet the countries");
+    expect(screen).toContain('aria-labelledby="countries-page-title"');
+    expect(screen).not.toContain('eyebrow="Browse all"');
     expect(screen).toContain('eyebrow="Current movement"');
     expect(screen).toContain('eyebrow="Explore by region"');
-    expect(screen).toContain('eyebrow="Browse all"');
-    expect(screen.indexOf('eyebrow="Browse all"')).toBeGreaterThan(
-      screen.indexOf('eyebrow="Explore by region"'),
+    expect(screen.indexOf('className="v3-countries-browser scroll-mt-24"')).toBeLessThan(
+      screen.indexOf('eyebrow="Current movement"'),
     );
+    expect(screen).toContain("participatingOnly && activeEdition ? filtered : filtered.slice(0, visibleCount)");
     expect(screen).toContain("usePublicEditionParticipants(activeEdition?.id)");
     expect(screen).not.toContain("useAllParticipants");
     expect(screen).not.toContain("useAllResults");
