@@ -91,7 +91,7 @@ jobs:
             produced_at: new Date().toISOString(),
             scope: "evidence parser contract only; not full V3 release certification"
           };
-          fs.writeFileSync("v3-release-contract-evidence/contract.json", JSON.stringify(evidence, null, 2) + "\\n");
+          fs.writeFileSync("v3-release-contract-evidence/contract.json", JSON.stringify(evidence, null, 2) + String.fromCharCode(10));
           NODE
 
       - name: Upload exact-head contract evidence
