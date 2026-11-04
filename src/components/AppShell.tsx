@@ -80,7 +80,8 @@ function ShellAccessStatus({ state }: { state: Exclude<ShellAccessResolution, "r
       role="status"
       aria-live="polite"
       data-solaris-shell-access={state}
-      className="pointer-events-none fixed left-1/2 top-[max(.65rem,env(safe-area-inset-top))] z-[65] w-[min(92vw,30rem)] -translate-x-1/2 rounded-full border border-border/70 bg-background/92 px-3 py-2 text-center text-[11px] font-semibold text-muted-foreground shadow-lg backdrop-blur-md"
+      className="pointer-events-none fixed left-1/2 z-[65] w-[min(92vw,30rem)] -translate-x-1/2 rounded-full border border-border/70 bg-background/92 px-3 py-2 text-center text-[11px] font-semibold text-muted-foreground shadow-lg backdrop-blur-md"
+      style={{ top: "calc(var(--solaris-app-safe-top, env(safe-area-inset-top)) + var(--solaris-app-safe-top-comfort, 6px) + .65rem)" }}
     >
       {unavailable
         ? "Solaris could not verify account access. Navigation stays limited until the session is checked again."
@@ -166,7 +167,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       .getUser()
       .then(({ data, error }) => {
         if (!alive || bootstrapRequestId !== accessRequestRef.current) return;
-        if (error) {
+        // No stored session is a normal anonymous visit, not an auth outage.
+        // Only AuthSessionMissingError with no user may resolve as anonymous;
+        // every other bootstrap error must keep permission-sensitive UI closed.
+        const missingSession = error?.name === "AuthSessionMissingError" && !data.user;
+        if (error && !missingSession) {
           markUnavailable(bootstrapRequestId, error);
           return;
         }
