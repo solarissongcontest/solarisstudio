@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { MySolarisPersonalPage } from "@/components/mysolaris/MySolarisPersonalPage";
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3ParticipantActivityScreen } from "@/components/v3/V3ParticipantActivityScreen";
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/_authenticated/my-solaris/activity")({
 });
 
 function ActivityPage() {
+  const authenticatedUser = useAuthenticatedUser();
   const { isAppMode, platformResolved } = useSolarisApp();
   const rollout = useV3RolloutProbe(platformResolved && isAppMode);
 
@@ -33,12 +35,29 @@ function ActivityPage() {
     isAppMode &&
     !rollout.isError &&
     rollout.data?.enabled === true &&
-    rollout.data.meEnabled === true
+    rollout.data.meEnabled === true &&
+    rollout.data.userId === authenticatedUser.id
   ) {
     return (
       <V3AppShell editionLabel="Solaris Studio" phaseLabel="Activity" activeArea="me">
-        <V3ParticipantActivityScreen />
+        <V3ParticipantActivityScreen viewerId={rollout.data.userId} />
       </V3AppShell>
+    );
+  }
+
+  // A stale rollout probe must never hand one account's private V3 route
+  // to another account, or silently display the legacy feed instead.
+  if (
+    isAppMode &&
+    rollout.data?.enabled === true &&
+    rollout.data.meEnabled === true &&
+    rollout.data.userId &&
+    rollout.data.userId !== authenticatedUser.id
+  ) {
+    return (
+      <p className="px-4 py-10 text-sm text-muted-foreground" role="status" aria-live="polite">
+        Your account changed. Reopen Activity to verify the current session.
+      </p>
     );
   }
 

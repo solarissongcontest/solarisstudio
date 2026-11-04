@@ -3,9 +3,25 @@ import { describe, expect, it } from "vitest";
 import {
   emptyV3ParticipantActivityBundle,
   parseV3ParticipantActivity,
+  v3ParticipantActivityQueryKey,
 } from "./v3-participant-activity";
 
 describe("V3 participant activity projection", () => {
+  it("partitions private activity cache keys by viewer identity", () => {
+    expect(v3ParticipantActivityQueryKey("member-a")).toEqual([
+      "v3-participant-activity", "member-a",
+    ]);
+    expect(v3ParticipantActivityQueryKey("member-b")).toEqual([
+      "v3-participant-activity", "member-b",
+    ]);
+    expect(v3ParticipantActivityQueryKey("member-a")).not.toEqual(
+      v3ParticipantActivityQueryKey("member-b"),
+    );
+    expect(v3ParticipantActivityQueryKey(null)).toEqual([
+      "v3-participant-activity", "no-viewer",
+    ]);
+  });
+
   it("parses canonical recipient activity without exposing arbitrary routes", () => {
     const parsed = parseV3ParticipantActivity({
       items: [

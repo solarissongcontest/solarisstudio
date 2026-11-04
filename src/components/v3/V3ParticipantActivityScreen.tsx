@@ -1,5 +1,6 @@
 import { CheckCircle2, FileCheck2, Gamepad2, History, ReceiptText, Vote } from "lucide-react";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { formatEventDateTime } from "@/lib/public-time";
 import type {
   V3ParticipantActivityItem,
@@ -83,8 +84,24 @@ function ActivityItem({ item }: { item: V3ParticipantActivityItem }) {
   );
 }
 
-export function V3ParticipantActivityScreen() {
-  const activity = useV3ParticipantActivity(true);
+export function V3ParticipantActivityScreen({ viewerId }: { viewerId: string }) {
+  const authenticatedUser = useAuthenticatedUser();
+  const ownsIdentity = viewerId === authenticatedUser.id;
+  const activity = useV3ParticipantActivity(ownsIdentity ? viewerId : null, ownsIdentity);
+
+  // Never render cached private activity when the verified session changes.
+  // Even a disabled query can retain old data, so this is a render boundary.
+  if (!ownsIdentity) {
+    return (
+      <V3Screen>
+        <V3Surface>
+          <p role="status" className="text-sm text-[var(--v3-text-secondary)]">
+            Your account changed. Reopen Activity to verify the current session.
+          </p>
+        </V3Surface>
+      </V3Screen>
+    );
+  }
 
   return (
     <V3Screen className="pb-8">
