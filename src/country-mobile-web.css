@@ -1,0 +1,92 @@
+/* Mobile browser Country pages are editorial web pages, not scaled PWA cards.
+   Strict mode scoping keeps installed app and desktop layouts untouched. */
+@media (max-width: 767px) {
+  .country-profile-v8[data-country-layout-mode="mobile-web"] {
+    inline-size: 100%;
+    max-inline-size: none;
+    min-inline-size: 0;
+    --country-v2-card-shadow: none;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-masthead {
+    padding-block: .25rem .5rem;
+    border-block-end: 1px solid var(--border);
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-action {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: .5rem .85rem;
+    border: 1px solid var(--border);
+    border-radius: .55rem;
+    background: transparent;
+    color: var(--foreground);
+    font-size: .8125rem;
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-action:focus-visible,
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-tabs button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-follow {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-tabs {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    border-block-end: 1px solid var(--border);
+    scrollbar-width: thin;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-tabs button {
+    flex: 0 0 auto;
+    min-height: 48px;
+    padding: .55rem .15rem .7rem;
+    border: none;
+    border-block-end: 2px solid transparent;
+    background: transparent;
+    color: var(--muted-foreground);
+    font-size: .875rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-tabs button.is-selected {
+    border-block-end-color: var(--primary);
+    color: var(--foreground);
+  }
+
+  /* Quiet browser reading sections; theme colors and canonical data survive. */
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .data-panel {
+    background: transparent !important;
+    border: 0 !important;
+    border-block-start: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding-inline: 0 !important;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .data-panel::after {
+    content: none !important;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] :is(
+    .country-personality-card,
+    [data-country-v2-surface]
+  ) {
+    box-shadow: none !important;
+  }
+}
