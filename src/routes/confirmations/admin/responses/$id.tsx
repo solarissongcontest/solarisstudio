@@ -642,6 +642,7 @@ function ResponseDetailPage() {
   const { editionId: organizerEditionId } = useAdminContext();
   const navigate = useNavigate();
   const syncToSolaris = useServerFn(syncConfirmationSnapshotToSolaris);
+  const reconcileWinnerOperation = useServerFn(reconcileSystemOperation);
   const [data, setData] = useState<ResponseDetail | null>(null);
   const [technical, setTechnical] = useState<TechnicalData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -659,6 +660,8 @@ function ResponseDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const responseLoadGenerationRef = useRef(0);
   const syncInFlightRef = useRef(false);
+  const winnerInFlightRef = useRef(false);
+  const unresolvedWinnerOperationRef = useRef<{ operationId: string; responseId: string; editionId: string } | null>(null);
   const currentScopeRef = useRef({ responseId: id, editionId: organizerEditionId });
 
   useEffect(() => {
@@ -779,73 +782,142 @@ function ResponseDetailPage() {
   }, [load]);
 
   async function changeWinner(action: "select" | "clear", reason: string, entryId: string | null) {
+    if (winnerInFlightRef.current) return;
     if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId) || !data.national_final) {
       throw new Error("Organizer response or edition changed. The National Final winner was not applied.");
     }
+    winnerInFlightRef.current = true;
     const requestedGeneration = responseLoadGenerationRef.current;
     const stillCurrent = () =>
       requestedGeneration === responseLoadGenerationRef.current &&
       currentScopeRef.current.responseId === id &&
       currentScopeRef.current.editionId === organizerEditionId;
+    try {
+      // A missing transport response is NOT evidence that the server rejected
+      // the operation. Never generate a second operation while one is unresolved.
+      const unresolved = unresolvedWinnerOperationRef.current;
+      if (unresolved) {
+        const recovered = await reconcileWinnerOperation({
+          data: { operationId: unresolved.operationId },
+        });
+        if (recovered.ok && recovered.receipt.operationId === unresolved.operationId &&
+            recovered.receipt.status === "succeeded") {
+          unresolvedWinnerOperationRef.current = null;
+          if (stillCurrent()) await load();
+          else toast.warning("A previous edition's winner decision was reconciled. Verify its canonical state.");
+          return;
+        }
+        if (recovered.ok && recovered.receipt.operationId === unresolved.operationId &&
+            recovered.receipt.status === "failed") {
+          unresolvedWinnerOperationRef.current = null;
+          throw new Error("The prior winner operation failed authoritatively. Reopen the response before issuing a new decision.");
+        }
+        throw new Error(
+          "A prior National Final winner operation has an unresolved outcome. Reconcile operation " +
+          unresolved.operationId + " before submitting another winner change.",
+        );
+      }
 
-    const { data: previewData, error: previewError } = await confirmationsSupabase.rpc(
-      "studio2_confirmation_winner_change_preview",
-      {
-        p_national_final_id: data.national_final.id,
-        p_action: action,
-        p_entry_id: entryId,
-      },
-    );
-    if (previewError) throw previewError;
-    const preview = previewData as {
-      expectedVersion?: number;
-      currentVersionId?: string | null;
-    } | null;
-    if (!preview || typeof preview.expectedVersion !== "number") {
-      throw new Error("National Final winner preview did not return a version.");
-    }
-    if (!stillCurrent()) {
-      throw new Error("Organizer edition or response changed during National Final review. Nothing was applied.");
-    }
+      const { data: previewData, error: previewError } = await confirmationsSupabase.rpc(
+        "studio2_confirmation_winner_change_preview",
+        {
+          p_national_final_id: data.national_final.id,
+          p_action: action,
+          p_entry_id: entryId,
+        },
+      );
+      if (previewError) throw previewError;
+      const preview = previewData as {
+        expectedVersion?: number;
+        currentVersionId?: string | null;
+      } | null;
+      if (!preview || !Number.isSafeInteger(preview.expectedVersion) || preview.expectedVersion! < 0) {
+        throw new Error("National Final winner preview did not return a valid version.");
+      }
+      if (!stillCurrent()) {
+        throw new Error("Organizer edition or response changed during National Final review. Nothing was applied.");
+      }
 
-    if (action === "select") {
-      const displayedEntry = data.national_final.entries.find((entry) => entry.id === entryId);
-      assertDisplayedEntryVersion(displayedEntry?.current_version_id, preview.currentVersionId);
-    }
+      if (action === "select") {
+        const displayedEntry = data.national_final.entries.find((entry) => entry.id === entryId);
+        assertDisplayedEntryVersion(displayedEntry?.current_version_id, preview.currentVersionId);
+      }
 
-    const command = createOrganisationCommand({
-      command: `confirmation.nf_winner.${action}`,
-      riskClass: "R2",
-      scope: { entityId: data.national_final.id },
-      payload: { action, entryId },
-      expectedVersion: preview.expectedVersion,
-    });
-    if (!stillCurrent()) {
-      throw new Error("Organizer context changed before applying the reviewed National Final winner. Nothing was applied.");
+      const command = createOrganisationCommand({
+        command: `confirmation.nf_winner.${action}`,
+        riskClass: "R2",
+        scope: { editionId: organizerEditionId, entityId: data.national_final.id },
+        payload: { action, entryId },
+        expectedVersion: preview.expectedVersion!,
+      });
+      if (!stillCurrent()) {
+        throw new Error("Organizer context changed before applying the reviewed National Final winner. Nothing was applied.");
+      }
+      unresolvedWinnerOperationRef.current = {
+        operationId: command.operationId,
+        responseId: id,
+        editionId: organizerEditionId!,
+      };
+
+      let receipt: SystemReceipt | null = null;
+      let failureMessage = "The National Final winner result could not be confirmed.";
+      try {
+        const { data: applyData, error: rpcError } = await confirmationsSupabase.rpc(
+          "studio2_apply_confirmation_winner_change",
+          {
+            p_national_final_id: data.national_final.id,
+            p_action: action,
+            p_entry_id: entryId,
+            p_reason: reason,
+            p_operation_id: command.operationId,
+            p_idempotency_key: command.idempotencyKey,
+            p_expected_version: preview.expectedVersion,
+            ...(action === "select" &&
+            data.national_final.entries.find((entry) => entry.id === entryId)?.current_version_id
+              ? {
+                  p_expected_entry_version: data.national_final.entries.find(
+                    (entry) => entry.id === entryId,
+                  )!.current_version_id,
+                }
+              : {}),
+          },
+        );
+        if (rpcError) {
+          failureMessage = toSystemError(rpcError).message;
+        } else {
+          receipt = normalizeSystemReceipt(applyData);
+        }
+      } catch (caught) {
+        failureMessage = toSystemError(caught).message;
+      }
+
+      if (!receipt || receipt.status !== "succeeded" || receipt.operationId !== command.operationId) {
+        // Server receipt reconciliation distinguishes a committed mutation from
+        // an HTTP timeout, an invalid response, or an incomplete operation.
+        const recovered = await reconcileWinnerOperation({
+          data: { operationId: command.operationId },
+        });
+        if (recovered.ok && recovered.receipt.operationId === command.operationId &&
+            recovered.receipt.status === "succeeded") {
+          receipt = recovered.receipt;
+        } else {
+          if (recovered.ok && recovered.receipt.operationId === command.operationId &&
+              recovered.receipt.status === "failed") {
+            unresolvedWinnerOperationRef.current = null;
+            throw new Error("National Final winner operation failed. " + failureMessage);
+          }
+          throw new Error(
+            failureMessage + " The outcome is uncertain. Reconcile operation " +
+            command.operationId + " before trying another winner change.",
+          );
+        }
+      }
+      unresolvedWinnerOperationRef.current = null;
+      if (stillCurrent()) await load();
+      else toast.warning("National Final change completed for another edition. Reopen that edition to verify the result.");
+    } finally {
+      winnerInFlightRef.current = false;
     }
-    const { error: rpcError } = await confirmationsSupabase.rpc(
-      "studio2_apply_confirmation_winner_change",
-      {
-        p_national_final_id: data.national_final.id,
-        p_action: action,
-        p_entry_id: entryId,
-        p_reason: reason,
-        p_operation_id: command.operationId,
-        p_idempotency_key: command.idempotencyKey,
-        p_expected_version: preview.expectedVersion,
-        ...(action === "select" &&
-        data.national_final.entries.find((entry) => entry.id === entryId)?.current_version_id
-          ? {
-              p_expected_entry_version: data.national_final.entries.find(
-                (entry) => entry.id === entryId,
-              )!.current_version_id,
-            }
-          : {}),
-      },
-    );
-    if (rpcError) throw rpcError;
-    if (stillCurrent()) await load();
-    else toast.warning("National Final change completed for another edition. Reopen that edition to verify the result.");
   }
 
   async function setWinner(entry: ReviewEntry, reason: string) {
