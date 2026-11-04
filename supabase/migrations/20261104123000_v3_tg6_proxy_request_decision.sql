@@ -89,7 +89,6 @@ begin
     where id=p_session_id for share;
     if v_session.id is null
        or v_session.organization_id <> v_rep.organization_id
-       or v_session.status not in ('scheduled','open','recessed')
     then
       raise exception using errcode='23514',message='SESSION_NOT_ELIGIBLE';
     end if;
