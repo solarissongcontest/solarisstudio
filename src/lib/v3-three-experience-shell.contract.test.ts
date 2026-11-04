@@ -36,6 +36,11 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(css).toContain("min-height: 44px");
     expect(css).toContain("min-width: 44px");
     expect(css).toContain("overflow-x: auto");
+    expect(sections).toContain('const navRef = useRef<HTMLElement | null>(null);');
+    expect(sections).toContain('nav.querySelector<HTMLElement>(\'[aria-current="page"]\')');
+    expect(sections).toContain("nav.scrollLeft += delta");
+    expect(sections).toContain('window.addEventListener("resize", keepActiveVisible)');
+    expect(sections).toContain('window.removeEventListener("resize", keepActiveVisible)');
     expect(css).not.toContain("position: fixed");
     const desktop = read("src/components/v3/V3DesktopPrimaryNavigation.tsx");
     expect(desktop).toContain("to={destination.to as any}");

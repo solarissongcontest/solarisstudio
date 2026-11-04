@@ -55,6 +55,15 @@ test(
       expect(measurements?.position).not.toBe("fixed");
       expect(measurements?.minimumHitHeight).toBeGreaterThanOrEqual(44);
       expect(measurements?.scrollWidth).toBeLessThanOrEqual((measurements?.clientWidth ?? 0) + 2);
+      // The selected root remains visible even when five readable links
+      // overflow a 320px website viewport. Only the strip scrolls.
+      await expect.poll(async () => web.evaluate((nav) => {
+        const active = nav.querySelector<HTMLElement>('[aria-current="page"]');
+        if (!active) return false;
+        const strip = nav.getBoundingClientRect();
+        const item = active.getBoundingClientRect();
+        return item.left >= strip.left - 1 && item.right <= strip.right + 1;
+      })).toBe(true);
     }
 
     await page.setViewportSize({ width: 1440, height: 900 });

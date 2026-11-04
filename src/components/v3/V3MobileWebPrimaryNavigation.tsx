@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 import type { LucideIcon } from "lucide-react";
 
 import type { V3Area } from "./V3AppShell";
@@ -25,8 +26,37 @@ export function V3MobileWebPrimaryNavigation({
   activeArea: V3Area | null;
   participateAttentionCount: number;
 }) {
+  const navRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+
+    // Five readable sections may overflow on narrow mobile websites. Reveal
+    // the current section without scrolling the document vertically or taking
+    // over the browser's URL/history behavior. Physical rectangles also work
+    // with RTL and font scaling.
+    const keepActiveVisible = () => {
+      const active = nav.querySelector<HTMLElement>('[aria-current="page"]');
+      if (!active) return;
+      const viewport = nav.getBoundingClientRect();
+      const item = active.getBoundingClientRect();
+      const delta = item.left < viewport.left
+        ? item.left - viewport.left
+        : item.right > viewport.right
+          ? item.right - viewport.right
+          : 0;
+      if (Math.abs(delta) > 1) nav.scrollLeft += delta;
+    };
+
+    keepActiveVisible();
+    window.addEventListener("resize", keepActiveVisible);
+    return () => window.removeEventListener("resize", keepActiveVisible);
+  }, [activeArea]);
+
   return (
     <nav
+      ref={navRef}
       className="v3-mobile-web-primary-nav"
       aria-label="Solaris website sections"
       data-v3-web-section-navigation=""
