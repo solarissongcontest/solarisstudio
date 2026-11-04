@@ -22,9 +22,22 @@ export function publicWorldRpcHeaders(publishableKey: string): Record<string, st
     "Content-Type": "application/json",
     apikey: publishableKey,
   };
-  // Legacy anon keys are JWTs. New sb_publishable_ keys must not be
-  // misrepresented as Bearer JWTs (same rule as the canonical Supabase client).
+  // Legacy anon keys are JWTs. Validate the declared role before attaching
+  // Authorization so an accidentally configured service-role JWT cannot enter
+  // a Public browser request. This is a fail-closed key guard, not JWT auth.
   if (!publishableKey.startsWith("sb_publishable_")) {
+    try {
+      const parts = publishableKey.split(".");
+      if (parts.length !== 3 || !parts[1] || !parts[2]) {
+        throw new Error("Invalid legacy anonymous key");
+      }
+      const claims = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))) as {
+        role?: unknown;
+      };
+      if (claims.role !== "anon") throw new Error("Non-anonymous key");
+    } catch {
+      throw new Error("A legacy anonymous Supabase key is required for Public documents");
+    }
     headers.Authorization = "Bearer " + publishableKey;
   }
   return headers;
