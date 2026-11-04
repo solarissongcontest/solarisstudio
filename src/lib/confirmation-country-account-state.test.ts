@@ -65,7 +65,7 @@ describe("country-account confirmation state", () => {
       can_edit: true,
     });
 
-    expect(preferredCountryConfirmationResponse([closed, editable])).toBe(editable);
+    expect(preferredCountryConfirmationResponse([closed, editable], "edition-22")).toBe(editable);
   });
 
   it("falls back to the first saved response when none can be edited", () => {
@@ -77,9 +77,14 @@ describe("country-account confirmation state", () => {
       reason: "editing_closed",
     });
 
-    expect(preferredCountryConfirmationResponse([first, second])).toBe(first);
+    expect(preferredCountryConfirmationResponse([first, second], "edition-22")).toBe(first);
   });
 
+  it("fails closed when edition context is missing, even when a saved response exists", () => {
+    const saved = response({ can_edit: true });
+    expect(preferredCountryConfirmationResponse([saved], null)).toBeNull();
+    expect(preferredCountryConfirmationResponse([saved], "")).toBeNull();
+  });
   it("does not present an editable response from another edition as the selected edition's response", () => {
     const historical = response({ edition_id: "edition-21", round_id: "round-21", can_edit: true });
     const current = response({ edition_id: "edition-22", round_id: "round-22", can_edit: false });

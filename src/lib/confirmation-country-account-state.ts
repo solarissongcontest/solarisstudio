@@ -15,16 +15,15 @@ export function resolveCountryConfirmationRoundState(
     : { kind: "create", response: null };
 }
 
+/** Never fall back to another edition when edition context is missing. */
 export function preferredCountryConfirmationResponse(
   responses: readonly CountryConfirmationResponse[],
-  editionId?: string | null,
+  editionId: string | null,
 ): CountryConfirmationResponse | null {
-  const eligible = editionId
-    ? responses.filter((response) => response.edition_id === editionId)
-    : responses;
+  if (!editionId?.trim()) return null;
+  const eligible = responses.filter((response) => response.edition_id === editionId);
   return eligible.find((response) => response.can_edit) ?? eligible[0] ?? null;
 }
-
 /** The saved response and the edition-level requirement are distinct facts. */
 export function countryConfirmationOverviewMessage(
   status: "required" | "satisfied" | "waived" | "invalidated" | null,
