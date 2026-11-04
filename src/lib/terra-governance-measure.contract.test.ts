@@ -66,6 +66,18 @@ describe("TG7 versioned measures + procedural registration", () => {
       .not.toContain("world_measure_procedural_reviews");
   });
 
+  it("persists the GUARD short title without rewriting registered identity", () => {
+    const review = body("world_measure_review_v1", "measure_review");
+    const guard = body("world_measure_identity_guard_v1", "measure_identity");
+    const list = body("world_measure_public_list_v1", "measure_list");
+    const detail = body("world_measure_public_detail_v1", "measure_detail");
+    expect(review).toMatch(/short_title=case when p_target_state='registered' and v_slug='guard'/);
+    expect(review).toMatch(/split_part\(p_identifier,'\.',6\)/);
+    expect(guard).toMatch(/old\.short_title is distinct from new\.short_title/);
+    expect(list).toContain("'shortTitle',eligible.short_title");
+    expect(detail).toContain("'shortTitle',m.short_title");
+  });
+
   it("makes registered identifiers and institution ownership immutable", () => {
     const guard = body("world_measure_identity_guard_v1", "measure_identity");
     expect(guard).toContain("IMMUTABLE_MEASURE_IDENTITY");
