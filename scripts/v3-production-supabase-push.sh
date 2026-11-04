@@ -74,6 +74,16 @@ rm -rf "$repo_root/supabase/.temp"
 
 [[ -z "$(git status --porcelain)" ]] || fail "working tree must be clean"
 
+# Approve the exact checkout rather than only an ordered SQL manifest.
+# An unrelated application change between dry-run and commit must invalidate
+# the original approval. This never substitutes for explicit user authorization.
+actual_candidate_sha="$(git rev-parse HEAD)"
+expected_candidate_sha="${SOLARIS_PRODUCTION_CANDIDATE_SHA:-}"
+[[ "$expected_candidate_sha" =~ ^[0-9a-f]{40}$ ]] \
+  || fail "set SOLARIS_PRODUCTION_CANDIDATE_SHA to the exact reviewed 40-character lowercase commit SHA"
+[[ "$actual_candidate_sha" == "$expected_candidate_sha" ]] \
+  || fail "candidate SHA is $actual_candidate_sha, approval was for $expected_candidate_sha"
+
 actual_repo_head="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort | tail -n 1 | cut -d_ -f1)"
 [[ "$actual_repo_head" == "$EXPECTED_REPO_HEAD" ]] || fail "repository migration head is $actual_repo_head, expected $EXPECTED_REPO_HEAD; refresh the deployment candidate"
 [[ "${#EXPECTED_PENDING_VERSIONS[@]}" -eq "$EXPECTED_PENDING_COUNT" ]] || fail "deployment script pending-version manifest is internally inconsistent"
@@ -102,7 +112,7 @@ printf 'Target project: %s\n' "$PRODUCTION_PROJECT_REF"
 printf 'Expected remote migration head before push: %s\n' "$EXPECTED_REMOTE_HEAD"
 printf 'Repository migration head: %s\n' "$EXPECTED_REPO_HEAD"
 printf 'Expected canonical pending migrations: %s\n' "$EXPECTED_PENDING_COUNT"
-printf 'Git SHA: %s\n' "$(git rev-parse HEAD)"
+printf 'Git SHA: %s\n' "$actual_candidate_sha"
 
 # Link interactively/local-only. The CLI may request the production DB password.
 supabase link --project-ref "$PRODUCTION_PROJECT_REF"
