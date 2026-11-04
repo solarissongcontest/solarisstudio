@@ -68,7 +68,7 @@ test("Country and Wiki have distinct mobile-browser and desktop presentations", 
   // The representative route must come from the isolated local seed, never a
   // remote production country or a hard-coded live archive assumption.
   const discovered = await sitemapRoutes(baseURL!);
-  const country = discovered.find((route) => /^\\/countries\\/[^/]+$/.test(route));
+  const country = discovered.find((route) => /^\/countries\/[^/]+$/.test(route));
   expect(country, "Local sitemap must contain an indexable Country detail").toBeTruthy();
 
   await page.goto(country!, { waitUntil: "domcontentloaded" });
@@ -109,7 +109,7 @@ test("Country and Wiki have distinct mobile-browser and desktop presentations", 
     await expect(root.locator(".country-v2-hero, .country-identity-hero")).toHaveCount(1);
   }
 
-  const wiki = discovered.find((route) => /^\\/wiki\\/[^/]+$/.test(route));
+  const wiki = discovered.find((route) => /^\/wiki\/[^/]+$/.test(route));
   expect(wiki, "Local sitemap must contain a Wiki article").toBeTruthy();
   await page.goto(wiki!, { waitUntil: "domcontentloaded" });
   const wikiRoot = page.locator(".wiki-canvas");
