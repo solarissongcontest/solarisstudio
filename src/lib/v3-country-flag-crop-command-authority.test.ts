@@ -1,5 +1,7 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { V3_SYSTEM_DOMAIN_REGISTRY } from "./v3-system-domain-registry";
@@ -12,7 +14,50 @@ const migration = readFileSync(
   "utf8",
 );
 
+const flagRoleRunner = readFileSync(
+  resolve(process.cwd(), ".github/scripts/v3-country-flag-crop-authorization-rehearsal.sh"), "utf8",
+);
+const flagRoleWorkflow = readFileSync(
+  resolve(process.cwd(), ".github/workflows/v3-country-flag-crop-authorization-rehearsal.yml"), "utf8",
+);
+
 describe("System V3 country flag display-crop authority", () => {
+  it("tests exact country authorization, private hash grants and isolated rehearsal", () => {
+    expect(flagRoleWorkflow).toContain("supabase db reset --local --no-seed");
+    expect(flagRoleWorkflow).toContain("supabase stop --no-backup");
+    expect(flagRoleWorkflow).not.toContain("secrets.");
+    expect(flagRoleRunner).toContain("ANONYMOUS_FLAG_CROP_RPC_EXPOSED");
+    expect(flagRoleRunner).toContain("PRIVATE_FLAG_CROP_HASH_EXPOSED");
+    expect(flagRoleRunner).toContain("UNAUTHORIZED_FLAG_CROP_PREVIEW_SUCCEEDED");
+    expect(flagRoleRunner).toContain("UNAUTHORIZED_FLAG_CROP_MUTATION_SUCCEEDED");
+    expect(flagRoleRunner).toContain("rollback;");
+  });
+
+  it.each([
+    ["http://localhost:54321", "postgresql://postgres:postgres@hosted.invalid:54322/postgres"],
+    ["http://localhost:54321", "postgresql://postgres:postgres@localhost:54322@hosted.invalid/postgres"],
+    ["http://localhost:54321", "postgresql://postgres:postgres@127.0.0.1:54322/postgres?host=hosted.invalid"],
+    ["http://localhost:54321@hosted.invalid", "postgresql://postgres:postgres@localhost:54322/postgres"],
+  ])("denies hosted flag crop fixture URL before psql: %s %s", (apiUrl, databaseUrl) => {
+    const root = mkdtempSync(join(tmpdir(), "solaris-flag-crop-auth-"));
+    try {
+      writeFileSync(join(root, "supabase"),
+        `#!/bin/sh\nprintf '%s\\n' 'API_URL=${apiUrl}' 'DB_URL=${databaseUrl}'\n`,
+        { mode: 0o755 });
+      writeFileSync(join(root, "psql"), "#!/bin/sh\\necho MOCK_PSQL_STARTED >&2\\nexit 9\\n".replaceAll("\\n", "\n"), { mode: 0o755 });
+      const result = spawnSync(
+        "bash", [resolve(".github/scripts/v3-country-flag-crop-authorization-rehearsal.sh")],
+        { encoding: "utf8", env: { ...process.env, PATH: `${root}:${process.env.PATH}` } },
+      );
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Refusing");
+      expect(result.stderr).not.toContain("MOCK_PSQL_STARTED");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+
   it("uses canonical semantic S13 identity and an architecture-safe transport bridge", () => {
     expect(migration).toContain("'v3.country.flag-crop-authority'");
     expect(migration).not.toContain("'20261023204600_v3_country_flag_crop_command_authority'");
