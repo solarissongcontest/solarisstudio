@@ -5,12 +5,18 @@ import { ArrowDown, ArrowLeft, ArrowUp, Plus } from "lucide-react";
 
 import {
   appendWorldAgenda,
+  canManageWorldSession,
   getWorldManageAgenda,
+  publishWorldAgenda,
   reorderWorldAgenda,
+  transitionWorldSession,
   type WorldOperationReceipt,
 } from "@/lib/world-session-public";
 
-type Retryable = { run: () => Promise<WorldOperationReceipt> };
+type Retryable = { run: () => Promise<WorldOperationReceipt>; onSuccess?: () => void };
+type PendingAction =
+  | { type: "publish"; itemId: string; title: string }
+  | { type: "transition"; status: "open" | "recessed" | "concluded" | "cancelled" | "archived" };
 const errorMessage = (error: unknown) =>
   error && typeof error === "object" && "code" in error &&
   error.code === "40001"
@@ -32,10 +38,18 @@ export function WorldAgendaEditor({ sessionId }: { sessionId: string }) {
   const [description, setDescription] = useState("");
   const [published, setPublished] = useState(false);
   const [reviewing, setReviewing] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastReceipt, setLastReceipt] = useState<string | null>(null);
   const retryable = useRef<Retryable | null>(null);
+  const canManage = useQuery({
+    queryKey: ["world", "session", "can-manage", agenda.data?.organizationId, agenda.data?.organId],
+    enabled: Boolean(agenda.data),
+    queryFn: () => canManageWorldSession(agenda.data!.organizationId, agenda.data!.organId),
+    retry: false,
+    staleTime: 20_000,
+  });
 
   function editDraft() {
     setError(null);
@@ -43,7 +57,7 @@ export function WorldAgendaEditor({ sessionId }: { sessionId: string }) {
     retryable.current = null;
   }
 
-  async function run(operation: Retryable, onSuccess?: () => void) {
+  async function run(operation: Retryable) {
     if (busy) return;
     retryable.current = operation;
     setBusy(true);
@@ -53,7 +67,8 @@ export function WorldAgendaEditor({ sessionId }: { sessionId: string }) {
       setLastReceipt(receipt.operationId);
       retryable.current = null;
       setReviewing(false);
-      onSuccess?.();
+      operation.onSuccess?.();
+      setPendingAction(null);
       await Promise.all([
         client.invalidateQueries({ queryKey: ["world", "session", "manage", sessionId] }),
         client.invalidateQueries({ queryKey: ["world", "session", "public", sessionId] }),
@@ -81,11 +96,11 @@ export function WorldAgendaEditor({ sessionId }: { sessionId: string }) {
       expectedRevision: current.revision, operationId,
       idempotencyKey: "world.agenda.append:" + operationId,
     };
-    void run({ run: () => appendWorldAgenda(args) }, () => {
+    void run({ run: () => appendWorldAgenda(args), onSuccess: () => {
       setTitle("");
       setDescription("");
       setPublished(false);
-    });
+    } });
   }
 
   function move(index: number, offset: number) {
@@ -100,6 +115,43 @@ export function WorldAgendaEditor({ sessionId }: { sessionId: string }) {
     };
     void run({ run: () => reorderWorldAgenda(args) });
   }
+
+  function confirmPendingAction() {
+    const current = agenda.data;
+    if (!pendingAction || !current || retryable.current || busy) return;
+    const operationId = crypto.randomUUID();
+    if (pendingAction.type === "publish") {
+      const args = {
+        sessionId,
+        itemId: pendingAction.itemId,
+        expectedRevision: current.revision,
+        operationId,
+        idempotencyKey: "world.agenda.publish:" + operationId,
+      };
+      void run({ run: () => publishWorldAgenda(args) });
+    } else {
+      if (canManage.data !== true || canManage.isFetching) {
+        setError("Session management authorization is not available.");
+        return;
+      }
+      const args = {
+        sessionId,
+        targetStatus: pendingAction.status,
+        expectedRevision: current.revision,
+        operationId,
+        idempotencyKey: "world.session.transition:" + operationId,
+      };
+      void run({ run: () => transitionWorldSession(args) });
+    }
+  }
+
+  const transitions: Record<string, Array<PendingAction & { type: "transition" }>> = {
+    scheduled: [{ type: "transition", status: "open" }, { type: "transition", status: "cancelled" }],
+    open: [{ type: "transition", status: "recessed" }, { type: "transition", status: "concluded" }],
+    recessed: [{ type: "transition", status: "open" }, { type: "transition", status: "concluded" }],
+    concluded: [{ type: "transition", status: "archived" }],
+    cancelled: [{ type: "transition", status: "archived" }],
+  };
 
   return (
     <section className="mx-auto w-full max-w-4xl px-4 pb-16 pt-6 sm:px-6 sm:pt-10">
@@ -140,6 +192,27 @@ export function WorldAgendaEditor({ sessionId }: { sessionId: string }) {
               Refresh agenda
             </button>
           </div>
+          <section className="mt-5 border-b border-border/70 pb-5" aria-label="Session lifecycle">
+            <h2 className="text-sm font-semibold">Official session status</h2>
+            {canManage.isPending ? (
+              <p className="mt-2 text-xs text-muted-foreground" role="status">Checking status-change permission…</p>
+            ) : canManage.data !== true ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Status changes require a separate institutional management capability.
+              </p>
+            ) : (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(transitions[agenda.data.status] ?? []).map((action) => (
+                  <button key={action.status} type="button"
+                    disabled={busy || Boolean(retryable.current) || Boolean(pendingAction)}
+                    onClick={() => { setError(null); setPendingAction(action); }}
+                    className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold capitalize disabled:opacity-40">
+                    {action.status === "open" ? "Open / resume session" : action.status + " session"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
           {agenda.data.status === "scheduled" || agenda.data.status === "open" ||
            agenda.data.status === "recessed" ? (
             <>
@@ -153,14 +226,22 @@ export function WorldAgendaEditor({ sessionId }: { sessionId: string }) {
                       <p className="mt-1 pl-7 text-xs capitalize text-muted-foreground">{item.state}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
+                      {item.state === "draft" ? (
+                        <button type="button"
+                          disabled={busy || Boolean(retryable.current) || Boolean(pendingAction)}
+                          onClick={() => { setError(null); setPendingAction({ type: "publish", itemId: item.id, title: item.title }); }}
+                          className="min-h-11 rounded-xl border border-primary/40 px-3 text-xs font-semibold text-primary disabled:opacity-40">
+                          Publish
+                        </button>
+                      ) : null}
                       <button type="button" onClick={() => move(index, -1)}
-                        disabled={busy || Boolean(retryable.current) || index === 0}
+                        disabled={busy || Boolean(retryable.current) || Boolean(pendingAction) || index === 0}
                         aria-label={"Move " + item.title + " up"}
                         className="inline-flex size-11 items-center justify-center rounded-xl border border-border disabled:opacity-35">
                         <ArrowUp className="size-4" aria-hidden="true" />
                       </button>
                       <button type="button" onClick={() => move(index, 1)}
-                        disabled={busy || Boolean(retryable.current) || index === agenda.data.items.length - 1}
+                        disabled={busy || Boolean(retryable.current) || Boolean(pendingAction) || index === agenda.data.items.length - 1}
                         aria-label={"Move " + item.title + " down"}
                         className="inline-flex size-11 items-center justify-center rounded-xl border border-border disabled:opacity-35">
                         <ArrowDown className="size-4" aria-hidden="true" />
@@ -235,6 +316,31 @@ export function WorldAgendaEditor({ sessionId }: { sessionId: string }) {
               This session is no longer editable. Its official agenda remains preserved.
             </p>
           )}
+          {pendingAction && !retryable.current ? (
+            <section className="mt-6 rounded-2xl border border-primary/40 bg-surface p-5"
+              role="dialog" aria-modal="true" aria-labelledby="world-action-review-title">
+              <h2 id="world-action-review-title" className="text-lg font-semibold">
+                Review institutional action
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {pendingAction.type === "publish"
+                  ? "Publish “" + pendingAction.title + "” to the official public session agenda?"
+                  : "Change this institutional session from " + agenda.data.status +
+                    " to " + pendingAction.status + "?"}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                This operation checks the current server revision and produces a durable receipt.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button type="button" disabled={busy} onClick={() => setPendingAction(null)}
+                  className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold">Cancel</button>
+                <button type="button" disabled={busy} onClick={confirmPendingAction}
+                  className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-40">
+                  {busy ? "Committing…" : "Confirm official action"}
+                </button>
+              </div>
+            </section>
+          ) : null}
           {error ? (
             <div className="mt-6" role="alert">
               <p className="text-sm text-destructive">{error}</p>
