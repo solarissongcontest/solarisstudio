@@ -4,6 +4,7 @@ import {
   normalizeWorldCountrySearch,
   parseWorldCountryAffiliations,
   parseWorldPublicCountries,
+  parseWorldCountryIdentity,
   parseWorldPublicInstitutions,
   validWorldCountryCode,
   verifiedWorldCount,
@@ -40,6 +41,14 @@ describe("World country International public read boundaries", () => {
     expect(validWorldCountryCode("../../admin")).toBe(false);
     expect(() => parseWorldPublicCountries([country, country])).toThrow("Duplicate");
     expect(() => parseWorldPublicCountries([{ ...country, name: "" }])).toThrow();
+  });
+
+  it("rejects cached or spoofed country identity on a country-specific route", () => {
+    expect(parseWorldCountryIdentity(country, "ol")?.name).toBe("Oland");
+    expect(parseWorldCountryIdentity(null, "OL")).toBeNull();
+    expect(() => parseWorldCountryIdentity(country, "XX")).toThrow("does not match");
+    expect(() => parseWorldCountryIdentity(country, "../../country")).toThrow("Invalid requested");
+    expect(() => parseWorldCountryIdentity({ ...country, short_code: "ZZ" }, "OL")).toThrow("does not match");
   });
 
   it("never interpolates caller filter grammar or unbounded input into PostgREST", () => {
