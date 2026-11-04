@@ -93,6 +93,12 @@ as $function$
     where edition.published = true
       and vote.show_id is not null
       and public.show_publication_enabled(vote.show_id, 'detailed_voting')
+      -- The definer RPC is public and country-specific. Never materialize
+      -- unrelated countries' detailed ballots for a single country's lookup.
+      and (
+        coalesce(vote.voter_country_id, voter_entity.country_id) = p_country_id
+        or coalesce(vote.receiving_country_id, receiving_entity.country_id) = p_country_id
+      )
   ),
   detailed_scope as (
     select distinct detailed_votes.edition_id

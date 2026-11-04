@@ -92,6 +92,13 @@ describe("V3 Public Voting DNA System publication boundary", () => {
       "show_publication_enabled(vote.show_id, 'detailed_voting')",
     );
     expect(detailedVotes).toContain("edition.published = true");
+    // Scope BEFORE relationship aggregation, not only after large global joins.
+    expect(detailedVotes).toContain(
+      "coalesce(vote.voter_country_id, voter_entity.country_id) = p_country_id",
+    );
+    expect(detailedVotes).toContain(
+      "coalesce(vote.receiving_country_id, receiving_entity.country_id) = p_country_id",
+    );
   });
 
   it("keeps generic, Jury and Televote projection authority independent", () => {
