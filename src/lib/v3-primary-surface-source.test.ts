@@ -8,6 +8,7 @@ import type { Edition, ResultRow, Show } from "./data";
 import type { SolarisTask } from "./participation-os";
 import { loadV3BootstrapProjection } from "./v3-bootstrap-server";
 import {
+  activeV3DelegationCountryId,
   assembleV3PrimarySurfaceSnapshot,
   countDistinctV3Delegations,
   countPendingAcknowledgementTasks,
@@ -72,6 +73,23 @@ function base() {
 }
 
 describe("Solaris Studio V3 primary surface production snapshot", () => {
+  it("does not project suspended or unverifiable country ownership as an active delegation", () => {
+    expect(activeV3DelegationCountryId({
+      country_id: "country-oland",
+      status: "active",
+    })).toBe("country-oland");
+
+    for (const status of ["suspended", "pending", "", null, undefined]) {
+      expect(activeV3DelegationCountryId({
+        country_id: "country-oland",
+        status,
+      })).toBeNull();
+    }
+
+    expect(activeV3DelegationCountryId(null)).toBeNull();
+    expect(activeV3DelegationCountryId({ country_id: " ", status: "active" })).toBeNull();
+  });
+
   it("builds anonymous Home from public canonical state without participant evidence", () => {
     const snapshot = assembleV3PrimarySurfaceSnapshot(base());
 
