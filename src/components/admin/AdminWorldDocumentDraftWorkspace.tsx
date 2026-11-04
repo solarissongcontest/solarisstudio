@@ -517,11 +517,13 @@ export function AdminWorldDocumentDraftWorkspace() {
                         read model includes the provenance fields required to preserve all legal content.
                       </p>
                     </div>
-                  ) : snapshot.data.version && snapshot.data.version.provisions.length > MAX_WORLD_PROVISIONS_IN_EDITOR ? (
+                  ) : snapshot.data.version &&
+                      validateWorldDocumentProvisions(snapshot.data.version.provisions) ? (
                     <div role="alert" className="space-y-2">
-                      <p>The source has {snapshot.data.version.provisions.length} structured provisions,
-                        exceeding this workspace's safe editing limit of {MAX_WORLD_PROVISIONS_IN_EDITOR}.</p>
+                      <p>The source version cannot be safely edited within this workspace's
+                        {MAX_WORLD_PROVISIONS_IN_EDITOR}-provision and per-article content limits.</p>
                       <p className="text-sm text-muted-foreground">
+                        {validateWorldDocumentProvisions(snapshot.data.version.provisions)}
                         A new draft is blocked instead of accidentally discarding or truncating legal text.
                       </p>
                     </div>
