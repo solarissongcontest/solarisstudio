@@ -741,7 +741,6 @@ function ResponseDetailPage() {
   async function changeWinner(action: "select" | "clear", reason: string, entryId: string | null) {
     if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId) || !data.national_final) return;
     const requestedGeneration = responseLoadGenerationRef.current;
-    const nationalFinal = data.national_final;
     const stillCurrent = () =>
       requestedGeneration === responseLoadGenerationRef.current &&
       currentScopeRef.current.responseId === id &&
