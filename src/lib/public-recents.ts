@@ -60,7 +60,12 @@ function isSafeRootRelativePath(path: string) {
   return (
     path.startsWith("/") &&
     !path.startsWith("//") &&
+    !path.includes("//") &&
     !path.includes("\\") &&
+    !path.includes("?") &&
+    !path.includes("#") &&
+    !/\/(?:\.{1,2})(?:\/|$)/.test(path) &&
+    !/%(?:2f|5c|00)/i.test(path) &&
     !containsControlCharacter(path)
   );
 }
