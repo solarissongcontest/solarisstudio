@@ -298,6 +298,23 @@ export function NextInLineCompetition() {
               <LoaderCircle className="mx-auto mb-3 size-5 animate-spin" /> Loading Next in Line…
             </div>
           </Panel>
+        ) : !edition ? (
+          <Panel title="Next in Line is unavailable">
+            <p role="status" className="text-sm leading-6 text-muted-foreground">
+              {error ?? "No active Next in Line competition is available right now."}
+            </p>
+            <Button
+              className="mt-4"
+              variant="outline"
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                setReloadVersion((current) => current + 1);
+              }}
+            >
+              Retry availability
+            </Button>
+          </Panel>
         ) : done ? (
           <Panel>
             <div className="py-6 text-center">
@@ -315,7 +332,7 @@ export function NextInLineCompetition() {
             title="Enter a song"
             description={edition ? `SSC ${edition.edition_number} · ${edition.name}` : "Current edition"}
           >
-            <div className="space-y-5">
+            <fieldset disabled={submitting} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="next-country">Competing country</Label>
                 <select
@@ -330,7 +347,12 @@ export function NextInLineCompetition() {
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
                   The list only contains countries already participating in this SSC edition.
                 </p>
-                {loadingCountry ? <p className="text-xs text-muted-foreground">Loading selection information…</p> : null}
+                {loadingCountry ? <p role="status" className="text-xs text-muted-foreground">Loading selection information…</p> : null}
+                {sourceSubmissionId && originalMethod === "unknown" ? (
+                  <p role="alert" className="text-xs text-amber-700 dark:text-amber-300">
+                    The selection method is not confirmed. Submission stays blocked until country details are verified.
+                  </p>
+                ) : null}
               </div>
 
               {sourceSubmissionId && originalMethod === "national_final" ? (
@@ -340,7 +362,7 @@ export function NextInLineCompetition() {
                     The winning song is excluded automatically because it is already your official SSC entry.
                   </p>
                   {nfEntries.length ? nfEntries.map((entry) => (
-                    <Choice key={entry.id} selected={selectedNfEntry === entry.id} onClick={() => setSelectedNfEntry(entry.id)}>
+                    <Choice key={entry.id} selected={selectedNfEntry === entry.id} onClick={() => { setReviewSnapshot(null); setSelectedNfEntry(entry.id); }}>
                       <span className="font-semibold text-foreground">{entry.artist ?? "Unknown artist"}</span>
                       <span className="text-muted-foreground"> — {entry.song_title ?? "Unknown song"}</span>
                     </Choice>
@@ -350,30 +372,42 @@ export function NextInLineCompetition() {
                     </div>
                   )}
                 </div>
-              ) : sourceSubmissionId ? (
+              ) : sourceSubmissionId && originalMethod === "internal" ? (
                 <div className="space-y-4">
                   <div className="rounded-xl border border-primary/15 bg-primary/[0.055] p-3 text-xs leading-relaxed text-muted-foreground">
                     Enter an alternative song that was considered but <strong className="text-foreground">not selected</strong> as {country}'s official SSC entry.
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="next-artist">Artist</Label>
-                    <Input id="next-artist" value={artist} onChange={(event) => setArtist(event.target.value)} />
+                    <Input id="next-artist" value={artist} onChange={(event) => { setReviewSnapshot(null); setArtist(event.target.value); }} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="next-song">Song title</Label>
-                    <Input id="next-song" value={songTitle} onChange={(event) => setSongTitle(event.target.value)} />
+                    <Input id="next-song" value={songTitle} onChange={(event) => { setReviewSnapshot(null); setSongTitle(event.target.value); }} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="next-url">Song link</Label>
-                    <Input id="next-url" value={songUrl} onChange={(event) => setSongUrl(event.target.value)} placeholder="https://…" />
+                    <Input id="next-url" value={songUrl} onChange={(event) => { setReviewSnapshot(null); setSongUrl(event.target.value); }} placeholder="https://…" />
                   </div>
-                  {checkingDuplicate ? <p className="text-xs text-muted-foreground">Checking that this is not the official/used entry…</p> : null}
-                  {duplicate ? (
-                    <div className="rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-100">
-                      {duplicate === "song"
+                  {currentDuplicateCheck?.status === "checking" ? (
+                    <p role="status" className="text-xs text-muted-foreground">Checking whether this song has already been used…</p>
+                  ) : null}
+                  {currentDuplicateCheck?.status === "unavailable" ? (
+                    <p role="alert" className="text-xs text-amber-700 dark:text-amber-300">
+                      Song eligibility could not be verified. Edit the song link or reselect the country to retry; submission is blocked until it succeeds.
+                    </p>
+                  ) : null}
+                  {currentDuplicateCheck?.status === "duplicate" ? (
+                    <p role="alert" className="rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-600 dark:text-red-200">
+                      {currentDuplicateCheck.type === "song"
                         ? "This song has already been used in SSC and cannot enter Next in Line."
                         : "This artist is already submitted for another country in this edition."}
-                    </div>
+                    </p>
+                  ) : null}
+                  {currentDuplicateCheck?.status === "clear" ? (
+                    <p role="status" className="text-xs text-muted-foreground">
+                      No duplicate found for this song. Final eligibility is rechecked by the server at submission.
+                    </p>
                   ) : null}
                 </div>
               ) : null}
@@ -381,7 +415,7 @@ export function NextInLineCompetition() {
               {sourceSubmissionId ? (
                 <div className="space-y-2">
                   <Label htmlFor="next-preview">25-second preview start (MM:SS)</Label>
-                  <Input id="next-preview" value={previewStart} onChange={(event) => setPreviewStart(event.target.value)} placeholder="01:20" />
+                  <Input id="next-preview" value={previewStart} onChange={(event) => { setReviewSnapshot(null); setPreviewStart(event.target.value); }} placeholder="01:20" />
                   {previewEnd ? <p className="text-xs text-muted-foreground">Preview: {previewStart}–{previewEnd}</p> : null}
                 </div>
               ) : null}
@@ -395,14 +429,41 @@ export function NextInLineCompetition() {
                 </div>
               ) : null}
 
-              {error ? <div className="rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-100">{error}</div> : null}
+              {error ? <div role="alert" className="rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-600 dark:text-red-200">{error}</div> : null}
+
+              {sourceSubmissionId && isReviewing ? (
+                <section aria-labelledby="next-in-line-review-title" className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-4">
+                  <h3 id="next-in-line-review-title" className="text-lg font-semibold">Review before submitting</h3>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    Verify this country, song and preview. The server, not the browser, records the final entry.
+                  </p>
+                  <dl className="grid gap-2 text-sm">
+                    <div><dt className="text-muted-foreground">Country</dt><dd className="font-semibold">{country}</dd></div>
+                    <div><dt className="text-muted-foreground">Artist and song</dt><dd className="font-semibold">
+                      {originalMethod === "national_final"
+                        ? (() => {
+                            const pick = nfEntries.find((entry) => entry.id === selectedNfEntry);
+                            return (pick?.artist ?? "Unknown artist") + " · " + (pick?.song_title ?? "Unknown song");
+                          })()
+                        : artist.trim() + " · " + songTitle.trim()}
+                    </dd></div>
+                    <div><dt className="text-muted-foreground">Preview</dt><dd className="font-semibold">{previewStart.trim()}–{previewEnd}</dd></div>
+                  </dl>
+                  <button type="button" className="min-h-11 text-sm font-semibold text-primary underline" onClick={() => setReviewSnapshot(null)}>
+                    Back to editing
+                  </button>
+                </section>
+              ) : null}
 
               {sourceSubmissionId ? (
-                <Button className="w-full" disabled={submitting || checkingDuplicate} onClick={() => void send()}>
-                  {submitting ? "Submitting…" : "Submit Next in Line entry"}
+                <Button className="w-full" disabled={submitting || !readiness.ready} onClick={() => void send()}>
+                  {submitting ? "Submitting…" : isReviewing ? "Confirm and submit entry" : "Review entry"}
                 </Button>
               ) : null}
-            </div>
+              {sourceSubmissionId && !readiness.ready && !error ? (
+                <p role="status" className="text-xs leading-5 text-muted-foreground">{readiness.reason}</p>
+              ) : null}
+            </fieldset>
           </Panel>
         )}
       </div>
