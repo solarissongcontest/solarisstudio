@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { BarChart3, CheckCircle2, Clock3, LockKeyhole, Sparkles, Trophy } from "lucide-react";
 
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
@@ -9,7 +10,7 @@ import {
   usePredictionRounds,
 } from "@/lib/prediction-data";
 import { formatEventDateTime } from "@/lib/public-time";
-import { projectPredictionRounds, type V3PredictionRoundProjection, type V3PredictionState } from "@/lib/v3-predictions";
+import { projectPersonalScoredPredictionRounds, projectPredictionRounds, type V3PredictionRoundProjection, type V3PredictionState } from "@/lib/v3-predictions";
 import {
   useV3PredictionLeagueEnabled,
   useV3PredictionLeagueStandings,
@@ -67,6 +68,7 @@ function breakdownEntries(
 }
 
 export function V3PredictionsScreen() {
+  const [leagueEditionId, setLeagueEditionId] = useState<string>("all");
   const session = useFanSession();
   const viewerId = session.data?.id ?? null;
   const rounds = usePredictionRounds();
@@ -75,13 +77,17 @@ export function V3PredictionsScreen() {
   const shows = useAllShows();
   const editions = useEditions();
   const leagueFeature = useV3PredictionLeagueEnabled(true);
-  const standings = useV3PredictionLeagueStandings(leagueFeature.data === true);
+  const standings = useV3PredictionLeagueStandings(
+    leagueFeature.data === true,
+    leagueEditionId === "all" ? null : leagueEditionId,
+  );
 
   const projected = projectPredictionRounds(rounds.data?.rounds ?? [], history.data ?? []);
   const showMap = new Map((shows.data ?? []).map((show) => [show.id, show] as const));
   const editionMap = new Map((editions.data ?? []).map((edition) => [edition.id, edition] as const));
   const active = projected.filter((round) => round.state !== "scored");
-  const scored = projected.filter((round) => round.state === "scored").reverse();
+  const scored = projectPersonalScoredPredictionRounds(projected);
+  const publishedEditions = (editions.data ?? []).filter((edition) => edition.published);
   const myStanding = viewerId
     ? (standings.data ?? []).find((row) => row.profileId === viewerId) ?? null
     : null;
@@ -245,6 +251,24 @@ export function V3PredictionsScreen() {
             </V3Section>
 
             <V3Section title="Prediction League" meta={leagueFeature.data === true ? "Opt-in public standings" : "Unavailable"}>
+              {leagueFeature.data === true ? (
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <label htmlFor="v3-prediction-league-edition" className="text-xs font-semibold text-[var(--v3-text-secondary)]">
+                    Standings edition
+                  </label>
+                  <select
+                    id="v3-prediction-league-edition"
+                    value={leagueEditionId}
+                    onChange={(event) => setLeagueEditionId(event.target.value)}
+                    className="min-h-11 w-full rounded-xl border border-[var(--v3-border-subtle)] bg-[var(--v3-surface)] px-3 text-sm sm:w-auto sm:min-w-52"
+                  >
+                    <option value="all">All scored editions</option>
+                    {publishedEditions.map((edition) => (
+                      <option key={edition.id} value={edition.id}>{editionLabel(edition)}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
               {leagueFeature.isLoading ? (
                 <V3Surface><p role="status" className="text-sm text-[var(--v3-text-secondary)]">Checking league availability…</p></V3Surface>
               ) : leagueFeature.isError || leagueFeature.data !== true ? (
@@ -272,7 +296,7 @@ export function V3PredictionsScreen() {
                         ))}
                       </ol>
                     ) : (
-                      <p className="p-3 text-sm text-[var(--v3-text-secondary)]">No public scored league entries are available yet.</p>
+                      <p className="p-3 text-sm text-[var(--v3-text-secondary)]">No public scored league entries are available for this edition scope yet.</p>
                     )}
                   </V3Surface>
                   <V3Surface>
