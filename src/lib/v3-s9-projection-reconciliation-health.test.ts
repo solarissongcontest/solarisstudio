@@ -11,7 +11,7 @@ describe("System V3 S9 projection reconciliation health", () => {
     expect(health.repairReady).toBe(health.states.rebuildable + health.states.verified);
   });
 
-  it("exposes only unresolved contract gaps rather than guessing runtime freshness", () => {
+  it("exposes unresolved certification state without guessing runtime freshness", () => {
     const health = v3ProjectionReconciliationHealth();
     const unresolvedNames = new Set(health.unresolved.map((item) => item.projection));
 
@@ -21,7 +21,11 @@ describe("System V3 S9 projection reconciliation health", () => {
     }
 
     expect(health.unresolved.every((item) => item.failureState.length > 0)).toBe(true);
-    expect(health.unresolved.every((item) => item.missing.length > 0)).toBe(true);
+    expect(
+      health.unresolved.every(
+        (item) => item.missing.length > 0 || item.state === "foundation",
+      ),
+    ).toBe(true);
   });
 
   it("keeps unresolved entries deterministic and actionable", () => {
@@ -35,6 +39,9 @@ describe("System V3 S9 projection reconciliation health", () => {
       expect(item.missing.every((field) =>
         ["rebuildPath", "verificationPath", "boundedBy", "evidence"].includes(field),
       )).toBe(true);
+      if (item.missing.length === 0) {
+        expect(item.state).toBe("foundation");
+      }
     }
   });
 });

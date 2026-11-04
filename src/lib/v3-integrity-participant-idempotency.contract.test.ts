@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const migration = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20261023214000_v3_integrity_participant_idempotency_current_main.sql",
+    "supabase/migrations/20261104173000_v3_integrity_participant_idempotency_current_main.sql",
   ),
   "utf8",
 );
@@ -20,6 +20,13 @@ describe("V3 participant Integrity retry authority", () => {
     expect(migration).not.toContain("insert into public.integrity_case_events");
     expect(migration).not.toMatch(/drop\s+table/i);
     expect(migration).not.toMatch(/truncate/i);
+  });
+
+  it("pins the adopted authority to the forward-only source migration", () => {
+    expect(migration).toContain("'v3.integrity.participant-case-idempotency'");
+    expect(migration).toContain("'forward_fix_only'");
+    expect(migration).not.toContain("20261023214000_v3_integrity_participant_idempotency_current_main");
+    expect(migration).toContain("private.v3_anonymous_integrity_case_operations");
   });
 
   it("keeps anonymous retry identity private and recovery material encrypted", () => {
