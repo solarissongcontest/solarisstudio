@@ -38,6 +38,7 @@ export type WorldManageAgenda = {
   id: string;
   organizationId: string;
   organId: string;
+  externalUrl: string | null;
   revision: number;
   status: string;
   items: Array<{
@@ -144,7 +145,7 @@ export function parseWorldSessionDetail(row: unknown): WorldSessionDetail | null
 
 export function parseWorldManageAgenda(row: unknown): WorldManageAgenda {
   if (!object(row) || !uuid(row.id) || !uuid(row.organizationId) ||
-      !uuid(row.organId) || !revision(row.revision) ||
+      !uuid(row.organId) || !safeExternalUrl(row.externalUrl) || !revision(row.revision) ||
       !string(row.status) || !Array.isArray(row.items)) return invalid("manager");
   const items = row.items.map((item: unknown) => {
     if (!object(item) || !uuid(item.id) || !revision(item.revision) ||
@@ -160,6 +161,7 @@ export function parseWorldManageAgenda(row: unknown): WorldManageAgenda {
     };
   });
   return { id: row.id, organizationId: row.organizationId, organId: row.organId,
+    externalUrl: row.externalUrl,
     revision: row.revision, status: row.status, items };
 }
 
