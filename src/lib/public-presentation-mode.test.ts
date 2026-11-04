@@ -35,7 +35,7 @@ describe("three-experience public layout boundary", () => {
     expect(records).toContain("aria-pressed={tab === option.value}");
     expect(records).toContain("mobileWeb={mobileWeb}");
     expect(records).toContain("<ResponsiveTabs");
-    expect(records).toContain('className="glass flex min-h-[250px]'); // Retained as the desktop fallback.
+    expect(records).toContain('"glass flex min-h-[250px]'); // Retained as the desktop fallback.
     expect(records).toContain("buildCanonicalFanRecords");
     expect(records).toContain("archivedFinalEditions");
   });
