@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
 import { GitCompareArrows, History, RotateCcw, ShieldAlert } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { confirmationsSupabase } from '@/integrations/confirmations/client';
@@ -14,6 +14,7 @@ import {
   type StoredConfirmationVersion,
 } from '@/lib/confirmation-version-history';
 import type { SubmissionSnapshot } from '@/lib/submission-versioning';
+import { runConfirmationRestoreSingleFlight } from '@/lib/confirmation-restore-single-flight';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminSheet, AdminStatus } from './AdminUI';
 
 type VersionRow = {
@@ -84,6 +85,8 @@ export function ConfirmationVersionHistory({
   const [restoreReason, setRestoreReason] = useState('');
   const [restoreBaseline, setRestoreBaseline] = useState<RestoreBaseline | null>(null);
   const [reviewChecking, setReviewChecking] = useState(false);
+  // A synchronous guard also covers rapid consecutive clicks before React re-renders.
+  const restoreInFlightRef = useRef(false);
 
   const versionsQuery = useQuery({
     queryKey: ['confirmation-submission-versions', submissionId],
@@ -107,7 +110,7 @@ export function ConfirmationVersionHistory({
   }, [versions]);
 
   const restoreMutation = useMutation({
-    mutationFn: async ({ target, reason }: { target: StoredConfirmationVersion; reason: string }) => {
+    mutationFn: async ({ target, reason }: { target: StoredConfirmationVersion; reason: string }) => runConfirmationRestoreSingleFlight(submissionId, async () => {
       const { data, error } = await confirmationsSupabase.rpc('admin_restore_confirmation_version', {
         _submission_id: submissionId,
         _version_id: target.id,
@@ -132,7 +135,7 @@ export function ConfirmationVersionHistory({
       }
 
       return { restore, syncWarning };
-    },
+    }),
     onSuccess: async ({ restore, syncWarning }) => {
       setRestoreTarget(null);
       setRestoreReason('');
@@ -150,7 +153,21 @@ export function ConfirmationVersionHistory({
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'The historical snapshot could not be restored.');
+      // A transport error can arrive after the server committed the restore.
+      // Close the review and reconcile authoritative state before any retry.
+      setRestoreTarget(null);
+      setRestoreReason('');
+      setRestoreBaseline(null);
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['confirmation-submission-versions', submissionId] }),
+        queryClient.invalidateQueries({ queryKey: ['confirmation-response-version-current'] }),
+        queryClient.invalidateQueries({ queryKey: ['confirmation-responses-for-version-history'] }),
+      ]);
+      const detail = error instanceof Error ? error.message : 'The request failed';
+      toast.error(`Restore outcome is unconfirmed: ${detail}. Review refreshed history and the current response before trying again.`);
+    },
+    onSettled: () => {
+      restoreInFlightRef.current = false;
     },
   });
 
@@ -170,13 +187,14 @@ export function ConfirmationVersionHistory({
     : [];
 
   const closeRestoreReview = () => {
-    if (restoreMutation.isPending || reviewChecking) return;
+    if (restoreInFlightRef.current || restoreMutation.isPending || reviewChecking) return;
     setRestoreTarget(null);
     setRestoreReason('');
     setRestoreBaseline(null);
   };
 
   const openRestoreReview = (target: StoredConfirmationVersion) => {
+    if (restoreInFlightRef.current || versionsQuery.isFetching || versionsQuery.error) return;
     setRestoreReason('');
     setRestoreTarget(target);
     setRestoreBaseline({
@@ -193,9 +211,12 @@ export function ConfirmationVersionHistory({
       !restoreBaseline ||
       !reasonAllowed ||
       restoreMutation.isPending ||
-      reviewChecking
+      reviewChecking ||
+      restoreInFlightRef.current ||
+      versionsQuery.error
     ) return;
 
+    restoreInFlightRef.current = true;
     setReviewChecking(true);
     try {
       const refreshed = await versionsQuery.refetch();
@@ -218,6 +239,7 @@ export function ConfirmationVersionHistory({
 
       restoreMutation.mutate({ target: liveTarget, reason: restoreReason });
     } catch (error) {
+      restoreInFlightRef.current = false;
       setRestoreTarget(null);
       setRestoreReason('');
       setRestoreBaseline(null);
@@ -287,6 +309,7 @@ export function ConfirmationVersionHistory({
                       <button
                         type="button"
                         onClick={() => openRestoreReview(transition)}
+                        disabled={versionsQuery.isFetching || restoreMutation.isPending || reviewChecking}
                         className="admin-action-secondary !min-h-9 !px-2.5"
                       >
                         <RotateCcw className="size-3.5" /> Restore
