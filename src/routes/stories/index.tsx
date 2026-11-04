@@ -98,12 +98,12 @@ function LegacyStoriesArchivePage() {
               <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">{referenceDate}</p>
               <h2 id="today-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">On this day in Solaris</h2>
             </div>
-            {anniversary?.sscAnniversary ? (
+            {!anniversaryQuery.isError && anniversary?.sscAnniversary ? (
               <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{anniversary.sscAnniversary.label}</span>
             ) : null}
           </div>
 
-          {anniversaryQuery.isError && !anniversary?.onThisDay.length ? (
+          {anniversaryQuery.isError ? (
             <ArchiveEmpty
               icon={Clock3}
               title="Calendar moments could not be loaded"
@@ -137,7 +137,7 @@ function LegacyStoriesArchivePage() {
             <h2 id="stories-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">Edition stories</h2>
           </div>
 
-          {storiesQuery.isError && !stories.length ? (
+          {storiesQuery.isError ? (
             <ArchiveEmpty
               icon={BookOpen}
               title="Published stories could not be loaded"
