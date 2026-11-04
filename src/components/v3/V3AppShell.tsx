@@ -172,6 +172,12 @@ export function V3AppShell({
     !rollout.isLoading && !rollout.isError && rollout.data != null;
   const navigationScope = navigationIdentityReady ? (rollout.data.userId ?? null) : null;
   const resolvedViewerKey = navigationScope ?? "anonymous";
+  // Remounting the installed AppTabBar on an authoritative viewer change
+  // releases pointer capture and drops any held/drag-preview state. An
+  // unresolved identity is not the same generation as an anonymous viewer.
+  const navigationInteractionKey = navigationIdentityReady
+    ? (navigationScope ?? "anonymous")
+    : "resolving";
   const previousResolvedViewerKeyRef = useRef<string | undefined>(undefined);
   const notificationLabel =
     attention.me > 0
@@ -369,6 +375,7 @@ export function V3AppShell({
 
       {platformResolved && isAppMode ? (
         <AppTabBar
+          key={navigationInteractionKey}
           ariaLabel="Primary app navigation"
           pathname={pathname}
           searchStr={searchStr}
