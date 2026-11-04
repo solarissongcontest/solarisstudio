@@ -10,6 +10,7 @@ import {
   WORLD_DIRECTORY_PAGE_SIZE,
   currentWorldMemberships,
   fetchWorldDirectory,
+  fetchFeaturedWorldOrganizations,
   fetchWorldProjection,
   type WorldDirectoryFilter,
   type WorldOrganization,
@@ -82,13 +83,12 @@ function OrganizationRow({ organization }: { organization: WorldOrganization }) 
 
 export function WorldLanding() {
   const directory = useQuery({
-    queryKey: ["world", "public", "organizations", "", "all", 0],
-    queryFn: () => fetchWorldDirectory({ term: "", filter: "all", page: 0 }),
+    queryKey: ["world", "public", "featured"],
+    queryFn: fetchFeaturedWorldOrganizations,
     staleTime: 90_000,
     retry: false,
   });
-  const featured = (directory.data?.organizations ?? []).filter((row) =>
-    row.slug === "guard" || row.slug === "unity");
+  const featured = directory.data ?? [];
   return (
     <PublicFrame>
       <div className="max-w-3xl">
@@ -125,7 +125,7 @@ export function WorldLanding() {
           </div>
         ) : null}
         {directory.isSuccess && featured.length === 0 ? (
-          <p className="py-8 text-sm text-muted-foreground">No public institutional profiles have been published yet.</p>
+          <p className="py-8 text-sm text-muted-foreground">No featured public institutional profiles are available right now.</p>
         ) : null}
       </section>
     </PublicFrame>
