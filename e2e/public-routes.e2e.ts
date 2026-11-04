@@ -87,6 +87,7 @@ test("Country and Wiki have distinct mobile-browser and desktop presentations", 
     await expect(root.locator(".country-mobile-web-masthead")).toBeVisible();
     await expect(root.locator(".country-mobile-web-tabs")).toBeVisible();
     await expect(root.locator(".country-v2-hero, .country-identity-hero")).toHaveCount(0);
+    await expect(root).not.toHaveClass(/country-design-v2/);
     const resultSection = root.locator(".country-mobile-web-tabs").getByRole("button", { name: "Results" });
     await resultSection.click();
     await expect(resultSection).toHaveAttribute("aria-current", "page");
@@ -123,6 +124,11 @@ test("Country and Wiki have distinct mobile-browser and desktop presentations", 
     await expect(wikiRoot.locator(".wiki-mobile-web-heading")).toBeVisible();
     await expect(wikiRoot.locator(".wiki-mobile-web-toc")).toBeVisible();
     await expect(wikiRoot.locator(".country-wiki-header")).toHaveCount(0);
+    await expect(wikiRoot).not.toHaveClass(/country-design-v2/);
+    const introShadow = await wikiRoot.locator(".wiki-introduction").evaluate(
+      (node) => getComputedStyle(node).boxShadow,
+    );
+    expect(introShadow, "Mobile browser Wiki uses editorial reading surfaces, not personality cards").toBe("none");
     await expect(wikiRoot.locator(".wiki-mobile-toolbar")).toHaveCount(0);
     await wikiRoot.locator(".wiki-mobile-web-facts > summary").click();
     await expect(wikiRoot.locator(".wiki-mobile-web-facts .wiki-infobox")).toBeVisible();
