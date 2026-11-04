@@ -11,6 +11,7 @@ import {
   getWorldDocumentIndex,
   normalizeWorldSearch,
   publicWorldDocumentOutline,
+  resolveWorldDocumentFragment,
   type WorldDocumentLimit,
   type WorldDocumentIndexRow,
   type WorldDocumentProvision,
@@ -286,17 +287,11 @@ export function WorldDocumentReaderScreen({
   // window.document is intentional: "document" is the route's slug parameter.
   useEffect(() => {
     if (!detail || typeof window === "undefined") return;
-    const fragment = window.location.hash.slice(1);
-    if (!fragment) return;
-    let target: string;
-    try {
-      target = decodeURIComponent(fragment);
-    } catch {
-      return;
-    }
-    if (!detail.version.provisions.some((provision) =>
-      provision.targetId === target || provision.anchor === target
-    )) return;
+    const target = resolveWorldDocumentFragment(
+      window.location.hash,
+      detail.version.provisions,
+    );
+    if (!target) return;
     const frame = window.requestAnimationFrame(() => {
       window.document.getElementById(target)?.scrollIntoView({
         block: "start",
