@@ -46,6 +46,11 @@ describe("TG6 institutional session/agenda authority contracts", () => {
   });
 
   it("uses the existing capability engine and explicit organ authority", () => {
+    // Office capability bundles must not grant every future similarly-named
+    // chairperson/deputy in any unrecognized institution blanket authority.
+    expect(sql).toContain("('guard','chairperson')");
+    expect(sql).toContain("('unity','secretary-general')");
+    expect(sql).not.toMatch(/where office_row\.slug in \(/);
     for (const capability of TERRA_GOVERNANCE_TG6.capabilities) {
       expect(SOLARIS_CAPABILITIES).toContain(capability);
       expect(sql).toContain("'" + capability + "'");
