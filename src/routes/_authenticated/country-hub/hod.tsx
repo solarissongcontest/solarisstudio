@@ -8,12 +8,20 @@ export const Route = createFileRoute("/_authenticated/country-hub/hod")({
   }),
   head: () => ({
     meta: [
-      { title: "Delegation workspace — Solaris Studio" },
-      { name: "robots", content: "noindex" },
+      { title: "Delegation responsibilities — Solaris Studio" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   beforeLoad: ({ search }) => {
-    throw redirect({ to: NAV_TARGETS.mySolarisTasks, search, replace: true });
+    // The old HOD workspace owned delegation tasks, readiness, jury state and
+    // required notices. Installed-app V3 owns those participant responsibilities
+    // in Participate. Explicit Organizer country inspection stays on the proven
+    // read-only MySolaris task surface so a country selector never impersonates
+    // the signed-in participant.
+    if (search.country) {
+      throw redirect({ to: NAV_TARGETS.mySolarisTasks, search, replace: true });
+    }
+    throw redirect({ to: NAV_TARGETS.participate, replace: true });
   },
   component: () => null,
 });
