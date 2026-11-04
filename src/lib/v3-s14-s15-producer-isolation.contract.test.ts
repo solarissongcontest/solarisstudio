@@ -24,7 +24,11 @@ describe("S14 and S15 exact-SHA evidence producers", () => {
     expect(s15).toContain("ref: ${{ github.event.pull_request.head.sha || github.sha }}");
     expect(s15).toContain("git rev-parse HEAD");
     expect(s15).toContain("build-v3-s15-zero-orphan-evidence.ts --require-zero");
-    expect(s15).not.toContain("continue-on-error: true");
+    expect(s15).toContain("RELEASE_GATE: ${{ github.event_name == 'workflow_dispatch' }}");
+    expect(s15).toContain('if [[ "$RELEASE_GATE" == "true" ]]');
+    expect(s15).toContain("S15 physical ownership conflicts require repair before integration");
+    expect(s15).toContain("CUTOVER_UNRESOLVED ");
+        expect(s15).not.toContain("continue-on-error: true");
     expect(s15).toContain("Validate S15 evidence integrity even after a failed gate");
     expect(s15).toContain("if: always()");
     expect(s15).toContain("if-no-files-found: error");
