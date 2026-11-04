@@ -9,6 +9,7 @@ import { join, resolve } from 'node:path';
 import {
   SOURCE_PROJECT, DESTINATION_PROJECT, REFERENCE_TABLES, assertApprovedWrite, assertAssetClearance,
   inventoryPair, recoveryDigest, transferVerifiedMissing, proposeReferenceReconciliation,
+  buildSourceReferenceIndex,
   validateProjectPair,
 } from './lib/v3-media-recovery-core.mjs';
 
@@ -29,7 +30,7 @@ async function readReferences(client) {
   const rows = {};
   for (const [table, cfg] of Object.entries(REFERENCE_TABLES)) {
     const all = [];
-    const columns = [...new Set([...cfg.key, ...cfg.fields])].join(',');
+    const columns = [...new Set([...cfg.key, ...cfg.fields, ...(cfg.evidenceFields || [])])].join(',');
     for (let offset = 0; ; offset += 200) {
       const { data, error } = await client.from(table).select(columns).range(offset, offset + 199);
       if (error || !Array.isArray(data)) throw new Error('Could not safely inspect reference table ' + table);
@@ -75,6 +76,9 @@ async function main() {
     currentRows = await readReferences(destination);
   } catch {
     referenceStatus = 'incomplete';
+  }
+  if (referenceStatus === 'complete') {
+    inventory.entries = buildSourceReferenceIndex({ entries: inventory.entries, oldRows, currentRows });
   }
   inventory.generated_at = new Date().toISOString();
   inventory.manifest_sha256 = recoveryDigest(inventory.entries);
@@ -133,6 +137,11 @@ async function main() {
     source_project: sourceProject, destination_project: targetProject,
     manifest_sha256: inventory.manifest_sha256, mode: execute ? 'manual-execute' : 'dry-run',
     source_buckets: byBucket, statuses: statusCounts, reference_inspection: referenceStatus,
+    source_reference_counts: {
+      referenced_or_candidate: inventory.entries.filter(e => e.reference_classification === 'referenced_or_candidate').length,
+      unmatched_not_proven_orphan: inventory.entries.filter(e => e.reference_classification === 'unmatched_in_surveyed_media_fields_not_proven_orphan').length,
+      sensitive_private_asset: inventory.entries.filter(e => e.reference_classification === 'sensitive_private_asset').length,
+    },
     reference_proposal_counts: Object.fromEntries([...new Set(referenceProposals.map(r => r.status))]
       .map(status => [status, referenceProposals.filter(r => r.status === status).length])),
     transfers: {
