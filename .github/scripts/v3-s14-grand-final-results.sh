@@ -141,11 +141,33 @@ run_s14_grand_final_results() {
   ORGANIZER_A_TOKEN="$LAST_TOKEN"
 
   [[ "$(db_scalar "select count(*) from public.participants where show_id='$FINAL_ID'::uuid and qualified is true;")" == "20" ]] || fail "Grand Final results require exactly 20 canonical finalists"
-  [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid and status='submitted';")" == "66" ]] || fail "Grand Final results require 66 submitted Jury ballots before review"
   [[ "$(db_scalar "select count(*) from televoting.vote_submissions where round_id='$S14_FINAL_TELEVOTE_ROUND_ID'::uuid and status<>'deleted';")" == "12" ]] || fail "Grand Final results require the prepared 12 public Televote ballots"
 
-  review_s14_final_jury_ballots_valid
-  publish_s14_final_televote_result_through_app
+  local submitted_count valid_count published_count
+  submitted_count="$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid and status='submitted';")"
+  valid_count="$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid and status='valid';")"
+  published_count="$(db_scalar "select count(*) from televoting.rounds where id='$S14_FINAL_TELEVOTE_ROUND_ID'::uuid and results_status='published' and calculation_version > 0;")"
+
+  if [[ "$submitted_count" == "66" && "$valid_count" == "0" && "$published_count" == "0" ]]; then
+    review_s14_final_jury_ballots_valid
+    publish_s14_final_televote_result_through_app
+
+  elif [[ "$submitted_count" == "0" && "$valid_count" == "66" && "$published_count" == "1" ]]; then
+    log "Resuming Grand Final Results from verified published-source checkpoint"
+
+    [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where show_id='$FINAL_ID'::uuid;")" == "66" ]] || fail "Unexpected extra Jury submissions"
+    [[ "$(db_scalar "select count(*) from public.results where show_id='$FINAL_ID'::uuid;")" == "20" ]] || fail "Resume requires 20 Studio result rows"
+    [[ "$(db_scalar "select count(*) from public.televoting_round_bindings where remote_round_id='$S14_FINAL_TELEVOTE_ROUND_ID' and show_id='$FINAL_ID'::uuid and frozen_at is not null;")" == "1" ]] || fail "Resume requires frozen Televote binding"
+    [[ "$(db_scalar "select count(*) from public.integration_events where service='televoting' and event_type='round.results.imported' and remote_id='$S14_FINAL_TELEVOTE_ROUND_ID' and status='completed';")" -ge 1 ]] || fail "Resume requires completed synchronization receipt"
+    [[ "$(db_scalar "select published::text from public.shows where id='$FINAL_ID'::uuid;")" == "false" ]] || fail "Cannot resume calculation after public release"
+    [[ "$(db_scalar "select coalesce((select calculation_version from public.studio2_result_operations where show_id='$FINAL_ID'::uuid),0);")" == "0" ]] || fail "Results calculation already started; refusing unsafe replay"
+    [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id='$FINAL_ID'::uuid;")" == "0" ]] || fail "Immutable Results versions already exist"
+
+    S14_FINAL_TELEVOTE_SOURCE_VERSION="$(db_scalar "select calculation_version::text from televoting.rounds where id='$S14_FINAL_TELEVOTE_ROUND_ID'::uuid;")"
+    assert_s14_final_televote_source_parity
+  else
+    fail "Grand Final voting/review checkpoint is neither fresh nor safely resumable"
+  fi
 
   # The System fix may choose a projection or another versioned published-source
   # contract, but QA proves the observable invariant rather than a specific
