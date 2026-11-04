@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   parseProxyDirectory,
+  parseProxyCandidates,
   parseProxyItems,
   parseProxyReceipt,
 } from "./world-proxy-commands";
@@ -40,6 +41,33 @@ describe("World proxy strict transport", () => {
     }]);
     expect(parseProxyDirectory(directory, "unity")).toBeNull();
     expect(parseProxyDirectory({ ...directory, representatives: null }, "guard")).toBeNull();
+  });
+
+  it("accepts only revision-bound, deduplicated, verified private country candidates", () => {
+    const valid = {
+      representationId: repId,
+      revision: 2,
+      candidates: [{ personId, displayName: "Verified historical HoD" }],
+    };
+    expect(parseProxyCandidates(valid, repId, 2)).toEqual([
+      { personId, displayName: "Verified historical HoD" },
+    ]);
+    expect(() => parseProxyCandidates(valid, countryId, 2)).toThrow();
+    expect(() => parseProxyCandidates(valid, repId, 1)).toThrow();
+    expect(() => parseProxyCandidates(null, repId, 2)).toThrow();
+    expect(() => parseProxyCandidates({ ...valid, candidates: null }, repId, 2)).toThrow();
+    expect(() => parseProxyCandidates({
+      ...valid, candidates: [{ personId: "invented", displayName: "Invented" }],
+    }, repId, 2)).toThrow();
+    expect(() => parseProxyCandidates({
+      ...valid, candidates: [valid.candidates[0], valid.candidates[0]],
+    }, repId, 2)).toThrow();
+    expect(() => parseProxyCandidates({
+      ...valid, candidates: Array(41).fill(valid.candidates[0]),
+    }, repId, 2)).toThrow();
+    expect(() => parseProxyCandidates({
+      ...valid, candidates: [{ personId, displayName: "" }],
+    }, repId, 2)).toThrow();
   });
 
   it("filters ended or nonvoting representatives from eligible identity choices", () => {
