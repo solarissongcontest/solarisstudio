@@ -28,7 +28,7 @@ import {
   loadConfirmationEditions,
   type ConfirmationEdition,
 } from "@/integrations/confirmations/admin";
-import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { loadAllConfirmationResponsesForEdition } from "@/integrations/confirmations/v3-projections";
 
 type Entry = {
   id: string;
@@ -104,24 +104,25 @@ function DelegationsAdminOverview() {
 
   useEffect(() => {
     let alive = true;
+    // On an edition switch, discard the previous edition's private review
+    // history before any asynchronous response can resolve.
+    setResponses([]);
+    setError(null);
+    setLoading(true);
 
     void (async () => {
       try {
-        const [editionRows, responsesResult] = await Promise.all([
-          loadConfirmationEditions(),
-          confirmationsSupabase.rpc("admin_confirmation_responses"),
-        ]);
-        if (responsesResult.error) throw responsesResult.error;
-        if (alive) {
-          setEditions(editionRows);
-          setResponses(
-            Array.isArray(responsesResult.data)
-              ? (responsesResult.data as unknown as ResponseRow[])
-              : [],
-          );
-        }
+        const editionRows = await loadConfirmationEditions();
+        if (!alive) return;
+        setEditions(editionRows);
+        const selected = editionRows.find((edition) => edition.id === organizerEditionId)?.id;
+        if (!selected) return;
+        const batch = await loadAllConfirmationResponsesForEdition<ResponseRow>(selected);
+        if (!alive) return;
+        setResponses(batch.rows);
       } catch (caught) {
         if (alive) {
+          setResponses([]);
           setError(caught instanceof Error ? caught.message : "Could not load delegation data.");
         }
       } finally {
@@ -132,7 +133,7 @@ function DelegationsAdminOverview() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [organizerEditionId]);
 
   const activeEdition = useMemo(
     () => editions.find((edition) => edition.id === organizerEditionId) ?? null,
