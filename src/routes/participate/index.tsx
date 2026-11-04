@@ -32,6 +32,7 @@ import {
   type ParticipationAction,
 } from "@/lib/participation-state";
 import { buildParticipationTasks, type VotingTaskInput } from "@/lib/participation-os";
+import { projectJurySummary, type JurySummary } from "@/lib/public-participation-jury-summary";
 import { computeAvailability } from "@/lib/ssc";
 
 export const Route = createFileRoute("/participate/")({
@@ -47,20 +48,6 @@ export const Route = createFileRoute("/participate/")({
   }),
   component: ParticipatePage,
 });
-
-type VotingRoundSummary = {
-  id: string;
-  name: string;
-  opensAt: string | null;
-  closesAt: string | null;
-};
-
-type JurySummary = {
-  signedIn: boolean;
-  restriction: "country_account_required" | "account_suspended" | null;
-  openRound: VotingRoundSummary | null;
-  completedOpenRound: VotingRoundSummary | null;
-};
 
 type TelevoteSummary = {
   openRound: {
@@ -95,41 +82,10 @@ async function loadJurySummary(): Promise<JurySummary> {
 
   const { data, error } = await (typedSupabase as any).rpc("country_jury_voting_context");
   if (error) throw error;
-  if (!data?.ok) {
-    // The canonical RPC distinguishes an ordinary fan account and a
-    // suspended country account from a failed/invalid status read.
-    if (data?.error === "country_account_required" || data?.error === "account_suspended") {
-      return {
-        signedIn: true,
-        restriction: data.error,
-        openRound: null,
-        completedOpenRound: null,
-      };
-    }
-    throw new Error("Jury voting status could not be verified.");
-  }
 
-  const rounds = Array.isArray(data.rounds) ? data.rounds : [];
-  const openRound = rounds.find(
-    (round: any) => round.status === "open" && round.eligible && !round.already_submitted,
-  );
-  const completedOpenRound = rounds.find(
-    (round: any) => round.status === "open" && round.eligible && round.already_submitted,
-  );
-
-  const summarize = (round: any): VotingRoundSummary => ({
-    id: String(round.show_id ?? round.id ?? round.show_name ?? "jury"),
-    name: String(round.show_name ?? "Jury voting"),
-    opensAt: round.opened_at ?? round.opens_at ?? null,
-    closesAt: round.closed_at ?? round.closes_at ?? null,
-  });
-
-  return {
-    signedIn: true,
-    restriction: null,
-    openRound: openRound ? summarize(openRound) : null,
-    completedOpenRound: completedOpenRound ? summarize(completedOpenRound) : null,
-  };
+  // Use the canonical RPC's caller-scoped result. Unknown or malformed
+  // responses must remain errors, not fabricated "no voting due" claims.
+  return { signedIn: true, ...projectJurySummary(data) };
 }
 
 async function loadTelevoteSummary(): Promise<TelevoteSummary> {
