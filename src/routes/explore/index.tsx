@@ -151,7 +151,7 @@ function ExplorePage() {
           />
         </>
       )}
-      <WorldExploreEntry variant="legacy" />
+      <WorldExploreEntry />
     </AppShell>
   );
 
