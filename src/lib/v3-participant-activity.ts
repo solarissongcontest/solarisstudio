@@ -76,6 +76,11 @@ function safeActivityRoute(value: unknown): string | null {
   return route;
 }
 
+/** Cache identity belongs to the verified viewer, never to a shared browser session. */
+export function v3ParticipantActivityQueryKey(viewerId: string | null | undefined) {
+  return ["v3-participant-activity", viewerId?.trim() || "no-viewer"] as const;
+}
+
 export function emptyV3ParticipantActivityBundle(): V3ParticipantActivityBundle {
   return {
     schemaReady: false,
