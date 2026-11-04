@@ -23,6 +23,9 @@ describe("country page presentation ownership", () => {
     expect(route).toContain('publishedDesign && countryLayoutMode !== "mobile-web"');
     expect(route).toContain('countryLayoutMode === "mobile-web" ? (');
     expect(route).toContain("<CountryMobileWebMasthead");
+    expect(route).toContain('{ value: "history", label: "History" }');
+    expect(route).toContain("aria-pressed={tab === option.value}");
+    expect(route).toContain("data-country-history");
     expect(route).toContain('data-country-layout-mode={countryLayoutMode}');
     expect(route).toContain("<ResponsiveTabs");
     expect(route).toContain("<CountryDesignV2Hero");
@@ -63,6 +66,14 @@ describe("country page presentation ownership", () => {
     expect(css).toContain('.wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-article-section');
     expect(css).toContain("font-size: 1rem !important;");
     expect(css).not.toContain(":root {");
+  });
+
+  it("keeps the installed country hero compact, with a bounded accessible history", () => {
+    const screen = read("src/components/v3/V3DelegationScreen.tsx");
+    expect(screen).toContain('data-v3-country-identity=""');
+    expect(screen).toContain("<FlagFrame");
+    expect(screen).toContain("visibleHistory.map");
+    expect(screen).toContain("aria-expanded={showFullHistory}");
   });
 
   it("preserves the flag contract and isolates CSS from app and desktop", () => {

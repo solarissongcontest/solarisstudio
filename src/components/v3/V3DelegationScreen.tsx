@@ -1,4 +1,7 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
+
+import { FlagFrame } from "@/components/FlagMedia";
 import { Archive, BarChart3, BookOpen, GitCompareArrows, Trophy, Vote } from "lucide-react";
 
 import type { V3CountryExploreProjection } from "@/lib/v3-explore-entities";
@@ -72,6 +75,10 @@ export function V3DelegationScreen({
   const wiki = projection.actions.wiki;
   const compare = projection.actions.compare;
   const currentResult = projection.currentResult;
+  const [showFullHistory, setShowFullHistory] = useState(false);
+  const visibleHistory = showFullHistory
+    ? projection.participationHistory
+    : projection.participationHistory.slice(0, 6);
 
   return (
     <V3Screen>
@@ -86,37 +93,40 @@ export function V3DelegationScreen({
         editorial
       />
 
-      <V3Surface level="raised" className="overflow-hidden">
-        <div className="grid gap-5 p-5 sm:grid-cols-[160px_minmax(0,1fr)] sm:items-center">
-          <div className="mx-auto aspect-[3/2] w-full max-w-40 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
-            {projection.flag.src ? (
-              <img
-                src={projection.flag.src}
-                alt={projection.flag.alt}
-                className="h-full w-full object-cover"
-                loading="eager"
-              />
+      <section
+        data-v3-country-identity=""
+        className="grid min-w-0 grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-4 border-b border-white/10 px-1 pb-5 sm:grid-cols-[160px_minmax(0,1fr)]"
+        aria-label="Country identity"
+      >
+        <FlagFrame
+          image={projection.flag.src}
+          alt={projection.flag.alt}
+          fallback={projection.code}
+          loading="eager"
+          className="block aspect-[3/2] w-full overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]"
+          imageClassName="block h-full w-full"
+        />
+        <div className="min-w-0">
+          <p className="v3-kicker">{projection.code}{projection.region ? ` · ${projection.region}` : ""}</p>
+          {projection.nativeName && projection.nativeName !== projection.name ? (
+            <p className="mt-2 break-words text-sm font-semibold text-white/70">{projection.nativeName}</p>
+          ) : null}
+          {projection.description ? (
+            projection.description.length > 160 ? (
+              <details className="mt-3">
+                <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                  About this country
+                </summary>
+                <p className="mt-1 break-words text-sm leading-6 text-white/65">{projection.description}</p>
+              </details>
             ) : (
-              <div className="grid h-full place-items-center text-2xl font-black tracking-[0.12em] text-white/72">
-                {projection.code}
-              </div>
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="v3-kicker">{projection.code}</p>
-            {projection.nativeName && projection.nativeName !== projection.name ? (
-              <p className="mt-2 text-sm font-semibold text-white/70">{projection.nativeName}</p>
-            ) : null}
-            {projection.description ? (
-              <p className="mt-3 text-sm leading-6 text-white/58">{projection.description}</p>
-            ) : (
-              <p className="mt-3 text-sm leading-6 text-white/48">
-                Public Solaris delegation identity and published entry history.
-              </p>
-            )}
-          </div>
+              <p className="mt-3 break-words text-sm leading-6 text-white/65">{projection.description}</p>
+            )
+          ) : (
+            <p className="mt-3 text-sm leading-6 text-white/48">Published Solaris delegation identity and entry history.</p>
+          )}
         </div>
-      </V3Surface>
+      </section>
 
       <V3Section title="Current entry">
         {projection.currentEntry ? (
@@ -204,7 +214,7 @@ export function V3DelegationScreen({
       >
         {projection.participationHistory.length ? (
           <div className="grid gap-2">
-            {projection.participationHistory.map((entry) => {
+            {visibleHistory.map((entry) => {
               const status = statusPresentation(entry.status);
               return (
                 <V3Surface key={entry.editionId} className="px-4 py-3">
@@ -227,6 +237,16 @@ export function V3DelegationScreen({
             <p className="text-sm text-white/52">No published participation history is available yet.</p>
           </V3Surface>
         )}
+        {projection.participationHistory.length > 6 ? (
+          <button
+            type="button"
+            className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-white/15 px-4 text-sm font-semibold text-white/85 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            aria-expanded={showFullHistory}
+            onClick={() => setShowFullHistory((expanded) => !expanded)}
+          >
+            {showFullHistory ? "Show recent editions" : `Show all ${projection.participationHistory.length} editions`}
+          </button>
+        ) : null}
       </V3Section>
 
       <V3Section title="Explore more">

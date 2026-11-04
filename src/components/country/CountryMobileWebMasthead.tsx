@@ -33,7 +33,7 @@ export function CountryMobileWebMasthead({
         Countries
       </Link>
 
-      <div className="mt-4 flex min-w-0 items-start gap-4">
+      <div className="country-mobile-web-identity mt-4 flex min-w-0 items-start gap-4">
         <FlagFrame
           image={identity.flag.src}
           alt={identity.flag.alt}

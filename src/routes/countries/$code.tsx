@@ -110,6 +110,7 @@ function CountryProfileRoute() {
 const TABS = [
   { value: "overview", label: "Overview" },
   { value: "entries", label: "Entries" },
+  { value: "history", label: "History" },
   { value: "results", label: "Results" },
   { value: "voting", label: "Voting" },
   { value: "relationships", label: "Relationships" },
@@ -530,7 +531,7 @@ function CountryProfilePage() {
                 key={option.value}
                 type="button"
                 onClick={() => setTab(option.value)}
-                aria-current={tab === option.value ? "page" : undefined}
+                aria-pressed={tab === option.value}
                 className={tab === option.value ? "is-selected" : undefined}
               >
                 {option.label}
@@ -577,7 +578,7 @@ function CountryProfilePage() {
                 </Panel>
 
                 <Panel
-                  title="Current entry"
+                  title="Latest published entry"
                   description="The latest published canonical entry for this delegation."
                 >
                   {latestEntry ? (
@@ -724,6 +725,7 @@ function CountryProfilePage() {
                 )}
               </Panel>
 
+              {countryLayoutMode !== "mobile-web" && (
               <Panel
                 title="Entry history"
                 description="Canonical entries in reverse chronological order. Chronology is never rearranged for personality styling."
@@ -755,8 +757,66 @@ function CountryProfilePage() {
                   <p className="text-sm text-muted-foreground">No published entry history is available yet.</p>
                 )}
               </Panel>
+              )}
             </div>
           ) : <NoContestData countryName={country.name} />
+        )}
+
+        {tab === "history" && (
+          <div className="space-y-5" data-country-history="">
+            <div>
+              <h2 className="font-display text-xl font-bold tracking-tight">Participation timeline</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Published entries, qualification and official Grand Final placements in edition order.
+              </p>
+            </div>
+            {entryHistory.length ? (
+              <div className="divide-y divide-border/70 border-y border-border/70">
+                {entryHistory.map((entry) => {
+                  const edition = editionMap.get(entry.edition_id);
+                  const final = finalResultByEdition.get(entry.edition_id);
+                  return (
+                    <details key={entry.id} className="group py-1">
+                      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-md py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+                        <span className="min-w-0 flex-1 font-semibold">
+                          {edition ? editionLabel(edition) : "Edition"}
+                        </span>
+                        {final?.final_rank != null ? (
+                          <span className="shrink-0 font-semibold tabular-nums">#{final.final_rank}</span>
+                        ) : null}
+                        <span className="shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true">⌄</span>
+                      </summary>
+                      <div className="min-w-0 pb-4 pl-1">
+                        <p className="break-words text-sm leading-6 text-muted-foreground">
+                          {[entry.artist, entry.song].filter(Boolean).join(" · ") || "Entry details unavailable"}
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-3">
+                          <QualificationBadge status={qualificationFor(entry.edition_id)} />
+                          {final ? <span className="text-xs tabular-nums text-muted-foreground">{final.total_points} points</span> : null}
+                        </div>
+                        <EntryListenLinks entry={entry} compact className="mt-3" />
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No published entry history is available yet.</p>
+            )}
+            {hostedEditions.length > 0 ? (
+              <div>
+                <h3 className="text-base font-semibold">Hosted editions</h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {hostedEditions.map((edition) => (
+                    <Link key={edition.id} to="/editions/$slug" params={{ slug: edition.slug }}
+                      className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-medium hover:border-primary/40">
+                      {editionLabel(edition)}{edition.host_city ? ` · ${edition.host_city}` : ""}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
         )}
 
         {tab === "results" && (

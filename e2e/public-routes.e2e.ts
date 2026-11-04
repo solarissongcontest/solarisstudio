@@ -90,7 +90,11 @@ test("Country and Wiki have distinct mobile-browser and desktop presentations", 
     await expect(root).not.toHaveClass(/country-design-v2/);
     const resultSection = root.locator(".country-mobile-web-tabs").getByRole("button", { name: "Results" });
     await resultSection.click();
-    await expect(resultSection).toHaveAttribute("aria-current", "page");
+    await expect(resultSection).toHaveAttribute("aria-pressed", "true");
+    const historySection = root.locator(".country-mobile-web-tabs").getByRole("button", { name: "History" });
+    await historySection.click();
+    await expect(historySection).toHaveAttribute("aria-pressed", "true");
+    await expect(root.getByRole("heading", { name: "Participation timeline" })).toBeVisible();
     const geometry = await page.evaluate(() => ({
       overflow: document.documentElement.scrollWidth - window.innerWidth,
       flagRatio: (() => {

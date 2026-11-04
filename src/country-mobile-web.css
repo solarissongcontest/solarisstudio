@@ -135,3 +135,15 @@
     box-shadow: none !important;
   }
 }
+
+/* A very narrow browser window needs full reading width for longer names. */
+@media (max-width: 359px) {
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-identity {
+    flex-direction: column;
+    gap: .75rem;
+  }
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-identity [data-flag-frame] {
+    width: 108px;
+    min-width: 0;
+  }
+}
