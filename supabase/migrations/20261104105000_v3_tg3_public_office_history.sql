@@ -180,6 +180,13 @@ begin
     return null;
   end if;
 
+  -- The presentation gate is also enforced by the RPC. A direct PostgREST
+  -- call must not bypass the hidden World rollout. Never rely on the
+  -- client-only flag check for a restricted, not-yet-launched surface.
+  if public.studio2_feature_enabled('terra_world_public', null) is not true then
+    return null;
+  end if;
+
   with organization as (
     select o.id, o.slug, o.short_name, o.official_name
     from public.world_organizations o
