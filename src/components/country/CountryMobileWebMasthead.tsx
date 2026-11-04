@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
-import type { ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 
 import { FlagFrame } from "@/components/FlagMedia";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
@@ -19,6 +19,9 @@ export function CountryMobileWebMasthead({
   const latestEntry = identity.currentEntry;
   const meaningfulStats = identity.statistics.slice(0, 3);
   const hasNativeName = identity.nativeName && identity.nativeName !== identity.name;
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const descriptionId = useId();
+  const hasLongDescription = (identity.description?.length ?? 0) > 220;
 
   return (
     <section className="country-mobile-web-masthead mb-5" aria-labelledby="country-mobile-web-title">
@@ -56,7 +59,26 @@ export function CountryMobileWebMasthead({
       </div>
 
       {identity.description ? (
-        <p className="mt-4 text-sm leading-6 text-muted-foreground">{identity.description}</p>
+        <div className="mt-4">
+          <p
+            id={descriptionId}
+            className="country-mobile-web-description text-sm leading-6 text-muted-foreground"
+            data-collapsed={hasLongDescription && !descriptionExpanded ? "true" : undefined}
+          >
+            {identity.description}
+          </p>
+          {hasLongDescription ? (
+            <button
+              type="button"
+              className="country-mobile-web-description-toggle text-sm font-semibold text-primary"
+              aria-controls={descriptionId}
+              aria-expanded={descriptionExpanded}
+              onClick={() => setDescriptionExpanded((expanded) => !expanded)}
+            >
+              {descriptionExpanded ? "Show less" : "Read more"}
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {meaningfulStats.length ? (
