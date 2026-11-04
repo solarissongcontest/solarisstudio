@@ -193,7 +193,12 @@ export async function fetchWorldDirectory(input: {
     (page + 1) * WORLD_DIRECTORY_PAGE_SIZE - 1,
   );
   if (error) throw new Error("World organizations are temporarily unavailable.");
-  return { organizations: parseWorldDirectoryRows(data), total: Math.max(0, count ?? 0) };
+  // Exact count drives the pager. A missing count must not masquerade as
+  // authoritative zero, especially when the backend has returned visible rows.
+  if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0) {
+    throw new Error("The world directory count could not be verified.");
+  }
+  return { organizations: parseWorldDirectoryRows(data), total: count };
 }
 
 /**
