@@ -79,6 +79,7 @@ export function NextInLineCompetition() {
   const [duplicateCheck, setDuplicateCheck] = useState<NextInLineDuplicateState | null>(null);
   const [reviewSnapshot, setReviewSnapshot] = useState<string | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
+  const [duplicateRetry, setDuplicateRetry] = useState(0);
   const countryRequestId = useRef(0);
   const submittingRef = useRef(false);
 
@@ -107,8 +108,14 @@ export function NextInLineCompetition() {
       try {
         const result = await loadCountries();
         if (cancelled) return;
-        if (!result.ok || !result.edition) {
-          setError("There is no active Next in Line competition at the moment.");
+        if (!result.ok) {
+          setError(result.error === "server"
+            ? "Next in Line availability could not be checked. Retry to load the current contest."
+            : "No active Next in Line competition is currently available.");
+          return;
+        }
+        if (!result.edition) {
+          setError("No active Next in Line competition is currently available.");
           return;
         }
         setEdition(result.edition);
@@ -203,7 +210,7 @@ export function NextInLineCompetition() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [artist, checkDuplicate, country, duplicateKey, edition, originalMethod, songTitle, songUrl, sourceSubmissionId]);
+  }, [artist, checkDuplicate, country, duplicateKey, duplicateRetry, edition, originalMethod, songTitle, songUrl, sourceSubmissionId]);
 
   async function send() {
     if (submittingRef.current) return;
@@ -394,7 +401,10 @@ export function NextInLineCompetition() {
                   ) : null}
                   {currentDuplicateCheck?.status === "unavailable" ? (
                     <p role="alert" className="text-xs text-amber-700 dark:text-amber-300">
-                      Song eligibility could not be verified. Edit the song link or reselect the country to retry; submission is blocked until it succeeds.
+                      Song eligibility could not be verified. Submission is blocked until a fresh check succeeds.
+                      <button type="button" className="ml-2 min-h-11 font-semibold underline" onClick={() => setDuplicateRetry((current) => current + 1)}>
+                        Retry check
+                      </button>
                     </p>
                   ) : null}
                   {currentDuplicateCheck?.status === "duplicate" ? (
