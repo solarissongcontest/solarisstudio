@@ -410,6 +410,7 @@ export function resolveWorldDocumentFragment(
  */
 export function shouldRetryPublicWorldDocumentRead(failureCount: number, error: unknown): boolean {
   if (failureCount >= 1 || isSupabaseServiceRestrictionError(error)) return false;
+  if (error && typeof error === "object" && "name" in error && error.name === "AbortError") return false;
   if (error && typeof error === "object" && "status" in error) {
     const status = Number((error as { status?: unknown }).status);
     if (status >= 400 && status < 500) return false;
