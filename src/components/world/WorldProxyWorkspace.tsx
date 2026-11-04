@@ -336,8 +336,7 @@ export function WorldProxyWorkspace() {
               <h4 className="font-semibold">{titleFor(item)}</h4>
               <p className="text-sm text-muted-foreground">{formatTime(item.validFrom)} – {formatTime(item.validUntil)}</p>
               <p className="mt-1 text-sm">{item.reason}</p>
-              {(item.status === "requested" || item.status === "approved") &&
-                new Date(item.validUntil).getTime() > Date.now() && <button type="button"
+              {(item.status === "requested" || item.status === "approved") && <button type="button"
                   disabled={busy || Boolean(prepared) || Boolean(retry.current)} className="mt-3 rounded-lg border px-3 py-2 text-sm"
                   onClick={() => prepareRevocation(item)}>Review revocation</button>}
             </article>)}
