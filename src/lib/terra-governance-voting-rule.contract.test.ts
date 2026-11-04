@@ -176,6 +176,12 @@ describe("TG8 versioned institutional voting rule authority", () => {
 
   it("rehearses authorization, replay, immutability, exact thresholds and rollback in local Postgres", () => {
     for (const marker of [
+      "TG8_VOTING_RULE_ROLLOUT_DEFAULT_NOT_DISABLED",
+      "TG8_UNAUTHORIZED_MANAGED_INSTITUTION_EXPOSURE",
+      "TG8_UNAUTHORIZED_RULE_EDIT_PROJECTION_EXPOSURE",
+      "TG8_AUTHORIZED_MANAGER_INSTITUTION_MISSING",
+      "TG8_INITIAL_MANAGER_RULE_LIST_INCORRECT",
+      "TG8_MANAGER_RULE_PROJECTION_NOT_EXACT",
       "TG8_ANON_RULE_CONFIGURATION_ALLOWED",
       "TG8_UNAUTHORIZED_RULE_CONFIGURATION_ALLOWED",
       "TG8_AUTHENTICATED_RAW_RULE_SELECT_ALLOWED",
