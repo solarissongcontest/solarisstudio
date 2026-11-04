@@ -14,8 +14,19 @@ on conflict (key) do nothing;
 insert into public.world_office_capabilities(office_id, capability)
 select office_row.id, capability_row.capability
 from public.world_organization_offices office_row
-cross join (values ('world.session.create'),('world.session.manage'),('world.agenda.manage')) capability_row(capability)
-where office_row.slug in ('chairperson','deputy-chairperson','secretary-general','deputy-secretary-general')
+join public.world_organizations organization_row
+  on organization_row.id = office_row.organization_id
+join (values
+  ('guard','chairperson'),
+  ('unity','secretary-general')
+) granted(organization_slug,office_slug)
+  on granted.organization_slug = organization_row.slug
+ and granted.office_slug = office_row.slug
+cross join (values
+  ('world.session.create'),
+  ('world.session.manage'),
+  ('world.agenda.manage')
+) capability_row(capability)
 on conflict do nothing;
 
 -- Prevent assigning an organ belonging to a different organization, including
