@@ -21,6 +21,48 @@ export type WorldProxyPerson = {
 export type WorldProxyDirectory = {
   organization: WorldProxyOrganization; representatives: WorldProxyPerson[];
 };
+export type WorldProxyCandidate = { personId: string; displayName: string };
+
+/** A private current-country roster, never a global list of foreign delegates. */
+export function parseProxyCandidates(
+  input: unknown, representationId: string, expectedRevision: number,
+): WorldProxyCandidate[] {
+  const root = object(input);
+  if (!root || !uuid(representationId) ||
+      root.representationId !== representationId ||
+      root.revision !== expectedRevision ||
+      !Array.isArray(root.candidates) || root.candidates.length > 40) {
+    throw new Error("Your country’s verified proxy candidate roster is unavailable.");
+  }
+  const result: WorldProxyCandidate[] = [];
+  const seen = new Set<string>();
+  for (const value of root.candidates) {
+    const row = object(value);
+    if (!row || !uuid(row.personId) ||
+        typeof row.displayName !== "string" ||
+        !row.displayName.trim() || row.displayName.length > 180 ||
+        seen.has(row.personId)) {
+      throw new Error("A proposed proxy identity could not be verified.");
+    }
+    seen.add(row.personId);
+    result.push({ personId: row.personId, displayName: row.displayName });
+  }
+  return result;
+}
+
+export async function getProxyCandidates(
+  representationId: string, expectedRevision: number,
+): Promise<WorldProxyCandidate[]> {
+  if (!uuid(representationId) || !revision(expectedRevision)) {
+    throw new Error("Current representation must be verified first.");
+  }
+  const { data, error } = await client.rpc("world_my_proxy_candidates_v1", {
+    p_representation_id: representationId,
+  });
+  if (error) throw error;
+  return parseProxyCandidates(data, representationId, expectedRevision);
+}
+
 export type WorldProxyItem = {
   id: string;
   representationId: string;
