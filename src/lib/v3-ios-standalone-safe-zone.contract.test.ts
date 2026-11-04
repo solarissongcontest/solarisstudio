@@ -39,7 +39,13 @@ describe("V3 installed iOS top system safe zone", () => {
       /useEffect\(\(\) => \{\s*\/\/ The SSR head bootstrap marks installed launches[\s\S]*?if \(!platformResolved\) return;\s*const root = document\.documentElement;\s*root\.dataset\.solarisRuntime = platform\.mode;/,
     );
     expect(runtime).toContain(
-      "[connectivity.status, lifecycle.phase, platform.isAppMode, platform.mode, platformResolved]",
+      "[platform.isAppMode, platform.mode, platformResolved]",
+    );
+    expect(runtime).toMatch(
+      /root\.dataset\.solarisRuntime = platform\.mode;[\s\S]*?\}, \[platform\.isAppMode, platform\.mode, platformResolved\]\);/,
+    );
+    expect(runtime).toMatch(
+      /root\.dataset\.solarisConnectivity = connectivity\.status;[\s\S]*?\}, \[connectivity\.status, lifecycle\.phase\]\);/,
     );
   });
 
