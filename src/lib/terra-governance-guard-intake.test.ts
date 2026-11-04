@@ -8,6 +8,7 @@ import {
   guardApplicationStatusLabel,
   guardIntakeErrorMessage,
   normalizeGuardApplication,
+  parseGuardIntakeReceipt,
   validateGuardApplication,
   type GuardApplicationFields,
 } from "./terra-governance-guard-intake";
@@ -40,6 +41,45 @@ describe("TG5A GUARD voluntary membership intake", () => {
       .toContain("At least 20");
     expect(validateGuardApplication({ ...valid, contributions: "x".repeat(3001) }).contributions)
       .toContain("no more than 3000");
+  });
+
+  it("accepts only a succeeded canonical receipt for the exact operation and scope", () => {
+    const expected = {
+      operationId: "13ce65ac-779c-4c92-8a2b-2f7d2caf1900",
+      organizationId: "14e4ee7f-aeca-4461-b889-fdcd4dcdb11e",
+      countryId: "15c02bfb-a63b-46f8-b524-fd913ba62f13",
+    };
+    const receipt = {
+      status: "succeeded",
+      operationId: expected.operationId,
+      result: {
+        ok: true,
+        applicationId: "e23ee1bc-f7fb-4b56-bb0b-a763f5e453a0",
+        organizationId: expected.organizationId,
+        countryId: expected.countryId,
+        status: "submitted",
+      },
+    };
+    expect(parseGuardIntakeReceipt(receipt, expected)).toEqual({
+      applicationId: receipt.result.applicationId,
+      operationId: expected.operationId,
+      status: "submitted",
+    });
+    expect(() => parseGuardIntakeReceipt({ ...receipt, status: "processing" }, expected)).toThrow();
+    expect(() => parseGuardIntakeReceipt({ ...receipt, operationId: "other" }, expected)).toThrow();
+    expect(() => parseGuardIntakeReceipt({
+      ...receipt,
+      result: { ...receipt.result, organizationId: "foreign-organization" },
+    }, expected)).toThrow();
+    expect(() => parseGuardIntakeReceipt({
+      ...receipt,
+      result: { ...receipt.result, countryId: "foreign-country" },
+    }, expected)).toThrow();
+    expect(() => parseGuardIntakeReceipt({
+      ...receipt,
+      result: { ...receipt.result, status: "approved" },
+    }, expected)).toThrow();
+    expect(() => parseGuardIntakeReceipt({ ...receipt, result: null }, expected)).toThrow();
   });
 
   it("keeps admission distinct from application status and redacts errors", () => {
@@ -96,6 +136,7 @@ describe("TG5A GUARD voluntary membership intake", () => {
     expect(route).toContain("requestRef.current = { fields: normalized, operation }");
     expect(route).toContain("Retry same operation");
     expect(route).toContain("Check server status");
+    expect(route).toContain("if (GLOBAL_MAINTENANCE_MODE) throw notFound()");
     expect(route).toContain("!confirmation && !submit.isPending");
     expect(route).toContain("const pendingApplication = intake.data?.applications.find");
     expect(route).toContain("role=\"alert\"");
