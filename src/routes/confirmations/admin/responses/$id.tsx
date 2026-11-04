@@ -265,6 +265,7 @@ function EntryReviewCard({
   onChanged,
   onWinner,
   onClearWinner,
+  isScopeCurrent,
 }: {
   entry: ReviewEntry;
   targetType: "internal" | "national_final";
@@ -272,6 +273,7 @@ function EntryReviewCard({
   submissionId: string;
   winner?: boolean;
   onChanged: () => Promise<void>;
+  isScopeCurrent: () => boolean;
   onWinner?: (reason: string) => Promise<void>;
   onClearWinner?: (reason: string) => Promise<void>;
 }) {
@@ -284,7 +286,9 @@ function EntryReviewCard({
   const status = reviewLabel(entry);
 
   async function recoverReview(operationId: string) {
+    if (!isScopeCurrent()) return false;
     const reconciliation = await reconcileOperation({ data: { operationId } });
+    if (!isScopeCurrent()) return false;
     if (!reconciliation.ok) return false;
     setReceipt(reconciliation.receipt);
     if (reconciliation.receipt.status !== "succeeded") {
@@ -300,6 +304,10 @@ function EntryReviewCard({
   }
 
   async function review(nextStatus: "pending" | "accepted" | "declined" | "removed") {
+    if (!isScopeCurrent()) {
+      setError("Organizer edition or response changed. Reopen the current submission before reviewing.");
+      return;
+    }
     if (nextStatus !== "accepted" && !reason.trim()) {
       setError("Add an organiser reason first.");
       return;
@@ -325,6 +333,9 @@ function EntryReviewCard({
         throw new Error("Selection review preview did not return a version.");
       }
 
+      if (!isScopeCurrent()) {
+        throw new Error("Organizer edition changed during Entry review preflight. Nothing was applied.");
+      }
       assertDisplayedEntryVersion(entry.current_version_id, preview.currentVersionId);
 
       const command = createOrganisationCommand({
@@ -347,6 +358,9 @@ function EntryReviewCard({
         reason: reason.trim() || null,
         expectedVersion: preview.expectedVersion,
       });
+      if (!isScopeCurrent()) {
+        throw new Error("Organizer edition changed before the reviewed Entry command. Nothing was applied.");
+      }
       let mutation;
       try {
         mutation = await confirmationsSupabase.rpc("studio2_apply_confirmation_entry_review", {
@@ -378,6 +392,10 @@ function EntryReviewCard({
           "The review response could not be verified. Reconcile the operation before retrying.",
         );
       }
+      if (!isScopeCurrent()) {
+        toast.warning("Entry review completed for a previous edition. Verify its canonical receipt before retrying.");
+        return;
+      }
       setReceipt(canonicalReceipt);
       toast.success(
         nextStatus === "accepted"
@@ -398,7 +416,7 @@ function EntryReviewCard({
   }
 
   async function chooseWinner() {
-    if (!onWinner) return;
+    if (!onWinner || !isScopeCurrent()) return;
     if (!reason.trim()) {
       setError("Add an organiser reason before selecting the winner.");
       return;
@@ -407,6 +425,7 @@ function EntryReviewCard({
     setError(null);
     try {
       await onWinner(reason.trim());
+      if (!isScopeCurrent()) return;
       toast.success("National Final winner selected");
       setOpen(false);
     } catch (caught) {
@@ -417,7 +436,7 @@ function EntryReviewCard({
   }
 
   async function clearWinner() {
-    if (!onClearWinner) return;
+    if (!onClearWinner || !isScopeCurrent()) return;
     if (!reason.trim()) {
       setError("Add an organiser reason before clearing the winner.");
       return;
@@ -426,6 +445,7 @@ function EntryReviewCard({
     setError(null);
     try {
       await onClearWinner(reason.trim());
+      if (!isScopeCurrent()) return;
       toast.success("National Final winner cleared");
       setOpen(false);
     } catch (caught) {
@@ -648,18 +668,27 @@ function ResponseDetailPage() {
 
   const syncSnapshot = useCallback(
     async (detail: ResponseDetail) => {
+      const generation = responseLoadGenerationRef.current;
+      const scopeIsCurrent = () =>
+        generation === responseLoadGenerationRef.current &&
+        currentScopeRef.current.responseId === detail.id &&
+        currentScopeRef.current.editionId === detail.edition?.id;
       setSyncingSolaris(true);
       setSolarisSyncError(null);
       try {
         const result = await syncToSolaris({ data: { snapshot: detail } });
-        setSolarisSync(result);
-        if (!result.ok) setSolarisSyncError(result.message ?? "Solaris sync needs attention.");
+        if (scopeIsCurrent()) {
+          setSolarisSync(result);
+          if (!result.ok) setSolarisSyncError(result.message ?? "Solaris sync needs attention.");
+        }
         return result;
       } catch (caught) {
-        setSolarisSync(null);
-        const message =
-          caught instanceof Error ? caught.message : "Could not sync this response to Solaris.";
-        setSolarisSyncError(message);
+        if (scopeIsCurrent()) {
+          setSolarisSync(null);
+          const message =
+            caught instanceof Error ? caught.message : "Could not sync this response to Solaris.";
+          setSolarisSyncError(message);
+        }
         throw caught;
       } finally {
         setSyncingSolaris(false);
@@ -742,7 +771,9 @@ function ResponseDetailPage() {
   }, [load]);
 
   async function changeWinner(action: "select" | "clear", reason: string, entryId: string | null) {
-    if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId) || !data.national_final) return;
+    if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId) || !data.national_final) {
+      throw new Error("Organizer response or edition changed. The National Final winner was not applied.");
+    }
     const requestedGeneration = responseLoadGenerationRef.current;
     const stillCurrent = () =>
       requestedGeneration === responseLoadGenerationRef.current &&
@@ -984,6 +1015,11 @@ function ResponseDetailPage() {
     );
   }
 
+  const displayedGeneration = responseLoadGenerationRef.current;
+  const isDisplayedResponseCurrent = () =>
+    displayedGeneration === responseLoadGenerationRef.current &&
+    currentScopeRef.current.responseId === id &&
+    currentScopeRef.current.editionId === organizerEditionId;
   const activeNfEntries = (data.national_final?.entries ?? []).filter(
     (entry) => !entry.removed && entry.review_status !== "removed",
   );
@@ -1125,6 +1161,7 @@ function ResponseDetailPage() {
               editionId={data.edition?.id}
               submissionId={data.id}
               onChanged={load}
+              isScopeCurrent={isDisplayedResponseCurrent}
             />
           </section>
         ) : null}
@@ -1186,6 +1223,7 @@ function ResponseDetailPage() {
                   submissionId={data.id}
                   winner={data.national_final?.winning_entry_id === entry.id}
                   onChanged={load}
+                  isScopeCurrent={isDisplayedResponseCurrent}
                   onWinner={(reason) => setWinner(entry, reason)}
                   onClearWinner={
                     data.national_final?.winning_entry_id === entry.id ? clearWinner : undefined
