@@ -356,9 +356,26 @@ export function NextInLineCompetition() {
                 </p>
                 {loadingCountry ? <p role="status" className="text-xs text-muted-foreground">Loading selection information…</p> : null}
                 {sourceSubmissionId && originalMethod === "unknown" ? (
-                  <p role="alert" className="text-xs text-amber-700 dark:text-amber-300">
-                    The selection method is not confirmed. Submission stays blocked until country details are verified.
-                  </p>
+                  <div role="alert" className="space-y-2 text-xs text-amber-700 dark:text-amber-300">
+                    <p>The selection method is not confirmed. Submission stays blocked until country details are verified.</p>
+                    <button
+                      type="button"
+                      disabled={loadingCountry}
+                      onClick={() => void chooseCountry(country)}
+                      className="min-h-11 font-semibold underline disabled:opacity-50"
+                    >
+                      Retry country details
+                    </button>
+                  </div>
+                ) : null}
+                {country && !loadingCountry && !sourceSubmissionId && error ? (
+                  <button
+                    type="button"
+                    onClick={() => void chooseCountry(country)}
+                    className="min-h-11 text-xs font-semibold text-primary underline"
+                  >
+                    Retry this country
+                  </button>
                 ) : null}
               </div>
 
