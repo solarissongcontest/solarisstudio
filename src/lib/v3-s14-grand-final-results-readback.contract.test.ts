@@ -52,11 +52,15 @@ describe("S14 Grand Final result calculation readback", () => {
 
   it("installs returned canonical state before invalidating/refetching", () => {
     const cacheWrite = resultsView.indexOf(
-      "queryClient.setQueryData(conversionQueryKey, result.state)",
+      "queryClient.setQueryData(completedQueryKey, result.state)",
     );
-    const refetch = resultsView.indexOf("await invalidate();", cacheWrite);
+    const refetch = resultsView.indexOf("queryClient.invalidateQueries({ queryKey: completedQueryKey })", cacheWrite);
     expect(cacheWrite).toBeGreaterThanOrEqual(0);
     expect(refetch).toBeGreaterThan(cacheWrite);
+    expect(resultsView).toContain('const completedQueryKey = ["merged-televoting-conversion", target.editionId, target.roundId] as const');
+    expect(resultsView).toContain("result.state.round.id === target.roundId");
+    expect(resultsView).toContain("target.roundId, confirm: target.confirmProtected");
+    expect(resultsView).toContain("onError: async (caught, target) => {");
   });
 
   it("does not weaken the Lock official result gate", () => {
