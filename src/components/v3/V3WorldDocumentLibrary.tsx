@@ -282,12 +282,18 @@ export function WorldDocumentReaderScreen({
 }: {
   organization: string;
   document: string;
-  version?: number;
+  version?: number | null;
 }) {
   const [documentSearch, setDocumentSearch] = useState("");
+  const invalidVersion = version === null;
   const query = useQuery({
-    queryKey: ["v3", "tg4", "public-document", organization, document, version ?? "current"],
-    queryFn: () => getWorldDocumentDetail({ organization, document, version }),
+    queryKey: ["v3", "tg4", "public-document", organization, document, invalidVersion ? "invalid" : version ?? "current"],
+    enabled: !invalidVersion,
+    queryFn: () => getWorldDocumentDetail({
+      organization,
+      document,
+      version: version ?? undefined,
+    }),
     staleTime: 90_000,
     retry: 1,
   });
@@ -339,7 +345,23 @@ export function WorldDocumentReaderScreen({
         }
       />
       <div className="mx-auto w-full max-w-6xl pb-12">
-        {query.isPending ? (
+        {invalidVersion ? (
+          <section role="alert" className="py-10">
+            <h2 className="text-lg font-semibold">Invalid document version link</h2>
+            <p className="mt-2 max-w-prose text-sm text-muted-foreground">
+              The requested revision number is not valid. To avoid showing the wrong legal text,
+              no document version has been loaded.
+            </p>
+            <Link
+              to="/world/documents/$organization/$document"
+              params={{ organization, document }}
+              search={{ version: undefined }}
+              className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary"
+            >
+              View the current published version
+            </Link>
+          </section>
+        ) : query.isPending ? (
           <ArchiveDataLoading label="Opening the published document…" />
         ) : query.isError ? (
           <section role="alert" className="py-10">
