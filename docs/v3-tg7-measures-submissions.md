@@ -15,7 +15,7 @@ Canonical persisted owners: `public.world_measures`, `public.world_measure_versi
 - `world_measure_review_v1`: authorized procedural reviewer can start review, return for a recorded procedural correction, or register with an immutable identifier. No political-content veto, vote result or approval decision is fabricated. GUARD identifiers keep the canonical `GAG.Year.Sequence.CountryCode.TopicCode.ShortTitle` structure with exact sponsor/category alignment.
 - `world_measure_resubmit_v1`: country corrects returned text as a **new version** with CAS; prior text remains archived. Every procedural decision and note is also stored as a private append-only review record, preserving the reason for corrections after the current note is cleared.
 - Safe `world_measure_public_list_v1` and `world_measure_public_detail_v1`: only a formally registered **public** measure belonging to a public organization/organ and holding a published current version can be read anonymously. Public list is limited to 50; version history is capped at 25. Sensitive drafts/private procedural notes do not escape.
-- Scope-authorized private `world_measure_manage_v1`, explicit RPC grants, table grants revoked and RLS enabled.
+- Scope-authorized private `world_measure_manage_v1`, capped at 20 latest versions and 50 latest procedural decisions with explicit truncation indicators; older history remains permanently persisted. Explicit RPC grants, table grants revoked and RLS enabled.
 
 ## Still required for full TG7
 
@@ -26,4 +26,5 @@ Canonical persisted owners: `public.world_measures`, `public.world_measure_versi
 - Actual local Supabase migration/replay/authorization tests and exact-source GitHub CI; the committed Vitest source contracts do not prove runtime SQL behavior by themselves.
 
 This is an **implementation**, not certification of TG7, and does not authorize production migration until stacked prerequisite PRs and migration rehearsal are complete.
+
 

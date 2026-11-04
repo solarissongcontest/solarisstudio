@@ -56,6 +56,10 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(reviewer).toContain("auth.uid()");
     expect(manager).toContain("'reviews'");
     expect(manager).toContain("r.note");
+    expect(manager).toContain("'versionsTruncated'");
+    expect(manager).toContain("'reviewsTruncated'");
+    expect(manager).toMatch(/limit 20/);
+    expect(manager).toMatch(/limit 50/);
     expect(body("world_measure_public_list_v1", "measure_list"))
       .not.toContain("world_measure_procedural_reviews");
     expect(body("world_measure_public_detail_v1", "measure_detail"))
@@ -171,6 +175,7 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(sql).toMatch(/v3\.tg7\.world-measure-submissions/);
   });
 });
+
 
 
 
