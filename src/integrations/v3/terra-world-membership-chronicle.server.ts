@@ -11,8 +11,8 @@ import {
 
 type PublicClient = { from(table: string): any };
 function publicClient(): PublicClient {
-  // Only existing public Solaris runtime, RLS and TG2 canonical membership.
-  // Never use service_role, unbounded retries or hosted test fallback.
+  // Existing public Solaris runtime, TG2 RLS and canonical membership.
+  // Never use service_role, a privileged identity override or hosted test fallback.
   return createConfirmationPublicRuntimeClient() as unknown as PublicClient;
 }
 function assertSuccess(error: unknown, label: string) {
@@ -34,6 +34,8 @@ async function readPublishedInstitutions(client: PublicClient) {
 }
 
 export async function loadWorldMembershipInstitutions() {
+  // Filter choices are a separate, long-lived cached query on the client.
+  // They are NOT fetched again in every history page request.
   return readPublishedInstitutions(publicClient());
 }
 
@@ -47,14 +49,19 @@ export async function loadWorldMembershipChronicle(input: {
   const countryCode = normalizeWorldChronicleCountryCode(input.country);
   const client = publicClient();
 
-  const institutions = await readPublishedInstitutions(client);
-  const institution = organizationSlug
-    ? institutions.find((item) => item.slug === organizationSlug)
-    : null;
-
-  // Unknown/private organization never becomes an oracle for membership data.
-  if (organizationSlug && !institution) {
-    return { records: [], total: 0, page: input.page, scope: input.scope };
+  let selectedOrganization: { id: string; slug: string; short_name: string } | null = null;
+  if (organizationSlug) {
+    const { data, error } = await client.from("world_organizations")
+      .select("id,slug,short_name")
+      .eq("public_visibility", "public")
+      .eq("slug", organizationSlug)
+      .maybeSingle();
+    assertSuccess(error, "selected institution");
+    selectedOrganization = data;
+    // Do not reveal whether an inaccessible organization exists.
+    if (!selectedOrganization) {
+      return { records: [], total: 0, page: input.page, scope: input.scope };
+    }
   }
 
   let countryId: string | null = null;
@@ -73,7 +80,7 @@ export async function loadWorldMembershipChronicle(input: {
   let query = client.from("world_organization_memberships")
     .select("id,organization_id,country_id,membership_type,status,joined_at,ended_at", { count: "exact" });
 
-  if (institution) query = query.eq("organization_id", institution.id);
+  if (selectedOrganization) query = query.eq("organization_id", selectedOrganization.id);
   if (countryId) query = query.eq("country_id", countryId);
   if (input.scope === "current") query = query.is("ended_at", null);
   if (input.scope === "ended") query = query.not("ended_at", "is", null);
@@ -84,6 +91,25 @@ export async function loadWorldMembershipChronicle(input: {
     .order("id", { ascending: true })
     .range(from, from + WORLD_MEMBERSHIP_CHRONICLE_PAGE_SIZE - 1);
   assertSuccess(error, "institutional membership history");
+
+  // Query just the institutions actually referenced on the displayed page.
+  // Avoid re-downloading the entire 100-institution selector on every page.
+  const organizationIds: string[] = [...new Set(
+    (memberships ?? []).map((row: { organization_id?: unknown }) => row.organization_id)
+      .filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
+  )];
+  let organizations: unknown[] = [];
+  if (selectedOrganization) {
+    organizations = [selectedOrganization];
+  } else if (organizationIds.length) {
+    const result = await client.from("world_organizations")
+      .select("id,slug,short_name")
+      .eq("public_visibility", "public")
+      .in("id", organizationIds)
+      .limit(WORLD_MEMBERSHIP_CHRONICLE_PAGE_SIZE);
+    assertSuccess(result.error, "public institution identities");
+    organizations = result.data ?? [];
+  }
 
   const countryIds: string[] = [...new Set(
     (memberships ?? []).map((row: { country_id?: unknown }) => row.country_id)
@@ -101,9 +127,7 @@ export async function loadWorldMembershipChronicle(input: {
 
   return parseWorldMembershipChronicle({
     rows: memberships,
-    organizations: institutions.map((item) => ({
-      id: item.id, slug: item.slug, short_name: item.shortName,
-    })),
+    organizations,
     countries,
     count,
     page: input.page,
