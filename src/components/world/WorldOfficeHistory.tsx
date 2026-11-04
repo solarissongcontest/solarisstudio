@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, CalendarDays, History, Landmark } from "lucide-react";
@@ -5,7 +6,7 @@ import { ArrowLeft, CalendarDays, History, Landmark } from "lucide-react";
 import {
   historicalTermEditionLabel,
   loadPublicOfficeHistory,
-  OFFICE_HISTORY_PAGE_SIZE,
+  type PublicOfficeHistoryCursor,
   type PublicOfficeTerm,
 } from "@/lib/v3-world-office-history";
 
@@ -78,16 +79,17 @@ function OfficeTermRow({ term }: { term: PublicOfficeTerm }) {
 
 /** Public historical terms only. It never infers an office from current users. */
 export function WorldOfficeHistory({ slug }: { slug: string }) {
+  const [selectedOffice, setSelectedOffice] = useState("");
   const query = useInfiniteQuery({
-    queryKey: ["v3-world-office-history", slug.toLowerCase()],
-    initialPageParam: 0,
-    queryFn: ({ pageParam }) => loadPublicOfficeHistory(slug, pageParam),
-    getNextPageParam: (lastPage, pages) =>
-      lastPage?.hasMore ? pages.length * OFFICE_HISTORY_PAGE_SIZE : undefined,
+    queryKey: ["v3-world-office-history", slug.toLowerCase(), selectedOffice],
+    initialPageParam: null as PublicOfficeHistoryCursor | null,
+    queryFn: ({ pageParam }) => loadPublicOfficeHistory(slug, pageParam, selectedOffice || null),
+    getNextPageParam: (lastPage) => lastPage?.nextCursor ?? undefined,
     staleTime: 10 * 60_000,
     retry: 1,
   });
   const organization = query.data?.pages[0]?.organization ?? null;
+  const offices = query.data?.pages[0]?.offices ?? [];
   const items = query.data?.pages.flatMap((page) => page?.terms ?? []) ?? [];
 
   return (
@@ -119,6 +121,25 @@ export function WorldOfficeHistory({ slug }: { slug: string }) {
         ) : null}
       </header>
 
+      {organization && offices.length > 1 ? (
+        <div className="mt-6 flex flex-col gap-2 sm:max-w-xs">
+          <label htmlFor="world-office-history-filter" className="text-sm font-semibold">
+            Filter by office
+          </label>
+          <select id="world-office-history-filter" value={selectedOffice}
+            onChange={(event) => setSelectedOffice(event.target.value)}
+            className="min-h-11 rounded-xl border border-border bg-surface px-3 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-primary">
+            <option value="">All offices</option>
+            {offices.map((office) => <option key={office.slug} value={office.slug}>{office.title}</option>)}
+          </select>
+        </div>
+      ) : selectedOffice ? (
+        <button type="button" onClick={() => setSelectedOffice("")}
+          className="mt-6 min-h-11 rounded-xl border border-border bg-surface px-4 text-sm font-semibold">
+          Clear office filter: {selectedOffice}
+        </button>
+      ) : null}
+
       <section aria-label="Previous institutional office terms" className="mt-6" aria-live="polite">
         {query.isPending ? (
           <HistoryState title="Loading institutional history" detail="Reading completed terms from the canonical public governance archive." />
@@ -140,7 +161,8 @@ export function WorldOfficeHistory({ slug }: { slug: string }) {
             ) : null}
           </>
         ) : (
-          <HistoryState title="No completed terms published" detail="The institution has no completed office terms in the public governance record. Vacancies and earlier leadership are not guessed." />
+          <HistoryState title={selectedOffice ? "No completed terms for this office" : "No completed terms published"}
+            detail="There are no matching completed office terms in the public governance record. Vacancies and earlier leadership are not guessed." />
         )}
       </section>
 
