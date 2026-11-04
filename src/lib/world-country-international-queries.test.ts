@@ -41,7 +41,7 @@ const institution = {
 function mockSelectResponse(response: { data: unknown; count?: number | null; error?: unknown }) {
   const calls: Array<{ method: string; args: unknown[] }> = [];
   const chain: Record<string, any> = {};
-  for (const method of ["select", "eq", "or", "order", "is", "not", "in"]) {
+  for (const method of ["select", "eq", "or", "order", "is", "not", "in", "ilike"]) {
     chain[method] = vi.fn((...args: unknown[]) => {
       calls.push({ method, args });
       return chain;
