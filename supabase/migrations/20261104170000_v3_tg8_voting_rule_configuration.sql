@@ -383,6 +383,9 @@ as $published$
   from public.world_voting_rules rule_row
   join public.world_organizations org on org.id=rule_row.organization_id
   where org.slug=lower(btrim(p_organization_slug))
+    and coalesce(
+      public.studio2_feature_enabled('terra_world_voting_rules',null),false
+    )
     and org.public_visibility='public'
     and org.status='active'
     and rule_row.key=lower(btrim(p_rule_key))
