@@ -63,4 +63,49 @@ describe("Organizer Confirmation requirement review completion", () => {
     expect(source).toContain("action.variables?.reviewEpoch === editionReviewEpochRef.current");
     expect(source).toContain("The previous edition's requirement operation completed.");
   });
+
+  it("keeps a visible recovery route after edition switching closes the R2 review sheet", () => {
+    const source = readFileSync("src/routes/confirmations/admin/requirements.tsx", "utf8");
+    expect(source).toContain("type UnresolvedRequirementOperation = {");
+    expect(source).toContain("editionId: input.organizerEditionId,");
+    expect(source).toContain("countryName: input.requirement.countryName,");
+    expect(source).toContain("const [unresolvedRequirement, setUnresolvedRequirement]");
+    expect(source).toContain("unresolvedRequirementRef.current = next;");
+    expect(source).toContain("setUnresolvedRequirement(next);");
+    expect(source).toContain('title="Requirement operation awaiting reconciliation"').toBe(false);
+    expect(source).toContain("Requirement operation awaiting reconciliation");
+    expect(source).toContain("Select the original Organizer edition to reconcile this operation.");
+    expect(source).toContain("onClick={() => void reconcileOutstandingRequirement()}");
+    expect(source).toContain("unresolvedRequirement.editionId !== editionId");
+    expect(source).toContain("setPending(null);");
+  });
+
+  it("requires exact original operation identity and authoritative settlement before unlocking R2", () => {
+    const source = readFileSync("src/routes/confirmations/admin/requirements.tsx", "utf8");
+    const start = source.indexOf("  async function reconcileOutstandingRequirement()");
+    const end = source.indexOf("  return (", start);
+    const recovery = source.slice(start, end);
+    expect(start).toBeGreaterThan(-1);
+    expect(recovery).toContain("if (!outstanding || reconciliationInFlightRef.current || actionInFlightRef.current");
+    expect(recovery).toContain("outstanding.editionId !== editionId");
+    expect(recovery).toContain("reconciliationInFlightRef.current = true;");
+    expect(recovery).toContain("data: { operationId: outstanding.operationId }");
+    expect(recovery).toContain("result.receipt.operationId !== outstanding.operationId");
+    expect(recovery).toContain('result.receipt.status !== "succeeded" && result.receipt.status !== "failed"');
+    const authoritative = recovery.indexOf('result.receipt.status !== "succeeded" && result.receipt.status !== "failed"');
+    const release = recovery.indexOf("updateUnresolvedRequirement(null);");
+    expect(release).toBeGreaterThan(authoritative);
+    expect(recovery).toContain("reconciliationInFlightRef.current = false;");
+  });
+
+  it("settles the operation before refetch and does not mislabel failed refresh as a failed mutation", () => {
+    const source = readFileSync("src/routes/confirmations/admin/requirements.tsx", "utf8");
+    const start = source.indexOf("  async function reconcileOutstandingRequirement()");
+    const end = source.indexOf("  return (", start);
+    const recovery = source.slice(start, end);
+    expect(recovery.indexOf("updateUnresolvedRequirement(null);")).toBeLessThan(recovery.indexOf("Promise.allSettled(["));
+    expect(recovery).toContain("The operation was settled, but the current edition projection did not refresh.");
+    expect(source).toContain("unresolvedRequirementRef.current || editionId !== activeEditionRef.current");
+    expect(source).toContain("ensure.isPending || ensureInFlightRef.current || Boolean(unresolvedRequirement)");
+  });
 });
