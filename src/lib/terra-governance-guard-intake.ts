@@ -70,44 +70,70 @@ export type GuardIntakeProjection = {
   applications: GuardMembershipApplicationRow[];
 };
 
-/** All queries are scoped by an authenticated country and bounded to its last 5 rows. */
-export async function loadGuardIntake(countryId: string): Promise<GuardIntakeProjection> {
-  const org = await supabase
-    .from("world_organizations")
-    .select("id,short_name,status")
-    .eq("slug", "guard")
-    .eq("public_visibility", "public")
-    .maybeSingle();
-  if (org.error) throw org.error;
-  if (!org.data || org.data.status !== "active") {
-    throw new Error("GUARD membership intake is not currently available.");
+const KNOWN_GUARD_APPLICATION_STATES = new Set([
+  "submitted", "under_review", "introduced", "approved", "rejected", "withdrawn",
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Parse the authenticated, single-snapshot projection. Invalid or unknown
+ * server states do not open the form; they produce a recoverable error.
+ */
+export function parseGuardIntakeProjection(value: unknown): GuardIntakeProjection {
+  if (!isRecord(value) ||
+    typeof value.organizationId !== "string" ||
+    value.organizationId.length < 30 ||
+    typeof value.organizationName !== "string" ||
+    !value.organizationName.trim() ||
+    !(value.activeMembership === null || typeof value.activeMembership === "string") ||
+    !Array.isArray(value.applications) ||
+    value.applications.length > 5) {
+    throw new Error("The GUARD application status response is incomplete.");
   }
 
-  const [membership, application] = await Promise.all([
-    supabase
-      .from("world_organization_memberships")
-      .select("status")
-      .eq("organization_id", org.data.id)
-      .eq("country_id", countryId)
-      .is("ended_at", null)
-      .limit(1),
-    supabase
-      .from("world_membership_applications")
-      .select("id,status,official_state_designation,submitted_at,revision")
-      .eq("organization_id", org.data.id)
-      .eq("country_id", countryId)
-      .order("submitted_at", { ascending: false })
-      .limit(5),
-  ]);
-  if (membership.error) throw membership.error;
-  if (application.error) throw application.error;
+  const applications: GuardMembershipApplicationRow[] = [];
+  for (const row of value.applications) {
+    if (!isRecord(row) ||
+      typeof row.id !== "string" ||
+      row.id.length < 30 ||
+      typeof row.status !== "string" ||
+      !KNOWN_GUARD_APPLICATION_STATES.has(row.status) ||
+      typeof row.official_state_designation !== "string" ||
+      row.official_state_designation.length > 160 ||
+      typeof row.submitted_at !== "string" ||
+      !Number.isFinite(Date.parse(row.submitted_at)) ||
+      !Number.isSafeInteger(row.revision) ||
+      (row.revision as number) < 1) {
+      throw new Error("The GUARD application history response is incomplete.");
+    }
+    applications.push({
+      id: row.id,
+      status: row.status as GuardMembershipApplicationRow["status"],
+      official_state_designation: row.official_state_designation,
+      submitted_at: row.submitted_at,
+      revision: row.revision as number,
+    });
+  }
 
   return {
-    organizationId: org.data.id,
-    organizationName: org.data.short_name,
-    activeMembership: membership.data?.[0]?.status ?? null,
-    applications: (application.data ?? []) as GuardMembershipApplicationRow[],
-  };
+    organizationId: value.organizationId,
+    organizationName: value.organizationName,
+    activeMembership: value.activeMembership,
+    applications,
+  } as GuardIntakeProjection;
+}
+
+/** Canonical one-request, active-country-controller read, with five-row bound. */
+export async function loadGuardIntake(countryId: string): Promise<GuardIntakeProjection> {
+  if (!countryId) throw new Error("An active country is required.");
+  const { data, error } = await supabase.rpc("world_my_guard_membership_intake_v1", {
+    p_country_id: countryId,
+  });
+  if (error) throw error;
+  return parseGuardIntakeProjection(data);
 }
 
 export type GuardIntakeOperation = { operationId: string; idempotencyKey: string };
