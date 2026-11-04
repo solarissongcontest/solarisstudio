@@ -378,6 +378,7 @@ test("installed app shell survives representative navigation without duplicate c
   for (const route of [
     "/",
     "/explore",
+    "/countries",
     "/editions",
     "/wiki",
     "/shows",
@@ -388,6 +389,15 @@ test("installed app shell survives representative navigation without duplicate c
     "/settings",
   ]) {
     await expectInstalledShell(page, route);
+    if (route === "/countries") {
+      const directory = page.locator("[data-country-directory-experience]");
+      await expect(directory).toHaveAttribute("data-country-directory-experience", "installed-app");
+      await expect(directory.locator(".v3-countries-grid")).toBeVisible();
+      await expect(directory.locator(".v3-countries-web-list")).toHaveCount(0);
+      await expect(directory.locator(".v3-countries-region-rail")).toHaveCount(0);
+      await expect(page.locator("[data-country-directory-web-header]")).toHaveCount(0);
+      await expect(directory.getByRole("searchbox", { name: "Search countries" })).toBeVisible();
+    }
     await expectNoBottomChromeCollision(page, route);
   }
 });

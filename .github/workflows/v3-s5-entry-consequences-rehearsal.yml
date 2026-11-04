@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - "supabase/migrations/**"
+      - ".github/scripts/v3-start-disposable-supabase.sh"
+      - "src/lib/v3-disposable-supabase-bootstrap.test.ts"
       - ".github/scripts/v3-s5-entry-consequences-rehearsal.sh"
       - ".github/scripts/v3-production-head-upgrade-rehearsal.sh"
       - ".github/workflows/v3-s5-entry-consequences-rehearsal.yml"
@@ -35,7 +37,7 @@ jobs:
           version: 2.113.0
 
       - name: Start isolated local Supabase
-        run: supabase start
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
 
       - name: Rebuild from the complete migration chain
         run: supabase db reset --local --no-seed
@@ -74,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-s5-entry-main
-          supabase start
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
           supabase db reset --local --no-seed
 
       - name: Apply the additive feature migration delta
