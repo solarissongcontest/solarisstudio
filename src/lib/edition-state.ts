@@ -121,6 +121,10 @@ export function normalizeLegacyEditionStatus(status: string | null | undefined):
       return 'submissions';
     case 'voting':
       return 'televoting';
+    // The canonical live-show lifecycle is not a legacy synonym. Preserve it
+    // so the public projection can evaluate live publication separately.
+    case 'live_show':
+      return 'live_show';
     case 'results':
       return 'results';
     case 'completed':

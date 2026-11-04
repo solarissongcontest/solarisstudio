@@ -28,6 +28,7 @@ describe('edition state engine', () => {
   it('maps legacy statuses without breaking existing editions', () => {
     expect(normalizeLegacyEditionStatus('active')).toBe('submissions');
     expect(normalizeLegacyEditionStatus('voting')).toBe('televoting');
+    expect(normalizeLegacyEditionStatus('live_show')).toBe('live_show');
     expect(normalizeLegacyEditionStatus('completed')).toBe('post_edition');
     expect(normalizeLegacyEditionStatus(null)).toBe('planning');
   });
