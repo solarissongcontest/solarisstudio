@@ -84,6 +84,19 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(immutability).toMatch(/to_jsonb\(new\) - 'publication_state'/);
   });
 
+  it("resolves retired category labels only behind a published-measure gate", () => {
+    const detail = body("world_measure_public_detail_v1", "measure_detail");
+    const list = body("world_measure_public_list_v1", "measure_list");
+    expect(detail).toContain("'categoryCode',m.category_code");
+    expect(detail).toContain("'categoryLabel',category.label");
+    expect(detail).toMatch(/left join public\.world_measure_categories category/);
+    expect(detail).toMatch(/category\.organization_id=m\.organization_id/);
+    expect(detail).not.toMatch(/category\.active/);
+    expect(detail).toMatch(/m\.visibility='public'/);
+    expect(detail).toMatch(/v\.publication_state='published'/);
+    expect(list).toContain("'categoryCode',eligible.category_code");
+  });
+
   it("exposes only active public-institution topic codes in a bounded read", () => {
     const categories = body("world_measure_categories_public_v1", "measure_categories");
     expect(categories).toMatch(/o\.slug=lower\(btrim\(p_organization_slug\)\)/);
