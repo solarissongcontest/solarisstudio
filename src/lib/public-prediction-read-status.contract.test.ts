@@ -30,6 +30,25 @@ describe("Public legacy Prediction Arena failure and recovery wiring", () => {
     );
     expect(detail).toContain("Submission is paused until Solaris can verify");
   });
+  it("fails closed when a published show or its entrant choices cannot be verified", () => {
+    for (const query of ["showQuery", "participantsQuery", "countriesQuery", "entitiesQuery"]) {
+      expect(detail).toContain(query + " = use");
+      expect(detail).toContain(query + ".isError");
+      expect(detail).toContain(query + ".refetch()");
+      expect(detail).toContain(query + ".isFetching");
+    }
+    expect(detail).toContain("round && user ? showQuery : undefined");
+    expect(detail).toContain("round && user ? participantsQuery : undefined");
+    expect(detail).toContain("round && user ? countriesQuery : undefined");
+    expect(detail).toContain("round && user && show?.edition_id ? entitiesQuery : undefined");
+    expect(detail).toContain("(!show || !participants || !countries || !entities || options.length === 0)");
+    expect(detail).toContain("Prediction choices unavailable");
+    expect(detail).toContain("Retry published choices");
+    expect(detail.indexOf("Prediction choices unavailable")).toBeLessThan(
+      detail.indexOf("<form onSubmit={submit}"),
+    );
+  });
+
   it("offers a targeted retry instead of trapping installed viewers after private-state failures", () => {
     expect(installed).toContain('data-v3-predictions-private-state="error"');
     expect(installed).toContain("privateStateRetrying");
