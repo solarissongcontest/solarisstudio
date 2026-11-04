@@ -62,6 +62,16 @@ create table public.world_statement_versions (
     or (version_number>1 and length(btrim(coalesce(correction_reason,''))) between 5 and 1000)
   )
 );
+-- An officeholder statement must reference an office IN THE SAME institution.
+-- Composite uniqueness is additive to the existing TG2 office identity.
+create unique index world_organization_offices_id_org_uidx
+  on public.world_organization_offices(id,organization_id);
+alter table public.world_statements
+  add constraint world_statements_issuer_organization_fkey
+  foreign key(issuing_office_id,organization_id)
+  references public.world_organization_offices(id,organization_id)
+  on delete restrict;
+
 alter table public.world_statements
   add constraint world_statements_current_version_fkey
   foreign key(current_version_id,id)
@@ -73,6 +83,30 @@ create index world_statements_public_feed_idx
 create index world_statements_public_global_idx
   on public.world_statements(published_at desc,id desc)
   where visibility='public' and current_version_id is not null;
+
+-- Never silently rewrite a published version, even from a privileged script.
+-- Deleting a login may null the private audit user reference without erasing
+-- the durable public record; that is the only allowed metadata change.
+create or replace function private.world_statement_version_immutability_v1()
+returns trigger language plpgsql set search_path=pg_catalog as $immutable$
+begin
+  if tg_op='UPDATE'
+    and new.id=old.id and new.statement_id=old.statement_id
+    and new.version_number=old.version_number
+    and new.title=old.title and new.body=old.body
+    and new.correction_reason is not distinct from old.correction_reason
+    and new.published_at=old.published_at
+    and new.published_by_user_id is null
+    and old.published_by_user_id is not null
+  then return new; end if;
+  raise exception using errcode='23514',message='IMMUTABLE_STATEMENT_VERSION';
+end
+$immutable$;
+create trigger world_statement_versions_immutable_trg
+before update or delete on public.world_statement_versions
+for each row execute function private.world_statement_version_immutability_v1();
+revoke all on function private.world_statement_version_immutability_v1()
+  from public,anon,authenticated;
 
 alter table public.world_statements enable row level security;
 alter table public.world_statement_versions enable row level security;
