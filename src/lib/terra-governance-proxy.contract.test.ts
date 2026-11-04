@@ -183,6 +183,10 @@ describe("TG6 institutional acting-proxy authorization", () => {
     expect(controller).toContain("rep.country_id=p_country_id");
     expect(controller).toContain("limit 20");
     expect(controller).toContain("'timeEffective'");
+    expect(controller).toContain("p.status in ('requested','approved')");
+    expect(controller).toContain("p.valid_until <= now()");
+    expect(controller).toContain("then 'expired' else p.status end as status");
+
     expect(controller).not.toContain("'canCastBallot'");
     expect(controller).not.toMatch(/proxy_user_id|holder_user_id/);
     expect(migration).toContain("revoke all on function public.world_proxy_review_queue_v1");
