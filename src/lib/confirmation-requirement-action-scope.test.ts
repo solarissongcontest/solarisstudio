@@ -4,26 +4,35 @@ import { describe, expect, it } from "vitest";
 import { isCurrentConfirmationRequirementAction } from "./confirmation-requirement-action-scope";
 
 describe("Organizer Confirmation requirement review completion", () => {
-  it("allows completion UI only for the currently selected edition", () => {
-    expect(isCurrentConfirmationRequirementAction("edition-a", "edition-a")).toBe(true);
-    expect(isCurrentConfirmationRequirementAction("edition-a", "edition-b")).toBe(false);
+  it("allows completion UI only for the requested edition and review epoch", () => {
+    expect(isCurrentConfirmationRequirementAction("edition-a", "edition-a", 1, 1)).toBe(true);
+    expect(isCurrentConfirmationRequirementAction("edition-a", "edition-b", 1, 1)).toBe(false);
+    expect(isCurrentConfirmationRequirementAction("edition-a", "edition-a", 1, 2)).toBe(false);
   });
 
-  it("fails closed for a missing edition, including two empty values", () => {
-    expect(isCurrentConfirmationRequirementAction("", "")).toBe(false);
-    expect(isCurrentConfirmationRequirementAction(null, null)).toBe(false);
-    expect(isCurrentConfirmationRequirementAction(undefined, "edition-a")).toBe(false);
+  it("rejects late A -> B -> A completions, even with the same edition identity", () => {
+    expect(isCurrentConfirmationRequirementAction("edition-a", "edition-a", 3, 5)).toBe(false);
+    expect(isCurrentConfirmationRequirementAction("edition-a", "edition-a", 5, 5)).toBe(true);
   });
 
-  it("never clears a new edition's pending review for an old completion", () => {
+  it("fails closed on empty edition and invalid review epochs", () => {
+    expect(isCurrentConfirmationRequirementAction("", "", 2, 2)).toBe(false);
+    expect(isCurrentConfirmationRequirementAction(null, null, 2, 2)).toBe(false);
+    expect(isCurrentConfirmationRequirementAction(undefined, "edition-a", 2, 2)).toBe(false);
+    expect(isCurrentConfirmationRequirementAction("edition-a", "edition-a", NaN, NaN)).toBe(false);
+    expect(isCurrentConfirmationRequirementAction("edition-a", "edition-a", -1, -1)).toBe(false);
+    expect(isCurrentConfirmationRequirementAction("edition-a", "edition-a", 1.5, 1.5)).toBe(false);
+  });
+
+  it("does not clear a newer pending review for a prior selection epoch", () => {
     const source = readFileSync("src/routes/confirmations/admin/requirements.tsx", "utf8");
     expect(source).toContain("useLayoutEffect(() => {");
     expect(source).toContain("activeEditionRef.current = editionId;");
-    expect(source).toContain(
-      "isCurrentConfirmationRequirementAction(variables.organizerEditionId, activeEditionRef.current)",
-    );
-    expect(source).toContain("if (isCurrentConfirmationRequirementAction(variables.organizerEditionId");
-    expect(source).toContain("queryKey: [\"confirmation-requirements\", variables.organizerEditionId]");
+    expect(source).toContain("editionReviewEpochRef.current += 1;");
+    expect(source).toContain("variables.reviewEpoch, editionReviewEpochRef.current");
+    expect(source).toContain("reviewEpoch: editionReviewEpochRef.current,");
+    expect(source).toContain('queryKey: ["confirmation-requirements", variables.organizerEditionId]');
+    expect(source).toContain("action.variables?.reviewEpoch === editionReviewEpochRef.current");
   });
 
   it("uses a synchronous single-flight lock before creating an operation", () => {
@@ -36,11 +45,10 @@ describe("Organizer Confirmation requirement review completion", () => {
     expect(source).toContain("idempotencyKey: command.idempotencyKey");
   });
 
-  it("does not show an old edition's errors on the newly selected edition", () => {
+  it("does not show late failures from a previous review epoch", () => {
     const source = readFileSync("src/routes/confirmations/admin/requirements.tsx", "utf8");
-    expect(source).toContain(
-      "action.error && action.variables?.organizerEditionId === editionId",
-    );
+    expect(source).toContain("action.error && action.variables?.organizerEditionId === editionId");
+    expect(source).toContain("action.variables?.reviewEpoch === editionReviewEpochRef.current");
     expect(source).toContain("The previous edition's requirement operation completed.");
   });
 });
