@@ -98,3 +98,98 @@
     gap: 1rem;
   }
 }
+
+/* Country directory: three runtime-owned, distinct presentation compositions. */
+.country-directory-mobile-masthead {
+  margin: .25rem 0 1.1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.country-directory-mobile-masthead .country-directory-mobile-back {
+  display: inline-flex; min-height: 44px; align-items: center;
+  color: var(--muted-foreground); font-size: .8rem; font-weight: 650;
+}
+.country-directory-mobile-masthead h1 {
+  font-size: clamp(2rem, 8vw, 2.65rem); font-weight: 800;
+  line-height: 1.1; letter-spacing: -.045em;
+}
+.country-directory-mobile-masthead p {
+  margin-top: .5rem; max-width: 44ch;
+  color: var(--muted-foreground); font-size: .9rem; line-height: 1.6;
+}
+.v3-countries-discovery .v3-countries-list-pane { min-width: 0; }
+.v3-countries-discovery .v3-countries-web-list { border-top: 1px solid var(--border); }
+.v3-countries-discovery .v3-country-web-row {
+  border-bottom: 1px solid var(--border); text-decoration: none;
+}
+.v3-countries-discovery .v3-country-web-row:hover,
+.v3-countries-discovery .v3-country-desktop-item:hover { background: var(--surface); }
+.v3-countries-discovery .v3-countries-web-region { display: inline-flex; min-width: 0; }
+.v3-countries-discovery .v3-countries-web-region select {
+  appearance: auto; min-height: 44px; max-width: 100%;
+  border: 1px solid var(--border); border-radius: .6rem;
+  background: var(--surface); color: var(--foreground);
+  padding: .45rem .6rem; font-size: .85rem;
+}
+.v3-countries-discovery .v3-countries-region-rail {
+  align-self: start; position: sticky; top: 5.5rem;
+  padding-right: 1rem; border-right: 1px solid var(--border);
+}
+.v3-countries-discovery .v3-countries-region-rail h3 {
+  margin-bottom: .75rem; font-size: .78rem; font-weight: 750;
+  text-transform: uppercase; letter-spacing: .12em;
+}
+.v3-countries-discovery .v3-countries-region-rail button {
+  display: flex; width: 100%; min-height: 44px;
+  align-items: center; justify-content: space-between;
+  gap: .75rem; border-radius: .5rem; padding: .55rem .65rem;
+  color: var(--muted-foreground); font-size: .85rem; text-align: left;
+}
+.v3-countries-discovery .v3-countries-region-rail button.is-selected {
+  background: var(--surface); color: var(--foreground); font-weight: 700;
+}
+.v3-countries-discovery .v3-countries-region-rail button:hover,
+.v3-countries-discovery .v3-countries-region-rail button:focus-visible {
+  background: var(--surface); color: var(--foreground);
+}
+.v3-countries-discovery .v3-countries-region-rail button span:last-child {
+  font-size: .72rem; font-variant-numeric: tabular-nums;
+}
+.v3-countries-discovery[data-country-directory-experience="mobile-web"] .v3-countries-intro {
+  padding-block: 0;
+}
+.v3-countries-discovery[data-country-directory-experience="mobile-web"] .v3-countries-title {
+  font-size: 1.4rem;
+}
+.v3-countries-discovery[data-country-directory-experience="mobile-web"] .v3-countries-collections {
+  gap: .5rem;
+}
+.v3-countries-discovery[data-country-directory-experience="mobile-web"] .v3-countries-controls {
+  margin-bottom: .6rem;
+}
+.v3-countries-discovery[data-country-directory-experience="mobile-web"] .solaris-app-directory-filterbar {
+  flex-wrap: wrap; gap: .5rem;
+}
+.v3-countries-discovery[data-country-directory-experience="desktop-web"] .v3-countries-workspace {
+  display: grid; grid-template-columns: minmax(10.5rem, 13rem) minmax(0, 1fr);
+  gap: clamp(1.5rem, 3vw, 2.5rem);
+}
+.v3-countries-discovery[data-country-directory-experience="desktop-web"] .v3-countries-desktop-grid {
+  gap: .75rem;
+}
+.v3-countries-discovery[data-country-directory-experience="desktop-web"] .v3-countries-intro {
+  max-width: none;
+}
+.v3-countries-discovery[data-country-directory-experience="desktop-web"] .v3-countries-title {
+  font-size: clamp(1.7rem, 3vw, 2.3rem);
+}
+.v3-countries-discovery :is(.v3-country-web-row, .v3-country-desktop-item, .v3-countries-region-rail button):focus-visible {
+  outline: 2px solid var(--primary); outline-offset: 3px;
+}
+@media (max-width: 359px) {
+  .v3-countries-discovery[data-country-directory-experience="mobile-web"] .v3-country-web-row { gap: .6rem; }
+  .v3-countries-discovery[data-country-directory-experience="mobile-web"] .v3-country-web-row [data-flag-frame] { width: 64px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v3-countries-discovery .v3-country-desktop-item svg { transition: none; }
+}
