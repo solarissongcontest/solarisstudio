@@ -27,6 +27,64 @@ revoke all on table public.world_session_attendance
   from public,anon,authenticated,service_role;
 grant all on table public.world_session_attendance to service_role;
 
+-- Defense in depth for privileged maintenance/import writers as well as RPCs:
+-- a foreign representation or proxy may not be assigned to another session
+-- or country by bypassing the frontend. This validates STRUCTURAL identity
+-- only; it intentionally does not recalculate time-effective historical facts.
+create or replace function private.world_session_attendance_integrity_v1()
+returns trigger language plpgsql security definer
+set search_path=pg_catalog
+as $integrity$
+declare
+  v_session_org uuid;
+  v_rep_org uuid;
+  v_rep_country uuid;
+  v_proxy_rep uuid;
+  v_proxy_session uuid;
+begin
+  select session_row.organization_id into v_session_org
+  from public.world_sessions session_row
+  where session_row.id=new.session_id;
+
+  select representation_row.organization_id,representation_row.country_id
+  into v_rep_org,v_rep_country
+  from public.world_organization_representations representation_row
+  where representation_row.id=new.representation_id;
+
+  if v_session_org is null
+     or v_rep_org is distinct from v_session_org
+     or v_rep_country is distinct from new.country_id
+  then
+    raise exception using errcode='23514',
+      message='ATTENDANCE_REPRESENTATION_SCOPE';
+  end if;
+
+  if new.proxy_id is not null then
+    select proxy_row.representation_id,proxy_row.session_id
+    into v_proxy_rep,v_proxy_session
+    from public.world_representation_proxies proxy_row
+    where proxy_row.id=new.proxy_id;
+    if v_proxy_rep is distinct from new.representation_id
+       or (v_proxy_session is not null
+           and v_proxy_session is distinct from new.session_id)
+    then
+      raise exception using errcode='23514',
+        message='ATTENDANCE_PROXY_SCOPE';
+    end if;
+  end if;
+
+  return new;
+end
+$integrity$;
+
+revoke all on function private.world_session_attendance_integrity_v1()
+  from public,anon,authenticated,service_role;
+
+create trigger world_session_attendance_identity_guard
+before insert or update of session_id,country_id,representation_id,status,proxy_id
+on public.world_session_attendance
+for each row execute function private.world_session_attendance_integrity_v1();
+
 insert into public.studio2_capabilities(key,domain,label,description,access_level)
 values ('world.session.attendance.manage','world','Manage institutional roll call',
   'Record session attendance for authorized countries, with bounded approved proxy evidence.','operate')
