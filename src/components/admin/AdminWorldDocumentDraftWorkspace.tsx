@@ -204,6 +204,7 @@ export function AdminWorldDocumentDraftWorkspace() {
   });
 
   const hydratedVersionIdentity = useRef<string | null>(null);
+  const originalDraft = useRef<{ title: string; text: string; provisions: string } | null>(null);
   useEffect(() => {
     const current = snapshot.data;
     const source = current?.version;
@@ -212,13 +213,48 @@ export function AdminWorldDocumentDraftWorkspace() {
     // legal authoring. A document/version switch must hydrate independently.
     if (identity === hydratedVersionIdentity.current) return;
     hydratedVersionIdentity.current = identity;
-    setDraftTitle(source?.publicationState === "published" ? source.title : current?.title ?? "");
-    setDraftText(source?.publicationState === "published" ? source.plainText : "");
-    setDraftProvisions(source?.publicationState === "published" ? source.provisions : []);
+    const title = source?.publicationState === "published" ? source.title : current?.title ?? "";
+    const text = source?.publicationState === "published" ? source.plainText : "";
+    const provisions = source?.publicationState === "published" ? source.provisions : [];
+    originalDraft.current = current ? { title, text, provisions: JSON.stringify(provisions) } : null;
+    setDraftTitle(title);
+    setDraftText(text);
+    setDraftProvisions(provisions);
   }, [snapshot.data]);
+
+  const hasUnsavedDraftEdits = Boolean(
+    snapshot.data?.allowedActions.manage &&
+    !snapshot.data.hasUnpublishedDraft &&
+    originalDraft.current &&
+    (draftTitle !== originalDraft.current.title ||
+      draftText !== originalDraft.current.text ||
+      JSON.stringify(draftProvisions) !== originalDraft.current.provisions),
+  );
+  useEffect(() => {
+    if (!hasUnsavedDraftEdits) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [hasUnsavedDraftEdits]);
+
+  const confirmDiscard = () => !hasUnsavedDraftEdits ||
+    window.confirm("Your unpublished legal edits have not been saved. Discard them?");
+  const applySearch = (term: string) => {
+    if (operation && ["review", "checking", "reconcile"].includes(operation.status)) return;
+    const normalized = term.trim().slice(0, 120);
+    if (normalized === appliedSearch) return;
+    if (!confirmDiscard()) return;
+    setAppliedSearch(normalized);
+    setDocumentSlug("");
+    setNotice("");
+  };
 
   const switchOrganization = (slug: string) => {
     if (operation && operation.status !== "succeeded" && operation.status !== "failed") return;
+    if (slug === organizationSlug || !confirmDiscard()) return;
     setOrganizationSlug(slug);
     setDocumentSlug("");
     setSearchInput("");
@@ -229,6 +265,7 @@ export function AdminWorldDocumentDraftWorkspace() {
 
   const selectDocument = (slug: string) => {
     if (operation && operation.status !== "succeeded" && operation.status !== "failed") return;
+    if (slug === documentSlug || !confirmDiscard()) return;
     setDocumentSlug(slug);
     setOperation(null);
     setNotice("");
@@ -378,6 +415,8 @@ export function AdminWorldDocumentDraftWorkspace() {
           queryKey: ["tg4-organizer-document", review.organizationSlug, review.documentSlug],
         });
         setCreateTitle(""); setCreateSlug(""); setDraftTitle(""); setDraftText("");
+        setDraftProvisions([]);
+        originalDraft.current = { title: "", text: "", provisions: "[]" };
       } else {
         setOperation({ review, status: receipt.status === "failed" ? "failed" : "reconcile",
           message: receipt.status === "failed"
@@ -431,7 +470,7 @@ export function AdminWorldDocumentDraftWorkspace() {
                   onSubmit={(event) => {
                     event.preventDefault();
                     if (operation && ["review", "checking", "reconcile"].includes(operation.status)) return;
-                    setAppliedSearch(searchInput.trim().slice(0, 120));
+                    applySearch(searchInput);
                   }}>
                   <label className="block min-w-0 flex-1 space-y-1 text-sm">
                     Search title or legal text
@@ -446,7 +485,11 @@ export function AdminWorldDocumentDraftWorkspace() {
                   </button>
                   {(appliedSearch || searchInput) && (
                     <button type="button" className={secondaryClass}
-                      onClick={() => { setSearchInput(""); setAppliedSearch(""); }}
+                      onClick={() => {
+                        if (!confirmDiscard()) return;
+                        setSearchInput("");
+                        applySearch("");
+                      }}
                       disabled={Boolean(operation && ["review", "checking", "reconcile"].includes(operation.status))}>
                       Clear
                     </button>
