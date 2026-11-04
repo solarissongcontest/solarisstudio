@@ -10,19 +10,47 @@ import {
   showResultsArePublished,
 } from "@/lib/anniversary";
 import { getAnniversaryPreviewPhase } from "@/lib/anniversary-preview";
-import { useAllParticipants, useAllResults, useAllShows, useEditions, type Edition } from "@/lib/data";
+import {
+  useAllParticipants,
+  useAllResults,
+  useAllShows,
+  useEditions,
+  type Country,
+  type Edition,
+} from "@/lib/data";
 
 type DatedEdition = Edition & { event_date?: string | null };
+type AnniversarySeason = ReturnType<typeof getSolarisAnniversarySeason>;
 
 export function MySolarisAnniversaryRecap() {
   const searchStr = useLocation({ select: (location) => location.searchStr });
   const previewPhase = getAnniversaryPreviewPhase(searchStr);
   const anniversary = getSolarisAnniversarySeason();
-  const visible =
-    anniversary.phase === "active" ||
-    previewPhase === "active";
+  const visible = anniversary.phase === "active" || previewPhase === "active";
+
+  if (!visible) return null;
+  return <VisibleMySolarisAnniversaryRecap anniversary={anniversary} />;
+}
+
+function VisibleMySolarisAnniversaryRecap({
+  anniversary,
+}: {
+  anniversary: AnniversarySeason;
+}) {
   const { countryAccount } = useMySolaris();
   const country = countryAccount?.country;
+
+  if (!country) return null;
+  return <MySolarisAnniversaryRecapData anniversary={anniversary} country={country} />;
+}
+
+function MySolarisAnniversaryRecapData({
+  anniversary,
+  country,
+}: {
+  anniversary: AnniversarySeason;
+  country: Country;
+}) {
   const { data: editions } = useEditions();
   const { data: participants } = useAllParticipants();
   const { data: shows } = useAllShows();
@@ -30,8 +58,6 @@ export function MySolarisAnniversaryRecap() {
   const [copied, setCopied] = useState(false);
 
   const recap = useMemo(() => {
-    if (!country) return null;
-
     const publishedEditions = (editions ?? []).filter((edition) => edition.published) as DatedEdition[];
     const editionMap = new Map(publishedEditions.map((edition) => [edition.id, edition]));
     const participationEditionIds = new Set(
@@ -104,8 +130,6 @@ export function MySolarisAnniversaryRecap() {
     };
   }, [anniversary.year, country, editions, participants, results, shows]);
 
-  if (!visible || !country || !recap) return null;
-
   const shareText = `${country.name} · ${anniversary.age} years of Solaris\n${recap.participations} participations · ${recap.wins} wins · best finish ${recap.bestRank ? `#${recap.bestRank}` : "—"} · best score ${recap.bestScore || "—"} pts\nLatest final: ${recap.latestResult}`;
 
   const copyRecap = async () => {
@@ -129,7 +153,7 @@ export function MySolarisAnniversaryRecap() {
             {country.name} across {anniversary.age} years of Solaris
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            From {recap.debut} to the latest final, here is {country.name}'s Solaris history so far.
+            From {recap.debut} to the latest final, here is {country.name}&apos;s Solaris history so far.
           </p>
         </div>
         <button
