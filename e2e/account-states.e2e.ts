@@ -1,5 +1,7 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
 
+import { applyNavbarInstalledCssEmulation } from "./v3-navigation/navbar-local-rollout";
+
 type AccountState = "COUNTRY" | "ORGANIZER" | "SUSPENDED";
 
 type E2ESession = {
@@ -279,10 +281,24 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     url!, publishableKey!, session, "solaris_app_v3_results", true, [ARCHIVE_EDITION_ID],
   );
 
+  // Playwright's JS standalone override does not affect native CSS
+  // @media (display-mode: standalone). Install the existing isolated CSS
+  // emulator after every document navigation, including a reload, so
+  // browser tests exercise the same visible installed dock as real PWAs.
+  const gotoInstalled = async (target: string) => {
+    await page.goto(target, { waitUntil: "domcontentloaded" });
+    await applyNavbarInstalledCssEmulation(page);
+  };
+  const reloadInstalled = async () => {
+    await reloadInstalled();
+    await applyNavbarInstalledCssEmulation(page);
+  };
+
   try {
-    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/");
     await expect(page.locator("html")).toHaveAttribute("data-solaris-runtime", "standalone");
     const primaryNav = page.getByRole("navigation", { name: "Primary app navigation" });
+    await expect(primaryNav).toHaveCSS("display", "block");
     await expect(primaryNav).toBeVisible();
     await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).toBeVisible();
     await expect(page.getByText("Current contest", { exact: true })).toBeVisible();
@@ -329,7 +345,7 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     );
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
-    await page.goto("/countries/BRW", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/countries/BRW");
     await expect(page.getByRole("heading", { name: "Browserland", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Current entry", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Participation history", exact: true })).toBeVisible();
@@ -339,12 +355,12 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     );
 
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_delegation", false);
-    await page.goto("/countries/BRW", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/countries/BRW");
     await expect(page.locator(".country-profile-v8")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Browserland", exact: true })).toBeVisible();
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/results", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/results");
     const resultRoot = page.locator("[data-v3-results-root]");
     await expect(resultRoot).toBeVisible();
     await expect(resultRoot).toHaveAttribute("data-v3-results-state", "spoiler-protected");
@@ -366,12 +382,12 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(resultRoot).not.toContainText("111222");
 
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_results", false);
-    await page.goto("/results", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/results");
     await expect(resultRoot).toHaveCount(0);
     await page.setViewportSize({ width: 1440, height: 1000 });
 
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_me", true);
-    await page.goto("/my-solaris", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/my-solaris");
     const meRoot = page.locator("[data-v3-me-root]");
     await expect(meRoot).toBeVisible();
     await expect(meRoot.getByRole("heading", { name: "Identity", exact: true })).toBeVisible();
@@ -379,23 +395,23 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(meRoot).toContainText("Delegation history is unavailable");
     await expect(meRoot.getByRole("link", { name: /Switch to Organizer/ })).toBeVisible();
     await expect(meRoot).not.toContainText("Private archive artist");
-    await page.goto("/my-solaris?tab=account", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/my-solaris?tab=account");
     await expect(meRoot).toHaveCount(0);
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_me", false);
-    await page.goto("/my-solaris", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/my-solaris");
     await expect(meRoot).toHaveCount(0);
 
     await setV3FeatureForLocalUser(
       url!, publishableKey!, session, "solaris_app_v3_edition_hub", true, [ARCHIVE_EDITION_ID],
     );
 
-    await page.goto("/editions/ssc21", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/editions/ssc21");
     await expect(page.getByRole("heading", { name: "Browser Archive Edition", exact: true })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Explore Browser Archive Edition" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "At a glance", exact: true })).toBeVisible();
     await expect(page.locator(".edition-public-page")).toHaveCount(0);
 
-    await page.goto("/editions/ssc22", { waitUntil: "domcontentloaded" });
+    await gotoInstalled("/editions/ssc22");
     await expect(page.locator(".edition-public-page")).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Explore Browser Audit Edition" })).toHaveCount(0);
   } finally {
