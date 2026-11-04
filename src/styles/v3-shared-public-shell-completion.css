@@ -13,6 +13,31 @@
   --v3-top-chrome-content-height: 42px;
 }
 
+/*
+ * iOS standalone web apps occasionally report a zero/undersized top inset
+ * before viewport metrics settle. Apply the defensive portrait exclusion
+ * during first paint through display-mode, then retain it for older iOS
+ * standalone detection through the canonical AppRuntime attribute.
+ *
+ * This is deliberately not a viewport-width heuristic: desktop and ordinary
+ * mobile browsers continue using the platform-reported inset unchanged.
+ * The minimum must be rechecked against actual supported iPhones as part of
+ * the N0 device reference approval.
+ */
+@supports (-webkit-touch-callout: none) {
+  @media (orientation: portrait) {
+    @media (display-mode: standalone) {
+      [data-solaris-v3] {
+        --v3-top-system-safe: max(env(safe-area-inset-top, 0px), 59px);
+      }
+    }
+
+    html[data-solaris-runtime="standalone"] [data-solaris-v3] {
+      --v3-top-system-safe: max(env(safe-area-inset-top, 0px), 59px);
+    }
+  }
+}
+
 /* Keep the physical system exclusion region separate from application chrome.
    Meaningful controls start below safe-area + comfort margin; decorative shell
    background remains edge-to-edge. */
