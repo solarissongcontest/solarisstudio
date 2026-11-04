@@ -102,9 +102,14 @@ describe("TG4 public institutional document library", () => {
 
     // The legacy anon JWT uses a bearer token, but the currently signed-in
     // user's JWT must never be forwarded into this transport.
-    expect(publicWorldRpcHeaders("legacy-anon-key")).toHaveProperty(
-      "Authorization", "Bearer legacy-anon-key",
+    const legacy = (role: string) =>
+      "eyJhbGciOiJIUzI1NiJ9." + btoa(JSON.stringify({ role })).replace(/=+$/, "") + ".signature";
+    expect(publicWorldRpcHeaders(legacy("anon"))).toHaveProperty(
+      "Authorization", "Bearer " + legacy("anon"),
     );
+    expect(() => publicWorldRpcHeaders(legacy("service_role"))).toThrow();
+    expect(() => publicWorldRpcHeaders(legacy("authenticated"))).toThrow();
+    expect(() => publicWorldRpcHeaders("legacy-anon-key")).toThrow();
     expect(() => publicWorldRpcHeaders("sb_secret_dont-use")).toThrow();
     expect(() => publicWorldRpcHeaders("sb_service_role_dont-use")).toThrow();
     expect(() => publicWorldRpcHeaders("")).toThrow();
