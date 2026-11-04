@@ -110,7 +110,7 @@ create table public.world_measure_versions (
   title text not null,
   full_text text not null,
   summary text,
-  created_by_person_id uuid references public.delegation_people(id) on delete set null,
+  created_by_person_id uuid references public.delegation_people(id) on delete restrict,
   created_at timestamptz not null default now(),
   reason text,
   supersedes_version_id uuid,
@@ -138,7 +138,9 @@ create table public.world_measure_procedural_reviews (
   measure_id uuid not null references public.world_measures(id) on delete restrict,
   action text not null,
   note text,
-  reviewer_user_id uuid references auth.users(id) on delete set null,
+  -- Retain historical reviewer identity without blocking auth-user deletion.
+  -- Private only; no FK-triggered SET NULL may rewrite an immutable review.
+  reviewer_user_id uuid,
   measure_revision bigint not null,
   created_at timestamptz not null default now(),
   constraint world_measure_review_action_check check(action in (
@@ -615,5 +617,6 @@ $contract$;
 
 notify pgrst,'reload schema';
 commit;
+
 
 
