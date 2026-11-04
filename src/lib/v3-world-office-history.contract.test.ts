@@ -55,9 +55,11 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(rehearsal).toContain("TG3_HISTORY_REVISION_REWRITE_WAS_NOT_BLOCKED");
     expect(rehearsal).toContain("TG3_HISTORY_CREATION_REWRITE_WAS_NOT_BLOCKED");
     expect(migration).toContain("new.holder_user_id is distinct from old.holder_user_id");
-    const closedGuard = migration.indexOf("if tg_op = 'UPDATE' and old.status");
+    const updateGuard = migration.indexOf("if tg_op = 'UPDATE' then");
+    const closedGuard = migration.indexOf("if old.status in ('ended', 'removed', 'resigned') then");
     const activeGuard = migration.indexOf("if new.status not in ('ended', 'removed', 'resigned')");
-    expect(closedGuard >= 0 && activeGuard > closedGuard).toBe(true);
+    expect(updateGuard >= 0 && closedGuard > updateGuard && activeGuard > closedGuard).toBe(true);
+    expect(migration).not.toContain("tg_op = 'UPDATE' and old.status");
     for (const immutableField of [
       "new.status", "new.office_id", "new.holder_person_id",
       "new.represented_country_id", "new.start_edition_id",
