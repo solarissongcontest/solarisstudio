@@ -30,6 +30,19 @@ describe("V3 installed iOS top system safe zone", () => {
     expect(css).not.toMatch(/@media\s*\(max-width:[^)]*\)\s*\{\s*html\[data-solaris-runtime="standalone"\]/);
   });
 
+  it("preserves pre-hydration standalone identity until platform detection is authoritative", () => {
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    const root = source("src/routes/__root.tsx");
+
+    expect(root).toContain('root.dataset.solarisRuntime = "standalone"');
+    expect(runtime).toMatch(
+      /useEffect\(\(\) => \{\s*\/\/ The SSR head bootstrap marks installed launches[\s\S]*?if \(!platformResolved\) return;\s*const root = document\.documentElement;\s*root\.dataset\.solarisRuntime = platform\.mode;/,
+    );
+    expect(runtime).toContain(
+      "[connectivity.status, lifecycle.phase, platform.isAppMode, platform.mode, platformResolved]",
+    );
+  });
+
   it("fails safe on iOS standalone with an absent top inset without raising mobile-web or desktop headers", () => {
     const guardedRule =
       /@supports \(-webkit-touch-callout: none\)\s*\{[\s\S]*?@media \(pointer: coarse\) and \(orientation: portrait\)\s*\{\s*html\[data-solaris-runtime="standalone"\] \[data-solaris-v3\]\s*\{\s*--v3-top-system-safe: max\(env\(safe-area-inset-top, 0px\), 60px\);/;
