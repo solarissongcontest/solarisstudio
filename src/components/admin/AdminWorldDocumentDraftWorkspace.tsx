@@ -253,14 +253,15 @@ export function AdminWorldDocumentDraftWorkspace() {
 
   const confirmDiscard = () => !hasUnsavedDraftEdits ||
     window.confirm("Your unpublished legal edits have not been saved. Discard them?");
-  const applySearch = (term: string) => {
-    if (operation && ["review", "checking", "reconcile"].includes(operation.status)) return;
+  const applySearch = (term: string): boolean => {
+    if (operation && ["review", "checking", "reconcile"].includes(operation.status)) return false;
     const normalized = normalizeWorldDocumentSearch(term);
-    if (normalized === appliedSearch) return;
-    if (!confirmDiscard()) return;
+    if (normalized === appliedSearch) return true;
+    if (!confirmDiscard()) return false;
     setAppliedSearch(normalized);
     setDocumentSlug("");
     setNotice("");
+    return true;
   };
 
   const switchOrganization = (slug: string) => {
@@ -507,10 +508,9 @@ export function AdminWorldDocumentDraftWorkspace() {
                   {(appliedSearch || searchInput) && (
                     <button type="button" className={secondaryClass}
                       onClick={() => {
-                        if (appliedSearch && hasUnsavedDraftEdits && !confirmDiscard()) return;
-                        applySearch("");
-                        if (!appliedSearch) setDocumentSlug("");
-                        setSearchInput("");
+                        // Clearing a typed but unapplied query must never
+                        // discard a selected legal Work or its unsaved text.
+                        if (applySearch("")) setSearchInput("");
                       }}
                       disabled={Boolean(operation && ["review", "checking", "reconcile"].includes(operation.status))}>
                       Clear
