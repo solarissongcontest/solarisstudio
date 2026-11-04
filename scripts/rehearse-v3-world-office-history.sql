@@ -65,7 +65,7 @@ begin
   returning id into v_person_id;
 
   insert into public.countries (name, short_code)
-  values ('Original Represented Country', 'X9Z')
+  values ('Original Represented Country', 'ZQZ')
   returning id into v_country_id;
 
   insert into public.world_office_terms
