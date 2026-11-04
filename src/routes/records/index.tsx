@@ -11,6 +11,7 @@ import {
 import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { usePublicPresentationMode } from "@/lib/public-presentation-mode";
 import { V3RecordsGate } from "@/components/v3/V3RecordsGate";
 import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
 import {
@@ -91,6 +92,8 @@ function LegacyRecordsPage() {
   // an even longer mobile page. Start with the most useful category and keep
   // "All" available for people who deliberately want the full archive.
   const [tab, setTab] = useState<Tab>("career");
+  const presentationMode = usePublicPresentationMode();
+  const mobileWeb = presentationMode === "mobile-web";
 
   const records = useMemo(
     () =>
@@ -161,51 +164,88 @@ function LegacyRecordsPage() {
 
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Hall of records"
-        title="Records"
-        description="The extreme, impressive and occasionally unfortunate corners of SSC history, with ties shown properly instead of quietly choosing one country and hoping nobody notices."
-        actions={
-          <Link
-            to="/archive-games"
-            className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto"
-          >
-            Play Archive Games →
-          </Link>
-        }
-      />
+      <div data-records-presentation={presentationMode}>
+        {mobileWeb ? (
+          <header className="mb-5 border-b border-border/70 pb-5" data-records-mobile-web-header>
+            <p className="text-[11px] font-bold uppercase tracking-[.16em] text-primary">Hall of records</p>
+            <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">Records</h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Achievements, streaks and unusual results from the published SSC archive.
+              Tied countries share the record.
+            </p>
+            <Link to="/archive-games" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
+              Play Archive Games →
+            </Link>
+          </header>
+        ) : (
+          <PageHeader
+            eyebrow="Hall of records"
+            title="Records"
+            description="The extreme, impressive and occasionally unfortunate corners of SSC history, with ties shown properly instead of quietly choosing one country and hoping nobody notices."
+            actions={
+              <Link to="/archive-games" className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto">
+                Play Archive Games →
+              </Link>
+            }
+          />
+        )}
 
-      <Panel className="mb-5" title="Archive coverage">
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          These records currently use {archivedFinalEditions} edition
-          {archivedFinalEditions === 1 ? "" : "s"} with archived Grand Final
-          results, plus the jury and qualification data that is actually stored.
-          Missing editions are excluded rather than treated as zeroes, so a record
-          can change when older archive data is added.
-        </p>
-      </Panel>
+        {mobileWeb ? (
+          <details className="mb-5 border-y border-border/70" data-records-mobile-web-coverage>
+            <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-3 py-3 text-sm font-semibold">
+              <span>Archive coverage</span>
+              <span className="text-xs font-medium text-muted-foreground">{archivedFinalEditions} final editions</span>
+            </summary>
+            <p className="pb-4 text-sm leading-6 text-muted-foreground">
+              These records use {archivedFinalEditions} edition{archivedFinalEditions === 1 ? "" : "s"} with archived
+              Grand Final results, plus the jury and qualification data that is actually stored.
+              Missing editions are excluded rather than treated as zeroes, so records can change when older archive data is added.
+            </p>
+          </details>
+        ) : (
+          <Panel className="mb-5" title="Archive coverage">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              These records currently use {archivedFinalEditions} edition
+              {archivedFinalEditions === 1 ? "" : "s"} with archived Grand Final
+              results, plus the jury and qualification data that is actually stored.
+              Missing editions are excluded rather than treated as zeroes, so a record
+              can change when older archive data is added.
+            </p>
+          </Panel>
+        )}
 
-      <ResponsiveTabs
-        value={tab}
-        options={TABS}
-        onChange={setTab}
-        label="Record category"
-        className="mb-5"
-      />
+        {mobileWeb ? (
+          <nav aria-label="Record categories" className="mb-5 flex min-w-0 gap-4 overflow-x-auto border-b border-border/70" data-records-mobile-web-categories>
+            {TABS.map((option) => (
+              <button
+                type="button"
+                key={option.value}
+                onClick={() => setTab(option.value)}
+                aria-pressed={tab === option.value}
+                className={tab === option.value
+                  ? "min-h-12 shrink-0 whitespace-nowrap border-b-2 border-primary px-1 text-sm font-semibold text-foreground"
+                  : "min-h-12 shrink-0 whitespace-nowrap border-b-2 border-transparent px-1 text-sm font-medium text-muted-foreground hover:text-foreground"}
+              >
+                {option.label}
+              </button>
+            ))}
+          </nav>
+        ) : (
+          <ResponsiveTabs value={tab} options={TABS} onChange={setTab} label="Record category" className="mb-5" />
+        )}
 
-      {filtered.length ? (
-        <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-          {filtered.map((record) => (
-            <RecordCard key={record.id} record={record} />
-          ))}
-        </div>
-      ) : (
-        <Panel>
-          <p className="text-sm text-muted-foreground">
-            No records in this category yet.
-          </p>
-        </Panel>
-      )}
+        {filtered.length ? (
+          <div className={mobileWeb ? "min-w-0 divide-y divide-border/70" : "grid gap-3 lg:grid-cols-2 2xl:grid-cols-3"}>
+            {filtered.map((record) => (
+              <RecordCard key={record.id} record={record} mobileWeb={mobileWeb} />
+            ))}
+          </div>
+        ) : mobileWeb ? (
+          <p role="status" className="py-6 text-sm text-muted-foreground">No records in this category yet.</p>
+        ) : (
+          <Panel><p className="text-sm text-muted-foreground">No records in this category yet.</p></Panel>
+        )}
+      </div>
     </AppShell>
   );
 }
