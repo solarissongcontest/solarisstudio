@@ -74,6 +74,10 @@ describe("public institutional legal text comparison", () => {
     expect(() => parsePublicWorldArchive({
       documentId: "doc-1", organizationSlug: "guard", documentSlug: "charter", versions: [nextVersion, nextVersion],
     }, "guard", "charter")).toThrow(/Duplicate/);
+    expect(() => parsePublicWorldArchive({
+      documentId: "doc-1", organizationSlug: "guard", documentSlug: "charter",
+      versions: [{ ...nextVersion, versionNumber: 0 }],
+    }, "guard", "charter")).toThrow(/Invalid published version/);
   });
 
   it("rejects a manager-visible unpublished version and cross-document response", () => {
