@@ -103,7 +103,7 @@ function RoundsPage() {
   const [error, setError] = useState<string | null>(null);
   const reviewScopeRef = useRef({ editionId, organizerEditionId, epoch: 0 });
   const applyInFlightRef = useRef(false);
-  const previewInFlightRef = useRef(false);
+  const previewInFlightRef = useRef<number | null>(null);
 
   useEffect(() => {
     const previous = reviewScopeRef.current;
@@ -202,14 +202,14 @@ function RoundsPage() {
     payload?: ConfirmationRoundChangePayload;
     restoreFormOnCancel?: boolean;
   }) {
-    if (previewInFlightRef.current) return;
     const scope = reviewScopeRef.current;
     const request = { editionId, epoch: scope.epoch };
+    if (previewInFlightRef.current === request.epoch) return;
     if (!isCurrentConfirmationRoundReview(request, scope)) {
       setError("Choose the exact Organizer edition before reviewing a round change.");
       return;
     }
-    previewInFlightRef.current = true;
+    previewInFlightRef.current = request.epoch;
     setError(null);
     if (input.roundId) setRoundBusy(input.roundId);
     else setBusy(true);
@@ -269,7 +269,7 @@ function RoundsPage() {
         else toast.error(message);
       }
     } finally {
-      previewInFlightRef.current = false;
+      if (previewInFlightRef.current === request.epoch) previewInFlightRef.current = null;
       if (input.roundId) setRoundBusy(null);
       else setBusy(false);
     }
