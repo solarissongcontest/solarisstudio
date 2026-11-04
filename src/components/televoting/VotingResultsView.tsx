@@ -159,7 +159,12 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
       toast.success(`Calculation v${result.version} stored · ${result.distributedTotal}/${result.totalPoints} points distributed`);
       await invalidate();
     },
-    onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Calculation failed"),
+    onError: async (caught) => {
+      // The RPC may have committed before a readback/network failure. Refresh
+      // authoritative state even when the mutation outcome is uncertain.
+      toast.error(caught instanceof Error ? caught.message : "Calculation outcome uncertain; refresh before retrying");
+      await invalidate();
+    },
   });
 
 
