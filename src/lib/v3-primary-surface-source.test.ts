@@ -347,6 +347,34 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
     expect(bootstrap.experience.votingOpen).toBe(true);
   });
 
+  it("keeps server-expired Televoting out of Home Live even when round status is still open", async () => {
+    const liveShow = { ...show, status: "live" } as Show;
+    const expired = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      shows: [liveShow],
+      viewer: { id: "user-1", displayName: null },
+      televote: {
+        id: "expired",
+        title: "Old public voting",
+        route: "/televoting",
+        eligible: true,
+        submitted: false,
+        required: false,
+        status: "open",
+        closesAt: "2026-10-12T05:59:59.999Z",
+      },
+    });
+    expect(expired.runtime).toBeNull();
+    expect(expired.tasks.find((task) => task.kind === "televote")?.state).toBe("finished");
+
+    const projected = await loadV3BootstrapProjection(
+      { viewerId: "user-1", editionId: edition.id, delegationId: null },
+      { loadSnapshot: async () => expired },
+    );
+    expect(projected.experience.votingOpen).toBe(false);
+    expect(projected.experience.mode).toBe("live");
+  });
+
   it("uses a requested published edition rather than silently switching context", () => {
     const oldEdition: Edition = {
       ...edition,
