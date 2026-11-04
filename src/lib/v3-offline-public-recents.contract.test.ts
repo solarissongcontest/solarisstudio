@@ -115,6 +115,8 @@ describe("isolated offline public route privacy boundary", () => {
       { path: "/editions/ssc22", label: "SSC 22", visitedAt: 4 },
       { path: "/shows/semi-one", label: "Semi-final", visitedAt: 3 },
       { path: "/rules/chapters/entries", label: "Entry rules", visitedAt: 2 },
+      { path: "/rules/22.1", label: "Rule 22.1", visitedAt: 2 },
+      { path: "/rules/22.1.3", label: "Nested rule", visitedAt: 2 },
       { path: "/televoting/results", label: "Published voting", visitedAt: 1 },
     ];
     const result = renderOffline({
@@ -136,6 +138,9 @@ describe("isolated offline public route privacy boundary", () => {
       "/integrity/appeals/secret",
       "/settings",
       "/countries/oland/edit",
+      "/rules/admin",
+      "/rules/22.1/edit",
+      "/rules/%2e%2e",
       "/countries/../auth",
       "/countries/%2e%2e",
       "/countries/%252e%252e",
