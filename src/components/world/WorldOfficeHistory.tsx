@@ -93,7 +93,7 @@ export function WorldOfficeHistory({ slug }: { slug: string }) {
   const items = query.data?.pages.flatMap((page) => page?.terms ?? []) ?? [];
 
   return (
-    <main className="mx-auto w-full max-w-5xl pb-12">
+    <div className="mx-auto w-full max-w-5xl pb-12">
       <Link to={"/world/organizations" as never}
         className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-primary">
         <ArrowLeft aria-hidden="true" className="size-4" /> Organizations
@@ -181,6 +181,6 @@ export function WorldOfficeHistory({ slug }: { slug: string }) {
         This is a historical record, not an election or appointment tool. Formal leadership changes
         remain restricted to authorized governance commands.
       </p>
-    </main>
+    </div>
   );
 }
