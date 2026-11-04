@@ -131,6 +131,7 @@ describe("TG8 versioned institutional voting rule authority", () => {
 
   it("returns exact text fractions for public active institutions while hiding private organizations", () => {
     expect(published).toContain("security definer");
+    expect(published).toContain("public.studio2_feature_enabled('terra_world_voting_rules',null)");
     expect(published).toContain("org.public_visibility='public'");
     expect(published).toContain("org.status='active'");
     expect(published).toContain("rule_row.active");
@@ -195,6 +196,8 @@ describe("TG8 versioned institutional voting rule authority", () => {
       "TG8_IMMUTABLE_RULE_HISTORY_DELETE_ALLOWED",
       "TG8_SUPERSEDED_RULE_SNAPSHOT_ALLOWED",
       "TG8_PRIVATE_ORGANIZATION_RULE_PUBLIC_LEAK",
+      "TG8_PUBLIC_RULE_VISIBLE_BEFORE_ROLLOUT",
+      "TG8_VOTING_RULE_ROLLOUT_FLAG_NOT_REGISTERED",
       "TG8_PUBLIC_RULE_EXACT_FRACTION_PROJECTION_LOST",
       "TG8_PRIVATE_SNAPSHOT_EXECUTABLE_BY_ANON",
       "TG8_VOTING_RULE_REHEARSAL_NOT_ROLLED_BACK",
