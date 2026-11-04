@@ -322,6 +322,10 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(page.locator("[data-v3-legacy-route-adapter]")).toBeVisible();
     await expect(page.locator("[data-v3-legacy-bottom-clearance]")).toHaveCount(1);
     await expect(page.locator(".v3-countries-title")).toBeVisible();
+    // Browser Audit seeds countries but no published SSC 22 participants.
+    // Choose the full archive without forging participation records.
+    await page.getByRole("group", { name: "Country collections" })
+      .getByRole("button", { name: /All \d+ countries/ }).click();
     await expect(page.locator(".v3-countries-grid a").first()).toBeVisible();
 
     const countryLayout = await page.evaluate(() => {
