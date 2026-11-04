@@ -123,10 +123,12 @@ export function assertWorldSlug(input: string): string {
 /** Official semantic provision keys are stable across amendments and renumbering. */
 export function worldProvisionTargetId(semanticKey: string): string {
   const key = string(semanticKey, "semantic provision identity");
-  if (key.length > 200 || /[\u0000-\u001f\u007f]/u.test(key)) {
+  // Match TG4's world_document_provisions_key_check. No URL percent-encoding
+  // in the DOM id: a #fragment is decoded by browsers before anchor matching.
+  if (key.length > 200 || !/^[a-z0-9]+(?:[.:-][a-z0-9]+)*$/.test(key)) {
     throw new Error("Invalid semantic provision identity");
   }
-  return "world-provision-" + encodeURIComponent(key);
+  return "world-provision-" + key;
 }
 
 export function parseWorldDocumentIndex(input: unknown): WorldDocumentIndexRow[] {
