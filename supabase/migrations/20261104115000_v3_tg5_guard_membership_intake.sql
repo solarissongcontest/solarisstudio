@@ -6,7 +6,8 @@ create table public.world_membership_applications (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.world_organizations(id) on delete restrict,
   country_id uuid not null references public.countries(id) on delete restrict,
-  submitted_by uuid not null references auth.users(id) on delete restrict,
+  submitted_by uuid references auth.users(id) on delete set null,
+  submitted_by_person_id uuid references public.delegation_people(id) on delete restrict,
   official_state_designation text not null,
   government_system text not null,
   motivation text not null,
@@ -70,6 +71,7 @@ declare
   v_claim jsonb;
   v_operation_id uuid;
   v_id uuid;
+  v_person_id uuid;
   v_result jsonb;
   v_designation text := btrim(coalesce(p_official_state_designation, ''));
   v_government text := btrim(coalesce(p_government_system, ''));
@@ -155,12 +157,21 @@ begin
     raise exception using errcode = '23505', message = 'APPLICATION_ALREADY_PENDING';
   end if;
 
+  -- Preserve a durable controller-person identity only where TG1 has already
+  -- proved that exact current country/user link. Never invent a lore person.
+  select term_row.person_id into v_person_id
+  from public.world_country_control_terms term_row
+  where term_row.country_id = p_country_id
+    and term_row.user_id = v_actor
+    and term_row.ended_at is null
+  limit 1;
+
   insert into public.world_membership_applications (
-    organization_id, country_id, submitted_by,
+    organization_id, country_id, submitted_by, submitted_by_person_id,
     official_state_designation, government_system,
     motivation, contributions, international_commitment, operation_id
   ) values (
-    p_organization_id, p_country_id, v_actor,
+    p_organization_id, p_country_id, v_actor, v_person_id,
     v_designation, v_government,
     v_motivation, v_contributions, v_commitment, v_operation_id
   ) returning id into v_id;
@@ -204,6 +215,87 @@ revoke all on function public.world_submit_guard_membership_application_v1(
 grant execute on function public.world_submit_guard_membership_application_v1(
   uuid,uuid,text,text,text,text,text,uuid,text
 ) to authenticated, service_role;
+
+
+-- One authoritative, bounded read for the active country controller. A single
+-- database snapshot prevents mixed-time membership/application states in UI.
+-- No private motivation, capability grant, or auth account identifier is
+-- returned to the browser. Reviewer inboxes are a separate future TG5 slice.
+create or replace function public.world_my_guard_membership_intake_v1(p_country_id uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog
+as $read$
+declare
+  v_org public.world_organizations%rowtype;
+  v_membership text;
+  v_applications jsonb;
+begin
+  if auth.uid() is null or p_country_id is null or not exists (
+    select 1 from public.country_accounts account_row
+    where account_row.country_id = p_country_id
+      and account_row.user_id = auth.uid()
+      and account_row.status = 'active'
+  ) then
+    raise exception using errcode = '42501', message = 'AUTHORIZATION';
+  end if;
+
+  select * into v_org
+  from public.world_organizations org
+  where org.slug = 'guard'
+    and org.status = 'active'
+    and org.public_visibility = 'public';
+
+  if v_org.id is null then
+    raise exception using errcode = '55000', message = 'APPLICATION_UNAVAILABLE';
+  end if;
+
+  select membership.status into v_membership
+  from public.world_organization_memberships membership
+  where membership.organization_id = v_org.id
+    and membership.country_id = p_country_id
+    and membership.ended_at is null
+  limit 1;
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', application.id,
+        'status', application.status,
+        'official_state_designation', application.official_state_designation,
+        'submitted_at', application.submitted_at,
+        'revision', application.revision
+      ) order by application.submitted_at desc, application.id desc
+    ),
+    '[]'::jsonb
+  ) into v_applications
+  from (
+    select id, status, official_state_designation, submitted_at, revision
+    from public.world_membership_applications
+    where organization_id = v_org.id
+      and country_id = p_country_id
+    order by submitted_at desc, id desc
+    limit 5
+  ) application;
+
+  return jsonb_build_object(
+    'organizationId', v_org.id,
+    'organizationName', v_org.short_name,
+    'activeMembership', v_membership,
+    'applications', v_applications
+  );
+end
+$read$;
+
+revoke all on function public.world_my_guard_membership_intake_v1(uuid)
+  from public, anon, authenticated;
+grant execute on function public.world_my_guard_membership_intake_v1(uuid)
+  to authenticated, service_role;
+
+comment on function public.world_my_guard_membership_intake_v1(uuid) is
+  'TG5A single-snapshot, active-country-controller-only GUARD membership and application status; last five applicant-safe records only.';
 
 comment on table public.world_membership_applications is
   'TG5 application intake only. An application never creates membership, representation or constitutional approval.';
