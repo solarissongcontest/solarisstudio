@@ -52,6 +52,7 @@ function ConfirmationRequirementsPage() {
   const [pending, setPending] = useState<PendingAction>(null);
   const [reason, setReason] = useState("");
   const activeEditionRef = useRef(editionId);
+  const editionReviewEpochRef = useRef(0);
   const actionInFlightRef = useRef(false);
 
   const requirementsQuery = useQuery({
@@ -91,6 +92,7 @@ function ConfirmationRequirementsPage() {
       kind: "reconfirm" | "waive";
       requirement: ConfirmationRequirement;
       organizerEditionId: string;
+      reviewEpoch: number;
       actionReason: string;
     }) => {
       if (input.requirement.editionId !== input.organizerEditionId) {
@@ -129,7 +131,10 @@ function ConfirmationRequirementsPage() {
           });
     },
     onSuccess: async (_, variables) => {
-      if (isCurrentConfirmationRequirementAction(variables.organizerEditionId, activeEditionRef.current)) {
+      if (isCurrentConfirmationRequirementAction(
+        variables.organizerEditionId, activeEditionRef.current,
+        variables.reviewEpoch, editionReviewEpochRef.current,
+      )) {
         toast.success(
           variables.kind === "reconfirm"
             ? variables.requirement.countryName + " now requires confirmation again"
@@ -153,7 +158,10 @@ function ConfirmationRequirementsPage() {
       ]);
     },
     onError: (error, variables) => {
-      if (isCurrentConfirmationRequirementAction(variables.organizerEditionId, activeEditionRef.current)) {
+      if (isCurrentConfirmationRequirementAction(
+        variables.organizerEditionId, activeEditionRef.current,
+        variables.reviewEpoch, editionReviewEpochRef.current,
+      )) {
         toast.error(error instanceof Error ? error.message : "The requirement operation failed.");
       } else {
         toast.warning("A previous edition's requirement operation could not be confirmed. Inspect that edition before retrying.");
@@ -168,6 +176,7 @@ function ConfirmationRequirementsPage() {
     // Update the imperative context before a settled mutation can touch the
     // next edition's pending decision during the post-commit paint window.
     activeEditionRef.current = editionId;
+    editionReviewEpochRef.current += 1;
     // A pending R2 decision belongs to the edition in which it was opened.
     // Never let an old sheet survive a global Organizer context switch.
     setPending(null);
@@ -210,7 +219,10 @@ function ConfirmationRequirementsPage() {
     // creating different operation identities for one consequential decision.
     if (actionInFlightRef.current || action.isPending || !pending || reason.trim().length < 5) return;
     if (!editionId || pending.requirement.editionId !== editionId ||
-        !isCurrentConfirmationRequirementAction(editionId, activeEditionRef.current)) {
+        !isCurrentConfirmationRequirementAction(
+          editionId, activeEditionRef.current,
+          editionReviewEpochRef.current, editionReviewEpochRef.current,
+        )) {
       setPending(null);
       setReason("");
       toast.error(STALE_CONTEXT_ERROR);
@@ -221,6 +233,7 @@ function ConfirmationRequirementsPage() {
       kind: pending.kind,
       requirement: pending.requirement,
       organizerEditionId: editionId,
+      reviewEpoch: editionReviewEpochRef.current,
       actionReason: reason.trim(),
     });
   }
@@ -430,7 +443,8 @@ function ConfirmationRequirementsPage() {
               />
             </label>
 
-            {action.error && action.variables?.organizerEditionId === editionId ? (
+            {action.error && action.variables?.organizerEditionId === editionId &&
+              action.variables?.reviewEpoch === editionReviewEpochRef.current ? (
               <p className="rounded-xl border border-rose-200/15 bg-rose-200/[0.05] p-3 text-xs text-rose-100">
                 {action.error instanceof Error ? action.error.message : "The requirement command failed."}
               </p>
