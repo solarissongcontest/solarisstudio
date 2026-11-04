@@ -72,6 +72,12 @@ export const SOLARIS_CAPABILITIES = [
   'world.session.create',
   'world.session.manage',
   'world.agenda.manage',
+  'world.measure.submit',
+  'world.measure.register_external',
+  'world.measure.review_procedural',
+  'world.measure.schedule',
+  'world.measure.withdraw',
+  'world.amendment.submit',
 ] as const;
 
 export type SolarisCapability = (typeof SOLARIS_CAPABILITIES)[number];
