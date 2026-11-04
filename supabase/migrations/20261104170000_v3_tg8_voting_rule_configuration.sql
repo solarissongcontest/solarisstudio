@@ -117,8 +117,10 @@ create index world_voting_rules_history_idx
   on public.world_voting_rules(organization_id,key,revision desc);
 
 alter table public.world_voting_rules enable row level security;
+-- Even service_role must use the versioned R2 command. A bypass-RLS
+-- connection must not directly rewrite constitutional policy or active state.
+-- The SECURITY DEFINER command executes with its migration owner's rights.
 revoke all on public.world_voting_rules from public,anon,authenticated,service_role;
-grant all on public.world_voting_rules to service_role;
 
 -- Even privileged accidental UPDATE/DELETE cannot alter historical rule
 -- semantics. Canonical configuration only deactivates its predecessor.
