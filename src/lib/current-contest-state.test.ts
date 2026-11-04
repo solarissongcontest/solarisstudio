@@ -155,6 +155,20 @@ describe("public contest state", () => {
     expect(state.statusLabel).toBe("Completed");
   });
 
+  it("never revives a completed or archived edition from a stale live show", () => {
+    for (const status of ["completed", "archived"]) {
+      const state = resolvePublicEditionState({
+        edition: edition({ status }),
+        shows: [show({ status: "live" })],
+        results: [],
+      });
+
+      expect(state.phase, status).toBe("post_edition");
+      expect(state.statusLabel, status).toBe("Completed");
+      expect(state.primaryAction?.to, status).toBe("/editions/ssc-22");
+    }
+  });
+
   it("returns a useful between-editions state when no edition is public", () => {
     const state = resolvePublicContestState({
       editions: [],
