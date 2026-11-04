@@ -37,6 +37,19 @@ describe("Organizer Confirmation detail edition isolation", () => {
     expect(source).toContain("if (responseLoadGenerationRef.current !== generation) return;");
   });
 
+  it("reviews an official-state reconciliation explicitly before any sync mutation", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    expect(source).toContain('title="Review Solaris reconciliation"');
+    expect(source).toContain("onClick={() => setSyncReviewOpen(true)}");
+    expect(source).not.toContain("onClick={() => void manualSync()}");
+    expect(source).toContain('title="Reconcile this Confirmation with Solaris?"');
+    expect(source).toContain("confirmationText={data.country}");
+    expect(source).toContain("if (syncInFlightRef.current || !syncReviewOpen) return;");
+    expect(source).toContain("syncInFlightRef.current = true;");
+    expect(source).toContain("syncInFlightRef.current = false;");
+    expect(source).toContain("System #598 remains a prerequisite");
+  });
+
   it("gates viewing, sync, token creation and deletion on the same response scope", () => {
     const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
     expect(source).toContain("if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)) {");
