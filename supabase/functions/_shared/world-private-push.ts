@@ -25,10 +25,10 @@ function normalized(value: unknown) {
 
 export function isPrivateWorldPush(candidate: WorldPushCandidate): boolean {
   if (candidate.sensitive === true) return true;
+  const confidential = new Set(["private", "confidential", "restricted", "committee", "sealed"]);
   if (
-    ["private", "confidential", "restricted", "committee", "sealed"].includes(
-      normalized(candidate.visibility) || normalized(candidate.privacy),
-    )
+    confidential.has(normalized(candidate.visibility)) ||
+    confidential.has(normalized(candidate.privacy))
   ) return true;
 
   const category = normalized(candidate.category);
