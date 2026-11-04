@@ -54,7 +54,7 @@ describe("TG6 governed institutional roll-call", () => {
     expect(writer).toContain("v_session.status not in ('open','recessed')");
     expect(writer).toContain("v_session.ends_at <= now()");
     expect(writer).toContain("member_row.ended_at is null");
-    expect(writer).toContain("v_proxy.representation_id");
+    expect(writer).toContain("representation_id=v_rep.id");
     expect(writer).toContain("v_proxy.revoked_at is not null");
     expect(writer).toContain("v_proxy.session_id <> p_session_id");
     expect(writer).toContain("private.world_proxy_is_effective(");
@@ -98,7 +98,6 @@ describe("TG6 governed institutional roll-call", () => {
       migration.indexOf("create or replace function public.world_my_session_attendance_v1"),
       migration.indexOf("revoke all on function public.world_record_session_attendance_v1"),
     );
-    expect(mine).not.toContain("account.country_id=p_country_id");
     expect(mine).toContain("country_account.country_id=p_country_id");
     expect(mine).toContain("country_account.user_id=auth.uid()");
     expect(mine).toContain("country_account.status='active'");
