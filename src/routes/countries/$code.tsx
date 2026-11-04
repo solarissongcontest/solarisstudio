@@ -12,6 +12,7 @@ import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { CountryDesignV2Hero } from "@/components/country/CountryDesignV2Hero";
+import { CountryMobileWebMasthead } from "@/components/country/CountryMobileWebMasthead";
 import { CountryDesignV2Styles } from "@/components/country/CountryDesignV2Styles";
 import { CountryIdentityHero } from "@/components/country/CountryIdentityHero";
 import { V3DelegationRouteGate } from "@/components/v3/V3DelegationRouteGate";
@@ -24,6 +25,7 @@ import {
   useCountryDesignV2,
 } from "@/lib/country-design-v2";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
+import { COUNTRY_MOBILE_WEB_MEDIA_QUERY, resolveCountryLayoutMode } from "@/lib/country-layout-mode";
 import { countryPersonalitySource } from "@/lib/country-personality-sources";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 import {
@@ -46,6 +48,7 @@ import {
 } from "@/lib/qualification";
 import { computeRelationship } from "@/lib/stats";
 import { countryThemeToVisual, useCountryTheme } from "@/lib/visual-theme";
+import countryMobileWebCss from "@/country-mobile-web.css?inline";
 
 const CountryPlacementChart = lazy(() =>
   import("@/components/country/CountryPlacementChart"),
@@ -98,6 +101,7 @@ function CountryProfileRoute() {
     <>
       <CountryPersonalityStyles />
       <CountryDesignV2Styles />
+      <style data-country-mobile-web-styles>{countryMobileWebCss}</style>
       <V3DelegationRouteGate code={code} legacy={<CountryProfilePage />} />
     </>
   );
@@ -117,6 +121,17 @@ type Tab = (typeof TABS)[number]["value"];
 function CountryProfilePage() {
   const { code } = Route.useParams();
   const { isAppMode } = useSolarisApp();
+  // A phone-sized browser is a different presentation surface from the PWA.
+  // Listen to CSS viewport changes, not the visual viewport (keyboard/zoom).
+  const [narrowViewport, setNarrowViewport] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia(COUNTRY_MOBILE_WEB_MEDIA_QUERY);
+    const update = () => setNarrowViewport(media.matches);
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
+  }, []);
+  const countryLayoutMode = resolveCountryLayoutMode(isAppMode, narrowViewport);
   const [archiveEnabled, setArchiveEnabled] = useState(!isAppMode);
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
@@ -456,10 +471,11 @@ function CountryProfilePage() {
         >
       <div
         className={publishedDesign ? "country-profile-v8 country-design-v2" : "country-profile-v8"}
-        data-country-personality={publishedDesign ? undefined : heroPersonality}
-        data-country-composition={publishedDesign ? undefined : sourcePersonality.compositionFamily}
-        data-country-background-policy={publishedDesign ? undefined : sourcePersonality.backgroundPolicy}
-        data-country-source-status={publishedDesign ? undefined : sourcePersonality.status}
+        data-country-layout-mode={countryLayoutMode}
+        data-country-personality={countryLayoutMode === "mobile-web" || publishedDesign ? undefined : heroPersonality}
+        data-country-composition={countryLayoutMode === "mobile-web" || publishedDesign ? undefined : sourcePersonality.compositionFamily}
+        data-country-background-policy={countryLayoutMode === "mobile-web" || publishedDesign ? undefined : sourcePersonality.backgroundPolicy}
+        data-country-source-status={countryLayoutMode === "mobile-web" || publishedDesign ? undefined : sourcePersonality.status}
         data-country-surface={publishedDesign?.surface}
         data-country-accent={publishedDesign?.accent}
         data-country-motion={publishedDesign?.motion}
@@ -467,7 +483,12 @@ function CountryProfilePage() {
         style={publishedDesign ? countryDesignCssVariables(publishedDesign) : undefined}
       >
         {publishedDesign && countryDesignFontCss(publishedDesign) ? <style>{countryDesignFontCss(publishedDesign)}</style> : null}
-        {publishedDesign ? (
+        {countryLayoutMode === "mobile-web" ? (
+          <CountryMobileWebMasthead
+            identity={identityModel}
+            follow={<FollowButton entityType="country" entityId={country.id} label={country.name} />}
+          />
+        ) : publishedDesign ? (
           <CountryDesignV2Hero
             design={publishedDesign}
             code={identityModel.code}
@@ -512,14 +533,30 @@ function CountryProfilePage() {
           />
         )}
 
-        <ResponsiveTabs
-          value={tab}
-          options={TABS}
-          onChange={setTab}
-          label="Country section"
-          collapseAt="lg"
-          className="mb-5"
-        />
+        {countryLayoutMode === "mobile-web" ? (
+          <nav className="country-mobile-web-tabs scroll-slim mb-5" aria-label="Country sections">
+            {TABS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setTab(option.value)}
+                aria-current={tab === option.value ? "page" : undefined}
+                className={tab === option.value ? "is-selected" : undefined}
+              >
+                {option.label}
+              </button>
+            ))}
+          </nav>
+        ) : (
+          <ResponsiveTabs
+            value={tab}
+            options={TABS}
+            onChange={setTab}
+            label="Country section"
+            collapseAt="lg"
+            className="mb-5"
+          />
+        )}
 
         {archiveLoading ? (
           <ArchiveDataLoading label="Loading country history…" />
