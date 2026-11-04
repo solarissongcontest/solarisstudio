@@ -80,6 +80,14 @@ describe("Organizer Confirmation detail edition isolation", () => {
     expect(source).toContain("mutationStarted = true;");
   });
 
+  it("fails closed when Submission History's legacy detail RPC returns another edition", () => {
+    const source = readFileSync("src/routes/_authenticated/admin/submission-versions.tsx", "utf8");
+    expect(source).toContain("async function loadResponse(id: string, editionId: string)");
+    expect(source).toContain("if (!isConfirmationDetailInOrganizerScope(detail, id, editionId))");
+    expect(source).toContain("queryFn: () => loadResponse(activeId, editionId)");
+    expect(source).toContain("const detail = data as unknown as ResponseDetail | null;");
+  });
+
   it("gates viewing, sync, token creation and deletion on the same response scope", () => {
     const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
     expect(source).toContain("if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)) {");
