@@ -86,6 +86,23 @@ begin
      timestamptz '2023-06-01 00:00:00+00', 2)
   returning id into v_older_id;
 
+  -- The raw public SQL endpoint must not bypass World rollout even when
+  -- a public institution and completed leadership records exist.
+  if public.world_public_office_history_v1(v_slug) is not null then
+    raise exception 'TG3_HISTORY_DIRECT_RPC_ROLLOUT_BYPASS';
+  end if;
+
+  -- Only this rollback-only transaction enables World for the reader tests.
+  -- The on-disk fixture never enables or changes a production rollout.
+  update public.studio2_feature_flags
+     set enabled = true
+   where key = 'terra_world_public';
+
+  if public.studio2_feature_enabled('terra_world_public', null) is not true
+     or public.world_public_office_history_v1(v_slug) is null then
+    raise exception 'TG3_HISTORY_ENABLED_WORLD_RPC_UNAVAILABLE';
+  end if;
+
   -- A finished term's historical labels are not current profile labels.
   update public.delegation_people
      set display_name = 'Renamed Current Person'
@@ -202,6 +219,19 @@ begin
   if jsonb_array_length(v_page->'terms') <> 0 then
     raise exception 'TG3_HISTORY_OFFICE_FILTER_FAILED';
   end if;
+
+  update public.studio2_feature_flags
+     set enabled = false
+   where key = 'terra_world_public';
+  if public.world_public_office_history_v1(v_slug) is not null then
+    raise exception 'TG3_HISTORY_DIRECT_RPC_REMAINS_OPEN_AFTER_DISABLE';
+  end if;
+
+  -- The public-only organization test below uses an enabled rollout, so it
+  -- cannot pass solely because the feature flag is disabled.
+  update public.studio2_feature_flags
+     set enabled = true
+   where key = 'terra_world_public';
 
   -- Inaccessible private organizations must look like missing records.
   update public.world_organizations
