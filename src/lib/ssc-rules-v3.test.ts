@@ -9,11 +9,24 @@ import {
 } from "@/lib/ssc-rules-v3";
 
 describe("SSC online-first General Regulations", () => {
-  it("uses the promised 21-chapter online-first architecture", () => {
-    expect(SSC_RULEBOOK.version).toBe("4.0");
+  it("uses the current 22-chapter online-first architecture", () => {
+    expect(SSC_RULEBOOK.version).toBe("4.1");
     expect(SSC_RULEBOOK.status.toLowerCase()).toContain("online-first");
-    expect(RULEBOOK_STATS.chapters).toBe(21);
-    expect(RULEBOOK_STATS.rules).toBeGreaterThan(60);
+    expect(RULEBOOK_STATS.chapters).toBe(22);
+    expect(RULEBOOK_STATS.rules).toBeGreaterThan(70);
+  });
+
+  it("defines the six-edition Dormant threshold without treating withdrawal as abandonment", () => {
+    const protectedRule = getRuleById("22.4");
+    const dormantRule = getRuleById("22.5");
+    const eliminationRule = getRuleById("22.6");
+
+    expect(protectedRule?.body.join(" ").toLowerCase()).toContain("withdrawal");
+    expect(protectedRule?.body.join(" ").toLowerCase()).toContain("does not immediately remove this protection");
+    expect(dormantRule?.body.join(" ").toLowerCase()).toContain("six consecutive ssc editions");
+    expect(dormantRule?.body.join(" ").toLowerCase()).toContain("no active head of delegation at any point");
+    expect(eliminationRule?.summary.toLowerCase()).toContain("eliminated");
+    expect(eliminationRule?.important?.toLowerCase()).toContain("historical ssc record");
   });
 
   it("defines confirmation slots using official server receipt order", () => {
@@ -81,19 +94,17 @@ describe("SSC online-first General Regulations", () => {
     expect(LEGACY_RULE_ALIASES["14.8"]).toBe("16.3");
     expect(LEGACY_RULE_ALIASES["8.7"]).toBe("4.6");
 
-    // 14.8 now exists in v4, so the current official rule wins that URL.
     expect(getRuleById("14.8")?.id).toBe("14.8");
-
-    // There is no current 8.7, so this non-colliding legacy id can still resolve.
     expect(getRuleById("8.7")?.id).toBe("4.6");
-
     expect(searchSscRules("legacy rule 14.8").some((rule) => rule.id === "16.3")).toBe(true);
   });
 
-  it("searches the online-first concepts under their new official ids", () => {
+  it("searches contest and worldbuilding concepts under their official ids", () => {
     expect(searchSscRules("confirmation slot").some((rule) => rule.id === "4.6")).toBe(true);
     expect(searchSscRules("server timestamp").some((rule) => ["4.5", "4.6", "12.2"].includes(rule.id))).toBe(true);
     expect(searchSscRules("copyright").some((rule) => rule.id === "13.3")).toBe(true);
     expect(searchSscRules("lifetime ban").some((rule) => rule.id === "17.2")).toBe(true);
+    expect(searchSscRules("annex hodless country").some((rule) => ["22.5", "22.6"].includes(rule.id))).toBe(true);
+    expect(searchSscRules("erase country from map").some((rule) => rule.id === "22.6")).toBe(true);
   });
 });

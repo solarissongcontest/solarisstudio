@@ -23,7 +23,7 @@ export function buildPublicUserContext({
     signedIn,
     organizer: signedIn && access.isOrganizer,
     hod: signedIn && Boolean(access.countryId),
-    ...(access.countryId ? { countryId: access.countryId } : {}),
+    ...(signedIn && access.countryId ? { countryId: access.countryId } : {}),
     ...(currentEdition ? { currentEdition } : {}),
   };
 }

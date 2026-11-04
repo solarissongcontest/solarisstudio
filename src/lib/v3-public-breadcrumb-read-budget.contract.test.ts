@@ -57,5 +57,8 @@ describe("V3 Public breadcrumb request budget", () => {
     expect(source).toContain('/^\\/(?:countries|wiki)\\/[^/]+\\/?$/i');
     expect(source).toContain('/^\\/(?:editions|stories)\\/[^/]+\\/?$/i');
     expect(source).toContain('/^\\/shows\\/([^/]+)\\/?$/i');
+    expect(source).toContain('const showId = decodeURIComponent(showMatch[1]);');
+    expect(source).toContain('showId.includes("/")');
+    expect(source).toContain('catch {');
   });
 });

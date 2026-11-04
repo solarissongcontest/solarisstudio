@@ -33,7 +33,14 @@ function breadcrumbDataTarget(pathname: string): BreadcrumbDataTarget {
 
   const showMatch = pathname.match(/^\/shows\/([^/]+)\/?$/i);
   if (showMatch) {
-    return { kind: "show", showId: decodeURIComponent(showMatch[1]) };
+    try {
+      // Malformed or encoded-slash IDs must not crash global navigation.
+      const showId = decodeURIComponent(showMatch[1]);
+      if (!showId || showId.includes("/")) return { kind: "static" };
+      return { kind: "show", showId };
+    } catch {
+      return { kind: "static" };
+    }
   }
 
   return { kind: "static" };
