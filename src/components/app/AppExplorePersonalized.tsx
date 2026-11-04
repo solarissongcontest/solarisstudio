@@ -6,11 +6,11 @@ import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import { useMyFollows } from "@/lib/engagement-data";
 import { writeOfflinePublicIndex } from "@/lib/app-offline-snapshot";
 import { useFanSession } from "@/lib/prediction-data";
-import { publicShowsForDiscovery, visibleRecentShowDestinations } from "@/lib/v3-show-public-discovery";
 import {
-  readPublicRecents,
-  type PublicRecentDestination,
-} from "@/lib/public-recents";
+  publicShowsForDiscovery,
+  visibleRecentShowDestinations,
+} from "@/lib/v3-show-public-discovery";
+import { readPublicRecents, type PublicRecentDestination } from "@/lib/public-recents";
 
 export function AppExplorePersonalized() {
   const [recents, setRecents] = useState<PublicRecentDestination[]>([]);
@@ -114,9 +114,14 @@ export function AppExplorePersonalized() {
               <Link key={item.path} to={item.path as any} className="solaris-app-list-row">
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-semibold">{item.label}</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">Recently viewed</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Recently viewed
                 </span>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                </span>
+                <ChevronRight
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
               </Link>
             ))}
           </div>
@@ -139,7 +144,10 @@ export function AppExplorePersonalized() {
                   <span className="block truncate text-sm font-semibold">{item.label}</span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">{item.meta}</span>
                 </span>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <ChevronRight
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
               </Link>
             ))}
           </div>
