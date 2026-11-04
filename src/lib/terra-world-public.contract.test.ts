@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { V3_PUBLIC_CAPABILITIES } from "./v3-capability-registry";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const listing = () => read("src/routes/world/organizations/index.tsx");
 const detail = () => read("src/routes/world/organizations/$slug.tsx");
@@ -9,6 +10,15 @@ const api = () => read("src/integrations/terra-world-public.ts");
 const tg2 = () => read("supabase/migrations/20261102171600_v3_tg2_world_institution_access.sql");
 
 describe("TG2 Public V3 integrations", () => {
+  it("owns both new routes in the canonical capability registry", () => {
+    const capability = V3_PUBLIC_CAPABILITIES.find((row) => row.id === "terra-world-organizations");
+    expect(capability).toBeDefined();
+    expect(capability?.targetArea).toBe("explore");
+    expect(capability?.targetRoute).toBe("/world/organizations");
+    expect(capability?.legacyRoutes).toContain("/world/organizations/*");
+    expect(capability?.specificationStatus).toBe("building");
+  });
+
   it("reuses upstream server publication authority and public RLS", () => {
     expect(api()).toContain('.rpc("world_organization_projection_v1", { p_slug: slug })');
     expect(api()).toContain('.eq("public_visibility", "public")');
