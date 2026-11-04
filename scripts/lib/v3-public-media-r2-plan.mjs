@@ -46,7 +46,7 @@ export function buildR2CandidatePlan({ entries, approval }) {
     }
     keys.set(key, { sha256: digest, mime, bytes });
     rows.push({
-      source_project: entry.bucket,
+      source_bucket: entry.bucket,
       source_path: entry.path,
       content_sha256: digest,
       verified_bytes: bytes,
