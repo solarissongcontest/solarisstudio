@@ -31,10 +31,14 @@ describe("Terra Solaris TG3 discovery rollout", () => {
     const entry = file("src/components/world/WorldExploreEntry.tsx");
     const legacy = file("src/routes/explore/index.tsx");
     const v3 = file("src/components/v3/V3ExploreScreen.tsx");
+    const gate = file("src/components/v3/V3ExploreRouteGate.tsx");
     expect(entry).toContain("fetchWorldPublicEnabled");
-    expect(entry).toContain('if (rollout.data !== true) return null');
+    expect(entry).toContain("if (rollout.data !== true) return null");
+    expect(entry).toContain("if (!enabled) return null");
     expect(entry).toContain('to="/world"');
-    expect(legacy).toContain('<WorldExploreEntry variant="legacy" />');
-    expect(v3).toContain('<WorldExploreEntry variant="v3" />');
+    expect(legacy).toContain("<WorldExploreEntry />");
+    expect(v3).toContain("<WorldV3ExploreEntry enabled={showWorld} />");
+    expect(gate).toContain("enabled: shouldLoadBundle");
+    expect(gate).toContain("showWorld={worldRollout.data === true}");
   });
 });
