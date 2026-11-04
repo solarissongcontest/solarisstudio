@@ -110,29 +110,23 @@ export function assertEditionTransition(from: EditionState, to: EditionState): E
 export function normalizeLegacyEditionStatus(status: string | null | undefined): EditionState {
   const normalized = status?.trim().toLowerCase();
 
+  // This compatibility function also receives canonical V3 lifecycle states.
+  // Preserve those values first; otherwise a valid confirmations, jury_voting,
+  // vote_verification or post_edition state silently becomes planning.
+  const canonicalState = EDITION_STATES.find((state) => state === normalized);
+  if (canonicalState) return canonicalState;
+
   switch (normalized) {
-    case 'draft':
-      return 'draft';
-    case 'planning':
-      return 'planning';
     case 'active':
     case 'ongoing':
     case 'open':
       return 'submissions';
     case 'voting':
       return 'televoting';
-    // The canonical live-show lifecycle is not a legacy synonym. Preserve it
-    // so the public projection can evaluate live publication separately.
-    case 'live_show':
-      return 'live_show';
-    case 'results':
-      return 'results';
     case 'completed':
     case 'complete':
     case 'finished':
       return 'post_edition';
-    case 'archived':
-      return 'archived';
     default:
       return 'planning';
   }
