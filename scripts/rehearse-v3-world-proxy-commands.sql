@@ -162,7 +162,7 @@ begin
     (v->>'representationId')::uuid,(v->>'proxyPersonId')::uuid,
     (v->>'sessionId')::uuid,(v->>'validFrom')::timestamptz,
     (v->>'validUntil')::timestamptz,'Proxy for committee session',1,
-    (v->>'requestOperationId')::uuid,'tg6-proxy:' || v->>'requestOperationId'
+    (v->>'requestOperationId')::uuid,'tg6-proxy:' || (v->>'requestOperationId')
   );
   v_proxy_id := (v_receipt #>> '{result,proxyId}')::uuid;
   if v_receipt->>'status' <> 'succeeded'
@@ -176,7 +176,7 @@ begin
     (v->>'representationId')::uuid,(v->>'proxyPersonId')::uuid,
     (v->>'sessionId')::uuid,(v->>'validFrom')::timestamptz,
     (v->>'validUntil')::timestamptz,'Proxy for committee session',1,
-    (v->>'requestOperationId')::uuid,'tg6-proxy:' || v->>'requestOperationId'
+    (v->>'requestOperationId')::uuid,'tg6-proxy:' || (v->>'requestOperationId')
   );
   if v_replayed #>> '{result,proxyId}' is distinct from v_proxy_id::text
      or coalesce((v_replayed->>'replayed')::boolean,false) is not true
@@ -233,22 +233,9 @@ begin
   if v_receipt->>'status' <> 'succeeded'
      or v_receipt #>> '{result,status}' <> 'approved'
      or v_receipt #>> '{result,revision}' <> '2'
-     or not exists (
-       select 1 from public.world_representation_proxies
-       where id=(v->>'proxyId')::uuid
-         and status='approved' and approved_at is not null and revision=2
-     )
+
   then
     raise exception 'TG6_PROXY_APPROVAL_RECEIPT_OR_STATUS_INCOMPLETE';
-  end if;
-
-  if private.world_proxy_is_effective(
-    'approved',(v->>'validFrom')::timestamptz,(v->>'validUntil')::timestamptz,now()
-  ) or not private.world_proxy_is_effective(
-    'approved',(v->>'validFrom')::timestamptz,(v->>'validUntil')::timestamptz,
-    (v->>'validFrom')::timestamptz+interval '1 minute'
-  ) then
-    raise exception 'TG6_PROXY_SERVER_TIME_EFFECTIVENESS_INVALID';
   end if;
 
   begin
@@ -263,6 +250,30 @@ begin
 end
 $authorized_approval$;
 reset role;
+
+-- These are privileged state assertions, deliberately NOT attempted as the
+-- chair account: chair's approval authority is not general private-read RLS.
+do $approved_state$
+declare
+  v jsonb := current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+  if not exists (
+    select 1 from public.world_representation_proxies
+    where id=(v->>'proxyId')::uuid
+      and status='approved' and approved_at is not null and revision=2
+  ) then
+    raise exception 'TG6_PROXY_APPROVAL_STATE_INCOMPLETE';
+  end if;
+  if private.world_proxy_is_effective(
+    'approved',(v->>'validFrom')::timestamptz,(v->>'validUntil')::timestamptz,now()
+  ) or not private.world_proxy_is_effective(
+    'approved',(v->>'validFrom')::timestamptz,(v->>'validUntil')::timestamptz,
+    (v->>'validFrom')::timestamptz+interval '1 minute'
+  ) then
+    raise exception 'TG6_PROXY_SERVER_TIME_EFFECTIVENESS_INVALID';
+  end if;
+end
+$approved_state$;
 
 -- Create a second pending proxy directly as the local test owner to verify
 -- the approval race invariant independently of the request deduplication check.
