@@ -141,6 +141,9 @@ describe("Public V3 P9 artist/song identity", () => {
     const artist = firstClassMusicIdentity({
       kind: "artist", publicEntityId: "artist-id", label: "Artist",
     });
+    if (!musicIdentityIsRoutable(artist)) {
+      throw new Error("Expected a first-class artist identity");
+    }
     for (const identity of [
       { ...artist, kind: "unknown" as never },
       { ...artist, publicEntityId: " " },
