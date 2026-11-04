@@ -10,6 +10,7 @@ on:
       - "src/lib/v3-production-migration-frontier.ts"
       - "src/lib/v3-production-migration-frontier.test.ts"
       - "src/lib/v3-production-operator-gates.test.ts"
+      - "src/lib/v3-production-migration-race.test.ts"
       - "docs/v3/production-frontier-preflight.md"
       - ".github/workflows/v3-production-migration-offline-preflight.yml"
   workflow_dispatch:
@@ -60,7 +61,7 @@ jobs:
         run: bash -n scripts/v3-production-supabase-push.sh
 
       - name: Run isolated migration frontier and operator approval regressions
-        run: bunx vitest run src/lib/v3-production-migration-frontier.test.ts src/lib/v3-production-operator-gates.test.ts
+        run: bunx vitest run src/lib/v3-production-migration-frontier.test.ts src/lib/v3-production-operator-gates.test.ts src/lib/v3-production-migration-race.test.ts
 
       - name: Confirm offline-only verification
         run: |
