@@ -51,13 +51,16 @@ export type V3OrganizerReadinessFactor = {
 };
 
 export type V3OrganizerReadiness = {
-  overall: number;
   blocking: V3OrganizerReadinessFactor[];
   incomplete: V3OrganizerReadinessFactor[];
   ready: V3OrganizerReadinessFactor[];
   calculatedAt: string;
   stateVersion: string;
-};
+} & (
+  | { assessmentStatus: "verified"; overall: number }
+  // Enforce the absence of a score at the type boundary, not only in the UI.
+  | { assessmentStatus: "unavailable"; overall: null }
+);
 
 export type V3OrganizerAttentionItem = {
   id: string;
@@ -212,8 +215,39 @@ function buildReadiness(
   serverTime: string,
   stateVersion: string,
 ): V3OrganizerReadiness {
-  const progress = Math.max(0, Math.min(100, Number(health?.progress ?? 0)));
-  const critical = Math.max(0, Number(health?.critical_count ?? 0));
+  // The health RPC can be unavailable during a schema compatibility window.
+  // Missing counters must never silently become zero and mark unassessed areas ready.
+  const progress = health?.progress;
+  const counters = [
+    health?.issues_count,
+    health?.critical_count,
+    health?.missing_songs,
+    health?.missing_artists,
+    health?.running_issues,
+    health?.jury_issues,
+    health?.televote_issues,
+    health?.result_issues,
+  ];
+  const verified =
+    typeof progress === "number" &&
+    Number.isFinite(progress) &&
+    progress >= 0 && progress <= 100 &&
+    counters.every((value) => typeof value === "number" && Number.isFinite(value) && value >= 0);
+  if (!verified) {
+    return {
+      assessmentStatus: "unavailable",
+      overall: null,
+      blocking: [],
+      incomplete: [],
+      ready: [],
+      calculatedAt: serverTime,
+      stateVersion,
+    };
+  }
+
+  // The verified branch guarantees numeric counters; retain null-safe access
+  // so TypeScript does not mistake the external validation result for a type guard.
+  const critical = health?.critical_count ?? 0;
   const incomplete = [
     factor("entries", Number(health?.missing_songs ?? 0) + Number(health?.missing_artists ?? 0), "Entry metadata", `/admin/entries/${edition.slug}`),
     factor("running-order", Number(health?.running_issues ?? 0), "Running order", `/admin/lineup-sync/${edition.slug}`),
@@ -242,7 +276,7 @@ function buildReadiness(
     .filter((item) => !incompleteIds.has(item.id))
     .map((item) => ({ ...item, detail: "No current readiness issue" }));
 
-  return { overall: progress, blocking, incomplete, ready, calculatedAt: serverTime, stateVersion };
+  return { assessmentStatus: "verified", overall: progress, blocking, incomplete, ready, calculatedAt: serverTime, stateVersion };
 }
 
 function domainMeta(edition: V3OrganizerEditionProjection): Record<V3OrganizerDomainKey, { label: string; route: string }> {
@@ -314,6 +348,13 @@ function buildStateVersion(input: {
     input.live.subsystems,
     input.health?.progress ?? null,
     input.health?.issues_count ?? null,
+    input.health?.critical_count ?? null,
+    input.health?.missing_songs ?? null,
+    input.health?.missing_artists ?? null,
+    input.health?.running_issues ?? null,
+    input.health?.jury_issues ?? null,
+    input.health?.televote_issues ?? null,
+    input.health?.result_issues ?? null,
     input.tasks.map((task) => [task.id, task.state, task.priority, task.lastEvaluatedAt]),
     input.recentChanges?.map((change) => [change.id, change.createdAt]) ?? [],
   ]);
@@ -346,13 +387,6 @@ export function buildV3OrganizerProjection(input: {
   const topTasks = unresolved.slice(0, 5);
   const top = topTasks.map(summarizeTask);
 
-  const risk: V3OrganizerRisk =
-    input.live.overallHealth === "critical" || critical > 0
-      ? "critical"
-      : input.live.overallHealth === "attention" || high > 0 || waiting > 0
-        ? "elevated"
-        : "normal";
-
   const recentChanges = input.recentChanges ?? [];
   const stateVersion = buildStateVersion({
     edition: input.edition,
@@ -361,6 +395,16 @@ export function buildV3OrganizerProjection(input: {
     health: input.health,
     recentChanges,
   });
+  const readiness = buildReadiness(input.edition, input.health, serverTime, stateVersion);
+
+  // A critical health finding must remain visible even when no canonical Task
+  // has yet materialized for it. Missing health evidence is not a clean bill.
+  const risk: V3OrganizerRisk =
+    input.live.overallHealth === "critical" || critical > 0 || readiness.blocking.length > 0
+      ? "critical"
+      : input.live.overallHealth === "attention" || high > 0 || waiting > 0 || readiness.incomplete.length > 0
+        ? "elevated"
+        : "normal";
 
   const label = input.edition.editionNumber == null
     ? input.edition.name
@@ -378,7 +422,7 @@ export function buildV3OrganizerProjection(input: {
     },
     edition: input.edition,
     activeShow: input.activeShow,
-    readiness: buildReadiness(input.edition, input.health, serverTime, stateVersion),
+    readiness,
     attention: topTasks.map((task) => ({
       id: task.id,
       severity: task.priority,
@@ -399,15 +443,17 @@ export function buildV3OrganizerProjection(input: {
     domains: buildDomains(input.edition, input.tasks, input.live),
     systemHealth: {
       state:
-        input.live.overallHealth === "critical"
+        input.live.overallHealth === "critical" || readiness.blocking.length > 0
           ? "partial_outage"
-          : input.live.overallHealth === "attention"
+          : input.live.overallHealth === "attention" || readiness.incomplete.length > 0
             ? "degraded"
-            : input.live.overallHealth === "healthy"
+            : input.live.overallHealth === "healthy" && readiness.assessmentStatus === "verified"
               ? "healthy"
               : "unknown",
       detail:
-        Number(input.health?.issues_count ?? 0) > 0
+        readiness.assessmentStatus === "unavailable"
+          ? "Edition health assessment unavailable"
+          : Number(input.health?.issues_count ?? 0) > 0
           ? `${Number(input.health?.issues_count ?? 0)} health ${Number(input.health?.issues_count ?? 0) === 1 ? "issue" : "issues"}`
           : "No known edition health issue",
       issueCount: Number(input.health?.issues_count ?? input.live.issues.total ?? 0),

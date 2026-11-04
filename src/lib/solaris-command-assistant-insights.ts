@@ -78,7 +78,9 @@ export function buildCommandAssistantInsight(
     title: projection.readiness.blocking.length ? "Edition has blocking work" : "Edition operational summary",
     summary: topBlocker
       ? `${topBlocker.label}: ${topBlocker.detail}`
-      : `${projection.readiness.overall}% readiness. ${projection.attention.length} attention ${projection.attention.length === 1 ? "item" : "items"} currently projected.`,
+      : projection.readiness.assessmentStatus === "verified"
+        ? `${projection.readiness.overall}% readiness. ${projection.attention.length} attention ${projection.attention.length === 1 ? "item" : "items"} currently projected.`
+        : `Edition readiness could not be verified. ${projection.attention.length} attention ${projection.attention.length === 1 ? "item" : "items"} currently projected.`,
     blockerCount: projection.systemHealth.criticalIssueCount,
     nextAction: topTask
       ? { label: topTask.title, route: topTask.href }

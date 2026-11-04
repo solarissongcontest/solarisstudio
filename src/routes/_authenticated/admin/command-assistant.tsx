@@ -120,7 +120,13 @@ function CommandAssistantPage() {
               <AdminStatus tone="blocked">{projectionQuery.error instanceof Error ? projectionQuery.error.message : "Could not load edition state"}</AdminStatus>
             ) : projectionQuery.data ? (
               <div className="grid gap-3 sm:grid-cols-4">
-                <Metric label="Readiness" value={projectionQuery.data.readiness.overall} suffix="%" />
+                <Metric
+                  label="Readiness"
+                  value={projectionQuery.data.readiness.assessmentStatus === "verified"
+                    ? projectionQuery.data.readiness.overall
+                    : "Unavailable"}
+                  suffix={projectionQuery.data.readiness.assessmentStatus === "verified" ? "%" : ""}
+                />
                 <Metric label="Critical tasks" value={projectionQuery.data.tasks.critical} tone={projectionQuery.data.tasks.critical ? "attention" : "ready"} />
                 <Metric label="Attention items" value={projectionQuery.data.attention.length} tone={projectionQuery.data.attention.length ? "attention" : "ready"} />
                 <Metric label="System issues" value={projectionQuery.data.systemHealth.issueCount} tone={projectionQuery.data.systemHealth.issueCount ? "attention" : "ready"} />
@@ -197,7 +203,7 @@ function CommandAssistantPage() {
   );
 }
 
-function Metric({ label, value, tone = "neutral", suffix = "" }: { label: string; value: number; tone?: "neutral" | "ready" | "attention"; suffix?: string }) {
+function Metric({ label, value, tone = "neutral", suffix = "" }: { label: string; value: number | string; tone?: "neutral" | "ready" | "attention"; suffix?: string }) {
   return (
     <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
       <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>

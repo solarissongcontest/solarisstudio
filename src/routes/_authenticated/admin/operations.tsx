@@ -106,14 +106,18 @@ function OrganizerOverview() {
                     ? "blocked"
                     : projection.risk === "elevated"
                       ? "attention"
-                      : "ready"
+                      : projection.readiness.assessmentStatus === "unavailable"
+                        ? "neutral"
+                        : "ready"
                 }
               >
                 {projection.risk === "critical"
                   ? "Critical attention"
                   : projection.risk === "elevated"
                     ? "Needs attention"
-                    : "On track"}
+                    : projection.readiness.assessmentStatus === "unavailable"
+                      ? "Readiness unverified"
+                      : "On track"}
               </AdminStatus>
             </section>
 
@@ -194,21 +198,28 @@ function OrganizerOverview() {
                   <div>
                     <p className="admin-section-label">Readiness</p>
                     <h2 className="mt-1 text-2xl font-bold tracking-[-.035em]">
-                      {projection.readiness.overall}%
+                      {projection.readiness.assessmentStatus === "verified"
+                        ? `${projection.readiness.overall}%`
+                        : "Not assessed"}
                     </h2>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      Deterministic edition health, calculated by server rules at {new Date(projection.readiness.calculatedAt).toLocaleTimeString()}.
+                      {projection.readiness.assessmentStatus === "verified"
+                        ? <>Deterministic edition health, calculated by server rules at {new Date(projection.readiness.calculatedAt).toLocaleTimeString()}.</>
+                        : "Edition health could not be verified. Tasks remain visible, but a readiness assessment is unavailable."}
                     </p>
                   </div>
                   <div className="min-w-44">
-                    <AdminProgress value={projection.readiness.overall} />
+                    {projection.readiness.assessmentStatus === "verified"
+                      ? <AdminProgress value={projection.readiness.overall} />
+                      : <p role="status" className="text-xs text-muted-foreground">No verified readiness score</p>}
                     <p className="mt-2 text-[10px] text-muted-foreground">
                       State {projection.readiness.stateVersion}
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                {projection.readiness.assessmentStatus === "verified" ? (
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
                   <ReadinessGroup
                     title="Blocking"
                     items={projection.readiness.blocking}
@@ -227,7 +238,12 @@ function OrganizerOverview() {
                     empty="No verified ready factor"
                     tone="ready"
                   />
-                </div>
+                  </div>
+                ) : (
+                  <p role="status" className="mt-4 text-sm text-muted-foreground">
+                    Readiness factors could not be verified. No factor is labelled ready without health evidence.
+                  </p>
+                )}
               </AdminCard>
             </section>
 

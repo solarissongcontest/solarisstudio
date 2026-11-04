@@ -11,6 +11,7 @@ function projection(): V3OrganizerProjection {
     context: { editionId: "e1", editionSlug: "ssc-22", editionLabel: "SSC 22", showId: null, showLabel: null, mode: "organizer", contextVersion: 1 },
     edition: { id: "e1", slug: "ssc-22", name: "SSC 22", editionNumber: 22, status: "active" },
     readiness: {
+      assessmentStatus: "verified",
       overall: 82,
       blocking: [{ id: "critical-health", label: "Integrity blocker", detail: "1 issue", route: "/admin/tasks?filter=all" }],
       incomplete: [{ id: "results", label: "Results", detail: "1 issue", route: "/admin/results" }],
@@ -59,6 +60,21 @@ describe("Command Assistant projection insights", () => {
     expect(insight.summary).toBe("1 item needs attention. Results: 1 issue.");
     expect(insight.readinessRoute).toBe("/admin/results");
     expect(insight.nextAction).toEqual({ label: "Resolve results blocker", route: "/admin/results" });
+  });
+
+  it("never manufactures a readiness score when the health source is unavailable", () => {
+    const unavailable = projection();
+    unavailable.readiness = {
+      ...unavailable.readiness,
+      assessmentStatus: "unavailable",
+      overall: null,
+      blocking: [],
+      incomplete: [],
+      ready: [],
+    };
+    const insight = buildCommandAssistantInsight("What needs my attention?", unavailable);
+    expect(insight.summary).toContain("readiness could not be verified");
+    expect(insight.summary).not.toContain("0% readiness");
   });
 
   it("falls back to the edition blocker/task projection for generic wording", () => {

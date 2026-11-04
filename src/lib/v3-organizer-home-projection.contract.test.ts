@@ -36,5 +36,7 @@ describe("V3 Organizer Overview projection", () => {
     expect(route).toContain("projection.readiness.incomplete");
     expect(route).toContain("projection.readiness.ready");
     expect(route).toContain("Deterministic edition health");
+    expect(route).toContain('projection.readiness.assessmentStatus === "verified"');
+    expect(route).toContain("Readiness factors could not be verified");
   });
 });

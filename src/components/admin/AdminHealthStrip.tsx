@@ -10,6 +10,15 @@ export function AdminHealthStrip() {
   if (!editionId || projectionQuery.isLoading || projectionQuery.error || !projection) return null;
 
   const readiness = projection.readiness;
+  // Without an authoritative health calculation, "Ready" and a zero count
+  // would incorrectly turn absence of evidence into a positive assessment.
+  if (readiness.assessmentStatus !== "verified") {
+    return (
+      <div role="status" className="border-t border-border/45 bg-surface/35 px-3 py-2 text-xs text-muted-foreground sm:px-5">
+        Readiness unavailable · edition-health assessment could not be verified
+      </div>
+    );
+  }
   const blocking = readiness.blocking.length;
   const incomplete = readiness.incomplete.length;
   const issueCount = blocking + incomplete;
