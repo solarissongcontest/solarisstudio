@@ -33,6 +33,24 @@ describe("S14 Grand Final result calculation readback", () => {
     expect(readback).toContain("Calculation readback contains rows from another version");
   });
 
+  it("trusts the actual committed version when concurrent organizers advance the round", () => {
+    const successStart = readback.indexOf("const calculation = await runMergedOfficialCalculationServer(roundId)");
+    const catchStart = readback.indexOf("} catch (caught)", successStart);
+    const recoveredStart = readback.indexOf("const state = await getMergedTelevoteConversionServer(roundId)", catchStart);
+    expect(successStart).toBeGreaterThanOrEqual(0);
+    expect(catchStart).toBeGreaterThan(successStart);
+    const success = readback.slice(successStart, catchStart);
+    expect(success).toContain("assertCommittedCalculationState(state, calculation.version)");
+    expect(success).not.toContain("assertCommittedCalculationState(state, expectedVersion)");
+
+    // The uncertain post-commit path has no trustworthy receipt version.
+    // It must remain pinned to its previously observed optimistic version.
+    const recovery = readback.slice(recoveredStart);
+    expect(recoveredStart).toBeGreaterThan(catchStart);
+    expect(recovery).toContain("assertCommittedCalculationState(state, expectedVersion)");
+    expect(recovery).toContain("reconciledAfterUncertainOutcome: true");
+  });
+
   it("reconciles only the explicit post-commit scalar-return ambiguity", () => {
     expect(readback).toContain(
       'message.startsWith("Calculation commit returned unexpected version")',
