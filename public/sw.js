@@ -222,7 +222,9 @@ self.addEventListener("push", (event) => {
   try {
     payload = event.data ? event.data.json() : {};
   } catch {
-    payload = { body: event.data?.text?.() ?? "" };
+    // A malformed push may itself contain confidential case text. Never
+    // display its raw bytes on a phone's lock screen.
+    payload = { sensitivity: "private" };
   }
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     payload = {};
