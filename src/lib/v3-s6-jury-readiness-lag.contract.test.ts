@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const migration = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20261019211100_v3_s6_jury_readiness_lag.sql",
+    "supabase/migrations/20261104163100_v3_s6_jury_readiness_lag.sql",
   ),
   "utf8",
 );

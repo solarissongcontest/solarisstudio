@@ -20,27 +20,21 @@ import {
   type V3EntryProjection,
   type V3EntryVersionEvidence,
 } from "@/lib/v3-entry";
+import {
+  deriveV3EntryCandidateReviewPresentation,
+  type V3EntryReviewPresentationTone,
+} from "@/lib/v3-entry-review-presentation";
 import { cn } from "@/lib/utils";
 import { V3Screen, V3ScreenHeader, V3Section, V3Surface } from "./V3Foundation";
 
-function reviewLabel(candidate: V3EntryCandidate) {
-  if (candidate.reviewStatus === "accepted" && candidate.reviewMatchesCurrentVersion) {
-    return "Current version accepted";
-  }
-  if (candidate.reviewStatus === "accepted") return "Older version accepted · review current version";
-  if (candidate.reviewStatus === "declined") return "Changes required";
-  if (candidate.reviewStatus === "removed") return "Removed by organizer";
-  if (candidate.currentVersionId) return "Waiting for organizer review";
-  return "Legacy review evidence";
-}
-
-function reviewTone(candidate: V3EntryCandidate) {
-  if (candidate.reviewStatus === "accepted" && candidate.reviewMatchesCurrentVersion) return "text-emerald-300";
-  if (candidate.reviewStatus === "declined" || candidate.reviewStatus === "removed") return "text-[var(--v3-danger)]";
+function reviewToneClass(tone: V3EntryReviewPresentationTone) {
+  if (tone === "accepted") return "text-emerald-300";
+  if (tone === "danger") return "text-[var(--v3-danger)]";
   return "text-amber-200";
 }
 
 function CandidateCard({ candidate, winner }: { candidate: V3EntryCandidate; winner?: boolean }) {
+  const review = deriveV3EntryCandidateReviewPresentation(candidate);
   return (
     <V3Surface className="p-4" data-v3-entry-candidate={candidate.id}>
       <div className="flex items-start justify-between gap-3">
@@ -59,7 +53,7 @@ function CandidateCard({ candidate, winner }: { candidate: V3EntryCandidate; win
         ) : null}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-        <span className={cn("font-semibold", reviewTone(candidate))}>{reviewLabel(candidate)}</span>
+        <span className={cn("font-semibold", reviewToneClass(review.tone))}>{review.label}</span>
         {candidate.contentRevision != null ? (
           <span className="text-[var(--v3-text-tertiary)]">Revision {candidate.contentRevision}</span>
         ) : null}

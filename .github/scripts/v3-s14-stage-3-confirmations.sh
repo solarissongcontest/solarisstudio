@@ -76,7 +76,7 @@ PY
   rpc_request "$ANON_KEY" v3_reconcile_confirmation "{\"_idempotency_key\":\"$FIRST_OPERATION_ID\",\"_browser_session_id\":\"$FIRST_SESSION\"}"
   expect_success "post-commit confirmation recovery"
   expect_json "post-commit confirmation recovery found operation" found true
-  expect_json "post-commit confirmation recovery is a replay" result.receipt.replayed true
+  expect_json "post-commit confirmation recovery is a replay" receipt.replayed true
   log "S14_FAILURE_NETWORK_AFTER_COMMIT_COMPLETE"
 
   # An exact retry must return the same receipt instead of manufacturing a
@@ -107,8 +107,8 @@ PY
   # Reopening the round must make an existing response editable through the
   # canonical round-editing command before a correction is accepted.
   if [[ "$(db_scalar "select editing_allowed::text from public.submissions where id='$FIRST_SUBMISSION_ID'::uuid;")" != "true" ]]; then
-    apply_confirmation_round_change editing '{"editingEnabled":false}' '14000000-0000-4003-8000-000000000004' 's14-confirmation-editing-off'
-    apply_confirmation_round_change editing '{"editingEnabled":true}' '14000000-0000-4003-8000-000000000005' 's14-confirmation-editing-on'
+    apply_confirmation_round_change editing '{"enabled":false}' '14000000-0000-4003-8000-000000000004' 's14-confirmation-editing-off'
+    apply_confirmation_round_change editing '{"enabled":true}' '14000000-0000-4003-8000-000000000005' 's14-confirmation-editing-on'
   fi
   [[ "$(db_scalar "select editing_allowed::text from public.submissions where id='$FIRST_SUBMISSION_ID'::uuid;")" == "true" ]] || fail "reopened confirmation did not become editable through the governed round contract"
 

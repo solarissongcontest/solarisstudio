@@ -9,6 +9,7 @@ PRODUCTION_HEAD="${V3_PRODUCTION_MIGRATION_HEAD:-20261014020000}"
 # head. This makes the rehearsal fail closed if a branch rewrites deployed SQL
 # or inserts a backdated migration while retaining the same maximum version.
 PRODUCTION_BASELINE_SHA256="${V3_PRODUCTION_BASELINE_SHA256:-b60f5f9e923462943dde34fb2f6d4e2d003626b87952833a92948c6302bdf513}"
+KEEP_RUNNING="${V3_PRODUCTION_HEAD_KEEP_RUNNING:-false}"
 ROOT="$(git rev-parse --show-toplevel)"
 MIGRATIONS_DIR="$ROOT/supabase/migrations"
 HELD_DIR="$(mktemp -d)"
@@ -29,7 +30,11 @@ cleanup() {
   trap - EXIT INT TERM
   restore_migrations || true
   if [[ "$STARTED" == true ]]; then
-    (cd "$ROOT" && supabase stop --no-backup) >/dev/null 2>&1 || true
+    if [[ "$status" -eq 0 && "$KEEP_RUNNING" == true ]]; then
+      log "Leaving the successful disposable local stack running for caller follow-up checks"
+    else
+      (cd "$ROOT" && supabase stop --no-backup) >/dev/null 2>&1 || true
+    fi
   fi
   rm -rf "$HELD_DIR"
   exit "$status"
@@ -40,6 +45,10 @@ trap cleanup EXIT INT TERM
   || fail "Configured production head must be a 14-digit migration version"
 [[ "$PRODUCTION_BASELINE_SHA256" =~ ^[0-9a-f]{64}$ ]] \
   || fail "Configured production baseline fingerprint must be a lowercase SHA-256"
+case "$KEEP_RUNNING" in
+  true|false) ;;
+  *) fail "V3_PRODUCTION_HEAD_KEEP_RUNNING must be true or false" ;;
+esac
 
 mapfile -t all_migrations < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
 (( ${#all_migrations[@]} > 0 )) || fail "No migration files found"

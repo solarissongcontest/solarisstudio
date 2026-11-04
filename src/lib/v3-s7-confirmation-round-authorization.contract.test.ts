@@ -140,7 +140,7 @@ describe("System V3 S7 Confirmation authorization", () => {
     expect(stage3).toContain("confirmation submit $(printf '%02d' \"$i\") accepted");
     expect(stage3).toContain("apply_confirmation_round_change status '{\"status\":\"closed\"}'");
     expect(stage3).toContain("apply_confirmation_round_change status '{\"status\":\"open\"}'");
-    expect(stage3).toContain("apply_confirmation_round_change editing '{\"editingEnabled\":false}'");
-    expect(stage3).toContain("apply_confirmation_round_change editing '{\"editingEnabled\":true}'");
+    expect(stage3).toContain("apply_confirmation_round_change editing '{\"enabled\":false}'");
+    expect(stage3).toContain("apply_confirmation_round_change editing '{\"enabled\":true}'");
   });
 });

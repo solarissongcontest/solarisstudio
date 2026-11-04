@@ -38,7 +38,7 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     participantProjection: "participant edition context",
     organizerProjection: "Organizer edition workspace",
     commands: ["edition.transition", "edition.update", "edition.allocate"],
-    events: ["edition.changed", "edition.transitioned"],
+    events: ["edition.changed", "edition.transitioned", "edition.archived"],
     tasks: ["edition.blocker"],
     legacySources: ["browser-global selected edition", "legacy direct edition mutations"],
     migrationState: "canonical-write",

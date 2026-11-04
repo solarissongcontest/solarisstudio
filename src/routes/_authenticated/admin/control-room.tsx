@@ -26,12 +26,14 @@ import {
   type IncidentStatus,
 } from '@/lib/incident-command';
 import { studio2ControlRoom, type Studio2ControlRoomSnapshot } from '@/lib/studio2-control-room';
+import { controlRoomReviewMatchesEdition } from '@/lib/v3-organizer-control-room-review';
 
 type TransitionRisk = 'normal' | 'elevated' | 'critical';
 
 type PendingControlReview =
   | {
       kind: 'edition-transition';
+      editionId: string;
       from: EditionState;
       to: EditionState;
       risk: TransitionRisk;
@@ -41,6 +43,7 @@ type PendingControlReview =
     }
   | {
       kind: 'approve-transition';
+      editionId: string;
       requestId: string;
       from: EditionState;
       to: EditionState;
@@ -50,6 +53,7 @@ type PendingControlReview =
     }
   | {
       kind: 'incident-transition';
+      editionId: string;
       incidentId: string;
       title: string;
       from: IncidentStatus;
@@ -130,10 +134,12 @@ function ControlRoomV2() {
       to,
       approvalRequestId,
       commandReason,
+      expectedVersion,
     }: {
       to: EditionState;
       approvalRequestId?: string | null;
       commandReason: string;
+      expectedVersion: number;
     }) => {
       if (!editionId) throw new Error('Choose an edition before changing its state.');
       return studio2ControlRoom.transitionEdition({
@@ -141,6 +147,7 @@ function ControlRoomV2() {
         to,
         reason: commandReason || null,
         approvalRequestId: approvalRequestId ?? null,
+        expectedVersion,
       });
     },
     onSuccess: async () => {
@@ -220,10 +227,11 @@ function ControlRoomV2() {
     transition: NonNullable<ReturnType<typeof getEditionTransition>>,
     approvalRequestId?: string | null,
   ) => {
-    if (!snapshot) return;
+    if (!snapshot || !editionId || snapshot.editionId !== editionId) return;
     setReviewError(null);
     setPendingReview({
       kind: 'edition-transition',
+      editionId: snapshot.editionId,
       from: transition.from,
       to: transition.to,
       risk: transition.risk,
@@ -234,10 +242,11 @@ function ControlRoomV2() {
   };
 
   const openApprovalReview = (approval: (typeof approvals)[number]) => {
-    if (!snapshot) return;
+    if (!snapshot || !editionId || snapshot.editionId !== editionId) return;
     setReviewError(null);
     setPendingReview({
       kind: 'approve-transition',
+      editionId: snapshot.editionId,
       requestId: approval.id,
       from: approval.from,
       to: approval.to,
@@ -251,9 +260,11 @@ function ControlRoomV2() {
     incident: Studio2ControlRoomSnapshot['incidents'][number],
     to: IncidentStatus,
   ) => {
+    if (!snapshot || !editionId || snapshot.editionId !== editionId) return;
     setReviewError(null);
     setPendingReview({
       kind: 'incident-transition',
+      editionId: snapshot.editionId,
       incidentId: incident.id,
       title: incident.title,
       from: incident.status,
@@ -266,6 +277,20 @@ function ControlRoomV2() {
     if (!pendingReview || !snapshot) return;
     setReviewError(null);
     try {
+      // Edition switching can keep the old review sheet mounted for one render.
+      // A coincidentally matching state/version must NEVER authorize an action
+      // against the newly selected edition. This check covers every review kind.
+      if (
+        !controlRoomReviewMatchesEdition(
+          pendingReview.editionId,
+          editionId,
+          snapshot.editionId,
+        )
+      ) {
+        throw new Error(
+          'Organizer edition context changed after this review opened. Close the review and reopen the operation for the selected edition.',
+        );
+      }
       if (pendingReview.kind === 'edition-transition') {
         if (
           snapshot.runtime.version !== pendingReview.runtimeVersion ||
@@ -279,6 +304,7 @@ function ControlRoomV2() {
           to: pendingReview.to,
           approvalRequestId: pendingReview.approvalRequestId,
           commandReason: pendingReview.commandReason,
+          expectedVersion: pendingReview.runtimeVersion,
         });
         return;
       }
