@@ -117,6 +117,8 @@ export type WorldDocumentIndexRow = {
 
 export type WorldDocumentProvision = {
   provisionId: string;
+  /** Version-specific legal state; repealed/omitted must never look active. */
+  status: "active" | "repealed" | "omitted";
   /** Stable across legal renumbering; not the version-specific display label. */
   semanticKey: string;
   /** URI-safe, deterministic DOM anchor derived from the canonical semantic key. */
@@ -196,6 +198,11 @@ function publicVersion(input: unknown): WorldDocumentHistoryItem["publicationSta
     throw new Error("Institutional document version is not public");
   }
   return input;
+}
+
+function publicWorldProvisionStatus(input: unknown): WorldDocumentProvision["status"] {
+  if (input === "active" || input === "repealed" || input === "omitted") return input;
+  throw new Error("Invalid institutional provision legal status");
 }
 
 export function isWorldSlug(input: string): boolean {
@@ -304,6 +311,7 @@ export function parseWorldDocumentDetail(input: unknown): WorldDocumentDetail | 
     if (anchor) anchors.add(anchor);
     return {
       provisionId: string(provision.provisionId, "provision id"),
+      status: publicWorldProvisionStatus(provision.status),
       semanticKey,
       targetId,
       displayLabel: optionalString(provision.displayLabel) ?? "",
