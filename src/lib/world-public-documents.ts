@@ -30,6 +30,20 @@ export function publicWorldRpcHeaders(publishableKey: string): Record<string, st
   return headers;
 }
 
+export function anonymousWorldRpcRequest(
+  publishableKey: string,
+  args: Record<string, unknown>,
+): RequestInit {
+  return {
+    method: "POST",
+    headers: publicWorldRpcHeaders(publishableKey),
+    // No session cookie or user-scope credentials, even on same-origin proxies.
+    credentials: "omit",
+    cache: "no-store",
+    body: JSON.stringify(args),
+  };
+}
+
 async function callAnonymousWorldRpc(
   name: PublicWorldRpcName,
   args: Record<string, unknown>,
@@ -41,14 +55,7 @@ async function callAnonymousWorldRpc(
   }
   const response = await fetch(
     (url.endsWith("/") ? url.slice(0, -1) : url) + "/rest/v1/rpc/" + name,
-    {
-      method: "POST",
-      headers: publicWorldRpcHeaders(key),
-      // No session cookie or user-scope credentials, even on same-origin proxies.
-      credentials: "omit",
-      cache: "no-store",
-      body: JSON.stringify(args),
-    },
+    anonymousWorldRpcRequest(key, args),
   );
   noteSupabaseResponse(response);
   if (!response.ok) {
