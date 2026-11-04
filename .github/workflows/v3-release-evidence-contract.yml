@@ -29,6 +29,10 @@ jobs:
       CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
       SUPABASE_PROJECT_ID: local
       SUPABASE_PROJECT_REF: local
+      VITE_SUPABASE_PROJECT_ID: local
+      VITE_SUPABASE_PROJECT_REF: local
+      E2E_SUPABASE_PROJECT_ID: local
+      E2E_SUPABASE_PROJECT_REF: local
       V3_VERIFICATION_TARGET: local
     steps:
       - name: Checkout exact candidate
