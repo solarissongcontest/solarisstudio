@@ -33,12 +33,14 @@ describe("V3 authoritative Organizer Publication preview", () => {
     const organizer = source.indexOf("await requireSolarisOrganizerServer()");
     const authenticatedClient = source.indexOf("createSolarisAuthenticatedClientServer()");
     const preflight = source.indexOf('"studio2_show_publication_change_preview"');
-    const adminRead = source.indexOf("supabaseAdmin as any");
+    const entrypoint = source.indexOf("export async function loadV3AuthoritativePublicationPreview");
+    const adminRead = source.indexOf("supabaseAdmin as any", entrypoint);
 
     expect(organizer).toBeGreaterThan(-1);
     expect(authenticatedClient).toBeGreaterThan(organizer);
     expect(preflight).toBeGreaterThan(authenticatedClient);
     expect(adminRead).toBeGreaterThan(preflight);
+    expect(source.slice(entrypoint, adminRead)).toContain("const preflight = await loadAuthorizedPreflight(input);");
     expect(source).toContain('p_target_state: "public"');
     expect(source).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
@@ -50,11 +52,13 @@ describe("V3 authoritative Organizer Publication preview", () => {
     const preflight = source.indexOf('"studio2_show_publication_change_preview"');
     const reject = source.indexOf("if (rawPreflight.alreadyApplied === true)");
     const parse = source.indexOf("const preflight = parsePreflight(rawPreflight)");
-    const adminRead = source.indexOf("supabaseAdmin as any");
+    const entrypoint = source.indexOf("export async function loadV3AuthoritativePublicationPreview");
+    const adminRead = source.indexOf("supabaseAdmin as any", entrypoint);
     expect(preflight).toBeGreaterThan(0);
     expect(reject).toBeGreaterThan(preflight);
     expect(parse).toBeGreaterThan(reject);
     expect(adminRead).toBeGreaterThan(parse);
+    expect(source.slice(entrypoint, adminRead)).toContain("const preflight = await loadAuthorizedPreflight(input);");
     expect(source).toContain("A no-op is not an authorization grant");
   });
 
