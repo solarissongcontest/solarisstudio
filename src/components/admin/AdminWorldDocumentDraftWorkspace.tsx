@@ -89,6 +89,8 @@ export function AdminWorldDocumentDraftWorkspace() {
   const queryClient = useQueryClient();
   const [organizationSlug, setOrganizationSlug] = useState("");
   const [documentSlug, setDocumentSlug] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [createTitle, setCreateTitle] = useState("");
   const [createSlug, setCreateSlug] = useState("");
   const [kind, setKind] = useState<WorldDocumentKind>("charter");
@@ -134,14 +136,14 @@ export function AdminWorldDocumentDraftWorkspace() {
     },
   });
   const documents = useQuery({
-    queryKey: ["tg4-organizer-documents", organizationSlug],
+    queryKey: ["tg4-organizer-documents", organizationSlug, appliedSearch],
     enabled: Boolean(organization),
     staleTime: 30_000,
     retry: 1,
     queryFn: async () => {
       const { data, error } = await db.rpc("world_get_document_index_v1", {
         p_organization_slug: organizationSlug,
-        p_query: null,
+        p_query: appliedSearch || null,
         p_limit: 100,
       });
       if (error) throw error;
@@ -219,6 +221,8 @@ export function AdminWorldDocumentDraftWorkspace() {
     if (operation && operation.status !== "succeeded" && operation.status !== "failed") return;
     setOrganizationSlug(slug);
     setDocumentSlug("");
+    setSearchInput("");
+    setAppliedSearch("");
     setOperation(null);
     setNotice("");
   };
@@ -362,6 +366,13 @@ export function AdminWorldDocumentDraftWorkspace() {
           message: `Saved by the canonical institution command. Receipt: ${review.operationId}` });
         setDocumentSlug(review.documentSlug);
         setNotice("");
+        if (review.command === "world.document.create") {
+          // A Work outside the first 100 alphabetically sorted records must be
+          // discoverable after creation rather than becoming a blank detail.
+          const title = String(review.args.p_title ?? "");
+          setSearchInput(title);
+          setAppliedSearch(title);
+        }
         await queryClient.invalidateQueries({ queryKey: ["tg4-organizer-documents", review.organizationSlug] });
         await queryClient.invalidateQueries({
           queryKey: ["tg4-organizer-document", review.organizationSlug, review.documentSlug],
@@ -416,6 +427,34 @@ export function AdminWorldDocumentDraftWorkspace() {
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
             <div className="space-y-7">
               <Section title="Institutional Works">
+                <form className="flex flex-col gap-2 sm:flex-row sm:items-end"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (operation && ["review", "checking", "reconcile"].includes(operation.status)) return;
+                    setAppliedSearch(searchInput.trim().slice(0, 120));
+                  }}>
+                  <label className="block min-w-0 flex-1 space-y-1 text-sm">
+                    Search title or legal text
+                    <input type="search" className={fieldClass} maxLength={120}
+                      value={searchInput} onChange={(event) => setSearchInput(event.target.value)}
+                      placeholder="Find an institutional Work"
+                      disabled={Boolean(operation && ["review", "checking", "reconcile"].includes(operation.status))} />
+                  </label>
+                  <button type="submit" className={secondaryClass}
+                    disabled={Boolean(operation && ["review", "checking", "reconcile"].includes(operation.status))}>
+                    Search
+                  </button>
+                  {(appliedSearch || searchInput) && (
+                    <button type="button" className={secondaryClass}
+                      onClick={() => { setSearchInput(""); setAppliedSearch(""); }}
+                      disabled={Boolean(operation && ["review", "checking", "reconcile"].includes(operation.status))}>
+                      Clear
+                    </button>
+                  )}
+                </form>
+                {appliedSearch && <p className="text-xs text-muted-foreground">
+                  Showing authorized results for “{appliedSearch}”. This is a server-filtered search.
+                </p>}
                 {documents.isPending ? <p role="status">Reading authorized documents…</p> : documents.isError ? (
                   <div role="alert" className="space-y-2">
                     <p>The document index is unavailable. No writes are enabled.</p>
@@ -439,10 +478,13 @@ export function AdminWorldDocumentDraftWorkspace() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No documents visible to your current identity in this institution.</p>
+                  <p className="text-sm text-muted-foreground">
+                    {appliedSearch ? "No authorized documents match this search." :
+                      "No documents visible to your current identity in this institution."}
+                  </p>
                 )}
                 {documents.data?.length === 100 && (
-                  <p className="text-xs text-muted-foreground">Only the first 100 authorized Works are shown. The source projection needs server pagination for larger institutions.</p>
+                  <p className="text-xs text-muted-foreground">Only the first 100 authorized matching Works are shown. Search for a more specific title or phrase to find others.</p>
                 )}
               </Section>
 
