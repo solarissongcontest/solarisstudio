@@ -56,7 +56,16 @@ export function parseWorldDocumentProvisions(input: unknown): WorldDocumentProvi
   provisions.sort((left, right) => left.sortOrder - right.sortOrder);
   const validation = validateWorldDocumentProvisions(provisions, 1000, 1_000_000, 2_000_000);
   if (validation) throw new Error("Canonical provisions are inconsistent: " + validation);
-  return provisions.map(({ sortOrder: _sortOrder, ...rest }) => rest);
+  return provisions.map((row) => ({
+    semanticKey: row.semanticKey,
+    parentSemanticKey: row.parentSemanticKey,
+    displayLabel: row.displayLabel,
+    heading: row.heading,
+    bodyPlainText: row.bodyPlainText,
+    bodyStructured: row.bodyStructured,
+    anchor: row.anchor,
+    status: row.status,
+  }));
 }
 
 export function validateWorldDocumentProvisions(
