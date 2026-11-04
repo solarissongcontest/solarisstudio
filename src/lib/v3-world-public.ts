@@ -29,6 +29,8 @@ export type WorldOffice = {
     holderDisplayName: string;
     startsAt: string;
     termKind: string;
+    startEditionId: string | null;
+    endEditionId: string | null;
     representedCountryId: string | null;
   } | null;
 };
@@ -141,6 +143,8 @@ export function parseWorldOrganization(input: unknown, expectedSlug: string): Wo
         holderDisplayName: required(term.holderDisplayName),
         startsAt: required(term.startsAt),
         termKind: required(term.termKind),
+        startEditionId: nullable(term.startEditionId),
+        endEditionId: nullable(term.endEditionId),
         representedCountryId: nullable(term.representedCountryId),
       } : null,
     };
