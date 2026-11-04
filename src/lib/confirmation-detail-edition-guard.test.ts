@@ -106,6 +106,47 @@ describe("Organizer Confirmation detail edition isolation", () => {
     expect(source).toContain("const detail = data as unknown as ResponseDetail | null;");
   });
 
+  it("requires the exact canonical winner receipt, never a transport-only success", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    const start = source.indexOf('  async function changeWinner(');
+    const end = source.indexOf('  async function setWinner(', start);
+    const winner = source.slice(start, end);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(winner).toContain("receipt = normalizeSystemReceipt(applyData);");
+    expect(winner).toContain('receipt.status !== "succeeded"');
+    expect(winner).toContain("receipt.operationId !== command.operationId");
+    expect(winner).toContain("reconcileWinnerOperation({");
+    expect(winner).toContain('recovered.receipt.status === "succeeded"');
+    expect(winner).toContain("unresolvedWinnerOperationRef.current = null;");
+    expect(winner.indexOf("receipt = normalizeSystemReceipt(applyData);")).toBeLessThan(
+      winner.indexOf("if (stillCurrent()) await load();", winner.indexOf("let receipt: SystemReceipt")),
+    );
+  });
+
+  it("never issues a second winner operation before an uncertain prior operation is settled", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    const start = source.indexOf('  async function changeWinner(');
+    const end = source.indexOf('  async function setWinner(', start);
+    const winner = source.slice(start, end);
+    const unresolvedCheck = winner.indexOf("const unresolved = unresolvedWinnerOperationRef.current;");
+    const preview = winner.indexOf('"studio2_confirmation_winner_change_preview"');
+    const apply = winner.indexOf('"studio2_apply_confirmation_winner_change"');
+    expect(source).toContain("const winnerInFlightRef = useRef(false);");
+    expect(winner).toContain("if (winnerInFlightRef.current) return;");
+    expect(winner).toContain("winnerInFlightRef.current = true;");
+    expect(winner).toContain("winnerInFlightRef.current = false;");
+    expect(unresolvedCheck).toBeGreaterThan(-1);
+    expect(preview).toBeGreaterThan(unresolvedCheck);
+    expect(apply).toBeGreaterThan(preview);
+    expect(winner).toContain("unresolved.action === action");
+    expect(winner).toContain("unresolved.entryId === entryId");
+    expect(winner).toContain("unresolved.editionId === organizerEditionId");
+    expect(winner).toContain("unresolvedWinnerOperationRef.current = {");
+    expect(winner).toContain("A prior National Final winner operation has an unresolved outcome.");
+    expect(winner).toContain("Number.isSafeInteger(preview.expectedVersion)");
+  });
+
   it("gates viewing, sync, token creation and deletion on the same response scope", () => {
     const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
     expect(source).toContain("if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)) {");
