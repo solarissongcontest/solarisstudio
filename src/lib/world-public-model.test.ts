@@ -140,9 +140,9 @@ describe("TG3 public organization projection", () => {
 describe("TG3 bounded public discovery", () => {
   it("restricts search syntax before embedding it in a PostgREST OR expression", () => {
     const query = sanitizeWorldDirectorySearch(" GUARD),status.eq.private,%_ (");
-    expect(query).toBe("GUARDstatus eqprivate");
+    expect(query).toBe("GUARDstatuseqprivate");
     expect(worldSearchExpression(query)).toBe(
-      "official_name.ilike.%GUARDstatus eqprivate%,short_name.ilike.%GUARDstatus eqprivate%",
+      "official_name.ilike.%GUARDstatuseqprivate%,short_name.ilike.%GUARDstatuseqprivate%",
     );
     expect(() => worldSearchExpression("guard),status.eq.private")).toThrow("sanitized");
     expect(worldSearchExpression("")).toBeNull();
