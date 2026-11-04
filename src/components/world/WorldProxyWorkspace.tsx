@@ -96,7 +96,12 @@ export function WorldProxyWorkspace() {
 
   function resetChoice() {
     setPrepared(null);
-    retry.current = null;
+    // An uncertain submitted mutation must keep its original operation ID.
+    // Changing institutions never silently discards its reconciliation path.
+    if (retry.current) {
+      setError("Resolve the previous uncertain operation before changing institutions.");
+      return;
+    }
     setError(null);
     setReceipt(null);
     setPersonId("");
@@ -104,6 +109,10 @@ export function WorldProxyWorkspace() {
 
   function prepareRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (retry.current) {
+      setError("Retry the pending operation or reload authoritative state before starting another.");
+      return;
+    }
     if (!representative || !organization || !countryId) return;
     const chosen = candidates.find((item) => item.personId === personId);
     const start = new Date(from);
@@ -135,6 +144,10 @@ export function WorldProxyWorkspace() {
   }
 
   function prepareDecision(item: WorldProxyItem, status: "approved" | "rejected") {
+    if (retry.current) {
+      setError("Resolve the previous uncertain operation before making another decision.");
+      return;
+    }
     const operation = newProxyOperation(status === "approved" ? "approve" : "reject");
     const args = { proxyId: item.id, status, revision: item.revision, operation };
     setError(null);
@@ -147,6 +160,10 @@ export function WorldProxyWorkspace() {
   }
 
   function prepareRevocation(item: WorldProxyItem) {
+    if (retry.current) {
+      setError("Resolve the previous uncertain operation before revoking a proxy.");
+      return;
+    }
     const reason = revokeReason.trim();
     if (reason.length < 5 || reason.length > 500) {
       setError("Provide a revocation reason of 5–500 characters.");
@@ -217,7 +234,7 @@ export function WorldProxyWorkspace() {
         organizations.data?.length ? <label className="block max-w-sm text-sm font-medium">
           Institution
           <select className="mt-2 w-full rounded-lg border border-border bg-background p-3"
-            value={organization?.slug ?? ""} onChange={(event) => {
+            value={organization?.slug ?? ""} disabled={busy || Boolean(retry.current)} onChange={(event) => {
               setSlug(event.target.value); resetChoice();
             }}>
             {organizations.data.map((item) => <option key={item.id} value={item.slug}>{item.name}</option>)}
@@ -289,7 +306,7 @@ export function WorldProxyWorkspace() {
               onChange={(event) => setReason(event.target.value)}
               rows={3} className="mt-2 w-full rounded-lg border border-border bg-background p-3" />
           </label>
-          <button type="submit" disabled={busy || !candidates.length || Boolean(prepared)}
+          <button type="submit" disabled={busy || !candidates.length || Boolean(prepared) || Boolean(retry.current)}
             className="rounded-lg bg-primary px-4 py-3 text-primary-foreground disabled:opacity-50">
             Review proxy request
           </button>
@@ -316,7 +333,7 @@ export function WorldProxyWorkspace() {
               <p className="mt-1 text-sm">{item.reason}</p>
               {(item.status === "requested" || item.status === "approved") &&
                 new Date(item.validUntil).getTime() > Date.now() && <button type="button"
-                  disabled={busy || Boolean(prepared)} className="mt-3 rounded-lg border px-3 py-2 text-sm"
+                  disabled={busy || Boolean(prepared) || Boolean(retry.current)} className="mt-3 rounded-lg border px-3 py-2 text-sm"
                   onClick={() => prepareRevocation(item)}>Review revocation</button>}
             </article>)}
           </div>}
@@ -335,9 +352,9 @@ export function WorldProxyWorkspace() {
             {formatTime(item.validFrom)} – {formatTime(item.validUntil)}</p>
           <p className="mt-2 text-sm">{item.reason}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button disabled={busy || Boolean(prepared)} type="button" onClick={() => prepareDecision(item, "approved")}
+            <button disabled={busy || Boolean(prepared) || Boolean(retry.current)} type="button" onClick={() => prepareDecision(item, "approved")}
               className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground">Review approval</button>
-            <button disabled={busy || Boolean(prepared)} type="button" onClick={() => prepareDecision(item, "rejected")}
+            <button disabled={busy || Boolean(prepared) || Boolean(retry.current)} type="button" onClick={() => prepareDecision(item, "rejected")}
               className="rounded-lg border px-4 py-2 text-sm">Review rejection</button>
           </div>
         </article>)}
