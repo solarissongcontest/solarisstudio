@@ -52,9 +52,10 @@ BEGIN
 
   -- Historical withdrawn/disqualified identities are preserved, not active.
   INSERT INTO public.results (edition_id, show_id, country_id, final_rank)
-  VALUES (v_edition, v_show, v_historical, null);
+  VALUES (v_edition, v_show, v_historical, 77);
   v_reconciled := private.studio2_result_reconciliation(v_show);
   IF (v_reconciled->>'historicalInactiveResultRowCount')::integer <> 1
+     OR (SELECT final_rank FROM public.results WHERE show_id=v_show AND country_id=v_historical) <> 77
      OR (v_reconciled->>'reconciliationConsistent')::boolean IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'Withdrawn historical row wrongly blocked readiness: %', v_reconciled;
   END IF;
@@ -116,7 +117,8 @@ BEGIN
   PERFORM public.sync_show_results_from_votes(v_show);
   v_reconciled := private.studio2_result_reconciliation(v_show);
   IF (v_reconciled->>'reconciliationConsistent')::boolean IS DISTINCT FROM true
-     OR (SELECT count(*) FROM public.results WHERE show_id=v_show) <> 3 THEN
+     OR (SELECT count(*) FROM public.results WHERE show_id=v_show) <> 3
+     OR (SELECT final_rank FROM public.results WHERE show_id=v_show AND country_id=v_historical) <> 77 THEN
     RAISE EXCEPTION 'Canonical recovery damaged history or failed: %', v_reconciled;
   END IF;
   RAISE NOTICE 'PASS: active history, invalid pending, canonical rank, orphan and retry recovery';
