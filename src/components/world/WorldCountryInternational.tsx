@@ -12,6 +12,7 @@ import {
   WORLD_COUNTRY_PAGE_SIZE,
   normalizeWorldCountrySearch,
   parseWorldCountryAffiliations,
+  parseWorldCountryIdentity,
   parseWorldPublicCountries,
   parseWorldPublicInstitutions,
   validWorldCountryCode,
@@ -245,7 +246,7 @@ export function WorldCountryInternational({ code }: { code: string }) {
       const { data, error } = await (supabase as any).from("countries")
         .select(COUNTRY_COLUMNS).ilike("short_code", canonicalCode).maybeSingle();
       if (error) throw error;
-      return data ? parseWorldPublicCountries([data])[0] : null;
+      return parseWorldCountryIdentity(data, canonicalCode);
     },
   });
 
@@ -289,9 +290,7 @@ export function WorldCountryInternational({ code }: { code: string }) {
   const institutionsReady = !organizationIds.length || (institutions.isSuccess && Array.isArray(institutions.data));
   const institutionError = institutions.isError;
   return <>
-    <PageHeader eyebrow="Terra Solaris / International" title={country.name}
-      description="Formal international affiliations from the public Terra Solaris institutional record." />
-    <div className="mx-auto w-full max-w-5xl px-4 pb-14 sm:px-6">
+    <div className="mx-auto w-full max-w-5xl px-4 pb-14 pt-6 sm:px-6">
       <Link to="/world/countries" className="mb-5 inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" aria-hidden="true" /> World countries
       </Link>
@@ -301,7 +300,7 @@ export function WorldCountryInternational({ code }: { code: string }) {
           <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
             <Globe2 className="size-4" aria-hidden="true" /> Country · International
           </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{country.name}</h1>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{country.name} · International</h1>
           <p className="mt-1 text-sm text-muted-foreground">{country.region} · {country.code}</p>
           <Link to="/countries/$code" params={{ code: country.code }}
             className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary">
