@@ -83,14 +83,6 @@ const EMPTY_ACCESS: AccountAccess = {
 
 type ShellAccessResolution = "resolving" | "ready" | "unavailable";
 
-const GLOBAL_ICON_BY_AREA: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
-  home: Home,
-  explore: Compass,
-  participate: Vote,
-  results: Trophy,
-  me: User,
-};
-
 function ShellAccessStatus({ state }: { state: Exclude<ShellAccessResolution, "ready"> }) {
   const unavailable = state === "unavailable";
   return (
@@ -107,6 +99,14 @@ function ShellAccessStatus({ state }: { state: Exclude<ShellAccessResolution, "r
   );
 }
 
+const GLOBAL_ICON_BY_AREA: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
+  home: Home,
+  explore: Compass,
+  participate: Vote,
+  results: Trophy,
+  me: User,
+};
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { isAppMode } = useSolarisApp();
   const attention = useAppAttentionSummary();
@@ -114,8 +114,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const [email, setEmail] = useState<string | null>(null);
   const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
-  const [accessResolution, setAccessResolution] = useState<ShellAccessResolution>("resolving");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accessResolution, setAccessResolution] = useState<ShellAccessResolution>("resolving");
   const accessRequestRef = useRef(0);
   const resolvedUserIdRef = useRef<string | null | undefined>(undefined);
   const appScreen = resolveSolarisAppScreen(pathname, searchStr);
@@ -141,9 +141,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       const identityChanged = resolvedUserIdRef.current !== nextUserId;
 
       if (identityChanged) {
-        // Never let the previous viewer's capabilities survive an auth transition.
-        // Public content remains mounted, but permission-sensitive chrome is held
-        // until the current viewer has been resolved authoritatively.
+        // Never retain the previous viewer's navigation capabilities while
+        // resolving a new identity. Route content itself remains mounted.
         setEmail(null);
         setAccess(EMPTY_ACCESS);
         setMenuOpen(false);
@@ -167,8 +166,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         setAccess(next);
         setAccessResolution("ready");
       } catch (error) {
-        // A background refresh for the same resolved viewer must not erase a
-        // still-valid shell. Identity-changing failures, however, fail closed.
+        // A failed refresh for the same verified viewer must not erase good
+        // access state; identity-changing failures stay fail-closed.
         if (!identityChanged) {
           if (alive && requestId === accessRequestRef.current) {
             console.warn("Could not refresh Solaris shell access", error);
@@ -444,13 +443,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <p className="truncate text-[11px] text-muted-foreground">
                     {visibleAccountEmail ?? "Country account"}
                   </p>
-                  <button
-                    type="button"
-                    onClick={signOut}
-                    className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold transition-[background-color,transform] duration-150 ease-out active:scale-[0.98] motion-reduce:active:scale-100"
-                  >
-                    Sign out
-                  </button>
+                  <SheetClose asChild>
+                    <button
+                      type="button"
+                      onClick={signOut}
+                      className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold transition-[background-color,transform] duration-150 ease-out active:scale-[0.98] motion-reduce:active:scale-100"
+                    >
+                      Sign out
+                    </button>
+                  </SheetClose>
                 </div>
               ) : (
                 <SheetClose asChild>
