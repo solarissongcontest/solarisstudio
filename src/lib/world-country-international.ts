@@ -9,6 +9,12 @@
 export const WORLD_COUNTRY_PAGE_SIZE = 24;
 export const WORLD_AFFILIATION_PAGE_SIZE = 12;
 
+/** Refuse ambiguous publication state instead of accidentally mounting a route. */
+export function parseWorldPublicRollout(value: unknown): boolean {
+  if (typeof value !== "boolean") throw new Error("Invalid World publication flag");
+  return value;
+}
+
 export type WorldPublicCountry = {
   id: string;
   code: string;
