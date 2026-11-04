@@ -285,6 +285,14 @@ function EntryReviewCard({
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<SystemReceipt | null>(null);
   const mutationInFlightRef = useRef(false);
+  const unresolvedReviewOperationRef = useRef<{
+    operationId: string;
+    entryId: string;
+    submissionId: string;
+    editionId: string | null;
+    targetType: "internal" | "national_final";
+    nextStatus: "pending" | "accepted" | "declined" | "removed";
+  } | null>(null);
   const reconcileOperation = useServerFn(reconcileSystemOperation);
   const status = reviewLabel(entry);
 
@@ -292,14 +300,21 @@ function EntryReviewCard({
     if (!isScopeCurrent()) return false;
     const reconciliation = await reconcileOperation({ data: { operationId } });
     if (!isScopeCurrent()) return false;
-    if (!reconciliation.ok) return false;
-    setReceipt(reconciliation.receipt);
-    if (reconciliation.receipt.status !== "succeeded") {
+    if (!reconciliation.ok || reconciliation.receipt.operationId !== operationId) return false;
+    if (reconciliation.receipt.status === "failed") {
+      unresolvedReviewOperationRef.current = null;
       throw new Error(
         reconciliation.receipt.error?.message ??
-          "This review is still being processed. Keep the operation receipt and retry reconciliation.",
+          "This Entry review failed authoritatively. Reopen the current response before another decision.",
       );
     }
+    if (reconciliation.receipt.status !== "succeeded") {
+      throw new Error(
+        "This Entry review is still processing. Reconcile the same operation before another decision.",
+      );
+    }
+    unresolvedReviewOperationRef.current = null;
+    setReceipt(reconciliation.receipt);
     toast.success("Entry review confirmed after reconnecting");
     setOpen(false);
     await onChanged();
@@ -321,6 +336,22 @@ function EntryReviewCard({
     setBusy(true);
     setError(null);
     try {
+      const unresolved = unresolvedReviewOperationRef.current;
+      if (unresolved) {
+        if (unresolved.entryId !== entry.id ||
+            unresolved.submissionId !== submissionId ||
+            unresolved.editionId !== (editionId ?? null) ||
+            unresolved.targetType !== targetType) {
+          throw new Error(
+            "A previous Entry review still has an unresolved operation. Reopen its exact response and reconcile it before another decision.",
+          );
+        }
+        if (await recoverReview(unresolved.operationId)) return;
+        throw new Error(
+          "A previous Entry review has an uncertain outcome. Reconcile operation " +
+          unresolved.operationId + " before submitting another decision.",
+        );
+      }
       const { data: previewData, error: previewError } = await confirmationsSupabase.rpc(
         "studio2_confirmation_entry_review_preview",
         {
@@ -334,8 +365,8 @@ function EntryReviewCard({
         expectedVersion?: number;
         currentVersionId?: string | null;
       } | null;
-      if (!preview || typeof preview.expectedVersion !== "number") {
-        throw new Error("Selection review preview did not return a version.");
+      if (!preview || !Number.isSafeInteger(preview.expectedVersion) || preview.expectedVersion < 0) {
+        throw new Error("Selection review preview did not return a valid version.");
       }
 
       if (!isScopeCurrent()) {
@@ -366,6 +397,17 @@ function EntryReviewCard({
       if (!isScopeCurrent()) {
         throw new Error("Organizer edition changed before the reviewed Entry command. Nothing was applied.");
       }
+      // Once the command is sent, a missing HTTP response does not establish
+      // whether the canonical mutation committed. Preserve its operation ID
+      // until a matching authoritative receipt or reconciliation resolves it.
+      unresolvedReviewOperationRef.current = {
+        operationId: command.operationId,
+        entryId: entry.id,
+        submissionId,
+        editionId: editionId ?? null,
+        targetType,
+        nextStatus,
+      };
       let mutation;
       try {
         mutation = await confirmationsSupabase.rpc("studio2_apply_confirmation_entry_review", {
@@ -391,12 +433,14 @@ function EntryReviewCard({
         throw new Error(systemError.message);
       }
       const canonicalReceipt = normalizeSystemReceipt(mutation.data);
-      if (!canonicalReceipt || canonicalReceipt.status !== "succeeded") {
+      if (!canonicalReceipt || canonicalReceipt.status !== "succeeded" ||
+          canonicalReceipt.operationId !== command.operationId) {
         if (await recoverReview(command.operationId)) return;
         throw new Error(
           "The review response could not be verified. Reconcile the operation before retrying.",
         );
       }
+      unresolvedReviewOperationRef.current = null;
       if (!isScopeCurrent()) {
         toast.warning("Entry review completed for a previous edition. Verify its canonical receipt before retrying.");
         return;
