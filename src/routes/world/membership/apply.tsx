@@ -105,6 +105,7 @@ function GuardMembershipApplicationPage() {
     onSuccess: async () => {
       withdrawRef.current = null;
       setWithdrawReviewId(null);
+      setConfirmation(null);
       await queryClient.invalidateQueries({
         queryKey: ["world", "guard", "membership-intake", countryId],
       });
