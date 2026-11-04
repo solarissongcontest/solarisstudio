@@ -43,6 +43,25 @@ describe("V3 installed iOS top system safe zone", () => {
     );
   });
 
+  it("extends the same safe system boundary to legacy installed app toolbar", () => {
+    const legacyCss = source("src/styles/app-shell.css");
+    expect(legacyCss).toContain("--solaris-app-safe-top: env(safe-area-inset-top)");
+    expect(legacyCss).toContain("--solaris-app-safe-top-comfort: 6px");
+    expect(legacyCss).toContain(
+      'html[data-solaris-runtime="standalone"]',
+    );
+    expect(legacyCss).toMatch(
+      /@media \(pointer: coarse\) and \(orientation: portrait\)[\s\S]*?--solaris-app-safe-top: max\(env\(safe-area-inset-top, 0px\), 60px\)/,
+    );
+    expect(legacyCss).toMatch(
+      /@media \(pointer: coarse\) and \(orientation: landscape\)[\s\S]*?--solaris-app-safe-top: max\(env\(safe-area-inset-top, 0px\), 20px\)/,
+    );
+    expect(
+      legacyCss.match(/padding-top: calc\(var\(--solaris-app-safe-top\) \+ var\(--solaris-app-safe-top-comfort\)\);/g),
+    ).toHaveLength(2);
+    expect(legacyCss).not.toContain("padding-top: env(safe-area-inset-top);");
+  });
+
   it("fails safe on iOS standalone with an absent top inset without raising mobile-web or desktop headers", () => {
     const guardedRule =
       /@supports \(-webkit-touch-callout: none\)\s*\{[\s\S]*?@media \(pointer: coarse\) and \(orientation: portrait\)\s*\{\s*html\[data-solaris-runtime="standalone"\] \[data-solaris-v3\]\s*\{\s*--v3-top-system-safe: max\(env\(safe-area-inset-top, 0px\), 60px\);/;
