@@ -4,7 +4,7 @@ import { createHmac } from 'node:crypto';
 import {
   SOURCE_PROJECT, DESTINATION_PROJECT, validateProjectPair, verifyBytes, sha256,
   stableJson, assertApprovedWrite, inventoryPair, transferVerifiedMissing,
-  recoveryDigest, proposeReferenceReconciliation, detectMime,
+  recoveryDigest, proposeReferenceReconciliation, detectMime, assertAssetClearance,
 } from './v3-media-recovery-core.mjs';
 
 const png = Buffer.from([137,80,78,71,13,10,26,10,1,2,3,4,5]);
@@ -221,4 +221,63 @@ test('manifest digest binds actual file identity and status', () => {
     source_sha256: 'x', source_bytes: 10, status: 'missing_destination' }];
   assert.notEqual(recoveryDigest(input), recoveryDigest([{ ...input[0], source_sha256: 'y' }]));
   assert.notEqual(recoveryDigest(input), recoveryDigest([{ ...input[0], status: 'collision' }]));
+});
+
+
+test('public object migration requires canonical publication plus media validation clearance', () => {
+  const entry = { bucket: 'country-media', path: 'country/background.png',
+    private: false, source_sha256: sha256(png) };
+  const identity = entry.bucket + '/' + entry.path + '#' + entry.source_sha256;
+  assert.throws(() => assertAssetClearance(entry, {}), /per-asset clearance/);
+  assert.throws(() => assertAssetClearance(entry, { asset_clearances: [
+    { identity, visibility: 'already_published' },
+  ] }), /publication and media validation/);
+  const valid = { identity, visibility: 'already_published',
+    canonical_subject_id: 'country-uuid', publication_evidence_id: 'publication-receipt',
+    validation_evidence_id: 'media-validation-receipt' };
+  assert.equal(assertAssetClearance(entry, { asset_clearances: [valid] }), identity);
+  assert.throws(() => assertAssetClearance(entry, { asset_clearances: [valid, valid] }),
+    /duplicate per-asset/);
+});
+test('private recovery must retain private classification and cannot masquerade as public', () => {
+  const entry = { bucket: 'beta-feedback', path: 'private/feedback.jpeg',
+    private: true, source_sha256: sha256(jpeg) };
+  const identity = entry.bucket + '/' + entry.path + '#' + entry.source_sha256;
+  const clearance = { identity, visibility: 'retain_private' };
+  assert.equal(assertAssetClearance(entry, { asset_clearances: [clearance] }), identity);
+  assert.throws(() => assertAssetClearance({ ...entry, private: false },
+    { asset_clearances: [clearance] }), /private visibility/);
+  assert.throws(() => assertAssetClearance(entry, { asset_clearances: [
+    { identity, visibility: 'already_published' },
+  ] }), /private visibility/);
+});
+test('unapproved buckets fail closed even with signed asset-like evidence', () => {
+  const entry = { bucket: 'integrity-evidence', path: 'sealed/case.pdf',
+    private: true, source_sha256: sha256(jpeg) };
+  assert.throws(() => assertAssetClearance(entry, { asset_clearances: [{
+    identity: 'integrity-evidence/sealed/case.pdf#' + entry.source_sha256,
+    visibility: 'retain_private',
+  }] }), /Bucket not approved/);
+});
+test('additional historical media owners produce review-only reference evidence', () => {
+  const entry = { bucket: 'country-media', path: 'flags/archive.png',
+    source_sha256: sha256(png), status: 'identical' };
+  const oldRows = {
+    contest_entities: [{ id: 'historical-entity', flag_image: 'flags/archive.png' }],
+    voters: [{ id: 'voter-entity', flag_image: 'flags/archive.png' }],
+    country_profile_sections: [{ id: 'profile-section', image_url: 'flags/archive.png' }],
+  };
+  const rows = proposeReferenceReconciliation({ oldRows,
+    currentRows: {
+      contest_entities: [{ id: 'historical-entity', flag_image: null }],
+      voters: [{ id: 'voter-entity', flag_image: 'flags/new.png' }],
+      country_profile_sections: [{ id: 'profile-section', image_url: null }],
+    },
+    verifiedEntries: [entry],
+  });
+  assert.equal(rows.length, 3);
+  assert.equal(rows.find(x => x.table === 'contest_entities').status, 'missing_reference');
+  assert.equal(rows.find(x => x.table === 'voters').status, 'conflicting_reference');
+  assert.equal(rows.find(x => x.table === 'country_profile_sections').status, 'missing_reference');
+  assert.ok(rows.every(x => x.action !== 'write_database_row'));
 });
