@@ -23,7 +23,7 @@ describe("Organizer Confirmation detail edition isolation", () => {
     const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
     expect(source).not.toContain("await syncSnapshot(detail)");
     const loadStart = source.indexOf("const load = useCallback(async () => {");
-    const loadEnd = source.indexOf("  useEffect(() => {\\n    void load();", loadStart);
+    const loadEnd = source.indexOf("  useEffect(() => {", loadStart);
     expect(loadStart).toBeGreaterThan(-1);
     expect(loadEnd).toBeGreaterThan(loadStart);
     const readOnlyLoad = source.slice(loadStart, loadEnd);
