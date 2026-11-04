@@ -20,3 +20,7 @@ esac
 
 psql "$DB_URL" --no-psqlrc -v ON_ERROR_STOP=1 \
   -f "$SCRIPT_DIR/v3-tg2-identity-linkage-privacy-rehearsal.sql"
+
+# The same loopback-only DB guard applies to representation command integration.
+psql "$DB_URL" --no-psqlrc -v ON_ERROR_STOP=1 \
+  -f "$SCRIPT_DIR/v3-tg2-representation-command-rehearsal.sql"
