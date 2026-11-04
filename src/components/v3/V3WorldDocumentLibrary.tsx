@@ -262,7 +262,14 @@ function DocumentContents({
                 "outline-offset-2 hover:bg-primary/8 hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
               }
             >
-              {item.displayLabel ? item.displayLabel + " " : ""}{item.heading || "Untitled section"}
+              <span className="min-w-0 flex-1">
+                {item.displayLabel ? item.displayLabel + " " : ""}{item.heading || "Untitled section"}
+              </span>
+              {item.status !== "active" && (
+                <span className="ml-2 shrink-0 self-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {item.status}
+                </span>
+              )}
             </a>
           );
           return (
@@ -473,6 +480,11 @@ export function WorldDocumentReaderScreen({
                           {provision.displayLabel && <span className="mr-2 text-primary">{provision.displayLabel}</span>}
                           {provision.heading}
                         </h3>
+                      )}
+                      {provision.status !== "active" && (
+                        <p className="mt-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                          {provision.status === "repealed" ? "Repealed in this version" : "Omitted in this version"}
+                        </p>
                       )}
                       {provision.bodyPlainText && (
                         <p className="mt-3 whitespace-pre-wrap break-words text-[15px] leading-7 text-foreground/90">
