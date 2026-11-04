@@ -1,5 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 
+import { analyseRobustInfluence } from "../src/integrations/televoting/influence-math";
+import {
+  DEFAULT_ROBUST_TELEVOTE_CONFIG,
+  ROBUST_TELEVOTE_ENGINE_VERSION,
+  convertRobustRound,
+  type RobustBallotInput,
+} from "../src/integrations/televoting/robust-televote-math";
+
 import {
   CALC_ENGINE_VERSION,
   convertRound,
@@ -48,14 +56,17 @@ async function main() {
 
   const { data: round, error: roundError } = await tv
     .from("rounds")
-    .select("id,status,total_points_to_distribute,rank_exponent,televote_engine_version,calculation_version,results_status")
+    .select("id,status,total_points_to_distribute,rank_exponent,televote_engine_version,ballot_exponent,breadth_floor,breadth_exponent,support_exponent,rank_boost_strength,rank_boost_shape,calculation_version,results_status")
     .eq("id", roundId)
     .maybeSingle();
   if (roundError) fail(roundError.message);
   if (!round) fail(`round ${roundId} not found`);
   if (round.status !== "closed") fail(`round ${roundId} must be closed before calculation`);
-  if ((round.televote_engine_version ?? CALC_ENGINE_VERSION) !== CALC_ENGINE_VERSION) {
-    fail(`Stage 8 adapter supports only the canonical ${CALC_ENGINE_VERSION} engine; got ${round.televote_engine_version}`);
+  const engineVersion = round.televote_engine_version ?? CALC_ENGINE_VERSION;
+  // Explicitly reject unknown engines. The harness must use the exact
+  // production conversion, never substitute a legacy calculation silently.
+  if (engineVersion !== CALC_ENGINE_VERSION && engineVersion !== ROBUST_TELEVOTE_ENGINE_VERSION) {
+    fail(`unsupported canonical Televote engine ${engineVersion}`);
   }
 
   const { data: entries, error: entryError } = await tv
@@ -102,11 +113,41 @@ async function main() {
     originalVotes: tally.get(code)?.points ?? 0,
     originalVoters: tally.get(code)?.voters.size ?? 0,
   }));
-  const converted = convertRound(
-    input,
-    Number(round.total_points_to_distribute ?? 0),
-    Number(round.rank_exponent ?? 1.33),
-  );
+  const totalPoints = Number(round.total_points_to_distribute ?? 0);
+  const legacy = engineVersion === CALC_ENGINE_VERSION
+    ? convertRound(input, totalPoints, Number(round.rank_exponent ?? 1.33))
+    : null;
+
+  // This mirrors loadMergedRobustBallots and persistV2Calculation in the
+  // canonical Televoting conversion server. One accepted submission is one
+  // ballot; use submission IDs, never usernames, for robust ballot identity.
+  const robustBallots: RobustBallotInput[] = accepted.map((submission) => ({
+    voterId: String(submission.id),
+    allocations: {},
+  }));
+  const robustById = new Map(robustBallots.map((ballot) => [ballot.voterId, ballot]));
+  for (const vote of voteEntries ?? []) {
+    const ballot = robustById.get(String(vote.submission_id));
+    if (!ballot) continue;
+    const code = String(vote.target_country_code ?? "").trim().toUpperCase();
+    if (!tally.has(code)) fail(`robust ballot targeted non-participant ${code}`);
+    ballot.allocations[code] = Number(vote.points ?? 0);
+  }
+
+  const robustConfig = {
+    ballotTotal: DEFAULT_ROBUST_TELEVOTE_CONFIG.ballotTotal,
+    ballotExponent: Number(round.ballot_exponent ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.ballotExponent),
+    breadthFloor: Number(round.breadth_floor ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.breadthFloor),
+    breadthExponent: Number(round.breadth_exponent ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.breadthExponent),
+    supportExponent: Number(round.support_exponent ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.supportExponent),
+    rankBoostStrength: Number(round.rank_boost_strength ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.rankBoostStrength),
+    rankBoostShape: Number(round.rank_boost_shape ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.rankBoostShape),
+  };
+  const robust = engineVersion === ROBUST_TELEVOTE_ENGINE_VERSION
+    ? convertRobustRound({ participants, ballots: robustBallots, totalPoints, config: robustConfig })
+    : null;
+  const converted = robust ?? legacy;
+  if (!converted) fail("no canonical conversion was selected");
   if (!converted.zeroWeight && converted.distributedTotal !== converted.totalPoints) {
     fail(`converted total ${converted.distributedTotal} does not equal configured ${converted.totalPoints}`);
   }
@@ -115,32 +156,95 @@ async function main() {
   const calculatedAt = new Date().toISOString();
   const { error: clearResultError } = await tv.from("round_results").delete().eq("round_id", roundId);
   if (clearResultError) fail(clearResultError.message);
+  const { error: clearInfluenceError } = await tv.from("round_influence_results").delete().eq("round_id", roundId);
+  if (clearInfluenceError) fail(clearInfluenceError.message);
 
-  const rows = converted.rows.map((row) => ({
-    round_id: roundId,
-    country_code: row.code,
-    original_votes: row.originalVotes,
-    original_voters: row.originalVoters,
-    original_rank: row.originalRank,
-    participant_count: row.participantCount,
-    rank_base: row.rankBase,
-    rank_exponent: row.rankExponent,
-    rank_factor: row.rankFactor,
-    weighted_score: row.weightedScore,
-    exact_points: row.exactPoints,
-    floored_points: row.flooredPoints,
-    decimal_remainder: row.decimalRemainder,
-    remainder_bonus: row.remainderBonus,
-    final_points: row.finalPoints,
-    total_points_to_distribute: converted.totalPoints,
-    calculation_version: version,
-    calculated_at: calculatedAt,
-    calculated_by_username: "s14-local-verifier",
-    engine_version: CALC_ENGINE_VERSION,
-    calculation_config: { rankExponent: converted.rankExponent },
-  }));
+  const rows = robust
+    ? robust.rows.map((row) => ({
+        round_id: roundId,
+        country_code: row.code,
+        original_votes: Math.round(row.rawPoints),
+        original_voters: row.supporterCount,
+        original_rank: null,
+        participant_count: robust.participantCount,
+        rank_base: null,
+        rank_exponent: null,
+        rank_factor: null,
+        weighted_score: row.weightedScore,
+        exact_points: row.exactPoints,
+        floored_points: row.flooredPoints,
+        decimal_remainder: row.decimalRemainder,
+        remainder_bonus: row.remainderBonus,
+        final_points: row.finalPoints,
+        total_points_to_distribute: robust.totalPoints,
+        calculation_version: version,
+        calculated_at: calculatedAt,
+        calculated_by_username: "s14-local-verifier",
+        engine_version: ROBUST_TELEVOTE_ENGINE_VERSION,
+        effective_points: row.effectivePoints,
+        supporter_count: row.supporterCount,
+        effective_supporters: row.effectiveSupporters,
+        breadth_ratio: row.breadthRatio,
+        breadth_factor: row.breadthFactor,
+        robust_support: row.robustSupport,
+        robust_rank: row.robustRank,
+        rank_percentile: row.rankPercentile,
+        rank_boost: row.rankBoost,
+        calculation_config: robust.config,
+      }))
+    : legacy!.rows.map((row) => ({
+        round_id: roundId,
+        country_code: row.code,
+        original_votes: row.originalVotes,
+        original_voters: row.originalVoters,
+        original_rank: row.originalRank,
+        participant_count: row.participantCount,
+        rank_base: row.rankBase,
+        rank_exponent: row.rankExponent,
+        rank_factor: row.rankFactor,
+        weighted_score: row.weightedScore,
+        exact_points: row.exactPoints,
+        floored_points: row.flooredPoints,
+        decimal_remainder: row.decimalRemainder,
+        remainder_bonus: row.remainderBonus,
+        final_points: row.finalPoints,
+        total_points_to_distribute: legacy!.totalPoints,
+        calculation_version: version,
+        calculated_at: calculatedAt,
+        calculated_by_username: "s14-local-verifier",
+        engine_version: CALC_ENGINE_VERSION,
+        calculation_config: { rankExponent: legacy!.rankExponent },
+      }));
   const { error: resultInsertError } = await tv.from("round_results").insert(rows);
   if (resultInsertError) fail(resultInsertError.message);
+
+  // Match production's robust influence side records as well as its scored
+  // rows, so the full S14 rehearsal covers the current default engine.
+  if (robust) {
+    const influence = analyseRobustInfluence({
+      participants,
+      ballots: robustBallots,
+      totalPoints,
+      config: robustConfig,
+    });
+    const influenceRows = influence.voters.map((row) => ({
+      round_id: roundId,
+      calculation_version: version,
+      subject_type: "voter",
+      subject_key: row.voterId,
+      members: [row.voterId],
+      winner_changed: row.winnerChanged,
+      top_three_changed: row.topThreeChanged,
+      qualifier_changed: row.qualifierChanged,
+      max_rank_movement: row.maxRankMovement,
+      max_point_movement: row.maxPointMovement,
+      most_affected_entry: row.mostAffectedEntry,
+    }));
+    if (influenceRows.length) {
+      const { error: influenceError } = await tv.from("round_influence_results").insert(influenceRows);
+      if (influenceError) fail(influenceError.message);
+    }
+  }
 
   const { error: calculateUpdateError } = await tv
     .from("rounds")
@@ -223,6 +327,7 @@ async function main() {
     calculationVersion: version,
     ballotCount: accepted.length,
     participantCount: participants.length,
+    engineVersion,
     distributedTotal: storedTotal,
     canonicalVoteRows: canonicalCount,
   })}\n`);

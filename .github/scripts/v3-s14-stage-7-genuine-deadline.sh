@@ -82,7 +82,10 @@ s14_stage7_extend_expired_semi_one() {
   local event_id process_result receipt_command
 
   for _ in $(seq 1 80); do
-    if [[ "$(db_scalar "select (clock_timestamp() >= closes_at)::text from televoting.rounds where id='$round_id'::uuid;")" == "t" ]]; then
+    # Explicit SQL sentinel, not boolean::text: PostgreSQL renders the latter
+    # as 'true'/'false', so comparing it with 't' silently times out even when
+    # the server deadline has actually passed.
+    if [[ "$(db_scalar "select case when clock_timestamp() >= closes_at then 'expired' else 'pending' end from televoting.rounds where id='$round_id'::uuid;")" == "expired" ]]; then
       expired=1
       break
     fi
