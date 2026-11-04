@@ -69,6 +69,7 @@ function safePath(pathname: string) {
     !pathname.startsWith("//") &&
     !pathname.includes("\\") &&
     !pathname.startsWith("/admin") &&
+    !pathname.startsWith("/organizer") &&
     !pathname.startsWith("/confirmations/admin") &&
     !pathname.startsWith("/televoting/admin")
   );

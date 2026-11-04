@@ -218,6 +218,17 @@ describe("installed app navigation state", () => {
     expect(state?.history[0]?.pathname).toBe("/participate");
   });
 
+  it("never places Organizer workspace routes in installed public tab memory", () => {
+    const storage = new MemoryStorage();
+    rememberAppLocation("/results", "", 0, storage);
+    rememberAppLocation("/organizer", "", 880, storage);
+    rememberAppLocation("/organizer/control", "", 660, storage);
+
+    expect(getAppTabDestination("results", true, storage).pathname).toBe("/results");
+    expect(readAppNavigationState(storage).activeTab).toBe("results");
+    expect(readAppNavigationState(storage).tabs.home).toBeUndefined();
+  });
+
   it("purges persisted critical screen destinations on read", () => {
     const storage = new MemoryStorage();
     const critical = {
