@@ -180,6 +180,11 @@ export function parseWorldDocumentDetail(input: unknown): WorldDocumentDetail | 
   }
   const anchors = new Set<string>();
   const semanticKeys = new Set<string>();
+  // A legacy version anchor must never collide with another provision's
+  // durable target ID. Resolve the complete target namespace before aliases.
+  const canonicalTargets = new Set(version.provisions.map((value) =>
+    worldProvisionTargetId(string(object(value).semanticKey, "semantic provision identity"))
+  ));
   const provisions: WorldDocumentProvision[] = version.provisions.map((value) => {
     const provision = object(value);
     const semanticKey = string(provision.semanticKey, "semantic provision identity");
@@ -189,7 +194,8 @@ export function parseWorldDocumentDetail(input: unknown): WorldDocumentDetail | 
     }
     semanticKeys.add(semanticKey);
     const candidate = optionalString(provision.anchor);
-    const anchor = candidate && /^[a-z0-9-]{1,100}$/.test(candidate) && !anchors.has(candidate)
+    const anchor = candidate && /^[a-z0-9-]{1,100}$/.test(candidate) &&
+      (!canonicalTargets.has(candidate) || candidate === targetId) && !anchors.has(candidate)
       ? candidate
       : null;
     if (anchor) anchors.add(anchor);
