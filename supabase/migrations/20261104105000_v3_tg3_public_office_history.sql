@@ -64,28 +64,28 @@ begin
   if tg_op = 'UPDATE' then
     if old.status in ('ended', 'removed', 'resigned') then
       if new.status is distinct from old.status
-      or new.office_id is distinct from old.office_id
-      or new.holder_person_id is distinct from old.holder_person_id
-      or (
-        new.holder_user_id is distinct from old.holder_user_id
-        and new.holder_user_id is not null
-      )
-      or new.represented_country_id is distinct from old.represented_country_id
-      or new.start_edition_id is distinct from old.start_edition_id
-      or new.end_edition_id is distinct from old.end_edition_id
-      or new.started_at is distinct from old.started_at
-      or new.scheduled_end_at is distinct from old.scheduled_end_at
-      or new.actual_end_at is distinct from old.actual_end_at
-      or new.term_kind is distinct from old.term_kind
-      or new.predecessor_term_id is distinct from old.predecessor_term_id
-      or new.succession_reason is distinct from old.succession_reason
-      or new.revision is distinct from old.revision
-      or new.created_at is distinct from old.created_at then
-      raise exception 'WORLD_CLOSED_OFFICE_TERM_IMMUTABLE'
-        using errcode = '23514';
-    end if;
-    new.holder_display_name_snapshot := old.holder_display_name_snapshot;
-    new.office_title_snapshot := old.office_title_snapshot;
+        or new.office_id is distinct from old.office_id
+        or new.holder_person_id is distinct from old.holder_person_id
+        or (
+          new.holder_user_id is distinct from old.holder_user_id
+          and new.holder_user_id is not null
+        )
+        or new.represented_country_id is distinct from old.represented_country_id
+        or new.start_edition_id is distinct from old.start_edition_id
+        or new.end_edition_id is distinct from old.end_edition_id
+        or new.started_at is distinct from old.started_at
+        or new.scheduled_end_at is distinct from old.scheduled_end_at
+        or new.actual_end_at is distinct from old.actual_end_at
+        or new.term_kind is distinct from old.term_kind
+        or new.predecessor_term_id is distinct from old.predecessor_term_id
+        or new.succession_reason is distinct from old.succession_reason
+        or new.revision is distinct from old.revision
+        or new.created_at is distinct from old.created_at then
+        raise exception 'WORLD_CLOSED_OFFICE_TERM_IMMUTABLE'
+          using errcode = '23514';
+      end if;
+      new.holder_display_name_snapshot := old.holder_display_name_snapshot;
+      new.office_title_snapshot := old.office_title_snapshot;
       new.represented_country_name_snapshot := old.represented_country_name_snapshot;
       return new;
     end if;
