@@ -35,3 +35,16 @@ export function isConfirmationCountryBatchInEdition(
       (row.submission_rounds === null || row.submission_rounds.edition_id === editionId),
   );
 }
+
+/**
+ * The latest response is the authoritative current country intent for this
+ * edition. Looking back for ANY participating response resurrects withdrawals
+ * and can corrupt copied participation/status lists.
+ * Callers must sort newest-first before using this selector.
+ */
+export function latestParticipatingConfirmation<T extends { participating: boolean }>(
+  latestFirstRows: readonly T[],
+): T | null {
+  const latest = latestFirstRows[0];
+  return latest?.participating ? latest : null;
+}
