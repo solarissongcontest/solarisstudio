@@ -62,6 +62,20 @@ describe("V3 installed iOS top system safe zone", () => {
     expect(legacyCss).not.toContain("padding-top: env(safe-area-inset-top);");
   });
 
+  it("keeps focused participation and Confirmation toolbar/focus below the same safe boundary", () => {
+    const focusedCss = source("src/styles/v3-focused-task-shell.css");
+    expect(focusedCss).toContain(
+      "min-height: calc(4rem + var(--solaris-app-safe-top));",
+    );
+    expect(focusedCss).toContain(
+      "calc(var(--solaris-app-safe-top) + 0.45rem)",
+    );
+    expect(focusedCss).toContain(
+      "scroll-margin-block-start: calc(4.75rem + var(--solaris-app-safe-top));",
+    );
+    expect(focusedCss).not.toContain("calc(env(safe-area-inset-top)");
+  });
+
   it("fails safe on iOS standalone with an absent top inset without raising mobile-web or desktop headers", () => {
     const guardedRule =
       /@supports \(-webkit-touch-callout: none\)\s*\{[\s\S]*?@media \(pointer: coarse\) and \(orientation: portrait\)\s*\{\s*html\[data-solaris-runtime="standalone"\] \[data-solaris-v3\]\s*\{\s*--v3-top-system-safe: max\(env\(safe-area-inset-top, 0px\), 60px\);/;
