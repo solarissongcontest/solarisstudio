@@ -79,6 +79,16 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(rehearsalRunner).not.toContain("SUPABASE_DB_URL");
   });
 
+  it("does not mount history reads before the same authoritative World rollout check", () => {
+    expect(source).toContain('WORLD_HISTORY_ROLLOUT_KEY = "terra_world_public"');
+    expect(source).toContain('client.rpc("studio2_feature_enabled"');
+    expect(source).toContain("return data === true");
+    expect(screen).toContain('queryKey: ["world", "public", "rollout"]');
+    expect(screen).toContain("enabled: rollout.data === true");
+    expect(screen).toContain("rollout.data !== true");
+    expect(screen).toContain("World history is not yet available");
+  });
+
   it("keeps its own TanStack leaf route and public-only query without touching existing directories", () => {
     expect(route).toContain('createFileRoute("/world/organizations/$slug/office-history")');
     expect(route).toContain("WorldOfficeHistory");
