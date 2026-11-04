@@ -60,7 +60,7 @@ This is defense-in-depth presentation filtering, not a substitute for TG4 server
 
 Focused code tests are in src/lib/world-public-documents.test.ts. They must run in a repository checkout. The current source includes cases for semantic provision renumbering, full contents after section 40, missing or stale fragments and preservation of existing version anchors.
 
-On 2026-11-04, **20/20** runtime smoke checks of extracted type-erased pure source implementations passed in an isolated JavaScript environment (including anon/public key handling, bounded index metadata, publication guards, exact legal text, links and TOC). The JWT `atob` behavior in this limited V8 environment was exercised with an isolated base64 polyfill. These are useful functional checks, but **not** the committed Vitest suite, TypeScript compilation or UI rendering tests. The committed Vitest suite now also mocks both RPC calls with `fetch` stubbed and `127.0.0.1` URL only, preventing hosted-production traffic:
+On 2026-11-04, **46/46** runtime smoke checks of extracted type-erased pure source implementations passed in an isolated JavaScript environment (including anon/public key handling, bounded index metadata, publication guards, exact legal text, links and TOC). The JWT `atob` behavior in this limited V8 environment was exercised with an isolated base64 polyfill. These are useful functional checks, but **not** the committed Vitest suite, TypeScript compilation or UI rendering tests. The committed Vitest suite now also mocks both RPC calls with `fetch` stubbed and `127.0.0.1` URL only, preventing hosted-production traffic:
 
 npx vitest run src/lib/world-public-documents.test.ts
 
