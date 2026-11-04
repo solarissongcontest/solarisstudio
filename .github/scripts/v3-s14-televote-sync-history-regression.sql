@@ -49,7 +49,7 @@ BEGIN
   SELECT show_row.edition_id, v_show, v_countries[1], 'withdrawn'
   FROM public.shows show_row WHERE show_row.id=v_show;
   INSERT INTO public.results (edition_id,show_id,country_id,final_rank)
-  SELECT show_row.edition_id, v_show, v_countries[1], null
+  SELECT show_row.edition_id, v_show, v_countries[1], 77
   FROM public.shows show_row WHERE show_row.id=v_show;
 
   PERFORM public.v3_record_televote_sync_event(
