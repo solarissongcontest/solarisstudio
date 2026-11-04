@@ -185,6 +185,39 @@ describe("installed app navigation state", () => {
     expect(appTabForLocation("/televoting")).toBe("participate");
   });
 
+  it("recovers the latest safe history page when persisted current is critical", () => {
+    const storage = new MemoryStorage();
+    const valid = {
+      pathname: "/participate",
+      searchStr: "",
+      scrollY: 148,
+      visitedAt: new Date().toISOString(),
+    };
+    const critical = {
+      ...valid,
+      pathname: "/televoting",
+      scrollY: 620,
+    };
+    storage.setItem(
+      APP_NAVIGATION_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        activeTab: "participate",
+        tabs: {
+          participate: { current: critical, history: [valid, critical] },
+        },
+      }),
+    );
+
+    expect(getAppTabDestination("participate", true, storage)).toMatchObject({
+      pathname: "/participate",
+      scrollY: 148,
+    });
+    const state = readAppNavigationState(storage).tabs.participate;
+    expect(state?.history).toHaveLength(1);
+    expect(state?.history[0]?.pathname).toBe("/participate");
+  });
+
   it("purges persisted critical screen destinations on read", () => {
     const storage = new MemoryStorage();
     const critical = {

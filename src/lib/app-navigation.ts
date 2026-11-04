@@ -166,11 +166,18 @@ export function readAppNavigationState(
         .filter((entry): entry is AppHistoryEntry => Boolean(entry))
         .filter((entry) => memorySafeAppTab(entry.pathname, entry.searchStr) === tab)
         .slice(-MAX_HISTORY_PER_TAB);
-      const current = sanitizeEntry(candidate.current) ?? history.at(-1) ?? null;
-      if (!current || memorySafeAppTab(current.pathname, current.searchStr) !== tab) continue;
+      const current = sanitizeEntry(candidate.current);
+      const validCurrent =
+        current && memorySafeAppTab(current.pathname, current.searchStr) === tab
+          ? current
+          : null;
+      // An obsolete/critical current entry must not erase the last valid page
+      // already present in this tab's sanitized browsing history.
+      const resolved = validCurrent ?? history.at(-1) ?? null;
+      if (!resolved) continue;
       tabs[tab] = {
-        current,
-        history: history.length ? history : [current],
+        current: resolved,
+        history: history.length ? history : [resolved],
       };
     }
     return { version: 1, activeTab, tabs };
