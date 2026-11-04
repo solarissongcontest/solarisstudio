@@ -318,6 +318,20 @@ export function WorldOrganizationPage({
   const countryMap = useMemo(() =>
     new Map((countries.data ?? []).map((country) => [country.id, country])),
     [countries.data]);
+  const representativesByCountry = useMemo(() =>
+    new Map((projection.data?.representatives ?? [])
+      .filter((rep) => rep.endsAt === null && rep.role === "representative" && rep.votingAuthority)
+      .map((rep) => [rep.countryId, rep])),
+    [projection.data]);
+  const officesByCountry = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const office of projection.data?.offices ?? []) {
+      const countryId = office.currentTerm?.representedCountryId;
+      if (!countryId) continue;
+      map.set(countryId, [...(map.get(countryId) ?? []), office.title]);
+    }
+    return map;
+  }, [projection.data]);
   return (
     <PublicFrame>
       <Link to="/world/organizations" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
@@ -425,8 +439,16 @@ export function WorldOrganizationPage({
                         <div className="min-w-0 flex-1">
                           {country ? <Link to="/countries/$code" params={{ code: country.short_code.toLowerCase() }} className="font-medium hover:underline focus-visible:rounded focus-visible:outline focus-visible:outline-2">{country.name}</Link> :
                             <span className="font-medium">Country identity unavailable</span>}
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            {representativesByCountry.get(member.countryId)?.displayName
+                              ? `Representative: ${representativesByCountry.get(member.countryId)?.displayName}`
+                              : "Representative not recorded"}
+                          </p>
+                          {officesByCountry.get(member.countryId)?.length ? (
+                            <p className="text-xs leading-5 text-muted-foreground">Office: {officesByCountry.get(member.countryId)?.join(", ")}</p>
+                          ) : null}
                         </div>
-                        <span className="text-xs capitalize text-muted-foreground">{member.status}</span>
+                        <span className="shrink-0 text-xs capitalize text-muted-foreground">{member.status}</span>
                       </div>
                     );
                   })}
