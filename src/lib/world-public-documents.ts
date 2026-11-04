@@ -253,6 +253,27 @@ export function publicWorldDocumentOutline(
   return provisions.filter((provision) => provision.heading || provision.displayLabel);
 }
 
+/**
+ * Resolve only fragment targets present in the authoritative requested
+ * Version. A stale or unrelated hash must never scroll to a wrong section.
+ * Browsers can percent-encode fragments; malformed encodings fail closed.
+ */
+export function resolveWorldDocumentFragment(
+  hash: string,
+  provisions: readonly WorldDocumentProvision[],
+): string | null {
+  if (!hash.startsWith("#") || hash.length < 2) return null;
+  let target: string;
+  try {
+    target = decodeURIComponent(hash.slice(1));
+  } catch {
+    return null;
+  }
+  return provisions.some((provision) =>
+    provision.targetId === target || provision.anchor === target
+  ) ? target : null;
+}
+
 export function normalizeWorldSearch(query: string): string {
   return query.trim().slice(0, MAX_SEARCH);
 }
