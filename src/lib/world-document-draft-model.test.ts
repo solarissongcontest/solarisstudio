@@ -208,6 +208,12 @@ describe("TG4 governed institutional draft models", () => {
     expect(screen).toContain("Changing institution discards the current Work form");
     expect(screen).toContain("setCreateTitle(\"\")");
     expect(screen).toContain("setAppliedSearch(normalized)");
+    expect(screen).toContain('const applySearch = (term: string): boolean =>');
+    expect(screen).toContain('if (normalized === appliedSearch) return true;');
+    expect(screen).toContain('if (!confirmDiscard()) return false;');
+    expect(screen).toContain('if (applySearch("")) setSearchInput("");');
+    expect(screen).not.toContain('if (!appliedSearch) setDocumentSlug("");');
+
 
     expect(screen).toContain("p_query: appliedSearch || null");
     expect(screen).toContain("disabled={authoringLocked} value={createSlug}");
