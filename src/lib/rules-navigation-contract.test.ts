@@ -67,7 +67,8 @@ describe("Rules and Integrity navigation", () => {
     expect(publicNavigation).toContain('"Rule clarifications"');
     expect(publicNavigation).not.toContain('label: "Library"');
     expect(legacyLibraryRoute).toContain('createFileRoute("/library")');
-    expect(legacyLibraryRoute).toContain('redirect({ to: "/rules"');
+    expect(legacyLibraryRoute).toContain("sanitizeRuleContextPath(search.from)");
+    expect(legacyLibraryRoute).toContain('to: search.from ? "/rules" : "/site-directory"');
   });
 
   it("exposes organizer Integrity governance workspaces", () => {
