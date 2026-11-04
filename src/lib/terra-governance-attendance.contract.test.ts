@@ -59,6 +59,9 @@ describe("TG6 governed institutional roll-call", () => {
     expect(writer).toContain("v_proxy.session_id <> p_session_id");
     expect(writer).toContain("private.world_proxy_is_effective(");
     expect(writer).toContain("member_row.status='member'");
+    expect(writer).toContain("member_row.status <> 'member' or v_rep.voting_authority");
+    expect(writer).toContain("not v_rep.voting_authority");
+
     expect(writer).not.toContain("world_vote_eligibility");
     expect(writer).not.toContain("world_ballots");
   });
@@ -88,6 +91,10 @@ describe("TG6 governed institutional roll-call", () => {
     expect(manager).toContain("private.world_proxy_is_effective(");
     expect(manager).toContain("member_row.ended_at is null");
     expect(manager).toContain("membership_row.status in ('member','observer','associate')");
+    expect(manager).toContain("membership_row.status <> 'member' or candidate.voting_authority");
+    expect(manager).toContain("candidate.role='representative'");
+    expect(manager).toContain("join lateral (");
+
     expect(manager).not.toContain("auth.users");
     expect(manager).not.toContain("'proxyUserId'");
     expect(manager).not.toContain("world_vote_eligibility");
@@ -121,6 +128,8 @@ describe("TG6 governed institutional roll-call", () => {
       "TG6_ATTENDANCE_ABSENT_REVISION_INCORRECT",
       "TG6_ATTENDANCE_CONTROLLER_OWN_READ_LOST",
       "TG6_ATTENDANCE_CONTROLLER_MANAGE_LEAK",
+      "TG6_ATTENDANCE_OBSERVER_PROXY_ALLOWED",
+      "TG6_ATTENDANCE_OBSERVER_PRESENT_DENIED",
     ]) expect(rehearsal).toContain(marker);
     expect(rehearsal).toContain("set local role anon");
     expect(rehearsal).toContain("set local role authenticated");
