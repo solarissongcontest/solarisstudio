@@ -4,7 +4,7 @@ import { WorldPublicDocumentReader } from "@/components/world/WorldPublicDocumen
 export const Route = createFileRoute("/world/organizations/$slug/documents/$documentSlug")({
   validateSearch: (search: Record<string, unknown>) => {
     const requested = search.version;
-    const parsed = typeof requested === "string" && /^\\d+$/.test(requested)
+    const parsed = typeof requested === "string" && /^\d+$/.test(requested)
       ? Number(requested)
       : typeof requested === "number" ? requested : null;
     return {
