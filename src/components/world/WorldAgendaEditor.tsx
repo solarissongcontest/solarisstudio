@@ -75,9 +75,20 @@ export function WorldAgendaEditor({ sessionId }: { sessionId: string }) {
         client.invalidateQueries({ queryKey: ["world", "sessions", "public"] }),
       ]);
     } catch (cause) {
+      const code = cause && typeof cause === "object" && "code" in cause
+        ? cause.code
+        : null;
       setError(errorMessage(cause));
-      // Keep exactly the same operation identity for explicit retry after an
-      // ambiguous network failure. Never create another official agenda item.
+      if (code === "40001" || code === "23514" || code === "42501") {
+        // The server explicitly rejected the operation. It cannot have
+        // committed, so do not trap the editor behind an invalid retry.
+        retryable.current = null;
+        setPendingAction(null);
+        setReviewing(false);
+        void client.invalidateQueries({ queryKey: ["world", "session", "manage", sessionId] });
+      }
+      // Ambiguous transport failures retain the EXACT operation identity.
+      // Retrying must reconcile a possible prior commit, never duplicate it.
     } finally {
       setBusy(false);
     }
