@@ -23,7 +23,9 @@ describe("TG10 organization follow preference contracts",()=>{
  it("rehearses public/private, cross-user and reversal with rollback-only local DB",()=>{
   for(const c of ["TG10_PRIVATE_ORGANIZATION_FOLLOW_ALLOWED","TG10_FOLLOW_EVENT_IDENTITY_MISSING",
     "TG10_FOREIGN_CATEGORY_UPDATE_ALLOWED","TG10_FOREIGN_CATEGORY_READ_ALLOWED",
-    "TG10_ORGANIZATION_REMOVAL_FAILED","TG10_CATEGORY_CASCADE_FAILED","rollback;"])
+    "TG10_ORGANIZATION_REMOVAL_FAILED","TG10_CATEGORY_CASCADE_FAILED",
+    "TG10_FOLLOW_S5_RECEIPT_EVENT_MISSING","TG10_UNFOLLOW_S5_RECEIPT_EVENT_MISSING",
+    "public.studio2_operation_receipts","private.v3_domain_events","rollback;"])
    expect(rehearsal).toContain(c);
   expect(runner).toContain("Refusing non-loopback database");
   expect(runner).toContain('psql "$DB_URL"');

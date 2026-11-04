@@ -60,6 +60,7 @@ begin
  ) then
   raise exception 'TG10_FOLLOW_EVENT_IDENTITY_MISSING';
  end if;
+ perform set_config('solaris.tg10_saved_follow_id',v_follow::text,true);
  begin
   perform public.set_fan_follow('organization',(v->>'hidden')::uuid,true,'important');
   raise exception 'TG10_PRIVATE_ORGANIZATION_FOLLOW_ALLOWED';
@@ -80,6 +81,29 @@ begin
  raise notice 'PASS: public follow, S5 event identity, private denial, owner category preference';
 end $own$;
 reset role;
+
+-- The S5 trigger is the canonical preference event owner. Inspect its
+-- immutable internal ledger only from this rolled-back fixture owner context.
+do $saved_event$
+declare
+ v jsonb:=current_setting('solaris.tg10_follow_fixture')::jsonb;
+ v_follow uuid:=current_setting('solaris.tg10_saved_follow_id')::uuid;
+begin
+ if (select count(*) from public.studio2_operation_receipts r
+     where r.actor_id=(v->>'me')::uuid
+       and r.command='preference.save'
+       and r.result->>'followId'=v_follow::text
+       and r.result->>'entityType'='organization') <> 1
+    or (select count(*) from private.v3_domain_events e
+     where e.event_type='preference.changed'
+       and e.aggregate_type='preference'
+       and e.aggregate_id=v_follow::text
+       and e.payload->>'entityType'='organization'
+       and e.payload->>'following'='true') <> 1 then
+  raise exception 'TG10_FOLLOW_S5_RECEIPT_EVENT_MISSING';
+ end if;
+ raise notice 'PASS: TG10 organization follow emits one canonical S5 receipt and event';
+end $saved_event$;
 
 set local role authenticated;
 set local request.jwt.claim.role='authenticated';
@@ -150,4 +174,25 @@ begin
  raise notice 'PASS: former follower can remove hidden institution; category rows cascade';
 end $removal$;
 reset role;
+
+do $removed_event$
+declare
+ v jsonb:=current_setting('solaris.tg10_follow_fixture')::jsonb;
+ v_follow uuid:=current_setting('solaris.tg10_saved_follow_id')::uuid;
+begin
+ if (select count(*) from public.studio2_operation_receipts r
+    where r.actor_id=(v->>'me')::uuid
+      and r.command='preference.remove'
+      and r.result->>'followId'=v_follow::text
+      and r.result->>'entityType'='organization') <> 1
+    or (select count(*) from private.v3_domain_events e
+    where e.event_type='preference.changed'
+      and e.aggregate_type='preference'
+      and e.aggregate_id=v_follow::text
+      and e.payload->>'entityType'='organization'
+      and e.payload->>'following'='false') <> 1 then
+  raise exception 'TG10_UNFOLLOW_S5_RECEIPT_EVENT_MISSING';
+ end if;
+ raise notice 'PASS: TG10 organization removal emits one canonical S5 receipt and event';
+end $removed_event$;
 rollback;
