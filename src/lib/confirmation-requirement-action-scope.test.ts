@@ -45,6 +45,18 @@ describe("Organizer Confirmation requirement review completion", () => {
     expect(source).toContain("idempotencyKey: command.idempotencyKey");
   });
 
+  it("keeps ensure idempotent from the UI and its success/error bound to the originating epoch", () => {
+    const source = readFileSync("src/routes/confirmations/admin/requirements.tsx", "utf8");
+    expect(source).toContain("const ensureInFlightRef = useRef(false);");
+    expect(source).toContain("if (!editionId || ensureInFlightRef.current || ensure.isPending ||");
+    expect(source).toContain("ensureInFlightRef.current = true;");
+    expect(source).toContain("ensureInFlightRef.current = false;");
+    expect(source).toContain("ensure.mutate({ editionId, reviewEpoch: editionReviewEpochRef.current });");
+    expect(source).toContain("mutationFn: (input: { editionId: string; reviewEpoch: number })");
+    expect(source).toContain('queryKey: ["confirmation-requirements", input.editionId]');
+    expect(source).toContain("Requirements for a prior Organizer edition selection could not be verified.");
+  });
+
   it("does not show late failures from a previous review epoch", () => {
     const source = readFileSync("src/routes/confirmations/admin/requirements.tsx", "utf8");
     expect(source).toContain("action.error && action.variables?.organizerEditionId === editionId");
