@@ -399,7 +399,7 @@ test("installed app shell survives representative navigation without duplicate c
   // The same local fixture route used for mobile web remains an installed-app
   // route when the iOS standalone runtime is enabled at the SAME width.
   const discovered = await sitemapRoutes(baseURL!);
-  const country = discovered.find((route) => /^\\/countries\\/[^/]+$/.test(route));
+  const country = discovered.find((route) => /^\/countries\/[^/]+$/.test(route));
   expect(country, "Local sitemap must expose an installed-app Country target").toBeTruthy();
 
   await skipFirstRun(page);
