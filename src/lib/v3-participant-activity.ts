@@ -27,12 +27,20 @@ export type V3ParticipantActivityItem = {
   reconciliationState: V3ParticipantActivityReconciliationState;
 };
 
+export type V3ParticipantActivityCursor = {
+  before: string | null;
+  operationId: string | null;
+};
+
 export type V3ParticipantActivityBundle = {
   schemaReady: boolean;
   items: V3ParticipantActivityItem[];
   nextBefore: string | null;
+  nextOperationId: string | null;
   generatedAt: string | null;
 };
+
+const CURSOR_OPERATION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const KINDS = new Set<V3ParticipantActivityKind>([
   "submission",
@@ -86,6 +94,7 @@ export function emptyV3ParticipantActivityBundle(): V3ParticipantActivityBundle 
     schemaReady: false,
     items: [],
     nextBefore: null,
+    nextOperationId: null,
     generatedAt: null,
   };
 }
@@ -134,10 +143,22 @@ export function parseV3ParticipantActivity(
       })
     : [];
 
+  // The System keyset cursor has two inseparable parts. Never continue with
+  // only a timestamp: simultaneous operations would be skipped or repeated.
+  const nextBefore = stringValue(root.next_before ?? root.nextBefore);
+  const nextOperationId = stringValue(root.next_operation_id ?? root.nextOperationId);
+  const validContinuation = Boolean(
+    nextBefore &&
+    Number.isFinite(Date.parse(nextBefore)) &&
+    nextOperationId &&
+    CURSOR_OPERATION_ID.test(nextOperationId),
+  );
+
   return {
     schemaReady: true,
     items,
-    nextBefore: stringValue(root.next_before ?? root.nextBefore),
+    nextBefore: validContinuation ? nextBefore : null,
+    nextOperationId: validContinuation ? nextOperationId : null,
     generatedAt: stringValue(root.generated_at ?? root.generatedAt),
   };
 }
