@@ -14,6 +14,7 @@ type NavGeometry = {
   bottomGap: number;
   obstruction: number;
   appMainPaddingBottom: number | null;
+  appMainSpacerHeight: number | null;
 };
 
 type Rect = {
@@ -69,6 +70,9 @@ async function readGeometry(page: Page): Promise<NavGeometry | null> {
     const materialRect = rect(material);
     const rootStyle = getComputedStyle(document.documentElement);
     const appMain = document.querySelector<HTMLElement>(".app-main[data-solaris-app-mode='true']");
+    const appMainSpacer = appMain?.querySelector<HTMLElement>(
+      ":scope > .solaris-app-bottom-spacer",
+    ) ?? null;
 
     return {
       viewportWidth: window.innerWidth,
@@ -88,6 +92,9 @@ async function readGeometry(page: Page): Promise<NavGeometry | null> {
       ),
       appMainPaddingBottom: appMain
         ? Number.parseFloat(getComputedStyle(appMain).paddingBottom || "0")
+        : null,
+      appMainSpacerHeight: appMainSpacer
+        ? appMainSpacer.getBoundingClientRect().height
         : null,
     };
   });
@@ -143,7 +150,13 @@ function expectRedesignedGeometry(geometry: NavGeometry, viewportWidth: number) 
   }
 
   if (geometry.appMainPaddingBottom != null) {
-    expect(geometry.appMainPaddingBottom).toBeGreaterThanOrEqual(geometry.obstruction + 10);
+    // #2001 intentionally places most scroll-end clearance in a real child
+    // spacer while the main's computed padding remains a small comfort margin.
+    // Verify actual rendered clearance, not only one CSS property's value.
+    expect(geometry.appMainSpacerHeight, "installed AppShell must render its bottom spacer").not.toBeNull();
+    expect(
+      geometry.appMainPaddingBottom + (geometry.appMainSpacerHeight ?? 0),
+    ).toBeGreaterThanOrEqual(geometry.obstruction + 10);
   }
 }
 
