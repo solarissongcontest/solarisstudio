@@ -113,7 +113,7 @@ begin
     raise exception 'TG8_UNAUTHORIZED_RULE_CONFIGURATION_ALLOWED';
   exception when insufficient_privilege then null;
   end;
-  if jsonb_array_length(public.world_managed_voting_organizations_v1()) <> 0 then
+  if coalesce(jsonb_array_length(public.world_managed_voting_organizations_v1()),-1) <> 0 then
     raise exception 'TG8_UNAUTHORIZED_MANAGED_INSTITUTION_EXPOSURE';
   end if;
   if public.world_voting_rules_manage_v1((v->>'organizationId')::uuid) is not null then
@@ -143,7 +143,7 @@ begin
   ) then
     raise exception 'TG8_AUTHORIZED_MANAGER_INSTITUTION_MISSING';
   end if;
-  if public.world_voting_rules_manage_v1((v->>'organizationId')::uuid)->'rules' <> '[]'::jsonb then
+  if (public.world_voting_rules_manage_v1((v->>'organizationId')::uuid)->'rules') is distinct from '[]'::jsonb then
     raise exception 'TG8_INITIAL_MANAGER_RULE_LIST_INCORRECT';
   end if;
 
