@@ -101,10 +101,13 @@ export function WorldOfficeHistory({ slug }: { slug: string }) {
     staleTime: 10 * 60_000,
     retry: 1,
   });
-  const organization = query.data?.pages[0]?.organization ?? null;
-  const offices = query.data?.pages[0]?.offices ?? [];
-  const officesTruncated = query.data?.pages[0]?.officesTruncated ?? false;
-  const items = query.data?.pages.flatMap((page) => page?.terms ?? []) ?? [];
+  // React Query may retain pages after the server disables World. The UI
+  // must neither fetch new pages nor render stale private/disabled content.
+  const visiblePages = rollout.data === true ? query.data?.pages : undefined;
+  const organization = visiblePages?.[0]?.organization ?? null;
+  const offices = visiblePages?.[0]?.offices ?? [];
+  const officesTruncated = visiblePages?.[0]?.officesTruncated ?? false;
+  const items = visiblePages?.flatMap((page) => page?.terms ?? []) ?? [];
 
   return (
     <div className="mx-auto w-full max-w-5xl pb-12">
