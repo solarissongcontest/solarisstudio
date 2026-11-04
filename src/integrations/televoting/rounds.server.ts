@@ -4,7 +4,10 @@ import {
   ensureCanonicalTelevotingEditionsServer,
   syncMergedRoundFromSolarisServer,
 } from "@/integrations/televoting/solaris-sync.server";
-import type { MergedRoundStatusPreview } from "@/integrations/televoting/rounds.functions";
+import type {
+  MergedRoundDeletePreview,
+  MergedRoundStatusPreview,
+} from "@/integrations/televoting/rounds.functions";
 
 export type MergedAdminRoundServer = {
   id: string;
@@ -197,6 +200,47 @@ export async function setMergedTelevotingRoundStatusServer(data: {
   return receipt;
 }
 
+export async function previewMergedTelevotingRoundDeleteServer(data: {
+  id: string;
+}): Promise<MergedRoundDeletePreview> {
+  await requireMergedTelevotingAdminServer();
+  const client = televotingAdmin as any;
+  const { data: preview, error } = await client.rpc(
+    "studio2_round_delete_preview",
+    { p_round_id: data.id },
+  );
+  if (error) throw new Error(error.message);
+  return preview as MergedRoundDeletePreview;
+}
+
+export async function applyMergedTelevotingRoundDeleteServer(data: {
+  id: string;
+  operationId: string;
+  idempotencyKey: string;
+  expectedGlobalVersion: number;
+  expectedRoundVersion: number;
+}) {
+  await requireMergedTelevotingAdminServer();
+  const client = televotingAdmin as any;
+  const { data: receipt, error } = await client.rpc(
+    "studio2_apply_round_delete",
+    {
+      p_round_id: data.id,
+      p_operation_id: data.operationId,
+      p_idempotency_key: data.idempotencyKey,
+      p_expected_global_version: data.expectedGlobalVersion,
+      p_expected_round_version: data.expectedRoundVersion,
+    },
+  );
+  if (error) throw new Error(error.message);
+  return receipt;
+}
+
+/**
+ * Compatibility path retained until the Organizer rounds surface performs its
+ * explicit preview/apply cutover. New V3 callers must use the governed helpers
+ * above so deletion has stable operation identity and reviewed CAS versions.
+ */
 export async function deleteMergedTelevotingRoundServer(data: { id: string }) {
   const actor = await requireMergedTelevotingAdminServer();
   const { data: before, error: readError } = await televotingAdmin

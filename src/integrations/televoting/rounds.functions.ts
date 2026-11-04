@@ -51,6 +51,48 @@ export type MergedRoundStatusPreview = {
   alreadyApplied: boolean;
 };
 
+export type MergedRoundDeletePreview = {
+  schemaVersion: 1;
+  riskClass: "R2";
+  roundId: string;
+  roundName: string;
+  remoteEditionId: string;
+  solarisEditionId: string;
+  currentStatus: "draft" | "open" | "closed";
+  expectedGlobalVersion: number;
+  expectedRoundVersion: number;
+  entryCount: number;
+  ballotCount: number;
+  resultsStatus: "draft" | "calculated" | "locked" | "published";
+  calculationVersion: number;
+  affected: {
+    rounds: 1;
+    bindings: 1;
+    entries: number;
+  };
+  blockers: string[];
+  canDelete: boolean;
+  serverTime: string;
+};
+
+export type MergedRoundDeleteReceipt = {
+  ok: true;
+  riskClass: "R2";
+  roundId: string;
+  roundName: string;
+  remoteEditionId: string;
+  solarisEditionId: string;
+  operationId: string;
+  deleted: true;
+  entryCount: number;
+  ballotCount: number;
+  previousGlobalVersion: number;
+  globalVersion: number;
+  previousRoundVersion: number;
+  roundVersion: null;
+  serverTime: string;
+};
+
 function asRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -211,6 +253,47 @@ export const setMergedTelevotingRoundStatus = createServerFn({ method: "POST" })
     return setMergedTelevotingRoundStatusServer(data);
   });
 
+export const previewMergedTelevotingRoundDelete = createServerFn({ method: "POST" })
+  .inputValidator((data: { id: string }) => {
+    if (!data?.id) throw new Error("Missing round");
+    return data;
+  })
+  .handler(async ({ data }) => {
+    const { previewMergedTelevotingRoundDeleteServer } = await import(
+      "@/integrations/televoting/rounds.server"
+    );
+    return previewMergedTelevotingRoundDeleteServer(data) as Promise<MergedRoundDeletePreview>;
+  });
+
+export const applyMergedTelevotingRoundDelete = createServerFn({ method: "POST" })
+  .inputValidator((data: {
+    id: string;
+    operationId: string;
+    idempotencyKey: string;
+    expectedGlobalVersion: number;
+    expectedRoundVersion: number;
+  }) => {
+    if (!data?.id) throw new Error("Missing round");
+    if (!data.operationId || !data.idempotencyKey) throw new Error("Missing operation identity");
+    if (!Number.isInteger(data.expectedGlobalVersion) || data.expectedGlobalVersion < 0) {
+      throw new Error("Invalid global round version");
+    }
+    if (!Number.isInteger(data.expectedRoundVersion) || data.expectedRoundVersion < 0) {
+      throw new Error("Invalid round version");
+    }
+    return data;
+  })
+  .handler(async ({ data }) => {
+    const { applyMergedTelevotingRoundDeleteServer } = await import(
+      "@/integrations/televoting/rounds.server"
+    );
+    return applyMergedTelevotingRoundDeleteServer(data) as Promise<MergedRoundDeleteReceipt>;
+  });
+
+/**
+ * Compatibility endpoint only. Organizer owns the reviewed cutover to
+ * previewMergedTelevotingRoundDelete + applyMergedTelevotingRoundDelete.
+ */
 export const deleteMergedTelevotingRound = createServerFn({ method: "POST" })
   .inputValidator((data: { id: string }) => {
     if (!data?.id) throw new Error("Missing round");
