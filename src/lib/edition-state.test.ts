@@ -3,6 +3,7 @@ import {
   assertEditionTransition,
   canTransitionEdition,
   defaultSubsystemStatesForEdition,
+  EDITION_STATES,
   getEditionTransition,
   normalizeLegacyEditionStatus,
 } from './edition-state';
@@ -31,6 +32,17 @@ describe('edition state engine', () => {
     expect(normalizeLegacyEditionStatus('live_show')).toBe('live_show');
     expect(normalizeLegacyEditionStatus('completed')).toBe('post_edition');
     expect(normalizeLegacyEditionStatus(null)).toBe('planning');
+  });
+
+  it('preserves every canonical V3 lifecycle rather than falling back to planning', () => {
+    for (const state of EDITION_STATES) {
+      expect(normalizeLegacyEditionStatus(state), state).toBe(state);
+      expect(normalizeLegacyEditionStatus(`  ${state.toUpperCase()}  `), state).toBe(state);
+    }
+    expect(normalizeLegacyEditionStatus('unrecognized-state')).toBe('planning');
+    expect(normalizeLegacyEditionStatus('active')).toBe('submissions');
+    expect(normalizeLegacyEditionStatus('voting')).toBe('televoting');
+    expect(normalizeLegacyEditionStatus('finished')).toBe('post_edition');
   });
 
   it('derives safe subsystem defaults from the edition lifecycle', () => {

@@ -327,6 +327,47 @@ describe("public contest state", () => {
     }
   });
 
+  it("uses canonical lifecycle states in public Home rather than treating them as planning", () => {
+    const examples = [
+      ["confirmations", "confirmations"],
+      ["pre_show", "pre_show"],
+      ["jury_voting", "jury_voting"],
+      ["vote_verification", "results_pending"],
+      ["post_edition", "post_edition"],
+    ] as const;
+
+    for (const [status, expectedPhase] of examples) {
+      const state = resolvePublicEditionState({
+        edition: edition({ status }),
+        shows: [show({ status: "scheduled" })],
+        results: [],
+      });
+      expect(state.lifecycle, status).toBe(status);
+      expect(state.phase, status).toBe(expectedPhase);
+    }
+  });
+
+  it("does not select a canonical post_edition as the current live edition", () => {
+    const selected = resolveCurrentPublicEdition([
+      edition({
+        id: "edition-23",
+        edition_number: 23,
+        slug: "ssc-23",
+        status: "post_edition",
+      }),
+      edition({ status: "confirmations" }),
+    ]);
+    expect(selected?.id).toBe("edition-22");
+
+    const old = resolvePublicEditionState({
+      edition: edition({ status: "post_edition" }),
+      shows: [show({ status: "live" })],
+      results: [],
+    });
+    expect(old.phase).toBe("post_edition");
+    expect(old.statusLabel).toBe("Completed");
+  });
+
   it("returns a useful between-editions state when no edition is public", () => {
     const state = resolvePublicContestState({
       editions: [],
