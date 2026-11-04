@@ -29,7 +29,7 @@ import {
   type ConfirmationEdition,
 } from "@/integrations/confirmations/admin";
 import { loadAllConfirmationResponsesForEdition } from "@/integrations/confirmations/v3-projections";
-import { isCurrentConfirmationCountriesRequest } from "@/lib/confirmation-countries-edition-guard";
+import { deriveConfirmationNationalFinalTriage, isCurrentConfirmationCountriesRequest } from "@/lib/confirmation-countries-edition-guard";
 
 type Entry = {
   id: string;
@@ -66,12 +66,6 @@ export const Route = createFileRoute("/confirmations/admin/")({
   component: DelegationsAdminOverview,
 });
 
-function activeNfEntries(row: ResponseRow) {
-  return (row.national_finals?.national_final_entries ?? []).filter(
-    (entry) => !entry.removed && entry.review_status !== "removed",
-  );
-}
-
 function responseCardState(row: ResponseRow): CardState {
   if (!row.participating) return "neutral";
 
@@ -85,12 +79,11 @@ function responseCardState(row: ResponseRow): CardState {
   }
 
   if (row.selection_method === "national_final") {
-    const entries = activeNfEntries(row);
-    if (!entries.length || row.nf_entries_unknown) return "neutral";
-    if (entries.some((entry) => entry.review_status === "declined")) return "issue";
-    if (entries.some((entry) => !entry.review_status || entry.review_status === "pending")) return "review";
-    if (!row.national_finals?.winning_entry_id) return "neutral";
-    return "ready";
+    return deriveConfirmationNationalFinalTriage(
+      row.national_finals?.national_final_entries ?? [],
+      row.national_finals?.winning_entry_id ?? null,
+      row.nf_entries_unknown,
+    );
   }
 
   return "neutral";
