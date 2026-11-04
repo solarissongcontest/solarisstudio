@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 
+import { AppTabBar } from "@/components/app/AppTabBar";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
@@ -148,6 +150,7 @@ export function V3AppShell({
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const navigate = useNavigate();
+  const { isAppMode } = useSolarisApp();
   const publicArea = activeArea ?? resolveV3ShellActiveArea(pathname, searchStr);
   const attention = useAppAttentionSummary();
   const rollout = useV3RolloutProbe(true);
@@ -353,12 +356,22 @@ export function V3AppShell({
         {children}
       </div>
 
-      <V3LiquidTabBar
-        key={navigationInteractionKey}
-        pathname={pathname}
-        destinations={navigationDestinations}
-        onSelect={selectDestination}
-      />
+      {isAppMode ? (
+        <AppTabBar
+          pathname={pathname}
+          searchStr={searchStr}
+          signedIn={Boolean(rollout.data?.userId)}
+          participateBadge={participateAttentionCount}
+          meBadge={attention.me}
+        />
+      ) : (
+        <V3LiquidTabBar
+          key={navigationInteractionKey}
+          pathname={pathname}
+          destinations={navigationDestinations}
+          onSelect={selectDestination}
+        />
+      )}
     </V3FoundationShell>
   );
 }

@@ -22,9 +22,9 @@ html[data-solaris-app-boot] body::before {
 
 :root {
   --solaris-app-toolbar-height: 3.55rem;
-  --solaris-app-tabbar-height: 4.7rem;
-  --solaris-app-tabbar-collapsed-height: 3.25rem;
-  --solaris-app-tabbar-max-height: 5.35rem;
+  --solaris-app-tabbar-height: 4rem;
+  --solaris-app-tabbar-collapsed-height: 3.4rem;
+  --solaris-app-tabbar-max-height: 4.6rem;
   --solaris-bottom-obstruction: 0px;
   --solaris-app-safe-top: env(safe-area-inset-top);
   --solaris-app-safe-right: env(safe-area-inset-right);
@@ -184,9 +184,9 @@ html[data-solaris-app-boot] body::before {
   .solaris-app-tabbar {
     position: fixed;
     z-index: var(--solaris-z-tabbar);
-    left: max(.65rem, var(--solaris-app-safe-left));
-    right: max(.65rem, var(--solaris-app-safe-right));
-    bottom: max(.45rem, var(--solaris-app-safe-bottom));
+    left: max(1.5rem, var(--solaris-app-safe-left));
+    right: max(1.5rem, var(--solaris-app-safe-right));
+    bottom: max(.65rem, var(--solaris-app-safe-bottom));
     display: block;
     max-height: var(--solaris-app-tabbar-max-height);
     pointer-events: none;
@@ -201,9 +201,9 @@ html[data-solaris-app-boot] body::before {
   }
 
   .solaris-app-tabbar-material {
-    --solaris-tab-pad: .38rem;
-    --solaris-tab-total-inset: .76rem;
-    --solaris-tab-gap: .15rem;
+    --solaris-tab-pad: .25rem;
+    --solaris-tab-total-inset: .5rem;
+    --solaris-tab-gap: .125rem;
     --solaris-tab-drag-x: 0px;
     --solaris-tab-drag-scale-x: 1;
     --solaris-tabbar-pull-width: 0px;
@@ -215,7 +215,7 @@ html[data-solaris-app-boot] body::before {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: var(--solaris-tab-gap);
-    width: min(40rem, 100%);
+    width: min(21.375rem, 100%);
     box-sizing: border-box;
     height: min(
       calc(var(--solaris-app-tabbar-height) + var(--solaris-tabbar-pull-height)),
@@ -226,7 +226,7 @@ html[data-solaris-app-boot] body::before {
     margin-inline: auto;
     padding: var(--solaris-tab-pad);
     border: 0;
-    border-radius: calc(1.55rem + var(--solaris-tabbar-pull-radius));
+    border-radius: calc(2rem + var(--solaris-tabbar-pull-radius));
     background: transparent;
     box-shadow: none;
     contain: layout paint;
@@ -243,34 +243,34 @@ html[data-solaris-app-boot] body::before {
     max-block-size: 100%;
     pointer-events: none;
     contain: paint;
-    border: 1px solid rgb(255 255 255 / .18);
+    border: 1px solid rgb(255 255 255 / .24);
     border-radius: inherit;
     background:
-      linear-gradient(
-        145deg,
-        rgb(255 255 255 / .085),
-        rgb(255 255 255 / .026) 46%,
-        rgb(245 252 255 / .05)
-      );
+      radial-gradient(circle at 18% 0%, rgb(255 255 255 / .16), transparent 42%),
+      linear-gradient(145deg, rgb(230 247 253 / .13), rgb(92 164 197 / .055) 48%, rgb(223 245 252 / .09));
     box-shadow:
-      0 10px 28px rgb(0 4 22 / .07),
-      inset 0 1px 0 rgb(255 255 255 / .14),
-      inset 0 -1px 0 rgb(200 235 247 / .035);
+      0 12px 30px rgb(0 4 22 / .16),
+      inset 0 1px 0 rgb(255 255 255 / .26),
+      inset 0 -1px 0 rgb(169 222 242 / .08);
   }
 
   .solaris-app-tab-indicator {
     position: absolute;
     z-index: 2;
     top: 50%;
-    left: var(--solaris-tab-pad);
-    width: calc((100% - var(--solaris-tab-total-inset) - .6rem) / 5);
-    height: 3.7rem;
-    border: 0;
-    border-radius: 1.08rem;
-    background: rgb(238 241 245 / .075);
-    box-shadow: none;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
+    left: calc(var(--solaris-tab-pad) + .42rem);
+    width: calc((100% - var(--solaris-tab-total-inset) - .5rem) / 5 - .84rem);
+    height: 2.9rem;
+    border: 1px solid rgb(255 255 255 / .24);
+    border-radius: 1.3rem;
+    background:
+      linear-gradient(145deg, rgb(250 254 255 / .19), rgb(150 212 235 / .075) 58%, rgb(244 252 255 / .12));
+    box-shadow:
+      0 5px 18px rgb(0 4 22 / .11),
+      inset 0 1px 0 rgb(255 255 255 / .34),
+      inset 0 -1px 0 rgb(158 215 237 / .12);
+    -webkit-backdrop-filter: blur(16px) saturate(1.22) brightness(1.08);
+    backdrop-filter: blur(16px) saturate(1.22) brightness(1.08);
     transform:
       translateY(-50%)
       translateX(var(--solaris-tab-drag-x))
@@ -287,28 +287,28 @@ html[data-solaris-app-boot] body::before {
   .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
     transform:
       translateY(-50%)
-      translateX(calc(100% + .15rem + var(--solaris-tab-drag-x)))
+      translateX(calc(100% + .965rem + var(--solaris-tab-drag-x)))
       scaleX(var(--solaris-tab-drag-scale-x));
   }
 
   .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
     transform:
       translateY(-50%)
-      translateX(calc(200% + .30rem + var(--solaris-tab-drag-x)))
+      translateX(calc(200% + 1.93rem + var(--solaris-tab-drag-x)))
       scaleX(var(--solaris-tab-drag-scale-x));
   }
 
   .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
     transform:
       translateY(-50%)
-      translateX(calc(300% + .45rem + var(--solaris-tab-drag-x)))
+      translateX(calc(300% + 2.895rem + var(--solaris-tab-drag-x)))
       scaleX(var(--solaris-tab-drag-scale-x));
   }
 
   .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
     transform:
       translateY(-50%)
-      translateX(calc(400% + .60rem + var(--solaris-tab-drag-x)))
+      translateX(calc(400% + 3.86rem + var(--solaris-tab-drag-x)))
       scaleX(var(--solaris-tab-drag-scale-x));
   }
 
@@ -318,7 +318,7 @@ html[data-solaris-app-boot] body::before {
 
   .solaris-app-tabbar-material[data-dragging="true"] .solaris-app-tab-indicator {
     transition: none;
-    background: rgb(241 244 247 / .095);
+    background: linear-gradient(145deg, rgb(255 255 255 / .24), rgb(142 211 237 / .11));
   }
 
   .solaris-app-tab {
@@ -330,14 +330,14 @@ html[data-solaris-app-boot] body::before {
     background: transparent;
     display: flex;
     min-width: 0;
-    min-height: 3.7rem;
+    min-height: 3.25rem;
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    gap: .22rem;
+    gap: .14rem;
     border-radius: 1.15rem;
     color: var(--muted-foreground);
-    font-size: .64rem;
+    font-size: .6rem;
     font-weight: 650;
     letter-spacing: -.01em;
     transition:
@@ -665,6 +665,12 @@ html[data-solaris-app-boot] body::before {
       backdrop-filter: none;
       background: rgb(5 18 41 / .98);
     }
+
+    .solaris-app-tab-indicator {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      background: rgb(20 39 67 / .96);
+    }
   }
 }
 
@@ -722,19 +728,19 @@ html[data-solaris-app-boot] body::before {
   }
 
   .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material {
-    --solaris-tab-pad: .24rem;
-    --solaris-tab-total-inset: .48rem;
-    width: min(24rem, calc(100% - 2.4rem));
+    --solaris-tab-pad: .2rem;
+    --solaris-tab-total-inset: .4rem;
+    width: min(19.25rem, calc(100% - 2.1rem));
     height: var(--solaris-app-tabbar-collapsed-height);
     min-height: 0;
     max-height: var(--solaris-app-tabbar-collapsed-height);
     padding: var(--solaris-tab-pad);
-    border-radius: 1.3rem;
+    border-radius: 1.7rem;
   }
 
   .solaris-app-tabbar.is-collapsed .solaris-app-tab-indicator {
-    height: 2.72rem;
-    border-radius: .95rem;
+    height: 2.55rem;
+    border-radius: 1.12rem;
   }
 
   .solaris-app-tabbar.is-collapsed .solaris-app-tab {
@@ -3406,26 +3412,6 @@ html[data-solaris-app] .solaris-app-bottom-spacer {
   min-height: calc(var(--solaris-app-bottom-obstruction, 0px) + 1.25rem);
   flex: 0 0 auto;
   pointer-events: none;
-}
-
-/* Shell-owned scroll-end clearance: a temporary zero measurement during iOS
-   resume must not put the last actionable row under floating navigation. */
-@media (max-width: 899px) {
-  html[data-solaris-app]
-    .app-main[data-solaris-app-mode="true"]
-    > .solaris-app-bottom-spacer {
-    min-height: max(
-      calc(var(--solaris-app-bottom-obstruction, 0px) + 1.25rem),
-      calc(var(--solaris-app-tabbar-height, 4.7rem) + max(2.75rem, env(safe-area-inset-bottom)))
-    );
-  }
-
-  html[data-solaris-app][data-solaris-keyboard-open]
-    .app-main[data-solaris-app-mode="true"]
-    > .solaris-app-bottom-spacer {
-    height: 1.25rem;
-    min-height: 1.25rem;
-  }
 }
 
 html[data-solaris-app]
