@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
   BookOpen,
@@ -15,11 +15,18 @@ import { AppTabBar } from "@/components/app/AppTabBar";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
+import { runAppViewTransition } from "@/lib/app-view-transitions";
+import { prefersReducedMotion } from "@/lib/interaction-physics";
 import { resolveV3ShellActiveArea } from "@/lib/v3-shell-active-area";
 import {
   consumeV3PublicNavigationRestore,
+  getV3PublicTabDestination,
+  markV3PublicNavigationRestore,
   rememberV3PublicLocation,
+  resetV3PublicTabToRoot,
   updateV3PublicScrollPosition,
+  v3PublicEntryHref,
+  type V3PublicTabId,
 } from "@/lib/v3-public-navigation";
 import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { cn } from "@/lib/utils";
@@ -146,6 +153,7 @@ export function V3AppShell({
 }: V3AppShellProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const navigate = useNavigate();
   const { isAppMode, platformResolved } = useSolarisApp();
   const publicArea = activeArea ?? resolveV3ShellActiveArea(pathname, searchStr);
   const attention = useAppAttentionSummary();
@@ -171,9 +179,7 @@ export function V3AppShell({
       : "Notifications";
 
   useEffect(() => {
-    // Browser navigation and Back/Forward own their own scroll history. Only
-    // the installed PWA participates in viewer-scoped app tab memory.
-    if (typeof window === "undefined" || !platformResolved || !isAppMode || !navigationIdentityReady) return;
+    if (typeof window === "undefined" || !navigationIdentityReady) return;
 
     const previousViewerKey = previousResolvedViewerKeyRef.current;
     previousResolvedViewerKeyRef.current = resolvedViewerKey;
@@ -243,8 +249,6 @@ export function V3AppShell({
       );
     };
   }, [
-    isAppMode,
-    platformResolved,
     navigationIdentityReady,
     navigationScope,
     pathname,
@@ -263,6 +267,37 @@ export function V3AppShell({
       badge: id === "participate" ? participateAttentionCount : 0,
     }),
   );
+
+  const selectDestination = (destination: V3LiquidTabDestination) => {
+    const id = destination.id as V3PublicTabId;
+    const alreadyActive = publicArea === id;
+    const normalizedPath =
+      pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+    const normalizedRoot =
+      destination.to.endsWith("/") && destination.to !== "/"
+        ? destination.to.slice(0, -1)
+        : destination.to;
+
+    if (alreadyActive && normalizedPath === normalizedRoot) {
+      window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+      return;
+    }
+
+    // Until viewer identity resolves, semantic navigation still works but uses
+    // canonical roots only. Passing null storage avoids reading/writing the
+    // anonymous memory bucket with an identity we do not yet know is anonymous.
+    const navigationStorage = navigationIdentityReady ? undefined : null;
+    const target = alreadyActive
+      ? resetV3PublicTabToRoot(id, navigationStorage, navigationScope)
+      : getV3PublicTabDestination(id, navigationStorage, navigationScope);
+    if (navigationIdentityReady) {
+      markV3PublicNavigationRestore(target, undefined, navigationScope);
+    }
+
+    void runAppViewTransition(alreadyActive ? "pop" : "tab", () =>
+      navigate({ to: v3PublicEntryHref(target) as any }),
+    );
+  };
 
   const shellActions =
     notificationsAvailable || searchAvailable || rulesGuidanceAvailable || topActions ? (
@@ -321,7 +356,10 @@ export function V3AppShell({
               activeArea={publicArea}
               participateAttentionCount={participateAttentionCount}
             />
-            <V3DesktopPrimaryNavigation destinations={navigationDestinations} />
+            <V3DesktopPrimaryNavigation
+              destinations={navigationDestinations}
+              onSelect={selectDestination}
+            />
           </>
         ) : null}
         {children}

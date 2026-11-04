@@ -37,15 +37,20 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(css).not.toContain("position: fixed");
     const desktop = read("src/components/v3/V3DesktopPrimaryNavigation.tsx");
     expect(desktop).toContain("to={destination.to as any}");
-    expect(desktop).not.toContain("event.preventDefault");
-    expect(desktop).not.toContain("onSelect");
+    expect(desktop).toContain("event.metaKey");
+    expect(desktop).toContain("event.ctrlKey");
+    expect(desktop).toContain("event.shiftKey");
+    expect(desktop).toContain("event.altKey");
+    expect(desktop).toContain("event.preventDefault");
+    expect(desktop).toContain("onSelect(destination)");
   });
 
   it("keeps desktop browser navigation distinct and mobile web content in flow", () => {
     expect(shell).toContain("<V3DesktopPrimaryNavigation");
-    expect(shell).toContain('!platformResolved || !isAppMode || !navigationIdentityReady');
-    expect(shell).not.toContain("getV3PublicTabDestination");
-    expect(shell).not.toContain("markV3PublicNavigationRestore");
+    // Keep canonical viewer-scoped N10 tab memory until the replacement
+    // authority has been formally cut over.
+    expect(shell).toContain("getV3PublicTabDestination");
+    expect(shell).toContain("markV3PublicNavigationRestore");
     expect(desktopCss).toContain("@media (min-width: 1024px)");
     expect(css).toContain('[data-v3-shell-experience="web"] .v3-screen');
     expect(css).toContain("@media (max-width: 1023px)");
