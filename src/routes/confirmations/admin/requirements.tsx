@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, CircleAlert, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
@@ -23,12 +24,24 @@ import {
   createOrganisationCommand,
   requiresImpactPreview,
 } from "@/lib/organisation-operation-contract";
+import { isCurrentConfirmationRequirementAction } from "@/lib/confirmation-requirement-action-scope";
+import { reconcileSystemOperation } from "@/lib/system-operation.functions";
+import { normalizeSystemReceipt } from "@/lib/system-receipt";
+import { toSystemError } from "@/lib/system-error";
 
 type RequirementFilter = "all" | "required" | "satisfied" | "waived";
 type PendingAction =
   | { kind: "reconfirm"; requirement: ConfirmationRequirement }
   | { kind: "waive"; requirement: ConfirmationRequirement }
   | null;
+
+type UnresolvedRequirementOperation = {
+  operationId: string;
+  fingerprint: string;
+  editionId: string;
+  requirementId: string;
+  countryName: string;
+};
 
 const RISK = "R2" as const;
 const STALE_CONTEXT_ERROR =
@@ -46,10 +59,24 @@ export const Route = createFileRoute("/confirmations/admin/requirements")({
 
 function ConfirmationRequirementsPage() {
   const queryClient = useQueryClient();
+  const reconcileRequirementOperation = useServerFn(reconcileSystemOperation);
   const { editionId } = useAdminContext();
   const [filter, setFilter] = useState<RequirementFilter>("all");
   const [pending, setPending] = useState<PendingAction>(null);
   const [reason, setReason] = useState("");
+  const activeEditionRef = useRef(editionId);
+  const editionReviewEpochRef = useRef(0);
+  const ensureInFlightRef = useRef(false);
+  const actionInFlightRef = useRef(false);
+  const unresolvedRequirementRef = useRef<UnresolvedRequirementOperation | null>(null);
+  const [unresolvedRequirement, setUnresolvedRequirement] = useState<UnresolvedRequirementOperation | null>(null);
+  const reconciliationInFlightRef = useRef(false);
+  const [reconciling, setReconciling] = useState(false);
+
+  function updateUnresolvedRequirement(next: UnresolvedRequirementOperation | null) {
+    unresolvedRequirementRef.current = next;
+    setUnresolvedRequirement(next);
+  }
 
   const requirementsQuery = useQuery({
     queryKey: ["confirmation-requirements", editionId || "none"],
@@ -60,23 +87,48 @@ function ConfirmationRequirementsPage() {
   });
 
   const ensure = useMutation({
-    mutationFn: (targetEditionId: string) => ensureConfirmationRequirements(targetEditionId),
-    onSuccess: async (result, targetEditionId) => {
-      toast.success(
-        result.created
-          ? String(result.created) + " confirmation requirement" + (result.created === 1 ? "" : "s") + " created"
-          : "Every active delegation already has a current requirement",
-      );
+    mutationFn: async (input: { editionId: string; reviewEpoch: number }) => {
+      const result = await ensureConfirmationRequirements(input.editionId);
+      if (!result || result.ok !== true || result.editionId !== input.editionId ||
+          !Number.isSafeInteger(result.created) || result.created < 0) {
+        throw new Error("The current edition's requirement initialization could not be verified.");
+      }
+      return result;
+    },
+    onSuccess: async (result, input) => {
+      if (isCurrentConfirmationRequirementAction(
+        input.editionId, activeEditionRef.current,
+        input.reviewEpoch, editionReviewEpochRef.current,
+      )) {
+        toast.success(
+          result.created
+            ? String(result.created) + " confirmation requirement" + (result.created === 1 ? "" : "s") + " created"
+            : "Every active delegation already has a current requirement",
+        );
+      } else {
+        toast.info("A prior Organizer selection's confirmation requirements were updated. Review that edition to see the result.");
+      }
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["confirmation-requirements", targetEditionId],
+          queryKey: ["confirmation-requirements", input.editionId],
         }),
-        queryClient.invalidateQueries({ queryKey: ["organizer-tasks-v5", targetEditionId] }),
-        queryClient.invalidateQueries({ queryKey: ["organizer-task-count-v5", targetEditionId] }),
+        queryClient.invalidateQueries({ queryKey: ["organizer-tasks-v5", input.editionId] }),
+        queryClient.invalidateQueries({ queryKey: ["organizer-task-count-v5", input.editionId] }),
       ]);
     },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Requirements could not be initialized"),
+    onError: (error, input) => {
+      if (isCurrentConfirmationRequirementAction(
+        input.editionId, activeEditionRef.current,
+        input.reviewEpoch, editionReviewEpochRef.current,
+      )) {
+        toast.error(error instanceof Error ? error.message : "Requirements could not be initialized");
+      } else {
+        toast.warning("Requirements for a prior Organizer edition selection could not be verified. Inspect that edition before retrying.");
+      }
+    },
+    onSettled: () => {
+      ensureInFlightRef.current = false;
+    },
   });
 
   const action = useMutation({
@@ -84,10 +136,47 @@ function ConfirmationRequirementsPage() {
       kind: "reconfirm" | "waive";
       requirement: ConfirmationRequirement;
       organizerEditionId: string;
+      reviewEpoch: number;
       actionReason: string;
     }) => {
       if (input.requirement.editionId !== input.organizerEditionId) {
         throw new Error(STALE_CONTEXT_ERROR);
+      }
+
+      const fingerprint = JSON.stringify([
+        input.organizerEditionId,
+        input.requirement.id,
+        input.requirement.generation,
+        input.kind,
+        input.actionReason,
+      ]);
+      // The first server call can commit even when its HTTP reply is lost.
+      // Reconcile that same operation before authorizing any new R2 intent.
+      const unresolved = unresolvedRequirementRef.current;
+      if (unresolved) {
+        if (unresolved.fingerprint !== fingerprint) {
+          throw new Error(
+            "An earlier requirement command has an unresolved outcome (" +
+            unresolved.operationId + "). Reconcile it before changing the reviewed decision.",
+          );
+        }
+        const recovery = await reconcileRequirementOperation({
+          data: { operationId: unresolved.operationId },
+        });
+        if (recovery.ok && recovery.receipt.operationId === unresolved.operationId &&
+            recovery.receipt.status === "succeeded") {
+          updateUnresolvedRequirement(null);
+          return recovery.receipt;
+        }
+        if (recovery.ok && recovery.receipt.operationId === unresolved.operationId &&
+            recovery.receipt.status === "failed") {
+          updateUnresolvedRequirement(null);
+          throw new Error("The earlier requirement operation failed authoritatively. Reload this requirement before retrying.");
+        }
+        throw new Error(
+          "The earlier requirement operation is not yet confirmed. Reconcile operation " +
+          unresolved.operationId + " before attempting another change.",
+        );
       }
 
       const command = createOrganisationCommand({
@@ -106,29 +195,83 @@ function ConfirmationRequirementsPage() {
           generation: input.requirement.generation,
         },
       });
-
-      return input.kind === "reconfirm"
-        ? reconfirmConfirmationRequirement({
-            requirementId: input.requirement.id,
-            reason: input.actionReason,
-            operationId: command.operationId,
-            idempotencyKey: command.idempotencyKey,
-          })
-        : waiveConfirmationRequirement({
-            requirementId: input.requirement.id,
-            reason: input.actionReason,
-            operationId: command.operationId,
-            idempotencyKey: command.idempotencyKey,
-          });
+      if (!isCurrentConfirmationRequirementAction(
+        input.organizerEditionId, activeEditionRef.current,
+        input.reviewEpoch, editionReviewEpochRef.current,
+      )) {
+        throw new Error(STALE_CONTEXT_ERROR);
+      }
+      updateUnresolvedRequirement({
+        operationId: command.operationId,
+        fingerprint,
+        editionId: input.organizerEditionId,
+        requirementId: input.requirement.id,
+        countryName: input.requirement.countryName,
+      });
+      let returned: unknown = null;
+      let failureMessage = "The requirement command returned no verified receipt.";
+      try {
+        returned = input.kind === "reconfirm"
+          ? await reconfirmConfirmationRequirement({
+              requirementId: input.requirement.id,
+              reason: input.actionReason,
+              operationId: command.operationId,
+              idempotencyKey: command.idempotencyKey,
+            })
+          : await waiveConfirmationRequirement({
+              requirementId: input.requirement.id,
+              reason: input.actionReason,
+              operationId: command.operationId,
+              idempotencyKey: command.idempotencyKey,
+            });
+      } catch (caught) {
+        failureMessage = toSystemError(caught).message;
+      }
+      const receipt = normalizeSystemReceipt(returned);
+      if (receipt && receipt.operationId === command.operationId &&
+          receipt.status === "succeeded") {
+        updateUnresolvedRequirement(null);
+        return receipt;
+      }
+      if (receipt && receipt.operationId === command.operationId && receipt.status === "failed") {
+        updateUnresolvedRequirement(null);
+        throw new Error(receipt.error?.message ?? "The requirement command failed authoritatively.");
+      }
+      // A transport error, invalid payload or incomplete operation is not a
+      // failed canonical mutation. Verify the durable receipt before UI success.
+      const recovery = await reconcileRequirementOperation({
+        data: { operationId: command.operationId },
+      });
+      if (recovery.ok && recovery.receipt.operationId === command.operationId &&
+          recovery.receipt.status === "succeeded") {
+        updateUnresolvedRequirement(null);
+        return recovery.receipt;
+      }
+      if (recovery.ok && recovery.receipt.operationId === command.operationId &&
+          recovery.receipt.status === "failed") {
+        updateUnresolvedRequirement(null);
+        throw new Error("The requirement operation failed. " + failureMessage);
+      }
+      throw new Error(
+        failureMessage + " Outcome uncertain. Reconcile operation " +
+        command.operationId + " before retrying this requirement.",
+      );
     },
     onSuccess: async (_, variables) => {
-      toast.success(
-        variables.kind === "reconfirm"
-          ? variables.requirement.countryName + " now requires confirmation again"
-          : variables.requirement.countryName + " confirmation requirement waived",
-      );
-      setPending(null);
-      setReason("");
+      if (isCurrentConfirmationRequirementAction(
+        variables.organizerEditionId, activeEditionRef.current,
+        variables.reviewEpoch, editionReviewEpochRef.current,
+      )) {
+        toast.success(
+          variables.kind === "reconfirm"
+            ? variables.requirement.countryName + " now requires confirmation again"
+            : variables.requirement.countryName + " confirmation requirement waived",
+        );
+        setPending(null);
+        setReason("");
+      } else {
+        toast.info("The previous edition's requirement operation completed. Review that edition before taking another action.");
+      }
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["confirmation-requirements", variables.organizerEditionId],
@@ -141,9 +284,26 @@ function ConfirmationRequirementsPage() {
         }),
       ]);
     },
+    onError: (error, variables) => {
+      if (isCurrentConfirmationRequirementAction(
+        variables.organizerEditionId, activeEditionRef.current,
+        variables.reviewEpoch, editionReviewEpochRef.current,
+      )) {
+        toast.error(error instanceof Error ? error.message : "The requirement operation failed.");
+      } else {
+        toast.warning("A previous edition's requirement operation could not be confirmed. Inspect that edition before retrying.");
+      }
+    },
+    onSettled: () => {
+      actionInFlightRef.current = false;
+    },
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    // Update the imperative context before a settled mutation can touch the
+    // next edition's pending decision during the post-commit paint window.
+    activeEditionRef.current = editionId;
+    editionReviewEpochRef.current += 1;
     // A pending R2 decision belongs to the edition in which it was opened.
     // Never let an old sheet survive a global Organizer context switch.
     setPending(null);
@@ -168,6 +328,14 @@ function ConfirmationRequirementsPage() {
   );
 
   function start(next: Exclude<PendingAction, null>) {
+    if (unresolvedRequirementRef.current) {
+      toast.error("A requirement operation is unresolved. Reconcile the open review before starting another.");
+      return;
+    }
+    if (actionInFlightRef.current) {
+      toast.error("Finish the current requirement operation before reviewing another.");
+      return;
+    }
     if (!editionId || next.requirement.editionId !== editionId) {
       toast.error(STALE_CONTEXT_ERROR);
       return;
@@ -178,19 +346,81 @@ function ConfirmationRequirementsPage() {
   }
 
   function submitAction() {
-    if (!pending || reason.trim().length < 5) return;
-    if (!editionId || pending.requirement.editionId !== editionId) {
+    // React state alone cannot prevent two clicks in the same render tick from
+    // creating different operation identities for one consequential decision.
+    if (actionInFlightRef.current || action.isPending || !pending || reason.trim().length < 5) return;
+    if (!editionId || pending.requirement.editionId !== editionId ||
+        !isCurrentConfirmationRequirementAction(
+          editionId, activeEditionRef.current,
+          editionReviewEpochRef.current, editionReviewEpochRef.current,
+        )) {
       setPending(null);
       setReason("");
       toast.error(STALE_CONTEXT_ERROR);
       return;
     }
+    actionInFlightRef.current = true;
     action.mutate({
       kind: pending.kind,
       requirement: pending.requirement,
       organizerEditionId: editionId,
+      reviewEpoch: editionReviewEpochRef.current,
       actionReason: reason.trim(),
     });
+  }
+
+
+  async function reconcileOutstandingRequirement() {
+    const outstanding = unresolvedRequirementRef.current;
+    if (!outstanding || reconciliationInFlightRef.current || actionInFlightRef.current ||
+        outstanding.editionId !== editionId || activeEditionRef.current !== outstanding.editionId) return;
+
+    reconciliationInFlightRef.current = true;
+    setReconciling(true);
+    try {
+      const result = await reconcileRequirementOperation({
+        data: { operationId: outstanding.operationId },
+      });
+      // Never trust an unrelated receipt merely because the reconciliation
+      // request itself completed over HTTP.
+      if (!result.ok || result.receipt.operationId !== outstanding.operationId) {
+        toast.warning("The prior requirement operation is still unverified. No new command is allowed.");
+        return;
+      }
+      if (result.receipt.status !== "succeeded" && result.receipt.status !== "failed") {
+        toast.warning("The prior requirement operation is still processing. Keep this operation ID for reconciliation.");
+        return;
+      }
+
+      updateUnresolvedRequirement(null);
+      if (activeEditionRef.current === outstanding.editionId) {
+        setPending(null);
+        setReason("");
+        action.reset();
+      }
+
+      if (result.receipt.status === "succeeded") {
+        toast.success("The prior requirement operation was confirmed by its canonical receipt.");
+      } else {
+        toast.error(result.receipt.error?.message ?? "The prior requirement operation failed authoritatively. Review the current requirement before retrying.");
+      }
+      // Receipt settlement is authoritative even if a later projection refresh
+      // fails. Never tell the Organizer that a committed mutation failed.
+      const refreshed = await Promise.allSettled([
+        queryClient.invalidateQueries({ queryKey: ["confirmation-requirements", outstanding.editionId] }),
+        queryClient.invalidateQueries({ queryKey: ["organizer-tasks-v5", outstanding.editionId] }),
+        queryClient.invalidateQueries({ queryKey: ["organizer-task-count-v5", outstanding.editionId] }),
+      ]);
+      if (refreshed.some((item) => item.status === "rejected")) {
+        toast.warning("The operation was settled, but the current edition projection did not refresh. Reload before reviewing it again.");
+      }
+    } catch (caught) {
+      toast.error((caught instanceof Error ? caught.message : "Could not reconcile the operation.") +
+        " The original operation remains unresolved; do not repeat the mutation.");
+    } finally {
+      reconciliationInFlightRef.current = false;
+      setReconciling(false);
+    }
   }
 
   return (
@@ -204,9 +434,12 @@ function ConfirmationRequirementsPage() {
             <button
               type="button"
               className="admin-action-secondary"
-              disabled={!editionId || ensure.isPending}
+              disabled={!editionId || ensure.isPending || ensureInFlightRef.current || Boolean(unresolvedRequirement)}
               onClick={() => {
-                if (editionId) ensure.mutate(editionId);
+                if (!editionId || ensureInFlightRef.current || ensure.isPending ||
+                    unresolvedRequirementRef.current || editionId !== activeEditionRef.current) return;
+                ensureInFlightRef.current = true;
+                ensure.mutate({ editionId, reviewEpoch: editionReviewEpochRef.current });
               }}
             >
               <RefreshCw className={ensure.isPending ? "size-4 animate-spin" : "size-4"} />
@@ -218,6 +451,32 @@ function ConfirmationRequirementsPage() {
           </div>
         }
       />
+
+      {unresolvedRequirement ? (
+        <AdminCard className="mb-4 border-amber-200/25 bg-amber-200/[0.045]" >
+          <p className="text-sm font-bold text-amber-100">Requirement operation awaiting reconciliation</p>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            {unresolvedRequirement.countryName} · original Organizer edition {unresolvedRequirement.editionId}
+          </p>
+          <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+            Operation {unresolvedRequirement.operationId}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            {unresolvedRequirement.editionId === editionId
+              ? "Check this exact operation's canonical receipt before issuing another requirement decision."
+              : "Select the original Organizer edition to reconcile this operation. No new requirement decisions are allowed until then."}
+          </p>
+          <button
+            type="button"
+            className="admin-action-secondary mt-3"
+            disabled={reconciling || action.isPending || unresolvedRequirement.editionId !== editionId}
+            onClick={() => void reconcileOutstandingRequirement()}
+          >
+            <RefreshCw className={reconciling ? "size-4 animate-spin" : "size-4"} />
+            {reconciling ? "Reconciling…" : "Reconcile prior operation"}
+          </button>
+        </AdminCard>
+      ) : null}
 
       {!editionId ? (
         <AdminCard>
@@ -347,7 +606,7 @@ function ConfirmationRequirementsPage() {
       <AdminSheet
         open={Boolean(pending)}
         onClose={() => {
-          if (action.isPending) return;
+          if (action.isPending || actionInFlightRef.current || unresolvedRequirementRef.current) return;
           setPending(null);
           setReason("");
           action.reset();
@@ -398,7 +657,8 @@ function ConfirmationRequirementsPage() {
               />
             </label>
 
-            {action.error ? (
+            {action.error && action.variables?.organizerEditionId === editionId &&
+              action.variables?.reviewEpoch === editionReviewEpochRef.current ? (
               <p className="rounded-xl border border-rose-200/15 bg-rose-200/[0.05] p-3 text-xs text-rose-100">
                 {action.error instanceof Error ? action.error.message : "The requirement command failed."}
               </p>
@@ -408,7 +668,7 @@ function ConfirmationRequirementsPage() {
               <button
                 type="button"
                 className="admin-action-secondary w-full"
-                disabled={action.isPending}
+                disabled={action.isPending || Boolean(unresolvedRequirementRef.current)}
                 onClick={() => {
                   setPending(null);
                   setReason("");
@@ -420,11 +680,13 @@ function ConfirmationRequirementsPage() {
               <button
                 type="button"
                 className={pending.kind === "reconfirm" ? "admin-action-danger w-full" : "admin-action-primary w-full"}
-                disabled={action.isPending || reason.trim().length < 5}
+                disabled={action.isPending || actionInFlightRef.current || reason.trim().length < 5}
                 onClick={submitAction}
               >
                 {action.isPending
                   ? "Applying…"
+                  : unresolvedRequirementRef.current
+                    ? "Reconcile prior operation"
                   : pending.kind === "reconfirm"
                     ? "Require again"
                     : "Waive requirement"}
