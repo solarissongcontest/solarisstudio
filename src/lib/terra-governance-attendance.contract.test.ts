@@ -32,6 +32,23 @@ describe("TG6 governed institutional roll-call", () => {
     expect(migration).toContain("'forward_fix_only'");
   });
 
+  it("enforces cross-organization representation and proxy identity on direct privileged writes too", () => {
+    const integrity = migration.slice(
+      migration.indexOf("create or replace function private.world_session_attendance_integrity_v1"),
+      migration.indexOf("insert into public.studio2_capabilities"),
+    );
+    expect(integrity).toContain("security definer");
+    expect(integrity).toContain("v_rep_org is distinct from v_session_org");
+    expect(integrity).toContain("v_rep_country is distinct from new.country_id");
+    expect(integrity).toContain("v_proxy_rep is distinct from new.representation_id");
+    expect(integrity).toContain("v_proxy_session is distinct from new.session_id");
+    expect(integrity).toContain("create trigger world_session_attendance_identity_guard");
+    expect(integrity).toContain("before insert or update of session_id,country_id,representation_id,status,proxy_id");
+    expect(integrity).not.toContain("auth.uid()");
+    expect(rehearsal).toContain("TG6_ATTENDANCE_DIRECT_FOREIGN_REP_BYPASS");
+    expect(rehearsal).toContain("TG6_ATTENDANCE_DIRECT_FOREIGN_PROXY_BYPASS");
+  });
+
   it("adds explicit capability-based, organ-scoped roll-call management", () => {
     expect(migration).toContain("'world.session.attendance.manage'");
     expect(migration).toContain("insert into public.world_office_capabilities");
