@@ -37,6 +37,7 @@ const historyResponse = {
     officialName: "Global Union for Allied Resilience and Defence",
   },
   offices,
+  officesTruncated: false,
   terms: [completedTerm],
   hasMore: false,
   nextCursor: null,
@@ -58,6 +59,7 @@ describe("TG3 public office-history projection contract", () => {
     expect(parsed.terms[0].holderDisplayName).toBe("Historical holder");
     expect(parsed.terms[0].representedCountryName).toBe("Oland");
     expect(parsed.offices).toEqual(offices);
+    expect(parsed.officesTruncated).toBe(false);
     expect(parsed.terms[0].status).toBe("ended");
     expect(parsePublicOfficeHistoryPage({
       ...historyResponse, terms: [{ ...completedTerm, status: "resigned" }],
@@ -81,6 +83,9 @@ describe("TG3 public office-history projection contract", () => {
     }, "guard")).toThrow("Invalid public office history office option");
     expect(() => parsePublicOfficeHistoryPage({
       ...historyResponse, offices: null,
+    }, "guard")).toThrow("Invalid public office history response");
+    expect(() => parsePublicOfficeHistoryPage({
+      ...historyResponse, officesTruncated: "no",
     }, "guard")).toThrow("Invalid public office history response");
   });
 
@@ -132,6 +137,22 @@ describe("TG3 public office-history projection contract", () => {
       terms: [{ ...completedTerm, representedCountryName: null }],
     }, "guard");
     expect(parsed.terms[0].representedCountryName).toBeNull();
+  });
+
+  it("rejects noncanonical term kinds, ambiguous timestamps and invalid edition numbers", () => {
+    for (const corrupted of [
+      { termKind: "self-appointed" },
+      { scheduledEndAt: "tomorrow" },
+      { startedAt: "2024-01-01" },
+      { representedCountryName: 42 },
+    ]) {
+      expect(() => parsePublicOfficeHistoryPage({
+        ...historyResponse, terms: [{ ...completedTerm, ...corrupted }],
+      }, "guard")).toThrow("Invalid public office history term");
+    }
+    expect(() => parsePublicOfficeHistoryPage({
+      ...historyResponse, terms: [{ ...completedTerm, startEditionNumber: -5 }],
+    }, "guard")).toThrow("Invalid published SSC edition");
   });
 
   it("uses SSC editions for political term labels, never calendar years as substitutes", () => {
