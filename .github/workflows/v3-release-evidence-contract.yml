@@ -72,7 +72,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bunx tsc --noEmit
+          bunx tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler --skipLibCheck scripts/v3-release-evidence-consistency.ts
           bunx eslint scripts/v3-release-evidence-consistency.ts src/lib/v3-release-evidence-consistency.contract.test.ts --quiet
 
       - name: Emit exact-head verification record
