@@ -192,6 +192,18 @@ begin
        select 1 from public.delegation_people person_row
        where person_row.id=p_proxy_person_id
      )
+     or not (
+       exists (
+         select 1 from public.delegation_hod_assignments assignment
+         where assignment.country_id=v_rep.country_id
+           and assignment.person_id=p_proxy_person_id
+       )
+       or exists (
+         select 1 from public.world_country_control_terms term_row
+         where term_row.country_id=v_rep.country_id
+           and term_row.person_id=p_proxy_person_id
+       )
+     )
      or not exists (
        select 1 from public.world_organization_memberships member_row
        where member_row.organization_id=v_rep.organization_id
