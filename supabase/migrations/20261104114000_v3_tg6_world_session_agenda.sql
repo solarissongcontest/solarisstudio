@@ -127,7 +127,7 @@ as $detail$
     'organName',g.name,'title',s.title,'sequenceNumber',s.sequence_number,
     'startsAt',s.starts_at,'endsAt',s.ends_at,'status',s.status,
     'venueType',s.venue_type,'venueLabel',s.venue_label,
-    'externalUrl',s.external_url,'revision',s.revision,
+    'externalUrl',null,'revision',s.revision,
     'agenda',coalesce((
       select jsonb_agg(jsonb_build_object(
         'id',a.id,'position',a.position,'itemType',a.item_type,
@@ -160,6 +160,7 @@ begin
   return jsonb_build_object(
     'id',v_session.id,'revision',v_session.revision,
     'organizationId',v_session.organization_id,'organId',v_session.organ_id,
+    'externalUrl',v_session.external_url,
     'status',v_session.status,
     'items',coalesce((
       select jsonb_agg(jsonb_build_object(
