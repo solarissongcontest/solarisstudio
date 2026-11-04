@@ -58,4 +58,29 @@ describe("Organizer country list exact-edition isolation", () => {
     expect(source).toContain("setReloadNonce((value) => value + 1)");
     expect(source).toContain("onClick={() => void copy(participatingStatuses.map(");
   });
+
+  it("keeps Delegations overview metrics and triage inside the loaded edition epoch", () => {
+    const source = readFileSync("src/routes/confirmations/admin/index.tsx", "utf8");
+    const scope = source.indexOf("const hasCurrentDelegationData = loadedScope !== null");
+    const filtered = source.indexOf("const activeResponses = useMemo(", scope);
+    const triage = source.indexOf("const triageCounts = useMemo(", filtered);
+    expect(scope).toBeGreaterThanOrEqual(0);
+    expect(filtered).toBeGreaterThan(scope);
+    expect(triage).toBeGreaterThan(filtered);
+    expect(source).toContain("generation: ++generationRef.current");
+    expect(source).toContain("if (!isCurrent()) return;");
+    expect(source).toContain("setLoadedScope(request);");
+    expect(source).toContain("() => hasCurrentDelegationData");
+    expect(source).toContain("responses.filter((response) => response.editions?.id === organizerEditionId)");
+    expect(source).toContain("loading || (Boolean(activeEdition) && !hasCurrentDelegationData && !error)");
+  });
+
+  it("does not silently show empty or zero-status overview when the private read fails", () => {
+    const source = readFileSync("src/routes/confirmations/admin/index.tsx", "utf8");
+    expect(source).toContain("setLoadedScope(null);");
+    expect(source).toContain("setResponses([]);");
+    expect(source).toContain("setError(caught instanceof Error ? caught.message");
+    expect(source).toContain("Retry delegation overview");
+    expect(source).toContain("onClick={() => setReloadNonce((value) => value + 1)}");
+  });
 });
