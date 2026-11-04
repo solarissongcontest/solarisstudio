@@ -57,9 +57,6 @@ begin
     (v_country, 'TG2 Privacy Country', 'ZZP'),
     (v_other_country, 'TG2 Other Country', 'ZZQ');
 
-  insert into public.country_accounts (user_id, country_id)
-  values (v_self, v_country), (v_other, v_other_country);
-
   -- TG1 durable identity rows are public only through their safe projection;
   -- raw user_id linkage must not leak via generic delegation.read.
   insert into public.world_country_control_terms
