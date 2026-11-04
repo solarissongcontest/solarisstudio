@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20261024153000_v3_televote_public_rls_boundary.sql"),
+  resolve(process.cwd(), "supabase/migrations/20261104115000_v3_televote_public_rls_boundary.sql"),
   "utf8",
 );
 

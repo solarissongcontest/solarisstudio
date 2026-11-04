@@ -10,5 +10,5 @@ if [[ ! "$DB_URL" =~ $local_db_pattern ]]; then
 fi
 # Reapply the exact migration to prove deterministic registration + policy replay.
 # These commands never discover or accept a hosted database URL.
-psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$SCRIPT_DIR/../../supabase/migrations/20261024153000_v3_televote_public_rls_boundary.sql"
+psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$SCRIPT_DIR/../../supabase/migrations/20261104115000_v3_televote_public_rls_boundary.sql"
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$SCRIPT_DIR/v3-televote-public-rls-rehearsal.sql"

@@ -27,7 +27,7 @@ describe("Televote upgrade verification", () => {
       git("branch", "baseline");
       writeFileSync(join(target, migrations, "20261017001000_foundation.sql"), "select 1;\n");
       writeFileSync(join(target, migrations, "20261024000000_main_only.sql"), "select 2;\n");
-      const additions = ["20261017001010_repair.sql", "20261024153000_public_rls.sql"];
+      const additions = ["20261017001010_repair.sql", "20261104115000_public_rls.sql"];
       for (const name of additions)
         writeFileSync(join(source, migrations, name), `-- ${name}\nselect 3;\n`);
       git("add", ".");
