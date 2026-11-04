@@ -22,11 +22,13 @@ remote_head_from_list() {
       remote_version = $2
       gsub(/[`[:space:]]/, "", local_version)
       gsub(/[`[:space:]]/, "", remote_version)
-      if (local_version ~ /^[0-9]{14}$/ && remote_version ~ /^[0-9]{14}$/) {
+      # The newest hosted migration may be absent from the repository.
+      # Never infer the remote frontier only from paired local/remote rows.
+      if (remote_version ~ /^[0-9]{14}$/) {
         print remote_version
       }
     }
-  ' | tail -n 1
+  ' | sort | tail -n 1
 }
 
 remote_only_versions_from_list() {
