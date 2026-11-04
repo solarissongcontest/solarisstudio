@@ -19,13 +19,35 @@ describe("country page presentation ownership", () => {
     const route = read("src/routes/countries/$code.tsx");
     expect(gate).toContain('if (!isAppMode) return <>{legacy}</>');
     expect(gate).toContain("<V3DelegationScreen");
-    expect(route).toContain("resolveCountryLayoutMode(isAppMode, narrowViewport)");
+    expect(route).toContain("const countryLayoutMode = useCountryLayoutMode()");
     expect(route).toContain('countryLayoutMode === "mobile-web" ? (');
     expect(route).toContain("<CountryMobileWebMasthead");
     expect(route).toContain('data-country-layout-mode={countryLayoutMode}');
     expect(route).toContain("<ResponsiveTabs");
     expect(route).toContain("<CountryDesignV2Hero");
     expect(route).toContain("<CountryIdentityHero");
+  });
+
+  it("shares runtime-first layout selection with Wiki while keeping its browser article intact", () => {
+    const hook = read("src/lib/use-country-layout-mode.ts");
+    const wiki = read("src/components/wiki/CountryWikiExperience.tsx");
+    const css = read("src/wiki-mobile-web.css");
+
+    expect(hook).toContain("useSolarisApp()");
+    expect(hook).toContain("useState(matchesMobileWebViewport)");
+    expect(hook).toContain("resolveCountryLayoutMode(isAppMode, narrowViewport)");
+    expect(hook).toContain("media.addListener?.(update)");
+    expect(wiki).toContain("const countryLayoutMode = useCountryLayoutMode()");
+    expect(wiki).toContain("data-wiki-layout-mode={countryLayoutMode}");
+    expect(wiki).toContain('countryLayoutMode === "mobile-web" ? (');
+    expect(wiki).toContain('<CountryWikiHeader country={country} layoutMode={countryLayoutMode} />');
+    expect(wiki).toContain("wiki-mobile-web-toc");
+    expect(wiki).toContain("<WikiMobileToolbar");
+    expect(wiki).toContain("<WikiInfobox");
+    expect(wiki).toContain('layoutMode === "mobile-web"');
+    expect(wiki).toContain("aspect-[3/2]");
+    expect(css).toContain('[data-wiki-layout-mode="mobile-web"]');
+    expect(css).not.toContain(":root {");
   });
 
   it("preserves the flag contract and isolates CSS from app and desktop", () => {
