@@ -228,7 +228,8 @@ test('manifest digest binds actual file identity and status', () => {
 
 test('public object migration requires canonical publication plus media validation clearance', () => {
   const entry = { bucket: 'country-media', path: 'country/background.png',
-    private: false, source_sha256: sha256(png) };
+    private: false, source_sha256: sha256(png), source_mime: 'image/png',
+    source_bytes: png.length };
   const identity = entry.bucket + '/' + entry.path + '#' + entry.source_sha256;
   assert.throws(() => assertAssetClearance(entry, {}), /per-asset clearance/);
   assert.throws(() => assertAssetClearance(entry, { asset_clearances: [
@@ -359,4 +360,19 @@ test('unmatched files are not automatically called orphaned or deleted', () => {
   assert.equal(indexed[0].related_database_entities.length, 0);
   assert.equal(indexed[0].reference_classification,
     'unmatched_in_surveyed_media_fields_not_proven_orphan');
+});
+
+test('public legacy media cannot bypass existing image type or five-MiB cap', () => {
+  const entry = { bucket: 'country-media', path: 'country/image.png',
+    private: false, source_sha256: sha256(png), source_mime: 'image/png',
+    source_bytes: png.length };
+  const identity = 'country-media/country/image.png#' + entry.source_sha256;
+  const approval = { asset_clearances: [{ identity, visibility: 'already_published',
+    canonical_subject_id: 'country', publication_evidence_id: 'published',
+    validation_evidence_id: 'validated' }] };
+  assert.equal(assertAssetClearance(entry, approval), identity);
+  assert.throws(() => assertAssetClearance({ ...entry, source_mime: 'image/svg+xml' },
+    approval), /MIME policy/);
+  assert.throws(() => assertAssetClearance({ ...entry, source_bytes: 5 * 1024 * 1024 + 1 },
+    approval), /validation ceiling/);
 });
