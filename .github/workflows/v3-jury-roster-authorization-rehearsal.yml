@@ -1,0 +1,36 @@
+name: V3 Jury roster authorization rehearsal
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/*v3_jury_roster_commands.sql"
+      - ".github/scripts/v3-jury-roster-authorization-rehearsal.sh"
+      - ".github/workflows/v3-jury-roster-authorization-rehearsal.yml"
+      - "src/lib/v3-jury-roster-commands.contract.test.ts"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v3-jury-roster-auth-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  unauthorized-callers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Prove local Jury command permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local --no-seed
+          bash .github/scripts/v3-jury-roster-authorization-rehearsal.sh
+      - name: Stop isolated Supabase
+        if: always()
+        run: supabase stop --no-backup

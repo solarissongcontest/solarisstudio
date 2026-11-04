@@ -15,7 +15,28 @@ function section(start: string, end: string) {
   return migration.slice(startIndex, endIndex);
 }
 
+const authorizationRehearsal = readFileSync(
+  resolve(process.cwd(), ".github/scripts/v3-jury-roster-authorization-rehearsal.sh"), "utf8",
+);
+const authorizationWorkflow = readFileSync(
+  resolve(process.cwd(), ".github/workflows/v3-jury-roster-authorization-rehearsal.yml"), "utf8",
+);
+
 describe("V3 Jury roster command authority", () => {
+  it("tests unauthorized roster access on disposable local Supabase", () => {
+    expect(authorizationWorkflow).toContain("supabase db reset --local --no-seed");
+    expect(authorizationWorkflow).toContain("supabase stop --no-backup");
+    expect(authorizationWorkflow).not.toContain("secrets.");
+    expect(authorizationRehearsal).toContain("ANON_JURY_ROSTER_EXECUTE_EXPOSED");
+    expect(authorizationRehearsal).toContain("PRIVATE_ROSTER_VERSION_MUTATOR_EXPOSED");
+    expect(authorizationRehearsal).toContain("UNAUTHORIZED_JURY_PREVIEW_SUCCEEDED");
+    expect(authorizationRehearsal).toContain("UNAUTHORIZED_JURY_MUTATION_SUCCEEDED");
+    expect(authorizationRehearsal).toContain("set local role authenticated;");
+    expect(authorizationRehearsal).toContain("rollback;");
+    expect(authorizationRehearsal).toContain("Refusing hosted database");
+  });
+
+
   it("registers an additive forward-fix migration", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain("'v3.s7.jury-roster-commands'");
