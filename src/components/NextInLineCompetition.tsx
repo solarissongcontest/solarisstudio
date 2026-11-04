@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, LoaderCircle, Music2, ShieldCheck } from "lucide-react";
 
@@ -15,10 +15,16 @@ import {
   type NextInLineNfEntry,
 } from "@/lib/confirmation-next-in-line.functions";
 import { checkEntryDuplicate } from "@/lib/public.functions";
-import { isValidUrl, offsetTimestamp, parseTimestamp } from "@/lib/ssc";
+import { isValidUrl, offsetTimestamp } from "@/lib/ssc";
+import {
+  nextInLineDraftFingerprint,
+  nextInLineDuplicateKey,
+  nextInLineReviewReadiness,
+  resolveNextInLineDuplicateCheck,
+  type NextInLineDraft,
+  type NextInLineDuplicateState,
+} from "@/lib/next-in-line-review";
 import { cn } from "@/lib/utils";
-
-type DuplicateType = "song" | "artist" | null;
 
 function Choice({
   selected,
@@ -70,8 +76,30 @@ export function NextInLineCompetition() {
   const [songUrl, setSongUrl] = useState("");
   const [previewStart, setPreviewStart] = useState("");
   const previewEnd = useMemo(() => offsetTimestamp(previewStart, 25), [previewStart]);
-  const [duplicate, setDuplicate] = useState<DuplicateType>(null);
-  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+  const [duplicateCheck, setDuplicateCheck] = useState<NextInLineDuplicateState | null>(null);
+  const [reviewSnapshot, setReviewSnapshot] = useState<string | null>(null);
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const countryRequestId = useRef(0);
+  const submittingRef = useRef(false);
+
+  const draft: NextInLineDraft = {
+    editionId: edition?.id ?? "",
+    sourceSubmissionId,
+    country,
+    method: originalMethod,
+    nationalFinalEntryId: selectedNfEntry,
+    eligibleNationalFinalEntryIds: nfEntries.map((entry) => entry.id),
+    artist,
+    songTitle,
+    songUrl,
+    previewStart,
+    previewEnd,
+  };
+  const duplicateKey = nextInLineDuplicateKey(draft);
+  const currentDuplicateCheck = duplicateCheck?.key === duplicateKey ? duplicateCheck : null;
+  const readiness = nextInLineReviewReadiness(draft, currentDuplicateCheck);
+  const fingerprint = nextInLineDraftFingerprint(draft);
+  const isReviewing = reviewSnapshot === fingerprint;
 
   useEffect(() => {
     let cancelled = false;
@@ -94,9 +122,16 @@ export function NextInLineCompetition() {
     return () => {
       cancelled = true;
     };
-  }, [loadCountries]);
+  }, [loadCountries, reloadVersion]);
+
+  useEffect(() => () => {
+    // Invalidate outstanding country reads if this screen unmounts.
+    countryRequestId.current += 1;
+  }, []);
 
   async function chooseCountry(value: string) {
+    if (submittingRef.current) return;
+    const requestId = ++countryRequestId.current;
     setCountry(value);
     setSourceSubmissionId("");
     setOriginalMethod(null);
@@ -106,59 +141,60 @@ export function NextInLineCompetition() {
     setSongTitle("");
     setSongUrl("");
     setPreviewStart("");
-    setDuplicate(null);
+    setDuplicateCheck(null);
+    setReviewSnapshot(null);
     setError(null);
+    setLoadingCountry(Boolean(edition && value));
 
     if (!edition || !value) return;
 
-    setLoadingCountry(true);
     try {
       const result = await loadCountry({ data: { edition_id: edition.id, country: value } });
-      if (!result.ok || !result.submission_id) {
-        setError("That country is not eligible for this Next in Line competition.");
+      if (requestId !== countryRequestId.current) return;
+      if (!result.ok || !result.submission_id || (result.country && result.country !== value)) {
+        setError("That country's selection could not be verified. Choose it again to retry.");
         return;
       }
       setSourceSubmissionId(result.submission_id);
       setOriginalMethod(result.selection_method ?? "unknown");
       setNfEntries(result.entries ?? []);
     } catch {
-      setError("That country's selection information could not be loaded.");
+      if (requestId === countryRequestId.current) {
+        setError("That country's selection information could not be loaded. Choose it again to retry.");
+      }
     } finally {
-      setLoadingCountry(false);
+      if (requestId === countryRequestId.current) setLoadingCountry(false);
     }
   }
 
   useEffect(() => {
-    if (!sourceSubmissionId || originalMethod === "national_final" || !edition) {
-      setDuplicate(null);
-      return;
-    }
-
-    const cleanArtist = artist.trim();
-    const cleanSong = songTitle.trim();
-    const cleanUrl = songUrl.trim();
-    if (cleanArtist.length < 2 && cleanSong.length < 2 && cleanUrl.length < 4) {
-      setDuplicate(null);
+    if (
+      !sourceSubmissionId || !edition || !country || originalMethod !== "internal" ||
+      !artist.trim() || !songTitle.trim() || !isValidUrl(songUrl)
+    ) {
+      setDuplicateCheck(null);
       return;
     }
 
     let cancelled = false;
+    const key = duplicateKey;
+    setDuplicateCheck({ key, status: "checking" });
     const timer = window.setTimeout(() => {
       void (async () => {
-        setCheckingDuplicate(true);
         try {
           const result = await checkDuplicate({
             data: {
               edition_id: edition.id,
               submission_id: null,
-              artist: cleanArtist,
-              song_title: cleanSong,
-              song_url: cleanUrl,
+              artist: artist.trim(),
+              song_title: songTitle.trim(),
+              song_url: songUrl.trim(),
             },
           });
-          if (!cancelled) setDuplicate(result.ok && result.duplicate ? result.type : null);
-        } finally {
-          if (!cancelled) setCheckingDuplicate(false);
+          if (!cancelled) setDuplicateCheck(resolveNextInLineDuplicateCheck(key, result));
+        } catch {
+          // Failed duplicate checks must never be treated as "no duplicate".
+          if (!cancelled) setDuplicateCheck({ key, status: "unavailable" });
         }
       })();
     }, 450);
@@ -167,74 +203,47 @@ export function NextInLineCompetition() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [artist, checkDuplicate, edition, originalMethod, songTitle, songUrl, sourceSubmissionId]);
+  }, [artist, checkDuplicate, country, duplicateKey, edition, originalMethod, songTitle, songUrl, sourceSubmissionId]);
 
   async function send() {
+    if (submittingRef.current) return;
     setError(null);
-    if (!edition || !country || !sourceSubmissionId) {
-      setError("Choose your competing country first.");
+    const check = nextInLineReviewReadiness(draft, currentDuplicateCheck);
+    if (!check.ready) {
+      setError(check.reason);
+      setReviewSnapshot(null);
+      return;
+    }
+    if (!isReviewing) {
+      setReviewSnapshot(fingerprint);
       return;
     }
 
-    if (!previewStart.trim() || parseTimestamp(previewStart) === null) {
-      setError("Choose the 25-second preview start using MM:SS, for example 01:20.");
+    const selected = originalMethod === "national_final"
+      ? nfEntries.find((entry) => entry.id === selectedNfEntry)
+      : null;
+    const selectionType = originalMethod === "national_final" ? "national_final" : "internal";
+    if (selectionType === "national_final" && !selected) {
+      setError("That National Final song is no longer available. Review your selection again.");
+      setReviewSnapshot(null);
       return;
     }
 
-    let selectionType: "internal" | "national_final";
-    let nationalFinalEntryId: string | null = null;
-    let finalArtist = "";
-    let finalSong = "";
-    let finalUrl = "";
-
-    if (originalMethod === "national_final") {
-      const selected = nfEntries.find((entry) => entry.id === selectedNfEntry);
-      if (!selected) {
-        setError("Choose one of the songs that did not win your National Final.");
-        return;
-      }
-      selectionType = "national_final";
-      nationalFinalEntryId = selected.id;
-      finalArtist = selected.artist ?? "";
-      finalSong = selected.song_title ?? "";
-      finalUrl = selected.song_url ?? "";
-    } else {
-      if (!artist.trim() || !songTitle.trim() || !songUrl.trim()) {
-        setError("Enter the unused artist, song title and song link.");
-        return;
-      }
-      if (!isValidUrl(songUrl)) {
-        setError("Enter a valid song link beginning with http:// or https://.");
-        return;
-      }
-      if (duplicate === "song") {
-        setError("That song is already an SSC entry and cannot enter Next in Line.");
-        return;
-      }
-      if (duplicate === "artist") {
-        setError("That artist is already used by another country in this edition.");
-        return;
-      }
-      selectionType = "internal";
-      finalArtist = artist.trim();
-      finalSong = songTitle.trim();
-      finalUrl = songUrl.trim();
-    }
-
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const result = await submit({
         data: {
-          edition_id: edition.id,
+          edition_id: edition!.id,
           source_submission_id: sourceSubmissionId,
           country,
           participating: true,
           entry_unknown: false,
           selection_type: selectionType,
-          national_final_entry_id: nationalFinalEntryId,
-          artist: finalArtist,
-          song_title: finalSong,
-          song_url: finalUrl,
+          national_final_entry_id: selected?.id ?? null,
+          artist: selected ? selected.artist ?? "" : artist.trim(),
+          song_title: selected ? selected.song_title ?? "" : songTitle.trim(),
+          song_url: selected ? selected.song_url ?? "" : songUrl.trim(),
           preview_start: previewStart.trim(),
           preview_end: previewEnd,
         },
@@ -244,17 +253,18 @@ export function NextInLineCompetition() {
         setDone(true);
         return;
       }
-
-      if (result.error === "already_submitted") setError("Your country already submitted a Next in Line entry.");
+      if (result.error === "already_submitted") setError("Your country already submitted a Next in Line entry. Check its status before trying again.");
       else if (result.error === "invalid_nf_entry") setError("That National Final song is not eligible. The winner cannot enter Next in Line.");
       else if (result.error === "duplicate_song") setError("That song is already an SSC entry and cannot enter Next in Line.");
       else if (result.error === "duplicate_artist") setError("That artist is already used by another country in this edition.");
-      else if (result.error === "preview_required") setError("Choose the 25-second preview start before submitting.");
-      else setError("The Next in Line entry could not be submitted.");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "The Next in Line entry could not be submitted.");
+      else if (result.error === "preview_required") setError("Choose a valid 25-second preview start before submitting.");
+      else setError("Submission could not be confirmed. Check your country's Next in Line status before trying again.");
+    } catch {
+      setError("The response was interrupted. Your entry may have been received. Check its status before trying again.");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
+      setReviewSnapshot(null);
     }
   }
 
