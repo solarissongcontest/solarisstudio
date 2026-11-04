@@ -621,6 +621,7 @@ function ResponseDetailPage() {
   const [technicalError, setTechnicalError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteReviewOpen, setDeleteReviewOpen] = useState(false);
+  const [syncReviewOpen, setSyncReviewOpen] = useState(false);
   const [solarisSync, setSolarisSync] = useState<ConfirmationSolarisSyncResult | null>(null);
   const [solarisSyncError, setSolarisSyncError] = useState<string | null>(null);
   const [syncingSolaris, setSyncingSolaris] = useState(false);
@@ -629,6 +630,7 @@ function ResponseDetailPage() {
   const [creatingLink, setCreatingLink] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const responseLoadGenerationRef = useRef(0);
+  const syncInFlightRef = useRef(false);
   const currentScopeRef = useRef({ responseId: id, editionId: organizerEditionId });
 
   useEffect(() => {
@@ -641,6 +643,7 @@ function ResponseDetailPage() {
     setSolarisSyncError(null);
     setSettingsOpen(false);
     setDeleteReviewOpen(false);
+    setSyncReviewOpen(false);
   }, [id, organizerEditionId]);
 
   const syncSnapshot = useCallback(
@@ -815,18 +818,34 @@ function ResponseDetailPage() {
   }
 
   async function manualSync() {
+    if (syncInFlightRef.current || !syncReviewOpen) return;
     if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId) ||
         currentScopeRef.current.responseId !== id ||
         currentScopeRef.current.editionId !== organizerEditionId) {
+      setSyncReviewOpen(false);
       toast.error("Select the response's exact Organizer edition before syncing.");
       return;
     }
+    syncInFlightRef.current = true;
+    const requestedGeneration = responseLoadGenerationRef.current;
     try {
       const result = await syncSnapshot(data);
-      if (result.ok) toast.success("Synced with Solaris Studio");
-      else toast.error(result.message ?? "Solaris sync needs attention");
+      if (requestedGeneration !== responseLoadGenerationRef.current ||
+          currentScopeRef.current.editionId !== organizerEditionId) {
+        toast.warning("Reconciliation completed after an edition switch. Verify the previous edition's canonical state before retrying.");
+      } else if (result.ok) {
+        toast.success("Synced with Solaris Studio");
+      } else {
+        toast.error(result.message ?? "Solaris sync needs attention. Reconcile the current state before retrying.");
+      }
     } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Could not sync with Solaris Studio");
+      toast.error(
+        (caught instanceof Error ? caught.message : "Could not sync with Solaris Studio") +
+        " Inspect the canonical state before retrying an uncertain operation.",
+      );
+    } finally {
+      syncInFlightRef.current = false;
+      setSyncReviewOpen(false);
     }
   }
 
@@ -986,10 +1005,10 @@ function ResponseDetailPage() {
                 />
                 <AdminActionItem
                   icon={RefreshCw}
-                  title="Sync with Solaris Studio"
-                  description="Refresh participation and official entry details from Solaris."
+                  title="Review Solaris reconciliation"
+                  description="Review the exact response before changing official participation or entry state."
                   disabled={syncingSolaris}
-                  onClick={() => void manualSync()}
+                  onClick={() => setSyncReviewOpen(true)}
                   trailing={
                     <AdminStatus
                       tone={solarisSync?.ok ? "ready" : solarisSyncError ? "attention" : "neutral"}
@@ -1369,6 +1388,36 @@ function ResponseDetailPage() {
         editingAllowed={data.editing_allowed}
         locked={data.locked}
         adminNotes={data.admin_notes}
+      />
+
+      <AdminConfirmSheet
+        open={syncReviewOpen && isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)}
+        onClose={syncingSolaris ? () => undefined : () => setSyncReviewOpen(false)}
+        onConfirm={() => void manualSync()}
+        title="Reconcile this Confirmation with Solaris?"
+        description={
+          <div className="space-y-3 text-sm leading-relaxed">
+            <p>
+              This is a consequential Organizer action that may update official participation,
+              entry and reveal state. Merely viewing a Confirmation never starts it.
+            </p>
+            <p>
+              Exact scope: <strong>{data.country}</strong> ·{" "}
+              <strong>SSC {data.edition?.edition_number} · {data.edition?.name}</strong> ·{" "}
+              {data.round?.name ?? "Confirmation"}.
+            </p>
+            <p className="text-amber-100">
+              The current legacy reconciliation is not guaranteed atomic. A timeout may
+              leave partial progress. Verify canonical state before retrying an uncertain result.
+              System #598 remains a prerequisite for fully governed, receipted bulk reconciliation.
+            </p>
+          </div>
+        }
+        confirmLabel="Apply reviewed Solaris reconciliation"
+        confirmationText={data.country}
+        confirmationHint={`Type ${data.country} to confirm this official-state change`}
+        busy={syncingSolaris}
+        danger
       />
 
       <AdminConfirmSheet
