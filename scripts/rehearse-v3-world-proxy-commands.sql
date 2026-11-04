@@ -349,6 +349,93 @@ end
 $overlap$;
 reset role;
 
+-- Revocation is a separately authorized immediate invalidation path. The
+-- previous approval must no longer be time-effective, even inside its window.
+set local role authenticated;
+set local request.jwt.claim.role = 'authenticated';
+do $outsider_revoke$
+declare
+  v jsonb := current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+  perform set_config('request.jwt.claim.sub',v->>'outsider',true);
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub',v->>'outsider','role','authenticated')::text,true);
+  begin
+    perform public.world_revoke_proxy_v1(
+      (v->>'proxyId')::uuid,2,'Unauthorized attempted revocation',
+      gen_random_uuid(),'tg6-invalid-revoke:' || gen_random_uuid()::text
+    );
+    raise exception 'TG6_PROXY_OUTSIDER_REVOCATION_ALLOWED';
+  exception when insufficient_privilege then null;
+  end;
+end
+$outsider_revoke$;
+
+do $controller_revoke$
+declare
+  v jsonb := current_setting('solaris.tg6_proxy_fixture')::jsonb;
+  v_op uuid := gen_random_uuid();
+  v_receipt jsonb;
+  v_replayed jsonb;
+begin
+  perform set_config('request.jwt.claim.sub',v->>'owner',true);
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub',v->>'owner','role','authenticated')::text,true);
+
+  v_receipt := public.world_revoke_proxy_v1(
+    (v->>'proxyId')::uuid,2,'Country controller revoked acting proxy',
+    v_op,'tg6-revoke:' || v_op::text
+  );
+  if v_receipt->>'status' <> 'succeeded'
+    or v_receipt #>> '{result,status}' <> 'revoked'
+    or v_receipt #>> '{result,revision}' <> '3'
+  then
+    raise exception 'TG6_PROXY_REVOCATION_RECEIPT_INVALID';
+  end if;
+  v_replayed := public.world_revoke_proxy_v1(
+    (v->>'proxyId')::uuid,2,'Country controller revoked acting proxy',
+    v_op,'tg6-revoke:' || v_op::text
+  );
+  if coalesce((v_replayed->>'replayed')::boolean,false) is not true
+    or v_replayed #>> '{result,revision}' <> '3'
+  then
+    raise exception 'TG6_PROXY_REVOCATION_REPLAY_UNSTABLE';
+  end if;
+
+  begin
+    perform public.world_revoke_proxy_v1(
+      (v->>'proxyId')::uuid,3,'Attempt to revoke an already revoked proxy',
+      gen_random_uuid(),'tg6-double-revoke:' || gen_random_uuid()::text
+    );
+    raise exception 'TG6_PROXY_REPEATED_REVOCATION_ALLOWED';
+  exception when check_violation then null;
+  end;
+  raise notice 'PASS: TG6 country controller can immediately revoke once with stable receipt';
+end
+$controller_revoke$;
+reset role;
+
+do $revoked_state$
+declare
+  v jsonb := current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+  if not exists (
+    select 1 from public.world_representation_proxies
+    where id=(v->>'proxyId')::uuid
+      and status='revoked' and revoked_at is not null
+      and revision=3 and revocation_reason='Country controller revoked acting proxy'
+  ) then
+    raise exception 'TG6_PROXY_REVOCATION_NOT_PERSISTED';
+  end if;
+  if private.world_proxy_is_effective(
+    'revoked',(v->>'validFrom')::timestamptz,(v->>'validUntil')::timestamptz,
+    (v->>'validFrom')::timestamptz+interval '1 minute'
+  ) then
+    raise exception 'TG6_PROXY_REVOKED_STILL_EFFECTIVE';
+  end if;
+end
+$revoked_state$;
+
 rollback;
 do $rolled_back$
 begin
