@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const arena = readFileSync("src/routes/predictions/index.tsx", "utf8");
 const detail = readFileSync("src/routes/predictions/$showId.tsx", "utf8");
 const installed = readFileSync("src/components/v3/V3PredictionsRouteContent.tsx", "utf8");
+const shared = readFileSync("src/routes/predictions/share/$token.tsx", "utf8");
 
 describe("Public legacy Prediction Arena failure and recovery wiring", () => {
   it("renders round-query errors before the empty and unpublished fallbacks", () => {
@@ -36,5 +37,16 @@ describe("Public legacy Prediction Arena failure and recovery wiring", () => {
     expect(installed).toContain("if (viewerId && history.isError) void history.refetch()");
     expect(installed).toContain("disabled={privateStateRetrying}");
     expect(installed).toContain("Retry prediction history");
+  });
+  it("does not confuse a failed public shared-result RPC with a revoked or invalid link", () => {
+    expect(shared).toContain("const predictionQuery = useSharedPrediction(token)");
+    expect(shared).toContain("if (isError)");
+    expect(shared).toContain("if (!prediction)");
+    expect(shared.indexOf("if (isError)")).toBeLessThan(
+      shared.indexOf("if (!prediction)"),
+    );
+    expect(shared).toContain("onClick={() => void predictionQuery.refetch()}");
+    expect(shared).toContain("disabled={predictionQuery.isFetching}");
+    expect(shared).toContain("This prediction result is not currently shared.");
   });
 });
