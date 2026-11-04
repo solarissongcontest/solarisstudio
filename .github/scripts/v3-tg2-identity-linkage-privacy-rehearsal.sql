@@ -26,6 +26,9 @@ declare
   v_private_rep uuid := gen_random_uuid();
   v_other_rep uuid := gen_random_uuid();
   v_delegation_grant uuid := gen_random_uuid();
+  v_hidden_organ uuid := gen_random_uuid();
+  v_hidden_office uuid := gen_random_uuid();
+  v_hidden_term uuid := gen_random_uuid();
   v_grant uuid := gen_random_uuid();
   v_public_slug text := 'tg2-identity-privacy-fixture-public-' || replace(gen_random_uuid()::text, '-', '');
   v_private_slug text := 'tg2-identity-privacy-fixture-private-' || replace(gen_random_uuid()::text, '-', '');
@@ -81,18 +84,32 @@ begin
     (v_public_org, v_public_slug, 'TG2 Public Privacy Fixture', 'TG2 Public', 'international_organization', 'active', 'public'),
     (v_private_org, v_private_slug, 'TG2 Private Privacy Fixture', 'TG2 Private', 'international_organization', 'active', 'private');
 
+  -- The organization is public, but this one organ is explicitly private.
+  insert into public.world_organization_organs
+    (id, organization_id, slug, name, visibility)
+  values (v_hidden_organ, v_public_org, 'private-committee', 'Private TG2 Committee', 'private');
+
   insert into public.world_organization_offices
     (id, organization_id, slug, title, office_type, appointment_method)
   values
     (v_public_office, v_public_org, 'holder', 'Public Holder', 'executive_leader', 'appointment'),
     (v_private_office, v_private_org, 'holder', 'Private Holder', 'executive_leader', 'appointment'),
     (v_other_office, v_public_org, 'other-holder', 'Other Holder', 'executive_leader', 'appointment');
+  insert into public.world_organization_offices
+    (id, organization_id, organ_id, slug, title, office_type, appointment_method)
+  values (v_hidden_office, v_public_org, v_hidden_organ, 'private-officer',
+          'Private TG2 Officer', 'executive_leader', 'appointment');
+
   insert into public.world_office_terms
     (id, office_id, holder_person_id, holder_user_id, represented_country_id, started_at, term_kind, status)
   values
     (v_public_term, v_public_office, v_person, v_self, v_country, now(), 'full', 'active'),
     (v_private_term, v_private_office, v_person, v_self, v_country, now(), 'full', 'active'),
     (v_other_term, v_other_office, v_other_person, v_other, v_other_country, now(), 'full', 'active');
+  insert into public.world_office_terms
+    (id, office_id, holder_person_id, holder_user_id, represented_country_id, started_at, term_kind, status)
+  values (v_hidden_term, v_hidden_office, v_other_person, v_other, v_country, now(), 'full', 'active');
+
   insert into public.world_organization_representations
     (id, organization_id, country_id, person_id, user_id, source)
   values
@@ -112,6 +129,11 @@ begin
     (v_grant, v_public_org, v_country, 'office', v_public_office),
     (v_grant, v_private_org, v_country, 'office', v_private_office);
 
+  -- Grant only one private office + organ + country, never all offices.
+  insert into public.world_capability_grant_scopes
+    (grant_id, organization_id, country_id, organ_id, object_type, object_id)
+  values (v_grant, v_public_org, v_country, v_hidden_organ, 'office', v_hidden_office);
+
   perform set_config('solaris.tg2_identity_privacy_fixture', jsonb_build_object(
     'selfUserId', v_self, 'managerUserId', v_manager,
     'outsiderUserId', v_outsider, 'otherUserId', v_other,
@@ -121,6 +143,8 @@ begin
     'publicRepId', v_public_rep, 'privateRepId', v_private_rep, 'otherRepId', v_other_rep,
     'publicOfficeId', v_public_office, 'privateOfficeId', v_private_office,
     'publicTermId', v_public_term, 'privateTermId', v_private_term, 'otherTermId', v_other_term,
+    'hiddenOfficeId', v_hidden_office, 'hiddenOrganId', v_hidden_organ,
+    'hiddenTermId', v_hidden_term,
     'grantId', v_grant
   )::text, true);
 end
@@ -188,6 +212,17 @@ begin
      or strpos(v_projection::text, v ->> 'otherUserId') > 0 then
     raise exception 'TG2_IDENTITY_PRIVACY_PUBLIC_PROJECTION_AUTH_LINK_LEAK';
   end if;
+  if exists (
+    select 1 from public.world_organization_offices
+    where id = (v ->> 'hiddenOfficeId')::uuid
+  ) or exists (
+    select 1
+    from jsonb_array_elements(v_projection -> 'offices') office_item
+    where office_item ->> 'id' = v ->> 'hiddenOfficeId'
+  ) then
+    raise exception 'TG2_NONPUBLIC_ORGAN_OFFICE_ANON_LEAK';
+  end if;
+
   if public.world_organization_projection_v1(v ->> 'privateSlug') is not null then
     raise exception 'TG2_IDENTITY_PRIVACY_PRIVATE_ORGANIZATION_PUBLICLY_VISIBLE';
   end if;
@@ -223,6 +258,13 @@ begin
     where country_id = (v ->> 'countryId')::uuid
   ) then
     raise exception 'TG1_CONTROLLER_LINK_UNRELATED_LOGIN_LEAK';
+  end if;
+
+  if exists (
+    select 1 from public.world_organization_offices
+    where id = (v ->> 'hiddenOfficeId')::uuid
+  ) then
+    raise exception 'TG2_NONPUBLIC_ORGAN_OFFICE_UNSCOPED_AUTH_LEAK';
   end if;
 
   if public.world_organization_projection_v1(v ->> 'publicSlug') is null
@@ -296,6 +338,23 @@ begin
      or exists (select holder_user_id from public.world_office_terms where id = (v ->> 'otherTermId')::uuid) then
     raise exception 'TG2_IDENTITY_PRIVACY_MANAGER_ESCAPES_EXACT_OBJECT_SCOPE';
   end if;
+  if not exists (
+    select 1 from public.world_organization_offices
+    where id = (v ->> 'hiddenOfficeId')::uuid
+  ) or not exists (
+    select 1 from public.world_office_terms
+    where id = (v ->> 'hiddenTermId')::uuid
+  ) then
+    raise exception 'TG2_NONPUBLIC_ORGAN_OFFICE_SCOPED_MANAGER_READ_LOST';
+  end if;
+  if exists (
+    select 1
+    from jsonb_array_elements(public.world_organization_projection_v1(v ->> 'publicSlug') -> 'offices') office_item
+    where office_item ->> 'id' = v ->> 'hiddenOfficeId'
+  ) then
+    raise exception 'TG2_NONPUBLIC_ORGAN_OFFICE_SCOPED_MANAGER_PUBLIC_RPC_BYPASS';
+  end if;
+
   if public.world_organization_projection_v1(v ->> 'publicSlug') is null
      or public.world_organization_projection_v1(v ->> 'privateSlug') is not null then
     raise exception 'TG2_IDENTITY_PRIVACY_MANAGER_PUBLIC_RPC_BOUNDARY';
