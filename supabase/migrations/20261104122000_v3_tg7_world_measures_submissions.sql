@@ -221,6 +221,28 @@ revoke all on public.world_measures,public.world_measure_versions,
   public.world_measure_categories,public.world_measure_procedural_reviews
   from public,anon,authenticated,service_role;
 
+-- Labels and topic codes are centrally governed per institution. A public
+-- institution may expose its ACTIVE codes, not private or expired registry rows.
+create or replace function public.world_measure_categories_public_v1(p_organization_slug text)
+returns jsonb language sql stable security definer set search_path=pg_catalog
+as $measure_categories$
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'code',c.code,'label',c.label
+  ) order by c.code),'[]'::jsonb)
+  from (
+    select category.code,category.label
+    from public.world_measure_categories category
+    join public.world_organizations o on o.id=category.organization_id
+    where o.slug=lower(btrim(p_organization_slug))
+      and o.public_visibility='public'
+      and category.active
+      and (category.effective_from is null or category.effective_from<=now())
+      and (category.effective_to is null or category.effective_to>now())
+    order by category.code
+    limit 100
+  ) c
+$measure_categories$;
+
 -- Public read surfaces are allowlisted projections, never table-wide SELECT.
 -- A record is public only after procedural registration AND publication.
 create or replace function public.world_measure_public_list_v1(
@@ -604,6 +626,7 @@ $measure_resubmit$;
 revoke all on function public.world_measure_review_history_immutable_v1(),
   public.world_measure_identity_guard_v1(),
   public.world_measure_version_immutable_v1(),
+  public.world_measure_categories_public_v1(text),
   public.world_measure_public_list_v1(text,integer),
   public.world_measure_public_detail_v1(uuid),
   public.world_measure_manage_v1(uuid),
@@ -611,7 +634,8 @@ revoke all on function public.world_measure_review_history_immutable_v1(),
   public.world_measure_review_v1(uuid,text,text,text,bigint,uuid,text,uuid),
   public.world_measure_resubmit_v1(uuid,text,text,text,bigint,uuid,text,uuid)
 from public,anon,authenticated;
-grant execute on function public.world_measure_public_list_v1(text,integer),
+grant execute on function public.world_measure_categories_public_v1(text),
+  public.world_measure_public_list_v1(text,integer),
   public.world_measure_public_detail_v1(uuid) to anon,authenticated,service_role;
 grant execute on function public.world_measure_manage_v1(uuid),
   public.world_measure_submit_v1(uuid,uuid,uuid,text,text,text,text,text,uuid,text,uuid),
@@ -632,6 +656,7 @@ $contract$;
 
 notify pgrst,'reload schema';
 commit;
+
 
 
 
