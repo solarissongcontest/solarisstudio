@@ -1,5 +1,16 @@
 begin;
 
+-- S13 migration contract: additive RPC definition replacement, no backfill,
+-- no destructive DDL, and forward-fix rollback semantics once deployed.
+select public.v3_register_migration_contract(
+  'v3.public.reference-literal-search',
+  1,
+  'forward_fix_only',
+  false,
+  null,
+  'Use literal bounded search matching for public Reference and installed-app search, retaining publication-safe projections.'
+);
+
 -- Public Reference and installed-app Search share this server-owned RPC.
 -- LIKE used to treat user-supplied '%' and '_' as wildcard operators, turning
 -- narrow searches into broad archive enumerations. Search is literal text:
