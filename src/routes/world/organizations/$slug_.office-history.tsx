@@ -24,7 +24,7 @@ function WorldOfficeHistoryRoute() {
   const { slug } = Route.useParams();
   return (
     <AppShell>
-      <WorldOfficeHistory slug={slug} />
+      <WorldOfficeHistory key={slug} slug={slug} />
     </AppShell>
   );
 }
