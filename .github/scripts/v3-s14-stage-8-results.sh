@@ -198,6 +198,13 @@ run_s14_stage_8_results() {
   sign_in 's14-organizer-a@solaris.invalid'
   ORGANIZER_A_TOKEN="$LAST_TOKEN"
 
+  # Exercise historical/inactive Results and rank-order repair inside a
+  # rollback-only fixture. Production Supabase must never be a fallback.
+  [[ "${API_URL:-}" == http://127.0.0.1:* ]] || fail "S14 Results regression requires local Supabase"
+  psql "$DB_URL" -v ON_ERROR_STOP=1 \
+    -f .github/scripts/v3-s14-results-reconciliation-regression.sql \
+    > /tmp/s14-results-reconciliation-regression.log
+
   # Convert the already-accepted Stage 7 ballots with Solaris' production
   # rank-weighted Televote math and project those official totals into the
   # canonical Results input. The adapter is local-only and validates exact
