@@ -54,7 +54,7 @@ describe("V3 Televote Solaris sync read/write boundary", () => {
 
   it("leaves legacy catalog reconciliation explicitly separated from the read resolver", () => {
     const repair = section(
-      "export async function ensureCanonicalTelevotingEditionsServer",
+      " * Legacy catalog reconciliation writer.",
       "async function resolveLinkedCanonicalEdition",
     );
     const resolver = section(
@@ -63,6 +63,7 @@ describe("V3 Televote Solaris sync read/write boundary", () => {
     );
 
     expect(repair).toContain("Legacy catalog reconciliation writer");
+    expect(repair).toContain("export async function ensureCanonicalTelevotingEditionsServer");
     expect(repair).toContain("requireMergedTelevotingAdminServer");
     expect(repair).toContain(".upsert(");
     expect(resolver).not.toContain(".upsert(");
