@@ -140,3 +140,20 @@ export function addWorldDocumentProvision(
     status: "active",
   }];
 }
+
+/** A small human-readable diff for the R2 review sheet, never server authority. */
+export function compareWorldDocumentProvisions(
+  source: readonly WorldDocumentProvision[],
+  proposed: readonly WorldDocumentProvision[],
+): { added: string[]; omitted: string[]; modified: string[] } {
+  const originals = new Map(source.map((row) => [row.semanticKey, row]));
+  const next = new Map(proposed.map((row) => [row.semanticKey, row]));
+  return {
+    added: proposed.filter((row) => !originals.has(row.semanticKey)).map((row) => row.semanticKey),
+    omitted: source.filter((row) => !next.has(row.semanticKey)).map((row) => row.semanticKey),
+    modified: proposed.filter((row) => {
+      const previous = originals.get(row.semanticKey);
+      return previous !== undefined && JSON.stringify(previous) !== JSON.stringify(row);
+    }).map((row) => row.semanticKey),
+  };
+}
