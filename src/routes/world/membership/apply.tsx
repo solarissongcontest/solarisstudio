@@ -99,12 +99,13 @@ function GuardMembershipApplicationPage() {
       await queryClient.invalidateQueries({ queryKey: ["world", "guard", "membership-intake", countryId] });
     },
   });
-  const latest = intake.data?.applications[0] ?? null;
-  const isPendingApplication = latest != null &&
-    ["submitted", "under_review", "introduced", "approved"].includes(latest.status);
+  const pendingApplication = intake.data?.applications.find((application) =>
+    ["submitted", "under_review", "introduced", "approved"].includes(application.status),
+  ) ?? null;
+  const isPendingApplication = pendingApplication != null;
   const hasMembership = Boolean(intake.data?.activeMembership);
   const canSubmit = Boolean(
-    countryId && isActiveController && intake.data && !hasMembership && !isPendingApplication && !submit.isPending,
+    countryId && isActiveController && intake.data && !hasMembership && !isPendingApplication && !confirmation && !submit.isPending,
   );
 
   function updateField(field: GuardApplicationField, value: string) {
@@ -206,16 +207,16 @@ function GuardMembershipApplicationPage() {
                   </p>
                 </div>
               </div>
-            ) : isPendingApplication && latest ? (
+            ) : isPendingApplication && pendingApplication ? (
               <div className="flex gap-3 rounded-xl border border-border bg-surface p-5" role="status">
                 <Clock3 className="size-5 shrink-0 text-primary" aria-hidden="true" />
                 <div>
                   <h2 className="font-semibold">Application already on record</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {guardApplicationStatusLabel(latest.status)} · {latest.official_state_designation}
+                    {guardApplicationStatusLabel(pendingApplication.status)} · {pendingApplication.official_state_designation}
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Application ID: <span className="break-all font-mono">{latest.id}</span>
+                    Application ID: <span className="break-all font-mono">{pendingApplication.id}</span>
                   </p>
                   <button
                     type="button"
