@@ -282,6 +282,40 @@ function Overview({ detail }: { detail: WorldOrganizationDetail }) {
 }
 
 function Leadership({ detail }: { detail: WorldOrganizationDetail }) {
+  const ids = Array.from(new Set(detail.offices.flatMap((office) => {
+    const term = office.currentTerm;
+    return term ? [term.startEditionId, term.endEditionId].filter((id): id is string => !!id) : [];
+  }))).slice(0, 40);
+  const editions = useQuery({
+    queryKey: ["world", "office-term-editions", ids.join("|")],
+    enabled: ids.length > 0,
+    staleTime: 5 * 60_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("editions").select("id,edition_number").in("id", ids).limit(ids.length);
+      if (error) throw error;
+      if (!Array.isArray(data)) throw new Error("Invalid public edition lookup");
+      const numbers = new Map<string, number>();
+      for (const row of data) {
+        if (!row || typeof row.id !== "string" || !ids.includes(row.id) ||
+            !Number.isSafeInteger(row.edition_number) || row.edition_number < 1) {
+          throw new Error("Invalid institution office edition identity");
+        }
+        numbers.set(row.id, row.edition_number);
+      }
+      return numbers;
+    },
+  });
+  const termLabel = (term: NonNullable<WorldOrganizationDetail["offices"][number]["currentTerm"]>) => {
+    const first = term.startEditionId && editions.data?.get(term.startEditionId);
+    const last = term.endEditionId && editions.data?.get(term.endEditionId);
+    if (first && last) return `SSC ${first}–${last}`;
+    if (first) return `From SSC ${first}`;
+    if (last) return `Through SSC ${last}`;
+    return "Edition term not publicly available";
+  };
   return (
     <section>
       <h2 className="text-xl font-bold">Current leadership and offices</h2>
@@ -299,7 +333,7 @@ function Leadership({ detail }: { detail: WorldOrganizationDetail }) {
               </p>
               {office.currentTerm ? (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Start recorded: <time dateTime={office.currentTerm.startsAt}>{new Date(office.currentTerm.startsAt).toLocaleDateString()}</time>
+                  {termLabel(office.currentTerm)}
                 </p>
               ) : null}
             </article>
