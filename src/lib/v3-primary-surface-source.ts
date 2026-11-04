@@ -39,6 +39,18 @@ export type V3PrimarySurfaceDelegation = {
   name: string;
 };
 
+/**
+ * A signed-in account is not automatically an active delegation. Organizer
+ * suspension must remove the country context before HOD tasks are loaded,
+ * even if an older query returns the suspended row from a stale read path.
+ */
+export function activeV3DelegationCountryId(
+  account: { country_id?: string | null; status?: string | null } | null,
+): string | null {
+  if (account?.status !== "active") return null;
+  return account.country_id?.trim() || null;
+}
+
 export type V3ParticipantIdentityRow = {
   country_id?: string | null;
   contest_entity_id?: string | null;
