@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentWorldMembers, normalizeWorldSearch, pageWorldMembers, parseWorldDirectory, parseWorldOrganization } from "./v3-world-public";
+import { currentWorldMembers, normalizeWorldSearch, pageWorldMembers, parseWorldDirectory, parseWorldOrganization, type WorldMembership } from "./v3-world-public";
 
 const org = { id: "org-1", slug: "guard", officialName: "Global Union for Allied Resilience and Defence", shortName: "GUARD", description: null, type: "international_organization", status: "active" };
 const membership = (id: string, status: string, endedAt: string | null = null) => ({
@@ -34,7 +34,7 @@ describe("TG3 public organizations", () => {
     expect(detail.offices[0]?.currentTerm).toBeNull();
   });
   it("bounds member pagination and handles invalid page numbers", () => {
-    const items = Array.from({ length: 51 }, (_, n) => membership(String(n), "member")) as ReturnType<typeof parseWorldOrganization> extends infer _T ? any : never;
+    const items = Array.from({ length: 51 }, (_, n) => membership(String(n), "member")) as unknown as WorldMembership[];
     expect(pageWorldMembers(items, 0).items).toHaveLength(24);
     expect(pageWorldMembers(items, 2).items).toHaveLength(3);
     expect(pageWorldMembers(items, 200).page).toBe(2);
