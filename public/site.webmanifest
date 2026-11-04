@@ -82,9 +82,9 @@
       ]
     },
     {
-      "name": "MySolaris",
+      "name": "Me",
       "short_name": "Me",
-      "url": "/my-solaris",
+      "url": "/me",
       "icons": [
         {
           "src": "/icon-192.png?v=img2340-20260929",

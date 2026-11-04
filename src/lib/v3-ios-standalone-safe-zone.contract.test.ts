@@ -109,14 +109,16 @@ describe("V3 installed iOS top system safe zone", () => {
     const sticky = responsive.slice(stickyStart, responsive.indexOf("z-index: 25;", stickyStart));
     const headerStart = css.indexOf("[data-solaris-v3] .v3-top-context {");
     const header = css.slice(headerStart, css.indexOf("background: linear-gradient(", headerStart));
-    expect(sticky).toContain("top: calc(");
+    expect(sticky).toContain("top: var(--v3-top-context-obstruction)");
+    expect(responsive).toContain("var(--v3-top-system-safe)");
+    expect(responsive).toContain("var(--v3-top-safe-comfort)");
+    expect(responsive).toContain("var(--v3-top-chrome-content-height)");
     for (const token of [
       "var(--v3-top-system-safe)",
       "var(--v3-top-safe-comfort)",
       "var(--v3-top-chrome-content-height)",
     ]) {
       expect(header).toContain(token);
-      expect(sticky).toContain(token);
     }
     expect(sticky).not.toContain("env(safe-area-inset-top)");
     expect(css).toContain("max(env(safe-area-inset-top, 0px), 60px)");

@@ -9,18 +9,25 @@ import {
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { ArchiveDataError, ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
+import { FlagFrame } from "@/components/FlagMedia";
+import type { CountryDirectoryPresentation } from "@/lib/country-directory-presentation";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { type Country, useCountries, useEditions } from "@/lib/data";
-import { filterCountryDirectory } from "@/lib/v3-country-directory-filters";
+import { countryDirectoryRegionOptions, filterCountryDirectory } from "@/lib/v3-country-directory-filters";
 import { usePublicEditionParticipants } from "@/lib/public-participants";
 import {
   buildCountryDiscovery,
   resolveActivePublicEdition,
 } from "@/lib/v3-discovery-entities";
+import "@/styles/v3-countries-discovery.css";
 
 const BROWSE_PAGE_SIZE = 24;
 
-export function V3CountriesDiscoveryScreen() {
+export function V3CountriesDiscoveryScreen({
+  presentation = "installed-app",
+}: {
+  presentation?: CountryDirectoryPresentation;
+}) {
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
   const activeEdition = useMemo(
@@ -30,7 +37,7 @@ export function V3CountriesDiscoveryScreen() {
   const participantsQuery = usePublicEditionParticipants(activeEdition?.id);
   const [search, setSearch] = useState("");
   const [region, setRegion] = useState("all");
-  const [participatingOnly, setParticipatingOnly] = useState(true);
+  const [participatingOnly, setParticipatingOnly] = useState(false);
   const [visibleCount, setVisibleCount] = useState(BROWSE_PAGE_SIZE);
 
   const discovery = useMemo(
@@ -47,6 +54,16 @@ export function V3CountriesDiscoveryScreen() {
     () => new Set(discovery.participating.map((country) => country.id)),
     [discovery.participating],
   );
+  const regionOptions = useMemo(
+    () => countryDirectoryRegionOptions(countriesQuery.data ?? [], {
+      participatingOnly: participatingOnly && Boolean(activeEdition),
+      participatingCountryIds,
+    }),
+    [countriesQuery.data, participatingOnly, activeEdition, participatingCountryIds],
+  );
+  const collectionCount = participatingOnly && activeEdition
+    ? discovery.participating.length
+    : countriesQuery.data?.length ?? 0;
   const filtered = useMemo(
     () =>
       filterCountryDirectory(countriesQuery.data ?? [], {
@@ -76,60 +93,82 @@ export function V3CountriesDiscoveryScreen() {
   ].filter((group) => group.countries.length > 0);
 
   return (
-    <div className="space-y-7">
-      <section aria-labelledby="countries-current-edition">
-        <AppSectionHeader
-          eyebrow={discovery.currentEdition ? "Current edition" : "Explore Terra Solaris"}
-          title={
-            discovery.currentEdition
-              ? discovery.currentEdition.edition_number == null
-                ? discovery.currentEdition.name
-                : `SSC ${discovery.currentEdition.edition_number}`
-              : "Countries"
-          }
-          id="countries-current-edition"
-        />
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+    <div className="v3-countries-discovery space-y-8" data-country-directory-experience={presentation}>
+      {presentation === "mobile-web" ? (
+        <h2 id="countries-page-title" className="sr-only">Browse all countries</h2>
+      ) : (
+      <header className="v3-countries-intro">
+        <p className="v3-countries-kicker">
           {discovery.currentEdition
-            ? `${discovery.participating.length} published delegations taking part this edition. Browse the whole lineup below, or switch to every Solaris country.`
-            : "Explore the complete Solaris country directory, including nations between editions."}
+            ? `SSC ${discovery.currentEdition.edition_number ?? "current"} · CURRENT EDITION`
+            : "TERRA SOLARIS · COUNTRY ARCHIVE"}
         </p>
-      </section>
+        <h2 id="countries-page-title" className="v3-countries-title">
+          {presentation === "installed-app" ? "Meet the countries" : "Country explorer"}
+        </h2>
+        <p className="v3-countries-lead">
+          {discovery.currentEdition
+            ? `${discovery.participating.length} published delegations in this edition. Browse the full country directory or filter to the current lineup.`
+            : "Discover the countries of Terra Solaris, their regions and their histories."}
+        </p>
+      </header>
+      )}
 
-      <section id="countries-browse-all" aria-labelledby="countries-browse-title" className="scroll-mt-24">
-        <AppSectionHeader
-          eyebrow="Browse all"
-          title="Explore countries"
-          id="countries-browse-title"
-        />
-
+      <section
+        id="countries-browse-all"
+        aria-labelledby="countries-page-title"
+        className="v3-countries-browser scroll-mt-24"
+      >
         {discovery.currentEdition ? (
-          <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Country collections">
+          <div className="v3-countries-collections grid grid-cols-2 gap-2" role="group" aria-label="Country collections">
             <button
               type="button"
               aria-pressed={participatingOnly}
+              aria-label={`SSC ${discovery.currentEdition.edition_number ?? "current"}: ${discovery.participating.length} participating countries`}
               onClick={() => {
                 setParticipatingOnly(true);
+                setRegion("all");
                 setVisibleCount(BROWSE_PAGE_SIZE);
               }}
-              className={`min-h-11 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${participatingOnly ? "border-primary bg-primary/15 text-foreground" : "border-border bg-surface text-muted-foreground"}`}
+              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${participatingOnly ? "border-primary bg-primary/15 text-foreground" : "border-border bg-surface text-muted-foreground"}`}
             >
-              SSC {discovery.currentEdition.edition_number ?? "current"} · {discovery.participating.length} participating
+              SSC {discovery.currentEdition.edition_number ?? "current"} · {discovery.participating.length}
             </button>
             <button
               type="button"
               aria-pressed={!participatingOnly}
+              aria-label={`All ${countriesQuery.data?.length ?? 0} countries`}
               onClick={() => {
                 setParticipatingOnly(false);
+                setRegion("all");
                 setVisibleCount(BROWSE_PAGE_SIZE);
               }}
-              className={`min-h-11 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${!participatingOnly ? "border-primary bg-primary/15 text-foreground" : "border-border bg-surface text-muted-foreground"}`}
+              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${!participatingOnly ? "border-primary bg-primary/15 text-foreground" : "border-border bg-surface text-muted-foreground"}`}
             >
               All countries · {countriesQuery.data?.length ?? 0}
             </button>
           </div>
         ) : null}
-        <div className="solaris-app-directory-tools">
+        <div className={presentation === "desktop-web" ? "v3-countries-workspace v3-countries-workspace--desktop" : "v3-countries-workspace"}>
+          {presentation === "desktop-web" ? (
+            <aside className="v3-countries-region-rail" aria-label="Browse by region">
+              <h3>Regions</h3>
+              <button type="button" aria-pressed={region === "all"}
+                className={region === "all" ? "is-selected" : undefined}
+                onClick={() => { setRegion("all"); setVisibleCount(BROWSE_PAGE_SIZE); }}>
+                <span>All regions</span><span>{collectionCount}</span>
+              </button>
+              {regionOptions.map((item) => (
+                <button key={item.name} type="button" aria-pressed={region === item.name}
+                  className={region === item.name ? "is-selected" : undefined}
+                  onClick={() => { setRegion(item.name); setVisibleCount(BROWSE_PAGE_SIZE); }}>
+                  <span>{item.name}</span><span>{item.count}</span>
+                </button>
+              ))}
+            </aside>
+          ) : null}
+          <div className="v3-countries-list-pane">
+        <div className="v3-countries-controls solaris-app-directory-tools">
           <SolarisSearchField
             value={search}
             onChange={(value) => {
@@ -140,6 +179,7 @@ export function V3CountriesDiscoveryScreen() {
             placeholder="Search countries…"
           />
           <div className="solaris-app-directory-filterbar">
+            {presentation === "installed-app" ? (
             <Sheet>
               <SheetTrigger asChild>
                 <button type="button" className="solaris-app-filter-chip">
@@ -157,7 +197,7 @@ export function V3CountriesDiscoveryScreen() {
                   <h2>Filter by region</h2>
                 </div>
                 <div className="mt-3">
-                  {["all", ...discovery.regions.map((item) => item.name)].map((item) => {
+                  {["all", ...regionOptions.map((item) => item.name)].map((item) => {
                     const active = region === item;
                     return (
                       <SheetClose key={item} asChild>
@@ -179,13 +219,32 @@ export function V3CountriesDiscoveryScreen() {
                 </div>
               </SheetContent>
             </Sheet>
-            <span className="solaris-app-directory-count">{filtered.length} matching</span>
+            ) : presentation === "mobile-web" ? (
+              <label className="v3-countries-web-region">
+                <span className="sr-only">Filter by region</span>
+                <select aria-label="Filter by region" value={region}
+                  onChange={(event) => { setRegion(event.target.value); setVisibleCount(BROWSE_PAGE_SIZE); }}>
+                  <option value="all">All regions</option>
+                  {regionOptions.map((item) => (
+                    <option key={item.name} value={item.name}>{item.name}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <span className="solaris-app-directory-count" aria-live="polite">{filtered.length} matching</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4" aria-label="Countries">
+        <div
+          className={presentation === "installed-app"
+            ? "v3-countries-grid grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4"
+            : presentation === "mobile-web"
+              ? "v3-countries-web-list"
+              : "v3-countries-desktop-grid grid grid-cols-2 gap-4 xl:grid-cols-3"}
+          aria-label="Countries"
+        >
           {visible.map((country) => (
-            <CountryTile key={country.id} country={country} />
+            <CountryTile key={country.id} country={country} presentation={presentation} />
           ))}
         </div>
 
@@ -220,11 +279,13 @@ export function V3CountriesDiscoveryScreen() {
             Show more · {filtered.length - visible.length} remaining
           </button>
         ) : null}
+          </div>
+        </div>
       </section>
 
 
       {movementGroups.length > 0 ? (
-        <section aria-labelledby="countries-current-movement">
+        <section className="v3-countries-secondary" aria-labelledby="countries-current-movement">
           <AppSectionHeader
             eyebrow="Current movement"
             title="What changed this edition"
@@ -237,7 +298,7 @@ export function V3CountriesDiscoveryScreen() {
                   <h3 className="text-sm font-semibold">{group.label}</h3>
                   <span className="text-xs text-muted-foreground">{group.countries.length}</span>
                 </div>
-                <div className="flex gap-2 overflow-x-auto pb-1">
+                <div className="flex gap-3 overflow-x-auto pb-2">
                   {group.countries.map((country) => (
                     <Link
                       key={country.id}
@@ -262,15 +323,15 @@ export function V3CountriesDiscoveryScreen() {
       ) : null}
 
 
-      {discovery.regions.length > 0 ? (
-        <section aria-labelledby="countries-regions">
+      {presentation === "installed-app" && regionOptions.length > 0 ? (
+        <section className="v3-countries-secondary" aria-labelledby="countries-regions">
           <AppSectionHeader
             eyebrow="Explore by region"
             title="Terra Solaris"
             id="countries-regions"
           />
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {discovery.regions.map((item) => (
+          <div className="v3-countries-regions grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {regionOptions.map((item) => (
               <button
                 key={item.name}
                 type="button"
@@ -283,7 +344,7 @@ export function V3CountriesDiscoveryScreen() {
               >
                 <span className="block text-sm font-semibold">{item.name}</span>
                 <span className="mt-1 block text-xs text-muted-foreground">
-                  {item.countries.length} countr{item.countries.length === 1 ? "y" : "ies"}
+                  {item.count} countr{item.count === 1 ? "y" : "ies"}
                 </span>
               </button>
             ))}
@@ -295,21 +356,56 @@ export function V3CountriesDiscoveryScreen() {
   );
 }
 
-function CountryTile({ country }: { country: Country }) {
+function CountryTile({
+  country,
+  presentation,
+}: {
+  country: Country;
+  presentation: CountryDirectoryPresentation;
+}) {
+  if (presentation === "mobile-web") {
+    return (
+      <Link to="/countries/$code" params={{ code: country.short_code }}
+        className="v3-country-web-row group flex min-h-[86px] min-w-0 items-center gap-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        <FlagFrame image={country.flag_image} alt={`Flag of ${country.name}`}
+          fallback={country.short_code} className="block aspect-[3/2] w-[82px] shrink-0 overflow-hidden rounded-lg border border-border/70"
+          imageClassName="block h-full w-full" />
+        <span className="min-w-0 flex-1">
+          <span className="block break-words text-base font-semibold leading-5">{country.name}</span>
+          {country.native_name && country.native_name !== country.name ? (
+            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{country.native_name}</span>
+          ) : null}
+          <span className="mt-1 block truncate text-xs text-muted-foreground">{country.region || country.short_code}</span>
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      </Link>
+    );
+  }
+
+  if (presentation === "desktop-web") {
+    return (
+      <Link to="/countries/$code" params={{ code: country.short_code }}
+        className="v3-country-desktop-item group min-w-0 rounded-xl p-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        <FlagFrame image={country.flag_image} alt={`Flag of ${country.name}`}
+          fallback={country.short_code} className="block aspect-[3/2] w-full overflow-hidden rounded-lg border border-border/70"
+          imageClassName="block h-full w-full" />
+        <span className="mt-3 flex min-w-0 items-start justify-between gap-2">
+          <span className="min-w-0">
+            <span className="block break-words text-sm font-bold leading-5">{country.name}</span>
+            <span className="mt-1 block truncate text-xs text-muted-foreground">{country.region || country.short_code}</span>
+          </span>
+          <ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+        </span>
+      </Link>
+    );
+  }
+
   return (
-    <Link
-      to="/countries/$code"
-      params={{ code: country.short_code }}
-      className="group relative flex min-h-[116px] min-w-0 flex-col justify-between gap-3 rounded-2xl border border-border/70 bg-surface/65 p-3 transition-colors hover:border-primary/40 hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-    >
-      <FlagChip
-        code={country.short_code}
-        color={country.accent_color}
-        image={country.flag_image}
-        size="md"
-      />
+    <Link to="/countries/$code" params={{ code: country.short_code }}
+      className="group relative flex min-h-[116px] min-w-0 flex-col justify-between gap-3 rounded-2xl border border-border/70 bg-surface/65 p-3 transition-colors hover:border-primary/40 hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+      <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="md" />
       <span className="block min-w-0 pr-3">
-        <span className="block truncate text-sm font-semibold leading-5">{country.name}</span>
+        <span className="block break-words text-sm font-semibold leading-5">{country.name}</span>
         <span className="mt-0.5 block truncate text-xs text-muted-foreground">{country.region || country.short_code}</span>
       </span>
       <ChevronRight className="absolute bottom-4 right-2.5 size-4 text-muted-foreground/70 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
