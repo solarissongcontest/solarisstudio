@@ -45,6 +45,22 @@ function ActivityPage() {
     );
   }
 
+  // A stale rollout probe must never hand one account's private V3 route
+  // to another account, or silently display the legacy feed instead.
+  if (
+    isAppMode &&
+    rollout.data?.enabled === true &&
+    rollout.data.meEnabled === true &&
+    rollout.data.userId &&
+    rollout.data.userId !== authenticatedUser.id
+  ) {
+    return (
+      <p className="px-4 py-10 text-sm text-muted-foreground" role="status" aria-live="polite">
+        Your account changed. Reopen Activity to verify the current session.
+      </p>
+    );
+  }
+
   return (
     <AppShell>
       <MySolarisPersonalPage view="activity" />
