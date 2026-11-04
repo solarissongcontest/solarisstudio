@@ -153,6 +153,27 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(submit).toMatch(/'submitted','members'/);
   });
 
+  it("holds institutional and sponsor locks through each state-changing command", () => {
+    for (const [name, tag] of [
+      ["world_measure_submit_v1", "measure_submit"],
+      ["world_measure_review_v1", "measure_review"],
+      ["world_measure_resubmit_v1", "measure_resubmit"],
+    ]) {
+      const source = body(name, tag);
+      const institutionLock = source.indexOf("for share of g,o;");
+      const membershipCheck = source.indexOf("membership.status='member'");
+      expect(institutionLock).toBeGreaterThan(0);
+      expect(membershipCheck).toBeGreaterThan(institutionLock);
+      if (name === "world_measure_submit_v1") {
+        expect(source.indexOf("for share;", membershipCheck)).toBeGreaterThan(membershipCheck);
+      } else {
+        expect(source.indexOf("for share of membership;", membershipCheck))
+          .toBeGreaterThan(membershipCheck);
+        expect(source.indexOf("v_claim->>'replayed'")).toBeLessThan(institutionLock);
+      }
+    }
+  });
+
   it("uses receipt/replay authority before executing revisions and state transitions", () => {
     for (const [command, tag] of [
       ["world_measure_submit_v1", "measure_submit"],
