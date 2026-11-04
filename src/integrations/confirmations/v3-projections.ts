@@ -3,6 +3,9 @@ import { confirmationsSupabase } from "@/integrations/confirmations/client";
 export type ConfirmationProjectionCursor = {
   submittedAt: string;
   submissionId: string;
+  /** Client-only edition and canonical snapshot guard, never sent as RPC arguments. */
+  editionId: string;
+  stateVersion: string;
 };
 
 export type ConfirmationProjectionPage<T> = {
@@ -48,12 +51,14 @@ function integer(value: unknown, label: string): number {
   return parsed;
 }
 
-function parseCursor(value: unknown): ConfirmationProjectionCursor | null {
+function parseCursor(value: unknown, editionId: string, stateVersion: string): ConfirmationProjectionCursor | null {
   if (value == null) return null;
   const row = object(value, "Confirmation projection cursor");
   return {
     submittedAt: text(row.submittedAt, "Confirmation cursor timestamp"),
     submissionId: text(row.submissionId, "Confirmation cursor submission"),
+    editionId,
+    stateVersion,
   };
 }
 
@@ -80,6 +85,17 @@ function parsePage<T>(
     throw new Error("Solaris returned an invalid Confirmation pagination state.");
   }
 
+  const stateVersion =
+    typeof envelope.stateVersion === "string" && envelope.stateVersion
+      ? envelope.stateVersion
+      : null;
+  if (hasMore && !stateVersion) {
+    throw new Error("Confirmation response pagination requires a canonical state version.");
+  }
+  if (hasMore && page.nextCursor == null) {
+    throw new Error("Confirmation response pagination omitted its continuation cursor.");
+  }
+
   return {
     schemaVersion: integer(envelope.schemaVersion, "Confirmation schema version"),
     editionId,
@@ -87,13 +103,12 @@ function parsePage<T>(
     page: {
       limit: integer(page.limit, "Confirmation page limit"),
       hasMore,
-      nextCursor: parseCursor(page.nextCursor),
+      nextCursor: page.nextCursor == null
+        ? null
+        : parseCursor(page.nextCursor, editionId, stateVersion ?? ""),
     },
     totalCount: integer(envelope.totalCount, "Confirmation total count"),
-    stateVersion:
-      typeof envelope.stateVersion === "string" && envelope.stateVersion
-        ? envelope.stateVersion
-        : null,
+    stateVersion,
     serverTime: text(envelope.serverTime, "Confirmation server time"),
   };
 }
@@ -117,7 +132,10 @@ export async function loadConfirmationResponsesPage<T extends ConfirmationRespon
   limit = 100,
 ): Promise<ConfirmationProjectionPage<T>> {
   if (!editionId) throw new Error("Select an exact Organizer edition before loading responses.");
-  return parsePage<T>(
+  if (cursor && (cursor.editionId !== editionId || !cursor.stateVersion)) {
+    throw new Error("Confirmation pagination cursor does not belong to this edition and snapshot.");
+  }
+  const page = parsePage<T>(
     await rpc("admin_confirmation_responses_v2", {
       p_edition_id: editionId,
       p_limit: limit,
@@ -126,6 +144,13 @@ export async function loadConfirmationResponsesPage<T extends ConfirmationRespon
     editionId,
     (row) => row.editions?.id ?? null,
   );
+  if (cursor && page.stateVersion !== cursor.stateVersion) {
+    throw Object.assign(
+      new Error("Confirmation responses changed during paging. Reload and review the current edition."),
+      { status: 409 },
+    );
+  }
+  return page;
 }
 
 /**
