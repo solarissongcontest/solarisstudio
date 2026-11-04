@@ -95,6 +95,25 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(sql).toMatch(/grant execute on function public\.world_measure_categories_public_v1/);
   });
 
+  it("filters inaccessible records before paginating public measure results", () => {
+    const list = body("world_measure_public_list_v1", "measure_list");
+    const limit = list.indexOf("limit greatest(1,least(coalesce(p_limit,30),50))");
+    expect(limit).toBeGreaterThan(0);
+    for (const requiredFilter of [
+      "m.visibility='public'",
+      "m.registered_at is not null",
+      "o.public_visibility='public'",
+      "g.visibility='public'",
+      "v.publication_state='published'",
+      "o.slug=lower(btrim(p_organization_slug))",
+    ]) {
+      expect(list).toContain(requiredFilter);
+      expect(list.indexOf(requiredFilter)).toBeLessThan(limit);
+    }
+    expect(list).toMatch(/from \(\s*-- Apply \*every\* publication\/visibility requirement before taking a page/);
+    expect(list).toContain(") eligible");
+  });
+
   it("does not leak pre-registration or unapproved version content publicly", () => {
     for (const projection of [
       body("world_measure_public_list_v1", "measure_list"),
