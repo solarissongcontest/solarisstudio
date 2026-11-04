@@ -29,6 +29,8 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(sections).toContain('aria-label="Solaris website sections"');
     expect(sections).toContain("to={destination.to as any}");
     expect(sections).toContain('aria-current={active ? "page" : undefined}');
+    expect(sections).toContain("activeArea: V3Area | null;");
+    expect(sections).toContain("const active = activeArea === destination.id;");
     expect(sections).not.toContain("event.preventDefault");
     expect(sections).not.toContain("getV3PublicTabDestination");
     expect(css).toContain("min-height: 44px");

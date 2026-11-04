@@ -22,7 +22,7 @@ export function V3MobileWebPrimaryNavigation({
   participateAttentionCount,
 }: {
   destinations: readonly WebDestination[];
-  activeArea: V3Area;
+  activeArea: V3Area | null;
   participateAttentionCount: number;
 }) {
   return (
