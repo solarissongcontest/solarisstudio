@@ -43,6 +43,12 @@ type RpcClient = {
 const readClient = supabase as unknown as RpcClient;
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/i;
+const TERM_KINDS = new Set(["full", "acting", "interim", "partial", "renewed"]);
+function isTimestamp(value: unknown): value is string {
+  return typeof value === "string" && TIMESTAMP_PATTERN.test(value)
+    && Number.isFinite(Date.parse(value));
+}
 
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -56,7 +62,11 @@ function nullableText(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 function edition(value: unknown): number | null {
-  return Number.isSafeInteger(value) && Number(value) >= 1 ? Number(value) : null;
+  if (value === null) return null;
+  if (!Number.isSafeInteger(value) || Number(value) < 1) {
+    throw new Error("Invalid published SSC edition");
+  }
+  return Number(value);
 }
 
 export function canonicalHistorySlug(value: string): string | null {
@@ -75,7 +85,7 @@ export function parsePublicOfficeHistoryPage(
   const options = root?.offices;
   const rawCursor = root?.nextCursor === null ? null : record(root?.nextCursor);
   const nextCursor = rawCursor && text(rawCursor.startedAt) && UUID_PATTERN.test(text(rawCursor.termId))
-      && Number.isFinite(Date.parse(text(rawCursor.startedAt)))
+      && isTimestamp(rawCursor.startedAt)
     ? { startedAt: text(rawCursor.startedAt), termId: text(rawCursor.termId) }
     : null;
   if (!root || !org || !slug || slug !== canonicalHistorySlug(expectedSlug)
@@ -103,9 +113,12 @@ export function parsePublicOfficeHistoryPage(
     if (!row || !UUID_PATTERN.test(text(row.id)) || !UUID_PATTERN.test(text(row.officeId))
         || !text(row.officeTitle) || !text(row.holderDisplayName)
         || !["ended", "removed", "resigned"].includes(status)
-        || !startedAt || !actualEndAt
-        || !Number.isFinite(Date.parse(startedAt))
-        || !Number.isFinite(Date.parse(actualEndAt))
+        || !TERM_KINDS.has(text(row.termKind))
+        || !isTimestamp(startedAt) || !isTimestamp(actualEndAt)
+        || (row.scheduledEndAt !== null && !isTimestamp(row.scheduledEndAt))
+        || (row.representedCountryName !== null
+          && (typeof row.representedCountryName !== "string"
+            || !row.representedCountryName.trim()))
         || Date.parse(actualEndAt) < Date.parse(startedAt)) {
       throw new Error("Invalid public office history term");
     }
@@ -152,7 +165,7 @@ export async function loadPublicOfficeHistory(
   const office = officeSlug === null ? null : canonicalHistorySlug(officeSlug);
   if (officeSlug !== null && !office) throw new Error("Invalid history office filter");
   if (cursor !== null && (!UUID_PATTERN.test(cursor.termId)
-      || !Number.isFinite(Date.parse(cursor.startedAt)))) {
+      || !isTimestamp(cursor.startedAt))) {
     throw new Error("Invalid history page cursor");
   }
   const { data, error } = await readClient.rpc("world_public_office_history_v1", {
