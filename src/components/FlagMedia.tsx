@@ -1,10 +1,15 @@
-import { useEffect, useState, type CSSProperties, type ImgHTMLAttributes } from "react";
+import { useState, type CSSProperties, type ImgHTMLAttributes } from "react";
 
 import { useCountries } from "@/lib/data";
 import { CENTER_FLAG_CROP, clampFlagCrop, type FlagCrop } from "@/lib/flag-crop";
 import { cn } from "@/lib/utils";
 
 export { clampFlagCrop, type FlagCrop } from "@/lib/flag-crop";
+
+/** Failed image URLs are scoped to that URL, so a newly selected flag retries on its first frame. */
+export function canShowFlagImage(image: string | null | undefined, failedImage: string | null): image is string {
+  return Boolean(image) && image !== failedImage;
+}
 
 /** One crop per original URL, shared by library, hero, Wiki, edition and broadcast. */
 export function FlagMedia({ image, alt, mode = "standard", crop, className, style, onError, ...imageProps }: {
@@ -40,13 +45,12 @@ export function FlagFrame({ image, alt, fallback, crop, className, imageClassNam
   loading?: "eager" | "lazy";
   chip?: boolean;
 }) {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [image]);
+  const [failedImage, setFailedImage] = useState<string | null>(null);
   return (
     <span data-flag-frame="standard" data-flag-chip={chip ? "true" : undefined} className={cn("flag-media-frame rounded-[.6rem]", className)} style={style}>
-      {image && !failed
-        ? <FlagMedia image={image} alt={alt} crop={crop} className={imageClassName} loading={loading} decoding="async" onError={() => setFailed(true)} />
-        : <span className="flag-media-fallback" aria-label={`${alt} unavailable`}>{fallback}</span>}
+      {canShowFlagImage(image, failedImage)
+        ? <FlagMedia image={image} alt={alt} crop={crop} className={imageClassName} loading={loading} decoding="async" onError={() => setFailedImage(image)} />
+        : <span className="flag-media-fallback" role="img" aria-label={`${alt} unavailable`}>{fallback}</span>}
     </span>
   );
 }
