@@ -1,3 +1,4 @@
+import "@/styles/v3-mobile-bottom-clearance.css";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ChevronDown,
@@ -471,13 +472,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               className="solaris-app-bottom-spacer"
               aria-hidden="true"
               data-solaris-app-bottom-spacer=""
-              // A live navbar measurement can temporarily be zero during iOS
-              // resume/route transitions. Keep final actions scrollable above
-              // the floating bar even before the next measurement settles.
-              style={{
-                minHeight:
-                  "max(calc(var(--solaris-app-bottom-obstruction, 0px) + 1.25rem), calc(var(--solaris-app-tabbar-height, 4.7rem) + max(2.75rem, env(safe-area-inset-bottom))))",
-              }}
             />
           ) : null}
         </main>
