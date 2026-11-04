@@ -224,6 +224,9 @@ self.addEventListener("push", (event) => {
   } catch {
     payload = { body: event.data?.text?.() ?? "" };
   }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    payload = {};
+  }
 
   const safeContent = resolvePushDisplayContent(payload);
   const title = safeContent.title;
