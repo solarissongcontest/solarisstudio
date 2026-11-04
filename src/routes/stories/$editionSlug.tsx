@@ -6,6 +6,7 @@ import { AppShell } from '@/components/AppShell';
 import { useSolarisApp } from '@/components/app/AppRuntime';
 import { V3StoryDetailGate } from '@/components/v3/V3StoriesGates';
 import { loadPublicStoryline } from '@/lib/studio2-storytelling';
+import { formatSolarisStoryDate } from '@/lib/public-story-date';
 
 export const Route = createFileRoute('/stories/$editionSlug')({
   head: ({ params }) => {
@@ -104,7 +105,7 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
               <h1 className="mt-3 text-4xl font-black tracking-[-0.045em] text-foreground sm:text-6xl">{story.title}</h1>
               {story.subtitle ? <p className="mt-3 text-lg font-semibold text-foreground/80">{story.subtitle}</p> : null}
               {story.introduction ? <p className="mt-5 text-base leading-relaxed text-muted-foreground">{story.introduction}</p> : null}
-              <p className="mt-4 text-xs text-muted-foreground">Published {formatDate(story.publishedAt)} · {story.items.length} reviewed moments</p>
+              <p className="mt-4 text-xs text-muted-foreground">Published {formatSolarisStoryDate(story.publishedAt)} · {story.items.length} reviewed moments</p>
             </header>
 
             <section className="relative mt-12" aria-label={`${story.editionName} timeline`}>
@@ -118,7 +119,7 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
                     <div className="rounded-2xl border border-border/60 bg-card/55 p-5 sm:p-6">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.13em] text-muted-foreground">
-                          <CalendarDays className="size-3.5" /> {formatDate(item.occurredAt)}
+                          <CalendarDays className="size-3.5" /> {formatSolarisStoryDate(item.occurredAt)}
                         </span>
                         <span className="rounded-full border border-border/60 px-2.5 py-1 text-[10px] font-bold text-muted-foreground">importance {item.importance}</span>
                       </div>
@@ -156,7 +157,3 @@ function EmptyStory({ title, copy, onRetry }: { title: string; copy: string; onR
   );
 }
 
-function formatDate(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-}
