@@ -206,10 +206,7 @@ function AffiliationGroup({
           {organization.name.slice(0, 3)}
         </span>
         <span className="min-w-0 flex-1">
-          <a href={"/world/organizations/" + encodeURIComponent(organization.slug)}
-            className="inline-flex min-h-6 items-center gap-1 text-sm font-semibold hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-            {organization.name} <ArrowRight aria-hidden="true" className="size-3" />
-          </a>
+          <span className="block text-sm font-semibold">{organization.name}</span>
           <span className="block text-xs text-muted-foreground">{organization.officialName}</span>
           <span className="mt-1 block text-xs capitalize text-muted-foreground">
             {affiliation.membershipType} · {affiliation.status.replace(/_/g, " ")}
