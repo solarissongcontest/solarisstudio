@@ -10,6 +10,7 @@ import {
   parseWorldDocumentDetail,
   parseWorldDocumentIndex,
   parseWorldDocumentIndexPage,
+  parseWorldDocumentVersionQuery,
   publicWorldDocumentOutline,
   resolveWorldDocumentFragment,
   worldProvisionTargetId,
@@ -163,6 +164,15 @@ describe("TG4 public institutional document library", () => {
     } finally {
       vi.unstubAllGlobals();
       vi.unstubAllEnvs();
+    }
+  });
+
+  it("fails closed on explicit invalid legal-history versions instead of showing current text", () => {
+    expect(parseWorldDocumentVersionQuery(undefined)).toBeUndefined();
+    expect(parseWorldDocumentVersionQuery("1")).toBe(1);
+    expect(parseWorldDocumentVersionQuery(3)).toBe(3);
+    for (const invalid of [null, "", " 2 ", "02", "0", "-1", "1e3", "0x10", "1.5", "NaN", "Infinity", "9007199254740992", -1, 0, 1.2, {}, []]) {
+      expect(parseWorldDocumentVersionQuery(invalid)).toBeNull();
     }
   });
 
