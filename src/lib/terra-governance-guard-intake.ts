@@ -227,6 +227,9 @@ export function guardIntakeErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message
     : typeof error === "object" && error && "message" in error
       ? String((error as { message?: unknown }).message) : "";
+  if (message.includes("VERSION_CONFLICT") || message.includes("APPLICATION_LOCKED")) {
+    return "This application changed or entered formal institutional proceedings. Refresh its current status before acting.";
+  }
   if (message.includes("APPLICATION_ALREADY_PENDING") || message.includes("ALREADY_MEMBER")) {
     return "Your membership or a pending application has changed. Refresh the current status before taking another action.";
   }
