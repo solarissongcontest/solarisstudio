@@ -46,6 +46,16 @@ This is defense-in-depth presentation filtering, not a substitute for TG4 server
 - Accessible controls and existing application safe-area shell.
 - No new bottom bar, feature-rollout mutation, or official-state write.
 
+## Additional correctness and service-safety work (4 November 2026)
+
+- Explicit invalid historical `?version=` URLs fail closed and never load the current legal text as a misleading fallback. Missing version means current; only canonical positive decimal integers select a historical revision.
+- The reader displays canonical provision `status` (`active`, `repealed`, `omitted`) in its contents and article body. Unknown states are errors, not silently active.
+- TG4 stores complete `plain_text` independently from version provisions. When both are present, the reader exposes a collapsible **Complete published text** alongside its structured article layout, preserving preambles/unstructured material and exact whitespace.
+- Both anonymous TG4 RPCs honor React Query cancellation via `AbortSignal`; an aborted request, HTTP 402 quota restriction, or permanent client error receives **no retry**. Transient errors can retry once.
+- Committed unit tests include malformed revision strings, repealed/omitted status, unknown-state failure, abort forwarding, and local-only mocked RPC request assertions.
+- **46/46** extracted pure-source runtime smoke assertions passed on this source, using an isolated base64 helper for this limited V8 environment. This is **not** a repository Vitest, TypeScript, lint, build, browser, migration or production certification run.
+- Shared navigation/gating and the SQL Public published-only index before the 100-row cap remain separate integration responsibilities. No production Supabase access or mutation was performed.
+
 ## Evidence and limitations
 
 Focused code tests are in src/lib/world-public-documents.test.ts. They must run in a repository checkout. The current source includes cases for semantic provision renumbering, full contents after section 40, missing or stale fragments and preservation of existing version anchors.
