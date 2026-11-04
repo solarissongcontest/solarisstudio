@@ -1,4 +1,3 @@
-import "@/styles/v3-mobile-bottom-clearance.css";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ChevronDown,

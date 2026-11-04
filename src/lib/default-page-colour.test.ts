@@ -55,7 +55,8 @@ describe("default page colour system", () => {
     const countries = read("src/components/v3/V3CountriesDiscoveryScreen.tsx");
     expect(route).toContain('className="directory-page-hero countries-library-hero"');
     expect(countries).toContain("AppSectionHeader");
-    expect(countries).toContain("AppGroupedList");
+    expect(countries).toContain("CountryTile");
+    expect(countries).toContain("grid grid-cols-2 gap-2");
     expect(countries).toContain("bg-surface");
     expect(countries).not.toContain("glass");
   });

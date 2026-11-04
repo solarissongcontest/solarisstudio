@@ -23,14 +23,14 @@ describe("V3 country browsing and bottom navigation clearance", () => {
     const navbar = source("src/components/app/AppTabBar.tsx");
 
     expect(shell).toContain('data-solaris-app-bottom-spacer=""');
-    const clearance = source("src/styles/v3-mobile-bottom-clearance.css");
-    expect(shell).toContain('import "@/styles/v3-mobile-bottom-clearance.css"');
-    expect(clearance).toContain('@media (max-width: 899px)');
-    expect(clearance).toContain('> .solaris-app-bottom-spacer');
-    expect(clearance).toContain('var(--solaris-app-bottom-obstruction, 0px) + 1.25rem');
-    expect(clearance).toContain('var(--solaris-app-tabbar-height, 4.7rem)');
-    expect(clearance).toContain('max(2.75rem, env(safe-area-inset-bottom))');
-    expect(clearance).toContain('[data-solaris-keyboard-open]');
+    expect(shell).not.toContain('import "@/styles/v3-mobile-bottom-clearance.css"');
+    expect(styles).toContain('@media (max-width: 899px)');
+    expect(styles).toContain('> .solaris-app-bottom-spacer');
+    expect(styles).toContain('var(--solaris-app-bottom-obstruction, 0px) + 1.25rem');
+    expect(styles).toContain('var(--solaris-app-tabbar-height, 4.7rem)');
+    expect(styles).toContain('max(2.75rem, env(safe-area-inset-bottom))');
+    expect(styles).toContain('[data-solaris-keyboard-open]');
+    expect(styles).toContain('height: 1.25rem;');
     expect(styles).toContain(".solaris-app-bottom-spacer");
     expect(styles).toContain("flex: 0 0 auto");
     expect(navbar).toContain('root.style.setProperty("--solaris-app-bottom-obstruction"');
