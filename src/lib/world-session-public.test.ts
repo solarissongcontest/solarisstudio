@@ -59,6 +59,9 @@ describe("TG6 public session projection boundary", () => {
     expect(parseWorldSessionDetail({
       ...session, externalUrl: "https://example.org/meeting", agenda: [item],
     })?.agenda).toEqual([item]);
+    expect(parseWorldSessionDetail({
+      ...session, externalUrl: "https://example.org/private-room", agenda: [item],
+    })?.externalUrl).toBeNull();
     expect(() => parseWorldSessionDetail({
       ...session, externalUrl: "javascript:alert(1)", agenda: [],
     })).toThrow();
