@@ -22,6 +22,7 @@ import {
   useEditions,
 } from "@/lib/data";
 import { showPublishesResults } from "@/lib/publication";
+import { currentParticipatingCountryResponse } from "@/lib/confirmation-country-current-status";
 import { computeCountryStats } from "@/lib/stats";
 
 export const Route = createFileRoute("/confirmations/admin/countries")({
@@ -283,8 +284,8 @@ function CountriesPage() {
     () =>
       countries
         .map(([country, list]) => {
-          const latest = list.find((row) => row.participating);
-          return latest ? { country, submission: latest, status: countryStatus(latest) } : null;
+          const current = currentParticipatingCountryResponse(list);
+          return current ? { country, submission: current, status: countryStatus(current) } : null;
         })
         .filter(Boolean) as Array<{ country: string; submission: ResponseRow; status: string }>,
     [countries],
@@ -368,8 +369,7 @@ function CountriesPage() {
 
           {countries.map(([country, list]) => {
             const latest = list[0]!;
-            const latestParticipating = list.find((row) => row.participating) ?? latest;
-            const status = countryStatus(latestParticipating);
+            const status = countryStatus(latest);
             const record = contestRecords.get(normalizeCountryName(country)) ?? null;
 
             return (
