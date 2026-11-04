@@ -30,6 +30,10 @@ export type WorldDocumentIndexRow = {
 
 export type WorldDocumentProvision = {
   provisionId: string;
+  /** Stable across legal renumbering; not the version-specific display label. */
+  semanticKey: string;
+  /** URI-safe, deterministic DOM anchor derived from the canonical semantic key. */
+  targetId: string;
   displayLabel: string;
   heading: string;
   bodyPlainText: string;
@@ -116,6 +120,15 @@ export function assertWorldSlug(input: string): string {
   return input;
 }
 
+/** Official semantic provision keys are stable across amendments and renumbering. */
+export function worldProvisionTargetId(semanticKey: string): string {
+  const key = string(semanticKey, "semantic provision identity");
+  if (key.length > 200 || /[\u0000-\u001f\u007f]/u.test(key)) {
+    throw new Error("Invalid semantic provision identity");
+  }
+  return "world-provision-" + encodeURIComponent(key);
+}
+
 export function parseWorldDocumentIndex(input: unknown): WorldDocumentIndexRow[] {
   const data = object(input);
   if (!Array.isArray(data.documents) || data.documents.length > 100) {
@@ -164,8 +177,15 @@ export function parseWorldDocumentDetail(input: unknown): WorldDocumentDetail | 
     throw new Error("Invalid institutional document history");
   }
   const anchors = new Set<string>();
+  const semanticKeys = new Set<string>();
   const provisions: WorldDocumentProvision[] = version.provisions.map((value) => {
     const provision = object(value);
+    const semanticKey = string(provision.semanticKey, "semantic provision identity");
+    const targetId = worldProvisionTargetId(semanticKey);
+    if (semanticKeys.has(semanticKey)) {
+      throw new Error("Duplicate semantic provision identity");
+    }
+    semanticKeys.add(semanticKey);
     const candidate = optionalString(provision.anchor);
     const anchor = candidate && /^[a-z0-9-]{1,100}$/.test(candidate) && !anchors.has(candidate)
       ? candidate
@@ -173,6 +193,8 @@ export function parseWorldDocumentDetail(input: unknown): WorldDocumentDetail | 
     if (anchor) anchors.add(anchor);
     return {
       provisionId: string(provision.provisionId, "provision id"),
+      semanticKey,
+      targetId,
       displayLabel: optionalString(provision.displayLabel) ?? "",
       heading: optionalString(provision.heading) ?? "",
       bodyPlainText: plainText(provision.bodyPlainText),
