@@ -114,8 +114,9 @@ describe("V3 Public Voting DNA System publication boundary", () => {
   });
 
   it("rehearses the real caller boundary on local Supabase and fails closed against hosted endpoints", () => {
-    expect(rehearsal).toContain("local_api_pattern='^http://");
-    expect(rehearsal).toContain("local_db_pattern='^postgres");
+    expect(rehearsal).toContain("local_api_pattern='^http://(127[.]0[.]0[.]1|localhost):[0-9]+$'");
+    expect(rehearsal).toContain("local_db_pattern='^postgres(ql)?://postgres:postgres@(127[.]0[.]0[.]1|localhost):[0-9]+/postgres$'");
+    expect(rehearsal.match(/COUNTRY_ID='/g)).toHaveLength(1);
     expect(rehearsal).toContain("Refusing hosted Supabase rehearsal");
     expect(rehearsal).toContain("Refusing non-local database rehearsal");
     expect(rehearsal).toContain("for role in anon authenticated; do");
