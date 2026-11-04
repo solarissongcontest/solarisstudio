@@ -254,6 +254,7 @@ export const getNextInLineCountry = createServerFn({ method: "POST" })
 const submitSchema = z.object({
   edition_id: z.string().uuid(),
   source_submission_id: z.string().uuid(),
+  attempt_revision: z.number().int().min(0),
   country: z.string().trim().min(1).max(80),
   participating: z.boolean(),
   entry_unknown: z.boolean(),
@@ -286,6 +287,7 @@ async function nextInLineIdempotencyKey(data: SubmitInput) {
   const semanticRequest = JSON.stringify({
     editionId: data.edition_id,
     sourceSubmissionId: data.source_submission_id,
+    baseRevision: data.attempt_revision,
     selectionType: data.selection_type,
     nationalFinalEntryId: data.national_final_entry_id ?? null,
     artist: data.artist.trim(),
@@ -347,8 +349,24 @@ export const submitNextInLine = createServerFn({ method: "POST" })
         return { ok: false as const, error: "forbidden" };
       }
 
+      const { attempt_revision: expectedRevision, ...mutationPayload } = data;
+      // Reject a stale editor before issuing a command. The database remains the
+      // authoritative writer; System owns the stronger atomic CAS boundary.
+      if ((context.submission?.revision ?? 0) !== expectedRevision) {
+        if (submissionMatchesIntent(context.submission, data)) {
+          return {
+            ok: true as const,
+            submission_id: context.submission?.id,
+            revision: context.submission?.revision,
+            operationId: context.submission?.lastOperationId ?? undefined,
+            reconciled: true as const,
+          };
+        }
+        return { ok: false as const, error: "state_changed" };
+      }
+
       const result = await rpc<V3NextInLineSubmitResult>(client, "v3_submit_next_in_line", {
-        payload: data,
+        payload: mutationPayload,
         p_operation_id: crypto.randomUUID(),
         p_idempotency_key: await nextInLineIdempotencyKey(data),
       });
