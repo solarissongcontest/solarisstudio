@@ -35,7 +35,7 @@ import {
   type ConfirmationRoundChangePreview,
 } from "@/integrations/confirmations/admin";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
-import { assertConfirmationRoundPreviewMatchesRequest, assertConfirmationRoundReceiptMatchesRequest, isCurrentConfirmationRoundReview } from "@/lib/confirmation-round-review-scope";
+import { assertConfirmationRoundPreviewMatchesRequest, assertConfirmationRoundReceiptMatchesRequest, isCurrentConfirmationRoundReview, validateConfirmationRoundFormFields } from "@/lib/confirmation-round-review-scope";
 
 export const Route = createFileRoute("/confirmations/admin/rounds")({
   head: () => ({
@@ -283,22 +283,24 @@ function RoundsPage() {
     setError(null);
     if (!editionId) return setError("Select an edition first.");
     if (!form.name.trim()) return setError("Round name is required.");
-    if (form.response_limit && !/^\d+$/.test(form.response_limit)) {
-      return setError("Response limit must be a whole number.");
-    }
-
-    const opens = form.opens_at ? new Date(form.opens_at).toISOString() : null;
-    const closes = form.closes_at ? new Date(form.closes_at).toISOString() : null;
-    if (opens && closes && new Date(closes) <= new Date(opens)) {
-      return setError("Closing time must be after opening time.");
+    let validated: ReturnType<typeof validateConfirmationRoundFormFields>;
+    try {
+      validated = validateConfirmationRoundFormFields({
+        opensAtLocal: form.opens_at,
+        closesAtLocal: form.closes_at,
+        responseLimit: form.response_limit,
+      });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Invalid round schedule or response limit.");
+      return;
     }
 
     const payload: ConfirmationRoundChangePayload = {
       editionId,
       name: form.name.trim(),
-      opensAt: opens,
-      closesAt: closes,
-      responseLimit: form.response_limit ? Number(form.response_limit) : null,
+      opensAt: validated.opensAt,
+      closesAt: validated.closesAt,
+      responseLimit: validated.responseLimit,
       editingEnabled: form.editing_enabled,
     };
 
