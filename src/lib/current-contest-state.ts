@@ -1,6 +1,6 @@
 import type { Edition, ResultRow, Show } from "./data";
 import { normalizeLegacyEditionStatus, type EditionState } from "./edition-state";
-import { resolveShowPublication } from "./publication";
+import { isShowPublic, showPublishesResults } from "./publication";
 import type { PublicStatusKey } from "./public-status";
 
 export type PublicContestPhase =
@@ -59,7 +59,7 @@ export function resolveCurrentPublicEdition(
 }
 
 function exactLiveShow(shows: readonly Show[]) {
-  return shows.find((show) => LIVE_SHOW_STATUSES.has(show.status.trim().toLowerCase())) ?? null;
+  return shows.find((show) => isShowPublic(show) && LIVE_SHOW_STATUSES.has(show.status.trim().toLowerCase())) ?? null;
 }
 
 function finalResultPublished(
@@ -73,7 +73,7 @@ function finalResultPublished(
         (show) =>
           show.edition_id === edition.id &&
           (show.kind === "grand-final" || show.kind === "final") &&
-          resolveShowPublication(show).results,
+          showPublishesResults(show),
       )
       .map((show) => show.id),
   );
