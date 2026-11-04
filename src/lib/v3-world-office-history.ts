@@ -1,5 +1,22 @@
 import { supabase } from "@/integrations/supabase/client";
 
+export const WORLD_HISTORY_ROLLOUT_KEY = "terra_world_public" as const;
+
+/** Mirrors the existing World directory's authoritative feature decision. */
+export async function loadWorldHistoryRolloutEnabled(): Promise<boolean> {
+  const client = supabase as unknown as {
+    rpc(name: string, args: { p_key: string; p_edition_id: null }): Promise<{
+      data: unknown; error: { message: string } | null;
+    }>;
+  };
+  const { data, error } = await client.rpc("studio2_feature_enabled", {
+    p_key: WORLD_HISTORY_ROLLOUT_KEY,
+    p_edition_id: null,
+  });
+  if (error) throw new Error("World history availability cannot be verified");
+  return data === true;
+}
+
 export const OFFICE_HISTORY_PAGE_SIZE = 12;
 
 export type PublicOfficeHistoryCursor = { startedAt: string; termId: string };
