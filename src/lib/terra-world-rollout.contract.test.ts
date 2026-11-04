@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { SOLARIS_FEATURE_FLAGS } from "./feature-flags";
 import { STUDIO2_PRODUCT_SURFACES } from "./studio2-product-surfaces";
+import { V3_PUBLIC_CAPABILITY_REGISTRY, V3_PUBLIC_FEATURE_FLAGS } from "./v3-public-capability-registry";
 
 const file = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
@@ -20,6 +21,15 @@ describe("Terra Solaris TG3 discovery rollout", () => {
   it("registers all TG3 World public routes under one declared Public owner", () => {
     const registry = file("src/lib/v3-public-capability-registry.ts");
     const guard = file("scripts/check-v3-capability-registry.ts");
+    const world = V3_PUBLIC_CAPABILITY_REGISTRY.find((item) => item.id === "terra-world-institutions");
+    expect(world).toMatchObject({
+      targetArea: "explore",
+      targetRoute: "/world",
+      specificationStatus: "building",
+      sourceFeatureFlags: ["terra_world_public"],
+      legacyRoutes: ["/world", "/world/*"],
+    });
+    expect(V3_PUBLIC_FEATURE_FLAGS.has("terra_world_public")).toBe(true);
     expect(registry).toContain('id: "terra-world-institutions"');
     expect(registry).toContain('legacyRoutes: ["/world", "/world/*"]');
     expect(registry).toContain('sourceFeatureFlags: ["terra_world_public"]');
