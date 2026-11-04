@@ -89,10 +89,12 @@ describe("show-scoped Organizer reminders", () => {
 });
 
 describe("navigation hydration boundary", () => {
-  it("keeps the server-rendered drawer trigger disabled until its handler is attached", () => {
+  it("keeps the hydration-safe drawer disabled until viewer permissions are resolved", () => {
     const shell = source("src/components/AppShell.tsx");
-    expect(shell).toContain("const [navigationReady, setNavigationReady] = useState(false)");
-    expect(shell).toContain("useEffect(() => setNavigationReady(true), [])");
+    expect(shell).toContain('const [accessResolution, setAccessResolution] = useState<ShellAccessResolution>("resolving")');
+    expect(shell).toContain('const accessReady = accessResolution === "ready"');
+    expect(shell).toContain("const navigationReady = accessReady");
+    expect(shell).not.toContain("useEffect(() => setNavigationReady(true), [])");
     expect(shell).toContain("disabled={!navigationReady}");
     expect(shell).toContain("aria-busy={!navigationReady}");
   });

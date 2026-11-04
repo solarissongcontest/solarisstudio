@@ -32,11 +32,12 @@ describe("App Experience v3 native-feel polish", () => {
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
-  it("keeps the installed toolbar visible once app mode owns the chrome", () => {
+  it("shows the installed toolbar only after the current viewer's permissions resolve", () => {
     const shell = source("src/components/AppShell.tsx");
     const toolbar = source("src/components/app/AppToolbar.tsx");
 
-    expect(shell).toContain('isAppMode && appScreen.chrome.toolbar !== "hidden"');
+    expect(shell).toContain('const accessReady = accessResolution === "ready"');
+    expect(shell).toContain('isAppMode && accessReady && appScreen.chrome.toolbar !== "hidden"');
     expect(toolbar).toContain('display: "block"');
     expect(toolbar).toContain('className="solaris-app-toolbar"');
   });
