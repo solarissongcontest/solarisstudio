@@ -102,6 +102,82 @@ using (
   )
 );
 
+-- televote_votes: a published edition alone is not a detailed-vote disclosure grant.
+-- Match the source show to the row's edition and require explicit publication.
+drop policy if exists "solaris consolidated anon read" on public.televote_votes;
+create policy "solaris consolidated anon read"
+on public.televote_votes
+for select
+to anon
+using (
+  show_id is not null
+  and exists (
+    select 1
+    from public.shows tv_show
+    where tv_show.id = televote_votes.show_id
+      and tv_show.edition_id = televote_votes.edition_id
+      and public.show_publication_enabled(tv_show.id, 'detailed_voting')
+  )
+);
+
+drop policy if exists "solaris consolidated authenticated read" on public.televote_votes;
+create policy "solaris consolidated authenticated read"
+on public.televote_votes
+for select
+to authenticated
+using (
+  public.studio2_access_allowed('televote.ballots.read', edition_id, false)
+  or public.studio2_access_allowed('televote.ballots.manage', edition_id, true)
+  or (
+    show_id is not null
+    and exists (
+      select 1
+      from public.shows tv_show
+      where tv_show.id = televote_votes.show_id
+        and tv_show.edition_id = televote_votes.edition_id
+        and public.show_publication_enabled(tv_show.id, 'detailed_voting')
+    )
+  )
+);
+
+-- voters: a published edition alone is not a detailed-vote disclosure grant.
+-- Match the source show to the row's edition and require explicit publication.
+drop policy if exists "solaris consolidated anon read" on public.voters;
+create policy "solaris consolidated anon read"
+on public.voters
+for select
+to anon
+using (
+  show_id is not null
+  and exists (
+    select 1
+    from public.shows voter_show
+    where voter_show.id = voters.show_id
+      and voter_show.edition_id = voters.edition_id
+      and public.show_publication_enabled(voter_show.id, 'detailed_voting')
+  )
+);
+
+drop policy if exists "solaris consolidated authenticated read" on public.voters;
+create policy "solaris consolidated authenticated read"
+on public.voters
+for select
+to authenticated
+using (
+  public.studio2_access_allowed('voting.read', edition_id, false)
+  or public.studio2_access_allowed('voting.manage', edition_id, true)
+  or (
+    show_id is not null
+    and exists (
+      select 1
+      from public.shows voter_show
+      where voter_show.id = voters.show_id
+        and voter_show.edition_id = voters.edition_id
+        and public.show_publication_enabled(voter_show.id, 'detailed_voting')
+    )
+  )
+);
+
 create or replace function public.v3_public_country_voting_dna(
   p_country_id uuid
 )

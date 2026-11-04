@@ -146,6 +146,36 @@ describe("V3 Public Voting DNA System publication boundary", () => {
     );
   });
 
+  it("does not expose raw Televote or voter records through published-edition alone", () => {
+    for (const [table, show, readCapability, manageCapability] of [
+      ["televote_votes", "tv_show", "televote.ballots.read", "televote.ballots.manage"],
+      ["voters", "voter_show", "voting.read", "voting.manage"],
+    ]) {
+      const anon = between(
+        migration,
+        'drop policy if exists "solaris consolidated anon read" on public.' + table + ';',
+        'drop policy if exists "solaris consolidated authenticated read" on public.' + table + ';',
+      );
+      const auth = between(
+        migration,
+        'drop policy if exists "solaris consolidated authenticated read" on public.' + table + ';',
+        table === "televote_votes"
+          ? 'drop policy if exists "solaris consolidated anon read" on public.voters;'
+          : "create or replace function public.v3_public_country_voting_dna(",
+      );
+      for (const policy of [anon, auth]) {
+        expect(policy).toContain("show_id is not null");
+        expect(policy).toContain(show + ".id = " + table + ".show_id");
+        expect(policy).toContain(show + ".edition_id = " + table + ".edition_id");
+        expect(policy).toContain("show_publication_enabled(" + show + ".id, 'detailed_voting')");
+        expect(policy).not.toContain("edition.published = true");
+      }
+      expect(anon).not.toContain("studio2_access_allowed");
+      expect(auth).toContain("studio2_access_allowed('" + readCapability + "', edition_id, false)");
+      expect(auth).toContain("studio2_access_allowed('" + manageCapability + "', edition_id, true)");
+    }
+  });
+
   it("keeps generic, Jury and Televote projection authority independent", () => {
     expect(migration).toContain(
       "show_publication_enabled(result.show_id, 'results')",
