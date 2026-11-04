@@ -1,15 +1,18 @@
 import { V3_PUBLIC_ARCHIVE_CAPABILITIES } from "./v3-public-archive-capabilities";
 import { V3_PUBLIC_CAPABILITY_REGISTRY } from "./v3-public-capability-registry";
 import { V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES } from "./v3-public-capability-supplements";
+import { V3_TERRA_REPRESENTATIVE_PUBLIC_CAPABILITIES } from "./v3-terra-representative-capabilities";
 
 /** Public capability inventory after combining legacy V6 surfaces and V3 route discoveries. */
 export const V3_PUBLIC_CAPABILITIES = [
   ...V3_PUBLIC_CAPABILITY_REGISTRY,
   ...V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES,
   ...V3_PUBLIC_ARCHIVE_CAPABILITIES,
+  ...V3_TERRA_REPRESENTATIVE_PUBLIC_CAPABILITIES,
 ] as const;
 
 export { V3_PUBLIC_ARCHIVE_CAPABILITIES } from "./v3-public-archive-capabilities";
+export { V3_TERRA_REPRESENTATIVE_PUBLIC_CAPABILITIES } from "./v3-terra-representative-capabilities";
 export {
   V3_PUBLIC_CAPABILITY_REGISTRY,
   V3_PUBLIC_FEATURE_FLAGS,
