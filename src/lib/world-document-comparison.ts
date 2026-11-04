@@ -78,7 +78,11 @@ function version(raw: unknown): PublicWorldVersion {
     throw new Error("Unpublished document version cannot be compared publicly");
   }
   return {
-    number: int(v.versionNumber, "version number"),
+    number: (() => {
+      const number = int(v.versionNumber, "version number");
+      if (number < 1) throw new Error("Invalid published version number");
+      return number;
+    })(),
     title: string(v.title, "version title"),
     publicationState: v.publicationState as PublicWorldVersion["publicationState"],
     publishedAt: optionalString(v.publishedAt, "publication time"),
