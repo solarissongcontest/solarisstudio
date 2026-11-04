@@ -721,6 +721,10 @@ export function AdminWorldDocumentDraftWorkspace() {
                         <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-background p-3 font-sans text-sm leading-6">
                           {String(operation.review.args.p_plain_text ?? "") || "No document-level text"}
                         </pre>
+                        <p className="text-xs font-semibold">Retained structured document metadata (read-only)</p>
+                        <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-background p-3 text-xs leading-5">
+                          {JSON.stringify(operation.review.args.p_structured_content ?? {}, null, 2)}
+                        </pre>
                         <p className="text-xs font-semibold">
                           Outgoing provisions (complete, including any omissions described above)
                         </p>
@@ -738,9 +742,12 @@ export function AdminWorldDocumentDraftWorkspace() {
                                   {row.bodyPlainText || "No plain-text article body"}
                                 </pre>
                                 {Object.keys(row.bodyStructured).length > 0 && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Source structured metadata is preserved but not edited here.
-                                  </p>
+                                  <details className="text-xs text-muted-foreground">
+                                    <summary className="cursor-pointer">Retained article metadata (read-only)</summary>
+                                    <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all p-2 text-xs">
+                                      {JSON.stringify(row.bodyStructured, null, 2)}
+                                    </pre>
+                                  </details>
                                 )}
                               </li>
                             ))}
