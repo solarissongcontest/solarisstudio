@@ -165,6 +165,16 @@ describe("V3 authoritative Organizer Publication preview", () => {
     expect(source).toContain("historical_identity_override");
   });
 
+  it("confines privileged Result reads to the reviewed Show AND Edition", () => {
+    const resultRead = source.indexOf('.from("results")');
+    const resultWindow = source.slice(resultRead, source.indexOf(".order(", resultRead));
+    expect(resultRead).toBeGreaterThan(0);
+    expect(resultWindow).toContain('.eq("show_id", input.showId)');
+    expect(resultWindow).toContain('.eq("edition_id", input.editionId)');
+    expect(source).toContain('.from("contest_entities")');
+    expect(source).toContain('.eq("edition_id", input.editionId)');
+  });
+
   it("never mutates Publication, Show or Result truth", () => {
     expect(source).not.toMatch(/\.insert\s*\(/);
     expect(source).not.toMatch(/\.update\s*\(/);

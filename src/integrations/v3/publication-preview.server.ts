@@ -427,6 +427,7 @@ export async function loadV3AuthoritativePublicationPreview(input: {
         .from("results")
         .select(RESULT_COLUMNS)
         .eq("show_id", input.showId)
+        .eq("edition_id", input.editionId)
         .not("final_rank", "is", null)
         .order("final_rank", { ascending: true }),
       (supabaseAdmin as any)
