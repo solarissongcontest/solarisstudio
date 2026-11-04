@@ -50,7 +50,7 @@ This is defense-in-depth presentation filtering, not a substitute for TG4 server
 
 Focused code tests are in src/lib/world-public-documents.test.ts. They must run in a repository checkout. The current source includes cases for semantic provision renumbering, full contents after section 40, missing or stale fragments and preservation of existing version anchors.
 
-On 2026-11-04, eleven runtime smoke checks of extracted type-erased pure source implementations passed in an isolated JavaScript environment. Those checks are useful functional evidence for the projection/fragment functions but are **not** the committed Vitest suite, TypeScript compilation or UI rendering tests:
+On 2026-11-04, thirteen runtime smoke checks of extracted type-erased pure source implementations passed in an isolated JavaScript environment. Those checks are useful functional evidence for the projection/fragment functions but are **not** the committed Vitest suite, TypeScript compilation or UI rendering tests:
 
 npx vitest run src/lib/world-public-documents.test.ts
 
