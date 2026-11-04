@@ -352,6 +352,91 @@ as $published$
     and rule_row.active
 $published$;
 
+-- Manager organization chooser is constrained to the caller's actual
+-- per-organization settings capability, including private institutions; the
+-- browser cannot infer private institutions from the public World directory.
+create or replace function public.world_managed_voting_organizations_v1()
+returns jsonb language sql stable security definer
+set search_path=pg_catalog
+as $managed_orgs$
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id',org.id,'slug',org.slug,'name',org.short_name
+  ) order by org.short_name,org.id),'[]'::jsonb)
+  from (
+    select o.id,o.slug,o.short_name
+    from public.world_organizations o
+    where o.status='active'
+      and auth.uid() is not null
+      and public.world_access_allowed(
+        'world.organization.settings.manage',o.id,null,null,null,null
+      )
+    order by o.short_name,o.id
+    limit 30
+  ) org
+$managed_orgs$;
+
+-- Read-only management projection, one current rule per key. Exact fractions
+-- are serialized as strings to avoid bigint precision loss in JS. Superseded
+-- history remains queryable only to platform authorities (not via this API).
+create or replace function public.world_voting_rules_manage_v1(p_organization_id uuid)
+returns jsonb language sql stable security definer
+set search_path=pg_catalog
+as $manage_rules$
+  select case when p_organization_id is null
+    or auth.uid() is null
+    or not public.world_access_allowed(
+      'world.organization.settings.manage',
+      p_organization_id,null,null,null,null
+    )
+    or not exists (
+      select 1 from public.world_organizations org
+      where org.id=p_organization_id and org.status='active'
+    )
+    then null
+    else jsonb_build_object(
+      'organizationId',p_organization_id,
+      'rules',coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'id',r.id,'key',r.key,'label',r.label,
+          'ballotType',r.ballot_type,'secrecy',r.secrecy,
+          'quorumNumerator',r.quorum_numerator::text,
+          'quorumDenominator',r.quorum_denominator::text,
+          'thresholdKind',r.threshold_kind,
+          'thresholdNumerator',r.threshold_numerator::text,
+          'thresholdDenominator',r.threshold_denominator::text,
+          'denominatorPolicy',r.denominator_policy,
+          'abstentionAllowed',r.abstention_allowed,
+          'ballotChangePolicy',r.ballot_change_policy,
+          'publicationMode',r.publication_mode,'tiePolicy',r.tie_policy,
+          'revision',r.revision::text
+        ) order by r.key)
+        from (
+          select rule_row.*
+          from public.world_voting_rules rule_row
+          where rule_row.organization_id=p_organization_id
+            and rule_row.active
+          order by rule_row.key
+          limit 30
+        ) r
+      ),'[]'::jsonb)
+    )
+  end
+$manage_rules$;
+
+revoke all on function public.world_managed_voting_organizations_v1()
+  from public,anon,authenticated;
+grant execute on function public.world_managed_voting_organizations_v1()
+  to authenticated,service_role;
+revoke all on function public.world_voting_rules_manage_v1(uuid)
+  from public,anon,authenticated;
+grant execute on function public.world_voting_rules_manage_v1(uuid)
+  to authenticated,service_role;
+
+comment on function public.world_managed_voting_organizations_v1() is
+  'TG8 up to 30 actual institutions manageable through exact world.organization.settings.manage scope; includes private institutions only to authorized staff.';
+comment on function public.world_voting_rules_manage_v1(uuid) is
+  'TG8 at most 30 active configured voting rules for a verified institution settings editor; exact fractions as strings; no raw rule history, ballots, electorate or identity linkage.';
+
 revoke all on function public.world_configure_voting_rule_v1(
   uuid,text,text,text,text,bigint,bigint,text,bigint,bigint,
   text,boolean,text,text,text,bigint,uuid,text,uuid
