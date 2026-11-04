@@ -76,6 +76,16 @@ describe("V3 installed iOS top system safe zone", () => {
     expect(focusedCss).not.toContain("calc(env(safe-area-inset-top)");
   });
 
+  it("positions offline and reconnect status below the safe toolbar, not the raw unreliable env inset", () => {
+    const appCss = source("src/styles/app-shell.css");
+    const reconnect = source("src/components/app/AppReconnectReconciler.tsx");
+    const offset =
+      "calc(var(--solaris-app-safe-top) + var(--solaris-app-toolbar-height) + var(--solaris-app-safe-top-comfort) + .45rem)";
+    expect(appCss).toContain("top: " + offset + ";");
+    expect(reconnect).toContain('top: "' + offset + '"');
+    expect(reconnect).not.toContain("top: \"calc(env(safe-area-inset-top)");
+  });
+
   it("fails safe on iOS standalone with an absent top inset without raising mobile-web or desktop headers", () => {
     const guardedRule =
       /@supports \(-webkit-touch-callout: none\)\s*\{[\s\S]*?@media \(pointer: coarse\) and \(orientation: portrait\)\s*\{\s*html\[data-solaris-runtime="standalone"\] \[data-solaris-v3\]\s*\{\s*--v3-top-system-safe: max\(env\(safe-area-inset-top, 0px\), 60px\);/;
