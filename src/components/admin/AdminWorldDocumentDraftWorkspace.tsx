@@ -26,6 +26,7 @@ import {
   toWorldProvisionCommandRows,
   validateWorldDocumentProvisions,
   type WorldDocumentProvision,
+  type WorldProvisionCommandRow,
 } from "@/lib/world-document-provisions";
 
 type Organization = { id: string; slug: string; short_name: string; official_name: string };
@@ -101,6 +102,10 @@ export function AdminWorldDocumentDraftWorkspace() {
   const [draftText, setDraftText] = useState("");
   const [draftProvisions, setDraftProvisions] = useState<WorldDocumentProvision[]>([]);
   const [operation, setOperation] = useState<OperationState | null>(null);
+  const [reviewedFullText, setReviewedFullText] = useState(false);
+  const authoringLocked = Boolean(
+    operation && ["review", "checking", "reconcile"].includes(operation.status),
+  );
   const executing = useRef<Set<string>>(new Set());
   const [notice, setNotice] = useState("");
 
@@ -281,6 +286,7 @@ export function AdminWorldDocumentDraftWorkspace() {
     const identity = createOrganisationCommand({
       command, riskClass: "R2", scope: { entityId: organization.id }, payload,
     });
+    setReviewedFullText(false);
     setOperation({
       review: {
         operationId: identity.operationId,
@@ -384,6 +390,7 @@ export function AdminWorldDocumentDraftWorkspace() {
   const reconcile = async (send: boolean) => {
     const active = operation;
     if (!active || (send && active.status !== "review") || active.status === "checking") return;
+    if (send && active.review.command === "world.document.version.create" && !reviewedFullText) return;
     const { review } = active;
     if (executing.current.has(review.operationId)) return;
     executing.current.add(review.operationId);
@@ -555,6 +562,7 @@ export function AdminWorldDocumentDraftWorkspace() {
                   ) : <form className="space-y-3" onSubmit={reviewCreate}>
                   <label className="block space-y-1 text-sm">Official title
                     <input className={fieldClass} maxLength={180} required value={createTitle}
+                      disabled={authoringLocked}
                       onChange={(e) => {
                         setCreateTitle(e.target.value);
                         if (!createSlug || createSlug === toWorldDocumentSlug(createTitle)) setCreateSlug(toWorldDocumentSlug(e.target.value));
@@ -562,17 +570,17 @@ export function AdminWorldDocumentDraftWorkspace() {
                   </label>
                   <label className="block space-y-1 text-sm">Stable document identifier
                     <input className={fieldClass} required maxLength={90} pattern="[a-z0-9]+(-[a-z0-9]+)*"
-                      value={createSlug} onChange={(e) => setCreateSlug(e.target.value)} />
+                      disabled={authoringLocked} value={createSlug} onChange={(e) => setCreateSlug(e.target.value)} />
                   </label>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block space-y-1 text-sm">Type
-                      <select className={fieldClass} value={kind}
+                      <select className={fieldClass} value={kind} disabled={authoringLocked}
                         onChange={(e) => setKind(e.target.value as WorldDocumentKind)}>
                         {WORLD_DOCUMENT_KINDS.map((value) => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}
                       </select>
                     </label>
                     <label className="block space-y-1 text-sm">Audience
-                      <select className={fieldClass} value={visibility}
+                      <select className={fieldClass} value={visibility} disabled={authoringLocked}
                         onChange={(e) => setVisibility(e.target.value as WorldDocumentVisibility)}>
                         {WORLD_DOCUMENT_VISIBILITIES.map((value) => <option key={value} value={value}>{value}</option>)}
                       </select>
@@ -667,17 +675,17 @@ export function AdminWorldDocumentDraftWorkspace() {
                       )}
                       <label className="block space-y-1 text-sm">Draft version title
                         <input className={fieldClass} required maxLength={180} value={draftTitle}
-                          onChange={(e) => setDraftTitle(e.target.value)} />
+                          disabled={authoringLocked} onChange={(e) => setDraftTitle(e.target.value)} />
                       </label>
                       <label className="block space-y-1 text-sm">Document plain-text body
                         <textarea className={fieldClass + " min-h-48 resize-y leading-6"} required={!draftProvisions.length} maxLength={100000}
-                          value={draftText} onChange={(e) => setDraftText(e.target.value)}
+                          value={draftText} disabled={authoringLocked} onChange={(e) => setDraftText(e.target.value)}
                           placeholder="Enter the document-level text. Article text lives in the structured provisions below." />
                       </label>
                       <WorldDocumentProvisionEditor
                         rows={draftProvisions}
                         onChange={setDraftProvisions}
-                        disabled={Boolean(operation && ["review", "checking", "reconcile"].includes(operation.status))}
+                        disabled={authoringLocked}
                       />
                       <p className="text-xs leading-5 text-muted-foreground">
                         The new version inherits the source's structured content and persistent provision keys.
@@ -703,12 +711,61 @@ export function AdminWorldDocumentDraftWorkspace() {
                   <ul className="space-y-1 text-sm text-muted-foreground">
                     {operation.review.details.map((detail, index) => <li key={index}>{detail}</li>)}
                   </ul>
+                  {operation.review.command === "world.document.version.create" && (
+                    <details className="space-y-3 rounded-xl border border-border p-3">
+                      <summary className="cursor-pointer text-sm font-semibold">
+                        Inspect the complete outgoing legal draft
+                      </summary>
+                      <div className="space-y-3 pt-3">
+                        <p className="text-xs font-semibold">Document-level text</p>
+                        <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-background p-3 font-sans text-sm leading-6">
+                          {String(operation.review.args.p_plain_text ?? "") || "No document-level text"}
+                        </pre>
+                        <p className="text-xs font-semibold">
+                          Outgoing provisions (complete, including any omissions described above)
+                        </p>
+                        <ol className="max-h-80 space-y-3 overflow-auto rounded-lg bg-background p-3 text-sm">
+                          {((operation.review.args.p_provisions as WorldProvisionCommandRow[] | undefined) ?? [])
+                            .map((row) => (
+                              <li key={row.semanticKey} className="space-y-1 border-b border-border/50 pb-2">
+                                <p className="font-semibold">{row.displayLabel || row.semanticKey}</p>
+                                <p className="break-all text-xs text-muted-foreground">
+                                  {row.semanticKey} · {row.anchor} · {row.status}
+                                  {row.parentSemanticKey ? ` · parent ${row.parentSemanticKey}` : ""}
+                                </p>
+                                {row.heading && <p>{row.heading}</p>}
+                                <pre className="whitespace-pre-wrap break-words font-sans leading-6">
+                                  {row.bodyPlainText || "No plain-text article body"}
+                                </pre>
+                                {Object.keys(row.bodyStructured).length > 0 && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Source structured metadata is preserved but not edited here.
+                                  </p>
+                                )}
+                              </li>
+                            ))}
+                        </ol>
+                      </div>
+                    </details>
+                  )}
+                  {operation.status === "review" &&
+                    operation.review.command === "world.document.version.create" && (
+                    <label className="flex cursor-pointer items-start gap-3 text-sm">
+                      <input type="checkbox" className="mt-1 size-4 shrink-0"
+                        checked={reviewedFullText}
+                        onChange={(event) => setReviewedFullText(event.target.checked)} />
+                      <span>I have inspected the complete outgoing legal text,
+                        article identities, omissions and draft-only consequences.</span>
+                    </label>
+                  )}
                   <p className="break-all text-xs text-muted-foreground">Operation ID: {operation.review.operationId}</p>
                   {operation.message && <p role="status" className="text-sm">{operation.message}</p>}
                   <div className="flex flex-wrap gap-2">
                     {operation.status === "review" && (
                       <>
-                        <button type="button" className={buttonClass} onClick={() => void reconcile(true)}>Execute reviewed action</button>
+                        <button type="button" className={buttonClass}
+                          disabled={operation.review.command === "world.document.version.create" && !reviewedFullText}
+                          onClick={() => void reconcile(true)}>Execute reviewed action</button>
                         <button type="button" className={secondaryClass} onClick={() => setOperation(null)}>Back to editor</button>
                       </>
                     )}
