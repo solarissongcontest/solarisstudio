@@ -28,9 +28,10 @@ describe("legacy Public Participate status recovery", () => {
   });
 
   it("keeps unverified services out of inactive actions, rather than inventing unavailable status", () => {
-    expect(source).toContain("...(!confirmationsQuery.isError || confirmationsQuery.data ? [confirmationAction] : [])");
-    expect(source).toContain("...(!televoteQuery.isError || televoteQuery.data ? [televoteAction] : [])");
-    expect(source).toContain("...(!juryQuery.isError || juryQuery.data ? [juryAction] : [])");
+    expect(source).toContain("...(!confirmationsQuery.isError ? [confirmationAction] : [])");
+    expect(source).toContain("...(!televoteQuery.isError ? [televoteAction] : [])");
+    expect(source).toContain("...(!juryQuery.isError ? [juryAction] : [])");
+    expect(source).toContain("A cached status is not proof of a currently open voting window");
     expect(source).toContain(") : statusError ? null : (");
   });
 
