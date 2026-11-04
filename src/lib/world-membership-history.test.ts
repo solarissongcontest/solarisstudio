@@ -155,6 +155,59 @@ describe("institution/country public membership history", () => {
     }), "guard", "country-a")).toThrow("joinedAt");
   });
 
+  it("rejects duplicate and overlapping membership terms rather than choosing an arbitrary current term", () => {
+    const present = original.memberships[1];
+    const overlap = {
+      ...original.memberships[0],
+      endedAt: "2026-05-01T00:00:00Z",
+    };
+
+    expect(() => readWorldCountryMembership({
+      ...original,
+      memberships: [present, { ...present, id: "another-active" }],
+    }, "guard", "country-a")).toThrow("multiple current terms");
+
+    expect(() => readWorldCountryMembership({
+      ...original,
+      memberships: [present, overlap],
+    }, "guard", "country-a")).toThrow("overlapping terms");
+
+    expect(() => readWorldCountryMembership({
+      ...original,
+      memberships: [{ ...present }, { ...present, status: "member" }],
+    }, "guard", "country-a")).toThrow("duplicate");
+  });
+
+  it("fails closed on duplicate representative identities", () => {
+    const duplicate = original.representatives[1];
+    expect(() => readWorldCountryMembership({
+      ...original,
+      representatives: [duplicate, { ...duplicate, displayName: "Conflicting identity" }],
+    }, "guard", "country-a")).toThrow("repeated representative");
+  });
+
+  it("accepts only real ISO timestamps, including PostgreSQL timezone offsets", () => {
+    const period = original.memberships[1];
+    const withTime = (joinedAt: string) => ({
+      ...original,
+      memberships: [{ ...period, joinedAt }],
+    });
+
+    expect(readWorldCountryMembership(withTime("2026-01-01T12:15:00.123456+02:00"), "guard", "country-a")
+      ?.membership[0].joinedAt).toBe("2026-01-01T12:15:00.123456+02:00");
+
+    for (const malformed of [
+      "2026-02-30T00:00:00Z",
+      "2026-13-01T00:00:00Z",
+      "01/02/2026",
+      "2026-01-01",
+      "yesterday",
+    ]) {
+      expect(() => readWorldCountryMembership(withTime(malformed), "guard", "country-a"))
+        .toThrow("joinedAt");
+    }
+  });
+
   it("does not treat a concluded representative as current", () => {
     const result = readWorldCountryMembership({
       ...original,
