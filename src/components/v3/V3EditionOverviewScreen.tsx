@@ -22,6 +22,7 @@ import {
   v3EditionOverviewHref,
   v3EditionViewHref,
 } from "@/lib/v3-edition-view";
+import { canOpenV3EditionResults } from "@/lib/v3-edition-results-navigation";
 import {
   V3ActionCard,
   V3Screen,
@@ -204,8 +205,12 @@ function SectionNav({
     {
       key: "results",
       label: "Results",
-      href: projection.results.showHref ?? base,
-      locked: spoilerSafe || projection.results.state !== "available",
+      href: projection.results.showHref ?? "",
+      locked: !canOpenV3EditionResults({
+        state: projection.results.state,
+        showHref: projection.results.showHref,
+        spoilerSafe,
+      }),
     },
   ];
 
