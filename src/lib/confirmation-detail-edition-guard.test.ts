@@ -53,6 +53,33 @@ describe("Organizer Confirmation detail edition isolation", () => {
     expect(source).toContain("System #598 remains a prerequisite");
   });
 
+  it("guards Entry review preflight, apply and reconciliation against stale edition switches", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    expect(source).toContain("isScopeCurrent: () => boolean;");
+    expect(source).toContain("if (!isScopeCurrent()) {");
+    const preview = source.indexOf('"studio2_confirmation_entry_review_preview"');
+    const guard = source.indexOf("Organizer edition changed before the reviewed Entry command.");
+    const apply = source.indexOf('"studio2_apply_confirmation_entry_review"');
+    expect(preview).toBeGreaterThan(-1);
+    expect(guard).toBeGreaterThan(preview);
+    expect(apply).toBeGreaterThan(guard);
+    expect(source).toContain("isScopeCurrent={isDisplayedResponseCurrent}");
+    expect(source).toContain("Entry review completed for a previous edition.");
+  });
+
+  it("keeps stale privileged sync results out of the current edition and rejects changed snapshots", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    const fresh = source.indexOf('const fresh = await confirmationsSupabase.rpc("admin_confirmation_response"');
+    const changed = source.indexOf("JSON.stringify(liveDetail) !== reviewedSnapshot");
+    const sync = source.indexOf("const result = await syncSnapshot(liveDetail)");
+    expect(fresh).toBeGreaterThan(-1);
+    expect(changed).toBeGreaterThan(fresh);
+    expect(sync).toBeGreaterThan(changed);
+    expect(source).toContain("if (scopeIsCurrent()) {");
+    expect(source).toContain("let mutationStarted = false;");
+    expect(source).toContain("mutationStarted = true;");
+  });
+
   it("gates viewing, sync, token creation and deletion on the same response scope", () => {
     const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
     expect(source).toContain("if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)) {");
