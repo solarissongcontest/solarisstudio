@@ -43,8 +43,8 @@ export function isPrivateWorldPush(candidate: WorldPushCandidate): boolean {
 
   // Canonical responsibility/task kinds can be delivered through the ordinary
   // Task category, so never rely solely on category=world.
-  return /(?:^|[._:-])(?:court|ethics|investigation|leadership)(?:[._:-]|$)/.test(
-    `${category} ${eventType}`,
+  return [category, eventType].some((value) =>
+    /(?:^|[._:-])(?:court|ethics|investigation|leadership)(?:[._:-]|$)/.test(value)
   );
 }
 
