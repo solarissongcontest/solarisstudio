@@ -323,6 +323,17 @@ begin
   if v_session.id is null or not public.world_access_allowed(
     'world.agenda.manage',v_session.organization_id,null,v_session.organ_id,null,null
   ) then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
+  v_claim := private.studio2_claim_operation(
+    p_operation_id,p_idempotency_key,coalesce(p_correlation_id,p_operation_id),
+    'world.agenda.reorder','R2',
+    jsonb_build_object('sessionId',p_session_id,'subjectType','world_session'),
+    jsonb_build_object('itemIds',to_jsonb(p_item_ids),'expectedRevision',p_expected_revision)
+  );
+  v_operation_id := (v_claim ->> 'operationId')::uuid;
+  if coalesce((v_claim ->> 'replayed')::boolean,false) then
+    return public.studio2_reconcile_operation(v_operation_id)
+      || jsonb_build_object('replayed',true);
+  end if;
   select count(*) into v_expected from public.world_agenda_items where session_id=p_session_id;
   select count(*) into v_provided from unnest(p_item_ids) as item(id);
   if p_item_ids is null or v_provided <> v_expected
@@ -335,17 +346,6 @@ begin
        )
      )
   then raise exception using errcode='22023',message='INVALID_AGENDA_ORDER'; end if;
-  v_claim := private.studio2_claim_operation(
-    p_operation_id,p_idempotency_key,coalesce(p_correlation_id,p_operation_id),
-    'world.agenda.reorder','R2',
-    jsonb_build_object('sessionId',p_session_id,'subjectType','world_session'),
-    jsonb_build_object('itemIds',to_jsonb(p_item_ids),'expectedRevision',p_expected_revision)
-  );
-  v_operation_id := (v_claim ->> 'operationId')::uuid;
-  if coalesce((v_claim ->> 'replayed')::boolean,false) then
-    return public.studio2_reconcile_operation(v_operation_id)
-      || jsonb_build_object('replayed',true);
-  end if;
   -- This guard follows the idempotency replay decision.
   if v_session.status not in ('scheduled','open','recessed') then
     raise exception using errcode='23514',message='STATE_CHANGED'; end if;
