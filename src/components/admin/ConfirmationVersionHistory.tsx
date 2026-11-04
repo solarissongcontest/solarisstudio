@@ -85,7 +85,7 @@ export function ConfirmationVersionHistory({
   const [restoreReason, setRestoreReason] = useState('');
   const [restoreBaseline, setRestoreBaseline] = useState<RestoreBaseline | null>(null);
   const [reviewChecking, setReviewChecking] = useState(false);
-  // A synchronous guard also covers rapid consecutive clicks before React re-renders.
+  // A synchronous guard covers clicks before React re-renders.
   const restoreInFlightRef = useRef(false);
 
   const versionsQuery = useQuery({
@@ -153,8 +153,8 @@ export function ConfirmationVersionHistory({
       }
     },
     onError: (error) => {
-      // A transport error can arrive after the server committed the restore.
-      // Close the review and reconcile authoritative state before any retry.
+      // A transport error can arrive after the backend committed the restore.
+      // The operator must reconcile authoritative history before any retry.
       setRestoreTarget(null);
       setRestoreReason('');
       setRestoreBaseline(null);

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const migration = readFileSync(
@@ -224,10 +224,11 @@ describe('System V3 S14 archive consequence contract', () => {
       '20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql',
       '20261020130000_v3_s14_archive_invariant_forward_fixes.sql',
     ]) {
-      expect(workflow).toContain(migrationName);
+      expect(existsSync(`supabase/migrations/${migrationName}`)).toBe(true);
     }
-    expect(workflow).toContain('for migration in');
-    expect(workflow).toContain('"$GITHUB_WORKSPACE/supabase/migrations/$migration"');
+    expect(workflow).toContain('for migration in "$GITHUB_WORKSPACE"/supabase/migrations/*.sql; do');
+    expect(workflow).toContain('cmp -s "$migration" "$target"');
+    expect(workflow).toContain('Already-adopted migration differs');
     expect(workflow).toContain('supabase migration up --local --include-all');
     expect(workflow).not.toContain('rsync');
     expect(workflow).toContain('.github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh');

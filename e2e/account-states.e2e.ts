@@ -316,6 +316,58 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     );
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
+    // Assert the V3-installed Countries composition within the authorized local rollout.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/countries", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-v3-legacy-route-adapter]")).toBeVisible();
+    await expect(page.locator("[data-v3-legacy-bottom-clearance]")).toHaveCount(1);
+    await expect(page.locator(".v3-countries-title")).toBeVisible();
+    // Browser Audit seeds countries but no published SSC 22 participants.
+    // Choose the full archive without forging participation records.
+    await page.getByRole("group", { name: "Country collections" })
+      .getByRole("button", { name: /All \d+ countries/ }).click();
+    await expect(page.locator(".v3-countries-grid a").first()).toBeVisible();
+
+    const countryLayout = await page.evaluate(() => {
+      const title = document.querySelector<HTMLElement>(".v3-countries-title");
+      const kicker = document.querySelector<HTMLElement>(".v3-countries-kicker");
+      const controls = document.querySelector<HTMLElement>(".v3-countries-controls");
+      const card = document.querySelector<HTMLElement>(".v3-countries-grid a");
+      const grid = document.querySelector<HTMLElement>(".v3-countries-grid");
+      if (!title || !kicker || !controls || !card || !grid) return null;
+      return {
+        hierarchy: parseFloat(getComputedStyle(title).fontSize) / parseFloat(getComputedStyle(kicker).fontSize),
+        rowGap: parseFloat(getComputedStyle(grid).rowGap),
+        filterGap: card.getBoundingClientRect().top - controls.getBoundingClientRect().bottom,
+      };
+    });
+    expect(countryLayout).not.toBeNull();
+    expect(countryLayout!.hierarchy).toBeGreaterThan(1.8);
+    expect(countryLayout!.rowGap).toBeGreaterThanOrEqual(12);
+    expect(countryLayout!.filterGap).toBeGreaterThanOrEqual(12);
+
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForTimeout(100);
+    const dockClearance = await page.evaluate(() => {
+      const dock = document.querySelector<HTMLElement>("[data-v3-liquid-tabbar]");
+      const spacer = document.querySelector<HTMLElement>("[data-v3-legacy-bottom-clearance]");
+      const lastCard =
+        document.querySelector<HTMLElement>(".v3-countries-regions > button:last-child") ??
+        document.querySelector<HTMLElement>(".v3-countries-grid > a:last-child");
+      if (!dock || !spacer || !lastCard) return null;
+      return {
+        gap: dock.getBoundingClientRect().top - lastCard.getBoundingClientRect().bottom,
+        spacerHeight: spacer.getBoundingClientRect().height,
+      };
+    });
+    expect(dockClearance).not.toBeNull();
+    expect(dockClearance!.spacerHeight).toBeGreaterThanOrEqual(100);
+    expect(dockClearance!.gap).toBeGreaterThanOrEqual(12);
+
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("/explore", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Discover the contest", exact: true })).toBeVisible();
+
     await page.getByRole("link", { name: /Open edition/i }).click();
     await expect(page).toHaveURL(/\/editions\/ssc22\/?$/);
     await expect(page.getByRole("heading", { name: "Browser Audit Edition", exact: true })).toBeVisible();
