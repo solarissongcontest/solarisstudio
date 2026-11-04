@@ -57,7 +57,7 @@ const PUBLIC_SHELL_ASSETS = new Set([
 function isCacheableStaticAsset(url, request) {
   if (url.origin !== self.location.origin) return false;
   if (request.cache === "no-store" || request.headers.has("authorization")) return false;
-  if (/%(?:2f|5c|00)/i.test(url.pathname) || url.pathname.includes("\\")) return false;
+  if (url.pathname.includes("%") || url.pathname.includes("\\")) return false;
 
   // Credential-bearing or signed asset queries must never persist in Cache Storage.
   // Public icons only require v= for immutable cache-busting.
@@ -150,6 +150,13 @@ function staleWhileRevalidate(request) {
     if (!response || !response.ok || response.type !== "basic") return;
 
     try {
+      // Unlike native HTTP caching, Cache Storage does not enforce private /
+      // no-store / no-cache response directives. Never persist responses that
+      // forbid storage or stale reuse, even if their path looks public.
+      const control = response.headers?.get("cache-control") ?? "";
+      if (/(?:^|,)\s*(?:private|no-store|no-cache|must-revalidate)(?:\s|,|=|$)/i.test(control)) {
+        return;
+      }
       const cache = await runtimeCachePromise;
       if (!cache) return;
       await cache.put(request, response.clone());

@@ -44,6 +44,7 @@ describe("PWA fail-closed same-origin static asset caching", () => {
       "/assets/app.js?token=secret", "/assets/app.js?signature=abc",
       "/assets/app.js?download=true", "/icon-192.png?access_token=secret",
       "/assets/private%2Fphoto.png", "/_build/%5cprivate.js",
+      "/assets/private%252Fphoto.png", "/assets/private%252e%252e.jpg",
       "/assets/app.js?v=private%2Ftoken", "/assets/app.js?version=latest",
     ]) expect(eligible(path), path).toBe(false);
     expect(eligible("/assets/app.js", { cache: "no-store" })).toBe(false);

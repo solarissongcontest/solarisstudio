@@ -12,6 +12,7 @@ type RuntimeCache = {
 type CacheResponse = {
   ok: boolean;
   type: string;
+  headers?: { get: (name: string) => string | null };
   clone: () => CacheResponse;
 };
 type AssetCache = RuntimeCache & {
@@ -156,6 +157,38 @@ describe("PWA service-worker cache lifecycle", () => {
     await expect(result.revalidation).resolves.toBeUndefined();
     expect(runtimeCache.put).toHaveBeenCalledTimes(1);
     expect(responseError).not.toHaveBeenCalled();
+  });
+
+  it("does not persist private/no-store responses even when a static asset path is allowed", async () => {
+    for (const directive of [
+      "private, max-age=3600",
+      "no-store",
+      "no-cache, max-age=0",
+      "max-age=0, must-revalidate",
+    ]) {
+      const request = { url: "/assets/published.js" };
+      const response: CacheResponse = {
+        ok: true,
+        type: "basic",
+        headers: { get: (key) => key === "cache-control" ? directive : null },
+        clone: () => response,
+      };
+      const cache: AssetCache = {
+        match: vi.fn(async () => null),
+        put: vi.fn(async () => undefined),
+        keys: vi.fn(async () => []),
+        delete: vi.fn(async () => true),
+      };
+      const run = loadStaleWhileRevalidate({
+        cacheStorage: { open: vi.fn(async () => cache) },
+        fetchImpl: vi.fn(async () => response),
+        responseError: vi.fn(() => response),
+      });
+      const result = run(request);
+      await expect(result.response, directive).resolves.toBe(response);
+      await expect(result.revalidation, directive).resolves.toBeUndefined();
+      expect(cache.put, directive).not.toHaveBeenCalled();
+    }
   });
 
   it("does not delay a successful network asset behind pending cache maintenance", async () => {
