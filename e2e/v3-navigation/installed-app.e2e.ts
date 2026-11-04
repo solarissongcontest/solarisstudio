@@ -1,5 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
+import { applyNavbarInstalledCssEmulation } from "./navbar-local-rollout";
+
 type E2ESession = {
   access_token: string;
   user: { id: string; email?: string | null };
@@ -93,14 +95,14 @@ async function installSession(context: BrowserContext, session: E2ESession) {
 
 async function readGeometry(page: Page) {
   return page.evaluate(() => {
-    const bar = document.querySelector<HTMLElement>("[data-v3-liquid-tabbar]");
-    const material = bar?.querySelector<HTMLElement>(".v3-liquid-tabbar__material") ?? null;
-    const backdrop = bar?.querySelector<HTMLElement>(".v3-liquid-tabbar__backdrop") ?? null;
-    const lens = bar?.querySelector<HTMLElement>(".v3-liquid-tabbar__lens") ?? null;
+    const bar = document.querySelector<HTMLElement>(".solaris-app-tabbar");
+    const material = bar?.querySelector<HTMLElement>(".solaris-app-tabbar-material") ?? null;
+    const backdrop = bar?.querySelector<HTMLElement>(".solaris-app-tabbar-backdrop") ?? null;
+    const lens = bar?.querySelector<HTMLElement>(".solaris-app-tab-indicator") ?? null;
     const items = bar
-      ? Array.from(bar.querySelectorAll<HTMLElement>("[data-v3-tab-index]"))
+      ? Array.from(bar.querySelectorAll<HTMLElement>("[data-app-tab-index]"))
       : [];
-    const activeItem = bar?.querySelector<HTMLElement>('[data-v3-tab-index][aria-current="page"]') ?? null;
+    const activeItem = bar?.querySelector<HTMLElement>('[data-app-tab-index][aria-current="page"]') ?? null;
     if (!bar || !material || !backdrop || !lens || items.length === 0) return null;
 
     const rect = (element: HTMLElement) => {
@@ -123,7 +125,7 @@ async function readGeometry(page: Page) {
       overflow:
         Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
       collapsed: bar.getAttribute("data-collapsed") === "true",
-      layoutDirection: bar.getAttribute("data-layout-direction") ?? "ltr",
+      layoutDirection: getComputedStyle(bar).direction === "rtl" ? "rtl" : "ltr",
       bar: rect(bar),
       material: rect(material),
       backdrop: rect(backdrop),
@@ -131,7 +133,7 @@ async function readGeometry(page: Page) {
       activeItem: activeItem ? rect(activeItem) : null,
       items: items.map(rect),
       obstruction: Number.parseFloat(
-        rootStyle.getPropertyValue("--v3-bottom-obstruction") || "0",
+        rootStyle.getPropertyValue("--solaris-app-bottom-obstruction") || "0",
       ),
       opacity: getComputedStyle(bar).opacity,
       pointerEvents: getComputedStyle(bar).pointerEvents,
@@ -171,14 +173,14 @@ async function assertSelectedLensAlignment(
   direction: LayoutDirection,
   label: ProbeLabel,
 ) {
-  const nav = page.locator("[data-v3-liquid-tabbar]");
-  const active = nav.locator('[data-v3-tab-index][aria-current="page"]');
+  const nav = page.locator(".solaris-app-tabbar");
+  const active = nav.locator('[data-app-tab-index][aria-current="page"]');
   const currentLabel = await active.getAttribute("aria-label");
   if (!currentLabel?.startsWith(label)) {
     await nav.getByRole("link", { name: accessibleLabel(label) }).click();
   }
 
-  await expect(nav).toHaveAttribute("data-layout-direction", direction);
+  await expect.poll(() => nav.evaluate((element) => getComputedStyle(element).direction)).toBe(direction);
   await expect(active).toHaveAttribute("aria-label", accessibleLabel(label));
   await expect
     .poll(async () => {
@@ -191,7 +193,7 @@ async function assertSelectedLensAlignment(
 
 test.describe.configure({ retries: 0 });
 
-test("installed app shell survives representative navigation without duplicate chrome: V3 Liquid Glass stays bounded, compact and keyboard-safe", async ({
+test("installed app shell survives representative navigation without duplicate chrome: canonical AppTabBar stays bounded, compact and keyboard-safe", async ({
   browser,
 }, testInfo) => {
   test.skip(
@@ -209,14 +211,15 @@ test("installed app shell survives representative navigation without duplicate c
   const page = await context.newPage();
 
   await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });
+  await applyNavbarInstalledCssEmulation(page);
   await expect(page.locator('[data-v3-account-settings-screen="account"]')).toBeVisible();
-  await expect(page.locator("[data-v3-liquid-tabbar]")).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toHaveCount(1);
-  await expect(page.locator('[data-v3-liquid-tabbar] [aria-current="page"]')).toHaveCount(1);
+  await expect(page.locator(".solaris-app-tabbar")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Solaris Studio" })).toHaveCount(1);
+  await expect(page.locator('.solaris-app-tabbar [aria-current="page"]')).toHaveCount(1);
 
   for (const label of ["Home", "Explore", "Participate", "Results", "Me"]) {
     await expect(
-      page.locator("[data-v3-liquid-tabbar]").getByRole("link", { name: label, exact: true }),
+      page.locator(".solaris-app-tabbar").getByRole("link", { name: label, exact: true }),
     ).toHaveCount(1);
   }
 
@@ -236,7 +239,7 @@ test("installed app shell survives representative navigation without duplicate c
   expect(
     await page.evaluate(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches),
   ).toBe(true);
-  const activeLink = page.locator('[data-v3-liquid-tabbar] [aria-current="page"]');
+  const activeLink = page.locator('.solaris-app-tabbar [aria-current="page"]');
   const activeBounds = await activeLink.boundingBox();
   expect(activeBounds).not.toBeNull();
   if (activeBounds) {
@@ -256,7 +259,7 @@ test("installed app shell survives representative navigation without duplicate c
       clientX: x - 90,
       clientY: y,
     });
-    await expect(page.locator(".v3-liquid-tabbar__material")).toHaveAttribute(
+    await expect(page.locator(".solaris-app-tabbar-material")).toHaveAttribute(
       "data-dragging",
       "false",
     );
@@ -273,11 +276,29 @@ test("installed app shell survives representative navigation without duplicate c
     const spacer = document.createElement("div");
     spacer.dataset.v3NavScrollFixture = "";
     spacer.style.height = "1600px";
+    spacer.style.width = "1px";
     spacer.style.pointerEvents = "none";
     document.body.append(spacer);
-    window.scrollTo(0, 420);
+    window.scrollTo(0, 0);
   });
-  await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveAttribute("data-collapsed", "true");
+
+  // Let the route-reset/listener effects settle before producing genuine
+  // downward travel. A single synthetic jump immediately after DOMContentLoaded
+  // can race the hook initialization and test hydration timing instead of the
+  // responsive-bar contract.
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+  );
+  await page.evaluate(() => window.scrollTo(0, 190));
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeGreaterThan(140);
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+  );
+  await page.evaluate(() => window.scrollTo(0, 420));
+
+  await expect(page.locator(".solaris-app-tabbar")).toHaveAttribute("data-collapsed", "true");
   await expect
     .poll(async () => (await readGeometry(page))?.material.height ?? initial.material.height)
     .toBeLessThan(initial.material.height - 1);
@@ -298,7 +319,7 @@ test("installed app shell survives representative navigation without duplicate c
     window.scrollTo(0, 0);
     document.querySelector("[data-v3-nav-scroll-fixture]")?.remove();
   });
-  await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveAttribute("data-collapsed", "false");
+  await expect(page.locator(".solaris-app-tabbar")).toHaveAttribute("data-collapsed", "false");
   await expect
     .poll(async () => (await readGeometry(page))?.material.height ?? 0)
     .toBeGreaterThan(compact.material.height + 1);
@@ -318,6 +339,11 @@ test("installed app shell survives representative navigation without duplicate c
 
   await page.evaluate(() => {
     document.documentElement.removeAttribute("data-solaris-keyboard-open");
+    // A real software-keyboard dismissal changes the VisualViewport/window
+    // geometry. AppTabBar intentionally recomputes its JS-owned obstruction on
+    // that resize signal; dispatch it here instead of testing an impossible
+    // attribute-only lifecycle that leaves the last measured value stale.
+    window.dispatchEvent(new Event("resize"));
   });
   await expect
     .poll(async () => (await readGeometry(page))?.obstruction ?? 0)
@@ -335,7 +361,7 @@ test("installed app shell survives representative navigation without duplicate c
   await expect
     .poll(async () => Number((await readGeometry(page))?.opacity ?? 0))
     .toBeGreaterThan(0.99);
-  await expect(page.locator("[data-v3-liquid-tabbar]")).toBeVisible();
+  await expect(page.locator(".solaris-app-tabbar")).toBeVisible();
 
   // Probe first/middle/last physical lens positions only after the compact and
   // keyboard fixtures have completed on their original Account route. Route
@@ -351,10 +377,9 @@ test("installed app shell survives representative navigation without duplicate c
   await page.evaluate(() => {
     document.documentElement.dir = "rtl";
   });
-  await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveAttribute(
-    "data-layout-direction",
-    "rtl",
-  );
+  await expect
+    .poll(() => page.locator(".solaris-app-tabbar").evaluate((element) => getComputedStyle(element).direction))
+    .toBe("rtl");
 
   for (const label of ["Home", "Participate", "Me"] as const) {
     await assertSelectedLensAlignment(page, "rtl", label);
@@ -369,10 +394,9 @@ test("installed app shell survives representative navigation without duplicate c
   await page.evaluate(() => {
     document.documentElement.dir = "ltr";
   });
-  await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveAttribute(
-    "data-layout-direction",
-    "ltr",
-  );
+  await expect
+    .poll(() => page.locator(".solaris-app-tabbar").evaluate((element) => getComputedStyle(element).direction))
+    .toBe("ltr");
 
   await context.close();
 });

@@ -16,10 +16,13 @@ describe("installed app adaptive layout", () => {
   });
 
   it("keeps mobile touch targets and reduced-motion fallbacks explicit", () => {
-    const css = source("src/styles/app-shell.css");
-    expect(css).toContain("min-height: 3.7rem");
-    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
-    expect(css).toContain("@media (prefers-reduced-transparency: reduce)");
+    const shellCss = source("src/styles/app-shell.css");
+    const navbarCss = source("src/styles/v3-installed-app-navbar.css");
+
+    expect(navbarCss).toContain("min-height: 52px");
+    expect(navbarCss).toContain("min-height: 44px");
+    expect(navbarCss).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(shellCss).toContain("@media (prefers-reduced-transparency: reduce)");
   });
 
   it("sends organizers straight to the operational queue from the app utility sheet", () => {

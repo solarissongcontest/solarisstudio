@@ -11,7 +11,7 @@ describe("Solaris V6 press-hold physics", () => {
     expect(holdMovementExceeded(0, 0, 3, 4)).toBe(false);
   });
 
-  it("cancels hold intent once movement becomes a drag", () => {
+  it("cancels pending hold intent once movement becomes a drag", () => {
     expect(
       holdMovementExceeded(
         0,
@@ -20,6 +20,12 @@ describe("Solaris V6 press-hold physics", () => {
         0,
       ),
     ).toBe(true);
+  });
+
+  it("keeps an engaged hold picked up while direct manipulation moves", () => {
+    const source = readFileSync("src/lib/use-solaris-press-hold.ts", "utf8");
+    expect(source).toContain("active.engaged = true");
+    expect(source).toContain("if (active.engaged) return;");
   });
 
   it("tears down a pending hold without enqueueing React state", () => {

@@ -1,10 +1,9 @@
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-type E2ESession = {
-  access_token: string;
-  user: { id: string; email?: string | null };
-  [key: string]: unknown;
-};
+import {
+  applyNavbarInstalledCssEmulation,
+  prepareNavbarInstalledContext,
+} from "./navbar-local-rollout";
 
 type FrameProfile = {
   sampleCount: number;
@@ -15,83 +14,6 @@ type FrameProfile = {
   framesOver34Ms: number;
   framesOver50Ms: number;
 };
-
-function config() {
-  const supabaseUrl = process.env.E2E_SUPABASE_URL;
-  const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
-  const email = process.env.E2E_COUNTRY_EMAIL;
-  const password = process.env.E2E_COUNTRY_PASSWORD;
-  const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
-  const missing = !supabaseUrl || !publishableKey || !email || !password;
-  if (missing && process.env.CI) {
-    throw new Error("V3 frame profiling requires the isolated local Supabase fixture.");
-  }
-  test.skip(missing, "Local V3 frame-profile fixture is unavailable");
-  const parsed = new URL(supabaseUrl!);
-  if (!["127.0.0.1", "localhost"].includes(parsed.hostname)) {
-    throw new Error(`Refusing V3 frame profiling against hosted Supabase: ${parsed.origin}`);
-  }
-  return {
-    supabaseUrl: supabaseUrl!,
-    publishableKey: publishableKey!,
-    email: email!,
-    password: password!,
-    baseURL,
-  };
-}
-
-async function signIn(): Promise<E2ESession> {
-  const { supabaseUrl, publishableKey, email, password } = config();
-  const response = await fetch(
-    `${supabaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`,
-    {
-      method: "POST",
-      headers: { apikey: publishableKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    },
-  );
-  expect(response.ok).toBeTruthy();
-  return (await response.json()) as E2ESession;
-}
-
-async function installSession(context: BrowserContext, session: E2ESession) {
-  const { supabaseUrl, baseURL } = config();
-  const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
-  await context.addCookies([
-    {
-      name: "solaris_e2e_maintenance_bypass",
-      value: "1",
-      url: baseURL,
-      httpOnly: true,
-      secure: false,
-      sameSite: "Lax",
-    },
-  ]);
-  await context.addInitScript(
-    ({ key, value }) => {
-      localStorage.setItem(key, JSON.stringify(value));
-      localStorage.setItem("solaris:app-first-run-complete:v1", "1");
-      Object.defineProperty(navigator, "standalone", { configurable: true, value: true });
-      const original = window.matchMedia.bind(window);
-      window.matchMedia = ((query: string) => {
-        if (query === "(display-mode: standalone)") {
-          return {
-            matches: true,
-            media: query,
-            onchange: null,
-            addListener: () => undefined,
-            removeListener: () => undefined,
-            addEventListener: () => undefined,
-            removeEventListener: () => undefined,
-            dispatchEvent: () => false,
-          } as MediaQueryList;
-        }
-        return original(query);
-      }) as typeof window.matchMedia;
-    },
-    { key: `sb-${projectRef}-auth-token`, value: session },
-  );
-}
 
 async function startFrameSampler(page: Page, durationMs: number) {
   await page.evaluate((duration) => {
@@ -154,58 +76,58 @@ test("installed app shell survives representative navigation without duplicate c
 }, testInfo) => {
   test.skip(testInfo.project.name !== "ios-pwa-portrait", "Focused installed-iOS contract only");
 
-  const session = await signIn();
-  const { baseURL } = config();
   // Override the project's Reduced Motion context only for this profiling slice.
   // N12 Reduced Motion is tested separately; here we need the actual visual path.
+  // Match the proven installed-navbar interaction context instead of emulating a
+  // touch-only device and then manufacturing synthetic PointerEvents.
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     reducedMotion: "no-preference",
-    hasTouch: true,
-    isMobile: true,
   });
-  await installSession(context, session);
+  const { baseURL } = await prepareNavbarInstalledContext(context);
   const page = await context.newPage();
   await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });
-  const nav = page.locator("[data-v3-liquid-tabbar]");
+  await applyNavbarInstalledCssEmulation(page);
+
+  const nav = page.locator(".solaris-app-tabbar");
+  const material = nav.locator(".solaris-app-tabbar-material");
+  const active = nav.getByRole("link", { name: /^Me(?:,|$)/ });
+  await expect(page.locator('[data-v3-account-settings-screen="account"]')).toBeVisible();
   await expect(nav).toBeVisible();
-  const active = nav.locator('[data-v3-tab-index][aria-current="page"]');
+  await expect(nav.locator("[data-app-tab-index]")).toHaveCount(5);
+  await expect(active).toHaveAttribute("aria-current", "page");
+  await expect
+    .poll(async () => (await active.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(0);
+
   const bounds = await active.boundingBox();
   expect(bounds).not.toBeNull();
   if (!bounds) return;
 
   const startX = bounds.x + bounds.width / 2;
   const startY = bounds.y + bounds.height / 2;
+  await page.mouse.move(startX, startY);
   await startFrameSampler(page, 950);
 
-  await active.dispatchEvent("pointerdown", {
-    pointerId: 77,
-    pointerType: "touch",
-    button: 0,
-    clientX: startX,
-    clientY: startY,
-  });
-  for (let step = 1; step <= 14; step += 1) {
-    await active.dispatchEvent("pointermove", {
-      pointerId: 77,
-      pointerType: "touch",
-      button: 0,
-      clientX: startX - step * 4,
-      clientY: startY,
-    });
-    await page.waitForTimeout(16);
-  }
-  await active.dispatchEvent("pointercancel", {
-    pointerId: 77,
-    pointerType: "touch",
-    button: 0,
-    clientX: startX - 56,
-    clientY: startY,
-  });
-  await expect(page.locator(".v3-liquid-tabbar__material")).toHaveAttribute(
-    "data-dragging",
-    "false",
-  );
+  await page.mouse.down();
+
+  // Direct manipulation is intentionally hold-gated. Profile the production
+  // gesture instead of moving immediately and cancelling the pending hold.
+  await page.waitForTimeout(420);
+  await expect(material).toHaveAttribute("data-held", "true");
+  await expect(material).toHaveAttribute("data-dragging", "true");
+
+  // Stay below the adjacent-tab release threshold. This still exercises the
+  // held lens' continuous drag/stretch path, then measures the real snap-back
+  // settlement without mixing route loading into the frame profile.
+  await page.mouse.move(startX - 44, startY, { steps: 11 });
+  await page.waitForTimeout(48);
+  await page.mouse.up();
+
+  await expect(material).toHaveAttribute("data-dragging", "false");
+  await expect(material).toHaveAttribute("data-held", "false");
+  await expect(active).toHaveAttribute("aria-current", "page");
+  await expect(page).toHaveURL(/\/my-solaris\/account(?:[/?#]|$)/);
 
   const profile = await finishFrameSampler(page);
   const cadenceSufficient = profile.sampleCount >= 20;
@@ -222,7 +144,7 @@ test("installed app shell survives representative navigation without duplicate c
           candidateSha: process.env.GITHUB_SHA ?? null,
           project: testInfo.project.name,
           measuredAt: new Date().toISOString(),
-          interaction: "active-lens-drag-cancel",
+          interaction: "active-lens-hold-drag-snapback",
           samplingQuality,
           certificationEligible: cadenceSufficient,
           profile,

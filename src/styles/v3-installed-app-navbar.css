@@ -1,0 +1,259 @@
+/*
+ * Canonical installed-app geometry for the Solaris V3 bottom navigation.
+ *
+ * AppTabBar remains the installed/PWA behavior owner, but V3 owns the visible
+ * mobile geometry here so installed mode cannot silently fall back to the old
+ * 24px-inset, label-heavy dock while browser mode renders the redesigned
+ * V3LiquidTabBar. Keep this file after app-shell.css in the cascade.
+ */
+
+@media (max-width: 899px) {
+  [data-solaris-v3] .solaris-app-tabbar {
+    left: 50%;
+    right: auto;
+    width: min(
+      calc(
+        100vw - max(14px, var(--solaris-app-safe-left)) -
+          max(14px, var(--solaris-app-safe-right))
+      ),
+      414px
+    );
+    max-height: 64px;
+    bottom: calc(var(--solaris-app-safe-bottom) + 10px);
+    transform: translateX(-50%);
+    pointer-events: auto;
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar-material {
+    --solaris-tab-pad: 6px;
+    --solaris-tab-total-inset: 12px;
+    --solaris-tab-gap: 2px;
+    --solaris-tab-hold-scale-x: 1;
+    --solaris-tab-hold-scale-y: 1;
+    left: 0;
+    width: 100%;
+    height: 64px;
+    min-height: 0;
+    max-height: 64px;
+    gap: var(--solaris-tab-gap);
+    margin-inline: auto;
+    padding: var(--solaris-tab-pad);
+    border-radius: 27px;
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar-backdrop {
+    border-color: rgb(255 255 255 / .18);
+    background:
+      radial-gradient(circle at 18% 0%, rgb(255 255 255 / .11), transparent 42%),
+      linear-gradient(145deg, rgb(236 249 253 / .095), rgb(89 159 192 / .038) 52%, rgb(230 247 252 / .065));
+    box-shadow:
+      0 10px 28px rgb(0 4 22 / .12),
+      inset 0 1px 0 rgb(255 255 255 / .20),
+      inset 0 -1px 0 rgb(169 222 242 / .055);
+  }
+
+  [data-solaris-v3] .solaris-app-tab-indicator {
+    top: 50%;
+    left: calc(2.2% + 5.56px);
+    width: calc(15.6% - 3.12px);
+    height: 46px;
+    border-radius: 20px;
+    border-color: rgb(255 255 255 / .27);
+    background:
+      radial-gradient(circle at 34% 12%, rgb(255 255 255 / .20), transparent 42%),
+      linear-gradient(145deg, rgb(250 254 255 / .18), rgb(143 207 232 / .075) 58%, rgb(244 252 255 / .11));
+    box-shadow:
+      0 5px 17px rgb(0 4 22 / .10),
+      inset 0 1px 0 rgb(255 255 255 / .34),
+      inset 0 -1px 0 rgb(158 215 237 / .11);
+    transform:
+      translateY(-50%)
+      translateX(var(--solaris-tab-drag-x))
+      scaleX(var(--solaris-tab-drag-scale-x))
+      scale(var(--solaris-tab-hold-scale-x), var(--solaris-tab-hold-scale-y));
+    transform-origin: center center;
+    transition:
+      left 230ms cubic-bezier(.18,.86,.22,1),
+      transform 230ms cubic-bezier(.18,.86,.22,1),
+      height 180ms cubic-bezier(.32,.72,0,1),
+      border-radius 180ms cubic-bezier(.32,.72,0,1),
+      background-color 140ms ease;
+  }
+
+  /*
+   * app-shell.css historically translated the indicator by active-index.
+   * V3 now positions the lens with `left` so its optical width can be smaller
+   * than the semantic slot. This higher-specificity rule deliberately owns the
+   * transform for every active index and leaves transform-space exclusively to
+   * direct-manipulation drag/hold physics. Without it, the legacy translation
+   * and the V3 `left` offset are applied together and the lens can land outside
+   * the capsule.
+   */
+  [data-solaris-v3] .solaris-app-tabbar-material[data-active-index] .solaris-app-tab-indicator {
+    transform:
+      translateY(-50%)
+      translateX(var(--solaris-tab-drag-x))
+      scaleX(var(--solaris-tab-drag-scale-x))
+      scale(var(--solaris-tab-hold-scale-x), var(--solaris-tab-hold-scale-y));
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="0"] .solaris-app-tab-indicator {
+    left: calc(2.2% + 5.56px);
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
+    left: calc(22.2% + 3.56px);
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
+    left: calc(42.2% + 1.56px);
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
+    left: calc(62.2% - .44px);
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
+    left: calc(82.2% - 2.44px);
+  }
+
+  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="0"] .solaris-app-tab-indicator {
+    left: calc(82.2% - 2.44px);
+  }
+
+  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
+    left: calc(62.2% - .44px);
+  }
+
+  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
+    left: calc(42.2% + 1.56px);
+  }
+
+  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
+    left: calc(22.2% + 3.56px);
+  }
+
+  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
+    left: calc(2.2% + 5.56px);
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar-material[data-held="true"] {
+    --solaris-tab-hold-scale-x: 1.12;
+    --solaris-tab-hold-scale-y: 1.10;
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar-material[data-dragging="true"] .solaris-app-tab-indicator {
+    transition: none;
+  }
+
+  [data-solaris-v3] .solaris-app-tab {
+    min-height: 52px;
+    flex-direction: row;
+    gap: 0;
+    padding: 0;
+    border-radius: 20px;
+  }
+
+  [data-solaris-v3] .solaris-app-tab-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  [data-solaris-v3] .solaris-app-tab-label {
+    display: none;
+  }
+
+  /* A software keyboard hides the fixed navigation completely. Visibility is
+   * intentional here: unlike opacity/transform alone, it removes descendant
+   * links from hit testing and sequential focus until AppChromeMetrics clears
+   * the keyboard state. */
+  html[data-solaris-keyboard-open] [data-solaris-v3] .solaris-app-tabbar {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material {
+    --solaris-tab-pad: 5px;
+    --solaris-tab-total-inset: 10px;
+    width: min(300px, 100%);
+    height: 54px;
+    min-height: 54px;
+    max-height: 54px;
+    padding: var(--solaris-tab-pad);
+    border-radius: 24px;
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tab-indicator {
+    left: calc(2.2% + 4.6px);
+    width: calc(15.6% - 2.8px);
+    height: 40px;
+    border-radius: 18px;
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="0"] .solaris-app-tab-indicator {
+    left: calc(2.2% + 4.6px);
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
+    left: calc(22.2% + 3px);
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
+    left: calc(42.2% + 1.4px);
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
+    left: calc(62.2% - .2px);
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
+    left: calc(82.2% - 1.8px);
+  }
+
+  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="0"] .solaris-app-tab-indicator {
+    left: calc(82.2% - 1.8px);
+  }
+
+  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
+    left: calc(62.2% - .2px);
+  }
+
+  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
+    left: calc(42.2% + 1.4px);
+  }
+
+  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
+    left: calc(22.2% + 3px);
+  }
+
+  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
+    left: calc(2.2% + 4.6px);
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tab {
+    min-height: 44px;
+  }
+
+  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tab-icon {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (max-width: 359px) {
+  [data-solaris-v3] .solaris-app-tabbar {
+    width: min(
+      calc(
+        100vw - max(10px, var(--solaris-app-safe-left)) -
+          max(10px, var(--solaris-app-safe-right))
+      ),
+      414px
+    );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) and (max-width: 899px) {
+  [data-solaris-v3] .solaris-app-tab-indicator {
+    transition: none;
+  }
+}

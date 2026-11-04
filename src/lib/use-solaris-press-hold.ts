@@ -18,6 +18,7 @@ type HoldSession = {
   startX: number;
   startY: number;
   timer: number;
+  engaged: boolean;
 };
 
 export function useSolarisPressHold({
@@ -50,6 +51,7 @@ export function useSolarisPressHold({
       const timer = window.setTimeout(() => {
         const active = session.current;
         if (!active || active.pointerId !== pointerId) return;
+        active.engaged = true;
         setHeld(true);
       }, delayMs);
       session.current = {
@@ -57,6 +59,7 @@ export function useSolarisPressHold({
         startX: clientX,
         startY: clientY,
         timer,
+        engaged: false,
       };
     },
     [delayMs, end],
@@ -66,6 +69,12 @@ export function useSolarisPressHold({
     (pointerId: number, clientX: number, clientY: number) => {
       const active = session.current;
       if (!active || active.pointerId !== pointerId) return;
+
+      // Finger travel cancels only a pending hold. Once the long-press has
+      // actually engaged, movement belongs to the direct-manipulation gesture
+      // and must keep the lens picked up until pointer end/cancel.
+      if (active.engaged) return;
+
       if (
         holdMovementExceeded(
           active.startX,

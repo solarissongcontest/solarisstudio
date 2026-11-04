@@ -57,7 +57,9 @@ describe("installed app CSS ownership", () => {
     expect(dialog).toContain("z-[100]");
   });
 
-  it("keeps protected installed-app geometry out of legacy CSS files", () => {
+  it("keeps protected installed-app geometry in the two canonical app-shell owners", () => {
+    const shellOwner = "src/styles/app-shell.css";
+    const navbarOwner = "src/styles/v3-installed-app-navbar.css";
     const protectedTokens = [
       ".solaris-app-toolbar",
       ".solaris-app-tabbar",
@@ -76,7 +78,7 @@ describe("installed app CSS ownership", () => {
           visit(path);
           continue;
         }
-        if (!name.endsWith(".css") || path === "src/styles/app-shell.css") continue;
+        if (!name.endsWith(".css") || path === shellOwner || path === navbarOwner) continue;
         const css = readFileSync(path, "utf8");
         for (const token of protectedTokens) {
           if (css.includes(token)) violations.push(`${path}: ${token}`);
@@ -88,8 +90,14 @@ describe("installed app CSS ownership", () => {
 
     expect(
       violations,
-      "Installed toolbar/tabbar geometry belongs only to styles/app-shell.css.",
+      "Installed app chrome geometry must stay inside app-shell.css and the dedicated V3 installed-navbar owner.",
     ).toEqual([]);
+
+    const navbarCss = source(navbarOwner);
+    expect(navbarCss).toContain(".solaris-app-tabbar");
+    expect(navbarCss).not.toContain(".solaris-app-toolbar");
+    expect(navbarCss).not.toContain("--solaris-app-toolbar-height");
+    expect(navbarCss).not.toContain("--solaris-app-bottom-obstruction");
   });
 
   it("keeps seasonal overlays on the same named global z-index stack", () => {
