@@ -16,6 +16,9 @@ const PUBLIC_RECENT_DETAIL_PATTERNS = [
   /^\/(?:countries|editions|shows|stories|wiki|encyclopedia|songs|artists)\/[^/?#]+\/?$/,
   /^\/televoting\/results\/?$/,
   /^\/rules\/(?:chapters|participating|interpretations|changes|answers)(?:\/[^/?#]+)?\/?$/,
+  // One-segment canonical rule-detail URLs (`/rules/$ruleId`) are public too.
+  // Keep administrative and nested paths out of shared-device recent history.
+  /^\/rules\/(?!admin\/?$|edit\/?$|manage\/?$)[a-zA-Z0-9][a-zA-Z0-9.-]*\/?$/,
 ];
 
 const SENSITIVE_PREFIXES = [
