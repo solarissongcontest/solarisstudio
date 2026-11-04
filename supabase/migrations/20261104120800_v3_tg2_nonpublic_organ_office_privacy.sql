@@ -26,15 +26,15 @@ for select to anon, authenticated
 using (
   exists (
     select 1 from public.world_organizations organization_row
-    where organization_row.id = organization_id
+    where organization_row.id = world_organization_offices.organization_id
       and organization_row.public_visibility = 'public'
   )
   and (
     organ_id is null
     or exists (
       select 1 from public.world_organization_organs visible_organ
-      where visible_organ.id = organ_id
-        and visible_organ.organization_id = organization_id
+      where visible_organ.id = world_organization_offices.organ_id
+        and visible_organ.organization_id = world_organization_offices.organization_id
         and visible_organ.visibility = 'public'
     )
   )
@@ -51,19 +51,23 @@ for select to authenticated
 using (
   public.world_access_allowed(
     'world.organization.view_private',
-    organization_id, null, organ_id, 'office', id
+    world_organization_offices.organization_id,
+    null,
+    world_organization_offices.organ_id,
+    'office',
+    world_organization_offices.id
   )
   or exists (
     select 1
     from public.world_office_terms office_term
-    where office_term.office_id = id
+    where office_term.office_id = world_organization_offices.id
       and public.world_access_allowed(
         'world.organization.view_private',
-        organization_id,
+        world_organization_offices.organization_id,
         office_term.represented_country_id,
-        organ_id,
+        world_organization_offices.organ_id,
         'office',
-        id
+        world_organization_offices.id
       )
   )
 );
