@@ -7,7 +7,7 @@ const mocked = vi.hoisted(() => ({
 
 vi.mock("@/integrations/televoting/conversion.server", () => ({
   CalculationCommitResponseError: class CalculationCommitResponseError extends Error {
-    constructor(readonly attemptedVersion: number) {
+    constructor(readonly attemptedVersion: number, readonly returnedValue: unknown) {
       super("Calculation commit returned unexpected version");
     }
   },
@@ -51,7 +51,7 @@ describe("committed calculation concurrency and uncertain response regression", 
   });
 
   it("recovers a malformed successful scalar response using this operation's attempted version", async () => {
-    mocked.commit.mockRejectedValue(new CalculationCommitResponseError(4));
+    mocked.commit.mockRejectedValue(new CalculationCommitResponseError(4, null));
     mocked.read.mockResolvedValue(snapshot(4));
     const result = await runMergedOfficialCalculationWithReadbackServer("round");
     expect(result.version).toBe(4);
@@ -60,7 +60,7 @@ describe("committed calculation concurrency and uncertain response regression", 
   });
 
   it("does not mistake a later organizer's version for this operation's uncertain commit", async () => {
-    mocked.commit.mockRejectedValue(new CalculationCommitResponseError(4));
+    mocked.commit.mockRejectedValue(new CalculationCommitResponseError(4, { version: "invalid" }));
     mocked.read.mockResolvedValue(snapshot(5));
     await expect(runMergedOfficialCalculationWithReadbackServer("round"))
       .rejects.toThrow("version 5; expected 4");
