@@ -117,6 +117,22 @@ export function AdminWorldDocumentDraftWorkspace() {
   });
 
   const organization = organizations.data?.find((row) => row.slug === organizationSlug);
+  const createAccess = useQuery({
+    queryKey: ["tg4-organizer-can-create", organization?.id],
+    enabled: Boolean(organization),
+    staleTime: 30_000,
+    retry: 1,
+    queryFn: async () => {
+      if (!organization) throw new Error("An exact institution scope is required.");
+      const { data, error } = await db.rpc("world_access_allowed", {
+        p_capability: "world.document.manage",
+        p_organization_id: organization.id,
+      });
+      if (error) throw error;
+      if (typeof data !== "boolean") throw new Error("Institution write access could not be verified.");
+      return data;
+    },
+  });
   const documents = useQuery({
     queryKey: ["tg4-organizer-documents", organizationSlug],
     enabled: Boolean(organization),
@@ -242,7 +258,7 @@ export function AdminWorldDocumentDraftWorkspace() {
 
   const reviewCreate = (event: FormEvent) => {
     event.preventDefault();
-    if (!organization) return;
+    if (!organization || createAccess.data !== true) return;
     const slug = createSlug.trim();
     const validation = validateWorldDocumentDraft({ title: createTitle, slug, kind, visibility });
     if (validation) { setNotice(validation); return; }
@@ -431,7 +447,20 @@ export function AdminWorldDocumentDraftWorkspace() {
               </Section>
 
               <Section title="Create a Work">
-                <form className="space-y-3" onSubmit={reviewCreate}>
+                {createAccess.isPending ? <p role="status" className="text-sm">Checking institutional editing authority…</p> :
+                  createAccess.isError ? (
+                    <div role="alert" className="space-y-2">
+                      <p className="text-sm">Write permission could not be verified. Work creation is unavailable.</p>
+                      <button className={secondaryClass} type="button" onClick={() => void createAccess.refetch()}>
+                        Retry permission check
+                      </button>
+                    </div>
+                  ) : !createAccess.data ? (
+                    <p className="text-sm text-muted-foreground">
+                      Your current account cannot create legal Works for this institution.
+                      The server determines editing authority.
+                    </p>
+                  ) : <form className="space-y-3" onSubmit={reviewCreate}>
                   <label className="block space-y-1 text-sm">Official title
                     <input className={fieldClass} maxLength={180} required value={createTitle}
                       onChange={(e) => {
@@ -462,7 +491,7 @@ export function AdminWorldDocumentDraftWorkspace() {
                     disabled={!organization || documents.isError || documents.isPending || Boolean(operation && ["review","checking","reconcile"].includes(operation.status))}>
                     <FilePlus2 className="size-4" aria-hidden="true" /> Review creation
                   </button>
-                </form>
+                </form>}
               </Section>
             </div>
 
