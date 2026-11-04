@@ -29,7 +29,7 @@ create table public.world_membership_applications (
 );
 create unique index world_membership_applications_one_active_idx
   on public.world_membership_applications(organization_id, country_id)
-  where status in ('submitted','under_review','introduced');
+  where status in ('submitted','under_review','introduced','approved');
 create index world_membership_applications_country_history_idx
   on public.world_membership_applications(country_id, submitted_at desc);
 
@@ -151,7 +151,7 @@ begin
     select 1 from public.world_membership_applications application
     where application.organization_id = p_organization_id
       and application.country_id = p_country_id
-      and application.status in ('submitted', 'under_review', 'introduced')
+      and application.status in ('submitted', 'under_review', 'introduced', 'approved')
   ) then
     raise exception using errcode = '23505', message = 'APPLICATION_ALREADY_PENDING';
   end if;
