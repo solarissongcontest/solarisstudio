@@ -31,6 +31,7 @@ export type WorldDocumentDraftSnapshot = {
   revision: number | null;
   organization: { organizationId: string; slug: string; officialName: string };
   allowedActions: { manage: boolean; publish: boolean };
+  hasUnpublishedDraft: boolean;
   version: null | {
     versionId: string;
     versionNumber: number;
@@ -129,6 +130,16 @@ export function parseWorldDocumentDraftSnapshot(value: unknown): WorldDocumentDr
     throw new Error("The canonical document snapshot is unavailable.");
   }
   const canManage = actions.manage;
+  if (canManage && !Array.isArray(root.history)) {
+    throw new Error("Cannot edit without canonical legal-version history.");
+  }
+  const hasUnpublishedDraft = canManage && (root.history as unknown[]).some((item) => {
+    const history = record(item);
+    if (!history || !str(history.publicationState)) {
+      throw new Error("The canonical legal-version history is invalid.");
+    }
+    return history.publicationState === "draft";
+  });
   if (canManage && !revision(root.revision)) {
     throw new Error("Cannot edit without the current document revision.");
   }
@@ -150,6 +161,7 @@ export function parseWorldDocumentDraftSnapshot(value: unknown): WorldDocumentDr
       officialName: organization.officialName as string,
     },
     allowedActions: { manage: canManage, publish: actions.publish as boolean },
+    hasUnpublishedDraft,
     version: v ? {
       versionId: v.versionId as string,
       versionNumber: v.versionNumber as number,
