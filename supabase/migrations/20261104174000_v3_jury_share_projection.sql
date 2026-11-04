@@ -582,10 +582,15 @@ begin
 end
 $projection$;
 
+-- Do not expose the new projection to browser roles in the gap between
+-- this migration and the following rollout-gate migration. The projection has
+-- publication checks, but that alone must not bypass jury_share_cards_v1.
+-- Internal renderers may call it with service_role until the gated wrapper
+-- replaces this public entrypoint in the next migration.
 revoke all on function public.v3_jury_share_projection(uuid, uuid)
   from public, anon, authenticated, service_role;
 grant execute on function public.v3_jury_share_projection(uuid, uuid)
-  to anon, authenticated, service_role;
+  to service_role;
 
 comment on function public.v3_jury_share_projection(uuid, uuid) is
   'Read-only JSC projection. Public country ballots require detailed_voting publication; owners may read their own ballot only after canonical Results/Jury publication. Exact Jury input evidence must match the published Result Version.';

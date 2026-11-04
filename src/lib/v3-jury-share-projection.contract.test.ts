@@ -19,6 +19,18 @@ function functionBody(name: string) {
 }
 
 describe("System V3 Jury Share projection", () => {
+  it("keeps the pre-rollout projection inaccessible to browser roles", () => {
+    const grants = migration.slice(
+      migration.lastIndexOf("revoke all on function public.v3_jury_share_projection(uuid, uuid)"),
+    );
+    expect(grants).toContain("from public, anon, authenticated, service_role;");
+    expect(grants).toContain(
+      "grant execute on function public.v3_jury_share_projection(uuid, uuid)\n  to service_role;",
+    );
+    expect(grants).not.toContain("to anon, authenticated, service_role;");
+    expect(migration).toContain("jury_share_cards_v1");
+  });
+
   it("registers as an additive semantic S13 migration", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain("'v3.results.jury-share-projection-v1'");
