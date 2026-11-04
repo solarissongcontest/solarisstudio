@@ -120,7 +120,7 @@ begin
   if v_rep.id is null
      or v_rep.ends_at is not null
      or not v_rep.voting_authority
-     or not (v_rep.user_id = v_actor or exists (
+     or not (coalesce(v_rep.user_id = v_actor,false) or exists (
        select 1 from public.country_accounts account_row
        where account_row.country_id=v_rep.country_id
          and account_row.user_id=v_actor
@@ -483,7 +483,7 @@ begin
   end if;
 
   v_allowed_by_country := (
-    (v_rep.user_id=v_actor or exists (
+    (coalesce(v_rep.user_id=v_actor,false) or exists (
       select 1 from public.country_accounts ca
       where ca.country_id=v_rep.country_id
         and ca.user_id=v_actor and ca.status='active'
@@ -497,7 +497,7 @@ begin
     'world.proxy.approve',v_rep.organization_id,v_rep.country_id,
     v_organ_id,'proxy',v_proxy.id
   );
-  if not (v_allowed_by_country or v_allowed_by_institution) then
+  if not (coalesce(v_allowed_by_country,false) or coalesce(v_allowed_by_institution,false)) then
     raise exception using errcode='42501',message='AUTHORIZATION';
   end if;
 
