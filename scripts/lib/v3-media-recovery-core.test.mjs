@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
+import { buildR2CandidatePlan } from './v3-public-media-r2-plan.mjs';
 import {
   SOURCE_PROJECT, DESTINATION_PROJECT, validateProjectPair, verifyBytes, sha256,
   stableJson, assertApprovedWrite, inventoryPair, transferVerifiedMissing,
@@ -280,4 +281,56 @@ test('additional historical media owners produce review-only reference evidence'
   assert.equal(rows.find(x => x.table === 'voters').status, 'conflicting_reference');
   assert.equal(rows.find(x => x.table === 'country_profile_sections').status, 'missing_reference');
   assert.ok(rows.every(x => x.action !== 'write_database_row'));
+});
+
+test('R2 preparation excludes private and unpublished files and never creates delivery permission', () => {
+  const digest = sha256(png);
+  const publicEntry = { bucket: 'country-media', path: 'country/photo.png',
+    source_sha256: digest, destination_sha256: digest, source_bytes: png.length,
+    source_mime: 'image/png', status: 'identical', private: false };
+  const privateEntry = { ...publicEntry, bucket: 'beta-feedback', private: true,
+    path: 'feedback/private.png' };
+  const approval = { asset_clearances: [{ identity: publicEntry.bucket + '/' +
+    publicEntry.path + '#' + digest, visibility: 'already_published',
+    canonical_subject_id: 'country-a',
+    publication_evidence_id: 'canonical-published-receipt',
+    validation_evidence_id: 'verified-media-receipt' }] };
+  const plan = buildR2CandidatePlan({ entries: [publicEntry, privateEntry,
+    { ...publicEntry, path: 'country/unpublished.png', status: 'missing_destination' }], approval });
+  assert.equal(plan.entries.length, 1);
+  assert.equal(plan.mode, 'candidate-only-no-r2-write');
+  assert.equal(plan.entries[0].ready_for_public_delivery, false);
+  assert.equal(plan.entries[0].requires_server_published_projection, true);
+  assert.ok(plan.entries[0].proposed_r2_key.includes(digest));
+  assert.ok(!plan.entries[0].proposed_r2_key.includes('country/photo'));
+});
+test('R2 candidates reject mismatched hashes, unsupported formats and missing release proof', () => {
+  const digest = sha256(png);
+  const entry = { bucket: 'edition-artwork', path: 'cover.png', source_sha256: digest,
+    destination_sha256: digest, source_bytes: png.length, source_mime: 'image/png',
+    status: 'transferred', private: false };
+  const identity = entry.bucket + '/' + entry.path + '#' + digest;
+  const valid = { asset_clearances: [{ identity, visibility: 'already_published',
+    canonical_subject_id: 'edition-id', publication_evidence_id: 'published-receipt',
+    validation_evidence_id: 'validation-receipt' }] };
+  assert.throws(() => buildR2CandidatePlan({ entries: [entry], approval: {} }), /clearances/);
+  assert.throws(() => buildR2CandidatePlan({ entries: [entry], approval: {
+    asset_clearances: [] } }), /clearance/);
+  assert.throws(() => buildR2CandidatePlan({ entries: [{
+    ...entry, destination_sha256: 'b'.repeat(64) }], approval: valid }), /mismatch/);
+  assert.throws(() => buildR2CandidatePlan({ entries: [{
+    ...entry, source_mime: 'application/pdf' }], approval: valid }), /MIME/);
+});
+test('R2 candidate object key changes when source content changes', () => {
+  const make = buffer => {
+    const digest = sha256(buffer);
+    const entry = { bucket: 'country-media', path: 'source.png',
+      source_sha256: digest, destination_sha256: digest, source_bytes: buffer.length,
+      source_mime: 'image/png', status: 'identical', private: false };
+    const approval = { asset_clearances: [{ identity: 'country-media/source.png#' + digest,
+      visibility: 'already_published', canonical_subject_id: 'c1',
+      publication_evidence_id: 'p1', validation_evidence_id: 'v1' }] };
+    return buildR2CandidatePlan({ entries: [entry], approval }).entries[0].proposed_r2_key;
+  };
+  assert.notEqual(make(png), make(Buffer.concat([png, Buffer.from([1])])));
 });
