@@ -207,6 +207,8 @@ describe("institution/country public membership history", () => {
 
     expect(readWorldCountryMembership(withTime("2026-01-01T12:15:00.123456+02:00"), "guard", "country-a")
       ?.membership[0].joinedAt).toBe("2026-01-01T12:15:00.123456+02:00");
+    expect(readWorldCountryMembership(withTime("0099-01-01T00:00:00Z"), "guard", "country-a")
+      ?.membership[0].joinedAt).toBe("0099-01-01T00:00:00Z");
 
     for (const malformed of [
       "2026-02-30T00:00:00Z",
