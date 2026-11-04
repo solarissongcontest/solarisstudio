@@ -90,7 +90,11 @@ function optionalLabel(value: string | null | undefined, label: string) {
 function internalRoute(value: string | undefined, label: string) {
   if (value == null) return undefined;
   const normalized = required(value, label);
-  if (!normalized.startsWith("/") || normalized.startsWith("//")) {
+  // WHATWG URL parsing treats a path starting with "/\" or "/<TAB>/" as
+  // a protocol-relative external URL. Reject those separators, not just "//".
+  const unsafeSeparator = normalized.includes("\\") ||
+    [...normalized].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127);
+  if (!normalized.startsWith("/") || normalized.startsWith("//") || unsafeSeparator) {
     throw new Error(`${label} must be an internal Solaris route`);
   }
   return normalized;

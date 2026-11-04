@@ -1,7 +1,7 @@
 export const GLOBAL_MAINTENANCE_MODE = true;
 
 export const MAINTENANCE_RETURN_DATE = "15 November 2026";
-export const MAINTENANCE_LAST_UPDATED = "23 October 2026";
+export const MAINTENANCE_LAST_UPDATED = "29 October 2026";
 // Public estimate only. The maintenance/release gate remains authoritative.
 export const TERRAOS3_ESTIMATED_LAUNCH_AT = "2026-11-15T20:00:00+02:00";
 export const MAINTENANCE_CONFIRMATION_API_PATH = "/api/maintenance-confirmation";

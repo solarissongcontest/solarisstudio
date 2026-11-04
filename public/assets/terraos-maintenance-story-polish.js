@@ -7,6 +7,54 @@
   let layerObserver = null;
   let bodyObserver = null;
 
+  function lockHeroWordmarkToSingleLine() {
+    const title = document.getElementById('maintenance-title');
+    if (!(title instanceof HTMLElement)) return;
+    title.textContent = 'TerraOS\u00a03';
+    title.style.maxWidth = 'none';
+    title.style.whiteSpace = 'nowrap';
+    title.style.fontSize = 'clamp(3.35rem, 18vw, 10.5rem)';
+  }
+
+  function installConfirmationContrastStyle() {
+    if (document.getElementById('terraos-confirmation-contrast')) return;
+    const style = document.createElement('style');
+    style.id = 'terraos-confirmation-contrast';
+    style.textContent = `
+      .hod-portal {
+        color: #ffffff !important;
+      }
+
+      .hod-portal h2,
+      .hod-portal .hod-country,
+      .hod-portal .hod-summary strong,
+      .hod-portal .hod-entry-title,
+      .hod-portal .hod-signin-intro strong {
+        color: #ffffff !important;
+      }
+
+      .hod-portal .hod-portal-copy,
+      .hod-portal .hod-checking,
+      .hod-portal .hod-note,
+      .hod-portal .hod-summary span {
+        color: #ffffff !important;
+      }
+
+      .hod-portal .hod-muted,
+      .hod-portal .hod-signin-intro span,
+      .hod-portal .hod-field-help,
+      .hod-portal .hod-edition,
+      .hod-portal .hod-entry-label,
+      .hod-portal .hod-status-row span:first-child,
+      .hod-portal .hod-round-explainer,
+      .hod-portal .hod-last-update {
+        color: rgba(255, 255, 255, .88) !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+
   function upgradeMomentArtworkToVectors() {
     const replacements = [
       ['moment-a.png', '/assets/terraos-maintenance/moment-a.png', '/terraos-maintenance/blue-motion.svg'],
@@ -19,6 +67,8 @@
       const replacement = replacements.find(([needle]) => source.includes(needle));
       if (!replacement) return;
 
+      // Clone BEFORE changing the original so the visible vector inherits the
+      // original alt text and parallax marker. Keep the PNG for error recovery.
       const vector = image.cloneNode(false);
       if (!(vector instanceof HTMLImageElement)) return;
       vector.src = replacement[2];
@@ -29,6 +79,10 @@
       image.src = replacement[1];
       image.hidden = true;
       image.removeAttribute('data-photo-parallax');
+      vector.addEventListener('error', () => {
+        image.hidden = false;
+        vector.remove();
+      }, { once: true });
       image.insertAdjacentElement('afterend', vector);
     });
   }
@@ -97,6 +151,8 @@
     if (!layer || layer.hidden) return;
     enrichParticipateStory(layer);
     enrichMeStory(layer);
+    // The Story layer is mounted lazily, so upgrade those images on reveal too.
+    upgradeMomentArtworkToVectors();
   }
 
   function bindLayerEnhancer() {
@@ -119,10 +175,17 @@
     return true;
   }
 
-  // Keep the raster nodes as hidden compatibility fallbacks for the existing
-  // maintenance contract, but render the original SVG artwork beside them.
-  // Moving the parallax marker to the visible clone preserves the exact motion
-  // count while preventing large desktop sections from stretching raster art.
+  // The maintenance hero is intentionally one indivisible brand lockup. Use a
+  // non-breaking space in the actual text node while keeping the oversized hero
+  // scale that gives the product mark its intended visual presence.
+  lockHeroWordmarkToSingleLine();
+
+  // Confirmation remains available during maintenance, so the dark card must
+  // own its own foreground palette instead of inheriting black/grey text from
+  // the surrounding light section.
+  installConfirmationContrastStyle();
+
+  // Keep large desktop art crisp while retaining local raster fallbacks.
   upgradeMomentArtworkToVectors();
 
   // The base Story runtime has already resolved the initial hash by the time

@@ -22,17 +22,42 @@ describe("TerraOS maintenance Story interaction polish", () => {
     expect(polishIndex).toBeGreaterThan(runtimeIndex);
   });
 
-  it("upgrades oversized maintenance moment artwork to the original vector sources", () => {
+  it("replaces oversized maintenance PNGs with local SVGs without losing alt text or motion", () => {
     expect(polish).toContain("upgradeMomentArtworkToVectors");
     expect(polish).toContain("/terraos-maintenance/blue-motion.svg");
     expect(polish).toContain("/terraos-maintenance/live-stage.svg");
-    expect(polish).toContain("image.dataset.vectorArtwork = 'true'");
+    expect(polish).toContain("const vector = image.cloneNode(false)");
+    expect(polish).toContain("image.removeAttribute('data-photo-parallax')");
+    expect(polish).toContain("vector.dataset.vectorArtwork = 'true'");
+    expect(polish).toContain("vector.addEventListener('error'");
+    expect(polish).toContain("image.hidden = false");
     expect(polish).toContain("upgradeMomentArtworkToVectors();");
+    expect(polish).not.toContain("https://");
   });
 
   it("keeps the entire Story card tappable even over its fixture preview", () => {
     expect(baseCss).toContain(".terra-preview-frame");
     expect(baseCss).toContain("pointer-events:none");
+  });
+
+  it("makes the TerraOS 3 hero brand lockup structurally unbreakable without shrinking away its hero scale", () => {
+    expect(polish).toContain("lockHeroWordmarkToSingleLine");
+    expect(polish).toContain("title.textContent = 'TerraOS\\u00a03'");
+    expect(polish).toContain("title.style.maxWidth = 'none'");
+    expect(polish).toContain("title.style.whiteSpace = 'nowrap'");
+    expect(polish).toContain("title.style.fontSize = 'clamp(3.35rem, 18vw, 10.5rem)'");
+  });
+
+  it("owns the full Confirmation card foreground palette on the dark maintenance surface", () => {
+    expect(polish).toContain("installConfirmationContrastStyle");
+    expect(polish).toContain("terraos-confirmation-contrast");
+    expect(polish).toContain(".hod-portal {");
+    expect(polish).toContain(".hod-portal h2");
+    expect(polish).toContain(".hod-portal .hod-country");
+    expect(polish).toContain(".hod-portal .hod-summary strong");
+    expect(polish).toContain(".hod-portal .hod-entry-title");
+    expect(polish).toContain("color: #ffffff !important");
+    expect(polish).toContain("color: rgba(255, 255, 255, .88) !important");
   });
 
   it("gives direct Story deep links an intentional accessible focus target", () => {

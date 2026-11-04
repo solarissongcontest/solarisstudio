@@ -60,8 +60,8 @@ describe("emergency global maintenance mode", () => {
 
 describe("TerraOS 3 final visual production contract", () => {
   it("splits renderer, visual system and motion runtime cleanly", () => {
-    expect(rendered).toContain('<link rel="stylesheet" href="/assets/terraos-maintenance.css" />');
-    expect(rendered).toContain('<script src="/assets/terraos-maintenance.js"></script>');
+    expect(rendered).toContain('<link rel="stylesheet" href="/assets/terraos-maintenance.css?v=20261025-wordmark-global-nowrap" />');
+    expect(rendered).toContain('<script src="/assets/terraos-maintenance.js?v=20261025-wordmark-global-nowrap"></script>');
     expect(css).toContain('font-family:"Classica Crastao"');
     expect(css).toContain('font-family:"Gotham"');
     expect(css).toContain("--muted-soft:");
@@ -70,9 +70,16 @@ describe("TerraOS 3 final visual production contract", () => {
   });
 
   it("keeps Classica Crastao reserved for TerraOS product branding", () => {
-    expect(rendered).toContain('<h1 id="maintenance-title" class="terra-wordmark">TerraOS 3</h1>');
-    expect(rendered).toContain('<h2 id="finale-title" class="terra-wordmark display-heading">TerraOS 3</h2>');
+    expect(rendered).toContain('<h1 id="maintenance-title" class="terra-wordmark" style="white-space:nowrap;max-width:none;font-size:clamp(2.6rem,14vw,9.8rem)">TerraOS&nbsp;3</h1>');
+    expect(rendered).toContain('<h2 id="finale-title" class="terra-wordmark display-heading" style="white-space:nowrap;max-width:none;font-size:clamp(2.5rem,13.5vw,9rem)">TerraOS&nbsp;3</h2>');
     expect(css).toContain('.terra-wordmark,.product-name span,#maintenance-title,#finale-title{font-family:"Classica Crastao"');
+  });
+
+  it("renders TerraOS 3 brand lockups as server-rendered unbreakable text", () => {
+    expect(page).toContain('MAINTENANCE_ASSET_REVISION = "20261025-wordmark-global-nowrap"');
+    expect(rendered.match(/TerraOS&nbsp;3/g)?.length ?? 0).toBeGreaterThanOrEqual(8);
+    expect(rendered).toContain('<span class="terra-wordmark" style="white-space:nowrap">TerraOS&nbsp;3</span>');
+    expect(rendered).toContain('terraos-maintenance-story-polish.js?v=20261025-wordmark-global-nowrap');
   });
 
   it("renders the complete long-form product story", () => {
@@ -87,7 +94,7 @@ describe("TerraOS 3 final visual production contract", () => {
 
   it("gives all five V3 destinations standalone real-preview chapters", () => {
     for (const id of ["solaris-now", "participate-feature", "explore-feature", "results-feature", "me-feature"]) {
-      expect(rendered).toContain(`id=\"${id}\"`);
+      expect(rendered).toContain(`id="${id}"`);
     }
     for (const screen of ["home", "participate", "explore", "results", "me"]) {
       expect(rendered).toContain(`/terraos-teaser-preview?screen=${screen}&chrome=content`);
@@ -97,12 +104,14 @@ describe("TerraOS 3 final visual production contract", () => {
 
   it("uses obvious locally hosted image-led chapters", () => {
     expect(rendered).toContain('/assets/terraos-maintenance/atmosphere.jpeg');
-    expect(rendered).toContain('/assets/terraos-maintenance/moment-a.png');
-    expect(rendered).toContain('/assets/terraos-maintenance/moment-b.png');
-    expect(page).toContain('SOLARIS_VISUAL_REVISION = "20261025-real-visuals"');
-    expect(rendered.match(/\?v=20261025-real-visuals/g)?.length ?? 0).toBe(4);
-    expect(rendered.match(/data-photo-kind=\"photo\"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
-    expect(rendered.match(/class=\"photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(rendered).toContain('/assets/terraos-maintenance/moment-a.svg');
+    expect(rendered).toContain('/assets/terraos-maintenance/moment-b.svg');
+    expect(rendered).not.toContain('/assets/terraos-maintenance/moment-a.png');
+    expect(rendered).not.toContain('/assets/terraos-maintenance/moment-b.png');
+    expect(page).toContain('SOLARIS_VISUAL_REVISION = "20261025-crisp-vectors"');
+    expect(rendered.match(/\?v=20261025-crisp-vectors/g)?.length ?? 0).toBe(4);
+    expect(rendered.match(/data-photo-kind="photo"/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(rendered.match(/class="photo-chapter/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(rendered.match(/data-photo-parallax=/g)?.length ?? 0).toBe(7);
   });
 
