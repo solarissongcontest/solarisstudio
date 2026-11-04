@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, CircleAlert, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
@@ -23,6 +23,7 @@ import {
   createOrganisationCommand,
   requiresImpactPreview,
 } from "@/lib/organisation-operation-contract";
+import { isCurrentConfirmationRequirementAction } from "@/lib/confirmation-requirement-action-scope";
 
 type RequirementFilter = "all" | "required" | "satisfied" | "waived";
 type PendingAction =
@@ -50,6 +51,8 @@ function ConfirmationRequirementsPage() {
   const [filter, setFilter] = useState<RequirementFilter>("all");
   const [pending, setPending] = useState<PendingAction>(null);
   const [reason, setReason] = useState("");
+  const activeEditionRef = useRef(editionId);
+  const actionInFlightRef = useRef(false);
 
   const requirementsQuery = useQuery({
     queryKey: ["confirmation-requirements", editionId || "none"],
@@ -62,11 +65,15 @@ function ConfirmationRequirementsPage() {
   const ensure = useMutation({
     mutationFn: (targetEditionId: string) => ensureConfirmationRequirements(targetEditionId),
     onSuccess: async (result, targetEditionId) => {
-      toast.success(
-        result.created
-          ? String(result.created) + " confirmation requirement" + (result.created === 1 ? "" : "s") + " created"
-          : "Every active delegation already has a current requirement",
-      );
+      if (isCurrentConfirmationRequirementAction(targetEditionId, activeEditionRef.current)) {
+        toast.success(
+          result.created
+            ? String(result.created) + " confirmation requirement" + (result.created === 1 ? "" : "s") + " created"
+            : "Every active delegation already has a current requirement",
+        );
+      } else {
+        toast.info("The previous edition's confirmation requirements were updated. Review that edition to see the result.");
+      }
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["confirmation-requirements", targetEditionId],
@@ -122,13 +129,17 @@ function ConfirmationRequirementsPage() {
           });
     },
     onSuccess: async (_, variables) => {
-      toast.success(
-        variables.kind === "reconfirm"
-          ? variables.requirement.countryName + " now requires confirmation again"
-          : variables.requirement.countryName + " confirmation requirement waived",
-      );
-      setPending(null);
-      setReason("");
+      if (isCurrentConfirmationRequirementAction(variables.organizerEditionId, activeEditionRef.current)) {
+        toast.success(
+          variables.kind === "reconfirm"
+            ? variables.requirement.countryName + " now requires confirmation again"
+            : variables.requirement.countryName + " confirmation requirement waived",
+        );
+        setPending(null);
+        setReason("");
+      } else {
+        toast.info("The previous edition's requirement operation completed. Review that edition before taking another action.");
+      }
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["confirmation-requirements", variables.organizerEditionId],
@@ -141,9 +152,20 @@ function ConfirmationRequirementsPage() {
         }),
       ]);
     },
+    onError: (error, variables) => {
+      if (isCurrentConfirmationRequirementAction(variables.organizerEditionId, activeEditionRef.current)) {
+        toast.error(error instanceof Error ? error.message : "The requirement operation failed.");
+      } else {
+        toast.warning("A previous edition's requirement operation could not be confirmed. Inspect that edition before retrying.");
+      }
+    },
+    onSettled: () => {
+      actionInFlightRef.current = false;
+    },
   });
 
   useEffect(() => {
+    activeEditionRef.current = editionId;
     // A pending R2 decision belongs to the edition in which it was opened.
     // Never let an old sheet survive a global Organizer context switch.
     setPending(null);
@@ -168,6 +190,10 @@ function ConfirmationRequirementsPage() {
   );
 
   function start(next: Exclude<PendingAction, null>) {
+    if (actionInFlightRef.current) {
+      toast.error("Finish the current requirement operation before reviewing another.");
+      return;
+    }
     if (!editionId || next.requirement.editionId !== editionId) {
       toast.error(STALE_CONTEXT_ERROR);
       return;
@@ -178,13 +204,17 @@ function ConfirmationRequirementsPage() {
   }
 
   function submitAction() {
-    if (!pending || reason.trim().length < 5) return;
-    if (!editionId || pending.requirement.editionId !== editionId) {
+    // React state alone cannot prevent two clicks in the same render tick from
+    // creating different operation identities for one consequential decision.
+    if (actionInFlightRef.current || action.isPending || !pending || reason.trim().length < 5) return;
+    if (!editionId || pending.requirement.editionId !== editionId ||
+        !isCurrentConfirmationRequirementAction(editionId, activeEditionRef.current)) {
       setPending(null);
       setReason("");
       toast.error(STALE_CONTEXT_ERROR);
       return;
     }
+    actionInFlightRef.current = true;
     action.mutate({
       kind: pending.kind,
       requirement: pending.requirement,
@@ -347,7 +377,7 @@ function ConfirmationRequirementsPage() {
       <AdminSheet
         open={Boolean(pending)}
         onClose={() => {
-          if (action.isPending) return;
+          if (action.isPending || actionInFlightRef.current) return;
           setPending(null);
           setReason("");
           action.reset();
@@ -398,7 +428,7 @@ function ConfirmationRequirementsPage() {
               />
             </label>
 
-            {action.error ? (
+            {action.error && action.variables?.organizerEditionId === editionId ? (
               <p className="rounded-xl border border-rose-200/15 bg-rose-200/[0.05] p-3 text-xs text-rose-100">
                 {action.error instanceof Error ? action.error.message : "The requirement command failed."}
               </p>
@@ -420,7 +450,7 @@ function ConfirmationRequirementsPage() {
               <button
                 type="button"
                 className={pending.kind === "reconfirm" ? "admin-action-danger w-full" : "admin-action-primary w-full"}
-                disabled={action.isPending || reason.trim().length < 5}
+                disabled={action.isPending || actionInFlightRef.current || reason.trim().length < 5}
                 onClick={submitAction}
               >
                 {action.isPending
