@@ -175,7 +175,7 @@ export async function loadAllConfirmationResponsesForEdition<
   const rows = new Map<string, T>();
 
   for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
-    const page = await loadConfirmationResponsesPage<T>(editionId, cursor, 200);
+    const page: ConfirmationProjectionPage<T> = await loadConfirmationResponsesPage<T>(editionId, cursor, 200);
     if (!page.stateVersion) {
       throw new Error("Confirmation projection did not return a canonical state version.");
     }
@@ -199,7 +199,7 @@ export async function loadAllConfirmationResponsesForEdition<
           { status: 409 },
         );
       }
-      return { rows: [...rows.values()], stateVersion, totalCount };
+      return { rows: [...rows.values()], stateVersion: page.stateVersion, totalCount };
     }
     if (!page.page.nextCursor) {
       throw new Error("Confirmation projection pagination ended without a continuation cursor.");
