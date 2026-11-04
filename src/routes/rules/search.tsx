@@ -9,9 +9,8 @@ import {
   SolarisDepthSafeZone,
   SolarisDepthSurface,
 } from "@/components/SolarisDepth";
-import { findGovernanceQuickAnswer } from "@/lib/governance-v5";
+import { findRuleSearchQuickAnswer } from "@/lib/v3-rules-quick-answer-search";
 import { searchSscRules } from "@/lib/ssc-rules-v4";
-import { ROLEPLAY_QUICK_ANSWERS } from "@/lib/ssc-rules/roleplay";
 
 export const Route = createFileRoute("/rules/search")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -26,36 +25,9 @@ export const Route = createFileRoute("/rules/search")({
   component: RuleSearchPage,
 });
 
-function normalize(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-function findRoleplayQuickAnswer(query: string) {
-  const normalized = normalize(query);
-  if (!normalized) return null;
-  let best: { answer: (typeof ROLEPLAY_QUICK_ANSWERS)[number]; score: number } | null = null;
-
-  for (const answer of ROLEPLAY_QUICK_ANSWERS) {
-    const candidates = [answer.question, ...answer.phrases].map(normalize);
-    let score = 0;
-    for (const candidate of candidates) {
-      if (candidate === normalized) score = Math.max(score, 100);
-      else if (candidate.includes(normalized) || normalized.includes(candidate)) score = Math.max(score, 70);
-      else {
-        const words = normalized.split(" ").filter(Boolean);
-        const overlap = words.filter((word) => candidate.includes(word)).length;
-        score = Math.max(score, overlap * 10);
-      }
-    }
-    if (!best || score > best.score) best = { answer, score };
-  }
-
-  return best && best.score >= 20 ? best.answer : null;
-}
-
 function RuleSearchPage() {
   const { q } = Route.useSearch();
-  const answer = findRoleplayQuickAnswer(q) ?? findGovernanceQuickAnswer(q);
+  const answer = findRuleSearchQuickAnswer(q);
   const results = q.trim() ? searchSscRules(q).slice(0, 20) : [];
 
   return (
@@ -77,6 +49,7 @@ function RuleSearchPage() {
                 <Search className="size-4.5 shrink-0 text-primary" aria-hidden="true" />
                 <input
                   name="q"
+                  key={q}
                   defaultValue={q}
                   aria-label="Search rules"
                   placeholder="Ask about a rule…"
