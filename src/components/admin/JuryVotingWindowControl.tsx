@@ -11,6 +11,7 @@ import { resolveVoting } from "@/lib/voting";
 import {
   isJuryWindowReviewScopeCurrent,
   resolveJuryWindowReadState,
+  selectJuryWindowShow,
 } from "@/lib/jury-window-control-state";
 import { useOrganisationBackendContract } from "@/lib/organisation-backend-contract";
 
@@ -69,8 +70,8 @@ export function JuryVotingWindowControl() {
       ? (location.search as Record<string, unknown>).show
       : null;
   const orderedShows = [...shows].sort((a, b) => a.sort_order - b.sort_order);
-  const selectedShow =
-    orderedShows.find((show) => show.id === searchShow) ?? orderedShows[0] ?? null;
+  const requestedShowId = typeof searchShow === "string" ? searchShow : null;
+  const selectedShow = selectJuryWindowShow(orderedShows, requestedShowId);
 
   // A reviewed R2 operation belongs to one exact edition/show. Never retain
   // its confirmation across a context switch, even within the same route.
@@ -204,7 +205,28 @@ export function JuryVotingWindowControl() {
     },
   });
 
-  if (!slug || !edition || !selectedShow) return null;
+  if (!slug || !edition) return null;
+
+  if (requestedShowId?.trim() && !selectedShow) {
+    return (
+      <AdminCard strong className="mb-4">
+        <p role="alert" className="text-sm text-rose-100">
+          This jury voting link refers to a show that does not belong to the selected edition.
+          No voting-window operation is available for this link.
+        </p>
+        <Link
+          to="/admin/jury/$slug"
+          params={{ slug }}
+          search={{}}
+          className="admin-action-secondary mt-3 inline-flex !min-h-10"
+        >
+          Choose an edition show
+        </Link>
+      </AdminCard>
+    );
+  }
+
+  if (!selectedShow) return null;
 
   const open = windowState === "open";
   const voting = resolveVoting(selectedShow.voting_config);
