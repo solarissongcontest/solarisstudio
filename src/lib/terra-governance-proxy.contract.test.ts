@@ -46,7 +46,7 @@ describe("TG6 institutional acting-proxy authorization", () => {
     expect(request).toContain("member_row.status='member'");
     expect(request).toContain("p_expected_representation_revision");
     expect(request).toContain("for update");
-    expect(request).toContain("world_proxy_is_effective").toBeUndefined;
+    expect(request).not.toContain("world_proxy_is_effective");
   });
 
   it("rejects cross-organization sessions, ineligible life cycles and excessive proxy windows", () => {
