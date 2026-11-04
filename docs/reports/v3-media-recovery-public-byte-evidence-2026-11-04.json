@@ -28,15 +28,16 @@
   ],
   "private_beta_feedback_included": false,
   "destination_project_id": "dkxmnvekiopyesuzggeu",
-  "destination_access": "denied_for_both_connected_supabase_identities_at_inspection",
-  "destination_objects_written": 0,
+  "destination_access": "verified_read_only_for_primary_connector",
+  "destination_objects_written": 54,
   "production_references_changed": 0,
   "r2_objects_published": 0,
   "archive_disposition": "user-uploaded ZIP retained as conversation attachment; not committed to repository",
   "limitations": [
-    "The uploader-generated SHA-256 values establish consistency between the archive and its manifest, not independently signed byte provenance from Supabase.",
-    "Live source SQL separately matched all 54 bucket/key/size/MIME metadata records.",
-    "V3 release authorization, destination access and per-asset public release clearance remain outstanding."
+    "The uploader-generated SHA-256 values establish archive-manifest consistency, not independently signed byte provenance from Supabase.",
+    "Staged destination objects have matching keys, byte sizes and MIME metadata; staged bytes have NOT been independently downloaded and SHA-256 verified.",
+    "All recovered public files are staged only in the private quarantine bucket, not promoted to public buckets.",
+    "Canonical V3 media review/finalization, per-asset publication clearance, authorized DB-reference repair and browser rendering checks remain outstanding."
   ],
   "destination_project_connection_verified": true,
   "destination_project_status": "ACTIVE_HEALTHY",
@@ -64,8 +65,9 @@
       "public": false
     },
     "solaris_upload_quarantine": {
-      "count": 0,
-      "public": false
+      "count": 54,
+      "public": false,
+      "metadata_bytes": 25673162
     }
   },
   "canonical_owner_ids_matched": {
@@ -88,5 +90,21 @@
   "additional_limitations": [
     "Application-layer public image ceiling 5 MiB still requires validation/exception review despite 8 MiB Storage bucket cap.",
     "Recovered image-owner matches do not themselves authorize republication or DB-reference writes."
-  ]
+  ],
+  "destination_objects_written_classification": "54 user-staged private quarantine objects only; 0 promoted to public final buckets",
+  "live_destination_quarantine": {
+    "project_id": "dkxmnvekiopyesuzggeu",
+    "bucket": "solaris-upload-quarantine",
+    "is_public": false,
+    "object_count": 54,
+    "metadata_bytes": 25673162,
+    "prefixed_country_media_objects": 47,
+    "prefixed_edition_artwork_objects": 7,
+    "metadata_md5_after_stripping_bucket_prefix": "7010a5b1ed4eee24443a0a5b370c8fd6",
+    "exact_match_to_previous_source_metadata_md5": true,
+    "independently_verified_staged_bytes": false,
+    "transfer_to_final_buckets_count": 0,
+    "media_approvals_count_at_last_read": 0,
+    "database_reference_writes_count": 0
+  }
 }
