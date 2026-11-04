@@ -246,7 +246,7 @@ export function WorldDocumentReaderScreen({
         title={detail?.title ?? "Document reader"}
         description={detail ? detail.organization.officialName : "Published institutional records and preserved revisions."}
         actions={
-          <Link to="/world/documents" search={{ organization, q: undefined }} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary">
+          <Link to="/world/documents" search={{ organization, q: "" }} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary">
             <ArrowLeft size={16} aria-hidden="true" /> All documents
           </Link>
         }
