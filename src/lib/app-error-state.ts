@@ -94,7 +94,7 @@ export function appErrorPresentation(kind: AppErrorKind): AppErrorPresentation {
         eyebrow: "Data service",
         title: "Solaris data is temporarily unavailable",
         description:
-          "Published or cached areas may still work, but database-backed reads and saves can fail until the service recovers.",
+          "Published or cached areas may still work, but some live information and saves can be unavailable until the service recovers.",
         retry: true,
       };
     case "authentication-expired":
@@ -103,7 +103,7 @@ export function appErrorPresentation(kind: AppErrorKind): AppErrorPresentation {
         eyebrow: "Session",
         title: "Your session expired",
         description:
-          "Sign in again before continuing account or participation work. Local drafts remain separate from a server submission.",
+          "Sign in again before continuing account or participation work. Any local draft is separate from a submitted response.",
         retry: false,
         primaryLabel: "Sign in again",
         primaryHref: "/auth",
@@ -121,9 +121,9 @@ export function appErrorPresentation(kind: AppErrorKind): AppErrorPresentation {
       return {
         kind,
         eyebrow: "Changed elsewhere",
-        title: "This state changed before your action completed",
+        title: "This changed before your action finished",
         description:
-          "Solaris must refresh the canonical server state before this action can be attempted again. Your stale version will not overwrite newer work.",
+          "Reload the latest version, review what changed, then try again. Solaris will not replace newer work with an older copy.",
         retry: false,
       };
     case "not-found":
@@ -131,7 +131,8 @@ export function appErrorPresentation(kind: AppErrorKind): AppErrorPresentation {
         kind,
         eyebrow: "404",
         title: "This page wasn't found",
-        description: "The link may be outdated, private, or no longer available.",
+        description:
+          "This link may have moved, expired, become private, or belong to an older version of Solaris.",
         retry: false,
       };
     case "unpublished":
@@ -140,7 +141,7 @@ export function appErrorPresentation(kind: AppErrorKind): AppErrorPresentation {
         eyebrow: "Publication",
         title: "This isn't public yet",
         description:
-          "Solaris will show this information after the relevant contest stage is officially published.",
+          "This information will appear here after the relevant contest stage is officially published.",
         retry: false,
       };
     case "request-failed":
@@ -149,7 +150,7 @@ export function appErrorPresentation(kind: AppErrorKind): AppErrorPresentation {
         eyebrow: "Connection",
         title: "Solaris couldn't refresh this view",
         description:
-          "The request did not complete. Your existing server data has not been changed by this failed load.",
+          "The request did not complete. Try again when your connection is stable.",
         retry: true,
       };
     default:

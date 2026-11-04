@@ -13,6 +13,10 @@ const supersessionHardening = readFileSync(
   ),
   "utf8",
 );
+const roleplayRegistryMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20261101181144_rules_v4_1_roleplay_registry.sql"),
+  "utf8",
+);
 const api = readFileSync(resolve(process.cwd(), "src/lib/rule-interpretations.ts"), "utf8");
 const adminRoute = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/admin/rule-interpretations.tsx"),
@@ -42,12 +46,18 @@ describe("Official Interpretations governance", () => {
     expect(migration).toContain("status text not null default 'draft'");
   });
 
-  it("keeps an exact server-side registry of current v4 rule IDs", () => {
+  it("keeps the server-side rule registry current through v4.1", () => {
     expect(migration).toContain("create table if not exists public.ssc_rule_registry");
     expect(migration).toContain("(6, 10)");
     expect(migration).toContain("(11, 8)");
     expect(migration).toContain("(17, 8)");
     expect(migration).toContain("(21, 4)");
+    for (let ruleNumber = 1; ruleNumber <= 11; ruleNumber += 1) {
+      expect(roleplayRegistryMigration).toContain(
+        `('22.${ruleNumber}', 22, ${ruleNumber})`,
+      );
+    }
+    expect(roleplayRegistryMigration).toContain("on conflict (rule_id) do update");
     expect(migration).toContain("Unknown current SSC rule id");
     expect(migration).toContain(
       "select 1 from public.ssc_rule_registry where rule_id = v_normalized",
