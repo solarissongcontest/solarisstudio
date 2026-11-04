@@ -95,11 +95,13 @@ describe("TG4 structured legal provision authoring", () => {
     ])).toThrow();
   });
 
-  it("bounds the editor, generates available keys and never modifies the existing rows", () => {
+  it("never guesses or reuses a semantic key that may exist in a prior legal version", () => {
     const existing = [row({ semanticKey: "article.1", anchor: "article-1" })];
     const added = addWorldDocumentProvision(existing);
     expect(added).toHaveLength(2);
-    expect(added[1].semanticKey).toBe("article.2");
+    expect(added[1].semanticKey).toBe("");
+    expect(added[1].anchor).toBe("");
+    expect(validateWorldDocumentProvisions(added)).toMatch(/stable lowercase key/);
     expect(existing).toHaveLength(1);
     expect(validateWorldDocumentProvisions(new Array(MAX_WORLD_PROVISIONS_IN_EDITOR + 1)
       .fill(row()))).toMatch(/Only 50/);
