@@ -17,6 +17,14 @@ This augments storage-restore.md and migration-hardening.md. Direction is pinned
 
 Confidential reports live under ~/.local/state/solaris-v3-media-recovery/ with 0700 directory and 0600 file permissions. Files include recovery-manifest.json (actual per-object hashes and keys), references-source.json, references-destination.json, reference-proposals.json, summary.json, transfer-results.json, and verified-checkpoints.jsonl. These may contain private and unpublished paths. NEVER attach them verbatim to the public PR or CI logs. Publish redacted aggregate counts and the manifest digest only.
 
+## Verified V3 quarantine staging and operational state (2026-11-04)
+
+- The user manually uploaded 54 recovered public-origin images into **private** `solaris-upload-quarantine`, not into public final buckets. Exact source bucket/path is preserved as the quarantine key prefix (`country-media/...` or `edition-artwork/...`). The 47 country images and 7 edition images have 25,673,162 metadata bytes; a read-only destination SQL fingerprint of prefix-stripped key/size/MIME matches the old project's metadata digest `7010a5b1ed4eee24443a0a5b370c8fd6`.
+- These metadata matches are **not** destination byte SHA-256 readbacks, final public publication authorization, or media validation receipts. Both public final buckets remained empty when checked.
+- **The V3 platform operating mode is `read_only`.** Canonical `private.studio2_platform_mutation_allowed('media.review')` disallows media review in this mode, as does the existing upload preparation/finalization flow. Do not change system operating mode merely to force publication. Privileged manual recovery code now checks the platform state before transfer and before each asset and fails closed in read-only or maintenance.
+- Existing `solaris-upload-finalize` expects a real, unexpired `studio2_upload_authorizations` record with a matching authorization secret and token-named quarantine object. Manual legacy staging does **not** create these receipts; do not forge upload authorizations or infer review decisions from bucket metadata.
+- A validated, audited restoration mechanism for preexisting staging keys, canonical per-asset clearances, and post-publication reference repair is still required. One 5,679,181-byte country gallery image exceeds the canonical 5 MiB upload validation ceiling, despite fitting the bucket's 8 MiB Storage limit; never silently waive it or alter the original. Retain the private source for rollback.
+
 ## Manual production-write gate
 
 The responsible operator and independent protected signing authority must review every exact file's trust/publication status. Old public Storage placement alone does not establish authorization for new public exposure. Untrusted legacy media must be revalidated through Solaris's existing quarantine/validation/finalization contract before publication.
