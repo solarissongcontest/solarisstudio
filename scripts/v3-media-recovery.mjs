@@ -10,7 +10,7 @@ import {
   SOURCE_PROJECT, DESTINATION_PROJECT, REFERENCE_TABLES, assertApprovedWrite, assertAssetClearance,
   inventoryPair, recoveryDigest, transferVerifiedMissing, proposeReferenceReconciliation,
   buildSourceReferenceIndex,
-  validateProjectPair,
+  validateProjectPair, readMediaRecoveryPlatformMode, assertMediaRecoveryWritablePlatform,
 } from './lib/v3-media-recovery-core.mjs';
 
 const execute = process.argv.includes('--execute');
@@ -98,6 +98,8 @@ async function main() {
   }]));
   const results = [];
   if (execute) {
+    // Explicitly disallow recovery publication during read_only/maintenance, even with service credentials.
+    assertMediaRecoveryWritablePlatform(await readMediaRecoveryPlatformMode(destination));
     if (referenceStatus !== 'complete') throw new Error('Reference inspection incomplete; refusing writes');
     if (inventory.entries.some(e => ['collision','unavailable_source','unavailable_destination','missing_bucket'].includes(e.status))) {
       throw new Error('Unresolved collision, missing bucket or unavailable object; refusing writes');
@@ -116,6 +118,8 @@ async function main() {
       assertAssetClearance(entry, approval);
     }
     for (const entry of inventory.entries.filter(e => e.status === 'missing_destination')) {
+      // Check for an operating-mode transition between assets; never assume the mode stays writable.
+      assertMediaRecoveryWritablePlatform(await readMediaRecoveryPlatformMode(destination));
       const result = await transferVerifiedMissing({
         source, destination, entry,
         onVerified: record => appendFile(join(stateDir, 'verified-checkpoints.jsonl'),
@@ -176,6 +180,8 @@ main().catch(error => {
     'Public restore requires existing canonical publication and media validation evidence',
     'Legacy public asset must pass Solaris image MIME policy',
     'Legacy public asset exceeds Solaris media validation ceiling',
+    'Canonical platform operating mode blocks media recovery publication',
+    'Unable to inspect canonical platform operating mode',
     'Missing explicit production write acknowledgment',
     'Missing protected approval signing key',
     'Invalid, expired or mismatched recovery authorization',
