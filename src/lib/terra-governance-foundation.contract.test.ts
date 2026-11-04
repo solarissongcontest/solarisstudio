@@ -103,6 +103,36 @@ describe("Terra Solaris Governance TG1/TG2 foundation", () => {
     expect(tg2Core).toContain("constraint world_proxy_time_check check (valid_until > valid_from)");
   });
 
+  it("serializes membership-bound representation assignments and rejects blind or stale history writes", () => {
+    const start = tg2Access.indexOf(
+      "create or replace function public.world_assign_organization_representative_v1(",
+    );
+    const end = tg2Access.indexOf("\n$assign$;", start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const command = tg2Access.slice(start, end);
+
+    expect(command).toContain("message = 'EXPECTED_REVISION_REQUIRED'");
+    expect(command).toContain("p_expected_revision is null");
+    expect(command).toContain("select membership_row.id into v_membership_id");
+    expect(command).toContain("from public.world_organization_memberships membership_row");
+    expect(command).toMatch(/membership_row\.status in \('member','observer','associate'\)\s+for update;/);
+    expect(command).toContain("if v_membership_id is null");
+    expect(command).toContain("select coalesce(max(representation_row.revision), 0)");
+    expect(command).toContain("v_previous_revision is distinct from p_expected_revision");
+    expect(command).toContain("v_revision := v_previous_revision + 1;");
+    expect(command).not.toContain("if p_expected_revision is not null");
+
+    const lockMembership = command.indexOf("select membership_row.id into v_membership_id");
+    const findCurrentRepresentative = command.indexOf("select representation_row.*");
+    const readHistoryRevision = command.indexOf("select coalesce(max(representation_row.revision), 0)");
+    const closeOldRepresentative = command.indexOf("update public.world_organization_representations");
+    expect(lockMembership).toBeGreaterThan(-1);
+    expect(lockMembership).toBeLessThan(findCurrentRepresentative);
+    expect(findCurrentRepresentative).toBeLessThan(readHistoryRevision);
+    expect(readHistoryRevision).toBeLessThan(closeOldRepresentative);
+  });
+
   it("extends Permission Engine V2 instead of inventing a second capability engine", () => {
     expect(tg2Core).toContain("references public.studio2_capability_grants(id) on delete cascade");
     expect(tg2Core).toContain("insert into public.studio2_capabilities");
