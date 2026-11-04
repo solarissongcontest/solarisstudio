@@ -217,6 +217,7 @@ export function WorldDocumentReaderScreen({
   document: string;
   version?: number;
 }) {
+  const [documentSearch, setDocumentSearch] = useState("");
   const query = useQuery({
     queryKey: ["v3", "tg4", "public-document", organization, document, version ?? "current"],
     queryFn: () => getWorldDocumentDetail({ organization, document, version }),
@@ -226,6 +227,17 @@ export function WorldDocumentReaderScreen({
   const detail = query.data;
   const currentVersion = detail?.history.find((item) => item.publicationState === "published");
   const anchors = detail?.version.provisions.filter((item) => item.anchor && item.heading) ?? [];
+  const textMatches = documentSearch.trim()
+    ? (detail?.version.provisions ?? []).flatMap((item, index) => {
+        const term = documentSearch.trim().toLocaleLowerCase();
+        const content = [item.heading, item.displayLabel, item.bodyPlainText].join(" ").toLocaleLowerCase();
+        return content.includes(term)
+          ? [{ ...item, target: item.anchor ?? "world-provision-" + (index + 1) }]
+          : [];
+      })
+    : [];
+  const plainTextMatch = !!documentSearch.trim() &&
+    !!detail?.version.plainText.toLocaleLowerCase().includes(documentSearch.trim().toLocaleLowerCase());
 
   return (
     <AppShell>
@@ -273,10 +285,58 @@ export function WorldDocumentReaderScreen({
                   </p>
                 )}
               </div>
+              <div className="border-b border-border py-5">
+                <label htmlFor="world-document-find" className="block text-xs font-semibold text-muted-foreground">
+                  Find within this version
+                </label>
+                <input
+                  id="world-document-find"
+                  type="search"
+                  maxLength={80}
+                  value={documentSearch}
+                  onChange={(event) => setDocumentSearch(event.target.value)}
+                  placeholder="Find a section or phrase"
+                  className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary"
+                />
+                {documentSearch.trim() && (
+                  <div aria-live="polite" className="mt-2 text-sm text-muted-foreground">
+                    {textMatches.length > 0 ? (
+                      <>
+                        {textMatches.length} matching section{textMatches.length === 1 ? "" : "s"}.
+                        <ul className="mt-2 flex flex-wrap gap-2">
+                          {textMatches.slice(0, 20).map((item) => (
+                            <li key={item.provisionId}>
+                              <a href={"#" + item.target} className="inline-flex min-h-9 items-center rounded-lg border border-border px-3 text-foreground hover:text-primary">
+                                {item.displayLabel || item.heading || "Matching section"}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : plainTextMatch ? "Phrase found in the full document text." : "No matching text in this version."}
+                  </div>
+                )}
+                {anchors.length > 0 && (
+                  <details className="mt-4 lg:hidden">
+                    <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-primary">Document contents</summary>
+                    <nav aria-label="Mobile document contents">
+                      <ul className="space-y-2">
+                        {anchors.slice(0, 40).map((item) => (
+                          <li key={item.provisionId}>
+                            <a href={"#" + item.anchor} className="inline-flex min-h-10 items-center text-sm underline-offset-4 hover:underline">
+                              {item.displayLabel ? item.displayLabel + " " : ""}{item.heading}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </nav>
+                  </details>
+                )}
+              </div>
               {detail.version.provisions.length > 0 ? (
                 <div className="space-y-7 py-7">
-                  {detail.version.provisions.map((provision) => (
-                    <section key={provision.provisionId} id={provision.anchor ?? undefined} className="scroll-mt-28">
+                  {detail.version.provisions.map((provision, index) => (
+                    <section key={provision.provisionId} id={provision.anchor ?? "world-provision-" + (index + 1)} className="scroll-mt-28">
                       {(provision.heading || provision.displayLabel) && (
                         <h3 className="font-display text-lg font-bold leading-snug">
                           {provision.displayLabel && <span className="mr-2 text-primary">{provision.displayLabel}</span>}
