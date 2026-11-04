@@ -369,6 +369,7 @@ export function V3AppShell({
 
       {platformResolved && isAppMode ? (
         <AppTabBar
+          ariaLabel="Primary app navigation"
           pathname={pathname}
           searchStr={searchStr}
           signedIn={Boolean(rollout.data?.userId)}

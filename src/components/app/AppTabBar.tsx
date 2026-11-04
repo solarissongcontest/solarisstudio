@@ -61,12 +61,15 @@ export function AppTabBar({
   signedIn,
   participateBadge = 0,
   meBadge = 0,
+  ariaLabel = "Solaris Studio",
 }: {
   pathname: string;
   searchStr?: string;
   signedIn: boolean;
   participateBadge?: number;
   meBadge?: number;
+  /** Semantic landmark title. V3 screens use the established primary navigation name. */
+  ariaLabel?: string;
 }) {
   const navigate = useNavigate();
   const chrome = resolveAppRouteChrome(pathname, searchStr);
@@ -418,7 +421,7 @@ export function AppTabBar({
         collapsed && "is-collapsed",
         tabbarMode === "minimal" && "is-minimal",
       )}
-      aria-label="Solaris Studio"
+      aria-label={ariaLabel}
       data-collapsed={collapsed ? "true" : "false"}
       data-layout={railMode ? "rail" : "bar"}
       data-mode={tabbarMode}

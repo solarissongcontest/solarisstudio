@@ -18,6 +18,10 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(shell).toContain("platformResolved && !isAppMode ? (");
     expect(shell).toContain("platformResolved && isAppMode ? (");
     expect(shell).toContain("<AppTabBar");
+    expect(shell).toContain('ariaLabel="Primary app navigation"');
+    const installed = read("src/components/app/AppTabBar.tsx");
+    expect(installed).toContain('ariaLabel = "Solaris Studio"');
+    expect(installed).toContain("aria-label={ariaLabel}");
     expect(shell).toContain("<V3MobileWebPrimaryNavigation");
     expect(shell).not.toContain("<V3LiquidTabBar");
     expect(shell).toContain('import "@/styles/v3-liquid-tabbar.css"');
