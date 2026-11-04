@@ -24,7 +24,11 @@ export const TERRA_GOVERNANCE_TG6 = Object.freeze({
     "world.session.created",
     "world.agenda.appended",
     "world.agenda.reordered",
-    "world.session.transitioned",
+    "world.session.opened",
+    "world.session.closed",
+    "world.session.recessed",
+    "world.session.cancelled",
+    "world.session.archived",
     "world.agenda.published",
   ] as const,
   capabilities: [
