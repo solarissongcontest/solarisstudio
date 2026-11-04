@@ -1,5 +1,7 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(
@@ -23,6 +25,37 @@ const authorizationWorkflow = readFileSync(
 );
 
 describe("V3 Jury roster command authority", () => {
+  it("fails closed if exact-edition Jury manage capability is false or NULL", () => {
+    const guard = "if public.studio2_access_allowed('voting.manage', p_edition_id, false) is not true then";
+    expect(migration.split(guard)).toHaveLength(3);
+    expect(migration).not.toContain("if not public.studio2_access_allowed('voting.manage'");
+    expect(migration).toContain("message = 'AUTHORIZATION'");
+  });
+
+  it.each([
+    ["http://localhost:54321", "postgresql://postgres:postgres@hosted.invalid:54322/postgres"],
+    ["http://localhost:54321", "postgresql://postgres:postgres@localhost:54322@hosted.invalid/postgres"],
+    ["http://localhost:54321", "postgresql://postgres:postgres@127.0.0.1:54322/postgres?host=hosted.invalid"],
+    ["http://localhost:54321@hosted.invalid", "postgresql://postgres:postgres@localhost:54322/postgres"],
+  ])("refuses hosted Jury rehearsal endpoints before psql: %s, %s", (apiUrl, databaseUrl) => {
+    const root = mkdtempSync(join(tmpdir(), "solaris-jury-roster-deny-"));
+    try {
+      writeFileSync(join(root, "supabase"),
+        `#!/bin/sh\nprintf '%s\\n' 'API_URL=${apiUrl}' 'DB_URL=${databaseUrl}'\n`,
+        { mode: 0o755 });
+      writeFileSync(join(root, "psql"), "#!/bin/sh\\necho MOCK_PSQL_STARTED >&2\\nexit 9\\n".replaceAll("\\n", "\n"), { mode: 0o755 });
+      const result = spawnSync(
+        "bash", [resolve(".github/scripts/v3-jury-roster-authorization-rehearsal.sh")],
+        { encoding: "utf8", env: { ...process.env, PATH: `${root}:${process.env.PATH}` } },
+      );
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Refusing");
+      expect(result.stderr).not.toContain("MOCK_PSQL_STARTED");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("tests unauthorized roster access on disposable local Supabase", () => {
     expect(authorizationWorkflow).toContain("supabase db reset --local --no-seed");
     expect(authorizationWorkflow).toContain("supabase stop --no-backup");

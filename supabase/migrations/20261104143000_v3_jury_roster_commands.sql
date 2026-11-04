@@ -190,7 +190,7 @@ begin
     raise exception using errcode = '22023', message = 'VALIDATION';
   end if;
 
-  if not public.studio2_access_allowed('voting.manage', p_edition_id, false) then
+  if public.studio2_access_allowed('voting.manage', p_edition_id, false) is not true then
     raise exception using errcode = '42501', message = 'AUTHORIZATION';
   end if;
 
@@ -389,7 +389,7 @@ begin
     raise exception using errcode = '22023', message = 'VALIDATION';
   end if;
 
-  if not public.studio2_access_allowed('voting.manage', p_edition_id, false) then
+  if public.studio2_access_allowed('voting.manage', p_edition_id, false) is not true then
     raise exception using errcode = '42501', message = 'AUTHORIZATION';
   end if;
 
