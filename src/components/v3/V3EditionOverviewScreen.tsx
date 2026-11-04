@@ -540,11 +540,11 @@ export function V3EditionOverviewScreen({
           </V3Surface>
           {!hideSpoilers ? (
             <V3ActionCard
-            title="Open full story"
-            description="Read the complete published edition timeline"
-            icon={BookOpen}
-            tone="neutral"
-            to={projection.story.href}
+              title="Open full story"
+              description="Read the complete published edition timeline"
+              icon={BookOpen}
+              tone="neutral"
+              to={projection.story.href}
             />
           ) : null}
         </V3Section>
