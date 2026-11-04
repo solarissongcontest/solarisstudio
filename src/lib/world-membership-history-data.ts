@@ -19,6 +19,14 @@ export async function fetchWorldMembershipCountry(code: string): Promise<WorldMe
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
+  if (
+    typeof data.id !== "string" || !data.id ||
+    typeof data.name !== "string" || !data.name.trim() ||
+    typeof data.short_code !== "string" ||
+    data.short_code.toUpperCase() !== code.toUpperCase()
+  ) {
+    throw new Error("Public country identity did not match the requested country");
+  }
   return {
     id: data.id,
     name: data.name,
@@ -28,7 +36,7 @@ export async function fetchWorldMembershipCountry(code: string): Promise<WorldMe
 }
 
 export async function fetchWorldMembershipHistory(slug: string, countryId: string) {
-  if (!isWorldMembershipRoute(slug, "A") || !countryId) return null;
+  if (!isWorldMembershipRoute(slug, "A") || !/^[A-Za-z0-9-]{1,64}$/.test(countryId)) return null;
   // The TG2 SECURITY DEFINER projection is explicitly public-only. The browser
   // never reads auth-linked representation tables or private proxy records.
   const { data, error } = await (supabase as any).rpc(
@@ -39,21 +47,21 @@ export async function fetchWorldMembershipHistory(slug: string, countryId: strin
   return readWorldCountryMembership(data, slug, countryId);
 }
 
-export function useWorldMembershipCountry(code: string) {
+export function useWorldMembershipCountry(code: string, routeValid = true) {
   return useQuery({
     ...solarisQueryPolicy("cold"),
     queryKey: ["world", "membership-country-identity", code.toUpperCase()],
-    enabled: /^[A-Za-z0-9-]{1,12}$/.test(code),
+    enabled: routeValid && /^[A-Za-z0-9-]{1,12}$/.test(code),
     queryFn: () => fetchWorldMembershipCountry(code),
     retry: 1,
   });
 }
 
-export function useWorldMembershipHistory(slug: string, countryId: string | undefined) {
+export function useWorldMembershipHistory(slug: string, countryId: string | undefined, routeValid = true) {
   return useQuery({
     ...solarisQueryPolicy("warm"),
     queryKey: ["world", "organization-country-history", slug, countryId],
-    enabled: isWorldMembershipRoute(slug, "A") && Boolean(countryId),
+    enabled: routeValid && isWorldMembershipRoute(slug, "A") && Boolean(countryId),
     queryFn: () => fetchWorldMembershipHistory(slug, countryId!),
     retry: 1,
   });
