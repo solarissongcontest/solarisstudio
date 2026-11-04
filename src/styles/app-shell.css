@@ -3414,6 +3414,28 @@ html[data-solaris-app] .solaris-app-bottom-spacer {
   pointer-events: none;
 }
 
+/* Shell-owned scroll-end clearance: a temporary zero measurement during iOS
+   resume must not put the last actionable row under floating navigation. */
+@media (max-width: 899px) {
+  html[data-solaris-app]
+    .app-main[data-solaris-app-mode="true"]
+    > .solaris-app-bottom-spacer {
+    min-height: max(
+      calc(var(--solaris-app-bottom-obstruction, 0px) + 1.25rem),
+      calc(var(--solaris-app-tabbar-height, 4.7rem) + max(2.75rem, env(safe-area-inset-bottom)))
+    );
+  }
+
+  html[data-solaris-app][data-solaris-keyboard-open]
+    .app-main[data-solaris-app-mode="true"]
+    > .solaris-app-bottom-spacer {
+    height: 1.25rem;
+    min-height: 1.25rem;
+  }
+}
+
+
+
 html[data-solaris-app]
   .app-main[data-solaris-app-mode="true"][data-solaris-app-tabbar="hidden"] {
   padding-bottom: max(1.25rem, env(safe-area-inset-bottom)) !important;
