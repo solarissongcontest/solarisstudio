@@ -9,8 +9,10 @@ declare
  v_outsider uuid := gen_random_uuid();
  v_member_person uuid := gen_random_uuid();
  v_proxy_person uuid := gen_random_uuid();
+ v_observer_person uuid := gen_random_uuid();
  v_manager_person uuid := gen_random_uuid();
  v_country uuid := gen_random_uuid();
+ v_observer_country uuid := gen_random_uuid();
  v_org uuid := gen_random_uuid();
  v_other_org uuid := gen_random_uuid();
  v_organ uuid := gen_random_uuid();
@@ -18,6 +20,7 @@ declare
  v_office uuid := gen_random_uuid();
  v_rep uuid := gen_random_uuid();
  v_other_rep uuid := gen_random_uuid();
+ v_observer_rep uuid := gen_random_uuid();
  v_proxy uuid := gen_random_uuid();
  v_session uuid := gen_random_uuid();
 begin
@@ -28,9 +31,11 @@ begin
  insert into public.delegation_people(id,display_name,identity_key) values
  (v_member_person,'TG6 Roll Call Representative','tg6-attendance:'||v_member_person::text),
  (v_proxy_person,'TG6 Roll Call Acting Proxy','tg6-attendance:'||v_proxy_person::text),
+ (v_observer_person,'TG6 Nonvoting Observer','tg6-attendance:'||v_observer_person::text),
  (v_manager_person,'TG6 Roll Call Officer','tg6-attendance:'||v_manager_person::text);
  insert into public.countries(id,name,short_code)
- values(v_country,'TG6 Attendance Country','ZZQ');
+ values(v_country,'TG6 Attendance Country','ZZQ'),
+       (v_observer_country,'TG6 Attendance Observer','ZZP');
  insert into public.country_accounts(user_id,country_id,status)
  values(v_controller,v_country,'active');
  insert into public.world_organizations
@@ -47,12 +52,14 @@ begin
  (v_other_organ,v_other_org,'assembly','TG6 Other Assembly','active','public');
  insert into public.world_organization_memberships(
    organization_id,country_id,membership_type,status)
- values(v_org,v_country,'member','member');
+ values(v_org,v_country,'member','member'),
+       (v_org,v_observer_country,'observer','observer');
  insert into public.world_organization_representations(
    id,organization_id,country_id,person_id,user_id,role,voting_authority,source)
  values
  (v_rep,v_org,v_country,v_member_person,v_controller,'representative',true,'tg6_rollback_fixture'),
- (v_other_rep,v_other_org,v_country,v_member_person,v_controller,'representative',true,'tg6_rollback_fixture');
+ (v_other_rep,v_other_org,v_country,v_member_person,v_controller,'representative',true,'tg6_rollback_fixture'),
+ (v_observer_rep,v_org,v_observer_country,v_observer_person,null,'representative',false,'tg6_rollback_fixture');
  insert into public.world_organization_offices(
    id,organization_id,slug,title,office_type,appointment_method)
  values(v_office,v_org,'chair','TG6 Roll Call Chair','executive_leader','appointment');
@@ -78,6 +85,7 @@ begin
   'manager',v_manager,'controller',v_controller,'outsider',v_outsider,
   'sessionId',v_session,'countryId',v_country,
   'representationId',v_rep,'otherRepresentationId',v_other_rep,
+  'observerCountryId',v_observer_country,'observerRepresentationId',v_observer_rep,
   'proxyId',v_proxy,
   'operationId',gen_random_uuid()
  )::text,true);
@@ -147,7 +155,7 @@ begin
   'sub',v->>'manager','role','authenticated')::text,true);
  if coalesce(jsonb_array_length(
    public.world_session_attendance_manage_v1((v->>'sessionId')::uuid)->'countries'
- ),0) <> 1 then
+ ),0) <> 2 then
    raise exception 'TG6_ATTENDANCE_MANAGER_QUEUE_INCOMPLETE';
  end if;
  begin
@@ -214,7 +222,25 @@ begin
  ) then
    raise exception 'TG6_ATTENDANCE_PROXY_MANAGER_PROJECTION_MISSING';
  end if;
- raise notice 'PASS: TG6 manager roll call CAS, idempotent replay, proxy, private projection';
+ begin
+   perform public.world_record_session_attendance_v1(
+     (v->>'sessionId')::uuid,(v->>'observerCountryId')::uuid,
+     (v->>'observerRepresentationId')::uuid,'proxy',(v->>'proxyId')::uuid,null,
+     gen_random_uuid(),'tg6-observer-proxy:'||gen_random_uuid()::text
+   );
+   raise exception 'TG6_ATTENDANCE_OBSERVER_PROXY_ALLOWED';
+ exception when check_violation then null;
+ end;
+ v_receipt:=public.world_record_session_attendance_v1(
+   (v->>'sessionId')::uuid,(v->>'observerCountryId')::uuid,
+   (v->>'observerRepresentationId')::uuid,'present',null,null,
+   gen_random_uuid(),'tg6-observer-present:'||gen_random_uuid()::text
+ );
+ if v_receipt #>> '{result,status}' <> 'present'
+    or v_receipt #>> '{result,revision}' <> '1' then
+   raise exception 'TG6_ATTENDANCE_OBSERVER_PRESENT_DENIED';
+ end if;
+ raise notice 'PASS: TG6 manager roll call CAS, replay, member proxy and nonvoting observer presence';
 end
 $manager$;
 reset role;
