@@ -44,6 +44,15 @@ export type WorldMembership = {
   endedAt: string | null;
 };
 
+export type WorldRepresentative = {
+  id: string;
+  countryId: string;
+  displayName: string;
+  role: string;
+  votingAuthority: boolean;
+  endsAt: string | null;
+};
+
 export type WorldOffice = {
   id: string;
   title: string;
@@ -60,6 +69,7 @@ export type WorldProjection = {
   organization: WorldOrganization;
   organs: WorldOrgan[];
   memberships: WorldMembership[];
+  representatives: WorldRepresentative[];
   offices: WorldOffice[];
 };
 
@@ -108,6 +118,16 @@ export function parseWorldProjection(input: unknown, requestedSlug: string): Wor
         nonempty(row.status) && nonempty(row.membershipType)
         ? [{ id: row.id, countryId: row.countryId, status: row.status,
           membershipType: row.membershipType, endedAt: optionalText(row.endedAt) }]
+        : [];
+    }),
+    representatives: items(raw.representatives).flatMap((value) => {
+      const row = object(value);
+      return row && nonempty(row.id) && nonempty(row.countryId) &&
+        nonempty(row.displayName) && nonempty(row.role) &&
+        typeof row.votingAuthority === "boolean"
+        ? [{ id: row.id, countryId: row.countryId, displayName: row.displayName,
+          role: row.role, votingAuthority: row.votingAuthority,
+          endsAt: optionalText(row.endsAt) }]
         : [];
     }),
     offices: items(raw.offices).flatMap((value) => {
