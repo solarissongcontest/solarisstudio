@@ -23,6 +23,7 @@ export interface PublicOfficeTerm {
 export interface PublicOfficeHistoryPage {
   organization: { slug: string; shortName: string; officialName: string };
   offices: PublicOfficeOption[];
+  officesTruncated: boolean;
   terms: PublicOfficeTerm[];
   hasMore: boolean;
   nextCursor: PublicOfficeHistoryCursor | null;
@@ -91,6 +92,7 @@ export function parsePublicOfficeHistoryPage(
   if (!root || !org || !slug || slug !== canonicalHistorySlug(expectedSlug)
       || !text(org.shortName) || !text(org.officialName)
       || !Array.isArray(options) || options.length > 100
+      || typeof root.officesTruncated !== "boolean"
       || !Array.isArray(items) || typeof root.hasMore !== "boolean"
       || items.length > OFFICE_HISTORY_PAGE_SIZE
       || (root.hasMore && (items.length !== OFFICE_HISTORY_PAGE_SIZE || !nextCursor))
@@ -149,6 +151,7 @@ export function parsePublicOfficeHistoryPage(
   return {
     organization: { slug, shortName: text(org.shortName), officialName: text(org.officialName) },
     offices,
+    officesTruncated: root.officesTruncated as boolean,
     terms,
     hasMore: root.hasMore,
     nextCursor,
