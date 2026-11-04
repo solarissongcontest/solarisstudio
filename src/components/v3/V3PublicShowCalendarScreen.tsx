@@ -10,6 +10,7 @@ import { getPublicShowCalendar } from '@/lib/public-show-calendar.functions';
 import {
   calendarFilename,
   serializePublicCalendar,
+  upcomingPublicCalendarEvents,
   type PublicCalendarEvent,
   type PublicCalendarEdition,
 } from '@/lib/public-show-calendar';
@@ -118,7 +119,7 @@ export function V3PublicShowCalendarScreen() {
   const allEvents = result?.events ?? [];
   const visibleEvents = useMemo(() => {
     if (filter === 'all') return allEvents;
-    return allEvents.filter((event) => new Date(event.startsAt).getTime() >= currentTimeMs);
+    return upcomingPublicCalendarEvents(allEvents, currentTimeMs);
   }, [allEvents, currentTimeMs, filter]);
 
   return (
