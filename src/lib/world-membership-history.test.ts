@@ -34,14 +34,6 @@ const original = {
       joinedAt: "2026-01-01T00:00:00Z",
       endedAt: null,
     },
-    {
-      id: "foreign",
-      countryId: "country-b",
-      membershipType: "member",
-      status: "member",
-      joinedAt: "2026-01-01T00:00:00Z",
-      endedAt: null,
-    },
   ],
   representatives: [
     {
@@ -64,15 +56,6 @@ const original = {
       startsAt: "2026-01-01T00:00:00Z",
       endsAt: null,
     },
-    {
-      id: "foreign-representative",
-      countryId: "country-b",
-      displayName: "Other Country",
-      role: "representative",
-      votingAuthority: true,
-      startsAt: "2026-01-01T00:00:00Z",
-      endsAt: null,
-    },
   ],
   offices: [
     {
@@ -84,15 +67,6 @@ const original = {
         holderUserId: "secret",
       },
     },
-    {
-      id: "other-office",
-      title: "Other office",
-      currentTerm: {
-        representedCountryId: "country-b",
-        holderDisplayName: "Other Country",
-      },
-    },
-    { id: "vacant-office", title: "Vacant", currentTerm: null },
   ],
   privateGrant: { capability: "world.office.manage" },
 };
@@ -121,11 +95,49 @@ describe("institution/country public membership history", () => {
   });
 
   it("does not invent memberships, representatives or offices for an unrelated country", () => {
-    const result = readWorldCountryMembership(original, "guard", "country-c")!;
+    const result = readWorldCountryMembership({
+      ...original,
+      memberships: [],
+      representatives: [],
+      offices: [],
+    }, "guard", "country-c")!;
     expect(result.membership).toEqual([]);
     expect(result.representations).toEqual([]);
     expect(result.currentOffices).toEqual([]);
     expect(currentMembershipPeriod(result.membership)).toBeNull();
+  });
+
+  it("fails closed if the country-scoped RPC returns another country's records", () => {
+    const foreignMember = { ...original.memberships[1], countryId: "country-b" };
+    const foreignRepresentative = { ...original.representatives[1], countryId: "country-b" };
+    const foreignOffice = {
+      ...original.offices[0],
+      currentTerm: {
+        ...original.offices[0].currentTerm,
+        representedCountryId: "country-b",
+      },
+    };
+    expect(() => readWorldCountryMembership({
+      ...original, memberships: [foreignMember],
+    }, "guard", "country-a")).toThrow("country scope: memberships");
+    expect(() => readWorldCountryMembership({
+      ...original, representatives: [foreignRepresentative],
+    }, "guard", "country-a")).toThrow("country scope: representatives");
+    expect(() => readWorldCountryMembership({
+      ...original, offices: [foreignOffice],
+    }, "guard", "country-a")).toThrow("country scope: offices");
+  });
+
+  it("rejects duplicated current offices and malformed office term payloads", () => {
+    const currentOffice = original.offices[0];
+    expect(() => readWorldCountryMembership({
+      ...original,
+      offices: [currentOffice, { ...currentOffice, title: "Conflicting office" }],
+    }, "guard", "country-a")).toThrow("repeated office");
+    expect(() => readWorldCountryMembership({
+      ...original,
+      offices: [{ ...currentOffice, currentTerm: null }],
+    }, "guard", "country-a")).toThrow("current office term");
   });
 
   it("does not confuse private/missing organizations with empty public membership", () => {
