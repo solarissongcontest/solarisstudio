@@ -36,6 +36,11 @@ import { V3FoundationShell, V3TopContext } from "./V3Foundation";
 import { V3MobileWebPrimaryNavigation } from "./V3MobileWebPrimaryNavigation";
 import type { V3LiquidTabDestination } from "./V3LiquidTabBar";
 
+// Preserve shared V3 shell geometry and its iOS safe-area rules when the
+// LiquidTabBar React component is no longer mounted for web users.
+import "@/styles/v3-liquid-tabbar.css";
+import "@/styles/v3-navigation-fixed-geometry.css";
+
 export type V3Area = "home" | "explore" | "participate" | "results" | "me";
 
 type V3ShellDestination = {

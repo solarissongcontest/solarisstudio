@@ -20,6 +20,8 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(shell).toContain("<AppTabBar");
     expect(shell).toContain("<V3MobileWebPrimaryNavigation");
     expect(shell).not.toContain("<V3LiquidTabBar");
+    expect(shell).toContain('import "@/styles/v3-liquid-tabbar.css"');
+    expect(shell).toContain('import "@/styles/v3-navigation-fixed-geometry.css"');
   });
 
   it("provides semantic public website destinations without reusing saved app route memory", () => {
