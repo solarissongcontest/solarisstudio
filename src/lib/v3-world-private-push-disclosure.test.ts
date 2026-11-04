@@ -168,5 +168,7 @@ describe("Terra Solaris sensitive push disclosure boundary", () => {
     expect(worker).toContain("reportPushReceipt(options.data, \"displayed\")");
     expect(worker).toContain("const route = normalizePushRoute(event.notification.data?.route)");
     expect(worker).toContain('if (!payload || typeof payload !== "object" || Array.isArray(payload))');
+    expect(worker).toContain('payload = { sensitivity: "private" }');
+    expect(worker).not.toContain("event.data?.text?.()");
   });
 });
