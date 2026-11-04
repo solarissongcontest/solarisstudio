@@ -35,7 +35,7 @@ import {
   type ConfirmationRoundChangePreview,
 } from "@/integrations/confirmations/admin";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
-import { isCurrentConfirmationRoundReview } from "@/lib/confirmation-round-review-scope";
+import { assertConfirmationRoundPreviewMatchesRequest, isCurrentConfirmationRoundReview } from "@/lib/confirmation-round-review-scope";
 
 export const Route = createFileRoute("/confirmations/admin/rounds")({
   head: () => ({
@@ -226,6 +226,10 @@ function RoundsPage() {
           { status: 409 },
         );
       }
+      assertConfirmationRoundPreviewMatchesRequest(
+        { editionId: request.editionId, roundId: input.roundId ?? null, changeKind: input.kind },
+        preview,
+      );
 
       if (preview.alreadyApplied && preview.blockers.length === 0) {
         if (input.restoreFormOnCancel) setFormOpen(false);
