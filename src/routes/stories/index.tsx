@@ -103,7 +103,14 @@ function LegacyStoriesArchivePage() {
             ) : null}
           </div>
 
-          {anniversaryQuery.isLoading ? (
+          {anniversaryQuery.isError && !anniversaryQuery.data ? (
+            <ArchiveEmpty
+              icon={Clock3}
+              title="Calendar moments could not be loaded"
+              copy="The public history service did not respond. Reconnect and try again."
+              onRetry={() => void anniversaryQuery.refetch()}
+            />
+          ) : anniversaryQuery.isLoading ? (
             <ArchiveEmpty icon={Clock3} title="Reading the archive…" copy="Matching published story moments to today's calendar date." />
           ) : anniversary?.onThisDay.length ? (
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -130,7 +137,14 @@ function LegacyStoriesArchivePage() {
             <h2 id="stories-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">Edition stories</h2>
           </div>
 
-          {storiesQuery.isLoading ? (
+          {storiesQuery.isError && !storiesQuery.data ? (
+            <ArchiveEmpty
+              icon={BookOpen}
+              title="Published stories could not be loaded"
+              copy="Solaris could not read the story archive. This is a loading failure, not confirmation that no stories are published."
+              onRetry={() => void storiesQuery.refetch()}
+            />
+          ) : storiesQuery.isLoading ? (
             <ArchiveEmpty icon={BookOpen} title="Loading edition stories…" copy="Only explicitly published narratives appear here." />
           ) : stories.length ? (
             <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -163,16 +177,26 @@ function LegacyStoriesArchivePage() {
   );
 }
 
-function ArchiveEmpty({ icon: Icon, title, copy }: {
+function ArchiveEmpty({ icon: Icon, title, copy, onRetry }: {
   icon: typeof BookOpen;
   title: string;
   copy: string;
+  onRetry?: () => void;
 }) {
   return (
-    <div className="mt-4 rounded-2xl border border-dashed border-border/70 bg-card/35 px-5 py-10 text-center">
-      <Icon className="mx-auto size-5 text-muted-foreground" />
+    <div className="mt-4 rounded-2xl border border-dashed border-border/70 bg-card/35 px-5 py-10 text-center" role={onRetry ? 'alert' : undefined}>
+      <Icon className="mx-auto size-5 text-muted-foreground" aria-hidden="true" />
       <p className="mt-3 text-sm font-semibold">{title}</p>
       <p className="mx-auto mt-1 max-w-lg text-xs leading-relaxed text-muted-foreground">{copy}</p>
+      {onRetry ? (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-border/70 px-4 text-sm font-semibold text-foreground hover:bg-surface/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          Try again
+        </button>
+      ) : null}
     </div>
   );
 }
