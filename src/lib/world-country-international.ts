@@ -32,8 +32,7 @@ export type WorldCountryAffiliation = {
   organizationId: string;
   membershipType: "member" | "observer" | "associate";
   status: "member" | "observer" | "associate" | "suspended" | "withdrawn" | "expelled" | "former";
-  joinedEditionId: string | null;
-  endedEditionId: string | null;
+  joinedAt: string;
   endedAt: string | null;
 };
 
@@ -59,6 +58,12 @@ function optionalString(value: unknown, type: string): string | null {
   if (value == null) return null;
   if (typeof value !== "string") throw new Error("Invalid public " + type);
   return value;
+}
+
+/** A membership date must be an actual, finite timestamp from TG2. */
+function validMembershipTime(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/i.test(value) &&
+    Number.isFinite(Date.parse(value));
 }
 
 function records<T>(value: unknown, type: string, parse: (item: unknown) => T): T[] {
@@ -143,6 +148,13 @@ export function parseWorldCountryAffiliations(
     const membershipType = requiredString(data.membership_type, "membership type");
     const status = requiredString(data.status, "membership status");
     const endedAt = optionalString(data.ended_at, "membership end");
+    const joinedAt = requiredString(data.joined_at, "membership start");
+    if (!validMembershipTime(joinedAt) || (endedAt !== null && !validMembershipTime(endedAt))) {
+      throw new Error("Invalid institutional membership dates");
+    }
+    if (endedAt !== null && Date.parse(endedAt) < Date.parse(joinedAt)) {
+      throw new Error("Institutional membership ends before it begins");
+    }
     if (countryId !== expectedCountryId) throw new Error("Cross-country affiliation response");
     if (ids.has(id)) throw new Error("Duplicate institutional affiliation");
     ids.add(id);
@@ -162,8 +174,7 @@ export function parseWorldCountryAffiliations(
       organizationId,
       membershipType: membershipType as WorldCountryAffiliation["membershipType"],
       status: status as WorldCountryAffiliation["status"],
-      joinedEditionId: optionalString(data.joined_edition_id, "joined edition"),
-      endedEditionId: optionalString(data.ended_edition_id, "ended edition"),
+      joinedAt,
       endedAt,
     };
   });
