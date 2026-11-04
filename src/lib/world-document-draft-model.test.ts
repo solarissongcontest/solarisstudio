@@ -5,6 +5,8 @@ import {
   parseWorldDocumentDraftSnapshot,
   parseWorldDocumentIndex,
   parseWorldOperationReceipt,
+  normalizeWorldDocumentSearch,
+  worldDocumentDraftSignature,
   toWorldDocumentSlug,
   validateWorldDocumentDraft,
 } from "./world-document-draft-model";
@@ -142,6 +144,50 @@ describe("TG4 governed institutional draft models", () => {
     })).toBeNull();
   });
 
+  it("detects unsaved changes to legal text, stable identity and hierarchy", () => {
+    const initial = {
+      title: "GUARD Charter",
+      plainText: "Founding clauses.",
+      provisions: [{
+        semanticKey: "membership.admission",
+        parentSemanticKey: null,
+        anchor: "membership-admission",
+        displayLabel: "Article 1",
+        heading: "Admission",
+        bodyPlainText: "Conditions",
+        bodyStructured: {},
+        status: "active" as const,
+      }],
+    };
+    const baseline = worldDocumentDraftSignature(initial);
+    expect(worldDocumentDraftSignature({
+      ...initial, provisions: initial.provisions.map((row) => ({ ...row })),
+    })).toBe(baseline);
+    expect(worldDocumentDraftSignature({
+      ...initial, plainText: "Altered founding clauses.",
+    })).not.toBe(baseline);
+    expect(worldDocumentDraftSignature({
+      ...initial, provisions: initial.provisions.map((row) => ({
+        ...row, semanticKey: "membership.election",
+      })),
+    })).not.toBe(baseline);
+    expect(worldDocumentDraftSignature({
+      ...initial, provisions: initial.provisions.map((row) => ({
+        ...row, parentSemanticKey: "preamble",
+      })),
+    })).not.toBe(baseline);
+    expect(worldDocumentDraftSignature({
+      ...initial, provisions: initial.provisions.map((row) => ({
+        ...row, displayLabel: "Article 10",
+      })),
+    })).not.toBe(baseline);
+  });
+
+  it("normalizes the bounded server-authorized Work search", () => {
+    expect(normalizeWorldDocumentSearch("  International   Charter  ")).toBe("International   Charter");
+    expect(normalizeWorldDocumentSearch("x".repeat(500))).toHaveLength(120);
+  });
+
   it("wires the authenticated Organizer route and never uses direct document DML", () => {
     const route = readFileSync("src/routes/_authenticated/admin/world-documents.tsx", "utf8");
     const screen = readFileSync("src/components/admin/AdminWorldDocumentDraftWorkspace.tsx", "utf8");
@@ -155,6 +201,10 @@ describe("TG4 governed institutional draft models", () => {
     expect(screen).toContain("world_get_document_v1");
     expect(screen).toContain("p_version_number: pendingDraft.versionNumber");
     expect(screen).toContain("toWorldProvisionCommandRows");
+    expect(screen).toContain("worldDocumentDraftSignature");
+    expect(screen).toContain("confirmDiscard()");
+    expect(screen).toContain("beforeunload");
+    expect(screen).toContain("p_query: appliedSearch || null");
     expect(screen).toContain("p_structured_content: structuredContent");
     expect(screen).toContain("p_provisions: provisions");
     expect(screen).toContain('db.rpc("world_access_allowed"');
