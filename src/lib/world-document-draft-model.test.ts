@@ -85,6 +85,8 @@ describe("TG4 governed institutional draft models", () => {
       versionId: "v2", versionNumber: 3, title: "Draft of GUARD Charter",
     });
     expect(doc.version?.publicationState).toBe("published");
+    expect(doc.version?.structuredContent).toEqual({ introduction: "Official" });
+    expect(doc.version?.provisions).toEqual([]);
   });
 
   it("does not expose privileged revision requirements to public readers", () => {
@@ -135,6 +137,9 @@ describe("TG4 governed institutional draft models", () => {
     expect(validateWorldDocumentDraft({
       title: "Charter", plainText: " ",
     })).toMatch(/draft text/);
+    expect(validateWorldDocumentDraft({
+      title: "Charter", plainText: "", hasProvisions: true,
+    })).toBeNull();
   });
 
   it("wires the authenticated Organizer route and never uses direct document DML", () => {
