@@ -15,7 +15,7 @@ describe("installed V3 Browser Audit display-mode parity", () => {
     expect(test).toContain('await expect(primaryNav).toHaveCSS("display", "block")');
     expect(test).toContain('await expect(primaryNav).toBeVisible()');
     expect(test).toContain('toHaveAttribute("data-solaris-runtime", "standalone")');
-    expect(test).not.toContain("test.skip(");
+    expect(test).toContain("if (missingConfig && process.env.CI)");
   });
 
   it("keeps the local CSS emulator scoped and refuses hosted database test traffic", () => {

@@ -290,7 +290,7 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await applyNavbarInstalledCssEmulation(page);
   };
   const reloadInstalled = async () => {
-    await reloadInstalled();
+    await page.reload({ waitUntil: "domcontentloaded" });
     await applyNavbarInstalledCssEmulation(page);
   };
 
@@ -377,7 +377,7 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await resultRoot.getByRole("button", { name: "Jury", exact: true }).click();
     await expect(resultRoot).toContainText("110222");
     await expect(resultRoot).not.toContainText("Private archive artist");
-    await page.reload({ waitUntil: "domcontentloaded" });
+    await reloadInstalled();
     await expect(resultRoot).toHaveAttribute("data-v3-results-state", "spoiler-protected");
     await expect(resultRoot).not.toContainText("111222");
 
