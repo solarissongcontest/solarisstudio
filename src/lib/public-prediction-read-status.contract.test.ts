@@ -49,4 +49,18 @@ describe("Public legacy Prediction Arena failure and recovery wiring", () => {
     expect(shared).toContain("disabled={predictionQuery.isFetching}");
     expect(shared).toContain("This prediction result is not currently shared.");
   });
+
+  it("hides old fan drafts while the editor clears picks on account or round changes", () => {
+    expect(detail).toContain("predictionDraftScope(round?.id, user?.id)");
+    expect(detail).toContain("const draftScopeChanged = draftScope !== activeDraftScope");
+    expect(detail).toContain('if (readStatus === "loading" || draftScopeChanged)');
+    expect(detail).toContain('setWinner("")');
+    expect(detail).toContain('setJuryWinner("")');
+    expect(detail).toContain('setTelevoteWinner("")');
+    expect(detail).toContain('setTopThree(["", "", ""])');
+    expect(detail).toContain("setQualifiers([])");
+    expect(detail.indexOf('if (readStatus === "loading" || draftScopeChanged)')).toBeLessThan(
+      detail.indexOf("<form onSubmit={submit}"),
+    );
+  });
 });
