@@ -105,13 +105,11 @@ begin
     if sqlerrm <> 'VERSION_CONFLICT' then raise; end if;
   end;
 
-  if (select count(*) from public.world_organization_representations
-      where organization_id=v_org and country_id=v_country
-        and ends_at is null and role='representative' and voting_authority) <> 1
-     or (select count(*) from public.world_organization_representations
-      where organization_id=v_org and country_id=v_country) <> 2 then
-    raise exception 'TG2_REPRESENTATION_DUPLICATE_OR_MISSING_HISTORY';
-  end if;
+  -- The current actor can assign but does not thereby acquire the private
+  -- world.organization.view_private capability. With privacy hardening, both
+  -- historical rows may have NULL user_id and be RLS-invisible here. Verify
+  -- the public RPC receipts in this authenticated block, then assert complete
+  -- physical history only from the local rehearsal's fixture-owner context.
   raise notice 'PASS: TG2 mandatory CAS, first assignment, exact replay, replacement and stale write';
 end
 $command$;
@@ -119,6 +117,31 @@ reset role;
 set local request.jwt.claim.role = '';
 set local request.jwt.claim.sub = '';
 set local request.jwt.claims = '{}';
+
+-- The fixture owner is allowed to inspect raw historical storage for this
+-- isolated rollback-only test. Never loosen representation RLS to make a
+-- controller's unprivileged SELECT count an internal history assertion.
+do $history_integrity$
+declare
+  v jsonb := current_setting('solaris.tg2_representation_fixture')::jsonb;
+  v_org uuid := (v ->> 'organization')::uuid;
+  v_country uuid := (v ->> 'country')::uuid;
+begin
+  if current_user = 'authenticated' then
+    raise exception 'TG2_REPRESENTATION_HISTORY_ASSERTION_WRONG_ROLE';
+  end if;
+  if (select count(*) from public.world_organization_representations
+      where organization_id=v_org and country_id=v_country
+        and ends_at is null and role='representative' and voting_authority) <> 1
+     or (select count(*) from public.world_organization_representations
+      where organization_id=v_org and country_id=v_country) <> 2
+     or (select count(distinct revision) from public.world_organization_representations
+      where organization_id=v_org and country_id=v_country) <> 2 then
+    raise exception 'TG2_REPRESENTATION_DUPLICATE_OR_MISSING_HISTORY';
+  end if;
+  raise notice 'PASS: TG2 owner-only physical history and unique revisions';
+end
+$history_integrity$;
 
 -- Even if no representative remains current, the durable latest revision must
 -- not reset to zero. A suspended member cannot assign a new representative.
