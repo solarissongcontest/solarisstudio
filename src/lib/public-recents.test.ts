@@ -64,6 +64,11 @@ describe("public recents", () => {
       "/countries/%2fauth",
       "/countries/%E0%A4%A",
       "/countries/%2e%2e",
+      "/countries/%252e%252e",
+      "/countries/a%252fb",
+      "/countries/a%253fb",
+      "/countries/a%2523b",
+      `/countries/${"a".repeat(2048)}`,
       "/countries/oland//edit",
     ]) {
       expect(shouldRememberPublicPath(path), path).toBe(false);
@@ -126,6 +131,22 @@ describe("public recents", () => {
     rememberPublicRecent("/my-solaris/history", "Private history", storage);
     rememberPublicRecent("/integrity/cases", "Confidential case", storage);
     expect(readPublicRecents(storage).map((item) => item.label)).toEqual(["Oland"]);
+  });
+
+  it("rejects invalid titles from both legacy storage and new writes", () => {
+    const storage = memoryStorage();
+    storage.setItem(PUBLIC_RECENTS_KEY, JSON.stringify([
+      { path: "/countries/oland", label: "Oland", visitedAt: 10 },
+      { path: "/countries/vendia", label: "", visitedAt: 9 },
+      { path: "/countries/fennek", label: "Private\\nsecret", visitedAt: 8 },
+      { path: "/countries/asteria", label: "x".repeat(251), visitedAt: 7 },
+      { path: "/countries/jaudia", label: "Jaudia", visitedAt: null },
+    ]));
+    expect(readPublicRecents(storage).map((item) => item.label)).toEqual(["Oland"]);
+    rememberPublicRecent("/countries/vendia", "", storage);
+    rememberPublicRecent("/countries/vendia", "Private\\nsecret", storage);
+    rememberPublicRecent("/countries/vendia", "x".repeat(251), storage);
+    expect(readPublicRecents(storage).map((item) => item.path)).toEqual(["/countries/oland"]);
   });
 
   it("keeps the newest eight unique destinations", () => {
