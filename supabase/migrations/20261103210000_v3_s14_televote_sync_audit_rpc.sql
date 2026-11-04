@@ -28,6 +28,7 @@ declare
   v_source_count bigint;
   v_matched_count bigint;
   v_studio_count bigint;
+  v_orphan_count bigint;
   v_event_type text;
 begin
   if auth.role() is distinct from 'service_role' then
@@ -139,16 +140,59 @@ begin
         and rr.calculation_version = v_version;
     end if;
 
+    -- Preserve historical Results rows for withdrawn/disqualified participants.
+    -- Only the active confirmed lineup belongs in the published-source equality
+    -- proof, matching the canonical Results reconciliation projection.
     select count(*) into v_studio_count
-    from public.results
-    where show_id = p_show_id;
+    from public.results result_row
+    where result_row.show_id = p_show_id
+      and exists (
+        select 1
+        from public.participants participant
+        where participant.show_id = p_show_id
+          and coalesce(participant.participation_status, 'confirmed') = 'confirmed'
+          and (
+            (
+              participant.country_id is not null
+              and result_row.country_id = participant.country_id
+            )
+            or (
+              participant.country_id is null
+              and participant.contest_entity_id is not null
+              and result_row.contest_entity_id = participant.contest_entity_id
+            )
+          )
+      );
+
+    -- A truly unowned Results row is still a failure. Inactive historical
+    -- participants remain linked to a real participant and are not orphans.
+    select count(*) into v_orphan_count
+    from public.results result_row
+    where result_row.show_id = p_show_id
+      and not exists (
+        select 1
+        from public.participants participant
+        where participant.show_id = p_show_id
+          and (
+            (
+              participant.country_id is not null
+              and result_row.country_id = participant.country_id
+            )
+            or (
+              participant.country_id is null
+              and participant.contest_entity_id is not null
+              and result_row.contest_entity_id = participant.contest_entity_id
+            )
+          )
+      );
 
     if v_source_count = 0
        or v_source_count <> v_matched_count
-       or v_source_count <> v_studio_count then
+       or v_source_count <> v_studio_count
+       or v_orphan_count <> 0 then
       raise exception
-        'Cannot certify Televote sync: source %, matched %, Studio %',
-        v_source_count, v_matched_count, v_studio_count;
+        'Cannot certify Televote sync: source %, matched %, active Studio %, orphans %',
+        v_source_count, v_matched_count, v_studio_count, v_orphan_count;
     end if;
   end if;
 
