@@ -10,6 +10,8 @@ import { createOrganisationCommand } from "@/lib/organisation-operation-contract
 import {
   parseWorldDocumentDraftSnapshot,
   parseWorldDocumentIndex,
+  normalizeWorldDocumentSearch,
+  worldDocumentDraftSignature,
   parseWorldOperationReceipt,
   toWorldDocumentSlug,
   validateWorldDocumentDraft,
@@ -204,7 +206,7 @@ export function AdminWorldDocumentDraftWorkspace() {
   });
 
   const hydratedVersionIdentity = useRef<string | null>(null);
-  const originalDraft = useRef<{ title: string; text: string; provisions: string } | null>(null);
+  const originalDraft = useRef<string | null>(null);
   useEffect(() => {
     const current = snapshot.data;
     const source = current?.version;
@@ -216,7 +218,9 @@ export function AdminWorldDocumentDraftWorkspace() {
     const title = source?.publicationState === "published" ? source.title : current?.title ?? "";
     const text = source?.publicationState === "published" ? source.plainText : "";
     const provisions = source?.publicationState === "published" ? source.provisions : [];
-    originalDraft.current = current ? { title, text, provisions: JSON.stringify(provisions) } : null;
+    originalDraft.current = current ? worldDocumentDraftSignature({
+      title, plainText: text, provisions,
+    }) : null;
     setDraftTitle(title);
     setDraftText(text);
     setDraftProvisions(provisions);
@@ -225,10 +229,10 @@ export function AdminWorldDocumentDraftWorkspace() {
   const hasUnsavedDraftEdits = Boolean(
     snapshot.data?.allowedActions.manage &&
     !snapshot.data.hasUnpublishedDraft &&
-    originalDraft.current &&
-    (draftTitle !== originalDraft.current.title ||
-      draftText !== originalDraft.current.text ||
-      JSON.stringify(draftProvisions) !== originalDraft.current.provisions),
+    originalDraft.current !== null &&
+    worldDocumentDraftSignature({
+      title: draftTitle, plainText: draftText, provisions: draftProvisions,
+    }) !== originalDraft.current,
   );
   useEffect(() => {
     if (!hasUnsavedDraftEdits) return;
@@ -244,7 +248,7 @@ export function AdminWorldDocumentDraftWorkspace() {
     window.confirm("Your unpublished legal edits have not been saved. Discard them?");
   const applySearch = (term: string) => {
     if (operation && ["review", "checking", "reconcile"].includes(operation.status)) return;
-    const normalized = term.trim().slice(0, 120);
+    const normalized = normalizeWorldDocumentSearch(term);
     if (normalized === appliedSearch) return;
     if (!confirmDiscard()) return;
     setAppliedSearch(normalized);
@@ -416,7 +420,9 @@ export function AdminWorldDocumentDraftWorkspace() {
         });
         setCreateTitle(""); setCreateSlug(""); setDraftTitle(""); setDraftText("");
         setDraftProvisions([]);
-        originalDraft.current = { title: "", text: "", provisions: "[]" };
+        originalDraft.current = worldDocumentDraftSignature({
+          title: "", plainText: "", provisions: [],
+        });
       } else {
         setOperation({ review, status: receipt.status === "failed" ? "failed" : "reconcile",
           message: receipt.status === "failed"
@@ -486,9 +492,10 @@ export function AdminWorldDocumentDraftWorkspace() {
                   {(appliedSearch || searchInput) && (
                     <button type="button" className={secondaryClass}
                       onClick={() => {
-                        if (!confirmDiscard()) return;
-                        setSearchInput("");
+                        if (appliedSearch && hasUnsavedDraftEdits && !confirmDiscard()) return;
                         applySearch("");
+                        if (!appliedSearch) setDocumentSlug("");
+                        setSearchInput("");
                       }}
                       disabled={Boolean(operation && ["review", "checking", "reconcile"].includes(operation.status))}>
                       Clear
