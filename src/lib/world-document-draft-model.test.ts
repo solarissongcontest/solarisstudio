@@ -204,11 +204,16 @@ describe("TG4 governed institutional draft models", () => {
     expect(screen).toContain("worldDocumentDraftSignature");
     expect(screen).toContain("confirmDiscard()");
     expect(screen).toContain("beforeunload");
+    expect(screen).toContain("hasUnsubmittedWork");
+    expect(screen).toContain("Changing institution discards the current Work form");
+    expect(screen).toContain("setCreateTitle(\"\")");
+    expect(screen).toContain("setAppliedSearch(normalized)");
+
     expect(screen).toContain("p_query: appliedSearch || null");
     expect(screen).toContain("disabled={authoringLocked} value={createSlug}");
     expect(screen).toContain("disabled={authoringLocked} onChange");
-    expect(screen).toContain("disabled={authoringLocked} value={kind}");
-    expect(screen).toContain("disabled={authoringLocked} value={visibility}");
+    expect(screen).toContain("value={kind} disabled={authoringLocked}");
+    expect(screen).toContain("value={visibility} disabled={authoringLocked}");
     expect(screen).toContain("reviewedFullText");
     expect(screen).toContain("Inspect the complete outgoing legal draft");
     expect(screen).toContain("I have inspected the complete outgoing legal text");
@@ -221,7 +226,7 @@ describe("TG4 governed institutional draft models", () => {
     expect(screen).toContain('p_capability: "world.document.manage"');
     expect(screen).toContain("if (!organization || createAccess.data !== true) return;");
 
-    expect(screen).toContain('setDraftProvisions(source?.publicationState === "published" ? source.provisions : [])');
+    expect(screen).toContain('setDraftProvisions(provisions)');
     expect(screen).toContain("validateWorldDocumentProvisions(snapshot.data.version.provisions)");
     expect(screen).toContain("executing.current.has(review.operationId)");
     expect(screen).not.toContain("p_provisions: []");
