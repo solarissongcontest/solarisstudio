@@ -15,6 +15,54 @@ create index if not exists world_proxy_representation_window_idx
   on public.world_representation_proxies(representation_id, valid_from, valid_until)
   where status in ('requested','approved');
 
+-- Approval authority must also include a narrow read of pending proxy rows.
+-- TG2's legacy proxy SELECT policy grants representatives and private-view
+-- managers, but not an institutional reviewer with only world.proxy.approve.
+-- This internal boolean helper uses a definer boundary so a private parent
+-- representation does not disappear behind unrelated table SELECT RLS.
+create or replace function private.world_proxy_review_read_allowed_v1(
+  p_representation_id uuid,
+  p_session_id uuid,
+  p_proxy_id uuid
+)
+returns boolean language sql stable security definer
+set search_path = pg_catalog
+as $read_allowed$
+  select coalesce(
+    auth.uid() is not null
+    and p_representation_id is not null
+    and p_proxy_id is not null
+    and exists (
+      select 1
+      from public.world_organization_representations rep_row
+      left join public.world_sessions session_row
+        on session_row.id=p_session_id
+       and session_row.organization_id=rep_row.organization_id
+      where rep_row.id=p_representation_id
+        and (p_session_id is null or session_row.id is not null)
+        and public.world_access_allowed(
+          'world.proxy.approve',
+          rep_row.organization_id,rep_row.country_id,
+          session_row.organ_id,'proxy',p_proxy_id
+        )
+    ),
+    false
+  )
+$read_allowed$;
+
+revoke all on function private.world_proxy_review_read_allowed_v1(uuid,uuid,uuid)
+  from public,anon,authenticated;
+grant execute on function private.world_proxy_review_read_allowed_v1(uuid,uuid,uuid)
+  to authenticated,service_role;
+
+drop policy if exists world_proxies_reviewer_scoped_read
+  on public.world_representation_proxies;
+create policy world_proxies_reviewer_scoped_read
+on public.world_representation_proxies for select to authenticated
+using (
+  private.world_proxy_review_read_allowed_v1(representation_id,session_id,id)
+);
+
 do $contract$
 begin
   if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
