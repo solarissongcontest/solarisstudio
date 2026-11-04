@@ -739,7 +739,13 @@ function ResponseDetailPage() {
   }, [load]);
 
   async function changeWinner(action: "select" | "clear", reason: string, entryId: string | null) {
-    if (!data?.national_final) return;
+    if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId) || !data.national_final) return;
+    const requestedGeneration = responseLoadGenerationRef.current;
+    const nationalFinal = data.national_final;
+    const stillCurrent = () =>
+      requestedGeneration === responseLoadGenerationRef.current &&
+      currentScopeRef.current.responseId === id &&
+      currentScopeRef.current.editionId === organizerEditionId;
 
     const { data: previewData, error: previewError } = await confirmationsSupabase.rpc(
       "studio2_confirmation_winner_change_preview",
@@ -757,6 +763,9 @@ function ResponseDetailPage() {
     if (!preview || typeof preview.expectedVersion !== "number") {
       throw new Error("National Final winner preview did not return a version.");
     }
+    if (!stillCurrent()) {
+      throw new Error("Organizer edition or response changed during National Final review. Nothing was applied.");
+    }
 
     if (action === "select") {
       const displayedEntry = data.national_final.entries.find((entry) => entry.id === entryId);
@@ -770,6 +779,9 @@ function ResponseDetailPage() {
       payload: { action, entryId },
       expectedVersion: preview.expectedVersion,
     });
+    if (!stillCurrent()) {
+      throw new Error("Organizer context changed before applying the reviewed National Final winner. Nothing was applied.");
+    }
     const { error: rpcError } = await confirmationsSupabase.rpc(
       "studio2_apply_confirmation_winner_change",
       {
@@ -791,7 +803,8 @@ function ResponseDetailPage() {
       },
     );
     if (rpcError) throw rpcError;
-    await load();
+    if (stillCurrent()) await load();
+    else toast.warning("National Final change completed for another edition. Reopen that edition to verify the result.");
   }
 
   async function setWinner(entry: ReviewEntry, reason: string) {
@@ -846,6 +859,10 @@ function ResponseDetailPage() {
       if (rpcError) throw rpcError;
       const token = (result as { token?: string } | null)?.token;
       if (!token) throw new Error("The edit token was not returned.");
+      if (currentScopeRef.current.responseId !== id ||
+          currentScopeRef.current.editionId !== organizerEditionId) {
+        throw new Error("Organizer edition changed while the token was issued. Inspect the original response before issuing another token.");
+      }
       const url = `${window.location.origin}/confirmations/edit/${token}`;
       setGeneratedLink(url);
       await navigator.clipboard.writeText(url);
@@ -859,6 +876,7 @@ function ResponseDetailPage() {
   }
 
   async function revokeToken(tokenId: string) {
+    if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)) return;
     const { error: rpcError } = await confirmationsSupabase.rpc(
       "admin_confirmation_revoke_edit_token",
       {
