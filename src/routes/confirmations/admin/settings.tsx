@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, ExternalLink, LogOut, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,7 +17,7 @@ import {
   requireConfirmationsAdmin,
   type ConfirmationEdition,
 } from "@/integrations/confirmations/admin";
-import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { signOutSolarisAccount } from "@/lib/account-session";
 
 export const Route = createFileRoute("/confirmations/admin/settings")({
   head: () => ({ meta: [{ title: "Delegation Settings — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
@@ -31,6 +31,8 @@ function SettingsPage() {
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const signOutInFlightRef = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -62,8 +64,26 @@ function SettingsPage() {
   const publicUrl = typeof window !== "undefined" ? `${window.location.origin}/confirmations` : "/confirmations";
 
   async function signOut() {
-    await confirmationsSupabase.auth.signOut();
-    await navigate({ to: "/auth" });
+    if (signOutInFlightRef.current) return;
+    signOutInFlightRef.current = true;
+    setSigningOut(true);
+    let sessionEnded = false;
+    try {
+      // Use the one Solaris account session authority. A Supabase error must
+      // never redirect to login while the original session remains active.
+      await signOutSolarisAccount();
+      sessionEnded = true;
+      await navigate({ to: "/auth" });
+    } catch (caught) {
+      if (sessionEnded) {
+        toast.error("Solaris signed you out, but the sign-in page could not be opened.");
+      } else {
+        toast.error(caught instanceof Error ? caught.message : "Could not sign out. Your session may still be active.");
+      }
+    } finally {
+      signOutInFlightRef.current = false;
+      setSigningOut(false);
+    }
   }
 
   return (
@@ -114,7 +134,14 @@ function SettingsPage() {
               <p className="break-all text-xs leading-relaxed text-muted-foreground">{publicUrl}</p>
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <button type="button" className="admin-action-secondary w-full" onClick={async () => { await navigator.clipboard.writeText(publicUrl); toast.success("Confirmation page link copied"); }}>
+              <button type="button" className="admin-action-secondary w-full" onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(publicUrl);
+                  toast.success("Confirmation page link copied");
+                } catch {
+                  toast.error("Could not copy the Confirmation link.");
+                }
+              }}>
                 <Copy className="size-4" /> Copy link
               </button>
               <a href="/confirmations" target="_blank" rel="noreferrer" className="admin-action-secondary w-full">
@@ -145,8 +172,8 @@ function SettingsPage() {
             <AdminCardHeader eyebrow="Account" title="Session" description="Signing out also ends access to the organizer workspace on this browser." />
             <AdminActionItem icon={Settings2} title="Delegation settings are stored with the live confirmation service" description="Responses, rounds, review history and recovery access remain continuous across editions." />
             <div className="mt-3">
-              <button type="button" className="admin-action-secondary w-full sm:w-auto" onClick={() => void signOut()}>
-                <LogOut className="size-4" /> Sign out of Solaris
+              <button type="button" disabled={signingOut} className="admin-action-secondary w-full sm:w-auto disabled:opacity-50" onClick={() => void signOut()}>
+                <LogOut className="size-4" /> {signingOut ? "Signing out…" : "Sign out of Solaris"}
               </button>
             </div>
           </AdminCard>

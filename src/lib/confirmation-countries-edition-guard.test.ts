@@ -1,0 +1,136 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+import {
+  deriveConfirmationNationalFinalTriage,
+  isConfirmationCountryBatchInEdition,
+  isCurrentConfirmationCountriesRequest,
+  latestParticipatingConfirmation,
+} from "./confirmation-countries-edition-guard";
+
+describe("Organizer country list exact-edition isolation", () => {
+  it("accepts only the active Organizer edition and the exact load generation", () => {
+    const request = { editionId: "edition-a", generation: 4 };
+    expect(isCurrentConfirmationCountriesRequest(request, request)).toBe(true);
+    expect(isCurrentConfirmationCountriesRequest(request, { editionId: "edition-b", generation: 4 })).toBe(false);
+    expect(isCurrentConfirmationCountriesRequest(request, { editionId: "edition-a", generation: 6 })).toBe(false);
+    expect(isCurrentConfirmationCountriesRequest({ editionId: "", generation: 4 }, { editionId: "", generation: 4 })).toBe(false);
+    expect(isCurrentConfirmationCountriesRequest({ editionId: "edition-a", generation: -1 }, { editionId: "edition-a", generation: -1 })).toBe(false);
+    expect(isCurrentConfirmationCountriesRequest({ editionId: "edition-a", generation: Number.NaN }, { editionId: "edition-a", generation: Number.NaN })).toBe(false);
+  });
+
+  it("refuses rows from a different edition or round rather than partially showing them", () => {
+    const valid = { editions: { id: "edition-a" }, submission_rounds: { edition_id: "edition-a" } };
+    expect(isConfirmationCountryBatchInEdition([valid], "edition-a")).toBe(true);
+    expect(isConfirmationCountryBatchInEdition([{ ...valid, submission_rounds: null }], "edition-a")).toBe(true);
+    expect(isConfirmationCountryBatchInEdition([valid, { ...valid, editions: { id: "edition-b" } }], "edition-a")).toBe(false);
+    expect(isConfirmationCountryBatchInEdition([valid, { ...valid, submission_rounds: { edition_id: "edition-b" } }], "edition-a")).toBe(false);
+    expect(isConfirmationCountryBatchInEdition([{ ...valid, editions: null }], "edition-a")).toBe(false);
+    expect(isConfirmationCountryBatchInEdition([], "")).toBe(false);
+  });
+
+  it("does not resurrect participation when the latest submission withdraws", () => {
+    const olderYes = { id: "older", participating: true };
+    const latestNo = { id: "latest", participating: false };
+    expect(latestParticipatingConfirmation([latestNo, olderYes])).toBeNull();
+    expect(latestParticipatingConfirmation([olderYes, latestNo])).toEqual(olderYes);
+    expect(latestParticipatingConfirmation([])).toBeNull();
+  });
+
+  it("hides private rows and text exports when the Organizer edition changes", () => {
+    const source = readFileSync("src/routes/confirmations/admin/countries.tsx", "utf8");
+    expect(source).toContain("isCurrentConfirmationCountriesRequest(request, {");
+    expect(source).toContain("isConfirmationCountryBatchInEdition(batch.rows, selected)");
+    expect(source).toContain("setLoadedScope(request);");
+    expect(source).toContain("editionId === organizerEditionId");
+    expect(source).toContain("isCurrentConfirmationCountriesRequest(loadedScope, {");
+    expect(source).toContain("const scopedRows = useMemo(");
+    expect(source).toContain("() => hasCurrentEditionData ? rows : []");
+    expect(source).toContain("disabled={!hasCurrentEditionData || !participatingStatuses.length}");
+    expect(source).toContain("if (!hasCurrentEditionData || !organizerEditionId || !text) return;");
+    expect(source).toContain("setLoadedScope(null);");
+  });
+
+  it("uses the newest participation intent for badges and exports, with retry on failed reads", () => {
+    const source = readFileSync("src/routes/confirmations/admin/countries.tsx", "utf8");
+    expect(source).toContain("const latest = latestParticipatingConfirmation(list);");
+    expect(source).toContain("const status = countryStatus(latest);");
+    expect(source).not.toContain("list.find((row) => row.participating)");
+    expect(source).toContain("setReloadNonce((value) => value + 1)");
+    expect(source).toContain("onClick={() => void copy(participatingStatuses.map(");
+  });
+
+  it("keeps Delegations overview metrics and triage inside the loaded edition epoch", () => {
+    const source = readFileSync("src/routes/confirmations/admin/index.tsx", "utf8");
+    const scope = source.indexOf("const hasCurrentDelegationData = loadedScope !== null");
+    const filtered = source.indexOf("const activeResponses = useMemo(", scope);
+    const triage = source.indexOf("const triageCounts = useMemo(", filtered);
+    expect(scope).toBeGreaterThanOrEqual(0);
+    expect(filtered).toBeGreaterThan(scope);
+    expect(triage).toBeGreaterThan(filtered);
+    expect(source).toContain("generation: ++generationRef.current");
+    expect(source).toContain("if (!isCurrent()) return;");
+    expect(source).toContain("setLoadedScope(request);");
+    expect(source).toContain("() => hasCurrentDelegationData");
+    expect(source).toContain("responses.filter((response) => response.editions?.id === organizerEditionId)");
+    expect(source).toContain("loading || (Boolean(activeEdition) && !hasCurrentDelegationData && !error)");
+  });
+
+  it("does not silently show empty or zero-status overview when the private read fails", () => {
+    const source = readFileSync("src/routes/confirmations/admin/index.tsx", "utf8");
+    expect(source).toContain("setLoadedScope(null);");
+    expect(source).toContain("setResponses([]);");
+    expect(source).toContain("setError(caught instanceof Error ? caught.message");
+    expect(source).toContain("Retry delegation overview");
+    expect(source).toContain("onClick={() => setReloadNonce((value) => value + 1)}");
+  });
+
+  it("never marks a National Final ready without its active accepted winner", () => {
+    const accepted = { id: "nf-entry-1", review_status: "accepted" };
+    const otherAccepted = { id: "nf-entry-2", review_status: "accepted" };
+    expect(deriveConfirmationNationalFinalTriage([], null, false)).toBe("neutral");
+    expect(deriveConfirmationNationalFinalTriage([accepted], null, false)).toBe("neutral");
+    expect(deriveConfirmationNationalFinalTriage([accepted, otherAccepted], "nf-entry-1", false)).toBe("ready");
+    expect(deriveConfirmationNationalFinalTriage([accepted], "deleted-entry", false)).toBe("issue");
+    expect(deriveConfirmationNationalFinalTriage([{ ...accepted, removed: true }, otherAccepted], "nf-entry-1", false)).toBe("issue");
+    expect(deriveConfirmationNationalFinalTriage([{ ...accepted, review_status: "declined" }], "nf-entry-1", false)).toBe("issue");
+    expect(deriveConfirmationNationalFinalTriage([{ ...accepted, review_status: "pending" }], "nf-entry-1", false)).toBe("review");
+    expect(deriveConfirmationNationalFinalTriage([{ ...accepted, review_status: "unexpected" }], "nf-entry-1", false)).toBe("review");
+    expect(deriveConfirmationNationalFinalTriage([accepted], "nf-entry-1", true)).toBe("neutral");
+  });
+
+  it("delegates overview National Final triage to the fail-closed winner guard", () => {
+    const source = readFileSync("src/routes/confirmations/admin/index.tsx", "utf8");
+    expect(source).toContain("return deriveConfirmationNationalFinalTriage(");
+    expect(source).toContain("row.national_finals?.winning_entry_id ?? null,");
+    expect(source).not.toContain("const entries = activeNfEntries(row);");
+  });
+
+  it("never redirects to login after a failed canonical account sign-out", () => {
+    const source = readFileSync("src/routes/confirmations/admin/settings.tsx", "utf8");
+    const start = source.indexOf("  async function signOut() {");
+    const end = source.indexOf("  return (", start);
+    const handler = source.slice(start, end);
+    expect(source).toContain('import { signOutSolarisAccount } from "@/lib/account-session";');
+    expect(source).not.toContain("confirmationsSupabase.auth.signOut()");
+    expect(handler).toContain("if (signOutInFlightRef.current) return;");
+    expect(handler).toContain("signOutInFlightRef.current = true;");
+    expect(handler).toContain("await signOutSolarisAccount();");
+    expect(handler).toContain("sessionEnded = true;");
+    expect(handler).toContain('await navigate({ to: "/auth" });');
+    expect(handler.indexOf("await signOutSolarisAccount();")).toBeLessThan(handler.indexOf('await navigate({ to: "/auth" });'));
+    expect(handler).toContain("if (sessionEnded) {");
+    expect(handler).toContain("signOutInFlightRef.current = false;");
+    expect(source).toContain("disabled={signingOut}");
+    expect(source).toContain("Signing out…");
+  });
+
+  it("reports clipboard failures instead of falsely reporting the Confirmation URL copied", () => {
+    const source = readFileSync("src/routes/confirmations/admin/settings.tsx", "utf8");
+    const copy = source.indexOf("await navigator.clipboard.writeText(publicUrl)");
+    const success = source.indexOf('toast.success("Confirmation page link copied")', copy);
+    expect(copy).toBeGreaterThanOrEqual(0);
+    expect(success).toBeGreaterThan(copy);
+    expect(source).toContain('toast.error("Could not copy the Confirmation link.")');
+  });
+});
