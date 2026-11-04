@@ -18,9 +18,12 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 import {
   WORLD_DIRECTORY_PAGE_SIZE,
+  WORLD_PUBLIC_ROLLOUT_KEY,
   cleanWorldSearch,
   currentWorldMemberships,
   fetchWorldDirectory,
+  fetchFeaturedWorldOrganizations,
+  fetchWorldPublicEnabled,
   fetchWorldProjection,
   parseWorldDirectoryRows,
   parseWorldProjection,
@@ -52,6 +55,32 @@ beforeEach(() => {
 });
 
 describe("TG3 world publication-safe projections", () => {
+  it("is unavailable until the canonical rollout RPC explicitly returns true", async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: false, error: null });
+    await expect(fetchWorldPublicEnabled()).resolves.toBe(false);
+    expect(mocks.rpc).toHaveBeenCalledWith("studio2_feature_enabled", {
+      p_key: WORLD_PUBLIC_ROLLOUT_KEY,
+      p_edition_id: null,
+    });
+    mocks.rpc.mockResolvedValueOnce({ data: true, error: null });
+    await expect(fetchWorldPublicEnabled()).resolves.toBe(true);
+  });
+
+  it("fails closed rather than assuming rollout is enabled on a network error", async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: { message: "offline" } });
+    await expect(fetchWorldPublicEnabled()).rejects.toThrow("World availability cannot be verified");
+  });
+
+  it("reads featured GUARD/UNITY by stable slug independently of directory pagination", async () => {
+    mocks.chain.order.mockResolvedValueOnce({ data: [row, { ...row, slug: "secret", public_visibility: "private" }], error: null });
+    const featured = await fetchFeaturedWorldOrganizations();
+    expect(mocks.chain.in).toHaveBeenCalledWith("slug", ["guard", "unity"]);
+    expect(mocks.chain.eq).toHaveBeenCalledWith("public_visibility", "public");
+    expect(featured.map((item) => item.slug)).toEqual(["guard"]);
+    expect(mocks.chain.range).not.toHaveBeenCalled();
+  });
+
+
   it("rejects unpublished directory records even if a broken upstream reader returned them", () => {
     expect(parseWorldDirectoryRows([row, { ...row, slug: "secret", public_visibility: "private" }]))
       .toHaveLength(1);
