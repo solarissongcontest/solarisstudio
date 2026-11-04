@@ -159,6 +159,7 @@ begin
   end if;
   return jsonb_build_object(
     'id',v_session.id,'revision',v_session.revision,
+    'organizationId',v_session.organization_id,'organId',v_session.organ_id,
     'status',v_session.status,
     'items',coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -192,6 +193,7 @@ begin
   if p_organization_id is null or p_organ_id is null or
      nullif(btrim(p_title),'') is null or length(btrim(p_title)) > 180 or
      p_starts_at is null or p_ends_at is null or p_ends_at <= p_starts_at or
+     length(coalesce(p_venue_label,'')) > 180 or
      p_venue_type is null or
      p_venue_type not in ('online','external','physical','hybrid') or
      (p_external_url is not null and p_external_url !~ '^https://[^[:space:]]+$')
@@ -370,18 +372,139 @@ begin
 end
 $reorder$;
 
+
+-- Session state is explicit and monotonic. This operation does not certify
+-- quorum, cast a vote, publish a resolution or fabricate a meeting result.
+create or replace function public.world_session_transition_v1(
+  p_session_id uuid,p_target_status text,p_expected_revision bigint,
+  p_operation_id uuid,p_idempotency_key text,p_correlation_id uuid default null
+) returns jsonb language plpgsql security definer set search_path = pg_catalog
+as $transition$
+declare
+  v_session public.world_sessions%rowtype;
+  v_claim jsonb;
+  v_operation_id uuid;
+  v_result jsonb;
+begin
+  select * into v_session from public.world_sessions where id=p_session_id for update;
+  if v_session.id is null or not public.world_access_allowed(
+    'world.session.manage',v_session.organization_id,null,v_session.organ_id,null,null
+  ) then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
+  if p_target_status is null or p_target_status not in
+    ('open','recessed','concluded','cancelled','archived')
+  then raise exception using errcode='22023',message='VALIDATION'; end if;
+  v_claim := private.studio2_claim_operation(
+    p_operation_id,p_idempotency_key,coalesce(p_correlation_id,p_operation_id),
+    'world.session.transition','R2',
+    jsonb_build_object('sessionId',p_session_id,'subjectType','world_session'),
+    jsonb_build_object('targetStatus',p_target_status,
+      'expectedRevision',p_expected_revision)
+  );
+  v_operation_id := (v_claim ->> 'operationId')::uuid;
+  if coalesce((v_claim ->> 'replayed')::boolean,false) then
+    return public.studio2_reconcile_operation(v_operation_id)
+      || jsonb_build_object('replayed',true);
+  end if;
+  if p_expected_revision is null or p_expected_revision <> v_session.revision then
+    raise exception using errcode='40001',message='VERSION_CONFLICT'; end if;
+  if not (
+    (v_session.status='scheduled' and p_target_status in ('open','cancelled'))
+    or (v_session.status='open' and p_target_status in ('recessed','concluded'))
+    or (v_session.status='recessed' and p_target_status in ('open','concluded'))
+    or (v_session.status in ('concluded','cancelled') and p_target_status='archived')
+  ) then raise exception using errcode='23514',message='STATE_CHANGED'; end if;
+  if p_target_status='open' and v_session.starts_at > now() + interval '5 minutes' then
+    raise exception using errcode='23514',message='SESSION_NOT_STARTED'; end if;
+  update public.world_sessions
+  set status=p_target_status,revision=revision+1,updated_at=now()
+  where id=p_session_id;
+  perform private.v3_emit_domain_event(
+    'world.session.transitioned','world_session',p_session_id::text,
+    v_session.revision+1,v_operation_id,null,null,
+    jsonb_build_object('sessionId',p_session_id,'from',v_session.status,
+      'to',p_target_status),1,array[]::text[]
+  );
+  v_result := jsonb_build_object('ok',true,'sessionId',p_session_id,
+    'revision',v_session.revision+1,'operationId',v_operation_id);
+  perform private.studio2_complete_operation(v_operation_id,v_result);
+  return public.studio2_reconcile_operation(v_operation_id)
+    || jsonb_build_object('replayed',false);
+end
+$transition$;
+
+-- Publication is a separate reviewed command. Drafts never become public
+-- simply because a session opens. Permission, state and revision are checked
+-- at execution, not inferred from disabled client controls.
+create or replace function public.world_agenda_publish_v1(
+  p_session_id uuid,p_item_id uuid,p_expected_revision bigint,
+  p_operation_id uuid,p_idempotency_key text,p_correlation_id uuid default null
+) returns jsonb language plpgsql security definer set search_path = pg_catalog
+as $publish$
+declare
+  v_session public.world_sessions%rowtype;
+  v_item public.world_agenda_items%rowtype;
+  v_claim jsonb;
+  v_operation_id uuid;
+  v_result jsonb;
+begin
+  select * into v_session from public.world_sessions where id=p_session_id for update;
+  if v_session.id is null or not public.world_access_allowed(
+    'world.agenda.manage',v_session.organization_id,null,v_session.organ_id,null,null
+  ) then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
+  select * into v_item from public.world_agenda_items
+  where id=p_item_id and session_id=p_session_id for update;
+  if v_item.id is null then
+    raise exception using errcode='23503',message='AGENDA_ITEM_NOT_FOUND'; end if;
+  v_claim := private.studio2_claim_operation(
+    p_operation_id,p_idempotency_key,coalesce(p_correlation_id,p_operation_id),
+    'world.agenda.publish','R2',
+    jsonb_build_object('sessionId',p_session_id,'itemId',p_item_id,
+      'subjectType','world_agenda_item'),
+    jsonb_build_object('expectedRevision',p_expected_revision)
+  );
+  v_operation_id := (v_claim ->> 'operationId')::uuid;
+  if coalesce((v_claim ->> 'replayed')::boolean,false) then
+    return public.studio2_reconcile_operation(v_operation_id)
+      || jsonb_build_object('replayed',true);
+  end if;
+  if p_expected_revision is null or p_expected_revision <> v_session.revision then
+    raise exception using errcode='40001',message='VERSION_CONFLICT'; end if;
+  if v_session.status not in ('scheduled','open','recessed') or v_item.state <> 'draft' then
+    raise exception using errcode='23514',message='STATE_CHANGED'; end if;
+  update public.world_agenda_items set state='scheduled',
+    revision=revision+1,updated_at=now() where id=p_item_id;
+  update public.world_sessions set revision=revision+1,updated_at=now()
+  where id=p_session_id;
+  perform private.v3_emit_domain_event(
+    'world.agenda.published','world_session',p_session_id::text,
+    v_session.revision+1,v_operation_id,null,null,
+    jsonb_build_object('sessionId',p_session_id,'itemId',p_item_id),1,array[]::text[]
+  );
+  v_result := jsonb_build_object('ok',true,'sessionId',p_session_id,
+    'itemId',p_item_id,'revision',v_session.revision+1,
+    'operationId',v_operation_id);
+  perform private.studio2_complete_operation(v_operation_id,v_result);
+  return public.studio2_reconcile_operation(v_operation_id)
+    || jsonb_build_object('replayed',false);
+end
+$publish$;
+
 revoke all on function public.world_session_schedule_v1(text),
   public.world_session_detail_v1(uuid), public.world_session_manage_v1(uuid),
   public.world_session_create_v1(uuid,uuid,text,timestamptz,timestamptz,text,text,text,uuid,uuid,text,uuid),
   public.world_agenda_append_v1(uuid,text,text,text,boolean,bigint,uuid,text,uuid),
-  public.world_agenda_reorder_v1(uuid,uuid[],bigint,uuid,text,uuid)
+  public.world_agenda_reorder_v1(uuid,uuid[],bigint,uuid,text,uuid),
+  public.world_session_transition_v1(uuid,text,bigint,uuid,text,uuid),
+  public.world_agenda_publish_v1(uuid,uuid,bigint,uuid,text,uuid)
 from public,anon,authenticated;
 grant execute on function public.world_session_schedule_v1(text),
   public.world_session_detail_v1(uuid) to anon,authenticated,service_role;
 grant execute on function public.world_session_manage_v1(uuid),
   public.world_session_create_v1(uuid,uuid,text,timestamptz,timestamptz,text,text,text,uuid,uuid,text,uuid),
   public.world_agenda_append_v1(uuid,text,text,text,boolean,bigint,uuid,text,uuid),
-  public.world_agenda_reorder_v1(uuid,uuid[],bigint,uuid,text,uuid)
+  public.world_agenda_reorder_v1(uuid,uuid[],bigint,uuid,text,uuid),
+  public.world_session_transition_v1(uuid,text,bigint,uuid,text,uuid),
+  public.world_agenda_publish_v1(uuid,uuid,bigint,uuid,text,uuid)
 to authenticated;
 
 do $contract$
