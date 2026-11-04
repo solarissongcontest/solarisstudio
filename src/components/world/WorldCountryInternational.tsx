@@ -13,6 +13,7 @@ import {
   normalizeWorldCountrySearch,
   parseWorldCountryAffiliations,
   parseWorldCountryIdentity,
+  parseWorldPublicRollout,
   parseWorldPublicCountries,
   parseWorldPublicInstitutions,
   validWorldCountryCode,
@@ -47,10 +48,8 @@ export function WorldCountryRolloutGate({ children }: { children: ReactNode }) {
         p_key: "terra_world_public",
         p_edition_id: null,
       });
-      if (error || typeof data !== "boolean") {
-        throw new Error("World publication state could not be verified");
-      }
-      return data;
+      if (error) throw new Error("World publication state could not be verified");
+      return parseWorldPublicRollout(data);
     },
   });
 
