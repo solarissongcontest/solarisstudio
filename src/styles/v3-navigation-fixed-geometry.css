@@ -1,3 +1,5 @@
+@import "./v3-shared-public-shell-completion.css";
+
 /*
  * The canonical mobile bar is icon-only. User text scaling must therefore
  * enlarge surrounding page typography without resizing the physical navigation
@@ -131,5 +133,33 @@ html[data-solaris-keyboard-open] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabb
 
   [data-solaris-v3] .v3-liquid-tabbar__item {
     min-height: 44px;
+  }
+}
+
+/*
+ * V3-adapted legacy public routes are not .v3-screen. Their old AppShell
+ * bottom spacer is suppressed alongside duplicate legacy chrome, so they
+ * need a dedicated V3 scroll-end exclusion zone outside the nested route.
+ * Keep this in the geometry owner; never resize or reposition the liquid bar.
+ */
+[data-solaris-v3] [data-v3-legacy-route-adapter] > .v3-legacy-route-bottom-clearance {
+  display: block;
+  width: 100%;
+  height: max(
+    calc(var(--v3-bottom-obstruction, 0px) + 24px),
+    calc(106px + env(safe-area-inset-bottom))
+  );
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
+html[data-solaris-keyboard-open]
+  [data-solaris-v3] [data-v3-legacy-route-adapter] > .v3-legacy-route-bottom-clearance {
+  height: 20px;
+}
+
+@media (min-width: 1024px) {
+  [data-solaris-v3] [data-v3-legacy-route-adapter] > .v3-legacy-route-bottom-clearance {
+    height: 20px;
   }
 }
