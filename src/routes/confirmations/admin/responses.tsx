@@ -242,6 +242,11 @@ function ConfirmationResponsesList() {
   const [rows, setRows] = useState<ResponseRow[]>([]);
   const [nextRows, setNextRows] = useState<NextInLineRow[]>([]);
   const [loadingEditions, setLoadingEditions] = useState(true);
+  const [editionLoadError, setEditionLoadError] = useState<string | null>(null);
+  const [editionLoadNonce, setEditionLoadNonce] = useState(0);
+  const [loadingNextLine, setLoadingNextLine] = useState(false);
+  const [nextLineError, setNextLineError] = useState<string | null>(null);
+  const [nextLineReloadNonce, setNextLineReloadNonce] = useState(0);
   const [loadingResponses, setLoadingResponses] = useState(false);
   const [loadingMoreResponses, setLoadingMoreResponses] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -268,21 +273,23 @@ function ConfirmationResponsesList() {
 
   useEffect(() => {
     let alive = true;
+    setLoadingEditions(true);
+    setEditionLoadError(null);
     void (async () => {
       try {
         const editionRows = await loadConfirmationEditions();
         if (!alive) return;
         setEditions(editionRows);
-        const selected = editionRows.find((edition) => edition.id === organizerEditionId)?.id ?? "";
-        setEditionId(selected);
+        // The global Organizer context is authoritative. Avoid restoring the
+        // edition value captured by a delayed metadata request.
       } catch (caught) {
-        if (alive) setError(caught instanceof Error ? caught.message : "Editions could not be loaded.");
+        if (alive) setEditionLoadError(caught instanceof Error ? caught.message : "Editions could not be loaded.");
       } finally {
         if (alive) setLoadingEditions(false);
       }
     })();
     return () => { alive = false; };
-  }, []);
+  }, [editionLoadNonce]);
 
   useEffect(() => {
     const nextEditionId = editions.find((edition) => edition.id === organizerEditionId)?.id ?? "";
@@ -330,22 +337,34 @@ function ConfirmationResponsesList() {
   useEffect(() => {
     let alive = true;
     setNextRows([]);
+    setNextLineError(null);
+    setLoadingNextLine(Boolean(editionId));
     if (!editionId) return () => { alive = false; };
 
     void (async () => {
-      const result = await confirmationsSupabase.rpc("admin_confirmation_next_in_line", {
-        _edition_id: editionId,
-      });
-      if (!alive) return;
-      if (result.error) {
-        setError((current) => current ?? result.error.message);
-      } else {
-        setNextRows(Array.isArray(result.data) ? (result.data as unknown as NextInLineRow[]) : []);
+      try {
+        const result = await confirmationsSupabase.rpc("admin_confirmation_next_in_line", {
+          _edition_id: editionId,
+        });
+        if (!alive) return;
+        if (result.error) throw result.error;
+        if (!Array.isArray(result.data)) {
+          throw new Error("Next in Line returned an invalid edition-scoped response.");
+        }
+        const returned = result.data as unknown as NextInLineRow[];
+        if (returned.some((row) => row.edition_id !== editionId)) {
+          throw new Error("Next in Line returned a response from another Organizer edition.");
+        }
+        setNextRows(returned);
+      } catch (caught) {
+        if (alive) setNextLineError(caught instanceof Error ? caught.message : "Next in Line responses could not be loaded.");
+      } finally {
+        if (alive) setLoadingNextLine(false);
       }
     })();
 
     return () => { alive = false; };
-  }, [editionId]);
+  }, [editionId, nextLineReloadNonce]);
 
   async function loadMoreResponses() {
     // Use a synchronous in-flight ref: two clicks before React commits the
@@ -512,6 +531,16 @@ function ConfirmationResponsesList() {
 
       {loading ? (
         <AdminCard className="py-8 text-center text-sm text-muted-foreground">Loading exact-edition responses…</AdminCard>
+      ) : editionLoadError ? (
+        <AdminCard className="mb-4 border-rose-200/20 bg-rose-200/[0.045]">
+          <AdminEmptyState
+            icon={ShieldAlert}
+            title="Organizer editions could not be loaded"
+            description={editionLoadError}
+          />
+          <button type="button" onClick={() => setEditionLoadNonce((nonce) => nonce + 1)}
+            className="admin-action-secondary mt-3">Retry edition list</button>
+        </AdminCard>
       ) : error ? (
         <AdminCard className="mb-4 border-rose-200/20 bg-rose-200/[0.045]">
           <div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" /><div><p className="font-semibold">Responses could not be loaded</p><p className="mt-1 text-sm text-muted-foreground">{error}</p><button type="button" disabled={!editionId || editionId !== organizerEditionId || loadingResponses} onClick={() => setResponseReloadNonce((nonce) => nonce + 1)} className="admin-action-secondary mt-3">Reload current edition</button></div></div>
@@ -519,7 +548,16 @@ function ConfirmationResponsesList() {
       ) : !editionId ? (
         <AdminCard><AdminEmptyState icon={CircleAlert} title="Select an edition" description="Entry Review is edition-scoped. Solaris will not combine historical response queues or substitute a globally active or newest edition." /></AdminCard>
       ) : mode === "next_in_line" ? (
-        filteredNext.length ? (
+        loadingNextLine ? (
+          <AdminCard className="py-8 text-center text-sm text-muted-foreground">Loading Next in Line for this edition…</AdminCard>
+        ) : nextLineError ? (
+          <AdminCard className="border-rose-200/20 bg-rose-200/[0.045]">
+            <AdminEmptyState icon={ShieldAlert} title="Next in Line could not be loaded" description={nextLineError} />
+            <button type="button" disabled={!editionId || editionId !== organizerEditionId}
+              onClick={() => setNextLineReloadNonce((nonce) => nonce + 1)}
+              className="admin-action-secondary mt-3">Retry Next in Line</button>
+          </AdminCard>
+        ) : filteredNext.length ? (
           <section className="grid gap-3 lg:grid-cols-2">
             {filteredNext.map((row) => (
               <AdminCard key={row.id} className="!p-4">
