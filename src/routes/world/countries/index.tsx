@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
-import { WorldCountriesDirectory } from "@/components/world/WorldCountryInternational";
+import { WorldCountriesDirectory, WorldCountryRolloutGate } from "@/components/world/WorldCountryInternational";
 
 export const Route = createFileRoute("/world/countries/")({
   head: () => ({
@@ -15,5 +15,5 @@ export const Route = createFileRoute("/world/countries/")({
 });
 
 function WorldCountriesRoute() {
-  return <AppShell><WorldCountriesDirectory /></AppShell>;
+  return <AppShell><WorldCountryRolloutGate><WorldCountriesDirectory /></WorldCountryRolloutGate></AppShell>;
 }
