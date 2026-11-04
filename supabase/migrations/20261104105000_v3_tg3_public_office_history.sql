@@ -3,6 +3,23 @@ begin;
 -- TG3: a public, read-only, cursor-paginated projection over the canonical
 -- TG2 office terms and durable people. Never expose login ids or private
 -- institutional grants, proxies or unpublished SSC edition numbers.
+-- S13 migration contract is registered before any archival backfill/DDL.
+do $contract$
+begin
+  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
+    perform public.v3_register_migration_contract(
+      'v3.tg3.public-office-history',
+      1,
+      'forward_fix_only',
+      false,
+      null,
+      'Bounded public office history over canonical concluded terms, with deterministic keyset paging, office filters and no account identifiers.'
+    );
+  end if;
+end
+$contract$;
+
+
 -- Immutable presentation labels for concluded terms. Historical names must
 -- survive user removal, display-name changes and subsequent office renaming.
 -- These columns are written by the database, never trusted from an RPC caller.
@@ -60,7 +77,9 @@ begin
       or new.actual_end_at is distinct from old.actual_end_at
       or new.term_kind is distinct from old.term_kind
       or new.predecessor_term_id is distinct from old.predecessor_term_id
-      or new.succession_reason is distinct from old.succession_reason then
+      or new.succession_reason is distinct from old.succession_reason
+      or new.revision is distinct from old.revision
+      or new.created_at is distinct from old.created_at then
       raise exception 'WORLD_CLOSED_OFFICE_TERM_IMMUTABLE'
         using errcode = '23514';
     end if;
@@ -273,21 +292,6 @@ grant execute on function public.world_public_office_history_v1(text,timestamptz
 
 comment on function public.world_public_office_history_v1(text,timestamptz,uuid,text,integer) is
   'Public concluded institutional office terms: stable keyset paging, validated office filter, publication-checked SSC labels and no account IDs.';
-
-do $contract$
-begin
-  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
-    perform public.v3_register_migration_contract(
-      'v3.tg3.public-office-history',
-      1,
-      'forward_fix_only',
-      false,
-      null,
-      'Bounded public office history over canonical concluded terms, with deterministic keyset paging, office filters and no account identifiers.'
-    );
-  end if;
-end
-$contract$;
 
 notify pgrst, 'reload schema';
 commit;
