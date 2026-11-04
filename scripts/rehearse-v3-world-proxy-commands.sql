@@ -90,6 +90,7 @@ begin
     'owner',v_owner,'chair',v_chair,'outsider',v_outsider,
     'organizationId',v_org,'countryId',v_country,
     'representationId',v_rep,'proxyPersonId',v_proxy_person,
+    'unrelatedPersonId',v_chair_person,
     'sessionId',v_session,'foreignSessionId',v_foreign_session,
     'validFrom',v_start,'validUntil',v_end,
     'requestOperationId',gen_random_uuid()
@@ -148,6 +149,9 @@ begin
   if public.world_my_proxy_requests_v1((v->>'countryId')::uuid) is not null then
     raise exception 'TG6_PROXY_UNAUTHORIZED_COUNTRY_PROJECTION';
   end if;
+  if public.world_my_proxy_candidates_v1((v->>'representationId')::uuid) is not null then
+    raise exception 'TG6_PROXY_UNAUTHORIZED_CANDIDATE_ROSTER_LEAK';
+  end if;
   raise notice 'PASS: TG6 outsider cannot request for another country';
 end
 $outsider$;
@@ -161,6 +165,37 @@ declare
 begin
   perform set_config('request.jwt.claim.sub',v->>'owner',true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',v->>'owner','role','authenticated')::text,true);
+
+  if (
+    public.world_my_proxy_candidates_v1((v->>'representationId')::uuid)->>'representationId'
+  ) is distinct from v->>'representationId' or not exists (
+    select 1
+    from jsonb_array_elements(
+      public.world_my_proxy_candidates_v1((v->>'representationId')::uuid)->'candidates'
+    ) candidate
+    where candidate->>'personId'=v->>'proxyPersonId'
+  ) then
+    raise exception 'TG6_PROXY_VERIFIED_COUNTRY_CANDIDATE_MISSING';
+  end if;
+  if exists (
+    select 1
+    from jsonb_array_elements(
+      public.world_my_proxy_candidates_v1((v->>'representationId')::uuid)->'candidates'
+    ) candidate
+    where candidate->>'personId'=v->>'unrelatedPersonId'
+  ) then
+    raise exception 'TG6_PROXY_UNRELATED_PERSON_EXPOSED_AS_CANDIDATE';
+  end if;
+  begin
+    perform public.world_request_proxy_v1(
+      (v->>'representationId')::uuid,(v->>'unrelatedPersonId')::uuid,
+      (v->>'sessionId')::uuid,(v->>'validFrom')::timestamptz,
+      (v->>'validUntil')::timestamptz,'Unauthorized person from another context',1,
+      gen_random_uuid(),'tg6-unproven-person:' || gen_random_uuid()::text
+    );
+    raise exception 'TG6_PROXY_UNPROVEN_PERSON_ALLOWED';
+  exception when check_violation then null;
+  end;
 
   -- The session's foreign-organization linkage must be denied.
   begin
