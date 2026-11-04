@@ -3,6 +3,12 @@ name: V3 cross-system integration defect sweep
 # Explicitly opt-in: this is an independent, read-only diagnostic and never
 # substitutes for the exact-head S14 lifecycle or S15/S16 release gates.
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/v3-integration-defect-sweep.mjs"
+      - "scripts/v3-integration-defect-sweep.test.mjs"
+      - ".github/workflows/v3-integration-defect-sweep.yml"
   workflow_dispatch:
     inputs:
       candidate_sha:
@@ -18,7 +24,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: v3-integration-defect-sweep-${{ inputs.candidate_sha }}
+  group: v3-integration-defect-sweep-${{ github.event.pull_request.head.sha || inputs.candidate_sha }}
   cancel-in-progress: false
 
 jobs:
@@ -27,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      V3_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      V3_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || inputs.candidate_sha }}
       V3_VERIFICATION_TARGET: local
       VITE_SUPABASE_URL: http://127.0.0.1:54321
       SUPABASE_URL: http://127.0.0.1:54321
@@ -55,7 +61,7 @@ jobs:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_sha }}
+          ref: ${{ github.event.pull_request.head.sha || inputs.candidate_sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -106,7 +112,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v3-integration-defect-sweep-${{ inputs.candidate_sha }}
+          name: v3-integration-defect-sweep-${{ github.event.pull_request.head.sha || inputs.candidate_sha }}
           path: |
             v3-release-evidence/integration-defect-sweep.json
             v3-release-evidence/integration-defect-sweep.md
