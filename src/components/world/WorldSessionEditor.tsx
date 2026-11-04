@@ -242,7 +242,7 @@ export function WorldSessionEditor() {
             </label>
           </div>
           <label className="block text-sm font-semibold">
-            Official meeting URL (optional, HTTPS)
+            Institution-only meeting URL (optional, HTTPS)
             <input type="url" value={externalUrl}
               onChange={(event) => { setExternalUrl(event.target.value); editing(); }}
               disabled={reviewing || submitting} placeholder="https://…"
@@ -258,7 +258,7 @@ export function WorldSessionEditor() {
                 {venueLabel || venueType}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                This will create a publicly visible institutional session. It cannot be undone from this screen.
+                This creates a public session. The meeting URL remains private to authorized institutional managers. It cannot be undone here.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <button type="button" onClick={() => setReviewing(false)} disabled={submitting || Boolean(pending.current)}
