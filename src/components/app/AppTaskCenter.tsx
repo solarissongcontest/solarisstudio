@@ -95,7 +95,7 @@ export function AppTaskCenter({
           <p className="solaris-app-task-kicker mb-2">Available now</p>
           <div className="space-y-2">
             {available.map((task) => (
-              <AppTaskCard key={task.id} task={task} />
+              <AppTaskCard key={task.id} task={task} readOnly={readOnly} />
             ))}
           </div>
         </div>
@@ -108,7 +108,7 @@ export function AppTaskCenter({
           </summary>
           <div className="mt-2 space-y-2">
             {completed.map((task) => (
-              <AppTaskCard key={task.id} task={task} />
+              <AppTaskCard key={task.id} task={task} readOnly={readOnly} />
             ))}
           </div>
         </details>
@@ -130,13 +130,12 @@ export function AppTaskCard({
   const time = relativeAppTaskTiming(task);
   const exact = exactAppTaskTiming(task);
 
-
   const cardClassName = cn(
-        "solaris-app-task-card",
-        prominent && "is-prominent",
-        task.state === "problem" && "is-problem",
-        (task.state === "completed" || task.state === "finished") && "is-complete",
-      );
+    "solaris-app-task-card",
+    prominent && "is-prominent",
+    task.state === "problem" && "is-problem",
+    (task.state === "completed" || task.state === "finished") && "is-complete",
+  );
   const cardContents = (
     <>
       <span className="solaris-app-task-icon">
@@ -167,7 +166,9 @@ export function AppTaskCard({
           </span>
         ) : null}
       </span>
-      {!readOnly ? <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /> : null}
+      {!readOnly ? (
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      ) : null}
     </>
   );
 
