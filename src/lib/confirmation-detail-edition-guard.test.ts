@@ -61,6 +61,16 @@ describe("Organizer Confirmation detail edition isolation", () => {
     expect(source).toContain("System #598 remains a prerequisite");
   });
 
+  it("serializes Entry review and winner actions with a synchronous in-flight lock", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    expect(source).toContain("const mutationInFlightRef = useRef(false);");
+    expect(source).toContain("if (mutationInFlightRef.current) return;");
+    expect(source).toContain("if (mutationInFlightRef.current || !onWinner || !isScopeCurrent()) return;");
+    expect(source).toContain("if (mutationInFlightRef.current || !onClearWinner || !isScopeCurrent()) return;");
+    expect(source.split("mutationInFlightRef.current = true;").length - 1).toBe(3);
+    expect(source.split("mutationInFlightRef.current = false;").length - 1).toBe(3);
+  });
+
   it("guards Entry review preflight, apply and reconciliation against stale edition switches", () => {
     const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
     expect(source).toContain("isScopeCurrent: () => boolean;");
