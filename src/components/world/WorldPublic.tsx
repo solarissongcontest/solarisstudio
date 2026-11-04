@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Building2, Globe2, Landmark, Search, Users } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
@@ -17,7 +17,7 @@ import {
 
 type WorldView = "overview" | "leadership" | "members";
 
-function PublicFrame({ children }: { children: React.ReactNode }) {
+function PublicFrame({ children }: { children: ReactNode }) {
   return (
     <AppShell>
       <div className="mx-auto w-full max-w-6xl px-1 pb-24 pt-4 sm:px-4 sm:pt-7">
@@ -27,7 +27,7 @@ function PublicFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Kicker({ children }: { children: React.ReactNode }) {
+function Kicker({ children }: { children: ReactNode }) {
   return <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">{children}</p>;
 }
 
