@@ -70,6 +70,8 @@ describe("TG6 institutional session/agenda authority contracts", () => {
   it("serializes session sequence numbers and returns durable operation receipts", () => {
     const command = functionBody("world_session_create_v1", "create");
     expect(command).toMatch(/for update/);
+    expect(command).toMatch(/organ_row\.status='active'/);
+    expect(command).toMatch(/organization_row\.status='active'/);
     expect(command).toMatch(/private\.studio2_claim_operation\(/);
     expect(command).toMatch(/private\.studio2_complete_operation\(/);
     expect(command).toMatch(/studio2_reconcile_operation\(/);
