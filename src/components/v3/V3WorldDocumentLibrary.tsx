@@ -156,7 +156,7 @@ export function WorldDocumentLibraryScreen({
 
             <div className="mt-8 flex items-baseline justify-between gap-4 border-b border-border pb-3">
               <h2 className="font-display text-xl font-bold">Published records</h2>
-              <span className="text-xs text-muted-foreground">First {limit} records checked</span>
+              <span className="text-xs text-muted-foreground">Up to {limit} records checked</span>
             </div>
             {query.isPending ? (
               <ArchiveDataLoading label="Opening institutional records…" />
