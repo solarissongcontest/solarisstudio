@@ -196,6 +196,19 @@ jobs:
                   raise SystemExit("failed S14 evidence is missing canonical failure diagnostics")
               if failure_phase == "unknown":
                   raise SystemExit(f"failed rehearsal emitted unknown canonical failure phase for {failure_stage}")
+              pending_stages = data.get("pendingStages", [])
+              pending_extensions = data.get("pendingContestExtensions", [])
+              if not isinstance(pending_stages, list) or not isinstance(pending_extensions, list):
+                  raise SystemExit("failed S14 evidence has invalid pending phase collections")
+              standalone_failure_phases = {"bootstrap", "results-runtime-reconciliation"}
+              if (
+                  failure_phase not in standalone_failure_phases
+                  and failure_phase not in pending_stages
+                  and failure_phase not in pending_extensions
+              ):
+                  raise SystemExit(
+                      f"failed rehearsal phase {failure_phase!r} is neither pending nor an allowed standalone phase"
+                  )
               print(f"S14 failure evidence valid for {sha}: failed in {failure_stage} ({failure_phase})")
           else:
               raise SystemExit(f"unexpected rehearsal step outcome: {outcome!r}")

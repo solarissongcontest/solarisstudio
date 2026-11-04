@@ -14,7 +14,7 @@ describe("S14 Grand Final failure evidence", () => {
     expect(driver).toContain('"completedContestExtensions": completed_extensions');
   });
 
-  it("runs qualifier preparation, final voting, and canonical results through the tracked extension wrapper", () => {
+  it("runs qualifier preparation, final voting, canonical results, and publication through the tracked extension wrapper", () => {
     expect(driver).toContain(
       "run_contest_extension grand-final-qualifier-bridge prepare_s14_grand_final_from_qualifiers",
     );
@@ -24,15 +24,22 @@ describe("S14 Grand Final failure evidence", () => {
     expect(driver).toContain(
       "run_contest_extension grand-final-results run_s14_grand_final_results",
     );
+    expect(driver).toContain(
+      "run_contest_extension grand-final-publication run_s14_grand_final_publication",
+    );
   });
 
-  it("derives successful completion evidence from the same runtime-tracked phase arrays", () => {
-    expect(driver.match(/\$\{COMPLETED_STAGES\[\*\]\}/g)?.length).toBe(2);
-    expect(driver.match(/\$\{COMPLETED_CONTEST_EXTENSIONS\[\*\]\}/g)?.length).toBe(2);
-    expect(driver.match(/"completedStages": completed/g)?.length).toBe(2);
-    expect(driver.match(/"completedContestExtensions": completed_extensions/g)?.length).toBe(2);
-    expect(driver).toContain('pending = pending_text.split() if pending_text else []');
-    expect(driver).toContain('"pendingStages": pending');
+  it("requires the runtime-tracked stages and extensions to be complete before final evidence is written", () => {
+    expect(driver).toContain('[[ "${#COMPLETED_STAGES[@]}" == "${#ALL_STAGES[@]}" ]]');
+    expect(driver).toContain(
+      '[[ "${#COMPLETED_CONTEST_EXTENSIONS[@]}" == "${#ALL_CONTEST_EXTENSIONS[@]}" ]]',
+    );
+    expect(driver).toContain('"completedStages": [');
+    expect(driver).toContain('"completedContestExtensions": [');
+    expect(driver).toContain('"pendingStages": []');
+    expect(driver).toContain('"pendingContestExtensions": []');
+    expect(workflow).toContain('data.get("completedStages") != expected_stages');
+    expect(workflow).toContain('data.get("completedContestExtensions") != expected_extensions');
   });
 
   it("uses the same canonical Grand Final extension vocabulary for success and failure evidence", () => {
