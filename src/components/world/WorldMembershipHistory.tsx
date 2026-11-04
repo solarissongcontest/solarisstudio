@@ -55,53 +55,53 @@ export function WorldMembershipHistoryScreen({ slug, code }: { slug: string; cod
 
   if (!validRoute) {
     return (
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <h1 className="text-2xl font-bold">Invalid membership link</h1>
         <Link to="/world" className={actionClass + " mt-5"}>Browse Terra Solaris</Link>
-      </main>
+      </div>
     );
   }
 
   if (country.isPending) {
-    return <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6"><LoadingMembership message="Loading country identity…" /></main>;
+    return <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6"><LoadingMembership message="Loading country identity…" /></div>;
   }
   if (country.isError) {
     return (
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <MembershipError retry={() => { void country.refetch(); }} />
-      </main>
+      </div>
     );
   }
   if (!country.data) {
     return (
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <h1 className="text-2xl font-bold">Country not found</h1>
         <p className="mt-2 text-sm text-muted-foreground">No public country matches this link.</p>
         <Link to="/countries" className={actionClass + " mt-4"}>Browse countries</Link>
-      </main>
+      </div>
     );
   }
 
   if (relationship.isPending) {
-    return <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6"><LoadingMembership message="Loading public membership history…" /></main>;
+    return <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6"><LoadingMembership message="Loading public membership history…" /></div>;
   }
   if (relationship.isError) {
     return (
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <MembershipError retry={() => { void relationship.refetch(); }} />
-      </main>
+      </div>
     );
   }
   const state = relationship.data;
   if (!state) {
     return (
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <h1 className="text-2xl font-bold">Organization not available</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           The organization does not exist or is not public. No private relationship is disclosed.
         </p>
         <Link to="/world" className={actionClass + " mt-4"}>Browse organizations</Link>
-      </main>
+      </div>
     );
   }
 
@@ -110,7 +110,7 @@ export function WorldMembershipHistoryScreen({ slug, code }: { slug: string; cod
   const completed = state.membership.filter((period) => period.endedAt !== null);
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 pb-14 pt-4 sm:px-6">
+    <div className="mx-auto w-full max-w-5xl px-4 pb-14 pt-4 sm:px-6">
       <nav aria-label="Breadcrumb" className="mb-7 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
         <Link to="/world" className="hover:text-foreground">Terra Solaris</Link>
         <ChevronRight className="size-3" aria-hidden="true" />
@@ -265,6 +265,6 @@ export function WorldMembershipHistoryScreen({ slug, code }: { slug: string; cod
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
