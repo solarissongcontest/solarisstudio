@@ -175,6 +175,26 @@ describe("TG4 public institutional document library", () => {
     ]);
   });
 
+  it("cannot let a legacy alias shadow a different provision's stable link", () => {
+    const result = parseWorldDocumentDetail({
+      ...document,
+      version: {
+        ...document.version,
+        provisions: [
+          { ...document.version.provisions[0], semanticKey: "alpha", anchor: "section-one" },
+          {
+            ...document.version.provisions[0],
+            provisionId: "second",
+            semanticKey: "beta",
+            anchor: "world-provision-alpha",
+          },
+        ],
+      },
+    });
+    expect(result?.version.provisions[0].targetId).toBe("world-provision-alpha");
+    expect(result?.version.provisions[1].anchor).toBeNull();
+  });
+
   it("uses durable semantic identity, not mutable visible article numbers, for deep links", () => {
     const first = parseWorldDocumentDetail({
       ...document,
