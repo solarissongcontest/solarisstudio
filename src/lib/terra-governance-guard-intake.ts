@@ -142,13 +142,13 @@ export async function submitGuardApplication(args: {
   // semantic result nested under result. A succeeded HTTP request is not enough.
   const result = data?.result;
   if (data?.status !== "succeeded" || result?.ok !== true ||
-      typeof result.applicationId !== "string") {
+      typeof result.applicationId !== "string" || result.status !== "submitted") {
     throw new Error("The application response could not be verified. Check the server status before retrying.");
   }
   return {
     applicationId: result.applicationId,
     operationId: typeof data.operationId === "string" ? data.operationId : args.operation.operationId,
-    status: result.status === "submitted" ? "submitted" : "submitted",
+    status: "submitted",
   };
 }
 
@@ -157,7 +157,7 @@ export function guardApplicationStatusLabel(status: GuardMembershipApplicationRo
     case "submitted": return "Submitted for review";
     case "under_review": return "Under review";
     case "introduced": return "Introduced to the General Assembly";
-    case "approved": return "Approved";
+    case "approved": return "Approved; activation not yet confirmed";
     case "rejected": return "Not approved";
     case "withdrawn": return "Withdrawn";
   }
