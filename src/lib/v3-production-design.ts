@@ -1,4 +1,4 @@
-import { supabase as baseSupabase } from "@/integrations/supabase/client";
+import { productionDesignSupabaseClient as baseSupabase } from "@/lib/studio2-production-design-transport";
 
 export type ProductionDesignMode =
   | "edition_default"

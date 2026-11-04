@@ -61,7 +61,6 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
     expect(migration).toContain("'edition.manage'");
   });
 
-
   it("expands canonical tasks across submitted confirmations, jury, televote and results", () => {
     expect(operationalSources).toContain("'confirmation_review'");
     expect(operationalSources).toContain("submission.reviewed = false");
@@ -224,8 +223,10 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
     expect(chrome).toContain('item.id === "tasks"');
     expect(chrome).toContain("unresolvedTaskCount");
     expect(route).toContain("useOrganizerTasksV5");
+    expect(route).toContain("Task state is derived from canonical domain evidence.");
+    expect(route).toContain("Due timestamps are display metadata only");
+    expect(route).toContain("Priority is severity, not workflow state.");
     expect(route).toContain("There is intentionally no generic “Mark resolved” button.");
-    expect(route).toContain("confirmation requirements and reviews, entries, required media, voting, results, integrations");
     expect(route).toContain('to="/admin/inbox"');
   });
 

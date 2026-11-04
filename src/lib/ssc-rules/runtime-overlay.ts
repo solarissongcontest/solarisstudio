@@ -1,4 +1,4 @@
-import { SSC_RULEBOOK, SSC_RULES, SSC_RULE_CHAPTERS } from "@/lib/ssc-rules/canon-v4";
+import { SSC_RULEBOOK, SSC_RULES, SSC_RULE_CHAPTERS } from "@/lib/ssc-rules/current";
 import { getRuleById } from "@/lib/ssc-rules/search";
 import type { RuleTone, SscRule } from "@/lib/ssc-rules/types";
 
@@ -90,6 +90,33 @@ function cloneRecord<T extends Record<string, unknown>>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function versionParts(value: string) {
+  return value
+    .split(".")
+    .map((part) => Number.parseInt(part, 10))
+    .map((part) => (Number.isFinite(part) ? part : 0));
+}
+
+export function compareRulebookVersions(left: string, right: string) {
+  const a = versionParts(left);
+  const b = versionParts(right);
+  const length = Math.max(a.length, b.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = a[index] ?? 0;
+    const rightPart = b[index] ?? 0;
+    if (leftPart !== rightPart) return leftPart > rightPart ? 1 : -1;
+  }
+  return 0;
+}
+
+export function isPublishedReleaseCompatibleWithBundledCanon(
+  release: Pick<RulebookRelease, "version"> | null | undefined,
+) {
+  return Boolean(
+    release?.version && compareRulebookVersions(release.version, BASE_RULEBOOK_META.version) >= 0,
+  );
+}
+
 function resetRecord(target: Record<string, unknown>, baseline: Record<string, unknown>) {
   for (const key of Object.keys(target)) delete target[key];
   Object.assign(target, cloneRecord(baseline));
@@ -125,9 +152,17 @@ function applySnapshotToRule(rule: SscRule, snapshot: RuleSnapshot) {
   }
 }
 
-/** Apply an immutable published release over the bundled v4 canon. */
+/** Apply an immutable published release over the bundled current canon. */
 export function applyPublishedRulebookRelease(release: RulebookRelease | null | undefined) {
   if (!release?.version) {
+    if (appliedReleaseVersion !== null) {
+      resetRulebookBaseline();
+      appliedReleaseVersion = null;
+    }
+    return;
+  }
+
+  if (!isPublishedReleaseCompatibleWithBundledCanon(release)) {
     if (appliedReleaseVersion !== null) {
       resetRulebookBaseline();
       appliedReleaseVersion = null;

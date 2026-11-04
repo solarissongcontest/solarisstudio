@@ -41,14 +41,19 @@ describe("Public V3 UX diagnostics instrumentation", () => {
     expect(events).not.toContain("raw_query");
   });
 
-  it("already provides aggregate task, friction, search rescue and device diagnostics", () => {
+  it("provides aggregate task, friction, search rescue and privacy-sanitized device diagnostics", () => {
     const metrics = read("src/lib/public-ux-metrics.ts");
 
     expect(metrics).toContain("rescueSessions");
     expect(metrics).toContain("highStepSessions");
     expect(metrics).toContain("repeatedSectionSessions");
     expect(metrics).toContain("completionRate");
-    expect(metrics).toContain("devices: rows(raw.devices)");
+    expect(metrics).toContain("devices: groupRows(raw.devices)");
+    expect(metrics).toContain("topDestinations: destinationRows(raw.navigation?.topDestinations)");
+    expect(metrics).toContain("firstClicks: destinationRows(raw.navigation?.firstClicks)");
+    expect(metrics).toContain("sanitizePublicUxTarget(row.target)");
+    expect(metrics).toContain("sanitizePublicUxTarget(row.destination)");
+    expect(metrics).not.toContain("devices: rows(raw.devices)");
   });
 
   it("keeps performance diagnostics in the separate Web Vitals channel", () => {

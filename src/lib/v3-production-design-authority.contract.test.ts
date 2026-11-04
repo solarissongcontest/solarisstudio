@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const migration = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20261020093000_v3_production_design_authority.sql",
+    "supabase/migrations/20261104181000_v3_production_design_authority.sql",
   ),
   "utf8",
 );
@@ -21,6 +21,18 @@ function functionBody(signature: string, delimiter: string) {
 }
 
 describe("V3 Production Design authority", () => {
+  it("routes browser RPC transport through the non-V3 infrastructure layer", () => {
+    const client = readFileSync(resolve(process.cwd(), "src/lib/v3-production-design.ts"), "utf8");
+    const transport = readFileSync(resolve(process.cwd(), "src/lib/studio2-production-design-transport.ts"), "utf8");
+    expect(client).toContain('from "@/lib/studio2-production-design-transport"');
+    expect(client).not.toContain("integrations/supabase");
+    expect(client).not.toContain("@supabase/");
+    expect(transport).toContain("integrations/supabase/client");
+    expect(client).toContain('client.rpc("admin_apply_production_design"');
+    expect(client).toContain('client.rpc("studio2_reconcile_operation"');
+  });
+
+
   it("is an additive forward-fix migration and never embeds hosted Supabase", () => {
     expect(migration).toContain("'v3.production-design-authority-v1'");
     expect(migration).toContain("'forward_fix_only'");

@@ -5,7 +5,7 @@ import { AppShell, Panel } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PredictionWorkspaceHeader } from "@/components/predictions/PredictionWorkspaceHeader";
 import { V3AppShell } from "@/components/v3/V3AppShell";
-import { V3PredictionsScreen } from "@/components/v3/V3PredictionsScreen";
+import { V3PredictionsRouteContent } from "@/components/v3/V3PredictionsRouteContent";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { usePredictionRounds } from "@/lib/prediction-data";
 import { formatEventDateTime } from "@/lib/public-time";
@@ -55,7 +55,7 @@ function PredictionArenaPage() {
   if (isAppMode && !rollout.isError && rollout.data?.enabled === true) {
     return (
       <V3AppShell editionLabel="Solaris Studio" phaseLabel="Predictions" activeArea="explore">
-        <V3PredictionsScreen />
+        <V3PredictionsRouteContent />
       </V3AppShell>
     );
   }
