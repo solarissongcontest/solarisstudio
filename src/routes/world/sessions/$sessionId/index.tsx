@@ -5,6 +5,6 @@ import { WorldSessionDetail } from "@/components/world/WorldSessionDetail";
 export const Route = createFileRoute("/world/sessions/$sessionId/")({
   component: () => {
     const { sessionId } = Route.useParams();
-    return <AppShell><WorldSessionDetail sessionId={sessionId} /></AppShell>;
+    return <AppShell><WorldSessionDetail key={sessionId} sessionId={sessionId} /></AppShell>;
   },
 });
