@@ -243,11 +243,11 @@ export async function transferVerifiedMissing({ source, destination, entry, onVe
 }
 export const REFERENCE_TABLES = Object.freeze({
   country_media: { key: ['id'], fields: ['storage_path','public_url'], bucket: 'country-media' },
-  country_themes: { key: ['country_id'], fields: ['background_image_storage_path','background_image_url'], bucket: 'country-media' },
-  editions: { key: ['id'], fields: ['artwork_storage_path','artwork_url','logo'], bucket: 'edition-artwork' },
+  country_themes: { key: ['country_id'], fields: ['background_image_storage_path','background_image_url'], evidenceFields: ['design_v2'], bucket: 'country-media' },
+  editions: { key: ['id'], fields: ['artwork_storage_path','artwork_url','logo'], evidenceFields: ['design_config'], bucket: 'edition-artwork' },
   countries: { key: ['id'], fields: ['flag_image'], bucket: 'country-media' },
   country_edition_identities: { key: ['country_id','edition_id'], fields: ['flag_image'], bucket: 'country-media' },
-  country_profile_sections: { key: ['id'], fields: ['image_url'], bucket: 'country-media' },
+  country_profile_sections: { key: ['id'], fields: ['image_url'], evidenceFields: ['content_json','body'], bucket: 'country-media' },
   contest_entities: { key: ['id'], fields: ['flag_image'], bucket: 'country-media' },
   voters: { key: ['id'], fields: ['flag_image'], bucket: 'country-media' },
 });
@@ -257,6 +257,49 @@ export function relatedObject(value, bucket, path) {
   try { return new URL(value).pathname.endsWith('/storage/v1/object/public/' + bucket + '/' + path); }
   catch { return false; }
 }
+/**
+ * Per-object source reference inventory. Never treats a missing destination row
+ * as permission to insert it. Scalar matches are deterministic; embedded
+ * JSON/markdown matches are candidates for manual review only.
+ */
+export function buildSourceReferenceIndex({ entries, oldRows, currentRows }) {
+  return entries.map(entry => {
+    const references = [];
+    for (const [table, cfg] of Object.entries(REFERENCE_TABLES)) {
+      if (entry.bucket !== cfg.bucket || !entry.source_id) continue;
+      const target = new Map((currentRows[table] || []).map(row =>
+        [stableJson(cfg.key.map(k => row[k])), row]));
+      for (const original of oldRows[table] || []) {
+        const keyValues = cfg.key.map(k => original[k]);
+        const existing = target.get(stableJson(keyValues));
+        const canonical_key = Object.fromEntries(cfg.key.map((k, i) => [k, keyValues[i]]));
+        for (const field of cfg.fields) {
+          if (!relatedObject(original[field], entry.bucket, entry.path)) continue;
+          const destinationStatus = !existing ? 'missing_entity'
+            : !existing[field] ? 'missing_reference'
+            : existing[field] === original[field] ? 'identical_reference'
+            : 'conflicting_reference';
+          references.push({ table, field, canonical_key,
+            match: 'exact_scalar_or_public_storage_url', destination_status: destinationStatus,
+            action: 'manual_canonical_recovery_review_only' });
+        }
+        for (const field of cfg.evidenceFields || []) {
+          const val = original[field];
+          const serialized = typeof val === 'string' ? val : val == null ? '' : JSON.stringify(val);
+          if (!serialized || !serialized.includes(entry.path)) continue;
+          references.push({ table, field, canonical_key, match: 'embedded_candidate',
+            destination_status: 'requires_nested_content_review',
+            action: 'manual_canonical_recovery_review_only' });
+        }
+      }
+    }
+    return { ...entry, related_database_entities: references,
+      reference_classification: entry.private ? 'sensitive_private_asset'
+        : references.length ? 'referenced_or_candidate'
+        : 'unmatched_in_surveyed_media_fields_not_proven_orphan' };
+  });
+}
+
 export function proposeReferenceReconciliation({ oldRows, currentRows, verifiedEntries }) {
   const evidence = [];
   const verified = verifiedEntries.filter(e => ['identical','transferred','verified_after_ambiguous_upload'].includes(e.status));
