@@ -1,6 +1,6 @@
 /**
  * Read-only public membership history between one Terra Solaris organization
- * and one country. The TG2 RPC, not these helpers, decides visibility.
+ * and one country. The TG3 scoped RPC over TG2 canonical tables decides visibility.
  */
 export type WorldMembershipPeriod = {
   id: string;
@@ -84,6 +84,16 @@ function list(value: unknown, label: string): Record<string, unknown>[] {
   return value.map((item) => object(item, label));
 }
 
+function exactCountryRows(value: unknown, label: string, countryId: string): Record<string, unknown>[] {
+  const rows = list(value, label);
+  // The scoped SQL function must NEVER send other countries' public people or
+  // membership records. Treat regressions in that server contract as errors.
+  if (rows.some((row) => row.countryId !== countryId)) {
+    throw new Error("Public membership projection exceeded country scope: " + label);
+  }
+  return rows;
+}
+
 export function isWorldMembershipRoute(slug: string, code: string): boolean {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && /^[A-Za-z0-9-]{1,12}$/.test(code);
 }
@@ -101,8 +111,7 @@ export function readWorldCountryMembership(
     throw new Error("Organization identity changed during public membership read");
   }
   const organizationId = text(organization.id, "organization id");
-  const members: WorldMembershipPeriod[] = list(projection.memberships, "memberships")
-    .filter((row) => row.countryId === countryId)
+  const members: WorldMembershipPeriod[] = exactCountryRows(projection.memberships, "memberships", countryId)
     .map((row) => {
       const status = text(row.status, "membership status");
       const membershipType = text(row.membershipType, "membership type");
@@ -138,8 +147,7 @@ export function readWorldCountryMembership(
     }
   }
 
-  const representatives: WorldRepresentationPeriod[] = list(projection.representatives, "representatives")
-    .filter((row) => row.countryId === countryId)
+  const representatives: WorldRepresentationPeriod[] = exactCountryRows(projection.representatives, "representatives", countryId)
     .map((row) => {
       if (typeof row.votingAuthority !== "boolean") {
         throw new Error("Invalid public membership history: votingAuthority");
@@ -165,15 +173,19 @@ export function readWorldCountryMembership(
 
   const currentOffices: WorldCountryOffice[] = list(projection.offices, "offices")
     .flatMap((row): WorldCountryOffice[] => {
-      if (!row.currentTerm) return [];
       const term = object(row.currentTerm, "current office term");
-      if (term.representedCountryId !== countryId) return [];
+      if (term.representedCountryId !== countryId) {
+        throw new Error("Public membership projection exceeded country scope: offices");
+      }
       return [{
         id: text(row.id, "office id"),
         title: text(row.title, "office title"),
         holderName: text(term.holderDisplayName, "public officeholder name"),
       }];
     });
+  if (new Set(currentOffices.map((row) => row.id)).size !== currentOffices.length) {
+    throw new Error("Contradictory public membership history: repeated office");
+  }
 
   return {
     organizationId,
