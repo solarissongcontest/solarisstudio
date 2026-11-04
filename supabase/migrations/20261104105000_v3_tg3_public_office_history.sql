@@ -197,9 +197,19 @@ begin
           'title', office.title
         ) order by office.display_priority, office.title, office.slug
       )
-      from public.world_organization_offices office
-      where office.organization_id = o.id
+      from (
+        select office_row.slug, office_row.title, office_row.display_priority
+        from public.world_organization_offices office_row
+        where office_row.organization_id = o.id
+        order by office_row.display_priority, office_row.title, office_row.slug
+        limit 100
+      ) office
     ), '[]'::jsonb),
+    'officesTruncated', (
+      select count(*) > 100
+      from public.world_organization_offices office_count
+      where office_count.organization_id = o.id
+    ),
     'terms', coalesce((
       select pg_catalog.jsonb_agg(
         pg_catalog.jsonb_build_object(
