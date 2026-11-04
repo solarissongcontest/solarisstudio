@@ -134,6 +134,28 @@ begin
     end if;
   end;
 
+  begin
+    update public.world_office_terms
+       set revision = 99
+     where id = v_newest_id;
+    raise exception 'TG3_HISTORY_REVISION_REWRITE_WAS_NOT_BLOCKED';
+  exception when sqlstate '23514' then
+    if sqlerrm <> 'WORLD_CLOSED_OFFICE_TERM_IMMUTABLE' then
+      raise exception 'TG3_HISTORY_REVISION_REWRITE_FAILED_BY_UNEXPECTED_GUARD: %', sqlerrm;
+    end if;
+  end;
+
+  begin
+    update public.world_office_terms
+       set created_at = now() - interval '30 days'
+     where id = v_newest_id;
+    raise exception 'TG3_HISTORY_CREATION_REWRITE_WAS_NOT_BLOCKED';
+  exception when sqlstate '23514' then
+    if sqlerrm <> 'WORLD_CLOSED_OFFICE_TERM_IMMUTABLE' then
+      raise exception 'TG3_HISTORY_CREATION_REWRITE_FAILED_BY_UNEXPECTED_GUARD: %', sqlerrm;
+    end if;
+  end;
+
   update public.world_office_terms
      set holder_display_name_snapshot = 'FORGED HISTORICAL NAME',
          office_title_snapshot = 'FORGED OFFICE',
@@ -143,7 +165,7 @@ begin
   -- Nonconstitutional account/operational revision updates are still
   -- possible, but may not tamper with historical political records.
   update public.world_office_terms
-     set holder_user_id = null, revision = 3
+     set holder_user_id = null
    where id = v_newest_id;
 
   v_page := public.world_public_office_history_v1(
