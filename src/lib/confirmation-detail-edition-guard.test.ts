@@ -1,0 +1,47 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+import { isConfirmationDetailInOrganizerScope } from "./confirmation-detail-edition-guard";
+
+describe("Organizer Confirmation detail edition isolation", () => {
+  const response = { id: "response-1", edition: { id: "edition-a" } };
+
+  it("permits only the exact requested response and selected Organizer edition", () => {
+    expect(isConfirmationDetailInOrganizerScope(response, "response-1", "edition-a")).toBe(true);
+    expect(isConfirmationDetailInOrganizerScope(response, "response-1", "edition-b")).toBe(false);
+    expect(isConfirmationDetailInOrganizerScope(response, "response-2", "edition-a")).toBe(false);
+  });
+
+  it("fails closed on absent edition associations, responses and contexts", () => {
+    expect(isConfirmationDetailInOrganizerScope(null, "response-1", "edition-a")).toBe(false);
+    expect(isConfirmationDetailInOrganizerScope({ id: "response-1" }, "response-1", "edition-a")).toBe(false);
+    expect(isConfirmationDetailInOrganizerScope(response, "response-1", "")).toBe(false);
+    expect(isConfirmationDetailInOrganizerScope(response, "", "edition-a")).toBe(false);
+  });
+
+  it("does not mutate canonical Solaris state merely by opening a response", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    expect(source).not.toContain("await syncSnapshot(detail)");
+    expect(source).toContain("async function manualSync()");
+    expect(source).toContain("const result = await syncSnapshot(data)");
+  });
+
+  it("rejects wrong-edition response details before loading private technical data", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    const scopeCheck = source.indexOf("if (!isConfirmationDetailInOrganizerScope(detail, id, organizerEditionId))");
+    const technicalRead = source.indexOf("await loadTechnical(generation)");
+    expect(scopeCheck).toBeGreaterThan(-1);
+    expect(technicalRead).toBeGreaterThan(scopeCheck);
+    expect(source).toContain("responseLoadGenerationRef.current += 1;");
+    expect(source).toContain("currentScopeRef.current.responseId === id");
+    expect(source).toContain("if (responseLoadGenerationRef.current !== generation) return;");
+  });
+
+  it("gates viewing, sync, token creation and deletion on the same response scope", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    expect(source).toContain("if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)) {");
+    expect(source).toContain("if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId) || deleting) return;");
+    expect(source).toContain("if (!isConfirmationDetailInOrganizerScope(data, id, organizerEditionId)) return;");
+    expect(source).toContain("currentScopeRef.current.editionId !== organizerEditionId");
+  });
+});
