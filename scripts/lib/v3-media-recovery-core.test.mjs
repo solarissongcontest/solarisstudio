@@ -6,6 +6,7 @@ import {
   SOURCE_PROJECT, DESTINATION_PROJECT, validateProjectPair, verifyBytes, sha256,
   stableJson, assertApprovedWrite, inventoryPair, transferVerifiedMissing,
   recoveryDigest, proposeReferenceReconciliation, detectMime, assertAssetClearance,
+  buildSourceReferenceIndex,
 } from './v3-media-recovery-core.mjs';
 
 const png = Buffer.from([137,80,78,71,13,10,26,10,1,2,3,4,5]);
@@ -333,4 +334,29 @@ test('R2 candidate object key changes when source content changes', () => {
     return buildR2CandidatePlan({ entries: [entry], approval }).entries[0].proposed_r2_key;
   };
   assert.notEqual(make(png), make(Buffer.concat([png, Buffer.from([1])])));
+});
+
+test('pretransfer inventory records scalar and nested ownership without authorizing DB restoration', () => {
+  const entry = { bucket: 'country-media', path: 'a/background.png', source_id: 'storage-id',
+    source_sha256: sha256(png), status: 'missing_destination', private: false };
+  const indexed = buildSourceReferenceIndex({ entries: [entry], oldRows: {
+    country_themes: [{ country_id: 'country-id',
+      background_image_storage_path: 'a/background.png',
+      design_v2: { hero: 'country-media/a/background.png' } }],
+  }, currentRows: { country_themes: [{ country_id: 'country-id',
+    background_image_storage_path: null }] } });
+  assert.equal(indexed[0].related_database_entities.length, 2);
+  assert.equal(indexed[0].related_database_entities[0].destination_status, 'missing_reference');
+  assert.equal(indexed[0].related_database_entities[0].action, 'manual_canonical_recovery_review_only');
+  assert.equal(indexed[0].related_database_entities[1].match, 'embedded_candidate');
+  assert.equal(indexed[0].reference_classification, 'referenced_or_candidate');
+});
+test('unmatched files are not automatically called orphaned or deleted', () => {
+  const indexed = buildSourceReferenceIndex({ entries: [{
+    bucket: 'country-media', path: 'archive/unreferenced.png', source_id: 'stored',
+    private: false, status: 'missing_destination',
+  }], oldRows: {}, currentRows: {} });
+  assert.equal(indexed[0].related_database_entities.length, 0);
+  assert.equal(indexed[0].reference_classification,
+    'unmatched_in_surveyed_media_fields_not_proven_orphan');
 });
