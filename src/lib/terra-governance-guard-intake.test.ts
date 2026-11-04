@@ -10,6 +10,8 @@ import {
   normalizeGuardApplication,
   parseGuardIntakeReceipt,
   parseGuardIntakeProjection,
+  parseGuardWithdrawalReceipt,
+  newGuardWithdrawalOperation,
   validateGuardApplication,
   type GuardApplicationFields,
 } from "./terra-governance-guard-intake";
@@ -188,5 +190,90 @@ describe("TG5A GUARD voluntary membership intake", () => {
     expect(route).toContain("role=\"alert\"");
     expect(route).toContain("aria-invalid");
     expect(route).not.toContain(".from(\"world_membership_applications\").insert");
+  });
+});
+
+
+const withdrawalMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20261104115100_v3_tg5_guard_application_withdrawal.sql"),
+  "utf8",
+);
+
+describe("TG5A governed pre-GAG application withdrawal", () => {
+  const expected = {
+    operationId: "13ce65ac-779c-4c92-8a2b-2f7d2caf1900",
+    organizationId: "14e4ee7f-aeca-4461-b889-fdcd4dcdb11e",
+    countryId: "15c02bfb-a63b-46f8-b524-fd913ba62f13",
+    applicationId: "e23ee1bc-f7fb-4b56-bb0b-a763f5e453a0",
+    revision: 1,
+  };
+  const receipt = {
+    status: "succeeded", operationId: expected.operationId,
+    result: {
+      ok: true, applicationId: expected.applicationId,
+      organizationId: expected.organizationId,
+      countryId: expected.countryId,
+      status: "withdrawn", revision: 2,
+    },
+  };
+
+  it("requires an exact, succeeded, versioned operation receipt", () => {
+    expect(parseGuardWithdrawalReceipt(receipt, expected)).toEqual({
+      applicationId: expected.applicationId,
+      operationId: expected.operationId,
+      revision: 2,
+    });
+    expect(() => parseGuardWithdrawalReceipt({ ...receipt, status: "processing" }, expected)).toThrow();
+    expect(() => parseGuardWithdrawalReceipt({ ...receipt, operationId: "other" }, expected)).toThrow();
+    expect(() => parseGuardWithdrawalReceipt({
+      ...receipt, result: { ...receipt.result, countryId: "foreign" },
+    }, expected)).toThrow();
+    expect(() => parseGuardWithdrawalReceipt({
+      ...receipt, result: { ...receipt.result, revision: 1 },
+    }, expected)).toThrow();
+    expect(() => parseGuardWithdrawalReceipt({
+      ...receipt, result: { ...receipt.result, status: "approved" },
+    }, expected)).toThrow();
+  });
+
+  it("uses a stable retry operation separate from a new user intent", () => {
+    const a = newGuardWithdrawalOperation();
+    const b = newGuardWithdrawalOperation();
+    expect(a.operationId).not.toBe(b.operationId);
+    expect(a.idempotencyKey).toContain(a.operationId);
+  });
+
+  it("enforces active country control, guarded lifecycle, concurrency, and scoped event", () => {
+    expect(withdrawalMigration).toContain("account_row.user_id=v_actor");
+    expect(withdrawalMigration).toContain("account_row.status='active'");
+    expect(withdrawalMigration).toContain("'world.membership.apply',p_organization_id,p_country_id");
+    expect(withdrawalMigration).toContain("for share");
+    expect(withdrawalMigration).toContain("for update");
+    expect(withdrawalMigration).toContain("v_application.revision <> p_expected_revision");
+    expect(withdrawalMigration).toContain("v_application.status not in ('submitted','under_review')");
+    expect(withdrawalMigration).toContain("message='APPLICATION_LOCKED'");
+    expect(withdrawalMigration).toContain("message='VERSION_CONFLICT'");
+    expect(withdrawalMigration).toContain("private.studio2_claim_operation(");
+    expect(withdrawalMigration).toContain("private.studio2_complete_operation(");
+    expect(withdrawalMigration).toContain("public.studio2_reconcile_operation(");
+    expect(withdrawalMigration).toContain("'world.membership.application.withdrawn'");
+  });
+
+  it("never alters actual membership or grants a browser write", () => {
+    expect(withdrawalMigration).toContain("set status='withdrawn', revision=revision+1");
+    expect(withdrawalMigration).not.toMatch(/(?:insert into|update|delete from)\s+public\.world_organization_memberships/i);
+    expect(withdrawalMigration).not.toMatch(/(?:insert into|update|delete from)\s+public\.world_organization_representations/i);
+    expect(withdrawalMigration).toContain("from public, anon, authenticated, service_role");
+    expect(withdrawalMigration).toContain("public.v3_register_migration_contract(");
+  });
+
+  it("gates confirmation and same-operation retry to an active pre-introduction application", () => {
+    expect(route).toContain("Withdraw pending application");
+    expect(route).toContain("Confirm withdrawal");
+    expect(route).toContain("Retry same withdrawal");
+    expect(route).toContain("withdrawRef.current");
+    expect(route).toContain('["submitted", "under_review"].includes(pendingApplication.status)');
+    expect(route).toContain("onWithdrawApplication(pendingApplication.id, pendingApplication.revision)");
+    expect(route).not.toContain('.from("world_membership_applications").update');
   });
 });
