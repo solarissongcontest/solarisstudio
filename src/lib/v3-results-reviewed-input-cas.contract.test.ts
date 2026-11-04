@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const migration = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20261023211000_v3_results_reviewed_input_cas.sql",
+    "supabase/migrations/20261104170500_v3_results_reviewed_input_cas.sql",
   ),
   "utf8",
 );
@@ -31,6 +31,7 @@ describe("V3 Results reviewed-input CAS", () => {
       "public.voters",
       "public.jury_votes",
       "public.jury_ballot_statuses",
+      "public.jury_ballot_submissions",
       "public.televote_votes",
       "public.results",
     ]) {
@@ -45,6 +46,40 @@ describe("V3 Results reviewed-input CAS", () => {
   it("backfills and seeds one authority row so the first post-review mutation cannot reuse the preview version", () => {
     expect(migration).toContain("from public.shows s\non conflict (show_id) do nothing");
     expect(migration).toContain("studio2_results_review_basis_shows after insert or update of");
+    expect(migration).toContain("perform private.studio2_bump_result_review_basis(new.id)");
+  });
+
+  it("invalidates finalized Results release pointers when ANY canonical input changes", () => {
+    const start = migration.indexOf("create or replace function private.studio2_bump_result_review_basis(");
+    const end = migration.indexOf("revoke all on function private.studio2_bump_result_review_basis(", start);
+    const bump = migration.slice(start, end);
+    expect(bump).toContain("review_basis_version = public.studio2_result_operations.review_basis_version + 1");
+    for (const field of [
+      "reviewed_version", "reviewed_at", "reviewed_by",
+      "locked_version", "locked_at", "locked_by",
+      "reveal_ready_version", "reveal_ready_at", "reveal_ready_by",
+    ]) expect(bump).toContain(field + " = null");
+    expect(bump).not.toContain("delete from private.v3_result_versions");
+    expect(migration).toContain("studio2_results_review_basis_jury_submissions");
+  });
+
+  it("locks the authority row NOWAIT to abort conflicting result-row mutations without deadlock", () => {
+    const bump = migration.slice(
+      migration.indexOf("create or replace function private.studio2_bump_result_review_basis("),
+      migration.indexOf("revoke all on function private.studio2_bump_result_review_basis("),
+    );
+    expect(bump).toContain("for update nowait");
+    expect(bump).toContain("when lock_not_available then");
+    expect(bump).toContain("raise sqlstate 'PT409'");
+    expect(bump).toContain("RESULTS_REVIEW_BASIS_BUSY");
+    expect(bump.indexOf("for update nowait")).toBeLessThan(bump.indexOf("update public.studio2_result_operations"));
+  });
+
+  it("installs show creation invalidation BEFORE the backfill to cover concurrent show inserts", () => {
+    const triggerIndex = migration.indexOf("studio2_results_review_basis_shows after insert or update of");
+    const backfillIndex = migration.indexOf("from public.shows s\\non conflict (show_id) do nothing");
+    expect(triggerIndex).toBeGreaterThan(0);
+    expect(backfillIndex).toBeGreaterThan(triggerIndex);
     expect(migration).toContain("perform private.studio2_bump_result_review_basis(new.id)");
   });
 

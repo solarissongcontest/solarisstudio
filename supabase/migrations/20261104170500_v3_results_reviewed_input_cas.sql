@@ -45,21 +45,10 @@ begin
 end
 $constraint$;
 
--- Every existing show starts with one known review basis. Future mutations move
--- it monotonically; this is a state version, not an attempt to reconstruct a
--- historical mutation count from legacy data.
-insert into public.studio2_result_operations (
-  show_id,
-  edition_id,
-  review_basis_version
-)
-select
-  s.id,
-  s.edition_id,
-  1
-from public.shows s
-on conflict (show_id) do nothing;
-
+-- Mutation and reviewed-commit paths share this authority row. A result-row
+-- mutation can already hold a Results row before its AFTER trigger reaches this
+-- authority. NOWAIT ensures that such a mutation fails/retries rather than
+-- deadlocking against a commit holding the authority and waiting for Results.
 create or replace function private.studio2_bump_result_review_basis(
   p_show_id uuid
 ) returns bigint
@@ -68,26 +57,71 @@ security definer
 set search_path = pg_catalog, public, private
 as $function$
 declare
+  v_edition_id uuid;
   v_version bigint;
 begin
   if p_show_id is null then
     return null;
   end if;
 
-  insert into public.studio2_result_operations (
-    show_id,
-    edition_id,
-    review_basis_version
-  )
-  select
-    s.id,
-    s.edition_id,
-    1
+  select s.edition_id into v_edition_id
   from public.shows s
-  where s.id = p_show_id
-  on conflict (show_id) do update
-    set review_basis_version = public.studio2_result_operations.review_basis_version + 1,
-        updated_at = now()
+  where s.id = p_show_id;
+  if not found then
+    return null;
+  end if;
+
+  -- The show-insert trigger seeds this row before the show is visible, and
+  -- the post-trigger backfill covers all pre-existing shows.
+  begin
+    select o.review_basis_version into v_version
+    from public.studio2_result_operations o
+    where o.show_id = p_show_id and o.edition_id = v_edition_id
+    for update nowait;
+  exception when lock_not_available then
+    raise sqlstate 'PT409' using
+      message = 'RESULTS_REVIEW_BASIS_BUSY',
+      hint = 'A reviewed Results operation is in progress; retry the input write.';
+  end;
+
+  if not found then
+    insert into public.studio2_result_operations (
+      show_id, edition_id, review_basis_version
+    ) values (
+      p_show_id, v_edition_id, 1
+    )
+    on conflict (show_id) do nothing;
+
+    begin
+      select o.review_basis_version into v_version
+      from public.studio2_result_operations o
+      where o.show_id = p_show_id and o.edition_id = v_edition_id
+      for update nowait;
+    exception when lock_not_available then
+      raise sqlstate 'PT409' using
+        message = 'RESULTS_REVIEW_BASIS_BUSY',
+        hint = 'A reviewed Results operation is in progress; retry the input write.';
+    end;
+  end if;
+
+  -- Inputs changing after finalization must invalidate the release gate.
+  -- Keep immutable result snapshots; only the current review/lock/reveal
+  -- pointers are cleared. Published results remain protected by the existing
+  -- studio2_guard_published_result_operation_update trigger.
+  update public.studio2_result_operations
+  set review_basis_version = public.studio2_result_operations.review_basis_version + 1,
+      reviewed_version = null,
+      reviewed_at = null,
+      reviewed_by = null,
+      locked_version = null,
+      locked_at = null,
+      locked_by = null,
+      reveal_ready_version = null,
+      reveal_ready_at = null,
+      reveal_ready_by = null,
+      updated_at = now()
+  where show_id = p_show_id
+    and edition_id = v_edition_id
   returning review_basis_version into v_version;
 
   return v_version;
@@ -185,6 +219,9 @@ begin
   execute 'drop trigger if exists studio2_results_review_basis_jury_statuses on public.jury_ballot_statuses';
   execute 'create trigger studio2_results_review_basis_jury_statuses after insert or update or delete on public.jury_ballot_statuses for each row execute function private.studio2_result_review_basis_row_changed()';
 
+  execute 'drop trigger if exists studio2_results_review_basis_jury_submissions on public.jury_ballot_submissions';
+  execute 'create trigger studio2_results_review_basis_jury_submissions after insert or update or delete on public.jury_ballot_submissions for each row execute function private.studio2_result_review_basis_row_changed()';
+
   execute 'drop trigger if exists studio2_results_review_basis_televote_votes on public.televote_votes';
   execute 'create trigger studio2_results_review_basis_televote_votes after insert or update or delete on public.televote_votes for each row execute function private.studio2_result_review_basis_row_changed()';
 
@@ -195,6 +232,25 @@ begin
   execute 'create trigger studio2_results_review_basis_shows after insert or update of voting_config, published, publication_config on public.shows for each row execute function private.studio2_result_review_basis_show_changed()';
 end
 $triggers$;
+
+-- Seed pre-existing shows AFTER installing the show-insert trigger. The DDL
+-- lock and the later backfill run in one migration transaction, closing the
+-- creation window where a newly inserted show could miss both mechanisms.
+-- Every existing show starts with one known review basis. Future mutations move
+-- it monotonically; this is a state version, not an attempt to reconstruct a
+-- historical mutation count from legacy data.
+insert into public.studio2_result_operations (
+  show_id,
+  edition_id,
+  review_basis_version
+)
+select
+  s.id,
+  s.edition_id,
+  1
+from public.shows s
+on conflict (show_id) do nothing;
+
 
 -- Authoritative review/preflight. It deliberately does not mutate state and is
 -- not a permission slip for a later commit: the commit repeats scope, auth,
