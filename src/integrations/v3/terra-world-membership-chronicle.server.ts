@@ -21,7 +21,7 @@ function assertSuccess(error: unknown, label: string) {
 
 async function readPublishedInstitutions(client: PublicClient) {
   const { data, count, error } = await client.from("world_organizations")
-    .select("id,slug,short_name", { count: "exact" })
+    .select("id,slug,short_name,public_visibility", { count: "exact" })
     .eq("public_visibility", "public")
     .order("short_name", { ascending: true })
     .limit(WORLD_MEMBERSHIP_CHRONICLE_ORGANIZATION_LIMIT);
@@ -52,7 +52,7 @@ export async function loadWorldMembershipChronicle(input: {
   let selectedOrganization: { id: string; slug: string; short_name: string } | null = null;
   if (organizationSlug) {
     const { data, error } = await client.from("world_organizations")
-      .select("id,slug,short_name")
+      .select("id,slug,short_name,public_visibility")
       .eq("public_visibility", "public")
       .eq("slug", organizationSlug)
       .maybeSingle();
@@ -68,7 +68,7 @@ export async function loadWorldMembershipChronicle(input: {
   if (countryCode) {
     const { data, error } = await client.from("countries")
       .select("id,short_code")
-      .ilike("short_code", countryCode)
+      .eq("short_code", countryCode)
       .maybeSingle();
     assertSuccess(error, "Terra Solaris country identity");
     countryId = data?.id ?? null;
@@ -103,7 +103,7 @@ export async function loadWorldMembershipChronicle(input: {
     organizations = [selectedOrganization];
   } else if (organizationIds.length) {
     const result = await client.from("world_organizations")
-      .select("id,slug,short_name")
+      .select("id,slug,short_name,public_visibility")
       .eq("public_visibility", "public")
       .in("id", organizationIds)
       .limit(WORLD_MEMBERSHIP_CHRONICLE_PAGE_SIZE);

@@ -8,8 +8,8 @@ import {
 } from "./terra-world-membership-chronicle";
 
 const organizations = [
-  { id: "guard", slug: "guard", short_name: "GUARD" },
-  { id: "unity", slug: "unity", short_name: "UNITY" },
+  { id: "guard", slug: "guard", short_name: "GUARD", public_visibility: "public" },
+  { id: "unity", slug: "unity", short_name: "UNITY", public_visibility: "public" },
 ];
 const country = [{ id: "oland", name: "Oland", short_code: "OLA", flag_image: "/flags/ola.png" }];
 const active = {
@@ -35,12 +35,10 @@ describe("Terra Solaris public membership chronicle", () => {
     expect(result.records[0].country.code).toBe("OLA");
   });
   it("never renders an institution without public visibility proof", () => {
-    const result = parseWorldMembershipChronicle({
+    expect(() => parseWorldMembershipChronicle({
       ...projection([active]),
-      organizations: [{ id: "unity", slug: "unity", short_name: "UNITY" }],
-    });
-    expect(result.records).toEqual([]);
-    expect(JSON.stringify(result)).not.toContain("guard");
+      organizations: [organizations[1]],
+    })).toThrow(/Unverified public membership institution/);
   });
   it("rejects mismatched current/ended status, including suspended as an active term", () => {
     expect(parseWorldMembershipChronicle(projection([{ ...active, status: "suspended" }], "current")).records).toHaveLength(1);
@@ -63,6 +61,15 @@ describe("Terra Solaris public membership chronicle", () => {
     expect(() => normalizeWorldChronicleOrganizationSlug("guard,visibility.eq.private")).toThrow();
     expect(() => normalizeWorldChronicleCountryCode("../OLA")).toThrow();
     expect(WORLD_MEMBERSHIP_CHRONICLE_PAGE_SIZE).toBe(16);
+  });
+  it("requires explicit public status from every organization identity", () => {
+    expect(() => parseWorldChronicleInstitutions([{ ...organizations[0], public_visibility: "private" }])).toThrow(/visibility/);
+    expect(() => parseWorldChronicleInstitutions([{ id: "guard", slug: "guard", short_name: "GUARD" }])).toThrow(/visibility/);
+    expect(parseWorldChronicleInstitutions(organizations)).toHaveLength(2);
+  });
+  it("rejects inconsistent page-count claims and oversized rows", () => {
+    expect(() => parseWorldMembershipChronicle({ ...projection([active]), count: 0 })).toThrow(/page count/);
+    expect(() => parseWorldMembershipChronicle(projection(Array(17).fill(active)))).toThrow(/page count/);
   });
   it("rejects private organization metadata and invalid image protocols", () => {
     expect(() => parseWorldChronicleInstitutions([{ id: "x", slug: "../hidden", short_name: "Hidden" }])).toThrow();

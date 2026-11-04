@@ -101,6 +101,9 @@ export function parseWorldChronicleInstitutions(raw: unknown): WorldChronicleIns
       slug: normalizeWorldChronicleOrganizationSlug(required(row.slug, "institution slug")),
       shortName: required(row.short_name, "institution name"),
     };
+    if (row.public_visibility !== "public") {
+      throw new Error("Unverified public institution visibility");
+    }
     if (seen.has(institution.id)) throw new Error("Duplicate public institution");
     seen.add(institution.id);
     return institution;
@@ -120,6 +123,11 @@ export function parseWorldMembershipChronicle(input: {
   }
   if (!Number.isSafeInteger(input.page) || input.page < 0) {
     throw new Error("Invalid institutional membership history page");
+  }
+  const membershipRows = list(input.rows, "memberships");
+  if (membershipRows.length > WORLD_MEMBERSHIP_CHRONICLE_PAGE_SIZE ||
+      input.page * WORLD_MEMBERSHIP_CHRONICLE_PAGE_SIZE + membershipRows.length > (input.count as number)) {
+    throw new Error("Inconsistent institutional membership page count");
   }
   const publicInstitutions = new Map(
     parseWorldChronicleInstitutions(input.organizations).map((institution) => [institution.id, institution])
@@ -143,7 +151,7 @@ export function parseWorldMembershipChronicle(input: {
   const seen = new Set<string>();
   const records: WorldChronicleMembership[] = [];
 
-  for (const item of list(input.rows, "memberships")) {
+  for (const item of membershipRows) {
     const row = record(item, "membership");
     const id = required(row.id, "membership id");
     if (seen.has(id)) throw new Error("Duplicate institutional membership");
@@ -153,7 +161,11 @@ export function parseWorldMembershipChronicle(input: {
     // Never reveal a membership to an organization that cannot be resolved
     // as published, even if an upstream projection becomes overpermissive.
     const organization = publicInstitutions.get(organizationId);
-    if (!organization) continue;
+    if (!organization) {
+      // A missing public institution cannot be silently counted as a visible
+      // membership; fail closed instead of rendering an inconsistent total.
+      throw new Error("Unverified public membership institution");
+    }
     const country = countries.get(countryId);
     if (!country) throw new Error("Published membership has no verifiable country identity");
 

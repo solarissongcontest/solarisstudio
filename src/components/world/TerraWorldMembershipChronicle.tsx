@@ -162,6 +162,11 @@ export function TerraWorldMembershipChronicle() {
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               An empty history does not mean a country never participated in an institution. Unrecorded or unpublished activity is deliberately not inferred.
             </p>
+            {page > 0 && history.data.total > 0 ? (
+              <button type="button" className="mt-4 min-h-11 text-sm font-semibold text-primary underline" onClick={() => setPage(0)}>
+                Return to first page
+              </button>
+            ) : null}
             {(organization || country || scope !== "all") ? (
               <button type="button" className="mt-4 min-h-11 text-sm font-semibold text-primary underline" onClick={() => {
                 setCountryDraft(""); setCountry(""); setOrganization(""); setScope("all"); setPage(0);
