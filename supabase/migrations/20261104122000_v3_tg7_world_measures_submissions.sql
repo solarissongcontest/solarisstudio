@@ -138,6 +138,28 @@ alter table public.world_measures
     foreign key(current_version_id,id) references public.world_measure_versions(id,measure_id)
     on delete restrict deferrable initially deferred;
 
+-- A registered identifier and the sponsor/institution identity are permanent.
+-- No privileged repair script may silently rewrite historical attribution.
+create or replace function public.world_measure_identity_guard_v1()
+returns trigger language plpgsql set search_path=pg_catalog
+as $measure_identity$
+begin
+ if (old.organization_id,old.organ_id,old.sponsor_country_id,
+     old.measure_type,old.category_code) is distinct from
+    (new.organization_id,new.organ_id,new.sponsor_country_id,
+     new.measure_type,new.category_code)
+ then raise exception using errcode='23514',message='IMMUTABLE_MEASURE_IDENTITY'; end if;
+ if old.identifier is not null and old.identifier is distinct from new.identifier
+ then raise exception using errcode='23514',message='IMMUTABLE_MEASURE_IDENTIFIER'; end if;
+ if old.registered_at is not null and old.registered_at is distinct from new.registered_at
+ then raise exception using errcode='23514',message='IMMUTABLE_MEASURE_REGISTRATION'; end if;
+ return new;
+end
+$measure_identity$;
+create trigger world_measure_identity_guard
+before update on public.world_measures
+for each row execute function public.world_measure_identity_guard_v1();
+
 create or replace function public.world_measure_version_immutable_v1()
 returns trigger language plpgsql set search_path=pg_catalog
 as $immutable$
@@ -330,7 +352,8 @@ begin
  ) values(v_measure_id,1,btrim(p_title),btrim(p_full_text),
    nullif(btrim(coalesce(p_summary,'')),''),'submission',
    encode(pg_catalog.sha256(pg_catalog.convert_to(
-     btrim(p_title)||E'\n'||btrim(p_full_text),'UTF8')),'hex'))
+     btrim(p_title)||E'\n'||btrim(p_full_text)||E'\n'||
+     coalesce(btrim(p_summary),''),'UTF8')),'hex'))
  returning id into v_version_id;
  update public.world_measures set current_version_id=v_version_id where id=v_measure_id;
  perform private.v3_emit_domain_event(
@@ -388,6 +411,24 @@ begin
    (length(btrim(coalesce(p_procedural_note,'')))<8 or length(p_procedural_note)>500)
  then raise exception using errcode='22023',message='PROCEDURAL_NOTE_REQUIRED'; end if;
  if p_target_state='registered' then
+   -- Eligibility and active organ status may have changed after submission.
+   if not exists (select 1 from public.world_organization_memberships membership
+      where membership.organization_id=v_measure.organization_id
+        and membership.country_id=v_measure.sponsor_country_id
+        and membership.ended_at is null and membership.status='member')
+   then raise exception using errcode='23514',message='SPONSOR_NOT_MEMBER'; end if;
+   if not exists (select 1 from public.world_organization_organs g
+      join public.world_organizations o on o.id=g.organization_id
+      where g.id=v_measure.organ_id and g.organization_id=v_measure.organization_id
+        and g.status='active' and o.status='active')
+   then raise exception using errcode='23514',message='INVALID_ORGAN'; end if;
+   if v_measure.category_code is not null and not exists (
+      select 1 from public.world_measure_categories category
+      where category.organization_id=v_measure.organization_id
+        and category.code=v_measure.category_code and category.active
+        and (category.effective_from is null or category.effective_from<=now())
+        and (category.effective_to is null or category.effective_to>now())
+   ) then raise exception using errcode='22023',message='INVALID_CATEGORY'; end if;
    if nullif(btrim(p_identifier),'') is null or length(btrim(p_identifier))>160
    then raise exception using errcode='22023',message='IDENTIFIER_REQUIRED'; end if;
    select slug into v_slug from public.world_organizations where id=v_measure.organization_id;
@@ -477,7 +518,8 @@ begin
    nullif(btrim(coalesce(p_summary,'')),''),'procedural_correction',
    v_measure.current_version_id,
    encode(pg_catalog.sha256(pg_catalog.convert_to(
-     btrim(p_title)||E'\n'||btrim(p_full_text),'UTF8')),'hex'))
+     btrim(p_title)||E'\n'||btrim(p_full_text)||E'\n'||
+     coalesce(btrim(p_summary),''),'UTF8')),'hex'))
  returning id into v_version_id;
  update public.world_measures set current_version_id=v_version_id,
    title=btrim(p_title),state='submitted',procedural_note=null,
@@ -498,7 +540,8 @@ begin
 end
 $measure_resubmit$;
 
-revoke all on function public.world_measure_version_immutable_v1(),
+revoke all on function public.world_measure_identity_guard_v1(),
+  public.world_measure_version_immutable_v1(),
   public.world_measure_public_list_v1(text,integer),
   public.world_measure_public_detail_v1(uuid),
   public.world_measure_manage_v1(uuid),
@@ -527,3 +570,4 @@ $contract$;
 
 notify pgrst,'reload schema';
 commit;
+
