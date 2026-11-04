@@ -6,12 +6,17 @@
 export function createSecureClientId(): string {
   try {
     if (typeof globalThis.crypto === "undefined") return "";
-    if (typeof globalThis.crypto.randomUUID === "function") {
-      return globalThis.crypto.randomUUID();
+    // randomUUID can be unavailable or throw outside a secure browser context.
+    // getRandomValues remains a secure fallback in older browsers.
+    try {
+      if (typeof globalThis.crypto.randomUUID === "function") {
+        return globalThis.crypto.randomUUID();
+      }
+    } catch {
+      // Try the cryptographic byte generator below.
     }
     if (typeof globalThis.crypto.getRandomValues !== "function") return "";
 
-    // Older browsers may expose getRandomValues without randomUUID.
     const bytes = new Uint8Array(16);
     globalThis.crypto.getRandomValues(bytes);
     bytes[6] = (bytes[6]! & 0x0f) | 0x40;
