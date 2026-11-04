@@ -3,6 +3,8 @@
  * This module owns no legal truth, access decision, publication or mutations.
  * Do not infer a successful command from a transport response alone.
  */
+import { parseWorldDocumentProvisions, type WorldDocumentProvision } from "./world-document-provisions";
+
 export const WORLD_DOCUMENT_KINDS = [
   "charter", "rulebook", "annex", "treaty", "protocol",
   "procedural_rules", "report", "minutes", "communique", "other",
@@ -32,12 +34,15 @@ export type WorldDocumentDraftSnapshot = {
   organization: { organizationId: string; slug: string; officialName: string };
   allowedActions: { manage: boolean; publish: boolean };
   hasUnpublishedDraft: boolean;
+  pendingDraft: { versionId: string; versionNumber: number; title: string } | null;
   version: null | {
     versionId: string;
     versionNumber: number;
     revision: number | null;
     title: string;
     plainText: string;
+    structuredContent: Record<string, unknown>;
+    provisions: WorldDocumentProvision[];
     publicationState: string;
     effectiveFrom: string | null;
   };
@@ -133,13 +138,23 @@ export function parseWorldDocumentDraftSnapshot(value: unknown): WorldDocumentDr
   if (canManage && !Array.isArray(root.history)) {
     throw new Error("Cannot edit without canonical legal-version history.");
   }
-  const hasUnpublishedDraft = canManage && (root.history as unknown[]).some((item) => {
+  const pendingDrafts = canManage ? (root.history as unknown[]).flatMap((item) => {
     const history = record(item);
     if (!history || !str(history.publicationState)) {
       throw new Error("The canonical legal-version history is invalid.");
     }
-    return history.publicationState === "draft";
-  });
+    if (history.publicationState !== "draft") return [];
+    if (!str(history.versionId) || !revision(history.versionNumber) || !str(history.title)) {
+      throw new Error("The unpublished draft is missing canonical version identity.");
+    }
+    return [{
+      versionId: history.versionId as string,
+      versionNumber: history.versionNumber as number,
+      title: history.title as string,
+    }];
+  }) : [];
+  const pendingDraft = [...pendingDrafts].sort((a, b) => b.versionNumber - a.versionNumber)[0] ?? null;
+  const hasUnpublishedDraft = pendingDraft !== null;
   if (canManage && !revision(root.revision)) {
     throw new Error("Cannot edit without the current document revision.");
   }
@@ -147,6 +162,7 @@ export function parseWorldDocumentDraftSnapshot(value: unknown): WorldDocumentDr
   if (root.version != null &&
       (!v || !str(v.versionId) || !revision(v.versionNumber) || !str(v.title) ||
        typeof v.plainText !== "string" || !str(v.publicationState) ||
+       !record(v.structuredContent) || !Array.isArray(v.provisions) ||
        (canManage && !revision(v.revision)))) {
     throw new Error("The document version returned invalid revision evidence.");
   }
@@ -162,12 +178,15 @@ export function parseWorldDocumentDraftSnapshot(value: unknown): WorldDocumentDr
     },
     allowedActions: { manage: canManage, publish: actions.publish as boolean },
     hasUnpublishedDraft,
+    pendingDraft,
     version: v ? {
       versionId: v.versionId as string,
       versionNumber: v.versionNumber as number,
       revision: revision(v.revision),
       title: v.title as string,
       plainText: v.plainText as string,
+      structuredContent: v.structuredContent as Record<string, unknown>,
+      provisions: parseWorldDocumentProvisions(v.provisions),
       publicationState: v.publicationState as string,
       effectiveFrom: typeof v.effectiveFrom === "string" ? v.effectiveFrom : null,
     } : null,
