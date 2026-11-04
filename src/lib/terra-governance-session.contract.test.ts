@@ -95,7 +95,8 @@ describe("TG6 institutional session/agenda authority contracts", () => {
     expect(lifecycle).toMatch(/world_access_allowed\(\s*'world\.session\.manage'/);
     expect(lifecycle).toMatch(/'scheduled' and p_target_status in \('open','cancelled'\)/);
     expect(lifecycle).toMatch(/'recessed' and p_target_status in \('open','concluded'\)/);
-    expect(lifecycle).toMatch(/world\.session\.transitioned/);
+    expect(lifecycle).toMatch(/world\.session\.opened/);
+    expect(lifecycle).toMatch(/world\.session\.closed/);
     expect(publish).toMatch(/world_access_allowed\(\s*'world\.agenda\.manage'/);
     expect(publish).toMatch(/v_item\.state <> 'draft'/);
     expect(publish).toMatch(/world\.agenda\.published/);
