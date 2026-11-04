@@ -1,0 +1,173 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  currentMembershipPeriod,
+  currentRepresentativePeriods,
+  isWorldMembershipRoute,
+  readWorldCountryMembership,
+} from "./world-membership-history";
+
+const original = {
+  organization: {
+    id: "organization-1",
+    slug: "guard",
+    officialName: "Global Union for Allied Resilience and Defence",
+    shortName: "GUARD",
+    userId: "secret",
+  },
+  organs: [],
+  memberships: [
+    {
+      id: "past",
+      countryId: "country-a",
+      membershipType: "member",
+      status: "withdrawn",
+      joinedAt: "2024-01-01T00:00:00Z",
+      endedAt: "2025-01-01T00:00:00Z",
+      sourceUserId: "secret",
+    },
+    {
+      id: "present",
+      countryId: "country-a",
+      membershipType: "observer",
+      status: "observer",
+      joinedAt: "2026-01-01T00:00:00Z",
+      endedAt: null,
+    },
+    {
+      id: "foreign",
+      countryId: "country-b",
+      membershipType: "member",
+      status: "member",
+      joinedAt: "2026-01-01T00:00:00Z",
+      endedAt: null,
+    },
+  ],
+  representatives: [
+    {
+      id: "former-representative",
+      countryId: "country-a",
+      displayName: "Former Person",
+      role: "representative",
+      votingAuthority: true,
+      startsAt: "2024-01-01T00:00:00Z",
+      endsAt: "2025-01-01T00:00:00Z",
+      personId: "secret",
+      userId: "secret",
+    },
+    {
+      id: "current-representative",
+      countryId: "country-a",
+      displayName: "Current Person",
+      role: "representative",
+      votingAuthority: true,
+      startsAt: "2026-01-01T00:00:00Z",
+      endsAt: null,
+    },
+    {
+      id: "foreign-representative",
+      countryId: "country-b",
+      displayName: "Other Country",
+      role: "representative",
+      votingAuthority: true,
+      startsAt: "2026-01-01T00:00:00Z",
+      endsAt: null,
+    },
+  ],
+  offices: [
+    {
+      id: "guard-chair",
+      title: "GUARD Chairperson",
+      currentTerm: {
+        representedCountryId: "country-a",
+        holderDisplayName: "Current Person",
+        holderUserId: "secret",
+      },
+    },
+    {
+      id: "other-office",
+      title: "Other office",
+      currentTerm: {
+        representedCountryId: "country-b",
+        holderDisplayName: "Other Country",
+      },
+    },
+    { id: "vacant-office", title: "Vacant", currentTerm: null },
+  ],
+  privateGrant: { capability: "world.office.manage" },
+};
+
+describe("institution/country public membership history", () => {
+  it("preserves current and concluded membership from one exact country only", () => {
+    const result = readWorldCountryMembership(original, "guard", "country-a")!;
+    expect(result.organizationName).toBe("GUARD");
+    expect(result.membership.map((period) => period.id)).toEqual(["present", "past"]);
+    expect(currentMembershipPeriod(result.membership)?.status).toBe("observer");
+    expect(result.representations.map((period) => period.id)).toEqual([
+      "current-representative", "former-representative",
+    ]);
+    expect(currentRepresentativePeriods(result.representations).map((row) => row.id))
+      .toEqual(["current-representative"]);
+    expect(result.currentOffices).toEqual([{
+      id: "guard-chair",
+      title: "GUARD Chairperson",
+      holderName: "Current Person",
+    }]);
+  });
+
+  it("drops private/auth/proxy fields even when the upstream projection adds them", () => {
+    const result = readWorldCountryMembership(original, "guard", "country-a");
+    expect(JSON.stringify(result)).not.toMatch(/secret|userId|personId|privateGrant|capability|proxy/i);
+  });
+
+  it("does not invent memberships, representatives or offices for an unrelated country", () => {
+    const result = readWorldCountryMembership(original, "guard", "country-c")!;
+    expect(result.membership).toEqual([]);
+    expect(result.representations).toEqual([]);
+    expect(result.currentOffices).toEqual([]);
+    expect(currentMembershipPeriod(result.membership)).toBeNull();
+  });
+
+  it("does not confuse private/missing organizations with empty public membership", () => {
+    expect(readWorldCountryMembership(null, "guard", "country-a")).toBeNull();
+    expect(() => readWorldCountryMembership(original, "unity", "country-a"))
+      .toThrow("Organization identity changed");
+    expect(() => readWorldCountryMembership({ organization: original.organization }, "guard", "country-a"))
+      .toThrow("memberships");
+  });
+
+  it("fails closed on contradictory membership ranges and unfamiliar statuses", () => {
+    const withMember = (value: Record<string, unknown>) => ({
+      ...original,
+      memberships: [{ ...original.memberships[1], ...value }],
+    });
+    expect(() => readWorldCountryMembership(withMember({
+      status: "withdrawn", endedAt: null,
+    }), "guard", "country-a")).toThrow("Contradictory");
+    expect(() => readWorldCountryMembership(withMember({
+      status: "member", endedAt: "2025-01-01T00:00:00Z",
+    }), "guard", "country-a")).toThrow("Contradictory");
+    expect(() => readWorldCountryMembership(withMember({
+      status: "secret", endedAt: null,
+    }), "guard", "country-a")).toThrow("membership state");
+    expect(() => readWorldCountryMembership(withMember({
+      joinedAt: "tomorrowish",
+    }), "guard", "country-a")).toThrow("joinedAt");
+  });
+
+  it("does not treat a concluded representative as current", () => {
+    const result = readWorldCountryMembership({
+      ...original,
+      representatives: [original.representatives[0]],
+    }, "guard", "country-a")!;
+    expect(currentRepresentativePeriods(result.representations)).toEqual([]);
+  });
+
+  it("rejects malformed routes without creating a backend request", () => {
+    expect(isWorldMembershipRoute("guard", "OL")).toBe(true);
+    expect(isWorldMembershipRoute("unity", "OL-2")).toBe(true);
+    expect(isWorldMembershipRoute("../guard", "OL")).toBe(false);
+    expect(isWorldMembershipRoute("guard", "OL),status.eq.member")).toBe(false);
+    expect(isWorldMembershipRoute("guard", "x".repeat(100))).toBe(false);
+  });
+});
