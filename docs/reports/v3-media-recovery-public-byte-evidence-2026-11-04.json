@@ -37,5 +37,56 @@
     "The uploader-generated SHA-256 values establish consistency between the archive and its manifest, not independently signed byte provenance from Supabase.",
     "Live source SQL separately matched all 54 bucket/key/size/MIME metadata records.",
     "V3 release authorization, destination access and per-asset public release clearance remain outstanding."
+  ],
+  "destination_project_connection_verified": true,
+  "destination_project_status": "ACTIVE_HEALTHY",
+  "destination_bucket_inventory": {
+    "country_media": {
+      "count": 0,
+      "public": true,
+      "max_file_bytes": 8388608
+    },
+    "edition_artwork": {
+      "count": 0,
+      "public": true,
+      "max_file_bytes": 15728640
+    },
+    "country_fonts": {
+      "count": 0,
+      "public": true
+    },
+    "beta_feedback": {
+      "count": 0,
+      "public": false
+    },
+    "integrity_evidence": {
+      "count": 0,
+      "public": false
+    },
+    "solaris_upload_quarantine": {
+      "count": 0,
+      "public": false
+    }
+  },
+  "canonical_owner_ids_matched": {
+    "country_ids": 15,
+    "edition_ids": 7
+  },
+  "v3_reference_snapshot": {
+    "country_media_rows": 0,
+    "edition_artwork_paths": 0,
+    "edition_artwork_urls": 0,
+    "country_theme_background_image_paths": 0,
+    "country_theme_background_image_urls": 0,
+    "studio2_media_asset_review_rows": 0,
+    "studio2_upload_authorization_rows": 0,
+    "seven_edition_owners_published": true
+  },
+  "destination_project_binary_upload_capability": "not_exposed_by_current_supabase_connector",
+  "production_write_authorized": false,
+  "offline_operator_archive_preflight": "passed_with_no_production_requests",
+  "additional_limitations": [
+    "Application-layer public image ceiling 5 MiB still requires validation/exception review despite 8 MiB Storage bucket cap.",
+    "Recovered image-owner matches do not themselves authorize republication or DB-reference writes."
   ]
 }
