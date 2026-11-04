@@ -1,0 +1,40 @@
+name: V3 Participant Integrity idempotency rehearsal
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/*v3_integrity_participant_idempotency_current_main.sql"
+      - "scripts/rehearse-v3-integrity-idempotency.sh"
+      - "src/lib/v3-integrity-participant-idempotency.contract.test.ts"
+      - ".github/workflows/v3-integrity-idempotency-rehearsal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-integrity-idempotency-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-idempotency:
+    name: Isolated anonymous Integrity replay and privacy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Prove anonymous exact-once and private ledger on disposable database
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local --no-seed
+          bash scripts/rehearse-v3-integrity-idempotency.sh
+      - name: Stop local Supabase without backup
+        if: always()
+        run: supabase stop --no-backup || true

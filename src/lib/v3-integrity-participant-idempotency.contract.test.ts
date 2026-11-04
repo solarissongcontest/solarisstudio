@@ -11,6 +11,27 @@ const migration = readFileSync(
 );
 
 describe("V3 participant Integrity retry authority", () => {
+  it("rehearses real anonymous replay and semantic conflict without contacting hosted Supabase", () => {
+    const runner = readFileSync(resolve(process.cwd(), "scripts/rehearse-v3-integrity-idempotency.sh"), "utf8");
+    const workflow = readFileSync(resolve(process.cwd(), ".github/workflows/v3-integrity-idempotency-rehearsal.yml"), "utf8");
+    for (const item of [
+      "Refusing hosted Supabase API",
+      "Refusing hosted Supabase database",
+      "Initial anonymous report failed",
+      "Identical request did not replay",
+      "Retry allocated a second case",
+      "Retry did not recover same secret",
+      "Changed semantic request was accepted",
+      "Different operation identity reused",
+      "PRIVATE_REPLAY_LEDGER_PUBLICLY_READABLE",
+      "ANONYMOUS_REPLAY_LEDGER_NOT_PRIVATE_OR_COMPLETE",
+    ]) expect(runner).toContain(item);
+    expect(workflow).toContain("supabase db reset --local --no-seed");
+    expect(workflow).toContain("supabase stop --no-backup");
+    expect(workflow).toContain("github.event.pull_request.head.sha");
+    expect(workflow).not.toContain("secrets.");
+  });
+
   it("registers an S13 forward-fix contract and avoids a second case write model", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain("'v3.integrity.participant-case-idempotency'");
