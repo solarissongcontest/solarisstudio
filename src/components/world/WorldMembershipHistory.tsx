@@ -29,8 +29,8 @@ function LoadingMembership({ message }: { message: string }) {
   return (
     <div role="status" className="space-y-3 py-8" aria-live="polite">
       <p className="text-sm text-muted-foreground">{message}</p>
-      <div aria-hidden="true" className="h-14 animate-pulse rounded-lg bg-surface" />
-      <div aria-hidden="true" className="h-14 animate-pulse rounded-lg bg-surface" />
+      <div aria-hidden="true" className="h-14 motion-safe:animate-pulse rounded-lg bg-surface" />
+      <div aria-hidden="true" className="h-14 motion-safe:animate-pulse rounded-lg bg-surface" />
     </div>
   );
 }
