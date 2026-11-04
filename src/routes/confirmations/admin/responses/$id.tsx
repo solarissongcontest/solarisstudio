@@ -860,6 +860,7 @@ function ResponseDetailPage() {
     syncInFlightRef.current = true;
     const requestedGeneration = responseLoadGenerationRef.current;
     const reviewedSnapshot = JSON.stringify(data);
+    let mutationStarted = false;
     const isStillCurrent = () =>
       requestedGeneration === responseLoadGenerationRef.current &&
       currentScopeRef.current.responseId === id &&
@@ -881,6 +882,7 @@ function ResponseDetailPage() {
         setSyncReviewOpen(false);
         throw new Error("This Confirmation changed since it was reviewed. Reload the exact edition and review its current state before applying.");
       }
+      mutationStarted = true;
       const result = await syncSnapshot(liveDetail);
       if (!isStillCurrent()) {
         toast.warning("Reconciliation completed after an edition switch. Verify the previous edition's canonical state before retrying.");
@@ -890,10 +892,16 @@ function ResponseDetailPage() {
         toast.error(result.message ?? "Solaris sync needs attention. Reconcile the current state before retrying.");
       }
     } catch (caught) {
-      toast.error(
-        (caught instanceof Error ? caught.message : "Could not sync with Solaris Studio") +
-        " Inspect the canonical state before retrying an uncertain operation.",
-      );
+      const message = caught instanceof Error ? caught.message : "Could not sync with Solaris Studio";
+      if (isStillCurrent()) {
+        toast.error(
+          mutationStarted
+            ? message + " Inspect the canonical state before retrying an uncertain operation."
+            : message,
+        );
+      } else if (mutationStarted) {
+        toast.warning("A previous edition's reconciliation may have completed. Inspect its canonical state before retrying.");
+      }
     } finally {
       syncInFlightRef.current = false;
       setSyncReviewOpen(false);
