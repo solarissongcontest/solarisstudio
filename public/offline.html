@@ -297,9 +297,6 @@
       const activeTab = navigation && typeof navigation.activeTab === "string"
         ? navigation.activeTab
         : null;
-      const current = activeTab && navigation.tabs && navigation.tabs[activeTab]
-        ? navigation.tabs[activeTab].current
-        : null;
       if (activeTab) {
         const panel = document.getElementById("last-screen-panel");
         const copy = document.getElementById("last-screen-copy");
@@ -307,24 +304,58 @@
           panel.hidden = false;
           const names = { home: "Home", explore: "Explore", participate: "Participate", results: "Results", me: "Me" };
           copy.textContent = names[activeTab] || "Solaris Studio";
-          if (current && typeof current.pathname === "string") panel.dataset.path = current.pathname;
         }
       }
 
+      // This static offline document cannot import the public TypeScript router.
+      // Keep an intentionally narrow subset of the public-recents allowlist:
+      // entity/reference details only, never account or critical-task history.
+      // Validate legacy storage at DISPLAY time, not just when writing it.
+      const OFFLINE_PUBLIC_DETAILS = [
+        /^\/(?:countries|editions|shows|stories|wiki|encyclopedia|songs|artists)\/[^/?#]+\/?$/,
+        /^\/televoting\/results\/?$/,
+        /^\/rules\/(?:chapters|participating|interpretations|changes|answers)(?:\/[^/?#]+)?\/?$/,
+        // Published individual rules use numeric and dotted section IDs (e.g. /rules/22.1).
+        /^\/rules\/[0-9]+(?:\.[0-9]+)*\/?$/,
+      ];
+
+      const isSafeOfflinePublicPath = (candidate) => {
+        if (typeof candidate !== "string" || !candidate || candidate.length > 2048) return false;
+        try {
+          const decoded = decodeURIComponent(candidate);
+          if (
+            !candidate.startsWith("/") ||
+            candidate.startsWith("//") ||
+            decoded.includes("//") ||
+            decoded.includes("\\") ||
+            decoded.includes("?") ||
+            decoded.includes("#") ||
+            /\/(?:\.{1,2})(?:\/|$)/.test(decoded) ||
+            /[\u0000-\u001f\u007f]/.test(decoded) ||
+            /\/%(?:2f|5c|00)/i.test(candidate) ||
+            /%(?:25(?:2e|2f|5c|3f|23)|00)/i.test(candidate) ||
+            candidate.split("/").length !== decoded.split("/").length
+          ) return false;
+          return OFFLINE_PUBLIC_DETAILS.some((pattern) => pattern.test(candidate));
+        } catch {
+          return false;
+        }
+      };
+
       const makeRow = (item, type) => {
-        if (!item || typeof item.label !== "string") return null;
+        // Invalid records must disappear, including their labels. Redirecting
+        // their links to Explore while still rendering a private title leaks it.
+        if (
+          !item ||
+          !isSafeOfflinePublicPath(item.path) ||
+          typeof item.label !== "string" ||
+          !item.label.trim() ||
+          item.label.length > 250 ||
+          /[\u0000-\u001f\u007f]/.test(item.label)
+        ) return null;
         const button = document.createElement("a");
         button.className = "row";
-        if (
-          typeof item.path === "string" &&
-          item.path.startsWith("/") &&
-          !item.path.startsWith("//") &&
-          !item.path.includes("\\")
-        ) {
-          button.href = item.path;
-        } else {
-          button.href = "/explore";
-        }
+        button.href = item.path;
         const text = document.createElement("span");
         const label = document.createElement("strong");
         label.textContent = item.label;
@@ -354,22 +385,29 @@
           ...(Array.isArray(index.shows) ? index.shows.slice(0, 5).map((item) => [item, "Show"]) : []),
           ...(Array.isArray(index.countries) ? index.countries.slice(0, 8).map((item) => [item, "Country"]) : []),
         ];
+        let savedCount = 0;
         for (const [item, type] of items) {
           const row = makeRow(item, type);
-          if (row) savedList.append(row);
+          if (!row) continue;
+          savedList.append(row);
+          savedCount += 1;
         }
-        if (!items.length) savedList.innerHTML = '<p class="empty">No saved public index is available yet.</p>';
+        if (!savedCount) savedList.innerHTML = '<p class="empty">No saved public index is available yet.</p>';
       }
 
       const recents = safeParse("solaris:public-recents");
       const recentList = document.getElementById("recent-list");
-      if (recentList && Array.isArray(recents)) {
+      if (recentList) {
         let count = 0;
-        for (const item of recents.slice(0, 8)) {
+        // Filter before applying the eight-entry display limit. Old private
+        // rows cannot crowd out legitimate public recents on shared devices.
+        for (const item of (Array.isArray(recents) ? recents.slice(0, 64) : [])) {
+          if (!item || typeof item.visitedAt !== "number") continue;
           const row = makeRow(item, "Recent");
           if (!row) continue;
           recentList.append(row);
           count += 1;
+          if (count === 8) break;
         }
         if (!count) recentList.innerHTML = '<p class="empty">No recent public pages are stored on this device.</p>';
       }
