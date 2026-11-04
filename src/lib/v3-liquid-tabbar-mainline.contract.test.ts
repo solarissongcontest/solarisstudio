@@ -126,6 +126,19 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(tabs).toContain('root.style.setProperty("--solaris-bottom-obstruction"');
   });
 
+  it("preserves merged #2001 legacy-route bottom clearance without resizing the dock", () => {
+    const geometry = source("src/styles/v3-navigation-fixed-geometry.css");
+    const adapter = source("src/components/v3/V3LegacyRouteShell.tsx");
+
+    expect(adapter).toContain('data-v3-legacy-bottom-clearance=""');
+    expect(geometry).toContain(".v3-legacy-route-bottom-clearance");
+    expect(geometry).toContain("var(--v3-bottom-obstruction, 0px) + 24px");
+    expect(geometry).toContain("106px + env(safe-area-inset-bottom)");
+    expect(geometry).toContain("html[data-solaris-keyboard-open]");
+    expect(geometry).toContain("@media (min-width: 1024px)");
+    expect(geometry).toContain("--v3-nav-shell-height: 64px");
+  });
+
   it("keeps keyboard, Reduced Motion and Reduced Transparency fallbacks", () => {
     const liquidCss = source("src/styles/v3-liquid-tabbar.css");
     const responsiveCss = source("src/styles/v3-responsive-shell.css");
