@@ -137,4 +137,60 @@ expected_jury_visibility="$(printf '%s\n' 'anon_private=0' 'auth_private=0' 'ano
 [[ "$jury_visibility" == "$expected_jury_visibility" ]] ||
   fail "Raw Jury publication role matrix diverged from expected privacy/show boundary"
 
+log "Rehearsing raw Televote and voter publication with disposable local records"
+voting_visibility="$(psql "$DB_URL" -X -v ON_ERROR_STOP=1 -qAt <<SQL
+begin;
+insert into public.voters(id,edition_id,show_id,country_id,name,kind)
+values
+ ('00000000-0000-4000-8000-00000000aa27','$EDITION_ID',null,'$COUNTRY_ID','Legacy show-less voter','country'),
+ ('00000000-0000-4000-8000-00000000aa28','$EDITION_ID','$SHOW_ID','$COUNTRY_ID','Show voter','country');
+insert into public.televote_votes(id,edition_id,show_id,country_id,points)
+values
+ ('00000000-0000-4000-8000-00000000aa29','$EDITION_ID',null,'$COUNTRY_ID',3),
+ ('00000000-0000-4000-8000-00000000aa30','$EDITION_ID','$SHOW_ID','$COUNTRY_ID',4);
+set local role anon;
+select 'anon_tv_private=' || count(*) from public.televote_votes
+where id in ('00000000-0000-4000-8000-00000000aa29','00000000-0000-4000-8000-00000000aa30');
+select 'anon_voter_private=' || count(*) from public.voters
+where id in ('00000000-0000-4000-8000-00000000aa27','00000000-0000-4000-8000-00000000aa28');
+set local role authenticated;
+select 'auth_tv_private=' || count(*) from public.televote_votes
+where id in ('00000000-0000-4000-8000-00000000aa29','00000000-0000-4000-8000-00000000aa30');
+select 'auth_voter_private=' || count(*) from public.voters
+where id in ('00000000-0000-4000-8000-00000000aa27','00000000-0000-4000-8000-00000000aa28');
+set local role postgres;
+update public.shows set publication_config =
+  jsonb_set(coalesce(publication_config,'{}'::jsonb), '{detailed_voting}', 'true'::jsonb)
+where id='$SHOW_ID';
+set local role anon;
+select 'anon_tv_published=' || count(*) from public.televote_votes
+where id = '00000000-0000-4000-8000-00000000aa30';
+select 'anon_tv_showless=' || count(*) from public.televote_votes
+where id = '00000000-0000-4000-8000-00000000aa29';
+select 'anon_voter_published=' || count(*) from public.voters
+where id = '00000000-0000-4000-8000-00000000aa28';
+select 'anon_voter_showless=' || count(*) from public.voters
+where id = '00000000-0000-4000-8000-00000000aa27';
+set local role authenticated;
+select 'auth_tv_published=' || count(*) from public.televote_votes
+where id = '00000000-0000-4000-8000-00000000aa30';
+select 'auth_tv_showless=' || count(*) from public.televote_votes
+where id = '00000000-0000-4000-8000-00000000aa29';
+select 'auth_voter_published=' || count(*) from public.voters
+where id = '00000000-0000-4000-8000-00000000aa28';
+select 'auth_voter_showless=' || count(*) from public.voters
+where id = '00000000-0000-4000-8000-00000000aa27';
+rollback;
+SQL
+)"
+expected_voting_visibility="$(printf '%s\n' \
+  'anon_tv_private=0' 'anon_voter_private=0' \
+  'auth_tv_private=0' 'auth_voter_private=0' \
+  'anon_tv_published=1' 'anon_tv_showless=0' \
+  'anon_voter_published=1' 'anon_voter_showless=0' \
+  'auth_tv_published=1' 'auth_tv_showless=0' \
+  'auth_voter_published=1' 'auth_voter_showless=0')"
+[[ "$voting_visibility" == "$expected_voting_visibility" ]] ||
+  fail "Raw Televote/voter role matrix exposed unpublished or show-less records"
+
 log "System V3 Public Voting DNA publication-boundary rehearsal passed"

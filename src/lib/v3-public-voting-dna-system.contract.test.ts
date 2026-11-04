@@ -230,6 +230,20 @@ describe("V3 Public Voting DNA System publication boundary", () => {
     expect(rehearsal).toContain("rollback;");
   });
 
+  it("tests Televote and voter showless/public role matrices with transaction rollback", () => {
+    expect(rehearsal).toContain("Rehearsing raw Televote and voter publication");
+    expect(rehearsal).toContain("insert into public.televote_votes");
+    expect(rehearsal).toContain("insert into public.voters");
+    for (const marker of [
+      "anon_tv_private=0", "anon_voter_private=0", "auth_tv_private=0",
+      "auth_voter_private=0", "anon_tv_published=1", "anon_tv_showless=0",
+      "anon_voter_published=1", "anon_voter_showless=0",
+      "auth_tv_published=1", "auth_tv_showless=0",
+      "auth_voter_published=1", "auth_voter_showless=0",
+    ]) expect(rehearsal).toContain(marker);
+    expect(rehearsal).toContain("rollback;");
+  });
+
   it("rehearses the real caller boundary on local Supabase and fails closed against hosted endpoints", () => {
     expect(rehearsal).toContain("local_api_pattern='^http://(127[.]0[.]0[.]1|localhost):[0-9]+$'");
     expect(rehearsal).toContain("local_db_pattern='^postgres(ql)?://postgres:postgres@(127[.]0[.]0[.]1|localhost):[0-9]+/postgres$'");
