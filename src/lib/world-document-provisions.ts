@@ -34,7 +34,7 @@ export function parseWorldDocumentProvisions(input: unknown): WorldDocumentProvi
     const structured = object(row?.bodyStructured);
     if (!row || typeof row.semanticKey !== "string" ||
         typeof row.anchor !== "string" || typeof row.bodyPlainText !== "string" ||
-        !structured || !Number.isSafeInteger(row.sortOrder) ||
+        !structured || !Number.isSafeInteger(row.sortOrder) || (row.sortOrder as number) < 0 ||
         !["active", "repealed", "omitted"].includes(String(row.status)) ||
         (row.parentSemanticKey != null && typeof row.parentSemanticKey !== "string") ||
         (row.displayLabel != null && typeof row.displayLabel !== "string") ||
@@ -54,7 +54,7 @@ export function parseWorldDocumentProvisions(input: unknown): WorldDocumentProvi
     } as WorldDocumentProvision & { sortOrder: number };
   });
   provisions.sort((left, right) => left.sortOrder - right.sortOrder);
-  const validation = validateWorldDocumentProvisions(provisions, 1000);
+  const validation = validateWorldDocumentProvisions(provisions, 1000, 1_000_000, 2_000_000);
   if (validation) throw new Error("Canonical provisions are inconsistent: " + validation);
   return provisions.map(({ sortOrder: _sortOrder, ...rest }) => rest);
 }
@@ -62,6 +62,8 @@ export function parseWorldDocumentProvisions(input: unknown): WorldDocumentProvi
 export function validateWorldDocumentProvisions(
   rows: readonly WorldDocumentProvision[],
   maxItems = MAX_WORLD_PROVISIONS_IN_EDITOR,
+  maxBodyLength = 12000,
+  maxPayloadChars = 200000,
 ): string | null {
   if (rows.length > maxItems) return `Only ${maxItems} provisions can be edited in this workspace.`;
   const keys = new Set<string>();
@@ -79,7 +81,7 @@ export function validateWorldDocumentProvisions(
     keys.add(row.semanticKey);
     anchors.add(row.anchor);
     if (!object(row.bodyStructured) || row.heading.length > 240 ||
-        row.displayLabel.length > 80 || row.bodyPlainText.length > 12000 ||
+        row.displayLabel.length > 80 || row.bodyPlainText.length > maxBodyLength ||
         !["active", "repealed", "omitted"].includes(row.status)) {
       return `Provision ${index + 1}: text, label or status is invalid.`;
     }
@@ -104,7 +106,7 @@ export function validateWorldDocumentProvisions(
   }
   // Database caps JSONB at 1 MiB; bound characters below that even for UTF-8
   // multi-byte text (the server performs the authoritative byte-size check).
-  if (JSON.stringify(rows).length > 200000) {
+  if (JSON.stringify(rows).length > maxPayloadChars) {
     return "The legal provision payload is too large for this editor.";
   }
   return null;
