@@ -876,7 +876,7 @@ function ResponseDetailPage() {
       if (!isStillCurrent()) {
         throw new Error("Organizer edition changed during reconciliation preflight. Nothing was submitted.");
       }
-      const liveDetail = fresh.data as ResponseDetail | null;
+      const liveDetail = fresh.data as unknown as ResponseDetail | null;
       if (!isConfirmationDetailInOrganizerScope(liveDetail, id, organizerEditionId) ||
           JSON.stringify(liveDetail) !== reviewedSnapshot) {
         setSyncReviewOpen(false);
