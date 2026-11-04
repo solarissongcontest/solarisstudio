@@ -15,7 +15,7 @@ import {
   type ConfirmationEdition,
 } from "@/integrations/confirmations/admin";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
-import { isCurrentConfirmationResponsePage } from "@/lib/confirmation-response-page-guard";
+import { isActiveAcceptedConfirmationWinner, isCurrentConfirmationResponsePage } from "@/lib/confirmation-response-page-guard";
 import {
   loadConfirmationResponsesPage,
   type ConfirmationProjectionCursor,
@@ -166,8 +166,10 @@ function responseCardState(row: ResponseRow): CardState {
     const entries = activeNfEntries(row);
     if (!entries.length || row.nf_entries_unknown) return "neutral";
     if (entries.some((entry) => entry.review_status === "declined")) return "issue";
-    if (entries.some((entry) => !entry.review_status || entry.review_status === "pending")) return "review";
-    return row.national_finals?.winning_entry_id ? "ready" : "neutral";
+    if (entries.some((entry) => entry.review_status !== "accepted")) return "review";
+    const winnerId = row.national_finals?.winning_entry_id;
+    if (!winnerId) return "neutral";
+    return isActiveAcceptedConfirmationWinner(entries, winnerId) ? "ready" : "issue";
   }
   return "neutral";
 }
@@ -574,6 +576,9 @@ function ConfirmationResponsesList() {
             const internal = row.internal_entries;
             const nf = row.national_finals;
             const activeEntries = activeNfEntries(row);
+            const allEntriesAccepted = activeEntries.length > 0 &&
+              activeEntries.every((entry) => entry.review_status === "accepted");
+            const acceptedWinner = isActiveAcceptedConfirmationWinner(activeEntries, nf?.winning_entry_id);
             const entrySummary = !row.participating
               ? "Not participating"
               : row.selection_method === "internal"
@@ -584,7 +589,7 @@ function ConfirmationResponsesList() {
             return (
               <AdminCard key={row.id} className={`!p-4 transition-shadow ${cardGlow(state)}`}>
                 <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="admin-section-label">{row.editions ? `SSC ${row.editions.edition_number}` : "SSC"} · {row.submission_rounds?.name ?? "Confirmation"}</p><h2 className="mt-1 truncate text-lg font-bold tracking-[-.02em]">{row.country}</h2><p className="mt-1 truncate text-xs text-muted-foreground">@{row.instagram_username.replace(/^@/, "")}</p></div><StateBadge state={state} /></div>
-                <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.022] p-3"><p className="text-sm font-semibold leading-snug">{entrySummary}</p>{row.selection_method === "national_final" && activeEntries.length > 0 ? <p className="mt-1 text-xs text-muted-foreground">{nf?.winning_entry_id ? "National Final winner selected" : activeEntries.every((entry) => entry.review_status === "accepted") ? "All songs reviewed · waiting for winner" : "National Final songs still need review"}</p> : null}</div>
+                <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.022] p-3"><p className="text-sm font-semibold leading-snug">{entrySummary}</p>{row.selection_method === "national_final" && activeEntries.length > 0 ? <p className="mt-1 text-xs text-muted-foreground">{acceptedWinner && allEntriesAccepted ? "National Final winner selected" : nf?.winning_entry_id && !acceptedWinner ? "Winner selection needs review" : allEntriesAccepted ? "All songs reviewed · waiting for winner" : "National Final songs still need review"}</p> : null}</div>
                 <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>{new Date(row.submitted_at).toLocaleDateString()}</span><span>{row.locked ? "Locked" : row.editing_allowed ? "Editing allowed" : "Editing closed"}</span></div>
                 <Link to="/confirmations/admin/responses/$id" params={{ id: row.id }} className={state === "review" || state === "issue" ? "admin-action-primary mt-4 w-full" : "admin-action-secondary mt-4 w-full"}>{state === "review" ? "Review response" : state === "issue" ? "Fix response" : "Open response"}</Link>
               </AdminCard>
