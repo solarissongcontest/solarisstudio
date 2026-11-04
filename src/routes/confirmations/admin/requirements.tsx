@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, CircleAlert, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
@@ -164,7 +164,9 @@ function ConfirmationRequirementsPage() {
     },
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    // Update the imperative context before a settled mutation can touch the
+    // next edition's pending decision during the post-commit paint window.
     activeEditionRef.current = editionId;
     // A pending R2 decision belongs to the edition in which it was opened.
     // Never let an old sheet survive a global Organizer context switch.
