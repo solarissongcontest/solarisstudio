@@ -3,6 +3,7 @@ import {
   canonicalHistorySlug,
   historicalTermEditionLabel,
   loadPublicOfficeHistory,
+  loadWorldHistoryRolloutEnabled,
   OFFICE_HISTORY_PAGE_SIZE,
   parsePublicOfficeHistoryPage,
   type PublicOfficeTerm,
@@ -163,6 +164,26 @@ describe("TG3 public office-history projection contract", () => {
     expect(historicalTermEditionLabel({
       ...term, startEditionNumber: null, endEditionNumber: null,
     })).toBeNull();
+  });
+});
+
+describe("TG3 World rollout parity", () => {
+  it("uses the shared canonical feature flag and accepts only true", async () => {
+    api.rpc.mockResolvedValueOnce({ data: true, error: null });
+    expect(await loadWorldHistoryRolloutEnabled()).toBe(true);
+    expect(api.rpc).toHaveBeenCalledWith("studio2_feature_enabled", {
+      p_key: "terra_world_public", p_edition_id: null,
+    });
+    api.rpc.mockResolvedValueOnce({ data: false, error: null });
+    expect(await loadWorldHistoryRolloutEnabled()).toBe(false);
+    api.rpc.mockResolvedValueOnce({ data: null, error: null });
+    expect(await loadWorldHistoryRolloutEnabled()).toBe(false);
+  });
+
+  it("fails closed when canonical rollout cannot be verified", async () => {
+    api.rpc.mockResolvedValueOnce({ data: null, error: { message: "unavailable" } });
+    await expect(loadWorldHistoryRolloutEnabled())
+      .rejects.toThrow("World history availability cannot be verified");
   });
 });
 
