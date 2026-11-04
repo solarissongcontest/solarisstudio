@@ -27,10 +27,14 @@ export const Route = createFileRoute("/predictions/$showId")({
 
 function PredictionBuilderPage() {
   const { showId } = Route.useParams();
-  const { data: show } = useShow(showId);
-  const { data: participants } = useShowParticipants(showId);
-  const { data: countries } = useCountries();
-  const { data: entities } = useContestEntities(show?.edition_id);
+  const showQuery = useShow(showId);
+  const { data: show } = showQuery;
+  const participantsQuery = useShowParticipants(showId);
+  const { data: participants } = participantsQuery;
+  const countriesQuery = useCountries();
+  const { data: countries } = countriesQuery;
+  const entitiesQuery = useContestEntities(show?.edition_id);
+  const { data: entities } = entitiesQuery;
   const roundsQuery = usePredictionRounds(showId);
   const { data: roundData } = roundsQuery;
   const sessionQuery = useFanSession();
@@ -45,6 +49,12 @@ function PredictionBuilderPage() {
     roundsQuery,
     round ? sessionQuery : undefined,
     round && user ? savedPredictionQuery : undefined,
+    // The edit form also requires verified public show and entrant identity.
+    // A failed background refresh must not leave cached choices editable.
+    round && user ? showQuery : undefined,
+    round && user ? participantsQuery : undefined,
+    round && user ? countriesQuery : undefined,
+    round && user && show?.edition_id ? entitiesQuery : undefined,
   );
 
   const [winner, setWinner] = useState("");
@@ -240,7 +250,7 @@ function PredictionBuilderPage() {
     return (
       <AppShell>
         <p role="status" className="text-sm text-muted-foreground">
-          Checking the prediction round, your account and your saved entry…
+          Checking the prediction round, your account, saved entry and published choices…
         </p>
       </AppShell>
     );
@@ -256,9 +266,9 @@ function PredictionBuilderPage() {
         />
         <Panel title="Prediction status could not be verified">
           <p role="alert" className="text-sm leading-relaxed text-muted-foreground">
-            The published round, your account session or your existing prediction could not
-            be checked. Your selections remain on this page. Retry verification before submitting
-            or editing a saved prediction.
+            The published round, show entries, country identities, your account or your saved
+            prediction could not be checked. Your selections remain on this page. Retry
+            verification before submitting or editing a saved prediction.
           </p>
           <button
             type="button"
@@ -268,17 +278,63 @@ function PredictionBuilderPage() {
               if (round && user && savedPredictionQuery.isError) {
                 void savedPredictionQuery.refetch();
               }
+              if (showQuery.isError) void showQuery.refetch();
+              if (participantsQuery.isError) void participantsQuery.refetch();
+              if (countriesQuery.isError) void countriesQuery.refetch();
+              if (entitiesQuery.isError) void entitiesQuery.refetch();
             }}
             disabled={
               roundsQuery.isFetching ||
               sessionQuery.isFetching ||
-              savedPredictionQuery.isFetching
+              savedPredictionQuery.isFetching ||
+              showQuery.isFetching ||
+              participantsQuery.isFetching ||
+              countriesQuery.isFetching ||
+              entitiesQuery.isFetching
             }
             className="mt-3 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold text-foreground disabled:opacity-50"
           >
-            {roundsQuery.isFetching || sessionQuery.isFetching || savedPredictionQuery.isFetching
+            {roundsQuery.isFetching || sessionQuery.isFetching || savedPredictionQuery.isFetching ||
+              showQuery.isFetching || participantsQuery.isFetching || countriesQuery.isFetching ||
+              entitiesQuery.isFetching
               ? "Retrying…"
               : "Retry prediction status"}
+          </button>
+        </Panel>
+      </AppShell>
+    );
+  }
+
+  // A published round alone is not sufficient evidence of editable choices.
+  // Successful but empty/missing identity data must not produce a blank form.
+  if (round && user && (!show || !participants || !countries || !entities || options.length === 0)) {
+    return (
+      <AppShell>
+        <PredictionWorkspaceHeader
+          active="arena"
+          title="Prediction Arena"
+          description="Published prediction choices are not currently available."
+        />
+        <Panel title="Prediction choices unavailable">
+          <p role="status" className="text-sm leading-relaxed text-muted-foreground">
+            Solaris cannot display a verified list of eligible published entries for this show.
+            Your saved prediction is not treated as empty. Try again before editing or submitting picks.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              void showQuery.refetch();
+              void participantsQuery.refetch();
+              void countriesQuery.refetch();
+              if (show?.edition_id) void entitiesQuery.refetch();
+            }}
+            disabled={showQuery.isFetching || participantsQuery.isFetching ||
+              countriesQuery.isFetching || entitiesQuery.isFetching}
+            className="mt-3 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold text-foreground disabled:opacity-50"
+          >
+            {showQuery.isFetching || participantsQuery.isFetching ||
+              countriesQuery.isFetching || entitiesQuery.isFetching
+              ? "Retrying…" : "Retry published choices"}
           </button>
         </Panel>
       </AppShell>
