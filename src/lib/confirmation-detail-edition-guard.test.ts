@@ -22,6 +22,14 @@ describe("Organizer Confirmation detail edition isolation", () => {
   it("does not mutate canonical Solaris state merely by opening a response", () => {
     const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
     expect(source).not.toContain("await syncSnapshot(detail)");
+    const loadStart = source.indexOf("const load = useCallback(async () => {");
+    const loadEnd = source.indexOf("  useEffect(() => {\\n    void load();", loadStart);
+    expect(loadStart).toBeGreaterThan(-1);
+    expect(loadEnd).toBeGreaterThan(loadStart);
+    const readOnlyLoad = source.slice(loadStart, loadEnd);
+    expect(readOnlyLoad).not.toContain("syncSnapshot(");
+    expect(readOnlyLoad).not.toContain("syncToSolaris(");
+    expect(readOnlyLoad).not.toContain("syncConfirmationSnapshotToSolaris");
     expect(source).toContain("async function manualSync()");
     expect(source).toContain("const result = await syncSnapshot(liveDetail)");
     expect(source).toContain('const fresh = await confirmationsSupabase.rpc("admin_confirmation_response", {');
