@@ -24,7 +24,7 @@ describe("V3 Results reviewed-input CAS", () => {
     const publication = browserFixture.indexOf("source_result_version = 2,");
     expect(publication).toBeGreaterThan(-1);
     const postPublication = browserFixture.slice(publication);
-    expect(postPublication).not.toMatch(/update public\\.results\\s+set/i);
+    expect(postPublication).not.toMatch(/update public\.results\s+set/i);
     expect(postPublication).toContain("v3_public_published_result_snapshot");
     expect(postPublication).toContain("BROWSER_RESULT_VERSION_TWO_SNAPSHOT_MISMATCH");
     expect(postPublication).toContain("111222");
