@@ -89,7 +89,10 @@ describe("Governance OS v5 contract", () => {
     expect(home).toContain('to="/rules/chapters"');
     expect(chapter).not.toContain("overflow-x-auto");
     expect(journey).not.toContain("min-w-[58rem]");
-    expect(search).toContain("findGovernanceQuickAnswer");
+    const answerMatcher = source("src/lib/v3-rules-quick-answer-search.ts");
+    expect(search).toContain("findRuleSearchQuickAnswer");
+    expect(answerMatcher).toContain("GOVERNANCE_QUICK_ANSWERS");
+    expect(answerMatcher).toContain("ROLEPLAY_QUICK_ANSWERS");
   });
 
   it("uses a five-step sensitive Integrity service with review-before-submit and explicit anonymous recovery", () => {
