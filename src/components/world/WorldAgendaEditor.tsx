@@ -304,7 +304,7 @@ export function WorldAgendaEditor({ sessionId }: { sessionId: string }) {
                     </div>
                   </div>
                 ) : (
-                  <button type="submit" disabled={busy || Boolean(retryable.current) || !title.trim()}
+                  <button type="submit" disabled={busy || Boolean(retryable.current) || Boolean(pendingAction) || !title.trim()}
                     className="mt-4 min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">
                     Review item
                   </button>
