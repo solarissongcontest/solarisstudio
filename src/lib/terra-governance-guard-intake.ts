@@ -138,13 +138,17 @@ export async function submitGuardApplication(args: {
     p_idempotency_key: args.operation.idempotencyKey,
   });
   if (error) throw error;
-  if (!data || data.ok !== true || typeof data.applicationId !== "string") {
+  // The canonical operation RPC returns a *receipt envelope*, with the
+  // semantic result nested under result. A succeeded HTTP request is not enough.
+  const result = data?.result;
+  if (data?.status !== "succeeded" || result?.ok !== true ||
+      typeof result.applicationId !== "string") {
     throw new Error("The application response could not be verified. Check the server status before retrying.");
   }
   return {
-    applicationId: data.applicationId,
+    applicationId: result.applicationId,
     operationId: typeof data.operationId === "string" ? data.operationId : args.operation.operationId,
-    status: typeof data.status === "string" ? data.status : "submitted",
+    status: result.status === "submitted" ? "submitted" : "submitted",
   };
 }
 
