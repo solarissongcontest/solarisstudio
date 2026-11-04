@@ -19,7 +19,7 @@ describe("TG2 private organ / public office boundary", () => {
     expect(publicPolicy).toContain("for select to anon, authenticated");
     expect(publicPolicy).toContain("organization_row.public_visibility = 'public'");
     expect(publicPolicy).toContain("visible_organ.visibility = 'public'");
-    expect(publicPolicy).toContain("visible_organ.organization_id = organization_id");
+    expect(publicPolicy).toContain("visible_organ.organization_id = world_organization_offices.organization_id");
   });
 
   it("preserves exact private-office manager authority without exposing it to anonymous readers", () => {
@@ -30,6 +30,8 @@ describe("TG2 private organ / public office boundary", () => {
     expect(privatePolicy).toContain("for select to authenticated");
     expect(privatePolicy).toContain("'world.organization.view_private'");
     expect(privatePolicy).toContain("office_term.represented_country_id");
+    expect(privatePolicy).toContain("office_term.office_id = world_organization_offices.id");
+    expect(privatePolicy).toContain("world_organization_offices.id");
     expect(privatePolicy).toContain("'office'");
     expect(privatePolicy).toContain("id");
     expect(migration).not.toMatch(/grant\s+(insert|update|delete|all)[\s\S]{0,160}\sto\s+(anon|authenticated)/i);
