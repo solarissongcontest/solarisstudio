@@ -34,6 +34,7 @@ jobs:
     timeout-minutes: 15
     env:
       V3_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || inputs.candidate_sha }}
+      V3_SELECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       V3_VERIFICATION_TARGET: local
       VITE_SUPABASE_URL: http://127.0.0.1:54321
       SUPABASE_URL: http://127.0.0.1:54321
@@ -53,6 +54,11 @@ jobs:
             echo "::error::candidate_sha must be an exact lowercase commit SHA"
             exit 1
           }
+          # The workflow selection, not arbitrary input, defines runnable code.
+          [[ "$V3_CANDIDATE_SHA" == "$V3_SELECTED_SHA" ]] || {
+            echo "::error::candidate_sha must match the selected workflow-dispatch or pull-request commit"
+            exit 1
+          }
           if [[ -n "$REFERENCE_SHA" ]] && [[ ! "$REFERENCE_SHA" =~ ^[a-f0-9]{40}$ ]]; then
             echo "::error::reference_sha must be an exact lowercase commit SHA"
             exit 1
@@ -61,7 +67,7 @@ jobs:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || inputs.candidate_sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -119,5 +125,5 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-# No Supabase CLI, DB reset, service_role, hosted URL, or playwright setup.
+# No Supabase CLI, DB reset, service_role, hosted URL, or browser automation setup.
 # Full S14 and S15 verification continue in their existing isolated workflows.
