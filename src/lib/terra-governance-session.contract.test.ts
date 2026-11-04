@@ -36,6 +36,10 @@ describe("TG6 institutional session/agenda authority contracts", () => {
     expect(detail).toMatch(/g\.visibility = 'public'/);
     expect(detail).toMatch(/a\.state in \('scheduled','active','postponed','completed'\)/);
     expect(detail).toMatch(/s\.visibility = 'public'/);
+    expect(detail).toMatch(/'externalUrl',null/);
+    expect(detail).not.toMatch(/'externalUrl',s\.external_url/);
+    expect(functionBody("world_session_manage_v1", "manage"))
+      .toMatch(/'externalUrl',v_session\.external_url/);
     expect(functionBody("world_session_manage_v1", "manage"))
       .toMatch(/world_access_allowed\(/);
     expect(sql).toMatch(/grant execute on function public\.world_session_schedule_v1/);
