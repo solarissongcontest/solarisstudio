@@ -2,6 +2,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const OFFICE_HISTORY_PAGE_SIZE = 12;
 
+export type PublicOfficeHistoryCursor = { startedAt: string; termId: string };
+export type PublicOfficeOption = { slug: string; title: string };
+
 export interface PublicOfficeTerm {
   id: string;
   officeId: string;
@@ -18,14 +21,18 @@ export interface PublicOfficeTerm {
 
 export interface PublicOfficeHistoryPage {
   organization: { slug: string; shortName: string; officialName: string };
+  offices: PublicOfficeOption[];
   terms: PublicOfficeTerm[];
   hasMore: boolean;
+  nextCursor: PublicOfficeHistoryCursor | null;
 }
 
 type RpcClient = {
   rpc(name: string, args: {
     p_slug: string;
-    p_offset: number;
+    p_cursor_started_at: string | null;
+    p_cursor_term_id: string | null;
+    p_office_slug: string | null;
     p_limit: number;
   }): Promise<{ data: unknown; error: { message: string } | null }>;
 };
@@ -34,6 +41,7 @@ type RpcClient = {
 // projection; generated Supabase types can be updated after migrations merge.
 const readClient = supabase as unknown as RpcClient;
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -63,12 +71,28 @@ export function parsePublicOfficeHistoryPage(
   const org = record(root?.organization);
   const slug = canonicalHistorySlug(text(org?.slug));
   const items = root?.terms;
+  const options = root?.offices;
+  const rawCursor = root?.nextCursor === null ? null : record(root?.nextCursor);
+  const nextCursor = rawCursor && text(rawCursor.startedAt) && UUID_PATTERN.test(text(rawCursor.termId))
+      && Number.isFinite(Date.parse(text(rawCursor.startedAt)))
+    ? { startedAt: text(rawCursor.startedAt), termId: text(rawCursor.termId) }
+    : null;
   if (!root || !org || !slug || slug !== canonicalHistorySlug(expectedSlug)
       || !text(org.shortName) || !text(org.officialName)
+      || !Array.isArray(options) || options.length > 100
       || !Array.isArray(items) || typeof root.hasMore !== "boolean"
-      || items.length > OFFICE_HISTORY_PAGE_SIZE) {
+      || items.length > OFFICE_HISTORY_PAGE_SIZE
+      || (root.hasMore && (items.length !== OFFICE_HISTORY_PAGE_SIZE || !nextCursor))
+      || (!root.hasMore && root.nextCursor !== null)) {
     throw new Error("Invalid public office history response");
   }
+  const offices = options.map((item): PublicOfficeOption => {
+    const office = record(item);
+    if (!office || !canonicalHistorySlug(text(office.slug)) || !text(office.title)) {
+      throw new Error("Invalid public office history office option");
+    }
+    return { slug: canonicalHistorySlug(text(office.slug))!, title: text(office.title) };
+  });
 
   const terms = items.map((item): PublicOfficeTerm => {
     const row = record(item);
@@ -100,24 +124,31 @@ export function parsePublicOfficeHistoryPage(
   });
   return {
     organization: { slug, shortName: text(org.shortName), officialName: text(org.officialName) },
+    offices,
     terms,
     hasMore: root.hasMore,
+    nextCursor,
   };
 }
 
 export async function loadPublicOfficeHistory(
   slug: string,
-  offset = 0,
+  cursor: PublicOfficeHistoryCursor | null = null,
+  officeSlug: string | null = null,
 ): Promise<PublicOfficeHistoryPage | null> {
   const canonical = canonicalHistorySlug(slug);
   if (!canonical) return null;
-  if (!Number.isSafeInteger(offset) || offset < 0 || offset > 1000
-      || offset % OFFICE_HISTORY_PAGE_SIZE !== 0) {
-    throw new Error("Invalid history page offset");
+  const office = officeSlug === null ? null : canonicalHistorySlug(officeSlug);
+  if (officeSlug !== null && !office) throw new Error("Invalid history office filter");
+  if (cursor !== null && (!UUID_PATTERN.test(cursor.termId)
+      || !Number.isFinite(Date.parse(cursor.startedAt)))) {
+    throw new Error("Invalid history page cursor");
   }
   const { data, error } = await readClient.rpc("world_public_office_history_v1", {
     p_slug: canonical,
-    p_offset: offset,
+    p_cursor_started_at: cursor?.startedAt ?? null,
+    p_cursor_term_id: cursor?.termId ?? null,
+    p_office_slug: office,
     p_limit: OFFICE_HISTORY_PAGE_SIZE,
   });
   if (error) throw new Error("Institutional history unavailable: " + error.message);
