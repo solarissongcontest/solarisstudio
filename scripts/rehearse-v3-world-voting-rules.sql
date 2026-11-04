@@ -11,6 +11,13 @@ declare
   v_private_org uuid := gen_random_uuid();
   v_office uuid := gen_random_uuid();
 begin
+  if not exists (
+    select 1 from public.studio2_feature_flags
+    where key='terra_world_voting_rules'
+      and enabled is false
+  ) then
+    raise exception 'TG8_VOTING_RULE_ROLLOUT_DEFAULT_NOT_DISABLED';
+  end if;
   insert into auth.users(id,aud,role,email,created_at,updated_at) values
     (v_manager,'authenticated','authenticated',v_manager::text || '@tg8-rule.invalid',now(),now()),
     (v_outsider,'authenticated','authenticated',v_outsider::text || '@tg8-rule.invalid',now(),now());
@@ -106,6 +113,12 @@ begin
     raise exception 'TG8_UNAUTHORIZED_RULE_CONFIGURATION_ALLOWED';
   exception when insufficient_privilege then null;
   end;
+  if jsonb_array_length(public.world_managed_voting_organizations_v1()) <> 0 then
+    raise exception 'TG8_UNAUTHORIZED_MANAGED_INSTITUTION_EXPOSURE';
+  end if;
+  if public.world_voting_rules_manage_v1((v->>'organizationId')::uuid) is not null then
+    raise exception 'TG8_UNAUTHORIZED_RULE_EDIT_PROJECTION_EXPOSURE';
+  end if;
   begin
     perform 1 from public.world_voting_rules;
     raise exception 'TG8_AUTHENTICATED_RAW_RULE_SELECT_ALLOWED';
@@ -124,6 +137,16 @@ begin
   perform set_config('request.jwt.claim.sub',v->>'manager',true);
   perform set_config('request.jwt.claims',
     jsonb_build_object('sub',v->>'manager','role','authenticated')::text,true);
+  if not exists (
+    select 1 from jsonb_array_elements(public.world_managed_voting_organizations_v1()) org
+    where org->>'id'=v->>'organizationId'
+  ) then
+    raise exception 'TG8_AUTHORIZED_MANAGER_INSTITUTION_MISSING';
+  end if;
+  if public.world_voting_rules_manage_v1((v->>'organizationId')::uuid)->'rules' <> '[]'::jsonb then
+    raise exception 'TG8_INITIAL_MANAGER_RULE_LIST_INCORRECT';
+  end if;
+
   v_first := public.world_configure_voting_rule_v1(
     (v->>'organizationId')::uuid,'legislative','TG8 2/3 legislative',
     'recorded_roll_call','public',1,2,'fraction',2,3,
@@ -203,6 +226,20 @@ begin
   );
   if v_second #>> '{result,revision}' <> '2'
   then raise exception 'TG8_RULE_REVISION_TWO_RECEIPT_INVALID'; end if;
+  if not exists (
+    select 1 from jsonb_array_elements(
+      public.world_voting_rules_manage_v1((v->>'organizationId')::uuid)->'rules'
+    ) rule_item
+    where rule_item->>'key'='legislative'
+      and rule_item->>'revision'='2'
+      and rule_item->>'thresholdNumerator'='3'
+      and rule_item->>'thresholdDenominator'='4'
+      and rule_item->>'quorumNumerator'='1'
+      and rule_item->>'quorumDenominator'='2'
+  ) then
+    raise exception 'TG8_MANAGER_RULE_PROJECTION_NOT_EXACT';
+  end if;
+
 end
 $manager$;
 reset role;
