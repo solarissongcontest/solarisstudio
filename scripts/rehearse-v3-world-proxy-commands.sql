@@ -43,9 +43,14 @@ begin
   insert into public.country_accounts(user_id,country_id,status)
     values(v_owner,v_country,'active');
 
+  -- Historical delegate is explicitly proven for this country. Neither a
+  -- foreign country's representative nor an invented lore identity qualifies.
   insert into public.world_country_control_terms
-    (country_id,person_id,user_id,source)
-  values(v_country,v_owner_person,v_owner,'tg6_rollback_fixture');
+    (country_id,person_id,user_id,started_at,ended_at,source,revision)
+  values
+    (v_country,v_proxy_person,null,now()-interval '90 days',
+      now()-interval '60 days','tg6_rollback_fixture',1),
+    (v_country,v_owner_person,v_owner,now(),null,'tg6_rollback_fixture',2);
 
   insert into public.world_organizations
     (id,slug,official_name,short_name,type,status,public_visibility)
