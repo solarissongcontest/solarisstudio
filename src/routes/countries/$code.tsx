@@ -25,7 +25,7 @@ import {
   useCountryDesignV2,
 } from "@/lib/country-design-v2";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
-import { COUNTRY_MOBILE_WEB_MEDIA_QUERY, resolveCountryLayoutMode } from "@/lib/country-layout-mode";
+import { useCountryLayoutMode } from "@/lib/use-country-layout-mode";
 import { countryPersonalitySource } from "@/lib/country-personality-sources";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 import {
@@ -121,21 +121,7 @@ type Tab = (typeof TABS)[number]["value"];
 function CountryProfilePage() {
   const { code } = Route.useParams();
   const { isAppMode } = useSolarisApp();
-  // A phone-sized browser is a different presentation surface from the PWA.
-  // Listen to CSS viewport changes, not the visual viewport (keyboard/zoom).
-  // Resolve the first client render from the real CSS viewport. Waiting for
-  // an effect would briefly mount the desktop hero and follow control on phones.
-  const [narrowViewport, setNarrowViewport] = useState(() =>
-    typeof window !== "undefined" && window.matchMedia(COUNTRY_MOBILE_WEB_MEDIA_QUERY).matches,
-  );
-  useEffect(() => {
-    const media = window.matchMedia(COUNTRY_MOBILE_WEB_MEDIA_QUERY);
-    const update = () => setNarrowViewport(media.matches);
-    update();
-    media.addEventListener?.("change", update);
-    return () => media.removeEventListener?.("change", update);
-  }, []);
-  const countryLayoutMode = resolveCountryLayoutMode(isAppMode, narrowViewport);
+  const countryLayoutMode = useCountryLayoutMode();
   const [archiveEnabled, setArchiveEnabled] = useState(!isAppMode);
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
