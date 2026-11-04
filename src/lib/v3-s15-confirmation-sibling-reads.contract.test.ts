@@ -26,8 +26,8 @@ describe("S15 Organizer sibling Confirmation review consumers", () => {
     ["Responses by country", countries],
   ])("%s loads only an exact selected edition with a bounded snapshot", (_, source) => {
     expect(source).toContain("loadAllConfirmationResponsesForEdition<ResponseRow>(selected)");
-    expect(source).toContain("item.id === organizerEditionId");
-    expect(source).toContain("setRows([])");
+    expect(source).toContain("=== organizerEditionId");
+    expect(source).toContain(source === overview ? "setResponses([])" : "setRows([])");
     expect(source).toContain("[organizerEditionId]");
     expect(source).not.toContain("editionRows[0]");
     expect(source).not.toContain('edition.status === "active"');
