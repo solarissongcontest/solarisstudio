@@ -11,10 +11,8 @@ function navigationItemLabel(label: string, badge: number) {
 /** Desktop adaptation of the same canonical five-area information architecture. */
 export function V3DesktopPrimaryNavigation({
   destinations,
-  onSelect,
 }: {
   destinations: readonly V3LiquidTabDestination[];
-  onSelect: (destination: V3LiquidTabDestination) => void;
 }) {
   return (
     <nav className="v3-desktop-primary-nav" aria-label="Primary app navigation">
@@ -30,10 +28,6 @@ export function V3DesktopPrimaryNavigation({
             aria-label={navigationItemLabel(destination.label, badge)}
             data-active={destination.active ? "true" : "false"}
             data-emphasis={destination.emphasis ? "true" : undefined}
-            onClick={(event) => {
-              event.preventDefault();
-              onSelect(destination);
-            }}
           >
             <span className="v3-desktop-primary-nav__icon" aria-hidden="true">
               <Icon />

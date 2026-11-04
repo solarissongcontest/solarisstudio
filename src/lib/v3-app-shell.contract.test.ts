@@ -63,8 +63,12 @@ describe("V3 app shell migration contract", () => {
     expect(tabs).toContain("onPointerMove={moveDrag}");
     expect(tabs).toContain("onPointerCancel={cancelDrag}");
     expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
-    expect(shell).toContain("navigate({ to: v3PublicEntryHref(target) as any })");
-    expect(shell).toContain('runAppViewTransition(alreadyActive ? "pop" : "tab"');
+    // AppTabBar owns installed gestures; website Links own ordinary history.
+    expect(shell).toContain("platformResolved && isAppMode");
+    expect(shell).not.toContain("v3PublicEntryHref(target)");
+    const desktop = source("src/components/v3/V3DesktopPrimaryNavigation.tsx");
+    expect(desktop).toContain("to={destination.to as any}");
+    expect(desktop).not.toContain("event.preventDefault");
     expect(shell).not.toContain("V3TopLevelSwipeSurface");
     expect(shell).not.toContain("swipePreviewSurfaces");
   });

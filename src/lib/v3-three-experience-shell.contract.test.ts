@@ -35,10 +35,17 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(css).toContain("min-width: 44px");
     expect(css).toContain("overflow-x: auto");
     expect(css).not.toContain("position: fixed");
+    const desktop = read("src/components/v3/V3DesktopPrimaryNavigation.tsx");
+    expect(desktop).toContain("to={destination.to as any}");
+    expect(desktop).not.toContain("event.preventDefault");
+    expect(desktop).not.toContain("onSelect");
   });
 
   it("keeps desktop browser navigation distinct and mobile web content in flow", () => {
     expect(shell).toContain("<V3DesktopPrimaryNavigation");
+    expect(shell).toContain('!platformResolved || !isAppMode || !navigationIdentityReady');
+    expect(shell).not.toContain("getV3PublicTabDestination");
+    expect(shell).not.toContain("markV3PublicNavigationRestore");
     expect(desktopCss).toContain("@media (min-width: 1024px)");
     expect(css).toContain('[data-v3-shell-experience="web"] .v3-screen');
     expect(css).toContain("@media (max-width: 1023px)");
