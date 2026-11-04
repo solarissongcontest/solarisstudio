@@ -43,6 +43,7 @@ import {
   type PublicSearchResult,
 } from "@/lib/public-search";
 import { readPublicRecents } from "@/lib/public-recents";
+import { visibleRecentShowDestinations } from "@/lib/v3-show-public-discovery";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
@@ -171,6 +172,77 @@ function appSearchGroup(type: string) {
   return "Solaris";
 }
 
+
+// Recent labels live in shared-device localStorage and may outlive publication.
+// Verify only the at-most-eight remembered Show IDs against live publication
+// state; never fetch the entire Show/Results/Jury archive just to open Search.
+const RECENT_SHOW_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function publicRecentShowIds(recents: readonly { path: string }[]): string[] {
+  const ids = new Set<string>();
+  for (const recent of recents) {
+    const match = /^\/shows\/([^/?#]+)\/?$/i.exec(recent.path);
+    if (!match) continue;
+    try {
+      const id = decodeURIComponent(match[1]);
+      if (RECENT_SHOW_ID.test(id)) ids.add(id.toLowerCase());
+    } catch {
+      // A malformed local URL must not trigger a database request.
+    }
+  }
+  return [...ids].sort();
+}
+
+function usePublicationSafeRecents() {
+  const recents = useMemo(() => readPublicRecents(), []);
+  const showIds = useMemo(() => publicRecentShowIds(recents), [recents]);
+  const showVisibility = useQuery({
+    queryKey: ["public-command-palette-recent-show-visibility", showIds],
+    enabled: showIds.length > 0,
+    // A cached answer is not authorization after an Organizer unpublishes a Show.
+    // The palette mounts anew at each open; hold stored labels until fresh reads finish.
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async () => {
+      const { data: rows, error } = await supabase
+        .from("shows")
+        .select("id,edition_id,published,publication_config")
+        .in("id", showIds);
+      if (error) throw error;
+      const publicRows = (rows ?? []).filter(isShowPublic);
+      if (!publicRows.length) return [];
+      const editionIds = [...new Set(publicRows.map((show) => show.edition_id))];
+      const { data: editions, error: editionError } = await supabase
+        .from("editions")
+        .select("id,published")
+        .in("id", editionIds);
+      if (editionError) throw editionError;
+      const publishedEditionIds = new Set(
+        (editions ?? [])
+          .filter((edition) => edition.published === true)
+          .map((edition) => edition.id),
+      );
+      return publicRows
+        .filter((show) => publishedEditionIds.has(show.edition_id))
+        .map((show) => ({ id: show.id }));
+    },
+  });
+  return useMemo(
+    () =>
+      visibleRecentShowDestinations(
+        recents,
+        showVisibility.isSuccess &&
+          showVisibility.isFetchedAfterMount &&
+          !showVisibility.isFetching
+          ? showVisibility.data
+          : [],
+      ),
+    [recents, showVisibility.isSuccess, showVisibility.isFetchedAfterMount, showVisibility.isFetching, showVisibility.data],
+  );
+}
+
 function AppPublicPaletteDialog({
   open,
   setOpen,
@@ -234,16 +306,17 @@ function AppPublicPaletteDialog({
     [],
   );
 
+  const visibleRecents = usePublicationSafeRecents();
   const recentResults = useMemo<PublicSearchResult[]>(
     () =>
-      readPublicRecents().slice(0, 8).map((item) => ({
+      visibleRecents.slice(0, 8).map((item) => ({
         id: `recent:${item.path}`,
         label: item.label,
         description: "Recently visited",
         href: item.path,
         group: "Recent",
       })),
-    [],
+    [visibleRecents],
   );
 
   const searchResults = useMemo<PublicSearchResult[]>(() => {
@@ -472,16 +545,17 @@ function WebPublicPaletteDialog({
     ];
   }, [access?.countryId, countries, editions]);
 
+  const visibleRecents = usePublicationSafeRecents();
   const recentResults = useMemo<PublicSearchResult[]>(
     () =>
-      readPublicRecents().map((item) => ({
+      visibleRecents.map((item) => ({
         id: `recent:${item.path}`,
         label: item.label,
         description: "Recently visited",
         href: item.path,
         group: "Recent",
       })),
-    [],
+    [visibleRecents],
   );
 
   const openIdleResult = (result: PublicSearchResult) => {
