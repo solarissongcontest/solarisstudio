@@ -1,0 +1,54 @@
+name: V3 TG8 exact-rational vote math rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/20261104165500_v3_tg8_exact_rational_legislative_tally.sql"
+      - "scripts/rehearse-v3-world-exact-vote-math.*"
+      - "src/lib/terra-governance-exact-vote-math.contract.test.ts"
+      - ".github/workflows/v3-tg8-exact-vote-math-rehearsal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tg8-exact-math:
+    name: Exact PostgreSQL thresholds + hostile execution grants
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+
+      - name: Setup pinned Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Ensure local PostgreSQL client exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Start disposable local Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local --no-seed
+
+      - name: Rehearse exact vote mathematics and private execution denies
+        shell: bash
+        run: bash scripts/rehearse-v3-world-exact-vote-math.sh
+
+      - name: Stop disposable Supabase and discard all test data
+        if: always()
+        shell: bash
+        run: supabase stop --no-backup || true
