@@ -32,7 +32,7 @@ describe("Organizer Confirmation detail edition isolation", () => {
     expect(readOnlyLoad).not.toContain("syncConfirmationSnapshotToSolaris");
     expect(source).toContain("async function manualSync()");
     expect(source).toContain("const result = await syncSnapshot(liveDetail)");
-    expect(source).toContain('const fresh = await confirmationsSupabase.rpc("admin_confirmation_response", {');
+    expect(source).toContain('const fresh = await confirmationsSupabase.rpc("admin_confirmation_response_for_edition", {');
     expect(source).toContain("JSON.stringify(liveDetail) !== reviewedSnapshot");
     expect(source).toContain("if (!isStillCurrent())");
   });
@@ -87,7 +87,7 @@ describe("Organizer Confirmation detail edition isolation", () => {
 
   it("keeps stale privileged sync results out of the current edition and rejects changed snapshots", () => {
     const source = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
-    const fresh = source.indexOf('const fresh = await confirmationsSupabase.rpc("admin_confirmation_response"');
+    const fresh = source.indexOf('const fresh = await confirmationsSupabase.rpc("admin_confirmation_response_for_edition"');
     const changed = source.indexOf("JSON.stringify(liveDetail) !== reviewedSnapshot");
     const sync = source.indexOf("const result = await syncSnapshot(liveDetail)");
     expect(fresh).toBeGreaterThan(-1);
@@ -122,6 +122,21 @@ describe("Organizer Confirmation detail edition isolation", () => {
     expect(winner.indexOf("receipt = normalizeSystemReceipt(applyData);")).toBeLessThan(
       winner.indexOf("if (stillCurrent()) await load();", winner.indexOf("let receipt: SystemReceipt")),
     );
+  });
+
+  it("requires System #1241's server-enforced edition scope for private reads", () => {
+    const detail = readFileSync("src/routes/confirmations/admin/responses/$id.tsx", "utf8");
+    const history = readFileSync("src/routes/_authenticated/admin/submission-versions.tsx", "utf8");
+    expect(detail.split('"admin_confirmation_response_for_edition"').length - 1).toBe(2);
+    expect(detail).toContain('"admin_confirmation_technical_for_edition"');
+    expect(detail).toContain("technicalDetail.edition_id !== organizerEditionId");
+    expect(detail).toContain("technicalDetail.submission_id !== id");
+    expect(detail).toContain("_edition_id: organizerEditionId");
+    expect(detail).not.toContain('"admin_confirmation_response",');
+    expect(detail).not.toContain('"admin_confirmation_technical",');
+    expect(history).toContain("'admin_confirmation_response_for_edition'");
+    expect(history).toContain("_edition_id: editionId");
+    expect(history).not.toContain("'admin_confirmation_response',");
   });
 
   it("never issues a second winner operation before an uncertain prior operation is settled", () => {
