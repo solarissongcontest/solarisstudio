@@ -186,13 +186,21 @@ export function rememberAppLocation(
 
   const state = readAppNavigationState(storage);
   const previous = state.tabs[tab];
+  const normalizedSearch = normalizeSearch(searchStr);
+  const href = pathname + normalizedSearch;
+  // Route changes cannot inherit a different page's scroll depth. A previously
+  // visited identical URL may restore its own scroll, including query context.
+  const rememberedEntry =
+    previous?.current && appEntryHref(previous.current) === href
+      ? previous.current
+      : previous?.history.filter((entry) => appEntryHref(entry) === href).at(-1);
   const next: AppHistoryEntry = {
     pathname,
-    searchStr: normalizeSearch(searchStr),
+    searchStr: normalizedSearch,
     scrollY:
       typeof scrollY === "number" && Number.isFinite(scrollY)
         ? Math.max(0, scrollY)
-        : (previous?.current.scrollY ?? 0),
+        : rememberedEntry?.scrollY ?? 0,
     visitedAt: new Date().toISOString(),
   };
   const last = previous?.history.at(-1);

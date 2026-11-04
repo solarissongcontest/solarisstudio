@@ -77,6 +77,20 @@ describe("installed app navigation state", () => {
     expect(getAppTabDestination("explore", true, storage).scrollY).toBe(1337);
   });
 
+  it("isolates scroll offsets by URL instead of copying a previous page's position", () => {
+    const storage = new MemoryStorage();
+
+    rememberAppLocation("/countries/OL", "", 980, storage);
+    rememberAppLocation("/countries/AO", "", undefined, storage);
+    expect(getAppTabDestination("explore", true, storage).scrollY).toBe(0);
+
+    rememberAppLocation("/countries/OL", "", undefined, storage);
+    expect(getAppTabDestination("explore", true, storage).scrollY).toBe(980);
+
+    rememberAppLocation("/countries/OL", "?section=history", undefined, storage);
+    expect(getAppTabDestination("explore", true, storage).scrollY).toBe(0);
+  });
+
   it("resets an active tab to its root without erasing other tab state", () => {
     const storage = new MemoryStorage();
 
