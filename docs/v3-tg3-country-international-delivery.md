@@ -5,6 +5,7 @@
 Built from the exact TG1/TG2 foundation PR #1888 head
 `01580c97e0a1397baffaac4aa4e176b51625fc75`.
 Current main at selection: `7eda678c98a63caf49e59b3507cf2130e8d3200b`.
+Main has moved since selection; this PR intentionally keeps its original #1888 dependency base rather than prematurely restacking onto main.
 
 This PR deliberately does **not** duplicate concurrent TG3 organization discovery
 PR #1934. That PR owns `/world`, `/world/organizations`, organization
@@ -53,6 +54,23 @@ International link from existing country profiles after both PRs land.
 No shared route tree, app shell, country-profile, Explore, navigation,
 registry, stylesheet, workflow, migration, Results or integration files
 were edited.
+
+## Continuation verification and detail hardening
+
+- Added strict URL-to-canonical-country identity checks. A mismatched
+  returned country code fails closed; invalid country codes never query.
+- Removed duplicate top-level heading and an early link into unmerged
+  sibling organization routes. No new broken deep link is exposed.
+- Expanded focused regression coverage from 7 to **8 tests**.
+- Retrieved the exact committed adapter and test-file blobs through the
+  connected GitHub source, removed TypeScript type-only annotations in
+  memory, and executed the **eight original test callback bodies** in an
+  isolated JavaScript compatibility runner with the needed assertion
+  matchers. Result: **8 tests / 37 assertions passed**.
+- This is transparent **behavioral harness evidence, not an official
+  Vitest run, typecheck, ESLint run, app build, or responsive browser
+  inspection**. Those remain mandatory after migration/base integration.
+- No production/hosted Supabase access or mutation occurred.
 
 ## Honest limitations
 
