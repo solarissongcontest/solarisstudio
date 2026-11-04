@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   auditV3ProductionMigrationFrontier,
   V3_PRODUCTION_BOOTSTRAP_CUTOVER,
@@ -70,6 +71,25 @@ describe("V3 hosted production migration frontier", () => {
     expect(report.errors.join(" ")).toMatch(/Duplicate hosted migration version/);
     expect(report.errors.join(" ")).toMatch(/Invalid repository migration filename/);
     expect(report.historyReconciled).toBe(false);
+  });
+
+  it("requires named evidence for post-cutover hosted migrations", () => {
+    const report = auditV3ProductionMigrationFrontier(
+      [historicRepo, canonical],
+      [historicHosted, { version: "20261017100000" }],
+    );
+    expect(report.errors).toContain("Hosted post-cutover migration 20261017100000 lacks name evidence");
+    expect(report.historyReconciled).toBe(false);
+  });
+
+  it("keeps the production operator's compatibility exception pinned to the original bootstrap boundary", () => {
+    const operator = readFileSync(new URL("../../scripts/v3-production-supabase-push.sh", import.meta.url), "utf8");
+    expect(operator).toContain('BOOTSTRAP_HISTORY_CUTOVER="20261014020000"');
+    expect(operator).toContain('if [[ "$version" < "$BOOTSTRAP_HISTORY_CUTOVER" || "$version" == "$BOOTSTRAP_HISTORY_CUTOVER" ]]; then');
+    expect(operator).toContain('elif [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then');
+    expect(operator).toContain("unapplied post-bootstrap migration");
+    expect(operator).toContain("hosted-only post-bootstrap migration");
+    expect(operator).not.toContain('if [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then\\n    mapfile -t matches');
   });
 
   it("fails closed when remote evidence is missing or too old", () => {
