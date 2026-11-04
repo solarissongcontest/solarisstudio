@@ -241,6 +241,16 @@ export function parseWorldDocumentDetail(input: unknown): WorldDocumentDetail | 
   };
 }
 
+/**
+ * Full visible contents, in server-defined legal order. Never silently stop
+ * after 40 sections: the last section may contain a binding legal condition.
+ */
+export function publicWorldDocumentOutline(
+  provisions: readonly WorldDocumentProvision[],
+): WorldDocumentProvision[] {
+  return provisions.filter((provision) => provision.heading || provision.displayLabel);
+}
+
 export function normalizeWorldSearch(query: string): string {
   return query.trim().slice(0, MAX_SEARCH);
 }
