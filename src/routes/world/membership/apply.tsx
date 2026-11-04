@@ -13,6 +13,8 @@ import {
   guardIntakeErrorMessage,
   loadGuardIntake,
   newGuardIntakeOperation,
+  newGuardWithdrawalOperation,
+  withdrawGuardApplication,
   normalizeGuardApplication,
   submitGuardApplication,
   validateGuardApplication,
@@ -92,6 +94,22 @@ function GuardMembershipApplicationPage() {
   const [errors, setErrors] = useState<GuardApplicationErrors>({});
   const [confirmation, setConfirmation] = useState<{ applicationId: string; operationId: string } | null>(null);
   const requestRef = useRef<{ fields: GuardApplicationFields; operation: GuardIntakeOperation } | null>(null);
+  const withdrawRef = useRef<{
+    applicationId: string;
+    revision: number;
+    operation: GuardIntakeOperation;
+  } | null>(null);
+  const [withdrawReviewId, setWithdrawReviewId] = useState<string | null>(null);
+  const withdraw = useMutation({
+    mutationFn: withdrawGuardApplication,
+    onSuccess: async () => {
+      withdrawRef.current = null;
+      setWithdrawReviewId(null);
+      await queryClient.invalidateQueries({
+        queryKey: ["world", "guard", "membership-intake", countryId],
+      });
+    },
+  });
   const submit = useMutation({
     mutationFn: async (input: {
       fields: GuardApplicationFields;
@@ -113,6 +131,25 @@ function GuardMembershipApplicationPage() {
   const canSubmit = Boolean(
     countryId && isActiveController && intake.data && !hasMembership && !isPendingApplication && !confirmation && !submit.isPending,
   );
+
+  function onWithdrawApplication(applicationId: string, revision: number) {
+    if (!countryId || !intake.data || withdraw.isPending ||
+      !pendingApplication || pendingApplication.id !== applicationId ||
+      pendingApplication.revision !== revision ||
+      !["submitted", "under_review"].includes(pendingApplication.status)) return;
+
+    const previous = withdrawRef.current;
+    const operation = previous?.applicationId === applicationId && previous.revision === revision
+      ? previous.operation : newGuardWithdrawalOperation();
+    withdrawRef.current = { applicationId, revision, operation };
+    withdraw.mutate({
+      countryId,
+      organizationId: intake.data.organizationId,
+      applicationId,
+      revision,
+      operation,
+    });
+  }
 
   function updateField(field: GuardApplicationField, value: string) {
     setFields((previous) => ({ ...previous, [field]: value }));
@@ -231,6 +268,52 @@ function GuardMembershipApplicationPage() {
                   >
                     Check latest status
                   </button>
+                  {["submitted", "under_review"].includes(pendingApplication.status) ? (
+                    <div className="mt-4 space-y-3">
+                      {withdrawReviewId === pendingApplication.id ? (
+                        <div className="rounded-xl border border-border p-3">
+                          <p className="text-sm text-muted-foreground">
+                            Withdraw this pending application? This does not withdraw GUARD membership.
+                            You may apply again after Solaris confirms the withdrawal.
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button type="button" disabled={withdraw.isPending}
+                              onClick={() => onWithdrawApplication(pendingApplication.id, pendingApplication.revision)}
+                              className="min-h-11 rounded-lg border border-destructive px-4 text-sm font-semibold text-destructive disabled:opacity-60">
+                              {withdraw.isPending ? "Withdrawing…" : "Confirm withdrawal"}
+                            </button>
+                            <button type="button" disabled={withdraw.isPending}
+                              onClick={() => setWithdrawReviewId(null)}
+                              className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold">
+                              Keep application
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => setWithdrawReviewId(pendingApplication.id)}
+                          className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold">
+                          Withdraw pending application
+                        </button>
+                      )}
+                      {withdraw.isError ? (
+                        <div role="alert" className="space-y-2 text-sm text-destructive">
+                          <p>{guardIntakeErrorMessage(withdraw.error)}</p>
+                          <button type="button" onClick={() => void intake.refetch()}
+                            className="min-h-11 rounded-lg border border-border px-4 text-foreground">
+                            Check withdrawal status
+                          </button>
+                          <button type="button"
+                            disabled={withdraw.isPending || !withdrawRef.current ||
+                              withdrawRef.current.applicationId !== pendingApplication.id ||
+                              withdrawRef.current.revision !== pendingApplication.revision}
+                            onClick={() => onWithdrawApplication(pendingApplication.id, pendingApplication.revision)}
+                            className="ml-2 min-h-11 rounded-lg border border-border px-4 text-foreground disabled:opacity-60">
+                            Retry same withdrawal
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ) : (
