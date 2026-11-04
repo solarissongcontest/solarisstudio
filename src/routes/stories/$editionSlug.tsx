@@ -87,7 +87,7 @@ function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
 
         {storyQuery.isLoading ? (
           <EmptyStory title="Loading edition story…" copy="Reading the published narrative." />
-        ) : storyQuery.isError && !story ? (
+        ) : storyQuery.isError ? (
           <EmptyStory
             title="Edition story could not be loaded"
             copy="Solaris could not read this published story. This is a temporary loading error, not proof the story is unpublished."
