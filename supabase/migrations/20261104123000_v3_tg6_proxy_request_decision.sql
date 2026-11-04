@@ -419,6 +419,134 @@ begin
 end
 $decide$;
 
+-- A bounded reviewer inbox must filter EACH item using its exact institutional
+-- scope. Checking the organization once would leak country-/object-granted
+-- private proxy requests.
+create or replace function public.world_proxy_review_queue_v1(p_organization_id uuid)
+returns jsonb language sql stable security definer
+set search_path = pg_catalog
+as $review_queue$
+  select case when auth.uid() is null or p_organization_id is null then null
+    else jsonb_build_object(
+      'organizationId',p_organization_id,
+      'items',coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'id',item.id,
+          'representationId',item.representation_id,
+          'countryId',item.country_id,
+          'proxyPersonId',item.proxy_person_id,
+          'proxyPersonName',item.proxy_name,
+          'sessionId',item.session_id,
+          'sessionTitle',item.session_title,
+          'validFrom',item.valid_from,
+          'validUntil',item.valid_until,
+          'reason',item.reason,
+          'status',item.status,
+          'revision',item.revision,
+          'createdAt',item.created_at
+        ) order by item.created_at,item.id)
+        from (
+          select p.id,p.representation_id,p.proxy_person_id,
+            rep.country_id,person_row.display_name as proxy_name,
+            p.session_id,session_row.title as session_title,
+            p.valid_from,p.valid_until,p.reason,p.status,p.revision,p.created_at
+          from public.world_representation_proxies p
+          join public.world_organization_representations rep
+            on rep.id=p.representation_id
+          join public.delegation_people person_row on person_row.id=p.proxy_person_id
+          left join public.world_sessions session_row
+            on session_row.id=p.session_id
+           and session_row.organization_id=rep.organization_id
+          where rep.organization_id=p_organization_id
+            and p.status='requested'
+            and p.valid_until > now()
+            and (p.session_id is null or session_row.id is not null)
+            and public.world_access_allowed(
+              'world.proxy.approve',
+              rep.organization_id,rep.country_id,session_row.organ_id,'proxy',p.id
+            )
+          order by p.created_at,p.id
+          limit 25
+        ) item
+      ),'[]'::jsonb)
+    )
+  end
+$review_queue$;
+
+create or replace function public.world_my_proxy_requests_v1(p_country_id uuid)
+returns jsonb language sql stable security definer
+set search_path = pg_catalog
+as $my_proxies$
+  select case
+    when auth.uid() is null or p_country_id is null
+      or not exists (
+        select 1 from public.country_accounts account_row
+        where account_row.country_id=p_country_id
+          and account_row.user_id=auth.uid()
+          and account_row.status='active'
+      )
+    then null
+    else jsonb_build_object(
+      'countryId',p_country_id,
+      'items',coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'id',item.id,
+          'organizationId',item.organization_id,
+          'organizationName',item.organization_name,
+          'representationId',item.representation_id,
+          'proxyPersonId',item.proxy_person_id,
+          'proxyPersonName',item.proxy_name,
+          'sessionId',item.session_id,
+          'sessionTitle',item.session_title,
+          'validFrom',item.valid_from,
+          'validUntil',item.valid_until,
+          'reason',item.reason,
+          'status',item.status,
+          'revision',item.revision,
+          'createdAt',item.created_at,
+          'approvedAt',item.approved_at,
+          'timeEffective',private.world_proxy_is_effective(
+            item.status,item.valid_from,item.valid_until,now()
+          )
+        ) order by item.created_at desc,item.id desc)
+        from (
+          select p.id,rep.organization_id,org.short_name as organization_name,
+            p.representation_id,p.proxy_person_id,
+            person_row.display_name as proxy_name,
+            p.session_id,session_row.title as session_title,
+            p.valid_from,p.valid_until,p.reason,p.status,p.revision,
+            p.created_at,p.approved_at
+          from public.world_representation_proxies p
+          join public.world_organization_representations rep
+            on rep.id=p.representation_id
+          join public.world_organizations org on org.id=rep.organization_id
+          join public.delegation_people person_row on person_row.id=p.proxy_person_id
+          left join public.world_sessions session_row
+            on session_row.id=p.session_id
+           and session_row.organization_id=rep.organization_id
+          where rep.country_id=p_country_id
+          order by p.created_at desc,p.id desc
+          limit 20
+        ) item
+      ),'[]'::jsonb)
+    )
+  end
+$my_proxies$;
+
+revoke all on function public.world_proxy_review_queue_v1(uuid)
+  from public,anon,authenticated;
+grant execute on function public.world_proxy_review_queue_v1(uuid)
+  to authenticated,service_role;
+revoke all on function public.world_my_proxy_requests_v1(uuid)
+  from public,anon,authenticated;
+grant execute on function public.world_my_proxy_requests_v1(uuid)
+  to authenticated,service_role;
+
+comment on function public.world_proxy_review_queue_v1(uuid) is
+  'TG6 maximum 25 reviewable proxy requests; item-by-item canonical world.proxy.approve check, no raw login identifiers and no cross-organization session leakage.';
+comment on function public.world_my_proxy_requests_v1(uuid) is
+  'TG6 latest 20 proxy requests for an active country controller; no other country histories or auth-user IDs. timeEffective is only a time window indicator, not an authorization to cast a ballot.';
+
 revoke all on function public.world_request_proxy_v1(
   uuid,uuid,uuid,timestamptz,timestamptz,text,bigint,uuid,text,uuid
 ) from public,anon,authenticated;
