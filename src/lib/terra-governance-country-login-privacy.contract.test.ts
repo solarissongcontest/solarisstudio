@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -39,6 +39,27 @@ describe("TG1 controller history login linkage", () => {
     expect(migration).toContain("drop policy if exists world_country_control_terms_read");
     expect(migration).toContain("'forward_fix_only'");
     expect(migration).not.toMatch(/grant\s+(insert|update|delete|all)[\s\S]{0,120}\sto\s+(anon|authenticated)/i);
+  });
+
+  it("detects later migration attempts to restore broad raw historical login-link reads", () => {
+    const migrations = readdirSync(resolve(process.cwd(), "supabase/migrations"))
+      .filter((filename) => filename.endsWith(".sql"))
+      .sort();
+    const latestPolicyMigration = migrations
+      .filter((filename) =>
+        /^create policy world_country_control_terms_read\b/im.test(
+          source(`supabase/migrations/${filename}`),
+        ),
+      )
+      .at(-1);
+    expect(latestPolicyMigration).toBeDefined();
+    const latest = source(`supabase/migrations/${latestPolicyMigration}`);
+    const policy = latest.match(
+      /create policy world_country_control_terms_read[\s\S]*?using \(([\s\S]*?)\);/i,
+    )?.[1];
+    expect(policy).toContain("user_id = (select auth.uid())");
+    expect(policy).toContain("studio2_access_allowed('system.manage', null, false)");
+    expect(policy).not.toContain("delegation.read");
   });
 
   it("keeps the verified local-only rollback rehearsal as the executed negative test", () => {
