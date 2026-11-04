@@ -60,7 +60,15 @@ select md5(coalesce(jsonb_agg(
   ) order by result.id
 ), '[]'::jsonb)::text)
 from public.results result
-where result.show_id='$show_id'::uuid;
+where result.show_id='$show_id'::uuid
+    and exists (
+      select 1 from public.participants participant
+      where participant.show_id=result.show_id and participant.edition_id=result.edition_id
+        and coalesce(participant.participation_status, 'confirmed')='confirmed'
+        and ((participant.country_id is not null and result.country_id=participant.country_id)
+          or (participant.country_id is null and result.country_id is null
+            and participant.contest_entity_id=result.contest_entity_id))
+    );
 "
 }
 

@@ -161,6 +161,14 @@ select (
     )
     from public.results result
     where result.show_id='$show_id'::uuid
+    and exists (
+      select 1 from public.participants participant
+      where participant.show_id=result.show_id and participant.edition_id=result.edition_id
+        and coalesce(participant.participation_status, 'confirmed')='confirmed'
+        and ((participant.country_id is not null and result.country_id=participant.country_id)
+          or (participant.country_id is null and result.country_id is null
+            and participant.contest_entity_id=result.contest_entity_id))
+    )
   ), '[]'::jsonb)
 )::text
 from private.v3_result_versions version_row
@@ -204,6 +212,9 @@ run_s14_stage_8_results() {
   psql "$DB_URL" -v ON_ERROR_STOP=1 \
     -f .github/scripts/v3-s14-results-reconciliation-regression.sql \
     > /tmp/s14-results-reconciliation-regression.log
+  psql "$DB_URL" -v ON_ERROR_STOP=1 \
+    -f .github/scripts/v3-s14-active-publication-snapshot-regression.sql \
+    > /tmp/s14-active-publication-snapshot-regression.log
 
   # Convert the already-accepted Stage 7 ballots with Solaris' production
   # rank-weighted Televote math and project those official totals into the
