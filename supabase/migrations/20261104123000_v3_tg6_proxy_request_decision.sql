@@ -46,7 +46,6 @@ declare
   v_actor uuid := auth.uid();
   v_rep public.world_organization_representations%rowtype;
   v_session public.world_sessions%rowtype;
-  v_organ_id uuid;
   v_actor_person_id uuid;
   v_proxy_user_id uuid;
   v_operation jsonb;
@@ -94,14 +93,10 @@ begin
     then
       raise exception using errcode='23514',message='SESSION_NOT_ELIGIBLE';
     end if;
-    v_organ_id := v_session.organ_id;
   end if;
 
   if p_valid_from is null or p_valid_until is null
      or p_valid_until <= p_valid_from
-     or p_valid_until <= now()
-     or p_valid_from < now() - interval '5 minutes'
-     or p_valid_from > now() + interval '1 year'
      or p_valid_until - p_valid_from > interval '14 days'
      or length(v_reason) not between 5 and 500
      or p_proxy_person_id = v_rep.person_id
@@ -111,19 +106,6 @@ begin
      ))
   then
     raise exception using errcode='22023',message='VALIDATION';
-  end if;
-
-  if not exists (
-    select 1 from public.delegation_people person_row
-    where person_row.id=p_proxy_person_id
-  ) or not exists (
-    select 1 from public.world_organization_memberships member_row
-    where member_row.organization_id=v_rep.organization_id
-      and member_row.country_id=v_rep.country_id
-      and member_row.ended_at is null
-      and member_row.status='member'
-  ) then
-    raise exception using errcode='23514',message='NOT_ELIGIBLE';
   end if;
 
   v_operation := private.studio2_claim_operation(
@@ -148,6 +130,27 @@ begin
   if coalesce((v_operation->>'replayed')::boolean,false) then
     return public.studio2_reconcile_operation(v_operation_id)
       || jsonb_build_object('replayed',true);
+  end if;
+
+  -- Current-time/membership checks belong AFTER receipt claim so that a
+  -- successful request can be safely replayed after its validity window.
+  if p_valid_until <= now()
+     or p_valid_from < now() - interval '5 minutes'
+     or p_valid_from > now() + interval '1 year'
+     or (p_session_id is not null and v_session.status not in ('scheduled','open','recessed'))
+     or not exists (
+       select 1 from public.delegation_people person_row
+       where person_row.id=p_proxy_person_id
+     )
+     or not exists (
+       select 1 from public.world_organization_memberships member_row
+       where member_row.organization_id=v_rep.organization_id
+         and member_row.country_id=v_rep.country_id
+         and member_row.ended_at is null
+         and member_row.status='member'
+     )
+  then
+    raise exception using errcode='23514',message='NOT_ELIGIBLE';
   end if;
 
   if v_rep.revision is distinct from p_expected_representation_revision then
@@ -232,6 +235,7 @@ declare
   v_actor uuid := auth.uid();
   v_proxy public.world_representation_proxies%rowtype;
   v_rep public.world_organization_representations%rowtype;
+  v_representation_id uuid;
   v_organ_id uuid;
   v_approver_person_id uuid;
   v_operation jsonb;
@@ -249,14 +253,14 @@ begin
 
   -- Lock in consistent order to prevent concurrent approvals for overlapping
   -- proxies on the same representation. Never use per-proxy locks alone.
-  select representation_id into v_rep.id
+  select representation_id into v_representation_id
   from public.world_representation_proxies where id=p_proxy_id;
-  if v_rep.id is null then
+  if v_representation_id is null then
     raise exception using errcode='42501',message='AUTHORIZATION';
   end if;
   select * into v_rep
   from public.world_organization_representations
-  where id=v_rep.id for update;
+  where id=v_representation_id for update;
   select * into v_proxy
   from public.world_representation_proxies
   where id=p_proxy_id and representation_id=v_rep.id for update;
