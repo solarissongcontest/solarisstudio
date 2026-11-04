@@ -217,6 +217,7 @@ function buildReadiness(
 ): V3OrganizerReadiness {
   // The health RPC can be unavailable during a schema compatibility window.
   // Missing counters must never silently become zero and mark unassessed areas ready.
+  const progress = health?.progress;
   const counters = [
     health?.issues_count,
     health?.critical_count,
@@ -228,9 +229,9 @@ function buildReadiness(
     health?.result_issues,
   ];
   const verified =
-    typeof health?.progress === "number" &&
-    Number.isFinite(health.progress) &&
-    health.progress >= 0 && health.progress <= 100 &&
+    typeof progress === "number" &&
+    Number.isFinite(progress) &&
+    progress >= 0 && progress <= 100 &&
     counters.every((value) => typeof value === "number" && Number.isFinite(value) && value >= 0);
   if (!verified) {
     return {
@@ -244,7 +245,6 @@ function buildReadiness(
     };
   }
 
-  const progress = health.progress;
   const critical = health.critical_count ?? 0;
   const incomplete = [
     factor("entries", Number(health?.missing_songs ?? 0) + Number(health?.missing_artists ?? 0), "Entry metadata", `/admin/entries/${edition.slug}`),
