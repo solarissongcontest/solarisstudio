@@ -12,9 +12,7 @@ export function publicShowsForDiscovery<
   const publishedEditionIds = new Set(
     editions.filter((edition) => edition.published === true).map((edition) => edition.id),
   );
-  return shows.filter(
-    (show) => publishedEditionIds.has(show.edition_id) && isShowPublic(show),
-  );
+  return shows.filter((show) => publishedEditionIds.has(show.edition_id) && isShowPublic(show));
 }
 
 /**
