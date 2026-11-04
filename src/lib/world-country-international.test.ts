@@ -5,6 +5,7 @@ import {
   parseWorldCountryAffiliations,
   parseWorldPublicCountries,
   parseWorldCountryIdentity,
+  parseWorldPublicRollout,
   parseWorldPublicInstitutions,
   validWorldCountryCode,
   verifiedWorldCount,
@@ -19,7 +20,7 @@ const country = {
 
 const current = {
   id: "m-1", country_id: country.id, organization_id: "org-1", membership_type: "member",
-  status: "member", joined_edition_id: null, ended_edition_id: null, ended_at: null,
+  status: "member", joined_at: "2025-03-04T00:00:00Z", ended_at: null,
 };
 
 const historical = {
@@ -33,6 +34,14 @@ const organization = {
 };
 
 describe("World country International public read boundaries", () => {
+  it("refuses unverified public rollout state", () => {
+    expect(parseWorldPublicRollout(true)).toBe(true);
+    expect(parseWorldPublicRollout(false)).toBe(false);
+    for (const bad of [null, undefined, "true", 1, { enabled: true }]) {
+      expect(() => parseWorldPublicRollout(bad)).toThrow("publication flag");
+    }
+  });
+
   it("accepts canonical country identities and refuses duplicates and malformed rows", () => {
     expect(parseWorldPublicCountries([country])[0]).toMatchObject({
       code: "OL", name: "Oland", accentColor: "#123456",
@@ -66,6 +75,19 @@ describe("World country International public read boundaries", () => {
     expect(() => parseWorldCountryAffiliations([current], "foreign-country", "current")).toThrow("Cross-country");
     expect(() => parseWorldCountryAffiliations([historical], country.id, "current")).toThrow("Non-current");
     expect(() => parseWorldCountryAffiliations([current], country.id, "historical")).toThrow("Non-historical");
+  });
+
+  it("validates actual TG2 membership chronology without exposing edition identifiers", () => {
+    const term = parseWorldCountryAffiliations([{ ...historical, joined_edition_id: "unpublished" }],
+      country.id, "historical");
+    expect(term[0].joinedAt).toBe(current.joined_at);
+    expect(term[0].endedAt).toBe(historical.ended_at);
+    expect(JSON.stringify(term)).not.toContain("unpublished");
+    for (const invalidJoinedAt of ["yesterday", "2026-01-01", "", null]) {
+      expect(() => parseWorldCountryAffiliations([{ ...current, joined_at: invalidJoinedAt }], country.id, "current")).toThrow();
+    }
+    expect(() => parseWorldCountryAffiliations([{ ...historical, ended_at: "2020-01-01T00:00:00Z" }],
+      country.id, "historical")).toThrow("before it begins");
   });
 
   it("refuses invalid state, duplicate affiliation and invented country ownership", () => {
