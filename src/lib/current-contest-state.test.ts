@@ -163,6 +163,8 @@ describe("public contest state", () => {
         results: [],
       });
       expect(state.phase).toBe("pre_show");
+      // The canonical lifecycle remains Live, while public presentation stays gated.
+      expect(state.lifecycle).toBe("live_show");
       expect(state.statusLabel).not.toBe("Live");
     }
 
@@ -241,6 +243,8 @@ describe("public contest state", () => {
         results: [result()],
       });
       expect(state.phase).toBe("results_pending");
+      // Do not falsify the operational lifecycle to suppress a publication leak.
+      expect(state.lifecycle).toBe("results");
       expect(state.statusLabel).toBe("Results pending");
     }
 
