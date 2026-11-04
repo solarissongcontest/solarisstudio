@@ -300,6 +300,10 @@ export function WorldDocumentReaderScreen({
   const detail = query.data;
   const provisions = detail?.version.provisions;
   const currentVersion = detail?.history.find((item) => item.publicationState === "published");
+  const historicalVersion = Boolean(detail && (
+    detail.version.publicationState !== "published" ||
+    (currentVersion && currentVersion.versionNumber !== detail.version.versionNumber)
+  ));
   const anchors = publicWorldDocumentOutline(provisions ?? []);
   const textMatches = documentSearch.trim()
     ? (detail?.version.provisions ?? []).flatMap((item) => {
@@ -390,10 +394,15 @@ export function WorldDocumentReaderScreen({
                   {dateLabel(detail.version.effectiveFrom) && <span className="inline-flex items-center gap-1.5"><CalendarDays size={15} aria-hidden="true" /> Effective {dateLabel(detail.version.effectiveFrom)}</span>}
                   {dateLabel(detail.version.publishedAt) && <span>Published {dateLabel(detail.version.publishedAt)}</span>}
                 </div>
-                {currentVersion && currentVersion.versionNumber !== detail.version.versionNumber && (
+                {historicalVersion && (
                   <p className="mt-4 border-l-2 border-primary pl-3 text-sm text-muted-foreground">
-                    You are reading a historical version.{" "}
-                    <Link to="/world/documents/$organization/$document" params={{ organization, document }} search={{ version: undefined }} className="font-semibold text-primary underline-offset-4 hover:underline">View the current published version</Link>.
+                    You are reading a historical version, not necessarily the text currently in force.
+                    {currentVersion && currentVersion.versionNumber !== detail.version.versionNumber && (
+                      <>
+                        {" "}
+                        <Link to="/world/documents/$organization/$document" params={{ organization, document }} search={{ version: undefined }} className="font-semibold text-primary underline-offset-4 hover:underline">View the current published version</Link>.
+                      </>
+                    )}
                   </p>
                 )}
               </div>
