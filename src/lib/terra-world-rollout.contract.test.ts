@@ -17,6 +17,16 @@ describe("Terra Solaris TG3 discovery rollout", () => {
     });
   });
 
+  it("registers all TG3 World public routes under one declared Public owner", () => {
+    const registry = file("src/lib/v3-public-capability-registry.ts");
+    const guard = file("scripts/check-v3-capability-registry.ts");
+    expect(registry).toContain('id: "terra-world-institutions"');
+    expect(registry).toContain('legacyRoutes: ["/world", "/world/*"]');
+    expect(registry).toContain('sourceFeatureFlags: ["terra_world_public"]');
+    expect(registry).toContain('specificationStatus: "building"');
+    expect(guard).toContain('flag.startsWith("solaris_app_v3") || flag === "terra_world_public"');
+  });
+
   it("persists a dark-by-default boolean rollout while retaining historical flag keys", () => {
     const source = file("supabase/migrations/20261104121000_v3_tg3_world_public_rollout_flag.sql");
     expect(source).toContain("add constraint studio2_feature_flags_key_check check");
