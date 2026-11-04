@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_WORLD_PROVISIONS_IN_EDITOR,
   addWorldDocumentProvision,
+  compareWorldDocumentProvisions,
   parseWorldDocumentProvisions,
   toWorldProvisionCommandRows,
   validateWorldDocumentProvisions,
@@ -110,4 +111,20 @@ describe("TG4 structured legal provision authoring", () => {
     expect(validateWorldDocumentProvisions(retained)).toBeNull();
     expect(toWorldProvisionCommandRows(retained)[0].status).toBe("repealed");
   });
+  it("shows added, omitted and modified stable keys in reviewed new-version changes", () => {
+    const source = [
+      row({ semanticKey: "preamble", anchor: "preamble" }),
+      row(),
+    ];
+    const proposed = [
+      row({ semanticKey: "preamble", anchor: "preamble", displayLabel: "Introduction" }),
+      row({ semanticKey: "article.2", anchor: "article-2" }),
+    ];
+    expect(compareWorldDocumentProvisions(source, proposed)).toEqual({
+      added: ["article.2"],
+      omitted: ["membership.admission"],
+      modified: ["preamble"],
+    });
+  });
+
 });
