@@ -1,4 +1,4 @@
-import { noteSupabaseResponse } from "@/lib/supabase-service-restriction";
+import { isSupabaseServiceRestrictionError, noteSupabaseResponse } from "@/lib/supabase-service-restriction";
 
 /**
  * Public World routes must read with the anonymous role even when a manager is
@@ -392,6 +392,20 @@ export function resolveWorldDocumentFragment(
  * number: exact positive canonical decimal revision requested.
  * null: an explicit but malformed version was requested; DO NOT fetch.
  */
+/**
+ * One bounded retry is permitted for transient failures only.
+ * 402/service restriction and 4xx authorization/validation failures must not
+ * generate repeated network requests or amplify Supabase egress.
+ */
+export function shouldRetryPublicWorldDocumentRead(failureCount: number, error: unknown): boolean {
+  if (failureCount >= 1 || isSupabaseServiceRestrictionError(error)) return false;
+  if (error && typeof error === "object" && "status" in error) {
+    const status = Number((error as { status?: unknown }).status);
+    if (status >= 400 && status < 500) return false;
+  }
+  return true;
+}
+
 export function parseWorldDocumentVersionQuery(input: unknown): number | null | undefined {
   if (input === undefined) return undefined;
   if (typeof input === "number") {
