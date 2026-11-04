@@ -37,7 +37,8 @@ describe("Jury integrity evidence service-role authorization", () => {
       listJuryIntegrityCasesServer("00000000-0000-4000-8000-00000000a791"),
     ).rejects.toThrow("Missing Solaris capability: integrity.read");
 
-    expect(fixture.requireCapability).toHaveBeenCalledExactlyOnceWith(
+    expect(fixture.requireCapability).toHaveBeenCalledTimes(1);
+    expect(fixture.requireCapability).toHaveBeenCalledWith(
       "integrity.read",
       "00000000-0000-4000-8000-00000000a791",
     );
@@ -47,7 +48,8 @@ describe("Jury integrity evidence service-role authorization", () => {
   it("normalizes edition scope and enters the protected query only after capability approval", async () => {
     fixture.requireCapability.mockResolvedValue(undefined);
     fixture.privilegedSchema.mockImplementation(() => {
-      expect(fixture.requireCapability).toHaveBeenCalledExactlyOnceWith(
+      expect(fixture.requireCapability).toHaveBeenCalledTimes(1);
+      expect(fixture.requireCapability).toHaveBeenCalledWith(
         "integrity.read",
         "00000000-0000-4000-8000-00000000a791",
       );
