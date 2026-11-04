@@ -135,6 +135,18 @@ describe("public institutional legal text comparison", () => {
     expect(() => comparePublicWorldVersions(before, after)).toThrow(/text is missing/);
   });
 
+  it("classifies official provision renumbering/reordering as a change", () => {
+    const earlier = parsePublicWorldDocumentVersion(document(baseVersion, [
+      makeProvision("a", "Same", 1), makeProvision("b", "Also same", 2),
+    ]), "guard", "charter", 1, "doc-1");
+    const later = parsePublicWorldDocumentVersion(document(nextVersion, [
+      makeProvision("a", "Same", 2), makeProvision("b", "Also same", 1),
+    ]), "guard", "charter", 2, "doc-1");
+    expect(comparePublicWorldVersions(earlier, later).map((entry) => entry.kind)).toEqual([
+      "modified", "modified",
+    ]);
+  });
+
   it("rejects comparisons across documents or in reverse order", () => {
     const before = parsePublicWorldDocumentVersion(document(baseVersion, []), "guard", "charter", 1, "doc-1");
     const after = parsePublicWorldDocumentVersion(document(nextVersion, []), "guard", "charter", 2, "doc-1");
