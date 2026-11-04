@@ -33,6 +33,30 @@
     outline-offset: 3px;
   }
 
+  /* Real country data can contain long localized labels and non-numeric values.
+     Keep the compact three-stat strip readable at 320px and at increased text
+     sizes without making the entire browser page horizontally scroll. */
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-masthead dl > div {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-masthead dt {
+    overflow-wrap: anywhere;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-masthead dd {
+    max-inline-size: 100%;
+    font-size: clamp(.875rem, 4.5vw, 1.25rem);
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-masthead h1,
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-masthead p {
+    overflow-wrap: anywhere;
+  }
+
   .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-follow {
     display: inline-flex;
     min-height: 44px;
