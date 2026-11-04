@@ -205,6 +205,25 @@ supabase db push --linked --dry-run
 printf '\nDry-run complete. Re-run with SOLARIS_PRODUCTION_COMMIT=YES to commit.\n'
 [[ "${SOLARIS_PRODUCTION_COMMIT:-}" == "YES" ]] || exit 0
 
+# A different operator may have deployed while our dry-run was executing.
+# Re-read the live frontier immediately before committing: the initial
+# approval/dry-run snapshot must not be treated as a distributed lock.
+printf '\nRechecking hosted migration frontier immediately before commit:\n'
+list_precommit="$(supabase migration list --linked)"
+remote_precommit="$(printf '%s\n' "$list_precommit" | remote_head_from_list)"
+[[ "$remote_precommit" == "$EXPECTED_REMOTE_HEAD" ]] \
+  || fail "hosted migration frontier moved after dry-run: ${remote_precommit:-unknown}, expected $EXPECTED_REMOTE_HEAD"
+mapfile -t precommit_remote_only < <(printf '%s\n' "$list_precommit" | remote_only_versions_from_list | sort)
+(( ${#precommit_remote_only[@]} == 0 )) \
+  || fail "hosted-only migration appeared after dry-run: ${precommit_remote_only[*]}"
+mapfile -t precommit_pending < <(printf '%s\n' "$list_precommit" | local_only_versions_from_list | sort)
+(( ${#precommit_pending[@]} == EXPECTED_PENDING_COUNT )) \
+  || fail "pending migration set changed after dry-run"
+for i in "${!EXPECTED_PENDING_VERSIONS[@]}"; do
+  [[ "${precommit_pending[$i]}" == "${EXPECTED_PENDING_VERSIONS[$i]}" ]] \
+    || fail "pending migration manifest changed after dry-run at position $((i + 1))"
+done
+
 supabase db push --linked
 
 printf '\nMigration parity after deployment:\n'
@@ -212,5 +231,9 @@ list_after="$(supabase migration list --linked)"
 printf '%s\n' "$list_after"
 remote_after="$(printf '%s\n' "$list_after" | remote_head_from_list)"
 [[ "$remote_after" == "$EXPECTED_REPO_HEAD" ]] || fail "post-deploy head is ${remote_after:-unknown}, expected $EXPECTED_REPO_HEAD"
+mapfile -t postdeploy_local_only < <(printf '%s\n' "$list_after" | local_only_versions_from_list | sort)
+mapfile -t postdeploy_remote_only < <(printf '%s\n' "$list_after" | remote_only_versions_from_list | sort)
+(( ${#postdeploy_local_only[@]} == 0 && ${#postdeploy_remote_only[@]} == 0 )) \
+  || fail "post-deploy migration history still differs: local-only=${postdeploy_local_only[*]} remote-only=${postdeploy_remote_only[*]}"
 
 printf 'Production migration deployment completed at %s UTC\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
