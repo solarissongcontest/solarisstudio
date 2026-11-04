@@ -11,7 +11,7 @@ import {
 import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { useSolarisApp } from "@/components/app/AppRuntime";
-import { usePublicPresentationMode } from "@/lib/public-presentation-mode";
+import { usePublicPresentationMode } from "@/lib/use-public-presentation-mode";
 import { V3RecordsGate } from "@/components/v3/V3RecordsGate";
 import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
 import {
