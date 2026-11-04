@@ -152,6 +152,16 @@ begin
   end;
 
   begin
+    delete from public.world_office_terms
+     where id = v_newest_id;
+    raise exception 'TG3_HISTORY_DELETE_WAS_NOT_BLOCKED';
+  exception when sqlstate '23514' then
+    if sqlerrm <> 'WORLD_CLOSED_OFFICE_TERM_IMMUTABLE' then
+      raise exception 'TG3_HISTORY_DELETE_FAILED_BY_UNEXPECTED_GUARD: %', sqlerrm;
+    end if;
+  end;
+
+  begin
     update public.world_office_terms
        set revision = 99
      where id = v_newest_id;
