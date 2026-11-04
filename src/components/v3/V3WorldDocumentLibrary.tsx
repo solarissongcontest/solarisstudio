@@ -8,7 +8,7 @@ import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   getWorldDocumentDetail,
-  getWorldDocumentIndex,
+  getWorldDocumentIndexPage,
   normalizeWorldSearch,
   publicWorldDocumentOutline,
   resolveWorldDocumentFragment,
@@ -87,7 +87,7 @@ export function WorldDocumentLibraryScreen({
 
   const query = useQuery({
     queryKey: ["v3", "tg4", "public-document-index", initialOrganization, initialSearch, limit],
-    queryFn: () => getWorldDocumentIndex({
+    queryFn: () => getWorldDocumentIndexPage({
       organizationSlug: initialOrganization || undefined,
       search: initialSearch,
       limit,
@@ -95,6 +95,9 @@ export function WorldDocumentLibraryScreen({
     staleTime: 90_000,
     retry: 1,
   });
+
+  const canExpand = limit < 100 && Boolean(query.data?.couldHaveMore);
+  const nextLimit: WorldDocumentLimit = limit === 25 ? 50 : 100;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -153,7 +156,7 @@ export function WorldDocumentLibraryScreen({
 
             <div className="mt-8 flex items-baseline justify-between gap-4 border-b border-border pb-3">
               <h2 className="font-display text-xl font-bold">Published records</h2>
-              <span className="text-xs text-muted-foreground">Up to {limit} results</span>
+              <span className="text-xs text-muted-foreground">First {limit} records checked</span>
             </div>
             {query.isPending ? (
               <ArchiveDataLoading label="Opening institutional records…" />
@@ -167,12 +170,27 @@ export function WorldDocumentLibraryScreen({
                   Try again
                 </button>
               </section>
-            ) : query.data.length === 0 ? (
+            ) : query.data.rows.length === 0 ? (
               <section className="py-10">
-                <h3 className="text-base font-semibold">No published documents found</h3>
+                <h3 className="text-base font-semibold">
+                  {query.data.couldHaveMore
+                    ? "No published documents in the records checked yet"
+                    : "No published documents found"}
+                </h3>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Try a different search or institution. Unpublished drafts do not appear in the public library.
+                  {query.data.couldHaveMore
+                    ? "The index also contains unpublished work. Expand the search or narrow your terms to find published documents."
+                    : "Try a different search or institution. Unpublished drafts do not appear in the public library."}
                 </p>
+                {canExpand && (
+                  <button
+                    type="button"
+                    onClick={() => setLimit(nextLimit)}
+                    className="mt-4 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold hover:border-primary/50"
+                  >
+                    Check up to {nextLimit} records
+                  </button>
+                )}
                 {(initialSearch || initialOrganization) && (
                   <button type="button" onClick={() => onApplySearch("", "")} className="mt-4 min-h-11 text-sm font-semibold text-primary underline-offset-4 hover:underline">
                     Clear filters
@@ -182,18 +200,23 @@ export function WorldDocumentLibraryScreen({
             ) : (
               <>
                 <div aria-live="polite">
-                  {query.data.map((item) => <DocumentIndexRow key={item.documentId} item={item} />)}
+                  {query.data.rows.map((item) => <DocumentIndexRow key={item.documentId} item={item} />)}
                 </div>
-                {limit < 100 && (
+                {canExpand && (
                   <button
                     type="button"
-                    onClick={() => setLimit(limit === 25 ? 50 : 100)}
+                    onClick={() => setLimit(nextLimit)}
                     className="mt-5 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold hover:border-primary/50"
                   >
-                    Search up to {limit === 25 ? 50 : 100} records
+                    Check up to {nextLimit} records
                   </button>
                 )}
               </>
+            )}
+            {!query.isPending && !query.isError && limit === 100 && query.data?.couldHaveMore && (
+              <p className="mt-4 text-xs text-muted-foreground">
+                The public index checks at most 100 records per search. More published documents may exist; use an institution or a specific title to narrow results.
+              </p>
             )}
           </div>
           <aside className="h-fit border-t border-border pt-5 lg:sticky lg:top-24 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
