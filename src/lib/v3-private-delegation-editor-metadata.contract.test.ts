@@ -16,7 +16,7 @@ describe("private delegation editor route metadata", () => {
   it.each(privateDelegationEditorRoutes)("keeps %s out of search indexing", (path) => {
     const route = source(path);
 
-    expect(route).toContain('{ name: "robots", content: "noindex" }');
+    expect(route).toContain('{ name: "robots", content: "noindex, nofollow" }');
     expect(route).toContain("head: () => ({");
   });
 

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_authenticated/my-solaris/page-builder")(
   head: () => ({
     meta: [
       { title: "Page & media — Solaris Studio" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: MySolarisPageMediaModule,

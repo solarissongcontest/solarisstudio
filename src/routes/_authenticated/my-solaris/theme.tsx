@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_authenticated/my-solaris/theme")({
   head: () => ({
     meta: [
       { title: "Country appearance — Solaris Studio" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: MySolarisAppearanceModule,

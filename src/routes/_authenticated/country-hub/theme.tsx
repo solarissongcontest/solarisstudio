@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/country-hub/theme")({
   head: () => ({
     meta: [
       { title: "Country appearance — Solaris Studio" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: () => null,

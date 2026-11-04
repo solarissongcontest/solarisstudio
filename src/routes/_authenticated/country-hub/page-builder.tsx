@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/country-hub/page-builder")
   head: () => ({
     meta: [
       { title: "Country page builder — Solaris Studio" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: () => null,
