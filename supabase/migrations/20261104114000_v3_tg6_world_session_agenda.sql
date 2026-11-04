@@ -212,9 +212,15 @@ begin
   then raise exception using errcode='22023',message='VALIDATION'; end if;
   -- Serialize sequence allocation inside the organ. This also validates the
   -- organization/organ pair and prevents duplicate numbers under concurrency.
-  perform 1 from public.world_organization_organs
-  where id=p_organ_id and organization_id=p_organization_id
-  for update;
+  perform 1
+  from public.world_organization_organs organ_row
+  join public.world_organizations organization_row
+    on organization_row.id = organ_row.organization_id
+  where organ_row.id=p_organ_id
+    and organ_row.organization_id=p_organization_id
+    and organ_row.status='active'
+    and organization_row.status='active'
+  for update of organ_row;
   if not found then raise exception using errcode='23503',message='INVALID_ORGAN'; end if;
   v_claim := private.studio2_claim_operation(
     p_operation_id,p_idempotency_key,coalesce(p_correlation_id,p_operation_id),
