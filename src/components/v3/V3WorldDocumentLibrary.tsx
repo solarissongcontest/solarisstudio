@@ -435,7 +435,9 @@ export function WorldDocumentReaderScreen({
                           ))}
                         </ul>
                       </>
-                    ) : plainTextMatch ? "Phrase found in the full document text." : "No matching text in this version."}
+                    ) : plainTextMatch
+                      ? "Phrase found in the complete version text. Expand \"Complete published text\" below."
+                      : "No matching text in this version."}
                   </div>
                 )}
                 {anchors.length > 0 && (
@@ -484,6 +486,20 @@ export function WorldDocumentReaderScreen({
                 </div>
               ) : (
                 <p className="py-8 text-sm text-muted-foreground">The published version does not contain displayable text.</p>
+              )}
+              {detail.version.provisions.length > 0 && detail.version.plainText && (
+                <details id="world-document-complete-text" className="mt-8 rounded-2xl border border-border/80 bg-surface/40 p-4 sm:p-5">
+                  <summary className="min-h-11 cursor-pointer font-semibold text-primary focus-visible:outline-2 focus-visible:outline-primary">
+                    Complete published text
+                  </summary>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    This is the full plain-text record stored for this exact Version, which may include
+                    a preamble or other material not represented in the structured sections above.
+                  </p>
+                  <div className="mt-5 whitespace-pre-wrap break-words border-t border-border pt-5 text-[15px] leading-7 text-foreground/90">
+                    {detail.version.plainText}
+                  </div>
+                </details>
               )}
             </article>
             <aside className="min-w-0 space-y-7 border-t border-border pt-6 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
