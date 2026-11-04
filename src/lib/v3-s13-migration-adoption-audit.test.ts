@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   auditV3S13MigrationAdoption,
   classifyV3S13MigrationRisks,
+  type V3S13ReviewedExemptionReason,
   type V3S13ReviewedMigrationExemption,
 } from "./v3-s13-migration-adoption-audit";
 
@@ -13,9 +14,10 @@ const migration = (name: string, source: string) => ({
 const reviewed = (
   name: string,
   rationale = "Merged before the S13 gate existed.",
+  reason: V3S13ReviewedExemptionReason = "pre_framework_merge",
 ): V3S13ReviewedMigrationExemption => ({
   path: `supabase/migrations/${name}`,
-  reason: "pre_framework_merge",
+  reason,
   rationale,
 });
 
@@ -60,6 +62,39 @@ describe("System V3 S13 migration adoption audit", () => {
       findingCount: 0,
       exemptionIssueCount: 0,
     });
+  });
+
+  it("accepts one exact immutable-history exemption only when explicitly forward repaired", () => {
+    const repairedName = "20261022151607_batch_running_order_result_sync.sql";
+    const siblingName = "20261022151608_unrepaired.sql";
+    const report = auditV3S13MigrationAdoption(
+      [
+        migration(
+          repairedName,
+          "update public.participants set running_order = running_order where false;",
+        ),
+        migration(
+          siblingName,
+          "update public.participants set running_order = running_order where false;",
+        ),
+      ],
+      [
+        reviewed(
+          repairedName,
+          "Already-merged immutable history is documented by an explicit forward repair migration.",
+          "immutable_history_forward_repaired",
+        ),
+      ],
+    );
+
+    expect(report.exemptCount).toBe(1);
+    expect(report.clean).toBe(false);
+    expect(report.findings).toEqual([
+      expect.objectContaining({
+        path: `supabase/migrations/${siblingName}`,
+        finding: "high_risk_without_contract",
+      }),
+    ]);
   });
 
   it("fails closed on duplicate, stale, invalid-path, empty-rationale, and invalid-reason exemptions", () => {

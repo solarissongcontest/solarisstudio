@@ -7,15 +7,30 @@ import { V3_SYSTEM_DOMAIN_REGISTRY } from "./v3-system-domain-registry";
 const migration = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20261023204600_v3_country_flag_crop_command_authority.sql",
+    "supabase/migrations/20261104230000_v3_country_flag_crop_command_authority.sql",
   ),
   "utf8",
 );
 
 describe("System V3 country flag display-crop authority", () => {
+  it("uses canonical semantic S13 identity and an architecture-safe transport bridge", () => {
+    expect(migration).toContain("'v3.country.flag-crop-authority'");
+    expect(migration).not.toContain("'20261023204600_v3_country_flag_crop_command_authority'");
+    const source = readFileSync(
+      resolve(process.cwd(), "src/lib/v3-country-flag-crop-client.ts"), "utf8",
+    );
+    const transport = readFileSync(
+      resolve(process.cwd(), "src/lib/studio2-country-flag-crop-transport.ts"), "utf8",
+    );
+    expect(source).toContain('from "./studio2-country-flag-crop-transport"');
+    expect(source).not.toContain('from "@/integrations/supabase/client"');
+    expect(transport).toContain('from "@/integrations/supabase/client"');
+  });
+
+
   it("registers the additive migration through the canonical S13 contract", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
-    expect(migration).toContain("'20261023204600_v3_country_flag_crop_command_authority'");
+    expect(migration).toContain("'v3.country.flag-crop-authority'");
     expect(migration).toContain("'forward_fix_only'");
   });
 

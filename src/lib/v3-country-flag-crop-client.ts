@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { countryFlagCropSupabaseClient } from "./studio2-country-flag-crop-transport";
 
 export type V3FlagCrop = {
   x: number;
@@ -40,7 +40,7 @@ export type V3CountryFlagCropRpcClient = {
   rpc(name: string, args?: Record<string, unknown>): RpcResult;
 };
 
-const defaultClient = supabase as unknown as V3CountryFlagCropRpcClient;
+const defaultClient = countryFlagCropSupabaseClient as unknown as V3CountryFlagCropRpcClient;
 
 function object(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {

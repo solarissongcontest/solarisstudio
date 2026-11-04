@@ -6,7 +6,7 @@ begin;
 --
 -- S13: additive, forward-only and bounded to one country row per command.
 select public.v3_register_migration_contract(
-  '20261023204600_v3_country_flag_crop_command_authority',
+  'v3.country.flag-crop-authority',
   1,
   'forward_fix_only',
   false,

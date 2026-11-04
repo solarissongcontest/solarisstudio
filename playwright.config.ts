@@ -296,14 +296,17 @@ export default defineConfig({
   grepInvert: fullAudit ? undefined : /installed-app route invariant crawl/,
   outputDir: "test-results/playwright",
   // Routine PR and main-push CI is release feedback, not an exhaustive crawler.
-  // The broad inventory stays available for explicit/manual and release-branch
-  // certification; routine CI runs a deterministic representative matrix after
-  // the separate Organizer fail-fast preflight.
+  // The broad inventory stays available for explicit/manual certification;
+  // routine CI runs a deterministic representative matrix after the separate
+  // Organizer fail-fast preflight.
   timeout: representativeCI ? 90_000 : process.env.CI ? 8 * 60_000 : 5 * 60_000,
   expect: { timeout: 20_000 },
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  retries: representativeCI ? 0 : process.env.CI ? 1 : 0,
+  // Certification evidence must reflect the first deterministic execution.
+  // A retry may collect more information locally, but CI must never turn a
+  // reproducible first failure into a green certification result.
+  retries: 0,
   // The representative CI matrix is already bounded. Do not stop after the first
   // failure: one run must report the whole actionable browser failure set.
   maxFailures: 0,
