@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { predictionReadStatus } from "./public-prediction-read-status";
+import { predictionDraftScope, predictionReadStatus } from "./public-prediction-read-status";
 
 const ready = { isError: false, isLoading: false };
 const loading = { isError: false, isLoading: true };
@@ -39,5 +39,32 @@ describe("Prediction read verification before showing empty or editable state", 
   it("resumes the verified state after successful retries", () => {
     expect(predictionReadStatus(ready, ready, failed)).toBe("error");
     expect(predictionReadStatus(ready, ready, ready)).toBe("ready");
+  });
+});
+
+describe("in-memory Prediction draft account/round isolation", () => {
+  it("retains the same scope across harmless rerenders", () => {
+    expect(predictionDraftScope("round-1", "fan-a")).toBe(
+      predictionDraftScope("round-1", "fan-a"),
+    );
+  });
+
+  it("changes scope when the signed-in account changes for a round", () => {
+    expect(predictionDraftScope("round-1", "fan-a")).not.toBe(
+      predictionDraftScope("round-1", "fan-b"),
+    );
+  });
+
+  it("changes scope when navigating between shows or losing the signed-in session", () => {
+    const original = predictionDraftScope("round-1", "fan-a");
+    expect(predictionDraftScope("round-2", "fan-a")).not.toBe(original);
+    expect(predictionDraftScope("round-1", null)).not.toBe(original);
+    expect(predictionDraftScope(null, "fan-a")).not.toBe(original);
+  });
+
+  it("does not confuse an anonymous round with a differently keyed signed-in draft", () => {
+    expect(predictionDraftScope("round-1", null)).not.toBe(
+      predictionDraftScope("round-1", "null"),
+    );
   });
 });
