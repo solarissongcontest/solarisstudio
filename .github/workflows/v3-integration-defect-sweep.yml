@@ -1,0 +1,117 @@
+name: V3 cross-system integration defect sweep
+
+# Explicitly opt-in: this is an independent, read-only diagnostic and never
+# substitutes for the exact-head S14 lifecycle or S15/S16 release gates.
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact 40-character commit SHA to diagnose
+        required: true
+        type: string
+      reference_sha:
+        description: Optional exact 40-character known-good integration head for source comparison
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-integration-defect-sweep-${{ inputs.candidate_sha }}
+  cancel-in-progress: false
+
+jobs:
+  source-diagnostics:
+    name: Independent source and evidence sweep (no database)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      V3_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      V3_VERIFICATION_TARGET: local
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+
+    steps:
+      - name: Verify dispatch input before checkout
+        shell: bash
+        env:
+          REFERENCE_SHA: ${{ inputs.reference_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$V3_CANDIDATE_SHA" =~ ^[a-f0-9]{40}$ ]] || {
+            echo "::error::candidate_sha must be an exact lowercase commit SHA"
+            exit 1
+          }
+          if [[ -n "$REFERENCE_SHA" ]] && [[ ! "$REFERENCE_SHA" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "::error::reference_sha must be an exact lowercase commit SHA"
+            exit 1
+          fi
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          [[ "$actual" == "$V3_CANDIDATE_SHA" ]] || {
+            echo "::error::S14 sweep checkout SHA differs from request"
+            exit 1
+          }
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install frozen dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify source-level detector and isolation regressions
+        run: node --test scripts/v3-integration-defect-sweep.test.mjs
+
+      - name: Collect independent S14 and S15 defects without stopping at first finding
+        shell: bash
+        env:
+          REFERENCE_SHA: ${{ inputs.reference_sha }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$REFERENCE_SHA" ]]; then
+            node scripts/v3-integration-defect-sweep.mjs --reference-sha "$REFERENCE_SHA"
+          else
+            node scripts/v3-integration-defect-sweep.mjs
+          fi
+
+      - name: Publish diagnostic report
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f v3-release-evidence/integration-defect-sweep.md ]]; then
+            cat v3-release-evidence/integration-defect-sweep.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Integration sweep did not produce evidence; this is a diagnostic failure, not a passing release gate." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Preserve independent evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-integration-defect-sweep-${{ inputs.candidate_sha }}
+          path: |
+            v3-release-evidence/integration-defect-sweep.json
+            v3-release-evidence/integration-defect-sweep.md
+          if-no-files-found: warn
+          retention-days: 30
+
+# No Supabase CLI, DB reset, service_role, hosted URL, or playwright setup.
+# Full S14 and S15 verification continue in their existing isolated workflows.
