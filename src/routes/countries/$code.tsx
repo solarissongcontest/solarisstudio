@@ -123,7 +123,11 @@ function CountryProfilePage() {
   const { isAppMode } = useSolarisApp();
   // A phone-sized browser is a different presentation surface from the PWA.
   // Listen to CSS viewport changes, not the visual viewport (keyboard/zoom).
-  const [narrowViewport, setNarrowViewport] = useState(false);
+  // Resolve the first client render from the real CSS viewport. Waiting for
+  // an effect would briefly mount the desktop hero and follow control on phones.
+  const [narrowViewport, setNarrowViewport] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia(COUNTRY_MOBILE_WEB_MEDIA_QUERY).matches,
+  );
   useEffect(() => {
     const media = window.matchMedia(COUNTRY_MOBILE_WEB_MEDIA_QUERY);
     const update = () => setNarrowViewport(media.matches);
