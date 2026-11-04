@@ -7,6 +7,7 @@ import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ArchiveDataError } from "@/components/ArchiveDataState";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
+import { FlagFrame } from "@/components/FlagMedia";
 import {
   Sheet,
   SheetContent,
@@ -33,6 +34,7 @@ import {
 } from "@/lib/country-design-v2";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
+import type { CountryLayoutMode } from "@/lib/country-layout-mode";
 import { buildCountryCharacter, buildCountryFunFacts } from "@/lib/country-wiki";
 import type { Country, Edition, Participant } from "@/lib/data";
 import {
@@ -56,6 +58,8 @@ import {
   type QualificationStatus,
 } from "@/lib/qualification";
 import { countryThemeToVisual, useCountryTheme } from "@/lib/visual-theme";
+import { useCountryLayoutMode } from "@/lib/use-country-layout-mode";
+import wikiMobileWebCss from "@/wiki-mobile-web.css?inline";
 
 type PublicArchive = ReturnType<typeof buildPublicCountryArchive>;
 type CountryStats = ReturnType<typeof computeCanonicalCountryStats>;
@@ -218,6 +222,7 @@ function CountryWikiArticle({
   archivePending: boolean;
   archivePartial: boolean;
 }) {
+  const countryLayoutMode = useCountryLayoutMode();
   const world = useCountryWorldProfile(country.id);
   const identityHistory = usePublicCountryIdentityHistory(country.id);
   const nationalFinals = useCountryNationalFinals(country.id);
@@ -320,8 +325,10 @@ function CountryWikiArticle({
 
   return (
     <AppShell>
+      <style data-wiki-mobile-web-styles>{wikiMobileWebCss}</style>
       <div
-        className={publishedDesign ? "wiki-canvas min-w-0 country-design-v2" : "wiki-canvas min-w-0"}
+        className={publishedDesign && countryLayoutMode !== "mobile-web" ? "wiki-canvas min-w-0 country-design-v2" : "wiki-canvas min-w-0"}
+        data-wiki-layout-mode={countryLayoutMode}
         data-country-surface={publishedDesign?.surface}
         data-country-accent={publishedDesign?.accent}
         data-country-motion={publishedDesign?.motion}
@@ -329,16 +336,37 @@ function CountryWikiArticle({
         style={publishedDesign ? countryDesignCssVariables(publishedDesign) : undefined}
       >
         {publishedDesign && countryDesignFontCss(publishedDesign) ? <style>{countryDesignFontCss(publishedDesign)}</style> : null}
-        <CountryWikiHeader country={country} />
+        <CountryWikiHeader country={country} layoutMode={countryLayoutMode} />
 
-        <WikiMobileToolbar
-          country={country}
-          profile={profile}
-          infoRows={infoRows}
-          sections={articleSections}
-          activeId={activeId}
-          onNavigate={navigate}
-        />
+        {countryLayoutMode === "mobile-web" ? (
+          <div className="wiki-mobile-web-navigation">
+            <nav className="wiki-mobile-web-toc scroll-slim" aria-label="Article sections">
+              {articleSections.map((section) => (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => navigate(section.id)}
+                  aria-current={section.id === activeId ? "location" : undefined}
+                >
+                  {section.label}
+                </button>
+              ))}
+            </nav>
+            <details className="wiki-mobile-web-facts">
+              <summary>Quick facts about {country.name}</summary>
+              <WikiInfobox country={country} profile={profile} infoRows={infoRows} mobile />
+            </details>
+          </div>
+        ) : (
+          <WikiMobileToolbar
+            country={country}
+            profile={profile}
+            infoRows={infoRows}
+            sections={articleSections}
+            activeId={activeId}
+            onNavigate={navigate}
+          />
+        )}
 
         <div className="wiki-medium-contents hidden lg:block xl:hidden">
           <WikiCompactContents sections={articleSections} activeId={activeId} onNavigate={navigate} />
@@ -515,7 +543,7 @@ function CountryWikiArticle({
   );
 }
 
-function CountryWikiHeader({ country }: { country: Country }) {
+function CountryWikiHeader({ country, layoutMode }: { country: Country; layoutMode: CountryLayoutMode }) {
   const { data: countryThemeRow } = useCountryTheme(country.id);
   const designV2Query = useCountryDesignV2(country.id);
   const visualTheme = countryThemeToVisual(countryThemeRow);
@@ -539,6 +567,36 @@ function CountryWikiHeader({ country }: { country: Country }) {
       follow: { label: "Country", href: `/countries/${country.short_code}` },
     },
   };
+
+  if (layoutMode === "mobile-web") {
+    return (
+      <header className="wiki-mobile-web-heading" aria-labelledby="wiki-mobile-web-title">
+        <Link to="/wiki">← All Wiki articles</Link>
+        <div className="mt-3 flex min-w-0 items-start gap-4">
+          <FlagFrame
+            image={country.flag_image}
+            alt={`Flag of ${country.name}`}
+            fallback={country.short_code}
+            loading="eager"
+            className="!m-0 block aspect-[3/2] w-[104px] min-w-[104px] overflow-hidden rounded-lg border border-border/70 bg-surface"
+            imageClassName="block h-full w-full"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[.15em] text-muted-foreground">
+              Terra Solaris Wiki · {country.region || country.short_code}
+            </p>
+            <h1 id="wiki-mobile-web-title" className="mt-1 text-foreground">{country.name}</h1>
+            {country.native_name && country.native_name !== country.name ? (
+              <p className="mt-2 text-xs text-muted-foreground">{country.native_name}</p>
+            ) : null}
+          </div>
+        </div>
+        <Link className="wiki-mobile-web-profile-link mt-2" to="/countries/$code" params={{ code: country.short_code }}>
+          View country profile →
+        </Link>
+      </header>
+    );
+  }
 
   return publishedDesign ? (
     <CountryDesignV2Hero
