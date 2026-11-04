@@ -176,30 +176,78 @@ async function reportPushReceipt(data, stage) {
   }
 }
 
+// Belt-and-suspenders protection for lock screens: other push producers may
+// be deployed before the canonical World dispatcher. Never trust a detailed
+// Court/Ethics title or allegation sent with a private/world classification.
+function resolvePushDisplayContent(candidate) {
+  const payload = candidate && typeof candidate === "object" && !Array.isArray(candidate)
+    ? candidate
+    : {};
+  const category = typeof payload.category === "string" ? payload.category.trim().toLowerCase() : "";
+  const eventType = typeof payload.eventType === "string" ? payload.eventType.trim().toLowerCase() : "";
+  const route = typeof payload.route === "string" ? payload.route.trim().toLowerCase() : "";
+  const visibility = typeof payload.visibility === "string" ? payload.visibility.trim().toLowerCase() : "";
+  const privacy = typeof payload.privacy === "string" ? payload.privacy.trim().toLowerCase() : "";
+  const institutionalKind = /(?:^|[._:-])(?:court|ethics|investigation|leadership)(?:[._:-]|$)/;
+  const sensitivity = typeof payload.sensitivity === "string" ? payload.sensitivity.trim().toLowerCase() : "";
+  const sensitive =
+    sensitivity === "private" ||
+    payload.sensitive === true ||
+    ["private", "confidential", "restricted", "committee", "sealed"].includes(visibility) ||
+    ["private", "confidential", "restricted", "committee", "sealed"].includes(privacy) ||
+    category === "world" || category.startsWith("world.") || category.startsWith("world_") ||
+    eventType === "world" || eventType.startsWith("world.") || eventType.startsWith("world_") ||
+    route === "/world" || route.startsWith("/world/") || route.startsWith("/world?") ||
+    institutionalKind.test(category) || institutionalKind.test(eventType);
+
+  if (!sensitive) {
+    return {
+      title: typeof payload.title === "string" ? payload.title : "Solaris Studio",
+      body: typeof payload.body === "string" ? payload.body : "",
+      tag: typeof payload.tag === "string" ? payload.tag : undefined,
+    };
+  }
+  const id = typeof payload.deliveryId === "string" ? payload.deliveryId.toLowerCase() : "";
+  const tag = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id)
+    ? `world-private:${id}`
+    : "world-private";
+  return {
+    title: "Terra Solaris",
+    body: "You have a new institutional update.",
+    tag,
+  };
+}
+
 self.addEventListener("push", (event) => {
   let payload = {};
   try {
     payload = event.data ? event.data.json() : {};
   } catch {
-    payload = { body: event.data?.text?.() ?? "" };
+    // A malformed push may itself contain confidential case text. Never
+    // display its raw bytes on a phone's lock screen.
+    payload = { sensitivity: "private" };
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    payload = {};
   }
 
-  const title = typeof payload.title === "string" ? payload.title : "Solaris Studio";
+  const safeContent = resolvePushDisplayContent(payload);
+  const title = safeContent.title;
   const route = normalizePushRoute(payload.route);
   const options = {
-    body: typeof payload.body === "string" ? payload.body : "",
+    body: safeContent.body,
     icon: "/icon-192.png?v=img2340-20260929",
     badge: "/icon-192.png?v=img2340-20260929",
-    tag: typeof payload.tag === "string" ? payload.tag : undefined,
+    tag: safeContent.tag,
     renotify: false,
     data: {
       route,
       deliveryId:
-        typeof payload.deliveryId === "string" ? payload.deliveryId : null,
+        typeof payload?.deliveryId === "string" ? payload.deliveryId : null,
       receiptToken:
-        typeof payload.receiptToken === "string" ? payload.receiptToken : null,
+        typeof payload?.receiptToken === "string" ? payload.receiptToken : null,
       receiptUrl:
-        typeof payload.receiptUrl === "string" ? payload.receiptUrl : null,
+        typeof payload?.receiptUrl === "string" ? payload.receiptUrl : null,
     },
   };
 
