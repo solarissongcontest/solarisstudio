@@ -7,7 +7,7 @@ import { readFile, writeFile, mkdir, appendFile, chmod } from 'node:fs/promises'
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import {
-  SOURCE_PROJECT, DESTINATION_PROJECT, REFERENCE_TABLES, assertApprovedWrite,
+  SOURCE_PROJECT, DESTINATION_PROJECT, REFERENCE_TABLES, assertApprovedWrite, assertAssetClearance,
   inventoryPair, recoveryDigest, transferVerifiedMissing, proposeReferenceReconciliation,
   validateProjectPair,
 } from './lib/v3-media-recovery-core.mjs';
@@ -109,6 +109,7 @@ async function main() {
       if (!approved.has(entry.bucket + '/' + entry.path + '#' + entry.source_sha256)) {
         throw new Error('Signed authorization lacks a reviewed source asset');
       }
+      assertAssetClearance(entry, approval);
     }
     for (const entry of inventory.entries.filter(e => e.status === 'missing_destination')) {
       const result = await transferVerifiedMissing({
@@ -160,6 +161,10 @@ main().catch(error => {
     'Reference inspection incomplete; refusing writes',
     'Unresolved collision, missing bucket or unavailable object; refusing writes',
     'Signed authorization lacks a reviewed source asset',
+    'Bucket not approved for this recovery operation',
+    'Missing or duplicate per-asset clearance',
+    'Private asset clearance must retain private visibility',
+    'Public restore requires existing canonical publication and media validation evidence',
     'Missing explicit production write acknowledgment',
     'Missing protected approval signing key',
     'Invalid, expired or mismatched recovery authorization',
