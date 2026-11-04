@@ -9,6 +9,7 @@ import {
   normalizeWorldSearch,
   parseWorldDocumentDetail,
   parseWorldDocumentIndex,
+  parseWorldDocumentIndexPage,
   publicWorldDocumentOutline,
   resolveWorldDocumentFragment,
   worldProvisionTargetId,
@@ -178,6 +179,27 @@ describe("TG4 public institutional document library", () => {
     expect(parsed[0].slug).toBe("charter");
     expect(parsed[0].currentVersion.versionNumber).toBe(2);
     expect(Object.keys(parsed[0])).not.toContain("visibility");
+  });
+
+  it("counts server rows before filtering drafts to avoid a false empty-result claim", () => {
+    const draftRows = Array.from({ length: 25 }, (_, index) => ({
+      ...indexRow,
+      documentId: "unpublished-" + index,
+      slug: "unpublished-" + index,
+      currentVersion: null,
+    }));
+    const capped = parseWorldDocumentIndexPage({ documents: draftRows }, 25);
+    expect(capped.rows).toHaveLength(0);
+    expect(capped.scanned).toBe(25);
+    expect(capped.couldHaveMore).toBe(true);
+
+    const fullyChecked = parseWorldDocumentIndexPage({ documents: draftRows }, 50);
+    expect(fullyChecked.rows).toHaveLength(0);
+    expect(fullyChecked.couldHaveMore).toBe(false);
+
+    expect(() => parseWorldDocumentIndexPage({
+      documents: [...draftRows, indexRow],
+    }, 25)).toThrow("Invalid bounded institutional document index");
   });
 
   it("rejects malformed identifiers and duplicate canonical rows", () => {
