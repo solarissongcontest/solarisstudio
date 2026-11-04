@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
-import { WorldCountryInternational } from "@/components/world/WorldCountryInternational";
+import { WorldCountryInternational, WorldCountryRolloutGate } from "@/components/world/WorldCountryInternational";
 
 export const Route = createFileRoute("/world/countries/$code")({
   head: ({ params }) => ({
@@ -19,5 +19,5 @@ export const Route = createFileRoute("/world/countries/$code")({
 
 function WorldCountryRoute() {
   const { code } = Route.useParams();
-  return <AppShell><WorldCountryInternational code={code} /></AppShell>;
+  return <AppShell><WorldCountryRolloutGate><WorldCountryInternational code={code} /></WorldCountryRolloutGate></AppShell>;
 }
