@@ -253,6 +253,7 @@ function ConfirmationResponsesList() {
   const [responseCursor, setResponseCursor] = useState<ConfirmationProjectionCursor | null>(null);
   const [responseTotalCount, setResponseTotalCount] = useState(0);
   const [responseStateVersion, setResponseStateVersion] = useState<string | null>(null);
+  const [responseReloadNonce, setResponseReloadNonce] = useState(0);
   // A request from edition A must not commit after A → B → A, even if its
   // edition id matches again. A generation also releases an abandoned load.
   const responseGenerationRef = useRef(0);
@@ -324,7 +325,7 @@ function ConfirmationResponsesList() {
     })();
 
     return () => { alive = false; };
-  }, [editionId]);
+  }, [editionId, responseReloadNonce]);
 
   useEffect(() => {
     let alive = true;
@@ -491,7 +492,7 @@ function ConfirmationResponsesList() {
 
           {mode === "confirmations" ? (
             <select disabled={!editionId} value={roundId} onChange={(event) => setRoundId(event.target.value)} className="min-h-11 rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground [color-scheme:dark] disabled:opacity-45">
-              <option value="all">All loaded rounds</option>
+              <option value="all">All rounds</option>
               {rounds.map((round) => <option key={round.id} value={round.id}>{round.name}</option>)}
             </select>
           ) : <div className="hidden md:block" />}
@@ -513,7 +514,7 @@ function ConfirmationResponsesList() {
         <AdminCard className="py-8 text-center text-sm text-muted-foreground">Loading exact-edition responses…</AdminCard>
       ) : error ? (
         <AdminCard className="mb-4 border-rose-200/20 bg-rose-200/[0.045]">
-          <div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" /><div><p className="font-semibold">Responses could not be loaded</p><p className="mt-1 text-sm text-muted-foreground">{error}</p></div></div>
+          <div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" /><div><p className="font-semibold">Responses could not be loaded</p><p className="mt-1 text-sm text-muted-foreground">{error}</p><button type="button" disabled={!editionId || editionId !== organizerEditionId || loadingResponses} onClick={() => setResponseReloadNonce((nonce) => nonce + 1)} className="admin-action-secondary mt-3">Reload current edition</button></div></div>
         </AdminCard>
       ) : !editionId ? (
         <AdminCard><AdminEmptyState icon={CircleAlert} title="Select an edition" description="Entry Review is edition-scoped. Solaris will not combine historical response queues or substitute a globally active or newest edition." /></AdminCard>
