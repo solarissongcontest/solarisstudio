@@ -1,0 +1,77 @@
+name: V3 S6 Jury verifier child local rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+      - v3/sys-s6-jury-readiness-current-main-20261020b
+    paths:
+      - "supabase/migrations/*v3_s6_jury_readiness_verifier_review_fixes.sql"
+      - "src/lib/v3-s6-jury-readiness-review-fixes.contract.test.ts"
+      - ".github/workflows/v3-s6-jury-readiness-verifier-child.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s6-jury-verifier-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-verifier:
+    name: Jury verifier / ${{ matrix.mode }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        mode: [clean-replay, parent-upgrade]
+    steps:
+      - name: Checkout exact candidate SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Install local Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Rehearse verifier on a disposable local database
+        shell: bash
+        env:
+          REHEARSAL_MODE: ${{ matrix.mode }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: |
+          set -euo pipefail
+          feature_root="$GITHUB_WORKSPACE"
+          work_root="$feature_root"
+          if [[ "$REHEARSAL_MODE" == "parent-upgrade" ]]; then
+            git fetch origin "$BASE_REF" --no-tags
+            [[ -n "$BASE_SHA" ]] || BASE_SHA="$(git rev-parse FETCH_HEAD)"
+            work_root="$RUNNER_TEMP/v3-s6-verifier-parent"
+            git worktree add --detach "$work_root" "$BASE_SHA"
+          fi
+          cd "$work_root"
+          supabase start
+          supabase db reset --local --no-seed
+          if [[ "$REHEARSAL_MODE" == "parent-upgrade" ]]; then
+            install -m 0644 "$feature_root/supabase/migrations/20261104172000_v3_s6_jury_readiness_verifier_review_fixes.sql" supabase/migrations/
+            supabase migration up --local --include-all
+          fi
+          # Runner obtains local CLI endpoints and rejects hosted authorities
+          # before opening psql or writing any fixture data.
+          bash "$feature_root/.github/scripts/v3-s6-jury-readiness-rehearsal.sh"
+      - name: Stop disposable Supabase
+        if: always()
+        shell: bash
+        env:
+          REHEARSAL_MODE: ${{ matrix.mode }}
+        run: |
+          set +e
+          if [[ "$REHEARSAL_MODE" == "parent-upgrade" ]]; then
+            cd "$RUNNER_TEMP/v3-s6-verifier-parent" 2>/dev/null || exit 0
+          fi
+          supabase stop --no-backup

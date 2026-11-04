@@ -2,6 +2,13 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+const workflow = readFileSync(
+  resolve(process.cwd(), ".github/workflows/v3-s6-jury-readiness-verifier-child.yml"),
+  "utf8",
+);
+
+
+
 const migration = readFileSync(
   resolve(
     process.cwd(),
@@ -23,6 +30,19 @@ function verifyBody() {
 }
 
 describe("System V3 S6 Jury verifier review fixes", () => {
+  it("rehearses a clean local replay and pinned parent upgrade without hosted credentials", () => {
+    expect(workflow).toContain("mode: [clean-replay, parent-upgrade]");
+    expect(workflow).toContain("max-parallel: 1");
+    expect(workflow).toContain("github.event.pull_request.head.sha");
+    expect(workflow).toContain("github.event.pull_request.base.sha");
+    expect(workflow).toContain("supabase db reset --local --no-seed");
+    expect(workflow).toContain("supabase migration up --local --include-all");
+    expect(workflow).toContain("20261104172000_v3_s6_jury_readiness_verifier_review_fixes.sql");
+    expect(workflow).toContain("v3-s6-jury-readiness-rehearsal.sh");
+    expect(workflow).toContain("supabase stop --no-backup");
+    expect(workflow).not.toContain("secrets.");
+  });
+
   it("registers an isolated forward-only S13 fix and embeds no hosted endpoint", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain("'v3.s6.jury-readiness-verifier-review-fix-v1'");
