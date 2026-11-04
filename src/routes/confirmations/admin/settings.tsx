@@ -67,13 +67,19 @@ function SettingsPage() {
     if (signOutInFlightRef.current) return;
     signOutInFlightRef.current = true;
     setSigningOut(true);
+    let sessionEnded = false;
     try {
       // Use the one Solaris account session authority. A Supabase error must
       // never redirect to login while the original session remains active.
       await signOutSolarisAccount();
+      sessionEnded = true;
       await navigate({ to: "/auth" });
     } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Could not sign out. Your session may still be active.");
+      if (sessionEnded) {
+        toast.error("Solaris signed you out, but the sign-in page could not be opened.");
+      } else {
+        toast.error(caught instanceof Error ? caught.message : "Could not sign out. Your session may still be active.");
+      }
     } finally {
       signOutInFlightRef.current = false;
       setSigningOut(false);
