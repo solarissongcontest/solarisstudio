@@ -12,6 +12,8 @@ export const TERRA_GOVERNANCE_TG6 = Object.freeze({
     "public.world_session_create_v1",
     "public.world_agenda_append_v1",
     "public.world_agenda_reorder_v1",
+    "public.world_session_transition_v1",
+    "public.world_agenda_publish_v1",
   ] as const,
   projections: [
     "public.world_session_schedule_v1",
@@ -22,6 +24,8 @@ export const TERRA_GOVERNANCE_TG6 = Object.freeze({
     "world.session.created",
     "world.agenda.appended",
     "world.agenda.reordered",
+    "world.session.transitioned",
+    "world.agenda.published",
   ] as const,
   capabilities: [
     "world.session.create",
@@ -30,7 +34,6 @@ export const TERRA_GOVERNANCE_TG6 = Object.freeze({
   ] as const,
   sourceOfTruth: "TG2 organization/organ + TG6 session/agenda state",
   notYetImplemented: [
-    "session lifecycle transitions",
     "attendance and representative/proxy roll call",
     "minutes and formal decisions",
     "constitutional quorum and official vote transitions",
