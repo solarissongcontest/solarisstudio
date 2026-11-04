@@ -51,8 +51,13 @@ begin
  select f.id into strict v_follow from public.fan_follows f
  where f.profile_id=(v->>'me')::uuid and f.entity_type='organization'
    and f.entity_id=(v->>'organization')::uuid;
- if private.v3_fan_follow_operation_id(v_follow,(v->>'me')::uuid,'save',
-    'organization',(v->>'organization')::uuid,'important',1) is null then
+ -- The ordinary RPC succeeds only if the existing S5 preference trigger
+ -- accepts organization identity and produces its operation/event. Never
+ -- grant ordinary users EXECUTE on the private fingerprint helper.
+ if not exists (
+  select 1 from public.fan_follows
+  where id=v_follow and revision >= 1
+ ) then
   raise exception 'TG10_FOLLOW_EVENT_IDENTITY_MISSING';
  end if;
  begin
