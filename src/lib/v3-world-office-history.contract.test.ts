@@ -10,6 +10,10 @@ const route = readFileSync(resolve(process.cwd(),
   "src/routes/world/organizations/$slug_.office-history.tsx"), "utf8");
 const screen = readFileSync(resolve(process.cwd(),
   "src/components/world/WorldOfficeHistory.tsx"), "utf8");
+const rehearsal = readFileSync(resolve(process.cwd(),
+  "scripts/rehearse-v3-world-office-history.sql"), "utf8");
+const rehearsalRunner = readFileSync(resolve(process.cwd(),
+  "scripts/rehearse-v3-world-office-history.sh"), "utf8");
 
 describe("TG3 previous-leadership production boundary", () => {
   it("limits historical reads to publicly visible organizations and completed terms", () => {
@@ -60,6 +64,20 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(migration).toContain("end_edition.published is true");
     expect(source).toContain("historicalTermEditionLabel");
     expect(screen).not.toContain("holderUserId");
+  });
+
+  it("offers a rollback-only isolated migration rehearsal, never a hosted DB runner", () => {
+    expect(rehearsal).toContain("begin;");
+    expect(rehearsal).toContain("rollback;");
+    expect(rehearsal).toContain("TG3_HISTORY_PRIVATE_ORG_LEAK");
+    expect(rehearsal).toContain("TG3_HISTORY_FROZEN_LABELS_OR_FIRST_PAGE_FAILED");
+    expect(rehearsal).toContain("TG3_HISTORY_KEYSET_OR_NULL_COUNTRY_FAILED");
+    expect(rehearsal).toContain("TG3_HISTORY_UNBOUNDED_LIMIT_NOT_REJECTED");
+    expect(rehearsalRunner).toContain('V3_VERIFICATION_TARGET:-}');
+    expect(rehearsalRunner).toContain("PGHOST=127.0.0.1");
+    expect(rehearsalRunner).toContain("PGPORT=54322");
+    expect(rehearsalRunner).not.toContain("SUPABASE_DB_URL");
+    expect(rehearsalRunner).not.toContain("production");
   });
 
   it("keeps its own TanStack leaf route and public-only query without touching existing directories", () => {
