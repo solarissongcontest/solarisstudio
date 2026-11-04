@@ -281,6 +281,31 @@ export function WorldDocumentReaderScreen({
   const plainTextMatch = !!documentSearch.trim() &&
     !!detail?.version.plainText.toLocaleLowerCase().includes(documentSearch.trim().toLocaleLowerCase());
 
+  // On a cold deep link the HTML anchor is not mounted until the TG4 RPC
+  // resolves. Restore the fragment only when it belongs to this exact Version.
+  // window.document is intentional: "document" is the route's slug parameter.
+  useEffect(() => {
+    if (!detail || typeof window === "undefined") return;
+    const fragment = window.location.hash.slice(1);
+    if (!fragment) return;
+    let target: string;
+    try {
+      target = decodeURIComponent(fragment);
+    } catch {
+      return;
+    }
+    if (!detail.version.provisions.some((provision) =>
+      provision.targetId === target || provision.anchor === target
+    )) return;
+    const frame = window.requestAnimationFrame(() => {
+      window.document.getElementById(target)?.scrollIntoView({
+        block: "start",
+        behavior: "auto",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [detail?.documentId, detail?.version.versionNumber]);
+
   return (
     <AppShell>
       <PageHeader
