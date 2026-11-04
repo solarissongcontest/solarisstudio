@@ -55,6 +55,11 @@ function OfficeTermRow({ term }: { term: PublicOfficeTerm }) {
         <p className="mt-2 font-display text-lg font-semibold tracking-tight">
           {term.holderDisplayName}
         </p>
+        {term.representedCountryName ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            Represented country: {term.representedCountryName}
+          </p>
+        ) : null}
         <p className="mt-1 text-sm capitalize text-muted-foreground">
           {term.termKind.replace(/_/g, " ")} term
         </p>
