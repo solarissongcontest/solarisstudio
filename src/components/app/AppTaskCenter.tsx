@@ -7,13 +7,12 @@ import {
   Info,
 } from "lucide-react";
 
-import { formatCompactCountdown, millisecondsUntil } from "@/lib/solaris-schedule";
 import {
-  participationTaskCounts,
-  sortSolarisTasks,
-  taskNeedsAttention,
-  type SolarisTask,
-} from "@/lib/participation-os";
+  exactAppTaskTiming,
+  partitionAppTaskCenter,
+  relativeAppTaskTiming,
+} from "@/lib/app-task-center-model";
+import type { SolarisTask } from "@/lib/participation-os";
 import { cn } from "@/lib/utils";
 
 function stateIcon(task: SolarisTask) {
@@ -23,55 +22,6 @@ function stateIcon(task: SolarisTask) {
   return Info;
 }
 
-function exactTiming(task: SolarisTask) {
-  const target = task.actionRequired && task.deadline
-    ? task.deadline
-    : task.opensAt ?? task.deadline;
-  if (!target) return null;
-  const date = new Date(target);
-  if (Number.isNaN(date.getTime())) return null;
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const prefix =
-    task.actionRequired && task.deadline
-      ? "Due"
-      : task.opensAt
-        ? "Opens"
-        : "Closes";
-  return {
-    dateTime: date.toISOString(),
-    label: `${prefix} ${date.toLocaleString(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    })}${timezone ? ` · ${timezone}` : ""}`,
-  };
-}
-
-function timing(task: SolarisTask, now = Date.now()) {
-  if (task.actionRequired && task.deadline) {
-    const remaining = millisecondsUntil(task.deadline, now);
-    if (remaining == null) return null;
-    return remaining === 0
-      ? "Deadline reached"
-      : `Due in ${formatCompactCountdown(remaining)}`;
-  }
-
-  if (task.state === "available" && task.deadline) {
-    const remaining = millisecondsUntil(task.deadline, now);
-    if (remaining == null) return null;
-    return remaining === 0
-      ? "Closing now"
-      : `Closes in ${formatCompactCountdown(remaining)}`;
-  }
-
-  const target = task.opensAt ?? task.deadline;
-  if (!target) return null;
-  const remaining = millisecondsUntil(target, now);
-  if (remaining == null) return null;
-  return remaining === 0
-    ? "Available now"
-    : `Opens in ${formatCompactCountdown(remaining)}`;
-}
-
 export function AppTaskCenter({
   tasks,
   editionLabel,
@@ -79,15 +29,8 @@ export function AppTaskCenter({
   tasks: readonly SolarisTask[];
   editionLabel?: string | null;
 }) {
-  const sorted = sortSolarisTasks(tasks);
-  const counts = participationTaskCounts(sorted);
-  const action = sorted.filter(taskNeedsAttention);
-  const next = sorted.filter(
-    (task) => task.state === "upcoming" || task.state === "waiting",
-  );
-  const complete = sorted.filter(
-    (task) => task.state === "completed" || task.state === "finished",
-  );
+  const { needsAttention, next, available, completed } = partitionAppTaskCenter(tasks);
+  const needsAction = needsAttention.length;
 
   return (
     <section className="space-y-4" data-solaris-app-task-center>
@@ -95,12 +38,12 @@ export function AppTaskCenter({
         <div className="min-w-0">
           <p className="solaris-app-task-kicker">{editionLabel ?? "Participation"}</p>
           <h2 className="mt-1 text-xl font-black tracking-[-.025em]">
-            {counts.needsAction
-              ? `${counts.needsAction} thing${counts.needsAction === 1 ? "" : "s"} need your attention`
+            {needsAction
+              ? `${needsAction} thing${needsAction === 1 ? "" : "s"} need your attention`
               : "You’re up to date"}
           </h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            {counts.needsAction
+            {needsAction
               ? "Solaris has put the work that actually needs you first."
               : "Nothing currently requires action. Upcoming windows stay visible below."}
           </p>
@@ -108,17 +51,17 @@ export function AppTaskCenter({
         <span
           className={cn(
             "solaris-app-task-count",
-            counts.needsAction ? "is-attention" : "is-clear",
+            needsAction ? "is-attention" : "is-clear",
           )}
-          aria-label={`${counts.needsAction} tasks need attention`}
+          aria-label={`${needsAction} tasks need attention`}
         >
-          {counts.needsAction || "✓"}
+          {needsAction || "✓"}
         </span>
       </header>
 
-      {action.length ? (
+      {needsAttention.length ? (
         <div className="space-y-2" aria-label="Needs attention">
-          {action.map((task) => (
+          {needsAttention.map((task) => (
             <AppTaskCard key={task.id} task={task} prominent />
           ))}
         </div>
@@ -145,13 +88,24 @@ export function AppTaskCenter({
         </div>
       ) : null}
 
-      {complete.length ? (
+      {available.length ? (
+        <div data-solaris-app-available-tasks>
+          <p className="solaris-app-task-kicker mb-2">Available now</p>
+          <div className="space-y-2">
+            {available.map((task) => (
+              <AppTaskCard key={task.id} task={task} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {completed.length ? (
         <details className="solaris-app-task-history">
           <summary>
-            Completed <span>{complete.length}</span>
+            Completed <span>{completed.length}</span>
           </summary>
           <div className="mt-2 space-y-2">
-            {complete.map((task) => (
+            {completed.map((task) => (
               <AppTaskCard key={task.id} task={task} />
             ))}
           </div>
@@ -169,8 +123,8 @@ export function AppTaskCard({
   prominent?: boolean;
 }) {
   const Icon = stateIcon(task);
-  const time = timing(task);
-  const exact = exactTiming(task);
+  const time = relativeAppTaskTiming(task);
+  const exact = exactAppTaskTiming(task);
 
   return (
     <Link
@@ -188,6 +142,9 @@ export function AppTaskCard({
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="text-sm font-semibold">{task.title}</span>
+          {task.state === "available" && task.importance === "optional" ? (
+            <span className="text-[10px] font-semibold text-muted-foreground">Optional</span>
+          ) : null}
           {time ? <span className="solaris-app-task-time">{time}</span> : null}
         </span>
         <span className="mt-1 block text-xs leading-5 text-muted-foreground">
