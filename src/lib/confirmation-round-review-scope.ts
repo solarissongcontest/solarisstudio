@@ -118,7 +118,7 @@ export function validateConfirmationRoundFormFields(input: Readonly<{
     const value = localValue.trim();
     if (!value) return null;
 
-    const match = /^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})$/.exec(value);
+    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
     if (!match) throw new Error(`${label} must be a valid local date and time.`);
 
     const date = new Date(value);
@@ -144,7 +144,7 @@ export function validateConfirmationRoundFormFields(input: Readonly<{
   let responseLimit: number | null = null;
   if (rawLimit) {
     responseLimit = Number(rawLimit);
-    if (!/^[1-9]\\d*$/.test(rawLimit) ||
+    if (!/^[1-9]\d*$/.test(rawLimit) ||
         !Number.isSafeInteger(responseLimit) ||
         responseLimit > 2_147_483_647) {
       throw new Error("Response limit must be a positive whole number up to 2,147,483,647.");
