@@ -46,6 +46,7 @@ export function publicWorldRpcHeaders(publishableKey: string): Record<string, st
 export function anonymousWorldRpcRequest(
   publishableKey: string,
   args: Record<string, unknown>,
+  signal?: AbortSignal,
 ): RequestInit {
   return {
     method: "POST",
@@ -53,6 +54,7 @@ export function anonymousWorldRpcRequest(
     // No session cookie or user-scope credentials, even on same-origin proxies.
     credentials: "omit",
     cache: "no-store",
+    signal,
     body: JSON.stringify(args),
   };
 }
@@ -60,6 +62,7 @@ export function anonymousWorldRpcRequest(
 async function callAnonymousWorldRpc(
   name: PublicWorldRpcName,
   args: Record<string, unknown>,
+  signal?: AbortSignal,
 ): Promise<unknown> {
   const url = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
@@ -68,7 +71,7 @@ async function callAnonymousWorldRpc(
   }
   const response = await fetch(
     (url.endsWith("/") ? url.slice(0, -1) : url) + "/rest/v1/rpc/" + name,
-    anonymousWorldRpcRequest(key, args),
+    anonymousWorldRpcRequest(key, args, signal),
   );
   noteSupabaseResponse(response);
   if (!response.ok) {
@@ -432,7 +435,7 @@ export async function getWorldDocumentIndexPage(input: {
   organizationSlug?: string;
   search?: string;
   limit?: WorldDocumentLimit;
-} = {}): Promise<WorldDocumentIndexPage> {
+} = {}, signal?: AbortSignal): Promise<WorldDocumentIndexPage> {
   const slug = input.organizationSlug
     ? assertWorldSlug(input.organizationSlug)
     : null;
@@ -443,7 +446,7 @@ export async function getWorldDocumentIndexPage(input: {
     p_organization_slug: slug,
     p_query: query || null,
     p_limit: limit,
-  });
+  }, signal);
   return parseWorldDocumentIndexPage(data, limit);
 }
 
@@ -452,15 +455,15 @@ export async function getWorldDocumentIndex(input: {
   organizationSlug?: string;
   search?: string;
   limit?: WorldDocumentLimit;
-} = {}): Promise<WorldDocumentIndexRow[]> {
-  return (await getWorldDocumentIndexPage(input)).rows;
+} = {}, signal?: AbortSignal): Promise<WorldDocumentIndexRow[]> {
+  return (await getWorldDocumentIndexPage(input, signal)).rows;
 }
 
 export async function getWorldDocumentDetail(input: {
   organization: string;
   document: string;
   version?: number;
-}): Promise<WorldDocumentDetail | null> {
+}, signal?: AbortSignal): Promise<WorldDocumentDetail | null> {
   const organization = assertWorldSlug(input.organization);
   const document = assertWorldSlug(input.document);
   if (input.version !== undefined) versionNumber(input.version);
@@ -468,7 +471,7 @@ export async function getWorldDocumentDetail(input: {
     p_organization_slug: organization,
     p_document_slug: document,
     p_version_number: input.version ?? null,
-  });
+  }, signal);
   const projection = parseWorldDocumentDetail(data);
   if (projection &&
       (projection.organization.slug !== organization || projection.slug !== document ||
