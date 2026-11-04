@@ -73,6 +73,42 @@ test("representative non-country dynamic route passes desktop audit", async ({ p
   await auditRoutes(page, representativeDynamic, testInfo);
 });
 
+test("Country directory renders the correct mobile-web and desktop browse composition", async ({ page }, testInfo) => {
+  test.skip(!["public-320", "public-390", "public-1440"].includes(testInfo.project.name));
+  await page.goto("/countries", { waitUntil: "domcontentloaded" });
+  const directory = page.locator("[data-country-directory-experience]");
+  const mobile = testInfo.project.name !== "public-1440";
+  await expect(directory).toHaveAttribute(
+    "data-country-directory-experience", mobile ? "mobile-web" : "desktop-web",
+  );
+  await expect(page.getByRole("heading", { name: "Countries", exact: true })).toHaveCount(1);
+  if (mobile) {
+    await expect(page.locator("[data-country-directory-web-header]")).toBeVisible();
+    await expect(directory.locator(".v3-countries-web-list")).toBeVisible();
+    await expect(directory.locator(".v3-countries-region-rail")).toHaveCount(0);
+    await expect(directory.getByRole("combobox", { name: "Filter by region" })).toBeVisible();
+  } else {
+    await expect(directory.locator(".v3-countries-region-rail")).toBeVisible();
+    await expect(directory.locator(".v3-countries-desktop-grid")).toBeVisible();
+    await expect(page.locator("[data-country-directory-web-header]")).toHaveCount(0);
+  }
+  await expect(directory.getByRole("searchbox", { name: "Search countries" })).toBeVisible();
+  await expect(directory.locator('a[href^="/countries/"]').first()).toBeVisible();
+  const ratio = await directory.locator('[data-flag-frame="standard"]').first().evaluate((frame) => {
+    const bounds = frame.getBoundingClientRect();
+    return bounds.width / bounds.height;
+  });
+  expect(ratio, "Country flags should remain 3:2 in every website directory").toBeCloseTo(1.5, 1);
+  const search = directory.getByRole("searchbox", { name: "Search countries" });
+  await search.fill("zz-no-such-solaris-country");
+  await expect(directory.getByText("No countries found")).toBeVisible();
+  await search.fill("");
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow, "Country directory must not overflow the browser viewport").toBeLessThanOrEqual(2);
+});
+
 test("Country Glass atmosphere and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {
   test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
   test.skip(process.env.E2E_REAL_DATA !== "1", "Abeven Glass and SSC20 require the real archive, which the seeded audit runner does not contain.");
