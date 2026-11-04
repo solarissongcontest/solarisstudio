@@ -1,0 +1,87 @@
+name: V3 S15 Organizer Confirmation response read cutover
+
+on:
+  push:
+    branches:
+      - v3/organizer-s15-confirmation-response-paging-20261104
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s15-organizer-response-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-edition-response-cutover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      V3_VERIFICATION_TARGET: local
+      V3_SEED_TARGET: local
+      V3_CLEANUP_TARGET: local
+      V3_SERVICE_ROLE_SCOPE: local
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      VITE_SUPABASE_PROJECT_ID: local
+      VITE_SUPABASE_PROJECT_REF: local
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Verify checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify local-only CI
+        run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Test exact-edition response boundary
+        run: |
+          bunx vitest run \
+            src/lib/v3-s15-confirmation-response-reader.test.ts \
+            src/lib/v3-s15-confirmation-response-cutover.contract.test.ts \
+            src/lib/v3-confirmation-review-projection.contract.test.ts \
+            src/lib/v3-confirmation-recovery-projection.contract.test.ts \
+            src/lib/v3-organizer-confirmation-secondary-context.contract.test.ts
+
+      - name: Build and regenerate typed TanStack routes
+        run: |
+          rm -f src/routeTree.gen.ts
+          bun run build
+          test -s src/routeTree.gen.ts
+
+      - name: Typecheck and focused lint
+        run: |
+          bun run typecheck
+          bunx eslint --quiet \
+            src/integrations/confirmations/v3-projections.ts \
+            src/routes/confirmations/admin/responses.tsx \
+            src/lib/v3-s15-confirmation-response-reader.test.ts \
+            src/lib/v3-s15-confirmation-response-cutover.contract.test.ts
+
+      - name: Verify V3 registry integrity without false status promotion
+        run: |
+          bun run certify:v3-registry
+          bun run scripts/check-v3-non-route-capabilities.ts
