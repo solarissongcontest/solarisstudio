@@ -8,6 +8,8 @@ import { ConfirmationVersionHistory } from '@/components/admin/ConfirmationVersi
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { confirmationsSupabase } from '@/integrations/confirmations/client';
+import { loadAllConfirmationResponsesForEdition } from '@/integrations/confirmations/v3-projections';
+import { loadConfirmationVersionSummariesForEdition } from '@/integrations/confirmations/v3-version-summary';
 import type { SubmissionSnapshot } from '@/lib/submission-versioning';
 
 export const Route = createFileRoute('/_authenticated/admin/submission-versions')({
@@ -46,12 +48,6 @@ type ResponseRow = {
   submission_rounds: { id: string; name: string; edition_id: string } | null;
 };
 
-type VersionSummaryRow = {
-  submission_id: string;
-  version_count: number;
-  latest_created_at: string | null;
-};
-
 type VersionedResponseRow = ResponseRow & {
   versionCount: number;
   latestVersionAt: string | null;
@@ -83,34 +79,22 @@ type ResponseDetail = {
 };
 
 async function loadResponses(editionId: string): Promise<VersionedResponseRow[]> {
-  const [responsesResult, summaryResult] = await Promise.all([
-    confirmationsSupabase.rpc('admin_confirmation_responses'),
-    confirmationsSupabase.rpc('admin_confirmation_version_summary'),
-  ]);
-
-  if (responsesResult.error) throw responsesResult.error;
-  if (summaryResult.error) throw summaryResult.error;
-
-  const responses = Array.isArray(responsesResult.data)
-    ? responsesResult.data as unknown as ResponseRow[]
-    : [];
-  const summaries = Array.isArray(summaryResult.data)
-    ? summaryResult.data as unknown as VersionSummaryRow[]
-    : [];
-  const bySubmission = new Map(
-    summaries.map((item) => [item.submission_id, item] as const),
+  // Both queries are server-scoped. The summary RPC validates the exact
+  // edition and every submission id before returning even aggregate metadata.
+  const batch = await loadAllConfirmationResponsesForEdition<ResponseRow>(editionId);
+  const summaries = await loadConfirmationVersionSummariesForEdition(
+    editionId,
+    batch.rows.map((row) => row.id),
   );
 
-  return responses
-    .filter((row) => row.editions?.id === editionId)
-    .map((row) => {
-      const summary = bySubmission.get(row.id);
-      return {
-        ...row,
-        versionCount: Number(summary?.version_count ?? 0),
-        latestVersionAt: summary?.latest_created_at ?? null,
-      };
-    });
+  return batch.rows.map((row) => {
+    const summary = summaries.get(row.id);
+    return {
+      ...row,
+      versionCount: summary?.version_count ?? 0,
+      latestVersionAt: summary?.latest_created_at ?? null,
+    };
+  });
 }
 
 async function loadResponse(id: string): Promise<ResponseDetail> {
