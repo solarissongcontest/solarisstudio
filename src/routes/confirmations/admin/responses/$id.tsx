@@ -327,7 +327,7 @@ function EntryReviewCard({
       setError("Organizer edition or response changed. Reopen the current submission before reviewing.");
       return;
     }
-    if (nextStatus !== "accepted" && !reason.trim()) {
+    if (!unresolvedReviewOperationRef.current && nextStatus !== "accepted" && !reason.trim()) {
       setError("Add an organiser reason first.");
       return;
     }
@@ -365,7 +365,8 @@ function EntryReviewCard({
         expectedVersion?: number;
         currentVersionId?: string | null;
       } | null;
-      if (!preview || !Number.isSafeInteger(preview.expectedVersion) || preview.expectedVersion < 0) {
+      if (!preview || typeof preview.expectedVersion !== "number" ||
+          !Number.isSafeInteger(preview.expectedVersion) || preview.expectedVersion < 0) {
         throw new Error("Selection review preview did not return a valid version.");
       }
 
@@ -458,7 +459,10 @@ function EntryReviewCard({
       setOpen(false);
       await onChanged();
     } catch (caught) {
-      setError(toSystemError(caught).message);
+      const unresolved = unresolvedReviewOperationRef.current;
+      setError(toSystemError(caught).message + (unresolved
+        ? ` The prior operation ${unresolved.operationId} must be reconciled before another decision.`
+        : ""));
     } finally {
       mutationInFlightRef.current = false;
       setBusy(false);
