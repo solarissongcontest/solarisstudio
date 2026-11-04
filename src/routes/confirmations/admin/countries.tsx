@@ -14,7 +14,7 @@ import {
 } from "@/components/admin/AdminUI";
 import { loadConfirmationEditions, type ConfirmationEdition } from "@/integrations/confirmations/admin";
 import { loadAllConfirmationResponsesForEdition } from "@/integrations/confirmations/v3-projections";
-import { isConfirmationCountryBatchInEdition, isCurrentConfirmationCountriesRequest } from "@/lib/confirmation-countries-edition-guard";
+import { isConfirmationCountryBatchInEdition, isCurrentConfirmationCountriesRequest, latestParticipatingConfirmation } from "@/lib/confirmation-countries-edition-guard";
 import {
   useAllParticipants,
   useAllResults,
@@ -310,7 +310,7 @@ function CountriesPage() {
     () =>
       countries
         .map(([country, list]) => {
-          const latest = list.find((row) => row.participating);
+          const latest = latestParticipatingConfirmation(list);
           return latest ? { country, submission: latest, status: countryStatus(latest) } : null;
         })
         .filter(Boolean) as Array<{ country: string; submission: ResponseRow; status: string }>,
@@ -418,8 +418,7 @@ function CountriesPage() {
 
           {countries.map(([country, list]) => {
             const latest = list[0]!;
-            const latestParticipating = list.find((row) => row.participating) ?? latest;
-            const status = countryStatus(latestParticipating);
+            const status = countryStatus(latest);
             const record = contestRecords.get(normalizeCountryName(country)) ?? null;
 
             return (
