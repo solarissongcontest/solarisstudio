@@ -47,6 +47,9 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(sql).toContain("create table public.world_measure_procedural_reviews");
     expect(sql).toContain("create trigger world_measure_review_history_immutable");
     expect(sql).toContain("IMMUTABLE_MEASURE_REVIEW");
+    expect(sql).toMatch(/reviewer_user_id uuid,/);
+    expect(sql).not.toMatch(/reviewer_user_id uuid references auth\.users/);
+    expect(sql).toMatch(/created_by_person_id uuid references public\.delegation_people\(id\) on delete restrict/);
     const reviewer = body("world_measure_review_v1", "measure_review");
     const manager = body("world_measure_manage_v1", "measure_manage");
     expect(reviewer).toContain("insert into public.world_measure_procedural_reviews");
@@ -168,5 +171,6 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(sql).toMatch(/v3\.tg7\.world-measure-submissions/);
   });
 });
+
 
 
