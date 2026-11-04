@@ -77,7 +77,7 @@ test("Country directory renders the correct mobile-web and desktop browse compos
   test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
   await page.goto("/countries", { waitUntil: "domcontentloaded" });
   const directory = page.locator("[data-country-directory-experience]");
-  const mobile = testInfo.project.name !== "public-1440";
+  const mobile = ["public-320", "public-390"].includes(testInfo.project.name);
   await expect(directory).toHaveAttribute(
     "data-country-directory-experience", mobile ? "mobile-web" : "desktop-web",
   );
