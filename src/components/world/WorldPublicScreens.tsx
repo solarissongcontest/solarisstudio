@@ -320,7 +320,7 @@ export function WorldOrganizationScreen({ slug }: { slug: string }) {
                     {showHistory ? "Hide former memberships" : "Show former memberships"} ({history.length})
                   </button>
                 ) : null}
-                {countryIds.length > 100 ? <p className="mt-3 text-xs text-muted-foreground">Country identities are limited to the first 100 records in this view.</p> : null}
+                {new Set(countryIds).size > 100 ? <p className="mt-3 text-xs text-muted-foreground">Country identities are limited to the first 100 records in this view.</p> : null}
               </>
             ) : (
               <p className="border-y border-border py-6 text-sm text-muted-foreground">
