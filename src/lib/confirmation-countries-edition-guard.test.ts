@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  deriveConfirmationNationalFinalTriage,
   isConfirmationCountryBatchInEdition,
   isCurrentConfirmationCountriesRequest,
   latestParticipatingConfirmation,
@@ -82,5 +83,26 @@ describe("Organizer country list exact-edition isolation", () => {
     expect(source).toContain("setError(caught instanceof Error ? caught.message");
     expect(source).toContain("Retry delegation overview");
     expect(source).toContain("onClick={() => setReloadNonce((value) => value + 1)}");
+  });
+
+  it("never marks a National Final ready without its active accepted winner", () => {
+    const accepted = { id: "nf-entry-1", review_status: "accepted" };
+    const otherAccepted = { id: "nf-entry-2", review_status: "accepted" };
+    expect(deriveConfirmationNationalFinalTriage([], null, false)).toBe("neutral");
+    expect(deriveConfirmationNationalFinalTriage([accepted], null, false)).toBe("neutral");
+    expect(deriveConfirmationNationalFinalTriage([accepted, otherAccepted], "nf-entry-1", false)).toBe("ready");
+    expect(deriveConfirmationNationalFinalTriage([accepted], "deleted-entry", false)).toBe("issue");
+    expect(deriveConfirmationNationalFinalTriage([{ ...accepted, removed: true }, otherAccepted], "nf-entry-1", false)).toBe("issue");
+    expect(deriveConfirmationNationalFinalTriage([{ ...accepted, review_status: "declined" }], "nf-entry-1", false)).toBe("issue");
+    expect(deriveConfirmationNationalFinalTriage([{ ...accepted, review_status: "pending" }], "nf-entry-1", false)).toBe("review");
+    expect(deriveConfirmationNationalFinalTriage([{ ...accepted, review_status: "unexpected" }], "nf-entry-1", false)).toBe("review");
+    expect(deriveConfirmationNationalFinalTriage([accepted], "nf-entry-1", true)).toBe("neutral");
+  });
+
+  it("delegates overview National Final triage to the fail-closed winner guard", () => {
+    const source = readFileSync("src/routes/confirmations/admin/index.tsx", "utf8");
+    expect(source).toContain("return deriveConfirmationNationalFinalTriage(");
+    expect(source).toContain("row.national_finals?.winning_entry_id ?? null,");
+    expect(source).not.toContain("const entries = activeNfEntries(row);");
   });
 });
