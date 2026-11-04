@@ -142,6 +142,39 @@ describe("V3 experience projections", () => {
     expect(attention.hasBlockingAction).toBe(true);
   });
 
+  it("cannot promote optional participation into required Home badges", () => {
+    const contradictoryOptional = projectV3Action(
+      task({
+        id: "optional-next-in-line",
+        kind: "deadline",
+        importance: "optional",
+        state: "available",
+        blocking: false,
+        actionRequired: true,
+        deadline: "2026-10-11T18:10:00.000Z",
+      }),
+      NOW,
+    );
+    const waitingRequired = projectV3Action(
+      task({ id: "waiting-confirmation", state: "waiting", actionRequired: true }),
+      NOW,
+    );
+    const upcomingRequired = projectV3Action(
+      task({ id: "upcoming-jury", state: "upcoming", actionRequired: true }),
+      NOW,
+    );
+
+    expect(contradictoryOptional.urgency).toBe("immediate");
+    expect(projectV3Attention([contradictoryOptional, waitingRequired, upcomingRequired])).toEqual({
+      primary: null,
+      secondary: [],
+      remainingCount: 0,
+      badgeCount: 0,
+      immediateCount: 0,
+      hasBlockingAction: false,
+    });
+  });
+
   it("does not surface completed required work as active attention", () => {
     const completed = projectV3Action(
       task({
