@@ -119,7 +119,7 @@ export function V3ParticipantActivityScreen({ viewerId }: { viewerId: string }) 
                 Loading your activity…
               </p>
             </V3Surface>
-          ) : activity.isError ? (
+          ) : activity.isError && !activity.data?.items.length ? (
             <V3Surface>
               <p role="alert" className="text-sm font-semibold">Your activity could not be loaded.</p>
               <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
@@ -152,6 +152,24 @@ export function V3ParticipantActivityScreen({ viewerId }: { viewerId: string }) 
               </div>
             </V3Surface>
           )}
+          {activity.data?.schemaReady && activity.data.items.length > 0 && activity.hasNextPage ? (
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                data-v3-activity-load-more=""
+                className="min-h-11 rounded-xl border border-white/15 bg-white/[0.06] px-5 py-2 text-sm font-semibold text-[var(--v3-text-primary)] transition hover:bg-white/[0.10] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-50"
+                onClick={() => void activity.fetchNextPage()}
+                disabled={activity.isFetchingNextPage}
+              >
+                {activity.isFetchingNextPage ? "Loading earlier activity…" : "Load earlier activity"}
+              </button>
+            </div>
+          ) : null}
+          {activity.isFetchNextPageError ? (
+            <p role="alert" className="mt-3 text-sm text-[var(--v3-text-secondary)]">
+              Earlier activity could not be loaded. Your existing history is unchanged; try again.
+            </p>
+          ) : null}
         </V3Section>
       </div>
     </V3Screen>
