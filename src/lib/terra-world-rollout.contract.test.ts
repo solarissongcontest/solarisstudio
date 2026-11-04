@@ -41,4 +41,13 @@ describe("Terra Solaris TG3 discovery rollout", () => {
     expect(gate).toContain("enabled: shouldLoadBundle");
     expect(gate).toContain("showWorld={worldRollout.data === true}");
   });
+  it("supports canonical leadership and member deep links without a second private reader", () => {
+    for (const section of ["leadership", "members"]) {
+      const source = file(`src/routes/world/organizations/$slug_.${section}.tsx`);
+      expect(source).toContain(`createFileRoute("/world/organizations/$slug/${section}")`);
+      expect(source).toContain('to: "/world/organizations/$slug"');
+      expect(source).toContain(`search: { tab: "${section}" }`);
+      expect(source).not.toContain("supabase");
+    }
+  });
 });
