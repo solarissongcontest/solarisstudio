@@ -7,6 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import {
   comparePublicWorldVersions,
+  parsePublicWorldAccessProof,
   parsePublicWorldArchive,
   parsePublicWorldDocumentVersion,
   validateComparisonPair,
@@ -100,11 +101,26 @@ function DocumentPicker({ organization, document, submit }: {
 }
 
 async function getArchive(organization: string, document: string): Promise<PublicWorldArchive | null> {
+  // TG4's archive RPC is permission-aware, but may legitimately expose
+  // member/private history to authorized accounts. This is a PUBLIC screen:
+  // require an exact visibility proof before asking for the archive at all.
+  const { data: visibility, error: visibilityError } = await (supabase as any).rpc(
+    "world_get_document_v1",
+    { p_organization_slug: organization, p_document_slug: document, p_version_number: null },
+  );
+  if (visibilityError) throw visibilityError;
+  const publicId = parsePublicWorldAccessProof(visibility, organization, document);
+  if (publicId === null) return null;
+
   const { data, error } = await (supabase as any).rpc("world_get_document_archive_v1", {
     p_organization_slug: organization, p_document_slug: document,
   });
   if (error) throw error;
-  return parsePublicWorldArchive(data, organization, document);
+  const archive = parsePublicWorldArchive(data, organization, document);
+  if (archive && archive.documentId !== publicId) {
+    throw new Error("Document history no longer matches the verified public document");
+  }
+  return archive;
 }
 
 async function getVersion(
