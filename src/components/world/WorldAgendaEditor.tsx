@@ -205,6 +205,16 @@ export function WorldAgendaEditor({ sessionId }: { sessionId: string }) {
           </div>
           <section className="mt-5 border-b border-border/70 pb-5" aria-label="Session lifecycle">
             <h2 className="text-sm font-semibold">Official session status</h2>
+            {agenda.data.externalUrl ? (
+              <p className="mt-2 text-sm">
+                Authorized meeting link:{" "}
+                <a href={agenda.data.externalUrl} rel="noopener noreferrer" target="_blank"
+                  className="font-semibold text-primary underline underline-offset-4">
+                  Open institutional meeting
+                </a>
+                <span className="ml-2 text-xs text-muted-foreground">(private to managers)</span>
+              </p>
+            ) : null}
             {canManage.isPending ? (
               <p className="mt-2 text-xs text-muted-foreground" role="status">Checking status-change permission…</p>
             ) : canManage.data !== true ? (
