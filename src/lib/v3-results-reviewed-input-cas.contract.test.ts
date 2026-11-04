@@ -88,6 +88,20 @@ describe("V3 Results reviewed-input CAS", () => {
     expect(bump.indexOf("for update nowait")).toBeLessThan(bump.indexOf("update public.studio2_result_operations"));
   });
 
+  it("maintains the existing S3 result-version rehearsal with a pre-seeded authority row", () => {
+    const script = readFileSync(
+      resolve(process.cwd(), ".github/scripts/v3-s3-results-invariants-rehearsal.sh"), "utf8",
+    );
+    expect(script).toContain("on conflict (show_id) do update");
+    expect(script).toContain("where public.studio2_result_operations.edition_id=excluded.edition_id");
+    expect(script).toContain("calculation_version=1");
+    expect(script).toContain("reviewed_version=1");
+    expect(script).toContain("locked_version=1");
+    expect(script).toContain("reveal_ready_version=1");
+    expect(script).toContain("snapshot rewrite");
+    expect(script).toContain("cross-edition result");
+  });
+
   it("installs show creation invalidation BEFORE the backfill to cover concurrent show inserts", () => {
     const triggerIndex = migration.indexOf("studio2_results_review_basis_shows after insert or update of");
     const backfillIndex = migration.indexOf("from public.shows s\non conflict (show_id) do nothing");
