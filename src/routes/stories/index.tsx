@@ -103,7 +103,7 @@ function LegacyStoriesArchivePage() {
             ) : null}
           </div>
 
-          {anniversaryQuery.isError && !anniversaryQuery.data ? (
+          {anniversaryQuery.isError && !anniversary?.onThisDay.length ? (
             <ArchiveEmpty
               icon={Clock3}
               title="Calendar moments could not be loaded"
@@ -137,7 +137,7 @@ function LegacyStoriesArchivePage() {
             <h2 id="stories-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">Edition stories</h2>
           </div>
 
-          {storiesQuery.isError && !storiesQuery.data ? (
+          {storiesQuery.isError && !stories.length ? (
             <ArchiveEmpty
               icon={BookOpen}
               title="Published stories could not be loaded"
