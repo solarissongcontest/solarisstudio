@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link, useLocation } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { CalendarDays, ChevronRight, Download, Info, RefreshCw } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { AppEmptyState, AppSectionHeader } from '@/components/app/AppPrimitives';
 import { EventTime } from '@/components/public/EventTime';
@@ -9,7 +9,6 @@ import { solarisQueryPolicy } from '@/lib/app-query-policy';
 import { getPublicShowCalendar } from '@/lib/public-show-calendar.functions';
 import {
   calendarFilename,
-  isCalendarSlug,
   serializePublicCalendar,
   type PublicCalendarEvent,
   type PublicCalendarEdition,
@@ -92,12 +91,23 @@ function CalendarRow({
 }
 
 export function V3PublicShowCalendarScreen() {
-  const searchStr = useLocation({ select: (location) => location.searchStr });
-  const searchEdition = new URLSearchParams(searchStr).get('edition');
-  const [selection, setSelection] = useState<string | null>(
-    isCalendarSlug(searchEdition) ? searchEdition : null,
-  );
+  // Search params are the source of truth, including when browser history or
+  // a shared edition link navigates to an already-mounted calendar screen.
+  const { edition: searchEdition } = useSearch({ from: '/calendar/' });
+  const navigate = useNavigate({ from: '/calendar/' });
+  const selection = searchEdition ?? null;
   const [filter, setFilter] = useState<'all' | 'upcoming'>('all');
+  const [currentTimeMs, setCurrentTimeMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (filter !== 'upcoming') return;
+    // An upcoming show should disappear without requiring a page reload when
+    // its scheduled start passes while a visitor has the calendar open.
+    const refresh = () => setCurrentTimeMs(Date.now());
+    refresh();
+    const interval = window.setInterval(refresh, 60_000);
+    return () => window.clearInterval(interval);
+  }, [filter]);
   const calendar = useQuery({
     queryKey: ['public-published-show-calendar', selection],
     queryFn: () => getPublicShowCalendar({ data: { editionSlug: selection } }),
@@ -108,9 +118,8 @@ export function V3PublicShowCalendarScreen() {
   const allEvents = result?.events ?? [];
   const visibleEvents = useMemo(() => {
     if (filter === 'all') return allEvents;
-    const now = Date.now();
-    return allEvents.filter((event) => new Date(event.startsAt).getTime() >= now);
-  }, [allEvents, filter]);
+    return allEvents.filter((event) => new Date(event.startsAt).getTime() >= currentTimeMs);
+  }, [allEvents, currentTimeMs, filter]);
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-8 px-4 pb-28 pt-6 sm:px-6 sm:pt-10" data-v3-public-calendar="">
@@ -146,7 +155,10 @@ export function V3PublicShowCalendarScreen() {
               <span className="mb-2 block text-sm font-semibold">Edition</span>
               <select
                 value={result?.edition?.slug ?? ''}
-                onChange={(event) => setSelection(event.target.value || null)}
+                onChange={(event) => {
+                  const edition = event.target.value || undefined;
+                  void navigate({ search: { edition }, replace: true });
+                }}
                 className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm font-medium sm:max-w-sm"
                 aria-label="Select published edition"
               >
