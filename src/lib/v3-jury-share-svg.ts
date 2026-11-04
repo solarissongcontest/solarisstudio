@@ -109,7 +109,15 @@ function editionColors(
           theme.artworkOpacity < 0 || theme.artworkOpacity > 0.65))) {
     throw new JuryShareSvgError("INVALID_THEME", "Edition design does not match its historical edition");
   }
-  Object.values(theme.colors).forEach(color);
+  // JSON and archived themes may omit required palette keys despite their TypeScript shape.
+  // Validate each required token before it can become a serialized SVG attribute.
+  for (const key of ["background", "row", "rowText", "twelveRow", "twelveText", "accent"] as const) {
+    const value = theme.colors?.[key];
+    if (typeof value !== "string") {
+      throw new JuryShareSvgError("INVALID_THEME", "Edition theme is missing required color: " + key);
+    }
+    color(value);
+  }
   return theme;
 }
 
@@ -268,5 +276,7 @@ export function juryShareThemeVersion(
     }
     return editionTheme.version;
   }
-  return theme === "default" ? DEFAULT_JURY_SHARE_THEME_VERSION : 1;
+  if (theme === "default") return DEFAULT_JURY_SHARE_THEME_VERSION;
+  if (theme === "liquid_glass") return 1;
+  throw new JuryShareSvgError("THEME_UNAVAILABLE", "Unsupported jury share design");
 }

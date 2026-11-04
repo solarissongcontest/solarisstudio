@@ -181,6 +181,32 @@ describe("V3 Jury Share deterministic SVG renderer", () => {
     })).toThrowError(expect.objectContaining({ code: "INVALID_THEME" }));
   });
 
+  it("rejects incomplete historical palettes and invalid render-key theme identities", () => {
+    const incomplete = {
+      ...editionTheme,
+      colors: {
+        ...editionTheme.colors,
+        rowText: undefined,
+      } as unknown as EditionJuryShareVisuals["colors"],
+    };
+    expect(() => renderJuryShareSvg(projection(), {
+      assets,
+      theme: "edition",
+      editionTheme: incomplete,
+    })).toThrowError(expect.objectContaining({ code: "INVALID_THEME" }));
+    expect(() => renderJuryShareSvg(projection(), {
+      assets,
+      theme: "edition",
+      editionTheme: {
+        ...editionTheme,
+        colors: null as unknown as EditionJuryShareVisuals["colors"],
+      },
+    })).toThrowError(expect.objectContaining({ code: "INVALID_THEME" }));
+    expect(() => juryShareThemeVersion(
+      "future-theme" as Parameters<typeof juryShareThemeVersion>[0],
+    )).toThrowError(expect.objectContaining({ code: "THEME_UNAVAILABLE" }));
+  });
+
   it("bounds all meaningful vertical positions to the shared Story safe area", () => {
     // Header starts below top 192, footer ends before 1920 - 240 = 1680.
     const svg = renderJuryShareSvg(projection(), { assets });
