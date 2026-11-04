@@ -135,16 +135,18 @@ describe("public recents", () => {
 
   it("rejects invalid titles from both legacy storage and new writes", () => {
     const storage = memoryStorage();
+    // Use an actual ASCII control, not the two printable characters backslash and n.
+    const injectedLineBreak = `Private${String.fromCharCode(10)}secret`;
     storage.setItem(PUBLIC_RECENTS_KEY, JSON.stringify([
       { path: "/countries/oland", label: "Oland", visitedAt: 10 },
       { path: "/countries/vendia", label: "", visitedAt: 9 },
-      { path: "/countries/fennek", label: "Private\\nsecret", visitedAt: 8 },
+      { path: "/countries/fennek", label: injectedLineBreak, visitedAt: 8 },
       { path: "/countries/asteria", label: "x".repeat(251), visitedAt: 7 },
       { path: "/countries/jaudia", label: "Jaudia", visitedAt: null },
     ]));
     expect(readPublicRecents(storage).map((item) => item.label)).toEqual(["Oland"]);
     rememberPublicRecent("/countries/vendia", "", storage);
-    rememberPublicRecent("/countries/vendia", "Private\\nsecret", storage);
+    rememberPublicRecent("/countries/vendia", injectedLineBreak, storage);
     rememberPublicRecent("/countries/vendia", "x".repeat(251), storage);
     expect(readPublicRecents(storage).map((item) => item.path)).toEqual(["/countries/oland"]);
   });
