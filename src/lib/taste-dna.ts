@@ -160,10 +160,11 @@ export function buildTasteDna({
 
   const universe = results.map((entry) => entry.id);
   const publishedIds = new Set(universe);
+  const personalRanking = [...new Set(ranking.filter((id) => publishedIds.has(id)))];
   // Filling omitted entries with the official order must not invent a user's taste.
-  if (new Set(ranking.filter((id) => publishedIds.has(id))).size < 3) return null;
+  if (personalRanking.length < 3) return null;
 
-  const fanRanking = uniqueRanking(ranking, universe);
+  const fanRanking = uniqueRanking(personalRanking, universe);
   const juryRanking = rankingFromScores(results, (entry) => entry.juryPoints);
   const televoteRanking = rankingFromScores(results, (entry) => entry.televotePoints);
   const overallRanking = rankingFromScores(results, (entry) => entry.totalPoints);
@@ -209,7 +210,8 @@ export function buildTasteDna({
 
   const historyIncludingCurrent = [
     ...history,
-    { showId: "__current__", ranking: fanRanking },
+    // Comparison padding completes the field, but is not a personal vote.
+    { showId: "__current__", ranking: personalRanking },
   ];
   const favouriteStats = new Map<
     string,

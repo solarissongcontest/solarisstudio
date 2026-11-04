@@ -183,6 +183,27 @@ describe("Taste DNA", () => {
     expect({ results, ranking, juryBallots }).toEqual(snapshot);
   });
 
+  it("does not count comparison padding as an actual recurring favourite", () => {
+    const profile = buildTasteDna({
+      ranking: ["a", "b", "c"],
+      results: ["a", "b", "c", "d", "e"].map((id, index) => ({
+        id,
+        juryPoints: 50 - index * 10,
+        televotePoints: 10 + index * 10,
+        totalPoints: 60,
+        officialRank: index + 1,
+      })),
+      juryBallots: [],
+      history: [{ showId: "previous-show", ranking: ["e", "d", "c"] }],
+      nameForId: (id) => id,
+    });
+
+    expect(profile).not.toBeNull();
+    expect(profile!.recurringFavourites).toEqual([
+      { id: "c", name: "c", topThreeCount: 2, topTenCount: 2, ballotCount: 2, score: 32 },
+    ]);
+  });
+
   it("recognizes a jury-leaning ranking", () => {
     const profile = buildTasteDna({
       ranking: ["a", "b", "c", "d"],
