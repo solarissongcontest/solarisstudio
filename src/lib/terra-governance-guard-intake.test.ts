@@ -9,6 +9,7 @@ import {
   guardIntakeErrorMessage,
   normalizeGuardApplication,
   parseGuardIntakeReceipt,
+  parseGuardIntakeProjection,
   validateGuardApplication,
   type GuardApplicationFields,
 } from "./terra-governance-guard-intake";
@@ -41,6 +42,35 @@ describe("TG5A GUARD voluntary membership intake", () => {
       .toContain("At least 20");
     expect(validateGuardApplication({ ...valid, contributions: "x".repeat(3001) }).contributions)
       .toContain("no more than 3000");
+  });
+
+  it("parses one bounded, country-scoped membership snapshot and fails closed", () => {
+    const row = {
+      id: "e23ee1bc-f7fb-4b56-bb0b-a763f5e453a0",
+      status: "submitted",
+      official_state_designation: "Republic of Testland",
+      submitted_at: "2026-11-04T08:10:00+00:00",
+      revision: 1,
+    };
+    const projection = {
+      organizationId: "14e4ee7f-aeca-4461-b889-fdcd4dcdb11e",
+      organizationName: "GUARD",
+      activeMembership: null,
+      applications: [row],
+    };
+    expect(parseGuardIntakeProjection(projection)).toEqual(projection);
+    expect(() => parseGuardIntakeProjection(null)).toThrow();
+    expect(() => parseGuardIntakeProjection({ ...projection, activeMembership: undefined })).toThrow();
+    expect(() => parseGuardIntakeProjection({ ...projection, applications: Array(6).fill(row) })).toThrow();
+    expect(() => parseGuardIntakeProjection({
+      ...projection, applications: [{ ...row, status: "invalid-lifecycle" }],
+    })).toThrow();
+    expect(() => parseGuardIntakeProjection({
+      ...projection, applications: [{ ...row, revision: 0 }],
+    })).toThrow();
+    expect(() => parseGuardIntakeProjection({
+      ...projection, applications: [{ ...row, submitted_at: "not-a-time" }],
+    })).toThrow();
   });
 
   it("accepts only a succeeded canonical receipt for the exact operation and scope", () => {
@@ -111,6 +141,13 @@ describe("TG5A GUARD voluntary membership intake", () => {
     expect(migration).toContain("membership.ended_at is null");
     expect(migration).toContain("APPLICATION_ALREADY_PENDING");
     expect(migration).toContain("ALREADY_MEMBER");
+    expect(migration).toContain("create or replace function public.world_my_guard_membership_intake_v1");
+    expect(migration).toContain("account_row.country_id = p_country_id");
+    expect(migration).toContain("account_row.user_id = auth.uid()");
+    expect(migration).toContain("application.submitted_at desc, application.id desc");
+    expect(migration).toContain("limit 5");
+    expect(migration).toContain("grant execute on function public.world_my_guard_membership_intake_v1(uuid)");
+    expect(migration).not.toMatch(/jsonb_build_object\\([\\s\\S]*?'motivation',\\s*application\\.motivation/);
     expect(migration).toContain("private.studio2_claim_operation(");
     expect(migration).toContain("private.studio2_complete_operation(");
     expect(migration).toContain("public.studio2_reconcile_operation(");
@@ -136,6 +173,8 @@ describe("TG5A GUARD voluntary membership intake", () => {
     expect(route).toContain("requestRef.current = { fields: normalized, operation }");
     expect(route).toContain("Retry same operation");
     expect(route).toContain("Check server status");
+    expect(migration).toContain("submitted_by_person_id uuid references public.delegation_people(id) on delete restrict");
+    expect(migration).toContain("submitted_by uuid references auth.users(id) on delete set null");
     expect(route).toContain("if (GLOBAL_MAINTENANCE_MODE) throw notFound()");
     expect(route).toContain("!confirmation && !submit.isPending");
     expect(route).toContain("const pendingApplication = intake.data?.applications.find");
