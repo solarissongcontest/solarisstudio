@@ -661,7 +661,13 @@ function ResponseDetailPage() {
   const responseLoadGenerationRef = useRef(0);
   const syncInFlightRef = useRef(false);
   const winnerInFlightRef = useRef(false);
-  const unresolvedWinnerOperationRef = useRef<{ operationId: string; responseId: string; editionId: string } | null>(null);
+  const unresolvedWinnerOperationRef = useRef<{
+    operationId: string;
+    responseId: string;
+    editionId: string;
+    action: "select" | "clear";
+    entryId: string | null;
+  } | null>(null);
   const currentScopeRef = useRef({ responseId: id, editionId: organizerEditionId });
 
   useEffect(() => {
@@ -803,8 +809,17 @@ function ResponseDetailPage() {
         if (recovered.ok && recovered.receipt.operationId === unresolved.operationId &&
             recovered.receipt.status === "succeeded") {
           unresolvedWinnerOperationRef.current = null;
-          if (stillCurrent()) await load();
-          else toast.warning("A previous edition's winner decision was reconciled. Verify its canonical state.");
+          const sameReviewedIntent = unresolved.responseId === id &&
+            unresolved.editionId === organizerEditionId &&
+            unresolved.action === action &&
+            unresolved.entryId === entryId;
+          if (stillCurrent() && unresolved.responseId === id &&
+              unresolved.editionId === organizerEditionId) await load();
+          if (!sameReviewedIntent || !stillCurrent()) {
+            throw new Error(
+              "An earlier National Final winner operation was confirmed. Reopen the current response and review the latest winner before issuing a different decision.",
+            );
+          }
           return;
         }
         if (recovered.ok && recovered.receipt.operationId === unresolved.operationId &&
@@ -831,7 +846,8 @@ function ResponseDetailPage() {
         expectedVersion?: number;
         currentVersionId?: string | null;
       } | null;
-      if (!preview || !Number.isSafeInteger(preview.expectedVersion) || preview.expectedVersion! < 0) {
+      if (!preview || typeof preview.expectedVersion !== "number" ||
+          !Number.isSafeInteger(preview.expectedVersion) || preview.expectedVersion < 0) {
         throw new Error("National Final winner preview did not return a valid version.");
       }
       if (!stillCurrent()) {
@@ -857,6 +873,8 @@ function ResponseDetailPage() {
         operationId: command.operationId,
         responseId: id,
         editionId: organizerEditionId!,
+        action,
+        entryId,
       };
 
       let receipt: SystemReceipt | null = null;
