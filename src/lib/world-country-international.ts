@@ -68,8 +68,24 @@ function optionalString(value: unknown, type: string): string | null {
 
 /** A membership date must be an actual, finite timestamp from TG2. */
 function validMembershipTime(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/i.test(value) &&
-    Number.isFinite(Date.parse(value));
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|([+-])(\d{2}):(\d{2}))$/i.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  const offsetHour = Number(match[8] ?? 0);
+  const offsetMinute = Number(match[9] ?? 0);
+  if (month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59 || second > 59 ||
+      offsetHour > 14 || offsetMinute > 59 || (offsetHour === 14 && offsetMinute !== 0)) {
+    return false;
+  }
+  // Date.parse normalizes impossible days such as February 30. Check the
+  // original calendar date separately before trusting the timestamp.
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return day <= lastDay && Number.isFinite(Date.parse(value));
 }
 
 function records<T>(value: unknown, type: string, parse: (item: unknown) => T): T[] {
