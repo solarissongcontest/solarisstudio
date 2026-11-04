@@ -21,7 +21,11 @@ const request = migration.slice(
 );
 const approval = migration.slice(
   migration.indexOf("create or replace function public.world_approve_proxy_v1"),
-  migration.indexOf("revoke all on function public.world_request_proxy_v1"),
+  migration.indexOf("create or replace function public.world_revoke_proxy_v1"),
+);
+const revocation = migration.slice(
+  migration.indexOf("create or replace function public.world_revoke_proxy_v1"),
+  migration.indexOf("create or replace function public.world_proxy_review_queue_v1"),
 );
 
 describe("TG6 institutional acting-proxy authorization", () => {
@@ -39,7 +43,7 @@ describe("TG6 institutional acting-proxy authorization", () => {
   it("requires an authenticated active controller or representative and a world-scoped request capability", () => {
     expect(request).toContain("v_actor uuid := auth.uid()");
     expect(request).toContain("account_row.status='active'");
-    expect(request).toContain("v_rep.user_id = v_actor");
+    expect(request).toContain("coalesce(v_rep.user_id = v_actor,false)");
     expect(request).toContain("'world.proxy.request'");
     expect(request).toContain("v_rep.organization_id,v_rep.country_id");
     expect(request).toContain("'representation',v_rep.id");
@@ -97,6 +101,31 @@ describe("TG6 institutional acting-proxy authorization", () => {
     expect(approval).toContain("other_proxy.status='approved'");
     expect(approval).toContain("OVERLAPPING_APPROVED_PROXY");
     expect(approval).toContain("approved_at=case when p_target_status='approved' then now() else null end");
+  });
+
+  it("supports immediate authorized revocation with receipt replay and no privileged NULL bypass", () => {
+    expect(migration).toContain("add column if not exists revocation_reason text");
+    expect(migration).toContain("create or replace function public.world_revoke_proxy_v1");
+    expect(request).toContain("coalesce(v_rep.user_id = v_actor,false)");
+    expect(revocation).toContain("coalesce(v_rep.user_id=v_actor,false)");
+    expect(revocation).toContain("coalesce(v_allowed_by_country,false)");
+    expect(revocation).toContain("coalesce(v_allowed_by_institution,false)");
+    expect(revocation).toContain("'world.proxy.request'");
+    expect(revocation).toContain("'world.proxy.approve'");
+    expect(revocation).toContain("v_proxy.revision <> p_expected_revision");
+    expect(revocation).toContain("v_proxy.status not in ('requested','approved')");
+    expect(revocation).toContain("v_proxy.valid_until <= now()");
+    expect(revocation).toContain("status='revoked',revoked_at=now()");
+    expect(revocation).toContain("private.studio2_claim_operation");
+    expect(revocation).toContain("public.studio2_reconcile_operation");
+    expect(revocation).toContain("private.studio2_complete_operation");
+    expect(revocation).toContain("'world.proxy.revoked'");
+    expect(migration).toContain("revoke all on function public.world_revoke_proxy_v1");
+    expect(fixture).toContain("TG6_PROXY_OUTSIDER_REVOCATION_ALLOWED");
+    expect(fixture).toContain("TG6_PROXY_REVOCATION_RECEIPT_INVALID");
+    expect(fixture).toContain("TG6_PROXY_REVOCATION_REPLAY_UNSTABLE");
+    expect(fixture).toContain("TG6_PROXY_REPEATED_REVOCATION_ALLOWED");
+    expect(fixture).toContain("TG6_PROXY_REVOKED_STILL_EFFECTIVE");
   });
 
   it("publishes no sensitive proxy reason or login in event payloads", () => {
