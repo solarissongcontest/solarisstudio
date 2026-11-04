@@ -92,6 +92,7 @@ describe("TG3 previous-leadership production boundary", () => {
   it("keeps its own TanStack leaf route and public-only query without touching existing directories", () => {
     expect(route).toContain('createFileRoute("/world/organizations/$slug/office-history")');
     expect(route).toContain("WorldOfficeHistory");
+    expect(route).toContain("<WorldOfficeHistory key={slug} slug={slug} />");
     expect(source).toContain('"world_public_office_history_v1"');
     expect(screen).toContain("Load older terms");
     expect(screen).toContain("Filter by office");
