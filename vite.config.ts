@@ -49,6 +49,20 @@ export default defineConfig({
                 name: "vendor-charts",
                 test: /[\\/]node_modules[\\/](?:recharts|victory-vendor)[\\/]/,
               },
+              // Motion and data-cache internals appear in many route chunks.
+              // Group only package implementation, preserving lazy page imports.
+              {
+                name: "vendor-motion",
+                test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+              },
+              {
+                name: "vendor-query",
+                test: /[\\/]node_modules[\\/]@tanstack[\\/](?:react-query|query-core)[\\/]/,
+              },
+              {
+                name: "vendor-floating",
+                test: /[\\/]node_modules[\\/]@floating-ui[\\/]/,
+              },
             ],
           },
         },
