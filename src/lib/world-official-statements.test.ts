@@ -39,6 +39,15 @@ describe("TG9 public statement read model", () => {
     });
   });
 
+  it("fails closed when a projection includes nonpublic flags", () => {
+    expect(() => parseWorldStatementFeed({
+      items: [{ ...summary, visibility: "private" }], hasMore: false, offset: 0,
+    }, 0, "guard")).toThrow(/publication boundary/);
+    expect(() => parseWorldStatementFeed({
+      items: [{ ...summary, organizationVisibility: "members" }], hasMore: false, offset: 0,
+    }, 0, "guard")).toThrow(/publication boundary/);
+  });
+
   it("rejects malformed institutions, invented issuers and cross-institution data", () => {
     expect(() => parseWorldStatementFeed({
       items: [{ ...summary, organizationSlug: "fake private" }],
