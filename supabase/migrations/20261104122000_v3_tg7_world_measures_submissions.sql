@@ -313,13 +313,28 @@ begin
      'summary',v.summary,'publicationState',v.publication_state,
      'createdAt',v.created_at
    ) order by v.version_number desc)
-   from public.world_measure_versions v where v.measure_id=v_measure.id),'[]'::jsonb),
+   from (
+     select id,version_number,title,full_text,summary,publication_state,created_at
+     from public.world_measure_versions
+     where measure_id=v_measure.id order by version_number desc limit 20
+   ) v),'[]'::jsonb),
+   'versionsTruncated',exists(
+     select 1 from public.world_measure_versions
+     where measure_id=v_measure.id order by version_number desc offset 20 limit 1
+   ),
    'reviews',coalesce((select jsonb_agg(jsonb_build_object(
      'action',r.action,'note',r.note,
      'revision',r.measure_revision,'createdAt',r.created_at
    ) order by r.measure_revision)
-   from public.world_measure_procedural_reviews r
-   where r.measure_id=v_measure.id),'[]'::jsonb));
+   from (
+     select action,note,measure_revision,created_at
+     from public.world_measure_procedural_reviews
+     where measure_id=v_measure.id order by measure_revision desc limit 50
+   ) r),'[]'::jsonb),
+   'reviewsTruncated',exists(
+     select 1 from public.world_measure_procedural_reviews
+     where measure_id=v_measure.id order by measure_revision desc offset 50 limit 1
+   ));
 end
 $measure_manage$;
 
@@ -617,6 +632,7 @@ $contract$;
 
 notify pgrst,'reload schema';
 commit;
+
 
 
 
