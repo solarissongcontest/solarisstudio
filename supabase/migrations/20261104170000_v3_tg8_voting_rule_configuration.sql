@@ -1,5 +1,42 @@
 begin;
 
+-- Keep this newly authored settings page OFF until TG8 migrations and
+-- authorization are certified. Preserve the current feature-key predicate:
+-- other V3 workers may have extended it in either migration ordering.
+do $voting_rules_rollout$
+declare
+  v_predicate text;
+begin
+  select pg_catalog.pg_get_expr(c.conbin,c.conrelid)
+  into v_predicate
+  from pg_catalog.pg_constraint c
+  join pg_catalog.pg_class t on t.oid=c.conrelid
+  join pg_catalog.pg_namespace ns on ns.oid=t.relnamespace
+  where ns.nspname='public'
+    and t.relname='studio2_feature_flags'
+    and c.conname='studio2_feature_flags_key_check'
+    and c.contype='c';
+
+  if v_predicate is null then
+    raise exception 'TG8_VOTING_RULE_ROLLOUT_CONSTRAINT_MISSING'
+      using errcode='23514';
+  end if;
+  if pg_catalog.strpos(v_predicate,'terra_world_voting_rules')=0 then
+    alter table public.studio2_feature_flags
+      drop constraint studio2_feature_flags_key_check;
+    execute pg_catalog.format(
+      'alter table public.studio2_feature_flags add constraint studio2_feature_flags_key_check check ((%s) or key = %L)',
+      v_predicate,'terra_world_voting_rules'
+    );
+  end if;
+end
+$voting_rules_rollout$;
+
+insert into public.studio2_feature_flags
+  (key,enabled,admins_only,user_ids,edition_ids)
+values ('terra_world_voting_rules',false,false,'{}'::uuid[],'{}'::uuid[])
+on conflict (key) do nothing;
+
 -- TG8: institutional voting rule authority. The tally itself belongs to the
 -- separate TG8 exact-rational helper PR #2031. This foundation does NOT open a
 -- vote, snapshot electorate, issue ballots, certify results or publish choices.
