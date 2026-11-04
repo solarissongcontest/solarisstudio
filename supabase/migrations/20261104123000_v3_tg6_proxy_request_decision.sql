@@ -654,8 +654,11 @@ as $my_proxies$
             p.representation_id,p.proxy_person_id,
             person_row.display_name as proxy_name,
             p.session_id,session_row.title as session_title,
-            p.valid_from,p.valid_until,p.reason,p.status,p.revision,
-            p.created_at,p.approved_at
+            p.valid_from,p.valid_until,p.reason,
+            case when p.status in ('requested','approved')
+                   and p.valid_until <= now()
+              then 'expired' else p.status end as status,
+            p.revision,p.created_at,p.approved_at
           from public.world_representation_proxies p
           join public.world_organization_representations rep
             on rep.id=p.representation_id
