@@ -48,8 +48,6 @@ describe("country page presentation ownership", () => {
     expect(wiki).toContain('layoutMode === "mobile-web"');
     expect(wiki).toContain("aspect-[3/2]");
     expect(css).toContain('[data-wiki-layout-mode="mobile-web"]');
-    expect(css).toContain("overflow-wrap: anywhere;");
-    expect(css).toContain("font-size: clamp(.875rem, 4.5vw, 1.25rem);");
     const legacyWiki = read("src/wiki-mobile-encyclopedia.css");
     const legacyPersonalitySelectors = [
       ...legacyWiki.matchAll(
@@ -72,6 +70,8 @@ describe("country page presentation ownership", () => {
     const masthead = read("src/components/country/CountryMobileWebMasthead.tsx");
     expect(css).toContain("@media (max-width: 767px)");
     expect(css).toContain('[data-country-layout-mode="mobile-web"]');
+    expect(css).toContain("overflow-wrap: anywhere;");
+    expect(css).toContain("font-size: clamp(.875rem, 4.5vw, 1.25rem);");
     expect(css).not.toContain(":root {");
     expect(masthead).toContain("aspect-[3/2]");
     expect(masthead).toContain("FlagFrame");
