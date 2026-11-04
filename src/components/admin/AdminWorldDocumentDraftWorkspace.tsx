@@ -20,6 +20,7 @@ import {
 } from "@/lib/world-document-draft-model";
 import {
   MAX_WORLD_PROVISIONS_IN_EDITOR,
+  compareWorldDocumentProvisions,
   toWorldProvisionCommandRows,
   validateWorldDocumentProvisions,
   type WorldDocumentProvision,
@@ -265,6 +266,7 @@ export function AdminWorldDocumentDraftWorkspace() {
       ?? validateWorldDocumentProvisions(draftProvisions);
     if (validation) { setNotice(validation); return; }
     const provisions = toWorldProvisionCommandRows(draftProvisions);
+    const changes = compareWorldDocumentProvisions(doc.version?.provisions ?? [], draftProvisions);
     // The complete version snapshot is used for a new draft; a source version
     // is never overwritten. Its structured root and retained provision keys
     // must not disappear merely because this form edits plain text.
@@ -294,6 +296,9 @@ export function AdminWorldDocumentDraftWorkspace() {
       [organization.official_name, doc.title, `Draft title: ${draftTitle.trim()}`,
         `Source version: ${doc.version?.versionNumber ?? "first"}`,
         `Structured provisions: ${provisions.length}`,
+        `New identities: ${changes.added.join(", ") || "none"}`,
+        `Omitted from new version: ${changes.omitted.join(", ") || "none"}`,
+        `Modified existing identities: ${changes.modified.join(", ") || "none"}`,
         `Based on document revision ${doc.revision}`,
         "No publication, history replacement or member notification"],
       doc.slug,
