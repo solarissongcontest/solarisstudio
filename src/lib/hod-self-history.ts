@@ -19,10 +19,18 @@ export type OwnedHodHistory = {
   editions: OwnedHodEdition[];
 };
 
-export function useOwnedHodHistory(enabled = true) {
+export type OwnedHodClaim = {
+  user_id: string;
+  country_id: string;
+  edition_id: string;
+  status: OwnedHodEditionStatus;
+  updated_at: string;
+};
+
+export function useOwnedHodHistory(enabled = true, viewerId?: string | null) {
   return useQuery({
     enabled,
-    queryKey: ["owned-hod-edition-history"],
+    queryKey: ["owned-hod-edition-history", viewerId ?? "current-viewer"],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("owned_hod_edition_history");
       if (error) throw error;
@@ -32,6 +40,29 @@ export function useOwnedHodHistory(enabled = true) {
         auto_assign_future: value.auto_assign_future !== false,
         editions: Array.isArray(value.editions) ? value.editions as OwnedHodEdition[] : [],
       } satisfies OwnedHodHistory;
+    },
+    staleTime: 15_000,
+  });
+}
+
+/**
+ * Historical self-claims are deliberately read from their canonical RLS-bound
+ * table instead of widening the current-country RPC. The explicit user filter
+ * keeps Organizer capability from broadening this private Me projection while
+ * RLS independently enforces user_id = auth.uid() for normal viewers.
+ */
+export function useOwnedHodClaims(viewerId?: string | null, enabled = true) {
+  return useQuery({
+    enabled: enabled && Boolean(viewerId),
+    queryKey: ["owned-hod-edition-claims", viewerId ?? "no-viewer"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("country_hod_edition_claims")
+        .select("user_id,country_id,edition_id,status,updated_at")
+        .eq("user_id", viewerId!)
+        .order("updated_at", { ascending: false });
+      if (error) throw error;
+      return ((data ?? []) as OwnedHodClaim[]).filter((row) => row.user_id === viewerId);
     },
     staleTime: 15_000,
   });
@@ -49,7 +80,10 @@ export function useSetOwnedHodEditionStatus() {
       return true;
     },
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["owned-hod-edition-history"] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["owned-hod-edition-history"] }),
+        qc.invalidateQueries({ queryKey: ["owned-hod-edition-claims"] }),
+      ]);
     },
   });
 }
