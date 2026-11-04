@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 const canon = read("src/lib/ssc-rules/canon-v4.ts");
+const current = read("src/lib/ssc-rules/current.ts");
+const roleplay = read("src/lib/ssc-rules/roleplay.ts");
 const types = read("src/lib/ssc-rules/types.ts");
 const aliases = read("src/lib/ssc-rules/aliases.ts");
 const search = read("src/lib/ssc-rules/search.ts");
@@ -15,10 +17,17 @@ const v3Compatibility = read("src/lib/ssc-rules-v3.ts");
 const governance = read("src/lib/rules-governance.ts");
 
 describe("SSC rulebook module architecture", () => {
-  it("keeps canon, aliases, search, types and runtime overlay as separate modules", () => {
+  it("keeps base canon, current extensions, search, types and runtime overlay separate", () => {
     expect(canon).toContain("export const SSC_RULE_CHAPTERS");
     expect(canon).toContain("export const SSC_RULES");
     expect(canon).toContain("export const SSC_RULEBOOK");
+    expect(current).toContain("ROLEPLAY_CHAPTER");
+    expect(current).toContain('version: "4.1"');
+    expect(current).toContain("PUBLISHED_4_0_1_RULE_2_1_BODY");
+    expect(current).toContain("carryPublishedDefinitionWording");
+    expect(roleplay).toContain('number: 22');
+    expect(roleplay).toContain('id: "22.5"');
+    expect(roleplay).toContain("six consecutive completed SSC Editions");
     expect(types).toContain("export type SscRule");
     expect(types).toContain("export type SscRuleChapter");
     expect(aliases).toContain("SEARCH_SYNONYMS");
@@ -28,8 +37,9 @@ describe("SSC rulebook module architecture", () => {
     expect(overlay).toContain("export function buildRuleSnapshot");
   });
 
-  it("exposes one public API instead of duplicate rule implementations", () => {
-    expect(index).toContain('export * from "@/lib/ssc-rules/canon-v4"');
+  it("exposes one current public API instead of duplicate rule implementations", () => {
+    expect(index).toContain('export * from "@/lib/ssc-rules/current"');
+    expect(index).toContain('export * from "@/lib/ssc-rules/roleplay"');
     expect(index).toContain('export * from "@/lib/ssc-rules/search"');
     expect(index).toContain('export * from "@/lib/ssc-rules/runtime-overlay"');
     expect(v4Compatibility.trim()).toMatch(/export \* from "@\/lib\/ssc-rules\/index";$/);
@@ -43,11 +53,13 @@ describe("SSC rulebook module architecture", () => {
     expect(governance).not.toContain("RULE_PATCH_FIELDS");
     expect(governance).not.toContain("BASE_FLAT_RULES_BY_ID");
     expect(governance).not.toContain("resetRulebookBaseline");
+    expect(governance).toContain("reconcileRulebookReleaseHistory");
   });
 
   it("keeps search aliases as data rather than duplicate rule wording", () => {
     expect(aliases).toContain('friend: ["friend voting"');
     expect(aliases).toContain('appeal: ["review", "sanction", "conflict of interest"]');
+    expect(aliases).toContain('hodless: ["no hod", "dormant"');
     expect(aliases).not.toContain("body:");
     expect(aliases).not.toContain("summary:");
   });

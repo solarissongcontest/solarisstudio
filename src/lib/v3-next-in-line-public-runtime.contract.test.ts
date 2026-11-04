@@ -44,7 +44,7 @@ describe("V3 Public Next in Line runtime", () => {
     expect(page).toContain('search={{ redirect: "/next-in-line" }}');
     expect(page).toContain("Sign in to enter Next in Line");
     expect(page).toContain("eligible delegation and source entry from your authenticated account");
-    expect(page).toContain("return <NextInLineCompetition />");
+    expect(page).toContain("return <NextInLineCompetition key={session.data.id} />");
   });
 
   it("keeps the caller-specific participant workflow out of crawler indexes", () => {
@@ -102,7 +102,8 @@ describe("V3 Public Next in Line runtime", () => {
     expect(ui).toContain("setPreviewStart(existing.previewStart ?? \"\")");
     expect(ui).toContain("setSelectedNfEntry(existing.nationalFinalEntryId ?? \"\")");
     expect(ui).toContain("setEditingOpen(result.editing_open === true)");
-    expect(ui).toContain("disabled={submitting || checkingDuplicate || !editingOpen}");
+    expect(ui).toContain("!editingOpen ||");
+    expect(ui).toContain("duplicateCheckFailed || verifiedDuplicateKey !== duplicateRequestKey");
     expect(ui).not.toContain("Date.now()");
   });
 
@@ -115,6 +116,29 @@ describe("V3 Public Next in Line runtime", () => {
     expect(ui).toContain('data-next-in-line-submit-receipt=""');
     expect(ui).toContain("evidence.receiptId ?? evidence.operationId ?? null");
     expect(ui).toContain("Solaris reconciled this save against the existing server operation");
+  });
+
+  it("ignores stale country reads after a newer selection or unmount", () => {
+    const ui = competition();
+    expect(ui).toContain("const countryRequestGeneration = useRef(0)");
+    expect(ui).toContain("const requestGeneration = ++countryRequestGeneration.current");
+    expect(ui).toContain("if (requestGeneration !== countryRequestGeneration.current) return");
+    expect(ui).toContain("if (requestGeneration === countryRequestGeneration.current)");
+    expect(ui).toContain("countryRequestGeneration.current += 1");
+    expect(ui.indexOf("if (requestGeneration !== countryRequestGeneration.current) return")).toBeLessThan(
+      ui.indexOf("setSourceSubmissionId(result.submission_id)"),
+    );
+  });
+
+  it("fails visibly and closed when duplicate eligibility checking fails", () => {
+    const ui = competition();
+    expect(ui).toContain("if (!result.ok) {");
+    expect(ui).toContain("setDuplicateCheckFailed(true)");
+    expect(ui).toContain("setVerifiedDuplicateKey(duplicateRequestKey)");
+    expect(ui).toContain("if (duplicateCheckFailed || checkingDuplicate || verifiedDuplicateKey !== duplicateRequestKey)");
+    expect(ui).toContain("Retry eligibility check");
+    expect(ui).toContain("setDuplicateRetryToken((token) => token + 1)");
+    expect(ui).toContain("role=\"alert\"");
   });
 
   it("keeps anonymous access read-only and limited to active-edition discovery", () => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, LoaderCircle, Music2, ShieldCheck } from "lucide-react";
 
@@ -85,6 +85,11 @@ export function NextInLineCompetition() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const countryRequestGeneration = useRef(0);
+
+  useEffect(() => () => {
+    countryRequestGeneration.current += 1;
+  }, []);
 
   const [edition, setEdition] = useState<NextInLineEdition | null>(null);
   const [countries, setCountries] = useState<string[]>([]);
@@ -104,6 +109,13 @@ export function NextInLineCompetition() {
   const previewEnd = useMemo(() => offsetTimestamp(previewStart, 25), [previewStart]);
   const [duplicate, setDuplicate] = useState<DuplicateType>(null);
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+  const [duplicateCheckFailed, setDuplicateCheckFailed] = useState(false);
+  const [verifiedDuplicateKey, setVerifiedDuplicateKey] = useState<string | null>(null);
+  const [duplicateRetryToken, setDuplicateRetryToken] = useState(0);
+  const duplicateRequestKey = useMemo(
+    () => JSON.stringify([edition?.id ?? null, sourceSubmissionId, artist.trim(), songTitle.trim(), songUrl.trim()]),
+    [edition?.id, sourceSubmissionId, artist, songTitle, songUrl],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -130,6 +142,7 @@ export function NextInLineCompetition() {
   }, [loadCountries]);
 
   async function chooseCountry(value: string) {
+    const requestGeneration = ++countryRequestGeneration.current;
     setCountry(value);
     setSourceSubmissionId("");
     setOriginalMethod(null);
@@ -143,13 +156,20 @@ export function NextInLineCompetition() {
     setSongUrl("");
     setPreviewStart("");
     setDuplicate(null);
+    setDuplicateCheckFailed(false);
+    setVerifiedDuplicateKey(null);
+    setCheckingDuplicate(false);
     setError(null);
 
-    if (!edition || !value) return;
+    if (!edition || !value) {
+      setLoadingCountry(false);
+      return;
+    }
 
     setLoadingCountry(true);
     try {
       const result = await loadCountry({ data: { edition_id: edition.id, country: value } });
+      if (requestGeneration !== countryRequestGeneration.current) return;
       if (!result.ok || !result.submission_id) {
         setError("That country is not eligible for this Next in Line competition.");
         return;
@@ -172,30 +192,33 @@ export function NextInLineCompetition() {
         }
       }
     } catch {
-      setError("That country's selection information could not be loaded.");
+      if (requestGeneration === countryRequestGeneration.current) {
+        setError("That country's selection information could not be loaded.");
+      }
     } finally {
-      setLoadingCountry(false);
+      if (requestGeneration === countryRequestGeneration.current) {
+        setLoadingCountry(false);
+      }
     }
   }
 
   useEffect(() => {
-    if (!sourceSubmissionId || originalMethod === "national_final" || !edition) {
-      setDuplicate(null);
-      return;
-    }
+    setDuplicate(null);
+    setDuplicateCheckFailed(false);
+    setVerifiedDuplicateKey(null);
+    setCheckingDuplicate(false);
+
+    if (!sourceSubmissionId || originalMethod === "national_final" || !edition) return;
 
     const cleanArtist = artist.trim();
     const cleanSong = songTitle.trim();
     const cleanUrl = songUrl.trim();
-    if (cleanArtist.length < 2 && cleanSong.length < 2 && cleanUrl.length < 4) {
-      setDuplicate(null);
-      return;
-    }
+    if (cleanArtist.length < 2 && cleanSong.length < 2 && cleanUrl.length < 4) return;
 
     let cancelled = false;
+    setCheckingDuplicate(true);
     const timer = window.setTimeout(() => {
       void (async () => {
-        setCheckingDuplicate(true);
         try {
           const result = await checkDuplicate({
             data: {
@@ -206,7 +229,18 @@ export function NextInLineCompetition() {
               song_url: cleanUrl,
             },
           });
-          if (!cancelled) setDuplicate(result.ok && result.duplicate ? result.type : null);
+          if (cancelled) return;
+          if (!result.ok) {
+            setDuplicateCheckFailed(true);
+            return;
+          }
+          setDuplicate(result.duplicate ? result.type : null);
+          setVerifiedDuplicateKey(duplicateRequestKey);
+        } catch {
+          if (!cancelled) {
+            setDuplicate(null);
+            setDuplicateCheckFailed(true);
+          }
         } finally {
           if (!cancelled) setCheckingDuplicate(false);
         }
@@ -217,7 +251,7 @@ export function NextInLineCompetition() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [artist, checkDuplicate, edition, originalMethod, songTitle, songUrl, sourceSubmissionId]);
+  }, [artist, checkDuplicate, duplicateRequestKey, duplicateRetryToken, edition, originalMethod, songTitle, songUrl, sourceSubmissionId]);
 
   async function send() {
     setError(null);
@@ -259,6 +293,10 @@ export function NextInLineCompetition() {
       }
       if (!isValidUrl(songUrl)) {
         setError("Enter a valid song link beginning with http:// or https://.");
+        return;
+      }
+      if (duplicateCheckFailed || checkingDuplicate || verifiedDuplicateKey !== duplicateRequestKey) {
+        setError("Solaris has not verified this song and artist. Retry the eligibility check before saving.");
         return;
       }
       if (duplicate === "song") {
@@ -400,6 +438,7 @@ export function NextInLineCompetition() {
                 <Label htmlFor="next-country">Competing country</Label>
                 <select
                   id="next-country"
+                  disabled={submitting}
                   value={country}
                   onChange={(event) => void chooseCountry(event.target.value)}
                   className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
@@ -480,6 +519,14 @@ export function NextInLineCompetition() {
                     <Input id="next-url" value={songUrl} onChange={(event) => setSongUrl(event.target.value)} placeholder="https://…" />
                   </div>
                   {checkingDuplicate ? <p className="text-xs text-muted-foreground">Checking that this is not the official/used entry…</p> : null}
+                  {duplicateCheckFailed ? (
+                    <div role="alert" className="space-y-2 rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-100">
+                      <p>Solaris could not verify song eligibility. Saving is blocked until a new check succeeds.</p>
+                      <Button type="button" size="sm" variant="outline" onClick={() => setDuplicateRetryToken((token) => token + 1)}>
+                        Retry eligibility check
+                      </Button>
+                    </div>
+                  ) : null}
                   {duplicate ? (
                     <div className="rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-100">
                       {duplicate === "song"
@@ -510,7 +557,14 @@ export function NextInLineCompetition() {
               {error ? <div className="rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-100">{error}</div> : null}
 
               {sourceSubmissionId ? (
-                <Button className="w-full" disabled={submitting || checkingDuplicate || !editingOpen} onClick={() => void send()}>
+                <Button
+                  className="w-full"
+                  disabled={
+                    submitting || checkingDuplicate || !editingOpen ||
+                    (originalMethod !== "national_final" && (duplicateCheckFailed || verifiedDuplicateKey !== duplicateRequestKey))
+                  }
+                  onClick={() => void send()}
+                >
                   {submitting
                     ? "Saving…"
                     : existingSubmission
