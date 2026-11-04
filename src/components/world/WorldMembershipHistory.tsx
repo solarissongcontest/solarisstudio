@@ -49,9 +49,11 @@ function MembershipError({ retry }: { retry: () => void }) {
 }
 
 export function WorldMembershipHistoryScreen({ slug, code }: { slug: string; code: string }) {
-  const country = useWorldMembershipCountry(code);
-  const relationship = useWorldMembershipHistory(slug, country.data?.id);
+  // Resolve route validity before installing any data-bearing query. Even a
+  // valid country code must not trigger a read from an invalid organization URL.
   const validRoute = isWorldMembershipRoute(slug, code);
+  const country = useWorldMembershipCountry(code, validRoute);
+  const relationship = useWorldMembershipHistory(slug, country.data?.id, validRoute);
 
   if (!validRoute) {
     return (
