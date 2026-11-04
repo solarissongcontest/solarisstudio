@@ -4,7 +4,9 @@ begin;
 
 -- System V3 / O4: recovery codes are credential-like data. Current-edition
 -- Organizer Recovery Access must never download every edition's recovery
--- credentials and rely on browser filtering. Keep the legacy RPC for rollout
+-- credentials and rely on browser filtering. Credential reads require
+-- exact-edition confirmation.manage, not the weaker confirmation.read.
+-- Keep the legacy RPC for rollout
 -- compatibility while exposing a bounded exact-edition successor.
 --
 -- S13 contract: additive forward fix only. No destructive DDL and no backfill.
@@ -49,7 +51,7 @@ begin
   if not exists (select 1 from public.editions edition where edition.id = p_edition_id) then
     raise exception using errcode = 'P0002', message = 'EDITION_NOT_FOUND';
   end if;
-  if not private.solaris_confirmation_admin_read_allowed(p_edition_id, false) then
+  if not public.studio2_access_allowed('confirmation.manage', p_edition_id, false) then
     raise exception using errcode = '42501', message = 'AUTHORIZATION';
   end if;
 
