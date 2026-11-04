@@ -58,7 +58,12 @@ export function JuryVotingWindowControl() {
   const matchedSlug = match?.[1];
   const slug = matchedSlug ? decodeURIComponent(matchedSlug) : null;
   const { data: edition } = useEdition(slug ?? "");
-  const { data: shows = [] } = useShows(edition?.id);
+  const {
+    data: shows = [],
+    isLoading: showsLoading,
+    isError: showsError,
+    refetch: refetchShows,
+  } = useShows(edition?.id);
   const queryClient = useQueryClient();
   const backend = useOrganisationBackendContract();
   const juryOperationsSupported =
@@ -211,17 +216,31 @@ export function JuryVotingWindowControl() {
     return (
       <AdminCard strong className="mb-4">
         <p role="alert" className="text-sm text-rose-100">
-          This jury voting link refers to a show that does not belong to the selected edition.
-          No voting-window operation is available for this link.
+          {showsLoading
+            ? "Checking the selected jury show…"
+            : showsError
+              ? "Solaris could not verify the shows in this edition. Jury-window operations remain disabled."
+              : "This jury voting link refers to a show that does not belong to the selected edition. No voting-window operation is available for this link."}
         </p>
-        <Link
-          to="/admin/jury/$slug"
-          params={{ slug }}
-          search={{}}
-          className="admin-action-secondary mt-3 inline-flex !min-h-10"
-        >
-          Choose an edition show
-        </Link>
+        {!showsLoading && showsError ? (
+          <button
+            type="button"
+            className="admin-action-secondary mt-3 !min-h-10"
+            onClick={() => void refetchShows()}
+          >
+            Retry show lookup
+          </button>
+        ) : null}
+        {!showsLoading && !showsError ? (
+          <Link
+            to="/admin/jury/$slug"
+            params={{ slug }}
+            search={{}}
+            className="admin-action-secondary mt-3 inline-flex !min-h-10"
+          >
+            Choose an edition show
+          </Link>
+        ) : null}
       </AdminCard>
     );
   }
