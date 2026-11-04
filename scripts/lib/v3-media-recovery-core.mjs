@@ -224,6 +224,22 @@ export function assertAssetClearance(entry, approval) {
   return identity;
 }
 
+// Recovery must obey the same platform-state publication gate as canonical upload/media review.
+// Never use a privileged recovery client to escape read_only or maintenance mode.
+export function assertMediaRecoveryWritablePlatform(mode) {
+  if (mode !== 'normal' && mode !== 'degraded') {
+    throw new Error('Canonical platform operating mode blocks media recovery publication');
+  }
+}
+export async function readMediaRecoveryPlatformMode(client) {
+  const { data, error } = await client.from('studio2_platform_operational_state')
+    .select('mode').eq('singleton', true).maybeSingle();
+  if (error || !data || typeof data.mode !== 'string') {
+    throw new Error('Unable to inspect canonical platform operating mode');
+  }
+  return data.mode;
+}
+
 export async function transferVerifiedMissing({ source, destination, entry, onVerified }) {
   if (entry.status !== 'missing_destination') return { status: 'skipped', reason: entry.status };
   validatePath(entry.path);
