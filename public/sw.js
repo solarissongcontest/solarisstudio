@@ -183,14 +183,15 @@ function resolvePushDisplayContent(candidate) {
   const payload = candidate && typeof candidate === "object" && !Array.isArray(candidate)
     ? candidate
     : {};
-  const category = typeof payload.category === "string" ? payload.category.toLowerCase() : "";
-  const eventType = typeof payload.eventType === "string" ? payload.eventType.toLowerCase() : "";
-  const route = typeof payload.route === "string" ? payload.route.toLowerCase() : "";
-  const visibility = typeof payload.visibility === "string" ? payload.visibility.toLowerCase() : "";
-  const privacy = typeof payload.privacy === "string" ? payload.privacy.toLowerCase() : "";
+  const category = typeof payload.category === "string" ? payload.category.trim().toLowerCase() : "";
+  const eventType = typeof payload.eventType === "string" ? payload.eventType.trim().toLowerCase() : "";
+  const route = typeof payload.route === "string" ? payload.route.trim().toLowerCase() : "";
+  const visibility = typeof payload.visibility === "string" ? payload.visibility.trim().toLowerCase() : "";
+  const privacy = typeof payload.privacy === "string" ? payload.privacy.trim().toLowerCase() : "";
   const institutionalKind = /(?:^|[._:-])(?:court|ethics|investigation|leadership)(?:[._:-]|$)/;
+  const sensitivity = typeof payload.sensitivity === "string" ? payload.sensitivity.trim().toLowerCase() : "";
   const sensitive =
-    payload.sensitivity === "private" ||
+    sensitivity === "private" ||
     payload.sensitive === true ||
     ["private", "confidential", "restricted", "committee", "sealed"].includes(visibility) ||
     ["private", "confidential", "restricted", "committee", "sealed"].includes(privacy) ||
