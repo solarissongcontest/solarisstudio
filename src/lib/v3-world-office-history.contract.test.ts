@@ -65,9 +65,21 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(migration).toContain("t.holder_display_name_snapshot as holder_name");
     expect(migration).toContain("t.office_title_snapshot as office_title");
     expect(migration).not.toContain("holder.display_name as holder_name");
-    expect(migration).not.toContain("holder_user_id");
-    expect(migration).not.toContain("auth.users");
-    expect(migration).not.toContain("world_capability_grant_scopes");
+    // The internal snapshot trigger may legitimately refer to login unlinking
+    // in commentary. Only the exposed RPC definition defines the public shape.
+    const rpcStart = migration.indexOf(
+      "create or replace function public.world_public_office_history_v1("
+    );
+    const rpcEnd = migration.indexOf(
+      "revoke all on function public.world_public_office_history_v1("
+    );
+    expect(rpcStart >= 0 && rpcEnd > rpcStart).toBe(true);
+    const publicRpc = migration.slice(rpcStart, rpcEnd);
+    expect(publicRpc).not.toContain("holder_user_id");
+    expect(publicRpc).not.toContain("auth.users");
+    expect(publicRpc).not.toContain("world_capability_grant_scopes");
+    expect(publicRpc).not.toContain("'holderUserId'");
+    expect(publicRpc).not.toContain("'userId'");
     expect(migration).toContain("revoke all on function");
     expect(migration).toContain("to anon, authenticated, service_role");
   });
