@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 
 import { SOLARIS_FEATURE_FLAGS } from "../src/lib/feature-flags";
 import { SOLARIS_V6_FEATURE_SURFACES } from "../src/lib/solaris-v6-surface-registry";
+import { auditV3RuntimeRouteDeclarations, parseV3RuntimeRouteId } from "../src/lib/v3-s15-route-discovery";
+import { V3_PUBLIC_ROUTE_OWNERSHIP } from "../src/lib/v3-public-route-ownership";
 import {
   V3_API_CAPABILITY_REGISTRY,
   V3_ORGANIZER_CAPABILITY_REGISTRY,
@@ -43,11 +45,6 @@ function setDiff(expected: Iterable<string>, actual: Iterable<string>) {
     missing: [...expectedSet].filter((item) => !actualSet.has(item)).sort(),
     extra: [...actualSet].filter((item) => !expectedSet.has(item)).sort(),
   };
-}
-
-function routeIdFromSource(source: string) {
-  const match = source.match(/createFileRoute\(\s*["'`]([^"'`]+)["'`]\s*\)/);
-  return match?.[1] ?? null;
 }
 
 function apiMethodsFromSource(source: string) {
@@ -107,6 +104,9 @@ function publicOwned(route: string) {
     [...item.legacyRoutes, item.targetRoute].some((pattern) =>
       routeMatches(normalizedPattern(pattern), normalized),
     ),
+  ) || V3_PUBLIC_ROUTE_OWNERSHIP.some((alias) =>
+    V3_PUBLIC_CAPABILITIES.some((item) => item.id === alias.ownerId) &&
+    routeMatches(normalizedPattern(alias.routePattern), normalized)
   );
 }
 
@@ -141,6 +141,12 @@ if (organizerRegistryDiff.missing.length || organizerRegistryDiff.extra.length) 
     "organizer-registry",
     `Organizer registry drift. missing=${organizerRegistryDiff.missing.join(",") || "none"} extra=${organizerRegistryDiff.extra.join(",") || "none"}`,
   );
+}
+
+for (const alias of V3_PUBLIC_ROUTE_OWNERSHIP) {
+  if (!V3_PUBLIC_CAPABILITIES.some((item) => item.id === alias.ownerId)) {
+    fail("public-route-ownership", `${alias.routePattern} points at unknown Public capability ${alias.ownerId}`);
+  }
 }
 
 for (const alias of V3_ORGANIZER_ROUTE_OWNERSHIP) {
@@ -186,9 +192,13 @@ for (const shortcut of manifest.shortcuts ?? []) {
 
 const apiRouteIds: string[] = [];
 const routeFiles = filesUnder(resolve(process.cwd(), "src/routes")).filter((path) => /\.(?:ts|tsx)$/.test(path));
-for (const file of routeFiles) {
-  const source = readFileSync(file, "utf8");
-  const rawRouteId = routeIdFromSource(source);
+const routeSources = routeFiles.map((file) => ({
+  path: file.slice(process.cwd().length + 1),
+  source: readFileSync(file, "utf8"),
+}));
+for (const issue of auditV3RuntimeRouteDeclarations(routeSources)) fail("runtime-route-discovery", issue);
+for (const { path: sourcePath, source } of routeSources) {
+  const rawRouteId = parseV3RuntimeRouteId(source);
   if (!rawRouteId) continue;
   const route = publicPath(rawRouteId);
   if (!route) continue;
@@ -200,7 +210,7 @@ for (const file of routeFiles) {
     apiRouteIds.push(route);
     const registered = V3_API_CAPABILITY_REGISTRY.find((item) => item.route === route);
     if (!registered) {
-      fail("api-routes", `Unregistered API route: ${rawRouteId} (${file.replace(`${process.cwd()}/`, "")})`);
+      fail("api-routes", `Unregistered API route: ${rawRouteId} (${sourcePath})`);
       continue;
     }
 
@@ -231,7 +241,7 @@ for (const file of routeFiles) {
   if (!owned) {
     fail(
       isOrganizer ? "organizer-routes" : "public-routes",
-      `Unregistered Solaris capability route: ${rawRouteId} (${file.replace(`${process.cwd()}/`, "")})`,
+      `Unregistered Solaris capability route: ${rawRouteId} (${sourcePath})`,
     );
   }
 }
