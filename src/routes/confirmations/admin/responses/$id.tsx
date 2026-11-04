@@ -2,7 +2,7 @@ import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
 import { assertDisplayedEntryVersion } from "@/lib/v3-entry-review-preview";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 
 import { ConfirmationAccessSettingsSheet } from "@/components/admin/ConfirmationAccessSettingsSheet";
+import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   AdminActionItem,
   AdminCard,
@@ -609,6 +610,7 @@ function EntryReviewCard({
 
 function ResponseDetailPage() {
   const { id } = Route.useParams();
+  const { editionId: organizerEditionId } = useAdminContext();
   const navigate = useNavigate();
   const syncToSolaris = useServerFn(syncConfirmationSnapshotToSolaris);
   const [data, setData] = useState<ResponseDetail | null>(null);
@@ -625,6 +627,20 @@ function ResponseDetailPage() {
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [creatingLink, setCreatingLink] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const responseLoadGenerationRef = useRef(0);
+  const currentScopeRef = useRef({ responseId: id, editionId: organizerEditionId });
+
+  useEffect(() => {
+    currentScopeRef.current = { responseId: id, editionId: organizerEditionId };
+    // Purge private data immediately when the Organizer context changes.
+    setData(null);
+    setTechnical(null);
+    setGeneratedLink(null);
+    setSolarisSync(null);
+    setSolarisSyncError(null);
+    setSettingsOpen(false);
+    setDeleteReviewOpen(false);
+  }, [id, organizerEditionId]);
 
   const syncSnapshot = useCallback(
     async (detail: ResponseDetail) => {
@@ -648,57 +664,77 @@ function ResponseDetailPage() {
     [syncToSolaris],
   );
 
-  const loadTechnical = useCallback(async () => {
+  const loadTechnical = useCallback(async (generation = responseLoadGenerationRef.current) => {
+    if (!organizerEditionId) return;
     setTechnicalError(null);
     const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
       "admin_confirmation_technical",
-      {
-        _submission_id: id,
-      },
+      { _submission_id: id },
     );
+    if (responseLoadGenerationRef.current !== generation) return;
     if (rpcError) {
       setTechnicalError(rpcError.message);
       return;
     }
     setTechnical(result as unknown as TechnicalData);
-  }, [id]);
+  }, [id, organizerEditionId]);
 
   const load = useCallback(async () => {
+    const generation = ++responseLoadGenerationRef.current;
+    const isCurrent = () =>
+      responseLoadGenerationRef.current === generation &&
+      currentScopeRef.current.responseId === id &&
+      currentScopeRef.current.editionId === organizerEditionId;
     setError(null);
-    const { data: sessionData } = await confirmationsSupabase.auth.getSession();
-    if (!sessionData.session) {
-      await navigate({ to: "/confirmations/admin/sign-in" });
-      return;
-    }
+    setTechnicalError(null);
+    setData(null);
+    setTechnical(null);
+    setLoading(Boolean(organizerEditionId));
 
-    const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
-      "admin_confirmation_response",
-      {
-        _submission_id: id,
-      },
-    );
-
-    if (rpcError) {
-      setError(rpcError.message);
-      setLoading(false);
-      return;
-    }
-
-    const detail = result as unknown as ResponseDetail;
-    setData(detail);
-    setLoading(false);
-
-    await loadTechnical();
+    if (!organizerEditionId) return;
 
     try {
-      await syncSnapshot(detail);
-    } catch {
-      // The review screen stays usable even if the canonical sync is temporarily unavailable.
+      const { data: sessionData } = await confirmationsSupabase.auth.getSession();
+      if (!isCurrent()) return;
+      if (!sessionData.session) {
+        await navigate({ to: "/confirmations/admin/sign-in" });
+        return;
+      }
+
+      const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
+        "admin_confirmation_response",
+        { _submission_id: id },
+      );
+      if (!isCurrent()) return;
+      if (rpcError) throw rpcError;
+
+      const detail = result as unknown as ResponseDetail | null;
+      if (detail?.id !== id || detail.edition?.id !== organizerEditionId) {
+        throw new Error(
+          "This confirmation response does not belong to the selected Organizer edition. Select its edition before opening private details.",
+        );
+      }
+
+      setData(detail);
+      setLoading(false);
+      await loadTechnical(generation);
+      // Loading a response is read-only. Never invoke the privileged Solaris
+      // reconciliation path without an explicit Organizer decision.
+    } catch (caught) {
+      if (!isCurrent()) return;
+      setData(null);
+      setTechnical(null);
+      setError(caught instanceof Error ? caught.message : "Could not load this response.");
+      setLoading(false);
     }
-  }, [id, loadTechnical, navigate, syncSnapshot]);
+  }, [id, organizerEditionId, loadTechnical, navigate]);
 
   useEffect(() => {
     void load();
+    return () => {
+      // Also excludes late A → B → A RPC completions and unmounted pages.
+      responseLoadGenerationRef.current += 1;
+    };
   }, [load]);
 
   async function changeWinner(action: "select" | "clear", reason: string, entryId: string | null) {
@@ -766,7 +802,12 @@ function ResponseDetailPage() {
   }
 
   async function manualSync() {
-    if (!data) return;
+    if (!data || data.edition?.id !== organizerEditionId ||
+        currentScopeRef.current.responseId !== id ||
+        currentScopeRef.current.editionId !== organizerEditionId) {
+      toast.error("Select the response's exact Organizer edition before syncing.");
+      return;
+    }
     try {
       const result = await syncSnapshot(data);
       if (result.ok) toast.success("Synced with Solaris Studio");
@@ -790,7 +831,7 @@ function ResponseDetailPage() {
   }
 
   async function createEditLink() {
-    if (!data) return;
+    if (!data || data.edition?.id !== organizerEditionId) return;
     setCreatingLink(true);
     try {
       const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
@@ -833,7 +874,7 @@ function ResponseDetailPage() {
   }
 
   async function deleteResponse() {
-    if (!data || deleting) return;
+    if (!data || data.edition?.id !== organizerEditionId || deleting) return;
 
     setDeleting(true);
     try {
@@ -864,7 +905,7 @@ function ResponseDetailPage() {
     );
   }
 
-  if (!data) {
+  if (!data || !organizerEditionId || data.edition?.id !== organizerEditionId) {
     return (
       <div className="admin-page pb-5">
         <AdminPageHeader
@@ -879,7 +920,7 @@ function ResponseDetailPage() {
         <AdminCard>
           <AdminEmptyState
             title="Response not found"
-            description={error ?? "This response could not be loaded."}
+            description={error ?? "This response is unavailable in the selected Organizer edition. No private details or controls were loaded."}
           />
         </AdminCard>
       </div>
