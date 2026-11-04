@@ -197,6 +197,16 @@ export function assertApprovedWrite({ approval, key, digest, now = new Date(), c
 export function assertAssetClearance(entry, approval) {
   const permitted = new Set(['country-media', 'edition-artwork', 'beta-feedback']);
   if (!permitted.has(entry.bucket)) throw new Error('Bucket not approved for this recovery operation');
+  if (entry.bucket !== 'beta-feedback') {
+    const allowedMimes = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+    if (!allowedMimes.has(entry.source_mime)) {
+      throw new Error('Legacy public asset must pass Solaris image MIME policy');
+    }
+    if (!Number.isSafeInteger(entry.source_bytes) ||
+        entry.source_bytes <= 0 || entry.source_bytes > 5 * 1024 * 1024) {
+      throw new Error('Legacy public asset exceeds Solaris media validation ceiling');
+    }
+  }
   const identity = entry.bucket + '/' + validatePath(entry.path) + '#' + entry.source_sha256;
   const matching = (approval.asset_clearances || []).filter(a => a && a.identity === identity);
   if (matching.length !== 1) throw new Error('Missing or duplicate per-asset clearance');
