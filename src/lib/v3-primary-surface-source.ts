@@ -253,7 +253,10 @@ function assertAnonymousIsolation(input: V3PrimarySurfaceReadModel) {
     input.confirmationRequirements.length > 0 ||
     input.acknowledgementTasks > 0 ||
     input.jury ||
-    (input.additionalTasks?.length ?? 0) > 0
+    (input.additionalTasks?.length ?? 0) > 0 ||
+    // Progress is personal task evidence even when no task rows are present.
+    // Anonymous Home must not accidentally echo another viewer's completion.
+    Object.keys(input.progressByActionId ?? {}).length > 0
   ) {
     throw new Error(
       "Anonymous V3 bootstrap cannot contain participant-scoped evidence.",
