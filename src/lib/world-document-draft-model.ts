@@ -68,6 +68,7 @@ export function validateWorldDocumentDraft(input: {
   kind?: string;
   visibility?: string;
   plainText?: string;
+  hasProvisions?: boolean;
 }): string | null {
   if (!input.title.trim() || input.title.trim().length > 180) return "Enter a title of up to 180 characters.";
   if (input.slug !== undefined && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(input.slug)) {
@@ -80,7 +81,7 @@ export function validateWorldDocumentDraft(input: {
       !WORLD_DOCUMENT_VISIBILITIES.includes(input.visibility as WorldDocumentVisibility)) {
     return "Select a supported visibility.";
   }
-  if (input.plainText !== undefined && input.plainText.trim().length === 0) {
+  if (input.plainText !== undefined && input.plainText.trim().length === 0 && !input.hasProvisions) {
     return "Add the draft text before saving a version.";
   }
   if (input.plainText !== undefined && input.plainText.length > 100000) {
