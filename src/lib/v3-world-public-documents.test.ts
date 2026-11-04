@@ -5,6 +5,7 @@ const current = {
   versionNumber: 2, title: "GUARD Charter", publicationState: "published",
   publishedAt: "2026-11-01T00:00:00Z", effectiveFrom: "2026-11-01T00:00:00Z",
   effectiveTo: null, contentHash: "a".repeat(64),
+  plainText: "An official public legal document.",
   provisions: [
     { semanticKey: "membership.admission", parentSemanticKey: null, displayLabel: "Article 4", heading: "Admission", bodyPlainText: "An application requires review.", sortOrder: 2, status: "active" },
     { semanticKey: "purpose", parentSemanticKey: null, displayLabel: "Article 1", heading: "Purpose", bodyPlainText: "Our common purpose.", sortOrder: 1, status: "active" },
@@ -37,6 +38,7 @@ describe("public Terra Solaris legal-document reader", () => {
   });
   it("preserves stable semantic provision identities across visible numbering", () => {
     const result = parseWorldDocumentReader(source, "guard", "charter", 2)!;
+    expect(result.version.plainText).toBe("An official public legal document.");
     expect(result.version.provisions.map((p) => p.semanticKey)).toEqual(["purpose", "membership.admission"]);
     expect(result.history.map((h) => h.number)).toEqual([2, 1]);
     expect(matchingWorldProvisions(result.version.provisions, "review")[0]?.semanticKey).toBe("membership.admission");
