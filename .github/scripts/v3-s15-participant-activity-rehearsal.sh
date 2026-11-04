@@ -4,8 +4,27 @@ fail() { printf '[v3-s15-activity] FAIL: %s\n' "$*" >&2; exit 1; }
 
 # This rehearsal inserts disposable users and operation receipts. NEVER run it
 # against hosted/production Supabase, even for a read-only smoke test.
-eval "$(supabase status -o env)"
-: "$API_URL"; : "$DB_URL"
+# A Codespace can have Bun but no globally installed Supabase binary.
+# Match the CLI version used by the existing S14 GitHub workflows.
+if ! command -v psql >/dev/null 2>&1; then
+  fail "PostgreSQL client (psql) is missing. Use the GitHub Actions local rehearsal or install a local client."
+fi
+if ! command -v supabase >/dev/null 2>&1; then
+  if [[ -x ./node_modules/.bin/supabase ]]; then
+    supabase() { ./node_modules/.bin/supabase "$@"; }
+  elif command -v bunx >/dev/null 2>&1; then
+    supabase() { bunx supabase@2.113.0 "$@"; }
+  else
+    fail "Supabase CLI is missing. Install the project CLI or run the GitHub Actions rehearsal."
+  fi
+fi
+if ! local_status="$(supabase status -o env)"; then
+  fail "No running local Supabase stack. Start an isolated local stack before this rehearsal."
+fi
+eval "$local_status"
+if [[ -z "${API_URL:-}" || -z "${DB_URL:-}" ]]; then
+  fail "Local Supabase status did not provide API_URL and DB_URL"
+fi
 case "$API_URL" in
   http://127.0.0.1:*|http://localhost:*) ;;
   *) fail "Non-loopback API refused" ;;
