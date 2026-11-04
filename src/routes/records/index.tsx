@@ -140,11 +140,19 @@ function LegacyRecordsPage() {
   if (archiveIsLoading(...archiveQueries)) {
     return (
       <AppShell>
-        <PageHeader
-          eyebrow="Hall of records"
-          title="Records"
-          description="Verified records from the published archive."
-        />
+        {mobileWeb ? (
+          <header className="mb-5 border-b border-border/70 pb-4" data-records-mobile-web-header>
+            <p className="text-[11px] font-bold uppercase tracking-[.16em] text-primary">Hall of records</p>
+            <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">Records</h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Verified records from the published archive.</p>
+          </header>
+        ) : (
+          <PageHeader
+            eyebrow="Hall of records"
+            title="Records"
+            description="Verified records from the published archive."
+          />
+        )}
         <ArchiveDataLoading label="Calculating records from the archive…" />
       </AppShell>
     );
@@ -152,11 +160,19 @@ function LegacyRecordsPage() {
   if (archiveHasError(...archiveQueries)) {
     return (
       <AppShell>
-        <PageHeader
-          eyebrow="Hall of records"
-          title="Records"
-          description="Verified records from the published archive."
-        />
+        {mobileWeb ? (
+          <header className="mb-5 border-b border-border/70 pb-4" data-records-mobile-web-header>
+            <p className="text-[11px] font-bold uppercase tracking-[.16em] text-primary">Hall of records</p>
+            <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">Records</h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Verified records from the published archive.</p>
+          </header>
+        ) : (
+          <PageHeader
+            eyebrow="Hall of records"
+            title="Records"
+            description="Verified records from the published archive."
+          />
+        )}
         <ArchiveDataError />
       </AppShell>
     );
