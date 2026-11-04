@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarClock,
   ExternalLink,
@@ -35,6 +35,7 @@ import {
   type ConfirmationRoundChangePreview,
 } from "@/integrations/confirmations/admin";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
+import { assertConfirmationRoundPreviewMatchesRequest, assertConfirmationRoundReceiptMatchesRequest, isCurrentConfirmationRoundReview, validateConfirmationRoundFormFields } from "@/lib/confirmation-round-review-scope";
 
 export const Route = createFileRoute("/confirmations/admin/rounds")({
   head: () => ({
@@ -54,6 +55,7 @@ type PendingRoundChange = {
   operationId: string;
   idempotencyKey: string;
   restoreFormOnCancel: boolean;
+  scopeEpoch: number;
 };
 
 const emptyForm = {
@@ -99,15 +101,39 @@ function RoundsPage() {
   const [busy, setBusy] = useState(false);
   const [roundBusy, setRoundBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const reviewScopeRef = useRef({ editionId, organizerEditionId, epoch: 0 });
+  const applyInFlightRef = useRef(false);
+  const previewInFlightRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const previous = reviewScopeRef.current;
+    if (previous.editionId !== editionId || previous.organizerEditionId !== organizerEditionId) {
+      reviewScopeRef.current = {
+        editionId,
+        organizerEditionId,
+        epoch: previous.epoch + 1,
+      };
+    }
+  }, [editionId, organizerEditionId]);
+
+  // A pending review from the previous edition must never become an active
+  // confirmation sheet, even for the render before effects clear its state.
+  const activePendingChange = pendingChange &&
+    pendingChange.preview.editionId === editionId &&
+    editionId === organizerEditionId &&
+    isCurrentConfirmationRoundReview(
+      { editionId: pendingChange.preview.editionId, epoch: pendingChange.scopeEpoch },
+      reviewScopeRef.current,
+    ) ? pendingChange : null;
 
   async function refresh(preferredEditionId?: string) {
     const rows = await loadConfirmationEditions();
     setEditions(rows);
     setEditionId((current) =>
       resolveConfirmationRoundEditionId(rows, [
+        reviewScopeRef.current.organizerEditionId,
         preferredEditionId,
         current,
-        organizerEditionId,
       ]),
     );
   }
@@ -176,6 +202,14 @@ function RoundsPage() {
     payload?: ConfirmationRoundChangePayload;
     restoreFormOnCancel?: boolean;
   }) {
+    const scope = reviewScopeRef.current;
+    const request = { editionId, epoch: scope.epoch };
+    if (previewInFlightRef.current === request.epoch) return;
+    if (!isCurrentConfirmationRoundReview(request, scope)) {
+      setError("Choose the exact Organizer edition before reviewing a round change.");
+      return;
+    }
+    previewInFlightRef.current = request.epoch;
     setError(null);
     if (input.roundId) setRoundBusy(input.roundId);
     else setBusy(true);
@@ -186,6 +220,16 @@ function RoundsPage() {
         kind: input.kind,
         payload: input.payload ?? {},
       });
+      if (!isCurrentConfirmationRoundReview(request, reviewScopeRef.current, preview.editionId)) {
+        throw Object.assign(
+          new Error("Organizer edition changed during round impact review. Nothing was applied; review the current edition again."),
+          { status: 409 },
+        );
+      }
+      assertConfirmationRoundPreviewMatchesRequest(
+        { editionId: request.editionId, roundId: input.roundId ?? null, changeKind: input.kind },
+        preview,
+      );
 
       if (preview.alreadyApplied && preview.blockers.length === 0) {
         if (input.restoreFormOnCancel) setFormOpen(false);
@@ -218,13 +262,18 @@ function RoundsPage() {
         operationId: operation.operationId,
         idempotencyKey: operation.idempotencyKey,
         restoreFormOnCancel: input.restoreFormOnCancel === true,
+        scopeEpoch: request.epoch,
       });
     } catch (caught) {
-      const message =
-        caught instanceof Error ? caught.message : "Round impact preview could not be loaded.";
-      if (input.restoreFormOnCancel) setError(message);
-      else toast.error(message);
+      // Old preview errors must not replace the new edition's messages.
+      if (isCurrentConfirmationRoundReview(request, reviewScopeRef.current)) {
+        const message =
+          caught instanceof Error ? caught.message : "Round impact preview could not be loaded.";
+        if (input.restoreFormOnCancel) setError(message);
+        else toast.error(message);
+      }
     } finally {
+      if (previewInFlightRef.current === request.epoch) previewInFlightRef.current = null;
       if (input.roundId) setRoundBusy(null);
       else setBusy(false);
     }
@@ -234,22 +283,24 @@ function RoundsPage() {
     setError(null);
     if (!editionId) return setError("Select an edition first.");
     if (!form.name.trim()) return setError("Round name is required.");
-    if (form.response_limit && !/^\d+$/.test(form.response_limit)) {
-      return setError("Response limit must be a whole number.");
-    }
-
-    const opens = form.opens_at ? new Date(form.opens_at).toISOString() : null;
-    const closes = form.closes_at ? new Date(form.closes_at).toISOString() : null;
-    if (opens && closes && new Date(closes) <= new Date(opens)) {
-      return setError("Closing time must be after opening time.");
+    let validated: ReturnType<typeof validateConfirmationRoundFormFields>;
+    try {
+      validated = validateConfirmationRoundFormFields({
+        opensAtLocal: form.opens_at,
+        closesAtLocal: form.closes_at,
+        responseLimit: form.response_limit,
+      });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Invalid round schedule or response limit.");
+      return;
     }
 
     const payload: ConfirmationRoundChangePayload = {
       editionId,
       name: form.name.trim(),
-      opensAt: opens,
-      closesAt: closes,
-      responseLimit: form.response_limit ? Number(form.response_limit) : null,
+      opensAt: validated.opensAt,
+      closesAt: validated.closesAt,
+      responseLimit: validated.responseLimit,
       editingEnabled: form.editing_enabled,
     };
 
@@ -292,11 +343,20 @@ function RoundsPage() {
   }
 
   async function applyPendingChange() {
-    if (!pendingChange || pendingChange.preview.blockers.length > 0) return;
+    if (applyInFlightRef.current || !activePendingChange || activePendingChange.preview.blockers.length > 0) return;
 
-    const pending = pendingChange;
+    const pending = activePendingChange;
+    const request = { editionId: pending.preview.editionId, epoch: pending.scopeEpoch };
+    if (!isCurrentConfirmationRoundReview(request, reviewScopeRef.current)) {
+      setPendingChange(null);
+      toast.error("Organizer edition changed since this review. Review the round again.");
+      return;
+    }
+
+    applyInFlightRef.current = true;
     setBusy(true);
     if (pending.roundId) setRoundBusy(pending.roundId);
+    let receiptVerified = false;
 
     try {
       const receipt = await applyConfirmationRoundChange({
@@ -307,10 +367,24 @@ function RoundsPage() {
         idempotencyKey: pending.idempotencyKey,
         expectedVersion: pending.preview.expectedVersion,
       });
+      assertConfirmationRoundReceiptMatchesRequest({
+        roundId: pending.roundId,
+        changeKind: pending.kind,
+        operationId: pending.operationId,
+        expectedVersion: pending.preview.expectedVersion,
+      }, receipt);
+      receiptVerified = true;
 
+      if (!isCurrentConfirmationRoundReview(request, reviewScopeRef.current)) {
+        toast.warning(
+          "A round operation completed for a previous edition. Reopen that edition and verify its authoritative state before retrying.",
+        );
+        return;
+      }
       setPendingChange(null);
       setForm(emptyForm);
-      await refresh(editionId);
+      await refresh(request.editionId);
+      if (!isCurrentConfirmationRoundReview(request, reviewScopeRef.current)) return;
 
       if (pending.kind === "create") {
         toast.success("Submission round created as a draft.");
@@ -332,15 +406,30 @@ function RoundsPage() {
         toast.success("Round configuration updated.");
       }
     } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Round change could not be applied.");
+      if (receiptVerified) {
+        // A verified canonical apply has already committed. A failed *read*
+        // must never be reported as a failed mutation or prompt a second apply.
+        if (isCurrentConfirmationRoundReview(request, reviewScopeRef.current)) {
+          setError("Round change was applied, but the refreshed round list is unavailable. Reload this edition before changing any rounds again.");
+        }
+        toast.warning("Round change was applied, but the round list could not be refreshed. Reload before editing again.");
+      } else if (isCurrentConfirmationRoundReview(request, reviewScopeRef.current)) {
+        toast.error(caught instanceof Error ? caught.message : "Round change could not be verified. Inspect the current edition before retrying.");
+      } else {
+        toast.warning(
+          "The previous edition's round operation has an uncertain result. Inspect its current state before retrying.",
+        );
+      }
     } finally {
+      applyInFlightRef.current = false;
       setBusy(false);
       setRoundBusy(null);
     }
   }
 
   function cancelPendingChange() {
-    const reopenForm = pendingChange?.restoreFormOnCancel === true;
+    if (busy || applyInFlightRef.current) return;
+    const reopenForm = activePendingChange?.restoreFormOnCancel === true;
     setPendingChange(null);
     if (reopenForm) setFormOpen(true);
   }
@@ -599,31 +688,31 @@ function RoundsPage() {
       </AdminSheet>
 
       <AdminConfirmSheet
-        open={Boolean(pendingChange)}
+        open={Boolean(activePendingChange)}
         onClose={cancelPendingChange}
         onConfirm={applyPendingChange}
-        title={pendingChange ? roundChangeTitle(pendingChange) : "Confirm round change"}
+        title={activePendingChange ? roundChangeTitle(activePendingChange) : "Confirm round change"}
         description={
-          pendingChange ? (
-            <RoundImpactPreview pending={pendingChange} />
+          activePendingChange ? (
+            <RoundImpactPreview pending={activePendingChange} />
           ) : (
             "Review the server-computed impact before applying this round change."
           )
         }
-        confirmLabel={pendingChange ? roundChangeConfirmLabel(pendingChange) : "Apply change"}
+        confirmLabel={activePendingChange ? roundChangeConfirmLabel(activePendingChange) : "Apply change"}
         confirmationText={
-          pendingChange?.preview.riskClass === "R3"
-            ? pendingChange.preview.roundName ?? undefined
+          activePendingChange?.preview.riskClass === "R3"
+            ? activePendingChange.preview.roundName ?? undefined
             : undefined
         }
         confirmationHint={
-          pendingChange?.preview.riskClass === "R3" && pendingChange.preview.roundName
-            ? `Type ${pendingChange.preview.roundName} to confirm this R3 deletion`
+          activePendingChange?.preview.riskClass === "R3" && activePendingChange.preview.roundName
+            ? `Type ${activePendingChange.preview.roundName} to confirm this R3 deletion`
             : undefined
         }
-        busy={busy || Boolean(pendingChange?.roundId && roundBusy === pendingChange.roundId)}
-        danger={pendingChange?.preview.riskClass === "R3"}
-        confirmDisabled={Boolean(pendingChange?.preview.blockers.length)}
+        busy={busy || Boolean(activePendingChange?.roundId && roundBusy === activePendingChange.roundId)}
+        danger={activePendingChange?.preview.riskClass === "R3"}
+        confirmDisabled={Boolean(activePendingChange?.preview.blockers.length)}
       />
     </div>
   );
