@@ -404,7 +404,7 @@ html[data-solaris-app-boot] body::before {
   .solaris-app-offline {
     position: fixed;
     z-index: 75;
-    top: calc(env(safe-area-inset-top) + var(--solaris-app-toolbar-height) + .45rem);
+    top: calc(var(--solaris-app-safe-top) + var(--solaris-app-toolbar-height) + var(--solaris-app-safe-top-comfort) + .45rem);
     left: 50%;
     display: flex;
     width: min(calc(100vw - 1.5rem), 32rem);
