@@ -66,6 +66,7 @@ describe("V3 countries directory filters", () => {
     expect(source).toContain("filterCountryDirectory(countriesQuery.data ?? []");
     expect(source).toContain("participatingCountryIds");
     expect(source).toContain("participatingOnly: participatingOnly && Boolean(activeEdition)");
+    expect(source).toContain("participatingOnly && activeEdition ? filtered : filtered.slice(0, visibleCount)");
     expect(source).toContain('aria-label="Country collections"');
     expect(source).toContain("aria-pressed={participatingOnly}");
     expect(source).toContain("aria-pressed={!participatingOnly}");
