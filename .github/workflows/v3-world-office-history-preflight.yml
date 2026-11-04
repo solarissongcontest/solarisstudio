@@ -84,3 +84,58 @@ jobs:
           set -euo pipefail
           echo "VERIFIED_SHA=$(git rev-parse HEAD)"
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+
+  local-database:
+    name: Isolated TG3 office-history SQL rehearsal
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      V3_VERIFICATION_TARGET: local
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      VITE_SUPABASE_PROJECT_ID: local
+      VITE_SUPABASE_PROJECT_REF: local
+
+    steps:
+      - name: Checkout same exact commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Setup pinned local Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Ensure local PostgreSQL client is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Start disposable local Supabase
+        run: supabase start
+
+      - name: Rebuild isolated database from all migrations
+        run: supabase db reset --local --no-seed
+
+      - name: Rehearse real immutable terms and rollout boundaries
+        shell: bash
+        run: bash scripts/rehearse-v3-world-office-history.sh
+
+      - name: Confirm local migration history
+        run: supabase migration list --local
+
+      - name: Verify exact SQL evidence commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          echo "LOCAL_SQL_VERIFIED_SHA=$(git rev-parse HEAD)"
