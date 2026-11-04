@@ -1,16 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, BookOpen, CalendarDays, ChevronRight, FileText, Search } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarDays, ChevronRight, FileText, ListTree, Search } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   getWorldDocumentDetail,
   getWorldDocumentIndex,
   normalizeWorldSearch,
   type WorldDocumentLimit,
   type WorldDocumentIndexRow,
+  type WorldDocumentProvision,
 } from "@/lib/world-public-documents";
 
 const ORGANIZATION_OPTIONS = [
@@ -208,6 +210,45 @@ export function WorldDocumentLibraryScreen({
   );
 }
 
+/**
+ * Canonical provision identity is stable across amendments even if a section
+ * changes display number or location. The contents list must never be capped
+ * at an arbitrary first N provisions, which strands deep legal references.
+ */
+function DocumentContents({
+  provisions,
+  closeOnNavigate = false,
+}: {
+  provisions: readonly WorldDocumentProvision[];
+  closeOnNavigate?: boolean;
+}) {
+  return (
+    <nav aria-label="Document contents">
+      <h3 className="text-xs font-bold uppercase tracking-[0.13em] text-muted-foreground">Document contents</h3>
+      <ol className="mt-3 space-y-1">
+        {provisions.map((item) => {
+          const link = (
+            <a
+              href={"#" + item.targetId}
+              className={
+                "flex min-h-10 items-center rounded-lg px-2 py-1 text-sm leading-snug text-foreground/80 " +
+                "outline-offset-2 hover:bg-primary/8 hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
+              }
+            >
+              {item.displayLabel ? item.displayLabel + " " : ""}{item.heading || "Untitled section"}
+            </a>
+          );
+          return (
+            <li key={item.provisionId} className={item.parentSemanticKey ? "pl-3" : ""}>
+              {closeOnNavigate ? <SheetClose asChild>{link}</SheetClose> : link}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
 export function WorldDocumentReaderScreen({
   organization,
   document,
@@ -226,13 +267,13 @@ export function WorldDocumentReaderScreen({
   });
   const detail = query.data;
   const currentVersion = detail?.history.find((item) => item.publicationState === "published");
-  const anchors = detail?.version.provisions.filter((item) => item.anchor && item.heading) ?? [];
+  const anchors = detail?.version.provisions.filter((item) => item.heading || item.displayLabel) ?? [];
   const textMatches = documentSearch.trim()
-    ? (detail?.version.provisions ?? []).flatMap((item, index) => {
+    ? (detail?.version.provisions ?? []).flatMap((item) => {
         const term = documentSearch.trim().toLocaleLowerCase();
         const content = [item.heading, item.displayLabel, item.bodyPlainText].join(" ").toLocaleLowerCase();
         return content.includes(term)
-          ? [{ ...item, target: item.anchor ?? "world-provision-" + (index + 1) }]
+          ? [{ ...item, target: item.targetId }]
           : [];
       })
     : [];
@@ -267,7 +308,10 @@ export function WorldDocumentReaderScreen({
             <Link to="/world/documents" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary">Browse published documents</Link>
           </section>
         ) : (
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_16rem]">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_14rem] xl:grid-cols-[13rem_minmax(0,1fr)_14rem]">
+            <aside className="hidden min-w-0 xl:sticky xl:top-24 xl:block xl:max-h-[calc(100dvh-8rem)] xl:self-start xl:overflow-y-auto xl:pr-3">
+              {anchors.length > 0 && <DocumentContents provisions={anchors} />}
+            </aside>
             <article className="min-w-0">
               <div className="border-b border-border pb-6">
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{formatType(detail.documentType)}</p>
@@ -317,26 +361,31 @@ export function WorldDocumentReaderScreen({
                   </div>
                 )}
                 {anchors.length > 0 && (
-                  <details className="mt-4 lg:hidden">
-                    <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-primary">Document contents</summary>
-                    <nav aria-label="Mobile document contents">
-                      <ul className="space-y-2">
-                        {anchors.slice(0, 40).map((item) => (
-                          <li key={item.provisionId}>
-                            <a href={"#" + item.anchor} className="inline-flex min-h-10 items-center text-sm underline-offset-4 hover:underline">
-                              {item.displayLabel ? item.displayLabel + " " : ""}{item.heading}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </nav>
-                  </details>
+                  <div className="mt-4 xl:hidden">
+                    <Sheet>
+                      <SheetTrigger asChild>
+                        <button type="button" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-primary focus-visible:outline-2 focus-visible:outline-primary">
+                          <ListTree size={18} aria-hidden="true" /> Document contents · {anchors.length} sections
+                        </button>
+                      </SheetTrigger>
+                      <SheetContent
+                        side="bottom"
+                        aria-label="Document contents"
+                        className="max-h-[82dvh] overflow-y-auto rounded-t-2xl pb-[max(2rem,env(safe-area-inset-bottom))]"
+                      >
+                        <DocumentContents provisions={anchors} closeOnNavigate />
+                      </SheetContent>
+                    </Sheet>
+                  </div>
                 )}
               </div>
               {detail.version.provisions.length > 0 ? (
                 <div className="space-y-7 py-7">
-                  {detail.version.provisions.map((provision, index) => (
-                    <section key={provision.provisionId} id={provision.anchor ?? "world-provision-" + (index + 1)} className="scroll-mt-28">
+                  {detail.version.provisions.map((provision) => (
+                    <section key={provision.provisionId} id={provision.targetId} className="scroll-mt-28">
+                      {provision.anchor && provision.anchor !== provision.targetId && (
+                        <span id={provision.anchor} aria-hidden="true" className="block scroll-mt-28" />
+                      )}
                       {(provision.heading || provision.displayLabel) && (
                         <h3 className="font-display text-lg font-bold leading-snug">
                           {provision.displayLabel && <span className="mr-2 text-primary">{provision.displayLabel}</span>}
@@ -359,21 +408,7 @@ export function WorldDocumentReaderScreen({
                 <p className="py-8 text-sm text-muted-foreground">The published version does not contain displayable text.</p>
               )}
             </article>
-            <aside className="min-w-0 space-y-7 border-t border-border pt-6 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
-              {anchors.length > 0 && (
-                <nav aria-label="Document contents">
-                  <h3 className="text-xs font-bold uppercase tracking-[0.13em] text-muted-foreground">On this page</h3>
-                  <ul className="mt-3 space-y-2">
-                    {anchors.slice(0, 40).map((item) => (
-                      <li key={item.provisionId}>
-                        <a href={"#" + item.anchor} className="inline-flex min-h-8 items-center text-sm text-foreground/80 hover:text-primary hover:underline">
-                          {item.displayLabel ? item.displayLabel + " " : ""}{item.heading}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </nav>
-              )}
+            <aside className="min-w-0 space-y-7 border-t border-border pt-6 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
               <nav aria-label="Document versions">
                 <h3 className="text-xs font-bold uppercase tracking-[0.13em] text-muted-foreground">Version history</h3>
                 {detail.history.length === 0 ? (
