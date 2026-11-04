@@ -84,6 +84,17 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(immutability).toMatch(/to_jsonb\(new\) - 'publication_state'/);
   });
 
+  it("exposes only active public-institution topic codes in a bounded read", () => {
+    const categories = body("world_measure_categories_public_v1", "measure_categories");
+    expect(categories).toMatch(/o\.slug=lower\(btrim\(p_organization_slug\)\)/);
+    expect(categories).toMatch(/o\.public_visibility='public'/);
+    expect(categories).toMatch(/category\.active/);
+    expect(categories).toMatch(/category\.effective_from is null or category\.effective_from<=now\(\)/);
+    expect(categories).toMatch(/category\.effective_to is null or category\.effective_to>now\(\)/);
+    expect(categories).toMatch(/limit 100/);
+    expect(sql).toMatch(/grant execute on function public\.world_measure_categories_public_v1/);
+  });
+
   it("does not leak pre-registration or unapproved version content publicly", () => {
     for (const projection of [
       body("world_measure_public_list_v1", "measure_list"),
@@ -175,6 +186,7 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(sql).toMatch(/v3\.tg7\.world-measure-submissions/);
   });
 });
+
 
 
 

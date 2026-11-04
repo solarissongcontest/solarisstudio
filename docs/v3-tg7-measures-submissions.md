@@ -9,7 +9,7 @@ Canonical persisted owners: `public.world_measures`, `public.world_measure_versi
 ## Implemented
 
 - Organization-scoped, sponsor-scoped, organ-scoped measure records with the complete canonical measure-type and state vocabularies.
-- Reusable topic-code registry with stable historical codes. **GUARD topic codes are not invented**: an authoritative list is needed to seed them before formal GUARD registration works.
+- Reusable topic-code registry with stable historical codes. **GUARD topic codes are not invented**: an authoritative list is needed to seed them before formal GUARD registration works. Its bounded, publication-filtered `world_measure_categories_public_v1` projection provides active labels to future forms without leaking private or expired codes.
 - Version history with same-measure composite FKs, unchangeable text and hashes; only one-way `draft -> published` promotion for a registered version is permitted.
 - `world_measure_submit_v1`: sponsor must control the country or hold a delegated world capability, have an active member term, and target an active organ of that organization. Creates an unpublished version, durable idempotency receipt and domain event.
 - `world_measure_review_v1`: authorized procedural reviewer can start review, return for a recorded procedural correction, or register with an immutable identifier. No political-content veto, vote result or approval decision is fabricated. GUARD identifiers keep the canonical `GAG.Year.Sequence.CountryCode.TopicCode.ShortTitle` structure with exact sponsor/category alignment.
@@ -26,5 +26,6 @@ Canonical persisted owners: `public.world_measures`, `public.world_measure_versi
 - Actual local Supabase migration/replay/authorization tests and exact-source GitHub CI; the committed Vitest source contracts do not prove runtime SQL behavior by themselves.
 
 This is an **implementation**, not certification of TG7, and does not authorize production migration until stacked prerequisite PRs and migration rehearsal are complete.
+
 
 
