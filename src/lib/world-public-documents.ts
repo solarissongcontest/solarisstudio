@@ -1,4 +1,63 @@
-import { supabase } from "@/integrations/supabase/client";
+import { noteSupabaseResponse } from "@/lib/supabase-service-restriction";
+
+/**
+ * Public World routes must read with the anonymous role even when a manager is
+ * signed in. TG4's index RPC includes *all records readable by its caller*
+ * before applying p_limit. Filtering a privileged response in React causes
+ * a manager's private records to consume the 100-row cap and hide published
+ * records. Browser access tokens must never enter these requests.
+ *
+ * This is an intentionally small, read-only RPC transport; it uses the same
+ * publishable/legacy-anon key and service-restriction detection as the
+ * generated Supabase client. It never uses localStorage or user sessions.
+ */
+type PublicWorldRpcName = "world_get_document_index_v1" | "world_get_document_v1";
+
+export function publicWorldRpcHeaders(publishableKey: string): Record<string, string> {
+  if (!publishableKey || publishableKey.startsWith("sb_secret_") ||
+      publishableKey.startsWith("sb_service_role_")) {
+    throw new Error("A public Supabase key is required for institutional documents");
+  }
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    apikey: publishableKey,
+  };
+  // Legacy anon keys are JWTs. New sb_publishable_ keys must not be
+  // misrepresented as Bearer JWTs (same rule as the canonical Supabase client).
+  if (!publishableKey.startsWith("sb_publishable_")) {
+    headers.Authorization = "Bearer " + publishableKey;
+  }
+  return headers;
+}
+
+async function callAnonymousWorldRpc(
+  name: PublicWorldRpcName,
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  const url = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) {
+    throw new Error("Public institutional document service is not configured");
+  }
+  const response = await fetch(
+    url.replace(/\\/$/, "") + "/rest/v1/rpc/" + name,
+    {
+      method: "POST",
+      headers: publicWorldRpcHeaders(key),
+      // No session cookie or user-scope credentials, even on same-origin proxies.
+      credentials: "omit",
+      cache: "no-store",
+      body: JSON.stringify(args),
+    },
+  );
+  noteSupabaseResponse(response);
+  if (!response.ok) {
+    const error = new Error("Institutional document service unavailable (" + response.status + ")");
+    Object.assign(error, { status: response.status });
+    throw error;
+  }
+  return response.json();
+}
 
 /**
  * TG4's public read contract. No service key, direct canonical document table
@@ -295,12 +354,11 @@ export async function getWorldDocumentIndex(input: {
   const query = normalizeWorldSearch(input.search ?? "");
   const limit = input.limit ?? 25;
   if (!VALID_LIMITS.includes(limit)) throw new Error("Invalid document index size");
-  const { data, error } = await (supabase as any).rpc("world_get_document_index_v1", {
+  const data = await callAnonymousWorldRpc("world_get_document_index_v1", {
     p_organization_slug: slug,
     p_query: query || null,
     p_limit: limit,
   });
-  if (error) throw error;
   return parseWorldDocumentIndex(data);
 }
 
@@ -312,12 +370,11 @@ export async function getWorldDocumentDetail(input: {
   const organization = assertWorldSlug(input.organization);
   const document = assertWorldSlug(input.document);
   if (input.version !== undefined) versionNumber(input.version);
-  const { data, error } = await (supabase as any).rpc("world_get_document_v1", {
+  const data = await callAnonymousWorldRpc("world_get_document_v1", {
     p_organization_slug: organization,
     p_document_slug: document,
     p_version_number: input.version ?? null,
   });
-  if (error) throw error;
   const projection = parseWorldDocumentDetail(data);
   if (projection &&
       (projection.organization.slug !== organization || projection.slug !== document ||
