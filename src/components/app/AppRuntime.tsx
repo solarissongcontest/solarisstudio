@@ -142,6 +142,12 @@ export function AppRuntime({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    // The SSR head bootstrap marks installed launches before hydration. The
+    // initial hydration-safe "web" snapshot is not a detected runtime: writing
+    // it to <html> would briefly remove iOS standalone safe-area protection
+    // (and can flash browser chrome) until detectSolarisPlatform resolves.
+    if (!platformResolved) return;
+
     const root = document.documentElement;
     root.dataset.solarisRuntime = platform.mode;
     root.dataset.solarisConnectivity = connectivity.status;
@@ -154,7 +160,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
       delete root.dataset.solarisLifecycle;
       root.removeAttribute("data-solaris-app");
     };
-  }, [connectivity.status, lifecycle.phase, platform.isAppMode, platform.mode]);
+  }, [connectivity.status, lifecycle.phase, platform.isAppMode, platform.mode, platformResolved]);
 
   useEffect(() => {
     if (!platform.isAppMode) return;
