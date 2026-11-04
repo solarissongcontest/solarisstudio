@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRightLeft, BookOpen, FileDiff, Search } from "lucide-react";
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +27,7 @@ const QUERY_POLICY = {
   refetchOnWindowFocus: true,
 };
 
-type Search = {
+type ComparisonSearch = {
   organization: string;
   document: string;
   from: number | null;
@@ -279,7 +279,7 @@ function ComparisonBody({
   </>;
 }
 
-export function WorldLegalComparisonScreen({ search }: { search: Search }) {
+export function WorldLegalComparisonScreen({ search }: { search: ComparisonSearch }) {
   const navigate = useNavigate();
   const valid = worldLegalSlug(search.organization) && worldLegalSlug(search.document);
   const navigateVersion = (from: number, to: number) => {
@@ -292,7 +292,7 @@ export function WorldLegalComparisonScreen({ search }: { search: Search }) {
   return <AppShell>
     <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12">
       <header className="mb-8 max-w-3xl">
-        <Link to="/world" className="mb-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary hover:underline"><BookOpen className="size-4" aria-hidden="true" /> Terra Solaris</Link>
+        <Link to="/countries" className="mb-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary hover:underline"><BookOpen className="size-4" aria-hidden="true" /> Terra Solaris countries</Link>
         <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">World / Institutional records</p>
         <h1 className="mt-2 flex items-center gap-3 text-3xl font-bold tracking-tight sm:text-4xl"><FileDiff className="size-8 shrink-0 text-primary" aria-hidden="true" /> Compare legal versions</h1>
         <p className="mt-4 text-base leading-7 text-muted-foreground">
