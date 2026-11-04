@@ -42,6 +42,19 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(migration).toContain("new.office_title_snapshot := old.office_title_snapshot");
     expect(migration).toContain("new.represented_country_name_snapshot := old.represented_country_name_snapshot");
     expect(migration).toContain("before insert or update on public.world_office_terms");
+    expect(migration).toContain("WORLD_CLOSED_OFFICE_TERM_IMMUTABLE");
+    const closedGuard = migration.indexOf("if tg_op = 'UPDATE' and old.status");
+    const activeGuard = migration.indexOf("if new.status not in ('ended', 'removed', 'resigned')");
+    expect(closedGuard >= 0 && activeGuard > closedGuard).toBe(true);
+    for (const immutableField of [
+      "new.status", "new.office_id", "new.holder_person_id",
+      "new.represented_country_id", "new.start_edition_id",
+      "new.end_edition_id", "new.started_at",
+      "new.scheduled_end_at", "new.actual_end_at",
+      "new.term_kind", "new.predecessor_term_id", "new.succession_reason",
+    ]) {
+      expect(migration).toContain(immutableField + " is distinct from old.");
+    }
     expect(migration).toContain("'holderDisplayName', p.holder_name");
     expect(migration).toContain("'representedCountryName', p.represented_country_name");
     expect(screen).toContain("Represented country: {term.representedCountryName}");
@@ -73,6 +86,9 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(rehearsal).toContain("TG3_HISTORY_FROZEN_LABELS_OR_FIRST_PAGE_FAILED");
     expect(rehearsal).toContain("TG3_HISTORY_KEYSET_OR_NULL_COUNTRY_FAILED");
     expect(rehearsal).toContain("TG3_HISTORY_UNBOUNDED_LIMIT_NOT_REJECTED");
+    expect(rehearsal).toContain("TG3_HISTORY_REOPEN_WAS_NOT_BLOCKED");
+    expect(rehearsal).toContain("TG3_HISTORY_COUNTRY_REWRITE_WAS_NOT_BLOCKED");
+    expect(rehearsal).toContain("WORLD_CLOSED_OFFICE_TERM_IMMUTABLE");
     expect(rehearsalRunner).toContain('V3_VERIFICATION_TARGET:-}');
     expect(rehearsalRunner).toContain("PGHOST=127.0.0.1");
     expect(rehearsalRunner).toContain("PGPORT=54322");
