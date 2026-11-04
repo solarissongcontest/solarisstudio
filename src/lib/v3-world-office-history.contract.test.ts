@@ -10,6 +10,8 @@ const route = readFileSync(resolve(process.cwd(),
   "src/routes/world/organizations/$slug_.office-history.tsx"), "utf8");
 const screen = readFileSync(resolve(process.cwd(),
   "src/components/world/WorldOfficeHistory.tsx"), "utf8");
+const rolloutMigration = readFileSync(resolve(process.cwd(),
+  "supabase/migrations/20261104105100_v3_tg3_public_world_rollout_flag.sql"), "utf8");
 const rehearsal = readFileSync(resolve(process.cwd(),
   "scripts/rehearse-v3-world-office-history.sql"), "utf8");
 const rehearsalRunner = readFileSync(resolve(process.cwd(),
@@ -108,6 +110,18 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(rehearsalRunner).toContain("PGHOST=127.0.0.1");
     expect(rehearsalRunner).toContain("PGPORT=54322");
     expect(rehearsalRunner).not.toContain("SUPABASE_DB_URL");
+  });
+
+  it("registers the missing public World flag without erasing prior feature keys", () => {
+    expect(rolloutMigration).toContain("pg_catalog.pg_get_expr");
+    expect(rolloutMigration).toContain("studio2_feature_flags_key_check");
+    expect(rolloutMigration).toContain("pg_catalog.strpos(v_predicate, 'terra_world_public')");
+    expect(rolloutMigration).toContain("v_predicate,");
+    expect(rolloutMigration).toContain("'terra_world_public', false, false");
+    expect(rolloutMigration).toContain("on conflict (key) do nothing");
+    expect(rolloutMigration).toContain("WORLD_PUBLIC_ROLLOUT_ALLOWLIST_CONSTRAINT_MISSING");
+    expect(rolloutMigration).toContain("v3.tg3.public-world-rollout-flag");
+    expect(rolloutMigration).not.toContain("set enabled = true");
   });
 
   it("does not mount history reads before the same authoritative World rollout check", () => {
