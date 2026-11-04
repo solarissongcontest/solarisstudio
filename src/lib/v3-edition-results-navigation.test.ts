@@ -53,7 +53,7 @@ describe("V3 Edition Results navigation", () => {
   it("uses the navigation guard in the production Edition Overview", () => {
     const source = readFileSync("src/components/v3/V3EditionOverviewScreen.tsx", "utf8");
     expect(source).toContain("canOpenV3EditionResults");
-    expect(source).toContain("locked: !canOpenV3EditionResults(");
+    expect(source).toContain("locked: globalSpoilerProtection || !canOpenV3EditionResults(");
     expect(source).not.toContain("href: projection.results.showHref ?? base,");
   });
 });
