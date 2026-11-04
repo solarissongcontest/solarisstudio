@@ -70,10 +70,42 @@ begin
      set name = 'Renamed Current Country'
    where id = v_country_id;
 
-  -- An attempted direct edit to a frozen label must be ignored by the
-  -- trigger; app-side access control is not the archive integrity boundary.
+  -- A concluded term cannot be reopened, have its historical country
+  -- silently changed, or have its public labels forged through direct SQL.
+  -- Validate the precise archive-integrity error, not an unrelated CHECK
+  -- failure that happens to share the SQLSTATE.
+  begin
+    update public.world_office_terms
+       set status = 'active', actual_end_at = null
+     where id = v_newest_id;
+    raise exception 'TG3_HISTORY_REOPEN_WAS_NOT_BLOCKED';
+  exception when sqlstate '23514' then
+    if sqlerrm <> 'WORLD_CLOSED_OFFICE_TERM_IMMUTABLE' then
+      raise exception 'TG3_HISTORY_REOPEN_FAILED_BY_UNEXPECTED_GUARD: %', sqlerrm;
+    end if;
+  end;
+
+  begin
+    update public.world_office_terms
+       set represented_country_id = null
+     where id = v_newest_id;
+    raise exception 'TG3_HISTORY_COUNTRY_REWRITE_WAS_NOT_BLOCKED';
+  exception when sqlstate '23514' then
+    if sqlerrm <> 'WORLD_CLOSED_OFFICE_TERM_IMMUTABLE' then
+      raise exception 'TG3_HISTORY_COUNTRY_REWRITE_FAILED_BY_UNEXPECTED_GUARD: %', sqlerrm;
+    end if;
+  end;
+
   update public.world_office_terms
-     set holder_display_name_snapshot = 'FORGED HISTORICAL NAME'
+     set holder_display_name_snapshot = 'FORGED HISTORICAL NAME',
+         office_title_snapshot = 'FORGED OFFICE',
+         represented_country_name_snapshot = 'FORGED COUNTRY'
+   where id = v_newest_id;
+
+  -- Nonconstitutional account/operational revision updates are still
+  -- possible, but may not tamper with historical political records.
+  update public.world_office_terms
+     set holder_user_id = null, revision = 3
    where id = v_newest_id;
 
   v_page := public.world_public_office_history_v1(
