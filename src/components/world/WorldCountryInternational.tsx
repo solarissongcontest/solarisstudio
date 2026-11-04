@@ -6,27 +6,24 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { PageHeader } from "@/components/AppShell";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
-import { supabase } from "@/integrations/supabase/client";
 import {
   WORLD_AFFILIATION_PAGE_SIZE,
   WORLD_COUNTRY_PAGE_SIZE,
   normalizeWorldCountrySearch,
-  parseWorldCountryAffiliations,
-  parseWorldCountryIdentity,
-  parseWorldPublicRollout,
-  parseWorldPublicCountries,
-  parseWorldPublicInstitutions,
   validWorldCountryCode,
-  verifiedWorldCount,
   visibleWorldCountryAffiliations,
-  worldCountrySearchFilter,
   type WorldCountryAffiliation,
   type WorldPublicCountry,
   type WorldPublicInstitution,
 } from "@/lib/world-country-international";
-
-const COUNTRY_COLUMNS = "id,name,short_code,region,flag_image,accent_color";
-const MEMBERSHIP_COLUMNS = "id,country_id,organization_id,membership_type,status,joined_at,ended_at";
+import {
+  WORLD_PUBLIC_ROLLOUT_QUERY_KEY,
+  fetchWorldCountryDirectory,
+  fetchWorldCountryIdentity,
+  fetchWorldCountryMembershipPage,
+  fetchWorldCountryRollout,
+  fetchWorldPublicCountryInstitutions,
+} from "@/lib/world-country-international-queries";
 type Phase = "current" | "historical";
 
 const membershipDate = (value: string): string => new Intl.DateTimeFormat("en", {
@@ -40,17 +37,10 @@ const membershipDate = (value: string): string => new Intl.DateTimeFormat("en", 
  */
 export function WorldCountryRolloutGate({ children }: { children: ReactNode }) {
   const rollout = useQuery({
-    queryKey: ["world", "public", "rollout"],
+    queryKey: WORLD_PUBLIC_ROLLOUT_QUERY_KEY,
     staleTime: 45_000,
     retry: false,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("studio2_feature_enabled", {
-        p_key: "terra_world_public",
-        p_edition_id: null,
-      });
-      if (error) throw new Error("World publication state could not be verified");
-      return parseWorldPublicRollout(data);
-    },
+    queryFn: fetchWorldCountryRollout,
   });
 
   if (rollout.isPending) {
@@ -119,17 +109,7 @@ export function WorldCountriesDirectory() {
     queryKey: ["world", "country-international-directory", safeSearch, page],
     staleTime: 120_000,
     retry: 1,
-    queryFn: async () => {
-      let request = (supabase as any).from("countries")
-        .select(COUNTRY_COLUMNS, { count: "exact" });
-      const filter = worldCountrySearchFilter(safeSearch);
-      if (filter) request = request.or(filter);
-      const { data, count, error } = await request.order("name", { ascending: true })
-        .order("short_code", { ascending: true }).order("id", { ascending: true })
-        .range(page * WORLD_COUNTRY_PAGE_SIZE, (page + 1) * WORLD_COUNTRY_PAGE_SIZE - 1);
-      if (error) throw error;
-      return { countries: parseWorldPublicCountries(data), count: verifiedWorldCount(count) };
-    },
+    queryFn: () => fetchWorldCountryDirectory(safeSearch, page),
   });
 
   // A failed revalidation may retain old React Query data. Never render it.
@@ -204,29 +184,7 @@ function useCountryMemberships(countryId: string | undefined, phase: Phase, page
     enabled: Boolean(countryId),
     staleTime: 120_000,
     retry: 1,
-    queryFn: async () => {
-      if (!countryId) throw new Error("Missing country");
-      // TG2 RLS limits rows to publicly visible organizations. The country
-      // predicate is still mandatory: never download all members in the browser.
-      let request = (supabase as any).from("world_organization_memberships")
-        .select(MEMBERSHIP_COLUMNS, { count: "exact" }).eq("country_id", countryId);
-      if (phase === "current") {
-        request = request.is("ended_at", null).in("status", ["member", "observer", "associate", "suspended"]);
-      } else {
-        request = request.not("ended_at", "is", null).in("status", ["withdrawn", "expelled", "former"]);
-      }
-      // Multiple memberships may begin or end in the same transaction:
-      // a unique ID tie-breaker keeps server-side pagination deterministic.
-      const { data, count, error } = await request
-        .order(phase === "current" ? "joined_at" : "ended_at", { ascending: false })
-        .order("id", { ascending: true })
-        .range(page * WORLD_AFFILIATION_PAGE_SIZE, (page + 1) * WORLD_AFFILIATION_PAGE_SIZE - 1);
-      if (error) throw error;
-      return {
-        rows: parseWorldCountryAffiliations(data, countryId, phase),
-        count: verifiedWorldCount(count),
-      };
-    },
+    queryFn: () => fetchWorldCountryMembershipPage(countryId ?? "", phase, page),
   });
 }
 
@@ -308,12 +266,7 @@ export function WorldCountryInternational({ code }: { code: string }) {
     enabled: validCode,
     staleTime: 5 * 60_000,
     retry: 1,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).from("countries")
-        .select(COUNTRY_COLUMNS).ilike("short_code", canonicalCode).maybeSingle();
-      if (error) throw error;
-      return parseWorldCountryIdentity(data, canonicalCode);
-    },
+    queryFn: () => fetchWorldCountryIdentity(canonicalCode),
   });
 
   const current = useCountryMemberships(identity.data?.id, "current", currentPage);
@@ -344,13 +297,7 @@ export function WorldCountryInternational({ code }: { code: string }) {
     enabled: Boolean(identity.data) && organizationIds.length > 0,
     staleTime: 120_000,
     retry: 1,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).from("world_organizations")
-        .select("id,slug,short_name,official_name,status,public_visibility")
-        .eq("public_visibility", "public").in("id", organizationIds);
-      if (error) throw error;
-      return parseWorldPublicInstitutions(data, organizationIds);
-    },
+    queryFn: () => fetchWorldPublicCountryInstitutions(organizationIds),
   });
 
   if (!validCode) return <div className="mx-auto max-w-4xl px-4 py-12">
