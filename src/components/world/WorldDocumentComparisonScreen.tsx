@@ -100,11 +100,19 @@ export function WorldDocumentComparisonScreen({
     retry:false,
     refetchOnWindowFocus:false,
   });
-  const history = main.data ? resolvePublishedVersionOptions(main.data.history) : [];
+  let history: ReturnType<typeof resolvePublishedVersionOptions> = [];
+  let invalidHistory = false;
+  if (main.data) {
+    try {
+      history = resolvePublishedVersionOptions(main.data.history);
+    } catch {
+      invalidHistory = true;
+    }
+  }
   const from = requestedFrom ?? history.at(-2)?.versionNumber;
   const to = requestedTo ?? history.at(-1)?.versionNumber;
-  const valid = isValidComparisonVersion(from) && isValidComparisonVersion(to) &&
-    from !== to && history.some((v)=>v.versionNumber === from) &&
+  const valid = !invalidHistory && isValidComparisonVersion(from) && isValidComparisonVersion(to) &&
+    from < to && history.some((v)=>v.versionNumber === from) &&
     history.some((v)=>v.versionNumber === to);
   const old = useQuery({
     queryKey:["v3","tg4","compare","version",organization,document,from],
@@ -150,7 +158,7 @@ export function WorldDocumentComparisonScreen({
         <ArrowLeft className="size-4" aria-hidden="true" /> Back to document
       </Link>
       {main.isPending ? <Loading label="Loading published version history" />
-       : main.isError ? <Failure retry={()=>{void main.refetch();}} />
+       : main.isError || invalidHistory ? <Failure retry={()=>{void main.refetch();}} />
        : !main.data ? <p role="status" className="py-8 text-sm text-muted-foreground">This document is not public.</p>
        : history.length < 2 ? <section className="border-t border-border py-8">
          <h2 className="font-semibold">A second published version is required</h2>
@@ -182,7 +190,7 @@ export function WorldDocumentComparisonScreen({
            </label>
          </div>
          {!valid ? <p role="alert" className="rounded-xl border border-border p-5 text-sm">
-           Choose two different published document versions. Unpublished or invalid version selections cannot be compared.
+           Choose two published versions in chronological order. Unpublished or invalid selections cannot be compared.
          </p>
          : old.isPending || newer.isPending ? <Loading label="Comparing published document revisions" />
          : old.isError || newer.isError ? <Failure retry={()=>{void old.refetch();void newer.refetch();}} />
@@ -190,12 +198,12 @@ export function WorldDocumentComparisonScreen({
            The official versions are unavailable or do not belong to the same document. No comparison has been generated.
          </p>
          : <>
-           <div className="mb-7 flex flex-wrap gap-3 border-b border-border pb-6">
+           {structural && <div className="mb-7 flex flex-wrap gap-3 border-b border-border pb-6">
              <span className="text-sm font-semibold">{comparison.totals.modified} changed</span>
              <span className="text-sm text-muted-foreground">{comparison.totals.added} added</span>
              <span className="text-sm text-muted-foreground">{comparison.totals.removed} removed</span>
              <span className="text-sm text-muted-foreground">{comparison.totals.unchanged} unchanged</span>
-           </div>
+           </div>}
            <div className="mb-5 grid gap-3 sm:grid-cols-2">
              <div><PublishedVersion record={comparison.oldVersion===oldVersion.version.versionNumber?oldVersion:newVersion} label="Before" />
                <OfficialVersionLink record={comparison.oldVersion===oldVersion.version.versionNumber?oldVersion:newVersion} /></div>
