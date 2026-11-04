@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminCard, AdminCardHeader, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
-import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { loadAllConfirmationResponsesForEdition } from "@/integrations/confirmations/v3-projections";
 import { syncConfirmationSubmissionToSolaris } from "@/integrations/confirmations/sync-submission.functions";
 import {
   addCountriesToShow,
@@ -63,6 +63,7 @@ type PendingLineupSyncReview = {
   showId: string;
   showName: string;
   responseIds: string[];
+  responseStateVersion: string;
   countries: string[];
 };
 
@@ -78,6 +79,7 @@ function ConfirmationSyncPage() {
   const getTargets = useServerFn(getSolarisEditionSyncTargets);
   const addToShow = useServerFn(addCountriesToShow);
   const [rows, setRows] = useState<ResponseRow[]>([]);
+  const [responseStateVersion, setResponseStateVersion] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,25 +103,29 @@ function ConfirmationSyncPage() {
     setTargets(null);
     setShowId("");
     setRoundId("");
+    setRows([]);
+    setResponseStateVersion("");
 
     if (!organizerEditionId) {
-      setRows([]);
       setLoading(false);
       return () => { alive = false; };
     }
 
     setLoading(true);
     void (async () => {
-      const { data, error: loadError } = await confirmationsSupabase.rpc("admin_confirmation_responses");
-      if (!alive) return;
-      if (loadError) {
-        setError(loadError.message);
+      try {
+        const batch = await loadAllConfirmationResponsesForEdition<ResponseRow>(organizerEditionId);
+        if (!alive) return;
+        setRows(batch.rows);
+        setResponseStateVersion(batch.stateVersion);
+      } catch (caught) {
+        if (!alive) return;
         setRows([]);
-      } else {
-        const responseRows = Array.isArray(data) ? (data as unknown as ResponseRow[]) : [];
-        setRows(responseRows.filter((row) => row.editions?.id === organizerEditionId));
+        setResponseStateVersion("");
+        setError(caught instanceof Error ? caught.message : "Could not load the selected Confirmation edition.");
+      } finally {
+        if (alive) setLoading(false);
       }
-      setLoading(false);
     })();
     return () => { alive = false; };
   }, [organizerEditionId]);
@@ -190,7 +196,7 @@ function ConfirmationSyncPage() {
   }, [getTargets, organizerEditionId, selectedRound]);
 
   function openSyncReview() {
-    if (!organizerEditionId || !selectedRound || !targets || !selectedShow || !selectedRows.length || busy) return;
+    if (!organizerEditionId || !selectedRound || !targets || !selectedShow || !selectedRows.length || !responseStateVersion || busy) return;
     if (selectedRound.editionId !== organizerEditionId || targets.editionId !== organizerEditionId) {
       const message = "Edition context changed before the line-up review. Refresh the selected edition and choose the target again.";
       setError(message);
@@ -207,6 +213,7 @@ function ConfirmationSyncPage() {
       showId: selectedShow.id,
       showName: selectedShow.name,
       responseIds: selectedRows.map((row) => row.id).sort(),
+      responseStateVersion,
       countries: selectedRows.map((row) => row.country).sort((a, b) => a.localeCompare(b)),
     });
   }
@@ -226,16 +233,18 @@ function ConfirmationSyncPage() {
     setBusy(true);
     setError(null);
     try {
-      const currentResponses = await confirmationsSupabase.rpc("admin_confirmation_responses");
-      if (currentResponses.error) throw currentResponses.error;
+      const currentBatch = await loadAllConfirmationResponsesForEdition<ResponseRow>(review.editionId);
       if (organizerEditionIdRef.current !== review.editionId) {
         throw new Error("Organizer edition changed while the reviewed sync was being revalidated. Nothing was applied.");
       }
+      if (currentBatch.stateVersion !== review.responseStateVersion) {
+        throw Object.assign(
+          new Error("Confirmation state changed after this line-up review. Nothing was applied. Review the current round again."),
+          { status: 409 },
+        );
+      }
 
-      const currentRows = Array.isArray(currentResponses.data)
-        ? (currentResponses.data as unknown as ResponseRow[])
-        : [];
-      const liveRows = currentRows.filter((row) =>
+      const liveRows = currentBatch.rows.filter((row) =>
         row.participating &&
         row.editions?.id === review.editionId &&
         row.submission_rounds?.id === review.roundId,
