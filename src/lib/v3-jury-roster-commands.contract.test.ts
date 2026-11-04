@@ -125,15 +125,15 @@ describe("V3 Jury roster command authority", () => {
     // UPDATE SET assignments may be prohibited from changing those fields.
     expect(updateBranch).toContain("voter.edition_id = p_edition_id");
     expect(updateBranch).toContain("voter.show_id = p_show_id");
-    expect([...updateBranch.matchAll(/\\bupdate\\s+public\\.voters\\b/gi)]).toHaveLength(1);
+    expect([...updateBranch.matchAll(/\bupdate\s+public\.voters\b/gi)]).toHaveLength(1);
     const assignments = [...updateBranch.matchAll(
-      /\\bupdate\\s+public\\.voters\\s+set\\s+([\\s\\S]*?)\\s+where\\s+id\\s*=\\s*v_voter_id\\s*;/gi,
+      /\bupdate\s+public\.voters\s+set\s+([\s\S]*?)\s+where\s+id\s*=\s*v_voter_id\s*;/gi,
     )];
     expect(assignments).toHaveLength(1);
     const setClause = assignments[0]?.[1] ?? "";
     expect(setClause).toContain("name = v_name");
     for (const immutableField of ["edition_id", "show_id", "country_id", "contest_entity_id"]) {
-      expect(setClause).not.toMatch(new RegExp(`\\\\b${immutableField}\\\\s*=`, "i"));
+      expect(setClause).not.toMatch(new RegExp(`\\b${immutableField}\\s*=`, "i"));
     }
   });
 
