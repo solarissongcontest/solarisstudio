@@ -205,7 +205,10 @@ function AffiliationGroup({
           {organization.name.slice(0, 3)}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold">{organization.name}</span>
+          <a href={"/world/organizations/" + encodeURIComponent(organization.slug)}
+            className="inline-flex min-h-6 items-center gap-1 text-sm font-semibold hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            {organization.name} <ArrowRight aria-hidden="true" className="size-3" />
+          </a>
           <span className="block text-xs text-muted-foreground">{organization.officialName}</span>
           <span className="mt-1 block text-xs capitalize text-muted-foreground">
             {affiliation.membershipType} · {affiliation.status.replace(/_/g, " ")}
@@ -240,7 +243,7 @@ export function WorldCountryInternational({ code }: { code: string }) {
     retry: 1,
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("countries")
-        .select(COUNTRY_COLUMNS).eq("short_code", canonicalCode).maybeSingle();
+        .select(COUNTRY_COLUMNS).ilike("short_code", canonicalCode).maybeSingle();
       if (error) throw error;
       return data ? parseWorldPublicCountries([data])[0] : null;
     },
