@@ -768,7 +768,7 @@ begin
       where term_row.country_id=v_rep.country_id
     ) proven on proven.person_id=person_row.id
     where person_row.id <> v_rep.person_id
-      and length(btrim(person_row.display_name)) > 0
+      and length(btrim(person_row.display_name)) between 1 and 180
     order by person_row.display_name,person_row.id
     limit 40
   ) row;
