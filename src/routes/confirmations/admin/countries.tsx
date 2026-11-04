@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronRight, Copy, ExternalLink, Flag, Trophy } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,6 +14,7 @@ import {
 } from "@/components/admin/AdminUI";
 import { loadConfirmationEditions, type ConfirmationEdition } from "@/integrations/confirmations/admin";
 import { loadAllConfirmationResponsesForEdition } from "@/integrations/confirmations/v3-projections";
+import { isConfirmationCountryBatchInEdition, isCurrentConfirmationCountriesRequest } from "@/lib/confirmation-countries-edition-guard";
 import {
   useAllParticipants,
   useAllResults,
@@ -140,6 +141,11 @@ function CountriesPage() {
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
   const [editionId, setEditionId] = useState("");
   const [rows, setRows] = useState<ResponseRow[]>([]);
+  const [loadedScope, setLoadedScope] = useState<{ editionId: string; generation: number } | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const generationRef = useRef(0);
+  const organizerEditionIdRef = useRef(organizerEditionId);
+  organizerEditionIdRef.current = organizerEditionId;
   const [copied, setCopied] = useState<"countries" | "status" | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -152,47 +158,66 @@ function CountriesPage() {
 
   useEffect(() => {
     let alive = true;
-    // Prevent a previous edition's private submissions appearing during a switch.
+    const request = { editionId: organizerEditionId, generation: ++generationRef.current };
+    const isCurrent = () =>
+      alive && isCurrentConfirmationCountriesRequest(request, {
+        editionId: organizerEditionIdRef.current,
+        generation: generationRef.current,
+      });
+
+    // Clear the previously selected edition immediately when the request
+    // starts; the render guard below also closes the pre-effect switch gap.
     setRows([]);
+    setLoadedScope(null);
     setEditionId("");
+    setCopied(null);
     setError(null);
     setLoading(true);
     void (async () => {
       try {
         const editionRows = await loadConfirmationEditions();
-        if (!alive) return;
-        const selected = editionRows.find((item) => item.id === organizerEditionId)?.id ?? "";
+        if (!isCurrent()) return;
+        const selected = editionRows.find((item) => item.id === request.editionId)?.id ?? "";
         setEditions(editionRows);
-        if (!selected) return;
-        const batch = await loadAllConfirmationResponsesForEdition<ResponseRow>(selected);
-        if (!alive) return;
         setEditionId(selected);
+        if (!selected) return;
+
+        const batch = await loadAllConfirmationResponsesForEdition<ResponseRow>(selected);
+        if (!isCurrent()) return;
+        if (!isConfirmationCountryBatchInEdition(batch.rows, selected)) {
+          throw new Error("Delegation list included a response or round from another edition. No private data was displayed.");
+        }
         setRows(batch.rows);
+        setLoadedScope(request);
       } catch (caught) {
-        if (alive) {
+        if (isCurrent()) {
           setRows([]);
+          setLoadedScope(null);
           setError(caught instanceof Error ? caught.message : "Could not load delegations.");
         }
       } finally {
-        if (alive) setLoading(false);
+        if (isCurrent()) setLoading(false);
       }
     })();
-    return () => {
-      alive = false;
-    };
-  }, [organizerEditionId]);
+    return () => { alive = false; };
+  }, [organizerEditionId, reloadNonce]);
 
+  // A change in AdminContext can render before the effect above clears state.
+  // Gate all country names, Instagram accounts, links and text exports during
+  // that render, and reject a late response even after A → B → A switches.
+  const hasCurrentEditionData = loadedScope !== null &&
+    editionId === organizerEditionId &&
+    isCurrentConfirmationCountriesRequest(loadedScope, {
+      editionId: organizerEditionId,
+      generation: generationRef.current,
+    }) &&
+    isConfirmationCountryBatchInEdition(rows, organizerEditionId) &&
+    !loading &&
+    !error;
   const scopedRows = useMemo(
-    () => (editionId ? rows.filter((row) => row.editions?.id === editionId) : []),
-    [rows, editionId],
+    () => hasCurrentEditionData ? rows : [],
+    [hasCurrentEditionData, rows],
   );
-
-  useEffect(() => {
-    const nextEditionId = editions.find((item) => item.id === organizerEditionId)?.id ?? "";
-    if (nextEditionId !== editionId) {
-      setEditionId(nextEditionId);
-    }
-  }, [editionId, editions, organizerEditionId]);
 
   const countries = useMemo(() => {
     const map = new Map<string, ResponseRow[]>();
@@ -207,7 +232,9 @@ function CountriesPage() {
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [scopedRows]);
 
-  const selectedConfirmationEdition = editions.find((edition) => edition.id === editionId) ?? null;
+  const selectedConfirmationEdition = hasCurrentEditionData
+    ? editions.find((edition) => edition.id === editionId) ?? null
+    : null;
 
   const publishedResults = useMemo(() => {
     const showById = new Map(shows.map((show) => [show.id, show]));
@@ -291,10 +318,24 @@ function CountriesPage() {
   );
 
   async function copy(text: string, type: "countries" | "status") {
-    await navigator.clipboard.writeText(text);
-    setCopied(type);
-    toast.success(type === "countries" ? "Country list copied" : "Delegation status copied");
-    window.setTimeout(() => setCopied((current) => (current === type ? null : current)), 1600);
+    if (!hasCurrentEditionData || !organizerEditionId || !text) return;
+    const request = { editionId: organizerEditionId, generation: generationRef.current };
+    const isCurrent = () => isCurrentConfirmationCountriesRequest(request, {
+      editionId: organizerEditionIdRef.current,
+      generation: generationRef.current,
+    });
+    try {
+      if (!isCurrent()) return;
+      await navigator.clipboard.writeText(text);
+      if (!isCurrent()) return;
+      setCopied(type);
+      toast.success(type === "countries" ? "Country list copied" : "Delegation status copied");
+      window.setTimeout(() => {
+        if (isCurrent()) setCopied((current) => (current === type ? null : current));
+      }, 1600);
+    } catch {
+      if (isCurrent()) toast.error("Could not copy the selected edition's delegation list.");
+    }
   }
 
   return (
@@ -314,14 +355,14 @@ function CountriesPage() {
                 icon={copied === "countries" ? Check : Copy}
                 title="Copy participating countries"
                 description="Comma-separated list of countries currently participating."
-                disabled={!participatingStatuses.length}
+                disabled={!hasCurrentEditionData || !participatingStatuses.length}
                 onClick={() => void copy(participatingStatuses.map((item) => item.country).join(", "), "countries")}
               />
               <AdminActionItem
                 icon={copied === "status" ? Check : Copy}
                 title="Copy status list"
                 description="One country per line with its current submission status."
-                disabled={!participatingStatuses.length}
+                disabled={!hasCurrentEditionData || !participatingStatuses.length}
                 onClick={() => void copy(participatingStatuses.map((item) => `${item.country} (${item.status})`).join("\n"), "status")}
               />
             </div>
@@ -334,7 +375,13 @@ function CountriesPage() {
           <span className="admin-section-label">Edition</span>
           <select
             value={editionId}
-            onChange={(event) => { const nextEditionId = event.target.value; setEditionId(nextEditionId); setOrganizerEditionId(nextEditionId); }}
+            onChange={(event) => {
+              const nextEditionId = event.target.value;
+              setRows([]);
+              setLoadedScope(null);
+              setEditionId(nextEditionId);
+              setOrganizerEditionId(nextEditionId);
+            }}
             className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 text-sm text-foreground outline-none"
           >
             <option value="">Select edition…</option>
@@ -347,10 +394,13 @@ function CountriesPage() {
         </label>
       </AdminCard>
 
-      {loading ? (
+      {loading || (Boolean(organizerEditionId) && !hasCurrentEditionData && !error) ? (
         <AdminCard className="py-8 text-center text-sm text-muted-foreground">Loading delegations…</AdminCard>
       ) : error ? (
-        <AdminCard className="border-rose-200/20 bg-rose-200/[0.045] text-sm text-rose-100">{error}</AdminCard>
+        <AdminCard className="border-rose-200/20 bg-rose-200/[0.045] text-sm text-rose-100">
+          <p>{error}</p>
+          <button type="button" className="admin-action-secondary mt-3" onClick={() => setReloadNonce((value) => value + 1)}>Retry delegation list</button>
+        </AdminCard>
       ) : !editionId ? (
         <AdminCard>
           <AdminEmptyState
