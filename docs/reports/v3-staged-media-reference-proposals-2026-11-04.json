@@ -1,0 +1,276 @@
+{
+  "report_type": "v3-staged-media-reference-proposals-only",
+  "generated_date": "2026-11-04",
+  "source_bucket": "solaris-upload-quarantine",
+  "destination_project": "dkxmnvekiopyesuzggeu",
+  "staged_objects": 54,
+  "unrecognized_owner_count": 0,
+  "public_final_objects_verified": 0,
+  "database_writes_executed": 0,
+  "edition_artwork_candidates": [
+    {
+      "edition_id": "00016892-b26f-4e02-aae2-7e83a34a3cf2",
+      "edition_name": "Solaris Song Contest 22",
+      "edition_published": true,
+      "source_staging_key": "edition-artwork/00016892-b26f-4e02-aae2-7e83a34a3cf2/1787149841114-6547c1dd-1968-473d-9531-fa27fc22c2e8.jpeg",
+      "target_bucket": "edition-artwork",
+      "target_path": "00016892-b26f-4e02-aae2-7e83a34a3cf2/1787149841114-6547c1dd-1968-473d-9531-fa27fc22c2e8.jpeg",
+      "candidate_artwork_url": "https://dkxmnvekiopyesuzggeu.supabase.co/storage/v1/object/public/edition-artwork/00016892-b26f-4e02-aae2-7e83a34a3cf2/1787149841114-6547c1dd-1968-473d-9531-fa27fc22c2e8.jpeg",
+      "bytes": 1796484,
+      "mime": "image/jpeg",
+      "current_artwork_path": null,
+      "current_artwork_url": null,
+      "mutation_allowed_now": false,
+      "reason": "Pending signed asset clearance, target byte verification and authorized audited reference operation"
+    },
+    {
+      "edition_id": "1a4c595f-2816-4d34-a728-96a1110e3037",
+      "edition_name": "Solaris Song Contest 20",
+      "edition_published": true,
+      "source_staging_key": "edition-artwork/1a4c595f-2816-4d34-a728-96a1110e3037/1787390475775-94fc5377-1b67-4ec7-848b-bd16fc5607e3.jpeg",
+      "target_bucket": "edition-artwork",
+      "target_path": "1a4c595f-2816-4d34-a728-96a1110e3037/1787390475775-94fc5377-1b67-4ec7-848b-bd16fc5607e3.jpeg",
+      "candidate_artwork_url": "https://dkxmnvekiopyesuzggeu.supabase.co/storage/v1/object/public/edition-artwork/1a4c595f-2816-4d34-a728-96a1110e3037/1787390475775-94fc5377-1b67-4ec7-848b-bd16fc5607e3.jpeg",
+      "bytes": 1510309,
+      "mime": "image/jpeg",
+      "current_artwork_path": null,
+      "current_artwork_url": null,
+      "mutation_allowed_now": false,
+      "reason": "Pending signed asset clearance, target byte verification and authorized audited reference operation"
+    },
+    {
+      "edition_id": "3d9cdfa5-0a38-4076-a6ef-69344a2aa609",
+      "edition_name": "Solaris Song Contest 21",
+      "edition_published": true,
+      "source_staging_key": "edition-artwork/3d9cdfa5-0a38-4076-a6ef-69344a2aa609/1787064381516-99b55ab7-05a1-4fb7-ab77-4392c48cc63c.jpeg",
+      "target_bucket": "edition-artwork",
+      "target_path": "3d9cdfa5-0a38-4076-a6ef-69344a2aa609/1787064381516-99b55ab7-05a1-4fb7-ab77-4392c48cc63c.jpeg",
+      "candidate_artwork_url": "https://dkxmnvekiopyesuzggeu.supabase.co/storage/v1/object/public/edition-artwork/3d9cdfa5-0a38-4076-a6ef-69344a2aa609/1787064381516-99b55ab7-05a1-4fb7-ab77-4392c48cc63c.jpeg",
+      "bytes": 393608,
+      "mime": "image/jpeg",
+      "current_artwork_path": null,
+      "current_artwork_url": null,
+      "mutation_allowed_now": false,
+      "reason": "Pending signed asset clearance, target byte verification and authorized audited reference operation"
+    },
+    {
+      "edition_id": "512f8650-ecf9-4037-ac09-c396d9a3cfd0",
+      "edition_name": "Solaris Song Contest 17",
+      "edition_published": true,
+      "source_staging_key": "edition-artwork/512f8650-ecf9-4037-ac09-c396d9a3cfd0/1787403576192-14f4c2d8-2992-4082-8435-487a4e374a81.jpeg",
+      "target_bucket": "edition-artwork",
+      "target_path": "512f8650-ecf9-4037-ac09-c396d9a3cfd0/1787403576192-14f4c2d8-2992-4082-8435-487a4e374a81.jpeg",
+      "candidate_artwork_url": "https://dkxmnvekiopyesuzggeu.supabase.co/storage/v1/object/public/edition-artwork/512f8650-ecf9-4037-ac09-c396d9a3cfd0/1787403576192-14f4c2d8-2992-4082-8435-487a4e374a81.jpeg",
+      "bytes": 57923,
+      "mime": "image/jpeg",
+      "current_artwork_path": null,
+      "current_artwork_url": null,
+      "mutation_allowed_now": false,
+      "reason": "Pending signed asset clearance, target byte verification and authorized audited reference operation"
+    },
+    {
+      "edition_id": "981966c4-5bac-4b6f-93fd-9ed0cf5ed4f6",
+      "edition_name": "Solaris Song Contest 18",
+      "edition_published": true,
+      "source_staging_key": "edition-artwork/981966c4-5bac-4b6f-93fd-9ed0cf5ed4f6/1787402873109-b6b4c33f-1efd-46e7-a36b-8f69ca78d44b.jpeg",
+      "target_bucket": "edition-artwork",
+      "target_path": "981966c4-5bac-4b6f-93fd-9ed0cf5ed4f6/1787402873109-b6b4c33f-1efd-46e7-a36b-8f69ca78d44b.jpeg",
+      "candidate_artwork_url": "https://dkxmnvekiopyesuzggeu.supabase.co/storage/v1/object/public/edition-artwork/981966c4-5bac-4b6f-93fd-9ed0cf5ed4f6/1787402873109-b6b4c33f-1efd-46e7-a36b-8f69ca78d44b.jpeg",
+      "bytes": 88149,
+      "mime": "image/jpeg",
+      "current_artwork_path": null,
+      "current_artwork_url": null,
+      "mutation_allowed_now": false,
+      "reason": "Pending signed asset clearance, target byte verification and authorized audited reference operation"
+    },
+    {
+      "edition_id": "bfd14152-5411-4865-a6de-5cee14371ef4",
+      "edition_name": "Solaris Song Contest 16",
+      "edition_published": true,
+      "source_staging_key": "edition-artwork/bfd14152-5411-4865-a6de-5cee14371ef4/1787404399659-ae157435-417d-43fa-87b4-ca8a5b38ffb6.jpeg",
+      "target_bucket": "edition-artwork",
+      "target_path": "bfd14152-5411-4865-a6de-5cee14371ef4/1787404399659-ae157435-417d-43fa-87b4-ca8a5b38ffb6.jpeg",
+      "candidate_artwork_url": "https://dkxmnvekiopyesuzggeu.supabase.co/storage/v1/object/public/edition-artwork/bfd14152-5411-4865-a6de-5cee14371ef4/1787404399659-ae157435-417d-43fa-87b4-ca8a5b38ffb6.jpeg",
+      "bytes": 486843,
+      "mime": "image/jpeg",
+      "current_artwork_path": null,
+      "current_artwork_url": null,
+      "mutation_allowed_now": false,
+      "reason": "Pending signed asset clearance, target byte verification and authorized audited reference operation"
+    },
+    {
+      "edition_id": "c9c7c536-9276-431b-9c42-c619c7a1a642",
+      "edition_name": "Solaris Song Contest 19",
+      "edition_published": true,
+      "source_staging_key": "edition-artwork/c9c7c536-9276-431b-9c42-c619c7a1a642/1787402648490-5113e4dd-7053-4309-b692-f8587c6f30c0.jpeg",
+      "target_bucket": "edition-artwork",
+      "target_path": "c9c7c536-9276-431b-9c42-c619c7a1a642/1787402648490-5113e4dd-7053-4309-b692-f8587c6f30c0.jpeg",
+      "candidate_artwork_url": "https://dkxmnvekiopyesuzggeu.supabase.co/storage/v1/object/public/edition-artwork/c9c7c536-9276-431b-9c42-c619c7a1a642/1787402648490-5113e4dd-7053-4309-b692-f8587c6f30c0.jpeg",
+      "bytes": 1073707,
+      "mime": "image/jpeg",
+      "current_artwork_path": null,
+      "current_artwork_url": null,
+      "mutation_allowed_now": false,
+      "reason": "Pending signed asset clearance, target byte verification and authorized audited reference operation"
+    }
+  ],
+  "country_media_groups": [
+    {
+      "country_id": "34078189-5be2-4370-8dfd-c9d4b498a6a6",
+      "country_name": "Jaudia",
+      "counts": {
+        "flags": 0,
+        "gallery": 3,
+        "backgrounds": 1
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "41abd429-b67c-4c5b-aae2-4f1429b034b4",
+      "country_name": "Rharaj",
+      "counts": {
+        "flags": 2,
+        "gallery": 0,
+        "backgrounds": 0
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "48a7ac11-497c-47f2-a354-9a8a715ebdcd",
+      "country_name": "Aquliateria",
+      "counts": {
+        "flags": 0,
+        "gallery": 0,
+        "backgrounds": 1
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "593112c7-c081-4c97-9392-1d6d52713b32",
+      "country_name": "Bentagya",
+      "counts": {
+        "flags": 0,
+        "gallery": 1,
+        "backgrounds": 0
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "5b3a11fd-e675-4811-930c-33bbab52ad97",
+      "country_name": "Oland",
+      "counts": {
+        "flags": 2,
+        "gallery": 1,
+        "backgrounds": 1
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "652a67e3-cb31-42dc-bb0f-3ee77637bc26",
+      "country_name": "Linem",
+      "counts": {
+        "flags": 5,
+        "gallery": 0,
+        "backgrounds": 2
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "8c5260e9-bd15-4124-b95c-9a9bbaa450c0",
+      "country_name": "Secsewen",
+      "counts": {
+        "flags": 1,
+        "gallery": 0,
+        "backgrounds": 0
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "94e0e2b5-7ab0-42bf-a61a-6ae04ff538da",
+      "country_name": "Otelia",
+      "counts": {
+        "flags": 2,
+        "gallery": 0,
+        "backgrounds": 0
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "98efa936-c8db-4959-ab25-f929a2f570ad",
+      "country_name": "Temia",
+      "counts": {
+        "flags": 0,
+        "gallery": 0,
+        "backgrounds": 1
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "af35be30-30da-4d7c-be16-b47b162f6722",
+      "country_name": "Abeven",
+      "counts": {
+        "flags": 3,
+        "gallery": 0,
+        "backgrounds": 0
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "b1d6f522-27d8-4236-b4e5-2ca85459aeb4",
+      "country_name": "Vendia",
+      "counts": {
+        "flags": 0,
+        "gallery": 1,
+        "backgrounds": 0
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "b2772416-abe2-4134-bd2f-d58eb132dc0c",
+      "country_name": "Zarzad",
+      "counts": {
+        "flags": 2,
+        "gallery": 0,
+        "backgrounds": 1
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "d279aec5-3243-4109-a372-ff1f11bc9bbd",
+      "country_name": "Witfordge",
+      "counts": {
+        "flags": 2,
+        "gallery": 0,
+        "backgrounds": 0
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "e38e88bf-0d17-4eae-9e7e-7b27acf6f4eb",
+      "country_name": "Yaria",
+      "counts": {
+        "flags": 4,
+        "gallery": 4,
+        "backgrounds": 4
+      },
+      "ambiguous_reference_selection": true
+    },
+    {
+      "country_id": "e57d2ff7-66c7-4b53-ae3f-a80f887e3950",
+      "country_name": "Diaria",
+      "counts": {
+        "flags": 0,
+        "gallery": 0,
+        "backgrounds": 3
+      },
+      "ambiguous_reference_selection": true
+    }
+  ],
+  "warnings": [
+    "Legacy public placement does not alone authorize V3 publication.",
+    "Reference proposals do not create canonical database write permission.",
+    "Country flag/background identity selection is ambiguous for several countries; do not assign by filename order.",
+    "Edition candidates require verified copies in final public bucket before reference repair.",
+    "Do not change results/PR #1400 or Confirmation editing state."
+  ]
+}
