@@ -172,9 +172,25 @@ async function assertAuthoritativeNavbar(page: Page) {
 }
 
 async function attachNavbar(page: Page, testInfo: TestInfo, name: string) {
-  const nav = await assertAuthoritativeNavbar(page);
+  // Route-level V3 shells can remount between a Playwright visibility probe
+  // and the screenshot frame. Retry ONLY transient element detach, and
+  // re-run all navigation assertions on the newly mounted authoritative bar.
+  let image: Buffer | null = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const nav = await assertAuthoritativeNavbar(page);
+    try {
+      image = await nav.screenshot({ animations: "disabled", caret: "hide" });
+      break;
+    } catch (error) {
+      if (!/element is not attached to the dom/i.test(String(error)) || attempt === 2) {
+        throw error;
+      }
+      await expect(page.locator(".solaris-app-tabbar")).toBeVisible();
+    }
+  }
+  if (!image) throw new Error("Authoritative navigation screenshot was not captured");
   await testInfo.attach(`${name}.png`, {
-    body: await nav.screenshot({ animations: "disabled", caret: "hide" }),
+    body: image,
     contentType: "image/png",
   });
 }

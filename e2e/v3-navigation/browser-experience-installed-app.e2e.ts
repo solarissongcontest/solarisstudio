@@ -27,57 +27,38 @@ test(
     // Separate addInitScript calls have undefined evaluation order in Playwright.
     const page = await context.newPage();
     await page.goto(`${baseURL}/records`, { waitUntil: "domcontentloaded" });
-    const shell = page.locator('[data-v3-shell-experience="web"]');
-    await expect(shell).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator(".solaris-app-tabbar:visible")).toHaveCount(0);
-    await expect(page.locator("[data-v3-liquid-tabbar]:visible")).toHaveCount(0);
 
-    const web = shell.locator('[data-v3-web-section-navigation]');
-    for (const width of [320, 390]) {
-      await page.setViewportSize({ width, height: 844 });
-      await expect(web).toBeVisible();
-      await expect(web.getByRole("link", { name: "Results", exact: true })).toHaveAttribute(
-        "aria-current",
-        "location",
-      );
-      const measurements = await page.evaluate(() => {
-        const nav = document.querySelector<HTMLElement>("[data-v3-web-section-navigation]");
-        const first = nav?.querySelector<HTMLElement>("a");
-        if (!nav || !first) return null;
-        return {
-          position: getComputedStyle(nav).position,
-          minimumHitHeight: first.getBoundingClientRect().height,
-          scrollWidth: document.documentElement.scrollWidth,
-          clientWidth: document.documentElement.clientWidth,
-        };
-      });
-      expect(measurements).not.toBeNull();
-      expect(measurements?.position).not.toBe("fixed");
-      expect(measurements?.minimumHitHeight).toBeGreaterThanOrEqual(44);
-      expect(measurements?.scrollWidth).toBeLessThanOrEqual((measurements?.clientWidth ?? 0) + 2);
-      // The selected root remains visible even when five readable links
-      // overflow a 320px website viewport. Only the strip scrolls.
-      await expect.poll(async () => web.evaluate((nav) => {
-        const active = nav.querySelector<HTMLElement>('[aria-current]');
-        if (!active) return false;
-        const strip = nav.getBoundingClientRect();
-        const item = active.getBoundingClientRect();
-        return item.left >= strip.left - 1 && item.right <= strip.right + 1;
-      })).toBe(true);
+    // The Records route deliberately mounts V3RecordsGate only in installed
+    // app mode. Ordinary browser visitors receive the established website
+    // shell until the separate Public Results web cutover is authorized.
+    // Never claim this legacy browser route mounts V3AppShell.
+    const webHeader = page.locator("header.site-nav");
+    await expect(webHeader).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("heading", { name: "Records", exact: true }).first()).toBeVisible();
+    await expect(page.locator('[data-v3-shell-experience="web"]')).toHaveCount(0);
+
+    for (const width of [320, 390, 1440]) {
+      await page.setViewportSize({ width, height: width === 1440 ? 900 : 844 });
+      await expect(webHeader).toBeVisible();
+      await expect(page.locator(".solaris-app-tabbar:visible")).toHaveCount(0);
+      await expect(page.locator("[data-v3-liquid-tabbar]:visible")).toHaveCount(0);
+      // A normal website header stays in document flow and never expands
+      // beyond the usable viewport when mobile browser chrome changes.
+      const headerWidth = await webHeader.evaluate((header) => ({
+        width: header.getBoundingClientRect().width,
+        viewport: document.documentElement.clientWidth,
+      }));
+      expect(headerWidth.width).toBeLessThanOrEqual(headerWidth.viewport + 2);
     }
 
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await expect(web).toBeHidden();
-    await expect(shell.locator(".v3-desktop-primary-nav")).toBeVisible();
-    await expect(page.locator(".solaris-app-tabbar:visible")).toHaveCount(0);
-
+    // Real browser Back/Forward navigation is part of the web experience.
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(web).toBeVisible();
-    await web.getByRole("link", { name: "Explore", exact: true }).click();
-    await expect(page).toHaveURL(/\/explore\/?$/);
+    await webHeader.getByRole("link", { name: "Solaris Studio home" }).click();
+    await expect(page).toHaveURL(/\\/$/);
     await page.goBack();
-    await expect(page).toHaveURL(/\/records\/?$/);
-    await expect(page.locator('[data-v3-shell-experience="web"]')).toBeVisible();
+    await expect(page).toHaveURL(/\\/records\\/?$/);
+    await expect(page.locator("header.site-nav")).toBeVisible();
+    await expect(page.locator(".solaris-app-tabbar:visible")).toHaveCount(0);
 
     await context.close();
   },
