@@ -56,6 +56,21 @@ const S14_FAILURES = [
   "supabase-outage",
 ] as const;
 
+const S16_CATEGORIES = [
+  ["canonical-ci", "s16-canonical-ci.json"],
+  ["migration-rehearsal", "s16-migration-rehearsal.json"],
+  ["authorization-security", "s16-authorization-security.json"],
+  ["production-isolation", "s16-production-isolation.json"],
+  ["system-hardening", "s16-system-hardening.json"],
+  ["public-acceptance", "s16-public-acceptance.json"],
+  ["organizer-acceptance", "s16-organizer-acceptance.json"],
+  ["navigation-acceptance", "s16-navigation-acceptance.json"],
+  ["accessibility", "s16-accessibility.json"],
+  ["responsive-behavior", "s16-responsive-behavior.json"],
+  ["full-contest-rehearsal", "s14-full-contest.json"],
+  ["registry-zero-gap", "s15-zero-orphan.json"],
+] as const;
+
 export function releaseEvidenceConsistencyFailure(
   filename: string,
   evidence: Evidence,
@@ -104,6 +119,32 @@ export function releaseEvidenceConsistencyFailure(
     const physical = record(evidence.physicalOwnership);
     if (!physical || physical.zeroOwnershipConflicts !== true) {
       return "s15-zero-orphan.json claims zeroOrphans=true without clean physical ownership";
+    }
+  }
+
+  if (filename === "s16-certification.json" && evidence.certified === true) {
+    if (evidence.schemaVersion !== 1 || !nonempty(evidence.candidateSha) ||
+        !/^[0-9a-f]{40}$/.test(evidence.candidateSha) ||
+        !Array.isArray(evidence.categories) ||
+        evidence.categories.length !== S16_CATEGORIES.length) {
+      return "s16-certification.json claims certification without the complete S16 category contract";
+    }
+    const rows = evidence.categories.map(record);
+    if (rows.some((row) => !row)) {
+      return "s16-certification.json contains malformed category evidence";
+    }
+    const seen = new Set<string>();
+    for (const [id, evidenceFilename] of S16_CATEGORIES) {
+      const matches = rows.filter((row) => row?.id === id);
+      if (matches.length !== 1 || seen.has(id)) {
+        return `s16-certification.json must contain exactly one ${id} release gate`;
+      }
+      seen.add(id);
+      const row = matches[0];
+      if (!row || row.evidenceFilename !== evidenceFilename ||
+          row.passed !== true || row.evidenceCandidateSha !== evidence.candidateSha) {
+        return `s16-certification.json has incomplete or stale ${id} gate evidence`;
+      }
     }
   }
 
