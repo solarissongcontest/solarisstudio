@@ -56,6 +56,12 @@ describe("S14 canonical Televote Stage 7", () => {
 
   it("crosses the database deadline while status remains open and performs a genuine +2 minute extension", () => {
     expect(deadlineStage).toContain("clock_timestamp() >= closes_at");
+    // The local DB returns explicit 'expired' or 'pending'. Casting a SQL
+    // boolean to text gives 'true'/'false', never PostgreSQL's display 't'.
+    expect(deadlineStage).toContain("then 'expired' else 'pending' end");
+    expect(deadlineStage).toContain('== "expired"');
+    expect(deadlineStage).not.toMatch(/clock_timestamp\(\) >= closes_at\)::text/);
+    expect(deadlineStage).not.toContain('== "t"');
     expect(deadlineStage).toContain("Voting deadline has passed");
     expect(deadlineStage).toContain("closed_at is null");
     expect(deadlineStage).toContain("closes_at + interval '2 minutes'");
