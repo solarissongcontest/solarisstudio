@@ -46,7 +46,10 @@
     "country_themes_with_background_image_path": 8,
     "editions_with_artwork_path": 7,
     "historical_country_identity_flag_values": 17,
-    "current_country_flag_values": 58
+    "current_country_flag_values": 58,
+    "country_profile_sections_with_image_url": 3,
+    "contest_entities_with_flag": 641,
+    "voters_with_flag": 734
   },
   "source_actual_bytes_downloaded": 0,
   "destination_actual_bytes_downloaded": 0,
@@ -61,6 +64,14 @@
     "Destination Supabase project not accessible through available connector identities",
     "Current connector does not provide Supabase Storage binary download/upload endpoints",
     "No approved live byte-level recovery manifest or production write authorization",
-    "No authorized canonical database reference-recovery command applied"
-  ]
+    "No authorized canonical database reference-recovery command applied",
+    "16 country-media source object keys do not match references in the eight surveyed scalar media columns; may be historical or nested-content references, not proven orphans"
+  ],
+  "source_metadata_reference_matching": {
+    "method": "exact path or same-bucket Supabase public object URL; eight surveyed tables only",
+    "country_media_objects_matched": 31,
+    "country_media_objects_without_match_in_surveyed_tables": 16,
+    "edition_artwork_objects_matched": 7,
+    "private_beta_feedback_reference_matching": "not_classified"
+  }
 }
