@@ -281,8 +281,12 @@ describe("V3 Public Voting DNA System publication boundary", () => {
       "did not regain raw Result compatibility after every Result layer became public",
     );
     expect(rehearsal).toContain(
-      "Hiding generic Results must remove both bounded and raw Result evidence even if split flags remain true",
+      "Canonical normalization forces generic Results public when a split outcome is published",
     );
+    expect(rehearsal).toContain(
+      "Withdrawing all outcome layers must remove both bounded and raw Result evidence",
+    );
+    expect(rehearsal).toContain("Split publication must require generic Results");
   });
   it.each([
     ["http://localhost:54321", "postgresql://postgres:postgres@hosted.invalid:54322/postgres"],

@@ -111,8 +111,12 @@ for role in anon authenticated; do
   [[ "$(role_value "$role" "public.v3_public_country_voting_dna('$COUNTRY_ID')->'results'->0->>'televotePoints'")" == '80' ]] || fail "${role} published Televote points are incorrect"
 done
 
-log "Hiding generic Results must remove both bounded and raw Result evidence even if split flags remain true"
-publish_layers '{"results":false,"jury_results":true,"televote_results":true,"detailed_voting":false}'
+log "Canonical normalization forces generic Results public when a split outcome is published"
+[[ "$(db_value "select private.studio2_normalise_publication_config('{\"results\":false,\"jury_results\":true,\"televote_results\":true}'::jsonb)->>'results';")" == 'true' ]] || fail "Split publication must require generic Results"
+
+log "Withdrawing all outcome layers must remove both bounded and raw Result evidence"
+publish_layers '{"results":false,"jury_results":false,"televote_results":false,"detailed_voting":false}'
+[[ "$(db_value "select publication_config->>'results' from public.shows where id='$SHOW_ID';")" == 'false' ]] || fail "Generic Results remained exposed after withdrawing all split layers"
 for role in anon authenticated; do
   [[ "$(role_value "$role" "count(*) from public.results where id='$RESULT_ID'")" == '0' ]] || fail "${role} retained raw Result access after generic Results were hidden"
   [[ "$(role_value "$role" "public.v3_public_country_voting_dna('$COUNTRY_ID')->'sample'->>'resultEditions'")" == '0' ]] || fail "${role} retained Result evidence after generic Results were hidden"
