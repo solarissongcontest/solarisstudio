@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
 
 const supabaseUrl = process.env.E2E_SUPABASE_URL ?? "";
+const appBaseUrl = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4177";
 const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY ?? "";
 const organizerEmail = process.env.S14_ORGANIZER_EMAIL ?? "";
 const organizerPassword = process.env.S14_ORGANIZER_PASSWORD ?? "";
@@ -9,6 +10,14 @@ const editionSlug = process.env.S14_EDITION_SLUG ?? "";
 const finalShowId = process.env.S14_FINAL_SHOW_ID ?? "";
 
 async function seedOrganizerBrowserSession(context: BrowserContext) {
+  const appUrl = new URL(appBaseUrl);
+  if (
+    appUrl.protocol !== "http:" ||
+    !["127.0.0.1", "localhost"].includes(appUrl.hostname)
+  ) {
+    throw new Error("S14 browser refuses non-local application URL");
+  }
+
   if (
     !supabaseUrl ||
     !publishableKey ||
@@ -50,6 +59,17 @@ async function seedOrganizerBrowserSession(context: BrowserContext) {
     token_type: token.token_type ?? "bearer",
     user: token.user ?? null,
   };
+
+  await context.addCookies([
+    {
+      name: "solaris_e2e_maintenance_bypass",
+      value: "1",
+      url: appUrl.origin,
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax",
+    },
+  ]);
 
   await context.addInitScript(
     ({ key, value, selectedEdition }) => {
