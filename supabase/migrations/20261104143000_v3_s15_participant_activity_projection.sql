@@ -72,7 +72,7 @@ begin
 
     -- Jury reliability predates the shared S2 receipt bridge. Its private
     -- operation ledger is canonical and already stores a user-bound safe receipt
-    -- identity, so project only that identity/context. Never read jury_votes.
+    -- identity, so project only that identity/context. Never query ballot ranking tables.
     select
       jury_op.operation_id as sort_id,
       jury_op.operation_id::text as id,
