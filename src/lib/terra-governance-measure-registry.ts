@@ -8,6 +8,7 @@ export const TERRA_GOVERNANCE_TG7 = Object.freeze({
     "public.world_measures",
     "public.world_measure_versions",
     "public.world_measure_categories",
+    "public.world_measure_procedural_reviews",
   ] as const,
   commands: [
     "public.world_measure_submit_v1",
@@ -43,3 +44,4 @@ export const TERRA_GOVERNANCE_TG7 = Object.freeze({
     "amendment incorporation, official voting and resolution certification",
   ] as const,
 });
+

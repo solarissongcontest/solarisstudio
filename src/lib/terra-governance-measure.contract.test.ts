@@ -27,7 +27,7 @@ describe("TG7 versioned measures + procedural registration", () => {
   });
 
   it("makes direct table reads and writes unavailable even to privileged API roles", () => {
-    expect(sql).toMatch(/revoke all on public\.world_measures,public\.world_measure_versions,\s*public\.world_measure_categories from public,anon,authenticated,service_role/);
+    expect(sql).toMatch(/revoke all on public\.world_measures,public\.world_measure_versions,\s*public\.world_measure_categories,public\.world_measure_procedural_reviews\s*from public,anon,authenticated,service_role/);
     expect(sql).not.toMatch(/grant (select|insert|update|delete|all) on public\.world_measures/i);
     for (const name of ["world_measure_public_list_v1", "world_measure_public_detail_v1"]) {
       expect(body(name, name.endsWith("list_v1") ? "measure_list" : "measure_detail"))
@@ -41,6 +41,22 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(sql).toMatch(/GAG\\\.\[0-9\]\{4\}/);
     expect(body("world_measure_review_v1", "measure_review")).toContain("INVALID_GAG_IDENTIFIER");
     expect(sql).not.toContain("INSERT FAKE GUARD CODES");
+  });
+
+  it("preserves a private append-only procedural review log across corrections", () => {
+    expect(sql).toContain("create table public.world_measure_procedural_reviews");
+    expect(sql).toContain("create trigger world_measure_review_history_immutable");
+    expect(sql).toContain("IMMUTABLE_MEASURE_REVIEW");
+    const reviewer = body("world_measure_review_v1", "measure_review");
+    const manager = body("world_measure_manage_v1", "measure_manage");
+    expect(reviewer).toContain("insert into public.world_measure_procedural_reviews");
+    expect(reviewer).toContain("auth.uid()");
+    expect(manager).toContain("'reviews'");
+    expect(manager).toContain("r.note");
+    expect(body("world_measure_public_list_v1", "measure_list"))
+      .not.toContain("world_measure_procedural_reviews");
+    expect(body("world_measure_public_detail_v1", "measure_detail"))
+      .not.toContain("world_measure_procedural_reviews");
   });
 
   it("makes registered identifiers and institution ownership immutable", () => {
@@ -152,4 +168,5 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(sql).toMatch(/v3\.tg7\.world-measure-submissions/);
   });
 });
+
 
