@@ -2,7 +2,8 @@ import { CheckCircle2, CircleAlert, CircleDashed, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { useAdminContext } from "@/components/admin/AdminContext";
+import { loadAllConfirmationResponsesForEdition } from "@/integrations/confirmations/v3-projections";
 
 type Entry = {
   id: string;
@@ -99,29 +100,31 @@ const GUIDE = [
 ];
 
 export function DelegationColourOverview() {
+  const { editionId } = useAdminContext();
   const [rows, setRows] = useState<ResponseRow[]>([]);
-  const [editionId, setEditionId] = useState("");
   const [target, setTarget] = useState<Element | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
+    setRows([]);
+    setLoadError(null);
+    if (!editionId) return () => { alive = false; };
+
     void (async () => {
-      const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_responses");
-      if (!alive) return;
-      if (error) {
-        setLoadError(error.message);
-        return;
+      try {
+        const batch = await loadAllConfirmationResponsesForEdition<ResponseRow>(editionId);
+        if (alive) setRows(batch.rows);
+      } catch (caught) {
+        if (!alive) return;
+        setRows([]);
+        setLoadError(caught instanceof Error ? caught.message : "Delegation status unavailable.");
       }
-      setRows(Array.isArray(data) ? (data as unknown as ResponseRow[]) : []);
     })();
-    return () => {
-      alive = false;
-    };
-  }, []);
+    return () => { alive = false; };
+  }, [editionId]);
 
   useEffect(() => {
-    let cleanupSelect: (() => void) | null = null;
 
     const locate = () => {
       const page = document.querySelector(".admin-main > .admin-page");
@@ -131,9 +134,6 @@ export function DelegationColourOverview() {
       const editionCard = editionSelect?.closest(".admin-card") ?? null;
       if (!editionSelect || !editionCard) return;
 
-      const select = editionSelect as HTMLSelectElement;
-      setEditionId(select.value);
-
       let host = page.querySelector(":scope > [data-delegation-colour-overview-host]");
       if (!host) {
         host = document.createElement("div");
@@ -142,10 +142,6 @@ export function DelegationColourOverview() {
       }
       setTarget(host);
 
-      cleanupSelect?.();
-      const onChange = () => setEditionId(select.value);
-      select.addEventListener("change", onChange);
-      cleanupSelect = () => select.removeEventListener("change", onChange);
     };
 
     locate();
@@ -153,12 +149,11 @@ export function DelegationColourOverview() {
     observer.observe(document.body, { childList: true, subtree: true });
     return () => {
       observer.disconnect();
-      cleanupSelect?.();
     };
   }, []);
 
   const scopedRows = useMemo(
-    () => rows.filter((row) => !editionId || row.editions?.id === editionId),
+    () => (editionId ? rows.filter((row) => row.editions?.id === editionId) : []),
     [editionId, rows],
   );
 
