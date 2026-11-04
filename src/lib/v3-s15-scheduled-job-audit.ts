@@ -74,6 +74,35 @@ function withoutSqlComments(source: string): string {
   return result;
 }
 
+/**
+ * Locate calls only in SQL code, not in a SQL string containing an example.
+ * Dollar-quoted DO/function bodies remain code for this source audit.
+ */
+function outsideSqlStrings(source: string): string {
+  let result = "";
+  let quote: "'" | '"' | null = null;
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+    if (quote) {
+      result += char === "\n" ? "\n" : " ";
+      if (char === quote) {
+        if (source[i + 1] === quote) {
+          result += " ";
+          i += 1;
+        } else {
+          quote = null;
+        }
+      }
+    } else if (char === "'" || char === '"') {
+      quote = char;
+      result += " ";
+    } else {
+      result += char;
+    }
+  }
+  return result;
+}
+
 export function inspectV3CronMigrations(
   migrations: readonly V3CronMigration[],
   registrations: readonly V3CronRegistration[],
@@ -83,7 +112,7 @@ export function inspectV3CronMigrations(
 
   for (const migration of [...migrations].sort((a, b) => a.path.localeCompare(b.path))) {
     const source = withoutSqlComments(migration.sql);
-    for (const call of source.matchAll(/\bcron\s*\.\s*schedule\s*\(/gi)) {
+    for (const call of outsideSqlStrings(source).matchAll(/\bcron\s*\.\s*schedule\s*\(/gi)) {
       const afterCall = source.slice((call.index ?? 0) + call[0].length);
       // Only an explicit literal first argument gives a verifiable job identity.
       // A dynamic name cannot be silently omitted from the S15 inventory.
