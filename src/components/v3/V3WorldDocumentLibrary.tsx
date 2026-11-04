@@ -109,7 +109,7 @@ export function WorldDocumentLibraryScreen({
           </Link>
         }
       />
-      <main className="mx-auto w-full max-w-6xl pb-12">
+      <div className="mx-auto w-full max-w-6xl pb-12">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_17rem]">
           <div className="min-w-0">
             <form onSubmit={submit} role="search" className="grid gap-3 rounded-2xl border border-border/80 bg-surface/50 p-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
@@ -203,7 +203,7 @@ export function WorldDocumentLibraryScreen({
             </p>
           </aside>
         </div>
-      </main>
+      </div>
     </AppShell>
   );
 }
@@ -251,7 +251,7 @@ export function WorldDocumentReaderScreen({
           </Link>
         }
       />
-      <main className="mx-auto w-full max-w-6xl pb-12">
+      <div className="mx-auto w-full max-w-6xl pb-12">
         {query.isPending ? (
           <ArchiveDataLoading label="Opening the published document…" />
         ) : query.isError ? (
@@ -407,7 +407,7 @@ export function WorldDocumentReaderScreen({
             </aside>
           </div>
         )}
-      </main>
+      </div>
     </AppShell>
   );
 }
