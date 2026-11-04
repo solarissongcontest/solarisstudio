@@ -57,17 +57,25 @@ function containsControlCharacter(value: string) {
 }
 
 function isSafeRootRelativePath(path: string) {
-  return (
-    path.startsWith("/") &&
-    !path.startsWith("//") &&
-    !path.includes("//") &&
-    !path.includes("\\") &&
-    !path.includes("?") &&
-    !path.includes("#") &&
-    !/\/(?:\.{1,2})(?:\/|$)/.test(path) &&
-    !/%(?:2f|5c|00)/i.test(path) &&
-    !containsControlCharacter(path)
-  );
+  try {
+    // Decode once to catch encoded separators and malformed escapes before
+    // the router interprets them as a different destination.
+    const decoded = decodeURIComponent(path);
+    return (
+      path.startsWith("/") &&
+      !path.startsWith("//") &&
+      !decoded.includes("//") &&
+      !decoded.includes("\\") &&
+      !decoded.includes("?") &&
+      !decoded.includes("#") &&
+      !/\/(?:\.{1,2})(?:\/|$)/.test(decoded) &&
+      !containsControlCharacter(decoded) &&
+      !/\/%(?:2f|5c|00)/i.test(path) &&
+      path.split("/").length === decoded.split("/").length
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function shouldRememberPublicPath(path: string) {
