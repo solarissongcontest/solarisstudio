@@ -27,6 +27,8 @@ describe("TG6 Proxy workspace access and operation safety", () => {
     expect(api).toContain("parseProxyCandidates(data, representationId, expectedRevision)");
     expect(workspace).toContain("candidateRoster.isError");
     expect(workspace).toContain("No other person with a recorded delegation");
+    expect(workspace).not.toContain("Date.now()");
+    expect(workspace).toContain('item.status === "requested" || item.status === "approved"');
   });
 
   it("preserves the exact idempotency key on ambiguous results and cannot silently start another mutation", () => {
