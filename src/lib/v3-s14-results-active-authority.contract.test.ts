@@ -17,6 +17,8 @@ describe("S14 Results active identity, history and canonical rank authority", ()
     expect(current).toContain("'v3.results.active-identity-and-rank-verification'");
     expect(current).toContain("'forward_fix_only'");
     expect(current).not.toContain("delete from public.results");
+    expect(current).toContain("Never mutate withdrawn/disqualified historical Results");
+    expect(current).not.toContain("set final_rank = null");
     expect(current).toContain("v3_record_televote_sync_event");
     expect(current).toContain("IDEMPOTENCY_CONFLICT: Televote sync receipt changed semantics");
   });
