@@ -162,6 +162,24 @@ export function parsePublicWorldDocumentVersion(
       sortOrder: int(provision.sortOrder, "provision order"),
     };
   });
+  // Historical documents may predate structured provision identities. When the
+  // full published text is present but provisions are absent, compare the
+  // original wording as one explicitly labelled block instead of reporting
+  // an empty or unchanged law.
+  if (provisions.length === 0) {
+    const plainText = optionalString(rawVersion.plainText, "full text");
+    if (plainText && plainText.trim()) {
+      provisions.push({
+        key: "__document_plain_text__",
+        label: "Full text",
+        title: "Unstructured document text",
+        text: plainText,
+        status: "published_text",
+        parentKey: null,
+        sortOrder: 0,
+      });
+    }
+  }
   provisions.sort((a, b) => a.sortOrder - b.sortOrder || a.key.localeCompare(b.key));
   return {
     documentId: expectedDocumentId,
@@ -177,6 +195,9 @@ export function comparePublicWorldVersions(
   before: PublicWorldDocumentVersion,
   after: PublicWorldDocumentVersion,
 ): WorldProvisionDifference[] {
+  if (!before.provisions.length || !after.provisions.length) {
+    throw new Error("Published text is missing from one version; comparison unavailable");
+  }
   if (before.documentId !== after.documentId ||
       before.organizationSlug !== after.organizationSlug ||
       before.documentSlug !== after.documentSlug ||
