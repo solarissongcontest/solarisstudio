@@ -232,7 +232,7 @@ function Results({ older, newer }: { older: PublicWorldDocumentVersion; newer: P
       Include unchanged provisions
     </label>
     {visible.length ? visible.map((change) => <Difference key={change.key} change={change} />)
-      : <Panel title="No changes in these versions" detail="The semantic provisions and their official text are identical across the selected versions." />}
+      : <Panel title="No textual or structural provision changes" detail="The compared provisions have identical wording, headings, status and order. Other document metadata or formatting may still differ." />}
   </section>;
 }
 
