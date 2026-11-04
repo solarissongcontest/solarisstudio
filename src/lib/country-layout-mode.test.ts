@@ -50,6 +50,20 @@ describe("country page presentation ownership", () => {
     expect(css).toContain('[data-wiki-layout-mode="mobile-web"]');
     expect(css).toContain("overflow-wrap: anywhere;");
     expect(css).toContain("font-size: clamp(.875rem, 4.5vw, 1.25rem);");
+    const legacyWiki = read("src/wiki-mobile-encyclopedia.css");
+    const legacyPersonalitySelectors = [
+      ...legacyWiki.matchAll(
+        /body\[data-entity-theme="country"\]\[data-country-hero-layout(?:="[^"]+")?\]\s+\.wiki-canvas(?::not\(\[data-wiki-layout-mode="mobile-web"\]\))?/g,
+      ),
+    ];
+    expect(legacyPersonalitySelectors.length).toBeGreaterThan(10);
+    expect(
+      legacyPersonalitySelectors.every(([selector]) =>
+        selector.includes(':not([data-wiki-layout-mode="mobile-web"])'),
+      ),
+    ).toBe(true);
+    expect(css).toContain('.wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-article-section');
+    expect(css).toContain("font-size: 1rem !important;");
     expect(css).not.toContain(":root {");
   });
 
