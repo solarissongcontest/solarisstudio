@@ -53,7 +53,7 @@ describe("TG8 voting-rule editor protection", () => {
     expect(editor).toContain("world.voting_rule.configure:");
     expect(editor).toContain('queryKey: ["world", "voting-rules"]');
     expect(transport).toContain("parseWorldVotingRuleReceipt(data");
-    expect(transport).toContain('envelope.status !== "succeeded"').toBeUndefined;
+    expect(transport).not.toContain('envelope.status !== "succeeded"');
     expect(transport).toContain('receipt.status !== "succeeded"');
     expect(transport).toContain("receipt.operationId !== expected.operationId");
   });
