@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   comparePublicWorldVersions,
+  parsePublicWorldAccessProof,
   parsePublicWorldArchive,
   parsePublicWorldDocumentVersion,
   validateComparisonPair,
@@ -31,6 +32,27 @@ describe("public institutional legal text comparison", () => {
     expect(worldLegalSlug("guard-charter")).toBe(true);
     expect(worldLegalSlug("../private")).toBe(false);
     expect(worldLegalSlug("GUARD")).toBe(false);
+  });
+
+  it("requires canonical public visibility before accessing an archive", () => {
+    const proof = {
+      documentId: "doc-1", slug: "charter", organization: { slug: "guard" },
+      visibility: "public",
+    };
+    expect(parsePublicWorldAccessProof(proof, "guard", "charter")).toBe("doc-1");
+    expect(parsePublicWorldAccessProof(null, "guard", "charter")).toBeNull();
+    expect(() => parsePublicWorldAccessProof(
+      { ...proof, visibility: "members" }, "guard", "charter",
+    )).toThrow(/not publicly accessible/);
+    expect(() => parsePublicWorldAccessProof(
+      { ...proof, visibility: "private" }, "guard", "charter",
+    )).toThrow(/not publicly accessible/);
+    expect(() => parsePublicWorldAccessProof(
+      { ...proof, slug: "another-law" }, "guard", "charter",
+    )).toThrow(/not publicly accessible/);
+    expect(() => parsePublicWorldAccessProof(
+      { ...proof, organization: { slug: "unity" } }, "guard", "charter",
+    )).toThrow(/not publicly accessible/);
   });
 
   it("restricts the history selector to published/superseded/historical-source records", () => {
