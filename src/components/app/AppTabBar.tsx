@@ -23,6 +23,9 @@ import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
+// The installed bottom dock must keep its geometry on legacy and V3 routes.
+import "@/styles/v3-installed-app-navbar.css";
+
 const ICONS: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
   home: Home,
   explore: Compass,

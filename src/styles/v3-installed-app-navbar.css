@@ -2,13 +2,17 @@
  * Canonical installed-app geometry for the Solaris V3 bottom navigation.
  *
  * AppTabBar remains the installed/PWA behavior owner, but V3 owns the visible
- * mobile geometry here so installed mode cannot silently fall back to the old
+ * mobile geometry here for ALL installed app routes, even legacy AppShell
+ * pages which do not mount V3FoundationShell. Runtime identity is explicit
+ * html[data-solaris-app], not a V3 child or a viewport-width guess.
+ * This prevents installed labels from reappearing outside newer V3 routes.
+ * Installed mode cannot silently fall back to the old
  * 24px-inset, label-heavy dock while browser mode renders the redesigned
  * V3LiquidTabBar. Keep this file after app-shell.css in the cascade.
  */
 
 @media (max-width: 899px) {
-  [data-solaris-v3] .solaris-app-tabbar {
+  html[data-solaris-app] .solaris-app-tabbar {
     left: 50%;
     right: auto;
     width: min(
@@ -24,7 +28,7 @@
     pointer-events: auto;
   }
 
-  [data-solaris-v3] .solaris-app-tabbar-material {
+  html[data-solaris-app] .solaris-app-tabbar-material {
     --solaris-tab-pad: 6px;
     --solaris-tab-total-inset: 12px;
     --solaris-tab-gap: 2px;
@@ -41,7 +45,7 @@
     border-radius: 27px;
   }
 
-  [data-solaris-v3] .solaris-app-tabbar-backdrop {
+  html[data-solaris-app] .solaris-app-tabbar-backdrop {
     border-color: rgb(255 255 255 / .18);
     background:
       radial-gradient(circle at 18% 0%, rgb(255 255 255 / .11), transparent 42%),
@@ -52,7 +56,7 @@
       inset 0 -1px 0 rgb(169 222 242 / .055);
   }
 
-  [data-solaris-v3] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tab-indicator {
     top: 50%;
     left: calc(2.2% + 5.56px);
     width: calc(15.6% - 3.12px);
@@ -89,7 +93,7 @@
    * and the V3 `left` offset are applied together and the lens can land outside
    * the capsule.
    */
-  [data-solaris-v3] .solaris-app-tabbar-material[data-active-index] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tabbar-material[data-active-index] .solaris-app-tab-indicator {
     transform:
       translateY(-50%)
       translateX(var(--solaris-tab-drag-x))
@@ -97,56 +101,56 @@
       scale(var(--solaris-tab-hold-scale-x), var(--solaris-tab-hold-scale-y));
   }
 
-  [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="0"] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tabbar-material[data-active-index="0"] .solaris-app-tab-indicator {
     left: calc(2.2% + 5.56px);
   }
 
-  [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
     left: calc(22.2% + 3.56px);
   }
 
-  [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
     left: calc(42.2% + 1.56px);
   }
 
-  [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
     left: calc(62.2% - .44px);
   }
 
-  [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
     left: calc(82.2% - 2.44px);
   }
 
-  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="0"] .solaris-app-tab-indicator {
+  html[dir="rtl"][data-solaris-app] .solaris-app-tabbar-material[data-active-index="0"] .solaris-app-tab-indicator {
     left: calc(82.2% - 2.44px);
   }
 
-  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
+  html[dir="rtl"][data-solaris-app] .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
     left: calc(62.2% - .44px);
   }
 
-  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
+  html[dir="rtl"][data-solaris-app] .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
     left: calc(42.2% + 1.56px);
   }
 
-  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
+  html[dir="rtl"][data-solaris-app] .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
     left: calc(22.2% + 3.56px);
   }
 
-  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
+  html[dir="rtl"][data-solaris-app] .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
     left: calc(2.2% + 5.56px);
   }
 
-  [data-solaris-v3] .solaris-app-tabbar-material[data-held="true"] {
+  html[data-solaris-app] .solaris-app-tabbar-material[data-held="true"] {
     --solaris-tab-hold-scale-x: 1.12;
     --solaris-tab-hold-scale-y: 1.10;
   }
 
-  [data-solaris-v3] .solaris-app-tabbar-material[data-dragging="true"] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tabbar-material[data-dragging="true"] .solaris-app-tab-indicator {
     transition: none;
   }
 
-  [data-solaris-v3] .solaris-app-tab {
+  html[data-solaris-app] .solaris-app-tab {
     min-height: 52px;
     flex-direction: row;
     gap: 0;
@@ -154,12 +158,12 @@
     border-radius: 20px;
   }
 
-  [data-solaris-v3] .solaris-app-tab-icon {
+  html[data-solaris-app] .solaris-app-tab-icon {
     width: 20px;
     height: 20px;
   }
 
-  [data-solaris-v3] .solaris-app-tab-label {
+  html[data-solaris-app] .solaris-app-tab-label {
     display: none;
   }
 
@@ -167,12 +171,12 @@
    * intentional here: unlike opacity/transform alone, it removes descendant
    * links from hit testing and sequential focus until AppChromeMetrics clears
    * the keyboard state. */
-  html[data-solaris-keyboard-open] [data-solaris-v3] .solaris-app-tabbar {
+  html[data-solaris-app][data-solaris-keyboard-open] .solaris-app-tabbar {
     visibility: hidden;
     pointer-events: none;
   }
 
-  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material {
+  html[data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material {
     --solaris-tab-pad: 5px;
     --solaris-tab-total-inset: 10px;
     width: min(300px, 100%);
@@ -183,65 +187,65 @@
     border-radius: 24px;
   }
 
-  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tab-indicator {
     left: calc(2.2% + 4.6px);
     width: calc(15.6% - 2.8px);
     height: 40px;
     border-radius: 18px;
   }
 
-  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="0"] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="0"] .solaris-app-tab-indicator {
     left: calc(2.2% + 4.6px);
   }
 
-  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
     left: calc(22.2% + 3px);
   }
 
-  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
     left: calc(42.2% + 1.4px);
   }
 
-  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
     left: calc(62.2% - .2px);
   }
 
-  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
     left: calc(82.2% - 1.8px);
   }
 
-  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="0"] .solaris-app-tab-indicator {
+  html[dir="rtl"][data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="0"] .solaris-app-tab-indicator {
     left: calc(82.2% - 1.8px);
   }
 
-  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
+  html[dir="rtl"][data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
     left: calc(62.2% - .2px);
   }
 
-  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
+  html[dir="rtl"][data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
     left: calc(42.2% + 1.4px);
   }
 
-  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
+  html[dir="rtl"][data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
     left: calc(22.2% + 3px);
   }
 
-  [dir="rtl"] [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
+  html[dir="rtl"][data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
     left: calc(2.2% + 4.6px);
   }
 
-  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tab {
+  html[data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tab {
     min-height: 44px;
   }
 
-  [data-solaris-v3] .solaris-app-tabbar.is-collapsed .solaris-app-tab-icon {
+  html[data-solaris-app] .solaris-app-tabbar.is-collapsed .solaris-app-tab-icon {
     width: 18px;
     height: 18px;
   }
 }
 
 @media (max-width: 359px) {
-  [data-solaris-v3] .solaris-app-tabbar {
+  html[data-solaris-app] .solaris-app-tabbar {
     width: min(
       calc(
         100vw - max(10px, var(--solaris-app-safe-left)) -
@@ -253,7 +257,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) and (max-width: 899px) {
-  [data-solaris-v3] .solaris-app-tab-indicator {
+  html[data-solaris-app] .solaris-app-tab-indicator {
     transition: none;
   }
 }

@@ -94,6 +94,15 @@ describe("installed app CSS ownership", () => {
     ).toEqual([]);
 
     const navbarCss = source(navbarOwner);
+    const tabBarOwner = source("src/components/app/AppTabBar.tsx");
+    // Styles are imported by the real installed nav, not only transitively
+    // by a V3 route that legacy account/workflow pages may never mount.
+    expect(tabBarOwner).toContain('import "@/styles/v3-installed-app-navbar.css"');
+    expect(navbarCss).toContain("html[data-solaris-app] .solaris-app-tabbar");
+    expect(navbarCss).toContain("html[data-solaris-app] .solaris-app-tab-label");
+    expect(navbarCss).toContain('html[dir="rtl"][data-solaris-app]');
+    expect(navbarCss).toContain('html[data-solaris-app][data-solaris-keyboard-open]');
+    expect(navbarCss).not.toContain("[data-solaris-v3]");
     expect(navbarCss).toContain(".solaris-app-tabbar");
     expect(navbarCss).not.toContain(".solaris-app-toolbar");
     expect(navbarCss).not.toContain("--solaris-app-toolbar-height");
