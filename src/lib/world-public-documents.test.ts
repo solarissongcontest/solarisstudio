@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   anonymousWorldRpcRequest,
+  getWorldDocumentDetail,
+  getWorldDocumentIndex,
   assertWorldSlug,
   publicWorldRpcHeaders,
   normalizeWorldSearch,
@@ -115,6 +117,53 @@ describe("TG4 public institutional document library", () => {
     expect(() => publicWorldRpcHeaders("")).toThrow();
   });
 
+
+  it("makes bounded public index and exact Version RPC calls without user authorization or hosted egress", async () => {
+    // These tests do NOT contact any Supabase instance. The URL is loopback,
+    // and fetch is stubbed before invoking either public read call.
+    vi.stubEnv("VITE_SUPABASE_URL", "http://127.0.0.1:54321");
+    vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_tg4_local_test");
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ documents: [indexRow] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => document,
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const index = await getWorldDocumentIndex({ search: " charter ", limit: 25 });
+      expect(index).toHaveLength(1);
+      const detail = await getWorldDocumentDetail({
+        organization: "guard", document: "charter", version: 2,
+      });
+      expect(detail?.version.versionNumber).toBe(2);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const indexCall = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+      const detailCall = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+      expect(indexCall[0]).toBe("http://127.0.0.1:54321/rest/v1/rpc/world_get_document_index_v1");
+      expect(detailCall[0]).toBe("http://127.0.0.1:54321/rest/v1/rpc/world_get_document_v1");
+      expect(indexCall[1].credentials).toBe("omit");
+      expect(detailCall[1].credentials).toBe("omit");
+      expect(indexCall[1].headers).not.toHaveProperty("Authorization");
+      expect(detailCall[1].headers).not.toHaveProperty("Authorization");
+      expect(JSON.parse(String(indexCall[1].body))).toEqual({
+        p_organization_slug: null,
+        p_query: "charter",
+        p_limit: 25,
+      });
+      expect(JSON.parse(String(detailCall[1].body))).toEqual({
+        p_organization_slug: "guard",
+        p_document_slug: "charter",
+        p_version_number: 2,
+      });
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+  });
 
   it("keeps only public rows backed by an actual published current Version", () => {
     const parsed = parseWorldDocumentIndex({
