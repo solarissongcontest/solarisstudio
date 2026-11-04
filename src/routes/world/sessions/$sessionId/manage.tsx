@@ -11,6 +11,6 @@ export const Route = createFileRoute("/world/sessions/$sessionId/manage")({
   }),
   component: () => {
     const { sessionId } = Route.useParams();
-    return <AppShell><WorldAgendaEditor sessionId={sessionId} /></AppShell>;
+    return <AppShell><WorldAgendaEditor key={sessionId} sessionId={sessionId} /></AppShell>;
   },
 });
