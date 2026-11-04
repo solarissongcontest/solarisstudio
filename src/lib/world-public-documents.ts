@@ -92,6 +92,14 @@ const MAX_SEARCH = 100;
 const VALID_LIMITS = [25, 50, 100] as const;
 export type WorldDocumentLimit = (typeof VALID_LIMITS)[number];
 
+export type WorldDocumentIndexPage = {
+  rows: WorldDocumentIndexRow[];
+  /** Number of accessible rows inspected by the bounded canonical RPC. */
+  scanned: number;
+  /** More accessible rows may exist beyond this request's server limit. */
+  couldHaveMore: boolean;
+};
+
 export type WorldDocumentIndexRow = {
   documentId: string;
   organizationSlug: string;
@@ -246,6 +254,22 @@ export function parseWorldDocumentIndex(input: unknown): WorldDocumentIndexRow[]
   return rows;
 }
 
+export function parseWorldDocumentIndexPage(
+  input: unknown,
+  limit: WorldDocumentLimit,
+): WorldDocumentIndexPage {
+  const data = object(input);
+  if (!Array.isArray(data.documents) || data.documents.length > limit) {
+    throw new Error("Invalid bounded institutional document index");
+  }
+  const rows = parseWorldDocumentIndex(input);
+  return {
+    rows,
+    scanned: data.documents.length,
+    couldHaveMore: data.documents.length === limit,
+  };
+}
+
 export function parseWorldDocumentDetail(input: unknown): WorldDocumentDetail | null {
   if (input === null) return null;
   const data = object(input);
@@ -363,11 +387,11 @@ export function normalizeWorldSearch(query: string): string {
   return query.trim().slice(0, MAX_SEARCH);
 }
 
-export async function getWorldDocumentIndex(input: {
+export async function getWorldDocumentIndexPage(input: {
   organizationSlug?: string;
   search?: string;
   limit?: WorldDocumentLimit;
-} = {}): Promise<WorldDocumentIndexRow[]> {
+} = {}): Promise<WorldDocumentIndexPage> {
   const slug = input.organizationSlug
     ? assertWorldSlug(input.organizationSlug)
     : null;
@@ -379,7 +403,16 @@ export async function getWorldDocumentIndex(input: {
     p_query: query || null,
     p_limit: limit,
   });
-  return parseWorldDocumentIndex(data);
+  return parseWorldDocumentIndexPage(data, limit);
+}
+
+/** Use page metadata in list UI; keep the rows-only reader for simpler consumers. */
+export async function getWorldDocumentIndex(input: {
+  organizationSlug?: string;
+  search?: string;
+  limit?: WorldDocumentLimit;
+} = {}): Promise<WorldDocumentIndexRow[]> {
+  return (await getWorldDocumentIndexPage(input)).rows;
 }
 
 export async function getWorldDocumentDetail(input: {
