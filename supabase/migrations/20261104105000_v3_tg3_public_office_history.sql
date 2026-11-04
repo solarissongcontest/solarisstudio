@@ -38,22 +38,12 @@ language plpgsql
 security definer
 set search_path = pg_catalog
 as $snapshot$
-declare
-  v_capture boolean := false;
 begin
-  if new.status not in ('ended', 'removed', 'resigned') then
-    new.holder_display_name_snapshot := null;
-    new.office_title_snapshot := null;
-    new.represented_country_name_snapshot := null;
-    return new;
-  end if;
-
+  -- Check the OLD state first. A concluded term must never become active
+  -- again, switch holder or office, or otherwise rewrite political history.
+  -- An auth-account deletion can still null holder_user_id without changing
+  -- the historical durable person or presentation labels.
   if tg_op = 'UPDATE' and old.status in ('ended', 'removed', 'resigned') then
-    -- Closed constitutional history is immutable. Account unlinking (for
-    -- example, deletion of a login) may still null holder_user_id, but the
-    -- canonical person and all political term facts cannot be rewritten.
-    -- Formal historical corrections must use an audited correction record,
-    -- not silently mutate a concluded term.
     if new.status is distinct from old.status
       or new.office_id is distinct from old.office_id
       or new.holder_person_id is distinct from old.holder_person_id
@@ -69,27 +59,30 @@ begin
       raise exception 'WORLD_CLOSED_OFFICE_TERM_IMMUTABLE'
         using errcode = '23514';
     end if;
-    -- Do not accept even a privileged direct rewrite of presentation labels.
     new.holder_display_name_snapshot := old.holder_display_name_snapshot;
     new.office_title_snapshot := old.office_title_snapshot;
     new.represented_country_name_snapshot := old.represented_country_name_snapshot;
     return new;
   end if;
 
-  -- INSERT of an already-completed imported term and active-to-closed
-  -- transitions both snapshot the current canonical holder/office labels.
-  v_capture := true;
+  if new.status not in ('ended', 'removed', 'resigned') then
+    -- Scheduled and active terms must not carry premature archival labels.
+    new.holder_display_name_snapshot := null;
+    new.office_title_snapshot := null;
+    new.represented_country_name_snapshot := null;
+    return new;
+  end if;
 
-  if v_capture then
-    select holder.display_name, office.title, country.name
+  -- Snapshot only when a term is first closed, including an explicitly
+  -- imported concluded term. Future name changes must not rewrite it.
+  select holder.display_name, office.title, country.name
     into new.holder_display_name_snapshot,
          new.office_title_snapshot,
          new.represented_country_name_snapshot
-    from public.delegation_people holder
-    join public.world_organization_offices office on office.id = new.office_id
-    left join public.countries country on country.id = new.represented_country_id
-    where holder.id = new.holder_person_id;
-  end if;
+  from public.delegation_people holder
+  join public.world_organization_offices office on office.id = new.office_id
+  left join public.countries country on country.id = new.represented_country_id
+  where holder.id = new.holder_person_id;
 
   if nullif(btrim(new.holder_display_name_snapshot), '') is null
      or nullif(btrim(new.office_title_snapshot), '') is null then
