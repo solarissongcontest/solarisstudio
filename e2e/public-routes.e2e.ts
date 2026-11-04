@@ -237,9 +237,27 @@ test("representative page families remain usable at 200% text size", async ({ pa
     const routePage = await context.newPage();
     try {
       await routePage.goto(route, { waitUntil: "domcontentloaded" });
+      // Country discovery deliberately waits for runtime app/website identity
+      // before mounting its heading. A DOMContentLoaded-only check can inspect
+      // that short-lived boot state instead of the actual country directory.
+      // Wait for the real page first; do not hide a missing heading after zoom.
+      if (route === "/countries") {
+        await expect(
+          routePage.locator("[data-country-directory-boot]"),
+          "Countries runtime boot must finish before accessibility verification",
+        ).toHaveCount(0, { timeout: 15_000 });
+      }
+      await expect(
+        routePage.locator("h1:visible"),
+        `${route} must expose one visible heading before text enlargement`,
+      ).toHaveCount(1, { timeout: 15_000 });
       await routePage.evaluate(() => {
         document.documentElement.style.fontSize = "200%";
       });
+      await expect(
+        routePage.locator("h1:visible"),
+        `${route} must retain one visible heading after text enlargement`,
+      ).toHaveCount(1);
       await routePage.waitForTimeout(100);
 
       const geometry = await routePage.evaluate(() => ({
