@@ -19,9 +19,10 @@ begin
 end
 $contract$;
 
-alter table public.world_organization_organs
-  add constraint world_organization_organs_id_org_uid
-  unique (id, organization_id);
+-- TG6 session/agenda migration already uses this exact index name. Reuse it
+-- in either deployment order rather than adding an unnecessary duplicate key.
+create unique index if not exists world_organs_id_organization_uidx
+  on public.world_organization_organs(id, organization_id);
 
 alter table public.world_organization_offices
   add constraint world_offices_organ_same_organization_fk
