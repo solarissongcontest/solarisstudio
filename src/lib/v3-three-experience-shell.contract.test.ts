@@ -28,7 +28,7 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(shell).toContain("destinations={V3_SHELL_DESTINATIONS}");
     expect(sections).toContain('aria-label="Solaris website sections"');
     expect(sections).toContain("to={destination.to as any}");
-    expect(sections).toContain('aria-current={active ? "page" : undefined}');
+    expect(sections).toContain('aria-current={resolveV3WebNavigationCurrent({ active, pathname, target: destination.to })}');
     expect(sections).toContain("activeArea: V3Area | null;");
     expect(sections).toContain("const active = activeArea === destination.id;");
     expect(sections).not.toContain("event.preventDefault");
@@ -37,7 +37,7 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(css).toContain("min-width: 44px");
     expect(css).toContain("overflow-x: auto");
     expect(sections).toContain('const navRef = useRef<HTMLElement | null>(null);');
-    expect(sections).toContain('nav.querySelector<HTMLElement>(\'[aria-current="page"]\')');
+    expect(sections).toContain('nav.querySelector<HTMLElement>(\'[aria-current]\')');
     expect(sections).toContain("nav.scrollLeft += delta");
     expect(sections).toContain('window.addEventListener("resize", keepActiveVisible)');
     expect(sections).toContain('window.removeEventListener("resize", keepActiveVisible)');

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import type { LucideIcon } from "lucide-react";
 
+import { resolveV3WebNavigationCurrent } from "@/lib/v3-web-current-link";
 import type { V3Area } from "./V3AppShell";
 import "@/styles/v3-mobile-web-primary-nav.css";
 
@@ -21,10 +22,12 @@ export function V3MobileWebPrimaryNavigation({
   destinations,
   activeArea,
   participateAttentionCount,
+  pathname,
 }: {
   destinations: readonly WebDestination[];
   activeArea: V3Area | null;
   participateAttentionCount: number;
+  pathname: string;
 }) {
   const navRef = useRef<HTMLElement | null>(null);
 
@@ -37,7 +40,7 @@ export function V3MobileWebPrimaryNavigation({
     // over the browser's URL/history behavior. Physical rectangles also work
     // with RTL and font scaling.
     const keepActiveVisible = () => {
-      const active = nav.querySelector<HTMLElement>('[aria-current="page"]');
+      const active = nav.querySelector<HTMLElement>('[aria-current]');
       if (!active) return;
       const viewport = nav.getBoundingClientRect();
       const item = active.getBoundingClientRect();
@@ -70,7 +73,7 @@ export function V3MobileWebPrimaryNavigation({
             to={destination.to as any}
             className="v3-mobile-web-primary-nav__item"
             data-active={active ? "true" : "false"}
-            aria-current={active ? "page" : undefined}
+            aria-current={resolveV3WebNavigationCurrent({ active, pathname, target: destination.to })}
             aria-label={
               badge > 0
                 ? destination.label + ", " + badge + (badge === 1 ? " item" : " items") + " need attention"

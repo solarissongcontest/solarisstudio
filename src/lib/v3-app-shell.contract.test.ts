@@ -50,7 +50,7 @@ describe("V3 app shell migration contract", () => {
     expect(tabs).toContain('aria-current={active ? "page" : undefined}');
     expect(desktop).toContain('aria-label="Primary app navigation"');
     expect(desktop).toContain(
-      'aria-current={destination.active ? "page" : undefined}',
+      'aria-current={resolveV3WebNavigationCurrent({ active: destination.active, pathname, target: destination.to })}',
     );
   });
 

@@ -355,10 +355,12 @@ export function V3AppShell({
               destinations={V3_SHELL_DESTINATIONS}
               activeArea={publicArea}
               participateAttentionCount={participateAttentionCount}
+              pathname={pathname}
             />
             <V3DesktopPrimaryNavigation
               destinations={navigationDestinations}
               onSelect={selectDestination}
+              pathname={pathname}
             />
           </>
         ) : null}

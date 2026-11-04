@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 
+import { resolveV3WebNavigationCurrent } from "@/lib/v3-web-current-link";
 import type { V3LiquidTabDestination } from "./V3LiquidTabBar";
 import "@/styles/v3-responsive-shell.css";
 
@@ -12,9 +13,11 @@ function navigationItemLabel(label: string, badge: number) {
 export function V3DesktopPrimaryNavigation({
   destinations,
   onSelect,
+  pathname,
 }: {
   destinations: readonly V3LiquidTabDestination[];
   onSelect: (destination: V3LiquidTabDestination) => void;
+  pathname: string;
 }) {
   return (
     <nav className="v3-desktop-primary-nav" aria-label="Primary app navigation">
@@ -26,7 +29,7 @@ export function V3DesktopPrimaryNavigation({
             key={destination.id}
             to={destination.to as any}
             className="v3-desktop-primary-nav__item"
-            aria-current={destination.active ? "page" : undefined}
+            aria-current={resolveV3WebNavigationCurrent({ active: destination.active, pathname, target: destination.to })}
             aria-label={navigationItemLabel(destination.label, badge)}
             data-active={destination.active ? "true" : "false"}
             data-emphasis={destination.emphasis ? "true" : undefined}

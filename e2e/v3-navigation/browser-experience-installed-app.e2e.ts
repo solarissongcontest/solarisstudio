@@ -38,7 +38,7 @@ test(
       await expect(web).toBeVisible();
       await expect(web.getByRole("link", { name: "Results", exact: true })).toHaveAttribute(
         "aria-current",
-        "page",
+        "location",
       );
       const measurements = await page.evaluate(() => {
         const nav = document.querySelector<HTMLElement>("[data-v3-web-section-navigation]");
@@ -58,7 +58,7 @@ test(
       // The selected root remains visible even when five readable links
       // overflow a 320px website viewport. Only the strip scrolls.
       await expect.poll(async () => web.evaluate((nav) => {
-        const active = nav.querySelector<HTMLElement>('[aria-current="page"]');
+        const active = nav.querySelector<HTMLElement>('[aria-current]');
         if (!active) return false;
         const strip = nav.getBoundingClientRect();
         const item = active.getBoundingClientRect();
