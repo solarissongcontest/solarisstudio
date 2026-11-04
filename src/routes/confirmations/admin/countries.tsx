@@ -13,7 +13,7 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { loadConfirmationEditions, type ConfirmationEdition } from "@/integrations/confirmations/admin";
-import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { loadAllConfirmationResponsesForEdition } from "@/integrations/confirmations/v3-projections";
 import {
   useAllParticipants,
   useAllResults,
@@ -152,18 +152,27 @@ function CountriesPage() {
 
   useEffect(() => {
     let alive = true;
+    // Prevent a previous edition's private submissions appearing during a switch.
+    setRows([]);
+    setEditionId("");
+    setError(null);
+    setLoading(true);
     void (async () => {
       try {
         const editionRows = await loadConfirmationEditions();
-        const selected = editionRows.find((item) => item.id === organizerEditionId)?.id ?? "";
-        const { data, error: loadError } = await confirmationsSupabase.rpc("admin_confirmation_responses");
-        if (loadError) throw loadError;
         if (!alive) return;
+        const selected = editionRows.find((item) => item.id === organizerEditionId)?.id ?? "";
         setEditions(editionRows);
+        if (!selected) return;
+        const batch = await loadAllConfirmationResponsesForEdition<ResponseRow>(selected);
+        if (!alive) return;
         setEditionId(selected);
-        setRows(Array.isArray(data) ? (data as unknown as ResponseRow[]) : []);
+        setRows(batch.rows);
       } catch (caught) {
-        if (alive) setError(caught instanceof Error ? caught.message : "Could not load delegations.");
+        if (alive) {
+          setRows([]);
+          setError(caught instanceof Error ? caught.message : "Could not load delegations.");
+        }
       } finally {
         if (alive) setLoading(false);
       }
@@ -171,7 +180,7 @@ function CountriesPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [organizerEditionId]);
 
   const scopedRows = useMemo(
     () => (editionId ? rows.filter((row) => row.editions?.id === editionId) : []),
