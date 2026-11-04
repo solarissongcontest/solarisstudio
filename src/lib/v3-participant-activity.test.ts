@@ -4,6 +4,7 @@ import {
   emptyV3ParticipantActivityBundle,
   parseV3ParticipantActivity,
   v3ParticipantActivityQueryKey,
+  validateV3ParticipantActivityCursor,
 } from "./v3-participant-activity";
 
 describe("V3 participant activity projection", () => {
@@ -79,6 +80,52 @@ describe("V3 participant activity projection", () => {
 
     expect(parsed.schemaReady).toBe(true);
     expect(parsed.items).toEqual([]);
+  });
+
+  it("uses both server-owned keyset coordinates or no continuation at all", () => {
+    const complete = parseV3ParticipantActivity({
+      items: [],
+      next_before: "2026-11-04T08:00:00+00:00",
+      next_operation_id: "00000000-0000-4000-8000-00000000a721",
+    });
+    expect(complete.nextBefore).toBe("2026-11-04T08:00:00+00:00");
+    expect(complete.nextOperationId).toBe("00000000-0000-4000-8000-00000000a721");
+
+    const missingId = parseV3ParticipantActivity({
+      items: [],
+      next_before: "2026-11-04T08:00:00Z",
+    });
+    expect(missingId.nextBefore).toBeNull();
+    expect(missingId.nextOperationId).toBeNull();
+
+    const invalidId = parseV3ParticipantActivity({
+      items: [],
+      next_before: "2026-11-04T08:00:00Z",
+      next_operation_id: "not-an-operation-id",
+    });
+    expect(invalidId.nextBefore).toBeNull();
+    expect(invalidId.nextOperationId).toBeNull();
+  });
+
+  it("rejects arbitrary selectors and incomplete Activity cursors", () => {
+    const before = "2026-11-04T08:00:00Z";
+    const operationId = "00000000-0000-4000-8000-00000000a721";
+    expect(validateV3ParticipantActivityCursor(undefined)).toEqual({
+      before: null,
+      operationId: null,
+    });
+    expect(validateV3ParticipantActivityCursor({ before, operationId })).toEqual({
+      before,
+      operationId,
+    });
+    expect(() => validateV3ParticipantActivityCursor({ before })).toThrow("complete");
+    expect(() => validateV3ParticipantActivityCursor({ operationId })).toThrow("complete");
+    expect(() => validateV3ParticipantActivityCursor({ before: "invalid", operationId })).toThrow("complete");
+    expect(() => validateV3ParticipantActivityCursor({
+      before,
+      operationId,
+      actor: "another-account",
+    })).toThrow("Invalid Activity pagination input");
   });
 
   it("fails closed when no canonical projection payload exists", () => {
