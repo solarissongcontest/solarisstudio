@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  anonymousWorldRpcRequest,
   assertWorldSlug,
+  publicWorldRpcHeaders,
   normalizeWorldSearch,
   parseWorldDocumentDetail,
   parseWorldDocumentIndex,
@@ -76,6 +78,39 @@ const document = {
 };
 
 describe("TG4 public institutional document library", () => {
+  it("makes public RPC requests as anon even in an authenticated organizer session", () => {
+    const publishable = "sb_publishable_world_documents_test";
+    expect(publicWorldRpcHeaders(publishable)).toEqual({
+      "Content-Type": "application/json",
+      apikey: publishable,
+    });
+    const request = anonymousWorldRpcRequest(publishable, {
+      p_organization_slug: null,
+      p_query: "charter",
+      p_limit: 100,
+    });
+    expect(request.method).toBe("POST");
+    expect(request.credentials).toBe("omit");
+    expect(request.cache).toBe("no-store");
+    expect(request.headers).not.toHaveProperty("Authorization");
+    expect(request.headers).not.toHaveProperty("Cookie");
+    expect(JSON.parse(String(request.body))).toEqual({
+      p_organization_slug: null,
+      p_query: "charter",
+      p_limit: 100,
+    });
+
+    // The legacy anon JWT uses a bearer token, but the currently signed-in
+    // user's JWT must never be forwarded into this transport.
+    expect(publicWorldRpcHeaders("legacy-anon-key")).toHaveProperty(
+      "Authorization", "Bearer legacy-anon-key",
+    );
+    expect(() => publicWorldRpcHeaders("sb_secret_dont-use")).toThrow();
+    expect(() => publicWorldRpcHeaders("sb_service_role_dont-use")).toThrow();
+    expect(() => publicWorldRpcHeaders("")).toThrow();
+  });
+
+
   it("keeps only public rows backed by an actual published current Version", () => {
     const parsed = parseWorldDocumentIndex({
       documents: [
