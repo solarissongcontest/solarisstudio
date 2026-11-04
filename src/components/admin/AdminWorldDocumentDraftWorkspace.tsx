@@ -239,15 +239,17 @@ export function AdminWorldDocumentDraftWorkspace() {
       title: draftTitle, plainText: draftText, provisions: draftProvisions,
     }) !== originalDraft.current,
   );
+  const hasUnsubmittedWork = Boolean(createTitle.trim() || createSlug.trim());
+  const hasUnsavedChanges = hasUnsavedDraftEdits || hasUnsubmittedWork;
   useEffect(() => {
-    if (!hasUnsavedDraftEdits) return;
+    if (!hasUnsavedChanges) return;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [hasUnsavedDraftEdits]);
+  }, [hasUnsavedChanges]);
 
   const confirmDiscard = () => !hasUnsavedDraftEdits ||
     window.confirm("Your unpublished legal edits have not been saved. Discard them?");
@@ -263,9 +265,15 @@ export function AdminWorldDocumentDraftWorkspace() {
 
   const switchOrganization = (slug: string) => {
     if (operation && operation.status !== "succeeded" && operation.status !== "failed") return;
-    if (slug === organizationSlug || !confirmDiscard()) return;
+    if (slug === organizationSlug) return;
+    if (hasUnsavedChanges &&
+        !window.confirm("Changing institution discards the current Work form and unpublished legal edits. Continue?")) return;
     setOrganizationSlug(slug);
     setDocumentSlug("");
+    setCreateTitle("");
+    setCreateSlug("");
+    setKind("charter");
+    setVisibility("public");
     setSearchInput("");
     setAppliedSearch("");
     setOperation(null);
