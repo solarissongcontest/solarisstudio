@@ -131,6 +131,37 @@ create table public.world_measure_versions (
 create index world_measure_versions_history_idx
   on public.world_measure_versions(measure_id,version_number desc);
 
+-- Audit trail for every procedural decision. Clearing the latest correction note
+-- after resubmission must never erase the original review or its reason.
+create table public.world_measure_procedural_reviews (
+  id uuid primary key default gen_random_uuid(),
+  measure_id uuid not null references public.world_measures(id) on delete restrict,
+  action text not null,
+  note text,
+  reviewer_user_id uuid references auth.users(id) on delete set null,
+  measure_revision bigint not null,
+  created_at timestamptz not null default now(),
+  constraint world_measure_review_action_check check(action in (
+    'procedural_review','needs_correction','registered'
+  )),
+  constraint world_measure_review_note_check check(note is null or length(btrim(note)) between 1 and 500),
+  constraint world_measure_review_revision_check check(measure_revision > 1),
+  unique(measure_id,measure_revision)
+);
+create index world_measure_procedural_reviews_history_idx
+  on public.world_measure_procedural_reviews(measure_id,measure_revision desc);
+
+create or replace function public.world_measure_review_history_immutable_v1()
+returns trigger language plpgsql set search_path=pg_catalog
+as $review_history_immutable$
+begin
+  raise exception using errcode='23514',message='IMMUTABLE_MEASURE_REVIEW';
+end
+$review_history_immutable$;
+create trigger world_measure_review_history_immutable
+before update or delete on public.world_measure_procedural_reviews
+for each row execute function public.world_measure_review_history_immutable_v1();
+
 -- The current version must belong to the SAME measure, even for privileged
 -- scripts. Forward FK is added after both canonical tables exist.
 alter table public.world_measures
@@ -183,8 +214,10 @@ for each row execute function public.world_measure_version_immutable_v1();
 alter table public.world_measures enable row level security;
 alter table public.world_measure_versions enable row level security;
 alter table public.world_measure_categories enable row level security;
+alter table public.world_measure_procedural_reviews enable row level security;
 revoke all on public.world_measures,public.world_measure_versions,
-  public.world_measure_categories from public,anon,authenticated,service_role;
+  public.world_measure_categories,public.world_measure_procedural_reviews
+  from public,anon,authenticated,service_role;
 
 -- Public read surfaces are allowlisted projections, never table-wide SELECT.
 -- A record is public only after procedural registration AND publication.
@@ -278,7 +311,13 @@ begin
      'summary',v.summary,'publicationState',v.publication_state,
      'createdAt',v.created_at
    ) order by v.version_number desc)
-   from public.world_measure_versions v where v.measure_id=v_measure.id),'[]'::jsonb));
+   from public.world_measure_versions v where v.measure_id=v_measure.id),'[]'::jsonb),
+   'reviews',coalesce((select jsonb_agg(jsonb_build_object(
+     'action',r.action,'note',r.note,
+     'revision',r.measure_revision,'createdAt',r.created_at
+   ) order by r.measure_revision)
+   from public.world_measure_procedural_reviews r
+   where r.measure_id=v_measure.id),'[]'::jsonb));
 end
 $measure_manage$;
 
@@ -453,6 +492,11 @@ begin
    procedural_note=case when p_target_state='needs_correction' then btrim(p_procedural_note) else null end,
    revision=revision+1,updated_at=now()
  where id=p_measure_id;
+ insert into public.world_measure_procedural_reviews(
+   measure_id,action,note,reviewer_user_id,measure_revision
+ ) values(p_measure_id,p_target_state,
+   case when p_target_state='needs_correction' then btrim(p_procedural_note) else null end,
+   auth.uid(),v_measure.revision+1);
  perform private.v3_emit_domain_event(
    case p_target_state when 'registered' then 'world.measure.registered'
      when 'needs_correction' then 'world.measure.correction_requested'
@@ -540,7 +584,8 @@ begin
 end
 $measure_resubmit$;
 
-revoke all on function public.world_measure_identity_guard_v1(),
+revoke all on function public.world_measure_review_history_immutable_v1(),
+  public.world_measure_identity_guard_v1(),
   public.world_measure_version_immutable_v1(),
   public.world_measure_public_list_v1(text,integer),
   public.world_measure_public_detail_v1(uuid),
@@ -570,4 +615,5 @@ $contract$;
 
 notify pgrst,'reload schema';
 commit;
+
 
