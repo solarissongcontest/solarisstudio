@@ -39,10 +39,10 @@ describe("Terra Solaris TG3 discovery rollout", () => {
 
   it("persists a dark-by-default boolean rollout while retaining historical flag keys", () => {
     const source = file("supabase/migrations/20261104121000_v3_tg3_world_public_rollout_flag.sql");
-    expect(source).toContain("add constraint studio2_feature_flags_key_check check");
-    expect(source).toContain("'terra_world_public'");
-    expect(source).toContain("'solaris_app_v3_live'");
-    expect(source).toContain("'solaris_app_v3_organizer'");
+    expect(source).toContain("pg_catalog.pg_get_expr(");
+    expect(source).toContain("if v_predicate is null then");
+    expect(source).toContain("pg_catalog.strpos(v_predicate, 'terra_world_public')");
+    expect(source).toContain("add constraint studio2_feature_flags_key_check check ((%s) or key = %L)");
     expect(source).toContain("('terra_world_public', false, false");
     expect(source).toContain("on conflict (key) do nothing");
   });
