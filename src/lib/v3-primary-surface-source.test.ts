@@ -138,6 +138,23 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
     ).toThrow(/Anonymous V3 bootstrap cannot contain participant-scoped evidence/);
   });
 
+  it("fails closed on anonymous Home progress even without participant tasks", () => {
+    expect(() =>
+      assembleV3PrimarySurfaceSnapshot({
+        ...base(),
+        progressByActionId: {
+          "confirmation:private": { current: 2, total: 3, label: "Private submission" },
+        },
+      }),
+    ).toThrow(/Anonymous V3 bootstrap cannot contain participant-scoped evidence/);
+
+    const anonymous = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      progressByActionId: {},
+    });
+    expect(anonymous.primarySurfaces.progressByActionId).toEqual({});
+  });
+
   it("derives signed-in confirmation work using the captured server time", () => {
     const requirement: CountryConfirmationRequirement = {
       id: "requirement-1",
