@@ -240,7 +240,8 @@ export function comparePublicWorldVersions(
     if (!left) kind = "added";
     else if (!right) kind = "removed";
     else if (left.text !== right.text || left.title !== right.title || left.label !== right.label ||
-             left.status !== right.status || left.parentKey !== right.parentKey) kind = "modified";
+             left.status !== right.status || left.parentKey !== right.parentKey ||
+             left.sortOrder !== right.sortOrder) kind = "modified";
     else kind = "unchanged";
     return { key, kind, before: left, after: right };
   });
