@@ -1,5 +1,7 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -10,6 +12,8 @@ const migration = readFileSync(
   ),
   "utf8",
 );
+
+const rehearsalRunner = resolve(process.cwd(), "scripts/rehearse-v3-public-voting-dna-publication.sh");
 
 const rehearsal = readFileSync(
   resolve(
@@ -110,9 +114,8 @@ describe("V3 Public Voting DNA System publication boundary", () => {
   });
 
   it("rehearses the real caller boundary on local Supabase and fails closed against hosted endpoints", () => {
-    expect(rehearsal).toContain(
-      'http://127.0.0.1:*|http://localhost:*) ;;',
-    );
+    expect(rehearsal).toContain("local_api_pattern='^http://");
+    expect(rehearsal).toContain("local_db_pattern='^postgres");
     expect(rehearsal).toContain("Refusing hosted Supabase rehearsal");
     expect(rehearsal).toContain("Refusing non-local database rehearsal");
     expect(rehearsal).toContain("for role in anon authenticated; do");
@@ -134,4 +137,53 @@ describe("V3 Public Voting DNA System publication boundary", () => {
       "Hiding generic Results must remove both bounded and raw Result evidence even if split flags remain true",
     );
   });
+  it.each([
+    ["http://localhost:54321", "postgresql://postgres:postgres@hosted.invalid:54322/postgres"],
+    ["http://localhost:54321", "postgresql://postgres:postgres@localhost:54322@hosted.invalid/postgres"],
+    ["http://localhost:54321", "postgresql://postgres:postgres@127.0.0.1:54322/postgres?host=hosted.invalid"],
+    ["http://localhost:54321", "postgresql://postgres:postgres@localhost:54322/otherdb"],
+    ["http://localhost:54321@hosted.invalid", "postgresql://postgres:postgres@localhost:54322/postgres"],
+    ["https://localhost:54321", "postgresql://postgres:postgres@localhost:54322/postgres"],
+  ])("rejects deceptive or hosted rehearsal routing before any SQL: %s, %s", (apiUrl, databaseUrl) => {
+    const root = mkdtempSync(join(tmpdir(), "solaris-voting-dna-isolation-"));
+    try {
+      writeFileSync(join(root, "supabase"),
+        `#!/bin/sh\nprintf '%s\\n' 'API_URL=${apiUrl}' 'DB_URL=${databaseUrl}'\n`,
+        { mode: 0o755 });
+      writeFileSync(join(root, "psql"), "#!/bin/sh\\necho MOCK_PSQL_STARTED >&2\\nexit 9\\n".replaceAll("\\n", "\n"), { mode: 0o755 });
+      const result = spawnSync("bash", [rehearsalRunner], {
+        env: { ...process.env, PATH: `${root}:${process.env.PATH}` },
+        encoding: "utf8",
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Refusing");
+      expect(result.stderr).not.toContain("MOCK_PSQL_STARTED");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ["http://127.0.0.1:54321", "postgresql://postgres:postgres@127.0.0.1:54322/postgres"],
+    ["http://localhost:54321", "postgres://postgres:postgres@localhost:54322/postgres"],
+  ])("accepts precisely local routing and reaches the isolated SQL client: %s, %s", (apiUrl, databaseUrl) => {
+    const root = mkdtempSync(join(tmpdir(), "solaris-voting-dna-local-"));
+    try {
+      writeFileSync(join(root, "supabase"),
+        `#!/bin/sh\nprintf '%s\\n' 'API_URL=${apiUrl}' 'DB_URL=${databaseUrl}'\n`,
+        { mode: 0o755 });
+      writeFileSync(join(root, "psql"), "#!/bin/sh\\necho MOCK_PSQL_STARTED >&2\\nexit 9\\n".replaceAll("\\n", "\n"), { mode: 0o755 });
+      const result = spawnSync("bash", [rehearsalRunner], {
+        env: { ...process.env, PATH: `${root}:${process.env.PATH}` },
+        encoding: "utf8",
+      });
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("MOCK_PSQL_STARTED");
+      expect(result.stderr).not.toContain("Refusing hosted Supabase rehearsal");
+      expect(result.stderr).not.toContain("Refusing non-local database rehearsal");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
 });
