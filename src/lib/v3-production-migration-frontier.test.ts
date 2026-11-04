@@ -89,6 +89,8 @@ describe("V3 hosted production migration frontier", () => {
     expect(operator).toContain('elif [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then');
     expect(operator).toContain("unapplied post-bootstrap migration");
     expect(operator).toContain("hosted-only post-bootstrap migration");
+    expect(operator).toContain("The newest hosted migration may be absent from the repository.");
+    expect(operator).toContain("if (remote_version ~ /^[0-9]{14}$/) {");
     expect(operator).not.toContain('if [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then\\n    mapfile -t matches');
   });
 
