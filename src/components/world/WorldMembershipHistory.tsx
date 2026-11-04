@@ -13,6 +13,10 @@ import {
   membershipLabel,
 } from "@/lib/world-membership-history";
 
+// World index and organization detail are owned by the independent TG3 Public
+// route PR. Their generated TanStack route types are unavailable on this
+// intentionally #1888-only base. Preserve client navigation without copying
+// the upstream route tree or inventing a competing World directory.
 const actionClass =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:border-primary/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
@@ -59,7 +63,7 @@ export function WorldMembershipHistoryScreen({ slug, code }: { slug: string; cod
     return (
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <h1 className="text-2xl font-bold">Invalid membership link</h1>
-        <Link to="/world" className={actionClass + " mt-5"}>Browse Terra Solaris</Link>
+        <Link to={"/world" as any} className={actionClass + " mt-5"}>Browse Terra Solaris</Link>
       </div>
     );
   }
@@ -102,7 +106,7 @@ export function WorldMembershipHistoryScreen({ slug, code }: { slug: string; cod
         <p className="mt-2 text-sm text-muted-foreground">
           The organization does not exist or is not public. No private relationship is disclosed.
         </p>
-        <Link to="/world" className={actionClass + " mt-4"}>Browse organizations</Link>
+        <Link to={"/world" as any} className={actionClass + " mt-4"}>Browse organizations</Link>
       </div>
     );
   }
@@ -114,9 +118,9 @@ export function WorldMembershipHistoryScreen({ slug, code }: { slug: string; cod
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pb-14 pt-4 sm:px-6">
       <nav aria-label="Breadcrumb" className="mb-7 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-        <Link to="/world" className="hover:text-foreground">Terra Solaris</Link>
+        <Link to={"/world" as any} className="hover:text-foreground">Terra Solaris</Link>
         <ChevronRight className="size-3" aria-hidden="true" />
-        <Link to="/world/organizations/$slug" params={{ slug }} className="hover:text-foreground">
+        <Link to={"/world/organizations/$slug" as any} params={{ slug }} className="hover:text-foreground">
           {state.organizationName}
         </Link>
         <ChevronRight className="size-3" aria-hidden="true" />
@@ -258,7 +262,7 @@ export function WorldMembershipHistoryScreen({ slug, code }: { slug: string; cod
           </section>
 
           <div className="flex flex-wrap gap-3">
-            <Link to="/world/organizations/$slug" params={{ slug }} className={actionClass}>
+            <Link to={"/world/organizations/$slug" as any} params={{ slug }} className={actionClass}>
               <ArrowLeft className="size-4" aria-hidden="true" /> Back to {state.organizationName}
             </Link>
             <Link to="/countries/$code" params={{ code: country.data.code }} className={actionClass}>
