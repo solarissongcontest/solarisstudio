@@ -70,6 +70,11 @@ export function enforceTelevotingRateLimit(
     // The active calling contract owns this key's window.
     bucket.windowMs = opts.windowMs;
     trimExpired(bucket, now);
+    // A shorter window may expire earlier even if this attempt is denied.
+    // Keep the capacity fast path's expiry bound valid before returning.
+    if (bucket.hits.length > 0) {
+      earliestExpiryAt = Math.min(earliestExpiryAt, bucket.hits[0] + bucket.windowMs);
+    }
   }
 
   if (bucket.hits.length >= opts.limit) {

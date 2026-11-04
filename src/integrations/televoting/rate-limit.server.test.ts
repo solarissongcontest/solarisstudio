@@ -121,6 +121,22 @@ describe("televoting server rate limiter resource safety", () => {
     expect(() => enforce("vote:active-0", options)).toThrow(/too many attempts/i);
   });
 
+  it("reclaims a shortened window even when the configuration change denied an attempt", async () => {
+    const enforce = await freshLimiter();
+    const original = { limit: 1, windowMs: 60_000 };
+    for (let i = 0; i < 5000; i += 1) enforce(`vote:client-${i}`, original);
+
+    vi.advanceTimersByTime(10_000);
+    const shortened = { limit: 1, windowMs: 15_000 };
+    expect(() => enforce("vote:client-0", shortened)).toThrow(/too many attempts/i);
+    vi.advanceTimersByTime(4_999);
+    expect(() => enforce("vote:new-client", original)).toThrow(/too many attempts/i);
+    vi.advanceTimersByTime(1);
+
+    expect(() => enforce("vote:new-client", original)).not.toThrow();
+    expect(() => enforce("vote:client-1", original)).toThrow(/too many attempts/i);
+  });
+
   const invalidCases: Array<[string, string, { limit: number; windowMs: number }]> = [
     ["missing identity", "", { limit: 1, windowMs: 1_000 }],
     ["oversized identity", "x".repeat(257), { limit: 1, windowMs: 1_000 }],
