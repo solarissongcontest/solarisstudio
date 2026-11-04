@@ -27,7 +27,9 @@ describe("V3 Organizer Confirmation line-up sync review", () => {
   });
 
   it("re-reads both Confirmation responses and Solaris targets before applying", () => {
-    expect(route).toContain('confirmationsSupabase.rpc("admin_confirmation_responses")');
+    expect(route).toContain("loadAllConfirmationResponsesForEdition<ResponseRow>(review.editionId)");
+    expect(route).toContain("currentBatch.stateVersion !== review.responseStateVersion");
+    expect(route).not.toContain('confirmationsSupabase.rpc("admin_confirmation_responses")');
     expect(route).toContain("const liveResponseIds = liveRows.map((row) => row.id).sort()");
     expect(route).toContain("const liveTargets = await getTargets");
     expect(route).toContain("const liveShow = liveTargets.shows.find((show) => show.id === review.showId)");
