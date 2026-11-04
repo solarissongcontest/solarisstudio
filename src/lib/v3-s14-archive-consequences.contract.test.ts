@@ -215,19 +215,10 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(rehearsal).toContain("'edition.transition'");
     expect(rehearsal).toContain("'edition.archive'");
     expect(workflow).toContain('supabase db reset --local --no-seed');
-    for (const migrationName of [
-      '20261019112100_v3_s14_archive_consequence_reconciliation.sql',
-      '20261019112200_v3_s14_final_results_readiness_hardening.sql',
-      '20261019112300_v3_s14_transition_http409.sql',
-      '20261019112400_v3_s14_archive_task_registry_alignment.sql',
-      '20261019112500_v3_s14_resolved_task_notification_invariant.sql',
-      '20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql',
-      '20261020130000_v3_s14_archive_invariant_forward_fixes.sql',
-    ]) {
-      expect(workflow).toContain(migrationName);
-    }
-    expect(workflow).toContain('for migration in');
-    expect(workflow).toContain('"$GITHUB_WORKSPACE/supabase/migrations/$migration"');
+    const deltaCopy = workflow.indexOf('v3-copy-migration-delta.sh');
+    expect(deltaCopy).toBeGreaterThanOrEqual(0);
+    expect(workflow.indexOf('supabase migration up --local --include-all', deltaCopy)).toBeGreaterThan(deltaCopy);
+    expect(workflow).toContain('"$GITHUB_WORKSPACE" /tmp/solaris-s14-main');
     expect(workflow).toContain('supabase migration up --local --include-all');
     expect(workflow).not.toContain('rsync');
     expect(workflow).toContain('.github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh');

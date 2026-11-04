@@ -140,12 +140,12 @@ describe("System V3 S14 published Televote result truth", () => {
   });
 
   it("replays every result-truth migration after the foundation in current-main upgrade proof", () => {
-    const foundationCopy = upgradeWorkflow.indexOf("20261017001000_v3_s14_televote_result_truth.sql");
-    const guardCopy = upgradeWorkflow.indexOf("20261017001010_v3_s14_televote_projection_guard_hardening.sql");
-    const replayCopy = upgradeWorkflow.indexOf("20261017001020_v3_s14_televote_projection_replay_hardening.sql");
-    expect(foundationCopy).toBeGreaterThanOrEqual(0);
-    expect(guardCopy).toBeGreaterThan(foundationCopy);
-    expect(replayCopy).toBeGreaterThan(guardCopy);
+    const deltaCopy = upgradeWorkflow.indexOf("v3-copy-migration-delta.sh");
+    const apply = upgradeWorkflow.indexOf("supabase migration up --local --include-all", deltaCopy);
+    expect(deltaCopy).toBeGreaterThanOrEqual(0);
+    expect(apply).toBeGreaterThan(deltaCopy);
+    expect(upgradeWorkflow).toContain('"$GITHUB_WORKSPACE" /tmp/solaris-s14-tv-truth-main');
+    expect(upgradeWorkflow).toContain("v3-televote-public-rls-rehearsal.sh");
     expect(upgradeWorkflow).toContain("v3-s14-televote-result-truth-replay-hardening-rehearsal.sh");
   });
 
