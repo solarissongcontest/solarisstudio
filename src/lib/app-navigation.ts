@@ -116,6 +116,24 @@ export function appTabForPath(pathname: string): AppTabId | null {
   return appTabForLocation(pathname);
 }
 
+/**
+ * Tab memory is not a workflow-resume authority. Focused contest tasks and
+ * immersive screens have their own canonical recovery path and must never
+ * become the automatic destination of a primary tab or restored cold launch.
+ */
+function memorySafeAppTab(pathname: string, searchStr = ""): AppTabId | null {
+  if (!safePath(pathname)) return null;
+  const screen = resolveSolarisAppScreen(pathname, searchStr);
+  if (
+    screen.behavior.criticalTask ||
+    screen.behavior.immersive ||
+    screen.chrome.tabbar !== "full"
+  ) {
+    return null;
+  }
+  return screen.hierarchy.rootTab;
+}
+
 export function appEntryHref(entry: Pick<AppHistoryEntry, "pathname" | "searchStr">) {
   return `${entry.pathname}${normalizeSearch(entry.searchStr)}`;
 }
@@ -146,10 +164,10 @@ export function readAppNavigationState(
       const history = (Array.isArray(candidate.history) ? candidate.history : [])
         .map(sanitizeEntry)
         .filter((entry): entry is AppHistoryEntry => Boolean(entry))
-        .filter((entry) => appTabForLocation(entry.pathname, entry.searchStr) === tab)
+        .filter((entry) => memorySafeAppTab(entry.pathname, entry.searchStr) === tab)
         .slice(-MAX_HISTORY_PER_TAB);
       const current = sanitizeEntry(candidate.current) ?? history.at(-1) ?? null;
-      if (!current || appTabForLocation(current.pathname, current.searchStr) !== tab) continue;
+      if (!current || memorySafeAppTab(current.pathname, current.searchStr) !== tab) continue;
       tabs[tab] = {
         current,
         history: history.length ? history : [current],
@@ -180,8 +198,8 @@ export function rememberAppLocation(
   storage: Storage | null = browserStorage(),
   launchStorage: Storage | null = browserSessionStorage(),
 ) {
-  if (!storage || !safePath(pathname) || hasPendingAppLaunchTransaction(launchStorage)) return;
-  const tab = appTabForLocation(pathname, searchStr);
+  if (!storage || hasPendingAppLaunchTransaction(launchStorage)) return;
+  const tab = memorySafeAppTab(pathname, searchStr);
   if (!tab) return;
 
   const state = readAppNavigationState(storage);
@@ -245,7 +263,7 @@ export function updateAppScrollPosition(
 }
 
 function destinationAllowedForSession(entry: AppHistoryEntry, tab: AppTabId, signedIn: boolean) {
-  if (appTabForLocation(entry.pathname, entry.searchStr) !== tab) return false;
+  if (memorySafeAppTab(entry.pathname, entry.searchStr) !== tab) return false;
   if (tab !== "me") return true;
   if (signedIn) return !/^\/(auth|reset|recover)(\/|$)/.test(entry.pathname);
   return !/^\/my-solaris(\/|$)/.test(entry.pathname);

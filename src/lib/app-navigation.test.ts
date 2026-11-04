@@ -167,6 +167,51 @@ describe("installed app navigation state", () => {
     });
   });
 
+  it("never remembers critical or immersive screens as primary-tab destinations", () => {
+    const storage = new MemoryStorage();
+    rememberAppLocation("/participate", "", 0, storage);
+    rememberAppLocation("/televoting", "", 940, storage);
+    rememberAppLocation("/jury-voting", "", 620, storage);
+    rememberAppLocation("/confirmations", "", 430, storage);
+    rememberAppLocation("/broadcast", "", 250, storage);
+
+    expect(getAppTabDestination("participate", true, storage)).toMatchObject({
+      pathname: "/participate",
+      scrollY: 0,
+    });
+    expect(getAppTabDestination("home", true, storage).pathname).toBe("/");
+    // Critical workflow navigation still resolves its semantic tab for proper
+    // direct links, but must not change primary tab memory.
+    expect(appTabForLocation("/televoting")).toBe("participate");
+  });
+
+  it("purges persisted critical screen destinations on read", () => {
+    const storage = new MemoryStorage();
+    const critical = {
+      pathname: "/televoting",
+      searchStr: "",
+      scrollY: 700,
+      visitedAt: new Date().toISOString(),
+    };
+    storage.setItem(
+      APP_NAVIGATION_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        activeTab: "participate",
+        tabs: {
+          participate: {
+            current: critical,
+            history: [critical],
+          },
+        },
+      }),
+    );
+    expect(readAppNavigationState(storage).tabs.participate).toBeUndefined();
+    expect(getAppTabDestination("participate", true, storage).pathname).toBe(
+      "/participate",
+    );
+  });
+
   it("falls back to the tab root instead of cold-launching a critical submission flow", () => {
     const storage = new MemoryStorage();
     rememberAppLocation("/participate", "", 0, storage);
