@@ -10,6 +10,7 @@ import {
   getWorldDocumentDetail,
   getWorldDocumentIndex,
   normalizeWorldSearch,
+  publicWorldDocumentOutline,
   type WorldDocumentLimit,
   type WorldDocumentIndexRow,
   type WorldDocumentProvision,
@@ -267,7 +268,7 @@ export function WorldDocumentReaderScreen({
   });
   const detail = query.data;
   const currentVersion = detail?.history.find((item) => item.publicationState === "published");
-  const anchors = detail?.version.provisions.filter((item) => item.heading || item.displayLabel) ?? [];
+  const anchors = publicWorldDocumentOutline(detail?.version.provisions ?? []);
   const textMatches = documentSearch.trim()
     ? (detail?.version.provisions ?? []).flatMap((item) => {
         const term = documentSearch.trim().toLocaleLowerCase();
