@@ -209,6 +209,12 @@ describe("V3 Public Voting DNA System publication boundary", () => {
     expect(rehearsal).toContain("for role in anon authenticated; do");
     expect(rehearsal).toContain("set local role ${role};");
     expect(rehearsal).toContain("Voting DNA projection must remain SECURITY DEFINER");
+    expect(rehearsal).toContain("Legacy Voting DNA must stay SECURITY INVOKER");
+    expect(rehearsal).toContain("legacy Voting DNA leaks split result scores");
+    expect(rehearsal).toContain("legacy Voting DNA leaks Televote points");
+    expect(rehearsal).toContain("legacy Jury compatibility did not return");
+    expect(rehearsal).toContain("legacy Televote compatibility did not return");
+    expect(rehearsal).toContain("legacy Voting DNA retained Result rows after generic Results were hidden");
     expect(rehearsal).toContain("search_path is not fixed to empty");
     expect(rehearsal).toContain(
       "can bypass the projection through raw public.results while split layers are hidden",
