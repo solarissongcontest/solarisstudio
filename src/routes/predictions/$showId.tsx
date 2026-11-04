@@ -16,6 +16,7 @@ import {
 } from "@/lib/prediction-data";
 import type { PredictionItem, PredictionType } from "@/lib/predictions";
 import { formatEventDateTime } from "@/lib/public-time";
+import { predictionReadStatus } from "@/lib/public-prediction-read-status";
 
 export const Route = createFileRoute("/predictions/$showId")({
   head: () => ({
@@ -30,13 +31,21 @@ function PredictionBuilderPage() {
   const { data: participants } = useShowParticipants(showId);
   const { data: countries } = useCountries();
   const { data: entities } = useContestEntities(show?.edition_id);
-  const { data: roundData, isLoading } = usePredictionRounds(showId);
-  const { data: user } = useFanSession();
+  const roundsQuery = usePredictionRounds(showId);
+  const { data: roundData } = roundsQuery;
+  const sessionQuery = useFanSession();
+  const { data: user } = sessionQuery;
 
   const round = roundData?.rounds[0] ?? null;
-  const { data: savedPrediction } = useMyPrediction(round?.id, user?.id);
+  const savedPredictionQuery = useMyPrediction(round?.id, user?.id);
+  const { data: savedPrediction } = savedPredictionQuery;
   const submitPrediction = useSubmitPrediction(round?.id);
   const enableShare = useEnablePredictionShare();
+  const readStatus = predictionReadStatus(
+    roundsQuery,
+    round ? sessionQuery : undefined,
+    round && user ? savedPredictionQuery : undefined,
+  );
 
   const [winner, setWinner] = useState("");
   const [juryWinner, setJuryWinner] = useState("");
@@ -210,10 +219,51 @@ function PredictionBuilderPage() {
     }
   };
 
-  if (isLoading) {
+  if (readStatus === "loading") {
     return (
       <AppShell>
-        <p className="text-sm text-muted-foreground">Loading prediction round…</p>
+        <p role="status" className="text-sm text-muted-foreground">
+          Checking the prediction round and your saved entry…
+        </p>
+      </AppShell>
+    );
+  }
+
+  if (readStatus === "error") {
+    return (
+      <AppShell>
+        <PredictionWorkspaceHeader
+          active="arena"
+          title="Prediction Arena"
+          description="Submission is paused until Solaris can verify your prediction status."
+        />
+        <Panel title="Prediction status could not be verified">
+          <p role="alert" className="text-sm leading-relaxed text-muted-foreground">
+            The published round, your account session or your existing prediction could not
+            be checked. Your selections remain on this page. Retry verification before submitting
+            or editing a saved prediction.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (roundsQuery.isError) void roundsQuery.refetch();
+              if (sessionQuery.isError) void sessionQuery.refetch();
+              if (round && user && savedPredictionQuery.isError) {
+                void savedPredictionQuery.refetch();
+              }
+            }}
+            disabled={
+              roundsQuery.isFetching ||
+              sessionQuery.isFetching ||
+              savedPredictionQuery.isFetching
+            }
+            className="mt-3 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold text-foreground disabled:opacity-50"
+          >
+            {roundsQuery.isFetching || sessionQuery.isFetching || savedPredictionQuery.isFetching
+              ? "Retrying…"
+              : "Retry prediction status"}
+          </button>
+        </Panel>
       </AppShell>
     );
   }
