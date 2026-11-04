@@ -123,7 +123,7 @@ describe("V3 Results reviewed-input CAS", () => {
     expect(runner).toContain("exception when sqlstate 'PT409'");
     expect(runner).toContain("STALE_REVIEWED_INPUT_WAS_ACCEPTED");
     expect(runner).toContain("STALE_REVIEW_EXECUTED_MUTATION");
-    expect(runner).toContain("ST ALE".replace(" ", ""));
+    expect(runner).toContain("STALE_REVIEW_REJECTION_CHANGED_AUTHORITY");
     expect(runner).toContain("rollback;");
   });
 
