@@ -25,6 +25,7 @@ declare
   v_public_rep uuid := gen_random_uuid();
   v_private_rep uuid := gen_random_uuid();
   v_other_rep uuid := gen_random_uuid();
+  v_delegation_grant uuid := gen_random_uuid();
   v_grant uuid := gen_random_uuid();
   v_public_slug text := 'tg2-identity-privacy-fixture-public-' || replace(gen_random_uuid()::text, '-', '');
   v_private_slug text := 'tg2-identity-privacy-fixture-private-' || replace(gen_random_uuid()::text, '-', '');
@@ -55,6 +56,19 @@ begin
   values
     (v_country, 'TG2 Privacy Country', 'ZZP'),
     (v_other_country, 'TG2 Other Country', 'ZZQ');
+
+  -- TG1 durable identity rows are public only through their safe projection;
+  -- raw user_id linkage must not leak via generic delegation.read.
+  insert into public.world_country_control_terms
+    (country_id, person_id, user_id, source)
+  values
+    (v_country, v_person, v_self, 'tg1_identity_privacy_fixture'),
+    (v_other_country, v_other_person, v_other, 'tg1_identity_privacy_fixture');
+
+  -- Regression actor has an explicit delegation.read grant, previously
+  -- sufficient for the broad TG1 history policy.
+  insert into public.studio2_capability_grants (id, user_id, capability, edition_id)
+  values (v_delegation_grant, v_outsider, 'delegation.read', null);
 
   insert into public.world_organizations
     (id, slug, official_name, short_name, type, status, public_visibility)
@@ -119,6 +133,20 @@ begin
   if current_user <> 'anon' or auth.uid() is not null then
     raise exception 'TG2_IDENTITY_PRIVACY_ANON_ROLE_NOT_ACTIVE';
   end if;
+  begin
+    perform user_id from public.world_country_control_terms;
+    raise exception 'TG1_CONTROLLER_LINK_ANON_RAW_SELECT_ALLOWED';
+  exception when insufficient_privilege then
+    null;
+  end;
+  if not exists (
+    select 1 from public.world_country_identity_v1((v ->> 'countryId')::uuid)
+    where controller_person_id = (v ->> 'personId')::uuid
+      and controller_display_name = 'TG2 Privacy Holder'
+  ) then
+    raise exception 'TG1_CONTROLLER_LINK_PUBLIC_PERSON_IDENTITY_LOST';
+  end if;
+
   begin
     perform user_id from public.world_organization_representations;
     raise exception 'TG2_IDENTITY_PRIVACY_ANON_REP_RAW_SELECT_ALLOWED';
@@ -185,6 +213,13 @@ begin
   ) then
     raise exception 'TG2_IDENTITY_PRIVACY_UNRELATED_AUTHENTICATED_LINK_LEAK';
   end if;
+  if exists (
+    select user_id from public.world_country_control_terms
+    where country_id = (v ->> 'countryId')::uuid
+  ) then
+    raise exception 'TG1_CONTROLLER_LINK_UNRELATED_LOGIN_LEAK';
+  end if;
+
   if public.world_organization_projection_v1(v ->> 'publicSlug') is null
      or public.world_organization_projection_v1(v ->> 'privateSlug') is not null then
     raise exception 'TG2_IDENTITY_PRIVACY_OUTSIDER_PROJECTION_BOUNDARY';
@@ -199,6 +234,17 @@ declare
 begin
   perform set_config('request.jwt.claim.sub', v ->> 'selfUserId', true);
   perform set_config('request.jwt.claims', jsonb_build_object('sub', v ->> 'selfUserId', 'role', 'authenticated')::text, true);
+  if not exists (
+    select 1 from public.world_country_control_terms
+    where country_id = (v ->> 'countryId')::uuid
+      and user_id = auth.uid()
+  ) or exists (
+    select 1 from public.world_country_control_terms
+    where country_id <> (v ->> 'countryId')::uuid
+  ) then
+    raise exception 'TG1_CONTROLLER_LINK_SELF_READ_LOST';
+  end if;
+
   if (select count(*) from public.world_organization_representations
       where id in ((v ->> 'publicRepId')::uuid, (v ->> 'privateRepId')::uuid)
         and user_id = auth.uid()) <> 2
@@ -227,6 +273,14 @@ begin
   if public.studio2_access_allowed('system.manage', null, false) then
     raise exception 'TG2_IDENTITY_PRIVACY_MANAGER_MUST_USE_EXPLICIT_SCOPE';
   end if;
+  -- A private organization scope is not platform-wide login linkage access.
+  if exists (
+    select user_id from public.world_country_control_terms
+    where country_id = (v ->> 'countryId')::uuid
+  ) then
+    raise exception 'TG1_CONTROLLER_LINK_MANAGER_WORLD_SCOPE_BYPASS';
+  end if;
+
   if (select count(user_id) from public.world_organization_representations
       where id in ((v ->> 'publicRepId')::uuid, (v ->> 'privateRepId')::uuid)) <> 2
      or (select count(holder_user_id) from public.world_office_terms
