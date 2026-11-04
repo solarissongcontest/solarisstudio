@@ -257,12 +257,9 @@ async function main() {
     fail(`stored converted total ${storedTotal} does not equal ${converted.totalPoints}`);
   }
 
-  const { error: publishUpdateError } = await tv
-    .from("rounds")
-    .update({ results_status: "published" })
-    .eq("id", roundId);
-  if (publishUpdateError) fail(publishUpdateError.message);
-
+  // Preflight the *persisted* rows against the exact show, not just the
+  // in-memory conversion. This is an independent check before publication
+  // triggers the server-authoritative canonical projection.
   const { data: show, error: showError } = await db
     .from("shows")
     .select("id,edition_id")
@@ -271,48 +268,73 @@ async function main() {
   if (showError) fail(showError.message);
   if (!show || show.edition_id !== editionId) fail(`show ${showId} is not in edition ${editionId}`);
 
+  const { data: binding, error: bindingError } = await db
+    .from("televoting_round_bindings")
+    .select("show_id,edition_id,source_mode")
+    .eq("remote_round_id", roundId)
+    .maybeSingle();
+  if (bindingError) fail(bindingError.message);
+  if (!binding || binding.show_id !== showId || binding.edition_id !== editionId || binding.source_mode !== "show") {
+    fail("Televoting round is not canonically bound to the intended Solaris show");
+  }
+
   const { data: showParticipants, error: showParticipantError } = await db
     .from("participants")
     .select("country_id,participation_status")
     .eq("show_id", showId);
   if (showParticipantError) fail(showParticipantError.message);
   const active = (showParticipants ?? []).filter((row) => !row.participation_status || row.participation_status === "confirmed");
+  if (!active.length || active.some((row) => !row.country_id)) fail("bound Solaris show has invalid active country identities");
   const countryIds = active.map((row) => String(row.country_id));
+  if (new Set(countryIds).size !== countryIds.length) fail("duplicate canonical country in bound Solaris show");
+
   const { data: countries, error: countryError } = await db
     .from("countries")
     .select("id,short_code")
     .in("id", countryIds);
   if (countryError) fail(countryError.message);
-  const countryByCode = new Map((countries ?? []).map((row) => [String(row.short_code).toUpperCase(), String(row.id)]));
+  const countryByCode = new Map((countries ?? []).map((row) => [String(row.short_code).trim().toUpperCase(), String(row.id)]));
   const expectedCodes = [...countryByCode.keys()].sort();
   const resultCodes = rows.map((row) => row.country_code).sort();
-  if (JSON.stringify(expectedCodes) !== JSON.stringify(resultCodes)) {
-    fail(`published Televote result does not exactly match show ${showId}`);
+  if (countryByCode.size !== countryIds.length || JSON.stringify(expectedCodes) !== JSON.stringify(resultCodes)) {
+    fail(`round/show lineup mismatch before publication: expected=${expectedCodes.length} converted=${resultCodes.length} missing=${expectedCodes.filter((code) => !resultCodes.includes(code)).slice(0,8).join(",")} extra=${resultCodes.filter((code) => !expectedCodes.includes(code)).slice(0,8).join(",")}`);
   }
 
-  const { count: existingVotes, error: existingVoteError } = await db
-    .from("televote_votes")
-    .select("id", { count: "exact", head: true })
-    .eq("show_id", showId);
-  if (existingVoteError) fail(existingVoteError.message);
-  if ((existingVotes ?? 0) !== 0) fail(`show ${showId} already has canonical Televote vote rows`);
+  const { data: persisted, error: persistedError } = await tv
+    .from("round_results")
+    .select("country_code,calculation_version,final_points")
+    .eq("round_id", roundId)
+    .eq("calculation_version", version);
+  if (persistedError) fail(persistedError.message);
+  const persistedCodes = (persisted ?? []).map((row) => String(row.country_code).trim().toUpperCase()).sort();
+  if (persistedCodes.length !== expectedCodes.length || JSON.stringify(persistedCodes) !== JSON.stringify(expectedCodes)) {
+    fail(`persisted Televote results do not match bound show: persisted=${persistedCodes.length} expected=${expectedCodes.length} missing=${expectedCodes.filter((code) => !persistedCodes.includes(code)).slice(0,8).join(",")}`);
+  }
 
-  const canonicalVotes = rows.map((row) => ({
-    edition_id: editionId,
-    show_id: showId,
-    country_id: countryByCode.get(row.country_code),
-    points: row.final_points,
-  }));
-  if (canonicalVotes.some((row) => !row.country_id)) fail(`could not resolve every Televote result country`);
-  const { error: canonicalInsertError } = await db.from("televote_votes").insert(canonicalVotes);
-  if (canonicalInsertError) fail(canonicalInsertError.message);
+  const { error: publishUpdateError } = await tv
+    .from("rounds")
+    .update({ results_status: "published" })
+    .eq("id", roundId);
+  if (publishUpdateError) {
+    fail(`server-authoritative Televote publication rejected: ${publishUpdateError.message}; persisted=${persistedCodes.length} active=${countryIds.length} matched=${persistedCodes.filter((code) => expectedCodes.includes(code)).length}`);
+  }
 
-  const { count: canonicalCount, error: canonicalCountError } = await db
+  // Publication is the canonical, trigger-authoritative source of
+  // public.televote_votes. The S14 adapter must NEVER insert those rows
+  // directly, even in a local rehearsal.
+  const { data: canonicalVotes, error: canonicalError } = await db
     .from("televote_votes")
-    .select("id", { count: "exact", head: true })
+    .select("country_id,contest_entity_id,points")
     .eq("show_id", showId);
-  if (canonicalCountError) fail(canonicalCountError.message);
-  if (canonicalCount !== rows.length) fail(`canonical Televote projection is incomplete for show ${showId}`);
+  if (canonicalError) fail(canonicalError.message);
+  const expectedPoints = new Map(rows.map((row) => [countryByCode.get(row.country_code), row.final_points]));
+  if ((canonicalVotes ?? []).length !== rows.length || canonicalVotes?.some((vote) =>
+    vote.contest_entity_id != null || !expectedPoints.has(String(vote.country_id)) ||
+    expectedPoints.get(String(vote.country_id)) !== vote.points
+  )) {
+    fail(`server-owned canonical Televote projection differs from published source: expected=${rows.length} actual=${canonicalVotes?.length ?? 0}`);
+  }
+  const canonicalCount = canonicalVotes?.length ?? 0;
 
   process.stdout.write(`${JSON.stringify({
     roundId,
