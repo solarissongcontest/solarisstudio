@@ -223,6 +223,9 @@ export const REFERENCE_TABLES = Object.freeze({
   editions: { key: ['id'], fields: ['artwork_storage_path','artwork_url','logo'], bucket: 'edition-artwork' },
   countries: { key: ['id'], fields: ['flag_image'], bucket: 'country-media' },
   country_edition_identities: { key: ['country_id','edition_id'], fields: ['flag_image'], bucket: 'country-media' },
+  country_profile_sections: { key: ['id'], fields: ['image_url'], bucket: 'country-media' },
+  contest_entities: { key: ['id'], fields: ['flag_image'], bucket: 'country-media' },
+  voters: { key: ['id'], fields: ['flag_image'], bucket: 'country-media' },
 });
 export function relatedObject(value, bucket, path) {
   if (typeof value !== 'string' || !value) return false;
