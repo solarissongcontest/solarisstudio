@@ -164,6 +164,20 @@ export async function fetchWorldDirectory(input: {
   return { organizations: parseWorldDirectoryRows(data), total: Math.max(0, count ?? 0) };
 }
 
+/**
+ * World landing only needs GUARD/UNITY, not the first page of every future
+ * organization. Its single targeted query remains RLS/public-visibility scoped.
+ */
+export async function fetchFeaturedWorldOrganizations(): Promise<WorldOrganization[]> {
+  const { data, error } = await (supabase as any).from("world_organizations")
+    .select("id,slug,official_name,short_name,type,description,status,public_visibility")
+    .eq("public_visibility", "public")
+    .in("slug", ["guard", "unity"])
+    .order("short_name", { ascending: true });
+  if (error) throw new Error("World institutions are temporarily unavailable.");
+  return parseWorldDirectoryRows(data);
+}
+
 export async function fetchWorldProjection(slug: string): Promise<WorldProjection | null> {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return null;
   const { data, error } = await (supabase as any).rpc("world_organization_projection_v1", {
