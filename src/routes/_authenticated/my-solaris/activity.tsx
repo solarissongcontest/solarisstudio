@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { MySolarisPersonalPage } from "@/components/mysolaris/MySolarisPersonalPage";
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3ParticipantActivityScreen } from "@/components/v3/V3ParticipantActivityScreen";
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/_authenticated/my-solaris/activity")({
 });
 
 function ActivityPage() {
+  const authenticatedUser = useAuthenticatedUser();
   const { isAppMode, platformResolved } = useSolarisApp();
   const rollout = useV3RolloutProbe(platformResolved && isAppMode);
 
@@ -33,11 +35,12 @@ function ActivityPage() {
     isAppMode &&
     !rollout.isError &&
     rollout.data?.enabled === true &&
-    rollout.data.meEnabled === true
+    rollout.data.meEnabled === true &&
+    rollout.data.userId === authenticatedUser.id
   ) {
     return (
       <V3AppShell editionLabel="Solaris Studio" phaseLabel="Activity" activeArea="me">
-        <V3ParticipantActivityScreen />
+        <V3ParticipantActivityScreen viewerId={rollout.data.userId} />
       </V3AppShell>
     );
   }
