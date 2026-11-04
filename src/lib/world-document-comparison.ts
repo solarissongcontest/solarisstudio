@@ -195,14 +195,14 @@ export function comparePublicWorldVersions(
   before: PublicWorldDocumentVersion,
   after: PublicWorldDocumentVersion,
 ): WorldProvisionDifference[] {
-  if (!before.provisions.length || !after.provisions.length) {
-    throw new Error("Published text is missing from one version; comparison unavailable");
-  }
   if (before.documentId !== after.documentId ||
       before.organizationSlug !== after.organizationSlug ||
       before.documentSlug !== after.documentSlug ||
       before.version.number >= after.version.number) {
     throw new Error("Comparison requires two chronological versions of the same document");
+  }
+  if (!before.provisions.length || !after.provisions.length) {
+    throw new Error("Published text is missing from one version; comparison unavailable");
   }
   const old = new Map(before.provisions.map((p) => [p.key, p]));
   const next = new Map(after.provisions.map((p) => [p.key, p]));
