@@ -127,7 +127,10 @@ export async function runMergedOfficialCalculationWithReadbackServer(
   try {
     const calculation = await runMergedOfficialCalculationServer(roundId);
     const state = await getMergedTelevoteConversionServer(roundId);
-    assertCommittedCalculationState(state, expectedVersion);
+    // Another organizer may have committed between our first read and the
+    // atomic command's own version snapshot. The successful command receipt
+    // owns the committed version, not the outer optimistic estimate.
+    assertCommittedCalculationState(state, calculation.version);
     return {
       version: calculation.version,
       distributedTotal: calculation.distributedTotal,
