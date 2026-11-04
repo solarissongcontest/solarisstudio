@@ -485,6 +485,60 @@ export type Database = {
     },
   ]
 }
+      televoting_round_bindings: {
+        Row: {
+          remote_round_id: string
+          remote_edition_id: string
+          edition_id: string
+          show_id: string | null
+          source_mode: string
+          last_synced_at: string | null
+          last_synced_revision: number
+          frozen_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          remote_round_id: string
+          remote_edition_id: string
+          edition_id: string
+          show_id?: string | null
+          source_mode?: string
+          last_synced_at?: string | null
+          last_synced_revision?: number
+          frozen_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          remote_round_id?: string
+          remote_edition_id?: string
+          edition_id?: string
+          show_id?: string | null
+          source_mode?: string
+          last_synced_at?: string | null
+          last_synced_revision?: number
+          frozen_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "televoting_round_bindings_edition_id_fkey"
+            columns: ["edition_id"]
+            isOneToOne: false
+            referencedRelation: "editions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "televoting_round_bindings_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       televote_votes: {
         Row: {
           contest_entity_id: string | null
