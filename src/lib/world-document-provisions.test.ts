@@ -113,6 +113,22 @@ describe("TG4 structured legal provision authoring", () => {
     expect(validateWorldDocumentProvisions(retained)).toBeNull();
     expect(toWorldProvisionCommandRows(retained)[0].status).toBe("repealed");
   });
+  it("treats a repeal or omission as a versioned change to the same legal identity", () => {
+    const original = [row()];
+    const amended = [row({ status: "repealed" })];
+    expect(validateWorldDocumentProvisions(amended)).toBeNull();
+    expect(toWorldProvisionCommandRows(amended)[0]).toMatchObject({
+      semanticKey: "membership.admission",
+      anchor: "membership-admission",
+      status: "repealed",
+    });
+    expect(compareWorldDocumentProvisions(original, amended)).toEqual({
+      added: [],
+      omitted: [],
+      modified: ["membership.admission"],
+    });
+  });
+
   it("shows added, omitted and modified stable keys in reviewed new-version changes", () => {
     const source = [
       row({ semanticKey: "preamble", anchor: "preamble" }),
