@@ -57,7 +57,8 @@ describe("TG2 public membership history data boundary", () => {
   it("uses only the public SECURITY DEFINER projection for institutional data", async () => {
     mock.rpc.mockResolvedValue({ data: exampleProjection, error: null });
     const result = await fetchWorldMembershipHistory("guard", "country-1");
-    expect(mock.rpc).toHaveBeenCalledExactlyOnceWith("world_organization_projection_v1", {
+    expect(mock.rpc).toHaveBeenCalledTimes(1);
+    expect(mock.rpc).toHaveBeenCalledWith("world_organization_projection_v1", {
       p_slug: "guard",
     });
     expect(mock.from).not.toHaveBeenCalled();
