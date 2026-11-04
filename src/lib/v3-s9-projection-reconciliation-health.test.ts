@@ -45,7 +45,11 @@ describe("System V3 S9 projection reconciliation health", () => {
     }
 
     expect(health.unresolved.every((item) => item.failureState.length > 0)).toBe(true);
-    expect(health.unresolved.every((item) => item.missing.length > 0)).toBe(true);
+    // S6 foundation projections may remain unresolved while awaiting their
+    // first governed repair path. Preserve parent #1389's explicit allowance.
+    expect(
+      health.unresolved.every((item) => item.missing.length > 0 || item.state === "foundation"),
+    ).toBe(true);
   });
 
   it("keeps unresolved entries deterministic and actionable", () => {
@@ -59,6 +63,7 @@ describe("System V3 S9 projection reconciliation health", () => {
       expect(item.missing.every((field) =>
         ["rebuildPath", "verificationPath", "boundedBy", "evidence", "lagMetric"].includes(field),
       )).toBe(true);
+      if (item.missing.length === 0) expect(item.state).toBe("foundation");
       if (item.missing.includes("lagMetric")) {
         expect(item.lagMetricState).toBe("missing");
         expect(item.lagMetricPath).toBeNull();

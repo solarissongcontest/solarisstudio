@@ -1,12 +1,14 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20261019211000_v3_s6_jury_readiness_reconciliation.sql",
+    "supabase/migrations/20261104163000_v3_s6_jury_readiness_reconciliation.sql",
   ),
   "utf8",
 );
@@ -148,6 +150,32 @@ describe("System V3 S6 Jury operational-readiness reconciliation", () => {
     expect(verify).not.toContain("sync_show_results_from_votes");
     expect(verify).not.toContain("materialize_show_results_if_missing");
     expect(migration).not.toMatch(/\b(update|insert into|delete from)\s+public\.results\b/i);
+  });
+
+  it.each([
+    ["http://127.0.0.1:54321", "postgresql://postgres:postgres@hosted.invalid:54322/postgres"],
+    ["http://localhost:54321", "postgresql://postgres:postgres@localhost:54322@hosted.invalid/postgres"],
+    ["http://localhost:54321", "postgresql://postgres:postgres@127.0.0.1:54322/postgres?host=hosted.invalid"],
+    ["http://localhost:54321", "postgresql://postgres:postgres@localhost:54322/otherdb"],
+    ["http://localhost:54321@hosted.invalid", "postgresql://postgres:postgres@localhost:54322/postgres"],
+    ["https://localhost:54321", "postgresql://postgres:postgres@localhost:54322/postgres"],
+  ])("refuses deceptive Jury rehearsal endpoints before psql: %s, %s", (apiUrl, databaseUrl) => {
+    const root = mkdtempSync(join(tmpdir(), "solaris-jury-rehearsal-"));
+    try {
+      writeFileSync(join(root, "supabase"),
+        `#!/bin/sh\nprintf '%s\\n' 'API_URL=${apiUrl}' 'DB_URL=${databaseUrl}'\n`,
+        { mode: 0o755 });
+      writeFileSync(join(root, "psql"), "#!/bin/sh\\necho MOCK_PSQL_STARTED >&2\\nexit 9\\n".replaceAll("\\n", "\n"), { mode: 0o755 });
+      const result = spawnSync("bash", [resolve(".github/scripts/v3-s6-jury-readiness-rehearsal.sh")], {
+        env: { ...process.env, PATH: `${root}:${process.env.PATH}` },
+        encoding: "utf8",
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Refusing");
+      expect(result.stderr).not.toContain("MOCK_PSQL_STARTED");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("ships local-only executable evidence for ACL, recomputation, verification and bounds", () => {

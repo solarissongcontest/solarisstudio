@@ -7,8 +7,12 @@ fail() { printf '\n[v3-s6-jury-readiness] FAIL: %s\n' "$*" >&2; exit 1; }
 eval "$(supabase status -o env)"
 : "${API_URL:?missing local Supabase API_URL}"
 : "${DB_URL:?missing local Supabase DB_URL}"
-case "$API_URL" in http://127.0.0.1:*|http://localhost:*) ;; *) fail "Refusing hosted Supabase rehearsal ($API_URL)" ;; esac
-case "$DB_URL" in postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;; *) fail "Refusing non-local database rehearsal" ;; esac
+# Never let wildcard URL matching authorize a hosted proxy, user-info trick
+# or libpq query host override; fail before invoking any local SQL fixture.
+local_api_pattern='^http://(127[.]0[.]0[.]1|localhost):[0-9]+$'
+local_db_pattern='^postgres(ql)?://postgres:postgres@(127[.]0[.]0[.]1|localhost):[0-9]+/postgres$'
+[[ "$API_URL" =~ $local_api_pattern ]] || fail "Refusing hosted Supabase rehearsal"
+[[ "$DB_URL" =~ $local_db_pattern ]] || fail "Refusing non-local database rehearsal"
 
 db_exec() { psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null; }
 db_value() { psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "$1"; }
