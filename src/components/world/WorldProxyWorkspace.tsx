@@ -4,7 +4,7 @@ import { CheckCircle2, ShieldCheck } from "lucide-react";
 
 import { useMyCountryAccount } from "@/lib/country-account";
 import {
-  decideWorldProxy, getMyProxyHistory, getProxyDirectory,
+  decideWorldProxy, getMyProxyHistory, getProxyCandidates, getProxyDirectory,
   getProxyReviewQueue, listProxyOrganizations, newProxyOperation,
   proxyWorldEnabled, requestWorldProxy, revokeWorldProxy,
   type WorldProxyItem,
@@ -65,6 +65,15 @@ export function WorldProxyWorkspace() {
     queryFn: () => getProxyDirectory(organization!.slug),
     enabled: Boolean(world.data && organization), retry: false, staleTime: 60_000,
   });
+  const representative = directory.data?.representatives.find((item) =>
+    item.countryId === countryId) ?? null;
+  const candidateRoster = useQuery({
+    queryKey: ["world", "proxies", "candidates", representative?.id, representative?.revision],
+    queryFn: () => getProxyCandidates(representative!.id, representative!.revision),
+    enabled: Boolean(world.data && countryId && representative),
+    retry: false,
+  });
+  const candidates = candidateRoster.data ?? [];
   const history = useQuery({
     queryKey: ["world", "proxies", "history", countryId],
     queryFn: () => getMyProxyHistory(countryId!),
@@ -87,10 +96,6 @@ export function WorldProxyWorkspace() {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const retry = useRef<PreparedAction | null>(null);
 
-  const representative = directory.data?.representatives.find((item) =>
-    item.countryId === countryId) ?? null;
-  const candidates = directory.data?.representatives.filter((item) =>
-    item.personId !== representative?.personId) ?? [];
   const currentHistory = (history.data ?? []).filter((item) =>
     item.organizationId === organization?.id);
 
@@ -135,7 +140,7 @@ export function WorldProxyWorkspace() {
     setError(null);
     setPrepared({
       title: "Confirm official proxy request",
-      summary: chosen.name + " will act for " + organization.name +
+      summary: chosen.displayName + " will act for " + organization.name +
         " between " + formatTime(args.from) + " and " + formatTime(args.until) +
         ". This request does not grant voting authority until formally approved.",
       run: () => requestWorldProxy(args),
@@ -267,29 +272,29 @@ export function WorldProxyWorkspace() {
 
     <section className="space-y-4" aria-labelledby="proxy-request-title">
       <h3 id="proxy-request-title" className="font-display text-xl font-semibold">Request a proxy</h3>
-      {account.isLoading || directory.isLoading ? <p role="status">Checking your representation…</p> :
-        account.isError || directory.isError ? <div role="alert">Current representation unavailable.
+      {account.isLoading || directory.isLoading || candidateRoster.isLoading && Boolean(representative) ? <p role="status">Checking your representation…</p> :
+        account.isError || directory.isError || candidateRoster.isError ? <div role="alert">Current representation or candidate identity unavailable.
           <button type="button" className="ml-2 underline" onClick={() => {
-            void account.refetch(); void directory.refetch();
+            void account.refetch(); void directory.refetch(); void candidateRoster.refetch();
           }}>Retry</button></div> :
         !representative ? <p className="text-sm text-muted-foreground">
           Your active country does not have a published current voting representative in this institution.
           No request can be submitted until official representation is established.
         </p> : <form onSubmit={prepareRequest} className="max-w-2xl space-y-4">
           <p className="text-sm">Representing country: <strong>{representative.name}</strong>.
-            Candidates below are existing public institutional representatives; no identity is invented.
+            Candidates below are verified people from this country’s recorded delegation history. No identity is invented.
           </p>
           <label className="block text-sm font-medium">Proposed acting person
             <select required value={personId} onChange={(event) => setPersonId(event.target.value)}
               className="mt-2 w-full rounded-lg border border-border bg-background p-3">
               <option value="">Choose a verified person</option>
               {candidates.map((item) =>
-                <option key={item.id} value={item.personId}>{item.name}</option>)}
+                <option key={item.personId} value={item.personId}>{item.displayName}</option>)}
             </select>
           </label>
           {!candidates.length && <p className="text-sm text-muted-foreground">
-            No other published representative is available for selection. The institution must
-            first establish a durable identity through the canonical process.
+            No other person with a recorded delegation or country-controller identity is available.
+            The country must first establish a durable identity through the canonical process.
           </p>}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-medium">Valid from
