@@ -19,6 +19,6 @@ export function isConfirmationDetailInOrganizerScope(
     expectedSubmissionId &&
     organizerEditionId &&
     detail?.id === expectedSubmissionId &&
-    detail.edition?.id === organizerEditionId,
+    detail?.edition?.id === organizerEditionId,
   );
 }
