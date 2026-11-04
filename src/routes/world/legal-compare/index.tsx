@@ -2,10 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { WorldLegalComparisonScreen } from "@/components/world/WorldLegalComparison";
 
 function parseVersion(value: unknown): number | null {
+  if (value == null || value === "") return null;
   const number = typeof value === "string" && /^\d+$/.test(value)
     ? Number(value)
     : typeof value === "number" ? value : NaN;
-  return Number.isSafeInteger(number) && number > 0 && number <= 100000 ? number : null;
+  // -1 is an explicit invalid request sentinel. It can never match a
+  // published TG4 version number, unlike null which means "use the default".
+  return Number.isSafeInteger(number) && number > 0 && number <= 100000 ? number : -1;
 }
 
 export const Route = createFileRoute("/world/legal-compare/")({
