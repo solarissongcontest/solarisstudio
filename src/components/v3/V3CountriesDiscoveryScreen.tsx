@@ -66,7 +66,9 @@ export function V3CountriesDiscoveryScreen() {
     return <ArchiveDataError />;
   }
 
-  const visible = filtered.slice(0, visibleCount);
+  // The active contest is a small, finite lineup: show every published participant.
+  // Keep progressive loading only for the larger all-country archive.
+  const visible = participatingOnly && activeEdition ? filtered : filtered.slice(0, visibleCount);
   const movementGroups = [
     { label: "Debuting", countries: discovery.debuting },
     { label: "Withdrawn", countries: discovery.withdrawn },
