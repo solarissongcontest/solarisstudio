@@ -34,6 +34,12 @@ describe("public Stories error and recovery states", () => {
     expect(detailSource).not.toContain("errorText(storyQuery.error)");
   });
 
+  it("uses deterministic Solaris chronology in the public detail timeline", () => {
+    expect(detailSource).toContain("formatSolarisStoryDate(story.publishedAt)");
+    expect(detailSource).toContain("formatSolarisStoryDate(item.occurredAt)");
+    expect(detailSource).not.toContain("toLocaleDateString(undefined");
+  });
+
   it("keeps both recovery controls usable with a keyboard and touch", () => {
     for (const source of [indexSource, detailSource]) {
       expect(source).toContain("type=\"button\"");
