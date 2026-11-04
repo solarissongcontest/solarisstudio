@@ -12,11 +12,11 @@ describe("Zod GHSA-mrhx-c7xc-m3w5 dependency regression", () => {
     ) as { dependencies: { zod: string } };
     const lock = readFileSync(new URL("../../bun.lock", import.meta.url), "utf8");
 
-    const declared = /^\\^?(\\d+)\\.(\\d+)\\.(\\d+)$/.exec(manifest.dependencies.zod);
+    const declared = /^\^?(\d+)\.(\d+)\.(\d+)$/.exec(manifest.dependencies.zod);
     expect(declared).not.toBeNull();
     expect(isPatched(...(declared!.slice(1).map(Number) as [number, number, number]))).toBe(true);
 
-    const versions = [...lock.matchAll(/zod@(\\d+)\\.(\\d+)\\.(\\d+)/g)];
+    const versions = [...lock.matchAll(/zod@(\d+)\.(\d+)\.(\d+)/g)];
     expect(versions.length).toBeGreaterThan(0);
     for (const version of versions) {
       expect(isPatched(...(version.slice(1).map(Number) as [number, number, number]))).toBe(true);
