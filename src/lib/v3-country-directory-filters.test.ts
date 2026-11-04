@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { filterCountryDirectory } from "./v3-country-directory-filters";
@@ -58,6 +59,17 @@ describe("V3 countries directory filters", () => {
         participatingCountryIds: new Set(),
       }).map((country) => country.id),
     ).toEqual(["b"]);
+  });
+
+  it("connects the current-edition CTA to a reversible directory filter", () => {
+    const source = readFileSync("src/components/v3/V3CountriesDiscoveryScreen.tsx", "utf8");
+    expect(source).toContain("filterCountryDirectory(countriesQuery.data ?? []");
+    expect(source).toContain("participatingCountryIds");
+    expect(source).toContain("Browse all participating countries");
+    expect(source).toContain("setParticipatingOnly(true)");
+    expect(source).toContain("Showing confirmed delegations in the current edition");
+    expect(source).toContain("Show all countries");
+    expect(source).toContain("setParticipatingOnly(false)");
   });
 
   it("does not mutate the canonical country collection", () => {
