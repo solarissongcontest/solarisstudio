@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { isCurrentConfirmationResponsePage } from "./confirmation-response-page-guard";
+import { isActiveAcceptedConfirmationWinner, isCurrentConfirmationResponsePage } from "./confirmation-response-page-guard";
 
 describe("Organizer Confirmation response pagination epoch", () => {
   it("accepts a page only for the exact live edition and generation", () => {
@@ -84,5 +84,27 @@ describe("Organizer Confirmation response pagination epoch", () => {
     );
     expect(source).toContain("editions.find((item) => item.id === editionId)?.rounds");
     expect(source).not.toContain("rows.forEach((row) => {\n      const round = row.submission_rounds;");
+  });
+
+  it("recognizes an NF winner only while the exact candidate remains accepted and active", () => {
+    const accepted = { id: "entry-a", review_status: "accepted" };
+    expect(isActiveAcceptedConfirmationWinner([accepted], "entry-a")).toBe(true);
+    expect(isActiveAcceptedConfirmationWinner([accepted], "entry-b")).toBe(false);
+    expect(isActiveAcceptedConfirmationWinner([accepted], null)).toBe(false);
+    expect(isActiveAcceptedConfirmationWinner([accepted], "")).toBe(false);
+    expect(isActiveAcceptedConfirmationWinner([{ ...accepted, removed: true }], "entry-a")).toBe(false);
+    expect(isActiveAcceptedConfirmationWinner([{ ...accepted, review_status: "removed" }], "entry-a")).toBe(false);
+    expect(isActiveAcceptedConfirmationWinner([{ ...accepted, review_status: "pending" }], "entry-a")).toBe(false);
+    expect(isActiveAcceptedConfirmationWinner([{ ...accepted, review_status: "declined" }], "entry-a")).toBe(false);
+  });
+
+  it("keeps queue triage and winner summary consistent with the accepted active candidate", () => {
+    const source = readFileSync("src/routes/confirmations/admin/responses.tsx", "utf8");
+    expect(source).toContain('return isActiveAcceptedConfirmationWinner(entries, winnerId) ? "ready" : "issue";');
+    expect(source).toContain('entries.some((entry) => entry.review_status !== "accepted")');
+    expect(source).not.toContain('return row.national_finals?.winning_entry_id ? "ready" : "neutral";');
+    expect(source).toContain("const acceptedWinner = isActiveAcceptedConfirmationWinner(activeEntries, nf?.winning_entry_id);");
+    expect(source).toContain("acceptedWinner && allEntriesAccepted");
+    expect(source).toContain("Winner selection needs review");
   });
 });
