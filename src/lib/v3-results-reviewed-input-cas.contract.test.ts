@@ -16,6 +16,31 @@ const service = readFileSync(
 );
 
 describe("V3 Results reviewed-input CAS", () => {
+  it("includes a fail-closed isolated PostgreSQL authority rehearsal", () => {
+    const runner = readFileSync(
+      resolve(process.cwd(), "scripts/rehearse-v3-results-reviewed-input-cas.sh"),
+      "utf8",
+    );
+    const workflow = readFileSync(
+      resolve(process.cwd(), ".github/workflows/v3-results-reviewed-input-cas-rehearsal.yml"),
+      "utf8",
+    );
+    expect(runner).toContain("local_db_pattern='^postgres(ql)?://postgres:postgres@");
+    expect(runner).toContain("local_api_pattern='^http://");
+    expect(runner).toContain("Refusing hosted Supabase database");
+    expect(runner).toContain("SHOW_INSERT_DID_NOT_SEED_REVIEW_BASIS");
+    expect(runner).toContain("VOTING_INPUT_DID_NOT_INVALIDATE_REVIEWED_RELEASE");
+    expect(runner).toContain("JURY_BALLOT_SUBMISSION_INVALIDATION_MISSING");
+    expect(runner).toContain("INPUT_MUTATION_ERASED_IMMUTABLE_RESULT_VERSION");
+    expect(runner).toContain("ANON_CAN_EXECUTE_REVIEWED_COMMIT");
+    expect(runner).toContain("rollback;");
+    expect(runner).not.toContain("disable trigger");
+    expect(workflow).toContain("supabase db reset --local --no-seed");
+    expect(workflow).toContain("supabase stop --no-backup");
+    expect(workflow).toContain("github.event.pull_request.head.sha");
+    expect(workflow).not.toContain("secrets.");
+  });
+
   it("is an additive S13-registered forward-fix migration", () => {
     expect(migration).toContain("v3_register_migration_contract");
     expect(migration).toContain("'v3.results.reviewed-input-cas'");
