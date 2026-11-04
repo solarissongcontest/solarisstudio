@@ -66,7 +66,8 @@ describe("TG6 public session projection boundary", () => {
 
   it("does not accept unchecked private management content or synthetic receipts", () => {
     expect(parseWorldManageAgenda({
-      id: sessionId, organizationId: orgId, organId, revision: 4, status: "scheduled",
+      id: sessionId, organizationId: orgId, organId, externalUrl: null,
+      revision: 4, status: "scheduled",
       items: [{ id: itemId, title: "Private draft", position: 1, state: "draft", revision: 1 }],
     }).items[0].state).toBe("draft");
     expect(() => parseWorldManageAgenda({ id: sessionId, revision: 1, items: null }))
