@@ -12,6 +12,7 @@ import {
   normalizeWorldSearch,
   publicWorldDocumentOutline,
   resolveWorldDocumentFragment,
+  shouldRetryPublicWorldDocumentRead,
   type WorldDocumentLimit,
   type WorldDocumentIndexRow,
   type WorldDocumentProvision,
@@ -94,7 +95,7 @@ export function WorldDocumentLibraryScreen({
       limit,
     }),
     staleTime: 90_000,
-    retry: 1,
+    retry: shouldRetryPublicWorldDocumentRead,
   });
 
   const canExpand = limit < 100 && Boolean(query.data?.couldHaveMore);
@@ -295,7 +296,7 @@ export function WorldDocumentReaderScreen({
       version: version ?? undefined,
     }),
     staleTime: 90_000,
-    retry: 1,
+    retry: shouldRetryPublicWorldDocumentRead,
   });
   const detail = query.data;
   const provisions = detail?.version.provisions;
