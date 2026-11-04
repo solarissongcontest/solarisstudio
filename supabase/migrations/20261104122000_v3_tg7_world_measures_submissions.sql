@@ -280,6 +280,89 @@ as $measure_list$
   limit greatest(1,least(coalesce(p_limit,30),50))
  ) eligible
 $measure_list$;
+create or replace function public.world_measure_public_detail_v1(p_measure_id uuid)
+returns jsonb language sql stable security definer set search_path=pg_catalog
+as $measure_detail$
+ select jsonb_build_object(
+  'id',m.id,'organizationSlug',o.slug,'organName',g.name,
+  'identifier',m.identifier,'measureType',m.measure_type,'state',m.state,
+  'sponsorCountryCode',c.short_code,'registeredAt',m.registered_at,
+  'revision',m.revision,
+  'currentVersion',jsonb_build_object('id',v.id,'number',v.version_number,
+    'title',v.title,'text',v.full_text,'summary',v.summary,
+    'contentHash',v.content_hash,'createdAt',v.created_at),
+  'publishedHistory',coalesce((select jsonb_agg(jsonb_build_object(
+    'id',old_version.id,'number',old_version.version_number,
+    'title',old_version.title,'createdAt',old_version.created_at,
+    'contentHash',old_version.content_hash
+  ) order by old_version.version_number desc) from (
+    select h.id,h.version_number,h.title,h.created_at,h.content_hash
+    from public.world_measure_versions h
+    where h.measure_id=m.id and h.publication_state='published'
+    order by h.version_number desc limit 25
+  ) old_version),'[]'::jsonb)
+ )
+ from public.world_measures m
+ join public.world_organizations o on o.id=m.organization_id and o.public_visibility='public'
+ join public.world_organization_organs g on g.id=m.organ_id
+    and g.organization_id=m.organization_id and g.visibility='public'
+ join public.world_measure_versions v on v.id=m.current_version_id
+    and v.measure_id=m.id and v.publication_state='published'
+ join public.countries c on c.id=m.sponsor_country_id
+ where m.id=p_measure_id and m.visibility='public'
+   and m.registered_at is not null
+   and m.state in ('registered','scheduled','under_debate','voting',
+      'adopted','rejected','withdrawn','superseded','repealed','archived')
+$measure_detail$;
+
+create or replace function public.world_measure_manage_v1(p_measure_id uuid)
+returns jsonb language plpgsql stable security definer set search_path=pg_catalog
+as $measure_manage$
+declare v_measure public.world_measures%rowtype;
+begin
+ select * into v_measure from public.world_measures where id=p_measure_id;
+ if v_measure.id is null or not (
+    public.world_access_allowed('world.measure.review_procedural',
+      v_measure.organization_id,v_measure.sponsor_country_id,v_measure.organ_id,null,null)
+    or public.world_access_allowed('world.measure.submit',
+      v_measure.organization_id,v_measure.sponsor_country_id,v_measure.organ_id,null,null)
+ ) then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
+ return jsonb_build_object('id',v_measure.id,'organizationId',v_measure.organization_id,
+   'organId',v_measure.organ_id,'sponsorCountryId',v_measure.sponsor_country_id,
+   'state',v_measure.state,'visibility',v_measure.visibility,
+   'identifier',v_measure.identifier,'proceduralNote',v_measure.procedural_note,
+   'revision',v_measure.revision,
+   'versions',coalesce((select jsonb_agg(jsonb_build_object(
+     'id',v.id,'number',v.version_number,'title',v.title,'text',v.full_text,
+     'summary',v.summary,'publicationState',v.publication_state,
+     'createdAt',v.created_at
+   ) order by v.version_number desc)
+   from (
+     select id,version_number,title,full_text,summary,publication_state,created_at
+     from public.world_measure_versions
+     where measure_id=v_measure.id order by version_number desc limit 20
+   ) v),'[]'::jsonb),
+   'versionsTruncated',exists(
+     select 1 from public.world_measure_versions
+     where measure_id=v_measure.id order by version_number desc offset 20 limit 1
+   ),
+   'reviews',coalesce((select jsonb_agg(jsonb_build_object(
+     'action',r.action,'note',r.note,
+     'revision',r.measure_revision,'createdAt',r.created_at
+   ) order by r.measure_revision)
+   from (
+     select action,note,measure_revision,created_at
+     from public.world_measure_procedural_reviews
+     where measure_id=v_measure.id order by measure_revision desc limit 50
+   ) r),'[]'::jsonb),
+   'reviewsTruncated',exists(
+     select 1 from public.world_measure_procedural_reviews
+     where measure_id=v_measure.id order by measure_revision desc offset 50 limit 1
+   ));
+end
+$measure_manage$;
+
+
 -- The first command produces a durable operation receipt and a versioned
 -- draft. No user-controlled identifier or published record is minted here.
 create or replace function public.world_measure_submit_v1(
