@@ -80,15 +80,36 @@ s14_stage7_extend_expired_semi_one() {
   local expired=0 previous_deadline stale_version extended_deadline preview blockers
   local operation_id idempotency_key extend_result replay_result stale_deadline
   local event_id process_result receipt_command
+  local expiry_snapshot expiry_state db_now persisted_deadline seconds_remaining
+  local poll_status round_version remote_edition_id results_status poll_iteration
 
-  for _ in $(seq 1 80); do
-    if [[ "$(db_scalar "select (clock_timestamp() >= closes_at)::text from televoting.rounds where id='$round_id'::uuid;")" == "t" ]]; then
+  for poll_iteration in $(seq 1 80); do
+    expiry_snapshot="$(db_scalar "
+with sample as (select clock_timestamp() as db_now)
+select concat_ws('|',
+  case when r.closes_at is not null and sample.db_now >= r.closes_at then 'expired' else 'waiting' end,
+  sample.db_now::text,
+  coalesce(r.closes_at::text,''),
+  coalesce(extract(epoch from (r.closes_at - sample.db_now))::text,''),
+  r.status::text,
+  coalesce(v.version,0)::text,
+  r.edition_id::text,
+  r.results_status::text
+)
+from televoting.rounds r
+cross join sample
+left join public.studio2_televote_round_versions v on v.round_id=r.id
+where r.id='$round_id'::uuid;
+")"
+    IFS='|' read -r expiry_state db_now persisted_deadline seconds_remaining poll_status round_version remote_edition_id results_status <<<"$expiry_snapshot"
+    log "S14_STAGE7_DEADLINE_POLL iteration=$poll_iteration round=$round_id state=$expiry_state db_now=$db_now closes_at=$persisted_deadline seconds_remaining=$seconds_remaining status=$poll_status round_version=$round_version remote_edition_id=$remote_edition_id results_status=$results_status"
+    if [[ "$expiry_state" == "expired" ]]; then
       expired=1
       break
     fi
     sleep 0.25
   done
-  [[ "$expired" == "1" ]] || fail "S14 Televote fixture never crossed the authoritative server deadline"
+  [[ "$expired" == "1" ]] || fail "S14 Televote fixture never crossed the authoritative server deadline (last_state=$expiry_state db_now=$db_now closes_at=$persisted_deadline seconds_remaining=$seconds_remaining)"
   [[ "$(db_scalar "select status from televoting.rounds where id='$round_id'::uuid;")" == "open" ]] || fail "deadline expiry incorrectly closed the Televote round"
   [[ "$(db_scalar "select count(*) from televoting.rounds where id='$round_id'::uuid and closed_at is null;")" == "1" ]] || fail "deadline expiry fabricated a lifecycle close timestamp"
 
