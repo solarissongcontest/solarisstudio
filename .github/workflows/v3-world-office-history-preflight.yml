@@ -72,11 +72,11 @@ jobs:
       - name: Run TG3 history unit and source contracts
         run: bunx vitest run src/lib/v3-world-office-history.test.ts src/lib/v3-world-office-history.contract.test.ts
 
-      - name: Typecheck complete application
-        run: bun run typecheck
-
       - name: Build and generate TanStack routes
         run: bun run build
+
+      - name: Typecheck generated application
+        run: bun run typecheck
 
       - name: Print evidence commit
         shell: bash
