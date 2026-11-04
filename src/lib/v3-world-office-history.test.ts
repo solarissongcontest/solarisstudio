@@ -115,6 +115,13 @@ describe("TG3 public office-history projection contract", () => {
       ...historyResponse, terms: fullPage, hasMore: true,
       nextCursor: { ...nextCursor, termId: "bad-id" },
     }, "guard")).toThrow("Invalid public office history response");
+    expect(() => parsePublicOfficeHistoryPage({
+      ...historyResponse, terms: fullPage, hasMore: true,
+      nextCursor: { ...nextCursor, termId: fullPage[0].id },
+    }, "guard")).toThrow("Invalid public office history continuation");
+    expect(() => parsePublicOfficeHistoryPage({
+      ...historyResponse, terms: [completedTerm, completedTerm],
+    }, "guard")).toThrow("Invalid public office history continuation");
   });
 
   it("uses SSC editions for political term labels, never calendar years as substitutes", () => {
