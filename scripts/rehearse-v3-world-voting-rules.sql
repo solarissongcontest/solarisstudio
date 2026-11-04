@@ -305,6 +305,27 @@ begin
 end
 $verify$;
 
+-- The service-role database login bypasses ordinary RLS, so table GRANTs
+-- must also forbid bypassing the canonical revision/receipt writer.
+set local role service_role;
+do $service_direct$
+begin
+  begin
+    perform 1 from public.world_voting_rules limit 1;
+    raise exception 'TG8_SERVICE_ROLE_DIRECT_RULE_SELECT_ALLOWED';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.world_voting_rules
+       set label=label
+     where false;
+    raise exception 'TG8_SERVICE_ROLE_DIRECT_RULE_MUTATION_ALLOWED';
+  exception when insufficient_privilege then null;
+  end;
+end
+$service_direct$;
+reset role;
+
 set local role anon;
 set local request.jwt.claim.role='anon';
 set local request.jwt.claim.sub='';
