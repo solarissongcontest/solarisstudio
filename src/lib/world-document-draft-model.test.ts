@@ -157,6 +157,10 @@ describe("TG4 governed institutional draft models", () => {
     expect(screen).toContain("toWorldProvisionCommandRows");
     expect(screen).toContain("p_structured_content: structuredContent");
     expect(screen).toContain("p_provisions: provisions");
+    expect(screen).toContain('db.rpc("world_access_allowed"');
+    expect(screen).toContain('p_capability: "world.document.manage"');
+    expect(screen).toContain("if (!organization || createAccess.data !== true) return;");
+
     expect(screen).toContain('setDraftProvisions(source?.publicationState === "published" ? source.provisions : [])');
     expect(screen).toContain("validateWorldDocumentProvisions(snapshot.data.version.provisions)");
     expect(screen).toContain("executing.current.has(review.operationId)");
