@@ -5,6 +5,8 @@ import {
   normalizeWorldSearch,
   parseWorldDocumentDetail,
   parseWorldDocumentIndex,
+  publicWorldDocumentOutline,
+  worldProvisionTargetId,
 } from "./world-public-documents";
 
 const indexRow = {
@@ -161,8 +163,8 @@ describe("TG4 public institutional document library", () => {
         ...document.version,
         provisions: [
           { ...document.version.provisions[0], bodyPlainText: "<script>alert('x')</script>" },
-          { ...document.version.provisions[0], provisionId: "two", anchor: "article-one" },
-          { ...document.version.provisions[0], provisionId: "three", anchor: "../unsafe" },
+          { ...document.version.provisions[0], provisionId: "two", semanticKey: "article-two", anchor: "article-one" },
+          { ...document.version.provisions[0], provisionId: "three", semanticKey: "article-three", anchor: "../unsafe" },
         ],
       },
     });
@@ -170,6 +172,73 @@ describe("TG4 public institutional document library", () => {
     expect(result?.version.provisions.map((item) => item.anchor)).toEqual([
       "article-one", null, null,
     ]);
+  });
+
+  it("uses durable semantic identity, not mutable visible article numbers, for deep links", () => {
+    const first = parseWorldDocumentDetail({
+      ...document,
+      version: {
+        ...document.version,
+        provisions: [{
+          ...document.version.provisions[0],
+          semanticKey: "guard-charter:membership-admission",
+          displayLabel: "Article 4",
+          anchor: "article-4",
+        }],
+      },
+    });
+    const renumbered = parseWorldDocumentDetail({
+      ...document,
+      version: {
+        ...document.version,
+        versionNumber: 3,
+        provisions: [{
+          ...document.version.provisions[0],
+          semanticKey: "guard-charter:membership-admission",
+          displayLabel: "Article 5",
+          anchor: "article-5",
+        }],
+      },
+    });
+    expect(first?.version.provisions[0].targetId).toBe(
+      renumbered?.version.provisions[0].targetId,
+    );
+    expect(first?.version.provisions[0].targetId).toBe(
+      worldProvisionTargetId("guard-charter:membership-admission"),
+    );
+    expect(first?.version.provisions[0].anchor).toBe("article-4");
+    expect(renumbered?.version.provisions[0].anchor).toBe("article-5");
+  });
+
+  it("rejects duplicate or unsafe semantic keys instead of rendering ambiguous links", () => {
+    expect(() => parseWorldDocumentDetail({
+      ...document,
+      version: {
+        ...document.version,
+        provisions: [document.version.provisions[0], {
+          ...document.version.provisions[0],
+          provisionId: "second-provision",
+          displayLabel: "Article II",
+        }],
+      },
+    })).toThrow("Duplicate semantic provision identity");
+    expect(() => worldProvisionTargetId("bad\nkey")).toThrow("Invalid semantic provision identity");
+    expect(() => worldProvisionTargetId("x".repeat(201))).toThrow();
+    expect(() => worldProvisionTargetId("")).toThrow();
+  });
+
+  it("retains contents past section 40 in their canonical order", () => {
+    const original = parseWorldDocumentDetail(document);
+    const prototype = original!.version.provisions[0];
+    const provisions = Array.from({ length: 85 }, (_, index) => ({
+      ...prototype,
+      provisionId: "p-" + index,
+      semanticKey: "section-" + index,
+      targetId: worldProvisionTargetId("section-" + index),
+      heading: "Section " + index,
+    }));
+    expect(publicWorldDocumentOutline(provisions)).toHaveLength(85);
+    expect(publicWorldDocumentOutline(provisions).at(-1)?.heading).toBe("Section 84");
   });
 
   it("bounds search input without making additional requests or inventing results", () => {
