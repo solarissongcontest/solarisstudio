@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  authoritativeNextInLineSubmissionId,
   nextInLineDraftFingerprint,
   nextInLineDuplicateKey,
   nextInLineReviewReadiness,
@@ -125,4 +126,24 @@ describe("Next in Line exact-draft review", () => {
     expect(nextInLineReviewReadiness(draft({ country: "Vendia" }), clearFor(current)).ready).toBe(false);
     expect(nextInLineReviewReadiness(draft({ editionId: "edition-23" }), clearFor(current)).ready).toBe(false);
   });
+
+  it("accepts only a persisted UUID with matching server edition and source context", () => {
+    const editionId = "00000000-0000-4000-8000-000000000001";
+    const sourceSubmissionId = "00000000-0000-4000-8000-000000000002";
+    const submissionId = "00000000-0000-4000-8000-000000000003";
+    const server = {
+      ok: true,
+      submission_id: submissionId,
+      edition_id: editionId,
+      source_submission_id: sourceSubmissionId,
+    };
+    const expected = { editionId, sourceSubmissionId };
+    expect(authoritativeNextInLineSubmissionId(server, expected)).toBe(submissionId);
+    expect(authoritativeNextInLineSubmissionId({ ...server, edition_id: "other" }, expected)).toBeNull();
+    expect(authoritativeNextInLineSubmissionId({ ...server, source_submission_id: "other" }, expected)).toBeNull();
+    expect(authoritativeNextInLineSubmissionId({ ...server, submission_id: "not-a-uuid" }, expected)).toBeNull();
+    expect(authoritativeNextInLineSubmissionId({ ...server, ok: false }, expected)).toBeNull();
+    expect(authoritativeNextInLineSubmissionId({ ok: true }, expected)).toBeNull();
+  });
+
 });
