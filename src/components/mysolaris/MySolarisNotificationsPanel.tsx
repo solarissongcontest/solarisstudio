@@ -37,6 +37,41 @@ const CATEGORIES = [
   ["predictions", "Predictions & Fantasy", "Openings, locks and results"],
 ] as const;
 
+type CategoryKey = (typeof CATEGORIES)[number][0];
+
+const CATEGORY_GROUPS = [
+  {
+    title: "Contest & delegation",
+    description: "Official work and time-sensitive contest responsibilities.",
+    keys: ["confirmations", "jury", "deadlines", "official"],
+  },
+  {
+    title: "Live & voting",
+    description: "Public voting availability during active shows.",
+    keys: ["televoting"],
+  },
+  {
+    title: "Results",
+    description: "Published outcomes and score information.",
+    keys: ["results"],
+  },
+  {
+    title: "Followed entities",
+    description: "Important updates from things you follow.",
+    keys: ["following"],
+  },
+  {
+    title: "Optional engagement",
+    description: "Prediction and Fantasy activity that is never required participation.",
+    keys: ["predictions"],
+  },
+] as const satisfies readonly {
+  title: string;
+  description: string;
+  keys: readonly CategoryKey[];
+}[];
+
+const CATEGORY_BY_KEY = new Map(CATEGORIES.map((category) => [category[0], category] as const));
 const DEFAULT_CATEGORIES = [...DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES];
 
 const EMPTY_PUSH: AppPushState = {
@@ -62,17 +97,26 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
 
   const [selected, setSelected] = useState<string[]>(DEFAULT_CATEGORIES);
   const [external, setExternal] = useState(false);
+  const [quietHoursEnabled, setQuietHoursEnabled] = useState(false);
   const [quietStart, setQuietStart] = useState("23:00");
   const [quietEnd, setQuietEnd] = useState("08:00");
   const [urgent, setUrgent] = useState(true);
   const spoilerFree = appExperience.spoilerFree;
+  const timeZone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    [],
+  );
 
   useEffect(() => {
     if (!preferences.data) return;
+    const savedQuietStart = preferences.data.quiet_hours_start?.slice(0, 5) ?? null;
+    const savedQuietEnd = preferences.data.quiet_hours_end?.slice(0, 5) ?? null;
+
     setSelected(preferences.data.categories?.length ? preferences.data.categories : DEFAULT_CATEGORIES);
     setExternal(preferences.data.external_enabled);
-    setQuietStart((preferences.data.quiet_hours_start ?? "23:00").slice(0, 5));
-    setQuietEnd((preferences.data.quiet_hours_end ?? "08:00").slice(0, 5));
+    setQuietHoursEnabled(Boolean(savedQuietStart && savedQuietEnd));
+    setQuietStart(savedQuietStart ?? "23:00");
+    setQuietEnd(savedQuietEnd ?? "08:00");
     setUrgent(preferences.data.urgent_deadline_reminders ?? true);
     syncAppExperiencePreferencesFromServer({
       spoilerFree: preferences.data.spoiler_free ?? false,
@@ -84,15 +128,29 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
   const dirty = useMemo(() => {
     const saved = [...(preferences.data?.categories ?? DEFAULT_CATEGORIES)].sort().join("|");
     const current = [...selected].sort().join("|");
+    const savedQuietStart = preferences.data?.quiet_hours_start?.slice(0, 5) ?? null;
+    const savedQuietEnd = preferences.data?.quiet_hours_end?.slice(0, 5) ?? null;
+    const savedQuietHoursEnabled = Boolean(savedQuietStart && savedQuietEnd);
+
     return (
       saved !== current ||
       (preferences.data?.external_enabled ?? false) !== external ||
-      (preferences.data?.quiet_hours_start ?? "23:00").slice(0, 5) !== quietStart ||
-      (preferences.data?.quiet_hours_end ?? "08:00").slice(0, 5) !== quietEnd ||
+      savedQuietHoursEnabled !== quietHoursEnabled ||
+      (quietHoursEnabled &&
+        (savedQuietStart !== quietStart || savedQuietEnd !== quietEnd)) ||
       (preferences.data?.urgent_deadline_reminders ?? true) !== urgent ||
       (preferences.data?.spoiler_free ?? false) !== spoilerFree
     );
-  }, [external, preferences.data, quietEnd, quietStart, selected, spoilerFree, urgent]);
+  }, [
+    external,
+    preferences.data,
+    quietEnd,
+    quietHoursEnabled,
+    quietStart,
+    selected,
+    spoilerFree,
+    urgent,
+  ]);
 
   const toggleCategory = (key: string) => {
     setSelected((current) =>
@@ -102,17 +160,19 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
     );
   };
 
+  const notificationPreferencePayload = (externalEnabled: boolean) => ({
+    in_app_enabled: true,
+    categories: selected,
+    external_enabled: externalEnabled,
+    quiet_hours_start: quietHoursEnabled ? quietStart : null,
+    quiet_hours_end: quietHoursEnabled ? quietEnd : null,
+    urgent_deadline_reminders: urgent,
+    spoiler_free: spoilerFree,
+    timezone: timeZone,
+  });
+
   const savePreferences = async () => {
-    const promise = save.mutateAsync({
-      in_app_enabled: true,
-      categories: selected,
-      external_enabled: external,
-      quiet_hours_start: quietStart || null,
-      quiet_hours_end: quietEnd || null,
-      urgent_deadline_reminders: urgent,
-      spoiler_free: spoilerFree,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-    });
+    const promise = save.mutateAsync(notificationPreferencePayload(external));
     toast.promise(promise, {
       loading: "Saving notification preferences…",
       success: "Notification preferences saved.",
@@ -142,16 +202,7 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
     }
     setExternal(true);
     try {
-      await save.mutateAsync({
-        in_app_enabled: true,
-        categories: selected,
-        external_enabled: true,
-        quiet_hours_start: quietStart || null,
-        quiet_hours_end: quietEnd || null,
-        urgent_deadline_reminders: urgent,
-        spoiler_free: spoilerFree,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-      });
+      await save.mutateAsync(notificationPreferencePayload(true));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Notification preferences could not be saved.");
       return;
@@ -174,16 +225,7 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
     }
     setExternal(false);
     try {
-      await save.mutateAsync({
-        in_app_enabled: true,
-        categories: selected,
-        external_enabled: false,
-        quiet_hours_start: quietStart || null,
-        quiet_hours_end: quietEnd || null,
-        urgent_deadline_reminders: urgent,
-        spoiler_free: spoilerFree,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-      });
+      await save.mutateAsync(notificationPreferencePayload(false));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Notification preferences could not be saved.");
       return;
@@ -193,32 +235,48 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
 
   if (isAppMode) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
         <section aria-labelledby="app-notification-categories">
           <div className="solaris-app-section-heading">
             <p>Alerts</p>
             <h2 id="app-notification-categories">What can notify you</h2>
           </div>
-          <div className="solaris-app-grouped-list">
-            {CATEGORIES.map(([key, label, description]) => {
-              const enabled = selected.includes(key);
-              return (
-                <div key={key} className="solaris-app-notification-row">
-                  <span className={`solaris-app-list-icon ${enabled ? "" : "is-muted"}`}>
-                    {enabled ? <BellRing className="size-4" aria-hidden="true" /> : <BellOff className="size-4" aria-hidden="true" />}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold">{label}</span>
-                    <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{description}</span>
-                  </span>
-                  <Switch
-                    checked={enabled}
-                    onCheckedChange={() => toggleCategory(key)}
-                    aria-label={`${label} notifications`}
-                  />
+
+          <div className="space-y-5">
+            {CATEGORY_GROUPS.map((group) => (
+              <div key={group.title}>
+                <div className="mb-2 px-1">
+                  <h3 className="text-sm font-semibold">{group.title}</h3>
+                  <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                    {group.description}
+                  </p>
                 </div>
-              );
-            })}
+                <div className="solaris-app-grouped-list">
+                  {group.keys.map((key) => {
+                    const category = CATEGORY_BY_KEY.get(key);
+                    if (!category) return null;
+                    const [, label, description] = category;
+                    const enabled = selected.includes(key);
+                    return (
+                      <div key={key} className="solaris-app-notification-row">
+                        <span className={`solaris-app-list-icon ${enabled ? "" : "is-muted"}`}>
+                          {enabled ? <BellRing className="size-4" aria-hidden="true" /> : <BellOff className="size-4" aria-hidden="true" />}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold">{label}</span>
+                          <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{description}</span>
+                        </span>
+                        <Switch
+                          checked={enabled}
+                          onCheckedChange={() => toggleCategory(key)}
+                          aria-label={`${label} notifications`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -251,42 +309,70 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
               </div>
             </div>
 
-            <div className="solaris-app-notification-detail border-t border-border/60">
-              <p className="text-sm font-semibold">Quiet hours</p>
-              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                Routine alerts wait until quiet hours end.
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <label className="text-[11px] font-semibold text-muted-foreground">
-                  From
+            <div
+              className="solaris-app-notification-row border-t border-border/60"
+              data-v3-quiet-hours-mobile=""
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">Quiet hours</span>
+                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                  {quietHoursEnabled
+                    ? `${quietStart}–${quietEnd} · ${timeZone}`
+                    : "Off · routine alerts may arrive at any time"}
+                </span>
+              </span>
+              <Switch
+                checked={quietHoursEnabled}
+                onCheckedChange={setQuietHoursEnabled}
+                aria-label="Quiet hours"
+              />
+            </div>
+
+            {quietHoursEnabled ? (
+              <>
+                <label className="solaris-app-notification-row border-t border-border/60">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">Start</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">Routine alerts pause from this time.</span>
+                  </span>
                   <input
                     type="time"
                     value={quietStart}
                     onChange={(event) => setQuietStart(event.target.value)}
-                    className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-base"
+                    aria-label="Quiet hours start time"
+                    className="min-h-11 w-32 rounded-xl border border-border bg-background px-3 text-base"
                   />
                 </label>
-                <label className="text-[11px] font-semibold text-muted-foreground">
-                  Until
+                <label className="solaris-app-notification-row border-t border-border/60">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">End</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">Routine alerts resume at this time.</span>
+                  </span>
                   <input
                     type="time"
                     value={quietEnd}
                     onChange={(event) => setQuietEnd(event.target.value)}
-                    className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-base"
+                    aria-label="Quiet hours end time"
+                    className="min-h-11 w-32 rounded-xl border border-border bg-background px-3 text-base"
                   />
                 </label>
-              </div>
-            </div>
-
-            <div className="solaris-app-notification-row border-t border-border/60">
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold">Urgent deadline reminders</span>
-                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                  Allow 3-hour and 1-hour required-task reminders during quiet hours.
-                </span>
-              </span>
-              <Switch checked={urgent} onCheckedChange={setUrgent} aria-label="Urgent deadline reminders during quiet hours" />
-            </div>
+                <div className="solaris-app-notification-detail border-t border-border/60">
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    If the end time is earlier than the start time, Quiet Hours runs overnight.
+                    Times follow {timeZone} on this device.
+                  </p>
+                </div>
+                <div className="solaris-app-notification-row border-t border-border/60">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">Urgent deadline reminders</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                      Allow 3-hour and 1-hour required-task reminders during quiet hours.
+                    </span>
+                  </span>
+                  <Switch checked={urgent} onCheckedChange={setUrgent} aria-label="Urgent deadline reminders during quiet hours" />
+                </div>
+              </>
+            ) : null}
 
             {includeSpoilerFree ? (
               <div className="solaris-app-notification-row border-t border-border/60">
@@ -352,39 +438,59 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
 
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
-            <p className="text-sm font-semibold">Quiet hours</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Routine notifications wait until quiet hours end. Urgent deadline reminders can be allowed separately.
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <label className="text-[11px] font-semibold text-muted-foreground">
-                From
-                <input
-                  type="time"
-                  value={quietStart}
-                  onChange={(event) => setQuietStart(event.target.value)}
-                  className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
-                />
-              </label>
-              <label className="text-[11px] font-semibold text-muted-foreground">
-                Until
-                <input
-                  type="time"
-                  value={quietEnd}
-                  onChange={(event) => setQuietEnd(event.target.value)}
-                  className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
-                />
-              </label>
-            </div>
-            <label className="mt-3 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-border/70 px-3 text-xs font-semibold">
-              Urgent deadline reminders during quiet hours
-              <input
-                type="checkbox"
-                checked={urgent}
-                onChange={(event) => setUrgent(event.target.checked)}
-                className="size-5"
+            <div className="flex min-h-11 items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Quiet hours</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {quietHoursEnabled
+                    ? `${quietStart}–${quietEnd} · ${timeZone}`
+                    : "Off · routine alerts may arrive at any time"}
+                </p>
+              </div>
+              <Switch
+                checked={quietHoursEnabled}
+                onCheckedChange={setQuietHoursEnabled}
+                aria-label="Quiet hours"
               />
-            </label>
+            </div>
+            {quietHoursEnabled ? (
+              <>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <label className="text-[11px] font-semibold text-muted-foreground">
+                    Start
+                    <input
+                      type="time"
+                      value={quietStart}
+                      onChange={(event) => setQuietStart(event.target.value)}
+                      aria-label="Quiet hours start time"
+                      className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                    />
+                  </label>
+                  <label className="text-[11px] font-semibold text-muted-foreground">
+                    End
+                    <input
+                      type="time"
+                      value={quietEnd}
+                      onChange={(event) => setQuietEnd(event.target.value)}
+                      aria-label="Quiet hours end time"
+                      className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                    />
+                  </label>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  If End is earlier than Start, the range runs overnight. Times follow {timeZone}.
+                </p>
+                <label className="mt-3 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-border/70 px-3 text-xs font-semibold">
+                  Urgent deadline reminders during quiet hours
+                  <input
+                    type="checkbox"
+                    checked={urgent}
+                    onChange={(event) => setUrgent(event.target.checked)}
+                    className="size-5"
+                  />
+                </label>
+              </>
+            ) : null}
           </div>
 
           {includeSpoilerFree ? (

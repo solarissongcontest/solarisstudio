@@ -87,7 +87,14 @@ describe("System V3 S12 local capacity foundation", () => {
     ]) {
       expect(harness).toContain(token);
     }
-    expect(harness).toContain('positiveInteger("V3_CAPACITY_DB_SAMPLE_MS")');
+    expect(harness).toContain('boundedTimerMilliseconds("V3_CAPACITY_DB_SAMPLE_MS")');
+    expect(harness).toContain('boundedTimerMilliseconds("V3_CAPACITY_DB_QUERY_TIMEOUT_MS")');
+    expect(harness).toContain("timeout: dbQueryTimeoutMs");
+    expect(harness).toContain('boundedTimerMilliseconds("V3_CAPACITY_REQUEST_TIMEOUT_MS")');
+    expect(harness).toContain("Number.isSafeInteger(parsed)");
+    expect(harness).toContain("readBoundedResponse(response)");
+    expect(harness).toContain("active.abort()");
+    expect(runbook).toContain("V3_CAPACITY_DB_QUERY_TIMEOUT_MS");
     expect(harness).toContain("pg_stat_database");
     expect(harness).toContain("pg_stat_activity");
     expect(harness).toContain("pg_locks");
