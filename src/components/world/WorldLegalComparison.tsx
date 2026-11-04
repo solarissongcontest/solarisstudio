@@ -316,7 +316,7 @@ export function WorldLegalComparisonScreen({ search }: { search: ComparisonSearc
   };
 
   return <AppShell>
-    <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12">
+    <div className="mx-auto w-full max-w-6xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12">
       <header className="mb-8 max-w-3xl">
         <Link to="/countries" className="mb-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary hover:underline"><BookOpen className="size-4" aria-hidden="true" /> Terra Solaris countries</Link>
         <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">World / Institutional records</p>
@@ -337,6 +337,6 @@ export function WorldLegalComparisonScreen({ search }: { search: ComparisonSearc
         <Panel title="Select a public document" detail="Enter an organization's slug and an official document slug. Then choose two published historical versions. No data is requested until the identifiers are valid." />
       ) : <ComparisonBody organization={search.organization} document={search.document}
           from={search.from} to={search.to} navigateVersion={navigateVersion} />}
-    </main>
+    </div>
   </AppShell>;
 }
