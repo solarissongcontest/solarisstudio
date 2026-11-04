@@ -40,7 +40,7 @@ async function callAnonymousWorldRpc(
     throw new Error("Public institutional document service is not configured");
   }
   const response = await fetch(
-    url.replace(/\\/$/, "") + "/rest/v1/rpc/" + name,
+    (url.endsWith("/") ? url.slice(0, -1) : url) + "/rest/v1/rpc/" + name,
     {
       method: "POST",
       headers: publicWorldRpcHeaders(key),
