@@ -101,6 +101,17 @@ describe("V3 whole-page swipe primary pointer ownership", () => {
     expect(swipeSurface).toContain("}, [resetSurface]);");
   });
 
+  it("cancels secondary contacts even when they start outside the compositor", () => {
+    expect(swipeSurface).toContain('document.addEventListener("pointerdown", cancelCompetingTouch, true)');
+    expect(swipeSurface).toContain('document.removeEventListener("pointerdown", cancelCompetingTouch, true)');
+    const listener = swipeSurface.split("const cancelCompetingTouch =")[1]?.split("const root = document.documentElement")[0] ?? "";
+    expect(listener).toContain("const active = dragRef.current");
+    expect(listener).toContain("activePointerId: active.pointerId");
+    expect(listener).toContain("incomingPointerId: event.pointerId");
+    expect(listener).toContain('=== "cancel"');
+    expect(listener).toContain("resetSurface()");
+  });
+
   it("retains existing abort behavior for pointer-cancel and lost capture", () => {
     expect(swipeSurface).toContain("onPointerCancel={(event) => finish(event, true)}");
     expect(swipeSurface).toContain("onLostPointerCapture={(event) => {");
