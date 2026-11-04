@@ -182,7 +182,7 @@ describe("S14 stateful full-contest harness", () => {
     expect(resultsAdapter).toContain('from("televoting_round_bindings")');
     expect(resultsAdapter).toContain('from("televote_votes")');
     expect(resultsAdapter).toContain('select("country_id,contest_entity_id,points")');
-    expect(resultsAdapter).not.toMatch(/from\\("televote_votes"\\)\\.(?:insert|update|delete|upsert)\\(/);
+    expect(resultsAdapter).not.toMatch(/from\("televote_votes"\)\.(?:insert|update|delete|upsert)\(/);
     expect(resultsAdapter).toContain("server-authoritative Televote publication rejected");
     expect(resultsAdapter).toContain("refusing non-local Supabase URL");
     expect(resultsAdapter).toContain('from("televote_votes")');
