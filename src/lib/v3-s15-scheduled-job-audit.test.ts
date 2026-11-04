@@ -22,6 +22,14 @@ describe("S15 scheduled-job ownership audit", () => {
     expect(report.findings[0]).toContain("no matching cron.schedule call");
   });
 
+  it("discovers PostgreSQL double-quoted cron and schedule identifiers", () => {
+    const report = inspectV3CronMigrations(
+      migration('perform "cron"."schedule"(\'quoted-job\', \'* * * * *\', \'select 1\');'),
+      [{ name: "quoted-job", evidence: "2026_01.sql" }],
+    );
+    expect(report).toEqual({ scheduledJobNames: ["quoted-job"], findings: [] });
+  });
+
   it("rejects a dynamic job name instead of silently omitting it", () => {
     const report = inspectV3CronMigrations(
       migration("perform cron.schedule(v_job_name, '* * * * *', 'select 1');"),
