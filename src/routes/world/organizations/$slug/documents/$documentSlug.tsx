@@ -8,8 +8,9 @@ export const Route = createFileRoute("/world/organizations/$slug/documents/$docu
       ? Number(requested)
       : typeof requested === "number" ? requested : null;
     return {
-      version: parsed !== null && Number.isSafeInteger(parsed) && parsed >= 1
-        ? parsed : undefined,
+      version: requested === undefined || requested === null
+        ? undefined : parsed !== null && Number.isSafeInteger(parsed) && parsed >= 1
+          ? parsed : -1,
     };
   },
   head: () => ({
