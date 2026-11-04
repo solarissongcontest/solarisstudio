@@ -1,9 +1,11 @@
+import { useQuery } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import { useRef, type ReactNode } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useV3ExploreBundle } from "@/lib/v3-explore-runtime";
+import { fetchWorldPublicEnabled } from "@/lib/terra-world-public";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
 import { V3AppShell } from "./V3AppShell";
@@ -50,6 +52,13 @@ export function V3ExploreRouteGate({ legacy }: { legacy: ReactNode }) {
     rollout.data?.enabled === true &&
     rollout.data?.exploreEnabled === true;
   const bundleQuery = useV3ExploreBundle(shouldLoadBundle);
+  const worldRollout = useQuery({
+    queryKey: ["world", "public", "rollout"],
+    queryFn: fetchWorldPublicEnabled,
+    enabled: shouldLoadBundle,
+    staleTime: 60_000,
+    retry: false,
+  });
 
   // Keep the hydration pass query-free. This prevents an installed client from
   // mounting the legacy Explore archive graph before the server rollout choice
@@ -106,6 +115,7 @@ export function V3ExploreRouteGate({ legacy }: { legacy: ReactNode }) {
       <V3ExploreScreen
         projection={bundle.projection}
         onOpenSearch={openCanonicalSearch}
+        showWorld={worldRollout.data === true}
       />
     </V3AppShell>
   );
