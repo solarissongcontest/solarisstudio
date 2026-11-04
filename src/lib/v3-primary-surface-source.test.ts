@@ -138,6 +138,23 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
     ).toThrow(/Anonymous V3 bootstrap cannot contain participant-scoped evidence/);
   });
 
+  it("fails closed on anonymous Home progress even without participant tasks", () => {
+    expect(() =>
+      assembleV3PrimarySurfaceSnapshot({
+        ...base(),
+        progressByActionId: {
+          "confirmation:private": { current: 2, total: 3, label: "Private submission" },
+        },
+      }),
+    ).toThrow(/Anonymous V3 bootstrap cannot contain participant-scoped evidence/);
+
+    const anonymous = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      progressByActionId: {},
+    });
+    expect(anonymous.primarySurfaces.progressByActionId).toEqual({});
+  });
+
   it("derives signed-in confirmation work using the captured server time", () => {
     const requirement: CountryConfirmationRequirement = {
       id: "requirement-1",
@@ -359,6 +376,40 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
       description: "Published results are available.",
       to: "/shows/show-1",
     });
+  });
+
+  it("does not offer stale upcoming, live or televote actions on archived Home", async () => {
+    const historicalEdition: Edition = { ...edition, status: "archived" };
+    for (const status of ["live", "scheduled"]) {
+      const snapshot = assembleV3PrimarySurfaceSnapshot({
+        ...base(),
+        editions: [historicalEdition],
+        shows: [{ ...show, status } as Show],
+        viewer: { id: "user-1", displayName: null },
+        televote: {
+          id: "unrelated-current-round",
+          title: "Current edition public voting",
+          route: "/televoting",
+          eligible: true,
+          submitted: false,
+          status: "open",
+          required: false,
+        },
+      });
+
+      expect(snapshot.publicContest.phase, status).toBe("post_edition");
+      expect(snapshot.primarySurfaces.upcoming, status).toEqual([]);
+      expect(snapshot.primarySurfaces.latest.some((item) => item.id.startsWith("live:")), status).toBe(false);
+      expect(snapshot.tasks.some((task) => task.kind === "televote"), status).toBe(false);
+      expect(snapshot.runtime, status).toBeNull();
+
+      const bootstrap = await loadV3BootstrapProjection(
+        { viewerId: "user-1", editionId: edition.id, delegationId: null },
+        { loadSnapshot: async () => snapshot },
+      );
+      expect(bootstrap.experience.mode, status).toBe("archived");
+      expect(bootstrap.experience.votingOpen, status).toBe(false);
+    }
   });
 
   it("rejects backwards generated time and invalid counts", () => {

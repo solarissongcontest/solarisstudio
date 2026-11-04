@@ -12,6 +12,7 @@ import { ArchiveDataError, ArchiveDataLoading } from "@/components/ArchiveDataSt
 import { FlagChip } from "@/components/FlagChip";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useCountries, useEditions } from "@/lib/data";
+import { filterCountryDirectory } from "@/lib/v3-country-directory-filters";
 import { usePublicEditionParticipants } from "@/lib/public-participants";
 import {
   buildCountryDiscovery,
@@ -30,6 +31,7 @@ export function V3CountriesDiscoveryScreen() {
   const participantsQuery = usePublicEditionParticipants(activeEdition?.id);
   const [search, setSearch] = useState("");
   const [region, setRegion] = useState("all");
+  const [participatingOnly, setParticipatingOnly] = useState(false);
   const [visibleCount, setVisibleCount] = useState(BROWSE_PAGE_SIZE);
 
   const discovery = useMemo(
@@ -42,19 +44,20 @@ export function V3CountriesDiscoveryScreen() {
     [countriesQuery.data, editionsQuery.data, participantsQuery.data],
   );
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return [...(countriesQuery.data ?? [])]
-      .filter((country) => region === "all" || country.region === region)
-      .filter(
-        (country) =>
-          !query ||
-          country.name.toLowerCase().includes(query) ||
-          country.short_code.toLowerCase().includes(query) ||
-          (country.native_name ?? "").toLowerCase().includes(query),
-      )
-      .sort((left, right) => left.name.localeCompare(right.name));
-  }, [countriesQuery.data, region, search]);
+  const participatingCountryIds = useMemo(
+    () => new Set(discovery.participating.map((country) => country.id)),
+    [discovery.participating],
+  );
+  const filtered = useMemo(
+    () =>
+      filterCountryDirectory(countriesQuery.data ?? [], {
+        search,
+        region,
+        participatingOnly,
+        participatingCountryIds,
+      }),
+    [countriesQuery.data, region, search, participatingOnly, participatingCountryIds],
+  );
 
   const pendingCurrentParticipants = Boolean(activeEdition?.id) && participantsQuery.isLoading;
   if (countriesQuery.isLoading || editionsQuery.isLoading || pendingCurrentParticipants) {
@@ -97,7 +100,16 @@ export function V3CountriesDiscoveryScreen() {
               ))}
             </div>
             {discovery.participating.length > 9 ? (
-              <a href="#countries-browse-all" className="inline-flex min-h-11 items-center text-sm font-semibold text-primary">
+              <a
+                href="#countries-browse-all"
+                onClick={() => {
+                  setParticipatingOnly(true);
+                  setSearch("");
+                  setRegion("all");
+                  setVisibleCount(BROWSE_PAGE_SIZE);
+                }}
+                className="inline-flex min-h-11 items-center text-sm font-semibold text-primary"
+              >
                 Browse all participating countries →
               </a>
             ) : null}
@@ -189,6 +201,23 @@ export function V3CountriesDiscoveryScreen() {
           id="countries-browse-title"
         />
 
+        {participatingOnly ? (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm" role="status">
+            <span className="text-muted-foreground">
+              Showing confirmed delegations in the current edition
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setParticipatingOnly(false);
+                setVisibleCount(BROWSE_PAGE_SIZE);
+              }}
+              className="min-h-11 rounded-lg px-3 font-semibold text-primary"
+            >
+              Show all countries
+            </button>
+          </div>
+        ) : null}
         <div className="solaris-app-directory-tools">
           <SolarisSearchField
             value={search}
@@ -279,6 +308,7 @@ export function V3CountriesDiscoveryScreen() {
                 onClick={() => {
                   setSearch("");
                   setRegion("all");
+                  setParticipatingOnly(false);
                   setVisibleCount(BROWSE_PAGE_SIZE);
                 }}
                 className="solaris-app-empty-action"
