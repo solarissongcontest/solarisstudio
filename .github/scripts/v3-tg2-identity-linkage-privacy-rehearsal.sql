@@ -134,6 +134,31 @@ begin
     (grant_id, organization_id, country_id, organ_id, object_type, object_id)
   values (v_grant, v_public_org, v_country, v_hidden_organ, 'office', v_hidden_office);
 
+  -- Same organization is a database invariant, not a client convention.
+  -- These failures must happen at the FK before any authorization check.
+  begin
+    insert into public.world_organization_offices
+      (organization_id, organ_id, slug, title, office_type, appointment_method)
+    values
+      (v_private_org, v_hidden_organ, 'invalid-cross-organization-office',
+       'Invalid TG2 Cross Organization Officer', 'executive_leader', 'appointment');
+    raise exception 'TG2_CROSS_ORG_OFFICE_FK_MISSING';
+  exception when foreign_key_violation then
+    null;
+  end;
+
+  begin
+    insert into public.world_capability_grant_scopes
+      (grant_id, organization_id, organ_id)
+    values
+      (v_grant, v_private_org, v_hidden_organ);
+    raise exception 'TG2_CROSS_ORG_GRANT_SCOPE_FK_MISSING';
+  exception when foreign_key_violation then
+    null;
+  end;
+
+  raise notice 'PASS: TG2 cannot attach offices or private grant scopes to a foreign institution organ';
+
   perform set_config('solaris.tg2_identity_privacy_fixture', jsonb_build_object(
     'selfUserId', v_self, 'managerUserId', v_manager,
     'outsiderUserId', v_outsider, 'otherUserId', v_other,
