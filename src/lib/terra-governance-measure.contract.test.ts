@@ -43,6 +43,14 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(sql).not.toContain("INSERT FAKE GUARD CODES");
   });
 
+  it("makes registered identifiers and institution ownership immutable", () => {
+    const guard = body("world_measure_identity_guard_v1", "measure_identity");
+    expect(guard).toContain("IMMUTABLE_MEASURE_IDENTITY");
+    expect(guard).toContain("IMMUTABLE_MEASURE_IDENTIFIER");
+    expect(guard).toContain("IMMUTABLE_MEASURE_REGISTRATION");
+    expect(sql).toMatch(/create trigger world_measure_identity_guard/);
+  });
+
   it("keeps all versions immutable apart from the one-way publication state", () => {
     expect(sql).toMatch(/unique\(measure_id,version_number\)/);
     expect(sql).toMatch(/foreign key\(current_version_id,id\) references public\.world_measure_versions\(id,measure_id\)/);
@@ -118,6 +126,9 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(review).toMatch(/publication_state='published'/);
     expect(review).toContain("world.measure.correction_requested");
     expect(review).toContain("world.measure.registered");
+    expect(review).toContain("SPONSOR_NOT_MEMBER");
+    expect(review).toContain("INVALID_ORGAN");
+    expect(review).toContain("INVALID_CATEGORY");
     expect(review).toMatch(/message='VERSION_CONFLICT'/);
   });
 
@@ -127,6 +138,7 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(resubmit).toMatch(/supersedes_version_id,content_hash/);
     expect(resubmit).toMatch(/max\(version_number\)/);
     expect(resubmit).toContain("world.measure.resubmitted");
+    expect(resubmit).toMatch(/coalesce\(btrim\(p_summary\),''\)/);
     expect(resubmit).toContain("world.measure.submit");
   });
 
@@ -140,3 +152,4 @@ describe("TG7 versioned measures + procedural registration", () => {
     expect(sql).toMatch(/v3\.tg7\.world-measure-submissions/);
   });
 });
+
