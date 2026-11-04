@@ -66,7 +66,7 @@ describe("V3 Public Voting DNA System publication boundary", () => {
     const authenticatedPolicy = between(
       migration,
       'create policy "solaris consolidated authenticated read"',
-      "create or replace function public.v3_public_country_voting_dna(",
+      'drop policy if exists "solaris consolidated anon read" on public.jury_votes;',
     );
 
     for (const policy of [anonPolicy, authenticatedPolicy]) {
@@ -115,6 +115,34 @@ describe("V3 Public Voting DNA System publication boundary", () => {
     );
     expect(detailedVotes).toContain(
       "coalesce(vote.receiving_country_id, receiving_entity.country_id) = p_country_id",
+    );
+  });
+
+  it("does not expose unbound or wrong-edition raw Jury votes through public API policies", () => {
+    const anon = between(
+      migration,
+      'drop policy if exists "solaris consolidated anon read" on public.jury_votes;',
+      'drop policy if exists "solaris consolidated authenticated read" on public.jury_votes;',
+    );
+    const authenticated = between(
+      migration,
+      'drop policy if exists "solaris consolidated authenticated read" on public.jury_votes;',
+      "create or replace function public.v3_public_country_voting_dna(",
+    );
+    for (const policy of [anon, authenticated]) {
+      expect(policy).toContain("on public.jury_votes");
+      expect(policy).toContain("show_id is not null");
+      expect(policy).toContain("jury_show.id = jury_votes.show_id");
+      expect(policy).toContain("jury_show.edition_id = jury_votes.edition_id");
+      expect(policy).toContain("show_publication_enabled(jury_show.id, 'detailed_voting')");
+      expect(policy).not.toContain("edition.published = true");
+    }
+    expect(anon).not.toContain("studio2_access_allowed");
+    expect(authenticated).toContain(
+      "studio2_access_allowed('jury.ballots.read', edition_id, false)",
+    );
+    expect(authenticated).toContain(
+      "studio2_access_allowed('jury.ballots.manage', edition_id, true)",
     );
   });
 

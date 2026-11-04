@@ -61,6 +61,47 @@ using (
   )
 );
 
+-- Raw Jury votes contain individual voting relationships. A published edition
+-- alone does not authorize detailed voting disclosure, especially for legacy
+-- show-less rows with no canonical show publication decision. Historical raw
+-- votes remain accessible to authorized Jury readers through existing scoped
+-- capabilities, but anonymous access requires an exact published show/edition.
+drop policy if exists "solaris consolidated anon read" on public.jury_votes;
+create policy "solaris consolidated anon read"
+on public.jury_votes
+for select
+to anon
+using (
+  show_id is not null
+  and exists (
+    select 1
+    from public.shows jury_show
+    where jury_show.id = jury_votes.show_id
+      and jury_show.edition_id = jury_votes.edition_id
+      and public.show_publication_enabled(jury_show.id, 'detailed_voting')
+  )
+);
+
+drop policy if exists "solaris consolidated authenticated read" on public.jury_votes;
+create policy "solaris consolidated authenticated read"
+on public.jury_votes
+for select
+to authenticated
+using (
+  public.studio2_access_allowed('jury.ballots.read', edition_id, false)
+  or public.studio2_access_allowed('jury.ballots.manage', edition_id, true)
+  or (
+    show_id is not null
+    and exists (
+      select 1
+      from public.shows jury_show
+      where jury_show.id = jury_votes.show_id
+        and jury_show.edition_id = jury_votes.edition_id
+        and public.show_publication_enabled(jury_show.id, 'detailed_voting')
+    )
+  )
+);
+
 create or replace function public.v3_public_country_voting_dna(
   p_country_id uuid
 )
