@@ -2,18 +2,20 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const source = readFileSync("src/routes/participate/index.tsx", "utf8");
+const projection = readFileSync("src/lib/public-participation-jury-summary.ts", "utf8");
 
 describe("legacy Public Participate status recovery", () => {
   it("never converts a failed session or jury RPC read into a closed-vote claim", () => {
     expect(source).toContain("if (sessionError) throw sessionError");
     expect(source).toContain("if (error) throw error;");
-    expect(source).toContain('throw new Error("Jury voting status could not be verified.")');
+    expect(source).toContain("projectJurySummary(data)");
+    expect(projection).toContain('throw new Error("Jury voting status could not be verified.")');
     expect(source).not.toContain("if (error || !data?.ok)");
   });
 
   it("recognizes an ordinary fan account and suspended delegation as canonical denials", () => {
-    expect(source).toContain('data?.error === "country_account_required"');
-    expect(source).toContain('data?.error === "account_suspended"');
+    expect(projection).toContain('context.error === "country_account_required"');
+    expect(projection).toContain('context.error === "account_suspended"');
     expect(source).toContain("Your country account is suspended.");
     expect(source).toContain("This account does not have an assigned country delegation.");
   });
@@ -49,7 +51,7 @@ describe("legacy Public Participate status recovery", () => {
   });
 
   it("reads canonical jury window timestamps rather than assuming incompatible aliases", () => {
-    expect(source).toContain("round.opened_at ?? round.opens_at ?? null");
-    expect(source).toContain("round.closed_at ?? round.closes_at ?? null");
+    expect(projection).toContain("round.opened_at ?? round.opens_at");
+    expect(projection).toContain("round.closed_at ?? round.closes_at");
   });
 });
