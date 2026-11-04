@@ -91,6 +91,30 @@ export function worldLegalSlug(value: string): boolean {
   return value.length <= 100 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
 }
 
+/**
+ * The historical RPC intentionally serves member/private documents to their
+ * authorized owners too. Before invoking it on a public page, prove the exact
+ * document identity and public visibility from the canonical document RPC.
+ * Never use the archive metadata as the public-visibility authority.
+ */
+export function parsePublicWorldAccessProof(
+  data: unknown,
+  organizationSlug: string,
+  documentSlug: string,
+): string | null {
+  if (data == null) return null;
+  const detail = row(data, "visibility proof");
+  const org = row(detail.organization, "organization identity");
+  if (
+    org.slug !== organizationSlug ||
+    detail.slug !== documentSlug ||
+    detail.visibility !== "public"
+  ) {
+    throw new Error("Document is not publicly accessible at this address");
+  }
+  return string(detail.documentId, "public document identity");
+}
+
 export function parsePublicWorldArchive(
   data: unknown,
   organizationSlug: string,
