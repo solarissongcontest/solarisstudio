@@ -72,7 +72,10 @@ describe("TG8 versioned institutional voting rule authority", () => {
   it("locks history down against direct role reads and in-place historical edits", () => {
     expect(source).toContain("alter table public.world_voting_rules enable row level security");
     expect(source).toContain("revoke all on public.world_voting_rules from public,anon,authenticated,service_role");
-    expect(source).toContain("grant all on public.world_voting_rules to service_role");
+    expect(source).not.toContain("grant all on public.world_voting_rules to service_role");
+    expect(source).not.toMatch(/grant\\s+(all|insert|update|delete|select)\\s+on\\s+public\\.world_voting_rules\\s+to\\s+service_role/i);
+    expect(rehearsal).toContain("TG8_SERVICE_ROLE_DIRECT_RULE_SELECT_ALLOWED");
+    expect(rehearsal).toContain("TG8_SERVICE_ROLE_DIRECT_RULE_MUTATION_ALLOWED");
     expect(source).toContain("create trigger world_voting_rules_history_guard");
     const guard = between("create or replace function private.world_voting_rule_history_guard_v1", "create trigger world_voting_rules_history_guard");
     expect(guard).toContain("if tg_op='DELETE'");
