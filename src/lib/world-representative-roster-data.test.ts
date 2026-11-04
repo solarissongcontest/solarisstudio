@@ -25,7 +25,8 @@ describe("canonical public TG3 representative read", () => {
   it("reads only the official page-bounded RPC with exact scope", async () => {
     mocks.rpc.mockResolvedValue({ data: payload, error: null });
     const response = await readPublicWorldRepresentatives(valid);
-    expect(mocks.rpc).toHaveBeenCalledExactlyOnceWith(
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    expect(mocks.rpc).toHaveBeenCalledWith(
       "world_public_representative_roster_v1",
       { p_slug: "guard", p_status: "current", p_search: "Oland", p_offset: 0, p_limit: 16 },
     );
