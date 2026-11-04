@@ -230,7 +230,7 @@ begin
       select 1 from public.world_office_terms term_row
       where term_row.office_id=office_row.id
         and term_row.holder_user_id=auth.uid()
-        and term_row.status='active' and term_row.ends_at is null
+        and term_row.status='active' and term_row.actual_end_at is null
     )
     and public.world_access_allowed(
       'world.statement.publish',v_org.id,null,office_row.organ_id,null,null);
@@ -278,7 +278,7 @@ begin
     select term_row.holder_person_id into v_person_id
     from public.world_office_terms term_row
     where term_row.office_id=p_office_id and term_row.status='active'
-      and term_row.ends_at is null and term_row.holder_user_id=auth.uid();
+      and term_row.actual_end_at is null and term_row.holder_user_id=auth.uid();
     if v_person_id is null then
       raise exception using errcode='42501',message='AUTHORIZATION'; end if;
   end if;
@@ -366,7 +366,7 @@ begin
         select 1 from public.world_office_terms term_row
         where term_row.office_id=v_office.id
           and term_row.holder_user_id=auth.uid()
-          and term_row.status='active' and term_row.ends_at is null
+          and term_row.status='active' and term_row.actual_end_at is null
       )
       and public.world_access_allowed(
         'world.statement.publish',v_statement.organization_id,null,
