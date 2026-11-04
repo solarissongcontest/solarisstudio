@@ -94,6 +94,8 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(source).toContain("p_cursor_term_id");
     expect(source).toContain("p_office_slug");
     expect(screen).toContain("No completed terms published");
-    expect(screen).not.toMatch(/\\.from\\(|\\.update\\(|\\.insert\\(|\\.delete\\(/);
+    for (const mutation of [".from(", ".update(", ".insert(", ".delete("]) {
+      expect(screen).not.toContain(mutation);
+    }
   });
 });
