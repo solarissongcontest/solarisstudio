@@ -23,8 +23,8 @@ function countLabel(count: number | null, singular: string, plural = `${singular
  * Identity-first Me composition.
  *
  * The projection owns no task/workflow truth and this screen does not infer
- * Organizer access from role labels. Receipt authority remains external; only
- * already-projected evidence counts are presented here.
+ * Organizer or delegation access from role labels. Receipt authority remains
+ * external; only already-projected evidence counts are presented here.
  */
 export function V3MeScreen({ projection }: V3MeScreenProps) {
   const identityMeta = [projection.identity.delegationName, projection.identity.displayRole]
@@ -154,6 +154,22 @@ export function V3MeScreen({ projection }: V3MeScreenProps) {
           to={projection.following.href}
         />
       </V3Section>
+
+      {projection.delegation.length ? (
+        <V3Section title="Delegation" meta={<V3StatusChip>Authorized</V3StatusChip>}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {projection.delegation.map((link) => (
+              <V3ActionCard
+                key={link.key}
+                title={link.label}
+                description="Open this delegation workspace"
+                tone="neutral"
+                to={link.href}
+              />
+            ))}
+          </div>
+        </V3Section>
+      ) : null}
 
       <V3Section title="Preferences">
         <div className="grid gap-3 sm:grid-cols-2">
