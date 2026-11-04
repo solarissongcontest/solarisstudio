@@ -144,23 +144,30 @@ export function AppRuntime({ children }: { children: ReactNode }) {
   useEffect(() => {
     // The SSR head bootstrap marks installed launches before hydration. The
     // initial hydration-safe "web" snapshot is not a detected runtime: writing
-    // it to <html> would briefly remove iOS standalone safe-area protection
-    // (and can flash browser chrome) until detectSolarisPlatform resolves.
+    // it to <html> would briefly remove iOS standalone safe-area protection.
     if (!platformResolved) return;
 
     const root = document.documentElement;
     root.dataset.solarisRuntime = platform.mode;
-    root.dataset.solarisConnectivity = connectivity.status;
-    root.dataset.solarisLifecycle = lifecycle.phase;
     root.toggleAttribute("data-solaris-app", platform.isAppMode);
     root.removeAttribute("data-solaris-app-boot");
     return () => {
       delete root.dataset.solarisRuntime;
-      delete root.dataset.solarisConnectivity;
-      delete root.dataset.solarisLifecycle;
       root.removeAttribute("data-solaris-app");
     };
-  }, [connectivity.status, lifecycle.phase, platform.isAppMode, platform.mode, platformResolved]);
+  }, [platform.isAppMode, platform.mode, platformResolved]);
+
+  // Connectivity and foreground/background changes must not tear down and
+  // recreate the installed-app marker. The marker owns iOS safe-area geometry.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.solarisConnectivity = connectivity.status;
+    root.dataset.solarisLifecycle = lifecycle.phase;
+    return () => {
+      delete root.dataset.solarisConnectivity;
+      delete root.dataset.solarisLifecycle;
+    };
+  }, [connectivity.status, lifecycle.phase]);
 
   useEffect(() => {
     if (!platform.isAppMode) return;
