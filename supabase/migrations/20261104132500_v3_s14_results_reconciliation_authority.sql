@@ -806,10 +806,25 @@ begin
 end
 $reconcile$;
 
--- Influence analysis is rebuildable organizer-only evidence, never a browser writer.
+-- Counterfactual influence rows are rebuildable diagnostics, not official
+-- score truth. The existing atomic calculation RPC is SECURITY INVOKER and
+-- runs under the Organizer's authenticated token. It must retain SELECT/DML
+-- privileges gated by the existing voting.manage RLS policy from
+-- 20261103004500; revoking those privileges silently breaks *both* engines.
+-- Keep the RLS policy and its capability check, deny public/anonymous writes,
+-- and forbid any table-level TRUNCATE/REFERENCES/TRIGGER escalation.
 alter table televoting.round_influence_results enable row level security;
-revoke insert, update, delete, truncate, references, trigger
-  on table televoting.round_influence_results from public, anon, authenticated;
+revoke all on table televoting.round_influence_results from public, anon;
+revoke truncate, references, trigger
+  on table televoting.round_influence_results from authenticated;
+grant select, insert, update, delete
+  on table televoting.round_influence_results to authenticated;
+drop policy if exists "televoting organizer full access"
+  on televoting.round_influence_results;
+create policy "televoting organizer full access"
+  on televoting.round_influence_results for all to authenticated
+  using (public.studio2_access_allowed('voting.manage', null, false))
+  with check (public.studio2_access_allowed('voting.manage', null, false));
 
 notify pgrst, 'reload schema';
 commit;
