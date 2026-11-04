@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildArchiveGameQuestion } from "./archive-games";
+import { archiveGameStats, buildArchiveGameQuestion } from "./archive-games";
 
 const editions = [
   {
@@ -172,5 +172,50 @@ describe("Archive Games", () => {
 
     expect(question).not.toBeNull();
     expect(question?.options.some((option) => option.id === question.correctOptionId)).toBe(true);
+  });
+
+  it("excludes unpublished, missing and cross-edition show results from the public game pool", () => {
+    const hiddenShow = { ...shows[0], id: "hidden-show", published: false };
+    const wrongShowResult = { ...results[0], id: "hidden-r", country_id: "hidden", show_id: "hidden-show" };
+    const crossEditionResult = { ...results[0], id: "cross-r", country_id: "cross", show_id: "s2" };
+    const missingShowResult = { ...results[0], id: "missing-r", country_id: "missing", show_id: "absent" };
+    const editionAggregate = { ...results[0], id: "aggregate-r", country_id: "aggregate", show_id: null };
+    const guardedInput = {
+      ...input,
+      shows: [...shows, hiddenShow],
+      results: [...results, wrongShowResult, crossEditionResult, missingShowResult, editionAggregate],
+    };
+
+    // A published edition-wide aggregate is valid, but no show-specific
+    // unpublished or cross-edition result may generate a public question.
+    expect(archiveGameStats(guardedInput)).toEqual({
+      resultCount: results.length + 1,
+      editionCount: 2,
+      showCount: 2,
+      entityCount: 3,
+    });
+    const generated = buildArchiveGameQuestion(guardedInput, "jury-tele", "publication-boundary");
+    expect(JSON.stringify(generated)).not.toMatch(/hidden|cross|missing|absent/);
+  });
+
+  it("does not borrow artist or song details from a different edition's participant", () => {
+    const mismatchedParticipant = {
+      ...participants[0],
+      edition_id: "e2",
+      artist: "Private Artist",
+      song: "Private Song",
+    };
+    const question = buildArchiveGameQuestion(
+      {
+        ...input,
+        results: results.slice(0, 2),
+        participants: [mismatchedParticipant, participants[1]],
+      },
+      "higher-lower",
+      "edition-boundary",
+    );
+    expect(question?.options.find((option) => option.id === "a")?.detail).toBe("SSC 1");
+    expect(JSON.stringify(question)).not.toContain("Private Artist");
+    expect(JSON.stringify(question)).not.toContain("Private Song");
   });
 });
