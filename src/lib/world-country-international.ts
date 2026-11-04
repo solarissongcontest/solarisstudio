@@ -108,6 +108,26 @@ export function parseWorldPublicCountries(value: unknown): WorldPublicCountry[] 
   });
 }
 
+/**
+ * A URL-selected country must resolve to its exact canonical code. Do not
+ * accept a mismatched row if a cached or otherwise malformed API response is
+ * returned for a different country.
+ */
+export function parseWorldCountryIdentity(
+  value: unknown,
+  expectedCode: string,
+): WorldPublicCountry | null {
+  if (!validWorldCountryCode(expectedCode)) {
+    throw new Error("Invalid requested country code");
+  }
+  if (value == null) return null;
+  const parsed = parseWorldPublicCountries([value])[0];
+  if (parsed.code.toUpperCase() !== expectedCode.toUpperCase()) {
+    throw new Error("Country identity does not match requested code");
+  }
+  return parsed;
+}
+
 export function parseWorldCountryAffiliations(
   value: unknown,
   expectedCountryId: string,
