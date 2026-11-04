@@ -111,7 +111,7 @@ begin
   if v_rep.id is null
      or v_rep.organization_id <> v_session.organization_id
      or v_rep.country_id <> p_country_id
-     or not v_rep.voting_authority or v_rep.role <> 'representative'
+     or v_rep.role <> 'representative'
   then
     raise exception using errcode='23514',message='INVALID_REPRESENTATION';
   end if;
@@ -142,6 +142,7 @@ begin
        where member_row.organization_id=v_session.organization_id
          and member_row.country_id=p_country_id
          and member_row.status in ('member','observer','associate')
+         and (member_row.status <> 'member' or v_rep.voting_authority)
          and member_row.ended_at is null
      )
   then
@@ -151,7 +152,8 @@ begin
   if p_status='proxy' then
     select * into v_proxy from public.world_representation_proxies
     where id=p_proxy_id and representation_id=v_rep.id for share;
-    if v_proxy.id is null or v_proxy.revoked_at is not null
+    if v_proxy.id is null or not v_rep.voting_authority
+       or v_proxy.revoked_at is not null
        or (v_proxy.session_id is not null and v_proxy.session_id <> p_session_id)
        or not private.world_proxy_is_effective(
          v_proxy.status,v_proxy.valid_from,v_proxy.valid_until,now()
@@ -280,12 +282,18 @@ begin
       ),'[]'::jsonb) as proxies
     from public.world_organization_memberships membership_row
     join public.countries country_row on country_row.id=membership_row.country_id
-    join public.world_organization_representations rep
-      on rep.organization_id=membership_row.organization_id
-     and rep.country_id=membership_row.country_id
-     and rep.ends_at is null
-     and rep.role='representative'
-     and rep.voting_authority
+    join lateral (
+      select candidate.*
+      from public.world_organization_representations candidate
+      where candidate.organization_id=membership_row.organization_id
+        and candidate.country_id=membership_row.country_id
+        and candidate.ends_at is null
+        and candidate.role='representative'
+        and (membership_row.status <> 'member' or candidate.voting_authority)
+      order by candidate.voting_authority desc,
+        candidate.starts_at desc,candidate.id desc
+      limit 1
+    ) rep on true
     join public.delegation_people rep_person on rep_person.id=rep.person_id
     left join public.world_session_attendance attendance
       on attendance.session_id=v_session.id
