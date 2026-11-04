@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { isCurrentConfirmationRoundReview } from "./confirmation-round-review-scope";
+import { assertConfirmationRoundPreviewMatchesRequest, isCurrentConfirmationRoundReview } from "./confirmation-round-review-scope";
 
 describe("Organizer Confirmation round review context", () => {
   const request = { editionId: "edition-a", epoch: 4 };
@@ -37,9 +37,24 @@ describe("Organizer Confirmation round review context", () => {
     )).toBe(false);
   });
 
+  it("rejects wrong round, command kind, edition and invalid expected versions", () => {
+    const request = { editionId: "edition-a", roundId: "round-1", changeKind: "editing" };
+    const preview = { ...request, expectedVersion: 4 };
+    expect(() => assertConfirmationRoundPreviewMatchesRequest(request, preview)).not.toThrow();
+    expect(() => assertConfirmationRoundPreviewMatchesRequest(request, { ...preview, roundId: "round-2" })).toThrow();
+    expect(() => assertConfirmationRoundPreviewMatchesRequest(request, { ...preview, editionId: "edition-b" })).toThrow();
+    expect(() => assertConfirmationRoundPreviewMatchesRequest(request, { ...preview, changeKind: "status" })).toThrow();
+    expect(() => assertConfirmationRoundPreviewMatchesRequest(request, { ...preview, expectedVersion: -1 })).toThrow();
+    expect(() => assertConfirmationRoundPreviewMatchesRequest(request, { ...preview, expectedVersion: Number.NaN })).toThrow();
+    const create = { editionId: "edition-a", roundId: null, changeKind: "create" };
+    expect(() => assertConfirmationRoundPreviewMatchesRequest(create, { ...create, expectedVersion: 0 })).not.toThrow();
+  });
+
   it("checks server impact-preview edition before presenting an actionable review", () => {
     const route = readFileSync("src/routes/confirmations/admin/rounds.tsx", "utf8");
     expect(route).toContain("isCurrentConfirmationRoundReview(request, reviewScopeRef.current, preview.editionId)");
+    expect(route).toContain("assertConfirmationRoundPreviewMatchesRequest(");
+    expect(route).toContain("roundId: input.roundId ?? null, changeKind: input.kind");
     expect(route).toContain("scopeEpoch: request.epoch");
     expect(route).toContain("open={Boolean(activePendingChange)}");
     expect(route).toContain("if (applyInFlightRef.current || !activePendingChange");
