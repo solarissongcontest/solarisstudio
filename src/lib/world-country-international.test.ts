@@ -83,9 +83,15 @@ describe("World country International public read boundaries", () => {
     expect(term[0].joinedAt).toBe(current.joined_at);
     expect(term[0].endedAt).toBe(historical.ended_at);
     expect(JSON.stringify(term)).not.toContain("unpublished");
-    for (const invalidJoinedAt of ["yesterday", "2026-01-01", "", null]) {
+    for (const invalidJoinedAt of [
+      "yesterday", "2026-01-01", "", null, "2026-02-30T00:00:00Z",
+      "2026-13-01T00:00:00Z", "2026-01-01T25:00:00Z",
+      "2026-01-01T12:00:00+15:00",
+    ]) {
       expect(() => parseWorldCountryAffiliations([{ ...current, joined_at: invalidJoinedAt }], country.id, "current")).toThrow();
     }
+    expect(parseWorldCountryAffiliations([{ ...current, joined_at: "2028-02-29T00:00:00+02:00" }],
+      country.id, "current")).toHaveLength(1);
     expect(() => parseWorldCountryAffiliations([{ ...historical, ended_at: "2020-01-01T00:00:00Z" }],
       country.id, "historical")).toThrow("before it begins");
   });
