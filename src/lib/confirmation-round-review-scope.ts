@@ -103,3 +103,52 @@ export function assertConfirmationRoundReceiptMatchesRequest(
     );
   }
 }
+
+/**
+ * Validate browser-local scheduling fields before issuing an R2 impact preview.
+ * Invalid civil dates and DST-skipped local times must not be silently
+ * normalized into an unintended UTC instant. PostgreSQL response_limit is int4.
+ */
+export function validateConfirmationRoundFormFields(input: Readonly<{
+  opensAtLocal: string;
+  closesAtLocal: string;
+  responseLimit: string;
+}>): Readonly<{ opensAt: string | null; closesAt: string | null; responseLimit: number | null }> {
+  function toInstant(localValue: string, label: string): string | null {
+    const value = localValue.trim();
+    if (!value) return null;
+
+    const match = /^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})$/.exec(value);
+    if (!match) throw new Error(`${label} must be a valid local date and time.`);
+
+    const date = new Date(value);
+    const [, year, month, day, hour, minute] = match;
+    if (!Number.isFinite(date.getTime()) ||
+        date.getFullYear() !== Number(year) ||
+        date.getMonth() + 1 !== Number(month) ||
+        date.getDate() !== Number(day) ||
+        date.getHours() !== Number(hour) ||
+        date.getMinutes() !== Number(minute)) {
+      throw new Error(`${label} does not exist in your local time zone. Choose a valid time.`);
+    }
+    return date.toISOString();
+  }
+
+  const opensAt = toInstant(input.opensAtLocal, "Opening time");
+  const closesAt = toInstant(input.closesAtLocal, "Closing time");
+  if (opensAt && closesAt && closesAt <= opensAt) {
+    throw new Error("Closing time must be after opening time.");
+  }
+
+  const rawLimit = input.responseLimit.trim();
+  let responseLimit: number | null = null;
+  if (rawLimit) {
+    responseLimit = Number(rawLimit);
+    if (!/^[1-9]\\d*$/.test(rawLimit) ||
+        !Number.isSafeInteger(responseLimit) ||
+        responseLimit > 2_147_483_647) {
+      throw new Error("Response limit must be a positive whole number up to 2,147,483,647.");
+    }
+  }
+  return { opensAt, closesAt, responseLimit };
+}
