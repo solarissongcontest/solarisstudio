@@ -114,6 +114,56 @@ describe("TG6 institutional acting-proxy authorization", () => {
     expect(migration).toContain("'world.proxy.rejected'");
   });
 
+  it("lets exact-scope reviewers see pending rows without exposing another country or login ID", () => {
+    expect(migration).toContain("private.world_proxy_review_read_allowed_v1");
+    expect(migration).toContain("create policy world_proxies_reviewer_scoped_read");
+    expect(migration).toContain("for select to authenticated");
+    const helper = migration.slice(
+      migration.indexOf("create or replace function private.world_proxy_review_read_allowed_v1"),
+      migration.indexOf("drop policy if exists world_proxies_reviewer_scoped_read"),
+    );
+    expect(helper).toContain("security definer");
+    expect(helper).toContain("p_representation_id");
+    expect(helper).toContain("p_session_id");
+    expect(helper).toContain("p_proxy_id");
+    expect(helper).toContain("session_row.organization_id=rep_row.organization_id");
+    expect(helper).toContain("'world.proxy.approve'");
+    expect(helper).toContain("rep_row.country_id");
+    expect(helper).toContain("'proxy',p_proxy_id");
+    expect(helper).not.toContain("p_proxy_user_id");
+  });
+
+  it("bounds both reviewer and controller projections and filters authorized queue rows individually", () => {
+    const review = migration.slice(
+      migration.indexOf("create or replace function public.world_proxy_review_queue_v1"),
+      migration.indexOf("create or replace function public.world_my_proxy_requests_v1"),
+    );
+    const controller = migration.slice(
+      migration.indexOf("create or replace function public.world_my_proxy_requests_v1"),
+      migration.indexOf("revoke all on function public.world_proxy_review_queue_v1"),
+    );
+    expect(review).toContain("auth.uid() is null");
+    expect(review).toContain("security definer");
+    expect(review).toContain("p.status='requested'");
+    expect(review).toContain("'world.proxy.approve'");
+    expect(review).toContain("rep.country_id,session_row.organ_id,'proxy',p.id");
+    expect(review).toContain("limit 25");
+    expect(review).not.toMatch(/proxy_user_id|holder_user_id|submitted_by_user_id/);
+    expect(controller).toContain("account_row.user_id=auth.uid()");
+    expect(controller).toContain("account_row.status='active'");
+    expect(controller).toContain("rep.country_id=p_country_id");
+    expect(controller).toContain("limit 20");
+    expect(controller).toContain("'timeEffective'");
+    expect(controller).not.toContain("'canCastBallot'");
+    expect(controller).not.toMatch(/proxy_user_id|holder_user_id/);
+    expect(migration).toContain("revoke all on function public.world_proxy_review_queue_v1");
+    expect(migration).toContain("revoke all on function public.world_my_proxy_requests_v1");
+    expect(fixture).toContain("TG6_PROXY_UNAUTHORIZED_REVIEW_READ");
+    expect(fixture).toContain("TG6_PROXY_UNAUTHORIZED_COUNTRY_PROJECTION");
+    expect(fixture).toContain("TG6_PROXY_CONTROLLER_PERSONAL_PROJECTION_MISSING");
+    expect(fixture).toContain("TG6_PROXY_AUTHORIZED_REVIEW_QUEUE_MISSING");
+  });
+
   it("rehearses negative authorization and replay in rollback-only local Postgres", () => {
     for (const failure of [
       "TG6_PROXY_ANON_REQUEST_ALLOWED",
