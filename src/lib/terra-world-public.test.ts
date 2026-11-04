@@ -109,6 +109,27 @@ describe("TG3 world publication-safe projections", () => {
     expect(projection).not.toHaveProperty("proxies");
   });
 
+  it("exposes canonical public representative names but strips private identity and access details", () => {
+    const projection = parseWorldProjection({
+      organization, organs: [], memberships: [], offices: [],
+      representatives: [
+        { id: "rep-a", countryId: "country-a", displayName: "Delegation A",
+          role: "representative", votingAuthority: true, endsAt: null,
+          userId: "private", personId: "private", votingToken: "private" },
+        { id: "rep-b", countryId: "country-b", displayName: "Former delegate",
+          role: "representative", votingAuthority: false, endsAt: "2025-01-01" },
+      ],
+    }, "guard");
+    expect(projection?.representatives).toHaveLength(2);
+    expect(projection?.representatives[0]).toEqual({
+      id: "rep-a", countryId: "country-a", displayName: "Delegation A",
+      role: "representative", votingAuthority: true, endsAt: null,
+    });
+    expect(projection?.representatives[0]).not.toHaveProperty("votingToken");
+    expect(projection?.representatives[0]).not.toHaveProperty("userId");
+    expect(projection?.representatives[0]).not.toHaveProperty("personId");
+  });
+
   it("counts current membership statuses but not concluded historical terms", () => {
     const projection = parseWorldProjection({
       organization, organs: [], offices: [],
