@@ -1,5 +1,5 @@
 import { Archive, Compass, Search, Sparkles } from "lucide-react";
-import { WorldExploreEntry } from "@/components/world/WorldExploreEntry";
+import { WorldV3ExploreEntry } from "@/components/world/WorldExploreEntry";
 
 import type {
   V3EditionExperience,
@@ -20,6 +20,7 @@ import {
 export type V3ExploreScreenProps = {
   projection: V3ExploreRootProjection;
   onOpenSearch: () => void;
+  showWorld?: boolean;
 };
 
 const COLLECTION_DESCRIPTIONS: Record<V3ExploreCollection["key"], string> = {
@@ -156,7 +157,7 @@ function ArchiveEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
  * interaction. This screen only renders V3 Explore projections and therefore
  * cannot become a second data, Search or Results authority.
  */
-export function V3ExploreScreen({ projection, onOpenSearch }: V3ExploreScreenProps) {
+export function V3ExploreScreen({ projection, onOpenSearch, showWorld = false }: V3ExploreScreenProps) {
   return (
     <V3Screen>
       <V3ScreenHeader
@@ -204,7 +205,7 @@ export function V3ExploreScreen({ projection, onOpenSearch }: V3ExploreScreenPro
         </div>
       </V3Section>
 
-      <WorldExploreEntry variant="v3" />
+      <WorldV3ExploreEntry enabled={showWorld} />
 
       <V3Section
         title="Archive"
