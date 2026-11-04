@@ -6,6 +6,7 @@ import {
   parseWorldDocumentDetail,
   parseWorldDocumentIndex,
   publicWorldDocumentOutline,
+  resolveWorldDocumentFragment,
   worldProvisionTargetId,
 } from "./world-public-documents";
 
@@ -239,6 +240,31 @@ describe("TG4 public institutional document library", () => {
     }));
     expect(publicWorldDocumentOutline(provisions)).toHaveLength(85);
     expect(publicWorldDocumentOutline(provisions).at(-1)?.heading).toBe("Section 84");
+  });
+
+  it("restores links to the requested published Version after async hydration", () => {
+    const detail = parseWorldDocumentDetail({
+      ...document,
+      version: {
+        ...document.version,
+        provisions: [{
+          ...document.version.provisions[0],
+          semanticKey: "guard-charter:membership-admission",
+          anchor: "article-4",
+        }],
+      },
+    });
+    const provisions = detail!.version.provisions;
+    const stable = "world-provision-guard-charter:membership-admission";
+    expect(provisions[0].targetId).toBe(stable);
+    expect(resolveWorldDocumentFragment("#" + stable, provisions)).toBe(stable);
+    expect(resolveWorldDocumentFragment("#world-provision-guard-charter%3Amembership-admission", provisions))
+      .toBe(stable);
+    expect(resolveWorldDocumentFragment("#article-4", provisions)).toBe("article-4");
+    expect(resolveWorldDocumentFragment("#article-5", provisions)).toBeNull();
+    expect(resolveWorldDocumentFragment("#not-this-document", provisions)).toBeNull();
+    expect(resolveWorldDocumentFragment("#%E0%A4%A", provisions)).toBeNull();
+    expect(resolveWorldDocumentFragment("", provisions)).toBeNull();
   });
 
   it("bounds search input without making additional requests or inventing results", () => {
