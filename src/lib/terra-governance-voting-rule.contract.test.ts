@@ -6,7 +6,7 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 const source = read("supabase/migrations/20261104170000_v3_tg8_voting_rule_configuration.sql");
 const rehearsal = read("scripts/rehearse-v3-world-voting-rules.sql");
 const runner = read("scripts/rehearse-v3-world-voting-rules.sh");
-const tg2 = read("supabase/migrations/20261102171600_v3_tg2_world_institution_access.sql");
+const tg2 = read("supabase/migrations/20261102171500_v3_tg2_world_institution_core.sql");
 
 const between = (start: string, end: string): string => {
   const i = source.indexOf(start);
