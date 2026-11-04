@@ -62,7 +62,7 @@ test("real Country and Wiki pages pass collision and flag audits at this viewpor
   await auditRoutes(page, routes, testInfo);
 });
 
-test("Country has distinct mobile-browser and desktop presentations", async ({ page, baseURL }, testInfo) => {
+test("Country and Wiki have distinct mobile-browser and desktop presentations", async ({ page, baseURL }, testInfo) => {
   test.skip(!["public-320", "public-390", "public-1440"].includes(testInfo.project.name));
 
   // The representative route must come from the isolated local seed, never a
@@ -108,6 +108,29 @@ test("Country has distinct mobile-browser and desktop presentations", async ({ p
     await expect(root.locator(".country-mobile-web-tabs")).toHaveCount(0);
     await expect(root.locator(".country-v2-hero, .country-identity-hero")).toHaveCount(1);
   }
+
+  const wiki = discovered.find((route) => /^\\/wiki\\/[^/]+$/.test(route));
+  expect(wiki, "Local sitemap must contain a Wiki article").toBeTruthy();
+  await page.goto(wiki!, { waitUntil: "domcontentloaded" });
+  const wikiRoot = page.locator(".wiki-canvas");
+  await expect(wikiRoot).toBeVisible({ timeout: 30_000 });
+  await expect(wikiRoot).toHaveAttribute(
+    "data-wiki-layout-mode",
+    mobileWeb ? "mobile-web" : "desktop-web",
+  );
+
+  if (mobileWeb) {
+    await expect(wikiRoot.locator(".wiki-mobile-web-heading")).toBeVisible();
+    await expect(wikiRoot.locator(".wiki-mobile-web-toc")).toBeVisible();
+    await expect(wikiRoot.locator(".country-wiki-header")).toHaveCount(0);
+    await expect(wikiRoot.locator(".wiki-mobile-toolbar")).toHaveCount(0);
+    await wikiRoot.locator(".wiki-mobile-web-facts > summary").click();
+    await expect(wikiRoot.locator(".wiki-mobile-web-facts .wiki-infobox")).toBeVisible();
+  } else {
+    await expect(wikiRoot.locator(".wiki-mobile-web-heading")).toHaveCount(0);
+    await expect(wikiRoot.locator(".wiki-mobile-web-toc")).toHaveCount(0);
+    await expect(wikiRoot.locator(".country-wiki-header")).toHaveCount(1);
+  }
 });
 
 test("representative non-country dynamic route passes desktop audit", async ({ page, baseURL }, testInfo) => {
@@ -148,9 +171,14 @@ test("Country Glass atmosphere and Edition mobile toolbar keep their visible bou
   }
 
   await page.goto("/wiki/ABE", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".country-v2-liquid-glass-scene-flag")).toBeVisible();
+  if (["public-320", "public-390"].includes(testInfo.project.name)) {
+    await expect(page.locator(".wiki-mobile-web-heading")).toBeVisible();
+    await expect(page.locator(".country-v2-liquid-glass-scene-flag")).toHaveCount(0);
+  } else {
+    await expect(page.locator(".country-v2-liquid-glass-scene-flag")).toBeVisible();
+    await testInfo.attach("abeven-wiki-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
+  }
   await expect(page.getByRole("navigation", { name: "breadcrumb" })).toHaveCount(1);
-  await testInfo.attach("abeven-wiki-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
 
   await page.goto("/editions/ssc-20", { waitUntil: "domcontentloaded" });
   const edition = page.locator(".edition-public-page");
