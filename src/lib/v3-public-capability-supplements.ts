@@ -16,6 +16,24 @@ const ALL_PUBLIC_PERSONAS = [
  */
 export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
   {
+    id: "world-institution-documents",
+    sourceFeatureFlags: [],
+    legacyRoutes: [
+      "/world/organizations/:slug/documents/",
+      "/world/organizations/:slug/documents/*",
+    ],
+    legacyComponents: [],
+    backendOwners: ["world_documents", "world_document_versions", "world_get_document_index_v1", "world_get_document_v1"],
+    personas: ALL_PUBLIC_PERSONAS,
+    authRequirement: "public",
+    classification: "redesign",
+    targetArea: "explore",
+    targetRoute: "/world/organizations/:slug/documents/",
+    specificationStatus: "building",
+    acceptanceScenarioId: "public.terra-governance-tg4-published-document-reader",
+    migrationEvidence: "TG4 Public document index, published-version text reader and stable semantic provision anchors. Depends on #1888 and #1890. Exact-SHA CI, real responsive browser evidence and Explorer link remain pending.",
+  },
+  {
     id: "prediction-league",
     sourceFeatureFlags: [],
     legacyRoutes: ["/prediction-league", "/prediction-league/*"],
