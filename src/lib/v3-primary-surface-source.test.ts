@@ -257,6 +257,19 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
         }],
       }),
     ).toThrow(/additional task belongs to a different Solaris edition/);
+
+    // Malformed source rows must not acquire global-task authority merely
+    // because the required editionId field was accidentally omitted.
+    expect(() =>
+      assembleV3PrimarySurfaceSnapshot({
+        ...base(),
+        viewer: { id: "user-1", displayName: null },
+        additionalTasks: [{
+          ...hodTask,
+          editionId: undefined as unknown as string,
+        }],
+      }),
+    ).toThrow(/additional task belongs to a different Solaris edition/);
   });
 
   it("keeps open public televoting in signed-in Participate parity", () => {
