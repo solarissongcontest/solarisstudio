@@ -16,9 +16,14 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(migration).toContain("o.public_visibility = 'public'");
     expect(migration).toContain("t.status in ('ended', 'removed', 'resigned')");
     expect(migration).toContain("t.actual_end_at is not null");
-    expect(migration).toContain("limit p_limit + 1 offset p_offset");
-    expect(migration).toContain("p_offset > 1000");
+    expect(migration).toContain("limit p_limit + 1");
     expect(migration).toContain("p_limit > 20");
+    expect(migration).toContain("(t.started_at, t.id) < (p_cursor_started_at, p_cursor_term_id)");
+    expect(migration).toContain("p_cursor_started_at is null");
+    expect(migration).toContain("office.slug = lower(btrim(p_office_slug))");
+    expect(migration).toContain("'hasMore'");
+    expect(migration).toContain("'nextCursor'");
+    expect(migration).not.toMatch(/offset p_offset|p_offset > 1000/);
   });
 
   it("never exposes login-linked office identities or private institutional grants", () => {
@@ -42,6 +47,10 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(route).toContain("WorldOfficeHistory");
     expect(source).toContain('"world_public_office_history_v1"');
     expect(screen).toContain("Load older terms");
+    expect(screen).toContain("Filter by office");
+    expect(screen).toContain("lastPage?.nextCursor");
+    expect(source).toContain("p_cursor_term_id");
+    expect(source).toContain("p_office_slug");
     expect(screen).toContain("No completed terms published");
     expect(screen).not.toMatch(/\\.from\\(|\\.update\\(|\\.insert\\(|\\.delete\\(/);
   });
