@@ -16,6 +16,7 @@ const completedTerm = {
   officeId: "00000000-0000-4000-8000-000000000002",
   officeTitle: "Chairperson",
   holderDisplayName: "Historical holder",
+  representedCountryName: "Oland",
   termKind: "full",
   status: "ended",
   startedAt: "2024-01-01T00:00:00+00:00",
@@ -55,6 +56,7 @@ describe("TG3 public office-history projection contract", () => {
   it("parses only completed immutable-term states with valid dates", () => {
     const parsed = parsePublicOfficeHistoryPage(historyResponse, "GUARD");
     expect(parsed.terms[0].holderDisplayName).toBe("Historical holder");
+    expect(parsed.terms[0].representedCountryName).toBe("Oland");
     expect(parsed.offices).toEqual(offices);
     expect(parsed.terms[0].status).toBe("ended");
     expect(parsePublicOfficeHistoryPage({
@@ -122,6 +124,14 @@ describe("TG3 public office-history projection contract", () => {
     expect(() => parsePublicOfficeHistoryPage({
       ...historyResponse, terms: [completedTerm, completedTerm],
     }, "guard")).toThrow("Invalid public office history continuation");
+  });
+
+  it("preserves genuinely unrepresented historical terms without inventing a country", () => {
+    const parsed = parsePublicOfficeHistoryPage({
+      ...historyResponse,
+      terms: [{ ...completedTerm, representedCountryName: null }],
+    }, "guard");
+    expect(parsed.terms[0].representedCountryName).toBeNull();
   });
 
   it("uses SSC editions for political term labels, never calendar years as substitutes", () => {
