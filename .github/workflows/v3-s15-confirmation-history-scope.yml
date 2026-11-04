@@ -1,0 +1,132 @@
+name: V3 S15 Confirmation History exact-edition runtime
+
+on:
+  push:
+    branches:
+      - v3/s15-confirmation-history-version-scope-20261104
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s15-history-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  history-local-scope:
+    name: Local-only history security and migration upgrade
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      V3_VERIFICATION_TARGET: local
+      V3_SEED_TARGET: local
+      V3_CLEANUP_TARGET: local
+      V3_SERVICE_ROLE_SCOPE: local
+      LOCAL_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      VITE_SUPABASE_PROJECT_ID: local
+      VITE_SUPABASE_PROJECT_REF: local
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - name: Assert commit identity
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -f supabase/config.toml
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Verify local Docker and Postgres client
+        run: |
+          set -euo pipefail
+          docker info >/dev/null
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Install frozen JS dependencies
+        run: bun install --frozen-lockfile
+      - name: Refuse hosted testing destinations
+        run: bun run scripts/check-v3-production-isolation.ts
+      - name: Test boundary and parser
+        run: |
+          set -euo pipefail
+          bash -n .github/scripts/v3-s15-confirmation-history-scope-rehearsal.sh
+          bunx vitest run \
+            src/lib/v3-s15-confirmation-history-scope.test.ts \
+            src/lib/v3-s15-confirmation-history-scope.contract.test.ts \
+            src/lib/v3-s15-confirmation-response-reader.test.ts \
+            src/lib/v3-confirmation-review-projection.contract.test.ts \
+            src/lib/v3-s13-migration-adoption-audit.test.ts
+      - name: Production build and generated TanStack route tree
+        run: |
+          rm -f src/routeTree.gen.ts
+          bun run build
+          test -s src/routeTree.gen.ts
+      - name: Typecheck, lint and V3 status guard
+        run: |
+          set -euo pipefail
+          bun run typecheck
+          bunx eslint --quiet \
+            src/integrations/confirmations/v3-version-summary.ts \
+            src/routes/_authenticated/admin/submission-versions.tsx \
+            src/lib/v3-s15-confirmation-history-scope.test.ts \
+            src/lib/v3-s15-confirmation-history-scope.contract.test.ts
+          bun run certify:v3-registry
+          bun run scripts/check-v3-non-route-capabilities.ts
+      - name: Start disposable local Supabase
+        run: supabase start
+      - name: Assert local-only database connection
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          case "$API_URL" in http://127.0.0.1:*|http://localhost:*) ;; *) exit 1;; esac
+          case "$DB_URL" in
+            postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
+            *) exit 1;;
+          esac
+      - name: Rebuild full schema locally
+        run: supabase db reset --local --no-seed
+      - name: Exercise private edition and submission-id boundaries
+        run: bash .github/scripts/v3-s15-confirmation-history-scope-rehearsal.sh
+      - name: Rehearse migration upgrade from current S15
+        run: |
+          set -euo pipefail
+          supabase stop --no-backup
+          git fetch --no-tags --depth=30 origin v3/s15-integration-20261104
+          git worktree add --detach /tmp/solaris-s15-history-upgrade "$(git rev-parse FETCH_HEAD)"
+          cd /tmp/solaris-s15-history-upgrade
+          supabase start
+          eval "$(supabase status -o env)"
+          case "$API_URL" in http://127.0.0.1:*|http://localhost:*) ;; *) exit 1;; esac
+          case "$DB_URL" in
+            postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
+            *) exit 1;;
+          esac
+          supabase db reset --local --no-seed
+          migration="20261104155000_v3_s15_confirmation_history_version_scope.sql"
+          test ! -e "supabase/migrations/$migration"
+          cp "$GITHUB_WORKSPACE/supabase/migrations/$migration" "supabase/migrations/$migration"
+          supabase migration up --local --include-all
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s15-confirmation-history-scope-rehearsal.sh"
+      - name: Stop disposable local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
