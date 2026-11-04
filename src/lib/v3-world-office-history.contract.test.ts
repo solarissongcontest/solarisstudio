@@ -49,6 +49,8 @@ describe("TG3 previous-leadership production boundary", () => {
     expect(screen).toContain("Load older terms");
     expect(screen).toContain("Filter by office");
     expect(screen).toContain("lastPage?.nextCursor");
+    expect(screen).toContain("isFetchNextPageError");
+    expect(screen).toContain("Retry older terms");
     expect(source).toContain("p_cursor_term_id");
     expect(source).toContain("p_office_slug");
     expect(screen).toContain("No completed terms published");
