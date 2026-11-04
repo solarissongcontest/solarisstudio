@@ -33,10 +33,8 @@ import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { V3DesktopPrimaryNavigation } from "./V3DesktopPrimaryNavigation";
 import { V3FoundationShell, V3TopContext } from "./V3Foundation";
-import {
-  V3LiquidTabBar,
-  type V3LiquidTabDestination,
-} from "./V3LiquidTabBar";
+import { V3MobileWebPrimaryNavigation } from "./V3MobileWebPrimaryNavigation";
+import type { V3LiquidTabDestination } from "./V3LiquidTabBar";
 
 export type V3Area = "home" | "explore" | "participate" | "results" | "me";
 
@@ -125,9 +123,10 @@ export type V3AppShellProps = {
  * Migration-ready V3 chrome.
  *
  * Canonical route ownership stays in TanStack Router and the screen registry.
- * The Liquid bar provides direct manipulation as progressive enhancement, but
- * every destination remains a semantic link and this shell never invents a
- * second URL/state model. Per-tab memory is viewer-scoped and rejects focused,
+ * Installed-app tabs provide direct manipulation as progressive enhancement.
+ * Ordinary browser routes use in-flow website section links and real history,
+ * never an app-like fixed dock. All destinations remain semantic links and the
+ * shell never invents a second URL/state model. Per-tab memory is viewer-scoped and rejects focused,
  * immersive and critical-task routes. Whole-page swipe remains deliberately
  * disabled until route owners provide safe live adjacent DOM surfaces rather
  * than screenshots or duplicate data graphs.
@@ -150,7 +149,7 @@ export function V3AppShell({
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const navigate = useNavigate();
-  const { isAppMode } = useSolarisApp();
+  const { isAppMode, platformResolved } = useSolarisApp();
   const publicArea = activeArea ?? resolveV3ShellActiveArea(pathname, searchStr);
   const attention = useAppAttentionSummary();
   const rollout = useV3RolloutProbe(true);
@@ -168,13 +167,6 @@ export function V3AppShell({
     !rollout.isLoading && !rollout.isError && rollout.data != null;
   const navigationScope = navigationIdentityReady ? (rollout.data.userId ?? null) : null;
   const resolvedViewerKey = navigationScope ?? "anonymous";
-  // Interaction ownership is stricter than storage scope. An unresolved viewer
-  // is not the same generation as an explicitly anonymous viewer. Remounting
-  // the Liquid primitive on these transitions guarantees pointer capture,
-  // long-press and drag state cannot cross login/logout identity handoffs.
-  const navigationInteractionKey = navigationIdentityReady
-    ? (navigationScope ?? "anonymous")
-    : "resolving";
   const previousResolvedViewerKeyRef = useRef<string | undefined>(undefined);
   const notificationLabel =
     attention.me > 0
@@ -347,16 +339,28 @@ export function V3AppShell({
 
   return (
     <V3FoundationShell>
-      <div className={cn("min-h-dvh", className)}>
+      <div
+        className={cn("min-h-dvh", className)}
+        data-v3-shell-experience={!platformResolved ? "resolving" : isAppMode ? "app" : "web"}
+      >
         <V3TopContext edition={editionLabel} phase={phaseLabel} actions={shellActions} />
-        <V3DesktopPrimaryNavigation
-          destinations={navigationDestinations}
-          onSelect={selectDestination}
-        />
+        {platformResolved && !isAppMode ? (
+          <>
+            <V3MobileWebPrimaryNavigation
+              destinations={V3_SHELL_DESTINATIONS}
+              activeArea={publicArea}
+              participateAttentionCount={participateAttentionCount}
+            />
+            <V3DesktopPrimaryNavigation
+              destinations={navigationDestinations}
+              onSelect={selectDestination}
+            />
+          </>
+        ) : null}
         {children}
       </div>
 
-      {isAppMode ? (
+      {platformResolved && isAppMode ? (
         <AppTabBar
           pathname={pathname}
           searchStr={searchStr}
@@ -364,14 +368,7 @@ export function V3AppShell({
           participateBadge={participateAttentionCount}
           meBadge={attention.me}
         />
-      ) : (
-        <V3LiquidTabBar
-          key={navigationInteractionKey}
-          pathname={pathname}
-          destinations={navigationDestinations}
-          onSelect={selectDestination}
-        />
-      )}
+      ) : null}
     </V3FoundationShell>
   );
 }

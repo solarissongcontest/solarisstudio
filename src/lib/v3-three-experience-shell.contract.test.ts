@@ -1,0 +1,46 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+function read(path: string) {
+  return readFileSync(resolve(process.cwd(), path), "utf8");
+}
+
+describe("V3 three-experience shell navigation cutover", () => {
+  const shell = read("src/components/v3/V3AppShell.tsx");
+  const sections = read("src/components/v3/V3MobileWebPrimaryNavigation.tsx");
+  const css = read("src/styles/v3-mobile-web-primary-nav.css");
+  const desktopCss = read("src/styles/v3-responsive-shell.css");
+
+  it("never mounts a floating app dock on ordinary web or unresolved platform", () => {
+    expect(shell).toContain("const { isAppMode, platformResolved } = useSolarisApp()");
+    expect(shell).toContain('data-v3-shell-experience={!platformResolved ? "resolving" : isAppMode ? "app" : "web"}');
+    expect(shell).toContain("platformResolved && !isAppMode ? (");
+    expect(shell).toContain("platformResolved && isAppMode ? (");
+    expect(shell).toContain("<AppTabBar");
+    expect(shell).toContain("<V3MobileWebPrimaryNavigation");
+    expect(shell).not.toContain("<V3LiquidTabBar");
+  });
+
+  it("provides semantic public website destinations without reusing saved app route memory", () => {
+    expect(shell).toContain("destinations={V3_SHELL_DESTINATIONS}");
+    expect(sections).toContain('aria-label="Solaris website sections"');
+    expect(sections).toContain("to={destination.to as any}");
+    expect(sections).toContain('aria-current={active ? "page" : undefined}');
+    expect(sections).not.toContain("event.preventDefault");
+    expect(sections).not.toContain("getV3PublicTabDestination");
+    expect(css).toContain("min-height: 44px");
+    expect(css).toContain("min-width: 44px");
+    expect(css).toContain("overflow-x: auto");
+    expect(css).not.toContain("position: fixed");
+  });
+
+  it("keeps desktop browser navigation distinct and mobile web content in flow", () => {
+    expect(shell).toContain("<V3DesktopPrimaryNavigation");
+    expect(desktopCss).toContain("@media (min-width: 1024px)");
+    expect(css).toContain('[data-v3-shell-experience="web"] .v3-screen');
+    expect(css).toContain("@media (max-width: 1023px)");
+    expect(css).toContain("env(safe-area-inset-bottom)");
+    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
+  });
+});
