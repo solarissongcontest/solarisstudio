@@ -210,7 +210,11 @@ export function WorldPublicDocumentReader({
                 </div>
                 <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{doc.version.title}</h2>
                 {doc.version.provisions.length === 0
-                  ? <p className="mt-5 text-sm text-muted-foreground">No structured provisions are published in this version.</p>
+                  ? doc.version.plainText ? (
+                    <p className="mt-5 whitespace-pre-line break-words text-sm leading-8 text-foreground/85">{doc.version.plainText}</p>
+                  ) : (
+                    <p className="mt-5 text-sm text-muted-foreground">No published legal text is available in this version.</p>
+                  ) :
                   : <div className="mt-7 space-y-9">
                     {doc.version.provisions.map((provision) => (
                       <section id={`provision-${provision.semanticKey}`} key={provision.semanticKey}
