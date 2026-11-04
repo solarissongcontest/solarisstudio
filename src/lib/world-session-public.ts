@@ -140,7 +140,7 @@ export function parseWorldSessionDetail(row: unknown): WorldSessionDetail | null
       state: item.state as WorldAgendaItem["state"],
     };
   });
-  return { ...session, externalUrl: row.externalUrl, agenda };
+  return { ...session, externalUrl: null, agenda };
 }
 
 export function parseWorldManageAgenda(row: unknown): WorldManageAgenda {
