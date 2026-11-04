@@ -36,6 +36,19 @@ export default defineConfig({
                 name: "vendor-router",
                 test: /[\\/]node_modules[\\/]@tanstack[\\/]react-router[\\/]/,
               },
+              // Shared Radix primitives are used across route-local overlays.
+              // Consolidate package internals without pulling route modules
+              // into the common client bundle.
+              {
+                name: "vendor-radix",
+                test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
+              },
+              // Keep large chart vendors behind their existing lazy screen
+              // boundaries, sharing internals instead of emitting fragments.
+              {
+                name: "vendor-charts",
+                test: /[\\/]node_modules[\\/](?:recharts|victory-vendor)[\\/]/,
+              },
             ],
           },
         },
