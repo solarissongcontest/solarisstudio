@@ -113,9 +113,21 @@ describe("Public V3 main-registry evidence-only cutovers", () => {
     expect(pushOwner).toContain("push_subscriptions");
   });
 
-  it("keeps known implementation or ownership gaps unresolved instead of laundering them through evidence", () => {
+  it("requires caller-private delegation history proof when its migration is cut over", () => {
+    const item = capability("delegation-history");
+    const evidence = migrationEvidenceOf(item.id);
+    const proofFile = "src/lib/v3-private-delegation-history-cutover.contract.test.ts";
+    const proof = read(proofFile);
+
+    expect(item.specificationStatus).toBe("cutover");
+    expect(evidence).toContain(proofFile);
+    expect(proof).toContain("caller-owned and RLS-bound");
+    expect(proof).toContain("src/routes/_authenticated/my-solaris/history.tsx");
+    expect(proof).toContain('supabase.rpc("owned_hod_edition_history")');
+  });
+
+  it("keeps remaining implementation or ownership gaps unresolved instead of laundering them through evidence", () => {
     for (const id of [
-      "delegation-history",
       "participant-activity",
       "results",
     ]) {
