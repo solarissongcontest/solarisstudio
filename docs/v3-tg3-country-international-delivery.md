@@ -19,6 +19,9 @@ International routes and readers.
 - `/world/countries/:code` is a country-specific International read view.
 - Current and former institutional memberships are separated, each with
   independent 12-row server-side paging, exact count, retry and empty states.
+  Memberships show their actual TG2 admission and, when applicable,
+  termination dates in UTC. Pagination now orders by a unique ID tie-breaker
+  and recovers automatically when concurrent changes empty a requested page.
 - Membership source is TG2 `world_organization_memberships` with country
   predicate and public-organization RLS. A second lookup of only the visible
   organization IDs into `world_organizations` is required; rows without
@@ -26,6 +29,12 @@ International routes and readers.
 - No direct browser writes, role/office assumptions, unofficial appointment
   labels, imagined institution memberships or global country-control
   duplicates. Historical affiliations are never labelled current.
+- Both country routes are gated by the authoritative `terra_world_public`
+  rollout RPC before readers mount. Missing/unknown/error state is fail-closed,
+  matching the sibling #1934 public World gate's query cache and rollout key.
+- Failed revalidation never retains previous visible membership rows or
+  directory entries. Joined/ended edition IDs are not fetched or cached in the
+  public browser since those records need separate publication authority.
 - React Query caching, debounced directory search, bounded requests, no
   polling, limited retry and scoped reads protect backend egress.
 - Responsive content hierarchy, accessible search/controls, recovery states,
@@ -38,6 +47,7 @@ International routes and readers.
 
 - `src/lib/world-country-international.ts`
 - `src/lib/world-country-international.test.ts`
+- `src/components/world/WorldCountryRolloutGate.test.tsx`
 - `src/components/world/WorldCountryInternational.tsx`
 - `src/routes/world/countries/index.tsx`
 - `src/routes/world/countries/$code.tsx`
@@ -61,12 +71,16 @@ were edited.
   returned country code fails closed; invalid country codes never query.
 - Removed duplicate top-level heading and an early link into unmerged
   sibling organization routes. No new broken deep link is exposed.
-- Expanded focused regression coverage from 7 to **8 tests**.
-- Retrieved the exact committed adapter and test-file blobs through the
-  connected GitHub source, removed TypeScript type-only annotations in
-  memory, and executed the **eight original test callback bodies** in an
-  isolated JavaScript compatibility runner with the needed assertion
-  matchers. Result: **8 tests / 37 assertions passed**.
+- Expanded focused pure-model regression coverage from 7 to **10 tests**,
+  plus **3 additional SSR React rollout-gate tests** committed for CI.
+- Retrieved the exact committed adapter and model test-file blobs through
+  connected GitHub, stripped TypeScript type-only syntax in memory, and
+  executed all **10 original pure-model test callbacks** with the relevant
+  assertion matchers in an isolated JavaScript compatibility runner.
+  Result: **10 tests / 66 assertions passed**.
+- The React server-rendering gate tests are authored but **not executed**
+  in this connector workspace. They must run under real Vitest/React Query
+  in exact-head CI.
 - This is transparent **behavioral harness evidence, not an official
   Vitest run, typecheck, ESLint run, app build, or responsive browser
   inspection**. Those remain mandatory after migration/base integration.
