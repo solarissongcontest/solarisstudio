@@ -188,7 +188,7 @@ function resolvePushDisplayContent(candidate) {
   const route = typeof payload.route === "string" ? payload.route.toLowerCase() : "";
   const visibility = typeof payload.visibility === "string" ? payload.visibility.toLowerCase() : "";
   const privacy = typeof payload.privacy === "string" ? payload.privacy.toLowerCase() : "";
-  const classifications = `${category} ${eventType}`;
+  const institutionalKind = /(?:^|[._:-])(?:court|ethics|investigation|leadership)(?:[._:-]|$)/;
   const sensitive =
     payload.sensitivity === "private" ||
     payload.sensitive === true ||
@@ -197,7 +197,7 @@ function resolvePushDisplayContent(candidate) {
     category === "world" || category.startsWith("world.") || category.startsWith("world_") ||
     eventType === "world" || eventType.startsWith("world.") || eventType.startsWith("world_") ||
     route === "/world" || route.startsWith("/world/") || route.startsWith("/world?") ||
-    /(?:^|[._:-])(?:court|ethics|investigation|leadership)(?:[._:-]|$)/.test(classifications);
+    institutionalKind.test(category) || institutionalKind.test(eventType);
 
   if (!sensitive) {
     return {
