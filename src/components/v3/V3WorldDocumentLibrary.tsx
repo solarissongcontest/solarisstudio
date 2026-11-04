@@ -268,8 +268,9 @@ export function WorldDocumentReaderScreen({
     retry: 1,
   });
   const detail = query.data;
+  const provisions = detail?.version.provisions;
   const currentVersion = detail?.history.find((item) => item.publicationState === "published");
-  const anchors = publicWorldDocumentOutline(detail?.version.provisions ?? []);
+  const anchors = publicWorldDocumentOutline(provisions ?? []);
   const textMatches = documentSearch.trim()
     ? (detail?.version.provisions ?? []).flatMap((item) => {
         const term = documentSearch.trim().toLocaleLowerCase();
@@ -286,10 +287,10 @@ export function WorldDocumentReaderScreen({
   // resolves. Restore the fragment only when it belongs to this exact Version.
   // window.document is intentional: "document" is the route's slug parameter.
   useEffect(() => {
-    if (!detail || typeof window === "undefined") return;
+    if (!provisions || typeof window === "undefined") return;
     const target = resolveWorldDocumentFragment(
       window.location.hash,
-      detail.version.provisions,
+      provisions,
     );
     if (!target) return;
     const frame = window.requestAnimationFrame(() => {
@@ -299,7 +300,7 @@ export function WorldDocumentReaderScreen({
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [detail?.documentId, detail?.version.versionNumber]);
+  }, [provisions]);
 
   return (
     <AppShell>
