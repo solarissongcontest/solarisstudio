@@ -5,6 +5,9 @@ set -euo pipefail
 # Deliberately local/operator-run: production credentials must never be exposed to CI.
 
 PRODUCTION_PROJECT_REF="dkxmnvekiopyesuzggeu"
+# Immutable migration-history compatibility boundary from the October bootstrap.
+# DO NOT extend this to the current hosted head: that hides unapplied SQL.
+BOOTSTRAP_HISTORY_CUTOVER="20261014020000"
 EXPECTED_REMOTE_HEAD="20261017212902"
 EXPECTED_REPO_HEAD="20261017212902"
 EXPECTED_PENDING_COUNT="0"
@@ -117,18 +120,21 @@ remote_head="$(printf '%s\n' "$list_before" | remote_head_from_list)"
 # Supabase CLI 2.121+ refuses db push while either side is unmatched. Never use
 # --include-all and never rewrite production migration history to make the CLI
 # happy. Instead, construct a temporary local compatibility view:
-# - hold only local-only versions at or before the exact production head;
-# - add no-op aliases only for remote-only versions at or before that head.
+# - hold only local-only versions at or before the original bootstrap cutover;
+# - add no-op aliases only for remote-only versions at or before that cutover.
+# Missing versions after that cutover are REAL drift and must fail closed.
 # Every held file is restored and every alias is deleted by the exit trap.
 mapfile -t initial_local_only < <(printf '%s\n' "$list_before" | local_only_versions_from_list | sort)
 historical_held=0
 for version in "${initial_local_only[@]}"; do
   [[ "$version" =~ ^[0-9]{14}$ ]] || fail "invalid local-only migration version: $version"
-  if [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then
+  if [[ "$version" < "$BOOTSTRAP_HISTORY_CUTOVER" || "$version" == "$BOOTSTRAP_HISTORY_CUTOVER" ]]; then
     mapfile -t matches < <(find "$repo_root/supabase/migrations" -maxdepth 1 -type f -name "${version}_*.sql" -print | sort)
     (( ${#matches[@]} == 1 )) || fail "historical local-only migration $version resolves to ${#matches[@]} files, expected exactly one"
     mv "${matches[0]}" "$historical_hold_dir/"
     ((historical_held += 1))
+  else
+    fail "unapplied post-bootstrap migration $version is older than the hosted head: reconcile and rehearse it explicitly, never hide it as bootstrap history"
   fi
 done
 if (( historical_held > 0 )); then
@@ -140,8 +146,8 @@ if (( ${#remote_only_versions[@]} > 0 )); then
   printf 'Preparing %d temporary remote-history compatibility stubs.\n' "${#remote_only_versions[@]}"
   for version in "${remote_only_versions[@]}"; do
     [[ "$version" =~ ^[0-9]{14}$ ]] || fail "invalid remote-only migration version: $version"
-    [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]] \
-      || fail "remote-only migration $version is newer than expected production head $EXPECTED_REMOTE_HEAD"
+    [[ "$version" < "$BOOTSTRAP_HISTORY_CUTOVER" || "$version" == "$BOOTSTRAP_HISTORY_CUTOVER" ]] \
+      || fail "hosted-only post-bootstrap migration $version must be canonically adopted and upgrade-rehearsed, never replaced with a no-op stub"
     if compgen -G "$repo_root/supabase/migrations/${version}_*.sql" >/dev/null; then
       fail "remote-only migration $version unexpectedly has a local migration file"
     fi
