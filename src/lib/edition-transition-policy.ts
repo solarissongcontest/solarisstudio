@@ -1,5 +1,6 @@
 import { assertEditionTransition, type EditionState, type EditionTransition } from './edition-state';
 import type { ContestEvent } from './contest-events';
+import { createSecureClientId } from './secure-client-id';
 
 export type EditionTransitionRequest = {
   editionId: string;
@@ -26,8 +27,11 @@ export type PreparedEditionTransition = {
 };
 
 function randomId() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
-  return `event-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const id = createSecureClientId();
+  if (!id) {
+    throw new Error('Cryptographically secure edition transition event ID is required');
+  }
+  return id;
 }
 
 export function prepareEditionTransition(request: EditionTransitionRequest): PreparedEditionTransition {

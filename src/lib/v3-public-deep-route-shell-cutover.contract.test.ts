@@ -65,6 +65,12 @@ describe("Public V3 deep-route shell cutover", () => {
     expect(lazyShell).toContain('from "./V3AppShell"');
     expect(lazyShell).toContain("{children}");
     expect(lazyShell).toContain('data-v3-legacy-route-adapter=""');
+    expect(lazyShell).toContain('data-v3-legacy-bottom-clearance=""');
+    const v3Geometry = source("src/styles/v3-navigation-fixed-geometry.css");
+    expect(v3Geometry).toContain("> .v3-legacy-route-bottom-clearance");
+    expect(v3Geometry).toContain("var(--v3-bottom-obstruction, 0px) + 24px");
+    expect(v3Geometry).toContain("106px + env(safe-area-inset-bottom)");
+    expect(v3Geometry).toContain("html[data-solaris-keyboard-open]");
     expect(`${bridge}\n${lazyShell}`).not.toContain("supabase");
     expect(`${bridge}\n${lazyShell}`).not.toContain("useQuery(");
     expect(`${bridge}\n${lazyShell}`).not.toContain("fetch(");
