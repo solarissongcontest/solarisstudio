@@ -133,7 +133,7 @@ for version in "${initial_local_only[@]}"; do
     (( ${#matches[@]} == 1 )) || fail "historical local-only migration $version resolves to ${#matches[@]} files, expected exactly one"
     mv "${matches[0]}" "$historical_hold_dir/"
     ((historical_held += 1))
-  else
+  elif [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then
     fail "unapplied post-bootstrap migration $version is older than the hosted head: reconcile and rehearse it explicitly, never hide it as bootstrap history"
   fi
 done
