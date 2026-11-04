@@ -122,7 +122,7 @@ export function buildFanDiscovery(input: Input): DiscoveryStory[] {
       [runnerUp] = officialRunnersUp;
     } else if (rows.every((row) => row.final_rank == null)) {
       const sorted = [...rows].sort((a, b) => b.total_points - a.total_points);
-      if (sorted[0]?.total_points > sorted[1]?.total_points) {
+      if (sorted[0] && sorted[1] && sorted[0].total_points > sorted[1].total_points) {
         [winner, runnerUp] = sorted;
       }
     }
