@@ -1,5 +1,7 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(
@@ -8,6 +10,13 @@ const migration = readFileSync(
     "supabase/migrations/20261104181000_v3_production_design_authority.sql",
   ),
   "utf8",
+);
+
+const resetRehearsal = readFileSync(
+  resolve(process.cwd(), ".github/scripts/v3-production-design-reset-cas-rehearsal.sh"), "utf8",
+);
+const resetWorkflow = readFileSync(
+  resolve(process.cwd(), ".github/workflows/v3-production-design-reset-cas-rehearsal.yml"), "utf8",
 );
 
 function functionBody(signature: string, delimiter: string) {
@@ -21,6 +30,43 @@ function functionBody(signature: string, delimiter: string) {
 }
 
 describe("V3 Production Design authority", () => {
+  it("rehearses inherited-source show-reset CAS and exact-edition isolation on disposable Supabase", () => {
+    expect(resetWorkflow).toContain("supabase db reset --local --no-seed");
+    expect(resetWorkflow).toContain("supabase stop --no-backup");
+    expect(resetWorkflow).not.toContain("secrets.");
+    expect(resetRehearsal).toContain("RESET_REVIEW_MISSING_INHERITED_SOURCE");
+    expect(resetRehearsal).toContain("SOURCE_CHANGE_DID_NOT_INVALIDATE_SHOW_RESET_CAS");
+    expect(resetRehearsal).toContain("CROSS_EDITION_SHOW_RESET_CAS_CONTAMINATION");
+    expect(resetRehearsal).toContain("CROSS_EDITION_RESET_CAS_CONTAMINATION");
+    expect(resetRehearsal).toContain("rollback;");
+    expect(resetRehearsal).not.toContain("disable trigger");
+  });
+
+  it.each([
+    ["http://localhost:54321", "postgresql://postgres:postgres@hosted.invalid:54322/postgres"],
+    ["http://localhost:54321", "postgresql://postgres:postgres@localhost:54322@hosted.invalid/postgres"],
+    ["http://localhost:54321", "postgresql://postgres:postgres@127.0.0.1:54322/postgres?host=hosted.invalid"],
+    ["http://localhost:54321@hosted.invalid", "postgresql://postgres:postgres@localhost:54322/postgres"],
+  ])("refuses hosted Production rehearsal endpoint before SQL: %s, %s", (apiUrl, databaseUrl) => {
+    const root = mkdtempSync(join(tmpdir(), "solaris-production-reset-"));
+    try {
+      writeFileSync(join(root, "supabase"),
+        `#!/bin/sh\nprintf '%s\\n' 'API_URL=${apiUrl}' 'DB_URL=${databaseUrl}'\n`,
+        { mode: 0o755 });
+      writeFileSync(join(root, "psql"), "#!/bin/sh\\necho MOCK_PSQL_STARTED >&2\\nexit 9\\n".replaceAll("\\n", "\n"), { mode: 0o755 });
+      const result = spawnSync(
+        "bash", [resolve(".github/scripts/v3-production-design-reset-cas-rehearsal.sh")],
+        { encoding: "utf8", env: { ...process.env, PATH: `${root}:${process.env.PATH}` } },
+      );
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Refusing");
+      expect(result.stderr).not.toContain("MOCK_PSQL_STARTED");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+
   it("routes browser RPC transport through the non-V3 infrastructure layer", () => {
     const client = readFileSync(resolve(process.cwd(), "src/lib/v3-production-design.ts"), "utf8");
     const transport = readFileSync(resolve(process.cwd(), "src/lib/studio2-production-design-transport.ts"), "utf8");
