@@ -66,6 +66,27 @@ describe("TG2 public membership history data boundary", () => {
     expect(result?.membership).toEqual([]);
   });
 
+  it("does not accept a mismatched country identity returned by the server", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: { id: "country-2", name: "Other", short_code: "XX", flag_image: null },
+      error: null,
+    });
+    mock.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({ maybeSingle }),
+      }),
+    });
+    await expect(fetchWorldMembershipCountry("OL")).rejects.toThrow(
+      "Public country identity did not match",
+    );
+  });
+
+  it("rejects malformed country identity scopes before institutional reads", async () => {
+    expect(await fetchWorldMembershipHistory("guard", "country),id.eq.foreign")).toBeNull();
+    expect(await fetchWorldMembershipHistory("guard", "x".repeat(100))).toBeNull();
+    expect(mock.rpc).not.toHaveBeenCalled();
+  });
+
   it("does not convert an unavailable projection into an invented membership", async () => {
     mock.rpc.mockResolvedValue({ data: null, error: null });
     expect(await fetchWorldMembershipHistory("guard", "country-1")).toBeNull();
