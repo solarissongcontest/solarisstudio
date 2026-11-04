@@ -61,15 +61,21 @@ describe("V3 countries directory filters", () => {
     ).toEqual(["b"]);
   });
 
-  it("connects the current-edition CTA to a reversible directory filter", () => {
+  it("uses one consistent directory for the full current lineup and the country archive", () => {
     const source = readFileSync("src/components/v3/V3CountriesDiscoveryScreen.tsx", "utf8");
     expect(source).toContain("filterCountryDirectory(countriesQuery.data ?? []");
     expect(source).toContain("participatingCountryIds");
-    expect(source).toContain("Browse all participating countries");
+    expect(source).toContain("participatingOnly: participatingOnly && Boolean(activeEdition)");
+    expect(source).toContain("participatingOnly && activeEdition ? filtered : filtered.slice(0, visibleCount)");
+    expect(source).toContain('aria-label="Country collections"');
+    expect(source).toContain("aria-pressed={participatingOnly}");
+    expect(source).toContain("aria-pressed={!participatingOnly}");
     expect(source).toContain("setParticipatingOnly(true)");
-    expect(source).toContain("Showing confirmed delegations in the current edition");
-    expect(source).toContain("Show all countries");
     expect(source).toContain("setParticipatingOnly(false)");
+    expect(source).toContain('<CountryTile key={country.id} country={country} />');
+    expect(source).toContain('className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4"');
+    expect(source).not.toContain("discovery.participating.slice(0, 9)");
+    expect(source).not.toContain("<AppGroupedList>");
   });
 
   it("does not mutate the canonical country collection", () => {
