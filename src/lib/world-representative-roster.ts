@@ -90,7 +90,7 @@ export function parseWorldRepresentativeRoster(
       organizationSlug !== expected.slug || data.schemaVersion !== 1 ||
       data.filter !== expected.filter || data.search !== normalizedSearch ||
       data.offset !== offset || data.limit !== WORLD_REPRESENTATIVE_PAGE_SIZE ||
-      !Number.isSafeInteger(data.total) || (data.total as number) < 0 ||
+      (typeof data.total !== "number" || !Number.isSafeInteger(data.total)) || data.total < 0 ||
       typeof data.hasMore !== "boolean" || !Array.isArray(data.rows) ||
       data.rows.length > WORLD_REPRESENTATIVE_PAGE_SIZE) {
     throw new Error("INVALID_WORLD_REPRESENTATIVE_PROJECTION");
@@ -119,7 +119,7 @@ export function parseWorldRepresentativeRoster(
         (item.endsAt !== null && !endsAt) ||
         (endsAt && Date.parse(endsAt) < Date.parse(startsAt)) ||
         typeof item.votingAuthority !== "boolean" ||
-        !Number.isSafeInteger(revision) || (revision as number) < 1 ||
+        (typeof revision !== "number" || !Number.isSafeInteger(revision)) || revision < 1 ||
         (expected.filter === "current" && endsAt) ||
         (expected.filter === "past" && !endsAt)) {
       throw new Error("INVALID_WORLD_REPRESENTATIVE_ROW");
