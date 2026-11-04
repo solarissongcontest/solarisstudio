@@ -105,4 +105,32 @@ describe("Organizer country list exact-edition isolation", () => {
     expect(source).toContain("row.national_finals?.winning_entry_id ?? null,");
     expect(source).not.toContain("const entries = activeNfEntries(row);");
   });
+
+  it("never redirects to login after a failed canonical account sign-out", () => {
+    const source = readFileSync("src/routes/confirmations/admin/settings.tsx", "utf8");
+    const start = source.indexOf("  async function signOut() {");
+    const end = source.indexOf("  return (", start);
+    const handler = source.slice(start, end);
+    expect(source).toContain('import { signOutSolarisAccount } from "@/lib/account-session";');
+    expect(source).not.toContain("confirmationsSupabase.auth.signOut()");
+    expect(handler).toContain("if (signOutInFlightRef.current) return;");
+    expect(handler).toContain("signOutInFlightRef.current = true;");
+    expect(handler).toContain("await signOutSolarisAccount();");
+    expect(handler).toContain("sessionEnded = true;");
+    expect(handler).toContain('await navigate({ to: "/auth" });');
+    expect(handler.indexOf("await signOutSolarisAccount();")).toBeLessThan(handler.indexOf('await navigate({ to: "/auth" });'));
+    expect(handler).toContain("if (sessionEnded) {");
+    expect(handler).toContain("signOutInFlightRef.current = false;");
+    expect(source).toContain("disabled={signingOut}");
+    expect(source).toContain("Signing out…");
+  });
+
+  it("reports clipboard failures instead of falsely reporting the Confirmation URL copied", () => {
+    const source = readFileSync("src/routes/confirmations/admin/settings.tsx", "utf8");
+    const copy = source.indexOf("await navigator.clipboard.writeText(publicUrl)");
+    const success = source.indexOf('toast.success("Confirmation page link copied")', copy);
+    expect(copy).toBeGreaterThanOrEqual(0);
+    expect(success).toBeGreaterThan(copy);
+    expect(source).toContain('toast.error("Could not copy the Confirmation link.")');
+  });
 });
