@@ -403,6 +403,17 @@ export function WorldDocumentReaderScreen({
                     ))}
                   </ul>
                 )}
+                {detail.history.filter((item) =>
+                  item.publicationState === "published" || item.publicationState === "superseded"
+                ).length >= 2 && (
+                  <Link
+                    to="/world/documents/$organization/$document/compare"
+                    params={{ organization, document }}
+                    className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-semibold text-primary hover:bg-muted"
+                  >
+                    Compare published versions
+                  </Link>
+                )}
               </nav>
             </aside>
           </div>
