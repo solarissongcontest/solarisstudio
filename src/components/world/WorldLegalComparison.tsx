@@ -275,7 +275,11 @@ function ComparisonBody({
     ) : null}
     {pairValid && !earlierQuery.isFetching && !laterQuery.isFetching &&
       !earlierQuery.isError && !laterQuery.isError &&
-      earlierQuery.data && laterQuery.data ? <Results key={organization + document + earlier.number + later.number} older={earlierQuery.data} newer={laterQuery.data} /> : null}
+      earlierQuery.data && laterQuery.data ? (
+        !earlierQuery.data.provisions.length || !laterQuery.data.provisions.length
+          ? <Panel title="Published text unavailable" detail="The selected historical version has no comparable public text. Its legal content has not been invented or inferred." />
+          : <Results key={organization + document + earlier.number + later.number} older={earlierQuery.data} newer={laterQuery.data} />
+      ) : null}
   </>;
 }
 
