@@ -377,7 +377,7 @@ export function WorldOrganizationPage({
                       <div key={member.id} className="flex min-h-16 items-center gap-3 py-3">
                         {country ? <FlagChip code={country.short_code} color={country.accent_color || "#426ba6"} image={country.flag_image} size="sm" /> : <span className="size-9 shrink-0 rounded-lg bg-muted" aria-hidden="true" />}
                         <div className="min-w-0 flex-1">
-                          {country ? <Link to="/countries" className="font-medium hover:underline">{country.name}</Link> :
+                          {country ? <Link to="/countries/$code" params={{ code: country.short_code.toLowerCase() }} className="font-medium hover:underline focus-visible:rounded focus-visible:outline focus-visible:outline-2">{country.name}</Link> :
                             <span className="font-medium">Country identity unavailable</span>}
                         </div>
                         <span className="text-xs capitalize text-muted-foreground">{member.status}</span>
