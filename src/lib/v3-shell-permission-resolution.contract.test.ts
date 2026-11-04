@@ -36,6 +36,20 @@ describe("V3 shell permission resolution", () => {
     expect(source).not.toContain("useEffect(() => setNavigationReady(true), [])");
   });
 
+  it("accepts only a genuinely missing anonymous session without unlocking other auth failures", () => {
+    const source = shellSource();
+    expect(source).toContain('error?.name === "AuthSessionMissingError" && !data.user');
+    expect(source).toContain("if (error && !missingSession)");
+    expect(source).toContain("markUnavailable(bootstrapRequestId, error)");
+    expect(source).toContain("void refresh(data.user?.id ?? null, data.user?.email ?? null)");
+  });
+
+  it("positions status below the canonical installed iOS top safe-area boundary", () => {
+    const source = shellSource();
+    expect(source).toContain("--solaris-app-safe-top, env(safe-area-inset-top)");
+    expect(source).toContain("--solaris-app-safe-top-comfort, 6px");
+  });
+
   it("keeps route content mounted while account access is resolving", () => {
     const source = shellSource();
 
