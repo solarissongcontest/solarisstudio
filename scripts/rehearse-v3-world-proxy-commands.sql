@@ -132,6 +132,17 @@ begin
     raise exception 'TG6_PROXY_UNRELATED_REQUEST_ALLOWED';
   exception when insufficient_privilege then null;
   end;
+  if exists (
+    select 1 from public.world_representation_proxies
+  ) or jsonb_array_length(
+    coalesce(public.world_proxy_review_queue_v1((v->>'organizationId')::uuid)->'items','[]'::jsonb)
+  ) <> 0
+  then
+    raise exception 'TG6_PROXY_UNAUTHORIZED_REVIEW_READ';
+  end if;
+  if public.world_my_proxy_requests_v1((v->>'countryId')::uuid) is not null then
+    raise exception 'TG6_PROXY_UNAUTHORIZED_COUNTRY_PROJECTION';
+  end if;
   raise notice 'PASS: TG6 outsider cannot request for another country';
 end
 $outsider$;
@@ -170,6 +181,16 @@ begin
      or v_receipt #>> '{result,status}' <> 'requested'
   then
     raise exception 'TG6_PROXY_REQUEST_RECEIPT_INCOMPLETE';
+  end if;
+
+  if not exists (
+    select 1 from jsonb_array_elements(
+      public.world_my_proxy_requests_v1((v->>'countryId')::uuid)->'items'
+    ) item
+    where item->>'id'=v_proxy_id::text
+      and item->>'status'='requested'
+  ) then
+    raise exception 'TG6_PROXY_CONTROLLER_PERSONAL_PROJECTION_MISSING';
   end if;
 
   v_replayed := public.world_request_proxy_v1(
@@ -226,6 +247,19 @@ declare
 begin
   perform set_config('request.jwt.claim.sub',v->>'chair',true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',v->>'chair','role','authenticated')::text,true);
+  if not exists (
+    select 1 from public.world_representation_proxies
+    where id=(v->>'proxyId')::uuid
+  ) or not exists (
+    select 1 from jsonb_array_elements(
+      public.world_proxy_review_queue_v1((v->>'organizationId')::uuid)->'items'
+    ) item
+    where item->>'id'=v->>'proxyId'
+      and item->>'status'='requested'
+  ) then
+    raise exception 'TG6_PROXY_AUTHORIZED_REVIEW_QUEUE_MISSING';
+  end if;
+
   v_receipt := public.world_approve_proxy_v1(
     (v->>'proxyId')::uuid,'approved',1,
     gen_random_uuid(),'tg6-chair:' || gen_random_uuid()::text
