@@ -95,6 +95,7 @@ export function WorldOfficeHistory({ slug }: { slug: string }) {
   });
   const organization = query.data?.pages[0]?.organization ?? null;
   const offices = query.data?.pages[0]?.offices ?? [];
+  const officesTruncated = query.data?.pages[0]?.officesTruncated ?? false;
   const items = query.data?.pages.flatMap((page) => page?.terms ?? []) ?? [];
 
   return (
@@ -137,6 +138,11 @@ export function WorldOfficeHistory({ slug }: { slug: string }) {
             <option value="">All offices</option>
             {offices.map((office) => <option key={office.slug} value={office.slug}>{office.title}</option>)}
           </select>
+          {officesTruncated ? (
+            <p className="text-xs text-muted-foreground">
+              Showing the first 100 offices. Older terms outside this filter list remain visible in All offices.
+            </p>
+          ) : null}
         </div>
       ) : selectedOffice ? (
         <button type="button" onClick={() => setSelectedOffice("")}
