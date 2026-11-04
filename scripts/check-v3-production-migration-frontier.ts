@@ -13,6 +13,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   auditV3ProductionMigrationFrontier,
   type HostedMigration,
@@ -36,7 +37,7 @@ try {
   const hosted = Array.isArray(source) ? source : source.migrations;
   if (!Array.isArray(hosted)) throw new Error("Hosted evidence must be a JSON array or {migrations: array}");
 
-  const root = resolve(import.meta.dir, "..");
+  const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
   const repositoryFiles = readdirSync(resolve(root, "supabase/migrations"));
   const audit = auditV3ProductionMigrationFrontier(repositoryFiles, hosted);
   const candidateSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
