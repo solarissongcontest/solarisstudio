@@ -57,6 +57,11 @@ begin
     (v_country, 'TG2 Privacy Country', 'ZZP'),
     (v_other_country, 'TG2 Other Country', 'ZZQ');
 
+  -- Seed the canonical CURRENT owner for the public-safe identity assertion.
+  -- This also remains valid once #1971 tightens the projection's owner join.
+  insert into public.country_accounts (user_id, country_id)
+  values (v_self, v_country);
+
   -- TG1 durable identity rows are public only through their safe projection;
   -- raw user_id linkage must not leak via generic delegation.read.
   insert into public.world_country_control_terms
