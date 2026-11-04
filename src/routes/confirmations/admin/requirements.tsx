@@ -369,6 +369,60 @@ function ConfirmationRequirementsPage() {
     });
   }
 
+
+  async function reconcileOutstandingRequirement() {
+    const outstanding = unresolvedRequirementRef.current;
+    if (!outstanding || reconciliationInFlightRef.current || actionInFlightRef.current ||
+        outstanding.editionId !== editionId || activeEditionRef.current !== outstanding.editionId) return;
+
+    reconciliationInFlightRef.current = true;
+    setReconciling(true);
+    try {
+      const result = await reconcileRequirementOperation({
+        data: { operationId: outstanding.operationId },
+      });
+      // Never trust an unrelated receipt merely because the reconciliation
+      // request itself completed over HTTP.
+      if (!result.ok || result.receipt.operationId !== outstanding.operationId) {
+        toast.warning("The prior requirement operation is still unverified. No new command is allowed.");
+        return;
+      }
+      if (result.receipt.status !== "succeeded" && result.receipt.status !== "failed") {
+        toast.warning("The prior requirement operation is still processing. Keep this operation ID for reconciliation.");
+        return;
+      }
+
+      updateUnresolvedRequirement(null);
+      if (activeEditionRef.current === outstanding.editionId) {
+        setPending(null);
+        setReason("");
+        action.reset();
+      }
+
+      if (result.receipt.status === "succeeded") {
+        toast.success("The prior requirement operation was confirmed by its canonical receipt.");
+      } else {
+        toast.error(result.receipt.error?.message ?? "The prior requirement operation failed authoritatively. Review the current requirement before retrying.");
+      }
+      // Receipt settlement is authoritative even if a later projection refresh
+      // fails. Never tell the Organizer that a committed mutation failed.
+      const refreshed = await Promise.allSettled([
+        queryClient.invalidateQueries({ queryKey: ["confirmation-requirements", outstanding.editionId] }),
+        queryClient.invalidateQueries({ queryKey: ["organizer-tasks-v5", outstanding.editionId] }),
+        queryClient.invalidateQueries({ queryKey: ["organizer-task-count-v5", outstanding.editionId] }),
+      ]);
+      if (refreshed.some((item) => item.status === "rejected")) {
+        toast.warning("The operation was settled, but the current edition projection did not refresh. Reload before reviewing it again.");
+      }
+    } catch (caught) {
+      toast.error((caught instanceof Error ? caught.message : "Could not reconcile the operation.") +
+        " The original operation remains unresolved; do not repeat the mutation.");
+    } finally {
+      reconciliationInFlightRef.current = false;
+      setReconciling(false);
+    }
+  }
+
   return (
     <div className="admin-page pb-5" data-v3-organizer-confirmation-requirements="">
       <AdminPageHeader
@@ -380,10 +434,10 @@ function ConfirmationRequirementsPage() {
             <button
               type="button"
               className="admin-action-secondary"
-              disabled={!editionId || ensure.isPending || ensureInFlightRef.current}
+              disabled={!editionId || ensure.isPending || ensureInFlightRef.current || Boolean(unresolvedRequirement)}
               onClick={() => {
                 if (!editionId || ensureInFlightRef.current || ensure.isPending ||
-                    editionId !== activeEditionRef.current) return;
+                    unresolvedRequirementRef.current || editionId !== activeEditionRef.current) return;
                 ensureInFlightRef.current = true;
                 ensure.mutate({ editionId, reviewEpoch: editionReviewEpochRef.current });
               }}
@@ -397,6 +451,32 @@ function ConfirmationRequirementsPage() {
           </div>
         }
       />
+
+      {unresolvedRequirement ? (
+        <AdminCard className="mb-4 border-amber-200/25 bg-amber-200/[0.045]" >
+          <p className="text-sm font-bold text-amber-100">Requirement operation awaiting reconciliation</p>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            {unresolvedRequirement.countryName} · original Organizer edition {unresolvedRequirement.editionId}
+          </p>
+          <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+            Operation {unresolvedRequirement.operationId}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            {unresolvedRequirement.editionId === editionId
+              ? "Check this exact operation's canonical receipt before issuing another requirement decision."
+              : "Select the original Organizer edition to reconcile this operation. No new requirement decisions are allowed until then."}
+          </p>
+          <button
+            type="button"
+            className="admin-action-secondary mt-3"
+            disabled={reconciling || action.isPending || unresolvedRequirement.editionId !== editionId}
+            onClick={() => void reconcileOutstandingRequirement()}
+          >
+            <RefreshCw className={reconciling ? "size-4 animate-spin" : "size-4"} />
+            {reconciling ? "Reconciling…" : "Reconcile prior operation"}
+          </button>
+        </AdminCard>
+      ) : null}
 
       {!editionId ? (
         <AdminCard>
