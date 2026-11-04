@@ -121,6 +121,8 @@ describe("Terra Solaris sensitive push disclosure boundary", () => {
       { eventType: "court_response", title: detailedCase.title, body: detailedCase.body },
       { eventType: "world.ethics.case.new", title: detailedCase.title, body: detailedCase.body },
       { visibility: "public", privacy: "confidential", title: detailedCase.title, body: detailedCase.body },
+      { sensitivity: " Private ", title: detailedCase.title, body: detailedCase.body },
+      { privacy: " Confidential ", title: detailedCase.title, body: detailedCase.body },
     ];
     for (const candidate of candidates) {
       const safe = serviceWorkerDisplay(candidate);
