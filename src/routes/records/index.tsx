@@ -250,12 +250,12 @@ function LegacyRecordsPage() {
   );
 }
 
-function RecordCard({ record }: { record: FanRecord }) {
+function RecordCard({ record, mobileWeb }: { record: FanRecord; mobileWeb: boolean }) {
   const primaryHolders = record.holders.slice(0, 8);
   const remainingHolders = record.holders.slice(8);
 
   return (
-    <article className="glass flex min-h-[250px] min-w-0 flex-col overflow-hidden p-4 sm:p-5">
+    <article className={mobileWeb ? "min-w-0 py-5 first:pt-0" : "glass flex min-h-[250px] min-w-0 flex-col overflow-hidden p-4 sm:p-5"} data-records-mobile-web-row={mobileWeb ? "" : undefined}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
@@ -272,16 +272,16 @@ function RecordCard({ record }: { record: FanRecord }) {
         )}
       </div>
 
-      <p className="numeric mt-4 break-words text-3xl font-black tracking-[-.045em] text-foreground">
+      <p className={mobileWeb ? "numeric mt-3 break-words text-[clamp(1.65rem,8vw,2.5rem)] font-extrabold tracking-tight text-foreground" : "numeric mt-4 break-words text-3xl font-black tracking-[-.045em] text-foreground"}>
         {record.value}
       </p>
       <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
         {record.explanation}
       </p>
 
-      <div className="mt-4 divide-y divide-border/55 rounded-xl border border-border/60 bg-surface/45 px-3">
+      <div className={mobileWeb ? "mt-4 divide-y divide-border/55 border-y border-border/65" : "mt-4 divide-y divide-border/55 rounded-xl border border-border/60 bg-surface/45 px-3"}>
         {primaryHolders.map((holder) => (
-          <RecordHolderRow key={holder.countryId} holder={holder} />
+          <RecordHolderRow key={holder.countryId} holder={holder} mobileWeb={mobileWeb} />
         ))}
       </div>
 
@@ -292,7 +292,7 @@ function RecordCard({ record }: { record: FanRecord }) {
           </summary>
           <div className="divide-y divide-border/55 border-t border-border/55 px-3">
             {remainingHolders.map((holder) => (
-              <RecordHolderRow key={holder.countryId} holder={holder} />
+              <RecordHolderRow key={holder.countryId} holder={holder} mobileWeb={mobileWeb} />
             ))}
           </div>
         </details>
@@ -301,7 +301,7 @@ function RecordCard({ record }: { record: FanRecord }) {
   );
 }
 
-function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
+function RecordHolderRow({ holder, mobileWeb }: { holder: FanRecordHolder; mobileWeb: boolean }) {
   return (
     <div className="py-3 first:pt-2.5 last:pb-2.5">
       <div className="flex min-w-0 items-start gap-3">
@@ -316,7 +316,7 @@ function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
             <Link
               to="/countries/$code"
               params={{ code: holder.shortCode }}
-              className="truncate text-sm font-semibold text-foreground hover:text-primary"
+              className={mobileWeb ? "break-words text-sm font-semibold text-foreground hover:text-primary" : "truncate text-sm font-semibold text-foreground hover:text-primary"}
             >
               {holder.countryName}
             </Link>
@@ -327,7 +327,7 @@ function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
             )}
           </div>
           {(holder.artist || holder.song) && (
-            <p className="mt-1 truncate text-[11px] font-medium text-foreground/85">
+            <p className={mobileWeb ? "mt-1 break-words text-xs font-medium leading-5 text-foreground/85" : "mt-1 truncate text-[11px] font-medium text-foreground/85"}>
               {[holder.artist, holder.song].filter(Boolean).join(" · ")}
             </p>
           )}
