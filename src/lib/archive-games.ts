@@ -87,26 +87,37 @@ function editionDisplay(edition: Edition) {
 function historicalEntries(input: ArchiveGameInput): HistoricalEntry[] {
   const editions = new Map(input.editions.map((edition) => [edition.id, edition]));
   const shows = new Map(input.shows.map((show) => [show.id, show]));
+  // An entry's edition is part of its identity. A reused country/show
+  // identifier cannot borrow unpublished artist or song details from another
+  // edition when generating public archive questions.
   const participants = new Map(
     input.participants.map((participant) => [
-      `${participant.show_id ?? "edition"}:${participant.country_id}`,
+      `${participant.edition_id}:${participant.show_id ?? "edition"}:${participant.country_id}`,
       participant,
     ]),
   );
 
   return input.results
-    .filter(
-      (result) =>
-        Boolean(result.country_id) &&
-        result.final_rank != null &&
-        result.final_rank > 0 &&
-        editions.get(result.edition_id)?.published,
-    )
+    .filter((result) => {
+      if (
+        !result.country_id ||
+        result.final_rank == null ||
+        result.final_rank <= 0 ||
+        !editions.get(result.edition_id)?.published
+      ) return false;
+
+      // Edition-wide final results can legitimately have no show. If the
+      // result names a show, however, that show must be public and belong to
+      // this exact edition; otherwise it is not published archive history.
+      if (!result.show_id) return true;
+      const show = shows.get(result.show_id);
+      return Boolean(show?.published && show.edition_id === result.edition_id);
+    })
     .map((result) => {
       const edition = editions.get(result.edition_id)!;
       const show = result.show_id ? shows.get(result.show_id) : undefined;
       const participant = participants.get(
-        `${result.show_id ?? "edition"}:${result.country_id}`,
+        `${result.edition_id}:${result.show_id ?? "edition"}:${result.country_id}`,
       );
 
       return {
