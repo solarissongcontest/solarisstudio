@@ -25,9 +25,11 @@ function stateIcon(task: SolarisTask) {
 export function AppTaskCenter({
   tasks,
   editionLabel,
+  readOnly = false,
 }: {
   tasks: readonly SolarisTask[];
   editionLabel?: string | null;
+  readOnly?: boolean;
 }) {
   const { needsAttention, next, available, completed } = partitionAppTaskCenter(tasks);
   const needsAction = needsAttention.length;
@@ -62,7 +64,7 @@ export function AppTaskCenter({
       {needsAttention.length ? (
         <div className="space-y-2" aria-label="Needs attention">
           {needsAttention.map((task) => (
-            <AppTaskCard key={task.id} task={task} prominent />
+            <AppTaskCard key={task.id} task={task} prominent readOnly={readOnly} />
           ))}
         </div>
       ) : (
@@ -82,7 +84,7 @@ export function AppTaskCenter({
           <p className="solaris-app-task-kicker mb-2">Next</p>
           <div className="space-y-2">
             {next.slice(0, 4).map((task) => (
-              <AppTaskCard key={task.id} task={task} />
+              <AppTaskCard key={task.id} task={task} readOnly={readOnly} />
             ))}
           </div>
         </div>
@@ -118,24 +120,25 @@ export function AppTaskCenter({
 export function AppTaskCard({
   task,
   prominent = false,
+  readOnly = false,
 }: {
   task: SolarisTask;
   prominent?: boolean;
+  readOnly?: boolean;
 }) {
   const Icon = stateIcon(task);
   const time = relativeAppTaskTiming(task);
   const exact = exactAppTaskTiming(task);
 
-  return (
-    <Link
-      to={task.route as any}
-      className={cn(
+
+  const cardClassName = cn(
         "solaris-app-task-card",
         prominent && "is-prominent",
         task.state === "problem" && "is-problem",
         (task.state === "completed" || task.state === "finished") && "is-complete",
-      )}
-    >
+      );
+  const cardContents = (
+    <>
       <span className="solaris-app-task-icon">
         <Icon className="size-4" aria-hidden="true" />
       </span>
@@ -164,7 +167,23 @@ export function AppTaskCard({
           </span>
         ) : null}
       </span>
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      {!readOnly ? <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /> : null}
+    </>
+  );
+
+  // Organizer's delegation inspection is observational. These are the same
+  // server-derived statuses, but must not advertise actionable participant links.
+  if (readOnly) {
+    return (
+      <div className={cn(cardClassName, "cursor-default")} data-solaris-readonly-task-card="">
+        {cardContents}
+      </div>
+    );
+  }
+
+  return (
+    <Link to={task.route as any} className={cardClassName}>
+      {cardContents}
     </Link>
   );
 }
