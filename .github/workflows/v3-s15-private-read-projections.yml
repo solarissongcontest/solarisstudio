@@ -115,6 +115,51 @@ jobs:
             bash .github/scripts/v3-s15-confirmation-projections-rehearsal.sh
           fi
 
+      - name: Rehearse the migration delta on existing S15 schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The clean replay above proves isolated startup and guards. This
+          # second test starts from the independently validated S15 base and
+          # applies ONLY the candidate migration delta.
+          supabase stop --no-backup
+          git fetch --no-tags --depth=1 origin v3/s15-integration-20261104
+          base_sha="$(git rev-parse FETCH_HEAD)"
+          echo "Upgrading exact S15 base: $base_sha"
+          git worktree add --detach /tmp/solaris-s15-upgrade-base "$base_sha"
+          cd /tmp/solaris-s15-upgrade-base
+          supabase start
+          eval "$(supabase status -o env)"
+          case "$API_URL" in
+            http://127.0.0.1:*|http://localhost:*) ;;
+            *) echo "::error::Non-local upgrade API refused"; exit 1 ;;
+          esac
+          case "$DB_URL" in
+            postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
+            *) echo "::error::Non-local upgrade Postgres refused"; exit 1 ;;
+          esac
+          supabase db reset --local --no-seed
+          delta_count=0
+          for migration in \
+            20261104143000_v3_s15_participant_activity_projection.sql \
+            20261104144000_v3_s15_confirmation_review_projection.sql \
+            20261104144100_v3_s15_confirmation_recovery_projection.sql
+          do
+            if [[ -f "$GITHUB_WORKSPACE/supabase/migrations/$migration" ]]; then
+              test ! -e "supabase/migrations/$migration"
+              cp "$GITHUB_WORKSPACE/supabase/migrations/$migration" "supabase/migrations/$migration"
+              delta_count=$((delta_count + 1))
+            fi
+          done
+          (( delta_count >= 1 ))
+          echo "Applying $delta_count candidate migrations to S15 base"
+          supabase migration up --local --include-all
+          if [[ -f "$GITHUB_WORKSPACE/.github/scripts/v3-s15-participant-activity-rehearsal.sh" ]]; then
+            bash "$GITHUB_WORKSPACE/.github/scripts/v3-s15-participant-activity-rehearsal.sh"
+          else
+            bash "$GITHUB_WORKSPACE/.github/scripts/v3-s15-confirmation-projections-rehearsal.sh"
+          fi
+
       - name: Stop disposable local Supabase
         if: always()
         shell: bash
