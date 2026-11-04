@@ -35,7 +35,8 @@ describe("Mobile App V2 composition completion", () => {
     const shows = source("src/components/v3/V3ShowsDiscoveryScreen.tsx");
     expect(countriesRoute).toContain("AppScreen");
     expect(countries).toContain("AppSectionHeader");
-    expect(countries).toContain("AppGroupedList");
+    expect(countries).toContain("CountryTile");
+    expect(countries).toContain("grid grid-cols-2 gap-2");
     expect(showsRoute).toContain("AppScreen");
     expect(shows).toContain("AppSectionHeader");
     expect(shows).toContain("ShowCollection");
