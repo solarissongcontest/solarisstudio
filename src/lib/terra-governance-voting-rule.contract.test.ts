@@ -24,7 +24,15 @@ const snapshot = between(
 );
 const published = between(
   "create or replace function public.world_public_voting_rule_v1",
-  "revoke all on function public.world_configure_voting_rule_v1",
+  "create or replace function public.world_managed_voting_organizations_v1",
+);
+const managedOrgs = between(
+  "create or replace function public.world_managed_voting_organizations_v1",
+  "create or replace function public.world_voting_rules_manage_v1",
+);
+const managedRules = between(
+  "create or replace function public.world_voting_rules_manage_v1",
+  "revoke all on function public.world_managed_voting_organizations_v1",
 );
 
 describe("TG8 versioned institutional voting rule authority", () => {
@@ -136,6 +144,34 @@ describe("TG8 versioned institutional voting rule authority", () => {
     expect(published).not.toContain("\'countryId\'");
     expect(published).not.toContain("\'userId\'");
     expect(source).toContain("grant execute on function public.world_public_voting_rule_v1(text,text)");
+  });
+
+  it("keeps the feature disabled by default and extends the existing rollout key predicate safely", () => {
+    expect(source).toContain("pg_catalog.pg_get_expr(c.conbin,c.conrelid)");
+    expect(source).toContain("pg_catalog.strpos(v_predicate,'terra_world_voting_rules')=0");
+    expect(source).toContain("TG8_VOTING_RULE_ROLLOUT_CONSTRAINT_MISSING");
+    expect(source).toContain("on conflict (key) do nothing");
+    expect(source).toContain("('terra_world_voting_rules',false,false");
+  });
+
+  it("allows a private institution editor to read only the institutions they actually manage", () => {
+    expect(managedOrgs).toContain("auth.uid() is not null");
+    expect(managedOrgs).toContain("'world.organization.settings.manage'");
+    expect(managedOrgs).toContain("o.id,null,null,null,null");
+    expect(managedOrgs).toContain("limit 30");
+    expect(managedOrgs).not.toContain("where o.public_visibility='public'");
+    expect(managedOrgs).not.toMatch(/auth.users|user_id|proxy_user_id/);
+    expect(managedRules).toContain("auth.uid() is null");
+    expect(managedRules).toContain("'world.organization.settings.manage'");
+    expect(managedRules).toContain("rule_row.organization_id=p_organization_id");
+    expect(managedRules).toContain("rule_row.active");
+    expect(managedRules).toContain("limit 30");
+    expect(managedRules).toContain("rule_row.quorum_numerator::text");
+    expect(managedRules).toContain("rule_row.threshold_denominator::text");
+    expect(managedRules).not.toContain("auth.users");
+    expect(source).toContain("revoke all on function public.world_managed_voting_organizations_v1()");
+    expect(source).toContain("revoke all on function public.world_voting_rules_manage_v1(uuid)");
+    expect(source).not.toMatch(/grant execute on function public\.world_voting_rules_manage_v1\(uuid\)\s+to\s+anon/);
   });
 
   it("rehearses authorization, replay, immutability, exact thresholds and rollback in local Postgres", () => {
