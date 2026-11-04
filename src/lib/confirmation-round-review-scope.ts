@@ -54,3 +54,52 @@ export function assertConfirmationRoundPreviewMatchesRequest(
     );
   }
 }
+
+
+/**
+ * Validate the authoritative receipt before clearing a reviewed Organizer
+ * operation or announcing success. A successful HTTP response alone is not a
+ * trustworthy acknowledgement for an R2/R3 change, and an unexpected receipt
+ * leaves the operation outcome uncertain until the exact edition is refreshed.
+ */
+export type ConfirmationRoundReceiptRequest = Readonly<{
+  roundId: string | null;
+  changeKind: string;
+  operationId: string;
+  expectedVersion: number;
+}>;
+
+export function assertConfirmationRoundReceiptMatchesRequest(
+  request: ConfirmationRoundReceiptRequest,
+  receipt: unknown,
+): void {
+  const value = receipt && typeof receipt === "object" && !Array.isArray(receipt)
+    ? receipt as Record<string, unknown>
+    : null;
+
+  const roundMatches = request.roundId === null
+    ? typeof value?.roundId === "string" && value.roundId.trim().length > 0
+    : value?.roundId === request.roundId;
+
+  if (!value ||
+      value.ok !== true ||
+      value.changeKind !== request.changeKind ||
+      value.operationId !== request.operationId ||
+      value.riskClass !== (request.changeKind === "delete" ? "R3" : "R2") ||
+      !roundMatches ||
+      !Number.isSafeInteger(request.expectedVersion) ||
+      value.previousVersion !== request.expectedVersion ||
+      typeof value.version !== "number" ||
+      !Number.isSafeInteger(value.version) ||
+      value.version < request.expectedVersion ||
+      typeof value.affectedResponses !== "number" ||
+      !Number.isSafeInteger(value.affectedResponses) ||
+      value.affectedResponses < 0) {
+    throw Object.assign(
+      new Error(
+        "Round operation returned an unexpected receipt. Its outcome may be uncertain; refresh the exact Organizer edition before retrying.",
+      ),
+      { status: 409 },
+    );
+  }
+}
