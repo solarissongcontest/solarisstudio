@@ -101,4 +101,26 @@ describe("V3 installed iOS top system safe zone", () => {
     );
     expect(css).not.toContain("html[data-solaris-runtime=\"web\"] [data-solaris-v3]");
   });
+
+  it("positions wide installed-iOS tablet navigation beneath the shared header safety boundary", () => {
+    const responsive = source("src/styles/v3-responsive-shell.css");
+    expect(responsive).toContain("@media (min-width: 1024px)");
+    const stickyStart = responsive.indexOf("  [data-solaris-v3] .v3-desktop-primary-nav {");
+    const sticky = responsive.slice(stickyStart, responsive.indexOf("z-index: 25;", stickyStart));
+    const headerStart = css.indexOf("[data-solaris-v3] .v3-top-context {");
+    const header = css.slice(headerStart, css.indexOf("background: linear-gradient(", headerStart));
+    expect(sticky).toContain("top: calc(");
+    for (const token of [
+      "var(--v3-top-system-safe)",
+      "var(--v3-top-safe-comfort)",
+      "var(--v3-top-chrome-content-height)",
+    ]) {
+      expect(header).toContain(token);
+      expect(sticky).toContain(token);
+    }
+    expect(sticky).not.toContain("env(safe-area-inset-top)");
+    expect(css).toContain("max(env(safe-area-inset-top, 0px), 60px)");
+    expect(css).toContain("max(env(safe-area-inset-top, 0px), 20px)");
+  });
+
 });
