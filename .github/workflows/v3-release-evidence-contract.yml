@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - "scripts/v3-release-evidence-consistency.ts"
+      - "scripts/v3-dashboard-exact-sha.ts"
+      - "scripts/generate-v3-completion-dashboard.ts"
+      - "src/lib/v3-dashboard-exact-sha.contract.test.ts"
       - "src/lib/v3-release-evidence-consistency.contract.test.ts"
       - ".github/workflows/v3-release-evidence-contract.yml"
   workflow_dispatch:
@@ -66,14 +69,14 @@ jobs:
         run: bun run scripts/check-v3-production-isolation.ts
 
       - name: Validate release evidence contracts
-        run: bunx vitest run src/lib/v3-release-evidence-consistency.contract.test.ts
+        run: bunx vitest run src/lib/v3-release-evidence-consistency.contract.test.ts src/lib/v3-dashboard-exact-sha.contract.test.ts
 
       - name: Typecheck and lint evidence validators
         shell: bash
         run: |
           set -euo pipefail
           bunx tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler --skipLibCheck scripts/v3-release-evidence-consistency.ts
-          bunx eslint scripts/v3-release-evidence-consistency.ts src/lib/v3-release-evidence-consistency.contract.test.ts --quiet
+          bunx eslint scripts/v3-release-evidence-consistency.ts scripts/v3-dashboard-exact-sha.ts scripts/generate-v3-completion-dashboard.ts src/lib/v3-release-evidence-consistency.contract.test.ts src/lib/v3-dashboard-exact-sha.contract.test.ts --quiet
 
       - name: Emit exact-head verification record
         shell: bash
