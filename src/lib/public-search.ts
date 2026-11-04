@@ -1,4 +1,8 @@
 import {
+  visiblePublicDiscoveryDestinations,
+  type PublicDiscoveryViewer,
+} from "./public-discovery-visibility";
+import {
   PUBLIC_DESTINATIONS,
   publicSearchText,
   type PublicDestination,
@@ -13,10 +17,17 @@ export type PublicSearchResult = {
   keywords?: string;
 };
 
-export function navigationSearchResults(query: string): PublicSearchResult[] {
+const ANONYMOUS_DISCOVERY_VIEWER: PublicDiscoveryViewer = {
+  authenticationState: "anonymous",
+};
+
+export function navigationSearchResults(
+  query: string,
+  viewer: PublicDiscoveryViewer = ANONYMOUS_DISCOVERY_VIEWER,
+): PublicSearchResult[] {
   const terms = normalizedTerms(query);
-  const items = PUBLIC_DESTINATIONS.filter(
-    (item) => item.discoverable !== false && matchesTerms(publicSearchText(item), terms),
+  const items = visiblePublicDiscoveryDestinations(PUBLIC_DESTINATIONS, viewer).filter(
+    (item) => matchesTerms(publicSearchText(item), terms),
   );
   return items.map(navigationResult);
 }
