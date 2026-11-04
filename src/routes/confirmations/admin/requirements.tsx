@@ -53,6 +53,7 @@ function ConfirmationRequirementsPage() {
   const [reason, setReason] = useState("");
   const activeEditionRef = useRef(editionId);
   const editionReviewEpochRef = useRef(0);
+  const ensureInFlightRef = useRef(false);
   const actionInFlightRef = useRef(false);
 
   const requirementsQuery = useQuery({
@@ -64,27 +65,42 @@ function ConfirmationRequirementsPage() {
   });
 
   const ensure = useMutation({
-    mutationFn: (targetEditionId: string) => ensureConfirmationRequirements(targetEditionId),
-    onSuccess: async (result, targetEditionId) => {
-      if (isCurrentConfirmationRequirementAction(targetEditionId, activeEditionRef.current)) {
+    mutationFn: (input: { editionId: string; reviewEpoch: number }) =>
+      ensureConfirmationRequirements(input.editionId),
+    onSuccess: async (result, input) => {
+      if (isCurrentConfirmationRequirementAction(
+        input.editionId, activeEditionRef.current,
+        input.reviewEpoch, editionReviewEpochRef.current,
+      )) {
         toast.success(
           result.created
             ? String(result.created) + " confirmation requirement" + (result.created === 1 ? "" : "s") + " created"
             : "Every active delegation already has a current requirement",
         );
       } else {
-        toast.info("The previous edition's confirmation requirements were updated. Review that edition to see the result.");
+        toast.info("A prior Organizer selection's confirmation requirements were updated. Review that edition to see the result.");
       }
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["confirmation-requirements", targetEditionId],
+          queryKey: ["confirmation-requirements", input.editionId],
         }),
-        queryClient.invalidateQueries({ queryKey: ["organizer-tasks-v5", targetEditionId] }),
-        queryClient.invalidateQueries({ queryKey: ["organizer-task-count-v5", targetEditionId] }),
+        queryClient.invalidateQueries({ queryKey: ["organizer-tasks-v5", input.editionId] }),
+        queryClient.invalidateQueries({ queryKey: ["organizer-task-count-v5", input.editionId] }),
       ]);
     },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Requirements could not be initialized"),
+    onError: (error, input) => {
+      if (isCurrentConfirmationRequirementAction(
+        input.editionId, activeEditionRef.current,
+        input.reviewEpoch, editionReviewEpochRef.current,
+      )) {
+        toast.error(error instanceof Error ? error.message : "Requirements could not be initialized");
+      } else {
+        toast.warning("Requirements for a prior Organizer edition selection could not be verified. Inspect that edition before retrying.");
+      }
+    },
+    onSettled: () => {
+      ensureInFlightRef.current = false;
+    },
   });
 
   const action = useMutation({
@@ -249,9 +265,12 @@ function ConfirmationRequirementsPage() {
             <button
               type="button"
               className="admin-action-secondary"
-              disabled={!editionId || ensure.isPending}
+              disabled={!editionId || ensure.isPending || ensureInFlightRef.current}
               onClick={() => {
-                if (editionId) ensure.mutate(editionId);
+                if (!editionId || ensureInFlightRef.current || ensure.isPending ||
+                    editionId !== activeEditionRef.current) return;
+                ensureInFlightRef.current = true;
+                ensure.mutate({ editionId, reviewEpoch: editionReviewEpochRef.current });
               }}
             >
               <RefreshCw className={ensure.isPending ? "size-4 animate-spin" : "size-4"} />
