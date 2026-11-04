@@ -1,0 +1,87 @@
+name: V3 S15 independent ownership and cutover evidence
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s15-zero-orphan-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  s15-zero-orphan:
+    name: S15 exact-SHA structural ownership and cutover gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_URL: http://127.0.0.1:54321
+      E2E_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+    steps:
+      - name: Checkout exact PR head
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Keep the complete S15 inventory strict and visible. In particular,
+      # PUBLIC/ORGANIZER_CUTOVER_UNRESOLVED entries must not be discarded,
+      # treated as tested functionality, or silently reclassified as green.
+      - name: Produce exact-SHA S15 evidence and require zero unresolved findings
+        id: certification
+        shell: bash
+        run: |
+          set -euo pipefail
+          export V3_CANDIDATE_SHA="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          bun run scripts/build-v3-s15-zero-orphan-evidence.ts --require-zero
+
+      - name: Validate S15 evidence integrity even after a failed gate
+        if: always() && steps.checkout.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const cp = require("node:child_process");
+          const path = "v3-release-evidence/s15-zero-orphan.json";
+          if (!fs.existsSync(path)) throw new Error("S15 did not emit its exact-SHA evidence");
+          const evidence = JSON.parse(fs.readFileSync(path, "utf8"));
+          const sha = cp.execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim().toLowerCase();
+          if (evidence.candidateSha !== sha) throw new Error("S15 evidence does not match the checked-out commit");
+          if ((evidence.schemaVersion ?? 0) < 4) throw new Error("S15 evidence lacks physical-ownership proof");
+          if (!Array.isArray(evidence.findings) || !evidence.inventory || !evidence.physicalOwnership) {
+            throw new Error("S15 evidence is missing findings or ownership inventory");
+          }
+          if (evidence.zeroOrphans === true &&
+              (evidence.findings.length !== 0 || evidence.physicalOwnership.zeroOwnershipConflicts !== true)) {
+            throw new Error("S15 incorrectly claimed zero-orphan readiness with unresolved findings");
+          }
+          console.log(`S15 exact-SHA inventory preserved: ${evidence.findings.length} unresolved findings for ${sha}`);
+          NODE
+
+      - name: Upload exact-SHA S15 evidence including failed inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s15-zero-orphan-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-evidence/s15-zero-orphan.json
+          if-no-files-found: error
+          retention-days: 30

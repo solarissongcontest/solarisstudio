@@ -33,6 +33,7 @@ import {
   checkMergedPublicationReadiness,
   getMergedTelevoteConversion,
   recalculateMergedConversion,
+  retryPublishedTelevoteSync,
   setMergedResultsStatus,
   updateMergedConversionConfig,
 } from "@/integrations/televoting/conversion.functions";
@@ -55,6 +56,7 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
   const recalculate = useServerFn(recalculateMergedConversion);
   const checkReadiness = useServerFn(checkMergedPublicationReadiness);
   const setStatus = useServerFn(setMergedResultsStatus);
+  const retrySync = useServerFn(retryPublishedTelevoteSync);
 
   const [roundId, setRoundId] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -91,9 +93,10 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
   const effectiveRoundId = selectedRoundStillInEdition
     ? roundId
     : scopedRounds.find((round) => round.status === "closed")?.id ?? scopedRounds[0]?.id ?? "";
+  const conversionQueryKey = ["merged-televoting-conversion", editionId, effectiveRoundId] as const;
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["merged-televoting-conversion", editionId, effectiveRoundId],
+    queryKey: conversionQueryKey,
     queryFn: () => getConversion({ data: { roundId: effectiveRoundId } }),
     enabled: Boolean(admin && effectiveRoundId),
   });
@@ -117,7 +120,7 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
 
   const invalidate = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["merged-televoting-conversion", editionId, effectiveRoundId] }),
+      queryClient.invalidateQueries({ queryKey: conversionQueryKey }),
       queryClient.invalidateQueries({ queryKey: ["merged-televoting-published-results"] }),
       queryClient.invalidateQueries({ queryKey: ["merged-televoting-admin-overview"] }),
     ]);
@@ -152,10 +155,22 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
     mutationFn: (confirmProtected: boolean) => recalculate({ data: { roundId: effectiveRoundId, confirm: confirmProtected } }),
     onSuccess: async (result) => {
       setProtectedRecalcOpen(false);
+      queryClient.setQueryData(conversionQueryKey, result.state);
       toast.success(`Calculation v${result.version} stored · ${result.distributedTotal}/${result.totalPoints} points distributed`);
       await invalidate();
     },
     onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Calculation failed"),
+  });
+
+
+  const retrySyncMutation = useMutation({
+    mutationFn: () => retrySync({ data: { roundId: effectiveRoundId } }),
+    onSuccess: async (outcome) => {
+      toast.success(`Solaris synchronization complete · ${outcome.imported ?? 0} entries`);
+      await invalidate();
+    },
+    onError: (caught) =>
+      toast.error(caught instanceof Error ? caught.message : "Solaris synchronization failed"),
   });
 
   async function runReadiness() {
@@ -221,6 +236,16 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
                 if (protectedResult) setProtectedRecalcOpen(true);
                 else recalcMutation.mutate(false);
               }} disabled={!data || recalcMutation.isPending} />
+
+              {data?.round.results_status === "published" ? (
+                <AdminActionItem
+                  icon={RefreshCw}
+                  title="Retry Solaris synchronization"
+                  description="Reconcile the already-published Televote with an unreleased Solaris show."
+                  onClick={() => retrySyncMutation.mutate()}
+                  disabled={retrySyncMutation.isPending}
+                />
+              ) : null}
               <Link to="/televoting/results" className="admin-action-row">
                 <span className="admin-action-row-icon"><ExternalLink className="size-4" /></span>
                 <span className="min-w-0 flex-1 text-left"><span className="block text-sm font-semibold">Open public results</span><span className="mt-1 block text-xs text-muted-foreground">Preview the visitor-facing results route.</span></span>
