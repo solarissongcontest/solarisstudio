@@ -108,13 +108,37 @@ export function buildFanDiscovery(input: Input): DiscoveryStory[] {
       }
     }
 
-    const sorted = [...rows].sort((a, b) => b.total_points - a.total_points);
-    if (sorted[0] && sorted[1]) {
+    // Use the official published placement when it exists, not the order
+    // returned by the database or points alone. A tied total can still have
+    // an official winner after tie-breaks. Ambiguous/incomplete standings
+    // must not be presented as an official win in a public story.
+    const officialWinners = rows.filter((row) => row.final_rank === 1);
+    const officialRunnersUp = rows.filter((row) => row.final_rank === 2);
+    let winner: ResultRow | undefined;
+    let runnerUp: ResultRow | undefined;
+
+    if (officialWinners.length === 1 && officialRunnersUp.length === 1) {
+      [winner] = officialWinners;
+      [runnerUp] = officialRunnersUp;
+    } else if (rows.every((row) => row.final_rank == null)) {
+      const sorted = [...rows].sort((a, b) => b.total_points - a.total_points);
+      if (sorted[0]?.total_points > sorted[1]?.total_points) {
+        [winner, runnerUp] = sorted;
+      }
+    }
+
+    if (
+      winner &&
+      runnerUp &&
+      Number.isFinite(winner.total_points) &&
+      Number.isFinite(runnerUp.total_points) &&
+      winner.total_points >= runnerUp.total_points
+    ) {
       margins.push({
         showId,
-        editionId: sorted[0].edition_id,
-        margin: sorted[0].total_points - sorted[1].total_points,
-        winner: sorted[0],
+        editionId: winner.edition_id,
+        margin: winner.total_points - runnerUp.total_points,
+        winner,
       });
     }
   }
@@ -285,12 +309,15 @@ export function buildFanDiscovery(input: Input): DiscoveryStory[] {
   const closest = [...margins].sort((a, b) => a.margin - b.margin)[0];
   if (closest) {
     const name = countryName(closest.winner.country_id, countries);
+    const tiedOnPoints = closest.margin === 0;
     stories.push({
       id: "closest-win",
-      eyebrow: "Almost too close to call",
+      eyebrow: tiedOnPoints ? "An official tie-break decided it" : "Almost too close to call",
       title: "Closest win",
-      value: `${closest.margin} pt${closest.margin === 1 ? "" : "s"}`,
-      description: `${name} won by only ${closest.margin} point${closest.margin === 1 ? "" : "s"}.`,
+      value: tiedOnPoints ? "Tie-break" : `${closest.margin} pt${closest.margin === 1 ? "" : "s"}`,
+      description: tiedOnPoints
+        ? `${name} claimed the official win after the top two finished tied on points.`
+        : `${name} won by only ${closest.margin} point${closest.margin === 1 ? "" : "s"}.`,
       countryId: closest.winner.country_id,
       ...contextFor(closest.winner.country_id, closest.editionId, editions, participants),
     });
