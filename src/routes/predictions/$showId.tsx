@@ -16,7 +16,7 @@ import {
 } from "@/lib/prediction-data";
 import type { PredictionItem, PredictionType } from "@/lib/predictions";
 import { formatEventDateTime } from "@/lib/public-time";
-import { predictionReadStatus } from "@/lib/public-prediction-read-status";
+import { predictionDraftScope, predictionReadStatus } from "@/lib/public-prediction-read-status";
 
 export const Route = createFileRoute("/predictions/$showId")({
   head: () => ({
@@ -55,6 +55,23 @@ function PredictionBuilderPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [now, setNow] = useState<number | null>(null);
+  const draftScope = predictionDraftScope(round?.id, user?.id);
+  const [activeDraftScope, setActiveDraftScope] = useState(draftScope);
+  const draftScopeChanged = draftScope !== activeDraftScope;
+
+  // React Router can keep this page mounted while a fan changes accounts or
+  // navigates to another show. Never display the previous owner's pick state.
+  useEffect(() => {
+    if (!draftScopeChanged) return;
+    setWinner("");
+    setJuryWinner("");
+    setTelevoteWinner("");
+    setTopThree(["", "", ""]);
+    setQualifiers([]);
+    setMessage(null);
+    setShareMessage(null);
+    setActiveDraftScope(draftScope);
+  }, [draftScope, draftScopeChanged]);
 
   useEffect(() => {
     const update = () => setNow(Date.now());
@@ -219,11 +236,11 @@ function PredictionBuilderPage() {
     }
   };
 
-  if (readStatus === "loading") {
+  if (readStatus === "loading" || draftScopeChanged) {
     return (
       <AppShell>
         <p role="status" className="text-sm text-muted-foreground">
-          Checking the prediction round and your saved entry…
+          Checking the prediction round, your account and your saved entry…
         </p>
       </AppShell>
     );
