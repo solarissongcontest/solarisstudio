@@ -24,13 +24,13 @@ describe("TG1 controller history login linkage", () => {
       tg1Foundation.indexOf("create or replace function public.world_country_identity_v1"),
       tg1Foundation.indexOf("create or replace function public.world_bind_country_controller_person_v1"),
     );
-    expect(publicProjection).not.toMatch(/\\buser_id\\b/);
-    expect(migration).not.toMatch(/update\\s+public\\.country_accounts/i);
+    expect(publicProjection).not.toMatch(/\buser_id\b/);
+    expect(migration).not.toMatch(/update\s+public\.country_accounts/i);
   });
 
   it("revokes edition/delegation-wide raw history reads without losing self and platform access", () => {
     const policy = migration.match(
-      /create policy world_country_control_terms_read[\\s\\S]*?using \\(([\\s\\S]*?)\\);\\s*comment on policy/i,
+      /create policy world_country_control_terms_read[\s\S]*?using \(([\s\S]*?)\);\s*comment on policy/i,
     )?.[1];
     expect(policy).toBeDefined();
     expect(policy).toContain("user_id = (select auth.uid())");
@@ -38,7 +38,7 @@ describe("TG1 controller history login linkage", () => {
     expect(policy).not.toContain("delegation.read");
     expect(migration).toContain("drop policy if exists world_country_control_terms_read");
     expect(migration).toContain("'forward_fix_only'");
-    expect(migration).not.toMatch(/grant\\s+(insert|update|delete|all)[\\s\\S]{0,120}\\sto\\s+(anon|authenticated)/i);
+    expect(migration).not.toMatch(/grant\s+(insert|update|delete|all)[\s\S]{0,120}\sto\s+(anon|authenticated)/i);
   });
 
   it("keeps the verified local-only rollback rehearsal as the executed negative test", () => {
