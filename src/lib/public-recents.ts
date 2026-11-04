@@ -62,6 +62,7 @@ function isSafeRootRelativePath(path: string) {
     // the router interprets them as a different destination.
     const decoded = decodeURIComponent(path);
     return (
+      path.length <= 2048 &&
       path.startsWith("/") &&
       !path.startsWith("//") &&
       !decoded.includes("//") &&
@@ -70,7 +71,7 @@ function isSafeRootRelativePath(path: string) {
       !decoded.includes("#") &&
       !/\/(?:\.{1,2})(?:\/|$)/.test(decoded) &&
       !containsControlCharacter(decoded) &&
-      !/\/%(?:2f|5c|00)/i.test(path) &&
+      !/\/%(?:2f|5c|00|25)/i.test(path) &&
       path.split("/").length === decoded.split("/").length
     );
   } catch {
@@ -109,7 +110,11 @@ export function readPublicRecents(storage?: Pick<Storage, "getItem">) {
             item &&
               typeof item.path === "string" &&
               typeof item.label === "string" &&
-              typeof item.visitedAt === "number",
+              item.label.trim().length > 0 &&
+              item.label.length <= 250 &&
+              !containsControlCharacter(item.label) &&
+              typeof item.visitedAt === "number" &&
+              Number.isFinite(item.visitedAt),
           ),
       )
       .filter((item) => shouldRememberPublicPath(item.path))
@@ -124,7 +129,12 @@ export function rememberPublicRecent(
   label: string,
   storage?: Pick<Storage, "getItem" | "setItem">,
 ) {
-  if (!shouldRememberPublicPath(path)) return;
+  if (
+    !shouldRememberPublicPath(path) ||
+    !label.trim() ||
+    label.length > 250 ||
+    containsControlCharacter(label)
+  ) return;
 
   try {
     const target = storage ?? (typeof window === "undefined" ? null : window.localStorage);
