@@ -230,6 +230,8 @@ begin
   if private.world_voting_rule_snapshot_v1(v_old.id) is not null then
     raise exception 'TG8_SUPERSEDED_RULE_SNAPSHOT_ALLOWED';
   end if;
+  perform set_config('solaris.tg8_rule_fixture',
+    (v || jsonb_build_object('activeRuleId',v_new.id))::text,true);
   v_snapshot := private.world_voting_rule_snapshot_v1(v_new.id);
   if v_snapshot->>'ruleId' <> v_new.id::text
      or v_snapshot->>'ruleRevision' <> '2'
@@ -277,7 +279,7 @@ begin
   end if;
   begin
     perform private.world_voting_rule_snapshot_v1(
-      (select id from public.world_voting_rules limit 1)
+      (v->>'activeRuleId')::uuid
     );
     raise exception 'TG8_PRIVATE_SNAPSHOT_EXECUTABLE_BY_ANON';
   exception when insufficient_privilege then null;
