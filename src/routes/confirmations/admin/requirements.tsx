@@ -35,6 +35,14 @@ type PendingAction =
   | { kind: "waive"; requirement: ConfirmationRequirement }
   | null;
 
+type UnresolvedRequirementOperation = {
+  operationId: string;
+  fingerprint: string;
+  editionId: string;
+  requirementId: string;
+  countryName: string;
+};
+
 const RISK = "R2" as const;
 const STALE_CONTEXT_ERROR =
   "Organizer edition context changed before this confirmation requirement command. Review the requirement again in the selected edition.";
@@ -60,7 +68,15 @@ function ConfirmationRequirementsPage() {
   const editionReviewEpochRef = useRef(0);
   const ensureInFlightRef = useRef(false);
   const actionInFlightRef = useRef(false);
-  const unresolvedRequirementRef = useRef<{ operationId: string; fingerprint: string } | null>(null);
+  const unresolvedRequirementRef = useRef<UnresolvedRequirementOperation | null>(null);
+  const [unresolvedRequirement, setUnresolvedRequirement] = useState<UnresolvedRequirementOperation | null>(null);
+  const reconciliationInFlightRef = useRef(false);
+  const [reconciling, setReconciling] = useState(false);
+
+  function updateUnresolvedRequirement(next: UnresolvedRequirementOperation | null) {
+    unresolvedRequirementRef.current = next;
+    setUnresolvedRequirement(next);
+  }
 
   const requirementsQuery = useQuery({
     queryKey: ["confirmation-requirements", editionId || "none"],
@@ -149,12 +165,12 @@ function ConfirmationRequirementsPage() {
         });
         if (recovery.ok && recovery.receipt.operationId === unresolved.operationId &&
             recovery.receipt.status === "succeeded") {
-          unresolvedRequirementRef.current = null;
+          updateUnresolvedRequirement(null);
           return recovery.receipt;
         }
         if (recovery.ok && recovery.receipt.operationId === unresolved.operationId &&
             recovery.receipt.status === "failed") {
-          unresolvedRequirementRef.current = null;
+          updateUnresolvedRequirement(null);
           throw new Error("The earlier requirement operation failed authoritatively. Reload this requirement before retrying.");
         }
         throw new Error(
@@ -185,7 +201,13 @@ function ConfirmationRequirementsPage() {
       )) {
         throw new Error(STALE_CONTEXT_ERROR);
       }
-      unresolvedRequirementRef.current = { operationId: command.operationId, fingerprint };
+      updateUnresolvedRequirement({
+        operationId: command.operationId,
+        fingerprint,
+        editionId: input.organizerEditionId,
+        requirementId: input.requirement.id,
+        countryName: input.requirement.countryName,
+      });
       let returned: unknown = null;
       let failureMessage = "The requirement command returned no verified receipt.";
       try {
@@ -208,11 +230,11 @@ function ConfirmationRequirementsPage() {
       const receipt = normalizeSystemReceipt(returned);
       if (receipt && receipt.operationId === command.operationId &&
           receipt.status === "succeeded") {
-        unresolvedRequirementRef.current = null;
+        updateUnresolvedRequirement(null);
         return receipt;
       }
       if (receipt && receipt.operationId === command.operationId && receipt.status === "failed") {
-        unresolvedRequirementRef.current = null;
+        updateUnresolvedRequirement(null);
         throw new Error(receipt.error?.message ?? "The requirement command failed authoritatively.");
       }
       // A transport error, invalid payload or incomplete operation is not a
@@ -222,12 +244,12 @@ function ConfirmationRequirementsPage() {
       });
       if (recovery.ok && recovery.receipt.operationId === command.operationId &&
           recovery.receipt.status === "succeeded") {
-        unresolvedRequirementRef.current = null;
+        updateUnresolvedRequirement(null);
         return recovery.receipt;
       }
       if (recovery.ok && recovery.receipt.operationId === command.operationId &&
           recovery.receipt.status === "failed") {
-        unresolvedRequirementRef.current = null;
+        updateUnresolvedRequirement(null);
         throw new Error("The requirement operation failed. " + failureMessage);
       }
       throw new Error(
