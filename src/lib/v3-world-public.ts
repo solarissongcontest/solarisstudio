@@ -64,7 +64,10 @@ function required(value: unknown): string {
 }
 
 function nullable(value: unknown): string | null {
-  return value == null ? null : required(value);
+  if (value == null) return null;
+  if (typeof value !== "string") throw new Error("Invalid public Terra Solaris field");
+  // Optional descriptions may be empty or longer than a display name.
+  return value.trim() || null;
 }
 
 function list(value: unknown): unknown[] {
