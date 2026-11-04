@@ -89,11 +89,11 @@ export function WorldDocumentLibraryScreen({
 
   const query = useQuery({
     queryKey: ["v3", "tg4", "public-document-index", initialOrganization, initialSearch, limit],
-    queryFn: () => getWorldDocumentIndexPage({
+    queryFn: ({ signal }) => getWorldDocumentIndexPage({
       organizationSlug: initialOrganization || undefined,
       search: initialSearch,
       limit,
-    }),
+    }, signal),
     staleTime: 90_000,
     retry: shouldRetryPublicWorldDocumentRead,
   });
@@ -297,11 +297,11 @@ export function WorldDocumentReaderScreen({
   const query = useQuery({
     queryKey: ["v3", "tg4", "public-document", organization, document, invalidVersion ? "invalid" : version ?? "current"],
     enabled: !invalidVersion,
-    queryFn: () => getWorldDocumentDetail({
+    queryFn: ({ signal }) => getWorldDocumentDetail({
       organization,
       document,
       version: version ?? undefined,
-    }),
+    }, signal),
     staleTime: 90_000,
     retry: shouldRetryPublicWorldDocumentRead,
   });
