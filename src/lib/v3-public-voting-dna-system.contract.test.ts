@@ -15,6 +15,11 @@ const migration = readFileSync(
 
 const rehearsalRunner = resolve(process.cwd(), "scripts/rehearse-v3-public-voting-dna-publication.sh");
 
+const workflow = readFileSync(
+  resolve(process.cwd(), ".github/workflows/v3-public-voting-dna-publication-rehearsal.yml"),
+  "utf8",
+);
+
 const rehearsal = readFileSync(
   resolve(
     process.cwd(),
@@ -32,6 +37,18 @@ function between(source: string, start: string, end: string) {
 }
 
 describe("V3 Public Voting DNA System publication boundary", () => {
+  it("proves both isolated clean replay and production-shaped upgrade without hosted endpoints", () => {
+    expect(workflow).toContain("matrix:");
+    expect(workflow).toContain("mode: [clean-replay, current-main-upgrade]");
+    expect(workflow).toContain("github.event.pull_request.head.sha");
+    expect(workflow).toContain("github.event.pull_request.base.sha");
+    expect(workflow).toContain("supabase db reset --local --no-seed");
+    expect(workflow).toContain("supabase migration up --local --include-all");
+    expect(workflow).toContain('bash "$feature_root/scripts/rehearse-v3-public-voting-dna-publication.sh"');
+    expect(workflow).toContain("supabase stop --no-backup");
+    expect(workflow).not.toContain("secrets.");
+  });
+
   it("registers the migration through the S13 contract instead of bypassing governance", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain(
