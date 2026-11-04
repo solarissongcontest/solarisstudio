@@ -147,7 +147,14 @@ describe("TG5A GUARD voluntary membership intake", () => {
     expect(migration).toContain("application.submitted_at desc, application.id desc");
     expect(migration).toContain("limit 5");
     expect(migration).toContain("grant execute on function public.world_my_guard_membership_intake_v1(uuid)");
-    expect(migration).not.toMatch(/jsonb_build_object\\([\\s\\S]*?'motivation',\\s*application\\.motivation/);
+    const eventStart = migration.indexOf("perform private.v3_emit_domain_event(");
+    const eventEnd = migration.indexOf("v_result := jsonb_build_object(", eventStart);
+    expect(eventStart).toBeGreaterThanOrEqual(0);
+    expect(eventEnd).toBeGreaterThan(eventStart);
+    const eventBlock = migration.slice(eventStart, eventEnd);
+    for (const privateField of ["v_motivation", "v_contributions", "v_commitment", "v_government"]) {
+      expect(eventBlock).not.toContain(privateField);
+    }
     expect(migration).toContain("private.studio2_claim_operation(");
     expect(migration).toContain("private.studio2_complete_operation(");
     expect(migration).toContain("public.studio2_reconcile_operation(");
