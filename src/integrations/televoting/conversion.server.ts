@@ -415,6 +415,14 @@ async function buildV2Calculation(
   };
 }
 
+/** The RPC may have committed even if its scalar response is malformed. */
+export class CalculationCommitResponseError extends Error {
+  constructor(readonly attemptedVersion: number, returnedValue: unknown) {
+    super(`Calculation commit returned unexpected version ${String(returnedValue)}`);
+    this.name = "CalculationCommitResponseError";
+  }
+}
+
 export async function runMergedOfficialCalculationServer(roundId: string) {
   const actor = await requireMergedTelevotingAdminServer();
   const round = await loadMergedConversionRound(roundId);
@@ -446,7 +454,7 @@ export async function runMergedOfficialCalculationServer(roundId: string) {
 
   const committedVersion = Number(committedVersionValue);
   if (!Number.isInteger(committedVersion) || committedVersion !== version) {
-    throw new Error(`Calculation commit returned unexpected version ${String(committedVersionValue)}`);
+    throw new CalculationCommitResponseError(version, committedVersionValue);
   }
 
   await audit(actor, "calculate_televote_conversion", {

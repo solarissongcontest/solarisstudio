@@ -19,6 +19,8 @@ describe("S14 Grand Final result calculation readback", () => {
   it("requires the authenticated mutation boundary to prove canonical committed state", () => {
     expect(readback).toContain("getMergedTelevoteConversionServer(roundId)");
     expect(readback).toContain("state.round.calculation_version !== expectedVersion");
+    expect(readback).toContain("assertCommittedCalculationState(state, calculation.version)");
+    expect(readback).not.toContain("loadMergedConversionRound(roundId)");
     expect(readback).toContain('state.round.results_status !== "calculated"');
     expect(readback).toContain("state.round.results_outdated");
     expect(readback).toContain(
@@ -35,9 +37,11 @@ describe("S14 Grand Final result calculation readback", () => {
 
   it("reconciles only the explicit post-commit scalar-return ambiguity", () => {
     expect(readback).toContain(
-      'message.startsWith("Calculation commit returned unexpected version")',
+      'caught instanceof CalculationCommitResponseError',
     );
     expect(readback).toContain("reconciledAfterUncertainOutcome: true");
+    expect(readback).toContain("assertCommittedCalculationState(state, caught.attemptedVersion)");
+    expect(readback).toContain("resultSummaryFromState(state, caught.attemptedVersion)");
     expect(readback).toContain("throw caught");
   });
 
