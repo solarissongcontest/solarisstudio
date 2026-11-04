@@ -20,7 +20,8 @@ describe("V3 participant activity System projection", () => {
       "create or replace function public.v3_my_participant_activity(",
     );
     expect(consumer).toContain('rpc("v3_my_participant_activity"');
-    expect(consumer).toContain("p_before: null");
+    expect(consumer).toContain("p_before: cursor.before");
+    expect(consumer).toContain("p_before_operation_id: cursor.operationId");
     expect(consumer).toContain("p_limit: 30");
     expect(migration).toContain("p_before timestamptz default null");
     expect(migration).toContain("p_limit integer default 30");

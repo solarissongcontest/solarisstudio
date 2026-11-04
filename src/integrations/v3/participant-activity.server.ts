@@ -3,6 +3,7 @@ import {
   emptyV3ParticipantActivityBundle,
   parseV3ParticipantActivity,
   type V3ParticipantActivityBundle,
+  type V3ParticipantActivityCursor,
 } from "@/lib/v3-participant-activity";
 
 type RpcError = {
@@ -27,16 +28,18 @@ function missingParticipantActivityContract(error: RpcError | null) {
 }
 
 /**
- * Read-only adapter for SYSTEM CONTRACT REQUEST #605.
- *
- * Activity is derived from canonical domain events. Until System owns the
- * recipient-scoped projection, Public V3 must fail closed rather than reuse
- * alternate feeds, browser history, or private infrastructure.
+ * Read-only adapter for System's canonical caller-scoped Activity projection.
+ * A timestamp/operation cursor controls paging only. Account identity remains
+ * auth-derived by the database and never comes from the browser.
+ * A missing RPC fails closed rather than substituting an unrelated feed.
  */
-export async function loadV3ParticipantActivity(): Promise<V3ParticipantActivityBundle> {
+export async function loadV3ParticipantActivity(
+  cursor: V3ParticipantActivityCursor,
+): Promise<V3ParticipantActivityBundle> {
   const client = createSolarisAuthenticatedClientServer() as unknown as ActivityClient;
   const { data, error } = await client.rpc("v3_my_participant_activity", {
-    p_before: null,
+    p_before: cursor.before,
+    p_before_operation_id: cursor.operationId,
     p_limit: 30,
   });
 

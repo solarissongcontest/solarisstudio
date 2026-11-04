@@ -27,12 +27,20 @@ export type V3ParticipantActivityItem = {
   reconciliationState: V3ParticipantActivityReconciliationState;
 };
 
+export type V3ParticipantActivityCursor = {
+  before: string | null;
+  operationId: string | null;
+};
+
 export type V3ParticipantActivityBundle = {
   schemaReady: boolean;
   items: V3ParticipantActivityItem[];
   nextBefore: string | null;
+  nextOperationId: string | null;
   generatedAt: string | null;
 };
+
+const CURSOR_OPERATION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const KINDS = new Set<V3ParticipantActivityKind>([
   "submission",
@@ -58,6 +66,29 @@ function objectValue(value: unknown): Record<string, unknown> | null {
 
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/** Only a server-issued keyset cursor may influence the private Activity read. */
+export function validateV3ParticipantActivityCursor(value: unknown): V3ParticipantActivityCursor {
+  if (value == null) return { before: null, operationId: null };
+  const record = objectValue(value);
+  if (!record || Object.keys(record).some((key) => key !== "before" && key !== "operationId")) {
+    throw new Error("Invalid Activity pagination input.");
+  }
+  const before = record.before ?? null;
+  const operationId = record.operationId ?? null;
+  if (before === null && operationId === null) {
+    return { before: null, operationId: null };
+  }
+  if (
+    typeof before !== "string" ||
+    !Number.isFinite(Date.parse(before)) ||
+    typeof operationId !== "string" ||
+    !CURSOR_OPERATION_ID.test(operationId)
+  ) {
+    throw new Error("Activity requires a complete timestamp and operation cursor.");
+  }
+  return { before, operationId };
 }
 
 function hasUnsafeControlCharacter(value: string) {
@@ -86,6 +117,7 @@ export function emptyV3ParticipantActivityBundle(): V3ParticipantActivityBundle 
     schemaReady: false,
     items: [],
     nextBefore: null,
+    nextOperationId: null,
     generatedAt: null,
   };
 }
@@ -134,10 +166,22 @@ export function parseV3ParticipantActivity(
       })
     : [];
 
+  // The System keyset cursor has two inseparable parts. Never continue with
+  // only a timestamp: simultaneous operations would be skipped or repeated.
+  const nextBefore = stringValue(root.next_before ?? root.nextBefore);
+  const nextOperationId = stringValue(root.next_operation_id ?? root.nextOperationId);
+  const validContinuation = Boolean(
+    nextBefore &&
+    Number.isFinite(Date.parse(nextBefore)) &&
+    nextOperationId &&
+    CURSOR_OPERATION_ID.test(nextOperationId),
+  );
+
   return {
     schemaReady: true,
     items,
-    nextBefore: stringValue(root.next_before ?? root.nextBefore),
+    nextBefore: validContinuation ? nextBefore : null,
+    nextOperationId: validContinuation ? nextOperationId : null,
     generatedAt: stringValue(root.generated_at ?? root.generatedAt),
   };
 }
