@@ -6,6 +6,18 @@ import { supabase } from "@/integrations/supabase/client";
  * never query world proxies, user ids, private grants or office histories here.
  * The generated Supabase types cannot know the unmerged TG2 schema yet.
  */
+export const WORLD_PUBLIC_ROLLOUT_KEY = "terra_world_public" as const;
+
+/** Unknown flags and absent rollout contracts always resolve disabled. */
+export async function fetchWorldPublicEnabled(): Promise<boolean> {
+  const { data, error } = await (supabase as any).rpc("studio2_feature_enabled", {
+    p_key: WORLD_PUBLIC_ROLLOUT_KEY,
+    p_edition_id: null,
+  });
+  if (error) throw new Error("World availability cannot be verified.");
+  return data === true;
+}
+
 export type WorldOrganization = {
   id: string;
   slug: string;
@@ -141,6 +153,17 @@ export function parseWorldDirectoryRows(raw: unknown): WorldOrganization[] {
     });
     return organization ? [organization] : [];
   });
+}
+
+/** GUARD and UNITY remain discoverable even after the general directory grows. */
+export async function fetchWorldFeaturedOrganizations(): Promise<WorldOrganization[]> {
+  const { data, error } = await (supabase as any).from("world_organizations")
+    .select("id,slug,official_name,short_name,type,description,status,public_visibility")
+    .eq("public_visibility", "public")
+    .in("slug", ["guard", "unity"])
+    .order("short_name", { ascending: true });
+  if (error) throw new Error("Featured world institutions are temporarily unavailable.");
+  return parseWorldDirectoryRows(data);
 }
 
 export async function fetchWorldDirectory(input: {
