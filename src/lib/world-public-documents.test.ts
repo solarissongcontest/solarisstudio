@@ -57,6 +57,7 @@ const document = {
     effectiveTo: null,
     provisions: [{
       provisionId: "provision-1",
+      status: "active",
       semanticKey: "article-one",
       parentSemanticKey: null,
       displayLabel: "Article I",
@@ -289,6 +290,45 @@ describe("TG4 public institutional document library", () => {
     });
     expect(result?.version.plainText).toBe("  Preamble\n  line two  \n");
     expect(result?.version.provisions[0].bodyPlainText).toBe("\n  Article body  \n");
+  });
+
+  it("preserves TG4 provision lifecycle states and refuses unknown legal status", () => {
+    const result = parseWorldDocumentDetail({
+      ...document,
+      version: {
+        ...document.version,
+        provisions: [
+          document.version.provisions[0],
+          {
+            ...document.version.provisions[0],
+            provisionId: "provision-repealed",
+            semanticKey: "repealed-article",
+            anchor: "repealed-article",
+            status: "repealed",
+          },
+          {
+            ...document.version.provisions[0],
+            provisionId: "provision-omitted",
+            semanticKey: "omitted-article",
+            anchor: "omitted-article",
+            status: "omitted",
+            bodyPlainText: "",
+          },
+        ],
+      },
+    });
+    expect(result?.version.provisions.map((item) => item.status))
+      .toEqual(["active", "repealed", "omitted"]);
+    expect(() => parseWorldDocumentDetail({
+      ...document,
+      version: {
+        ...document.version,
+        provisions: [{
+          ...document.version.provisions[0],
+          status: "unknown",
+        }],
+      },
+    })).toThrow("Invalid institutional provision legal status");
   });
 
   it("never interprets stored text as markup and discards unsafe/duplicate TOC anchors", () => {
