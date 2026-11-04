@@ -1,5 +1,22 @@
 begin;
 
+-- S13 high-risk migration contract precedes the CHECK replacement.
+do $contract$
+begin
+  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
+    perform public.v3_register_migration_contract(
+      'v3.tg3.public-world-rollout-flag',
+      1,
+      'forward_fix_only',
+      true,
+      null,
+      'Allow and default-disable the shared public Terra Solaris World feature flag without overwriting other feature flags or rollout controls.'
+    );
+  end if;
+end
+$contract$;
+
+
 -- TG3 public World is a shared, explicit rollout decision used by the
 -- institution directory and independent public institution leaf routes.
 -- Never silently enable this feature while maintenance is active.
@@ -47,21 +64,6 @@ insert into public.studio2_feature_flags
 values
   ('terra_world_public', false, false, '{}'::uuid[], '{}'::uuid[])
 on conflict (key) do nothing;
-
-do $contract$
-begin
-  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
-    perform public.v3_register_migration_contract(
-      'v3.tg3.public-world-rollout-flag',
-      1,
-      'forward_fix_only',
-      false,
-      null,
-      'Allow and default-disable the shared public Terra Solaris World feature flag without overwriting other feature flags or rollout controls.'
-    );
-  end if;
-end
-$contract$;
 
 notify pgrst, 'reload schema';
 commit;
