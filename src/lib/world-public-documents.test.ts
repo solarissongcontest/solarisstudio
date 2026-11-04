@@ -141,6 +141,19 @@ describe("TG4 public institutional document library", () => {
     expect(result?.history.map((item) => item.publicationState)).toEqual(["published", "superseded"]);
   });
 
+  it("preserves exact legal-text whitespace rather than rewriting historical wording", () => {
+    const result = parseWorldDocumentDetail({
+      ...document,
+      version: {
+        ...document.version,
+        plainText: "  Preamble\n  line two  \n",
+        provisions: [{ ...document.version.provisions[0], bodyPlainText: "\n  Article body  \n" }],
+      },
+    });
+    expect(result?.version.plainText).toBe("  Preamble\n  line two  \n");
+    expect(result?.version.provisions[0].bodyPlainText).toBe("\n  Article body  \n");
+  });
+
   it("never interprets stored text as markup and discards unsafe/duplicate TOC anchors", () => {
     const result = parseWorldDocumentDetail({
       ...document,
