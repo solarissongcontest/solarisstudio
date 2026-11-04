@@ -107,6 +107,13 @@ test("Country directory renders the correct mobile-web and desktop browse compos
     Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
   );
   expect(overflow, "Country directory must not overflow the browser viewport").toBeLessThanOrEqual(2);
+  if (!mobile) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(directory).toHaveAttribute("data-country-directory-experience", "mobile-web");
+    await expect(directory.locator(".v3-countries-web-list")).toBeVisible();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(directory).toHaveAttribute("data-country-directory-experience", "desktop-web");
+  }
 });
 
 test("Country Glass atmosphere and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {

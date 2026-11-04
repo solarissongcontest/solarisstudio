@@ -84,6 +84,9 @@ export function V3CountriesDiscoveryScreen({
 
   return (
     <div className="v3-countries-discovery space-y-8" data-country-directory-experience={presentation}>
+      {presentation === "mobile-web" ? (
+        <h2 id="countries-page-title" className="sr-only">Browse all countries</h2>
+      ) : (
       <header className="v3-countries-intro">
         <p className="v3-countries-kicker">
           {discovery.currentEdition
@@ -92,7 +95,7 @@ export function V3CountriesDiscoveryScreen({
         </p>
         <h2 id="countries-page-title" className="v3-countries-title">
           {presentation === "installed-app"
-            ? "Countries"
+            ? "Meet the countries"
             : presentation === "mobile-web"
               ? "Browse all countries"
               : "Country explorer"}
@@ -105,6 +108,7 @@ export function V3CountriesDiscoveryScreen({
               : "Discover the countries of Terra Solaris, their regions and their histories."}
         </p>
       </header>
+      )}
 
       <section
         id="countries-browse-all"

@@ -12,7 +12,7 @@ describe("V3 Public completion Chat 3 discovery roots", () => {
     expect(screen).toContain('id="countries-page-title"');
     expect(screen).toContain('className="v3-countries-title"');
     expect(screen).toContain('presentation === "installed-app"');
-    expect(screen).toContain('? "Countries"');
+    expect(screen).toContain('? "Meet the countries"');
     expect(screen).toContain('data-country-directory-experience={presentation}');
     expect(screen).toContain('aria-labelledby="countries-page-title"');
     expect(screen).not.toContain('eyebrow="Browse all"');
