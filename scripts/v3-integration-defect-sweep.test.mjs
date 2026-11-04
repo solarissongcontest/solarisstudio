@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   classifyS15Finding,
@@ -70,4 +71,26 @@ test("groups repeat findings by root-cause family without discarding individual 
   ]);
   assert.equal(groups.find((g) => g.family === "capability-cutover")?.count, 2);
   assert.equal(groups.find((g) => g.family === "canonical-ownership")?.ids[0], "three");
+});
+
+test("manual diagnostic dispatch cannot execute arbitrary input-selected code", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/v3-integration-defect-sweep.yml", import.meta.url), "utf8");
+  assert.ok(workflow.includes("V3_SELECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}"));
+  assert.ok(workflow.includes('[[ "$V3_CANDIDATE_SHA" == "$V3_SELECTED_SHA" ]]'));
+  assert.ok(workflow.includes("candidate_sha must match the selected workflow-dispatch or pull-request commit"));
+  assert.ok(workflow.includes("ref: ${{ github.event.pull_request.head.sha || github.sha }}"));
+  assert.ok(!workflow.includes("ref: ${{ github.event.pull_request.head.sha || inputs.candidate_sha }}"));
+  assert.ok(workflow.includes("persist-credentials: false"));
+  assert.ok(!/playwright/i.test(workflow), "This is read-only source diagnostics, not a browser audit");
+});
+
+test("source diagnostic workflow retains loopback-only and non-certifying intent", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/v3-integration-defect-sweep.yml", import.meta.url), "utf8");
+  for (const key of ["VITE_SUPABASE_URL", "SUPABASE_URL", "VITE_CONFIRMATIONS_SUPABASE_URL", "CONFIRMATIONS_SUPABASE_URL"]) {
+    assert.ok(workflow.includes(`${key}: http://127.0.0.1:54321`));
+  }
+  assert.ok(workflow.includes("No Supabase CLI, DB reset"));
+  assert.ok(workflow.includes("diagnostic and never"));
+  assert.ok(!workflow.includes("secrets.SUPABASE"));
+  assert.ok(!workflow.includes("supabase start"));
 });
