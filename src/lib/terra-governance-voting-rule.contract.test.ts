@@ -166,8 +166,8 @@ describe("TG8 versioned institutional voting rule authority", () => {
     expect(managedRules).toContain("rule_row.organization_id=p_organization_id");
     expect(managedRules).toContain("rule_row.active");
     expect(managedRules).toContain("limit 30");
-    expect(managedRules).toContain("rule_row.quorum_numerator::text");
-    expect(managedRules).toContain("rule_row.threshold_denominator::text");
+    expect(managedRules).toContain("r.quorum_numerator::text");
+    expect(managedRules).toContain("r.threshold_denominator::text");
     expect(managedRules).not.toContain("auth.users");
     expect(source).toContain("revoke all on function public.world_managed_voting_organizations_v1()");
     expect(source).toContain("revoke all on function public.world_voting_rules_manage_v1(uuid)");
