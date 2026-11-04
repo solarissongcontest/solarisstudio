@@ -90,7 +90,15 @@ export const submitNextInLine = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => submitSchema.parse(data))
   .handler(async ({ data }) => {
     try {
-      return await rpc<{ ok: boolean; error?: string }>("submit_next_in_line", { payload: data });
+      // Preserve the server-generated canonical submission reference. The caller
+      // must still match it to the exact requested edition/source before showing success.
+      return await rpc<{
+        ok: boolean;
+        error?: string;
+        submission_id?: string;
+        edition_id?: string;
+        source_submission_id?: string;
+      }>("submit_next_in_line", { payload: data });
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
       if (message.includes("duplicate_song")) return { ok: false as const, error: "duplicate_song" };
