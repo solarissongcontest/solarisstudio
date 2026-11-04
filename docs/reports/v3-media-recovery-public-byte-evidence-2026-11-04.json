@@ -1,0 +1,41 @@
+{
+  "report_type": "public-media-upload-byte-verification",
+  "checked_date": "2026-11-04",
+  "source_project_id": "oxtbskojiexkaspputvo",
+  "archive_sha256": "67ee8117069cd71dbaa7834e8e7fa118c201c830e62191598090a36752eef9da",
+  "archive_bytes": 25723545,
+  "archive_zip_entry_count": 56,
+  "archive_integrity_verified": true,
+  "uploaded_manifest_sha256": "ee04295f51114edce44b82f465ba482bcaf9aa7d25777327ad5e2acf3a69019e",
+  "manifest_sha256_verified": true,
+  "live_source_db_metadata_fingerprint_md5": "7010a5b1ed4eee24443a0a5b370c8fd6",
+  "archive_manifest_matches_live_source_inventory": true,
+  "public_files_verified": 54,
+  "public_bytes_verified": 25673162,
+  "public_files_by_bucket": {
+    "country-media": 47,
+    "edition-artwork": 7
+  },
+  "per_file_sha256_matched": 54,
+  "image_file_decode_format_validated": 54,
+  "integrity_problems": [],
+  "upload_limit_exceptions": [
+    {
+      "path": "country-media/e38e88bf-0d17-4eae-9e7e-7b27acf6f4eb/gallery/4e808357-8975-4535-af5c-9eb0646598a9-img_6209.jpeg",
+      "note": "exceeds V3 public image 5 MiB limit",
+      "size": 5679181
+    }
+  ],
+  "private_beta_feedback_included": false,
+  "destination_project_id": "dkxmnvekiopyesuzggeu",
+  "destination_access": "denied_for_both_connected_supabase_identities_at_inspection",
+  "destination_objects_written": 0,
+  "production_references_changed": 0,
+  "r2_objects_published": 0,
+  "archive_disposition": "user-uploaded ZIP retained as conversation attachment; not committed to repository",
+  "limitations": [
+    "The uploader-generated SHA-256 values establish consistency between the archive and its manifest, not independently signed byte provenance from Supabase.",
+    "Live source SQL separately matched all 54 bucket/key/size/MIME metadata records.",
+    "V3 release authorization, destination access and per-asset public release clearance remain outstanding."
+  ]
+}
