@@ -125,6 +125,7 @@ export function WorldCountriesDirectory() {
       const filter = worldCountrySearchFilter(safeSearch);
       if (filter) request = request.or(filter);
       const { data, count, error } = await request.order("name", { ascending: true })
+        .order("short_code", { ascending: true }).order("id", { ascending: true })
         .range(page * WORLD_COUNTRY_PAGE_SIZE, (page + 1) * WORLD_COUNTRY_PAGE_SIZE - 1);
       if (error) throw error;
       return { countries: parseWorldPublicCountries(data), count: verifiedWorldCount(count) };
@@ -132,7 +133,15 @@ export function WorldCountriesDirectory() {
   });
 
   // A failed revalidation may retain old React Query data. Never render it.
-  const visibleCountryData = query.isError ? undefined : query.data;
+  // If a concurrent deletion empties the selected page, recover to the last
+  // valid page instead of presenting a misleading zero-results dead end.
+  useEffect(() => {
+    if (query.isSuccess && page > 0 && page * WORLD_COUNTRY_PAGE_SIZE >= query.data.count) {
+      setPage(Math.max(0, Math.ceil(query.data.count / WORLD_COUNTRY_PAGE_SIZE) - 1));
+    }
+  }, [page, query.data, query.isSuccess]);
+
+  const visibleCountryData = query.isSuccess ? query.data : undefined;
   const total = visibleCountryData?.count ?? 0;
   const start = page * WORLD_COUNTRY_PAGE_SIZE;
   return <>
@@ -206,8 +215,11 @@ function useCountryMemberships(countryId: string | undefined, phase: Phase, page
       } else {
         request = request.not("ended_at", "is", null).in("status", ["withdrawn", "expelled", "former"]);
       }
+      // Multiple memberships may begin or end in the same transaction:
+      // a unique ID tie-breaker keeps server-side pagination deterministic.
       const { data, count, error } = await request
         .order(phase === "current" ? "joined_at" : "ended_at", { ascending: false })
+        .order("id", { ascending: true })
         .range(page * WORLD_AFFILIATION_PAGE_SIZE, (page + 1) * WORLD_AFFILIATION_PAGE_SIZE - 1);
       if (error) throw error;
       return {
@@ -306,6 +318,19 @@ export function WorldCountryInternational({ code }: { code: string }) {
 
   const current = useCountryMemberships(identity.data?.id, "current", currentPage);
   const historical = useCountryMemberships(identity.data?.id, "historical", historyPage);
+
+  useEffect(() => {
+    if (current.isSuccess && currentPage > 0 &&
+        currentPage * WORLD_AFFILIATION_PAGE_SIZE >= current.data.count) {
+      setCurrentPage(Math.max(0, Math.ceil(current.data.count / WORLD_AFFILIATION_PAGE_SIZE) - 1));
+    }
+  }, [current.data, current.isSuccess, currentPage]);
+  useEffect(() => {
+    if (historical.isSuccess && historyPage > 0 &&
+        historyPage * WORLD_AFFILIATION_PAGE_SIZE >= historical.data.count) {
+      setHistoryPage(Math.max(0, Math.ceil(historical.data.count / WORLD_AFFILIATION_PAGE_SIZE) - 1));
+    }
+  }, [historical.data, historical.isSuccess, historyPage]);
 
   // Resolve only the organizations on the visible current/historical pages.
   // This independently enforces the world_organizations PUBLIC RLS boundary
