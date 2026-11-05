@@ -38,7 +38,9 @@ describe("V3 Public completion Chat 3 discovery roots", () => {
     expect(screen).toContain('eyebrow="Up next"');
     expect(screen).toContain('eyebrow="Recent"');
     expect(screen).toContain('eyebrow="Current edition"');
-    expect(screen).toContain('eyebrow="Browse"');
+    expect(screen).toContain('id="shows-browse-title"');
+    expect(screen).toContain("All public shows");
+    expect(screen).toContain('aria-labelledby="shows-browse-title"');
     expect(screen).toContain('eyebrow="Archive"');
     expect(screen).toContain("showPublishesResults(item.show)");
     expect(screen).toContain("item.broadcastUrl");
