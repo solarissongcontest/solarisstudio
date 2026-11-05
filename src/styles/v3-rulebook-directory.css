@@ -1,0 +1,129 @@
+/* Rulebook is a browsable numbered outline, not a generic hero and cards.
+ * Keeps RulesRouteShell, global chrome and the official 22-chapter authority. */
+.v3-rule-chapters-directory {
+  min-width: 0;
+  container-type: inline-size;
+}
+.v3-rule-chapters-directory .v3-directory-family {
+  padding-bottom: 1.2rem;
+}
+.v3-rule-chapters-directory .v3-directory-family :is(.v3-directory-app-heading, .v3-directory-mobile-header) {
+  margin-bottom: .8rem;
+  padding-bottom: .7rem;
+}
+.v3-rule-chapters-directory .v3-directory-family :is(.v3-directory-app-heading, .v3-directory-mobile-header) h1 {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: clamp(1.8rem, 6vw, 2.1rem);
+  font-weight: 750;
+  letter-spacing: -.035em;
+}
+.v3-rule-chapters-directory .v3-directory-family[data-directory-experience="desktop-web"] .page-header {
+  margin: 0 0 1rem;
+  padding: 0 0 .85rem;
+  max-width: none;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
+}
+.v3-rule-chapters-directory .v3-directory-family[data-directory-experience="desktop-web"] .page-header h1 {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: clamp(1.95rem, 3vw, 2.3rem);
+  font-weight: 750;
+  letter-spacing: -.035em;
+  line-height: 1.13;
+}
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-results-count {
+  margin: .55rem 0 .9rem;
+}
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-groups {
+  gap: 1.25rem;
+}
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-group-title {
+  font-size: 1.06rem;
+  margin-bottom: .35rem;
+  padding-bottom: .5rem;
+}
+/* Rules has a global public navigation rail already. Its local category rail
+ * becomes a compact index instead of occupying a second sidebar. */
+.v3-rule-chapters-directory .v3-directory-family[data-directory-experience="desktop-web"] .v3-directory-workspace {
+  grid-template-columns: minmax(0, 1fr);
+  gap: .8rem;
+  max-width: none;
+}
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-desktop-rail {
+  position: static;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem .35rem;
+  align-items: center;
+  padding: 0 0 .65rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+}
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-desktop-rail h2 {
+  flex-basis: 100%;
+  margin-bottom: .15rem;
+  font-size: .7rem;
+}
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-desktop-rail button {
+  width: auto;
+  min-height: 38px;
+  padding: .35rem .65rem;
+  gap: .5rem;
+  border: 1px solid transparent;
+  border-radius: .55rem;
+  font-size: .81rem;
+}
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-desktop-rail button[aria-pressed="true"] {
+  border-color: var(--primary);
+  background: var(--surface);
+  color: var(--foreground);
+}
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-desktop-rail button[aria-pressed="true"]::before {
+  content: "✓";
+  font-weight: 800;
+}
+/* Desktop chapters are a document index, not twenty-two identical cards. */
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-desktop-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 1rem;
+}
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-desktop-card {
+  min-height: 0;
+  gap: .23rem;
+  padding: .8rem .2rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  overflow-wrap: anywhere;
+}
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-desktop-card:hover {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-desktop-card .v3-directory-card-top {
+  font-size: .96rem;
+  line-height: 1.35;
+}
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-desktop-card .v3-directory-eyebrow {
+  font-size: .67rem;
+  letter-spacing: .08em;
+}
+.v3-rule-chapters-directory .v3-directory-family .v3-directory-desktop-card .v3-directory-card-description {
+  font-size: .79rem;
+  line-height: 1.42;
+}
+@container (min-width: 37rem) {
+  .v3-rule-chapters-directory .v3-directory-family .v3-directory-desktop-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* 200% root font increases the rem breakpoint, dropping naturally to one
+ * readable column without special zoom detection. */
+@media (prefers-reduced-motion: reduce) {
+  .v3-rule-chapters-directory .v3-directory-desktop-card { transition: none; }
+}

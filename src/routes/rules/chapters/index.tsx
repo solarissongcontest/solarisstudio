@@ -5,6 +5,7 @@ import { RulesRouteShell } from "@/components/rules/RulesRouteShell";
 import { GovernanceStatusStrip, SolarisDepthPage, SolarisDepthSafeZone } from "@/components/SolarisDepth";
 import { V3DirectoryFamilyIndex, type V3DirectoryGroup } from "@/components/v3/V3DirectoryFamilyIndex";
 import { filterRuleChapterDirectory } from "@/lib/v3-rule-chapter-directory";
+import "@/styles/v3-rulebook-directory.css";
 
 export const Route = createFileRoute("/rules/chapters/")({
   head: () => ({
@@ -37,6 +38,7 @@ function RuleChaptersPage() {
       <SolarisDepthPage tone="rules">
         <GovernanceStatusStrip context="rules" />
         <SolarisDepthSafeZone>
+          <div className="v3-rule-chapters-directory">
           <V3DirectoryFamilyIndex
             noShell
             title="22 chapters"
@@ -55,6 +57,7 @@ function RuleChaptersPage() {
             <Search size={18} aria-hidden="true" />
             Search full rule text
           </Link>
+          </div>
         </SolarisDepthSafeZone>
       </SolarisDepthPage>
     </RulesRouteShell>

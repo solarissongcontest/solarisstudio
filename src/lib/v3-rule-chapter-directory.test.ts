@@ -35,6 +35,8 @@ describe("V3 Rulebook chapter directory", () => {
     // Chapter deep links are data-driven in the shared directory component.\n    expect(route).toContain("filterRuleChapterDirectory");
     expect(route).toContain("V3DirectoryFamilyIndex");
     expect(route).toContain("noShell");
+    expect(route).toContain('className="v3-rule-chapters-directory"');
+    expect(route).toContain('import "@/styles/v3-rulebook-directory.css"');
     expect(route).toContain('to: "/rules/chapters/$chapter"');
     expect(route).toContain("params: { chapter: chapter.slug }");
     expect(family).toContain("platformResolved");
@@ -46,6 +48,11 @@ describe("V3 Rulebook chapter directory", () => {
     expect(family).toContain("AppGroupedList");
     expect(family).toContain("noShell ? content");
     expect(css).toContain('[data-directory-experience="mobile-web"]');
+    const rulebookCss = readFileSync("src/styles/v3-rulebook-directory.css", "utf8");
+    expect(rulebookCss).toContain('.v3-rule-chapters-directory .v3-directory-desktop-card');
+    expect(rulebookCss).toContain("@container (min-width: 37rem)");
+    expect(rulebookCss).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
+    expect(rulebookCss).toContain("font-family: var(--font-sans");
     expect(route).not.toContain("<AppShell>");
   });
 });
