@@ -45,6 +45,11 @@ export function legacyOwnerEvidence(f) {
   validation_evidence_id:'verified-quarantine-sha256:'+f.sha256,
  };
 }
+export function assertLegacyOwnerClearance(f,clearance) {
+ const expected=legacyOwnerEvidence(f);
+ if(Object.entries(expected).some(([key,value])=>clearance?.[key]!==value))
+  throw Error('Owner recovery legacy-public provenance or validation evidence mismatch');
+}
 export function stagedDigest(files) {
  return sha(stableJson(files.map(({bucket,path,size,mime,sha256})=>({bucket,path,size,mime,sha256}))));
 }
@@ -114,11 +119,7 @@ export async function restoreApprovedStaging({
     source_mime:f.mime,private:false},approval);
   const clearance=approval.asset_clearances.find(a=>a?.identity===id);
   if(clearance?.canonical_subject_id!==f.owner)throw Error('Canonical asset owner mismatch');
-  if(approval.owner_authorization){
-   const legacy=legacyOwnerEvidence(f);
-   if(Object.entries(legacy).some(([key,value])=>clearance?.[key]!==value))
-    throw Error('Owner recovery legacy-public provenance or validation evidence mismatch');
-  }
+  if(approval.owner_authorization)assertLegacyOwnerClearance(f,clearance);
   return f;
  });
  if(approval.asset_clearances?.length!==selected.length)throw Error('Unreviewed clearance in approval');
