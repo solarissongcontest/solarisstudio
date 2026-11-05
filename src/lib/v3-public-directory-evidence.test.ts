@@ -9,7 +9,7 @@ import {
 const routes = [
   "/countries", "/editions", "/tools", "/site-directory",
   "/shows", "/archive", "/stories", "/encyclopedia",
-  "/rules/chapters", "/songs", "/artists",
+  "/rules/chapters", "/music", "/songs", "/artists",
 ];
 
 function withCertifiedEvidence(row: PublicDirectoryEvidence): PublicDirectoryEvidence {
