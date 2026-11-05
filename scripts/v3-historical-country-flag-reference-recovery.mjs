@@ -148,6 +148,10 @@ main().catch(error=>{
   'Explicit historical edition flag restoration approval missing',
   'No confirmed historical edition flag selected',
   'Historical flag selection does not match live snapshot and source manifest',
+  'Unsafe historical selection v1: the old review mixed countries in shared SSC editions. Generate a fresh v2 preview and reselect.',
+  'Duplicate historical country-and-edition selection',
+  'Unknown historical country-and-edition identity selection',
+  'Historical selection omitted an identity',
   'Selected historic flag missing from public Storage',
   'Selected historical flag no longer matches original verified bytes',
   'Protected SQL must stay in operator home',
@@ -157,7 +161,7 @@ main().catch(error=>{
  ]);
  const msg=String(error?.message||'');
  const code=typeof error?.code==='string'?error.code:'';
- const reason=allow.has(msg)?msg:
+ const reason=(allow.has(msg) || /^Historical flag selection mismatch for (Asteria|Diaria|Linem|Oland|Otelia|Yaria) SSC [0-9]+: selected asset is not an approved flag for that country\./.test(msg))?msg:
   code==='ENOENT'?'Required local file not found. Check the --manifest/--selection path.' :
   code==='EEXIST'?'Output file already exists; no overwrite attempted. Check whether the prior SQL was already generated.' :
   code==='EACCES'?'Local file access denied; check owner-private file permissions.' :
