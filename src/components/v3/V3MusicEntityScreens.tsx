@@ -240,7 +240,7 @@ function AppearanceList({
   }
 
   return (
-    <V3Surface level="raised" className="px-4">
+    <div className="v3-music-preview-list">
       {appearances.map((appearance) => (
         <div
           key={appearance.entryId}
@@ -265,7 +265,7 @@ function AppearanceList({
           </span>
         </div>
       ))}
-    </V3Surface>
+    </div>
   );
 }
 
@@ -295,9 +295,10 @@ export function V3ArtistDetailScreen({ artist }: { artist: V3ArtistDetail }) {
         </V3Section>
       ) : null}
 
+      <div className="v3-music-detail-columns">
       <V3Section title="Songs" meta={`${artist.songs.length}`}>
         {artist.songs.length ? (
-          <V3Surface level="raised" className="px-4">
+          <div className="v3-music-preview-list">
             {artist.songs.map((song) => (
               <Link
                 key={song.id}
@@ -320,7 +321,7 @@ export function V3ArtistDetailScreen({ artist }: { artist: V3ArtistDetail }) {
                 </span>
               </Link>
             ))}
-          </V3Surface>
+          </div>
         ) : (
           <QueryState
             title="No public songs"
@@ -332,6 +333,7 @@ export function V3ArtistDetailScreen({ artist }: { artist: V3ArtistDetail }) {
       <V3Section title="Published appearances" meta={`${artist.appearances.length}`}>
         <AppearanceList appearances={artist.appearances} />
       </V3Section>
+      </div>
 
       <V3Section title="Explore music">
         <MusicRootLink />
@@ -359,9 +361,10 @@ export function V3SongDetailScreen({ song }: { song: V3SongDetail }) {
         editorial={presentation === "desktop-web"}
       />
 
+      <div className="v3-music-detail-columns">
       <V3Section title="Artists" meta={`${song.artists.length}`}>
         {song.artists.length ? (
-          <V3Surface level="raised" className="px-4">
+          <div className="v3-music-preview-list">
             {song.artists.map((artist) => (
               <Link
                 key={artist.id}
@@ -386,7 +389,7 @@ export function V3SongDetailScreen({ song }: { song: V3SongDetail }) {
                 </span>
               </Link>
             ))}
-          </V3Surface>
+          </div>
         ) : (
           <QueryState
             title="No public Artist credit"
@@ -398,6 +401,7 @@ export function V3SongDetailScreen({ song }: { song: V3SongDetail }) {
       <V3Section title="Published appearances" meta={`${song.appearances.length}`}>
         <AppearanceList appearances={song.appearances} />
       </V3Section>
+      </div>
 
       <V3Section title="Explore music">
         <MusicRootLink />
