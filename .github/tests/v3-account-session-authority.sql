@@ -43,6 +43,18 @@ select public.v3_claim_country_account(
   'account-authority-claim'
 );
 
+do $claim_replay$
+declare v_result jsonb;
+begin
+  v_result := public.v3_claim_country_account(
+    '27184517-0000-4000-8000-000000000021',
+    '27184517-0000-4000-8000-000000000101','account-authority-claim');
+  if v_result->>'replayed' is distinct from 'true' then
+    raise exception 'Exact country claim retry did not replay its receipt';
+  end if;
+end
+$claim_replay$;
+
 -- Retry with a different transport operation reconciles to canonical state
 -- instead of inserting a second account row.
 select public.claim_country_account('27184517-0000-4000-8000-000000000021');
@@ -293,6 +305,38 @@ begin
   end if;
 end
 $test$;
+
+-- Losing a role takes effect before receipt replay, even with the same signed
+-- actor/session and an already-successful operation identity.
+delete from public.studio2_role_assignments
+where user_id='27184517-0000-4000-8000-000000000002';
+select set_config('request.jwt.claims',
+  '{"sub":"27184517-0000-4000-8000-000000000002","role":"authenticated","session_id":"27184517-0000-4000-8000-000000000012"}',true);
+set local role authenticated;
+do $revoked_role$
+begin
+  begin
+    perform public.v3_set_country_account_status(
+      '27184517-0000-4000-8000-000000000001','suspended','authority rehearsal',now(),
+      '27184517-0000-4000-8000-000000000104','account-authority-suspend');
+    raise exception 'Revoked Organizer role replayed a protected account command';
+  exception when insufficient_privilege then null;
+  end;
+end
+$revoked_role$;
+reset role;
+do $failed_receipts$
+begin
+  if exists(select 1 from public.studio2_operation_receipts where operation_id in
+    ('27184517-0000-4000-8000-000000000103','27184517-0000-4000-8000-000000000105')) then
+    raise exception 'Denied/stale command emitted a successful or pending receipt';
+  end if;
+  if (select count(*) from public.studio2_operation_receipts where operation_id=
+    '27184517-0000-4000-8000-000000000101')<>1 then
+    raise exception 'Exact claim replay duplicated durable receipts';
+  end if;
+end
+$failed_receipts$;
 
 -- Prove the trigger also rejects a raw worker if privileges drift and even if
 -- the caller forges the former transaction marker. These grants roll back.

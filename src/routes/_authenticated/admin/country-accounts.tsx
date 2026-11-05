@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, RefreshCw, ShieldCheck, UserRoundCog } from "lucide-react";
 
 import { AdminCountryPasswordPanel } from "@/components/admin/AdminCountryPasswordPanel";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
@@ -19,7 +20,10 @@ import {
   useAdminSetCountryAccountStatus,
   type AdminCountryAccount,
 } from "@/lib/country-account";
+import { CountryAccountStatusOutcomeUnknownError } from "@/lib/country-account-status-command";
 import { useCountries } from "@/lib/data";
+import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
+import { resolveSolarisV6OperationRecovery } from "@/lib/solaris-v6-operation-recovery";
 
 export const Route = createFileRoute("/_authenticated/admin/country-accounts")({
   head: () => ({
@@ -32,6 +36,11 @@ export const Route = createFileRoute("/_authenticated/admin/country-accounts")({
 });
 
 type PendingAccountStatusReview = {
+  actorId: string;
+  actorGeneration: number;
+  operationId: string;
+  idempotencyKey: string;
+  replaying: boolean;
   userId: string;
   countryId: string;
   countryName: string;
@@ -44,6 +53,10 @@ type PendingAccountStatusReview = {
 };
 
 function CountryAccountsAdminPage() {
+  const actorId = useAuthenticatedUser().id;
+  const activeActor = useRef({ id: actorId, generation: 0 });
+  const activeReview = useRef<PendingAccountStatusReview | null>(null);
+  const applyingReview = useRef(false);
   const { data: countries = [] } = useCountries();
   const {
     data,
@@ -59,6 +72,21 @@ function CountryAccountsAdminPage() {
   const [reason, setReason] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [pendingReview, setPendingReview] = useState<PendingAccountStatusReview | null>(null);
+  function updateReview(review: PendingAccountStatusReview | null) {
+    activeReview.current = review;
+    setPendingReview(review);
+  }
+  useLayoutEffect(() => {
+    if (activeActor.current.id !== actorId) {
+      activeActor.current = { id: actorId, generation: activeActor.current.generation + 1 };
+    }
+    activeReview.current = null;
+    setPendingReview(null);
+    setTarget(null);
+    setReason("");
+    setQuery("");
+    setMessage(null);
+  }, [actorId]);
 
   const accountByCountry = useMemo(
     () => new Map((data?.accounts ?? []).map((account) => [account.country_id, account])),
@@ -83,19 +111,31 @@ function CountryAccountsAdminPage() {
     setTarget(account);
     setReason(account.suspension_reason ?? "");
     setMessage(null);
-    setPendingReview(null);
+    updateReview(null);
   }
 
   function closeAccount() {
     if (setStatus.isPending) return;
     setTarget(null);
-    setPendingReview(null);
+    updateReview(null);
   }
 
   function requestStatusReview(targetStatus: "active" | "suspended") {
     if (!target || target.status === targetStatus) return;
     setMessage(null);
-    setPendingReview({
+    const command = createOrganisationCommand({
+      command: "account.status.change",
+      riskClass: "R2",
+      scope: { countryId: target.country_id, entityId: target.user_id },
+      expectedVersion: target.updated_at,
+      payload: { userId: target.user_id, status: targetStatus },
+    });
+    updateReview({
+      actorId,
+      actorGeneration: activeActor.current.generation,
+      operationId: command.operationId,
+      idempotencyKey: command.idempotencyKey,
+      replaying: false,
       userId: target.user_id,
       countryId: target.country_id,
       countryName: target.country_name,
@@ -108,54 +148,63 @@ function CountryAccountsAdminPage() {
     });
   }
 
+  function isCurrentReview(review: PendingAccountStatusReview) {
+    return review.actorId === activeActor.current.id &&
+      review.actorGeneration === activeActor.current.generation &&
+      activeReview.current?.operationId === review.operationId;
+  }
+
   async function confirmStatusReview() {
-    if (!pendingReview) return;
+    if (!pendingReview || applyingReview.current || !isCurrentReview(pendingReview)) return;
     const review = pendingReview;
-    const refreshed = await refetchAccounts();
-    const refreshedData = refreshed.data;
-
-    if (refreshed.error || !refreshedData?.schemaReady) {
-      setPendingReview(null);
-      setMessage("Country account state could not be refreshed before apply. Nothing was changed. Reload the account and review the access change again.");
-      return;
-    }
-
-    const liveAccount = refreshedData.accounts.find((account) => account.user_id === review.userId) ?? null;
-    if (
-      !liveAccount ||
-      liveAccount.country_id !== review.countryId ||
-      liveAccount.country_name !== review.countryName ||
-      liveAccount.email !== review.email ||
-      liveAccount.status !== review.currentStatus ||
-      liveAccount.suspension_reason !== review.currentSuspensionReason ||
-      liveAccount.updated_at !== review.currentUpdatedAt
-    ) {
-      setPendingReview(null);
-      setMessage("Country account state changed while the review was open. Nothing was changed. Reload the account and review the access change again.");
-      return;
-    }
-
+    applyingReview.current = true;
     try {
-      await setStatus.mutateAsync({
+      // Recovery replays the original intent before CAS. A successful request
+      // whose response was lost must not fail a browser-only stale preflight.
+      if (!review.replaying) {
+        const refreshed = await refetchAccounts();
+        const refreshedData = refreshed.data;
+        if (!isCurrentReview(review)) return;
+        if (refreshed.error || !refreshedData?.schemaReady) {
+          updateReview(null);
+          setMessage("Country account state could not be refreshed before apply. No command was submitted. Reload the account and review the access change again.");
+          return;
+        }
+        const liveAccount = refreshedData.accounts.find((account) => account.user_id === review.userId) ?? null;
+        if (!liveAccount || liveAccount.country_id !== review.countryId ||
+          liveAccount.country_name !== review.countryName || liveAccount.email !== review.email ||
+          liveAccount.status !== review.currentStatus ||
+          liveAccount.suspension_reason !== review.currentSuspensionReason ||
+          liveAccount.updated_at !== review.currentUpdatedAt) {
+          updateReview(null);
+          setMessage("Country account state changed while the review was open. No command was submitted. Reload the account and review the access change again.");
+          return;
+        }
+      }
+      const receipt = await setStatus.mutateAsync({
         userId: review.userId,
+        countryId: review.countryId,
         status: review.targetStatus,
+        expectedUpdatedAt: review.currentUpdatedAt,
+        operationId: review.operationId,
+        idempotencyKey: review.idempotencyKey,
         ...(review.targetStatus === "suspended" ? { reason: review.reason } : {}),
       });
-      setMessage(
-        review.targetStatus === "suspended"
-          ? `${review.countryName} account suspended.`
-          : `${review.countryName} account restored.`,
-      );
-      setPendingReview(null);
-      setTarget(null);
+      if (!isCurrentReview(review)) return;
+      setMessage(`${review.countryName} access change confirmed · receipt ${receipt.receiptId}.`);
+      updateReview(null);
+      setTarget((current) => current?.user_id === review.userId ? null : current);
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : review.targetStatus === "suspended"
-            ? "Account could not be suspended."
-            : "Account could not be restored.",
-      );
+      if (!isCurrentReview(review)) return;
+      const recovery = resolveSolarisV6OperationRecovery(error, { stableOperationIdentity: true });
+      if (error instanceof CountryAccountStatusOutcomeUnknownError || (recovery.outcomeUnknown && recovery.allowSameIdentityRetry)) {
+        updateReview({ ...review, replaying: true });
+      } else {
+        updateReview(null);
+      }
+      setMessage(`${recovery.description} Operation ${review.operationId}.`);
+    } finally {
+      applyingReview.current = false;
     }
   }
 
@@ -367,7 +416,7 @@ function CountryAccountsAdminPage() {
       <AdminConfirmSheet
         open={Boolean(pendingReview)}
         onClose={() => {
-          if (!setStatus.isPending) setPendingReview(null);
+          if (!setStatus.isPending) updateReview(null);
         }}
         onConfirm={confirmStatusReview}
         title={
@@ -395,14 +444,14 @@ function CountryAccountsAdminPage() {
                 </p>
               )}
               <p className="text-xs leading-5 text-muted-foreground">
-                Organizer refreshes the account directory immediately before apply and refuses the change if the exact country, owner email, access state, suspension reason or account revision changed while this review was open. The existing status RPC is still not a version-bound/idempotent V3 command, so a narrow race remains until System provides canonical account-access authority and receipts.
+                Organizer refreshes the account directory immediately before apply and refuses the change if the exact country, owner email, access state, suspension reason or account revision changed while this review was open. The server enforces the exact account version you reviewed. Retrying an unconfirmed request reconciles the same operation receipt instead of applying the change twice.
               </p>
             </div>
           ) : (
             "Review the account access change before continuing."
           )
         }
-        confirmLabel={pendingReview?.targetStatus === "suspended" ? "Suspend editing" : "Restore editing"}
+        confirmLabel={pendingReview?.replaying ? "Reconcile original change" : pendingReview?.targetStatus === "suspended" ? "Suspend editing" : "Restore editing"}
         confirmationText={pendingReview?.countryName}
         confirmationHint={
           pendingReview ? `Type ${pendingReview.countryName} to confirm the access change` : undefined

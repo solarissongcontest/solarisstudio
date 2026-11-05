@@ -5,6 +5,7 @@ import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import type { Country } from "@/lib/data";
 import { useFanSession } from "@/lib/prediction-data";
 import { uploadVerifiedFile } from "@/lib/upload-safety";
+import { executeCountryAccountStatus } from "@/lib/country-account-status-command";
 
 const supabase = typedSupabase as any;
 
@@ -270,20 +271,8 @@ export function useAdminCountryAccounts(enabled = true) {
 export function useAdminSetCountryAccountStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: {
-      userId: string;
-      status: "active" | "suspended";
-      reason?: string;
-    }) => {
-      const { data, error } = await supabase.rpc("admin_set_country_account_status", {
-        _user_id: input.userId,
-        _status: input.status,
-        _reason: input.reason ?? null,
-      });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: async () => {
+    mutationFn: executeCountryAccountStatus,
+    onSettled: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["admin-country-accounts"] }),
         qc.invalidateQueries({ queryKey: ["my-country-account"] }),

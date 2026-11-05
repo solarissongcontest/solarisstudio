@@ -16,6 +16,10 @@ on:
       - "src/lib/v3-consequence-release-classification.ts"
       - "supabase/functions/country-auth/**"
       - "src/lib/country-auth-contract.test.ts"
+      - ".github/scripts/v3-start-disposable-supabase.sh"
+      - ".github/scripts/prepare-archive-local-config.py"
+      - ".github/scripts/v3-password-recovery*"
+      - ".github/scripts/v3-production-head-upgrade-rehearsal.sh"
   workflow_dispatch:
 
 env:
@@ -46,6 +50,18 @@ jobs:
         run: supabase db reset --local --no-seed
       - name: Rehearse account session contract
         run: bash .github/scripts/v3-account-session-management-rehearsal.sh
+      - name: Rehearse country password recovery in read-only
+        env:
+          RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/clean.log
+        run: bash .github/scripts/v3-password-recovery-readonly-rehearsal.sh
+      - name: Upload clean recovery stage trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: password-recovery-trace-clean-${{ github.sha }}
+          path: ${{ runner.temp }}/recovery-traces/clean.log
+          if-no-files-found: warn
+          retention-days: 3
       - name: Rehearse account session canonical authority
         run: bash .github/scripts/v3-account-session-authority-rehearsal.sh
       - name: Stop isolated local Supabase
@@ -110,3 +126,54 @@ jobs:
         run: |
           cd /tmp/solaris-account-session-main 2>/dev/null || exit 0
           supabase stop --no-backup || true
+
+  upgrade-from-production-head:
+    name: Hosted production-head upgrade + account session checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Ensure PostgreSQL client is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Rehearse hosted production migration delta
+        shell: bash
+        env:
+          V3_PRODUCTION_MIGRATION_HEAD: "20261014020000"
+          V3_PRODUCTION_HEAD_KEEP_RUNNING: "true"
+        run: bash .github/scripts/v3-production-head-upgrade-rehearsal.sh
+      - name: Rehearse contract after hosted production-head upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/v3-account-session-management-rehearsal.sh
+      - name: Rehearse password recovery in read-only after hosted production-head upgrade
+        shell: bash
+        env:
+          RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/upgrade.log
+        run: |
+          set -euo pipefail
+          bash .github/scripts/v3-password-recovery-readonly-rehearsal.sh
+      - name: Upload upgrade recovery stage trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: password-recovery-trace-upgrade-${{ github.sha }}
+          path: ${{ runner.temp }}/recovery-traces/upgrade.log
+          if-no-files-found: warn
+          retention-days: 3
+      - name: Rehearse canonical authority after production-frontier upgrade
+        run: bash .github/scripts/v3-account-session-authority-rehearsal.sh
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true

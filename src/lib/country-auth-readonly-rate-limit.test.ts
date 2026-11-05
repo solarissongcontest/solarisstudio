@@ -111,8 +111,12 @@ describe("country auth protection during restricted platform modes", () => {
     expect(accountSessionWorkflow).toContain(
       'V3_PRODUCTION_HEAD_KEEP_RUNNING: "true"',
     );
-    expect(accountSessionWorkflow).not.toContain("v3-copy-migration-delta.sh");
-    expect(accountSessionWorkflow).not.toContain("/tmp/solaris-account-session-main");
+    const productionJob = accountSessionWorkflow.split("  upgrade-from-production-head:")[1];
+    expect(productionJob).not.toContain("v3-copy-migration-delta.sh");
+    expect(productionJob).not.toContain("/tmp/solaris-account-session-main");
+    expect(productionJob).toContain("v3-account-session-authority-rehearsal.sh");
+    expect(accountSessionWorkflow).toContain("upgrade-from-main:");
+    expect(accountSessionWorkflow).toContain("v3-account-session-authority-baseline.sql");
     expect(productionHeadUpgrade).toContain(
       'KEEP_RUNNING="${V3_PRODUCTION_HEAD_KEEP_RUNNING:-false}"',
     );

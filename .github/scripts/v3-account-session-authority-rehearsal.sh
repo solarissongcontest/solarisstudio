@@ -80,6 +80,25 @@ log "Rehearsing database-enforced account/session writer authority"
 psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$SOURCE_ROOT/.github/tests/v3-account-session-authority.sql"
 log "PASS: canonical account/session SQL authority contract"
 
+log "Proving the sanctioned pre-session country signup through real GoTrue"
+SIGNUP_COUNTRY_ID='27184517-0000-4000-8000-000000000023'
+db_value "insert into public.countries(id,name,short_code) values('$SIGNUP_COUNTRY_ID','Authority Signup HTTP','AHX');" >/dev/null
+request POST "$API_URL/auth/v1/admin/users" "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY" \
+  "{\"email\":\"v3-authority-signup@solaris.invalid\",\"password\":\"$PASSWORD\",\"email_confirm\":true,\"user_metadata\":{\"account_type\":\"country\",\"country_id\":\"$SIGNUP_COUNTRY_ID\",\"instagram_username\":\"authority_signup_http\",\"display_name\":\"Signup HTTP\"}}"
+expect_success "atomic GoTrue country signup"
+SIGNUP_USER_ID="$(json_field "$HTTP_BODY" id)"
+[[ "$(db_value "select count(*) from public.country_accounts where user_id='$SIGNUP_USER_ID' and country_id='$SIGNUP_COUNTRY_ID';")" == '1' ]] || fail "GoTrue signup did not create exactly one canonical account"
+request PATCH "$API_URL/rest/v1/country_accounts?user_id=eq.$SIGNUP_USER_ID" "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY" '{"status":"suspended"}'
+expect_failure "raw worker account status API write"
+[[ "$HTTP_BODY" == *"permission denied"* ]] || fail "raw worker status denial did not come from database privileges"
+request POST "$API_URL/auth/v1/token?grant_type=password" "$ANON_KEY" "$ANON_KEY" \
+  "{\"email\":\"v3-authority-signup@solaris.invalid\",\"password\":\"$PASSWORD\"}"
+expect_success "sign in canonical country signup"
+SIGNUP_ACCESS="$(json_field "$HTTP_BODY" access_token)"
+request POST "$API_URL/rest/v1/rpc/set_owned_hod_auto_assign" "$SIGNUP_ACCESS" "$ANON_KEY" '{"_enabled":false}'
+expect_success "legacy owner preference through governed account command"
+[[ "$(db_value "select hod_auto_assign_future from public.country_accounts where user_id='$SIGNUP_USER_ID';")" == 'f' ]] || fail "governed owner preference was not persisted"
+
 log "Creating one disposable viewer with independent target/current Auth sessions"
 request POST "$API_URL/auth/v1/admin/users" "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY" \
   "{\"email\":\"v3-authority-rotation@solaris.invalid\",\"password\":\"$PASSWORD\",\"email_confirm\":true}"
