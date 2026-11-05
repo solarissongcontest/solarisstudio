@@ -159,5 +159,5 @@ test('browser review isolates two different countries sharing one SSC edition ID
  assert.match(title.textContent,/1 historical editions selected/);
  const legacy=initialHistoricalSelection(review);
  delete legacy.review_schema_version;
- assert.throws(()=>validateHistoricalSelection(review,legacy),/snapshot and source manifest/);
+ assert.throws(()=>validateHistoricalSelection(review,legacy),/Unsafe historical selection v1/);
 });
