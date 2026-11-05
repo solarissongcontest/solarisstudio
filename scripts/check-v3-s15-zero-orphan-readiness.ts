@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { inspectV3CronMigrations } from "../src/lib/v3-s15-scheduled-job-audit";
 
 import {
   V3_SYSTEM_EDGE_FUNCTION_REGISTRY,
@@ -123,24 +124,20 @@ const edgeFunctionNames = readdirSync(resolve(root, "supabase/functions"), { wit
   .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))
   .map((entry) => entry.name)
   .sort();
-const scheduledJobNames = new Set<string>();
 const migrationsRoot = resolve(root, "supabase/migrations");
-for (const name of readdirSync(migrationsRoot).filter((item) => item.endsWith(".sql")).sort()) {
-  const source = readFileSync(resolve(migrationsRoot, name), "utf8");
-  for (const match of source.matchAll(/cron\.schedule\s*\(\s*'([^']+)'/g)) scheduledJobNames.add(match[1]);
-}
-
+const cronAudit = inspectV3CronMigrations(
+  readdirSync(migrationsRoot).filter((name) => name.endsWith(".sql")).map((name) => ({
+    path: "supabase/migrations/" + name,
+    sql: readFileSync(resolve(migrationsRoot, name), "utf8"),
+  })),
+  V3_SYSTEM_SCHEDULED_JOB_REGISTRY,
+);
 const artifactFindings = validateV3SystemZeroOrphans({
   integrationPaths,
   edgeFunctionNames,
-  scheduledJobNames: [...scheduledJobNames].sort(),
-}).map((finding) => `SYSTEM_ARTIFACT_ORPHAN ${finding}`);
-for (const job of V3_SYSTEM_SCHEDULED_JOB_REGISTRY) {
-  const source = readFileSync(resolve(root, job.evidence), "utf8");
-  if (!source.includes(`'${job.name}'`) || !source.includes("cron.schedule")) {
-    artifactFindings.push(`SYSTEM_ARTIFACT_ORPHAN scheduled job evidence drifted: ${job.name} -> ${job.evidence}`);
-  }
-}
+  scheduledJobNames: cronAudit.scheduledJobNames,
+}).map((finding) => "SYSTEM_ARTIFACT_ORPHAN " + finding);
+artifactFindings.push(...cronAudit.findings.map((finding) => "SYSTEM_ARTIFACT_ORPHAN " + finding));
 
 const coreConsistencyFindings: string[] = [];
 if (core.zeroOrphans !== (core.findings.length === 0)) {

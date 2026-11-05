@@ -88,7 +88,13 @@ describe("SSC Roleplay & Worldbuilding contract", () => {
     expect(detail).toContain("Examples");
     expect(checker).toContain("min-h-12");
     expect(journey).toContain("md:grid-cols-2");
-    expect(search).toContain("findRoleplayQuickAnswer");
+    expect(search).toContain("findRuleSearchQuickAnswer(q)");
+    expect(search).not.toContain("findRoleplayQuickAnswer");
+    // The canonical matcher preserves authored roleplay answers but declines
+    // to invent a verdict for generic or unrelated question strings.
+    const quickAnswers = source("src/lib/v3-rules-quick-answer-search.ts");
+    expect(quickAnswers).toContain("ROLEPLAY_QUICK_ANSWERS");
+    expect(quickAnswers).toContain("GOVERNANCE_QUICK_ANSWERS");
     expect(navigation).toContain("Browse all 22 chapters");
     expect(navigation).toContain('"/rules/chapters/roleplay-worldbuilding"');
   });

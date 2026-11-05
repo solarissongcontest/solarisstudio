@@ -87,8 +87,26 @@ expected_delta="$held"
 
 log "Building disposable local Supabase at the hosted production migration head"
 cd "$ROOT"
-supabase start
+# Mark the local stack for cleanup BEFORE startup: registry throttling or a
+# partially created Docker container can fail 'supabase start' after reserving
+# port 54322, and must never survive the EXIT trap.
 STARTED=true
+startup_ok=false
+for attempt in 1 2; do
+  if supabase start; then
+    startup_ok=true
+    break
+  fi
+  log "Disposable local Supabase startup attempt $attempt failed"
+  # A failed start can leave containers or published ports behind. Teardown
+  # before the single bounded retry; never switch to hosted Supabase.
+  supabase stop --no-backup || log "Partial local stack had nothing to stop"
+  if [[ "$attempt" == "1" ]]; then
+    sleep 8
+  fi
+done
+[[ "$startup_ok" == true ]] \
+  || fail "Disposable local Supabase failed twice; no hosted fallback"
 supabase db reset --local --no-seed
 
 eval "$(supabase status -o env)"
@@ -127,6 +145,7 @@ applied_delta="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select count(*) from
 
 log "Re-running critical V3 invariants on the production-head upgrade path"
 for rehearsal in \
+  v3-tg2-identity-linkage-privacy-rehearsal.sh \
   v3-operation-receipt-rehearsal.sh \
   v3-s2-entry-correction-rehearsal.sh \
   v3-confirmation-security-rehearsal.sh \
