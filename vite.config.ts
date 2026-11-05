@@ -24,6 +24,10 @@ export default defineConfig({
     },
     build: {
       rolldownOptions: {
+        // Do not carry bundler-specific module/chunk provenance annotations
+        // into production JS. This removes debug-only output; runtime module
+        // boundaries, source semantics and license notices remain unchanged.
+        attachDebugInfo: "none",
         output: {
           // Production evidence showed repeated gzip framing across hundreds of
           // tiny Lucide chunks and several TanStack Router helper chunks. Keep
