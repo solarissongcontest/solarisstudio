@@ -143,6 +143,60 @@ begin
 end
 $history_integrity$;
 
+-- A syntactically active future membership does not make representation
+-- assignable. Use the same fixture and unchanged canonical client operation.
+-- The next block restores the effective joined_at before historical tests.
+update public.world_organization_memberships
+set joined_at = now() + interval '1 day'
+where organization_id=(current_setting('solaris.tg2_representation_fixture')::jsonb ->> 'organization')::uuid
+  and country_id=(current_setting('solaris.tg2_representation_fixture')::jsonb ->> 'country')::uuid;
+
+set local role authenticated;
+set local request.jwt.claim.role = 'authenticated';
+do $future_membership$
+declare
+ v jsonb := current_setting('solaris.tg2_representation_fixture')::jsonb;
+ v_org uuid := (v ->> 'organization')::uuid;
+ v_country uuid := (v ->> 'country')::uuid;
+begin
+ perform set_config('request.jwt.claim.sub',v ->> 'controller',true);
+ perform set_config('request.jwt.claims',
+   jsonb_build_object('sub',v ->> 'controller','role','authenticated')::text,true);
+ if auth.uid() is distinct from (v ->> 'controller')::uuid then
+  raise exception 'TG2_FUTURE_MEMBERSHIP_AUTH_CONTEXT_MISMATCH';
+ end if;
+ begin
+  perform public.world_assign_organization_representative_v1(
+   v_org,v_country,(v ->> 'firstPerson')::uuid,gen_random_uuid(),
+   'tg2-future-admission-' || gen_random_uuid()::text,2
+  );
+  raise exception 'TG2_FUTURE_MEMBERSHIP_ASSIGNED_REPRESENTATIVE';
+ exception when sqlstate '23514' then
+  if sqlerrm <> 'STATE_CHANGED' then raise; end if;
+ end;
+ raise notice 'PASS: TG2 future membership does not authorize representation';
+end $future_membership$;
+reset role;
+set local request.jwt.claim.role='';
+set local request.jwt.claim.sub='';
+set local request.jwt.claims='{}';
+
+update public.world_organization_memberships
+set joined_at = now() - interval '1 day'
+where organization_id=(current_setting('solaris.tg2_representation_fixture')::jsonb ->> 'organization')::uuid
+  and country_id=(current_setting('solaris.tg2_representation_fixture')::jsonb ->> 'country')::uuid;
+
+-- Failed future-period mutation must not change canonical historical revision.
+do $future_history$
+declare v jsonb := current_setting('solaris.tg2_representation_fixture')::jsonb;
+begin
+ if (select max(revision) from public.world_organization_representations
+  where organization_id=(v ->> 'organization')::uuid and country_id=(v ->> 'country')::uuid) <> 2 then
+  raise exception 'TG2_FUTURE_MEMBERSHIP_CHANGED_HISTORY';
+ end if;
+ raise notice 'PASS: TG2 ineffective membership attempt preserved historical revision';
+end $future_history$;
+
 -- Even if no representative remains current, the durable latest revision must
 -- not reset to zero. A suspended member cannot assign a new representative.
 do $history$
