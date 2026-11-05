@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, Search, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
-import { SolarisSearchField } from "@/components/app/SolarisSearchField";
+import { V3DirectorySearch } from "@/components/v3/V3DirectoryFamilyIndex";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import "@/styles/v3-directory-family.css";
@@ -251,10 +251,10 @@ function EditionsPage() {
             <header className="v3-directory-app-heading">
               <p className="v3-directory-eyebrow">CONTEST HISTORY</p>
               <h1>Editions</h1>
-              <p>Every published edition of the Solaris Song Contest.</p>
+              <p>Browse the published contest history.</p>
             </header>
             {control}
-            <p className="v3-directory-results-count" role="status">{visible.length} matching editions</p>
+            <p className="v3-directory-results-count" role="status">Showing {visible.length} of {cards.length} published editions</p>
             {visibleLatest ? <LatestEdition card={visibleLatest} appMode /> : null}
             {visiblePast.length ? (
               <section className="v3-directory-group" aria-labelledby="app-edition-archive">
@@ -277,7 +277,7 @@ function EditionsPage() {
                 <Link to="/explore" className="v3-directory-back">Explore / Editions</Link>
                 <p className="v3-directory-eyebrow">CONTEST ARCHIVE</p>
                 <h1>Editions</h1>
-                <p>Explore every published SSC edition, from the latest contest back through history.</p>
+                <p>Explore the latest edition and past contests.</p>
               </header>
             ) : (
               <PageHeader
@@ -297,7 +297,7 @@ function EditionsPage() {
               ) : null}
               <div className="v3-directory-results">
                 {control}
-                <p className="v3-directory-results-count" role="status">{visible.length} matching editions</p>
+                <p className="v3-directory-results-count" role="status">Showing {visible.length} of {cards.length} published editions</p>
                 {visibleLatest ? <LatestEdition card={visibleLatest} /> : null}
                 {visiblePast.length ? (
                   <section className="v3-directory-group v3-editions-history" aria-labelledby="editions-archive-heading">
@@ -352,24 +352,16 @@ function EditionDirectoryControls({
   if (presentation === "desktop-web") {
     return (
       <div className="v3-directory-controls">
-        <label className="v3-directory-search">
-          <Search size={18} aria-hidden="true" />
-          <span className="sr-only">{searchLabel}</span>
-          <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
-            aria-label={searchLabel} placeholder="Search editions, hosts or winners…" />
-        </label>
+        <V3DirectorySearch presentation={presentation} value={search} onChange={setSearch}
+          label={searchLabel} placeholder="Search editions, hosts or winners…" />
       </div>
     );
   }
   if (presentation === "mobile-web") {
     return (
       <div className="v3-directory-controls">
-        <label className="v3-directory-search">
-          <Search size={18} aria-hidden="true" />
-          <span className="sr-only">{searchLabel}</span>
-          <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
-            aria-label={searchLabel} placeholder="Search editions or hosts…" />
-        </label>
+        <V3DirectorySearch presentation={presentation} value={search} onChange={setSearch}
+          label={searchLabel} placeholder="Search editions or hosts…" />
         <label className="v3-directory-area-select">
           <span className="sr-only">Browse edition history</span>
           <select aria-label="Browse edition history" value={scope}
@@ -384,12 +376,14 @@ function EditionDirectoryControls({
   }
   return (
     <div className="v3-directory-controls">
-      <SolarisSearchField value={search} onChange={setSearch} label={searchLabel} placeholder="Search editions or hosts…" />
+      <V3DirectorySearch presentation={presentation} value={search} onChange={setSearch}
+        label={searchLabel} placeholder="Search editions or hosts…" />
       <Sheet>
         <SheetTrigger asChild>
           <button type="button" className="v3-directory-sheet-trigger" aria-label="Filter editions">
             <SlidersHorizontal size={18} aria-hidden="true" />
             <span>{options.find((option) => option.id === scope)?.label}</span>
+            {scope !== "all" ? <Check size={16} aria-hidden="true" /> : null}
             <span className="v3-directory-count">{options.find((option) => option.id === scope)?.count}</span>
           </button>
         </SheetTrigger>
@@ -399,7 +393,7 @@ function EditionDirectoryControls({
             {options.map((option) => (
               <SheetClose asChild key={option.id}>
                 <button type="button" aria-pressed={scope === option.id} onClick={() => setScope(option.id)}>
-                  {option.label} <span>{option.count}</span>
+                  <span className="v3-directory-option-name">{scope === option.id ? <Check size={16} aria-hidden="true" /> : null}{option.label}</span> <span>{option.count}</span>
                 </button>
               </SheetClose>
             ))}
@@ -533,16 +527,16 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
         <div className="flex min-w-0 items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-muted-foreground">
-              {edition.status === "completed" ? "Completed" : "In progress"}
+              {edition.status === "completed" ? "Completed" : edition.status === "archived" ? "Archived" : edition.status === "cancelled" ? "Cancelled" : "Published edition"}
             </p>
-            <h2 id="current-edition-heading" className={appMode ? "mt-1 break-words text-xl font-bold tracking-[-.025em]" : "mt-1 break-words text-2xl font-bold tracking-[-.035em] sm:text-3xl"}>
+            <h2 id="current-edition-heading" className={appMode ? "mt-0.5 break-words text-xl font-bold tracking-[-.025em]" : "mt-0.5 break-words text-2xl font-bold tracking-[-.035em]"}>
               {editionLabel(edition)}
             </h2>
           </div>
           <span className="shrink-0 text-lg font-semibold text-primary transition-transform group-hover:translate-x-0.5">→</span>
         </div>
 
-        <div className="mt-4 grid gap-2 border-t border-border/60 pt-4 text-sm sm:grid-cols-3">
+        <div className="mt-3 grid gap-1.5 border-t border-border/60 pt-3 text-xs sm:grid-cols-3">
           <p><span className="text-muted-foreground">Shows:</span> {editionShows.length}</p>
           <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
           <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
