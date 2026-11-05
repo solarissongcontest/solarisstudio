@@ -1,10 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
 import type { V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import "@/styles/v3-shows-directory.css";
 import { useMemo, useState } from "react";
 
 import { AppEmptyState, AppSectionHeader } from "@/components/app/AppPrimitives";
+import { SolarisSearchField } from "@/components/app/SolarisSearchField";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { showPublishesResults } from "@/lib/publication";
@@ -85,6 +87,8 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     [allItems, editionId, kind, state, search],
   );
 
+  const activeFilterCount = [editionId !== "all", kind !== "all", state !== "all"].filter(Boolean).length;
+
   if (archiveIsLoading(editionsQuery, showsQuery)) {
     return <ArchiveDataLoading label="Loading show discovery…" />;
   }
@@ -151,13 +155,25 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
 
       <section id="shows-browse" aria-labelledby="shows-browse-title" className="scroll-mt-24">
         <AppSectionHeader eyebrow="Browse" title="All public shows" id="shows-browse-title" />
-        <div className="v3-shows-filter-fields grid gap-2 sm:grid-cols-3">
-          <label className="text-xs font-semibold text-muted-foreground">
-            Search shows
-            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
-              aria-label="Search shows" placeholder="Search show name, edition or type…"
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground" />
-          </label>
+        <div className={presentation === "installed-app"
+          ? "v3-shows-filter-fields v3-shows-filter-fields--app"
+          : "v3-shows-filter-fields grid gap-2 sm:grid-cols-3"}>
+          {presentation === "installed-app" ? (
+            <>
+              <SolarisSearchField value={search} onChange={setSearch}
+                label="Search shows" placeholder="Search shows…" />
+              <Sheet>
+                <SheetTrigger asChild>
+                  <button type="button" className="v3-shows-sheet-trigger"
+                    aria-label={`Filter shows, ${activeFilterCount} active`}>
+                    <SlidersHorizontal size={17} aria-hidden="true" />
+                    <span>Filters{activeFilterCount ? ` · ${activeFilterCount}` : ""}</span>
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="bottom" aria-label="Filter public shows"
+                  className="max-h-[85dvh] overflow-y-auto pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                  <h2 className="mb-3 text-lg font-bold">Filter public shows</h2>
+                  <div className="grid gap-3">
           <label className="text-xs font-semibold text-muted-foreground">
             Edition
             <select
@@ -203,8 +219,77 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
               ))}
             </select>
           </label>
+                  </div>
+                  <SheetClose asChild>
+                    <button type="button" className="mt-4 min-h-11 w-full rounded-xl border border-primary bg-primary/10 px-4 text-sm font-semibold">
+                      Show {browseItems.length} matching shows
+                    </button>
+                  </SheetClose>
+                </SheetContent>
+              </Sheet>
+            </>
+          ) : (
+            <>
+              <div className="v3-directory-search" role="search">
+                <Search size={18} aria-hidden="true" />
+                <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+                  aria-label="Search shows" placeholder="Search show name, edition or type…" />
+                {search ? (
+                  <button type="button" className="v3-directory-search-clear" aria-label="Clear search"
+                    onClick={() => setSearch("")}><X size={16} aria-hidden="true" /></button>
+                ) : null}
+              </div>
+          <label className="text-xs font-semibold text-muted-foreground">
+            Edition
+            <select
+              value={editionId}
+              onChange={(event) => setEditionId(event.target.value)}
+              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
+            >
+              <option value="all">All editions</option>
+              {editions.map((edition) => (
+                <option key={edition.id} value={edition.id}>
+                  {editionLabel(edition)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-muted-foreground">
+            Show type
+            <select
+              value={kind}
+              onChange={(event) => setKind(event.target.value)}
+              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
+            >
+              <option value="all">All show types</option>
+              {kinds.map((value) => (
+                <option key={value} value={value}>
+                  {showKindLabel(value)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-muted-foreground">
+            State
+            <select
+              value={state}
+              onChange={(event) => setState(event.target.value as ShowDiscoveryState | "all")}
+              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
+            >
+              <option value="all">All states</option>
+              {STATE_ORDER.map((value) => (
+                <option key={value} value={value}>
+                  {stateFilterLabel(value)}
+                </option>
+              ))}
+            </select>
+          </label>
+            </>
+          )}
         </div>
-
+        <p className="v3-directory-results-count" role="status" aria-live="polite">
+          Showing {browseItems.length} of {allItems.length} published shows
+        </p>
         <div className="v3-shows-browse-results">
           {browseItems.map((item) =>
             presentation === "mobile-web" ? (
