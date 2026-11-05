@@ -52,6 +52,23 @@ export const SOLARIS_CAPABILITIES = [
   'host.manage',
   'story.read',
   'story.manage',
+  'world.organization.view_private',
+  'world.organization.profile.manage',
+  'world.organization.branding.manage',
+  'world.organization.settings.manage',
+  'world.membership.apply',
+  'world.membership.review',
+  'world.membership.introduce',
+  'world.membership.execute_admission',
+  'world.membership.withdraw',
+  'world.membership.execute_expulsion',
+  'world.membership.suspend',
+  'world.representation.manage',
+  'world.proxy.request',
+  'world.proxy.approve',
+  'world.office.manage',
+  'world.office.term.assign',
+  'world.office.term.transition',
 ] as const;
 
 export type SolarisCapability = (typeof SOLARIS_CAPABILITIES)[number];

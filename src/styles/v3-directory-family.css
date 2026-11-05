@@ -48,7 +48,7 @@
 .v3-directory-family .v3-directory-desktop-rail button[aria-pressed=true]{background:var(--surface);color:var(--foreground);font-weight:720}
 .v3-directory-family .v3-directory-desktop-rail button span:last-child{font-size:.76rem;font-variant-numeric:tabular-nums}
 .v3-directory-family .v3-directory-results{min-width:0}
-.v3-directory-family .v3-directory-desktop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr));gap:.8rem}
+.v3-directory-family .v3-directory-desktop-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
 .v3-directory-family .v3-directory-desktop-card{display:flex;min-width:0;min-height:118px;flex-direction:column;gap:.5rem;border:1px solid var(--border);border-radius:.85rem;background:var(--surface);padding:1.05rem 1rem;text-decoration:none}
 .v3-directory-family .v3-directory-card-top{display:flex;align-items:center;justify-content:space-between;gap:.6rem;font-size:.96rem}
 .v3-directory-family .v3-directory-card-top>svg{flex-shrink:0;color:var(--muted-foreground)}
@@ -56,28 +56,159 @@
 .v3-directory-family .v3-directory-aliases{margin-top:auto;color:var(--muted-foreground);font-size:.73rem;line-height:1.5}
 .v3-directory-family :is(.v3-directory-mobile-row,.v3-directory-desktop-rail button):hover{background:var(--surface)}
 .v3-directory-family .v3-directory-desktop-card:hover{background:var(--surface-strong,var(--surface));border-color:var(--primary)}
+@media (min-width:1200px){.v3-directory-family .v3-directory-desktop-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
+/* Universal V3 directory rhythm: controls share geometry while content stays domain-specific. */
+.v3-directory-family :is(.v3-directory-app-heading,.v3-directory-mobile-header) h1 {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: clamp(1.8rem, 7vw, 2.15rem);
+  font-weight: 750;
+  letter-spacing: -.035em;
+  line-height: 1.16;
+  text-transform: none;
+}
+.v3-directory-family .v3-directory-app-heading{margin-bottom:.85rem}
+.v3-directory-family .v3-directory-mobile-header{margin-bottom:.95rem;padding-bottom:.8rem}
+.v3-directory-family .v3-directory-app-heading>p:last-child{margin-top:.35rem;font-size:.84rem;line-height:1.45}
+.v3-directory-family .v3-directory-controls{gap:.5rem}
+.v3-directory-family .v3-directory-results-count{margin:.6rem 0 .85rem}
+.v3-directory-family .v3-directory-groups{gap:1.3rem}
+.v3-directory-family .v3-directory-group-title{display:flex;align-items:baseline;justify-content:space-between;gap:.75rem;margin-bottom:.55rem;padding-bottom:.5rem;font-size:1.12rem}
+.v3-directory-family .v3-directory-group-count{font-size:.77rem;font-weight:550;color:var(--muted-foreground);font-variant-numeric:tabular-nums}
+.v3-directory-family .v3-directory-search{min-height:48px}
+.v3-directory-family .v3-directory-search input{flex:1;min-width:0}
+.v3-directory-family .v3-directory-search-clear{display:grid;min-width:36px;min-height:36px;place-items:center;border-radius:.5rem;color:var(--muted-foreground)}
+.v3-directory-family .v3-directory-search-clear:hover{background:var(--surface-strong,var(--surface));color:var(--foreground)}
+.v3-directory-family .v3-directory-search-clear:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+.v3-directory-family .v3-directory-sheet-trigger{width:auto;min-width:min(100%,11rem);max-width:100%;min-height:46px;justify-content:flex-start}
+.v3-directory-family .v3-directory-sheet-trigger>span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v3-directory-family .v3-directory-option-label{display:inline-flex;align-items:center;gap:.5rem}
+.v3-directory-sheet-options button[aria-pressed=true]{color:var(--foreground);background:var(--surface);box-shadow:inset 3px 0 0 var(--primary)}
+.v3-directory-family .v3-directory-desktop-rail button[aria-pressed=true]{box-shadow:inset 3px 0 0 var(--primary)}
+.v3-directory-family[data-directory-experience="installed-app"] .v3-directory-controls{gap:.5rem}
+.v3-directory-family[data-directory-experience="installed-app"] .v3-directory-groups{gap:1.35rem}
+.v3-directory-family[data-directory-experience="mobile-web"] .v3-directory-controls{gap:.5rem}
+.v3-directory-family[data-directory-experience="mobile-web"] .v3-directory-area-select select{width:100%}
+.v3-directory-family .v3-directory-tool-icon{display:grid;flex:0 0 2.25rem;width:2.25rem;height:2.25rem;place-items:center;border-radius:.65rem;background:var(--surface);color:var(--foreground)}
+/* A tool is an action link, not a nested settings card. */
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1rem}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-card{
+  display:grid;grid-template-columns:2.25rem minmax(0,1fr);grid-template-rows:auto auto auto;
+  align-items:start;min-height:0;gap:.2rem .75rem;padding:.9rem .25rem;
+  border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent
+}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-card .v3-directory-tool-icon{grid-column:1;grid-row:1 / 4}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-card .v3-directory-eyebrow{grid-column:2;grid-row:1}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-card .v3-directory-card-top{grid-column:2;grid-row:2}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-card .v3-directory-card-description{grid-column:2;grid-row:3}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-card:hover{border-color:var(--border);background:var(--surface)}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-mobile-row{gap:.75rem}
+.v3-directory-family[data-directory-kind="tools"] .solaris-app-list-row{gap:.7rem}
+.v3-directory-family[data-directory-kind="sitemap"] .v3-directory-desktop-card{min-height:0;background:transparent;border-radius:.65rem;padding:.75rem}
+.v3-directory-family[data-directory-kind="sitemap"] .v3-directory-desktop-card:hover{background:var(--surface)}
+/* Avoid three tiny desktop columns at large text sizes. */
+@media (min-width:1200px){
+  .v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:1100px){
+  .v3-directory-family[data-directory-experience="desktop-web"] .v3-directory-workspace{grid-template-columns:minmax(8.5rem,11rem) minmax(0,1fr)}
+  .v3-directory-family .v3-directory-desktop-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:560px){
+  .v3-directory-family .v3-directory-sheet-trigger{width:100%}
+  .v3-directory-family .v3-directory-mobile-row{gap:.65rem}
+}
+@media (prefers-reduced-motion: reduce){
+  .v3-directory-family .v3-directory-desktop-card{transition:none}
+}
 
-/* Rail/grid density follows the ACTUAL content container, not the outer monitor width.
- * Rules embeds this family in a narrower governed shell; 200% text must not
- * collapse chapters into unreadable 3-column slivers. */
-.v3-directory-family[data-directory-experience="desktop-web"]{container-type:inline-size}
-@container (max-width:55rem){
-  .v3-directory-family[data-directory-experience="desktop-web"] .v3-directory-workspace{grid-template-columns:minmax(0,1fr)}
-  .v3-directory-family .v3-directory-desktop-rail{position:static;display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;padding:0 0 .75rem;border-right:0;border-bottom:1px solid var(--border)}
-  .v3-directory-family .v3-directory-desktop-rail h2{flex-basis:100%;margin-bottom:.35rem}
-  .v3-directory-family .v3-directory-desktop-rail button{width:auto;max-width:100%;min-width:0}
+/* Edition chronology has one featured object and a restrained historical collection. */
+.v3-editions-directory .v3-editions-feature{padding:1rem;border-radius:.85rem}
+.v3-editions-directory .v3-editions-feature h2{
+  font-family:var(--font-sans,system-ui,sans-serif);
+  font-size:clamp(1.15rem,4vw,1.5rem);
+  font-weight:750;line-height:1.2;letter-spacing:-.03em
 }
-.v3-directory-family .v3-directory-desktop-card{overflow-wrap:anywhere}
+.v3-editions-directory .v3-editions-feature-meta{font-size:.78rem;line-height:1.5}
+.v3-editions-directory .v3-editions-history{margin-top:1.25rem}
+.v3-editions-directory[data-directory-experience="installed-app"] .v3-editions-feature{
+  padding:.85rem;border-radius:.85rem
+}
+.v3-editions-directory[data-directory-experience="installed-app"] .solaris-app-edition-row{
+  padding-block:.75rem
+}
+.v3-editions-directory[data-directory-experience="mobile-web"] .v3-editions-feature{
+  margin-bottom:1.25rem
+}
+.v3-editions-directory[data-directory-experience="desktop-web"] .v3-editions-feature{
+  max-width:64rem;margin-bottom:1.5rem
+}
+.v3-editions-directory[data-directory-experience="desktop-web"] .v3-directory-desktop-card{
+  min-height:0;gap:.3rem;padding:.9rem
+}
+@media (max-width:700px){
+  .v3-editions-directory .v3-editions-feature-meta{grid-template-columns:minmax(0,1fr)}
+}
 
-/* Compact type for ordinary Rulebook/directory headings; never edition artwork. */
-.v3-directory-family :is(.v3-directory-app-heading,.v3-directory-mobile-header,.page-header) h1{
-  font-family:var(--font-sans,ui-sans-serif,system-ui,sans-serif);
-  font-size:clamp(1.9rem,7vw,2.15rem);
-  font-weight:750;line-height:1.13
+/* Screenshot review: ordinary directory mastheads must not inherit the
+ * decorative Solaris logo/display lettering or giant framed desktop hero. */
+.v3-directory-family[data-directory-experience="desktop-web"] .page-header {
+  max-width:76rem;margin:0 auto 1.1rem;
+  border:0;border-bottom:1px solid var(--border);
+  border-radius:0;background:transparent;box-shadow:none;
+  padding:0 0 1rem
 }
-.v3-directory-family[data-directory-experience="desktop-web"] .page-header h1{
-  font-size:clamp(2.1rem,3.5vw,2.8rem)
+.v3-directory-family[data-directory-experience="desktop-web"] .page-header h1 {
+  font-family:var(--font-sans,system-ui,sans-serif);
+  font-size:clamp(2rem,3vw,2.6rem);font-weight:750;
+  letter-spacing:-.035em;line-height:1.12;text-transform:none
 }
-.v3-directory-family .v3-directory-mobile-header{margin-top:0}
-.v3-directory-family[data-directory-experience="mobile-web"] .v3-directory-mobile-header>p:last-child{margin-top:.35rem}
+.v3-directory-family[data-directory-experience="desktop-web"] .page-header p {
+  max-width:60ch
+}
+/* One accessible visible focus boundary, not a nested double focus ring. */
+.v3-directory-family .v3-directory-search input:focus-visible{
+  outline:none;border:0;box-shadow:none
+}
+.v3-directory-family .v3-directory-search:focus-within{
+  outline:2px solid var(--primary);outline-offset:2px
+}
+.v3-directory-family[data-directory-experience="mobile-web"] .v3-directory-mobile-header{
+  margin-top:0
+}
+
+/* V3 title hierarchy must win against legacy global !important display fonts
+ * and calm-public-layout's generic boxed page headers. These rules affect only
+ * directory list mastheads, not the branding or edition/detail artwork. */
+body .v3-directory-family[data-directory-experience="desktop-web"] .page-header:not(.directory-page-hero) {
+  margin: 0 0 1rem !important;
+  padding: 0 0 .85rem !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+body .v3-directory-family[data-directory-experience="desktop-web"] .page-header:not(.directory-page-hero)::before,
+body .v3-directory-family[data-directory-experience="desktop-web"] .page-header:not(.directory-page-hero)::after {
+  content: none !important;
+  display: none !important;
+}
+body .v3-directory-family[data-directory-experience="desktop-web"] .page-header h1 {
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif) !important;
+  font-size: clamp(1.95rem, 3vw, 2.35rem) !important;
+  font-weight: 750 !important;
+  text-transform: none !important;
+  letter-spacing: -.035em !important;
+  line-height: 1.16 !important;
+}
+body .v3-directory-family .v3-directory-search:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+body .v3-directory-family .v3-directory-search input:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
