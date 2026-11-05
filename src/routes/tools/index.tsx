@@ -29,9 +29,10 @@ function ToolsPage() {
   return (
     <V3DirectoryFamilyIndex
       title="Tools"
+      variant="actions"
       eyebrow="SOLARIS TOOLKIT"
-      intro="Scorecharts, predictions, result tests, comparisons and archive tools in one searchable collection."
-      browserIntro="Find the right way to explore results, predictions or history."
+      intro="Explore results, follow the contest and discover more."
+      browserIntro="Useful ways to follow the contest and explore its history."
       searchLabel="Search Solaris tools"
       searchPlaceholder="Search tools and topics…"
       scopeLabel="All categories"
