@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {runInNewContext} from 'node:vm';
 import {sha256} from './v3-media-recovery-core.mjs';
 import {
  HISTORICAL_COUNTRIES,buildHistoricalFlagReview,initialHistoricalSelection,
@@ -62,7 +63,7 @@ test('only exact edition-owner-scoped candidates can be selected',()=>{
  assert.equal(chosen[0].edition_id,row.edition_id);
  const wrong=structuredClone(selection);
  wrong.records[i].selected_path=review.rows.find(x=>x.country_name==='Yaria').candidates[0].path;
- assert.throws(()=>validateHistoricalSelection(review,wrong),/does not match canonical/);
+ assert.throws(()=>validateHistoricalSelection(review,wrong),/Historical flag selection mismatch for/);
  const stale=structuredClone(selection);
  stale.live_identity_snapshot_sha256='0'.repeat(64);
  assert.throws(()=>validateHistoricalSelection(review,stale),/snapshot/);
@@ -101,4 +102,62 @@ test('rejects forged authorization and existing historic flag changes',()=>{
  const chosen=validateHistoricalSelection(review,draft);
  assert.throws(()=>renderHistoricalFlagSql(chosen,{ticket:'not-authorized',gitSha:'a'.repeat(40)}),/authorization/);
  assert.throws(()=>renderHistoricalFlagSql(chosen,{ticket:'OWNER-HISTORICAL-20261105210000',gitSha:'wrong'}),/authorization/);
+});
+
+test('browser review isolates two different countries sharing one SSC edition ID',()=>{
+ const rows=structuredClone(input.rows);
+ const linem=rows.find(r=>r.name==='Linem');
+ const yaria=rows.find(r=>r.name==='Yaria');
+ yaria.edition_id=linem.edition_id;
+ yaria.edition_number=linem.edition_number;
+ const review=buildHistoricalFlagReview(input.files,rows);
+ const html=renderHistoricalFlagReviewHtml(review);
+ const payload=html.match(/<script id="state" type="application\/json">([\s\S]*?)<\/script>/)?.[1];
+ const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+ assert.ok(payload && script,'owner review must embed structured selection and JS');
+ assert.equal(JSON.parse(payload).review_schema_version,2);
+ assert.match(html,/solaris-historical-edition-flags-selection-v2\.json/);
+ const element=dataset=>{
+  const events={};
+  return {
+   dataset,attributes:{},textContent:'',
+   setAttribute(k,v){this.attributes[k]=v;},
+   addEventListener(name,fn){events[name]=fn;},
+   click(){if(!events.click)throw Error('No click handler');events.click();}
+  };
+ };
+ const assets=[...html.matchAll(/<button type="button" class="asset" data-id="([^"]+)" data-country="([^"]+)" data-path="([^"]+)" aria-pressed="false">/g)]
+  .map(m=>element({id:m[1],country:m[2],path:m[3]}));
+ const clears=[...html.matchAll(/<button type="button" data-clear="([^"]+)" data-clear-country="([^"]+)">/g)]
+  .map(m=>element({clear:m[1],clearCountry:m[2]}));
+ const title=element({}),download=element({});
+ const doc={
+  querySelectorAll(selector){
+   if(selector==='.asset')return assets;
+   if(selector==='[data-clear]')return clears;
+   return [];
+  },
+  getElementById(id){
+   return id==='state'?{textContent:payload}:
+    id==='count'?title:id==='download'?download:null;
+  }
+ };
+ const context={document:doc,URL:{},Blob, setTimeout(){}};
+ runInNewContext(script,context,{timeout:1500});
+ const linemButton=assets.find(b=>b.dataset.country===linem.country_id&&b.dataset.id===linem.edition_id);
+ const yariaButton=assets.find(b=>b.dataset.country===yaria.country_id&&b.dataset.id===yaria.edition_id);
+ assert.ok(linemButton&&yariaButton,'both countries must be selectable for shared edition');
+ linemButton.click();
+ yariaButton.click();
+ assert.equal(linemButton.attributes['aria-pressed'],'true');
+ assert.equal(yariaButton.attributes['aria-pressed'],'true');
+ assert.match(title.textContent,/2 historical editions selected/);
+ const clearYaria=clears.find(b=>b.dataset.clearCountry===yaria.country_id&&b.dataset.clear===yaria.edition_id);
+ clearYaria.click();
+ assert.equal(linemButton.attributes['aria-pressed'],'true');
+ assert.equal(yariaButton.attributes['aria-pressed'],'false');
+ assert.match(title.textContent,/1 historical editions selected/);
+ const legacy=initialHistoricalSelection(review);
+ delete legacy.review_schema_version;
+ assert.throws(()=>validateHistoricalSelection(review,legacy),/snapshot and source manifest/);
 });
