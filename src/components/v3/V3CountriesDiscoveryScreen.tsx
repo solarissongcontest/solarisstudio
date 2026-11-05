@@ -77,10 +77,12 @@ export function V3CountriesDiscoveryScreen({
   );
 
   const pendingCurrentParticipants = Boolean(activeEdition?.id) && participantsQuery.isLoading;
-  if (countriesQuery.isLoading || editionsQuery.isLoading || pendingCurrentParticipants) {
+  const currentLineupReady = Boolean(activeEdition?.id) && !pendingCurrentParticipants && !participantsQuery.isError;
+  // Browsing all countries must not depend on the optional current-edition lineup request.
+  if (countriesQuery.isLoading || editionsQuery.isLoading || (participatingOnly && pendingCurrentParticipants)) {
     return <ArchiveDataLoading label="Loading country discovery…" />;
   }
-  if (countriesQuery.isError || editionsQuery.isError || participantsQuery.isError) {
+  if (countriesQuery.isError || editionsQuery.isError || (participatingOnly && participantsQuery.isError)) {
     return <ArchiveDataError />;
   }
 
@@ -125,7 +127,10 @@ export function V3CountriesDiscoveryScreen({
             <button
               type="button"
               aria-pressed={participatingOnly}
-              aria-label={`SSC ${discovery.currentEdition.edition_number ?? "current"}: ${discovery.participating.length} participating countries`}
+              aria-label={currentLineupReady
+                ? `SSC ${discovery.currentEdition.edition_number ?? "current"}: ${discovery.participating.length} participating countries`
+                : `SSC ${discovery.currentEdition.edition_number ?? "current"} lineup ${pendingCurrentParticipants ? "loading" : "unavailable"}`}
+              disabled={!currentLineupReady}
               onClick={() => {
                 setParticipatingOnly(true);
                 setRegion("all");
@@ -134,7 +139,7 @@ export function V3CountriesDiscoveryScreen({
               className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${participatingOnly ? "is-selected" : ""}`}
             >
               {participatingOnly ? <Check size={16} aria-hidden="true" /> : null}
-              <span>SSC {discovery.currentEdition.edition_number ?? "current"} · {discovery.participating.length}</span>
+              <span>SSC {discovery.currentEdition.edition_number ?? "current"} · {currentLineupReady ? discovery.participating.length : pendingCurrentParticipants ? "Loading…" : "Unavailable"}</span>
             </button>
             <button
               type="button"
@@ -150,6 +155,13 @@ export function V3CountriesDiscoveryScreen({
               {!participatingOnly ? <Check size={16} aria-hidden="true" /> : null}
               <span>All countries · {countriesQuery.data?.length ?? 0}</span>
             </button>
+          </div>
+        ) : null}
+        {activeEdition && participantsQuery.isError && !participatingOnly ? (
+          <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground" role="status">
+            <span>Current-edition lineup unavailable. You can still browse all countries.</span>
+            <button type="button" className="min-h-11 rounded-lg border border-border px-3 font-semibold text-foreground"
+              onClick={() => void participantsQuery.refetch()}>Retry lineup</button>
           </div>
         ) : null}
         <div className={presentation === "desktop-web" ? "v3-countries-workspace v3-countries-workspace--desktop" : "v3-countries-workspace"}>
