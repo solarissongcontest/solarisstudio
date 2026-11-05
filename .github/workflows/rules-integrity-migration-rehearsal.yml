@@ -11,6 +11,8 @@ on:
       - "src/routes/_authenticated/admin/integrity*.tsx"
       - ".github/scripts/rules-integrity-security-rehearsal.sh"
       - ".github/scripts/run-rules-integrity-security-rehearsal.sh"
+      - ".github/scripts/v3-tg2-identity-linkage-privacy-rehearsal.sh"
+      - ".github/scripts/v3-tg2-identity-linkage-privacy-rehearsal.sql"
       - ".github/scripts/pr450-deadline-scope-rehearsal.sh"
       - ".github/scripts/v3-confirmation-security-rehearsal.sh"
       - ".github/scripts/v3-s3-confirmation-invariants-rehearsal.sh"
@@ -69,6 +71,10 @@ jobs:
 
       - name: Verify local migration history
         run: supabase migration list --local
+
+      - name: Verify TG2 identity-linkage privacy on the clean local stack
+        shell: bash
+        run: bash .github/scripts/v3-tg2-identity-linkage-privacy-rehearsal.sh
 
       - name: Prove System V3 operation receipt semantics
         shell: bash
@@ -196,6 +202,12 @@ jobs:
           cd /tmp/solaris-main
           supabase migration up --local --include-all
           supabase migration list --local
+
+      - name: Verify TG2 identity-linkage privacy after current-main upgrade
+        shell: bash
+        run: |
+          cd /tmp/solaris-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-tg2-identity-linkage-privacy-rehearsal.sh"
 
       - name: Verify legacy Entry observations do not fabricate approval evidence
         run: |

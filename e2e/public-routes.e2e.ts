@@ -95,6 +95,11 @@ test("Country directory renders the correct mobile-web and desktop browse compos
     await expect(directory.locator(".v3-countries-region-rail")).toBeVisible();
     await expect(directory.locator(".v3-countries-desktop-grid")).toBeVisible();
     await expect(page.locator("[data-country-directory-web-header]")).toHaveCount(0);
+    await expect(directory.locator(".v3-countries-intro")).toHaveCount(0);
+    const font = await page.locator(".countries-library-hero h1").evaluate(
+      (heading) => getComputedStyle(heading).fontFamily,
+    );
+    expect(font, "Countries should use the ordinary Solaris UI typeface").not.toMatch(/Classica Crastao/i);
   }
   await expect(directory.getByRole("searchbox", { name: "Search countries" })).toBeVisible();
   await expect(directory.locator('a[href^="/countries/"]').first()).toBeVisible();
@@ -150,6 +155,10 @@ test("Public directory family distinguishes mobile website from desktop explorer
       await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
       await expect(directory.locator(".v3-directory-desktop-rail")).toBeVisible();
       await expect(directory.locator(".v3-directory-desktop-grid").first()).toBeVisible();
+      const font = await directory.locator(".page-header h1").evaluate(
+        (heading) => getComputedStyle(heading).fontFamily,
+      );
+      expect(font, `${route} should use Solaris UI typography`).not.toMatch(/Classica Crastao/i);
     }
 
     const search = directory.getByRole("searchbox", {
@@ -437,4 +446,61 @@ test("captures the final visual archetypes for review", async ({ page }, testInf
       await routePage.close();
     }
   }
+});
+
+test("Rulebook chapter directory preserves all 22 links across mobile web and desktop", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  const mobileWeb = testInfo.project.name === "public-390";
+  await page.goto("/rules/chapters", { waitUntil: "domcontentloaded" });
+  const directory = page.locator("[data-directory-experience]");
+  await expect(directory).toHaveAttribute(
+    "data-directory-experience", mobileWeb ? "mobile-web" : "desktop-web",
+    { timeout: 15_000 },
+  );
+  await expect(directory.getByRole("heading", { level: 1, name: "22 chapters" })).toBeVisible();
+  await expect(directory.locator('a[href^="/rules/chapters/"]')).toHaveCount(22);
+  if (mobileWeb) {
+    await expect(directory.locator("[data-directory-mobile-header]")).toBeVisible();
+    await expect(directory.locator(".v3-directory-mobile-list").first()).toBeVisible();
+    await expect(directory.getByRole("combobox", { name: "Browse chapters by category" })).toBeVisible();
+    await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
+  } else {
+    await expect(directory.locator(".v3-directory-desktop-rail")).toBeVisible();
+    await expect(directory.locator(".v3-directory-desktop-grid").first()).toBeVisible();
+    await expect(directory.locator("[data-directory-mobile-header]")).toHaveCount(0);
+  }
+
+  const search = directory.getByRole("searchbox", { name: "Search Rulebook chapters" });
+  await search.fill("22");
+  await expect(directory.locator('a[href^="/rules/chapters/"]')).toHaveCount(1);
+  await search.fill("");
+  await expect(directory.locator('a[href^="/rules/chapters/"]')).toHaveCount(22);
+  await search.fill("no-such-rulebook-chapter-solaris");
+  await expect(directory.getByText("No matching chapters")).toBeVisible();
+  await search.fill("");
+
+  // Separate normal-density visual evidence from the deliberate 200% stress capture.
+  // A successful overflow test at high zoom does not certify the ordinary layout.
+  await testInfo.attach(`rule-chapters-default-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
+  });
+  await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+  await expect(directory.getByRole("heading", { level: 1, name: "22 chapters" })).toBeVisible();
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow, "Chapter directory must fit at 200% text size").toBeLessThanOrEqual(2);
+  if (!mobileWeb) {
+    // Horizontal overflow alone misses unreadable grid slivers within an embedded shell.
+    // The chapter card must remain usefully readable when the root font is doubled.
+    const cardWidth = await directory.locator(".v3-directory-desktop-card").first().evaluate(
+      (element) => element.getBoundingClientRect().width,
+    );
+    expect(cardWidth, "Desktop chapter cards must not collapse at 200% text").toBeGreaterThanOrEqual(220);
+  }
+  await testInfo.attach(`rule-chapters-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
+  });
 });

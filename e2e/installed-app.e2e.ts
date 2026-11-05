@@ -989,3 +989,21 @@ test("installed app does not leak duplicate website chrome", async ({ page }) =>
     await expect(page.locator(".solaris-app-tabbar")).toHaveCount(1);
   }
 });
+
+test("installed Rulebook directory keeps the app-native chapter list and region sheet", async ({ page }) => {
+  await expectInstalledShell(page, "/rules/chapters");
+  const directory = page.locator('[data-directory-experience="installed-app"]');
+  await expect(directory).toBeVisible();
+  await expect(directory.getByRole("heading", { level: 1, name: "22 chapters" })).toBeVisible();
+  await expect(directory.locator('a[href^="/rules/chapters/"]')).toHaveCount(22);
+  await expect(directory.locator(".solaris-app-grouped-list").first()).toBeVisible();
+  await expect(directory.locator(".v3-directory-mobile-list")).toHaveCount(0);
+  await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
+  await expect(directory.getByRole("button", { name: "Filter chapters by category" })).toBeVisible();
+  const search = directory.getByRole("textbox", { name: "Search Rulebook chapters" });
+  await search.fill("22");
+  await expect(directory.locator('a[href^="/rules/chapters/"]')).toHaveCount(1);
+  await search.fill("");
+  await expect(directory.locator('a[href^="/rules/chapters/"]')).toHaveCount(22);
+  await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
+});
