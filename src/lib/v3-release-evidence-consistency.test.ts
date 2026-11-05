@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { releaseEvidenceConsistencyFailure } from "../../scripts/v3-release-evidence-consistency";
 
 const s15 = {
+  schemaVersion: 4,
+  inventory: { systemDomains: 39 },
   candidateSha: "a".repeat(40),
   zeroOrphans: true,
   findings: [],
@@ -11,10 +13,12 @@ const s15 = {
 };
 
 const security = {
+  schemaVersion: 1,
+  projectRef: "local-fixture",
   candidateSha: "a".repeat(40),
   releaseReady: true,
-  counts: { findings: 1, releaseBlocking: 0 },
-  findings: [{ id: "advisor-1", disposition: { status: "remediated" } }],
+  counts: { findings: 1, info: 0, warn: 1, error: 0, intentionalAndProven: 0, remediated: 1, releaseBlocking: 0 },
+  findings: [{ id: "advisor-1", title: "Fixture finding", level: "WARN", disposition: { id: "advisor-1", status: "remediated", evidenceRef: "local-test-proof", reason: "Regression fixture" } }],
 };
 
 describe("S16 release evidence consistency", () => {
@@ -59,49 +63,49 @@ describe("S16 release evidence consistency", () => {
     expect(
       releaseEvidenceConsistencyFailure("security-advisor-classification.json", {
         ...security,
-        counts: { findings: 1, releaseBlocking: 1 },
-        findings: [{ id: "advisor-1", disposition: { status: "release-blocking" } }],
+        counts: { ...security.counts, remediated: 0, releaseBlocking: 1 },
+        findings: [{ ...security.findings[0], disposition: { ...security.findings[0].disposition, status: "release-blocking" } }],
       }),
-    ).toMatch(/blocking counts/);
+    ).toMatch(/invalid classification contract/);
   });
 
   it("does not trust fabricated zero blocking counts when a finding is blocked", () => {
     expect(
       releaseEvidenceConsistencyFailure("security-advisor-classification.json", {
         ...security,
-        findings: [{ id: "advisor-1", disposition: { status: "release-blocking" } }],
+        findings: [{ ...security.findings[0], disposition: { ...security.findings[0].disposition, status: "release-blocking" } }],
       }),
-    ).toMatch(/unclassified or blocking finding/);
+    ).toMatch(/unproven, duplicated or unclassified finding/);
   });
 
   it("rejects absent dispositions and mismatched finding counts", () => {
     expect(
       releaseEvidenceConsistencyFailure("security-advisor-classification.json", {
         ...security,
-        findings: [{ id: "advisor-1" }],
+        findings: [{ ...security.findings[0], disposition: undefined }],
       }),
-    ).toMatch(/unclassified or blocking finding/);
+    ).toMatch(/unproven, duplicated or unclassified finding/);
     expect(
       releaseEvidenceConsistencyFailure("security-advisor-classification.json", {
         ...security,
-        counts: { findings: 0, releaseBlocking: 0 },
+        counts: { ...security.counts, findings: 0, warn: 0, remediated: 0 },
       }),
-    ).toMatch(/inconsistent finding counts/);
+    ).toMatch(/inconsistent finding and disposition counts/);
     expect(
       releaseEvidenceConsistencyFailure("security-advisor-classification.json", {
         ...security,
         counts: undefined,
       }),
-    ).toMatch(/invalid or nonzero blocking counts/);
+    ).toMatch(/invalid classification contract/);
   });
 
   it("does not classify negative/invalid counters as reliable evidence", () => {
     expect(
       releaseEvidenceConsistencyFailure("security-advisor-classification.json", {
         ...security,
-        counts: { findings: -1, releaseBlocking: 0 },
+        counts: { ...security.counts, findings: -1 },
       }),
-    ).toMatch(/inconsistent finding counts|invalid or nonzero blocking counts/);
+    ).toMatch(/invalid classification contract/);
   });
 
   it("is invoked by the production release checker rather than only the tests", () => {
