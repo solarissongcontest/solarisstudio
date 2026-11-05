@@ -38,16 +38,18 @@ describe("V3 public directory family", () => {
 
   it("maintains three distinct usable presentations without duplicating domain data", () => {
     const route = readFileSync("src/routes/site-directory/index.tsx", "utf8");
+    const family = readFileSync("src/components/v3/V3DirectoryFamilyIndex.tsx", "utf8");
     const styles = readFileSync("src/styles/v3-directory-family.css", "utf8");
-    expect(route).toContain('data-directory-experience={presentation}');
-    expect(route).toContain('data-directory-mobile-header=""');
-    expect(route).toContain("v3-directory-desktop-rail");
-    expect(route).toContain("v3-directory-mobile-list");
-    expect(route).toContain("<AppGroupedList>");
-    expect(route).toContain("filterSiteDirectory");
+    expect(route).toContain("V3DirectoryFamilyIndex");
     expect(route).toContain("siteDirectoryDestinations");
-    expect(route).toContain("platformResolved");
-    expect(route).toContain("aria-pressed={area === item.area}");
+    expect(route).toContain("publicSearchText(item)");
+    expect(family).toContain('data-directory-experience={presentation}');
+    expect(family).toContain('data-directory-mobile-header=""');
+    expect(family).toContain("v3-directory-desktop-rail");
+    expect(family).toContain("v3-directory-mobile-list");
+    expect(family).toContain("<AppGroupedList>");
+    expect(family).toContain("platformResolved");
+    expect(family).toContain('aria-pressed={area === option.id}');
     expect(styles).toContain('[data-directory-experience="desktop-web"]');
     expect(styles).toContain('[data-directory-experience="mobile-web"]');
     expect(styles).toContain('[data-directory-experience="installed-app"]');
