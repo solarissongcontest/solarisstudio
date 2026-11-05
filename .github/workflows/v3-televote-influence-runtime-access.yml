@@ -44,10 +44,31 @@ jobs:
             git worktree add /tmp/influence-main origin/main
             cd /tmp/influence-main
           fi
+          # Each rehearsal owns a disposable local project and a distinct port family.
+          # Never discover or reuse a hosted project when local ports are occupied.
+          if [[ "$REHEARSAL_MODE" == 'clean-replay' ]]; then
+            port_base=56320
+          else
+            port_base=57320
+          fi
+          sed -i "1c project_id = \"solaris_influence_${REHEARSAL_MODE}\"" supabase/config.toml
+          cat >> supabase/config.toml <<TOML
+          [api]
+          port = $((port_base + 1))
+          [db]
+          port = $((port_base + 2))
+          shadow_port = $((port_base + 0))
+          [studio]
+          port = $((port_base + 3))
+          [inbucket]
+          port = $((port_base + 4))
+          [analytics]
+          port = $((port_base + 7))
+          TOML
           supabase start
           supabase db reset --local --no-seed
           if [[ "$REHEARSAL_MODE" == 'current-main-upgrade' ]]; then
-            cp "$GITHUB_WORKSPACE/supabase/migrations/20261104123000_v3_televote_influence_runtime_access.sql" supabase/migrations/
+            cp "$GITHUB_WORKSPACE/supabase/migrations/20261105140500_v3_televote_influence_role_runtime_access.sql" supabase/migrations/
             supabase migration up --local
           fi
       - name: Verify real role access and public denial

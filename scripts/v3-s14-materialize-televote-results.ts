@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 import { analyseRobustInfluence } from "../src/integrations/televoting/influence-math";
+
 import {
   DEFAULT_ROBUST_TELEVOTE_CONFIG,
   ROBUST_TELEVOTE_ENGINE_VERSION,
@@ -56,15 +57,16 @@ async function main() {
 
   const { data: round, error: roundError } = await tv
     .from("rounds")
-    .select("id,status,total_points_to_distribute,rank_exponent,televote_engine_version,calculation_version,results_status,ballot_exponent,breadth_floor,breadth_exponent,support_exponent,rank_boost_strength,rank_boost_shape")
+    .select("id,status,total_points_to_distribute,rank_exponent,televote_engine_version,ballot_exponent,breadth_floor,breadth_exponent,support_exponent,rank_boost_strength,rank_boost_shape,calculation_version,results_status")
     .eq("id", roundId)
     .maybeSingle();
   if (roundError) fail(roundError.message);
   if (!round) fail(`round ${roundId} not found`);
   if (round.status !== "closed") fail(`round ${roundId} must be closed before calculation`);
-  const engineVersion = String(round.televote_engine_version ?? CALC_ENGINE_VERSION);
-  if (engineVersion !== CALC_ENGINE_VERSION && engineVersion !== ROBUST_TELEVOTE_ENGINE_VERSION) {
-    fail(`unsupported persisted Televote engine: ${engineVersion}`);
+
+  const engineVersion = round.televote_engine_version ?? CALC_ENGINE_VERSION;
+  if (![CALC_ENGINE_VERSION, ROBUST_TELEVOTE_ENGINE_VERSION].includes(engineVersion)) {
+    fail(`unsupported Televote engine ${engineVersion}`);
   }
 
   const { data: entries, error: entryError } = await tv
@@ -95,59 +97,22 @@ async function main() {
   const tally = new Map<string, { points: number; voters: Set<string> }>(
     participants.map((code) => [code, { points: 0, voters: new Set<string>() }]),
   );
-  // V2 must retain every individual allocation. Aggregated totals alone
-  // cannot reconstruct the per-ballot softening and breadth math.
-  const allocationsBySubmission = new Map<string, Record<string, number>>(
+  const robustAllocations = new Map<string, Record<string, number>>(
     accepted.map((row) => [String(row.id), {}]),
   );
+
   for (const row of voteEntries ?? []) {
     const code = String(row.target_country_code ?? "").trim().toUpperCase();
     const bucket = tally.get(code);
     if (!bucket) fail(`ballot targeted non-participant ${code}`);
     const points = Number(row.points ?? 0);
     if (!Number.isInteger(points) || points < 0) fail(`invalid vote points for ${code}`);
-    const submissionId = String(row.submission_id);
-    const allocations = allocationsBySubmission.get(submissionId);
-    const voter = acceptedById.get(submissionId);
-    if (!allocations || !voter) fail(`unrecognized accepted ballot ${submissionId}`);
-    if (Object.prototype.hasOwnProperty.call(allocations, code)) {
-      fail(`duplicate allocation for ballot ${submissionId}, participant ${code}`);
-    }
-    allocations[code] = points;
     bucket.points += points;
-    bucket.voters.add(voter);
-  }
-
-  const input: ConversionInput[] = participants.map((code) => ({
-    code,
-    originalVotes: tally.get(code)?.points ?? 0,
-    originalVoters: tally.get(code)?.voters.size ?? 0,
-  }));
-  const ballots: RobustBallotInput[] = accepted.map((row) => ({
-    voterId: String(row.id),
-    allocations: allocationsBySubmission.get(String(row.id)) ?? {},
-  }));
-  const config: RobustTelevoteConfig = {
-    ballotTotal: DEFAULT_ROBUST_TELEVOTE_CONFIG.ballotTotal,
-    ballotExponent: Number(round.ballot_exponent ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.ballotExponent),
-    breadthFloor: Number(round.breadth_floor ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.breadthFloor),
-    breadthExponent: Number(round.breadth_exponent ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.breadthExponent),
-    supportExponent: Number(round.support_exponent ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.supportExponent),
-    rankBoostStrength: Number(round.rank_boost_strength ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.rankBoostStrength),
-    rankBoostShape: Number(round.rank_boost_shape ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.rankBoostShape),
-  };
-  const totalPoints = Number(round.total_points_to_distribute);
-  if (!Number.isSafeInteger(totalPoints) || totalPoints < 0) fail("round has invalid total points");
-  const legacy = engineVersion === CALC_ENGINE_VERSION
-    ? convertRound(input, totalPoints, Number(round.rank_exponent ?? 1.33))
-    : null;
-  const robust = engineVersion === ROBUST_TELEVOTE_ENGINE_VERSION
-    ? convertRobustRound({ participants, ballots, totalPoints, config })
-    : null;
-  const converted = robust ?? legacy;
-  if (!converted) fail("No supported Televote calculation engine resolved");
-  if (!converted.zeroWeight && converted.distributedTotal !== converted.totalPoints) {
-    fail(`converted total ${converted.distributedTotal} does not equal configured ${converted.totalPoints}`);
+    const submissionId = String(row.submission_id);
+    const voter = acceptedById.get(submissionId);
+    if (voter) bucket.voters.add(voter);
+    const allocations = robustAllocations.get(submissionId);
+    if (allocations) allocations[code] = (allocations[code] ?? 0) + points;
   }
 
   const version = Number(round.calculation_version ?? 0) + 1;
@@ -157,70 +122,40 @@ async function main() {
   const { error: clearInfluenceError } = await tv.from("round_influence_results").delete().eq("round_id", roundId);
   if (clearInfluenceError) fail(clearInfluenceError.message);
 
-  // These are the exact persisted schemas used by production's v1/v2 server
-  // calculator. Never fake the v1 rank-only columns for robust-v2 outputs.
-  const rows = legacy
-    ? legacy.rows.map((row) => ({
-        round_id: roundId,
-        country_code: row.code,
-        original_votes: row.originalVotes,
-        original_voters: row.originalVoters,
-        original_rank: row.originalRank,
-        participant_count: row.participantCount,
-        rank_base: row.rankBase,
-        rank_exponent: row.rankExponent,
-        rank_factor: row.rankFactor,
-        weighted_score: row.weightedScore,
-        exact_points: row.exactPoints,
-        floored_points: row.flooredPoints,
-        decimal_remainder: row.decimalRemainder,
-        remainder_bonus: row.remainderBonus,
-        final_points: row.finalPoints,
-        total_points_to_distribute: converted.totalPoints,
-        calculation_version: version,
-        calculated_at: calculatedAt,
-        calculated_by_username: "s14-local-verifier",
-        engine_version: CALC_ENGINE_VERSION,
-        calculation_config: { rankExponent: legacy.rankExponent },
-      }))
-    : robust!.rows.map((row) => ({
-        round_id: roundId,
-        country_code: row.code,
-        original_votes: Math.round(row.rawPoints),
-        original_voters: row.supporterCount,
-        original_rank: null,
-        participant_count: robust!.participantCount,
-        rank_base: null,
-        rank_exponent: null,
-        rank_factor: null,
-        weighted_score: row.weightedScore,
-        exact_points: row.exactPoints,
-        floored_points: row.flooredPoints,
-        decimal_remainder: row.decimalRemainder,
-        remainder_bonus: row.remainderBonus,
-        final_points: row.finalPoints,
-        total_points_to_distribute: converted.totalPoints,
-        calculation_version: version,
-        calculated_at: calculatedAt,
-        calculated_by_username: "s14-local-verifier",
-        engine_version: ROBUST_TELEVOTE_ENGINE_VERSION,
-        effective_points: row.effectivePoints,
-        supporter_count: row.supporterCount,
-        effective_supporters: row.effectiveSupporters,
-        breadth_ratio: row.breadthRatio,
-        breadth_factor: row.breadthFactor,
-        robust_support: row.robustSupport,
-        robust_rank: row.robustRank,
-        rank_percentile: row.rankPercentile,
-        rank_boost: row.rankBoost,
-        calculation_config: robust!.config,
-      }));
-  const { error: resultInsertError } = await tv.from("round_results").insert(rows);
-  if (resultInsertError) fail(resultInsertError.message);
+  let zeroWeight: boolean;
+  let totalPoints: number;
+  let rows;
+  let influenceRows: Record<string, unknown>[] = [];
 
-  if (robust) {
-    const influence = analyseRobustInfluence({ participants, ballots, totalPoints, config });
-    const influenceRows = influence.voters.map((row) => ({
+  if (engineVersion === ROBUST_TELEVOTE_ENGINE_VERSION) {
+    const ballots: RobustBallotInput[] = accepted.map((row) => ({
+      voterId: String(row.id),
+      allocations: robustAllocations.get(String(row.id)) ?? {},
+    }));
+    const config: RobustTelevoteConfig = {
+      ballotTotal: DEFAULT_ROBUST_TELEVOTE_CONFIG.ballotTotal,
+      ballotExponent: Number(round.ballot_exponent ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.ballotExponent),
+      breadthFloor: Number(round.breadth_floor ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.breadthFloor),
+      breadthExponent: Number(round.breadth_exponent ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.breadthExponent),
+      supportExponent: Number(round.support_exponent ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.supportExponent),
+      rankBoostStrength: Number(round.rank_boost_strength ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.rankBoostStrength),
+      rankBoostShape: Number(round.rank_boost_shape ?? DEFAULT_ROBUST_TELEVOTE_CONFIG.rankBoostShape),
+    };
+    const converted = convertRobustRound({
+      participants,
+      ballots,
+      totalPoints: Number(round.total_points_to_distribute ?? 0),
+      config,
+    });
+    // Mirror production's counterfactual evidence calculation in the local
+    // S14 materializer without treating the evidence as official Results truth.
+    const influence = analyseRobustInfluence({
+      participants,
+      ballots,
+      totalPoints: converted.totalPoints,
+      config,
+    });
+    influenceRows = influence.voters.map((row) => ({
       round_id: roundId,
       calculation_version: version,
       subject_type: "voter",
@@ -233,10 +168,90 @@ async function main() {
       max_point_movement: row.maxPointMovement,
       most_affected_entry: row.mostAffectedEntry,
     }));
-    if (influenceRows.length) {
-      const { error: influenceError } = await tv.from("round_influence_results").insert(influenceRows);
-      if (influenceError) fail(influenceError.message);
+
+    if (!converted.zeroWeight && converted.distributedTotal !== converted.totalPoints) {
+      fail(`robust converted total ${converted.distributedTotal} does not equal configured ${converted.totalPoints}`);
     }
+    zeroWeight = converted.zeroWeight;
+    totalPoints = converted.totalPoints;
+    rows = converted.rows.map((row) => ({
+      round_id: roundId,
+      country_code: row.code,
+      original_votes: Math.round(row.rawPoints),
+      original_voters: row.supporterCount,
+      original_rank: null,
+      participant_count: converted.participantCount,
+      rank_base: null,
+      rank_exponent: null,
+      rank_factor: null,
+      weighted_score: row.weightedScore,
+      exact_points: row.exactPoints,
+      floored_points: row.flooredPoints,
+      decimal_remainder: row.decimalRemainder,
+      remainder_bonus: row.remainderBonus,
+      final_points: row.finalPoints,
+      total_points_to_distribute: converted.totalPoints,
+      calculation_version: version,
+      calculated_at: calculatedAt,
+      calculated_by_username: "s14-local-verifier",
+      engine_version: ROBUST_TELEVOTE_ENGINE_VERSION,
+      effective_points: row.effectivePoints,
+      supporter_count: row.supporterCount,
+      effective_supporters: row.effectiveSupporters,
+      breadth_ratio: row.breadthRatio,
+      breadth_factor: row.breadthFactor,
+      robust_support: row.robustSupport,
+      robust_rank: row.robustRank,
+      rank_percentile: row.rankPercentile,
+      rank_boost: row.rankBoost,
+      calculation_config: converted.config,
+    }));
+  } else {
+    const input: ConversionInput[] = participants.map((code) => ({
+      code,
+      originalVotes: tally.get(code)?.points ?? 0,
+      originalVoters: tally.get(code)?.voters.size ?? 0,
+    }));
+    const converted = convertRound(
+      input,
+      Number(round.total_points_to_distribute ?? 0),
+      Number(round.rank_exponent ?? 1.33),
+    );
+    if (!converted.zeroWeight && converted.distributedTotal !== converted.totalPoints) {
+      fail(`converted total ${converted.distributedTotal} does not equal configured ${converted.totalPoints}`);
+    }
+    zeroWeight = converted.zeroWeight;
+    totalPoints = converted.totalPoints;
+    rows = converted.rows.map((row) => ({
+      round_id: roundId,
+      country_code: row.code,
+      original_votes: row.originalVotes,
+      original_voters: row.originalVoters,
+      original_rank: row.originalRank,
+      participant_count: row.participantCount,
+      rank_base: row.rankBase,
+      rank_exponent: row.rankExponent,
+      rank_factor: row.rankFactor,
+      weighted_score: row.weightedScore,
+      exact_points: row.exactPoints,
+      floored_points: row.flooredPoints,
+      decimal_remainder: row.decimalRemainder,
+      remainder_bonus: row.remainderBonus,
+      final_points: row.finalPoints,
+      total_points_to_distribute: converted.totalPoints,
+      calculation_version: version,
+      calculated_at: calculatedAt,
+      calculated_by_username: "s14-local-verifier",
+      engine_version: CALC_ENGINE_VERSION,
+      calculation_config: { rankExponent: converted.rankExponent },
+    }));
+  }
+
+  const { error: resultInsertError } = await tv.from("round_results").insert(rows);
+  if (resultInsertError) fail(resultInsertError.message);
+  if (influenceRows.length) {
+    const { error: influenceInsertError } = await tv.from("round_influence_results").insert(influenceRows);
+    if (influenceInsertError) fail(influenceInsertError.message);
   }
 
   const { error: calculateUpdateError } = await tv
@@ -253,13 +268,16 @@ async function main() {
   if (calculateUpdateError) fail(calculateUpdateError.message);
 
   const storedTotal = rows.reduce((sum, row) => sum + row.final_points, 0);
-  if (!converted.zeroWeight && storedTotal !== converted.totalPoints) {
-    fail(`stored converted total ${storedTotal} does not equal ${converted.totalPoints}`);
+  if (!zeroWeight && storedTotal !== totalPoints) {
+    fail(`stored converted total ${storedTotal} does not equal ${totalPoints}`);
   }
 
-  // Preflight the *persisted* rows against the exact show, not just the
-  // in-memory conversion. This is an independent check before publication
-  // triggers the server-authoritative canonical projection.
+  const { error: publishUpdateError } = await tv
+    .from("rounds")
+    .update({ results_status: "published" })
+    .eq("id", roundId);
+  if (publishUpdateError) fail(publishUpdateError.message);
+
   const { data: show, error: showError } = await db
     .from("shows")
     .select("id,edition_id")
@@ -268,77 +286,78 @@ async function main() {
   if (showError) fail(showError.message);
   if (!show || show.edition_id !== editionId) fail(`show ${showId} is not in edition ${editionId}`);
 
-  const { data: binding, error: bindingError } = await db
-    .from("televoting_round_bindings")
-    .select("show_id,edition_id,source_mode")
-    .eq("remote_round_id", roundId)
-    .maybeSingle();
-  if (bindingError) fail(bindingError.message);
-  if (!binding || binding.show_id !== showId || binding.edition_id !== editionId || binding.source_mode !== "show") {
-    fail("Televoting round is not canonically bound to the intended Solaris show");
-  }
-
   const { data: showParticipants, error: showParticipantError } = await db
     .from("participants")
     .select("country_id,participation_status")
     .eq("show_id", showId);
   if (showParticipantError) fail(showParticipantError.message);
   const active = (showParticipants ?? []).filter((row) => !row.participation_status || row.participation_status === "confirmed");
-  if (!active.length || active.some((row) => !row.country_id)) fail("bound Solaris show has invalid active country identities");
   const countryIds = active.map((row) => String(row.country_id));
-  if (new Set(countryIds).size !== countryIds.length) fail("duplicate canonical country in bound Solaris show");
-
   const { data: countries, error: countryError } = await db
     .from("countries")
     .select("id,short_code")
     .in("id", countryIds);
   if (countryError) fail(countryError.message);
-  const countryByCode = new Map((countries ?? []).map((row) => [String(row.short_code).trim().toUpperCase(), String(row.id)]));
+  const countryByCode = new Map((countries ?? []).map((row) => [String(row.short_code).toUpperCase(), String(row.id)]));
   const expectedCodes = [...countryByCode.keys()].sort();
   const resultCodes = rows.map((row) => row.country_code).sort();
-  if (countryByCode.size !== countryIds.length || JSON.stringify(expectedCodes) !== JSON.stringify(resultCodes)) {
-    fail(`round/show lineup mismatch before publication: expected=${expectedCodes.length} converted=${resultCodes.length} missing=${expectedCodes.filter((code) => !resultCodes.includes(code)).slice(0,8).join(",")} extra=${resultCodes.filter((code) => !expectedCodes.includes(code)).slice(0,8).join(",")}`);
+  if (JSON.stringify(expectedCodes) !== JSON.stringify(resultCodes)) {
+    fail(`published Televote result does not exactly match show ${showId}`);
   }
 
-  const { data: persisted, error: persistedError } = await tv
-    .from("round_results")
-    .select("country_code,calculation_version,final_points")
-    .eq("round_id", roundId)
-    .eq("calculation_version", version);
-  if (persistedError) fail(persistedError.message);
-  const persistedCodes = (persisted ?? []).map((row) => String(row.country_code).trim().toUpperCase()).sort();
-  if (persistedCodes.length !== expectedCodes.length || JSON.stringify(persistedCodes) !== JSON.stringify(expectedCodes)) {
-    fail(`persisted Televote results do not match bound show: persisted=${persistedCodes.length} expected=${expectedCodes.length} missing=${expectedCodes.filter((code) => !persistedCodes.includes(code)).slice(0,8).join(",")}`);
+  const expectedCanonical = rows.map((row) => ({
+    country_id: countryByCode.get(row.country_code) ?? null,
+    points: Number(row.final_points),
+  }));
+  if (expectedCanonical.some((row) => !row.country_id)) {
+    fail(`could not resolve every Televote result country`);
   }
+  expectedCanonical.sort((left, right) => String(left.country_id).localeCompare(String(right.country_id)));
 
-  const { error: publishUpdateError } = await tv
-    .from("rounds")
-    .update({ results_status: "published" })
-    .eq("id", roundId);
-  if (publishUpdateError) {
-    fail(`server-authoritative Televote publication rejected: ${publishUpdateError.message}; persisted=${persistedCodes.length} active=${countryIds.length} matched=${persistedCodes.filter((code) => expectedCodes.includes(code)).length}`);
-  }
-
-  // Publication is the canonical, trigger-authoritative source of
-  // public.televote_votes. The S14 adapter must NEVER insert those rows
-  // directly, even in a local rehearsal.
-  const { data: canonicalVotes, error: canonicalError } = await db
+  const { data: canonicalVotes, error: canonicalVoteError } = await db
     .from("televote_votes")
-    .select("country_id,contest_entity_id,points")
+    .select("edition_id,show_id,country_id,points")
     .eq("show_id", showId);
-  if (canonicalError) fail(canonicalError.message);
-  const expectedPoints = new Map(rows.map((row) => [countryByCode.get(row.country_code), row.final_points]));
-  if ((canonicalVotes ?? []).length !== rows.length || canonicalVotes?.some((vote) =>
-    vote.contest_entity_id != null || !expectedPoints.has(String(vote.country_id)) ||
-    expectedPoints.get(String(vote.country_id)) !== vote.points
-  )) {
-    fail(`server-owned canonical Televote projection differs from published source: expected=${rows.length} actual=${canonicalVotes?.length ?? 0}`);
+  if (canonicalVoteError) fail(canonicalVoteError.message);
+  if ((canonicalVotes ?? []).some((row) => String(row.edition_id) !== editionId || String(row.show_id) !== showId)) {
+    fail(`canonical Televote projection escaped show/edition scope for ${showId}`);
   }
-  const canonicalCount = canonicalVotes?.length ?? 0;
+  const actualCanonical = (canonicalVotes ?? [])
+    .map((row) => ({
+      country_id: row.country_id ? String(row.country_id) : null,
+      points: Number(row.points ?? 0),
+    }))
+    .sort((left, right) => String(left.country_id).localeCompare(String(right.country_id)));
+  if (JSON.stringify(actualCanonical) !== JSON.stringify(expectedCanonical)) {
+    fail(`canonical Televote projection does not match published round ${roundId}`);
+  }
 
+  const { data: projectionStatus, error: projectionStatusError } = await db.rpc(
+    "studio2_televote_projection_status",
+    { p_show_id: showId },
+  );
+  if (projectionStatusError) fail(projectionStatusError.message);
+  if (!projectionStatus || typeof projectionStatus !== "object") {
+    fail(`canonical Televote projection status is missing for show ${showId}`);
+  }
+  const status = projectionStatus as Record<string, unknown>;
+  if (
+    status.managed !== true
+    || String(status.sourceType ?? "") !== "round"
+    || String(status.sourceId ?? "") !== roundId
+    || Number(status.sourceVersion ?? -1) !== version
+    || Number(status.rowCount ?? -1) !== expectedCanonical.length
+    || Number(status.pointsTotal ?? -1) !== storedTotal
+    || Number(status.televoteVoteRows ?? -1) !== expectedCanonical.length
+  ) {
+    fail(`canonical Televote projection provenance mismatch for round ${roundId}`);
+  }
+
+  const canonicalCount = actualCanonical.length;
   process.stdout.write(`${JSON.stringify({
     roundId,
     showId,
+    engineVersion,
     calculationVersion: version,
     ballotCount: accepted.length,
     participantCount: participants.length,

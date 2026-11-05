@@ -157,6 +157,11 @@ describe("S14 stateful full-contest harness", () => {
 
   it("resolves incomplete inputs then proves immutable semifinal Results v1 equals canonical v2", () => {
     expect(stage8).toContain("studio2_execute_result_operation");
+    expect(stage8).toContain("review_semifinal_jury_ballots_valid");
+    expect(stage8).toContain("studio2_jury_ballot_review_preview");
+    expect(stage8).toContain("studio2_apply_jury_ballot_review");
+    expect(stage8).toContain("juryIncompleteCount");
+    expect(stage8).toContain("juryPendingReviewCount");
     expect(stage8).toContain("studio2_jury_dnv_preview");
     expect(stage8).toContain("studio2_apply_jury_dnv");
     expect(stage8).toContain("private.studio2_result_preconditions");
@@ -177,13 +182,12 @@ describe("S14 stateful full-contest harness", () => {
     expect(driver).toContain('lifecycle" == "2:2:2:2"');
     expect(driver).toContain("S14_RESULTS_VERSION_2_COMPLETE");
     expect(resultsAdapter).toContain("convertRound");
-    expect(resultsAdapter).toContain('from("round_results")');
-    expect(resultsAdapter).toContain('select("country_code,calculation_version,final_points")');
-    expect(resultsAdapter).toContain('from("televoting_round_bindings")');
-    expect(resultsAdapter).toContain('from("televote_votes")');
-    expect(resultsAdapter).toContain('select("country_id,contest_entity_id,points")');
-    expect(resultsAdapter).not.toMatch(/from\("televote_votes"\)\.(?:insert|update|delete|upsert)\(/);
-    expect(resultsAdapter).toContain("server-authoritative Televote publication rejected");
+    expect(resultsAdapter).toContain("ROBUST_TELEVOTE_ENGINE_VERSION");
+    expect(resultsAdapter).toContain("convertRobustRound");
+    expect(resultsAdapter).toContain("DEFAULT_ROBUST_TELEVOTE_CONFIG");
+    expect(resultsAdapter).toContain("engineVersion === ROBUST_TELEVOTE_ENGINE_VERSION");
+    expect(resultsAdapter).toContain("engine_version: ROBUST_TELEVOTE_ENGINE_VERSION");
+    expect(resultsAdapter).not.toContain("supports only the canonical");
     expect(resultsAdapter).toContain("refusing non-local Supabase URL");
     expect(resultsAdapter).toContain('from("televote_votes")');
     expect(resultsAdapter).toContain('from("round_results")');

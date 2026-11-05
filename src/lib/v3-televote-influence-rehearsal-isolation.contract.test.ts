@@ -14,6 +14,8 @@ describe("V3 Televote influence role rehearsal isolation", () => {
     expect(workflow).toContain("supabase start");
     expect(workflow).toContain("supabase db reset --local --no-seed");
     expect(workflow).toContain("supabase migration up --local");
+    expect(workflow).toContain("shadow_port = $((port_base + 0))");
+    expect(workflow).toContain("solaris_influence_${REHEARSAL_MODE}");
     expect(guardSource).not.toBeNull();
     const guardCheck = workflow.indexOf('[[ ! "$DB_URL" =~ $local_db_pattern ]]');
     // Accept the explicit if/then variant while guarding execution order.
