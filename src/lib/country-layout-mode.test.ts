@@ -65,6 +65,17 @@ describe("country page presentation ownership", () => {
     expect(css).not.toContain(":root {");
   });
 
+  it("loads scoped mobile-web styling as route CSS rather than repeated JavaScript style strings", () => {
+    const country = read("src/routes/countries/$code.tsx");
+    const wiki = read("src/components/wiki/CountryWikiExperience.tsx");
+    expect(country).toContain('import "@/country-mobile-web.css";');
+    expect(wiki).toContain('import "@/wiki-mobile-web.css";');
+    expect(country).not.toContain('country-mobile-web.css?inline');
+    expect(wiki).not.toContain('wiki-mobile-web.css?inline');
+    expect(country).not.toContain('data-country-mobile-web-styles');
+    expect(wiki).not.toContain('data-wiki-mobile-web-styles');
+  });
+
   it("preserves the flag contract and isolates CSS from app and desktop", () => {
     const css = read("src/country-mobile-web.css");
     const masthead = read("src/components/country/CountryMobileWebMasthead.tsx");

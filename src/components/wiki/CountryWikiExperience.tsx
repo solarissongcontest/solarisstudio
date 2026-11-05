@@ -59,7 +59,7 @@ import {
 } from "@/lib/qualification";
 import { countryThemeToVisual, useCountryTheme } from "@/lib/visual-theme";
 import { useCountryLayoutMode } from "@/lib/use-country-layout-mode";
-import wikiMobileWebCss from "@/wiki-mobile-web.css?inline";
+import "@/wiki-mobile-web.css";
 
 type PublicArchive = ReturnType<typeof buildPublicCountryArchive>;
 type CountryStats = ReturnType<typeof computeCanonicalCountryStats>;
@@ -325,7 +325,6 @@ function CountryWikiArticle({
 
   return (
     <AppShell>
-      <style data-wiki-mobile-web-styles>{wikiMobileWebCss}</style>
       <div
         className={publishedDesign && countryLayoutMode !== "mobile-web" ? "wiki-canvas min-w-0 country-design-v2" : "wiki-canvas min-w-0"}
         data-wiki-layout-mode={countryLayoutMode}

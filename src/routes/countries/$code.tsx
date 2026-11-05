@@ -48,7 +48,7 @@ import {
 } from "@/lib/qualification";
 import { computeRelationship } from "@/lib/stats";
 import { countryThemeToVisual, useCountryTheme } from "@/lib/visual-theme";
-import countryMobileWebCss from "@/country-mobile-web.css?inline";
+import "@/country-mobile-web.css";
 
 const CountryPlacementChart = lazy(() =>
   import("@/components/country/CountryPlacementChart"),
@@ -101,7 +101,6 @@ function CountryProfileRoute() {
     <>
       <CountryPersonalityStyles />
       <CountryDesignV2Styles />
-      <style data-country-mobile-web-styles>{countryMobileWebCss}</style>
       <V3DelegationRouteGate code={code} legacy={<CountryProfilePage />} />
     </>
   );
