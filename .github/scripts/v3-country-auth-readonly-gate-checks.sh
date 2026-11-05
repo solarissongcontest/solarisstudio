@@ -149,7 +149,7 @@ expect_blocked_by_gate "unrelated service-role table write"
 
 # Session revocation is sanctioned security recovery in restricted modes.
 # Account claiming is an ordinary mutation and must still hit the global gate.
-request POST "$API_URL/rest/v1/rpc/claim_country_account" "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY" \
+request POST "$API_URL/rest/v1/rpc/claim_country_account" "$AUTH_TOKEN" "$ANON_KEY" \
   '{"_country_id":"00000000-0000-4000-8000-00000000f914"}'
 expect_blocked_by_gate "unrelated mutation RPC"
 
