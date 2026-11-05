@@ -1,0 +1,59 @@
+/* Solaris V3 directory family: one visual language, three runtime-owned views.
+ * Scoped to its own surface. Never alters AppShell or the installed dock. */
+.v3-directory-family{min-width:0;padding-bottom:2rem}
+.v3-directory-family .v3-directory-eyebrow{margin:0;color:var(--muted-foreground);font-size:.7rem;font-weight:750;letter-spacing:.13em;line-height:1.5}
+.v3-directory-family .v3-directory-app-heading{max-width:40rem;margin-bottom:1.4rem}
+.v3-directory-family :is(.v3-directory-app-heading,.v3-directory-mobile-header) h1{margin:.35rem 0 0;font-size:clamp(1.8rem,7vw,2.55rem);font-weight:780;line-height:1.14;letter-spacing:-.045em;text-wrap:balance}
+.v3-directory-family :is(.v3-directory-app-heading,.v3-directory-mobile-header)>p:last-child{max-width:44ch;margin-top:.6rem;color:var(--muted-foreground);font-size:.92rem;line-height:1.55}
+.v3-directory-family .v3-directory-controls{display:flex;flex-wrap:wrap;align-items:stretch;gap:.7rem;min-width:0}
+.v3-directory-family .v3-directory-sheet-trigger{display:flex;align-items:center;justify-content:space-between;min-height:44px;width:100%;gap:.75rem;padding:.6rem .85rem;border:1px solid var(--border);border-radius:.75rem;background:var(--surface);color:var(--foreground);font-size:.85rem;font-weight:650}
+.v3-directory-family .v3-directory-count{margin-left:auto;color:var(--muted-foreground);font-size:.76rem;font-variant-numeric:tabular-nums}
+.v3-directory-sheet-options{display:grid;gap:.35rem}
+.v3-directory-sheet-options button{display:flex;min-height:44px;align-items:center;justify-content:space-between;border-radius:.65rem;padding:.6rem .8rem;text-align:left}
+.v3-directory-sheet-options button[aria-pressed=true]{background:var(--surface);font-weight:700}
+.v3-directory-sheet-options button span{color:var(--muted-foreground);font-size:.78rem;font-variant-numeric:tabular-nums}
+.v3-directory-family .v3-directory-search{display:flex;flex:1 1 15rem;align-items:center;min-width:0;min-height:48px;gap:.65rem;border:1px solid var(--border);border-radius:.8rem;background:var(--surface);padding:.15rem .85rem;color:var(--muted-foreground)}
+.v3-directory-family .v3-directory-search input{width:100%;min-width:0;min-height:44px;background:transparent;color:var(--foreground);font-size:.92rem;outline:none}
+.v3-directory-family .v3-directory-area-select{flex:0 1 auto;min-width:0}
+.v3-directory-family .v3-directory-area-select select{max-width:100%;min-height:48px;border:1px solid var(--border);border-radius:.8rem;background:var(--surface);padding:.6rem .7rem;color:var(--foreground);font-size:.86rem}
+.v3-directory-family .v3-directory-results-count{margin:.8rem 0 1.15rem;color:var(--muted-foreground);font-size:.79rem;font-variant-numeric:tabular-nums}
+.v3-directory-family .v3-directory-groups{display:grid;gap:1.85rem;min-width:0}
+.v3-directory-family .v3-directory-group{min-width:0}
+.v3-directory-family .v3-directory-group-title{margin:0 0 .7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);font-size:1.15rem;font-weight:760;letter-spacing:-.025em;line-height:1.3}
+.v3-directory-family .v3-directory-group-description{margin:-.3rem 0 .85rem;max-width:64ch;color:var(--muted-foreground);font-size:.83rem;line-height:1.5}
+.v3-directory-family :is(.v3-directory-mobile-row,.v3-directory-desktop-card,.v3-directory-desktop-rail button,.v3-directory-sheet-trigger,.v3-directory-area-select select,.v3-directory-search):focus-within{outline:2px solid var(--primary);outline-offset:2px}
+
+/* Installed app: compact search, sheet filtering, native grouped rows. */
+.v3-directory-family[data-directory-experience="installed-app"]{padding-bottom:max(2rem,env(safe-area-inset-bottom))}
+.v3-directory-family[data-directory-experience="installed-app"] .v3-directory-controls{display:grid;gap:.7rem}
+.v3-directory-family[data-directory-experience="installed-app"] .v3-directory-groups{gap:2rem}
+
+/* Mobile website: breadcrumb and continuous, tappable editorial list. */
+.v3-directory-family[data-directory-experience="mobile-web"]{max-width:44rem;margin-inline:auto}
+.v3-directory-family .v3-directory-mobile-header{margin:.2rem 0 1.25rem;padding-bottom:1.1rem;border-bottom:1px solid var(--border)}
+.v3-directory-family .v3-directory-back{display:inline-flex;min-height:44px;align-items:center;margin-bottom:.35rem;color:var(--muted-foreground);font-size:.8rem;font-weight:650}
+.v3-directory-family[data-directory-experience="mobile-web"] .v3-directory-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:.6rem}
+.v3-directory-family[data-directory-experience="mobile-web"] .v3-directory-area-select select{width:100%}
+.v3-directory-family .v3-directory-mobile-list{border-top:1px solid var(--border)}
+.v3-directory-family .v3-directory-mobile-row{display:flex;min-height:66px;align-items:center;gap:1rem;padding:.75rem .1rem;border-bottom:1px solid var(--border);text-decoration:none}
+.v3-directory-family .v3-directory-mobile-row strong{display:block;font-size:.94rem;font-weight:720}
+.v3-directory-family .v3-directory-mobile-row span span{display:block;max-width:52ch;margin-top:.22rem;color:var(--muted-foreground);font-size:.79rem;line-height:1.45}
+.v3-directory-family .v3-directory-mobile-row>svg{flex-shrink:0;color:var(--muted-foreground)}
+
+/* Desktop website: generous two-column workspace and sticky facet rail. */
+.v3-directory-family[data-directory-experience="desktop-web"] .v3-directory-workspace{display:grid;grid-template-columns:minmax(10.5rem,13.25rem) minmax(0,1fr);gap:clamp(1.4rem,3vw,2.4rem);max-width:76rem;margin-inline:auto}
+.v3-directory-family .v3-directory-desktop-rail{position:sticky;top:5.5rem;align-self:start;min-width:0;padding-right:1rem;border-right:1px solid var(--border)}
+.v3-directory-family .v3-directory-desktop-rail h2{margin:0 0 .75rem;font-size:.77rem;font-weight:760;letter-spacing:.1em;text-transform:uppercase}
+.v3-directory-family .v3-directory-desktop-rail button{display:flex;width:100%;min-height:44px;align-items:center;justify-content:space-between;gap:.6rem;border-radius:.55rem;padding:.6rem .55rem;color:var(--muted-foreground);text-align:left;font-size:.85rem}
+.v3-directory-family .v3-directory-desktop-rail button[aria-pressed=true]{background:var(--surface);color:var(--foreground);font-weight:720}
+.v3-directory-family .v3-directory-desktop-rail button span:last-child{font-size:.76rem;font-variant-numeric:tabular-nums}
+.v3-directory-family .v3-directory-results{min-width:0}
+.v3-directory-family .v3-directory-desktop-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
+.v3-directory-family .v3-directory-desktop-card{display:flex;min-width:0;min-height:118px;flex-direction:column;gap:.5rem;border:1px solid var(--border);border-radius:.85rem;background:var(--surface);padding:1.05rem 1rem;text-decoration:none}
+.v3-directory-family .v3-directory-card-top{display:flex;align-items:center;justify-content:space-between;gap:.6rem;font-size:.96rem}
+.v3-directory-family .v3-directory-card-top>svg{flex-shrink:0;color:var(--muted-foreground)}
+.v3-directory-family .v3-directory-card-description{color:var(--muted-foreground);font-size:.82rem;line-height:1.5}
+.v3-directory-family .v3-directory-aliases{margin-top:auto;color:var(--muted-foreground);font-size:.73rem;line-height:1.5}
+.v3-directory-family :is(.v3-directory-mobile-row,.v3-directory-desktop-rail button):hover{background:var(--surface)}
+.v3-directory-family .v3-directory-desktop-card:hover{background:var(--surface-strong,var(--surface));border-color:var(--primary)}
+@media (min-width:1200px){.v3-directory-family .v3-directory-desktop-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
