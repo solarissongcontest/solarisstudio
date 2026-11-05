@@ -22,10 +22,10 @@ export type TerraGovernanceDomainOwner = {
 };
 
 /**
- * Canonical machine-readable ownership for Terra Solaris Governance.
- * This supplements V3 System ownership and must never be interpreted as
- * permission to create duplicate current-country, Archive, task, notification
- * or capability systems.
+ * Canonical machine-readable ownership for the first Terra Solaris Governance
+ * implementation waves. This registry supplements V3 System ownership. It must
+ * never be interpreted as permission to create duplicate current-country,
+ * following, task, notification, archive or capability systems.
  */
 export const TERRA_GOVERNANCE_DOMAIN_REGISTRY: readonly TerraGovernanceDomainOwner[] = [
   {
@@ -238,6 +238,7 @@ export const TERRA_GOVERNANCE_FOUNDATION_MIGRATIONS = [
   "20261102171600_v3_tg2_world_institution_access.sql",
   "20261102171700_v3_tg2_world_office_term_canonical_alignment.sql",
   "20261102171800_v3_tg2_world_office_term_dependents.sql",
+  "20261104115831_v3_tg2_world_identity_linkage_privacy.sql",
 ] as const;
 
 export const TERRA_GOVERNANCE_FOUNDATION_EVENT_TYPES = [
