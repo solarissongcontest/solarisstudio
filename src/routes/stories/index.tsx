@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { BookOpen, CalendarDays, Clock3, Search, Sparkles, ChevronRight } from 'lucide-react';
+import { BookOpen, CalendarDays, Clock3, Search, Sparkles, ChevronRight, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { AppShell } from '@/components/AppShell';
 import { useSolarisApp } from '@/components/app/AppRuntime';
+import { SolarisSearchField } from '@/components/app/SolarisSearchField';
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from '@/lib/v3-directory-presentation';
 import '@/styles/v3-directory-family.css';
 import { V3StoriesIndexGate } from '@/components/v3/V3StoriesGates';
@@ -118,66 +119,39 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
           </header>
         ) : (
           <header className="max-w-3xl">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Solaris archive</p>
-            <h1 className="mt-3 text-4xl font-black tracking-[-0.045em] text-foreground sm:text-6xl">Stories that survived the scoreboard.</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Reviewed edition narratives built from the canonical Solaris event stream. Generated drafts stay private until an organizer edits and publishes them.
+            <p className="v3-directory-eyebrow">PUBLISHED NARRATIVES</p>
+            <h1 className="mt-2 font-sans text-4xl font-bold tracking-[-0.035em] text-foreground">Stories</h1>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+              Read published edition stories and the moments that shaped Solaris.
             </p>
           </header>
         )}
 
-        <section className="mt-10" aria-labelledby="today-heading">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">{referenceDate}</p>
-              <h2 id="today-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">On this day in Solaris</h2>
-            </div>
-            {!anniversaryQuery.isError && anniversary?.sscAnniversary ? (
-              <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{anniversary.sscAnniversary.label}</span>
-            ) : null}
-          </div>
-
-          {anniversaryQuery.isError ? (
-            <ArchiveEmpty
-              icon={Clock3}
-              title="Calendar moments could not be loaded"
-              copy="The public history service did not respond. Reconnect and try again."
-              onRetry={() => void anniversaryQuery.refetch()}
-            />
-          ) : anniversaryQuery.isLoading ? (
-            <ArchiveEmpty icon={Clock3} title="Reading the archive…" copy="Matching published story moments to today's calendar date." />
-          ) : anniversary?.onThisDay.length ? (
-            <div className={presentation === "mobile-web" ? "v3-directory-mobile-list mt-4" : "mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3"}>
-              {anniversary.onThisDay.slice(0, 6).map((moment, index) => (
-                <article key={`${moment.editionSlug ?? 'moment'}-${moment.occurredAt}-${index}`} className={presentation === "mobile-web" ? "v3-story-mobile-moment border-b border-border py-4" : "rounded-2xl border border-border/60 bg-card/55 p-5"}>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">{moment.yearsAgo ?? '?'} years ago</span>
-                    <span className="text-xs text-muted-foreground">{moment.importance}</span>
-                  </div>
-                  <h3 className="mt-3 text-lg font-bold tracking-[-0.02em]">{moment.headline}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{moment.summary}</p>
-                  <p className="mt-4 text-xs text-muted-foreground">{moment.editionName ?? 'Solaris Song Contest'}</p>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <ArchiveEmpty icon={CalendarDays} title="No published moments for today" copy="As more reviewed edition stories are published, the calendar archive fills itself from those public moments." />
-          )}
-        </section>
-
-        <section className="mt-12" aria-labelledby="stories-heading">
+        <section className="mt-6" aria-labelledby="stories-heading">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Published narratives</p>
             <h2 id="stories-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">Edition stories</h2>
           </div>
 
-          <label className="v3-directory-search mt-4 max-w-xl">
-            <Search size={18} aria-hidden="true" />
-            <span className="sr-only">Search published stories</span>
-            <input type="search" aria-label="Search published stories" value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search titles, editions or moments…" />
-          </label>
+          {presentation === "installed-app" ? (
+            <SolarisSearchField value={search} onChange={setSearch} label="Search published stories"
+              placeholder="Search titles, editions or moments…" className="mt-4 max-w-xl" />
+          ) : (
+            <div className="v3-directory-search mt-4 max-w-xl" role="search">
+              <Search size={18} aria-hidden="true" />
+              <input type="search" aria-label="Search published stories" value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search titles, editions or moments…" />
+              {search ? (
+                <button type="button" className="v3-directory-search-clear" aria-label="Clear search" onClick={() => setSearch("")}>
+                  <X size={16} aria-hidden="true" />
+                </button>
+              ) : null}
+            </div>
+          )}
+          <p className="v3-directory-results-count" role="status" aria-live="polite">
+            {filteredStories.length} of {stories.length} published stories in this batch
+          </p>
           {storiesQuery.isError ? (
             <ArchiveEmpty
               icon={BookOpen}
@@ -230,19 +204,61 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
                 : "Story drafts remain private until organizers explicitly publish them."} />
           )}
         </section>
+
+        <section className="mt-10" aria-labelledby="today-heading">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">{referenceDate}</p>
+              <h2 id="today-heading" className="mt-1 text-2xl font-bold tracking-[-0.03em]">On this day in Solaris</h2>
+            </div>
+            {!anniversaryQuery.isError && anniversary?.sscAnniversary ? (
+              <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{anniversary.sscAnniversary.label}</span>
+            ) : null}
+          </div>
+
+          {anniversaryQuery.isError ? (
+            <ArchiveEmpty
+              icon={Clock3}
+              title="Calendar moments could not be loaded"
+              copy="The public history service did not respond. Reconnect and try again."
+              onRetry={() => void anniversaryQuery.refetch()}
+            />
+          ) : anniversaryQuery.isLoading ? (
+            <ArchiveEmpty icon={Clock3} title="Reading the archive…" copy="Matching published story moments to today's calendar date." />
+          ) : anniversary?.onThisDay.length ? (
+            <div className={presentation === "mobile-web" ? "v3-directory-mobile-list mt-4" : "mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3"}>
+              {anniversary.onThisDay.slice(0, 6).map((moment, index) => (
+                <article key={`${moment.editionSlug ?? 'moment'}-${moment.occurredAt}-${index}`} className={presentation === "mobile-web" ? "v3-story-mobile-moment border-b border-border py-4" : "rounded-2xl border border-border/60 bg-card/55 p-5"}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">{moment.yearsAgo ?? '?'} years ago</span>
+                    <span className="text-xs text-muted-foreground">{moment.importance}</span>
+                  </div>
+                  <h3 className="mt-3 text-lg font-bold tracking-[-0.02em]">{moment.headline}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{moment.summary}</p>
+                  <p className="mt-4 text-xs text-muted-foreground">{moment.editionName ?? 'Solaris Song Contest'}</p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <ArchiveEmpty icon={CalendarDays} title="No published moments today" copy="The historical calendar fills as reviewed stories are published." compact />
+          )}
+        </section>
+
+
       </div>
     </AppShell>
   );
 }
 
-function ArchiveEmpty({ icon: Icon, title, copy, onRetry }: {
+function ArchiveEmpty({ icon: Icon, title, copy, onRetry, compact = false }: {
   icon: typeof BookOpen;
   title: string;
   copy: string;
   onRetry?: () => void;
+  compact?: boolean;
 }) {
   return (
-    <div className="mt-4 rounded-2xl border border-dashed border-border/70 bg-card/35 px-5 py-10 text-center" role={onRetry ? 'alert' : undefined}>
+    <div className={compact ? "mt-3 rounded-xl border border-border/50 px-4 py-4 text-center" : "mt-4 rounded-2xl border border-dashed border-border/70 bg-card/35 px-5 py-8 text-center"} role={onRetry ? 'alert' : undefined}>
       <Icon className="mx-auto size-5 text-muted-foreground" aria-hidden="true" />
       <p className="mt-3 text-sm font-semibold">{title}</p>
       <p className="mx-auto mt-1 max-w-lg text-xs leading-relaxed text-muted-foreground">{copy}</p>
