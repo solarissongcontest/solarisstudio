@@ -52,12 +52,12 @@ export const Route = createFileRoute("/wiki/$code")({
 
 function CountryWikiRoute() {
   const { code } = Route.useParams();
-  const { isAppMode } = useSolarisApp();
+  const { platformResolved } = useSolarisApp();
   const [clientReady, setClientReady] = useState(false);
   const referenceRollout = useQuery({
     queryKey: ["studio2-feature", "public_encyclopedia"],
     queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
-    enabled: isAppMode,
+    enabled: platformResolved,
     staleTime: 30_000,
   });
 
@@ -65,11 +65,13 @@ function CountryWikiRoute() {
     setClientReady(true);
   }, []);
 
-  if (isAppMode && referenceRollout.isLoading) {
+  // Preserve the historical URL as a compatibility entry point, never a
+  // competing identity after public Reference is published for this viewer.
+  if (!platformResolved || referenceRollout.isLoading) {
     return <WikiHydrationSkeleton code={code} label="Opening canonical country profile" />;
   }
 
-  if (isAppMode && !referenceRollout.isError && referenceRollout.data === true) {
+  if (!referenceRollout.isError && referenceRollout.data === true) {
     return <Navigate to="/countries/$code" params={{ code }} replace />;
   }
 

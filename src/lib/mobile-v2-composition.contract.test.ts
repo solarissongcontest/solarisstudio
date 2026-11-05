@@ -21,7 +21,7 @@ describe("Mobile App V2 composition completion", () => {
     for (const route of [
       "src/routes/editions/index.tsx",
       "src/routes/results/index.tsx",
-      "src/routes/site-directory/index.tsx",
+      "src/components/v3/V3DirectoryFamilyIndex.tsx",
     ]) {
       const code = source(route);
       expect(code, route).toContain("AppScreen");
@@ -60,7 +60,7 @@ describe("Mobile App V2 composition completion", () => {
   it("gives installed directory empty states a recovery action", () => {
     for (const route of [
       "src/routes/editions/index.tsx",
-      "src/routes/site-directory/index.tsx",
+      "src/components/v3/V3DirectoryFamilyIndex.tsx",
     ]) {
       const code = source(route);
       expect(code, route).toContain("AppEmptyState");
