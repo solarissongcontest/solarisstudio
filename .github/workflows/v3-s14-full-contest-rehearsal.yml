@@ -5,8 +5,6 @@ on:
     branches:
       - main
     paths:
-      - ".github/scripts/v3-start-disposable-supabase.sh"
-      - ".github/scripts/prepare-archive-local-config.py"
       - "supabase/migrations/**"
       - ".github/scripts/v3-s14-*.sh"
       - ".github/scripts/v3-full-contest-rehearsal.sh"
@@ -77,7 +75,7 @@ jobs:
           version: 2.113.0
 
       - name: Start isolated local Supabase
-        run: bash .github/scripts/v3-start-disposable-supabase.sh
+        run: supabase start
 
       - name: Rebuild exact migration chain locally
         run: supabase db reset --local --no-seed
