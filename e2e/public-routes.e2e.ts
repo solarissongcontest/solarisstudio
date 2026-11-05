@@ -226,7 +226,7 @@ test("Shows and Archive preserve three deliberate website directory layouts", as
       const search = directory.getByRole("searchbox", { name: "Search archive" });
       await expect(search).toBeVisible();
       await search.fill("unfindable-solaris-archive");
-      await expect(directory.getByText("No archive topics found")).toBeVisible();
+      await expect(directory.getByText("No matching archive topics")).toBeVisible();
       await search.fill("");
       await expect(directory.locator('a[href="/editions"]')).toBeVisible();
       if (mobile) {
