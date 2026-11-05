@@ -52,3 +52,5 @@
     grid-column: 2;
   }
 }
+
+.v3-shows-directory .v3-shows-filter-fields > label:first-child{grid-column:1/-1}
