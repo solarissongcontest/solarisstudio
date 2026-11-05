@@ -2,6 +2,12 @@
  * Proof comes from GitHub's authenticated API, never from a self-reported login.
  * No network calls occur from the pure authorization checks or CI tests.
  */
+import {randomBytes} from 'node:crypto';
+import {readFile,writeFile,mkdir,lstat} from 'node:fs/promises';
+import {homedir} from 'node:os';
+import {join} from 'node:path';
+import {execFileSync} from 'node:child_process';
+
 export const OWNER_REPOSITORY = 'solarissongcontest/solarisstudio';
 export const OWNER_LOGIN = 'solarissongcontest';
 export const OWNER_METHOD = 'verified-github-repository-owner';
@@ -53,4 +59,33 @@ export function assertOwnerAuthorization(approval, ownerProof, now = new Date())
     throw Error('Solaris owner approval or identity verification expired');
   }
   return true;
+}
+
+/** Protected operator-local signing key. Do not store in Git, project files or CI. */
+export async function ownerSigningKey({create=false}={}) {
+ const provided=process.env.SOLARIS_RECOVERY_APPROVAL_HMAC_KEY;
+ if(provided){
+  if(Buffer.byteLength(provided)<32)throw Error('Approval signing secret too short');
+  return provided;
+ }
+ const directory=join(homedir(),'.local/state/solaris-v3-staged-media-recovery');
+ const filepath=join(directory,'owner-approval-signing-key');
+ await mkdir(directory,{recursive:true,mode:0o700});
+ let info;
+ try {info=await lstat(filepath);}
+ catch(err) {
+  if(err?.code!=='ENOENT'||!create)throw Error('Owner approval signing key missing');
+  await writeFile(filepath,randomBytes(48).toString('hex'),{mode:0o600,flag:'wx'});
+  info=await lstat(filepath);
+ }
+ if(!info.isFile()||(info.mode&0o077)!==0)throw Error('Unsafe owner signing key permissions');
+ const key=(await readFile(filepath,'utf8')).trim();
+ if(Buffer.byteLength(key)<32)throw Error('Approval signing secret too short');
+ return key;
+}
+
+export function currentRecoveryHead() {
+ const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8',timeout:5000}).trim();
+ if(!/^[a-f0-9]{40}$/.test(sha))throw Error('Cannot identify current recovery code SHA');
+ return sha;
 }
