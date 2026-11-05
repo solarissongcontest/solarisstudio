@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { BarChart3, CalendarDays, Check, ChevronRight, History, Search, SlidersHorizontal, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { AppEmptyState, AppGroupedList, AppScreen } from "@/components/app/AppPrimitives";
@@ -16,6 +16,8 @@ export type V3DirectoryItem = {
   title: string;
   description: string;
   to: string;
+  /** Typed parameters for official chapter and other directory deep links. */
+  params?: Record<string, string>;
   searchText?: string;
   eyebrow?: string;
   aliases?: readonly string[];
@@ -39,6 +41,8 @@ export function V3DirectoryFamilyIndex({
   emptyText,
   itemNoun,
   groups,
+  context,
+  noShell = false,
 }: {
   variant?: "tools" | "sitemap";
   title: string;
@@ -51,6 +55,9 @@ export function V3DirectoryFamilyIndex({
   emptyText: string;
   itemNoun: string;
   groups: readonly V3DirectoryGroup[];
+  context?: ReactNode;
+  /** Rules owns its own governed rollout shell. */
+  noShell?: boolean;
 }) {
   const { platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
@@ -158,8 +165,7 @@ export function V3DirectoryFamilyIndex({
     </>
   );
 
-  return (
-    <AppShell>
+  const content = (
       <div className="v3-directory-family" data-directory-experience={presentation} data-directory-kind={variant}>
         {presentation === "installed-app" ? (
           <AppScreen>
@@ -168,6 +174,7 @@ export function V3DirectoryFamilyIndex({
               <h1>{title}</h1>
               <p>{intro}</p>
             </header>
+            {context}
             {contents}
           </AppScreen>
         ) : (
@@ -179,6 +186,7 @@ export function V3DirectoryFamilyIndex({
                 <p>{browserIntro}</p>
               </header>
             ) : <PageHeader eyebrow={eyebrow} title={title} description={intro} />}
+            {context}
             <div className="v3-directory-workspace">
               {presentation === "desktop-web" ? (
                 <aside className="v3-directory-desktop-rail" aria-label={`Filter ${itemNoun} by category`}>
@@ -196,8 +204,8 @@ export function V3DirectoryFamilyIndex({
           </>
         )}
       </div>
-    </AppShell>
   );
+  return noShell ? content : <AppShell>{content}</AppShell>;
 }
 
 function DirectoryItems({ items, presentation, variant, groupId }: {
@@ -210,7 +218,7 @@ function DirectoryItems({ items, presentation, variant, groupId }: {
   if (presentation === "installed-app") {
     return <AppGroupedList>
       {items.map((item) => (
-        <Link key={item.id} to={item.to as any} className="solaris-app-list-row">
+        <Link key={item.id} to={item.to as any} params={item.params as any} className="solaris-app-list-row">
           {variant === "tools" ? <span className="v3-directory-tool-icon"><ToolIcon size={18} aria-hidden="true" /></span> : null}
           <span className="min-w-0 flex-1">
             <strong className="block text-sm font-semibold">{item.title}</strong>
@@ -224,7 +232,7 @@ function DirectoryItems({ items, presentation, variant, groupId }: {
   if (presentation === "mobile-web") {
     return <div className="v3-directory-mobile-list">
       {items.map((item) => (
-        <Link key={item.id} to={item.to as any} className="v3-directory-mobile-row">
+        <Link key={item.id} to={item.to as any} params={item.params as any} className="v3-directory-mobile-row">
           {variant === "tools" ? <span className="v3-directory-tool-icon"><ToolIcon size={18} aria-hidden="true" /></span> : null}
           <span className="min-w-0 flex-1"><strong>{item.title}</strong><span>{item.description}</span></span>
           <ChevronRight size={19} aria-hidden="true" />
@@ -234,7 +242,7 @@ function DirectoryItems({ items, presentation, variant, groupId }: {
   }
   return <div className="v3-directory-desktop-grid">
     {items.map((item) => (
-      <Link key={item.id} to={item.to as any} className="v3-directory-desktop-card">
+      <Link key={item.id} to={item.to as any} params={item.params as any} className="v3-directory-desktop-card">
         {variant === "tools" ? <span className="v3-directory-tool-icon"><ToolIcon size={18} aria-hidden="true" /></span> : null}
         {item.eyebrow ? <span className="v3-directory-eyebrow">{item.eyebrow}</span> : null}
         <span className="v3-directory-card-top"><strong>{item.title}</strong><ChevronRight size={19} aria-hidden="true" /></span>
