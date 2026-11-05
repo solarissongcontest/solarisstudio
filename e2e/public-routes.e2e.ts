@@ -7,6 +7,7 @@ const fullAudit = process.env.E2E_FULL_AUDIT === "1";
 const PR_SMOKE_PUBLIC_ROUTES = [
   "/",
   "/auth",
+  "/archive",
   "/confirmations",
   "/countries",
   "/editions",
@@ -17,6 +18,7 @@ const PR_SMOKE_PUBLIC_ROUTES = [
   "/result-lab",
   "/rules",
   "/site-directory",
+  "/shows",
   "/tools",
   "/televoting",
   "/wiki",
@@ -212,6 +214,52 @@ test("Editions archive keeps distinct mobile-browser and desktop browse layouts"
   });
 });
 
+test("Shows and Archive preserve three deliberate website directory layouts", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  const mobile = testInfo.project.name === "public-390";
+  for (const route of ["/shows", "/archive"]) {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    const directory = page.locator("[data-directory-experience]");
+    await expect(directory).toHaveAttribute(
+      "data-directory-experience", mobile ? "mobile-web" : "desktop-web",
+      { timeout: 15_000 },
+    );
+    await expect(page.getByRole("heading", { level: 1, name: route === "/archive" ? "Archive" : "Shows" })).toHaveCount(1);
+    if (mobile) {
+      await expect(page.locator("[data-directory-mobile-header]")).toBeVisible();
+    } else {
+      await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
+    }
+
+    if (route === "/archive") {
+      const search = directory.getByRole("searchbox", { name: "Search archive" });
+      await expect(search).toBeVisible();
+      await search.fill("unfindable-solaris-archive");
+      await expect(directory.getByText("No matching archive topics")).toBeVisible();
+      await search.fill("");
+      await expect(directory.locator('a[href="/editions"]')).toBeVisible();
+      if (mobile) {
+        await expect(directory.locator(".v3-directory-mobile-list").first()).toBeVisible();
+      } else {
+        await expect(directory.locator(".v3-directory-desktop-rail")).toBeVisible();
+      }
+    } else {
+      await expect(directory.locator("[data-show-directory-experience]")).toHaveAttribute(
+        "data-show-directory-experience", mobile ? "mobile-web" : "desktop-web",
+      );
+    }
+
+    const overflow = await page.evaluate(() =>
+      Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    );
+    expect(overflow, `${route} should not horizontally overflow`).toBeLessThanOrEqual(2);
+    await testInfo.attach(`directory-family-${route.slice(1)}-${testInfo.project.name}.png`, {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+  }
+});
+
 test("Country Glass atmosphere and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {
   test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
   test.skip(process.env.E2E_REAL_DATA !== "1", "Abeven Glass and SSC20 require the real archive, which the seeded audit runner does not contain.");
@@ -320,7 +368,7 @@ test("representative page families remain usable at 200% text size", async ({ pa
   );
 
   const context = page.context();
-  for (const route of ["/countries", "/site-directory", "/tools", "/editions", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
+  for (const route of ["/countries", "/site-directory", "/tools", "/editions", "/shows", "/archive", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
     const routePage = await context.newPage();
     try {
       await routePage.goto(route, { waitUntil: "domcontentloaded" });
@@ -334,7 +382,7 @@ test("representative page families remain usable at 200% text size", async ({ pa
           "Countries runtime boot must finish before accessibility verification",
         ).toHaveCount(0, { timeout: 15_000 });
       }
-      if (route === "/site-directory" || route === "/tools" || route === "/editions") {
+      if (route === "/site-directory" || route === "/tools" || route === "/editions" || route === "/archive" || route === "/shows") {
         await expect(
           routePage.locator("[data-directory-boot]"),
           `${route} runtime boot must finish before accessibility verification`,

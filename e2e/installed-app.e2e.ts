@@ -380,6 +380,7 @@ test("installed app shell survives representative navigation without duplicate c
     "/explore",
     "/countries",
     "/editions",
+    "/archive",
     "/wiki",
     "/shows",
     "/results",
@@ -400,13 +401,15 @@ test("installed app shell survives representative navigation without duplicate c
       await expect(page.locator("[data-country-directory-web-header]")).toHaveCount(0);
       await expect(directory.getByRole("searchbox", { name: "Search countries" })).toBeVisible();
     }
-    if (route === "/editions") {
+    if (route === "/archive" || route === "/shows") {
       const directory = page.locator("[data-directory-experience]");
       await expect(directory).toHaveAttribute("data-directory-experience", "installed-app");
-      await expect(directory.getByRole("searchbox", { name: "Search editions" })).toBeVisible();
-      await expect(directory.getByRole("button", { name: "Filter editions" })).toBeVisible();
-      await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
-      await expect(directory.locator(".v3-directory-mobile-list")).toHaveCount(0);
+      await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
+      await expect(directory.getByRole("heading", { level: 1, name: route === "/archive" ? "Archive" : "Shows" })).toBeVisible();
+      if (route === "/archive") {
+        await expect(directory.getByRole("button", { name: "Filter archive topics by category" })).toBeVisible();
+        await expect(directory.getByRole("searchbox", { name: "Search archive" })).toBeVisible();
+      }
     }
     if (route === "/rules/chapters") {
       const directory = page.locator('.v3-rule-chapters-directory [data-directory-experience="installed-app"]');
@@ -416,6 +419,14 @@ test("installed app shell survives representative navigation without duplicate c
       await expect(directory.getByRole("button", { name: "Filter chapters by category" })).toBeVisible();
       await expect(directory.getByRole("searchbox", { name: "Search Rulebook chapters" })).toBeVisible();
       await expect(directory.locator(".v3-directory-mobile-list,.v3-directory-desktop-rail")).toHaveCount(0);
+    }
+    if (route === "/editions") {
+      const directory = page.locator("[data-directory-experience]");
+      await expect(directory).toHaveAttribute("data-directory-experience", "installed-app");
+      await expect(directory.getByRole("searchbox", { name: "Search editions" })).toBeVisible();
+      await expect(directory.getByRole("button", { name: "Filter editions" })).toBeVisible();
+      await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
+      await expect(directory.locator(".v3-directory-mobile-list")).toHaveCount(0);
     }
     if (route === "/site-directory" || route === "/tools") {
       const directory = page.locator("[data-directory-experience]");
