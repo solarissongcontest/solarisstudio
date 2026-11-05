@@ -30,13 +30,13 @@ begin
     v_edition,'generate_storyline','Isolated editorial acceptance',v_execution,null,null,
     '{"title":"Anniversary editorial acceptance","introduction":"A synthetic isolated editorial timeline."}'::jsonb);
   v_revision := (v_result->>'revision')::bigint;
-  if v_revision is null or v_result->>'editionId' <> v_edition::text then
+  if v_revision is null or v_revision < 1 or v_result->>'executionId' is distinct from v_execution::text or v_result->>'editionId' is distinct from v_edition::text then
     raise exception 'Generation lacks exact-edition authoritative revision';
   end if;
   v_retry := public.studio2_execute_story_operation(
     v_edition,'generate_storyline','Isolated editorial acceptance',v_execution,null,null,
     '{"title":"Anniversary editorial acceptance","introduction":"A synthetic isolated editorial timeline."}'::jsonb);
-  if v_retry->>'idempotentReplay' is distinct from 'true' or v_retry->>'revision' <> v_result->>'revision' then
+  if v_retry->>'idempotentReplay' is distinct from 'true' or v_retry->>'revision' is distinct from v_result->>'revision' or v_retry->>'executionId' is distinct from v_execution::text then
     raise exception 'Exact retry did not replay the durable execution';
   end if;
 
@@ -82,13 +82,13 @@ begin
   set local role authenticated;
   v_result := public.studio2_execute_story_operation(
     v_edition,'publish_storyline','Publish reviewed Anniversary timeline',gen_random_uuid(),v_revision,null,'{}'::jsonb);
-  if v_result->>'status' <> 'published' then raise exception 'Canonical publication failed'; end if;
+  if v_result->>'status' is distinct from 'published' then raise exception 'Canonical publication failed'; end if;
   v_public := public.studio2_public_storyline('anniversary-'||v_edition);
   if v_public is null then raise exception 'Published Anniversary timeline has no public readback'; end if;
   v_result := public.studio2_execute_story_operation(
     v_edition,'unpublish_storyline','Unpublish reviewed Anniversary timeline',gen_random_uuid(),
     (v_result->>'revision')::bigint,null,'{}'::jsonb);
-  if v_result->>'status' <> 'draft' then raise exception 'Canonical unpublication failed'; end if;
+  if v_result->>'status' is distinct from 'draft' then raise exception 'Canonical unpublication failed'; end if;
   v_public := public.studio2_public_storyline('anniversary-'||v_edition);
   if v_public is not null then raise exception 'Unpublished timeline leaked through public readback'; end if;
   reset role;
