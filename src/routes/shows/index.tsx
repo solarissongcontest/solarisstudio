@@ -38,7 +38,7 @@ function ShowsPage() {
   if (presentation === "installed-app") {
     return (
       <AppShell>
-        <div className="v3-directory-family" data-directory-experience={presentation}>
+        <div className="v3-directory-family v3-shows-family" data-directory-experience={presentation}>
           <AppScreen>
             <header className="v3-directory-app-heading">
               <p className="v3-directory-eyebrow">BROADCAST DISCOVERY</p>
@@ -54,7 +54,7 @@ function ShowsPage() {
 
   return (
     <AppShell>
-      <div className="v3-directory-family" data-directory-experience={presentation}>
+      <div className="v3-directory-family v3-shows-family" data-directory-experience={presentation}>
         {presentation === "mobile-web" ? (
           <header className="v3-directory-mobile-header" data-directory-mobile-header="">
             <p className="v3-directory-eyebrow">BROADCAST ARCHIVE</p>

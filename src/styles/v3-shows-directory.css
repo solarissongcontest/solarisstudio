@@ -105,3 +105,40 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Broadcast roots use ordinary UI typography. Other editorial display artwork
+ * remains untouched even though legacy global headers use !important. */
+body .v3-shows-family[data-directory-experience="desktop-web"] .page-header:not(.directory-page-hero) {
+  margin-bottom: 1rem !important;
+  padding: 0 0 .85rem !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+body .v3-shows-family[data-directory-experience="desktop-web"] .page-header::before,
+body .v3-shows-family[data-directory-experience="desktop-web"] .page-header::after {
+  content: none !important;
+  display: none !important;
+}
+body .v3-shows-family[data-directory-experience="desktop-web"] .page-header h1 {
+  font-family: var(--font-sans, system-ui, sans-serif) !important;
+  font-size: clamp(1.95rem, 3vw, 2.35rem) !important;
+  font-weight: 750 !important;
+  text-transform: none !important;
+  letter-spacing: -.035em !important;
+}
+.v3-shows-directory .v3-shows-browse-heading {
+  margin: 0 0 .75rem;
+  padding: 0 0 .55rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 1.14rem;
+  font-weight: 750;
+}
+.v3-shows-directory[data-show-directory-experience="desktop-web"] #shows-browse > .v3-shows-browse-heading {
+  grid-column: 1 / -1;
+}

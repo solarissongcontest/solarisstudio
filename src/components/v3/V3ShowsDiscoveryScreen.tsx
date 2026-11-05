@@ -154,7 +154,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
       ) : null}
 
       <section id="shows-browse" aria-labelledby="shows-browse-title" className="scroll-mt-24">
-        <AppSectionHeader eyebrow="Browse" title="All public shows" id="shows-browse-title" />
+        <h2 id="shows-browse-title" className="v3-shows-browse-heading">All public shows</h2>
         <div className={presentation === "installed-app"
           ? "v3-shows-filter-fields v3-shows-filter-fields--app"
           : "v3-shows-filter-fields grid gap-2 sm:grid-cols-3"}>
