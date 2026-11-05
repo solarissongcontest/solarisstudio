@@ -5,6 +5,11 @@ function normaliseCountrySearch(value: string): string {
     .replace(/ł/g, "l").replace(/ß/g, "ss");
 }
 
+/** Current-edition selection is usable only with a successful published lineup read. */
+export function effectiveParticipatingScope(requested: boolean, currentLineupReady: boolean): boolean {
+  return requested && currentLineupReady;
+}
+
 /** Bounded public country discovery filters; this is presentation only, never participation authority. */
 export type DirectoryCountry = {
   id: string;
