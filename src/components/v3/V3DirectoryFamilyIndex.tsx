@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, Search, SlidersHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { AppEmptyState, AppGroupedList, AppScreen, AppSectionHeader } from "@/components/app/AppPrimitives";
@@ -39,6 +39,7 @@ export function V3DirectoryFamilyIndex({
   emptyText,
   itemNoun,
   groups,
+  context,
   noShell = false,
 }: {
   title: string;
@@ -51,6 +52,8 @@ export function V3DirectoryFamilyIndex({
   emptyText: string;
   itemNoun: string;
   groups: readonly V3DirectoryGroup[];
+  /** Public contextual information (e.g. historical archive provenance). */
+  context?: ReactNode;
   /** Allow a governed route such as Rules to retain its own rollout shell. */
   noShell?: boolean;
 }) {
@@ -162,6 +165,7 @@ export function V3DirectoryFamilyIndex({
               <h1>{title}</h1>
               <p>{intro}</p>
             </header>
+            {context}
             {contents}
           </AppScreen>
         ) : (
@@ -174,6 +178,7 @@ export function V3DirectoryFamilyIndex({
                 <p>{browserIntro}</p>
               </header>
             ) : <PageHeader eyebrow={eyebrow} title={title} description={intro} />}
+            {context}
             <div className="v3-directory-workspace">
               {presentation === "desktop-web" ? (
                 <aside className="v3-directory-desktop-rail" aria-label={`Filter ${itemNoun} by category`}>
