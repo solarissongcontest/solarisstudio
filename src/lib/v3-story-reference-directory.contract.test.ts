@@ -22,6 +22,18 @@ describe("V3 editorial directory family: Stories and Reference", () => {
     expect(gate).toContain("hideSpoilers={hideSpoilers}");
   });
 
+  it("does not confuse a user search with a failed or unpublished Stories archive", () => {
+    const source = read("src/routes/stories/index.tsx");
+    expect(source).toContain('aria-label="Search published stories"');
+    expect(source).toContain("storiesQuery.isError ?");
+    expect(source).toContain("storiesQuery.isLoading ?");
+    expect(source).toContain("filteredStories.length ?");
+    expect(source).toContain("No matching stories");
+    expect(source).toContain("No edition stories published yet");
+    expect(source).toContain("onRetry={() => void storiesQuery.refetch()}");
+    expect(source).toContain('to="/stories/$editionSlug"');
+  });
+
   it("keeps one Reference search and one publication authority across all three layouts", () => {
     const source = read("src/routes/encyclopedia/index.tsx");
     expect(source).toContain('isStudio2FeatureEnabled("public_encyclopedia")');
