@@ -106,8 +106,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
       <div className="v3-directory-family v3-stories-directory mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12" data-directory-experience={presentation}>
         {presentation === "mobile-web" ? (
           <header className="v3-directory-mobile-header" data-directory-mobile-header="">
-            <Link to="/explore" className="v3-directory-back">Explore / Stories</Link>
-            <p className="v3-directory-eyebrow">PUBLISHED NARRATIVES</p>
+                        <p className="v3-directory-eyebrow">PUBLISHED NARRATIVES</p>
             <h1>Stories</h1>
             <p>Read the moments that shaped Solaris, edition by edition.</p>
           </header>
@@ -240,7 +239,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
               ))}
             </div>
           ) : (
-            <ArchiveEmpty icon={CalendarDays} title="No published moments today" copy="The historical calendar fills as reviewed stories are published." compact />
+            <ArchiveEmpty icon={CalendarDays} title="No published moments for today" copy="The historical calendar fills as reviewed stories are published." compact />
           )}
         </section>
 

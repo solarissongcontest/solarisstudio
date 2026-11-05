@@ -12,6 +12,7 @@ describe("V3 editorial directory family: Stories and Reference", () => {
     expect(stories).toContain('data-directory-experience={presentation}');
     expect(stories).toContain('data-directory-mobile-header=""');
     expect(stories).toContain("v3-directory-mobile-list");
+    expect(stories).not.toContain('className="v3-directory-back"');
     expect(stories).toContain("filteredStories.map");
     expect(stories).toContain("storiesQuery.isError ?");
     expect(stories).toContain("onRetry={() => void storiesQuery.refetch()}");
@@ -47,6 +48,7 @@ describe("V3 editorial directory family: Stories and Reference", () => {
     expect(source).toContain('data-directory-mobile-header=""');
     expect(source).toContain("v3-directory-desktop-rail");
     expect(source).toContain("v3-directory-mobile-list");
+    expect(source).not.toContain('className="v3-directory-back"');
     expect(source).toContain("SheetContent");
     expect(source).toContain("SolarisSearchField");
     expect(source).not.toContain("useAllResults");

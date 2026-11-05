@@ -437,8 +437,7 @@ function ReferenceDirectoryHeader({ presentation }: { presentation: V3DirectoryP
   if (presentation === "mobile-web") {
     return (
       <header className="v3-directory-mobile-header" data-directory-mobile-header="">
-        <Link to="/explore" className="v3-directory-back">Explore / Reference</Link>
-        <p className="v3-directory-eyebrow">SOLARIS KNOWLEDGE</p>
+                <p className="v3-directory-eyebrow">SOLARIS KNOWLEDGE</p>
         <h1>Reference</h1>
         <p>Search published records and browse connected public history.</p>
       </header>

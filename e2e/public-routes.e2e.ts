@@ -218,8 +218,12 @@ test("Stories and Reference preserve editorial mobile-web and desktop discovery"
     await expect(page.getByRole("heading", { level: 1, name: "Stories" })).toBeVisible();
   } else {
     await expect(stories.locator("[data-directory-mobile-header]")).toHaveCount(0);
-    await expect(page.getByRole("heading", { level: 1, name: /Stories that survived/ })).toBeVisible();
+    await expect(stories.getByRole("heading", { level: 1, name: "Stories", exact: true })).toBeVisible();
   }
+
+  await testInfo.attach(`directory-family-stories-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true }), contentType: "image/png",
+  });
 
   await page.goto("/encyclopedia", { waitUntil: "domcontentloaded" });
   const reference = page.locator(".v3-reference-directory");
