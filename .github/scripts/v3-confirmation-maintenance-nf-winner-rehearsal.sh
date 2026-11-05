@@ -214,6 +214,20 @@ log "Platform exits read-only; Organizer can now accept the exact staged version
 exec_sql "update public.studio2_platform_operational_state set mode='normal',version=version+1,reason='Maintenance NF winner rehearsal review phase' where singleton=true;"
 expect_eq "platform review phase is normal" "$(scalar "select mode from public.studio2_platform_operational_state where singleton=true;")" "normal"
 
+# Prove the worker's RLS bypass is not a second authority for staged intent.
+# Run in normal mode so maintenance denial cannot mask the new trigger boundary.
+for raw_sql in \
+  "update public.national_finals set pending_winning_entry_id=null where id='$NF_ID';" \
+  "insert into public.national_finals(id,submission_id,entry_count,pending_winning_entry_id) values(gen_random_uuid(),'$SUBMISSION_ID',2,'$SAVED_WINNER_ENTRY_ID');"
+do
+  if worker_error="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "set role service_role; $raw_sql" 2>&1)"; then
+    fail "raw service_role changed staged NF intent"
+  fi
+  [[ "$worker_error" == *"Pending National Final winner intent must use canonical Confirmation commands"* ]] || fail "worker rejection did not prove canonical intent guard: $worker_error"
+  log "PASS: raw service_role staged-intent write rejected by database authority guard"
+done
+expect_eq "worker attempts preserve staged intent" "$(scalar "select pending_winning_entry_id::text from public.national_finals where id='$NF_ID';")" "$SAVED_WINNER_ENTRY_ID"
+
 CAS_VERSION="$(scalar "select coalesce(version,1) from public.studio2_confirmation_review_versions where submission_id='$SUBMISSION_ID';")"
 REVIEW_RESULT="$(as_user "$ORGANIZER_USER_ID" "
 select public.studio2_apply_confirmation_entry_review(
