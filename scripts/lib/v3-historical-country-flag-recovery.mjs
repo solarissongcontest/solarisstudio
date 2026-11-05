@@ -69,6 +69,7 @@ export function initialHistoricalSelection(review){
   destination_project:review.destination_project,
   manifest_sha256:review.manifest_sha256,
   live_identity_snapshot_sha256:review.live_identity_snapshot_sha256,
+  review_schema_version:2,
   records:review.rows.map(r=>({country_id:r.country_id,edition_id:r.edition_id,
    entity_id:r.entity_id,selected_path:null})),
  };
@@ -77,20 +78,21 @@ export function validateHistoricalSelection(review,selection){
  if(selection?.report_type!=='v3-historical-edition-flags-owner-selection'||
   selection.destination_project!==PROJECT||selection.manifest_sha256!==review.manifest_sha256||
   selection.live_identity_snapshot_sha256!==review.live_identity_snapshot_sha256||
+  selection.review_schema_version!==2||
   !Array.isArray(selection.records)||selection.records.length!==25)
   throw Error('Historical flag selection does not match live snapshot and source manifest');
  const keys=new Set(),selected=[];
  for(const record of selection.records){
   const key=record?.country_id+':'+record?.edition_id;
-  if(keys.has(key))throw Error('Duplicate historical edition selection');
+  if(keys.has(key))throw Error('Duplicate historical country-and-edition selection');
   keys.add(key);
   const row=review.rows.find(r=>r.country_id===record?.country_id&&
    r.edition_id===record?.edition_id&&r.entity_id===record?.entity_id);
   if(!row||!(record.selected_path===null||typeof record.selected_path==='string'))
-   throw Error('Unknown historical edition identity selection');
+   throw Error('Unknown historical country-and-edition identity selection');
   if(record.selected_path!==null){
    const f=row.candidates.find(f=>f.path===record.selected_path);
-   if(!f)throw Error('Historical asset does not match canonical country or edition choice');
+   if(!f)throw Error('Historical flag selection mismatch for '+row.country_name+' SSC '+row.edition_number+': selected asset is not an approved flag for that country. Download a fresh corrected review and reselect.');
    selected.push({...f,...{
     country_id:row.country_id,country_name:row.country_name,
     edition_id:row.edition_id,edition_number:row.edition_number,
@@ -116,7 +118,7 @@ export function renderHistoricalFlagReviewHtml(review){
      '" alt="Possible flag design; not automatically matched to SSC edition" loading="lazy">'+
      '<small>'+E(f.path.split('/').at(-1))+' · '+E(f.sha256.slice(0,16))+'…</small></button>'
      ).join('')+'</div>':'<p>No original country flag recovered. Leave unchanged until the historical original is located.</p>')+
-    '<button type="button" data-clear="'+E(r.edition_id)+'">Keep this edition unchanged / inherit current flag</button></div>'
+    '<button type="button" data-clear="'+E(r.edition_id)+'" data-clear-country="'+E(r.country_id)+'">Keep this edition unchanged / inherit current flag</button></div>'
    ).join('')+'</section>';
  }).join('');
  return `<!doctype html><html lang="en"><meta charset="utf-8">
@@ -137,27 +139,28 @@ export function renderHistoricalFlagReviewHtml(review){
  #download{position:sticky;bottom:10px;background:#216e56}
  #count{font-weight:bold;color:#91ecc5}</style>
  <main><h1>Solaris V3 · historical flags by edition</h1>
- <p>Each SSC edition is independent. NO flags are automatically selected, including those with dated filenames. An empty choice keeps the current country flag fallback. Asteria/Epito and Diaria/Duto need separate original assets. This page makes no production changes.</p>
+ <p>FIXED SELECTION V2: each selection is keyed by COUNTRY plus SSC edition, never just edition. Old downloaded selection JSON is unsafe and rejected. Each SSC edition is independent. NO flags are automatically selected, including those with dated filenames. An empty choice keeps the current country flag fallback. Asteria/Epito and Diaria/Duto need separate original assets. This page makes no production changes.</p>
  <p id="count">0 historical editions selected</p>${groups}
  <button id="download" type="button">Download reviewed historical edition flag selection JSON</button>
  </main><script id="state" type="application/json">${state}</script>
  <script>const data=JSON.parse(document.getElementById('state').textContent);
- const selected=new Map(data.records.map(r=>[r.edition_id,r]));
+ const selectionKey=(countryId,editionId)=>countryId+':'+editionId;
+ const selected=new Map(data.records.map(r=>[selectionKey(r.country_id,r.edition_id),r]));
  function redraw(){
   document.querySelectorAll('.asset').forEach(b=>b.setAttribute('aria-pressed',
-   String(selected.get(b.dataset.id).selected_path===b.dataset.path)));
+   String(selected.get(selectionKey(b.dataset.country,b.dataset.id)).selected_path===b.dataset.path)));
   document.getElementById('count').textContent=data.records.filter(r=>r.selected_path).length+
   ' historical editions selected';
  }
  document.querySelectorAll('.asset').forEach(b=>b.addEventListener('click',()=>{
-  selected.get(b.dataset.id).selected_path=b.dataset.path;redraw();
+  selected.get(selectionKey(b.dataset.country,b.dataset.id)).selected_path=b.dataset.path;redraw();
  }));
  document.querySelectorAll('[data-clear]').forEach(b=>b.addEventListener('click',()=>{
-  selected.get(b.dataset.clear).selected_path=null;redraw();
+  selected.get(selectionKey(b.dataset.clearCountry,b.dataset.clear)).selected_path=null;redraw();
  }));
  document.getElementById('download').addEventListener('click',()=>{
   const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)+'\\n'],{type:'application/json'}));
-  const a=document.createElement('a');a.href=url;a.download='solaris-historical-edition-flags-selection.json';
+  const a=document.createElement('a');a.href=url;a.download='solaris-historical-edition-flags-selection-v2.json';
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
  });redraw();</script></html>`;
 }
