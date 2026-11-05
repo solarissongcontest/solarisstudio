@@ -48,7 +48,7 @@
 .v3-directory-family .v3-directory-desktop-rail button[aria-pressed=true]{background:var(--surface);color:var(--foreground);font-weight:720}
 .v3-directory-family .v3-directory-desktop-rail button span:last-child{font-size:.76rem;font-variant-numeric:tabular-nums}
 .v3-directory-family .v3-directory-results{min-width:0}
-.v3-directory-family .v3-directory-desktop-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
+.v3-directory-family .v3-directory-desktop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr));gap:.8rem}
 .v3-directory-family .v3-directory-desktop-card{display:flex;min-width:0;min-height:118px;flex-direction:column;gap:.5rem;border:1px solid var(--border);border-radius:.85rem;background:var(--surface);padding:1.05rem 1rem;text-decoration:none}
 .v3-directory-family .v3-directory-card-top{display:flex;align-items:center;justify-content:space-between;gap:.6rem;font-size:.96rem}
 .v3-directory-family .v3-directory-card-top>svg{flex-shrink:0;color:var(--muted-foreground)}
@@ -56,4 +56,16 @@
 .v3-directory-family .v3-directory-aliases{margin-top:auto;color:var(--muted-foreground);font-size:.73rem;line-height:1.5}
 .v3-directory-family :is(.v3-directory-mobile-row,.v3-directory-desktop-rail button):hover{background:var(--surface)}
 .v3-directory-family .v3-directory-desktop-card:hover{background:var(--surface-strong,var(--surface));border-color:var(--primary)}
-@media (min-width:1200px){.v3-directory-family .v3-directory-desktop-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+
+/* Rail/grid density follows the ACTUAL content container, not the outer monitor width.
+ * Rules embeds this family in a narrower governed shell; 200% text must not
+ * collapse chapters into unreadable 3-column slivers. */
+.v3-directory-family[data-directory-experience="desktop-web"]{container-type:inline-size}
+@container (max-width:55rem){
+  .v3-directory-family[data-directory-experience="desktop-web"] .v3-directory-workspace{grid-template-columns:minmax(0,1fr)}
+  .v3-directory-family .v3-directory-desktop-rail{position:static;display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;padding:0 0 .75rem;border-right:0;border-bottom:1px solid var(--border)}
+  .v3-directory-family .v3-directory-desktop-rail h2{flex-basis:100%;margin-bottom:.35rem}
+  .v3-directory-family .v3-directory-desktop-rail button{width:auto;max-width:100%;min-width:0}
+}
+.v3-directory-family .v3-directory-desktop-card{overflow-wrap:anywhere}
