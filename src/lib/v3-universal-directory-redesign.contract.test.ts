@@ -71,6 +71,14 @@ describe("Solaris universal directory presentation regression", () => {
     expect(editions).not.toContain("supabase");
   });
 
+  it("preserves composed Rulebook shell ownership and stable typed chapter routes", () => {
+    expect(family).toContain("noShell = false");
+    expect(family).toContain("context?: ReactNode");
+    expect(family).toContain("params?: Record<string, string>");
+    expect(family).toContain("return noShell ? content : <AppShell>{content}</AppShell>");
+    expect(family).toContain("params={item.params as any}");
+  });
+
   it("keeps all three experiences while avoiding dock and backend rewrites", () => {
     expect(family).toContain('presentation === "mobile-web"');
     expect(family).toContain('presentation === "desktop-web"');
