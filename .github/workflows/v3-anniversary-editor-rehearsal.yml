@@ -12,8 +12,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: anniversary-editor-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  group: anniversary-editor-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   acceptance:
     name: Isolated governed Anniversary command acceptance
