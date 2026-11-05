@@ -31,6 +31,15 @@ expect_db_failure() {
   log "PASS: $label"
 }
 
+# This rehearsal temporarily exits read-only to exercise exact Organizer review.
+# Restore the incoming fixture mode so later rehearsals inherit their own setup.
+ORIGINAL_PLATFORM_MODE="$(scalar "select mode from public.studio2_platform_operational_state where singleton=true;")"
+[[ "$ORIGINAL_PLATFORM_MODE" =~ ^[a-z_]+$ ]] || fail "Invalid original platform mode"
+restore_platform_mode() {
+  exec_sql "update public.studio2_platform_operational_state set mode='$ORIGINAL_PLATFORM_MODE',version=version+1,reason='Restore platform mode after isolated NF rehearsal' where singleton=true and mode is distinct from '$ORIGINAL_PLATFORM_MODE';"
+}
+trap restore_platform_mode EXIT
+
 COUNTRY_ID='00000000-0000-4000-8000-00000000c781'
 EDITION_ID='00000000-0000-4000-8000-00000000e781'
 ROUND_ID='00000000-0000-4000-8000-00000000a781'
