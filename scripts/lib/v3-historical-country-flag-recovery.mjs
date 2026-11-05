@@ -75,6 +75,7 @@ export function initialHistoricalSelection(review){
  };
 }
 export function validateHistoricalSelection(review,selection){
+ if(selection?.review_schema_version!==2)throw Error('Unsafe historical selection v1: the old review mixed countries in shared SSC editions. Generate a fresh v2 preview and reselect.');
  if(selection?.report_type!=='v3-historical-edition-flags-owner-selection'||
   selection.destination_project!==PROJECT||selection.manifest_sha256!==review.manifest_sha256||
   selection.live_identity_snapshot_sha256!==review.live_identity_snapshot_sha256||
