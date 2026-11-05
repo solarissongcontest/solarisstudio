@@ -57,7 +57,6 @@ function WebCountriesPage({ presentation }: { presentation: "mobile-web" | "desk
     <AppShell>
       {mobileWeb ? (
         <header className="country-directory-mobile-masthead" data-country-directory-web-header="">
-          <Link to="/explore" className="country-directory-mobile-back">Explore / Countries</Link>
           <h1>Countries</h1>
           <p>Discover every country of Terra Solaris, explore its history and open its profile.</p>
         </header>

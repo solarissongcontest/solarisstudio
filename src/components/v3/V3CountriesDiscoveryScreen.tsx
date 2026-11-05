@@ -14,6 +14,7 @@ import type { CountryDirectoryPresentation } from "@/lib/country-directory-prese
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { type Country, useCountries, useEditions } from "@/lib/data";
 import { countryDirectoryRegionOptions, filterCountryDirectory } from "@/lib/v3-country-directory-filters";
+import { directoryCountLabel } from "@/lib/v3-directory-count";
 import { usePublicEditionParticipants } from "@/lib/public-participants";
 import {
   buildCountryDiscovery,
@@ -93,8 +94,8 @@ export function V3CountriesDiscoveryScreen({
   ].filter((group) => group.countries.length > 0);
 
   return (
-    <div className="v3-countries-discovery space-y-8" data-country-directory-experience={presentation}>
-      {presentation === "mobile-web" ? (
+    <div className="v3-countries-discovery space-y-6" data-country-directory-experience={presentation}>
+      {presentation !== "installed-app" ? (
         <h2 id="countries-page-title" className="sr-only">Browse all countries</h2>
       ) : (
       <header className="v3-countries-intro">
@@ -104,11 +105,11 @@ export function V3CountriesDiscoveryScreen({
             : "TERRA SOLARIS · COUNTRY ARCHIVE"}
         </p>
         <h2 id="countries-page-title" className="v3-countries-title">
-          {presentation === "installed-app" ? "Meet the countries" : "Country explorer"}
+          {presentation === "installed-app" ? "Countries" : "Country explorer"}
         </h2>
         <p className="v3-countries-lead">
           {discovery.currentEdition
-            ? `${discovery.participating.length} published delegations in this edition. Browse the full country directory or filter to the current lineup.`
+            ? `Browse the current SSC ${discovery.currentEdition.edition_number ?? ""} lineup or discover all Terra Solaris countries.`
             : "Discover the countries of Terra Solaris, their regions and their histories."}
         </p>
       </header>
@@ -130,9 +131,10 @@ export function V3CountriesDiscoveryScreen({
                 setRegion("all");
                 setVisibleCount(BROWSE_PAGE_SIZE);
               }}
-              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${participatingOnly ? "border-primary bg-primary/15 text-foreground" : "border-border bg-surface text-muted-foreground"}`}
+              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${participatingOnly ? "is-selected" : ""}`}
             >
-              SSC {discovery.currentEdition.edition_number ?? "current"} · {discovery.participating.length}
+              {participatingOnly ? <Check size={16} aria-hidden="true" /> : null}
+              <span>SSC {discovery.currentEdition.edition_number ?? "current"} · {discovery.participating.length}</span>
             </button>
             <button
               type="button"
@@ -143,9 +145,10 @@ export function V3CountriesDiscoveryScreen({
                 setRegion("all");
                 setVisibleCount(BROWSE_PAGE_SIZE);
               }}
-              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${!participatingOnly ? "border-primary bg-primary/15 text-foreground" : "border-border bg-surface text-muted-foreground"}`}
+              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${!participatingOnly ? "is-selected" : ""}`}
             >
-              All countries · {countriesQuery.data?.length ?? 0}
+              {!participatingOnly ? <Check size={16} aria-hidden="true" /> : null}
+              <span>All countries · {countriesQuery.data?.length ?? 0}</span>
             </button>
           </div>
         ) : null}
@@ -176,6 +179,7 @@ export function V3CountriesDiscoveryScreen({
               setVisibleCount(BROWSE_PAGE_SIZE);
             }}
             label="Search countries"
+            className={presentation === "installed-app" ? undefined : "v3-countries-web-search"}
             placeholder="Search countries…"
           />
           <div className="solaris-app-directory-filterbar">
@@ -231,7 +235,9 @@ export function V3CountriesDiscoveryScreen({
                 </select>
               </label>
             ) : null}
-            <span className="solaris-app-directory-count" aria-live="polite">{filtered.length} matching</span>
+            <span className="solaris-app-directory-count" aria-live="polite" role="status">
+              {directoryCountLabel({ available: collectionCount, matches: filtered.length, rendered: visible.length, noun: "countries" })}
+            </span>
           </div>
         </div>
 

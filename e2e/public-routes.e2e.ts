@@ -95,6 +95,11 @@ test("Country directory renders the correct mobile-web and desktop browse compos
     await expect(directory.locator(".v3-countries-region-rail")).toBeVisible();
     await expect(directory.locator(".v3-countries-desktop-grid")).toBeVisible();
     await expect(page.locator("[data-country-directory-web-header]")).toHaveCount(0);
+    await expect(directory.locator(".v3-countries-intro")).toHaveCount(0);
+    const font = await page.locator(".countries-library-hero h1").evaluate(
+      (heading) => getComputedStyle(heading).fontFamily,
+    );
+    expect(font, "Countries should use the ordinary Solaris UI typeface").not.toMatch(/Classica Crastao/i);
   }
   await expect(directory.getByRole("searchbox", { name: "Search countries" })).toBeVisible();
   await expect(directory.locator('a[href^="/countries/"]').first()).toBeVisible();
@@ -150,6 +155,10 @@ test("Public directory family distinguishes mobile website from desktop explorer
       await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
       await expect(directory.locator(".v3-directory-desktop-rail")).toBeVisible();
       await expect(directory.locator(".v3-directory-desktop-grid").first()).toBeVisible();
+      const font = await directory.locator(".page-header h1").evaluate(
+        (heading) => getComputedStyle(heading).fontFamily,
+      );
+      expect(font, `${route} should use Solaris UI typography`).not.toMatch(/Classica Crastao/i);
     }
 
     const search = directory.getByRole("searchbox", {
