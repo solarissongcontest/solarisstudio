@@ -218,7 +218,8 @@ BEGIN
 END
 $approved_legacy_country_flags$;
 COMMIT;
--- Read-only verification: SELECT c.name,c.flag_image FROM public.countries c
--- WHERE c.id IN (SELECT country_id FROM _v3_approved_country_flags);
+-- Post-commit read-only verification (the temporary approved table was dropped):
+-- SELECT name, flag_image FROM public.countries
+-- WHERE name IN (${chosen.map(f=>quote(f.name)).join(', ')}) ORDER BY name;
 `;
 }
