@@ -8,6 +8,7 @@ import { useSolarisApp } from "@/components/app/AppRuntime";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
+import { directoryCountLabel } from "@/lib/v3-directory-count";
 import "@/styles/v3-directory-family.css";
 
 export type V3DirectoryItem = {
@@ -78,9 +79,7 @@ export function V3DirectoryFamilyIndex({
     })),
   ];
   const selected = options.find((entry) => entry.id === area) ?? options[0];
-  const resultCount = `${visible} of ${total} ${itemNoun} shown` +
-    (search.trim() ? ` · ${searchMatches} match search` : "") +
-    (area !== "all" ? ` · ${selected.label}` : "");
+  const resultCount = directoryCountLabel({ available: total, matches: visible, rendered: visible, noun: itemNoun });
   const reset = () => { setSearch(""); setArea("all"); };
 
   if (!platformResolved) {
