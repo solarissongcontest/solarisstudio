@@ -37,6 +37,7 @@ export function V3DirectoryFamilyIndex({
   emptyText,
   itemNoun,
   groups,
+  noShell = false,
 }: {
   title: string;
   eyebrow: string;
@@ -48,6 +49,8 @@ export function V3DirectoryFamilyIndex({
   emptyText: string;
   itemNoun: string;
   groups: readonly V3DirectoryGroup[];
+  /** Allow a governed route such as Rules to retain its own rollout shell. */
+  noShell?: boolean;
 }) {
   const { platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
@@ -148,8 +151,7 @@ export function V3DirectoryFamilyIndex({
     </>
   );
 
-  return (
-    <AppShell>
+  const content = (
       <div className="v3-directory-family" data-directory-experience={presentation}>
         {presentation === "installed-app" ? (
           <AppScreen>
@@ -187,8 +189,8 @@ export function V3DirectoryFamilyIndex({
           </>
         )}
       </div>
-    </AppShell>
   );
+  return noShell ? content : <AppShell>{content}</AppShell>;
 }
 
 function DirectoryItems({ items, presentation }: {
