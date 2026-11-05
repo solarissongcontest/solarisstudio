@@ -46,6 +46,11 @@ describe("S15 scheduled-job ownership audit", () => {
     ).findings).toEqual([]);
   });
 
+  it("cannot hide a later scheduled writer behind an escaped SQL string", () => {
+    const sql = String.raw`select E'it\'s metadata'; select cron.schedule('unowned', '* * * * *', 'select 1');`;
+    expect(inspectV3CronMigrations(migration(sql), []).scheduledJobNames).toEqual(["unowned"]);
+  });
+
   it("rejects a dynamic job name instead of silently omitting it", () => {
     const report = inspectV3CronMigrations(
       migration("perform cron.schedule(v_job_name, '* * * * *', 'select 1');"),

@@ -15,6 +15,7 @@ export type V3CronOwnershipAudit = {
 function withoutSqlComments(source: string): string {
   let result = "";
   let quote: "'" | '"' | null = null;
+  let escapeString = false;
   let lineComment = false;
   let blockDepth = 0;
 
@@ -46,6 +47,11 @@ function withoutSqlComments(source: string): string {
     }
     if (quote) {
       result += char;
+      if (escapeString && char === "\\" && next !== undefined) {
+        result += next;
+        i += 1;
+        continue;
+      }
       if (char === quote) {
         if (next === quote) {
           result += next;
@@ -58,6 +64,7 @@ function withoutSqlComments(source: string): string {
     }
     if (char === "'" || char === '"') {
       quote = char;
+      escapeString = char === "'" && /(?:^|[^\w$])[eE]$/.test(source.slice(0, i));
       result += char;
     } else if (char === "-" && next === "-") {
       lineComment = true;
@@ -81,10 +88,16 @@ function withoutSqlComments(source: string): string {
 function outsideSqlStrings(source: string): string {
   let result = "";
   let quote: "'" | '"' | null = null;
+  let escapeString = false;
   for (let i = 0; i < source.length; i += 1) {
     const char = source[i];
     if (quote) {
       result += char === "\n" ? "\n" : " ";
+      if (escapeString && char === "\\" && source[i + 1] !== undefined) {
+        result += source[i + 1] === "\n" ? "\n" : " ";
+        i += 1;
+        continue;
+      }
       if (char === quote) {
         if (source[i + 1] === quote) {
           result += " ";
@@ -95,6 +108,7 @@ function outsideSqlStrings(source: string): string {
       }
     } else if (char === "'" || char === '"') {
       quote = char;
+      escapeString = char === "'" && /(?:^|[^\w$])[eE]$/.test(source.slice(0, i));
       result += " ";
     } else {
       result += char;
