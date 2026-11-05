@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { AppScreen } from "@/components/app/AppPrimitives";
@@ -57,7 +57,6 @@ function ShowsPage() {
       <div className="v3-directory-family" data-directory-experience={presentation}>
         {presentation === "mobile-web" ? (
           <header className="v3-directory-mobile-header" data-directory-mobile-header="">
-            <Link to="/explore" className="v3-directory-back">Explore / Shows</Link>
             <p className="v3-directory-eyebrow">BROADCAST ARCHIVE</p>
             <h1>Shows</h1>
             <p>Find what is live, next, recently completed or archived.</p>

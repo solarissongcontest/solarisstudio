@@ -65,7 +65,7 @@ function ArchiveRootPage() {
 
 function ArchiveContext() {
   return (
-    <section className="v3-archive-context mb-6 rounded-2xl border border-border bg-surface/55 p-4"
+    <section className="v3-archive-context mb-4 border-b border-border/65 pb-3"
       aria-labelledby="archive-context-heading">
       <div className="flex items-start gap-3">
         <Archive size={20} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />

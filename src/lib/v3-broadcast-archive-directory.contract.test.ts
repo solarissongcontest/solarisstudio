@@ -10,6 +10,7 @@ describe("V3 broadcast and historical directories: three experiences", () => {
     expect(route).toContain("useV3DirectoryPresentation()");
     expect(route).toContain("platformResolved");
     expect(route).toContain('data-directory-mobile-header=""');
+    expect(route).not.toContain('className="v3-directory-back"');
     expect(route).toContain("data-directory-experience={presentation}");
     expect(screen).toContain('data-show-directory-experience={presentation}');
     expect(screen).toContain("buildShowDiscovery");
@@ -31,6 +32,8 @@ describe("V3 broadcast and historical directories: three experiences", () => {
       expect(root).toContain(`to: "${route}"`);
     }
     expect(root).toContain("Historical context stays historical");
+    expect(root).toContain('className="v3-archive-context mb-4 border-b');
+    expect(root).not.toContain('rounded-2xl border border-border bg-surface/55');
     expect(root).toContain("Current participation responsibilities belong in Participate");
     expect(root).not.toContain('to: "/participate"');
     expect(root).not.toContain("useCountries(");
