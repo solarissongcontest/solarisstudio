@@ -227,11 +227,14 @@ test("Stories and Reference preserve editorial mobile-web and desktop discovery"
 
   await page.goto("/encyclopedia", { waitUntil: "domcontentloaded" });
   const reference = page.locator(".v3-reference-directory");
-  const disabled = page.getByText("Reference is not enabled yet");
-  await expect.poll(async () => (await reference.count()) > 0 || (await disabled.count()) > 0).toBe(true);
-  if (await reference.count()) {
-    await expect(reference).toHaveAttribute("data-directory-experience", mobile ? "mobile-web" : "desktop-web");
-    await expect(reference.getByRole("searchbox", { name: "Search Reference" })).toBeVisible();
+  const disabled = reference.getByText("Reference is not enabled yet");
+  const referenceSearch = reference.getByRole("searchbox", { name: "Search Reference" });
+  await expect(reference).toHaveAttribute("data-directory-experience", mobile ? "mobile-web" : "desktop-web");
+  // The wrapper is deliberately present for both server-owned rollout states.
+  // Wait for the actual enabled control or disabled explanation, not just the wrapper.
+  await expect.poll(async () => (await disabled.isVisible()) || (await referenceSearch.isVisible())).toBe(true);
+  if (!(await disabled.isVisible())) {
+    await expect(referenceSearch).toBeVisible();
     if (mobile) {
       await expect(reference.locator("[data-directory-mobile-header]")).toBeVisible();
       await expect(reference.getByRole("combobox", { name: "Filter Reference" })).toBeVisible();
@@ -240,8 +243,11 @@ test("Stories and Reference preserve editorial mobile-web and desktop discovery"
       await expect(reference.locator(".v3-directory-desktop-rail")).toBeVisible();
     }
   } else {
-    // A rollout-off state is legitimate but is not proof the enabled layout passed.
+    // Rollout-off is a valid, explicitly tested public state, not enabled-layout evidence.
     await expect(disabled).toBeVisible();
+    await expect(reference.getByText(/its rollout flag is still off/)).toBeVisible();
+    await expect(referenceSearch).toHaveCount(0);
+    await expect(reference.locator(".v3-directory-desktop-rail")).toHaveCount(0);
   }
   const overflow = await page.evaluate(() =>
     Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
