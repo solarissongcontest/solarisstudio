@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import {sha256,stableJson} from './v3-media-recovery-core.mjs';
+import {verifyRepositoryOwner,assertOwnerAuthorization,OWNER_METHOD} from './v3-owner-media-recovery.mjs';
 import {stagedDigest,assertScopedMode,verifyStaging,restoreApprovedStaging}
  from './v3-staged-media-recovery.mjs';
 
@@ -86,4 +87,82 @@ test('privacy mismatch and CI production guard deny all writes',async()=>{
  await assert.rejects(restoreApprovedStaging(request(f)),/privacy/);
  assert.equal(f.uploads,0);
  await assert.rejects(restoreApprovedStaging(request(new Fake(),{ci:true})),/CI/);
+});
+
+function signedOwnerApproval(){
+ const base=signedApproval();
+ const {signature:discard,...u}=base;
+ u.operator='solarissongcontest';
+ u.owner_authorization={
+  method:OWNER_METHOD,github_login:'solarissongcontest',
+  repository:'solarissongcontest/solarisstudio',
+  decision:'APPROVE_VERIFIED_LEGACY_PUBLIC_IMAGES_ONLY',
+  approved_at:'2026-11-04T18:30:00Z'
+ };
+ u.read_only_recovery_exception={
+  scope:'historical-public-media-only',
+  destination_project:'dkxmnvekiopyesuzggeu',
+  keeps_confirmation_and_general_mutations_locked:true,
+  approval_method:OWNER_METHOD,owner_github_login:'solarissongcontest',
+  change_ticket:u.change_ticket,reason:'Restore verified previously public images only'
+ };
+ return {...u,signature:createHmac('sha256',signingKey).update(stableJson(u)).digest('hex')};
+}
+const ownerProof={
+ github_login:'solarissongcontest',repository:'solarissongcontest/solarisstudio',
+ repository_admin:true,verified_at:'2026-11-04T18:55:00Z'
+};
+test('authenticated repository owner replaces independent reviewer only for explicitly signed owner mode',async()=>{
+ const f=new Fake();
+ const approval=signedOwnerApproval();
+ assert.doesNotThrow(()=>assertOwnerAuthorization(approval,ownerProof,now));
+ assert.doesNotThrow(()=>assertScopedMode('read_only',approval,'APPROVE_SCOPED_READ_ONLY_MEDIA_RECOVERY',ownerProof,now));
+ const result=await restoreApprovedStaging(request(f,{approval,ownerProof}));
+ assert.equal(result.copied,1);
+ assert.equal(f.uploads,1);
+});
+test('solo-owner path rejects missing and impersonated identity, even outside read-only',async()=>{
+ const approval=signedOwnerApproval();
+ for(const proof of [null,{...ownerProof,github_login:'impostor'},
+   {...ownerProof,repository_admin:false},{...ownerProof,repository:'other/repo'},
+   {...ownerProof,verified_at:'2026-11-04T18:00:00Z'}]){
+  assert.throws(()=>assertScopedMode('read_only',approval,'APPROVE_SCOPED_READ_ONLY_MEDIA_RECOVERY',proof,now),/owner|expired/);
+  assert.throws(()=>assertScopedMode('normal',approval,'APPROVE_SCOPED_READ_ONLY_MEDIA_RECOVERY',proof,now),/owner|expired/);
+  const f=new Fake();
+  await assert.rejects(restoreApprovedStaging(request(f,{approval,ownerProof:proof})),/owner|expired/);
+  assert.equal(f.uploads,0);
+ }
+});
+test('solo-owner authorization is signed and expires; never permits maintenance or mixed-mode claims',async()=>{
+ const approval=signedOwnerApproval();
+ const tampered=structuredClone(approval);
+ tampered.owner_authorization.github_login='attacker';
+ const f=new Fake();
+ await assert.rejects(restoreApprovedStaging(request(f,{approval:tampered,ownerProof})),/signature/);
+ assert.equal(f.uploads,0);
+ const expired=structuredClone(approval);
+ expired.owner_authorization.approved_at='2026-10-01T10:00:00Z';
+ assert.throws(()=>assertScopedMode('read_only',expired,'APPROVE_SCOPED_READ_ONLY_MEDIA_RECOVERY',ownerProof,now),/expired/);
+ const mixed=structuredClone(approval);
+ mixed.read_only_recovery_exception.independent_reviewer='imaginary';
+ assert.throws(()=>assertScopedMode('read_only',mixed,'APPROVE_SCOPED_READ_ONLY_MEDIA_RECOVERY',ownerProof,now),/mode/);
+ assert.throws(()=>assertScopedMode('maintenance',approval,'APPROVE_SCOPED_READ_ONLY_MEDIA_RECOVERY',ownerProof,now),/mode/);
+});
+test('GitHub owner proof checks authenticated owner and admin rights without network in local tests',async()=>{
+ const calls=[];
+ const fakeFetch=async url=>{
+  calls.push(url);
+  return {ok:true,json:async()=>url.endsWith('/user')
+   ?{login:'solarissongcontest'}
+   :{full_name:'solarissongcontest/solarisstudio',owner:{login:'solarissongcontest'},permissions:{admin:true}}};
+ };
+ const proof=await verifyRepositoryOwner('test-protected-token',fakeFetch);
+ assert.equal(proof.github_login,'solarissongcontest');
+ assert.equal(proof.repository_admin,true);
+ assert.equal(calls.length,2);
+ await assert.rejects(verifyRepositoryOwner('test-protected-token',async url=>({
+  ok:true,json:async()=>url.endsWith('/user')?{login:'someone-else'}:
+  {full_name:'solarissongcontest/solarisstudio',owner:{login:'solarissongcontest'},permissions:{admin:false}}
+ })),/not the Solaris repository owner/);
+ await assert.rejects(verifyRepositoryOwner('',fakeFetch),/token/);
 });
