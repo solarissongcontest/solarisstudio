@@ -63,6 +63,17 @@ export default defineConfig({
                 name: "vendor-floating",
                 test: /[\\/]node_modules[\\/]@floating-ui[\\/]/,
               },
+              // Collapse small, frequently reused UI control adapters instead
+              // of repeating module shells and gzip framing across lazy routes.
+              // A minimum three-entry share prevents one-off page components
+              // from being pulled into the common browser payload.
+              {
+                name: "shared-controls",
+                test: /[\\/]src[\\/]components[\\/]ui[\\/]/,
+                minShareCount: 3,
+                minSize: 12000,
+                priority: 1,
+              },
             ],
           },
         },
