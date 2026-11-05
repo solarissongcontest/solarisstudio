@@ -127,10 +127,14 @@ export function V3ArtistIndexScreen({
           onSubmit={onQueryChange}
         />
       </div>
+      <p className="v3-music-index-coverage" role="status" aria-live="polite">
+        Results are a bounded window of published identities, not a complete historical catalogue.
+        Search by name to narrow the selection.
+      </p>
 
       <V3Section
         title={query ? "Search results" : "Published artists"}
-        meta={`${projection.items.length} shown`}
+        meta={`${projection.items.length} published identities loaded`}
       >
         {projection.items.length ? (
           <div className="v3-music-preview-list">
@@ -188,10 +192,14 @@ export function V3SongIndexScreen({
           onSubmit={onQueryChange}
         />
       </div>
+      <p className="v3-music-index-coverage" role="status" aria-live="polite">
+        Results are a bounded window of published identities, not a complete historical catalogue.
+        Search by name to narrow the selection.
+      </p>
 
       <V3Section
         title={query ? "Search results" : "Published songs"}
-        meta={`${projection.items.length} shown`}
+        meta={`${projection.items.length} published identities loaded`}
       >
         {projection.items.length ? (
           <div className="v3-music-preview-list">
@@ -254,7 +262,7 @@ function AppearanceList({
             <Disc3 className="size-5" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-white/92">
+            <span className="block min-w-0 break-words text-sm font-semibold leading-snug text-white/92">
               {appearance.songLabel}
             </span>
             <span className="mt-1 block truncate text-xs text-white/50">
@@ -313,7 +321,7 @@ export function V3ArtistDetailScreen({ artist }: { artist: V3ArtistDetail }) {
                   <Disc3 className="size-5" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-white/92">
+                  <span className="block min-w-0 break-words text-sm font-semibold leading-snug text-white/92">
                     {song.title}
                   </span>
                   <span className="mt-1 block text-xs text-white/48">
@@ -335,6 +343,10 @@ export function V3ArtistDetailScreen({ artist }: { artist: V3ArtistDetail }) {
         <AppearanceList appearances={artist.appearances} />
       </V3Section>
       </div>
+      <p className="v3-music-index-coverage" role="status" aria-live="polite">
+        Results are a bounded window of published identities, not a complete historical catalogue.
+        Search by name to narrow the selection.
+      </p>
 
       <V3Section title="Explore music">
         <MusicRootLink />
@@ -379,7 +391,7 @@ export function V3SongDetailScreen({ song }: { song: V3SongDetail }) {
                   <MicVocal className="size-4.5" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-white/92">
+                  <span className="block min-w-0 break-words text-sm font-semibold leading-snug text-white/92">
                     {artist.creditLabel || artist.displayName}
                   </span>
                   <span className="mt-1 block truncate text-xs text-white/48">
@@ -403,6 +415,10 @@ export function V3SongDetailScreen({ song }: { song: V3SongDetail }) {
         <AppearanceList appearances={song.appearances} />
       </V3Section>
       </div>
+      <p className="v3-music-index-coverage" role="status" aria-live="polite">
+        Results are a bounded window of published identities, not a complete historical catalogue.
+        Search by name to narrow the selection.
+      </p>
 
       <V3Section title="Explore music">
         <MusicRootLink />

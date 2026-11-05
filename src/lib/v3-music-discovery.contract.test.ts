@@ -75,6 +75,8 @@ describe("V3 Songs & Artists discovery", () => {
     expect(source).toContain("V3ArtistPreview");
     expect(source).not.toContain("slugify");
     expect(source).not.toContain("toLowerCase()");
+    expect(source).toContain("break-words text-sm font-semibold");
+    expect(source).not.toContain("block truncate text-sm font-semibold");
   });
 
   it("uses the dedicated music primitives on searchable collections instead of generic action-card rows", () => {
@@ -96,6 +98,9 @@ describe("V3 Songs & Artists discovery", () => {
     expect(source).toContain("v3-music-detail-columns");
     expect(source).toContain("v3-music-preview-list");
     expect(source).toContain("v3-music-related-links");
+    expect(source).toContain("v3-music-index-coverage");
+    expect(source).toContain("not a complete historical catalogue");
+    expect(source).toContain("published identities loaded");
     expect(source).toContain('editorial={presentation === "desktop-web"}');
     expect(source).not.toContain("V3ActionCard");
     expect(source).toContain("v3SongHref(song.id)");

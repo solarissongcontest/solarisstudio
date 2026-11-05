@@ -33,7 +33,7 @@ export function V3SongPreview({
         <Disc3 className="size-6" />
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-sm font-semibold text-white/92">
+        <span className="block min-w-0 break-words text-sm font-semibold leading-snug text-white/92">
           {song.title}
         </span>
         <span className="mt-1 block truncate text-xs text-white/50">
@@ -65,7 +65,7 @@ export function V3ArtistPreview({ artist }: { artist: V3ArtistSummary }) {
         <MicVocal className="size-5" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-white/92">
+        <span className="block min-w-0 break-words text-sm font-semibold leading-snug text-white/92">
           {artist.displayName}
         </span>
         <span className="mt-1 block text-xs text-white/48">

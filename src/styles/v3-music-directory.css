@@ -89,3 +89,17 @@
 }
 .v3-music-directory--mobile-web .v3-music-detail-columns{gap:1.25rem}
 .v3-music-directory--installed-app .v3-music-detail-columns{gap:1rem}
+
+/* Never truncate an official name into an unidentifiable ellipsis. Media-less
+ * identities use the established neutral disc and microphone fallbacks. */
+.v3-music-directory .v3-music-preview-list a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.v3-music-directory .v3-music-index-coverage {
+  max-width: 64ch;
+  margin: .3rem 0 .9rem;
+  color: rgba(255,255,255,.54);
+  font-size: .75rem;
+  line-height: 1.5;
+}
