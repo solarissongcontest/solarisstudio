@@ -8,7 +8,7 @@ describe("V3 old-to-current Storage and country-media recovery local-only regres
     // manual CLI or real Supabase clients. Do not forward CI secrets to it.
     const output = execFileSync(
       "node",
-      ["--test", resolve(process.cwd(), "scripts/lib/v3-media-recovery-core.test.mjs"), resolve(process.cwd(), "scripts/lib/v3-staged-media-recovery.test.mjs"), resolve(process.cwd(), "scripts/lib/v3-country-flag-recovery.test.mjs"), resolve(process.cwd(), "scripts/lib/v3-country-rich-media-recovery.test.mjs")],
+      ["--test", resolve(process.cwd(), "scripts/lib/v3-media-recovery-core.test.mjs"), resolve(process.cwd(), "scripts/lib/v3-staged-media-recovery.test.mjs"), resolve(process.cwd(), "scripts/lib/v3-country-flag-recovery.test.mjs"), resolve(process.cwd(), "scripts/lib/v3-country-rich-media-recovery.test.mjs"), resolve(process.cwd(), "scripts/lib/v3-yaria-gallery-derivative.test.mjs"), resolve(process.cwd(), "scripts/lib/v3-historical-country-flag-recovery.test.mjs")],
       {
         cwd: process.cwd(),
         encoding: "utf8",
