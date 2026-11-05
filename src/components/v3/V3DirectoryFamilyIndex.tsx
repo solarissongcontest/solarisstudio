@@ -15,6 +15,8 @@ export type V3DirectoryItem = {
   title: string;
   description: string;
   to: string;
+  /** Typed route parameter for canonical directory deep links. */
+  params?: Record<string, string>;
   searchText?: string;
   eyebrow?: string;
   aliases?: readonly string[];
@@ -200,7 +202,7 @@ function DirectoryItems({ items, presentation }: {
   if (presentation === "installed-app") {
     return <AppGroupedList>
       {items.map((item) => (
-        <Link key={item.id} to={item.to as any} className="solaris-app-list-row">
+        <Link key={item.id} to={item.to as any} params={item.params as any} className="solaris-app-list-row">
           <span className="min-w-0 flex-1">
             <strong className="block text-sm font-semibold">{item.title}</strong>
             <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
@@ -213,7 +215,7 @@ function DirectoryItems({ items, presentation }: {
   if (presentation === "mobile-web") {
     return <div className="v3-directory-mobile-list">
       {items.map((item) => (
-        <Link key={item.id} to={item.to as any} className="v3-directory-mobile-row">
+        <Link key={item.id} to={item.to as any} params={item.params as any} className="v3-directory-mobile-row">
           <span className="min-w-0 flex-1"><strong>{item.title}</strong><span>{item.description}</span></span>
           <ChevronRight size={19} aria-hidden="true" />
         </Link>
@@ -222,7 +224,7 @@ function DirectoryItems({ items, presentation }: {
   }
   return <div className="v3-directory-desktop-grid">
     {items.map((item) => (
-      <Link key={item.id} to={item.to as any} className="v3-directory-desktop-card">
+      <Link key={item.id} to={item.to as any} params={item.params as any} className="v3-directory-desktop-card">
         {item.eyebrow ? <span className="v3-directory-eyebrow">{item.eyebrow}</span> : null}
         <span className="v3-directory-card-top"><strong>{item.title}</strong><ChevronRight size={19} aria-hidden="true" /></span>
         <span className="v3-directory-card-description">{item.description}</span>
