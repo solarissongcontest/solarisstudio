@@ -1,14 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Search, X } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminPageHeader } from "@/components/admin/AdminUI";
 import { GuideFAQ } from "@/components/GuideFAQ";
+import {
+  countOrganizerGuideAnswers,
+  filterOrganizerGuideSections,
+} from "@/lib/organizer-guide-search";
 
 export const Route = createFileRoute("/_authenticated/admin/guide")({
   head: () => ({
     meta: [
       { title: "Organizer guide — Solaris Organizer" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: AdminGuidePage,
@@ -351,6 +357,15 @@ const SECTIONS = [
 ];
 
 function AdminGuidePage() {
+  const [query, setQuery] = useState("");
+  const filteredSections = useMemo(
+    () => filterOrganizerGuideSections(SECTIONS, query),
+    [query],
+  );
+  const answerCount = countOrganizerGuideAnswers(filteredSections);
+  const totalAnswerCount = countOrganizerGuideAnswers(SECTIONS);
+  const hasQuery = Boolean(query.trim());
+
   return (
     <AdminPage>
       <AdminPageHeader
@@ -358,7 +373,70 @@ function AdminGuidePage() {
         title="How to use the organizer tools"
         description="Start from the operational state or task that matters, then move into the authoritative workspace when deliberate control is needed."
       />
-      <GuideFAQ sections={SECTIONS} />
+
+      <section className="mb-5 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 sm:p-5">
+        <label htmlFor="organizer-guide-search" className="text-sm font-semibold text-foreground">
+          Find Organizer guidance
+        </label>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          Search by workspace or question instead of remembering a legacy route name.
+        </p>
+        <div className="relative mt-3">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <input
+            id="organizer-guide-search"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            autoComplete="off"
+            placeholder="Search Jury, confirmations, publication…"
+            aria-describedby="organizer-guide-search-status"
+            className="min-h-11 w-full rounded-xl border border-white/[0.08] bg-background/55 py-2.5 pl-10 pr-10 text-sm text-foreground outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
+          />
+          {query ? (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear guide search"
+              className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            >
+              <X aria-hidden="true" className="size-4" />
+            </button>
+          ) : null}
+        </div>
+        <p
+          id="organizer-guide-search-status"
+          aria-live="polite"
+          className="mt-2 text-xs text-muted-foreground"
+        >
+          {hasQuery
+            ? `${answerCount} answer${answerCount === 1 ? "" : "s"} found`
+            : `${totalAnswerCount} answers across ${SECTIONS.length} sections`}
+        </p>
+      </section>
+
+      {filteredSections.length ? (
+        <GuideFAQ sections={filteredSections} />
+      ) : (
+        <div className="data-panel rounded-2xl p-5 text-center">
+          <p className="text-sm font-semibold text-foreground">
+            No guide answers match “{query.trim()}”.
+          </p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Try a workspace such as Voting, Delegations, Live or Results.
+          </p>
+          <button
+            type="button"
+            onClick={() => setQuery("")}
+            className="admin-action-secondary mt-4"
+          >
+            Clear search
+          </button>
+        </div>
+      )}
     </AdminPage>
   );
 }

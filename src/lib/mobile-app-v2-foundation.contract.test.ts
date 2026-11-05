@@ -53,7 +53,7 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(css).toContain("--solaris-app-tabbar-max-height: 5.35rem");
     expect(css).toContain("max-height: var(--solaris-app-tabbar-max-height)");
     expect(css).not.toContain("solaris-kube-safari-mirror");
-    expect(sw).toContain('const CACHE_VERSION = "solaris-app-v15"');
+    expect(sw).toContain('const CACHE_VERSION = "solaris-app-v16"');
     expect(flags).toContain('size === "lg" || size === "xl"');
     expect(flagCss).not.toContain(
       "flex-shrink: 0;\n  border-radius: inherit;\n  isolation: isolate;",
@@ -123,12 +123,13 @@ describe("Mobile App V2 architectural invariants", () => {
 
     expect(explore).toContain("solaris-app-grouped-list");
     expect(results).toContain("solaris-app-result-hero");
-    expect(directory).toContain("solaris-app-list-row");
+    expect(directory).toContain("V3DirectoryFamilyIndex");
+    expect(source("src/components/v3/V3DirectoryFamilyIndex.tsx")).toContain("solaris-app-list-row");
     expect(editions).toContain("AppScreen");
     expect(editions).toContain("solaris-app-edition-row");
     expect(countries).toContain("AppCountriesPage");
     expect(countries).toContain("<AppScreen>");
-    expect(countries).toContain("<V3CountriesDiscoveryScreen />");
+    expect(countries).toContain('<V3CountriesDiscoveryScreen presentation="installed-app" />');
     expect(shows).toContain("AppShowsPage");
     expect(shows).toContain("<AppScreen>");
     expect(shows).toContain("<V3ShowsDiscoveryScreen />");

@@ -1,0 +1,44 @@
+name: V3 main post-merge CI evidence
+
+# This is a cheap, explicit, read-only main verification gate. Run it only after
+# the exact main SHA's Quality and Browser Audit have finished. It never starts
+# browser tests, local Supabase, or any hosted production infrastructure.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  exact-main-evidence:
+    name: Exact main Quality and Browser evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact dispatch source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Regression-test post-merge evidence evaluator
+        run: node --test scripts/verify-v3-main-ci-evidence.test.mjs
+
+      - name: Verify exact current main CI results
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/verify-v3-main-ci-evidence.mjs
+
+      - name: Preserve evidence even when a gate fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-postmerge-main-ci-${{ github.sha }}
+          path: artifacts/v3-postmerge-main-ci-evidence.json
+          if-no-files-found: error
+          retention-days: 14
