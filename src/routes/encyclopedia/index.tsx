@@ -7,7 +7,7 @@ import { Check, Search, SlidersHorizontal, X } from "lucide-react";
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import "@/styles/v3-directory-family.css";
 import "@/styles/v3-reference-directory.css";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
@@ -68,6 +68,8 @@ const RESULT_LABELS: Record<ResultKind, string> = {
   show: "Show",
 };
 const KINDS = Object.keys(KIND_LABELS) as Kind[];
+const REFERENCE_SEARCH_DELAY_MS = 300;
+const MAX_REFERENCE_QUERY_LENGTH = 120;
 const RESULT_KINDS = new Set<ResultKind>([
   "edition",
   "country",
@@ -145,6 +147,13 @@ function ReferencePage() {
   const [query, setQuery] = useState(search.artist ?? "");
   const [kind, setKind] = useState<Kind>("all");
   const normalizedQuery = query.trim();
+  const [settledQuery, setSettledQuery] = useState(normalizedQuery);
+  useEffect(() => {
+    if (settledQuery === normalizedQuery) return;
+    const timeoutId = window.setTimeout(() => setSettledQuery(normalizedQuery), REFERENCE_SEARCH_DELAY_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [normalizedQuery, settledQuery]);
+  const searchPending = settledQuery !== normalizedQuery;
 
   const feature = useQuery({
     queryKey: ["studio2-feature", "public_encyclopedia"],
@@ -170,15 +179,16 @@ function ReferencePage() {
       "v3",
       "reference",
       "search",
-      normalizedQuery.toLocaleLowerCase(),
+      settledQuery.toLocaleLowerCase(),
     ],
-    enabled: feature.data === true && normalizedQuery.length >= 2,
+    enabled: feature.data === true && normalizedQuery.length >= 2 &&
+      normalizedQuery.length <= MAX_REFERENCE_QUERY_LENGTH && !searchPending,
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc(
         "solaris_public_search",
         {
-          search_query: normalizedQuery,
+          search_query: settledQuery,
           result_limit: 50,
         },
       );
@@ -365,7 +375,11 @@ function ReferencePage() {
         <div className="mt-5 rounded-2xl border border-border bg-surface p-7 text-center text-sm text-muted-foreground">
           Type at least two characters to search the published reference.
         </div>
-      ) : referenceQuery.isLoading ? (
+      ) : normalizedQuery.length > MAX_REFERENCE_QUERY_LENGTH ? (
+        <div className="mt-5 rounded-2xl border border-border bg-surface p-7 text-center text-sm text-muted-foreground" role="status">
+          Search terms must be no longer than {MAX_REFERENCE_QUERY_LENGTH} characters.
+        </div>
+      ) : searchPending || referenceQuery.isLoading ? (
         <div className="mt-5 rounded-2xl border border-border bg-surface p-7 text-center text-sm text-muted-foreground">
           Searching the published reference…
         </div>
