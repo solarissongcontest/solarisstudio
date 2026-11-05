@@ -188,16 +188,17 @@ export function validateV3PublicDirectoryEvidence(
     }
     if (entry.certification !== "uncertified") {
       if (entry.productParity !== "parity") issues.push(`${prefix}: product parity not proven`);
-      if (entry.responsiveEvidence.length === 0
-        || entry.accessibilityEvidence.length === 0
-        || entry.visualEvidence.length === 0) {
+      if ([entry.responsiveEvidence, entry.accessibilityEvidence, entry.visualEvidence]
+        .some((evidence) => evidence.length === 0 || evidence.some((item) => !item.trim()))) {
         issues.push(`${prefix}: three-experience verification evidence incomplete`);
       }
       if (!expectedCandidateSha || !/^[0-9a-f]{40}$/.test(expectedCandidateSha)
         || entry.exactHeadCi.sha !== expectedCandidateSha) {
         issues.push(`${prefix}: exact candidate SHA evidence missing or stale`);
       }
-      const missing = entry.exactHeadCi.requiredChecks.filter(
+      // A row may require extra checks, but cannot remove the canonical minimum.
+      const requiredChecks = new Set([...REQUIRED_CHECKS, ...entry.exactHeadCi.requiredChecks]);
+      const missing = [...requiredChecks].filter(
         (check) => !entry.exactHeadCi.passedChecks.includes(check),
       );
       if (missing.length) issues.push(`${prefix}: missing required CI: ${missing.join(", ")}`);

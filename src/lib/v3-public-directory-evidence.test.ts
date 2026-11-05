@@ -70,4 +70,39 @@ describe("Solaris V3 directory certification index", () => {
     expect(dashboard).toContain("...directoryRows]");
   });
 
+  it.each(["candidate", "certified"] as const)("cannot erase mandatory checks from a %s row", (certification) => {
+    const row = withCertifiedEvidence(V3_PUBLIC_DIRECTORY_EVIDENCE[0]);
+    row.certification = certification;
+    row.exactHeadCi.requiredChecks = [];
+    row.exactHeadCi.passedChecks = [];
+    expect(validateV3PublicDirectoryEvidence([row], "a".repeat(40))).toContain(
+      "directory countries: missing required CI: Quality, Browser audit, Client bundle budget evidence",
+    );
+    row.exactHeadCi.requiredChecks = ["Quality"];
+    row.exactHeadCi.passedChecks = ["Quality"];
+    expect(validateV3PublicDirectoryEvidence([row], "a".repeat(40))).toContain(
+      "directory countries: missing required CI: Browser audit, Client bundle budget evidence",
+    );
+  });
+
+  it("preserves any additional declared check beyond the canonical minimum", () => {
+    const row = withCertifiedEvidence(V3_PUBLIC_DIRECTORY_EVIDENCE[0]);
+    row.exactHeadCi.requiredChecks = [...row.exactHeadCi.requiredChecks, "Independent verification"];
+    expect(validateV3PublicDirectoryEvidence([row], "a".repeat(40))).toContain(
+      "directory countries: missing required CI: Independent verification",
+    );
+    row.exactHeadCi.passedChecks = [...row.exactHeadCi.passedChecks, "Independent verification"];
+    expect(validateV3PublicDirectoryEvidence([row], "a".repeat(40))).toEqual([]);
+  });
+
+  it.each(["responsiveEvidence", "accessibilityEvidence", "visualEvidence"] as const)(
+    "rejects blank %s rather than treating a nonempty array as proof", (field) => {
+      const row = withCertifiedEvidence(V3_PUBLIC_DIRECTORY_EVIDENCE[0]);
+      row[field] = ["  "];
+      expect(validateV3PublicDirectoryEvidence([row], "a".repeat(40))).toContain(
+        "directory countries: three-experience verification evidence incomplete",
+      );
+    },
+  );
+
 });
