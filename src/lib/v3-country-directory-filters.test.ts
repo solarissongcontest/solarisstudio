@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { countryDirectoryRegionOptions, filterCountryDirectory } from "./v3-country-directory-filters";
+import { countryDirectoryRegionOptions, effectiveParticipatingScope, filterCountryDirectory } from "./v3-country-directory-filters";
 
 const countries = [
   { id: "a", name: "Aotea", short_code: "AOT", native_name: "Aotearoa", region: "Atlas" },
@@ -111,11 +111,11 @@ describe("V3 countries directory filters", () => {
     const source = readFileSync("src/components/v3/V3CountriesDiscoveryScreen.tsx", "utf8");
     expect(source).toContain("filterCountryDirectory(countriesQuery.data ?? []");
     expect(source).toContain("participatingCountryIds");
-    expect(source).toContain("participatingOnly: participatingOnly && Boolean(activeEdition)");
-    expect(source).toContain("participatingOnly && activeEdition ? filtered : filtered.slice(0, visibleCount)");
+    expect(source).toContain("participatingOnly: selectedParticipatingOnly");
+    expect(source).toContain("selectedParticipatingOnly ? filtered : filtered.slice(0, visibleCount)");
     expect(source).toContain('aria-label="Country collections"');
-    expect(source).toContain("aria-pressed={participatingOnly}");
-    expect(source).toContain("aria-pressed={!participatingOnly}");
+    expect(source).toContain("aria-pressed={selectedParticipatingOnly}");
+    expect(source).toContain("aria-pressed={!selectedParticipatingOnly}");
     expect(source).toContain("setParticipatingOnly(true)");
     expect(source).toContain("setParticipatingOnly(false)");
     expect(source).toContain('<CountryTile key={country.id} country={country} presentation={presentation} />');
@@ -124,10 +124,26 @@ describe("V3 countries directory filters", () => {
     expect(source).not.toContain("<AppGroupedList>");
   });
 
+  it("falls back to the public archive even if the selected current lineup disappears", () => {
+    expect(effectiveParticipatingScope(true, true)).toBe(true);
+    expect(effectiveParticipatingScope(true, false)).toBe(false);
+    expect(effectiveParticipatingScope(false, false)).toBe(false);
+    expect(effectiveParticipatingScope(false, true)).toBe(false);
+    const directory = filterCountryDirectory(countries, {
+      search: "", region: "all",
+      participatingOnly: effectiveParticipatingScope(true, false),
+      participatingCountryIds: new Set(),
+    });
+    expect(directory.map((country) => country.id)).toEqual(["a", "b", "c"]);
+  });
+
   it("keeps all-country discovery accessible when current-edition data is unavailable", () => {
     const source = readFileSync("src/components/v3/V3CountriesDiscoveryScreen.tsx", "utf8");
-    expect(source).toContain("(participatingOnly && pendingCurrentParticipants)");
-    expect(source).toContain("(participatingOnly && participantsQuery.isError)");
+    expect(source).toContain("const selectedParticipatingOnly = effectiveParticipatingScope(participatingOnly, currentLineupReady)");
+    expect(source).toContain("participantsQuery.isError) setParticipatingOnly(false)");
+    expect(source).toContain("if (countriesQuery.isLoading || editionsQuery.isLoading)");
+    expect(source).not.toContain("(participatingOnly && pendingCurrentParticipants)");
+    expect(source).not.toContain("(participatingOnly && participantsQuery.isError)");
     expect(source).toContain("disabled={!currentLineupReady}");
     expect(source).toContain("Retry lineup");
     expect(source).toContain("You can still browse all countries.");
