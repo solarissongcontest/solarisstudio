@@ -411,6 +411,14 @@ test("installed app shell survives representative navigation without duplicate c
         await expect(directory.getByRole("searchbox", { name: "Search archive" })).toBeVisible();
       }
     }
+    if (route === "/editions") {
+      const directory = page.locator("[data-directory-experience]");
+      await expect(directory).toHaveAttribute("data-directory-experience", "installed-app");
+      await expect(directory.getByRole("searchbox", { name: "Search editions" })).toBeVisible();
+      await expect(directory.getByRole("button", { name: "Filter editions" })).toBeVisible();
+      await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
+      await expect(directory.locator(".v3-directory-mobile-list")).toHaveCount(0);
+    }
     if (route === "/rules/chapters") {
       const directory = page.locator('.v3-rule-chapters-directory [data-directory-experience="installed-app"]');
       await expect(directory).toBeVisible();
@@ -419,14 +427,6 @@ test("installed app shell survives representative navigation without duplicate c
       await expect(directory.getByRole("button", { name: "Filter chapters by category" })).toBeVisible();
       await expect(directory.getByRole("searchbox", { name: "Search Rulebook chapters" })).toBeVisible();
       await expect(directory.locator(".v3-directory-mobile-list,.v3-directory-desktop-rail")).toHaveCount(0);
-    }
-    if (route === "/editions") {
-      const directory = page.locator("[data-directory-experience]");
-      await expect(directory).toHaveAttribute("data-directory-experience", "installed-app");
-      await expect(directory.getByRole("searchbox", { name: "Search editions" })).toBeVisible();
-      await expect(directory.getByRole("button", { name: "Filter editions" })).toBeVisible();
-      await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
-      await expect(directory.locator(".v3-directory-mobile-list")).toHaveCount(0);
     }
     if (route === "/site-directory" || route === "/tools") {
       const directory = page.locator("[data-directory-experience]");
