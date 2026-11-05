@@ -157,6 +157,10 @@ jobs:
         run: |
           set -euo pipefail
           bash .github/scripts/v3-account-session-management-rehearsal.sh
+      # Account mutation requires normal mode. The recovery rehearsal below
+      # intentionally finishes in read_only; do not invert these stages.
+      - name: Rehearse canonical authority after production-frontier upgrade
+        run: bash .github/scripts/v3-account-session-authority-rehearsal.sh
       - name: Rehearse password recovery in read-only after hosted production-head upgrade
         shell: bash
         env:
@@ -172,8 +176,6 @@ jobs:
           path: ${{ runner.temp }}/recovery-traces/upgrade.log
           if-no-files-found: warn
           retention-days: 3
-      - name: Rehearse canonical authority after production-frontier upgrade
-        run: bash .github/scripts/v3-account-session-authority-rehearsal.sh
       - name: Stop isolated local Supabase
         if: always()
         run: supabase stop --no-backup || true

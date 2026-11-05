@@ -57,6 +57,18 @@ describe("V3 account/session canonical authority", () => {
     expect(legacyAuto).toContain("public.v3_set_owned_hod_auto_assign(");
   });
 
+  it("runs production-frontier account mutations before the read-only recovery gate", () => {
+    const workflow = readFileSync(".github/workflows/v3-account-session-management-rehearsal.yml", "utf8");
+    const hosted = workflow.split("  upgrade-from-production-head:")[1];
+    expect(hosted).toBeDefined();
+    const authority = hosted!.indexOf("Rehearse canonical authority after production-frontier upgrade");
+    const recovery = hosted!.indexOf("Rehearse password recovery in read-only after hosted production-head upgrade");
+    expect(authority).toBeGreaterThan(-1);
+    expect(recovery).toBeGreaterThan(authority);
+    expect(readFileSync(".github/scripts/v3-password-recovery-readonly-rehearsal.sh", "utf8"))
+      .toContain('password recovery rehearsal did not finish in read_only');
+  });
+
   it("proves refresh rotation, stale credentials and the revoke race at the real local boundaries", () => {
     expect(rehearsal).toContain("grant_type=refresh_token");
     expect(rehearsal).toContain('[[ "$ROTATED_SESSION" == "$TARGET_SESSION" ]]');

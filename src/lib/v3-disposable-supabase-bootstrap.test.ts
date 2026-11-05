@@ -108,7 +108,7 @@ describe("disposable local Supabase bootstrap recovery", () => {
     const workflow = readFileSync(".github/workflows/rules-integrity-migration-rehearsal.yml", "utf8");
     const upgrade = workflow.split("  upgrade-from-main:")[1];
     expect(upgrade).toBeDefined();
-    const operations = (upgrade ?? "").split(/\n      - /).filter((step) => step.includes(".github/scripts/"));
+    const operations = (upgrade ?? "").split(/\n {6}- /).filter((step) => step.includes(".github/scripts/"));
     expect(operations.length).toBeGreaterThan(0);
     for (const step of operations) {
       expect(step).toContain("cd /tmp/solaris-main");
