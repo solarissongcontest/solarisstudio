@@ -14,6 +14,9 @@ import {verifyRepositoryOwner,currentRecoveryHead} from './lib/v3-owner-media-re
 import {YARIA,validateYariaManifest,validateYariaMedia,renderYariaGalleryReferenceSql} from './lib/v3-yaria-gallery-derivative.mjs';
 const arg=name=>{const i=process.argv.indexOf(name);return i<0?null:process.argv[i+1];};
 const root='https://dkxmnvekiopyesuzggeu.supabase.co';
+let stage='startup';
+const at=name=>{stage=name;};
+
 const allowed=[
  'Yaria derivative restoration forbidden in CI','Provide original --manifest and reviewed --candidate JPEG',
  'Unknown Yaria recovery action','Storage publishing requires explicit owner approval',
@@ -32,9 +35,12 @@ async function main(){
  if(process.env.CI)throw Error('Yaria derivative restoration forbidden in CI');
  const manifest=arg('--manifest'),candidate=arg('--candidate');
  if(!manifest||!candidate)throw Error('Provide original --manifest and reviewed --candidate JPEG');
+ at('read_original_manifest');
  const files=parseStagedManifest(await readFile(resolve(manifest)));
  validateYariaManifest(files);
+ at('read_candidate_jpeg');
  const bytes=await readFile(resolve(candidate));
+ at('verify_candidate_sha256');
  const verification=validateYariaMedia(bytes);
  if(!process.argv.includes('--execute')){
   if(!process.argv.includes('--inspect'))throw Error('Unknown Yaria recovery action');
@@ -51,6 +57,7 @@ async function main(){
  if(process.env.SOLARIS_RECOVERY_YARIA_DERIVATIVE_APPROVED!==
    'I_APPROVE_PUBLISHING_VERIFIED_YARIA_OPTIMIZED_GALLERY_DERIVATIVE')
   throw Error('Storage publishing requires explicit owner approval');
+ at('verify_github_owner');
  const proof=await verifyRepositoryOwner(process.env.SOLARIS_RECOVERY_GITHUB_OWNER_TOKEN||process.env.GITHUB_TOKEN);
  const token=process.env.SOLARIS_V3_SUPABASE_SERVICE_ROLE_KEY;
  if(!token)throw Error('Protected destination credential missing');
@@ -58,43 +65,55 @@ async function main(){
   auth:{persistSession:false,autoRefreshToken:false},
   global:{headers:{'X-Client-Info':'solaris-v3-owner-yaria-derivative/1'}},
  });
+ at('check_platform_mode');
  const {data:state,error:stateError}=await client.from('studio2_platform_operational_state')
   .select('mode').eq('singleton',true).maybeSingle();
  if(stateError||state?.mode!=='read_only')throw Error('Destination platform is not read_only');
+ at('check_bucket_privacy');
  const {data:buckets,error:bucketError}=await client.storage.listBuckets();
  if(bucketError||!Array.isArray(buckets)||
   buckets.find(b=>b.id==='country-media')?.public!==true||
   buckets.find(b=>b.id==='solaris-upload-quarantine')?.public!==false)
   throw Error('Storage bucket privacy check failed');
+ at('check_country_identity');
  const {data:country,error:countryError}=await client.from('countries')
   .select('id,name').eq('id',YARIA.country_id).maybeSingle();
  if(countryError||country?.name!=='Yaria')throw Error('Yaria canonical country row changed');
+ at('check_existing_gallery_reference');
  const {data:refs,error:refsError}=await client.from('country_media')
   .select('id,storage_path').eq('storage_path',YARIA.destination_path).limit(1);
  if(refsError||refs?.length)throw Error('Yaria gallery has already been restored');
+ at('download_private_original');
  const source=await client.storage.from(YARIA.original_bucket).download(YARIA.original_path);
  if(source.error||!source.data)throw Error('Private original Yaria photo is missing');
+ at('verify_private_original_sha256');
  validateYariaMedia(Buffer.from(await source.data.arrayBuffer()),{original:true});
  const destination=client.storage.from(YARIA.destination_bucket);
+ at('inspect_existing_public_derivative');
  const prior=await destination.download(YARIA.destination_path);
  let uploaded=false;
  if(prior.data&&!prior.error){
   try{validateYariaMedia(Buffer.from(await prior.data.arrayBuffer()));}
   catch{throw Error('Stored public candidate differs from owner reviewed JPEG');}
  }else{
-  const result=await destination.upload(YARIA.destination_path,bytes,{
+  at('upload_approved_derivative');
+ const result=await destination.upload(YARIA.destination_path,bytes,{
    contentType:'image/jpeg',upsert:false,cacheControl:'3600',
   });
   if(result.error)throw Error('Public derivative upload rejected; no reference changes performed');
   uploaded=true;
  }
+ at('readback_published_derivative');
  const check=await destination.download(YARIA.destination_path);
  if(check.error||!check.data)throw Error('Published optimized JPEG did not pass readback');
+ at('verify_published_derivative_sha256');
  validateYariaMedia(Buffer.from(await check.data.arrayBuffer()));
  const ticket='OWNER-YARIA-'+new Date().toISOString().replace(/[^0-9]/g,'').slice(0,14);
+ at('generate_guarded_sql');
  const sql=renderYariaGalleryReferenceSql({ticket,ownerLogin:proof.github_login,gitSha:currentRecoveryHead()});
  const output=resolve(arg('--sql')||join(homedir(),'solaris-yaria-optimized-gallery-reference.sql'));
  if(!output.startsWith(homedir()+'/'))throw Error('Protected SQL may be written only in operator home');
+ at('write_guarded_sql');
  await writeFile(output,sql,{flag:'wx',mode:0o600});
  console.log(JSON.stringify({
    mode:'owner-approved-yaria-public-derivative-upload-only',
@@ -109,6 +128,19 @@ async function main(){
 }
 main().catch(error=>{
  const message=String(error?.message||'');
- console.error(allowed.includes(message)?message:'Yaria gallery recovery halted. Do not publish or run SQL until reviewed.');
+ const code=typeof error?.code==='string'?error.code:'';
+ const reason=allowed.includes(message)?message
+  :code==='ENOENT'?'Required local file is missing. Check --manifest / --candidate path and re-extract the ZIP.'
+  :code==='EEXIST'?'The generated SQL file already exists. Verify whether the previous run succeeded before choosing a NEW --sql path.'
+  :code==='EACCES'?'A required local file cannot be read or the output directory is not writable.'
+  :message==='Public derivative upload rejected; no reference changes performed'
+    ?'Public derivative upload was rejected. Inspect the authorized Storage upload workflow; do not bypass it.'
+  :['fetch failed','network timeout'].some(x=>message.toLowerCase().includes(x))
+    ?'Network request failed during the indicated step. No database reference was written.'
+  :'Unexpected failure in this step. Provider details withheld to protect credentials.';
+ console.error(JSON.stringify({
+  status:'halted',stage,reason,production_references_written:0,
+  next:'Do not run any Yaria reference SQL. Share this sanitized stage and reason to diagnose the blocker.'
+ },null,2));
  process.exitCode=1;
 });
