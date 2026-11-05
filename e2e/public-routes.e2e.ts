@@ -422,6 +422,12 @@ test("Rulebook chapter directory preserves all 22 links across mobile web and de
   await expect(directory.getByText("No matching chapters")).toBeVisible();
   await search.fill("");
 
+  // Separate normal-density visual evidence from the deliberate 200% stress capture.
+  // A successful overflow test at high zoom does not certify the ordinary layout.
+  await testInfo.attach(`rule-chapters-default-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
+  });
   await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
   await expect(directory.getByRole("heading", { level: 1, name: "22 chapters" })).toBeVisible();
   const overflow = await page.evaluate(() =>
