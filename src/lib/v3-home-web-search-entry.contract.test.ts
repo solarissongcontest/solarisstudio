@@ -24,7 +24,7 @@ describe("V3 Home mobile-browser Search discovery", () => {
       route.indexOf('data-v3-home-web-search-entry=""') + 130,
     );
     expect(header).toContain('className="lg:hidden"');
-    expect(header).toContain("<PublicCommandPalette compact />");
+    expect(header).toContain("<PublicCommandPalette compact keyboardShortcut={false} />");
     expect(route).toContain('import { PublicCommandPalette } from "@/components/public/PublicCommandPalette"');
   });
 
@@ -32,6 +32,9 @@ describe("V3 Home mobile-browser Search discovery", () => {
     expect(shell()).toContain("<PublicCommandPalette access={access} />");
     expect(shell()).toContain('className="ml-auto hidden items-center gap-1 lg:flex"');
     expect(palette()).toContain('aria-label="Search Solaris Studio"');
+    expect(palette()).toContain("keyboardShortcut = true");
+    expect(palette()).toContain("if (!keyboardShortcut) return;");
+    expect(palette()).toContain("}, [keyboardShortcut]);");
     expect(palette()).toContain('rpc("solaris_public_search"');
     expect(home()).not.toContain('rpc("solaris_public_search"');
   });
