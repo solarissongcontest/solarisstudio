@@ -77,14 +77,10 @@ const RESULT_KINDS = new Set<ResultKind>([
   "show",
 ]);
 const BROWSE_DESTINATIONS = [
-  ["Editions", "Browse every published Solaris edition.", "/editions"],
-  [
-    "Countries",
-    "Open canonical country profiles and participation history.",
-    "/countries",
-  ],
-  ["Shows", "Find published shows and their edition context.", "/shows"],
-  ["Stories", "Continue into published Solaris editorial history.", "/stories"],
+  { kind: "edition", label: "Editions", description: "Browse every published Solaris edition.", href: "/editions" },
+  { kind: "country", label: "Countries", description: "Open canonical country profiles and participation history.", href: "/countries" },
+  { kind: "show", label: "Shows", description: "Find published shows and their edition context.", href: "/shows" },
+  { kind: "story", label: "Stories", description: "Continue into published Solaris editorial history.", href: "/stories" },
 ] as const;
 
 function parseSearchRows(value: unknown): ReferenceItem[] {
@@ -196,6 +192,12 @@ function ReferencePage() {
       return parseSearchRows(data);
     },
   });
+
+  // Topic choices must also filter the idle browse index, not only typed search hits.
+  // Entries have no independent public directory yet: users search the published projection.
+  const browseDestinations = BROWSE_DESTINATIONS.filter((destination) =>
+    kind === "all" || destination.kind === kind,
+  );
 
   const filtered = useMemo(
     () =>
@@ -352,7 +354,7 @@ function ReferencePage() {
             </h2>
           </div>
           <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-directory-desktop-grid"}>
-            {BROWSE_DESTINATIONS.map(([label, description, href]) => (
+            {browseDestinations.map(({ label, description, href }) => (
               <Link
                 key={href}
                 to={href as any}
@@ -370,6 +372,11 @@ function ReferencePage() {
               </Link>
             ))}
           </div>
+          {browseDestinations.length === 0 ? (
+            <p className="mt-3 py-5 text-sm text-muted-foreground" role="status">
+              No standalone index exists for this topic. Search above to find published entries, songs and artists in their edition context.
+            </p>
+          ) : null}
         </section>
       ) : normalizedQuery.length < 2 ? (
         <div className="mt-5 rounded-2xl border border-border bg-surface p-7 text-center text-sm text-muted-foreground">
