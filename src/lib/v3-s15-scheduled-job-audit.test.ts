@@ -30,6 +30,22 @@ describe("S15 scheduled-job ownership audit", () => {
     expect(report).toEqual({ scheduledJobNames: ["quoted-job"], findings: [] });
   });
 
+  it("does not accept case-sensitive quoted lookalikes as canonical cron evidence", () => {
+    for (const callee of ['"CRON".schedule', 'cron."SCHEDULE"', '"CRON"."SCHEDULE"']) {
+      const report = inspectV3CronMigrations(
+        migration(`select ${callee}('solaris-publish-due-entries', '* * * * *', 'select 1');`),
+        register,
+      );
+      expect(report.scheduledJobNames).toEqual([]);
+      expect(report.findings[0]).toContain("no matching cron.schedule call");
+    }
+    // Unquoted PostgreSQL identifiers are folded to lowercase.
+    expect(inspectV3CronMigrations(
+      migration("select CRON.SCHEDULE('solaris-publish-due-entries', '* * * * *', 'select 1');"),
+      register,
+    ).findings).toEqual([]);
+  });
+
   it("rejects a dynamic job name instead of silently omitting it", () => {
     const report = inspectV3CronMigrations(
       migration("perform cron.schedule(v_job_name, '* * * * *', 'select 1');"),
