@@ -385,6 +385,7 @@ test("installed app shell survives representative navigation without duplicate c
     "/results",
     "/rules",
     "/site-directory",
+    "/tools",
     "/show-mode",
     "/settings",
   ]) {
@@ -397,6 +398,23 @@ test("installed app shell survives representative navigation without duplicate c
       await expect(directory.locator(".v3-countries-region-rail")).toHaveCount(0);
       await expect(page.locator("[data-country-directory-web-header]")).toHaveCount(0);
       await expect(directory.getByRole("searchbox", { name: "Search countries" })).toBeVisible();
+    }
+    if (route === "/editions") {
+      const directory = page.locator("[data-directory-experience]");
+      await expect(directory).toHaveAttribute("data-directory-experience", "installed-app");
+      await expect(directory.getByRole("searchbox", { name: "Search editions" })).toBeVisible();
+      await expect(directory.getByRole("button", { name: "Filter editions" })).toBeVisible();
+      await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
+      await expect(directory.locator(".v3-directory-mobile-list")).toHaveCount(0);
+    }
+    if (route === "/site-directory" || route === "/tools") {
+      const directory = page.locator("[data-directory-experience]");
+      await expect(directory).toHaveAttribute("data-directory-experience", "installed-app");
+      await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
+      await expect(directory.locator(".v3-directory-mobile-list")).toHaveCount(0);
+      await expect(directory.getByRole("button", { name: /Filter (pages|tools) by category/ })).toBeVisible();
+      await expect(directory.getByRole("searchbox", { name: route === "/tools" ? "Search Solaris tools" : "Search Solaris Studio pages" })).toBeVisible();
+      await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
     }
     await expectNoBottomChromeCollision(page, route);
   }
