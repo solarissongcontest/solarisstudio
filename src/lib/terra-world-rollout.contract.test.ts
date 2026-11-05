@@ -47,6 +47,13 @@ describe("Terra Solaris TG3 discovery rollout", () => {
     expect(source).toContain("on conflict (key) do nothing");
   });
 
+  it("recognizes the canonical non-prefix World rollout in S15 exact-head ownership", () => {
+    const scanner = file("scripts/check-v3-s15-zero-orphan-readiness-core.ts");
+    expect(scanner).toContain('flag.startsWith("solaris_app_v3") || flag === "terra_world_public"');
+    expect(scanner).toContain("FEATURE_FLAG_REGISTRY_ORPHAN");
+    expect(scanner).toContain("PUBLIC_SURFACE_ROUTE_ORPHAN");
+  });
+
   it("makes both Explore experiences discover World only after canonical rollout", () => {
     const entry = file("src/components/world/WorldExploreEntry.tsx");
     const legacy = file("src/routes/explore/index.tsx");
