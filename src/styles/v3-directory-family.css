@@ -121,3 +121,31 @@
 @media (prefers-reduced-motion: reduce){
   .v3-directory-family .v3-directory-desktop-card{transition:none}
 }
+
+/* Edition chronology has one featured object and a restrained historical collection. */
+.v3-editions-directory .v3-editions-feature{padding:1rem;border-radius:.85rem}
+.v3-editions-directory .v3-editions-feature h2{
+  font-family:var(--font-sans,system-ui,sans-serif);
+  font-size:clamp(1.15rem,4vw,1.5rem);
+  font-weight:750;line-height:1.2;letter-spacing:-.03em
+}
+.v3-editions-directory .v3-editions-feature-meta{font-size:.78rem;line-height:1.5}
+.v3-editions-directory .v3-editions-history{margin-top:1.25rem}
+.v3-editions-directory[data-directory-experience="installed-app"] .v3-editions-feature{
+  padding:.85rem;border-radius:.85rem
+}
+.v3-editions-directory[data-directory-experience="installed-app"] .solaris-app-edition-row{
+  padding-block:.75rem
+}
+.v3-editions-directory[data-directory-experience="mobile-web"] .v3-editions-feature{
+  margin-bottom:1.25rem
+}
+.v3-editions-directory[data-directory-experience="desktop-web"] .v3-editions-feature{
+  max-width:64rem;margin-bottom:1.5rem
+}
+.v3-editions-directory[data-directory-experience="desktop-web"] .v3-directory-desktop-card{
+  min-height:0;gap:.3rem;padding:.9rem
+}
+@media (max-width:700px){
+  .v3-editions-directory .v3-editions-feature-meta{grid-template-columns:minmax(0,1fr)}
+}
