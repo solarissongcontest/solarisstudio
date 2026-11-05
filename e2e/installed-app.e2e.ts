@@ -412,7 +412,7 @@ test("installed app shell survives representative navigation without duplicate c
       await expect(directory).toHaveAttribute("data-directory-experience", "installed-app");
       await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
       await expect(directory.locator(".v3-directory-mobile-list")).toHaveCount(0);
-      await expect(directory.getByRole("button", { name: /Filter (pages by area|tools by category)/ })).toBeVisible();
+      await expect(directory.getByRole("button", { name: /Filter (pages|tools) by category/ })).toBeVisible();
       await expect(directory.getByRole("searchbox", { name: route === "/tools" ? "Search Solaris tools" : "Search Solaris Studio pages" })).toBeVisible();
       await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
     }
