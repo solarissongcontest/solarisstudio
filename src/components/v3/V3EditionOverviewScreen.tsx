@@ -285,11 +285,11 @@ export function V3EditionOverviewScreen({
       ) : (
         <V3Surface level="raised" className="overflow-hidden">
           {projection.hub.hero.artworkUrl ? (
-            <div className="relative aspect-[16/8] overflow-hidden border-b border-white/[0.06] bg-white/[0.025]">
+            <div className="relative border-b border-white/[0.06] bg-white/[0.025]">
               <img
                 src={projection.hub.hero.artworkUrl}
                 alt=""
-                className="h-full w-full object-cover"
+                className="block h-auto max-h-[34rem] w-full object-contain"
                 loading="lazy"
               />
               <div
