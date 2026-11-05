@@ -274,7 +274,6 @@ function EditionsPage() {
           <>
             {presentation === "mobile-web" ? (
               <header className="v3-directory-mobile-header" data-directory-mobile-header="">
-                <Link to="/explore" className="v3-directory-back">Explore / Editions</Link>
                 <p className="v3-directory-eyebrow">CONTEST ARCHIVE</p>
                 <h1>Editions</h1>
                 <p>Explore the latest edition and past contests.</p>
