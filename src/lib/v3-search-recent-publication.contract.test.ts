@@ -17,7 +17,7 @@ describe("Global Search stored Show publication boundary", () => {
     expect(recentGuard).toContain("enabled: showIds.length > 0");
     expect(recentGuard).toContain('.select("id,edition_id,published,publication_config")');
     expect(recentGuard).toContain('.in("id", showIds)');
-    expect(recentGuard).toContain(".filter(isShowPublic)");
+    expect(recentGuard).toContain(".filter(isRecentShowPublic)");
     expect(recentGuard).toContain('.select("id,published")');
     expect(recentGuard).toContain("edition.published === true");
     expect(recentGuard).toContain("visibleRecentShowDestinations(");

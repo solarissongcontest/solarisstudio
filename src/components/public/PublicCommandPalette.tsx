@@ -42,6 +42,7 @@ import {
   navigationSearchResults,
   type PublicSearchResult,
 } from "@/lib/public-search";
+import { isRecentShowPublic } from "@/lib/public-recent-show-publication";
 import { readPublicRecents } from "@/lib/public-recents";
 import { visibleRecentShowDestinations } from "@/lib/v3-show-public-discovery";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
@@ -211,7 +212,7 @@ function usePublicationSafeRecents() {
         .select("id,edition_id,published,publication_config")
         .in("id", showIds);
       if (error) throw error;
-      const publicRows = (rows ?? []).filter(isShowPublic);
+      const publicRows = (rows ?? []).filter(isRecentShowPublic);
       if (!publicRows.length) return [];
       const editionIds = [...new Set(publicRows.map((show) => show.edition_id))];
       const { data: editions, error: editionError } = await supabase
