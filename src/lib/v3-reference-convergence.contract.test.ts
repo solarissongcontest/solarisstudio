@@ -44,6 +44,17 @@ describe("V3 Reference convergence", () => {
     expect(source).toContain('referenceRollout.isError');
   });
 
+  it("keeps historical Wiki routes stable when the rollout is unresolved or fails", () => {
+    for (const file of ["src/routes/wiki/index.tsx", "src/routes/wiki/$code.tsx"]) {
+      const source = read(file);
+      expect(source).toContain('enabled: platformResolved');
+      expect(source).toContain('!platformResolved || referenceRollout.isLoading');
+      expect(source).toContain('!referenceRollout.isError && referenceRollout.data === true');
+    }
+    expect(wikiRoot()).toContain("return isAppMode ? <AppWikiIndexPage /> : <WebWikiIndexPage />");
+    expect(wikiCountry()).toContain("<CountryWikiExperience code={code} />");
+  });
+
   it("presents Encyclopedia as one clear publication-safe Reference product", () => {
     const source = reference();
 
