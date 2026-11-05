@@ -5,6 +5,8 @@ on:
     branches:
       - main
     paths:
+      - ".github/scripts/v3-start-disposable-supabase.sh"
+      - ".github/scripts/prepare-archive-local-config.py"
       - "supabase/migrations/**"
       - "supabase/functions/integrity-evidence-download/**"
       - "supabase/functions/integrity-evidence-lifecycle/**"
@@ -64,7 +66,7 @@ jobs:
           fi
 
       - name: Start isolated local Supabase stack
-        run: supabase start
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
 
       - name: Rebuild clean local database from migrations
         run: supabase db reset --local --no-seed
@@ -182,7 +184,7 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-main
-          supabase start
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
           supabase db reset --local --no-seed
           supabase migration list --local
 
