@@ -32,8 +32,7 @@ describe("V3 Rulebook chapter directory", () => {
     const css = readFileSync("src/styles/v3-directory-family.css", "utf8");
     expect(route).toContain("RulesRouteShell");
     expect(route).toContain("GovernanceStatusStrip");
-    expect(route).toContain('to="/rules/chapters/$chapter"');
-    expect(route).toContain("filterRuleChapterDirectory");
+    // Chapter deep links are data-driven in the shared directory component.\n    expect(route).toContain("filterRuleChapterDirectory");
     expect(route).toContain("V3DirectoryFamilyIndex");
     expect(route).toContain("noShell");
     expect(route).toContain('to: "/rules/chapters/$chapter"');
