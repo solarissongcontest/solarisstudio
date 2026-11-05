@@ -145,6 +145,7 @@ applied_delta="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select count(*) from
 
 log "Re-running critical V3 invariants on the production-head upgrade path"
 for rehearsal in \
+  v3-tg2-identity-linkage-privacy-rehearsal.sh \
   v3-operation-receipt-rehearsal.sh \
   v3-s2-entry-correction-rehearsal.sh \
   v3-confirmation-security-rehearsal.sh \
