@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, Search, SlidersHorizontal } from "lucide-react";
+import { BarChart3, CalendarDays, Check, ChevronRight, History, Search, SlidersHorizontal, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
-import { AppEmptyState, AppGroupedList, AppScreen, AppSectionHeader } from "@/components/app/AppPrimitives";
+import { AppEmptyState, AppGroupedList, AppScreen } from "@/components/app/AppPrimitives";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -27,6 +27,7 @@ export type V3DirectoryGroup = {
 };
 
 export function V3DirectoryFamilyIndex({
+  variant = "sitemap",
   title,
   eyebrow,
   intro,
@@ -38,6 +39,7 @@ export function V3DirectoryFamilyIndex({
   itemNoun,
   groups,
 }: {
+  variant?: "tools" | "sitemap";
   title: string;
   eyebrow: string;
   intro: string;
@@ -59,22 +61,26 @@ export function V3DirectoryFamilyIndex({
     return groups.map((group) => ({
       ...group,
       items: group.items.filter((item) => {
-        const text = [item.title, item.description, item.eyebrow,
+        const text = [group.label, item.title, item.description, item.eyebrow,
           ...(item.aliases ?? []), item.searchText].filter(Boolean).join(" ").toLowerCase();
         return terms.every((term) => text.includes(term));
       }),
     }));
   }, [groups, search]);
-  const total = searched.reduce((sum, group) => sum + group.items.length, 0);
+  const total = groups.reduce((sum, group) => sum + group.items.length, 0);
+  const searchMatches = searched.reduce((sum, group) => sum + group.items.length, 0);
   const scoped = searched.filter((group) => area === "all" || area === group.id);
   const visible = scoped.reduce((sum, group) => sum + group.items.length, 0);
   const options = [
-    { id: "all", label: scopeLabel, count: total },
+    { id: "all", label: scopeLabel, count: searchMatches },
     ...searched.map((group) => ({
       id: group.id, label: group.label, count: group.items.length,
     })),
   ];
   const selected = options.find((entry) => entry.id === area) ?? options[0];
+  const resultCount = `${visible} of ${total} ${itemNoun} shown` +
+    (search.trim() ? ` · ${searchMatches} match search` : "") +
+    (area !== "all" ? ` · ${selected.label}` : "");
   const reset = () => { setSearch(""); setArea("all"); };
 
   if (!platformResolved) {
@@ -84,12 +90,16 @@ export function V3DirectoryFamilyIndex({
   const searchField = presentation === "installed-app" ? (
     <SolarisSearchField value={search} onChange={setSearch} label={searchLabel} placeholder={searchPlaceholder} />
   ) : (
-    <label className="v3-directory-search">
+    <div className="v3-directory-search" role="search">
       <Search size={18} aria-hidden="true" />
-      <span className="sr-only">{searchLabel}</span>
       <input type="search" value={search} aria-label={searchLabel}
         onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} autoComplete="off" />
-    </label>
+      {search ? (
+        <button type="button" className="v3-directory-search-clear" aria-label="Clear search" onClick={() => setSearch("")}>
+          <X size={16} aria-hidden="true" />
+        </button>
+      ) : null}
+    </div>
   );
 
   const scopeControl = presentation === "installed-app" ? (
@@ -107,7 +117,8 @@ export function V3DirectoryFamilyIndex({
           {options.map((option) => (
             <SheetClose key={option.id} asChild>
               <button type="button" aria-pressed={area === option.id} onClick={() => setArea(option.id)}>
-                {option.label} <span>{option.count}</span>
+                <span className="v3-directory-option-label">{area === option.id ? <Check size={17} aria-hidden="true" /> : null}{option.label}</span>
+                <span>{option.count}</span>
               </button>
             </SheetClose>
           ))}
@@ -127,14 +138,14 @@ export function V3DirectoryFamilyIndex({
   const contents = (
     <>
       <div className="v3-directory-controls">{searchField}{scopeControl}</div>
-      <p className="v3-directory-results-count" role="status">{visible} matching {itemNoun}</p>
+      <p className="v3-directory-results-count" role="status" aria-live="polite">{resultCount}</p>
       <div className="v3-directory-groups">
         {scoped.filter((group) => group.items.length > 0).map((group) => (
           <section key={group.id} className="v3-directory-group" aria-labelledby={`directory-${group.id}`}>
-            {presentation === "installed-app" ? (
-              <AppSectionHeader eyebrow="Browse" id={`directory-${group.id}`} title={group.label} />
-            ) : <h2 id={`directory-${group.id}`} className="v3-directory-group-title">{group.label}</h2>}
-            <DirectoryItems items={group.items} presentation={presentation} />
+            <h2 id={`directory-${group.id}`} className="v3-directory-group-title">
+              {group.label}<span className="v3-directory-group-count">{group.items.length}</span>
+            </h2>
+            <DirectoryItems items={group.items} presentation={presentation} variant={variant} groupId={group.id} />
           </section>
         ))}
       </div>
@@ -150,7 +161,7 @@ export function V3DirectoryFamilyIndex({
 
   return (
     <AppShell>
-      <div className="v3-directory-family" data-directory-experience={presentation}>
+      <div className="v3-directory-family" data-directory-experience={presentation} data-directory-kind={variant}>
         {presentation === "installed-app" ? (
           <AppScreen>
             <header className="v3-directory-app-heading">
@@ -191,14 +202,18 @@ export function V3DirectoryFamilyIndex({
   );
 }
 
-function DirectoryItems({ items, presentation }: {
+function DirectoryItems({ items, presentation, variant, groupId }: {
   items: readonly V3DirectoryItem[];
   presentation: V3DirectoryPresentation;
+  variant: "tools" | "sitemap";
+  groupId: string;
 }) {
+  const ToolIcon = groupId === "results" ? BarChart3 : groupId === "archive" ? History : CalendarDays;
   if (presentation === "installed-app") {
     return <AppGroupedList>
       {items.map((item) => (
         <Link key={item.id} to={item.to as any} className="solaris-app-list-row">
+          {variant === "tools" ? <span className="v3-directory-tool-icon"><ToolIcon size={18} aria-hidden="true" /></span> : null}
           <span className="min-w-0 flex-1">
             <strong className="block text-sm font-semibold">{item.title}</strong>
             <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
@@ -212,6 +227,7 @@ function DirectoryItems({ items, presentation }: {
     return <div className="v3-directory-mobile-list">
       {items.map((item) => (
         <Link key={item.id} to={item.to as any} className="v3-directory-mobile-row">
+          {variant === "tools" ? <span className="v3-directory-tool-icon"><ToolIcon size={18} aria-hidden="true" /></span> : null}
           <span className="min-w-0 flex-1"><strong>{item.title}</strong><span>{item.description}</span></span>
           <ChevronRight size={19} aria-hidden="true" />
         </Link>
@@ -221,6 +237,7 @@ function DirectoryItems({ items, presentation }: {
   return <div className="v3-directory-desktop-grid">
     {items.map((item) => (
       <Link key={item.id} to={item.to as any} className="v3-directory-desktop-card">
+        {variant === "tools" ? <span className="v3-directory-tool-icon"><ToolIcon size={18} aria-hidden="true" /></span> : null}
         {item.eyebrow ? <span className="v3-directory-eyebrow">{item.eyebrow}</span> : null}
         <span className="v3-directory-card-top"><strong>{item.title}</strong><ChevronRight size={19} aria-hidden="true" /></span>
         <span className="v3-directory-card-description">{item.description}</span>
