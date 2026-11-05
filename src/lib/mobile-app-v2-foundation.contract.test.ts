@@ -130,9 +130,9 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(countries).toContain("AppCountriesPage");
     expect(countries).toContain("<AppScreen>");
     expect(countries).toContain('<V3CountriesDiscoveryScreen presentation="installed-app" />');
-    expect(shows).toContain("AppShowsPage");
+    expect(shows).toContain('presentation === "installed-app"');
     expect(shows).toContain("<AppScreen>");
-    expect(shows).toContain("<V3ShowsDiscoveryScreen />");
+    expect(shows).toContain("<V3ShowsDiscoveryScreen presentation={presentation} />");
     expect(wiki).toContain("AppWikiIndexPage");
   });
 
