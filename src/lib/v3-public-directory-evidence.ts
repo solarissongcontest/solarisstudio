@@ -132,6 +132,14 @@ export const V3_PUBLIC_DIRECTORY_EVIDENCE: readonly PublicDirectoryEvidence[] = 
     productParity: "unverified",
   }),
   registerDirectory({
+    id: "music", route: "/music", capabilityId: "explore-root",
+    domainOwner: "music", canonicalReadModel: "published song and artist discovery projection",
+    installedApp: "focused published music previews and catalogue links",
+    mobileWeb: "editorial music discovery and browser links",
+    desktopWeb: "music-first discovery feature and subject collections",
+    productParity: "unverified",
+  }),
+  registerDirectory({
     id: "songs", route: "/songs", capabilityId: "explore-root",
     domainOwner: "music", canonicalReadModel: "durable published Song identities",
     installedApp: "music-focused compact song rows",
