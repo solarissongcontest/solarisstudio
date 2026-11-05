@@ -45,6 +45,9 @@ describe("Solaris V3 universal directory visual foundation", () => {
     expect(countries).toContain('className={`v3-countries-scope-button');
     expect(countries).toContain("<Check size={16}");
     expect(css).toContain(".v3-countries-scope-button.is-selected");
+    expect(countries).toContain("v3-countries-web-search");
+    expect(css).toContain(".v3-countries-web-search .solaris-app-search-input");
+    expect(css).toContain("body .countries-library-hero.directory-page-hero h1");
     expect(css).toContain("background:var(--primary)");
     expect(read("src/routes/countries/index.tsx")).not.toContain("country-directory-mobile-back");
     expect(css).toContain(".countries-library-hero h1");

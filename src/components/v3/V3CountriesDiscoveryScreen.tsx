@@ -95,7 +95,7 @@ export function V3CountriesDiscoveryScreen({
 
   return (
     <div className="v3-countries-discovery space-y-6" data-country-directory-experience={presentation}>
-      {presentation === "mobile-web" ? (
+      {presentation !== "installed-app" ? (
         <h2 id="countries-page-title" className="sr-only">Browse all countries</h2>
       ) : (
       <header className="v3-countries-intro">
@@ -179,6 +179,7 @@ export function V3CountriesDiscoveryScreen({
               setVisibleCount(BROWSE_PAGE_SIZE);
             }}
             label="Search countries"
+            className={presentation === "installed-app" ? undefined : "v3-countries-web-search"}
             placeholder="Search countries…"
           />
           <div className="solaris-app-directory-filterbar">

@@ -247,3 +247,70 @@
 .countries-library-hero{
   margin-bottom:1rem;border-radius:0;background:transparent;box-shadow:none
 }
+
+/* Browser search is deliberately styled independently of html[data-solaris-app].
+ * SolarisSearchField keeps its shared semantics, reset action and query state. */
+.v3-countries-discovery .v3-countries-web-search {
+  display:flex;align-items:center;gap:.65rem;
+  min-width:0;min-height:48px;
+  padding:.1rem .8rem;
+  border:1px solid var(--border);
+  border-radius:.8rem;
+  background:var(--surface);
+}
+.v3-countries-discovery .v3-countries-web-search .solaris-app-search-icon {
+  position:static;flex-shrink:0;color:var(--muted-foreground)
+}
+.v3-countries-discovery .v3-countries-web-search .solaris-app-search-input {
+  display:block;flex:1;min-width:0;width:100%;height:44px;
+  padding:0;border:0;outline:0;background:transparent;
+  box-shadow:none;color:var(--foreground);font-size:.9rem
+}
+.v3-countries-discovery .v3-countries-web-search .solaris-app-search-input::placeholder {
+  color:var(--muted-foreground)
+}
+.v3-countries-discovery .v3-countries-web-search .solaris-app-search-clear {
+  display:grid;place-items:center;flex-shrink:0;
+  min-width:36px;min-height:36px;
+  border-radius:.5rem;color:var(--muted-foreground)
+}
+.v3-countries-discovery .v3-countries-web-search:focus-within {
+  outline:2px solid var(--primary);outline-offset:2px
+}
+.v3-countries-discovery .v3-countries-web-search .solaris-app-search-clear:focus-visible {
+  outline:2px solid var(--primary);outline-offset:2px
+}
+.v3-countries-discovery[data-country-directory-experience="mobile-web"] .solaris-app-directory-filterbar {
+  display:flex;align-items:center;justify-content:space-between;
+  gap:.5rem;flex-wrap:wrap
+}
+.v3-countries-discovery[data-country-directory-experience="mobile-web"] .solaris-app-directory-count {
+  display:block;flex:1 1 12rem
+}
+.v3-countries-discovery[data-country-directory-experience="desktop-web"] .v3-countries-browser {
+  margin-top:0
+}
+/* A desktop country explorer needs one page identity, not a giant hero
+ * followed by a second heading with almost the same title. */
+body .countries-library-hero.directory-page-hero {
+  margin-bottom:.9rem !important;
+  padding:.75rem 0 .9rem !important;
+  border:0 !important;
+  border-bottom:1px solid var(--border) !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  overflow:visible !important
+}
+body .countries-library-hero.directory-page-hero::before,
+body .countries-library-hero.directory-page-hero::after {
+  content:none !important;display:none !important
+}
+body .countries-library-hero.directory-page-hero h1 {
+  font-family:var(--font-sans,ui-sans-serif,system-ui,sans-serif) !important;
+  font-size:clamp(1.95rem,3vw,2.4rem) !important;
+  font-weight:750 !important;
+  letter-spacing:-.035em !important;
+  line-height:1.15 !important;
+  text-transform:none !important
+}
