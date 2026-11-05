@@ -28,6 +28,7 @@ const STATE_ORDER: ShowDiscoveryState[] = [
 export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { presentation?: V3DirectoryPresentation }) {
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
+  const [search, setSearch] = useState("");
   const [editionId, setEditionId] = useState("all");
   const [kind, setKind] = useState("all");
   const [state, setState] = useState<ShowDiscoveryState | "all">("all");
@@ -73,11 +74,15 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
     () =>
       allItems.filter(
         (item) =>
+          (!search.trim() || [
+            item.show.name, editionLabel(item.edition),
+            showKindLabel(item.show.kind), item.stateLabel,
+          ].join(" ").toLowerCase().includes(search.trim().toLowerCase())) &&
           (editionId === "all" || item.edition.id === editionId) &&
           (kind === "all" || item.show.kind === kind) &&
           (state === "all" || item.state === state),
       ),
-    [allItems, editionId, kind, state],
+    [allItems, editionId, kind, state, search],
   );
 
   if (archiveIsLoading(editionsQuery, showsQuery)) {
@@ -147,6 +152,12 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
       <section id="shows-browse" aria-labelledby="shows-browse-title" className="scroll-mt-24">
         <AppSectionHeader eyebrow="Browse" title="All public shows" id="shows-browse-title" />
         <div className="v3-shows-filter-fields grid gap-2 sm:grid-cols-3">
+          <label className="text-xs font-semibold text-muted-foreground sm:col-span-3">
+            Search shows
+            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+              aria-label="Search shows" placeholder="Search show name, edition or type…"
+              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground" />
+          </label>
           <label className="text-xs font-semibold text-muted-foreground">
             Edition
             <select
@@ -214,6 +225,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
               <button
                 type="button"
                 onClick={() => {
+                  setSearch("");
                   setEditionId("all");
                   setKind("all");
                   setState("all");
