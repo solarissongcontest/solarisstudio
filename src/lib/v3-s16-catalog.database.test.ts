@@ -1,10 +1,10 @@
 import {execFileSync} from "node:child_process";
 import {describe,expect,it} from "vitest";
-import {requireS16LocalDatabase,S16_FUNCTION_CATALOG_SQL,s16TableCatalogSql,s16PsqlEnvironment} from "./v3-s16-catalog";
+import {requireS16LocalDatabase,S16_FUNCTION_CATALOG_SQL,S16_ROLE_AND_DEFAULT_CATALOG_SQL,s16TableCatalogSql,s16PsqlEnvironment} from "./v3-s16-catalog";
 const db=process.env.V3_S16_TEST_DB_URL;
 function sql(body:string){
  if(!db)throw new Error("Explicit isolated PostgreSQL is required");
- return execFileSync("psql",[requireS16LocalDatabase(db),"-X","-Atq","-v","ON_ERROR_STOP=1","-c",`begin; set local search_path=pg_catalog; ${body} rollback;`],{encoding:"utf8",env:s16PsqlEnvironment(process.env)}).trim().split("\n").filter(Boolean).map(line=>JSON.parse(line));
+ return execFileSync("psql",[requireS16LocalDatabase(db),"-X","-Atq","-v","ON_ERROR_STOP=1","-c",`begin; set local search_path=pg_catalog; ${body} rollback;`],{encoding:"utf8",env:s16PsqlEnvironment(process.env),maxBuffer:64*1024*1024}).trim().split("\n").filter(Boolean).map(line=>JSON.parse(line));
 }
 const setup=`create schema s16_catalog_fixture; grant usage on schema s16_catalog_fixture to anon,authenticated,service_role;
 create table s16_catalog_fixture.state(id int, secret text); alter table s16_catalog_fixture.state enable row level security;
@@ -32,15 +32,19 @@ describe.skipIf(!db)("S16 effective PostgreSQL catalogs and execution",()=>{
   expect(result.rows).toBe(1);
  });
  it("does not mistake schema-local REVOKE for global PUBLIC EXECUTE revocation",()=>{
-  const [functions]=sql(`alter default privileges grant execute on functions to public;
+  const [initialDefaults,revokedDefaults,functions]=sql(`alter default privileges grant execute on functions to public;
    alter default privileges in schema public revoke execute on functions from public;
+   ${S16_ROLE_AND_DEFAULT_CATALOG_SQL}
    create function public.s16_fixture_overload(text) returns int language sql security definer set search_path=pg_catalog,pg_temp as $$select 1$$;
    revoke all on function public.s16_fixture_overload(text) from public;
    grant execute on function public.s16_fixture_overload(text) to authenticated;
    create function public.s16_fixture_overload(uuid) returns int language sql security definer set search_path=pg_catalog,pg_temp as $$select 1$$;
    alter default privileges revoke execute on functions from public;
+   ${S16_ROLE_AND_DEFAULT_CATALOG_SQL}
    create function public.s16_fixture_new() returns int language sql security definer set search_path=pg_catalog,pg_temp as $$select 1$$;
    ${S16_FUNCTION_CATALOG_SQL}`);
+  expect(initialDefaults.creatorDefaults.find((r:any)=>r.creator==='postgres').publicExecute).toBe(true);
+  expect(revokedDefaults.creatorDefaults.find((r:any)=>r.creator==='postgres').publicExecute).toBe(false);
   expect(functions.find((f:any)=>f.identity==='public.s16_fixture_overload(uuid)').executeRoles).toContain('anon');
   expect(functions.find((f:any)=>f.identity==='public.s16_fixture_overload(uuid)').executeRoles).toContain('PUBLIC');
   expect(functions.find((f:any)=>f.identity==='public.s16_fixture_overload(text)').executeRoles).not.toContain('anon');

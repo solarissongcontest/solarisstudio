@@ -71,7 +71,12 @@ export const S16_ROLE_AND_DEFAULT_CATALOG_SQL = `select jsonb_build_object(
  'roles',(select jsonb_agg(jsonb_build_object('name',rolname,'superuser',rolsuper,'bypassRls',rolbypassrls,
    'inherit',rolinherit,'canLogin',rolcanlogin)) from pg_roles),
  'memberships',(select coalesce(jsonb_agg(jsonb_build_object('role',pg_get_userbyid(roleid),
-   'member',pg_get_userbyid(member),'adminOption',admin_option)),'[]'::jsonb) from pg_auth_members),
+   'member',pg_get_userbyid(member),'adminOption',admin_option,
+   'inheritOption',to_jsonb(m)->'inherit_option','setOption',to_jsonb(m)->'set_option')),'[]'::jsonb) from pg_auth_members m),
+ 'creatorDefaults',(select jsonb_agg(jsonb_build_object('creator',r.rolname,'publicExecute',exists(
+   select 1 from aclexplode(coalesce((select d.defaclacl from pg_default_acl d
+    where d.defaclrole=r.oid and d.defaclnamespace=0 and d.defaclobjtype='f'),acldefault('f',r.oid))) a
+   where a.grantee=0 and a.privilege_type='EXECUTE'))) from pg_roles r),
  'functionDefaults',(select coalesce(jsonb_agg(jsonb_build_object('creator',pg_get_userbyid(d.defaclrole),
    'schema',n.nspname,'acl',d.defaclacl::text)),'[]'::jsonb) from pg_default_acl d
     left join pg_namespace n on n.oid=d.defaclnamespace where d.defaclobjtype='f')
