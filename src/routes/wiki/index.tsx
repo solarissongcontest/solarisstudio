@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { Check, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -9,6 +10,7 @@ import { ArchiveDataError, ArchiveDataLoading } from "@/components/ArchiveDataSt
 import { FlagChip } from "@/components/FlagChip";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useCountries } from "@/lib/data";
+import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 
 export const Route = createFileRoute("/wiki/")({
   head: () => ({
@@ -26,7 +28,29 @@ export const Route = createFileRoute("/wiki/")({
 const DIRECTORY_PAGE_SIZE = 18;
 
 function WikiIndexPage() {
-  const { isAppMode } = useSolarisApp();
+  const { isAppMode, platformResolved } = useSolarisApp();
+  const referenceRollout = useQuery({
+    queryKey: ["studio2-feature", "public_encyclopedia"],
+    queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
+    enabled: platformResolved,
+    staleTime: 30_000,
+  });
+
+  // Wiki and Reference solve the same search job. Once Reference is
+  // published, every browser and the installed app follow one canonical root.
+  // A rollout error must NOT silently hide the still-public Wiki fallback.
+  if (!platformResolved || referenceRollout.isLoading) {
+    return (
+      <AppShell>
+        <ArchiveDataLoading label="Opening Solaris Reference…" />
+      </AppShell>
+    );
+  }
+
+  if (!referenceRollout.isError && referenceRollout.data === true) {
+    return <Navigate to="/encyclopedia" search={{ artist: undefined }} replace />;
+  }
+
   return isAppMode ? <AppWikiIndexPage /> : <WebWikiIndexPage />;
 }
 

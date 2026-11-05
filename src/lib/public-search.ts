@@ -58,10 +58,27 @@ function navigationResult(item: PublicDestination): PublicSearchResult {
   };
 }
 
+// Solaris country and artist names can contain Å, Ø, Æ and other
+// non-ASCII characters. Fold search text only, never canonical names/IDs.
+function foldedSearchText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ø/g, "o")
+    .replace(/æ/g, "ae")
+    .replace(/œ/g, "oe")
+    .replace(/ð/g, "d")
+    .replace(/þ/g, "th")
+    .replace(/ł/g, "l")
+    .replace(/ß/g, "ss");
+}
+
 function normalizedTerms(query: string) {
-  return query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return foldedSearchText(query.trim()).split(/\s+/).filter(Boolean);
 }
 
 function matchesTerms(haystack: string, terms: string[]) {
-  return terms.every((term) => haystack.includes(term));
+  const normalized = foldedSearchText(haystack);
+  return terms.every((term) => normalized.includes(term));
 }

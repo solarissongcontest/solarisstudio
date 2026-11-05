@@ -23,6 +23,17 @@ describe("S14 canonical Televote Stage 7", () => {
     expect(stage7).toContain("count(*)<>5");
   });
 
+  it("projects only active show participants into each bound Televote round", () => {
+    expect(stage7).toContain("coalesce(p.participation_status,'confirmed')='confirmed'");
+    expect(stage7).toContain('active_count="$(db_scalar');
+    expect(stage7).toContain('round_entry_count="$(db_scalar');
+    expect(stage7).toContain('round_country_count="$(db_scalar');
+    expect(stage7).toContain('[[ "$round_entry_count" == "$active_count" ]]');
+    expect(stage7).toContain('[[ "$round_country_count" == "$active_count" ]]');
+    expect(stage7).toContain('[[ "$matched_count" == "$active_count" ]]');
+    expect(stage7).not.toContain('== "33" ]] || fail "S14 Televote round');
+  });
+
   it("keeps governed open/close authority and durable lifecycle evidence", () => {
     expect(stage7).toContain("studio2_round_status_change_preview");
     expect(stage7).toContain("studio2_apply_round_status_change");
@@ -39,6 +50,8 @@ describe("S14 canonical Televote Stage 7", () => {
     expect(deadlineStage).toContain("televote.deadline_set");
     expect(deadlineStage).toContain("s14_stage7_set_deadline_before_open");
     expect(deadlineStage).toContain("apply_televote_round_status_without_deadline");
+    expect(deadlineStage).toContain("S14_STAGE7_DEADLINE_SET");
+    expect(deadlineStage).toContain("requested=$desired_deadline persisted=$persisted_deadline");
     expect(deadlineStage).not.toContain("update televoting.rounds set closes_at");
   });
 
@@ -55,7 +68,13 @@ describe("S14 canonical Televote Stage 7", () => {
   });
 
   it("crosses the database deadline while status remains open and performs a genuine +2 minute extension", () => {
-    expect(deadlineStage).toContain("clock_timestamp() >= closes_at");
+    expect(deadlineStage).toContain("sample.db_now >= r.closes_at");
+    expect(deadlineStage).toContain("then 'expired' else 'waiting' end");
+    expect(deadlineStage).toContain('[[ "$expiry_state" == "expired" ]]');
+    expect(deadlineStage).toContain("S14_STAGE7_DEADLINE_POLL");
+    expect(deadlineStage).toContain("db_now=$db_now");
+    expect(deadlineStage).toContain("seconds_remaining=$seconds_remaining");
+    expect(deadlineStage).toContain("S14_STAGE7_SECOND_DEADLINE_RPC phase=apply");
     expect(deadlineStage).toContain("Voting deadline has passed");
     expect(deadlineStage).toContain("closed_at is null");
     expect(deadlineStage).toContain("closes_at + interval '2 minutes'");
@@ -63,6 +82,13 @@ describe("S14 canonical Televote Stage 7", () => {
     expect(deadlineStage).toContain('json_value action)" == "extend"');
     expect(deadlineStage).toContain("televote.extended");
     expect(deadlineStage).toContain("S14_TELEVOTE_DEADLINE_EXTENSION_COMPLETE");
+  });
+
+  it("does not compare PostgreSQL boolean text output with the one-letter psql display form", () => {
+    expect(deadlineStage).not.toMatch(
+      /clock_timestamp\(\)\s*>=\s*closes_at\)::text[\s\S]{0,200}==\s*"t"/,
+    );
+    expect(deadlineStage).not.toContain('== "t"');
   });
 
   it("proves replay, stale-version rejection and executable extension consequences", () => {
