@@ -16,6 +16,8 @@ const PR_SMOKE_PUBLIC_ROUTES = [
   "/pulse",
   "/result-lab",
   "/rules",
+  "/site-directory",
+  "/tools",
   "/televoting",
   "/wiki",
 ] as const;
@@ -123,6 +125,82 @@ test("Country directory renders the correct mobile-web and desktop browse compos
   // The directory is a navigation surface, not just a visually correct catalogue.
   await directory.locator('a[href^="/countries/"]').first().click();
   await expect(page).toHaveURL(/\/countries\/[^/]+\/?$/);
+});
+
+test("Public directory family distinguishes mobile website from desktop explorer", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  const mobile = testInfo.project.name === "public-390";
+  for (const route of ["/site-directory", "/tools"]) {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    const directory = page.locator("[data-directory-experience]");
+    await expect(directory).toHaveAttribute(
+      "data-directory-experience", mobile ? "mobile-web" : "desktop-web",
+    );
+    await expect(page.locator("[data-directory-boot]")).toHaveCount(0);
+    const title = route === "/tools" ? "Tools" : "All Solaris pages";
+    await expect(page.getByRole("heading", { level: 1, name: title })).toHaveCount(1);
+    if (mobile) {
+      await expect(page.locator("[data-directory-mobile-header]")).toBeVisible();
+      await expect(directory.locator(".v3-directory-mobile-list").first()).toBeVisible();
+      await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
+      await expect(directory.getByRole("combobox")).toBeVisible();
+    } else {
+      await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
+      await expect(directory.locator(".v3-directory-desktop-rail")).toBeVisible();
+      await expect(directory.locator(".v3-directory-desktop-grid").first()).toBeVisible();
+    }
+
+    const search = directory.getByRole("searchbox", {
+      name: route === "/tools" ? "Search Solaris tools" : "Search Solaris Studio pages",
+    });
+    await expect(search).toBeVisible();
+    await search.fill("unfindable-solaris-navigation-item");
+    await expect(directory.getByText(route === "/tools" ? "No matching tools" : "No matching pages")).toBeVisible();
+    await search.fill("");
+    await expect(directory.locator("a[href^='/']").first()).toBeVisible();
+
+    const overflow = await page.evaluate(() =>
+      Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    );
+    expect(overflow, `${route} must not overflow at ${testInfo.project.name}`).toBeLessThanOrEqual(2);
+    await testInfo.attach(`directory-family-${route.slice(1)}-${testInfo.project.name}.png`, {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+  }
+});
+
+test("Editions archive keeps distinct mobile-browser and desktop browse layouts", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  const mobile = testInfo.project.name === "public-390";
+  await page.goto("/editions", { waitUntil: "domcontentloaded" });
+  const directory = page.locator("[data-directory-experience]");
+  await expect(directory).toHaveAttribute(
+    "data-directory-experience", mobile ? "mobile-web" : "desktop-web",
+    { timeout: 15_000 },
+  );
+  await expect(page.getByRole("heading", { level: 1, name: "Editions" })).toHaveCount(1);
+  if (mobile) {
+    await expect(page.locator("[data-directory-mobile-header]")).toBeVisible();
+    await expect(directory.getByRole("combobox", { name: "Browse edition history" })).toBeVisible();
+    await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
+  } else {
+    await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
+    await expect(directory.locator(".v3-directory-desktop-rail")).toBeVisible();
+  }
+  const search = directory.getByRole("searchbox", { name: "Search editions" });
+  await expect(search).toBeVisible();
+  await search.fill("zz-no-such-solaris-edition");
+  await expect(directory.getByText("No matching editions")).toBeVisible();
+  await search.fill("");
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow, "Editions should not overflow").toBeLessThanOrEqual(2);
+  await testInfo.attach(`directory-family-editions-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
+  });
 });
 
 test("Country Glass atmosphere and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {
@@ -233,7 +311,7 @@ test("representative page families remain usable at 200% text size", async ({ pa
   );
 
   const context = page.context();
-  for (const route of ["/countries", "/editions", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
+  for (const route of ["/countries", "/site-directory", "/tools", "/editions", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
     const routePage = await context.newPage();
     try {
       await routePage.goto(route, { waitUntil: "domcontentloaded" });
@@ -245,6 +323,12 @@ test("representative page families remain usable at 200% text size", async ({ pa
         await expect(
           routePage.locator("[data-country-directory-boot]"),
           "Countries runtime boot must finish before accessibility verification",
+        ).toHaveCount(0, { timeout: 15_000 });
+      }
+      if (route === "/site-directory" || route === "/tools" || route === "/editions") {
+        await expect(
+          routePage.locator("[data-directory-boot]"),
+          `${route} runtime boot must finish before accessibility verification`,
         ).toHaveCount(0, { timeout: 15_000 });
       }
       await expect(

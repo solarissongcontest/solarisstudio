@@ -36,6 +36,52 @@ export default defineConfig({
                 name: "vendor-router",
                 test: /[\\/]node_modules[\\/]@tanstack[\\/]react-router[\\/]/,
               },
+              // Shared Radix primitives are used across route-local overlays.
+              // Consolidate package internals without pulling route modules
+              // into the common client bundle.
+              {
+                name: "vendor-radix",
+                test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
+              },
+              // Keep large chart vendors behind their existing lazy screen
+              // boundaries, sharing internals instead of emitting fragments.
+              {
+                name: "vendor-charts",
+                test: /[\\/]node_modules[\\/](?:recharts|victory-vendor)[\\/]/,
+              },
+              // Motion and data-cache internals appear in many route chunks.
+              // Group only package implementation, preserving lazy page imports.
+              {
+                name: "vendor-motion",
+                test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+              },
+              {
+                name: "vendor-query",
+                test: /[\\/]node_modules[\\/]@tanstack[\\/](?:react-query|query-core)[\\/]/,
+              },
+              {
+                name: "vendor-floating",
+                test: /[\\/]node_modules[\\/]@floating-ui[\\/]/,
+              },
+              // The public session, database and storage clients already
+              // share this SDK. Keep its package internals consolidated
+              // instead of repeatedly framing tiny route-local chunks.
+              {
+                name: "vendor-supabase",
+                test: /[\\/]node_modules[\\/]@supabase[\\/]/,
+              },
+              // Collapse small, frequently reused UI control adapters instead
+              // of repeating module shells and gzip framing across lazy routes.
+              // A minimum two-entry share prevents one-off page components
+              // from being pulled into the common browser payload. The lower
+              // minimum size groups smaller reused controls across directories.
+              {
+                name: "shared-controls",
+                test: /[\\/]src[\\/]components[\\/]ui[\\/]/,
+                minShareCount: 2,
+                minSize: 8000,
+                priority: 1,
+              },
             ],
           },
         },

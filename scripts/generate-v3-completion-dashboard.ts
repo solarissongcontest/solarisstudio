@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { resolveDashboardExactSha } from "./v3-dashboard-exact-sha";
 import { existsSync, readFileSync } from "node:fs";
 import {
   V3_DOMAIN_CONSEQUENCE_REGISTRY,
@@ -75,15 +76,13 @@ function sourceContains(path: string, needle: string | RegExp) {
 }
 
 function exactSha() {
-  const envSha = process.env.GITHUB_SHA?.trim();
-  if (envSha && /^[0-9a-f]{40}$/i.test(envSha)) return envSha.toLowerCase();
+  let checkedOutSha: string | null = null;
   try {
-    const gitSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-    if (/^[0-9a-f]{40}$/i.test(gitSha)) return gitSha.toLowerCase();
+    checkedOutSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
   } catch {
-    // Dashboard remains useful outside a git checkout, but it must say so.
+    // Useful outside Git for non-certification inventory; identity stays unknown.
   }
-  return "unknown";
+  return resolveDashboardExactSha(checkedOutSha, process.env.GITHUB_SHA);
 }
 
 function compactEvidence(values: readonly string[], limit = 6) {
