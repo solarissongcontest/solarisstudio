@@ -245,7 +245,10 @@ function AnniversarySettingsPage() {
       payload,
     });
     if (!command) return;
-    if (await submitCommand(command) && isCurrentAnniversaryCommand(command, activeContext.current)) setDraft(EMPTY_MILESTONE);
+    const submittedDraft = draft;
+    if (await submitCommand(command) && isCurrentAnniversaryCommand(command, activeContext.current)) {
+      setDraft((current) => current === submittedDraft ? EMPTY_MILESTONE : current);
+    }
   }
 
   function reviewPublication(action: PendingPublication["action"]) {
@@ -270,7 +273,7 @@ function AnniversarySettingsPage() {
     if (!pendingPublication) return;
     const reviewed = pendingPublication;
     if (!isCurrentAnniversaryCommand(reviewed, activeContext.current)) {
-      setPendingPublication(null);
+      setPendingPublication((current) => current === reviewed ? null : current);
       toast.error("Organizer context changed after publication review. Review the operation again in the selected edition.");
       return;
     }
@@ -282,7 +285,9 @@ function AnniversarySettingsPage() {
       expectedRevision: reviewed.expectedRevision,
       reason: reviewed.reason,
     });
-    if (settled && isCurrentAnniversaryCommand(reviewed, activeContext.current)) setPendingPublication(null);
+    if (settled && isCurrentAnniversaryCommand(reviewed, activeContext.current)) {
+      setPendingPublication((current) => current === reviewed ? null : current);
+    }
   }
 
   const loading = storyQuery.isLoading;
