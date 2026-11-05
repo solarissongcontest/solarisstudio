@@ -65,13 +65,14 @@ export default defineConfig({
               },
               // Collapse small, frequently reused UI control adapters instead
               // of repeating module shells and gzip framing across lazy routes.
-              // A minimum three-entry share prevents one-off page components
-              // from being pulled into the common browser payload.
+              // A minimum two-entry share prevents one-off page components
+              // from being pulled into the common browser payload. The lower
+              // minimum size groups smaller reused controls across directories.
               {
                 name: "shared-controls",
                 test: /[\\/]src[\\/]components[\\/]ui[\\/]/,
-                minShareCount: 3,
-                minSize: 12000,
+                minShareCount: 2,
+                minSize: 8000,
                 priority: 1,
               },
             ],
