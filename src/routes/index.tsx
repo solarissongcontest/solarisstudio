@@ -251,7 +251,7 @@ function LegacyHomePage() {
 
               <div className="flex shrink-0 items-center gap-2">
                 <div className="lg:hidden" data-v3-home-web-search-entry="">
-                  <PublicCommandPalette compact />
+                  <PublicCommandPalette compact keyboardShortcut={false} />
                 </div>
                 <div className="hidden shrink-0 text-right sm:block">
                   <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
