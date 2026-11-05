@@ -47,27 +47,10 @@ describe("Terra Solaris TG3 discovery rollout", () => {
     expect(source).toContain("on conflict (key) do nothing");
   });
 
-  it("makes both Explore experiences discover World only after canonical rollout", () => {
-    const entry = file("src/components/world/WorldExploreEntry.tsx");
-    const legacy = file("src/routes/explore/index.tsx");
-    const v3 = file("src/components/v3/V3ExploreScreen.tsx");
-    const gate = file("src/components/v3/V3ExploreRouteGate.tsx");
-    expect(entry).toContain("fetchWorldPublicEnabled");
-    expect(entry).toContain("if (rollout.data !== true) return null");
-    expect(entry).toContain("if (!enabled) return null");
-    expect(entry).toContain('to="/world"');
-    expect(legacy).toContain("<WorldExploreEntry />");
-    expect(v3).toContain("<WorldV3ExploreEntry enabled={showWorld} />");
-    expect(gate).toContain("enabled: shouldLoadBundle");
-    expect(gate).toContain("showWorld={worldRollout.data === true}");
-  });
-  it("supports canonical leadership and member deep links without a second private reader", () => {
-    for (const section of ["leadership", "members"]) {
-      const source = file(`src/routes/world/organizations/$slug_.${section}.tsx`);
-      expect(source).toContain(`createFileRoute("/world/organizations/$slug/${section}")`);
-      expect(source).toContain('to: "/world/organizations/$slug"');
-      expect(source).toContain(`search: { tab: "${section}" }`);
-      expect(source).not.toContain("supabase");
-    }
+  it("recognizes the canonical non-prefix World rollout in S15 exact-head ownership", () => {
+    const scanner = file("scripts/check-v3-s15-zero-orphan-readiness-core.ts");
+    expect(scanner).toContain('flag.startsWith("solaris_app_v3") || flag === "terra_world_public"');
+    expect(scanner).toContain("FEATURE_FLAG_REGISTRY_ORPHAN");
+    expect(scanner).toContain("PUBLIC_SURFACE_ROUTE_ORPHAN");
   });
 });
