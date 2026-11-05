@@ -1,0 +1,74 @@
+name: V3 Edition creation authority
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "src/lib/edition-create-command*"
+      - "src/routes/_authenticated/admin/editions.tsx"
+      - ".github/tests/v3-edition-creation*"
+      - ".github/scripts/v3-edition-creation-rehearsal.sh"
+      - ".github/scripts/v3-start-disposable-supabase.sh"
+      - ".github/scripts/prepare-archive-local-config.py"
+      - ".github/workflows/v3-edition-creation-rehearsal.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: edition-creation-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  authority:
+    name: Edition INSERT authority (${{ matrix.baseline }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        baseline: [candidate, current-main]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Start the owned disposable database
+        env:
+          BASELINE: ${{ matrix.baseline }}
+        run: |
+          set -euo pipefail
+          runtime="$RUNNER_TEMP/edition-creation-db"
+          baseline_sha="$(git rev-parse HEAD)"
+          if [[ "$BASELINE" == current-main ]]; then
+            git fetch origin main --no-tags
+            baseline_sha="$(git rev-parse origin/main)"
+          fi
+          git worktree add "$runtime" "$baseline_sha"
+          echo "EDITION_AUTHORITY_RUNTIME=$runtime" >> "$GITHUB_ENV"
+          cd "$runtime"
+          GITHUB_JOB="${GITHUB_JOB}-${BASELINE}" bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
+          supabase db reset --local --no-seed
+          if [[ "$BASELINE" == current-main ]]; then
+            eval "$(supabase status -o env)"
+            case "$DB_URL" in postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*) ;; *) exit 1;; esac
+            psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-edition-creation-baseline.sql"
+            bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" "$runtime"
+            supabase migration up --local --include-all
+          fi
+      - name: Verify governed creation, replay, event atomicity and hostile INSERT denial
+        run: |
+          cd "$EDITION_AUTHORITY_RUNTIME"
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-edition-creation-rehearsal.sh"
+      - name: Preserve merged historical metadata acceptance
+        run: |
+          cd "$EDITION_AUTHORITY_RUNTIME"
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-edition-metadata-rehearsal.sh"
+      - name: Stop only this owned disposable database
+        if: always()
+        run: |
+          if [[ -n "${EDITION_AUTHORITY_RUNTIME:-}" && -d "$EDITION_AUTHORITY_RUNTIME" ]]; then
+            cd "$EDITION_AUTHORITY_RUNTIME"
+            supabase stop --no-backup
+          fi
