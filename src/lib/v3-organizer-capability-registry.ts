@@ -133,6 +133,8 @@ function targetDomainFor(id: string) {
 }
 
 function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStatus"] {
+  // Governed editorial lifecycle is accepted independently of historical date maintenance.
+  if (id === "workspace-anniversary-settings") return "cutover";
   if (id === "current-edition-overview") return "parity";
   if (
     id === "current-edition-tasks" ||
@@ -207,7 +209,6 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-predictions" ||
     id === "workspace-fantasy" ||
     id === "workspace-command-assistant" ||
-    id === "workspace-anniversary-settings" ||
     id === "workspace-anniversary-dates" ||
     id === "workspace-beta-3-feedback" ||
     id === "workspace-beta-2-feedback" ||
