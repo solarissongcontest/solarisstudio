@@ -153,3 +153,15 @@ body .v3-rule-chapters-directory .v3-directory-family[data-directory-experience=
   letter-spacing: -.035em !important;
   text-transform: none !important;
 }
+
+/* Input focus is presented by the shared search shell, not a second inner
+ * legacy input halo. Keyboard focus remains explicitly visible. */
+body .v3-rule-chapters-directory .v3-directory-search:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+body .v3-rule-chapters-directory .v3-directory-search input:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
