@@ -259,6 +259,10 @@ function AppPublicPaletteDialog({
     queryKey: ["solaris-public-app-search", normalized.toLowerCase()],
     enabled: normalized.length >= 2,
     staleTime: 60_000,
+    // A failed search must be recoverable without automatically repeating
+    // hosted read traffic. Explicit Retry remains under the visitor's control.
+    retry: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("solaris_public_search", {
         search_query: normalized,
@@ -431,14 +435,38 @@ function AppPublicPaletteDialog({
       </div>
       <CommandList className="solaris-app-search-list">
         <CommandEmpty>
-          {remote.isFetching
-            ? "Searching Solaris…"
-            : normalized.length === 1
-              ? "Type one more character to search."
-              : normalized
-                ? "Nothing in Solaris Studio matches that search."
-                : "Start typing to search Solaris Studio."}
+          {remote.isError && normalized.length >= 2
+            ? "Published content search is unavailable; local matches may still be shown."
+            : remote.isFetching
+              ? "Searching Solaris…"
+              : normalized.length === 1
+                ? "Type one more character to search."
+                : normalized
+                  ? "Nothing in Solaris Studio matches that search."
+                  : "Start typing to search Solaris Studio."}
         </CommandEmpty>
+
+        {remote.isFetching && normalized.length >= 2 ? (
+          <p role="status" aria-live="polite" className="px-4 py-2 text-xs text-muted-foreground">
+            Searching published Solaris content…
+          </p>
+        ) : null}
+
+        {remote.isError && normalized.length >= 2 ? (
+          <div role="alert" className="mx-3 my-2 rounded-xl border border-border/70 bg-surface/75 p-3">
+            <p className="text-sm font-semibold">Published search could not load</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Local navigation matches are still available. Retry to search published countries, editions, shows and entries.
+            </p>
+            <button
+              type="button"
+              onClick={() => void remote.refetch()}
+              className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:bg-surface-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              Retry published search
+            </button>
+          </div>
+        ) : null}
 
         {!normalized && initialSearchState.recentQueries.length ? (
           <CommandGroup heading="Recent searches">
