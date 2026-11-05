@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, CheckCircle2, History, Plus, RefreshCw, Save, Sparkles } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { isCurrentAnniversaryCommand } from "@/lib/anniversary-command-scope";
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -45,6 +46,7 @@ const PREVIEWS = [
 type StoryAction = Parameters<typeof executeStudio2StoryOperation>[0]["action"];
 
 type PendingPublication = {
+  actorId: string;
   action: "publish_storyline" | "unpublish_storyline";
   editionId: string;
   editionLabel: string;
@@ -54,6 +56,7 @@ type PendingPublication = {
 };
 
 type StoryCommandInput = {
+  actorId: string;
   action: StoryAction;
   editionId: string;
   contextVersion: number;
@@ -84,15 +87,16 @@ const EMPTY_MILESTONE: MilestoneDraft = {
 function AnniversarySettingsPage() {
   const { editionId, editionLabel, editionSlug, contextVersion } = useAdminContext();
   const queryClient = useQueryClient();
-  const activeContext = useRef({ editionId, contextVersion });
-  useLayoutEffect(() => { activeContext.current = { editionId, contextVersion }; }, [editionId, contextVersion]);
+  const actorId = useAuthenticatedUser().id;
+  const activeContext = useRef({ actorId, editionId, contextVersion });
+  useLayoutEffect(() => { activeContext.current = { actorId, editionId, contextVersion }; }, [actorId, editionId, contextVersion]);
   const [auditReason, setAuditReason] = useState("");
   const [draft, setDraft] = useState<MilestoneDraft>(EMPTY_MILESTONE);
   const [pendingPublication, setPendingPublication] = useState<PendingPublication | null>(null);
   const [lastReceipt, setLastReceipt] = useState<StoryOperationExecution | null>(null);
 
   const storyQuery = useQuery({
-    queryKey: ["studio2-storytelling", editionId || "none"],
+    queryKey: ["studio2-storytelling", editionId || "none", actorId],
     enabled: Boolean(editionId),
     queryFn: () => loadStudio2Storytelling(editionId),
     staleTime: 8_000,
@@ -107,12 +111,12 @@ function AnniversarySettingsPage() {
     [story?.items],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setAuditReason("");
     setDraft(EMPTY_MILESTONE);
     setPendingPublication(null);
     setLastReceipt(null);
-  }, [editionId, contextVersion]);
+  }, [actorId, editionId, contextVersion]);
 
   const mutation = useMutation({
     mutationFn: async (input: StoryCommandInput) => {
@@ -149,7 +153,7 @@ function AnniversarySettingsPage() {
     },
   });
 
-  function currentCommand(input: Omit<StoryCommandInput, "editionId" | "contextVersion" | "reason">): StoryCommandInput | null {
+  function currentCommand(input: Omit<StoryCommandInput, "actorId" | "editionId" | "contextVersion" | "reason">): StoryCommandInput | null {
     const reason = auditReason.trim();
     if (!editionId) {
       toast.error("Select an Organizer edition first.");
@@ -161,6 +165,7 @@ function AnniversarySettingsPage() {
     }
     return {
       ...input,
+      actorId,
       editionId,
       contextVersion,
       reason,
@@ -234,6 +239,7 @@ function AnniversarySettingsPage() {
       return;
     }
     setPendingPublication({
+      actorId,
       action,
       editionId,
       editionLabel: editionLabel || snapshot?.edition.name || "Selected edition",
@@ -246,13 +252,14 @@ function AnniversarySettingsPage() {
   async function applyPublication() {
     if (!pendingPublication) return;
     const reviewed = pendingPublication;
-    if (reviewed.editionId !== editionId || reviewed.contextVersion !== contextVersion) {
+    if (!isCurrentAnniversaryCommand(reviewed, activeContext.current)) {
       setPendingPublication(null);
       toast.error("Organizer context changed after publication review. Review the operation again in the selected edition.");
       return;
     }
     await mutation.mutateAsync({
       action: reviewed.action,
+      actorId: reviewed.actorId,
       editionId: reviewed.editionId,
       contextVersion: reviewed.contextVersion,
       expectedRevision: reviewed.expectedRevision,

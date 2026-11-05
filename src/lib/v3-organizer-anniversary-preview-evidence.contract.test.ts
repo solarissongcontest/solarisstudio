@@ -62,7 +62,7 @@ describe("V3 Organizer Anniversary settings cutover", () => {
     expect(anniversary).toContain("useAdminContext");
     expect(anniversary).toContain("!isCurrentAnniversaryCommand(input, activeContext.current)");
     expect(anniversary).toContain("reviewed.editionId");
-    expect(anniversary).toContain("reviewed.contextVersion !== contextVersion");
+    expect(anniversary).toContain("!isCurrentAnniversaryCommand(reviewed, activeContext.current)");
     expect(anniversary).toContain("expectedRevision: story.revision");
     expect(anniversary).toContain("Organizer context changed after publication review");
 
