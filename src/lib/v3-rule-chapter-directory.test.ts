@@ -28,19 +28,24 @@ describe("V3 Rulebook chapter directory", () => {
 
   it("keeps official deep links and separate installed, phone-web and desktop presentations", () => {
     const route = readFileSync("src/routes/rules/chapters/index.tsx", "utf8");
+    const family = readFileSync("src/components/v3/V3DirectoryFamilyIndex.tsx", "utf8");
     const css = readFileSync("src/styles/v3-directory-family.css", "utf8");
     expect(route).toContain("RulesRouteShell");
     expect(route).toContain("GovernanceStatusStrip");
     expect(route).toContain('to="/rules/chapters/$chapter"');
     expect(route).toContain("filterRuleChapterDirectory");
-    expect(route).toContain("useV3DirectoryPresentation");
-    expect(route).toContain("platformResolved");
-    expect(route).toContain('data-directory-experience={presentation}');
-    expect(route).toContain('data-directory-mobile-header=""');
-    expect(route).toContain("v3-directory-mobile-list");
-    expect(route).toContain("v3-directory-desktop-grid");
-    expect(route).toContain("v3-directory-desktop-rail");
-    expect(route).toContain("AppGroupedList");
+    expect(route).toContain("V3DirectoryFamilyIndex");
+    expect(route).toContain("noShell");
+    expect(route).toContain('to: "/rules/chapters/$chapter"');
+    expect(route).toContain("params: { chapter: chapter.slug }");
+    expect(family).toContain("platformResolved");
+    expect(family).toContain('data-directory-experience={presentation}');
+    expect(family).toContain('data-directory-mobile-header=""');
+    expect(family).toContain("v3-directory-mobile-list");
+    expect(family).toContain("v3-directory-desktop-grid");
+    expect(family).toContain("v3-directory-desktop-rail");
+    expect(family).toContain("AppGroupedList");
+    expect(family).toContain("noShell ? content");
     expect(css).toContain('[data-directory-experience="mobile-web"]');
     expect(route).not.toContain("<AppShell>");
   });
