@@ -63,15 +63,23 @@ export default defineConfig({
                 name: "vendor-floating",
                 test: /[\\/]node_modules[\\/]@floating-ui[\\/]/,
               },
+              // The public session, database and storage clients already
+              // share this SDK. Keep its package internals consolidated
+              // instead of repeatedly framing tiny route-local chunks.
+              {
+                name: "vendor-supabase",
+                test: /[\\/]node_modules[\\/]@supabase[\\/]/,
+              },
               // Collapse small, frequently reused UI control adapters instead
               // of repeating module shells and gzip framing across lazy routes.
-              // A minimum three-entry share prevents one-off page components
-              // from being pulled into the common browser payload.
+              // A minimum two-entry share prevents one-off page components
+              // from being pulled into the common browser payload. The lower
+              // minimum size groups smaller reused controls across directories.
               {
                 name: "shared-controls",
                 test: /[\\/]src[\\/]components[\\/]ui[\\/]/,
-                minShareCount: 3,
-                minSize: 12000,
+                minShareCount: 2,
+                minSize: 8000,
                 priority: 1,
               },
             ],
