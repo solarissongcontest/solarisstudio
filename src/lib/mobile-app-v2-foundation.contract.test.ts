@@ -123,7 +123,8 @@ describe("Mobile App V2 architectural invariants", () => {
 
     expect(explore).toContain("solaris-app-grouped-list");
     expect(results).toContain("solaris-app-result-hero");
-    expect(directory).toContain("solaris-app-list-row");
+    expect(directory).toContain("V3DirectoryFamilyIndex");
+    expect(source("src/components/v3/V3DirectoryFamilyIndex.tsx")).toContain("solaris-app-list-row");
     expect(editions).toContain("AppScreen");
     expect(editions).toContain("solaris-app-edition-row");
     expect(countries).toContain("AppCountriesPage");
