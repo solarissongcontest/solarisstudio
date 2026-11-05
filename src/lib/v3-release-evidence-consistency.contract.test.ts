@@ -154,7 +154,10 @@ describe("V3 release evidence truthfulness", () => {
       physicalOwnership: { zeroOwnershipConflicts: true, findings: [] },
     };
     expect(check("s15-zero-orphan.json", valid)).toBeNull();
-    for (const findings of [undefined, ["unregistered canonical owner"]]) {
+    expect(check("s15-zero-orphan.json", {
+      ...valid, physicalOwnership: { zeroOwnershipConflicts: true, schemaVersion: 1 },
+    })).toBeNull();
+    for (const findings of [null, ["unregistered canonical owner"]]) {
       expect(check("s15-zero-orphan.json", {
         ...valid,
         physicalOwnership: { zeroOwnershipConflicts: true, findings },

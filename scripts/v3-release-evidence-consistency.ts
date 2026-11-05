@@ -117,8 +117,11 @@ export function releaseEvidenceConsistencyFailure(
       return "s15-zero-orphan.json claims zeroOrphans=true without an empty findings array";
     }
     const physical = record(evidence.physicalOwnership);
+    // The canonical producer summarizes physical findings in the top-level
+    // array. Accept that summary, but never trust contradictory nested proof.
     if (!physical || physical.zeroOwnershipConflicts !== true ||
-        !Array.isArray(physical.findings) || physical.findings.length !== 0) {
+        (physical.findings !== undefined &&
+          (!Array.isArray(physical.findings) || physical.findings.length !== 0))) {
       return "s15-zero-orphan.json claims zeroOrphans=true without clean physical ownership";
     }
   }
