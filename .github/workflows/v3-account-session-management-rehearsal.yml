@@ -9,6 +9,7 @@ on:
       - ".github/scripts/v3-account-session-management-rehearsal.sh"
       - ".github/scripts/v3-account-session-authority-rehearsal.sh"
       - ".github/tests/v3-account-session-authority.sql"
+      - ".github/tests/v3-account-session-authority-baseline.sql"
       - ".github/workflows/v3-account-session-management-rehearsal.yml"
       - "src/lib/v3-account-session-management.contract.test.ts"
       - "src/lib/v3-account-session-authority.contract.test.ts"
@@ -81,6 +82,14 @@ jobs:
           python3 "$GITHUB_WORKSPACE/.github/scripts/prepare-archive-local-config.py" supabase/config.toml "archive-account-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-upgrade"
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
           supabase db reset --local --no-seed
+      - name: Prove pre-upgrade worker mutation authority locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-account-session-main
+          eval "$(supabase status -o env)"
+          case "$DB_URL" in postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;; *) echo "Refusing non-local authority baseline" >&2; exit 1 ;; esac
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/tests/v3-account-session-authority-baseline.sql"
       - name: Apply additive feature migration delta
         shell: bash
         run: |
