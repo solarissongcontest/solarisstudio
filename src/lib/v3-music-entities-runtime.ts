@@ -7,6 +7,14 @@ import {
   getV3SongProjection,
 } from "./v3-music-entities.functions";
 
+const DEFAULT_INDEX_LIMIT = 50;
+const MAX_INDEX_LIMIT = 100;
+
+function boundedIndexLimit(limit: number) {
+  if (!Number.isFinite(limit)) return DEFAULT_INDEX_LIMIT;
+  return Math.max(1, Math.min(MAX_INDEX_LIMIT, Math.floor(limit)));
+}
+
 export function useV3ArtistProjection(id: string) {
   const normalized = id.trim();
   return useQuery({
@@ -31,13 +39,14 @@ export function useV3SongProjection(id: string) {
   });
 }
 
-export function useV3ArtistIndexProjection(query = "") {
+export function useV3ArtistIndexProjection(query = "", limit = DEFAULT_INDEX_LIMIT) {
   const normalized = query.trim();
+  const boundedLimit = boundedIndexLimit(limit);
   return useQuery({
-    queryKey: ["v3-music-artists", normalized],
+    queryKey: ["v3-music-artists", normalized, boundedLimit],
     queryFn: () =>
       getV3ArtistIndexProjection({
-        data: { query: normalized || null, limit: 50 },
+        data: { query: normalized || null, limit: boundedLimit },
       }),
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
@@ -45,13 +54,14 @@ export function useV3ArtistIndexProjection(query = "") {
   });
 }
 
-export function useV3SongIndexProjection(query = "") {
+export function useV3SongIndexProjection(query = "", limit = DEFAULT_INDEX_LIMIT) {
   const normalized = query.trim();
+  const boundedLimit = boundedIndexLimit(limit);
   return useQuery({
-    queryKey: ["v3-music-songs", normalized],
+    queryKey: ["v3-music-songs", normalized, boundedLimit],
     queryFn: () =>
       getV3SongIndexProjection({
-        data: { query: normalized || null, limit: 50 },
+        data: { query: normalized || null, limit: boundedLimit },
       }),
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,

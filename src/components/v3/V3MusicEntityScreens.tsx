@@ -1,6 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { Disc3, MicVocal, Search } from "lucide-react";
+import { ChevronRight, Disc3, MicVocal, Search, X } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
+
+import { useV3DirectoryPresentation } from "@/lib/v3-directory-presentation";
+import "@/styles/v3-music-directory.css";
 
 import type {
   V3ArtistDetail,
@@ -10,12 +13,13 @@ import type {
 } from "@/lib/v3-music-entities";
 import { v3ArtistHref, v3SongHref } from "@/lib/v3-music-entities";
 import {
-  V3ActionCard,
   V3Screen,
   V3ScreenHeader,
   V3Section,
+  V3StatusChip,
   V3Surface,
 } from "./V3Foundation";
+import { V3ArtistPreview, V3SongPreview } from "./V3MusicPrimitives";
 
 function SearchBox({
   value,
@@ -35,10 +39,14 @@ function SearchBox({
     event.preventDefault();
     onSubmit(draft.trim());
   };
+  const clear = () => {
+    setDraft("");
+    onSubmit("");
+  };
 
   return (
-    <form onSubmit={submit} className="flex gap-2" role="search">
-      <label className="min-w-0 flex-1">
+    <form onSubmit={submit} className="flex flex-wrap gap-2 sm:flex-nowrap" role="search">
+      <label className="min-w-0 flex-1 basis-full sm:basis-auto">
         <span className="sr-only">{label}</span>
         <input
           value={draft}
@@ -48,9 +56,19 @@ function SearchBox({
           className="min-h-11 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-white/25 focus:bg-white/[0.065]"
         />
       </label>
+      {draft ? (
+        <button
+          type="button"
+          onClick={clear}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 text-sm font-semibold text-white/62 transition hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+        >
+          <X className="size-4" aria-hidden="true" />
+          Clear
+        </button>
+      ) : null}
       <button
         type="submit"
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.07] px-4 text-sm font-semibold text-white/88 transition hover:bg-white/[0.1]"
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.07] px-4 text-sm font-semibold text-white/88 transition hover:bg-white/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
       >
         <Search className="size-4" aria-hidden="true" />
         Search
@@ -74,6 +92,14 @@ function QueryState({
   );
 }
 
+function MusicRootLink() {
+  return <Link className="v3-music-browse-link" to="/music">
+    <Disc3 size={17} aria-hidden="true" />
+    Music discovery
+    <ChevronRight size={17} aria-hidden="true" />
+  </Link>;
+}
+
 export function V3ArtistIndexScreen({
   projection,
   query,
@@ -83,38 +109,37 @@ export function V3ArtistIndexScreen({
   query: string;
   onQueryChange: (query: string) => void;
 }) {
+  const presentation = useV3DirectoryPresentation();
   return (
-    <V3Screen>
+    <V3Screen className={`v3-music-directory v3-music-directory--${presentation} v3-music-entity-index`}>
       <V3ScreenHeader
         kicker="Explore · Artists"
         title="Artists"
-        description="First-class Solaris artist identities linked to entries that are already public. Names are presentation, not identity."
-        editorial
+        description="Discover published artists and their songs."
+        editorial={presentation === "desktop-web"}
       />
 
-      <V3Surface level="raised" className="p-4 sm:p-5">
+      <div className="v3-music-search-panel">
         <SearchBox
           value={query}
           label="Search artists"
           placeholder="Search published artists"
           onSubmit={onQueryChange}
         />
-      </V3Surface>
+      </div>
+      <p className="v3-music-index-coverage" role="status" aria-live="polite">
+        Results are a bounded window of published identities, not a complete historical catalogue.
+        Search by name to narrow the selection.
+      </p>
 
       <V3Section
         title={query ? "Search results" : "Published artists"}
-        meta={`${projection.items.length} shown`}
+        meta={`${projection.items.length} published identities loaded`}
       >
         {projection.items.length ? (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="v3-music-preview-list">
             {projection.items.map((artist) => (
-              <V3ActionCard
-                key={artist.id}
-                title={artist.displayName}
-                description="Artist profile"
-                icon={MicVocal}
-                to={v3ArtistHref(artist.id)}
-              />
+              <V3ArtistPreview key={artist.id} artist={artist} />
             ))}
           </div>
         ) : (
@@ -129,14 +154,13 @@ export function V3ArtistIndexScreen({
         )}
       </V3Section>
 
-      <V3Section title="Explore music">
-        <V3ActionCard
-          title="Songs"
-          description="Browse first-class published song identities"
-          icon={Disc3}
-          to="/songs"
-        />
-      </V3Section>
+      <nav className="v3-music-related-links" aria-label="More music">
+        <MusicRootLink />
+        <Link to="/songs" className="v3-music-browse-link">
+          <Disc3 size={17} aria-hidden="true" /> Browse songs
+          <ChevronRight size={17} aria-hidden="true" />
+        </Link>
+      </nav>
     </V3Screen>
   );
 }
@@ -150,41 +174,40 @@ export function V3SongIndexScreen({
   query: string;
   onQueryChange: (query: string) => void;
 }) {
+  const presentation = useV3DirectoryPresentation();
   return (
-    <V3Screen>
+    <V3Screen className={`v3-music-directory v3-music-directory--${presentation} v3-music-entity-index`}>
       <V3ScreenHeader
         kicker="Explore · Songs"
         title="Songs"
-        description="Published Solaris songs backed by durable System identity rather than mutable title text."
-        editorial
+        description="Explore the catalogue of published songs."
+        editorial={presentation === "desktop-web"}
       />
 
-      <V3Surface level="raised" className="p-4 sm:p-5">
+      <div className="v3-music-search-panel">
         <SearchBox
           value={query}
           label="Search songs"
           placeholder="Search published songs"
           onSubmit={onQueryChange}
         />
-      </V3Surface>
+      </div>
+      <p className="v3-music-index-coverage" role="status" aria-live="polite">
+        Results are a bounded window of published identities, not a complete historical catalogue.
+        Search by name to narrow the selection.
+      </p>
 
       <V3Section
         title={query ? "Search results" : "Published songs"}
-        meta={`${projection.items.length} shown`}
+        meta={`${projection.items.length} published identities loaded`}
       >
         {projection.items.length ? (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="v3-music-preview-list">
             {projection.items.map((song) => (
-              <V3ActionCard
+              <V3SongPreview
                 key={song.id}
-                title={song.title}
-                description={
-                  song.artists.length
-                    ? song.artists.map((artist) => artist.displayName).join(" · ")
-                    : "Published song"
-                }
-                icon={Disc3}
-                to={v3SongHref(song.id)}
+                song={song}
+                context={query ? "Search match" : "Public catalogue"}
               />
             ))}
           </div>
@@ -200,14 +223,13 @@ export function V3SongIndexScreen({
         )}
       </V3Section>
 
-      <V3Section title="Explore music">
-        <V3ActionCard
-          title="Artists"
-          description="Browse first-class published artist identities"
-          icon={MicVocal}
-          to="/artists"
-        />
-      </V3Section>
+      <nav className="v3-music-related-links" aria-label="More music">
+        <MusicRootLink />
+        <Link to="/artists" className="v3-music-browse-link">
+          <MicVocal size={17} aria-hidden="true" /> Browse artists
+          <ChevronRight size={17} aria-hidden="true" />
+        </Link>
+      </nav>
     </V3Screen>
   );
 }
@@ -227,25 +249,44 @@ function AppearanceList({
   }
 
   return (
-    <div className="grid gap-2">
+    <div className="v3-music-preview-list">
       {appearances.map((appearance) => (
-        <V3Surface key={appearance.entryId} className="px-4 py-3">
-          <p className="text-sm font-semibold text-white/90">{appearance.songLabel}</p>
-          <p className="mt-1 text-xs text-white/48">{appearance.artistLabel}</p>
-        </V3Surface>
+        <div
+          key={appearance.entryId}
+          className="flex min-h-20 items-center gap-3 border-b border-white/[0.055] py-3 last:border-b-0"
+        >
+          <span
+            className="grid size-11 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-white/58"
+            aria-hidden="true"
+          >
+            <Disc3 className="size-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block min-w-0 break-words text-sm font-semibold leading-snug text-white/92">
+              {appearance.songLabel}
+            </span>
+            <span className="mt-1 block truncate text-xs text-white/50">
+              {appearance.artistLabel}
+            </span>
+            <span className="mt-2 inline-flex">
+              <V3StatusChip tone="neutral">Published appearance</V3StatusChip>
+            </span>
+          </span>
+        </div>
       ))}
     </div>
   );
 }
 
 export function V3ArtistDetailScreen({ artist }: { artist: V3ArtistDetail }) {
+  const presentation = useV3DirectoryPresentation();
   return (
-    <V3Screen>
+    <V3Screen className={`v3-music-directory v3-music-directory--${presentation} v3-music-entity-detail`}>
       <V3ScreenHeader
         kicker="Artist"
         title={artist.displayName}
         description={artist.bio ?? "Published Solaris artist identity."}
-        editorial
+        editorial={presentation === "desktop-web"}
       />
 
       {artist.aliases.length ? (
@@ -263,17 +304,31 @@ export function V3ArtistDetailScreen({ artist }: { artist: V3ArtistDetail }) {
         </V3Section>
       ) : null}
 
+      <div className="v3-music-detail-columns">
       <V3Section title="Songs" meta={`${artist.songs.length}`}>
         {artist.songs.length ? (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="v3-music-preview-list">
             {artist.songs.map((song) => (
-              <V3ActionCard
+              <Link
                 key={song.id}
-                title={song.title}
-                description="Open song"
-                icon={Disc3}
-                to={v3SongHref(song.id)}
-              />
+                to={v3SongHref(song.id) as any}
+                className="group flex min-h-16 items-center gap-3 border-b border-white/[0.055] py-3 last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+              >
+                <span
+                  className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-white/60 group-hover:text-white/88"
+                  aria-hidden="true"
+                >
+                  <Disc3 className="size-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block min-w-0 break-words text-sm font-semibold leading-snug text-white/92">
+                    {song.title}
+                  </span>
+                  <span className="mt-1 block text-xs text-white/48">
+                    Published song
+                  </span>
+                </span>
+              </Link>
             ))}
           </div>
         ) : (
@@ -287,6 +342,15 @@ export function V3ArtistDetailScreen({ artist }: { artist: V3ArtistDetail }) {
       <V3Section title="Published appearances" meta={`${artist.appearances.length}`}>
         <AppearanceList appearances={artist.appearances} />
       </V3Section>
+      </div>
+      <p className="v3-music-index-coverage" role="status" aria-live="polite">
+        Results are a bounded window of published identities, not a complete historical catalogue.
+        Search by name to narrow the selection.
+      </p>
+
+      <V3Section title="Explore music">
+        <MusicRootLink />
+      </V3Section>
 
       <p className="px-1 text-xs leading-5 text-white/40">
         Artist identity comes from the canonical System registry. Credits, media, participation state and results remain owned by their existing Entry and Results projections.
@@ -296,8 +360,9 @@ export function V3ArtistDetailScreen({ artist }: { artist: V3ArtistDetail }) {
 }
 
 export function V3SongDetailScreen({ song }: { song: V3SongDetail }) {
+  const presentation = useV3DirectoryPresentation();
   return (
-    <V3Screen>
+    <V3Screen className={`v3-music-directory v3-music-directory--${presentation} v3-music-entity-detail`}>
       <V3ScreenHeader
         kicker="Song"
         title={song.title}
@@ -306,24 +371,36 @@ export function V3SongDetailScreen({ song }: { song: V3SongDetail }) {
             ? song.artists.map((artist) => artist.displayName).join(" · ")
             : "Published Solaris song identity."
         }
-        editorial
+        editorial={presentation === "desktop-web"}
       />
 
+      <div className="v3-music-detail-columns">
       <V3Section title="Artists" meta={`${song.artists.length}`}>
         {song.artists.length ? (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="v3-music-preview-list">
             {song.artists.map((artist) => (
-              <V3ActionCard
+              <Link
                 key={artist.id}
-                title={artist.creditLabel || artist.displayName}
-                description={
-                  artist.creditLabel && artist.creditLabel !== artist.displayName
-                    ? artist.displayName
-                    : `Credit ${artist.position}`
-                }
-                icon={MicVocal}
-                to={v3ArtistHref(artist.id)}
-              />
+                to={v3ArtistHref(artist.id) as any}
+                className="group flex min-h-16 items-center gap-3 border-b border-white/[0.055] py-3 last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+              >
+                <span
+                  className="grid size-10 shrink-0 place-items-center rounded-full border border-white/[0.08] bg-white/[0.04] text-white/60 group-hover:text-white/88"
+                  aria-hidden="true"
+                >
+                  <MicVocal className="size-4.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block min-w-0 break-words text-sm font-semibold leading-snug text-white/92">
+                    {artist.creditLabel || artist.displayName}
+                  </span>
+                  <span className="mt-1 block truncate text-xs text-white/48">
+                    {artist.creditLabel && artist.creditLabel !== artist.displayName
+                      ? `${artist.displayName} · credit ${artist.position}`
+                      : `Artist credit ${artist.position}`}
+                  </span>
+                </span>
+              </Link>
             ))}
           </div>
         ) : (
@@ -336,6 +413,15 @@ export function V3SongDetailScreen({ song }: { song: V3SongDetail }) {
 
       <V3Section title="Published appearances" meta={`${song.appearances.length}`}>
         <AppearanceList appearances={song.appearances} />
+      </V3Section>
+      </div>
+      <p className="v3-music-index-coverage" role="status" aria-live="polite">
+        Results are a bounded window of published identities, not a complete historical catalogue.
+        Search by name to narrow the selection.
+      </p>
+
+      <V3Section title="Explore music">
+        <MusicRootLink />
       </V3Section>
 
       <p className="px-1 text-xs leading-5 text-white/40">
@@ -368,12 +454,15 @@ export function V3MusicUnavailable({
         <p className="text-sm text-white/55">
           This page fails closed when the System projection is unavailable or the identity is not public.
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link to="/artists" className="text-sm font-semibold text-primary hover:underline">
-            Browse artists
+        <div className="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
+          <Link to="/music" className="text-primary hover:underline">
+            Music discovery
           </Link>
-          <Link to="/songs" className="text-sm font-semibold text-primary hover:underline">
-            Browse songs
+          <Link to="/artists" className="text-primary hover:underline">
+            Artists
+          </Link>
+          <Link to="/songs" className="text-primary hover:underline">
+            Songs
           </Link>
         </div>
       </V3Surface>

@@ -1,6 +1,7 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
+import { V3MusicDataError } from "@/components/v3/V3MusicDataError";
 import {
   V3ArtistDetailScreen,
   V3MusicLoading,
@@ -11,17 +12,24 @@ import { useV3ArtistProjection } from "@/lib/v3-music-entities-runtime";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ARTIST_DESCRIPTION =
+  "Publication-safe Solaris Artist identity and published contest appearances.";
 
 export const Route = createFileRoute("/artists/$artistId")({
-  head: () => ({
-    meta: [
-      { title: "Artist — Solaris Studio" },
-      {
-        name: "description",
-        content: "Publication-safe Solaris artist identity and published contest appearances.",
-      },
-    ],
-  }),
+  head: ({ params }) => {
+    const url = `https://studio.solaris-song-contest.workers.dev/artists/${encodeURIComponent(params.artistId)}`;
+    return {
+      meta: [
+        { title: "Artist — Solaris Studio" },
+        { name: "description", content: ARTIST_DESCRIPTION },
+        { property: "og:title", content: "Artist — Solaris Studio" },
+        { property: "og:description", content: ARTIST_DESCRIPTION },
+        { property: "og:type", content: "profile" },
+        { property: "og:url", content: url },
+      ],
+      links: [{ rel: "canonical", href: url }],
+    };
+  },
   component: ArtistPage,
 });
 
@@ -49,12 +57,24 @@ function ArtistPage() {
     );
   }
 
-  if (projection.isError || !projection.data) {
+  if (projection.isError) {
+    return (
+      <AppShell>
+        <V3MusicDataError
+          title="Could not load Artist"
+          description="The canonical public Artist projection is temporarily unavailable."
+          onRetry={() => projection.refetch()}
+        />
+      </AppShell>
+    );
+  }
+
+  if (!projection.data) {
     return (
       <AppShell>
         <V3MusicUnavailable
           title="Artist unavailable"
-          description="This Artist identity is not public or the canonical public projection is unavailable."
+          description="This Artist identity is not public or no longer resolves to a public canonical identity."
         />
       </AppShell>
     );
