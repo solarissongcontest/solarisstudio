@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { ExternalLink } from "lucide-react";
+import { ChevronRight, ExternalLink } from "lucide-react";
+import type { V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
+import "@/styles/v3-shows-directory.css";
 import { useMemo, useState } from "react";
 
 import { AppEmptyState, AppSectionHeader } from "@/components/app/AppPrimitives";
@@ -23,7 +25,7 @@ const STATE_ORDER: ShowDiscoveryState[] = [
   "other",
 ];
 
-export function V3ShowsDiscoveryScreen() {
+export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { presentation?: V3DirectoryPresentation }) {
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const [editionId, setEditionId] = useState("all");
@@ -100,9 +102,10 @@ export function V3ShowsDiscoveryScreen() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="v3-shows-directory space-y-8" data-show-directory-experience={presentation}>
       {discovery.liveNow.length > 0 ? (
         <ShowCollection
+          presentation={presentation}
           id="shows-live-now"
           eyebrow="Live now"
           title="On air"
@@ -113,6 +116,7 @@ export function V3ShowsDiscoveryScreen() {
 
       {discovery.upNext.length > 0 ? (
         <ShowCollection
+          presentation={presentation}
           id="shows-up-next"
           eyebrow="Up next"
           title="Coming shows"
@@ -122,6 +126,7 @@ export function V3ShowsDiscoveryScreen() {
 
       {discovery.recent.length > 0 ? (
         <ShowCollection
+          presentation={presentation}
           id="shows-recent"
           eyebrow="Recent"
           title="Recently completed"
@@ -131,6 +136,7 @@ export function V3ShowsDiscoveryScreen() {
 
       {discovery.currentEdition && discovery.currentEditionShows.length > 0 ? (
         <ShowCollection
+          presentation={presentation}
           id="shows-current-edition"
           eyebrow="Current edition"
           title={editionLabel(discovery.currentEdition)}
@@ -140,7 +146,7 @@ export function V3ShowsDiscoveryScreen() {
 
       <section id="shows-browse" aria-labelledby="shows-browse-title" className="scroll-mt-24">
         <AppSectionHeader eyebrow="Browse" title="All public shows" id="shows-browse-title" />
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="v3-shows-filter-fields grid gap-2 sm:grid-cols-3">
           <label className="text-xs font-semibold text-muted-foreground">
             Edition
             <select
@@ -188,10 +194,16 @@ export function V3ShowsDiscoveryScreen() {
           </label>
         </div>
 
-        <div className="mt-3 space-y-2">
-          {browseItems.map((item) => (
-            <ShowRow key={item.show.id} item={item} />
-          ))}
+        <div className="v3-shows-browse-results">
+          {browseItems.map((item) =>
+            presentation === "mobile-web" ? (
+              <ShowWebRow key={item.show.id} item={item} />
+            ) : presentation === "desktop-web" ? (
+              <ShowCard key={item.show.id} item={item} />
+            ) : (
+              <ShowRow key={item.show.id} item={item} />
+            ),
+          )}
         </div>
         {!browseItems.length ? (
           <AppEmptyState
@@ -226,9 +238,11 @@ export function V3ShowsDiscoveryScreen() {
             Historical show pages stay locked to their published edition context.
           </p>
           <div className="space-y-2">
-            {discovery.archive.slice(0, 8).map((item) => (
-              <ShowRow key={item.show.id} item={item} compact />
-            ))}
+            {discovery.archive.slice(0, 8).map((item) =>
+              presentation === "mobile-web"
+                ? <ShowWebRow key={item.show.id} item={item} />
+                : <ShowRow key={item.show.id} item={item} compact />,
+            )}
           </div>
           {discovery.archive.length > 8 ? (
             <a href="#shows-browse" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
@@ -242,12 +256,14 @@ export function V3ShowsDiscoveryScreen() {
 }
 
 function ShowCollection({
+  presentation,
   id,
   eyebrow,
   title,
   items,
   emphasis = "normal",
 }: {
+  presentation: V3DirectoryPresentation;
   id: string;
   eyebrow: string;
   title: string;
@@ -257,12 +273,38 @@ function ShowCollection({
   return (
     <section aria-labelledby={id}>
       <AppSectionHeader eyebrow={eyebrow} title={title} id={id} />
-      <div className={emphasis === "live" ? "grid gap-3" : "grid gap-2 sm:grid-cols-2"}>
-        {items.map((item) => (
-          <ShowCard key={item.show.id} item={item} live={emphasis === "live"} />
-        ))}
+      <div className={presentation === "mobile-web" ? "v3-shows-web-list" : emphasis === "live" ? "grid gap-3" : "grid gap-2 sm:grid-cols-2"}>
+        {items.map((item) =>
+          presentation === "mobile-web"
+            ? <ShowWebRow key={item.show.id} item={item} />
+            : <ShowCard key={item.show.id} item={item} live={emphasis === "live"} />,
+        )}
       </div>
     </section>
+  );
+}
+
+function ShowWebRow({ item }: { item: ShowDiscoveryItem }) {
+  return (
+    <Link
+      to="/shows/$showId"
+      params={{ showId: item.show.id }}
+      className="v3-show-web-row flex min-h-20 items-center gap-3 border-b border-border py-3"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <ShowStateBadge item={item} />
+          <span className="text-xs text-muted-foreground">{editionLabel(item.edition)}</span>
+        </span>
+        <strong className="mt-1.5 block text-sm font-semibold">{item.show.name}</strong>
+        <span className="mt-1 block text-xs capitalize text-muted-foreground">
+          {showKindLabel(item.show.kind)}
+          {item.scheduledStart ? ` · ${formatShowTime(item.scheduledStart)}` : ""}
+          {showPublishesResults(item.show) ? " · Results published" : ""}
+        </span>
+      </span>
+      <ChevronRight size={20} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+    </Link>
   );
 }
 

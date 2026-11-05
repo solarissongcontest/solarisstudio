@@ -1,0 +1,54 @@
+/* Shows preserve live-state priority while sharing the directory composition. */
+.v3-shows-directory .v3-shows-browse-results {
+  display: grid;
+  gap: .65rem;
+  min-width: 0;
+  margin-top: .85rem;
+}
+.v3-shows-directory .v3-shows-filter-fields {
+  min-width: 0;
+}
+.v3-shows-directory[data-show-directory-experience="mobile-web"] .v3-shows-web-list,
+.v3-shows-directory[data-show-directory-experience="mobile-web"] .v3-shows-browse-results {
+  display: block;
+  border-top: 1px solid var(--border);
+}
+.v3-shows-directory .v3-show-web-row {
+  color: var(--foreground);
+  text-decoration: none;
+}
+.v3-shows-directory .v3-show-web-row:hover {
+  background: var(--surface);
+}
+.v3-shows-directory .v3-show-web-row:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+@media (min-width: 768px) {
+  .v3-shows-directory[data-show-directory-experience="desktop-web"] #shows-browse {
+    display: grid;
+    grid-template-columns: minmax(10.5rem, 13rem) minmax(0, 1fr);
+    align-items: start;
+    column-gap: clamp(1.25rem, 3vw, 2rem);
+  }
+  .v3-shows-directory[data-show-directory-experience="desktop-web"] #shows-browse > .solaris-app-section-heading {
+    grid-column: 1 / -1;
+    margin-bottom: 1.15rem;
+  }
+  .v3-shows-directory[data-show-directory-experience="desktop-web"] .v3-shows-filter-fields {
+    grid-column: 1;
+    position: sticky;
+    top: 5.5rem;
+    grid-template-columns: minmax(0, 1fr);
+    padding-right: 1rem;
+    border-right: 1px solid var(--border);
+  }
+  .v3-shows-directory[data-show-directory-experience="desktop-web"] .v3-shows-browse-results {
+    grid-column: 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 0;
+  }
+  .v3-shows-directory[data-show-directory-experience="desktop-web"] #shows-browse > .solaris-app-empty-state {
+    grid-column: 2;
+  }
+}

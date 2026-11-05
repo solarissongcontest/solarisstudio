@@ -380,6 +380,7 @@ test("installed app shell survives representative navigation without duplicate c
     "/explore",
     "/countries",
     "/editions",
+    "/archive",
     "/wiki",
     "/shows",
     "/results",
@@ -398,6 +399,16 @@ test("installed app shell survives representative navigation without duplicate c
       await expect(directory.locator(".v3-countries-region-rail")).toHaveCount(0);
       await expect(page.locator("[data-country-directory-web-header]")).toHaveCount(0);
       await expect(directory.getByRole("searchbox", { name: "Search countries" })).toBeVisible();
+    }
+    if (route === "/archive" || route === "/shows") {
+      const directory = page.locator("[data-directory-experience]");
+      await expect(directory).toHaveAttribute("data-directory-experience", "installed-app");
+      await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
+      await expect(directory.getByRole("heading", { level: 1, name: route === "/archive" ? "Archive" : "Shows" })).toBeVisible();
+      if (route === "/archive") {
+        await expect(directory.getByRole("button", { name: "Filter archive by subject" })).toBeVisible();
+        await expect(directory.getByRole("searchbox", { name: "Search archive" })).toBeVisible();
+      }
     }
     if (route === "/editions") {
       const directory = page.locator("[data-directory-experience]");
