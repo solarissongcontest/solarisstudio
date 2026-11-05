@@ -158,6 +158,29 @@ describe("V3 Explore projection", () => {
     ]);
   });
 
+  it("converges Wiki and Encyclopedia into one discoverable Reference destination", () => {
+    const projection = buildV3ExploreRootProjection(rootInput());
+    expect(projection.archive.links).toEqual([
+      { key: "editions", label: "Editions", href: "/editions/" },
+      { key: "reference", label: "Reference", href: "/wiki" },
+    ]);
+    // A separately gated Reference deployment must not be assumed to be on.
+    // A Wiki compatibility route remains usable until that rollout is available.
+    expect(projection.archive.links).not.toContainEqual(
+      expect.objectContaining({ key: "encyclopedia" }),
+    );
+  });
+
+  it("uses an explicitly enabled canonical Reference route without duplicating the archive choice", () => {
+    const projection = buildV3ExploreRootProjection(
+      rootInput({ routes: { ...routes, reference: "/encyclopedia" } }),
+    );
+    expect(projection.archive.links).toEqual([
+      { key: "editions", label: "Editions", href: "/editions/" },
+      { key: "reference", label: "Reference", href: "/encyclopedia" },
+    ]);
+  });
+
   it("makes core public tools discoverable without exposing Live outside canonical live state", () => {
     const preShow = buildV3ExploreRootProjection(rootInput());
 

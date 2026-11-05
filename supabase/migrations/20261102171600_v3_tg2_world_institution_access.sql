@@ -332,6 +332,8 @@ declare
   v_claim jsonb;
   v_operation_id uuid;
   v_existing public.world_organization_representations%rowtype;
+  v_membership_id uuid;
+  v_previous_revision bigint;
   v_representation_id uuid;
   v_revision bigint;
   v_user_id uuid;
@@ -344,6 +346,11 @@ begin
   end if;
   if p_organization_id is null or p_country_id is null or p_person_id is null then
     raise exception using errcode = '22023', message = 'VALIDATION';
+  end if;
+  -- Official representation replacement must always use a caller-observed
+  -- revision, including zero for the first assignment. No blind writes.
+  if p_expected_revision is null then
+    raise exception using errcode = '22023', message = 'EXPECTED_REVISION_REQUIRED';
   end if;
 
   v_claim := private.studio2_claim_operation(
@@ -370,14 +377,18 @@ begin
       || jsonb_build_object('replayed', true);
   end if;
 
-  if not exists (
-    select 1
-    from public.world_organization_memberships membership_row
-    where membership_row.organization_id = p_organization_id
-      and membership_row.country_id = p_country_id
-      and membership_row.ended_at is null
-      and membership_row.status in ('member','observer','associate')
-  ) then
+  -- The membership is the serializing parent for this organization/country.
+  -- Lock and validate it before reading representation or revision state, so
+  -- two first assignments cannot both observe an empty representative slot.
+  -- Membership close/suspension commands must use this same row authority.
+  select membership_row.id into v_membership_id
+  from public.world_organization_memberships membership_row
+  where membership_row.organization_id = p_organization_id
+    and membership_row.country_id = p_country_id
+    and membership_row.ended_at is null
+    and membership_row.status in ('member','observer','associate')
+  for update;
+  if v_membership_id is null then
     raise exception using errcode = '23514', message = 'STATE_CHANGED';
   end if;
   if not exists (
@@ -397,8 +408,15 @@ begin
     and representation_row.voting_authority
   for update;
 
-  if p_expected_revision is not null
-     and coalesce(v_existing.revision, 0) is distinct from p_expected_revision then
+  -- Compare against the durable latest revision, not only the current open
+  -- row: an ended representation is still a concurrent history transition.
+  select coalesce(max(representation_row.revision), 0)
+  into v_previous_revision
+  from public.world_organization_representations representation_row
+  where representation_row.organization_id = p_organization_id
+    and representation_row.country_id = p_country_id;
+
+  if v_previous_revision is distinct from p_expected_revision then
     raise exception using errcode = '40001', message = 'VERSION_CONFLICT';
   end if;
 
@@ -415,11 +433,7 @@ begin
       || jsonb_build_object('replayed', false);
   end if;
 
-  select coalesce(max(representation_row.revision), 0) + 1
-  into v_revision
-  from public.world_organization_representations representation_row
-  where representation_row.organization_id = p_organization_id
-    and representation_row.country_id = p_country_id;
+  v_revision := v_previous_revision + 1;
 
   if v_existing.id is not null then
     update public.world_organization_representations

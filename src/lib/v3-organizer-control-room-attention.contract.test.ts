@@ -18,6 +18,18 @@ describe("V3 Organizer Control Room exception-first boundary", () => {
     expect(route).toContain("readinessError={readinessDataQuery.error ?? showsQuery.error}");
   });
 
+  it("binds every reviewed operation to its exact Organizer edition before mutation", () => {
+    expect(route.match(/editionId: snapshot\.editionId,/g)).toHaveLength(3);
+    expect(route).toContain("if (!snapshot || !editionId || snapshot.editionId !== editionId) return;");
+    expect(route).toContain("controlRoomReviewMatchesEdition(");
+    expect(route).toContain("pendingReview.editionId,");
+    expect(route).toContain("snapshot.editionId,");
+    expect(route.indexOf("controlRoomReviewMatchesEdition(")).toBeLessThan(
+      route.indexOf("if (pendingReview.kind === 'edition-transition')"),
+    );
+    expect(route).toContain("Organizer edition context changed after this review opened");
+  });
+
   it("surfaces immediate attention before lifecycle command controls", () => {
     const attentionIndex = route.indexOf("<ControlRoomImmediateAttention");
     const commandIndex = route.indexOf('eyebrow="Edition command"');

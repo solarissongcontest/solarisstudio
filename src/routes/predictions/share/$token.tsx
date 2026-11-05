@@ -14,7 +14,8 @@ export const Route = createFileRoute("/predictions/share/$token")({
 
 function SharedPredictionPage() {
   const { token } = Route.useParams();
-  const { data: prediction, isLoading, error } = useSharedPrediction(token);
+  const predictionQuery = useSharedPrediction(token);
+  const { data: prediction, isLoading, isError } = predictionQuery;
   const { data: show } = useShow(prediction?.showId);
   const { data: participants } = useShowParticipants(prediction?.showId);
   const { data: countries } = useCountries();
@@ -54,18 +55,41 @@ function SharedPredictionPage() {
   if (isLoading) {
     return (
       <AppShell>
-        <p className="text-sm text-muted-foreground">Loading prediction result…</p>
+        <p role="status" className="text-sm text-muted-foreground">Loading prediction result…</p>
       </AppShell>
     );
   }
 
-  if (error || !prediction) {
+  if (isError) {
+    return (
+      <AppShell>
+        <PageHeader eyebrow="Prediction Arena" title="Shared result could not be checked" />
+        <Panel>
+          <p role="alert" className="text-sm leading-relaxed text-muted-foreground">
+            Solaris could not verify whether this result is still public. This does not mean
+            your share link has expired. Retry when the connection is available.
+          </p>
+          <button
+            type="button"
+            disabled={predictionQuery.isFetching}
+            onClick={() => void predictionQuery.refetch()}
+            className="mt-3 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {predictionQuery.isFetching ? "Retrying…" : "Retry shared result"}
+          </button>
+        </Panel>
+      </AppShell>
+    );
+  }
+
+  if (!prediction) {
     return (
       <AppShell>
         <PageHeader eyebrow="Prediction Arena" title="This shared result is unavailable" />
         <Panel>
           <p className="text-sm text-muted-foreground">
-            The link may be invalid, the result may no longer be public, or the result may be temporarily unavailable.
+            This prediction result is not currently shared. The owner may have disabled
+            the link, or the result may not be published.
           </p>
         </Panel>
       </AppShell>

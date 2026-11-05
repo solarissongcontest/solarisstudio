@@ -8,10 +8,11 @@ import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   getWorldDocumentDetail,
-  getWorldDocumentIndex,
+  getWorldDocumentIndexPage,
   normalizeWorldSearch,
   publicWorldDocumentOutline,
   resolveWorldDocumentFragment,
+  shouldRetryPublicWorldDocumentRead,
   type WorldDocumentLimit,
   type WorldDocumentIndexRow,
   type WorldDocumentProvision,
@@ -40,6 +41,7 @@ function DocumentIndexRow({ item }: { item: WorldDocumentIndexRow }) {
     <Link
       to="/world/documents/$organization/$document"
       params={{ organization: item.organizationSlug, document: item.slug }}
+      search={{ version: undefined }}
       className="group flex min-h-24 items-start gap-4 border-b border-border/70 py-4 outline-offset-4 transition-colors hover:text-primary focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-primary"
     >
       <span className="mt-1 flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-hidden="true">
@@ -87,14 +89,17 @@ export function WorldDocumentLibraryScreen({
 
   const query = useQuery({
     queryKey: ["v3", "tg4", "public-document-index", initialOrganization, initialSearch, limit],
-    queryFn: () => getWorldDocumentIndex({
+    queryFn: ({ signal }) => getWorldDocumentIndexPage({
       organizationSlug: initialOrganization || undefined,
       search: initialSearch,
       limit,
-    }),
+    }, signal),
     staleTime: 90_000,
-    retry: 1,
+    retry: shouldRetryPublicWorldDocumentRead,
   });
+
+  const canExpand = limit < 100 && Boolean(query.data?.couldHaveMore);
+  const nextLimit: WorldDocumentLimit = limit === 25 ? 50 : 100;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -153,7 +158,7 @@ export function WorldDocumentLibraryScreen({
 
             <div className="mt-8 flex items-baseline justify-between gap-4 border-b border-border pb-3">
               <h2 className="font-display text-xl font-bold">Published records</h2>
-              <span className="text-xs text-muted-foreground">Up to {limit} results</span>
+              <span className="text-xs text-muted-foreground">Up to {limit} records checked</span>
             </div>
             {query.isPending ? (
               <ArchiveDataLoading label="Opening institutional records…" />
@@ -167,12 +172,27 @@ export function WorldDocumentLibraryScreen({
                   Try again
                 </button>
               </section>
-            ) : query.data.length === 0 ? (
+            ) : query.data.rows.length === 0 ? (
               <section className="py-10">
-                <h3 className="text-base font-semibold">No published documents found</h3>
+                <h3 className="text-base font-semibold">
+                  {query.data.couldHaveMore
+                    ? "No published documents in the records checked yet"
+                    : "No published documents found"}
+                </h3>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Try a different search or institution. Unpublished drafts do not appear in the public library.
+                  {query.data.couldHaveMore
+                    ? "The index also contains unpublished work. Expand the search or narrow your terms to find published documents."
+                    : "Try a different search or institution. Unpublished drafts do not appear in the public library."}
                 </p>
+                {canExpand && (
+                  <button
+                    type="button"
+                    onClick={() => setLimit(nextLimit)}
+                    className="mt-4 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold hover:border-primary/50"
+                  >
+                    Check up to {nextLimit} records
+                  </button>
+                )}
                 {(initialSearch || initialOrganization) && (
                   <button type="button" onClick={() => onApplySearch("", "")} className="mt-4 min-h-11 text-sm font-semibold text-primary underline-offset-4 hover:underline">
                     Clear filters
@@ -182,18 +202,23 @@ export function WorldDocumentLibraryScreen({
             ) : (
               <>
                 <div aria-live="polite">
-                  {query.data.map((item) => <DocumentIndexRow key={item.documentId} item={item} />)}
+                  {query.data.rows.map((item) => <DocumentIndexRow key={item.documentId} item={item} />)}
                 </div>
-                {limit < 100 && (
+                {canExpand && (
                   <button
                     type="button"
-                    onClick={() => setLimit(limit === 25 ? 50 : 100)}
+                    onClick={() => setLimit(nextLimit)}
                     className="mt-5 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold hover:border-primary/50"
                   >
-                    Search up to {limit === 25 ? 50 : 100} records
+                    Check up to {nextLimit} records
                   </button>
                 )}
               </>
+            )}
+            {!query.isPending && !query.isError && limit === 100 && query.data?.couldHaveMore && (
+              <p className="mt-4 text-xs text-muted-foreground">
+                The public index checks at most 100 records per search. More published documents may exist; use an institution or a specific title to narrow results.
+              </p>
             )}
           </div>
           <aside className="h-fit border-t border-border pt-5 lg:sticky lg:top-24 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
@@ -237,7 +262,14 @@ function DocumentContents({
                 "outline-offset-2 hover:bg-primary/8 hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
               }
             >
-              {item.displayLabel ? item.displayLabel + " " : ""}{item.heading || "Untitled section"}
+              <span className="min-w-0 flex-1">
+                {item.displayLabel ? item.displayLabel + " " : ""}{item.heading || "Untitled section"}
+              </span>
+              {item.status !== "active" && (
+                <span className="ml-2 shrink-0 self-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {item.status}
+                </span>
+              )}
             </a>
           );
           return (
@@ -258,18 +290,29 @@ export function WorldDocumentReaderScreen({
 }: {
   organization: string;
   document: string;
-  version?: number;
+  version?: number | null;
 }) {
   const [documentSearch, setDocumentSearch] = useState("");
+  const invalidVersion = version === null;
   const query = useQuery({
-    queryKey: ["v3", "tg4", "public-document", organization, document, version ?? "current"],
-    queryFn: () => getWorldDocumentDetail({ organization, document, version }),
+    queryKey: ["v3", "tg4", "public-document", organization, document, invalidVersion ? "invalid" : version ?? "current"],
+    enabled: !invalidVersion,
+    queryFn: ({ signal }) => getWorldDocumentDetail({
+      organization,
+      document,
+      version: version ?? undefined,
+    }, signal),
     staleTime: 90_000,
-    retry: 1,
+    retry: shouldRetryPublicWorldDocumentRead,
   });
   const detail = query.data;
+  const provisions = detail?.version.provisions;
   const currentVersion = detail?.history.find((item) => item.publicationState === "published");
-  const anchors = publicWorldDocumentOutline(detail?.version.provisions ?? []);
+  const historicalVersion = Boolean(detail && (
+    detail.version.publicationState !== "published" ||
+    (currentVersion && currentVersion.versionNumber !== detail.version.versionNumber)
+  ));
+  const anchors = publicWorldDocumentOutline(provisions ?? []);
   const textMatches = documentSearch.trim()
     ? (detail?.version.provisions ?? []).flatMap((item) => {
         const term = documentSearch.trim().toLocaleLowerCase();
@@ -286,10 +329,10 @@ export function WorldDocumentReaderScreen({
   // resolves. Restore the fragment only when it belongs to this exact Version.
   // window.document is intentional: "document" is the route's slug parameter.
   useEffect(() => {
-    if (!detail || typeof window === "undefined") return;
+    if (!provisions || typeof window === "undefined") return;
     const target = resolveWorldDocumentFragment(
       window.location.hash,
-      detail.version.provisions,
+      provisions,
     );
     if (!target) return;
     const frame = window.requestAnimationFrame(() => {
@@ -299,7 +342,7 @@ export function WorldDocumentReaderScreen({
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [detail?.documentId, detail?.version.versionNumber]);
+  }, [provisions]);
 
   return (
     <AppShell>
@@ -314,7 +357,23 @@ export function WorldDocumentReaderScreen({
         }
       />
       <div className="mx-auto w-full max-w-6xl pb-12">
-        {query.isPending ? (
+        {invalidVersion ? (
+          <section role="alert" className="py-10">
+            <h2 className="text-lg font-semibold">Invalid document version link</h2>
+            <p className="mt-2 max-w-prose text-sm text-muted-foreground">
+              The requested revision number is not valid. To avoid showing the wrong legal text,
+              no document version has been loaded.
+            </p>
+            <Link
+              to="/world/documents/$organization/$document"
+              params={{ organization, document }}
+              search={{ version: undefined }}
+              className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary"
+            >
+              View the current published version
+            </Link>
+          </section>
+        ) : query.isPending ? (
           <ArchiveDataLoading label="Opening the published document…" />
         ) : query.isError ? (
           <section role="alert" className="py-10">
@@ -326,7 +385,7 @@ export function WorldDocumentReaderScreen({
           <section className="py-10">
             <h2 className="text-lg font-semibold">This public version is unavailable</h2>
             <p className="mt-2 text-sm text-muted-foreground">The record may not exist, may be unpublished, or may not be public. Browse the document library for available records.</p>
-            <Link to="/world/documents" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary">Browse published documents</Link>
+            <Link to="/world/documents" search={{ q: "", organization: "" }} className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary">Browse published documents</Link>
           </section>
         ) : (
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_14rem] xl:grid-cols-[13rem_minmax(0,1fr)_14rem]">
@@ -343,10 +402,15 @@ export function WorldDocumentReaderScreen({
                   {dateLabel(detail.version.effectiveFrom) && <span className="inline-flex items-center gap-1.5"><CalendarDays size={15} aria-hidden="true" /> Effective {dateLabel(detail.version.effectiveFrom)}</span>}
                   {dateLabel(detail.version.publishedAt) && <span>Published {dateLabel(detail.version.publishedAt)}</span>}
                 </div>
-                {currentVersion && currentVersion.versionNumber !== detail.version.versionNumber && (
+                {historicalVersion && (
                   <p className="mt-4 border-l-2 border-primary pl-3 text-sm text-muted-foreground">
-                    You are reading a historical version.{" "}
-                    <Link to="/world/documents/$organization/$document" params={{ organization, document }} className="font-semibold text-primary underline-offset-4 hover:underline">View the current published version</Link>.
+                    You are reading a historical version, not necessarily the text currently in force.
+                    {currentVersion && currentVersion.versionNumber !== detail.version.versionNumber && (
+                      <>
+                        {" "}
+                        <Link to="/world/documents/$organization/$document" params={{ organization, document }} search={{ version: undefined }} className="font-semibold text-primary underline-offset-4 hover:underline">View the current published version</Link>.
+                      </>
+                    )}
                   </p>
                 )}
               </div>
@@ -378,7 +442,11 @@ export function WorldDocumentReaderScreen({
                           ))}
                         </ul>
                       </>
-                    ) : plainTextMatch ? "Phrase found in the full document text." : "No matching text in this version."}
+                    ) : plainTextMatch
+                      ? detail?.version.provisions.length
+                        ? "Phrase found in the complete version text. Expand \"Complete published text\" below."
+                        : "Phrase found in the published version text below."
+                      : "No matching text in this version."}
                   </div>
                 )}
                 {anchors.length > 0 && (
@@ -413,6 +481,11 @@ export function WorldDocumentReaderScreen({
                           {provision.heading}
                         </h3>
                       )}
+                      {provision.status !== "active" && (
+                        <p className="mt-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                          {provision.status === "repealed" ? "Repealed in this version" : "Omitted in this version"}
+                        </p>
+                      )}
                       {provision.bodyPlainText && (
                         <p className="mt-3 whitespace-pre-wrap break-words text-[15px] leading-7 text-foreground/90">
                           {provision.bodyPlainText}
@@ -427,6 +500,20 @@ export function WorldDocumentReaderScreen({
                 </div>
               ) : (
                 <p className="py-8 text-sm text-muted-foreground">The published version does not contain displayable text.</p>
+              )}
+              {detail.version.provisions.length > 0 && detail.version.plainText && (
+                <details id="world-document-complete-text" className="mt-8 rounded-2xl border border-border/80 bg-surface/40 p-4 sm:p-5">
+                  <summary className="min-h-11 cursor-pointer font-semibold text-primary focus-visible:outline-2 focus-visible:outline-primary">
+                    Complete published text
+                  </summary>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    This is the full plain-text record stored for this exact Version, which may include
+                    a preamble or other material not represented in the structured sections above.
+                  </p>
+                  <div className="mt-5 whitespace-pre-wrap break-words border-t border-border pt-5 text-[15px] leading-7 text-foreground/90">
+                    {detail.version.plainText}
+                  </div>
+                </details>
               )}
             </article>
             <aside className="min-w-0 space-y-7 border-t border-border pt-6 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">

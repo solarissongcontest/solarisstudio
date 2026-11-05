@@ -1,11 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
+  anonymousWorldRpcRequest,
+  getWorldDocumentDetail,
+  getWorldDocumentIndex,
   assertWorldSlug,
+  publicWorldRpcHeaders,
   normalizeWorldSearch,
   parseWorldDocumentDetail,
   parseWorldDocumentIndex,
+  parseWorldDocumentIndexPage,
+  parseWorldDocumentVersionQuery,
+  shouldRetryPublicWorldDocumentRead,
   publicWorldDocumentOutline,
+  resolveWorldDocumentFragment,
   worldProvisionTargetId,
 } from "./world-public-documents";
 
@@ -49,6 +57,7 @@ const document = {
     effectiveTo: null,
     provisions: [{
       provisionId: "provision-1",
+      status: "active",
       semanticKey: "article-one",
       parentSemanticKey: null,
       displayLabel: "Article I",
@@ -75,6 +84,118 @@ const document = {
 };
 
 describe("TG4 public institutional document library", () => {
+  it("makes public RPC requests as anon even in an authenticated organizer session", () => {
+    const publishable = "sb_publishable_world_documents_test";
+    expect(publicWorldRpcHeaders(publishable)).toEqual({
+      "Content-Type": "application/json",
+      apikey: publishable,
+    });
+    const requestController = new AbortController();
+    const request = anonymousWorldRpcRequest(publishable, {
+      p_organization_slug: null,
+      p_query: "charter",
+      p_limit: 100,
+    }, requestController.signal);
+    expect(request.signal).toBe(requestController.signal);
+    expect(request.method).toBe("POST");
+    expect(request.credentials).toBe("omit");
+    expect(request.cache).toBe("no-store");
+    expect(request.headers).not.toHaveProperty("Authorization");
+    expect(request.headers).not.toHaveProperty("Cookie");
+    expect(JSON.parse(String(request.body))).toEqual({
+      p_organization_slug: null,
+      p_query: "charter",
+      p_limit: 100,
+    });
+
+    // The legacy anon JWT uses a bearer token, but the currently signed-in
+    // user's JWT must never be forwarded into this transport.
+    const legacy = (role: string) =>
+      "eyJhbGciOiJIUzI1NiJ9." + btoa(JSON.stringify({ role })).replace(/=+$/, "") + ".signature";
+    expect(publicWorldRpcHeaders(legacy("anon"))).toHaveProperty(
+      "Authorization", "Bearer " + legacy("anon"),
+    );
+    expect(() => publicWorldRpcHeaders(legacy("service_role"))).toThrow();
+    expect(() => publicWorldRpcHeaders(legacy("authenticated"))).toThrow();
+    expect(() => publicWorldRpcHeaders("legacy-anon-key")).toThrow();
+    expect(() => publicWorldRpcHeaders("sb_secret_dont-use")).toThrow();
+    expect(() => publicWorldRpcHeaders("sb_service_role_dont-use")).toThrow();
+    expect(() => publicWorldRpcHeaders("")).toThrow();
+  });
+
+
+  it("makes bounded public index and exact Version RPC calls without user authorization or hosted egress", async () => {
+    // These tests do NOT contact any Supabase instance. The URL is loopback,
+    // and fetch is stubbed before invoking either public read call.
+    vi.stubEnv("VITE_SUPABASE_URL", "http://127.0.0.1:54321");
+    vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_tg4_local_test");
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ documents: [indexRow] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => document,
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const queryController = new AbortController();
+      const index = await getWorldDocumentIndex({ search: " charter ", limit: 25 }, queryController.signal);
+      expect(index).toHaveLength(1);
+      const detail = await getWorldDocumentDetail({
+        organization: "guard", document: "charter", version: 2,
+      }, queryController.signal);
+      expect(detail?.version.versionNumber).toBe(2);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const indexCall = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+      const detailCall = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+      expect(indexCall[0]).toBe("http://127.0.0.1:54321/rest/v1/rpc/world_get_document_index_v1");
+      expect(detailCall[0]).toBe("http://127.0.0.1:54321/rest/v1/rpc/world_get_document_v1");
+      expect(indexCall[1].credentials).toBe("omit");
+      expect(detailCall[1].credentials).toBe("omit");
+      expect(indexCall[1].signal).toBe(queryController.signal);
+      expect(detailCall[1].signal).toBe(queryController.signal);
+      expect(indexCall[1].headers).not.toHaveProperty("Authorization");
+      expect(detailCall[1].headers).not.toHaveProperty("Authorization");
+      expect(JSON.parse(String(indexCall[1].body))).toEqual({
+        p_organization_slug: null,
+        p_query: "charter",
+        p_limit: 25,
+      });
+      expect(JSON.parse(String(detailCall[1].body))).toEqual({
+        p_organization_slug: "guard",
+        p_document_slug: "charter",
+        p_version_number: 2,
+      });
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("never retries a 402 service restriction, denied authorization, or malformed request", () => {
+    expect(shouldRetryPublicWorldDocumentRead(0, { status: 402 })).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, { status: 401 })).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, { status: 403 })).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, { status: 404 })).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, { name: "AbortError" })).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, { status: 422 })).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, new Error("Supabase service restriction 402"))).toBe(false);
+    expect(shouldRetryPublicWorldDocumentRead(0, { status: 503 })).toBe(true);
+    expect(shouldRetryPublicWorldDocumentRead(0, new Error("temporary connection error"))).toBe(true);
+    expect(shouldRetryPublicWorldDocumentRead(1, { status: 503 })).toBe(false);
+  });
+
+  it("fails closed on explicit invalid legal-history versions instead of showing current text", () => {
+    expect(parseWorldDocumentVersionQuery(undefined)).toBeUndefined();
+    expect(parseWorldDocumentVersionQuery("1")).toBe(1);
+    expect(parseWorldDocumentVersionQuery(3)).toBe(3);
+    for (const invalid of [null, "", " 2 ", "02", "0", "-1", "1e3", "0x10", "1.5", "NaN", "Infinity", "9007199254740992", -1, 0, 1.2, {}, []]) {
+      expect(parseWorldDocumentVersionQuery(invalid)).toBeNull();
+    }
+  });
+
   it("keeps only public rows backed by an actual published current Version", () => {
     const parsed = parseWorldDocumentIndex({
       documents: [
@@ -88,6 +209,27 @@ describe("TG4 public institutional document library", () => {
     expect(parsed[0].slug).toBe("charter");
     expect(parsed[0].currentVersion.versionNumber).toBe(2);
     expect(Object.keys(parsed[0])).not.toContain("visibility");
+  });
+
+  it("counts server rows before filtering drafts to avoid a false empty-result claim", () => {
+    const draftRows = Array.from({ length: 25 }, (_, index) => ({
+      ...indexRow,
+      documentId: "unpublished-" + index,
+      slug: "unpublished-" + index,
+      currentVersion: null,
+    }));
+    const capped = parseWorldDocumentIndexPage({ documents: draftRows }, 25);
+    expect(capped.rows).toHaveLength(0);
+    expect(capped.scanned).toBe(25);
+    expect(capped.couldHaveMore).toBe(true);
+
+    const fullyChecked = parseWorldDocumentIndexPage({ documents: draftRows }, 50);
+    expect(fullyChecked.rows).toHaveLength(0);
+    expect(fullyChecked.couldHaveMore).toBe(false);
+
+    expect(() => parseWorldDocumentIndexPage({
+      documents: [...draftRows, indexRow],
+    }, 25)).toThrow("Invalid bounded institutional document index");
   });
 
   it("rejects malformed identifiers and duplicate canonical rows", () => {
@@ -156,6 +298,45 @@ describe("TG4 public institutional document library", () => {
     expect(result?.version.provisions[0].bodyPlainText).toBe("\n  Article body  \n");
   });
 
+  it("preserves TG4 provision lifecycle states and refuses unknown legal status", () => {
+    const result = parseWorldDocumentDetail({
+      ...document,
+      version: {
+        ...document.version,
+        provisions: [
+          document.version.provisions[0],
+          {
+            ...document.version.provisions[0],
+            provisionId: "provision-repealed",
+            semanticKey: "repealed-article",
+            anchor: "repealed-article",
+            status: "repealed",
+          },
+          {
+            ...document.version.provisions[0],
+            provisionId: "provision-omitted",
+            semanticKey: "omitted-article",
+            anchor: "omitted-article",
+            status: "omitted",
+            bodyPlainText: "",
+          },
+        ],
+      },
+    });
+    expect(result?.version.provisions.map((item) => item.status))
+      .toEqual(["active", "repealed", "omitted"]);
+    expect(() => parseWorldDocumentDetail({
+      ...document,
+      version: {
+        ...document.version,
+        provisions: [{
+          ...document.version.provisions[0],
+          status: "unknown",
+        }],
+      },
+    })).toThrow("Invalid institutional provision legal status");
+  });
+
   it("never interprets stored text as markup and discards unsafe/duplicate TOC anchors", () => {
     const result = parseWorldDocumentDetail({
       ...document,
@@ -172,6 +353,26 @@ describe("TG4 public institutional document library", () => {
     expect(result?.version.provisions.map((item) => item.anchor)).toEqual([
       "article-one", null, null,
     ]);
+  });
+
+  it("cannot let a legacy alias shadow a different provision's stable link", () => {
+    const result = parseWorldDocumentDetail({
+      ...document,
+      version: {
+        ...document.version,
+        provisions: [
+          { ...document.version.provisions[0], semanticKey: "alpha", anchor: "section-one" },
+          {
+            ...document.version.provisions[0],
+            provisionId: "second",
+            semanticKey: "beta",
+            anchor: "world-provision-alpha",
+          },
+        ],
+      },
+    });
+    expect(result?.version.provisions[0].targetId).toBe("world-provision-alpha");
+    expect(result?.version.provisions[1].anchor).toBeNull();
   });
 
   it("uses durable semantic identity, not mutable visible article numbers, for deep links", () => {
@@ -223,7 +424,7 @@ describe("TG4 public institutional document library", () => {
       },
     })).toThrow("Duplicate semantic provision identity");
     expect(() => worldProvisionTargetId("bad\nkey")).toThrow("Invalid semantic provision identity");
-    expect(() => worldProvisionTargetId("x".repeat(201))).toThrow();
+    expect(worldProvisionTargetId("x".repeat(201))).toBe("world-provision-" + "x".repeat(201));
     expect(() => worldProvisionTargetId("")).toThrow();
   });
 
@@ -239,6 +440,31 @@ describe("TG4 public institutional document library", () => {
     }));
     expect(publicWorldDocumentOutline(provisions)).toHaveLength(85);
     expect(publicWorldDocumentOutline(provisions).at(-1)?.heading).toBe("Section 84");
+  });
+
+  it("restores links to the requested published Version after async hydration", () => {
+    const detail = parseWorldDocumentDetail({
+      ...document,
+      version: {
+        ...document.version,
+        provisions: [{
+          ...document.version.provisions[0],
+          semanticKey: "guard-charter:membership-admission",
+          anchor: "article-4",
+        }],
+      },
+    });
+    const provisions = detail!.version.provisions;
+    const stable = "world-provision-guard-charter:membership-admission";
+    expect(provisions[0].targetId).toBe(stable);
+    expect(resolveWorldDocumentFragment("#" + stable, provisions)).toBe(stable);
+    expect(resolveWorldDocumentFragment("#world-provision-guard-charter%3Amembership-admission", provisions))
+      .toBe(stable);
+    expect(resolveWorldDocumentFragment("#article-4", provisions)).toBe("article-4");
+    expect(resolveWorldDocumentFragment("#article-5", provisions)).toBeNull();
+    expect(resolveWorldDocumentFragment("#not-this-document", provisions)).toBeNull();
+    expect(resolveWorldDocumentFragment("#%E0%A4%A", provisions)).toBeNull();
+    expect(resolveWorldDocumentFragment("", provisions)).toBeNull();
   });
 
   it("bounds search input without making additional requests or inventing results", () => {

@@ -1,4 +1,86 @@
-import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseServiceRestrictionError, noteSupabaseResponse } from "@/lib/supabase-service-restriction";
+
+/**
+ * Public World routes must read with the anonymous role even when a manager is
+ * signed in. TG4's index RPC includes *all records readable by its caller*
+ * before applying p_limit. Filtering a privileged response in React causes
+ * a manager's private records to consume the 100-row cap and hide published
+ * records. Browser access tokens must never enter these requests.
+ *
+ * This is an intentionally small, read-only RPC transport; it uses the same
+ * publishable/legacy-anon key and service-restriction detection as the
+ * generated Supabase client. It never uses localStorage or user sessions.
+ */
+type PublicWorldRpcName = "world_get_document_index_v1" | "world_get_document_v1";
+
+export function publicWorldRpcHeaders(publishableKey: string): Record<string, string> {
+  if (!publishableKey || publishableKey.startsWith("sb_secret_") ||
+      publishableKey.startsWith("sb_service_role_")) {
+    throw new Error("A public Supabase key is required for institutional documents");
+  }
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    apikey: publishableKey,
+  };
+  // Legacy anon keys are JWTs. Validate the declared role before attaching
+  // Authorization so an accidentally configured service-role JWT cannot enter
+  // a Public browser request. This is a fail-closed key guard, not JWT auth.
+  if (!publishableKey.startsWith("sb_publishable_")) {
+    try {
+      const parts = publishableKey.split(".");
+      if (parts.length !== 3 || !parts[1] || !parts[2]) {
+        throw new Error("Invalid legacy anonymous key");
+      }
+      const claims = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))) as {
+        role?: unknown;
+      };
+      if (claims.role !== "anon") throw new Error("Non-anonymous key");
+    } catch {
+      throw new Error("A legacy anonymous Supabase key is required for Public documents");
+    }
+    headers.Authorization = "Bearer " + publishableKey;
+  }
+  return headers;
+}
+
+export function anonymousWorldRpcRequest(
+  publishableKey: string,
+  args: Record<string, unknown>,
+  signal?: AbortSignal,
+): RequestInit {
+  return {
+    method: "POST",
+    headers: publicWorldRpcHeaders(publishableKey),
+    // No session cookie or user-scope credentials, even on same-origin proxies.
+    credentials: "omit",
+    cache: "no-store",
+    signal,
+    body: JSON.stringify(args),
+  };
+}
+
+async function callAnonymousWorldRpc(
+  name: PublicWorldRpcName,
+  args: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<unknown> {
+  const url = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) {
+    throw new Error("Public institutional document service is not configured");
+  }
+  const response = await fetch(
+    (url.endsWith("/") ? url.slice(0, -1) : url) + "/rest/v1/rpc/" + name,
+    anonymousWorldRpcRequest(key, args, signal),
+  );
+  noteSupabaseResponse(response);
+  if (!response.ok) {
+    const error = new Error("Institutional document service unavailable (" + response.status + ")");
+    Object.assign(error, { status: response.status });
+    throw error;
+  }
+  return response.json();
+}
 
 /**
  * TG4's public read contract. No service key, direct canonical document table
@@ -12,6 +94,14 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_SEARCH = 100;
 const VALID_LIMITS = [25, 50, 100] as const;
 export type WorldDocumentLimit = (typeof VALID_LIMITS)[number];
+
+export type WorldDocumentIndexPage = {
+  rows: WorldDocumentIndexRow[];
+  /** Number of accessible rows inspected by the bounded canonical RPC. */
+  scanned: number;
+  /** More accessible rows may exist beyond this request's server limit. */
+  couldHaveMore: boolean;
+};
 
 export type WorldDocumentIndexRow = {
   documentId: string;
@@ -30,6 +120,8 @@ export type WorldDocumentIndexRow = {
 
 export type WorldDocumentProvision = {
   provisionId: string;
+  /** Version-specific legal state; repealed/omitted must never look active. */
+  status: "active" | "repealed" | "omitted";
   /** Stable across legal renumbering; not the version-specific display label. */
   semanticKey: string;
   /** URI-safe, deterministic DOM anchor derived from the canonical semantic key. */
@@ -111,6 +203,11 @@ function publicVersion(input: unknown): WorldDocumentHistoryItem["publicationSta
   return input;
 }
 
+function publicWorldProvisionStatus(input: unknown): WorldDocumentProvision["status"] {
+  if (input === "active" || input === "repealed" || input === "omitted") return input;
+  throw new Error("Invalid institutional provision legal status");
+}
+
 export function isWorldSlug(input: string): boolean {
   return input.length <= 100 && SLUG.test(input);
 }
@@ -125,7 +222,7 @@ export function worldProvisionTargetId(semanticKey: string): string {
   const key = string(semanticKey, "semantic provision identity");
   // Match TG4's world_document_provisions_key_check. No URL percent-encoding
   // in the DOM id: a #fragment is decoded by browsers before anchor matching.
-  if (key.length > 200 || !/^[a-z0-9]+(?:[.:-][a-z0-9]+)*$/.test(key)) {
+  if (!/^[a-z0-9]+(?:[.:-][a-z0-9]+)*$/.test(key)) {
     throw new Error("Invalid semantic provision identity");
   }
   return "world-provision-" + key;
@@ -167,6 +264,22 @@ export function parseWorldDocumentIndex(input: unknown): WorldDocumentIndexRow[]
   return rows;
 }
 
+export function parseWorldDocumentIndexPage(
+  input: unknown,
+  limit: WorldDocumentLimit,
+): WorldDocumentIndexPage {
+  const data = object(input);
+  if (!Array.isArray(data.documents) || data.documents.length > limit) {
+    throw new Error("Invalid bounded institutional document index");
+  }
+  const rows = parseWorldDocumentIndex(input);
+  return {
+    rows,
+    scanned: data.documents.length,
+    couldHaveMore: data.documents.length === limit,
+  };
+}
+
 export function parseWorldDocumentDetail(input: unknown): WorldDocumentDetail | null {
   if (input === null) return null;
   const data = object(input);
@@ -180,6 +293,11 @@ export function parseWorldDocumentDetail(input: unknown): WorldDocumentDetail | 
   }
   const anchors = new Set<string>();
   const semanticKeys = new Set<string>();
+  // A legacy version anchor must never collide with another provision's
+  // durable target ID. Resolve the complete target namespace before aliases.
+  const canonicalTargets = new Set(version.provisions.map((value) =>
+    worldProvisionTargetId(string(object(value).semanticKey, "semantic provision identity"))
+  ));
   const provisions: WorldDocumentProvision[] = version.provisions.map((value) => {
     const provision = object(value);
     const semanticKey = string(provision.semanticKey, "semantic provision identity");
@@ -189,12 +307,14 @@ export function parseWorldDocumentDetail(input: unknown): WorldDocumentDetail | 
     }
     semanticKeys.add(semanticKey);
     const candidate = optionalString(provision.anchor);
-    const anchor = candidate && /^[a-z0-9-]{1,100}$/.test(candidate) && !anchors.has(candidate)
+    const anchor = candidate && /^[a-z0-9-]{1,100}$/.test(candidate) &&
+      (!canonicalTargets.has(candidate) || candidate === targetId) && !anchors.has(candidate)
       ? candidate
       : null;
     if (anchor) anchors.add(anchor);
     return {
       provisionId: string(provision.provisionId, "provision id"),
+      status: publicWorldProvisionStatus(provision.status),
       semanticKey,
       targetId,
       displayLabel: optionalString(provision.displayLabel) ?? "",
@@ -274,44 +394,85 @@ export function resolveWorldDocumentFragment(
   ) ? target : null;
 }
 
+/**
+ * Legal-history links fail closed. An invalid explicit ?version= must never
+ * silently display the current published revision as though it were the
+ * requested historical text.
+ *
+ * undefined: no version was requested, so read the current published revision.
+ * number: exact positive canonical decimal revision requested.
+ * null: an explicit but malformed version was requested; DO NOT fetch.
+ */
+/**
+ * One bounded retry is permitted for transient failures only.
+ * 402/service restriction and 4xx authorization/validation failures must not
+ * generate repeated network requests or amplify Supabase egress.
+ */
+export function shouldRetryPublicWorldDocumentRead(failureCount: number, error: unknown): boolean {
+  if (failureCount >= 1 || isSupabaseServiceRestrictionError(error)) return false;
+  if (error && typeof error === "object" && "name" in error && error.name === "AbortError") return false;
+  if (error && typeof error === "object" && "status" in error) {
+    const status = Number((error as { status?: unknown }).status);
+    if (status >= 400 && status < 500) return false;
+  }
+  return true;
+}
+
+export function parseWorldDocumentVersionQuery(input: unknown): number | null | undefined {
+  if (input === undefined) return undefined;
+  if (typeof input === "number") {
+    return Number.isSafeInteger(input) && input >= 1 ? input : null;
+  }
+  if (typeof input !== "string" || !/^[1-9][0-9]*$/.test(input)) return null;
+  const version = Number(input);
+  return Number.isSafeInteger(version) ? version : null;
+}
+
 export function normalizeWorldSearch(query: string): string {
   return query.trim().slice(0, MAX_SEARCH);
 }
 
-export async function getWorldDocumentIndex(input: {
+export async function getWorldDocumentIndexPage(input: {
   organizationSlug?: string;
   search?: string;
   limit?: WorldDocumentLimit;
-} = {}): Promise<WorldDocumentIndexRow[]> {
+} = {}, signal?: AbortSignal): Promise<WorldDocumentIndexPage> {
   const slug = input.organizationSlug
     ? assertWorldSlug(input.organizationSlug)
     : null;
   const query = normalizeWorldSearch(input.search ?? "");
   const limit = input.limit ?? 25;
   if (!VALID_LIMITS.includes(limit)) throw new Error("Invalid document index size");
-  const { data, error } = await (supabase as any).rpc("world_get_document_index_v1", {
+  const data = await callAnonymousWorldRpc("world_get_document_index_v1", {
     p_organization_slug: slug,
     p_query: query || null,
     p_limit: limit,
-  });
-  if (error) throw error;
-  return parseWorldDocumentIndex(data);
+  }, signal);
+  return parseWorldDocumentIndexPage(data, limit);
+}
+
+/** Use page metadata in list UI; keep the rows-only reader for simpler consumers. */
+export async function getWorldDocumentIndex(input: {
+  organizationSlug?: string;
+  search?: string;
+  limit?: WorldDocumentLimit;
+} = {}, signal?: AbortSignal): Promise<WorldDocumentIndexRow[]> {
+  return (await getWorldDocumentIndexPage(input, signal)).rows;
 }
 
 export async function getWorldDocumentDetail(input: {
   organization: string;
   document: string;
   version?: number;
-}): Promise<WorldDocumentDetail | null> {
+}, signal?: AbortSignal): Promise<WorldDocumentDetail | null> {
   const organization = assertWorldSlug(input.organization);
   const document = assertWorldSlug(input.document);
   if (input.version !== undefined) versionNumber(input.version);
-  const { data, error } = await (supabase as any).rpc("world_get_document_v1", {
+  const data = await callAnonymousWorldRpc("world_get_document_v1", {
     p_organization_slug: organization,
     p_document_slug: document,
     p_version_number: input.version ?? null,
-  });
-  if (error) throw error;
+  }, signal);
   const projection = parseWorldDocumentDetail(data);
   if (projection &&
       (projection.organization.slug !== organization || projection.slug !== document ||

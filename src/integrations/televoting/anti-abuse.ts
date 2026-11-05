@@ -1,4 +1,5 @@
 import { captureGovernanceSnapshot } from "@/lib/governance-v5";
+import { createSecureClientId } from "@/lib/secure-client-id";
 import {
   dispatchSubmissionReceipt,
   TELEVOTE_SUBMITTED_EVENT,
@@ -15,18 +16,33 @@ async function sha256(input: string): Promise<string> {
     .join("");
 }
 
-function getOrCreateDeviceToken() {
+// Storage may be blocked (private browsing, policy, quota). Reuse a securely
+// generated page-lifetime identity instead of changing it on every preflight.
+let transientDeviceToken: string | null = null;
+
+function getOrCreateDeviceToken(): string {
   try {
     const existing = localStorage.getItem(DEVICE_KEY);
+    // Preserve identifiers already associated with accepted ballots. Rotating
+    // them during a live round could undermine the server's duplicate checks.
     if (existing) return existing;
-    const fresh =
-      crypto.randomUUID?.() ??
-      `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
-    localStorage.setItem(DEVICE_KEY, fresh);
-    return fresh;
   } catch {
-    return `ephemeral-${Math.random().toString(36).slice(2)}`;
+    // Continue with a cryptographically strong in-memory identity.
   }
+
+  if (transientDeviceToken) return transientDeviceToken;
+  const fresh = createSecureClientId();
+  if (!fresh) {
+    throw new Error("Secure browser cryptography is required for televoting identity");
+  }
+
+  transientDeviceToken = fresh;
+  try {
+    localStorage.setItem(DEVICE_KEY, fresh);
+  } catch {
+    // In-memory identity is stable for this page. Server checks stay authoritative.
+  }
+  return fresh;
 }
 
 function fingerprintSeed() {
@@ -46,9 +62,12 @@ function fingerprintSeed() {
 }
 
 export async function buildTelevotingClientIdentity() {
+  // Fail before hashing if secure entropy is unavailable. Never send a hash of
+  // an empty or guessable newly generated token to the anti-abuse authority.
+  const deviceToken = getOrCreateDeviceToken();
   const [fingerprintHash, deviceTokenHash] = await Promise.all([
     sha256(`solaris-fp:${fingerprintSeed()}`),
-    sha256(`solaris-dev:${getOrCreateDeviceToken()}`),
+    sha256(`solaris-dev:${deviceToken}`),
   ]);
   return { fingerprintHash, deviceTokenHash };
 }

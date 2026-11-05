@@ -1,17 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { WorldDocumentReaderScreen } from "@/components/v3/V3WorldDocumentLibrary";
-
-function parseVersion(input: unknown): number | undefined {
-  if (input === undefined || input === null || input === "") return undefined;
-  if (typeof input !== "number" && typeof input !== "string") return undefined;
-  const number = Number(input);
-  return Number.isSafeInteger(number) && number >= 1 ? number : undefined;
-}
+import { parseWorldDocumentVersionQuery } from "@/lib/world-public-documents";
 
 export const Route = createFileRoute("/world/documents/$organization/$document")({
   validateSearch: (search: Record<string, unknown>) => ({
-    version: parseVersion(search.version),
+    version: parseWorldDocumentVersionQuery(search.version),
   }),
   head: ({ params }) => ({
     meta: [
