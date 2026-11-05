@@ -165,4 +165,18 @@ describe("V3 Chat 3 show discovery", () => {
     expect(result.liveNow[0]?.stateLabel).toBe("Paused");
     expect(result.upNext[0]?.stateLabel).toBe("Delayed");
   });
+  it("keeps stale scheduled and live shows of archived editions out of current discovery", () => {
+    const result = buildShowDiscovery({
+      editions: [edition("e22", 22), edition("e21", 21, "archived")],
+      shows: [
+        show("current-upcoming", "e22", "scheduled", 1),
+        show("archived-scheduled", "e21", "scheduled", 1),
+        show("archived-live", "e21", "live", 2),
+      ],
+    });
+    expect(result.upNext.map((item) => item.show.id)).toEqual(["current-upcoming"]);
+    expect(result.liveNow).toEqual([]);
+    expect(result.archive.map((item) => item.show.id)).toEqual(["archived-live", "archived-scheduled"]);
+  });
+
 });
