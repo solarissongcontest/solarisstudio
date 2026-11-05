@@ -57,3 +57,69 @@
 .v3-directory-family :is(.v3-directory-mobile-row,.v3-directory-desktop-rail button):hover{background:var(--surface)}
 .v3-directory-family .v3-directory-desktop-card:hover{background:var(--surface-strong,var(--surface));border-color:var(--primary)}
 @media (min-width:1200px){.v3-directory-family .v3-directory-desktop-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* Universal directory visual grammar. Scopes intentionally exclude app chrome. */
+.v3-directory-family :is(.v3-directory-app-heading,.v3-directory-mobile-header) h1{
+  font-family:var(--font-sans,system-ui,sans-serif);
+  font-size:clamp(1.85rem,7vw,2.15rem);
+  font-weight:750;
+}
+.v3-directory-family .v3-directory-app-heading{margin-bottom:.85rem}
+.v3-directory-family :is(.v3-directory-app-heading,.v3-directory-mobile-header)>p:last-child{
+  margin-top:.35rem;line-height:1.45
+}
+.v3-directory-family .v3-directory-search-clear{
+  display:inline-grid;place-items:center;flex-shrink:0;width:44px;height:44px;
+  margin-right:-.65rem;border-radius:.65rem;color:var(--muted-foreground)
+}
+.v3-directory-family .v3-directory-search-clear:hover{color:var(--foreground);background:var(--surface-strong,var(--surface))}
+.v3-directory-family .v3-directory-search:focus-within{outline:2px solid var(--primary);outline-offset:2px}
+.v3-directory-family .v3-directory-results-count{margin:.65rem 0 .95rem}
+.v3-directory-family .v3-directory-groups{gap:1.5rem}
+.v3-directory-family .v3-directory-sheet-trigger{width:max-content;max-width:100%;min-height:46px}
+.v3-directory-family .v3-directory-sheet-options button[aria-pressed=true],
+.v3-directory-family .v3-directory-desktop-rail button[aria-pressed=true]{
+  box-shadow:inset 3px 0 0 var(--primary);color:var(--foreground)
+}
+.v3-directory-sheet-options .v3-directory-option-name{display:inline-flex;align-items:center;gap:.5rem;min-width:0}
+.v3-directory-family[data-directory-experience="installed-app"] .v3-directory-controls{
+  display:flex;flex-direction:column;align-items:flex-start;gap:.55rem
+}
+.v3-directory-family[data-directory-experience="installed-app"] .v3-directory-controls [data-solaris-search-field]{
+  width:100%
+}
+.v3-directory-family[data-directory-experience="installed-app"] .v3-directory-groups{gap:1.4rem}
+.v3-directory-family[data-directory-variant="actions"] .v3-directory-group-title{margin-bottom:.1rem}
+.v3-directory-family .v3-directory-action-list{border-top:1px solid var(--border)}
+.v3-directory-family .v3-directory-action-row{
+  display:flex;align-items:center;gap:.8rem;min-width:0;min-height:64px;
+  padding:.8rem .3rem;border-bottom:1px solid var(--border);text-decoration:none
+}
+.v3-directory-family .v3-directory-action-row strong{
+  display:block;font-size:.95rem;font-weight:710;line-height:1.35
+}
+.v3-directory-family .v3-directory-action-row .min-w-0>span{
+  display:block;color:var(--muted-foreground);font-size:.79rem;line-height:1.4;margin-top:.2rem
+}
+.v3-directory-family .v3-directory-action-icon{flex:none;color:var(--primary)}
+.v3-directory-family .v3-directory-action-chevron{flex:none;color:var(--muted-foreground)}
+.v3-directory-family .v3-directory-action-row:hover{background:var(--surface)}
+.v3-directory-family .v3-directory-action-row:focus-visible{
+  outline:2px solid var(--primary);outline-offset:-2px
+}
+.v3-directory-family[data-directory-variant="actions"] .v3-directory-desktop-grid{gap:0 1.35rem}
+.v3-directory-family[data-directory-variant="actions"] .v3-directory-action-card{
+  position:relative;min-height:0;gap:.3rem;border:0;border-bottom:1px solid var(--border);
+  border-radius:0;background:transparent;padding:.95rem .7rem .95rem 3.2rem
+}
+.v3-directory-family[data-directory-variant="actions"] .v3-directory-action-card .v3-directory-action-icon{
+  position:absolute;left:.7rem;top:1.2rem
+}
+.v3-directory-family[data-directory-variant="actions"] .v3-directory-action-card:hover{
+  border-color:var(--border);background:var(--surface)
+}
+.v3-directory-family[data-directory-variant="actions"] .v3-directory-aliases{margin-top:.3rem}
+.v3-directory-family[data-directory-experience="mobile-web"] .v3-directory-action-row{padding-inline:.25rem}
+@media (min-width:700px){
+  .v3-directory-family[data-directory-experience="desktop-web"] .v3-directory-app-heading{margin-bottom:1rem}
+}
