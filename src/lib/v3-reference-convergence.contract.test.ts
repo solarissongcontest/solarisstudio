@@ -8,12 +8,13 @@ const wikiCountry = () => read("src/routes/wiki/$code.tsx");
 const reference = () => read("src/routes/encyclopedia/index.tsx");
 
 describe("V3 Reference convergence", () => {
-  it("moves the installed-app Wiki root into the rolled-out Reference product", () => {
+  it("converges the rolled-out Wiki root into Reference across app and websites", () => {
     const source = wikiRoot();
 
     expect(source).toContain('isStudio2FeatureEnabled("public_encyclopedia")');
-    expect(source).toContain('enabled: isAppMode');
+    expect(source).toContain('enabled: platformResolved');
     expect(source).toContain('referenceRollout.data === true');
+    expect(source).toContain('if (!platformResolved || referenceRollout.isLoading)');
     expect(source).toContain('<Navigate to="/encyclopedia" search={{ artist: undefined }} replace />');
   });
 
@@ -25,11 +26,13 @@ describe("V3 Reference convergence", () => {
     expect(source).toContain('referenceRollout.isLoading');
   });
 
-  it("routes rolled-out app Wiki country articles to canonical Country identity", () => {
+  it("routes rolled-out Wiki country articles to canonical Country identity", () => {
     const source = wikiCountry();
 
     expect(source).toContain('isStudio2FeatureEnabled("public_encyclopedia")');
     expect(source).toContain('referenceRollout.data === true');
+    expect(source).toContain('enabled: platformResolved');
+    expect(source).toContain('if (!platformResolved || referenceRollout.isLoading)');
     expect(source).toContain('<Navigate to="/countries/$code" params={{ code }} replace />');
   });
 
