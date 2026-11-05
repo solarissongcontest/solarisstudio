@@ -1,0 +1,67 @@
+/* Music discovery is content-first; the installed app, mobile web and desktop
+ * share publication-safe projections but not an oversized universal card. */
+.v3-music-directory {
+  --music-divider: rgba(255,255,255,.09);
+  min-width:0;
+}
+.v3-music-directory .v3-screen-header { margin-bottom:1.1rem; }
+.v3-music-directory .v3-screen-header .v3-display {
+  font-family:var(--font-sans,ui-sans-serif,system-ui,sans-serif);
+  font-size:clamp(1.9rem,7vw,2.2rem);font-weight:750;
+  letter-spacing:-.04em;line-height:1.13;
+}
+.v3-music-directory .v3-screen-header .v3-lead {
+  max-width:55ch;margin-top:.3rem;font-size:.9rem;line-height:1.5;
+}
+.v3-music-search-panel {
+  display:grid;gap:.7rem;
+  padding:.15rem 0 1rem;
+  border-bottom:1px solid var(--music-divider);
+}
+.v3-music-search-context {
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:.65rem;
+}
+.v3-music-directory .v3-music-search-panel [role="search"] {width:100%;}
+.v3-music-collections {display:grid;gap:1.4rem;min-width:0;}
+.v3-music-collections .v3-section {min-width:0;}
+.v3-music-preview-list {border-top:1px solid var(--music-divider);}
+.v3-music-browse-link {
+  display:inline-flex;align-items:center;gap:.55rem;min-height:44px;
+  margin-top:.55rem;padding:0 .35rem;color:var(--primary);
+  font-size:.86rem;font-weight:700;text-decoration:none;
+}
+.v3-music-browse-link svg:last-child {margin-left:.25rem;}
+.v3-music-browse-link:hover {text-decoration:underline;}
+.v3-music-browse-link:focus-visible {outline:2px solid var(--primary);outline-offset:2px;border-radius:.4rem;}
+.v3-music-identity-section {border-top:1px solid var(--music-divider);padding-top:.9rem;}
+.v3-music-identity-note {padding:.15rem .1rem .5rem;}
+.v3-music-directory--installed-app .v3-music-search-context p {max-width:22ch;}
+.v3-music-directory--installed-app .v3-section__title {font-size:1.12rem;}
+.v3-music-directory--mobile-web .v3-music-search-panel {padding-block:.3rem 1.1rem;}
+.v3-music-directory--mobile-web .v3-music-preview-list {margin-inline:-.1rem;}
+.v3-music-directory--desktop-web .v3-screen-header .v3-display {
+  font-size:clamp(2.2rem,3.5vw,2.8rem);
+}
+.v3-music-directory--desktop-web .v3-music-search-panel {
+  grid-template-columns:minmax(0,1fr) minmax(20rem,1.2fr);
+  align-items:center;gap:1.25rem;
+}
+.v3-music-directory--desktop-web .v3-music-collections {
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:start;gap:clamp(1.4rem,3vw,2.8rem);
+}
+@media(max-width:767px){
+  .v3-music-directory .v3-music-search-panel [role="search"]{
+    display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.5rem;
+  }
+  .v3-music-directory .v3-music-search-panel [role="search"] label {
+    grid-column:1 / -1;
+  }
+  .v3-music-directory .v3-music-search-panel [role="search"] button[type="submit"] {
+    grid-column:-2;
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  .v3-music-directory .v3-music-browse-link {transition:none;}
+}
