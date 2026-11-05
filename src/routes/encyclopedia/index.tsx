@@ -3,10 +3,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { SlidersHorizontal } from "lucide-react";
+import { Check, Search, SlidersHorizontal, X } from "lucide-react";
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import "@/styles/v3-directory-family.css";
-import { Search } from "lucide-react";
+import "@/styles/v3-reference-directory.css";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
@@ -202,8 +202,10 @@ function ReferencePage() {
   if (feature.isLoading) {
     return (
       <AppShell>
-        <ReferenceDirectoryHeader presentation={presentation} />
-        <ArchiveDataLoading label="Opening the public reference…" />
+        <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
+          <ReferenceDirectoryHeader presentation={presentation} />
+          <ArchiveDataLoading label="Opening the public reference…" />
+        </div>
       </AppShell>
     );
   }
@@ -211,13 +213,15 @@ function ReferencePage() {
   if (feature.isError || feature.data !== true) {
     return (
       <AppShell>
-        <ReferenceDirectoryHeader presentation={presentation} />
+        <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
+          <ReferenceDirectoryHeader presentation={presentation} />
         <Panel title="Reference is not enabled yet">
           <p className="text-sm text-muted-foreground">
             The product is installed but its rollout flag is still off while production
             verification finishes.
           </p>
         </Panel>
+        </div>
       </AppShell>
     );
   }
@@ -275,14 +279,18 @@ function ReferencePage() {
           <SolarisSearchField value={query} onChange={setQuery}
             label="Search Reference" placeholder="Search published Solaris history…" />
         ) : (
-          <label className="relative block">
-            <span className="sr-only">Search Reference</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="v3-directory-search" role="search">
+            <Search size={18} aria-hidden="true" />
             <input type="search" aria-label="Search Reference"
               value={query} onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search published Solaris history" autoComplete="off"
-              className="min-h-11 w-full rounded-xl border border-border bg-background/50 pl-10 pr-3 text-sm outline-none focus:border-primary/60" />
-          </label>
+              placeholder="Search published Solaris history" autoComplete="off" />
+            {query ? (
+              <button type="button" className="v3-directory-search-clear"
+                aria-label="Clear search" onClick={() => setQuery("")}>
+                <X size={16} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
         )}
 
         {presentation === "installed-app" ? (
@@ -299,7 +307,10 @@ function ReferencePage() {
                 {KINDS.map((value) => (
                   <SheetClose key={value} asChild>
                     <button type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>
-                      {KIND_LABELS[value]}
+                      <span className="inline-flex items-center gap-2">
+                        {kind === value ? <Check size={16} aria-hidden="true" /> : null}
+                        {KIND_LABELS[value]}
+                      </span>
                     </button>
                   </SheetClose>
                 ))}
@@ -325,7 +336,7 @@ function ReferencePage() {
             </p>
             <h2
               id="reference-browse-heading"
-              className="mt-1 font-display text-xl font-bold"
+              className="mt-1 font-sans text-xl font-bold"
             >
               Browse published Solaris
             </h2>
@@ -384,7 +395,7 @@ function ReferencePage() {
               </h2>
             </div>
             <span className="text-xs tabular-nums text-muted-foreground">
-              {filtered.length}
+              {filtered.length} shown · bounded search
             </span>
           </div>
 
@@ -399,10 +410,10 @@ function ReferencePage() {
                   <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
                     {RESULT_LABELS[item.kind]}
                   </p>
-                  <p className="mt-1 truncate text-sm font-semibold">
+                  <p className="mt-1 line-clamp-2 break-words text-sm font-semibold">
                     {item.title}
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  <p className="mt-0.5 break-words text-xs text-muted-foreground">
                     {item.subtitle || "Published Solaris record"}
                   </p>
                 </div>

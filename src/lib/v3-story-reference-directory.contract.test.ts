@@ -50,6 +50,11 @@ describe("V3 editorial directory family: Stories and Reference", () => {
     expect(source).toContain("v3-directory-mobile-list");
     expect(source).not.toContain('className="v3-directory-back"');
     expect(source).toContain("SheetContent");
+    expect(source).toContain("v3-reference-directory");
+    expect(source).toContain("v3-directory-search-clear");
+    expect(source).toContain('aria-label="Clear search"');
+    expect(source).toContain("line-clamp-2 break-words");
+    expect(source).toContain('import "@/styles/v3-reference-directory.css"');
     expect(source).toContain("SolarisSearchField");
     expect(source).not.toContain("useAllResults");
     expect(source).not.toContain("useAllParticipants");
