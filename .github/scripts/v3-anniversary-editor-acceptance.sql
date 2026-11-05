@@ -13,6 +13,7 @@ declare
   v_revision bigint;
   v_public jsonb;
   v_count integer;
+  v_item uuid;
   i integer;
 begin
   insert into auth.users(id,aud,role,email,created_at,updated_at)
@@ -40,13 +41,19 @@ begin
     raise exception 'Exact retry did not replay the durable execution';
   end if;
 
-  for i in 1..3 loop
+  for i in 1..4 loop
     v_result := public.studio2_execute_story_operation(
       v_edition,'create_manual_item','Isolated reviewed milestone',gen_random_uuid(),v_revision,null,
       jsonb_build_object('headline','Milestone '||i,'summary','Synthetic reviewed Anniversary milestone',
                         'importance',70,'included',true));
     v_revision := (v_result->>'revision')::bigint;
   end loop;
+  v_item := (v_result->>'itemId')::uuid;
+  v_result := public.studio2_execute_story_operation(
+    v_edition,'update_item','Exclude reviewed milestone while preserving its history',
+    gen_random_uuid(),v_revision,v_item,
+    '{"headline":"Excluded reviewed milestone","included":false}'::jsonb);
+  v_revision := (v_result->>'revision')::bigint;
   begin
     perform public.studio2_execute_story_operation(
       v_edition,'create_manual_item','Reject stale reviewed milestone',v_denied,v_revision-1,null,
@@ -76,7 +83,11 @@ begin
   select count(*) into v_count from public.studio2_story_operation_executions where execution_id=v_execution;
   if v_count <> 1 then raise exception 'Exact retry duplicated execution evidence'; end if;
   select count(*) into v_count from public.studio2_storyline_items where edition_id=v_edition and manual_override;
-  if v_count <> 3 then raise exception 'Rejected action altered milestone count'; end if;
+  if v_count <> 4 then raise exception 'Rejected action altered milestone count'; end if;
+  if not exists(select 1 from public.studio2_storyline_items
+                where id=v_item and not included and headline='Excluded reviewed milestone') then
+    raise exception 'Canonical milestone edit did not preserve excluded history';
+  end if;
 
   perform set_config('request.jwt.claims',jsonb_build_object('sub',v_actor,'role','authenticated')::text,true);
   set local role authenticated;
@@ -85,12 +96,25 @@ begin
   if v_result->>'status' is distinct from 'published' then raise exception 'Canonical publication failed'; end if;
   v_public := public.studio2_public_storyline('anniversary-'||v_edition);
   if v_public is null then raise exception 'Published Anniversary timeline has no public readback'; end if;
+  if exists(select 1 from jsonb_array_elements(v_public->'items') item where item->>'id'=v_item::text) then
+    raise exception 'Excluded milestone leaked through public readback';
+  end if;
   v_result := public.studio2_execute_story_operation(
     v_edition,'unpublish_storyline','Unpublish reviewed Anniversary timeline',gen_random_uuid(),
     (v_result->>'revision')::bigint,null,'{}'::jsonb);
   if v_result->>'status' is distinct from 'draft' then raise exception 'Canonical unpublication failed'; end if;
   v_public := public.studio2_public_storyline('anniversary-'||v_edition);
   if v_public is not null then raise exception 'Unpublished timeline leaked through public readback'; end if;
+  reset role;
+
+  delete from public.studio2_capability_grants where user_id=v_actor;
+  set local role authenticated;
+  begin
+    perform public.studio2_execute_story_operation(
+      v_edition,'publish_storyline','Reject revoked editorial authority',v_denied,null,null,'{}'::jsonb);
+    raise exception 'Revoked actor retained editorial authority';
+  exception when insufficient_privilege then null;
+  end;
   reset role;
 
   set local role anon;
@@ -101,7 +125,7 @@ begin
   exception when insufficient_privilege then null;
   end;
   reset role;
-  raise notice 'PASS: governed Anniversary lifecycle, exact retry, stale/cross-edition/read-only/anonymous denial and publication readback';
+  raise notice 'PASS: governed Anniversary lifecycle, reviewed edit/exclusion, exact retry, stale/cross-edition/read-only/revoked/anonymous denial and publication readback';
 end
 $acceptance$;
 rollback;

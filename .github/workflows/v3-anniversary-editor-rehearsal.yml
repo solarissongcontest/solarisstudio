@@ -6,6 +6,8 @@ on:
       - "src/routes/_authenticated/admin/anniversary.tsx"
       - "src/lib/anniversary-command-scope*"
       - "src/lib/studio2-storytelling*"
+      - "src/lib/v3-organizer-capability-registry.ts"
+      - "src/lib/v3-organizer-anniversary*.contract.test.ts"
       - ".github/scripts/v3-anniversary-editor*"
       - ".github/workflows/v3-anniversary-editor-rehearsal.yml"
   workflow_dispatch:

@@ -11,7 +11,7 @@ const storytelling = source("src/lib/studio2-storytelling.ts");
 const storytellingMigration = source("supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql");
 
 describe("V3 Organizer Anniversary settings cutover", () => {
-  it("implements settings while retaining building until acceptance evidence passes", () => {
+  it("cuts over governed settings while keeping historical dates in their separate unfinished boundary", () => {
     const settings = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "workspace-anniversary-settings",
     );
@@ -20,7 +20,7 @@ describe("V3 Organizer Anniversary settings cutover", () => {
     );
 
     expect(settings).toBeDefined();
-    expect(settings?.migrationStatus).toBe("building");
+    expect(settings?.migrationStatus).toBe("cutover");
     expect(settings?.targetDomain).toBe("engagement-editorial");
     expect(settings?.targetRoute).toBe("/admin/anniversary");
     expect(settings?.ownerCapability).toBe("story.read");
