@@ -28,15 +28,17 @@ describe("V3 Tools directory: Countries-derived three-experience pattern", () =>
 
   it("keeps all three presentations, deep links and mobile filtering in one source", () => {
     const source = readFileSync("src/routes/tools/index.tsx", "utf8");
-    expect(source).toContain('data-directory-experience={presentation}');
-    expect(source).toContain('data-directory-mobile-header=""');
-    expect(source).toContain("v3-directory-desktop-rail");
-    expect(source).toContain("v3-directory-mobile-list");
-    expect(source).toContain("<AppGroupedList>");
+    const family = readFileSync("src/components/v3/V3DirectoryFamilyIndex.tsx", "utf8");
+    expect(source).toContain("V3DirectoryFamilyIndex");
     expect(source).toContain("PUBLIC_TOOL_GROUPS");
-    expect(source).toContain("platformResolved");
-    expect(source).toContain("filterPublicToolGroups");
-    expect(source).toContain("to={tool.to as any}");
+    expect(source).toContain("group.tools.map");
+    expect(family).toContain('data-directory-experience={presentation}');
+    expect(family).toContain('data-directory-mobile-header=""');
+    expect(family).toContain("v3-directory-desktop-rail");
+    expect(family).toContain("v3-directory-mobile-list");
+    expect(family).toContain("<AppGroupedList>");
+    expect(family).toContain("platformResolved");
+    expect(family).toContain("to={item.to as any}");
     expect(source).not.toContain("supabase");
   });
 });
