@@ -17,6 +17,12 @@ describe("V3 broadcast and historical directories: three experiences", () => {
     expect(screen).toContain("ShowWebRow");
     expect(screen).toContain("v3-shows-filter-fields");
     expect(screen).toContain("v3-shows-browse-results");
+    expect(screen).toContain("SolarisSearchField");
+    expect(screen).toContain("<SheetContent");
+    expect(screen).toContain("v3-shows-filter-fields--app");
+    expect(screen).toContain("activeFilterCount");
+    expect(screen).toContain('role="status" aria-live="polite"');
+    expect(screen).toContain('aria-label="Clear search"');
     expect(screen).toContain('eyebrow="Live now"');
     expect(screen).toContain('eyebrow="Up next"');
     expect(screen).toContain('eyebrow="Recent"');
