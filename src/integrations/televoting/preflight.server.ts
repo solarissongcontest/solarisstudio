@@ -251,26 +251,35 @@ export async function runVoteIntegrityPreflightServer(input: VotePreflightInput)
   const countryCode = upper(input.countryCode);
   if (!input.roundId || username.length < 2 || !countryCode) throw new Error("Ballot identity is incomplete");
 
-  const canonical = await loadCanonicalVotingContextServer();
-  const settings = await loadFriendVotingSettingsServer();
   const tv = (supabaseAdmin as any).schema("televoting");
 
-  const [roundsResult, submissionsResult, voteEntriesResult, roundEntriesResult, tvCountriesResult] = await Promise.all([
-    tv.from("rounds").select("id,edition_id,name,status").order("created_at", { ascending: true }),
+  // S8: reject unknown or closed rounds before retrieving historical ballots,
+  // HOD identity context or analysis settings. Closed-round attempts must not
+  // consume the same Supabase egress as a valid preflight.
+  // Keep the complete round list: historical reconciliation below needs it.
+  const roundsResult = await tv.from("rounds")
+    .select("id,edition_id,name,status")
+    .order("created_at", { ascending: true });
+  if (roundsResult.error) throw new Error(roundsResult.error.message);
+  const rounds = (roundsResult.data ?? []) as RoundRow[];
+  const currentRound = rounds.find((round) => round.id === input.roundId);
+  if (!currentRound) throw new Error("Voting round not found");
+  if (currentRound.status !== "open") throw new Error("Voting round is not open");
+
+  // Preserve the established successful-preflight read order and connection
+  // pressure after this gate; only invalid/closed requests are short-circuited.
+  const canonical = await loadCanonicalVotingContextServer();
+  const settings = await loadFriendVotingSettingsServer();
+  const [submissionsResult, voteEntriesResult, roundEntriesResult, tvCountriesResult] = await Promise.all([
     tv.from("vote_submissions").select("id,round_id,country_code,ip_hash,status,deletion_category,created_at").order("created_at", { ascending: true }).limit(50000),
     tv.from("vote_entries").select("submission_id,target_country_code,points").limit(250000),
     tv.from("round_entries").select("round_id,entry_key,country_code"),
     tv.from("countries").select("code,name"),
   ]);
 
-  for (const result of [roundsResult, submissionsResult, voteEntriesResult, roundEntriesResult, tvCountriesResult]) {
+  for (const result of [submissionsResult, voteEntriesResult, roundEntriesResult, tvCountriesResult]) {
     if (result.error) throw new Error(result.error.message);
   }
-
-  const rounds = (roundsResult.data ?? []) as RoundRow[];
-  const currentRound = rounds.find((round) => round.id === input.roundId);
-  if (!currentRound) throw new Error("Voting round not found");
-  if (currentRound.status !== "open") throw new Error("Voting round is not open");
 
   const canonicalEditionId = canonicalEditionForRound(canonical, currentRound);
   const editionNumberFor = (editionId: string | null | undefined) => {

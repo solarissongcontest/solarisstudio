@@ -166,6 +166,13 @@ export function createAppConnectivityController(
   };
 
   const onOffline = () => {
+    // The browser's offline event is newer connectivity evidence than any
+    // origin probe that started while the device was still online. Invalidate
+    // and abort that probe before publishing the offline snapshot so a late
+    // fetch resolution cannot overwrite this state with a stale "online" result.
+    probeGeneration += 1;
+    probeController?.abort();
+    probeController = null;
     snapshot = {
       ...snapshot,
       navigatorOnline: false,

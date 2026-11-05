@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, resolve } from "node:path";
+import { releaseEvidenceConsistencyFailure } from "./v3-release-evidence-consistency";
 import {
   V3_DOMAIN_CONSEQUENCE_REGISTRY,
   V3_ORGANIZER_CAPABILITY_REGISTRY,
@@ -113,6 +114,8 @@ for (const filename of exactCandidateEvidence) {
     else if (artifactSha !== evidenceCandidateSha) blockers.push(`${filename} certifies ${artifactSha}, not exact candidate ${evidenceCandidateSha}`);
     const semanticFailure = semanticEvidenceFailure(filename, evidence);
     if (semanticFailure) blockers.push(semanticFailure);
+    const consistencyFailure = releaseEvidenceConsistencyFailure(filename, evidence);
+    if (consistencyFailure) blockers.push(consistencyFailure);
   } catch {
     blockers.push(`${filename} is not valid JSON exact-candidate evidence`);
   }
