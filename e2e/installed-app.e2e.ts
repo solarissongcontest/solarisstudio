@@ -385,6 +385,7 @@ test("installed app shell survives representative navigation without duplicate c
     "/shows",
     "/results",
     "/rules",
+    "/rules/chapters",
     "/site-directory",
     "/tools",
     "/show-mode",
@@ -409,6 +410,15 @@ test("installed app shell survives representative navigation without duplicate c
         await expect(directory.getByRole("button", { name: "Filter archive topics by category" })).toBeVisible();
         await expect(directory.getByRole("searchbox", { name: "Search archive" })).toBeVisible();
       }
+    }
+    if (route === "/rules/chapters") {
+      const directory = page.locator('.v3-rule-chapters-directory [data-directory-experience="installed-app"]');
+      await expect(directory).toBeVisible();
+      await expect(directory.getByRole("heading", { level: 1, name: "22 chapters" })).toBeVisible();
+      await expect(directory.locator('a[href^="/rules/chapters/"]')).toHaveCount(22);
+      await expect(directory.getByRole("button", { name: "Filter chapters by category" })).toBeVisible();
+      await expect(directory.getByRole("textbox", { name: "Search Rulebook chapters" })).toBeVisible();
+      await expect(directory.locator(".v3-directory-mobile-list,.v3-directory-desktop-rail")).toHaveCount(0);
     }
     if (route === "/editions") {
       const directory = page.locator("[data-directory-experience]");
