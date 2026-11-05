@@ -115,6 +115,64 @@ The `--approve` phase checks GitHub repository ownership; compares the complete 
 
 Review the SQL and run once in protected destination Supabase SQL Editor. It atomically rechecks current historical names, edition IDs, canonical country IDs, `historical_identity_override=true`, blank historic flags and original Storage identities. Only the selected `country_edition_identities.flag_image` and corresponding `contest_entities.flag_image` are updated, plus audit. No current flag changes, identity renaming or voting changes. If any historical mapping is uncertain, **leave it unselected** rather than inventing history.
 
+
+### Historical flag review v2: collision fix (2026-11-05)
+
+**Do not use or execute historical SQL derived from the original edition-only
+review HTML.** That review erroneously keyed browser selections solely by
+`edition_id`, although SSC 1, 2, 3, 10, 12, 13 and 14 all have at least
+two historical-country identities. A click could change the JSON row of
+another country sharing the same edition. There were **zero** historical
+DB writes from the rejected attempts; the server-side validator refused
+the mismatched country/path identity.
+
+The corrected preview uses the composite `country_id:edition_id` key
+for both selection and clearing. It embeds `review_schema_version: 2`,
+which the server requires. All prior version-1 JSON is **rejected** and
+must never be silently remapped because some choices may have been lost
+by the colliding client-side key.
+
+Owner should pull the latest recovery branch and build a **new** review
+while preserving their original selected file in private home for audit:
+
+```bash
+git switch v3/sys-media-storage-recovery-20261104
+git pull --ff-only
+node --test scripts/lib/v3-historical-country-flag-recovery.test.mjs
+
+node scripts/v3-historical-country-flag-reference-recovery.mjs \
+  --manifest ./checksums.json \
+  --prepare \
+  --selection-draft ~/solaris-historical-flags-v2-draft.json
+```
+
+Open only the private port 8768 pointing at
+`~/solaris-historical-flags-preview`. Refresh the browser
+**after** regeneration (hard-refresh to avoid cached v1 HTML). The
+page explicitly identifies itself as fixed selection v2. Choose
+the correct flag **again for each country+SSC edition**, including
+countries sharing the same edition. Download:
+
+`solaris-historical-edition-flags-selection-v2.json`
+
+Upload that file into Codespaces, move to private home, and run the
+approved read-only byte and identity checks against the **v2**
+selection path:
+
+```bash
+mv ./solaris-historical-edition-flags-selection-v2.json \
+  ~/solaris-historical-edition-flags-selection-v2.json
+
+node scripts/v3-historical-country-flag-reference-recovery.mjs \
+  --manifest ./checksums.json \
+  --approve \
+  --selection ~/solaris-historical-edition-flags-selection-v2.json
+```
+
+The existing authorization env flags still apply; do not regenerate
+those from a public browser. Run generated SQL only after complete
+owner review and successfully passing the exact-head tests.
+
 ## C. Seven country flags missing from every recovered source
 
 The remaining missing countries are:
