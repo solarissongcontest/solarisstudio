@@ -141,7 +141,10 @@ describe("V3 countries directory filters", () => {
     const source = readFileSync("src/components/v3/V3CountriesDiscoveryScreen.tsx", "utf8");
     expect(source).toContain("const selectedParticipatingOnly = effectiveParticipatingScope(participatingOnly, currentLineupReady)");
     expect(source).toContain("participantsQuery.isError) setParticipatingOnly(false)");
-    expect(source).toContain("if (countriesQuery.isLoading || editionsQuery.isLoading)");
+    expect(source).toContain("if (countriesQuery.isLoading)");
+    expect(source).toContain("if (countriesQuery.isError)");
+    expect(source).not.toContain("countriesQuery.isLoading || editionsQuery.isLoading");
+    expect(source).not.toContain("countriesQuery.isError || editionsQuery.isError");
     expect(source).not.toContain("(participatingOnly && pendingCurrentParticipants)");
     expect(source).not.toContain("(participatingOnly && participantsQuery.isError)");
     expect(source).toContain("disabled={!currentLineupReady}");
