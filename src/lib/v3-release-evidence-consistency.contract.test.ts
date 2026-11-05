@@ -134,7 +134,7 @@ describe("V3 release evidence truthfulness", () => {
       zeroOrphans: true,
       inventory: { domains: 1 },
       findings: [],
-      physicalOwnership: { zeroOwnershipConflicts: true },
+      physicalOwnership: { zeroOwnershipConflicts: true, findings: [] },
     };
     expect(check("s15-zero-orphan.json", valid)).toBeNull();
     for (const change of [
@@ -145,6 +145,20 @@ describe("V3 release evidence truthfulness", () => {
       { physicalOwnership: null },
     ]) {
       expect(check("s15-zero-orphan.json", { ...valid, ...change })).not.toBeNull();
+    }
+  });
+
+  it("rejects an S15 physical-owner success flag contradicted by nested diagnostics", () => {
+    const valid = {
+      schemaVersion: 4, inventory: {}, zeroOrphans: true, findings: [],
+      physicalOwnership: { zeroOwnershipConflicts: true, findings: [] },
+    };
+    expect(check("s15-zero-orphan.json", valid)).toBeNull();
+    for (const findings of [undefined, ["unregistered canonical owner"]]) {
+      expect(check("s15-zero-orphan.json", {
+        ...valid,
+        physicalOwnership: { zeroOwnershipConflicts: true, findings },
+      })).not.toBeNull();
     }
   });
 

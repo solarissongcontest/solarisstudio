@@ -9,7 +9,7 @@ const s15 = {
   candidateSha: "a".repeat(40),
   zeroOrphans: true,
   findings: [],
-  physicalOwnership: { zeroOwnershipConflicts: true },
+  physicalOwnership: { zeroOwnershipConflicts: true, findings: [] },
 };
 
 const security = {
