@@ -1,13 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { Disc3, MicVocal, RefreshCw, Search, X } from "lucide-react";
+import { ChevronRight, Disc3, MicVocal, RefreshCw, Search, X } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
+
+import { useV3DirectoryPresentation } from "@/lib/v3-directory-presentation";
+import "@/styles/v3-music-directory.css";
 
 import type {
   V3ArtistIndexProjection,
   V3SongIndexProjection,
 } from "@/lib/v3-music-entities";
 import {
-  V3ActionCard,
   V3Screen,
   V3ScreenHeader,
   V3Section,
@@ -113,49 +115,42 @@ export function V3MusicDiscoveryScreen({
   onRetrySongs?: () => void | Promise<unknown>;
   onRetryArtists?: () => void | Promise<unknown>;
 }) {
+  const presentation = useV3DirectoryPresentation();
   const songItems = songs?.items.slice(0, ROOT_SONG_LIMIT) ?? [];
   const artistItems = artists?.items.slice(0, ROOT_ARTIST_LIMIT) ?? [];
   const totalVisible = (songs?.items.length ?? 0) + (artists?.items.length ?? 0);
 
   return (
-    <V3Screen>
+    <V3Screen className={`v3-music-directory v3-music-directory--${presentation}`}>
       <V3ScreenHeader
         kicker="Explore · Music"
         title="Songs & artists"
         description="Discover publication-safe Solaris music through durable Song and Artist identities."
-        editorial
+        editorial={presentation === "desktop-web"}
       />
 
-      <V3Surface level="raised" className="overflow-hidden">
-        <div className="border-b border-white/[0.06] p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="v3-kicker">Music discovery</p>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-white/58">
-                Search the public catalogue without treating mutable song titles or artist names as identity.
-              </p>
-            </div>
-            <V3StatusChip tone="neutral">Published only</V3StatusChip>
-          </div>
+      <section className="v3-music-search-panel" aria-label="Published music search">
+        <div className="v3-music-search-context">
+          <p className="text-sm text-white/65">Explore published songs and artists.</p>
+          <V3StatusChip tone="neutral">Published only</V3StatusChip>
         </div>
-        <div className="p-4 sm:p-5">
-          <MusicSearch value={query} onSubmit={onQueryChange} />
-        </div>
-      </V3Surface>
+        <MusicSearch value={query} onSubmit={onQueryChange} />
+      </section>
 
       {query ? (
         <p className="px-1 text-xs leading-5 text-white/45" aria-live="polite">
-          {totalVisible} publication-safe matches loaded for “{query}”.
+          Showing {songItems.length} song and {artistItems.length} artist previews from {totalVisible} loaded search matches for “{query}”.
         </p>
       ) : null}
 
+      <div className="v3-music-collections">
       <V3Section
         title={query ? "Song matches" : "Published songs"}
         meta={songs ? `${songs.items.length} loaded` : "Unavailable"}
       >
         {songs ? (
           songItems.length ? (
-            <V3Surface level="raised" className="px-4">
+            <div className="v3-music-preview-list">
               {songItems.map((song) => (
                 <V3SongPreview
                   key={song.id}
@@ -163,7 +158,7 @@ export function V3MusicDiscoveryScreen({
                   context={query ? "Search match" : "Public catalogue"}
                 />
               ))}
-            </V3Surface>
+            </div>
           ) : (
             <V3Surface className="p-4">
               <p className="text-sm font-semibold">
@@ -174,14 +169,12 @@ export function V3MusicDiscoveryScreen({
         ) : (
           <MissingCollection label="Songs" onRetry={onRetrySongs} />
         )}
-        <div className="mt-3">
-          <V3ActionCard
-            title="Browse songs"
-            description="Open the searchable publication-safe Song index"
-            icon={Disc3}
-            to={query ? `/songs?q=${encodeURIComponent(query)}` : "/songs"}
-          />
-        </div>
+        <Link className="v3-music-browse-link"
+          to={query ? `/songs?q=${encodeURIComponent(query)}` : "/songs"}>
+          <Disc3 size={17} aria-hidden="true" />
+          Browse songs
+          <ChevronRight size={17} aria-hidden="true" />
+        </Link>
       </V3Section>
 
       <V3Section
@@ -190,11 +183,11 @@ export function V3MusicDiscoveryScreen({
       >
         {artists ? (
           artistItems.length ? (
-            <V3Surface level="raised" className="px-4">
+            <div className="v3-music-preview-list">
               {artistItems.map((artist) => (
                 <V3ArtistPreview key={artist.id} artist={artist} />
               ))}
-            </V3Surface>
+            </div>
           ) : (
             <V3Surface className="p-4">
               <p className="text-sm font-semibold">
@@ -205,18 +198,18 @@ export function V3MusicDiscoveryScreen({
         ) : (
           <MissingCollection label="Artists" onRetry={onRetryArtists} />
         )}
-        <div className="mt-3">
-          <V3ActionCard
-            title="Browse artists"
-            description="Open the searchable publication-safe Artist index"
-            icon={MicVocal}
-            to={query ? `/artists?q=${encodeURIComponent(query)}` : "/artists"}
-          />
-        </div>
+        <Link className="v3-music-browse-link"
+          to={query ? `/artists?q=${encodeURIComponent(query)}` : "/artists"}>
+          <MicVocal size={17} aria-hidden="true" />
+          Browse artists
+          <ChevronRight size={17} aria-hidden="true" />
+        </Link>
       </V3Section>
 
-      <V3Section title="Music identity">
-        <V3Surface className="p-5">
+      </div>
+
+      <V3Section title="Music identity" className="v3-music-identity-section">
+        <div className="v3-music-identity-note">
           <p className="text-sm font-semibold text-white/90">
             Songs and artists are first-class Solaris entities
           </p>
@@ -231,7 +224,7 @@ export function V3MusicDiscoveryScreen({
               Artist index
             </Link>
           </div>
-        </V3Surface>
+        </div>
       </V3Section>
     </V3Screen>
   );
