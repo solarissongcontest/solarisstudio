@@ -45,8 +45,13 @@ export function prefillFromSubmission(
     (entry: { removed?: boolean | null }) => entry.removed !== true,
   );
 
-  const winningEntry = nf?.winning_entry_id
-    ? allNfEntries.find((entry: { id?: string }) => entry.id === nf.winning_entry_id) ?? null
+  // A participant-declared winner can wait for exact-version Organizer review
+  // before becoming the canonical winning_entry_id. Preserve that staged intent
+  // when reopening the Confirmation editor instead of making the choice appear
+  // to have vanished after a successful save.
+  const selectedWinnerId = nf?.pending_winning_entry_id ?? nf?.winning_entry_id ?? null;
+  const winningEntry = selectedWinnerId
+    ? allNfEntries.find((entry: { id?: string }) => entry.id === selectedWinnerId) ?? null
     : null;
 
   const isNationalFinal = s.selection_method === "national_final";
