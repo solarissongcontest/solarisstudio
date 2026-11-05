@@ -17,6 +17,7 @@ import {
   type RuleChapterDirectoryGroup,
 } from "@/lib/v3-rule-chapter-directory";
 import "@/styles/v3-directory-family.css";
+import "@/styles/v3-rule-chapters-directory.css";
 
 export const Route = createFileRoute("/rules/chapters/")({
   head: () => ({
