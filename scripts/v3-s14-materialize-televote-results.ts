@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
+import { analyseRobustInfluence } from "../src/integrations/televoting/influence-math";
+
 import {
   DEFAULT_ROBUST_TELEVOTE_CONFIG,
   ROBUST_TELEVOTE_ENGINE_VERSION,
@@ -117,10 +119,13 @@ async function main() {
   const calculatedAt = new Date().toISOString();
   const { error: clearResultError } = await tv.from("round_results").delete().eq("round_id", roundId);
   if (clearResultError) fail(clearResultError.message);
+  const { error: clearInfluenceError } = await tv.from("round_influence_results").delete().eq("round_id", roundId);
+  if (clearInfluenceError) fail(clearInfluenceError.message);
 
   let zeroWeight: boolean;
   let totalPoints: number;
   let rows;
+  let influenceRows: Record<string, unknown>[] = [];
 
   if (engineVersion === ROBUST_TELEVOTE_ENGINE_VERSION) {
     const ballots: RobustBallotInput[] = accepted.map((row) => ({
@@ -142,6 +147,28 @@ async function main() {
       totalPoints: Number(round.total_points_to_distribute ?? 0),
       config,
     });
+    // Mirror production's counterfactual evidence calculation in the local
+    // S14 materializer without treating the evidence as official Results truth.
+    const influence = analyseRobustInfluence({
+      participants,
+      ballots,
+      totalPoints: converted.totalPoints,
+      config,
+    });
+    influenceRows = influence.voters.map((row) => ({
+      round_id: roundId,
+      calculation_version: version,
+      subject_type: "voter",
+      subject_key: row.voterId,
+      members: [row.voterId],
+      winner_changed: row.winnerChanged,
+      top_three_changed: row.topThreeChanged,
+      qualifier_changed: row.qualifierChanged,
+      max_rank_movement: row.maxRankMovement,
+      max_point_movement: row.maxPointMovement,
+      most_affected_entry: row.mostAffectedEntry,
+    }));
+
     if (!converted.zeroWeight && converted.distributedTotal !== converted.totalPoints) {
       fail(`robust converted total ${converted.distributedTotal} does not equal configured ${converted.totalPoints}`);
     }
@@ -222,6 +249,10 @@ async function main() {
 
   const { error: resultInsertError } = await tv.from("round_results").insert(rows);
   if (resultInsertError) fail(resultInsertError.message);
+  if (influenceRows.length) {
+    const { error: influenceInsertError } = await tv.from("round_influence_results").insert(influenceRows);
+    if (influenceInsertError) fail(influenceInsertError.message);
+  }
 
   const { error: calculateUpdateError } = await tv
     .from("rounds")

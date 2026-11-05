@@ -232,14 +232,15 @@ export function buildShowDiscovery(input: {
   });
 
   const liveNow = items
-    .filter((item) => item.state === "live" || item.state === "paused")
+    .filter((item) => !isTerminalEdition(item.edition) && (item.state === "live" || item.state === "paused"))
     .sort(sortUpcoming);
   const upNext = items
     .filter(
       (item) =>
-        item.state === "scheduled" ||
-        item.state === "preparing" ||
-        item.state === "delayed",
+        !isTerminalEdition(item.edition) &&
+        (item.state === "scheduled" ||
+          item.state === "preparing" ||
+          item.state === "delayed"),
     )
     .sort(sortUpcoming);
   const currentEditionShows = currentEdition
