@@ -1,0 +1,85 @@
+/* Rulebook directory reuses the public directory-family grammar.
+   Scope to the Rules depth surface. Do not change the Rules route gate or shell. */
+.v3-directory-family .v3-directory-rule-number {
+  display: inline-grid;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: .65rem;
+  background: var(--surface);
+  color: var(--foreground);
+  font: 700 .79rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.v3-directory-family .v3-directory-rules-desktop-header {
+  margin: 0 0 1.8rem;
+  padding: .35rem 0 1.35rem;
+  border-bottom: 1px solid var(--border);
+}
+.v3-directory-family .v3-directory-rules-desktop-header h1 {
+  margin: .4rem 0 .55rem;
+  font-size: clamp(2rem, 3.5vw, 3.15rem);
+  font-weight: 790;
+  line-height: 1.1;
+  letter-spacing: -.045em;
+}
+.v3-directory-family .v3-directory-rules-desktop-header > p:not(.v3-directory-eyebrow) {
+  max-width: 58ch;
+  color: var(--muted-foreground);
+  font-size: .95rem;
+  line-height: 1.65;
+}
+.v3-directory-family .v3-directory-rules-header-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.2rem;
+}
+.v3-directory-family .v3-directory-rules-search-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: .65rem;
+  padding: .7rem .95rem;
+  border: 1px solid var(--border);
+  border-radius: .75rem;
+  background: var(--surface);
+  color: var(--foreground);
+  font-size: .86rem;
+  font-weight: 700;
+}
+.v3-directory-family .v3-directory-rules-search-link:hover,
+.v3-directory-family .v3-directory-rules-search-link:focus-visible {
+  border-color: var(--primary);
+}
+.v3-directory-family .v3-directory-rules-header-footer > .v3-directory-rules-search-link {
+  margin-left: auto;
+}
+.v3-directory-family .v3-directory-groups + .v3-directory-rules-search-link {
+  margin-top: 1rem;
+}
+.v3-directory-family .v3-directory-desktop-card .v3-directory-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+}
+.v3-directory-family[data-directory-experience="mobile-web"] .v3-directory-mobile-row {
+  align-items: center;
+}
+.v3-directory-family[data-directory-experience="mobile-web"] .v3-directory-rule-number {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+.v3-directory-family[data-directory-experience="installed-app"] .v3-directory-app-heading {
+  margin-bottom: 1rem;
+}
+@media (max-width: 359px) {
+  .v3-directory-family .v3-directory-rule-number {
+    width: 2rem;
+    height: 2rem;
+  }
+}
