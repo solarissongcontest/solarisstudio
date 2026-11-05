@@ -41,6 +41,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Use a distinct disposable local instance. Other CI suites use the
+          # default 5432x family on shared runners; never contact hosted Supabase.
+          port_base=58320
+          sed -i '1c project_id = "solaris_tg8_vote_math_ci"' supabase/config.toml
+          cat >> supabase/config.toml <<TOML
+          [api]
+          port = $((port_base + 1))
+          [db]
+          port = $((port_base + 2))
+          shadow_port = $((port_base + 0))
+          [studio]
+          port = $((port_base + 3))
+          [inbucket]
+          port = $((port_base + 4))
+          [analytics]
+          port = $((port_base + 7))
+          TOML
           supabase start
           supabase db reset --local --no-seed
 
