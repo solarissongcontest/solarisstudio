@@ -69,3 +69,15 @@
   .v3-directory-family .v3-directory-desktop-rail button{width:auto;max-width:100%;min-width:0}
 }
 .v3-directory-family .v3-directory-desktop-card{overflow-wrap:anywhere}
+
+/* Compact type for ordinary Rulebook/directory headings; never edition artwork. */
+.v3-directory-family :is(.v3-directory-app-heading,.v3-directory-mobile-header,.page-header) h1{
+  font-family:var(--font-sans,ui-sans-serif,system-ui,sans-serif);
+  font-size:clamp(1.9rem,7vw,2.15rem);
+  font-weight:750;line-height:1.13
+}
+.v3-directory-family[data-directory-experience="desktop-web"] .page-header h1{
+  font-size:clamp(2.1rem,3.5vw,2.8rem)
+}
+.v3-directory-family .v3-directory-mobile-header{margin-top:0}
+.v3-directory-family[data-directory-experience="mobile-web"] .v3-directory-mobile-header>p:last-child{margin-top:.35rem}
