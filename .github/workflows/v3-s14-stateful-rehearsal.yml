@@ -125,7 +125,7 @@ jobs:
 
 
       - name: Start disposable local Supabase
-        run: supabase start
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
 
       - name: Reset clean local database
         run: supabase db reset --local --no-seed
