@@ -621,7 +621,7 @@ function WebPublicPaletteDialog({
         aria-label="Search Solaris Studio"
       />
 
-      {normalized ? (
+      {normalized.length >= 2 ? (
         <WebSearchArchiveResults
           normalized={normalized}
           countries={countries}
@@ -629,6 +629,10 @@ function WebPublicPaletteDialog({
           actionResults={actionResults}
           setOpen={setOpen}
         />
+      ) : normalized ? (
+        <CommandList className="max-h-[min(68dvh,34rem)]">
+          <CommandEmpty>Type one more character to search published Solaris content.</CommandEmpty>
+        </CommandList>
       ) : (
         <CommandList className="max-h-[min(68dvh,34rem)]">
           <CommandEmpty>Start typing to search Solaris Studio.</CommandEmpty>
