@@ -152,7 +152,7 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
       <section id="shows-browse" aria-labelledby="shows-browse-title" className="scroll-mt-24">
         <AppSectionHeader eyebrow="Browse" title="All public shows" id="shows-browse-title" />
         <div className="v3-shows-filter-fields grid gap-2 sm:grid-cols-3">
-          <label className="text-xs font-semibold text-muted-foreground sm:col-span-3">
+          <label className="text-xs font-semibold text-muted-foreground">
             Search shows
             <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
               aria-label="Search shows" placeholder="Search show name, edition or type…"
