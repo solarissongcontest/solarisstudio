@@ -42,6 +42,19 @@ describe("V3 countries directory filters", () => {
     ).toEqual(["c"]);
   });
 
+  it("matches canonical, native and regional names without requiring the user's keyboard to type accents", () => {
+    const fixture = [...countries, { id: "d", name: "Ørnådal", short_code: "ORN", region: "Electra" }];
+    expect(filterCountryDirectory(fixture, {
+      search: "alanti", region: "all", participatingOnly: false, participatingCountryIds: new Set(),
+    }).map((country) => country.id)).toEqual(["b"]);
+    expect(filterCountryDirectory(fixture, {
+      search: "ornadal", region: "all", participatingOnly: false, participatingCountryIds: new Set(),
+    }).map((country) => country.id)).toEqual(["d"]);
+    expect(filterCountryDirectory(fixture, {
+      search: "ola", region: "all", participatingOnly: false, participatingCountryIds: new Set(),
+    }).map((country) => country.id)).toEqual(["b"]);
+  });
+
   it("preserves the complete directory and native-name search when participating-only is disabled", () => {
     expect(
       filterCountryDirectory(countries, {
@@ -109,6 +122,15 @@ describe("V3 countries directory filters", () => {
     expect(source).toContain('"v3-countries-grid grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4"');
     expect(source).not.toContain("discovery.participating.slice(0, 9)");
     expect(source).not.toContain("<AppGroupedList>");
+  });
+
+  it("keeps all-country discovery accessible when current-edition data is unavailable", () => {
+    const source = readFileSync("src/components/v3/V3CountriesDiscoveryScreen.tsx", "utf8");
+    expect(source).toContain("(participatingOnly && pendingCurrentParticipants)");
+    expect(source).toContain("(participatingOnly && participantsQuery.isError)");
+    expect(source).toContain("disabled={!currentLineupReady}");
+    expect(source).toContain("Retry lineup");
+    expect(source).toContain("You can still browse all countries.");
   });
 
   it("does not mutate the canonical country collection", () => {
