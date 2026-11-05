@@ -17,7 +17,9 @@ describe("V3 web global Search request budget", () => {
 
     expect(web).toContain("useCountries()");
     expect(web).toContain("useEditions()");
-    expect(web).toContain("{normalized ? (");
+    expect(web).toContain("{normalized.length >= 2 ? (");
+    expect(web).toContain('Type one more character to search published Solaris content.');
+    expect(web).toContain(") : normalized ? (");
     expect(web).toContain("<WebSearchArchiveResults");
     expect(web).not.toContain("useAllShows()");
     expect(web).not.toContain("useAllParticipants()");
