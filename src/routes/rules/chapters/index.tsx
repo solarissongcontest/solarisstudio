@@ -41,8 +41,8 @@ function RuleChaptersPage() {
             noShell
             title="22 chapters"
             eyebrow="OFFICIAL RULEBOOK"
-            intro="Browse the official General Regulations by chapter or topic. The categories guide navigation, while official chapter numbering stays unchanged."
-            browserIntro="Find an official chapter by topic, title or number. The General Regulations remain the authority."
+            intro="Browse official chapters by title, topic or number."
+            browserIntro="Find any of the 22 official chapters by topic, title or number."
             searchLabel="Search Rulebook chapters"
             searchPlaceholder="Search chapters by number or topic…"
             scopeLabel="All chapters"
