@@ -87,6 +87,24 @@ describe("V3 Songs & Artists discovery", () => {
     expect(source).not.toContain('description="Open song"');
   });
 
+  it("gives Song and Artist indexes and details their own publication-safe visual hierarchy", () => {
+    const source = entityScreens();
+    const styles = read("src/styles/v3-music-directory.css");
+    expect(source).toContain("useV3DirectoryPresentation()");
+    expect(source).toContain("v3-music-entity-index");
+    expect(source).toContain("v3-music-entity-detail");
+    expect(source).toContain("v3-music-detail-columns");
+    expect(source).toContain("v3-music-preview-list");
+    expect(source).toContain("v3-music-related-links");
+    expect(source).toContain('editorial={presentation === "desktop-web"}');
+    expect(source).not.toContain("V3ActionCard");
+    expect(source).toContain("v3SongHref(song.id)");
+    expect(source).toContain("v3ArtistHref(artist.id)");
+    expect(styles).toContain(".v3-music-directory--desktop-web .v3-music-detail-columns");
+    expect(styles).toContain(".v3-music-directory--mobile-web .v3-music-detail-columns");
+    expect(styles).toContain(".v3-music-directory--installed-app .v3-music-detail-columns");
+  });
+
   it("keeps canonical URLs on the music root, searchable indexes and opaque entity routes", () => {
     expect(route()).toContain("https://studio.solaris-song-contest.workers.dev/music");
     expect(songsRoute()).toContain("https://studio.solaris-song-contest.workers.dev/songs");
