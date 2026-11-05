@@ -16,8 +16,6 @@ on:
       - "src/lib/v3-consequence-release-classification.ts"
       - "supabase/functions/country-auth/**"
       - "src/lib/country-auth-contract.test.ts"
-      - ".github/scripts/prepare-archive-local-config.py"
-      - ".github/tests/test_prepare_archive_local_config.py"
   workflow_dispatch:
 
 env:
@@ -42,8 +40,6 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.113.0
-      - name: Prepare independent local stack
-        run: python3 .github/scripts/prepare-archive-local-config.py supabase/config.toml "archive-account-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-clean"
       - name: Start isolated local Supabase
         run: bash .github/scripts/v3-start-disposable-supabase.sh
       - name: Rebuild complete migration chain
@@ -79,7 +75,6 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-account-session-main
-          python3 "$GITHUB_WORKSPACE/.github/scripts/prepare-archive-local-config.py" supabase/config.toml "archive-account-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-upgrade"
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
           supabase db reset --local --no-seed
       - name: Prove pre-upgrade worker mutation authority locally
