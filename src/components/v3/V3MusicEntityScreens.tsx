@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { Disc3, MicVocal, Search, X } from "lucide-react";
+import { ChevronRight, Disc3, MicVocal, Search, X } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
+
+import { useV3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 
 import type {
   V3ArtistDetail,
@@ -10,7 +12,6 @@ import type {
 } from "@/lib/v3-music-entities";
 import { v3ArtistHref, v3SongHref } from "@/lib/v3-music-entities";
 import {
-  V3ActionCard,
   V3Screen,
   V3ScreenHeader,
   V3Section,
@@ -91,14 +92,11 @@ function QueryState({
 }
 
 function MusicRootLink() {
-  return (
-    <V3ActionCard
-      title="Songs & artists"
-      description="Return to music discovery"
-      icon={Disc3}
-      to="/music"
-    />
-  );
+  return <Link className="v3-music-browse-link" to="/music">
+    <Disc3 size={17} aria-hidden="true" />
+    Music discovery
+    <ChevronRight size={17} aria-hidden="true" />
+  </Link>;
 }
 
 export function V3ArtistIndexScreen({
@@ -110,34 +108,35 @@ export function V3ArtistIndexScreen({
   query: string;
   onQueryChange: (query: string) => void;
 }) {
+  const presentation = useV3DirectoryPresentation();
   return (
-    <V3Screen>
+    <V3Screen className={`v3-music-directory v3-music-directory--${presentation} v3-music-entity-index`}>
       <V3ScreenHeader
         kicker="Explore · Artists"
         title="Artists"
-        description="First-class Solaris artist identities linked to entries that are already public. Names are presentation, not identity."
-        editorial
+        description="Discover published artists and their songs."
+        editorial={presentation === "desktop-web"}
       />
 
-      <V3Surface level="raised" className="p-4 sm:p-5">
+      <div className="v3-music-search-panel">
         <SearchBox
           value={query}
           label="Search artists"
           placeholder="Search published artists"
           onSubmit={onQueryChange}
         />
-      </V3Surface>
+      </div>
 
       <V3Section
         title={query ? "Search results" : "Published artists"}
         meta={`${projection.items.length} shown`}
       >
         {projection.items.length ? (
-          <V3Surface level="raised" className="px-4">
+          <div className="v3-music-preview-list">
             {projection.items.map((artist) => (
               <V3ArtistPreview key={artist.id} artist={artist} />
             ))}
-          </V3Surface>
+          </div>
         ) : (
           <QueryState
             title={query ? "No artists found" : "No public artists yet"}
@@ -150,17 +149,13 @@ export function V3ArtistIndexScreen({
         )}
       </V3Section>
 
-      <V3Section title="Explore music">
-        <div className="grid gap-2 sm:grid-cols-2">
-          <MusicRootLink />
-          <V3ActionCard
-            title="Songs"
-            description="Browse first-class published song identities"
-            icon={Disc3}
-            to="/songs"
-          />
-        </div>
-      </V3Section>
+      <nav className="v3-music-related-links" aria-label="More music">
+        <MusicRootLink />
+        <Link to="/songs" className="v3-music-browse-link">
+          <Disc3 size={17} aria-hidden="true" /> Browse songs
+          <ChevronRight size={17} aria-hidden="true" />
+        </Link>
+      </nav>
     </V3Screen>
   );
 }
@@ -174,30 +169,31 @@ export function V3SongIndexScreen({
   query: string;
   onQueryChange: (query: string) => void;
 }) {
+  const presentation = useV3DirectoryPresentation();
   return (
-    <V3Screen>
+    <V3Screen className={`v3-music-directory v3-music-directory--${presentation} v3-music-entity-index`}>
       <V3ScreenHeader
         kicker="Explore · Songs"
         title="Songs"
-        description="Published Solaris songs backed by durable System identity rather than mutable title text."
-        editorial
+        description="Explore the catalogue of published songs."
+        editorial={presentation === "desktop-web"}
       />
 
-      <V3Surface level="raised" className="p-4 sm:p-5">
+      <div className="v3-music-search-panel">
         <SearchBox
           value={query}
           label="Search songs"
           placeholder="Search published songs"
           onSubmit={onQueryChange}
         />
-      </V3Surface>
+      </div>
 
       <V3Section
         title={query ? "Search results" : "Published songs"}
         meta={`${projection.items.length} shown`}
       >
         {projection.items.length ? (
-          <V3Surface level="raised" className="px-4">
+          <div className="v3-music-preview-list">
             {projection.items.map((song) => (
               <V3SongPreview
                 key={song.id}
@@ -205,7 +201,7 @@ export function V3SongIndexScreen({
                 context={query ? "Search match" : "Public catalogue"}
               />
             ))}
-          </V3Surface>
+          </div>
         ) : (
           <QueryState
             title={query ? "No songs found" : "No public songs yet"}
@@ -218,17 +214,13 @@ export function V3SongIndexScreen({
         )}
       </V3Section>
 
-      <V3Section title="Explore music">
-        <div className="grid gap-2 sm:grid-cols-2">
-          <MusicRootLink />
-          <V3ActionCard
-            title="Artists"
-            description="Browse first-class published artist identities"
-            icon={MicVocal}
-            to="/artists"
-          />
-        </div>
-      </V3Section>
+      <nav className="v3-music-related-links" aria-label="More music">
+        <MusicRootLink />
+        <Link to="/artists" className="v3-music-browse-link">
+          <MicVocal size={17} aria-hidden="true" /> Browse artists
+          <ChevronRight size={17} aria-hidden="true" />
+        </Link>
+      </nav>
     </V3Screen>
   );
 }
@@ -278,13 +270,14 @@ function AppearanceList({
 }
 
 export function V3ArtistDetailScreen({ artist }: { artist: V3ArtistDetail }) {
+  const presentation = useV3DirectoryPresentation();
   return (
-    <V3Screen>
+    <V3Screen className={`v3-music-directory v3-music-directory--${presentation} v3-music-entity-detail`}>
       <V3ScreenHeader
         kicker="Artist"
         title={artist.displayName}
         description={artist.bio ?? "Published Solaris artist identity."}
-        editorial
+        editorial={presentation === "desktop-web"}
       />
 
       {artist.aliases.length ? (
@@ -352,8 +345,9 @@ export function V3ArtistDetailScreen({ artist }: { artist: V3ArtistDetail }) {
 }
 
 export function V3SongDetailScreen({ song }: { song: V3SongDetail }) {
+  const presentation = useV3DirectoryPresentation();
   return (
-    <V3Screen>
+    <V3Screen className={`v3-music-directory v3-music-directory--${presentation} v3-music-entity-detail`}>
       <V3ScreenHeader
         kicker="Song"
         title={song.title}
@@ -362,7 +356,7 @@ export function V3SongDetailScreen({ song }: { song: V3SongDetail }) {
             ? song.artists.map((artist) => artist.displayName).join(" · ")
             : "Published Solaris song identity."
         }
-        editorial
+        editorial={presentation === "desktop-web"}
       />
 
       <V3Section title="Artists" meta={`${song.artists.length}`}>
