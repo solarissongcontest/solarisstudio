@@ -221,7 +221,7 @@ expect_eq "raw worker UPDATE privilege remains revoked" "$(scalar "select has_ta
 # closes the failed connection; neither this grant nor any write can commit.
 for raw_sql in \
   "update public.national_finals set pending_winning_entry_id=null where id='$NF_ID';" \
-  "insert into public.national_finals(id,submission_id,entry_count,pending_winning_entry_id) values(gen_random_uuid(),'$SUBMISSION_ID',2,'$SAVED_WINNER_ENTRY_ID');"
+  "insert into public.national_finals(id,submission_id,country_id,edition_id,nf_name,expected_entry_count,pending_winning_entry_id) values(gen_random_uuid(),'$SUBMISSION_ID','$COUNTRY_ID','$EDITION_ID','Denied raw worker fixture',2,'$SAVED_WINNER_ENTRY_ID');"
 do
   if worker_error="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "begin; grant insert,update on public.national_finals to service_role; set local role service_role; $raw_sql rollback;" 2>&1)"; then
     fail "raw service_role changed staged NF intent"
