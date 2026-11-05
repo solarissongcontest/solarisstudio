@@ -5,6 +5,7 @@ import { assertOwnerAuthorization, OWNER_METHOD } from './v3-owner-media-recover
 const sha = data => createHash('sha256').update(data).digest('hex');
 const STAGING = 'solaris-upload-quarantine';
 const TARGET_PROJECT = 'dkxmnvekiopyesuzggeu';
+const SOURCE_PUBLIC_ROOT = 'https://oxtbskojiexkaspputvo.supabase.co/storage/v1/object/public/';
 const MANIFEST_HASH = '268e75f2bc3c25f324542b90f5350c7fcbff5b2eddfe83f97e3b2a894355a4b4';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export function parseStagedManifest(raw) {
@@ -20,7 +21,8 @@ export function parseStagedManifest(raw) {
      (bucket==='edition-artwork' && file!==undefined) ||
      !['image/jpeg','image/png','image/webp'].includes(rec.mime) ||
      !Number.isSafeInteger(rec.size)||rec.size<1||rec.size>8*1024*1024||
-     !/^[a-f0-9]{64}$/.test(rec.sha256||'')) throw Error('Unsafe legacy object identity');
+     !/^[a-f0-9]{64}$/.test(rec.sha256||'') ||
+     rec.source_url!==SOURCE_PUBLIC_ROOT+key) throw Error('Unsafe legacy object identity');
   return {bucket,path:key.slice(bucket.length+1),stagedPath:key,owner,
     size:rec.size,mime:rec.mime,sha256:rec.sha256};
  }).sort((a,b)=>a.stagedPath.localeCompare(b.stagedPath));
@@ -28,6 +30,20 @@ export function parseStagedManifest(raw) {
     files.filter(f=>f.bucket==='edition-artwork').length!==7||
     files.reduce((n,f)=>n+f.size,0)!==25673162)throw Error('Incomplete legacy inventory');
  return files;
+}
+/** Stable, inspectable legacy evidence derived from the pinned historical public
+ * URL inventory and byte-level quarantine SHA-256 verification. These are not
+ * fabricated V3 publication receipts; owner approval attests prior visibility.
+ */
+export function legacyOwnerEvidence(f) {
+ const original_public_url=SOURCE_PUBLIC_ROOT+f.stagedPath;
+ return {
+  original_public_url,
+  legacy_source_manifest_sha256:MANIFEST_HASH,
+  owner_attests_formerly_public:true,
+  publication_evidence_id:'legacy-public-url-sha256:'+sha(Buffer.from(original_public_url)),
+  validation_evidence_id:'verified-quarantine-sha256:'+f.sha256,
+ };
 }
 export function stagedDigest(files) {
  return sha(stableJson(files.map(({bucket,path,size,mime,sha256})=>({bucket,path,size,mime,sha256}))));
@@ -98,6 +114,11 @@ export async function restoreApprovedStaging({
     source_mime:f.mime,private:false},approval);
   const clearance=approval.asset_clearances.find(a=>a?.identity===id);
   if(clearance?.canonical_subject_id!==f.owner)throw Error('Canonical asset owner mismatch');
+  if(approval.owner_authorization){
+   const legacy=legacyOwnerEvidence(f);
+   if(Object.entries(legacy).some(([key,value])=>clearance?.[key]!==value))
+    throw Error('Owner recovery legacy-public provenance or validation evidence mismatch');
+  }
   return f;
  });
  if(approval.asset_clearances?.length!==selected.length)throw Error('Unreviewed clearance in approval');
