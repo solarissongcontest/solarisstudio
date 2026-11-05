@@ -170,9 +170,11 @@ function SpoilerRevealCard({ onReveal }: { onReveal: () => void }) {
 function SectionNav({
   projection,
   spoilerSafe,
+  globalSpoilerProtection,
 }: {
   projection: V3EditionPageProjection;
   spoilerSafe: boolean;
+  globalSpoilerProtection: boolean;
 }) {
   const base = projection.hub.hero.href;
   const links = [
@@ -199,13 +201,13 @@ function SectionNav({
       key: "stories",
       label: "Stories",
       href: projection.story?.href ?? base,
-      locked: spoilerSafe || !projection.story,
+      locked: globalSpoilerProtection || spoilerSafe || !projection.story,
     },
     {
       key: "results",
       label: "Results",
       href: projection.results.showHref ?? base,
-      locked: spoilerSafe || projection.results.state !== "available",
+      locked: globalSpoilerProtection || spoilerSafe || projection.results.state !== "available",
     },
   ];
 
@@ -360,7 +362,7 @@ export function V3EditionOverviewScreen({
               </div>
             ))}
           </V3Surface>
-          {projection.results.showHref ? (
+          {!hideSpoilers && projection.results.showHref ? (
             <V3ActionCard
               title="Open official result"
               description="View the complete published result in Results"
@@ -372,7 +374,11 @@ export function V3EditionOverviewScreen({
         </V3Section>
       ) : null}
 
-      <SectionNav projection={projection} spoilerSafe={spoilerSafe} />
+      <SectionNav
+        projection={projection}
+        spoilerSafe={spoilerSafe}
+        globalSpoilerProtection={hideSpoilers}
+      />
 
       <V3Section
         title="At a glance"
@@ -532,13 +538,15 @@ export function V3EditionOverviewScreen({
               </div>
             ) : null}
           </V3Surface>
-          <V3ActionCard
-            title="Open full story"
-            description="Read the complete published edition timeline"
-            icon={BookOpen}
-            tone="neutral"
-            to={projection.story.href}
-          />
+          {!hideSpoilers ? (
+            <V3ActionCard
+              title="Open full story"
+              description="Read the complete published edition timeline"
+              icon={BookOpen}
+              tone="neutral"
+              to={projection.story.href}
+            />
+          ) : null}
         </V3Section>
       ) : (
         <V3Section title="Stories">
@@ -588,7 +596,7 @@ export function V3EditionOverviewScreen({
                   ))}
                 </ol>
               </V3Surface>
-              {projection.results.showHref ? (
+              {!hideSpoilers && projection.results.showHref ? (
                 <V3ActionCard
                   title="Open complete official result"
                   description="Continue in Results for the full ranking and breakdown"

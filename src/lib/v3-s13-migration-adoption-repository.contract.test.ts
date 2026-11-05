@@ -34,19 +34,43 @@ describe("System V3 S13 repository adoption gate", () => {
   });
 
   it("keeps immutable historical exemption debt exact, reviewed and forward-repaired", () => {
-    expect(V3_S13_REVIEWED_MIGRATION_EXEMPTIONS).toHaveLength(1);
-    expect(V3_S13_REVIEWED_MIGRATION_EXEMPTIONS[0]).toMatchObject({
-      path: "supabase/migrations/20261022151607_batch_running_order_result_sync.sql",
+    expect(V3_S13_REVIEWED_MIGRATION_EXEMPTIONS).toHaveLength(2);
+
+    const batchSyncExemption = V3_S13_REVIEWED_MIGRATION_EXEMPTIONS.find(
+      (exemption) =>
+        exemption.path ===
+        "supabase/migrations/20261022151607_batch_running_order_result_sync.sql",
+    );
+    expect(batchSyncExemption).toMatchObject({
       reason: "immutable_history_forward_repaired",
     });
-    expect(V3_S13_REVIEWED_MIGRATION_EXEMPTIONS[0].rationale).toContain(
+    expect(batchSyncExemption?.rationale).toContain(
       "20261023205400_v3_s13_adopt_batch_running_order_result_sync.sql",
     );
+
+    const rulesRegistryExemption = V3_S13_REVIEWED_MIGRATION_EXEMPTIONS.find(
+      (exemption) =>
+        exemption.path ===
+        "supabase/migrations/20261101181144_rules_v4_1_roleplay_registry.sql",
+    );
+    expect(rulesRegistryExemption).toMatchObject({
+      reason: "immutable_history_forward_repaired",
+    });
+    expect(rulesRegistryExemption?.rationale).toContain(
+      "20261101181812_v3_s13_adopt_rules_v4_1_roleplay_registry.sql",
+    );
+
+    const migrationPaths = new Set(
+      postFrameworkMigrations().map((migration) => migration.path),
+    );
     expect(
-      postFrameworkMigrations().some(
-        (migration) =>
-          migration.path ===
-          "supabase/migrations/20261023205400_v3_s13_adopt_batch_running_order_result_sync.sql",
+      migrationPaths.has(
+        "supabase/migrations/20261023205400_v3_s13_adopt_batch_running_order_result_sync.sql",
+      ),
+    ).toBe(true);
+    expect(
+      migrationPaths.has(
+        "supabase/migrations/20261101181812_v3_s13_adopt_rules_v4_1_roleplay_registry.sql",
       ),
     ).toBe(true);
   });

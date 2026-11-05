@@ -4,12 +4,70 @@
 //     nitro (build-only using cloudflare as a default target), VITE_* env injection, @ path alias,
 //     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
+import { fileURLToPath, URL } from "node:url";
+
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 const browserAudit = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
 
 export default defineConfig({
   vite: {
+    resolve: {
+      // Broadcast uses only canvas-confetti's one-shot default function. Keep
+      // that narrow decorative effect local instead of shipping the general
+      // purpose dependency into the aggregate production client payload.
+      alias: {
+        "canvas-confetti": fileURLToPath(
+          new URL("./src/lib/lightweight-confetti.ts", import.meta.url),
+        ),
+      },
+    },
+    build: {
+      rolldownOptions: {
+        output: {
+          // Production evidence showed repeated gzip framing across hundreds of
+          // tiny Lucide chunks and several TanStack Router helper chunks. Keep
+          // package behavior unchanged while consolidating only those vendor
+          // modules into stable emitted groups.
+          codeSplitting: {
+            groups: [
+              { name: "vendor-icons", test: /[\\/]node_modules[\\/]lucide-react[\\/]/ },
+              {
+                name: "vendor-router",
+                test: /[\\/]node_modules[\\/]@tanstack[\\/]react-router[\\/]/,
+              },
+              // Shared Radix primitives are used across route-local overlays.
+              // Consolidate package internals without pulling route modules
+              // into the common client bundle.
+              {
+                name: "vendor-radix",
+                test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
+              },
+              // Keep large chart vendors behind their existing lazy screen
+              // boundaries, sharing internals instead of emitting fragments.
+              {
+                name: "vendor-charts",
+                test: /[\\/]node_modules[\\/](?:recharts|victory-vendor)[\\/]/,
+              },
+              // Motion and data-cache internals appear in many route chunks.
+              // Group only package implementation, preserving lazy page imports.
+              {
+                name: "vendor-motion",
+                test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+              },
+              {
+                name: "vendor-query",
+                test: /[\\/]node_modules[\\/]@tanstack[\\/](?:react-query|query-core)[\\/]/,
+              },
+              {
+                name: "vendor-floating",
+                test: /[\\/]node_modules[\\/]@floating-ui[\\/]/,
+              },
+            ],
+          },
+        },
+      },
+    },
     optimizeDeps: {
       // Browser Audit exercises the complete generated route tree against the
       // dev server. Scan it up front so opening a previously untouched lazy
