@@ -147,8 +147,10 @@ expect_blocked_by_gate "unrelated service-role table write"
 [[ "$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select count(*) from public.countries where id = '$BLOCKED_COUNTRY_ID'::uuid;")" == "0" ]] \
   || fail "blocked table write mutated data"
 
-request POST "$API_URL/rest/v1/rpc/v3_revoke_session" "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY" \
-  '{"p_session_handle":"0000000000000000000000000000000000000000000000000000000000000000","p_operation_id":"00000000-0000-4000-8000-00000000f913","p_idempotency_key":"readonly-unrelated-rpc"}'
+# Session revocation is sanctioned security recovery in restricted modes.
+# Account claiming is an ordinary mutation and must still hit the global gate.
+request POST "$API_URL/rest/v1/rpc/claim_country_account" "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY" \
+  '{"_country_id":"00000000-0000-4000-8000-00000000f914"}'
 expect_blocked_by_gate "unrelated mutation RPC"
 
 log "Creating disposable country-account fixture through the local database"

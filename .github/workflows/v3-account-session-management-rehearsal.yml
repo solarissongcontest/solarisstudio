@@ -50,6 +50,8 @@ jobs:
         run: supabase db reset --local --no-seed
       - name: Rehearse account session contract
         run: bash .github/scripts/v3-account-session-management-rehearsal.sh
+      - name: Rehearse account session canonical authority
+        run: bash .github/scripts/v3-account-session-authority-rehearsal.sh
       - name: Rehearse country password recovery in read-only
         env:
           RECOVERY_TRACE_FILE: ${{ runner.temp }}/recovery-traces/clean.log
@@ -62,8 +64,6 @@ jobs:
           path: ${{ runner.temp }}/recovery-traces/clean.log
           if-no-files-found: warn
           retention-days: 3
-      - name: Rehearse account session canonical authority
-        run: bash .github/scripts/v3-account-session-authority-rehearsal.sh
       - name: Stop isolated local Supabase
         if: always()
         run: supabase stop --no-backup || true
