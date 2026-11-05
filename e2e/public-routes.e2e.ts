@@ -428,6 +428,14 @@ test("Rulebook chapter directory preserves all 22 links across mobile web and de
     Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
   );
   expect(overflow, "Chapter directory must fit at 200% text size").toBeLessThanOrEqual(2);
+  if (!mobileWeb) {
+    // Horizontal overflow alone misses unreadable grid slivers within an embedded shell.
+    // The chapter card must remain usefully readable when the root font is doubled.
+    const cardWidth = await directory.locator(".v3-directory-desktop-card").first().evaluate(
+      (element) => element.getBoundingClientRect().width,
+    );
+    expect(cardWidth, "Desktop chapter cards must not collapse at 200% text").toBeGreaterThanOrEqual(220);
+  }
   await testInfo.attach(`rule-chapters-${testInfo.project.name}.png`, {
     body: await page.screenshot({ fullPage: true }),
     contentType: "image/png",
