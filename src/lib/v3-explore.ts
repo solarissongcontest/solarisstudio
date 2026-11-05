@@ -61,6 +61,8 @@ export type V3ExploreRoutes = {
   editionsArchive: string;
   wiki: string;
   encyclopedia: string;
+  /** Explicit canonical Reference route, when its independent rollout is available. */
+  reference?: string | null;
   archiveGames?: string | null;
   advancedDiscovery?: string | null;
 };
@@ -287,12 +289,9 @@ export function buildV3ExploreRootProjection(
 
   const archiveLinks: V3ExploreLink[] = [
     { key: "editions", label: "Editions", href: input.routes.editionsArchive },
-    { key: "wiki", label: "Wiki", href: input.routes.wiki },
-    {
-      key: "encyclopedia",
-      label: "Encyclopedia",
-      href: input.routes.encyclopedia,
-    },
+    // One public Reference destination. Until the independently gated
+    // Reference rollout is available, the legacy Wiki remains a usable path.
+    { key: "reference", label: "Reference", href: input.routes.reference || input.routes.wiki },
   ];
 
   const more: V3ExploreLink[] = [

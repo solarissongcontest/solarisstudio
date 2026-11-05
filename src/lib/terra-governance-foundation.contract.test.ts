@@ -18,12 +18,14 @@ const [
   tg2AccessName,
   tg2OfficeAlignmentName,
   tg2OfficeDependentsName,
+  tg2IdentityPrivacyName,
 ] = TERRA_GOVERNANCE_FOUNDATION_MIGRATIONS;
 const tg1 = migration(tg1Name);
 const tg2Core = migration(tg2CoreName);
 const tg2Access = migration(tg2AccessName);
 const tg2OfficeAlignment = migration(tg2OfficeAlignmentName);
 const tg2OfficeDependents = migration(tg2OfficeDependentsName);
+const tg2IdentityPrivacy = migration(tg2IdentityPrivacyName);
 
 describe("Terra Solaris Governance TG1/TG2 foundation", () => {
   it("preserves country_accounts as current authority and stores history around it", () => {
@@ -101,6 +103,36 @@ describe("Terra Solaris Governance TG1/TG2 foundation", () => {
     expect(tg2Core).toContain("constraint world_proxy_time_check check (valid_until > valid_from)");
   });
 
+  it("serializes membership-bound representation assignments and rejects blind or stale history writes", () => {
+    const start = tg2Access.indexOf(
+      "create or replace function public.world_assign_organization_representative_v1(",
+    );
+    const end = tg2Access.indexOf("\n$assign$;", start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const command = tg2Access.slice(start, end);
+
+    expect(command).toContain("message = 'EXPECTED_REVISION_REQUIRED'");
+    expect(command).toContain("p_expected_revision is null");
+    expect(command).toContain("select membership_row.id into v_membership_id");
+    expect(command).toContain("from public.world_organization_memberships membership_row");
+    expect(command).toMatch(/membership_row\.status in \('member','observer','associate'\)\s+for update;/);
+    expect(command).toContain("if v_membership_id is null");
+    expect(command).toContain("select coalesce(max(representation_row.revision), 0)");
+    expect(command).toContain("v_previous_revision is distinct from p_expected_revision");
+    expect(command).toContain("v_revision := v_previous_revision + 1;");
+    expect(command).not.toContain("if p_expected_revision is not null");
+
+    const lockMembership = command.indexOf("select membership_row.id into v_membership_id");
+    const findCurrentRepresentative = command.indexOf("select representation_row.*");
+    const readHistoryRevision = command.indexOf("select coalesce(max(representation_row.revision), 0)");
+    const closeOldRepresentative = command.indexOf("update public.world_organization_representations");
+    expect(lockMembership).toBeGreaterThan(-1);
+    expect(lockMembership).toBeLessThan(findCurrentRepresentative);
+    expect(findCurrentRepresentative).toBeLessThan(readHistoryRevision);
+    expect(readHistoryRevision).toBeLessThan(closeOldRepresentative);
+  });
+
   it("extends Permission Engine V2 instead of inventing a second capability engine", () => {
     expect(tg2Core).toContain("references public.studio2_capability_grants(id) on delete cascade");
     expect(tg2Core).toContain("insert into public.studio2_capabilities");
@@ -159,6 +191,34 @@ describe("Terra Solaris Governance TG1/TG2 foundation", () => {
     expect(countryProjection).not.toContain("user_id");
     expect(organizationProjection).not.toContain("user_id");
     expect(organizationProjection).not.toContain("proxy_user_id");
+  });
+
+  it("keeps raw auth linkage private while preserving scoped office reads", () => {
+    expect(tg2IdentityPrivacy).toContain("'v3.tg2.world-identity-linkage-privacy'");
+    expect(tg2IdentityPrivacy).toContain("drop policy world_representations_scoped_read");
+    expect(tg2IdentityPrivacy).toContain("drop policy world_office_terms_scoped_read");
+    expect(tg2IdentityPrivacy).toContain("user_id = (select auth.uid())");
+    expect(tg2IdentityPrivacy).toContain("holder_user_id = (select auth.uid())");
+    expect(tg2IdentityPrivacy).toContain("'world.organization.view_private'");
+    expect(tg2IdentityPrivacy).toContain("private.world_office_term_identity_read_allowed_v1");
+    expect(tg2IdentityPrivacy).not.toContain("public_visibility = 'public'");
+    expect(tg2IdentityPrivacy).not.toContain("create or replace function public.");
+    expect(tg2IdentityPrivacy).not.toMatch(/grant\s+(insert|update|delete|all)[\s\S]{0,160}\sto\s+(anon|authenticated)/i);
+  });
+
+  it("runs the real rollback-only privacy fixture on clean and upgrade paths", () => {
+    const workflow = source(".github/workflows/rules-integrity-migration-rehearsal.yml");
+    const upgrade = source(".github/scripts/v3-production-head-upgrade-rehearsal.sh");
+    const fixture = source(".github/scripts/v3-tg2-identity-linkage-privacy-rehearsal.sql");
+    expect(workflow.match(/v3-tg2-identity-linkage-privacy-rehearsal\.sh/g)).toHaveLength(3);
+    expect(upgrade).toContain("v3-tg2-identity-linkage-privacy-rehearsal.sh");
+    expect(fixture).toContain("set local role anon");
+    expect(fixture).toContain("set local role authenticated");
+    expect(fixture).toContain("TG2_IDENTITY_PRIVACY_UNRELATED_AUTHENTICATED_LINK_LEAK");
+    expect(fixture).toContain("TG2_IDENTITY_PRIVACY_SCOPED_PUBLIC_PRIVATE_MANAGER_READ_LOST");
+    expect(fixture).toContain("TG2_IDENTITY_PRIVACY_MANAGER_ESCAPES_EXACT_OBJECT_SCOPE");
+    expect(fixture).toContain("TG2_IDENTITY_PRIVACY_EXPIRED_GRANT_STILL_READS_LINKAGE");
+    expect(fixture).toContain("rollback;");
   });
 
   it("does not claim downstream voting, Court, chat or document workflows are complete", () => {
