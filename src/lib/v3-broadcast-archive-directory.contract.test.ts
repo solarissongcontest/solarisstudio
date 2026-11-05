@@ -40,15 +40,19 @@ describe("V3 broadcast and historical directories: three experiences", () => {
 
   it("gives Archive app sheet, phone-web list and desktop navigation rail", () => {
     const root = source("src/routes/archive/index.tsx");
-    expect(root).toContain("useV3DirectoryPresentation()");
-    expect(root).toContain("platformResolved");
-    expect(root).toContain('data-directory-experience={presentation}');
-    expect(root).toContain('data-directory-mobile-header=""');
-    expect(root).toContain("<AppGroupedList>");
-    expect(root).toContain("v3-directory-mobile-list");
-    expect(root).toContain("v3-directory-desktop-rail");
-    expect(root).toContain("v3-directory-desktop-grid");
-    expect(root).toContain('aria-label="Filter archive by subject"');
-    expect(root).toContain("No archive topics found");
+    const family = source("src/components/v3/V3DirectoryFamilyIndex.tsx");
+    expect(root).toContain("V3DirectoryFamilyIndex");
+    expect(root).toContain("context={<ArchiveContext />}");
+    expect(root).toContain('searchLabel="Search archive"');
+    expect(root).toContain('itemNoun="archive topics"');
+    expect(family).toContain("useV3DirectoryPresentation()");
+    expect(family).toContain("platformResolved");
+    expect(family).toContain('data-directory-experience={presentation}');
+    expect(family).toContain('data-directory-mobile-header=""');
+    expect(family).toContain("<AppGroupedList>");
+    expect(family).toContain("v3-directory-mobile-list");
+    expect(family).toContain("v3-directory-desktop-rail");
+    expect(family).toContain("v3-directory-desktop-grid");
+    expect(family).toContain("No matching");
   });
 });
