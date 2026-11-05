@@ -84,10 +84,10 @@ export function V3CountriesDiscoveryScreen({
   );
 
   // All-country browsing remains available even if the optional lineup is loading or fails.
-  if (countriesQuery.isLoading || editionsQuery.isLoading) {
+  if (countriesQuery.isLoading) {
     return <ArchiveDataLoading label="Loading country discovery…" />;
   }
-  if (countriesQuery.isError || editionsQuery.isError) {
+  if (countriesQuery.isError) {
     return <ArchiveDataError />;
   }
 
