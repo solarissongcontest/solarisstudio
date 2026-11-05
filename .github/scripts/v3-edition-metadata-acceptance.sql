@@ -55,6 +55,12 @@ begin
   exception when invalid_parameter_value then null;
   end;
   reset role;
+  begin
+    insert into public.studio2_contest_events(edition_id,type,entity_type,entity_id,payload)
+    values(v_edition,'unknown.unregistered_metadata_event','edition',v_edition::text,'{}');
+    raise exception 'Metadata command weakened the existing event vocabulary';
+  exception when check_violation then null;
+  end;
   if (select count(*) from public.studio2_operation_receipts where operation_id=v_operation and status='succeeded')<>1
     or (select count(*) from private.v3_domain_events where operation_id=v_operation)<>1 then
     raise exception 'Metadata retry duplicated or omitted durable receipt/event';

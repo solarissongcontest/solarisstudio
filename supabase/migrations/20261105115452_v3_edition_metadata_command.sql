@@ -1,6 +1,21 @@
 begin;
 select public.v3_register_migration_contract('v3.edition.metadata-command',1,'forward_fix_only',false,null,'Govern exact-edition metadata changes with revision CAS, semantic replay, durable receipt and event');
 
+-- Preserve the current event vocabulary while registering this command's
+-- specific audit event. Refuse an unknown constraint rather than removing it.
+do $event_contract$
+declare v_existing text;
+begin
+  select pg_get_expr(conbin,conrelid) into v_existing from pg_constraint
+  where conrelid='public.studio2_contest_events'::regclass
+    and conname='studio2_contest_events_type_check' and contype='c';
+  if v_existing is null then raise exception 'Contest event type contract is missing'; end if;
+  alter table public.studio2_contest_events drop constraint studio2_contest_events_type_check;
+  execute format('alter table public.studio2_contest_events add constraint studio2_contest_events_type_check check ((%s) or type = %L)',
+    v_existing,'edition.metadata_changed');
+end
+$event_contract$;
+
 create or replace function public.v3_apply_edition_metadata_change(
   p_edition_id uuid,
   p_expected_revision bigint,
