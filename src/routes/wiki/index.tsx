@@ -28,15 +28,18 @@ export const Route = createFileRoute("/wiki/")({
 const DIRECTORY_PAGE_SIZE = 18;
 
 function WikiIndexPage() {
-  const { isAppMode } = useSolarisApp();
+  const { isAppMode, platformResolved } = useSolarisApp();
   const referenceRollout = useQuery({
     queryKey: ["studio2-feature", "public_encyclopedia"],
     queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
-    enabled: isAppMode,
+    enabled: platformResolved,
     staleTime: 30_000,
   });
 
-  if (isAppMode && referenceRollout.isLoading) {
+  // Wiki and Reference solve the same search job. Once Reference is
+  // published, every browser and the installed app follow one canonical root.
+  // A rollout error must NOT silently hide the still-public Wiki fallback.
+  if (!platformResolved || referenceRollout.isLoading) {
     return (
       <AppShell>
         <ArchiveDataLoading label="Opening Solaris Reference…" />
@@ -44,7 +47,7 @@ function WikiIndexPage() {
     );
   }
 
-  if (isAppMode && !referenceRollout.isError && referenceRollout.data === true) {
+  if (!referenceRollout.isError && referenceRollout.data === true) {
     return <Navigate to="/encyclopedia" search={{ artist: undefined }} replace />;
   }
 
