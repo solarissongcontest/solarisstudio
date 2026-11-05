@@ -153,6 +153,16 @@ function AnniversarySettingsPage() {
     },
   });
 
+  async function submitCommand(command: StoryCommandInput): Promise<boolean> {
+    try {
+      await mutation.mutateAsync(command);
+      return true;
+    } catch {
+      // onError reports the scoped failure; retain the draft/review for retry.
+      return false;
+    }
+  }
+
   function currentCommand(input: Omit<StoryCommandInput, "actorId" | "editionId" | "contextVersion" | "reason">): StoryCommandInput | null {
     const reason = auditReason.trim();
     if (!editionId) {
@@ -173,6 +183,10 @@ function AnniversarySettingsPage() {
   }
 
   async function ensureStoryline() {
+    if (story?.status === "published") {
+      toast.error("Review unpublication before refreshing public Anniversary content.");
+      return;
+    }
     const command = currentCommand({
       action: "generate_storyline",
       expectedRevision: story?.revision ?? null,
@@ -183,7 +197,7 @@ function AnniversarySettingsPage() {
             introduction: `A verified timeline of the moments that shaped ${editionLabel || "this edition"}, assembled from the canonical Solaris Studio event stream.`,
           },
     });
-    if (command) await mutation.mutateAsync(command);
+    if (command) await submitCommand(command);
   }
 
   function editMilestone(item: StorylineItem) {
@@ -198,13 +212,17 @@ function AnniversarySettingsPage() {
   }
 
   async function saveMilestone() {
+    if (story?.status === "published") {
+      toast.error("Review unpublication before changing public Anniversary milestones.");
+      return;
+    }
     if (!story) {
       toast.error("Generate the canonical edition storyline before adding an Anniversary milestone.");
       return;
     }
     const importance = Number(draft.importance);
-    if (!Number.isFinite(importance) || importance < 0 || importance > 100) {
-      toast.error("Importance must be between 0 and 100.");
+    if (!Number.isInteger(importance) || importance < 0 || importance > 100) {
+      toast.error("Importance must be a whole number between 0 and 100.");
       return;
     }
     if (draft.headline.trim().length < 3 || draft.summary.trim().length < 3) {
@@ -227,8 +245,7 @@ function AnniversarySettingsPage() {
       payload,
     });
     if (!command) return;
-    await mutation.mutateAsync(command);
-    if (isCurrentAnniversaryCommand(command, activeContext.current)) setDraft(EMPTY_MILESTONE);
+    if (await submitCommand(command) && isCurrentAnniversaryCommand(command, activeContext.current)) setDraft(EMPTY_MILESTONE);
   }
 
   function reviewPublication(action: PendingPublication["action"]) {
@@ -257,7 +274,7 @@ function AnniversarySettingsPage() {
       toast.error("Organizer context changed after publication review. Review the operation again in the selected edition.");
       return;
     }
-    await mutation.mutateAsync({
+    const settled = await submitCommand({
       action: reviewed.action,
       actorId: reviewed.actorId,
       editionId: reviewed.editionId,
@@ -265,7 +282,7 @@ function AnniversarySettingsPage() {
       expectedRevision: reviewed.expectedRevision,
       reason: reviewed.reason,
     });
-    if (isCurrentAnniversaryCommand(reviewed, activeContext.current)) setPendingPublication(null);
+    if (settled && isCurrentAnniversaryCommand(reviewed, activeContext.current)) setPendingPublication(null);
   }
 
   const loading = storyQuery.isLoading;
@@ -316,7 +333,7 @@ function AnniversarySettingsPage() {
                 ) : undefined}
               />
               <div className="mt-4 flex flex-wrap gap-2">
-                <button type="button" className="admin-action-primary" disabled={mutation.isPending} onClick={() => void ensureStoryline()}>
+                <button type="button" className="admin-action-primary" disabled={mutation.isPending || story?.status === "published"} onClick={() => void ensureStoryline()}>
                   <RefreshCw className="size-4" /> {story ? "Refresh from canonical events" : "Generate storyline"}
                 </button>
                 {story ? (
@@ -334,6 +351,12 @@ function AnniversarySettingsPage() {
                 ) : null}
               </div>
             </AdminCard>
+
+            {story?.status === "published" ? (
+              <p role="status" className="text-sm text-muted-foreground">
+                Review unpublication before editing milestones or refreshing events. The published revision stays public until that reviewed withdrawal succeeds.
+              </p>
+            ) : null}
 
             <AdminCard>
               <AdminCardHeader
@@ -383,7 +406,7 @@ function AnniversarySettingsPage() {
                     <span><span className="block font-semibold">Include in published storyline</span><span className="mt-1 block text-xs text-muted-foreground">Excluding keeps the audited milestone but removes it from public Storytelling output.</span></span>
                     <input type="checkbox" checked={draft.included} onChange={(event) => setDraft((current) => ({ ...current, included: event.target.checked }))} className="size-5 shrink-0" />
                   </label>
-                  <button type="button" disabled={mutation.isPending} onClick={() => void saveMilestone()} className="admin-action-primary justify-self-start">
+                  <button type="button" disabled={mutation.isPending || story.status === "published"} onClick={() => void saveMilestone()} className="admin-action-primary justify-self-start">
                     <Plus className="size-4" /> {draft.id ? "Save reviewed milestone" : "Add reviewed milestone"}
                   </button>
                 </div>

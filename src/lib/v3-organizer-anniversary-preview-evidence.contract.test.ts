@@ -85,6 +85,8 @@ describe("V3 Organizer Anniversary settings cutover", () => {
   it("keeps risky publication behind explicit review and does not invent a second Anniversary backend", () => {
     expect(anniversary).toContain("<AdminConfirmSheet");
     expect(anniversary).toContain("Publish reviewed revision");
+    expect(anniversary).toContain("Review unpublication before changing public Anniversary milestones.");
+    expect(anniversary).toContain("Review unpublication before refreshing public Anniversary content.");
     expect(anniversary).toContain("Unpublish reviewed revision");
     expect(anniversary).toContain("canonical Storytelling operation contract");
     expect(anniversary).toContain("Historical edition dates remain a separate governed authority");
