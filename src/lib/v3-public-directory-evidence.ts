@@ -159,7 +159,7 @@ export function validateV3PublicDirectoryEvidence(
   expectedCandidateSha: string | null,
 ): string[] {
   const issues: string[] = [];
-  const knownCapabilities = new Set(V3_PUBLIC_CAPABILITIES.map((item) => item.id));
+  const knownCapabilities = new Set<string>(V3_PUBLIC_CAPABILITIES.map((item) => item.id));
   const seenIds = new Set<string>();
   const seenRoutes = new Set<string>();
   for (const entry of entries) {
