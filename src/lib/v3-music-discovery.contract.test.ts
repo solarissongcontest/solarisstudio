@@ -29,8 +29,9 @@ describe("V3 Songs & Artists discovery", () => {
     expect(source).toContain("const ROOT_ARTIST_LIMIT = 6");
     expect(source).toContain("songs?.items.slice(0, ROOT_SONG_LIMIT)");
     expect(source).toContain("artists?.items.slice(0, ROOT_ARTIST_LIMIT)");
-    expect(source).toContain('title="Browse songs"');
-    expect(source).toContain('title="Browse artists"');
+    expect(source).toContain("Browse songs");
+    expect(source).toContain("Browse artists");
+    expect(source).toContain("v3-music-browse-link");
     expect(source).toContain("searchable publication-safe Song index");
     expect(source).toContain("searchable publication-safe Artist index");
     expect(source).not.toContain("complete publication-safe Song collection");
@@ -48,6 +49,22 @@ describe("V3 Songs & Artists discovery", () => {
     expect(hooks).toContain('["v3-music-songs", normalized, boundedLimit]');
     expect(hooks).toContain('["v3-music-artists", normalized, boundedLimit]');
     expect(hooks).toContain("limit: boundedLimit");
+  });
+
+  it("shares canonical queries across three runtime-owned music presentations", () => {
+    const music = screen();
+    const styles = read("src/styles/v3-music-directory.css");
+    expect(music).toContain("useV3DirectoryPresentation()");
+    expect(music).toContain("v3-music-directory--${presentation}");
+    expect(music).toContain('editorial={presentation === "desktop-web"}');
+    expect(music).toContain("v3-music-collections");
+    expect(music).toContain("v3-music-preview-list");
+    expect(music).toContain("songItems.length} song and {artistItems.length} artist previews");
+    expect(music).not.toContain("<V3ActionCard");
+    expect(styles).toContain(".v3-music-directory--installed-app");
+    expect(styles).toContain(".v3-music-directory--mobile-web");
+    expect(styles).toContain(".v3-music-directory--desktop-web");
+    expect(music).not.toContain("supabase");
   });
 
   it("uses durable Song and Artist routes through reusable music presentation", () => {
