@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import {sha256,stableJson} from './v3-media-recovery-core.mjs';
 import {verifyRepositoryOwner,assertOwnerAuthorization,OWNER_METHOD} from './v3-owner-media-recovery.mjs';
-import {stagedDigest,assertScopedMode,verifyStaging,restoreApprovedStaging}
+import {stagedDigest,assertScopedMode,verifyStaging,restoreApprovedStaging,legacyOwnerEvidence}
  from './v3-staged-media-recovery.mjs';
 
 const bytes=Buffer.from([137,80,78,71,13,10,26,10,1,2,3]);
@@ -93,6 +93,7 @@ function signedOwnerApproval(){
  const base=signedApproval();
  const {signature:discard,...u}=base;
  u.operator='solarissongcontest';
+ Object.assign(u.asset_clearances[0],legacyOwnerEvidence(file));
  u.owner_authorization={
   method:OWNER_METHOD,github_login:'solarissongcontest',
   repository:'solarissongcontest/solarisstudio',
@@ -165,4 +166,15 @@ test('GitHub owner proof checks authenticated owner and admin rights without net
   {full_name:'solarissongcontest/solarisstudio',owner:{login:'solarissongcontest'},permissions:{admin:false}}
  })),/not the Solaris repository owner/);
  await assert.rejects(verifyRepositoryOwner('',fakeFetch),/token/);
+});
+
+test('owner media evidence must match the originally published URL, manifest and exact byte SHA',async()=>{
+ const a=signedOwnerApproval();
+ a.asset_clearances[0].original_public_url='https://attacker.example/forged.png';
+ // Re-sign so this test reaches the per-file evidence check rather than HMAC denial.
+ const {signature:unused,...unsigned}=a;
+ a.signature=createHmac('sha256',signingKey).update(stableJson(unsigned)).digest('hex');
+ const f=new Fake();
+ await assert.rejects(restoreApprovedStaging(request(f,{approval:a,ownerProof})),/legacy-public provenance/);
+ assert.equal(f.uploads,0);
 });
