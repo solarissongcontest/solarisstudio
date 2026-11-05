@@ -14,6 +14,7 @@ import type { CountryDirectoryPresentation } from "@/lib/country-directory-prese
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { type Country, useCountries, useEditions } from "@/lib/data";
 import { countryDirectoryRegionOptions, filterCountryDirectory } from "@/lib/v3-country-directory-filters";
+import { directoryCountLabel } from "@/lib/v3-directory-count";
 import { usePublicEditionParticipants } from "@/lib/public-participants";
 import {
   buildCountryDiscovery,
@@ -234,7 +235,7 @@ export function V3CountriesDiscoveryScreen({
               </label>
             ) : null}
             <span className="solaris-app-directory-count" aria-live="polite" role="status">
-              Showing {visible.length} of {filtered.length} countries · {collectionCount} in {participatingOnly && activeEdition ? `SSC ${activeEdition.edition_number ?? "current"}` : "all countries"}
+              {directoryCountLabel({ available: collectionCount, matches: filtered.length, rendered: visible.length, noun: "countries" })}
             </span>
           </div>
         </div>
