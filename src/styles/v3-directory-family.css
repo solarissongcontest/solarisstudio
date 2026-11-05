@@ -234,9 +234,6 @@
   flex-shrink: 0;
   color: var(--muted-foreground);
 }
-.v3-directory-family .v3-directory-mobile-row:hover {
-  background: var(--surface);
-}
 
 /* Desktop browsers get a visible category rail and information-rich cards. */
 .v3-directory-family[data-directory-experience="desktop-web"] .v3-directory-workspace {
@@ -279,6 +276,7 @@
   color: var(--foreground);
   font-weight: 720;
 }
+.v3-directory-family .v3-directory-mobile-row:hover,
 .v3-directory-family .v3-directory-desktop-rail button:hover {
   background: var(--surface);
 }
@@ -303,7 +301,6 @@
   background: var(--surface);
   padding: 1.05rem 1rem;
   text-decoration: none;
-  transition: background .16s ease, border-color .16s ease;
 }
 .v3-directory-family .v3-directory-desktop-card:hover {
   background: var(--surface-strong, var(--surface));
@@ -332,21 +329,9 @@
   line-height: 1.5;
 }
 
-@media (max-width: 359px) {
-  .v3-directory-family .v3-directory-app-heading h1,
-  .v3-directory-family .v3-directory-mobile-header h1 {
-    font-size: 1.75rem;
-  }
-}
-
 @media (min-width: 1200px) {
   .v3-directory-family .v3-directory-desktop-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .v3-directory-family .v3-directory-desktop-card {
-    transition: none;
-  }
-}
