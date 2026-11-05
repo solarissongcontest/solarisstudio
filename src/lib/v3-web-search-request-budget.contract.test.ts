@@ -54,7 +54,12 @@ describe("V3 web global Search request budget", () => {
     expect(web).toContain('id: "action:current-edition"');
     expect(web).toContain('id: "action:my-country"');
     expect(web).toContain('id: "action:confirmation"');
-    expect(web).toContain("readPublicRecents()");
+    expect(web).toContain("usePublicationSafeRecents()");
+    expect(web).not.toContain("readPublicRecents()");
+    const recents = section("function usePublicationSafeRecents", "function AppPublicPaletteDialog");
+    expect(recents).toContain("readPublicRecents()");
+    expect(recents).toContain("visibleRecentShowDestinations(");
+    expect(recents).toContain("showVisibility.isFetchedAfterMount");
   });
 
   it("does not alter installed-app Search authority", () => {
