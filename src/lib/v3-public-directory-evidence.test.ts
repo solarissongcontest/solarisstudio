@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   V3_PUBLIC_DIRECTORY_EVIDENCE,
@@ -59,4 +60,14 @@ describe("Solaris V3 directory certification index", () => {
     expect(duplicates).toContain("directory countries: duplicate ID");
     expect(duplicates).toContain("directory countries: duplicate route /countries");
   });
+  it("exposes the evidence index through the existing canonical completion dashboard", () => {
+    const dashboard = readFileSync("scripts/generate-v3-completion-dashboard.ts", "utf8");
+    expect(dashboard).toContain("V3_PUBLIC_DIRECTORY_EVIDENCE");
+    expect(dashboard).toContain("validateV3PublicDirectoryEvidence(");
+    expect(dashboard).toContain("directories: directoryRows");
+    expect(dashboard).toContain("directoryRegistryIssues");
+    expect(dashboard).toContain("table(directoryRows)");
+    expect(dashboard).toContain("...directoryRows]");
+  });
+
 });
