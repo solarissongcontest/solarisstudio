@@ -93,7 +93,7 @@ export function V3CountriesDiscoveryScreen({
   ].filter((group) => group.countries.length > 0);
 
   return (
-    <div className="v3-countries-discovery space-y-8" data-country-directory-experience={presentation}>
+    <div className="v3-countries-discovery space-y-5" data-country-directory-experience={presentation}>
       {presentation === "mobile-web" ? (
         <h2 id="countries-page-title" className="sr-only">Browse all countries</h2>
       ) : (
@@ -104,11 +104,11 @@ export function V3CountriesDiscoveryScreen({
             : "TERRA SOLARIS · COUNTRY ARCHIVE"}
         </p>
         <h2 id="countries-page-title" className="v3-countries-title">
-          {presentation === "installed-app" ? "Meet the countries" : "Country explorer"}
+          {presentation === "installed-app" ? "Countries" : "Country explorer"}
         </h2>
         <p className="v3-countries-lead">
           {discovery.currentEdition
-            ? `${discovery.participating.length} published delegations in this edition. Browse the full country directory or filter to the current lineup.`
+            ? `${discovery.participating.length} published delegations in this edition. Explore the lineup or all countries.`
             : "Discover the countries of Terra Solaris, their regions and their histories."}
         </p>
       </header>
@@ -130,8 +130,9 @@ export function V3CountriesDiscoveryScreen({
                 setRegion("all");
                 setVisibleCount(BROWSE_PAGE_SIZE);
               }}
-              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${participatingOnly ? "border-primary bg-primary/15 text-foreground" : "border-border bg-surface text-muted-foreground"}`}
+              className="v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors"
             >
+              {participatingOnly ? <Check className="size-4 shrink-0" aria-hidden="true" /> : null}
               SSC {discovery.currentEdition.edition_number ?? "current"} · {discovery.participating.length}
             </button>
             <button
@@ -143,8 +144,9 @@ export function V3CountriesDiscoveryScreen({
                 setRegion("all");
                 setVisibleCount(BROWSE_PAGE_SIZE);
               }}
-              className={`v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors ${!participatingOnly ? "border-primary bg-primary/15 text-foreground" : "border-border bg-surface text-muted-foreground"}`}
+              className="v3-countries-scope-button min-w-0 rounded-xl border font-semibold transition-colors"
             >
+              {!participatingOnly ? <Check className="size-4 shrink-0" aria-hidden="true" /> : null}
               All countries · {countriesQuery.data?.length ?? 0}
             </button>
           </div>
@@ -231,7 +233,7 @@ export function V3CountriesDiscoveryScreen({
                 </select>
               </label>
             ) : null}
-            <span className="solaris-app-directory-count" aria-live="polite">{filtered.length} matching</span>
+            <span className="solaris-app-directory-count" role="status">Showing {visible.length} of {filtered.length} matches · {collectionCount} {participatingOnly && activeEdition ? "current participants" : "countries total"}</span>
           </div>
         </div>
 
