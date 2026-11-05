@@ -57,3 +57,67 @@
 .v3-directory-family :is(.v3-directory-mobile-row,.v3-directory-desktop-rail button):hover{background:var(--surface)}
 .v3-directory-family .v3-directory-desktop-card:hover{background:var(--surface-strong,var(--surface));border-color:var(--primary)}
 @media (min-width:1200px){.v3-directory-family .v3-directory-desktop-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* Universal V3 directory rhythm: controls share geometry while content stays domain-specific. */
+.v3-directory-family :is(.v3-directory-app-heading,.v3-directory-mobile-header) h1 {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: clamp(1.8rem, 7vw, 2.15rem);
+  font-weight: 750;
+  letter-spacing: -.035em;
+  line-height: 1.16;
+  text-transform: none;
+}
+.v3-directory-family .v3-directory-app-heading{margin-bottom:.85rem}
+.v3-directory-family .v3-directory-mobile-header{margin-bottom:.95rem;padding-bottom:.8rem}
+.v3-directory-family .v3-directory-app-heading>p:last-child{margin-top:.35rem;font-size:.84rem;line-height:1.45}
+.v3-directory-family .v3-directory-controls{gap:.5rem}
+.v3-directory-family .v3-directory-results-count{margin:.6rem 0 .85rem}
+.v3-directory-family .v3-directory-groups{gap:1.3rem}
+.v3-directory-family .v3-directory-group-title{display:flex;align-items:baseline;justify-content:space-between;gap:.75rem;margin-bottom:.55rem;padding-bottom:.5rem;font-size:1.12rem}
+.v3-directory-family .v3-directory-group-count{font-size:.77rem;font-weight:550;color:var(--muted-foreground);font-variant-numeric:tabular-nums}
+.v3-directory-family .v3-directory-search{min-height:48px}
+.v3-directory-family .v3-directory-search input{flex:1;min-width:0}
+.v3-directory-family .v3-directory-search-clear{display:grid;min-width:36px;min-height:36px;place-items:center;border-radius:.5rem;color:var(--muted-foreground)}
+.v3-directory-family .v3-directory-search-clear:hover{background:var(--surface-strong,var(--surface));color:var(--foreground)}
+.v3-directory-family .v3-directory-search-clear:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+.v3-directory-family .v3-directory-sheet-trigger{width:auto;min-width:min(100%,11rem);max-width:100%;min-height:46px;justify-content:flex-start}
+.v3-directory-family .v3-directory-sheet-trigger>span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v3-directory-family .v3-directory-option-label{display:inline-flex;align-items:center;gap:.5rem}
+.v3-directory-sheet-options button[aria-pressed=true]{color:var(--foreground);background:var(--surface);box-shadow:inset 3px 0 0 var(--primary)}
+.v3-directory-family .v3-directory-desktop-rail button[aria-pressed=true]{box-shadow:inset 3px 0 0 var(--primary)}
+.v3-directory-family[data-directory-experience="installed-app"] .v3-directory-controls{gap:.5rem}
+.v3-directory-family[data-directory-experience="installed-app"] .v3-directory-groups{gap:1.35rem}
+.v3-directory-family[data-directory-experience="mobile-web"] .v3-directory-controls{gap:.5rem}
+.v3-directory-family[data-directory-experience="mobile-web"] .v3-directory-area-select select{width:100%}
+.v3-directory-family .v3-directory-tool-icon{display:grid;flex:0 0 2.25rem;width:2.25rem;height:2.25rem;place-items:center;border-radius:.65rem;background:var(--surface);color:var(--foreground)}
+/* A tool is an action link, not a nested settings card. */
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1rem}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-card{
+  display:grid;grid-template-columns:2.25rem minmax(0,1fr);grid-template-rows:auto auto auto;
+  align-items:start;min-height:0;gap:.2rem .75rem;padding:.9rem .25rem;
+  border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent
+}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-card .v3-directory-tool-icon{grid-column:1;grid-row:1 / 4}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-card .v3-directory-eyebrow{grid-column:2;grid-row:1}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-card .v3-directory-card-top{grid-column:2;grid-row:2}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-card .v3-directory-card-description{grid-column:2;grid-row:3}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-card:hover{border-color:var(--border);background:var(--surface)}
+.v3-directory-family[data-directory-kind="tools"] .v3-directory-mobile-row{gap:.75rem}
+.v3-directory-family[data-directory-kind="tools"] .solaris-app-list-row{gap:.7rem}
+.v3-directory-family[data-directory-kind="sitemap"] .v3-directory-desktop-card{min-height:0;background:transparent;border-radius:.65rem;padding:.75rem}
+.v3-directory-family[data-directory-kind="sitemap"] .v3-directory-desktop-card:hover{background:var(--surface)}
+/* Avoid three tiny desktop columns at large text sizes. */
+@media (min-width:1200px){
+  .v3-directory-family[data-directory-kind="tools"] .v3-directory-desktop-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:1100px){
+  .v3-directory-family[data-directory-experience="desktop-web"] .v3-directory-workspace{grid-template-columns:minmax(8.5rem,11rem) minmax(0,1fr)}
+  .v3-directory-family .v3-directory-desktop-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:560px){
+  .v3-directory-family .v3-directory-sheet-trigger{width:100%}
+  .v3-directory-family .v3-directory-mobile-row{gap:.65rem}
+}
+@media (prefers-reduced-motion: reduce){
+  .v3-directory-family .v3-directory-desktop-card{transition:none}
+}
