@@ -1,21 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, BookOpen, Map, Search } from "lucide-react";
+import { BookOpen, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
+import { useMemo, useState } from "react";
 
+import { AppEmptyState, AppGroupedList, AppScreen, AppSectionHeader } from "@/components/app/AppPrimitives";
+import { useSolarisApp } from "@/components/app/AppRuntime";
+import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { RulesRouteShell } from "@/components/rules/RulesRouteShell";
+import { GovernanceStatusStrip, SolarisDepthPage, SolarisDepthSafeZone } from "@/components/SolarisDepth";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import {
-  GovernanceStatusStrip,
-  SolarisDepthEyebrow,
-  SolarisDepthPage,
-  SolarisDepthSafeZone,
-  SolarisDepthSurface,
-} from "@/components/SolarisDepth";
-import { RULE_CHAPTER_GROUPS } from "@/lib/governance-v5";
-import { SSC_RULE_CHAPTERS } from "@/lib/ssc-rules-v4";
-
-const CHAPTER_GROUPS = [
-  ...RULE_CHAPTER_GROUPS,
-  { title: "Worldbuilding", chapters: [22] },
-];
+  countRuleChapters,
+  filterRuleChapterDirectory,
+  RULE_CHAPTER_DIRECTORY_GROUPS,
+  type RuleChapterDirectoryChapter,
+  type RuleChapterDirectoryGroup,
+} from "@/lib/v3-rule-chapter-directory";
+import "@/styles/v3-directory-family.css";
 
 export const Route = createFileRoute("/rules/chapters/")({
   head: () => ({
@@ -28,101 +29,282 @@ export const Route = createFileRoute("/rules/chapters/")({
 });
 
 function RuleChaptersPage() {
+  const { platformResolved } = useSolarisApp();
+  const presentation = useV3DirectoryPresentation();
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("all");
+
+  const searched = useMemo(() => filterRuleChapterDirectory(search), [search]);
+  const visible = useMemo(() => filterRuleChapterDirectory(search, category), [search, category]);
+  const total = countRuleChapters(searched);
+  const visibleCount = countRuleChapters(visible);
+  const options = [
+    { title: "all", label: "All chapters", count: total },
+    ...RULE_CHAPTER_DIRECTORY_GROUPS.map((group) => ({
+      title: group.title,
+      label: group.title,
+      count: searched.find((entry) => entry.title === group.title)?.chapters.length ?? 0,
+    })),
+  ];
+  const selectedLabel = options.find((option) => option.title === category)?.label ?? "All chapters";
+  const clear = () => { setSearch(""); setCategory("all"); };
+
+  const groups = <RuleChapterGroups groups={visible} presentation={presentation} />;
+  const empty = visibleCount === 0 ? (
+    <AppEmptyState
+      title="No matching chapters"
+      description="Try a different chapter number or topic. The official Rulebook is unchanged."
+      action={<button type="button" className="solaris-app-empty-action" onClick={clear}>Clear filters</button>}
+    />
+  ) : null;
+
   return (
     <RulesRouteShell resolvingTitle="Opening Rulebook chapters">
       <SolarisDepthPage tone="rules">
         <SolarisDepthSafeZone>
-          <SolarisDepthSurface variant="action">
-            <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-              <header>
-                <SolarisDepthEyebrow tone="primary">Official rulebook</SolarisDepthEyebrow>
-                <div className="mt-2 flex flex-wrap items-baseline gap-2">
-                  <h1 className="text-2xl font-bold tracking-[-0.03em] sm:text-3xl">22 chapters</h1>
-                  <span className="text-xs text-muted-foreground">General Regulations · current edition</span>
-                </div>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Browse by what the rules control. The visual grouping helps navigation while official chapter numbering stays unchanged.
-                </p>
-                <GovernanceStatusStrip context="rules" className="mt-3" />
-              </header>
-
-              <Link
-                to="/rules/search"
-                search={{ q: "" }}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary/15 bg-primary/[0.07] px-4 text-xs font-bold text-primary transition hover:bg-primary/[0.11]"
-              >
-                <Search className="size-4" aria-hidden="true" /> Search rules
-              </Link>
-            </div>
-          </SolarisDepthSurface>
-        </SolarisDepthSafeZone>
-
-        <SolarisDepthSafeZone className="mt-5">
-          <div className="grid gap-5 lg:grid-cols-2">
-            {CHAPTER_GROUPS.map((group) => {
-              const isWorldbuilding = group.title === "Worldbuilding";
-              return (
-                <section
-                  key={group.title}
-                  className={
-                    isWorldbuilding
-                      ? "overflow-hidden rounded-[1.35rem] border border-indigo-300/15 bg-[radial-gradient(circle_at_90%_0%,rgba(129,140,248,.14),transparent_35%),rgba(7,18,42,.74)] p-4 sm:p-5"
-                      : "rounded-[1.35rem] border border-white/[0.08] bg-[rgba(7,18,42,.72)] p-4 sm:p-5"
-                  }
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="grid size-9 place-items-center rounded-xl border border-white/[0.07] bg-black/10 text-primary">
-                        {isWorldbuilding ? <Map className="size-4" /> : <BookOpen className="size-4" />}
-                      </span>
-                      <div>
-                        <SolarisDepthEyebrow>{group.title}</SolarisDepthEyebrow>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">
-                          {group.chapters.length} chapter{group.chapters.length === 1 ? "" : "s"}
-                        </p>
-                      </div>
-                    </div>
-                    {isWorldbuilding ? (
-                      <span className="rounded-full border border-indigo-300/15 bg-indigo-300/[0.07] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-indigo-100">
-                        New
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-3">
-                    {group.chapters.map((number) => {
-                      const chapter = SSC_RULE_CHAPTERS.find((item) => item.number === number);
-                      if (!chapter) return null;
-                      return (
-                        <Link
-                          key={chapter.number}
-                          to="/rules/chapters/$chapter"
-                          params={{ chapter: chapter.slug }}
-                          className="group flex min-h-20 items-center gap-3 border-t border-white/[0.07] py-3 first:border-t-0"
-                        >
-                          <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-black/10 font-mono text-[11px] font-black text-primary">
-                            {String(chapter.number).padStart(2, "0")}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-semibold transition group-hover:text-white">{chapter.title}</span>
-                            <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">
-                              {chapter.description}
-                            </span>
-                          </span>
-                          <span className="hidden rounded-full border border-white/[0.07] bg-black/10 px-2 py-1 text-[10px] font-bold text-muted-foreground sm:inline-flex">
-                            {chapter.rules.length} rules
-                          </span>
-                          <ArrowRight className="size-3.5 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
+          {!platformResolved ? (
+            <div data-directory-boot="" role="status" aria-label="Opening Rulebook chapters" className="min-h-20" />
+          ) : (
+            <div className="v3-directory-family" data-directory-experience={presentation}>
+              {presentation === "installed-app" ? (
+                <AppScreen>
+                  <header className="v3-directory-app-heading">
+                    <p className="v3-directory-eyebrow">OFFICIAL RULEBOOK</p>
+                    <h1>22 chapters</h1>
+                    <p>Find the official General Regulations by chapter or topic.</p>
+                    <GovernanceStatusStrip context="rules" className="mt-3" />
+                  </header>
+                  <RuleChapterControls
+                    presentation={presentation}
+                    search={search}
+                    setSearch={setSearch}
+                    category={category}
+                    setCategory={setCategory}
+                    selectedLabel={selectedLabel}
+                    options={options}
+                  />
+                  <p className="v3-directory-results-count" role="status">{visibleCount} matching chapters</p>
+                  {groups}
+                  {empty}
+                  <Link to="/rules/search" search={{ q: "" }} className="v3-directory-rules-search-link">
+                    <Search size={18} aria-hidden="true" /> Search full rule text
+                  </Link>
+                </AppScreen>
+              ) : (
+                <>
+                  {presentation === "mobile-web" ? (
+                    <header className="v3-directory-mobile-header" data-directory-mobile-header="">
+                      <Link to="/rules" className="v3-directory-back">Rules / Chapters</Link>
+                      <p className="v3-directory-eyebrow">OFFICIAL RULEBOOK</p>
+                      <h1>22 chapters</h1>
+                      <p>Browse the official General Regulations by topic. Chapter numbering stays unchanged.</p>
+                      <GovernanceStatusStrip context="rules" className="mt-3" />
+                    </header>
+                  ) : (
+                    <header className="v3-directory-rules-desktop-header">
+                      <p className="v3-directory-eyebrow">OFFICIAL RULEBOOK</p>
+                      <h1>22 chapters</h1>
+                      <p>Explore the General Regulations by subject. The categories guide browsing, not the official numbering.</p>
+                      <div className="v3-directory-rules-header-footer">
+                        <GovernanceStatusStrip context="rules" />
+                        <Link to="/rules/search" search={{ q: "" }} className="v3-directory-rules-search-link">
+                          <Search size={18} aria-hidden="true" /> Search all rules
                         </Link>
-                      );
-                    })}
+                      </div>
+                    </header>
+                  )}
+                  <div className="v3-directory-workspace">
+                    {presentation === "desktop-web" ? (
+                      <aside className="v3-directory-desktop-rail" aria-label="Filter chapters by category">
+                        <h2>Browse chapters</h2>
+                        {options.map((option) => (
+                          <button key={option.title} type="button" aria-pressed={category === option.title}
+                            onClick={() => setCategory(option.title)}>
+                            <span>{option.label}</span><span>{option.count}</span>
+                          </button>
+                        ))}
+                      </aside>
+                    ) : null}
+                    <div className="v3-directory-results">
+                      <RuleChapterControls
+                        presentation={presentation}
+                        search={search}
+                        setSearch={setSearch}
+                        category={category}
+                        setCategory={setCategory}
+                        selectedLabel={selectedLabel}
+                        options={options}
+                      />
+                      <p className="v3-directory-results-count" role="status">{visibleCount} matching chapters</p>
+                      {groups}
+                      {empty}
+                      {presentation === "mobile-web" ? (
+                        <Link to="/rules/search" search={{ q: "" }} className="v3-directory-rules-search-link">
+                          <Search size={18} aria-hidden="true" /> Search full rule text
+                        </Link>
+                      ) : null}
+                    </div>
                   </div>
-                </section>
-              );
-            })}
-          </div>
+                </>
+              )}
+            </div>
+          )}
         </SolarisDepthSafeZone>
       </SolarisDepthPage>
     </RulesRouteShell>
+  );
+}
+
+type DirectoryCategory = { title: string; label: string; count: number };
+
+function RuleChapterControls({
+  presentation,
+  search,
+  setSearch,
+  category,
+  setCategory,
+  selectedLabel,
+  options,
+}: {
+  presentation: V3DirectoryPresentation;
+  search: string;
+  setSearch: (next: string) => void;
+  category: string;
+  setCategory: (next: string) => void;
+  selectedLabel: string;
+  options: DirectoryCategory[];
+}) {
+  return (
+    <div className="v3-directory-controls">
+      {presentation === "installed-app" ? (
+        <SolarisSearchField value={search} onChange={setSearch}
+          label="Search Rulebook chapters" placeholder="Search titles or numbers…" />
+      ) : (
+        <label className="v3-directory-search">
+          <Search size={18} aria-hidden="true" />
+          <span className="sr-only">Search Rulebook chapters</span>
+          <input type="search" value={search} aria-label="Search Rulebook chapters"
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search chapter titles, numbers or subjects…" autoComplete="off" />
+        </label>
+      )}
+      {presentation === "mobile-web" ? (
+        <label className="v3-directory-area-select">
+          <span className="sr-only">Browse chapters by category</span>
+          <select aria-label="Browse chapters by category" value={category}
+            onChange={(event) => setCategory(event.target.value)}>
+            {options.map((option) => (
+              <option key={option.title} value={option.title}>{option.label} ({option.count})</option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {presentation === "installed-app" ? (
+        <Sheet>
+          <SheetTrigger asChild>
+            <button type="button" className="v3-directory-sheet-trigger" aria-label="Filter chapters by category">
+              <SlidersHorizontal size={18} aria-hidden="true" />
+              <span>{selectedLabel}</span>
+              <span className="v3-directory-count">{options.find((option) => option.title === category)?.count ?? 0}</span>
+            </button>
+          </SheetTrigger>
+          <SheetContent side="bottom" aria-label="Filter chapters by category" className="max-h-[80dvh] overflow-y-auto">
+            <h2 className="mb-3 text-lg font-bold">Browse by category</h2>
+            <div className="v3-directory-sheet-options">
+              {options.map((option) => (
+                <SheetClose asChild key={option.title}>
+                  <button type="button" aria-pressed={category === option.title}
+                    onClick={() => setCategory(option.title)}>
+                    {option.label} <span>{option.count}</span>
+                  </button>
+                </SheetClose>
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
+    </div>
+  );
+}
+
+function RuleChapterGroups({
+  groups,
+  presentation,
+}: {
+  groups: readonly RuleChapterDirectoryGroup[];
+  presentation: V3DirectoryPresentation;
+}) {
+  return (
+    <div className="v3-directory-groups">
+      {groups.map((group) => (
+        <section className="v3-directory-group" key={group.title}
+          aria-labelledby={`rule-chapter-group-${group.title.toLowerCase().replace(/[^a-z]+/g, "-")}`}>
+          {presentation === "installed-app" ? (
+            <AppSectionHeader eyebrow="General Regulations" title={group.title}
+              id={`rule-chapter-group-${group.title.toLowerCase().replace(/[^a-z]+/g, "-")}`} />
+          ) : (
+            <h2 className="v3-directory-group-title"
+              id={`rule-chapter-group-${group.title.toLowerCase().replace(/[^a-z]+/g, "-")}`}>{group.title}</h2>
+          )}
+          {presentation === "installed-app" ? (
+            <AppGroupedList>
+              {group.chapters.map((chapter) => (
+                <RuleChapterLink key={chapter.number} chapter={chapter} presentation={presentation} />
+              ))}
+            </AppGroupedList>
+          ) : (
+            <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : "v3-directory-desktop-grid"}>
+              {group.chapters.map((chapter) => (
+                <RuleChapterLink key={chapter.number} chapter={chapter} presentation={presentation} />
+              ))}
+            </div>
+          )}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function RuleChapterLink({
+  chapter,
+  presentation,
+}: {
+  chapter: RuleChapterDirectoryChapter;
+  presentation: V3DirectoryPresentation;
+}) {
+  const number = String(chapter.number).padStart(2, "0");
+  if (presentation === "installed-app") {
+    return (
+      <Link to="/rules/chapters/$chapter" params={{ chapter: chapter.slug }} className="solaris-app-list-row">
+        <span className="v3-directory-rule-number">{number}</span>
+        <span className="min-w-0 flex-1">
+          <strong className="block text-sm font-semibold">{chapter.title}</strong>
+          <span className="block text-xs leading-5 text-muted-foreground">{chapter.description}</span>
+        </span>
+        <ChevronRight size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+      </Link>
+    );
+  }
+  if (presentation === "mobile-web") {
+    return (
+      <Link to="/rules/chapters/$chapter" params={{ chapter: chapter.slug }} className="v3-directory-mobile-row">
+        <span className="v3-directory-rule-number">{number}</span>
+        <span className="min-w-0 flex-1">
+          <strong>{chapter.title}</strong>
+          <span>{chapter.description}</span>
+        </span>
+        <ChevronRight size={18} aria-hidden="true" />
+      </Link>
+    );
+  }
+  return (
+    <Link to="/rules/chapters/$chapter" params={{ chapter: chapter.slug }} className="v3-directory-desktop-card">
+      <span className="v3-directory-eyebrow"><BookOpen size={14} aria-hidden="true" /> Chapter {number}</span>
+      <span className="v3-directory-card-top">
+        <strong>{chapter.title}</strong><ChevronRight size={18} aria-hidden="true" />
+      </span>
+      <span className="v3-directory-card-description">{chapter.description}</span>
+      <span className="v3-directory-aliases">{chapter.rules.length} official rules</span>
+    </Link>
   );
 }
