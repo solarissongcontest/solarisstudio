@@ -70,6 +70,17 @@ export default defineConfig({
                 name: "vendor-supabase",
                 test: /[\\/]node_modules[\\/]@supabase[\\/]/,
               },
+              // Share app-level presentation primitives used by multiple
+              // lazy routes without grouping any one-off screens or domain code.
+              // This reduces duplicated chunk wrappers while keeping the actual
+              // page components behind their existing route import boundaries.
+              {
+                name: "shared-app-primitives",
+                test: /[\\/]src[\\/]components[\\/]app[\\/]/,
+                minShareCount: 2,
+                minSize: 6000,
+                priority: 1,
+              },
               // Collapse small, frequently reused UI control adapters instead
               // of repeating module shells and gzip framing across lazy routes.
               // A minimum two-entry share prevents one-off page components
@@ -79,7 +90,7 @@ export default defineConfig({
                 name: "shared-controls",
                 test: /[\\/]src[\\/]components[\\/]ui[\\/]/,
                 minShareCount: 2,
-                minSize: 8000,
+                minSize: 5000,
                 priority: 1,
               },
             ],
