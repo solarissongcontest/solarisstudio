@@ -156,6 +156,19 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
       await expect(page.locator("body")).not.toContainText("This page didn't load");
       await expect(page.locator("body")).not.toContainText("Organizer could not open");
 
+      // Read-only acceptance for the governed Anniversary consumer. Choosing
+      // the exact seeded edition first avoids relying on global active-edition state.
+      await page.goto("/admin/ssc22", { waitUntil: "domcontentloaded" });
+      await expect(page.locator("main").last()).toBeVisible();
+      await page.goto("/admin/anniversary", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "Anniversary Settings", exact: true })).toBeVisible();
+      const anniversaryReason = page.getByRole("textbox", { name: "Anniversary audit reason" });
+      await expect(anniversaryReason).toBeVisible();
+      await anniversaryReason.fill("Review isolated Anniversary editorial controls");
+      await expect(anniversaryReason).toHaveValue("Review isolated Anniversary editorial controls");
+      await expect(page.getByRole("button", { name: /Generate storyline|Refresh from canonical events/ })).toBeVisible();
+      await expect(page.locator("body")).not.toContainText("This page didn't load");
+
       await page.goto("/my-solaris/notices", { waitUntil: "domcontentloaded" });
       await expect(page).toHaveURL(/\/my-solaris\/notices/);
       await expect(page.locator("body")).not.toContainText("This page didn't load");

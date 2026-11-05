@@ -1,6 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Search } from "lucide-react";
+import { useSolarisApp } from "@/components/app/AppRuntime";
+import { SolarisSearchField } from "@/components/app/SolarisSearchField";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Check, Search, SlidersHorizontal, X } from "lucide-react";
+import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
+import "@/styles/v3-directory-family.css";
+import "@/styles/v3-reference-directory.css";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
@@ -133,6 +139,8 @@ function parseCoverage(value: unknown): Coverage {
 }
 
 function ReferencePage() {
+  const { platformResolved } = useSolarisApp();
+  const presentation = useV3DirectoryPresentation();
   const search = Route.useSearch();
   const [query, setQuery] = useState(search.artist ?? "");
   const [kind, setKind] = useState<Kind>("all");
@@ -187,15 +195,17 @@ function ReferencePage() {
     [kind, referenceQuery.data],
   );
 
+  if (!platformResolved) {
+    return <div data-directory-boot="" role="status" aria-label="Opening Reference" className="min-h-20" />;
+  }
+
   if (feature.isLoading) {
     return (
       <AppShell>
-        <PageHeader
-          eyebrow="Explore Solaris"
-          title="Reference"
-          description="Published Solaris history, connected."
-        />
-        <ArchiveDataLoading label="Opening the public reference…" />
+        <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
+          <ReferenceDirectoryHeader presentation={presentation} />
+          <ArchiveDataLoading label="Opening the public reference…" />
+        </div>
       </AppShell>
     );
   }
@@ -203,17 +213,15 @@ function ReferencePage() {
   if (feature.isError || feature.data !== true) {
     return (
       <AppShell>
-        <PageHeader
-          eyebrow="Explore Solaris"
-          title="Reference"
-          description="Published Solaris history, connected."
-        />
+        <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
+          <ReferenceDirectoryHeader presentation={presentation} />
         <Panel title="Reference is not enabled yet">
           <p className="text-sm text-muted-foreground">
             The product is installed but its rollout flag is still off while production
             verification finishes.
           </p>
         </Panel>
+        </div>
       </AppShell>
     );
   }
@@ -228,20 +236,21 @@ function ReferencePage() {
 
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Explore Solaris"
-        title="Reference"
-        description="A publication-safe reference across editions, countries, published entries and shows."
-        actions={
-          <Link
-            to="/countries"
-            className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold"
-          >
-            Browse countries →
-          </Link>
-        }
-      />
-
+      <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
+        <ReferenceDirectoryHeader presentation={presentation} />
+        <div className="v3-directory-workspace">
+          {presentation === "desktop-web" ? (
+            <aside className="v3-directory-desktop-rail" aria-label="Filter Reference">
+              <h2>Reference topics</h2>
+              {KINDS.map((value) => (
+                <button key={value} type="button" aria-pressed={kind === value}
+                  onClick={() => setKind(value)}>
+                  <span>{KIND_LABELS[value]}</span>
+                </button>
+              ))}
+            </aside>
+          ) : null}
+          <div className="v3-directory-results">
       <Panel
         title="Archive coverage"
         description="Small server-owned aggregates describe the public archive without downloading it into this page."
@@ -266,35 +275,57 @@ function ReferencePage() {
       </Panel>
 
       <section className="mt-5 rounded-2xl border border-border bg-surface/60 p-3 sm:p-4">
-        <label className="relative block">
-          <span className="sr-only">Search Reference</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search published Solaris history"
-            autoComplete="off"
-            className="min-h-11 w-full rounded-xl border border-border bg-background/50 pl-10 pr-3 text-sm outline-none focus:border-primary/60"
-          />
-        </label>
+        {presentation === "installed-app" ? (
+          <SolarisSearchField value={query} onChange={setQuery}
+            label="Search Reference" placeholder="Search published Solaris history…" />
+        ) : (
+          <div className="v3-directory-search" role="search">
+            <Search size={18} aria-hidden="true" />
+            <input type="search" aria-label="Search Reference"
+              value={query} onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search published Solaris history" autoComplete="off" />
+            {query ? (
+              <button type="button" className="v3-directory-search-clear"
+                aria-label="Clear search" onClick={() => setQuery("")}>
+                <X size={16} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+        )}
 
-        <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Filter Reference">
-          {KINDS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setKind(value)}
-              aria-pressed={kind === value}
-              className={`min-h-9 rounded-lg px-3 text-xs font-semibold ${
-                kind === value
-                  ? "bg-primary/12 text-primary"
-                  : "bg-background/45 text-muted-foreground"
-              }`}
-            >
-              {KIND_LABELS[value]}
-            </button>
-          ))}
-        </div>
+        {presentation === "installed-app" ? (
+          <Sheet>
+            <SheetTrigger asChild>
+              <button type="button" className="v3-directory-sheet-trigger mt-3" aria-label="Filter Reference by topic">
+                <SlidersHorizontal size={18} aria-hidden="true" />
+                <span>{KIND_LABELS[kind]}</span>
+              </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" aria-label="Filter Reference by topic" className="max-h-[80dvh] overflow-y-auto">
+              <h2 className="mb-3 text-lg font-bold">Reference topics</h2>
+              <div className="v3-directory-sheet-options">
+                {KINDS.map((value) => (
+                  <SheetClose key={value} asChild>
+                    <button type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>
+                      <span className="inline-flex items-center gap-2">
+                        {kind === value ? <Check size={16} aria-hidden="true" /> : null}
+                        {KIND_LABELS[value]}
+                      </span>
+                    </button>
+                  </SheetClose>
+                ))}
+              </div>
+            </SheetContent>
+          </Sheet>
+        ) : presentation === "mobile-web" ? (
+          <label className="v3-directory-area-select mt-3 block">
+            <span className="sr-only">Filter Reference</span>
+            <select aria-label="Filter Reference" value={kind}
+              onChange={(event) => setKind(event.target.value as Kind)}>
+              {KINDS.map((value) => <option key={value} value={value}>{KIND_LABELS[value]}</option>)}
+            </select>
+          </label>
+        ) : null}
       </section>
 
       {normalizedQuery.length === 0 ? (
@@ -305,17 +336,17 @@ function ReferencePage() {
             </p>
             <h2
               id="reference-browse-heading"
-              className="mt-1 font-display text-xl font-bold"
+              className="mt-1 font-sans text-xl font-bold"
             >
               Browse published Solaris
             </h2>
           </div>
-          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+          <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-directory-desktop-grid"}>
             {BROWSE_DESTINATIONS.map(([label, description, href]) => (
               <Link
                 key={href}
                 to={href as any}
-                className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface p-4 transition hover:border-primary/35"
+                className={presentation === "mobile-web" ? "v3-directory-mobile-row" : presentation === "installed-app" ? "solaris-app-list-row" : "v3-directory-desktop-card"}
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{label}</p>
@@ -364,25 +395,25 @@ function ReferencePage() {
               </h2>
             </div>
             <span className="text-xs tabular-nums text-muted-foreground">
-              {filtered.length}
+              {filtered.length} shown · bounded search
             </span>
           </div>
 
-          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+          <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-directory-desktop-grid"}>
             {filtered.map((item) => (
               <Link
                 key={item.id}
                 to={item.href as any}
-                className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface p-4 transition hover:border-primary/35"
+                className={presentation === "mobile-web" ? "v3-directory-mobile-row" : presentation === "installed-app" ? "solaris-app-list-row" : "v3-directory-desktop-card"}
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
                     {RESULT_LABELS[item.kind]}
                   </p>
-                  <p className="mt-1 truncate text-sm font-semibold">
+                  <p className="mt-1 line-clamp-2 break-words text-sm font-semibold">
                     {item.title}
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  <p className="mt-0.5 break-words text-xs text-muted-foreground">
                     {item.subtitle || "Published Solaris record"}
                   </p>
                 </div>
@@ -406,6 +437,38 @@ function ReferencePage() {
         unpublished results are never indexed here. Artist and song labels remain attached to
         their published Entry until Solaris has durable first-class Artist and Song identity.
       </p>
+          </div>
+        </div>
+      </div>
     </AppShell>
+  );
+}
+
+function ReferenceDirectoryHeader({ presentation }: { presentation: V3DirectoryPresentation }) {
+  if (presentation === "mobile-web") {
+    return (
+      <header className="v3-directory-mobile-header" data-directory-mobile-header="">
+                <p className="v3-directory-eyebrow">SOLARIS KNOWLEDGE</p>
+        <h1>Reference</h1>
+        <p>Search published records and browse connected public history.</p>
+      </header>
+    );
+  }
+  if (presentation === "installed-app") {
+    return (
+      <header className="v3-directory-app-heading">
+        <p className="v3-directory-eyebrow">SOLARIS KNOWLEDGE</p>
+        <h1>Reference</h1>
+        <p>Find published countries, shows, entries and edition history.</p>
+      </header>
+    );
+  }
+  return (
+    <PageHeader
+      eyebrow="Explore Solaris"
+      title="Reference"
+      description="A publication-safe knowledge base across editions, countries, published entries and shows."
+      actions={<Link to="/countries" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold">Browse countries →</Link>}
+    />
   );
 }
