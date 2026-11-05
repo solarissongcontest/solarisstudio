@@ -8,19 +8,7 @@ const script = resolve(".github/scripts/v3-start-disposable-supabase.sh");
 const roots: string[] = [];
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
-  it("keeps every Rules/Integrity upgrade script attached to the upgraded disposable worktree", () => {
-    const workflow = readFileSync(".github/workflows/rules-integrity-migration-rehearsal.yml", "utf8");
-    const upgrade = workflow.split("  upgrade-from-main:")[1];
-    expect(upgrade).toBeDefined();
-    const operations = (upgrade ?? "").split(/\n      - /).filter((step) => step.includes(".github/scripts/"));
-    expect(operations.length).toBeGreaterThan(0);
-    for (const step of operations) {
-      expect(step).toContain("cd /tmp/solaris-main");
-      expect(step).toContain('$GITHUB_WORKSPACE/.github/scripts/');
-    }
-  });
 });
-
 
 function run(failedStarts: number, cleanupFails = false, config = true, args: string[] = []) {
   const root = mkdtempSync(join(tmpdir(), "v3-disposable-bootstrap-"));
@@ -114,6 +102,17 @@ describe("disposable local Supabase bootstrap recovery", () => {
       expect(workflow).toContain("supabase db reset --local --no-seed");
       expect(workflow).toContain("supabase migration up --local --include-all");
       expect(workflow).not.toMatch(/^\s+(?:run: )?supabase start$/m);
+    }
+  });
+  it("keeps every Rules/Integrity upgrade script attached to the upgraded disposable worktree", () => {
+    const workflow = readFileSync(".github/workflows/rules-integrity-migration-rehearsal.yml", "utf8");
+    const upgrade = workflow.split("  upgrade-from-main:")[1];
+    expect(upgrade).toBeDefined();
+    const operations = (upgrade ?? "").split(/\n      - /).filter((step) => step.includes(".github/scripts/"));
+    expect(operations.length).toBeGreaterThan(0);
+    for (const step of operations) {
+      expect(step).toContain("cd /tmp/solaris-main");
+      expect(step).toContain('$GITHUB_WORKSPACE/.github/scripts/');
     }
   });
 });
