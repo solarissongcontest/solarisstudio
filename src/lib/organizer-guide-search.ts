@@ -8,13 +8,15 @@ type GuideSectionLike<TQuestion extends GuideQuestionLike> = {
   questions: readonly TQuestion[];
 };
 
-export function filterOrganizerGuideSections<
-  TQuestion extends GuideQuestionLike,
-  TSection extends GuideSectionLike<TQuestion>,
->(sections: readonly TSection[], query: string): Array<Omit<TSection, "questions"> & { questions: TQuestion[] }> {
+type FilteredSection<TSection extends GuideSectionLike<GuideQuestionLike>> =
+  Omit<TSection, "questions"> & { questions: Array<TSection["questions"][number]> };
+
+export function filterOrganizerGuideSections<TSection extends GuideSectionLike<GuideQuestionLike>>(
+  sections: readonly TSection[], query: string,
+): Array<FilteredSection<TSection>> {
   const normalizedQuery = query.trim().toLocaleLowerCase();
 
-  return sections
+  const filtered = sections
     .map((section) => {
       const sectionMatches = [section.title, section.description ?? ""].some((value) =>
         value.toLocaleLowerCase().includes(normalizedQuery),
@@ -31,6 +33,10 @@ export function filterOrganizerGuideSections<
       };
     })
     .filter((section) => section.questions.length > 0);
+
+  // Filtering changes only membership; every retained question and all section
+  // metadata come from the input. Preserve that indexed element type for JSX answers.
+  return filtered as Array<FilteredSection<TSection>>;
 }
 
 export function countOrganizerGuideAnswers(

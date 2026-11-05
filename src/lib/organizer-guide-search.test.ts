@@ -46,6 +46,13 @@ describe("Organizer Guide search", () => {
     ]);
   });
 
+  it("preserves answer content in the inferred result type", () => {
+    const guide = [{ title: "Guide", questions: [{ question: "Where?", answer: "Canonical destination" }] }];
+    const filtered = filterOrganizerGuideSections(guide, "where");
+    // This property access also protects the actual GuideFAQ TypeScript contract.
+    expect(filtered[0].questions[0].answer).toBe("Canonical destination");
+  });
+
   it("returns no sections when nothing matches", () => {
     expect(filterOrganizerGuideSections(sections, "broadcast graphics")).toEqual([]);
   });
