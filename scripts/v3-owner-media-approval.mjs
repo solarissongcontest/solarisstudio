@@ -11,7 +11,7 @@ import {join,resolve} from 'node:path';
 import {createHmac} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {assertApprovedWrite,assertAssetClearance,stableJson} from './lib/v3-media-recovery-core.mjs';
-import {parseStagedManifest,stagedDigest,assertScopedMode} from './lib/v3-staged-media-recovery.mjs';
+import {parseStagedManifest,stagedDigest,assertScopedMode,legacyOwnerEvidence,assertLegacyOwnerClearance} from './lib/v3-staged-media-recovery.mjs';
 import {OWNER_LOGIN,OWNER_METHOD,OWNER_REPOSITORY,verifyRepositoryOwner,
  ownerSigningKey,currentRecoveryHead} from './lib/v3-owner-media-recovery.mjs';
 
@@ -40,7 +40,7 @@ async function run(){
    reviewed_assets:eligible.map(identity),
    asset_clearances:eligible.map(f=>({
     identity:identity(f),visibility:'already_published',canonical_subject_id:f.owner,
-    publication_evidence_id:null,validation_evidence_id:null
+    ...legacyOwnerEvidence(f)
    })),
    owner_authorization:{
     method:OWNER_METHOD,github_login:OWNER_LOGIN,repository:OWNER_REPOSITORY,
@@ -59,7 +59,7 @@ async function run(){
   await writeFile(output,JSON.stringify(draft,null,2)+'\n',{mode:0o600,flag:'wx'});
   console.log(JSON.stringify({status:'unsigned-owner-draft',draft:output,
    eligible:eligible.length,oversized_excluded:files.length-eligible.length,
-   note:'Populate genuine publication_evidence_id and validation_evidence_id for every selected asset before signing. Do not invent IDs.'},null,2));
+   note:'Exact source public URLs and verified-quarantine SHA-256 evidence are prefilled. Review and approve only files that were previously public.'},null,2));
   return;
  }
  if(!process.argv.includes('--sign'))throw Error('Use --prepare or --sign');
@@ -79,6 +79,7 @@ async function run(){
    source_bytes:f.size,source_mime:f.mime,private:false},approval);
   const c=approval.asset_clearances.find(x=>x?.identity===id);
   if(c?.canonical_subject_id!==f.owner)throw Error('Asset owner evidence mismatch');
+  assertLegacyOwnerClearance(f,c);
  }
  if(approval.manifest_sha256!==stagedDigest(files))throw Error('Original media inventory does not match draft');
  // Pure, disposable fake-Storage local rehearsal only. Never contact production.
@@ -114,6 +115,7 @@ run().catch(err=>{
   'Missing explicit Solaris owner publication decision',
   'Missing or duplicate reviewed asset clearances','Approval includes an ineligible or changed asset',
   'Asset owner evidence mismatch','Original media inventory does not match draft',
+  'Owner recovery legacy-public provenance or validation evidence mismatch',
   'Missing or duplicate per-asset clearance',
   'Public restore requires existing canonical publication and media validation evidence',
   'A protected GitHub owner token is required','GitHub owner authentication unavailable',
