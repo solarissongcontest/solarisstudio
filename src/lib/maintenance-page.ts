@@ -126,8 +126,22 @@ export function renderMaintenancePage(now: Date = new Date()): string {
   <link rel="icon" type="image/png" href="/icon-192.png?v=img2340-20260929" sizes="192x192" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=img2340-20260929" sizes="180x180" />
   <link rel="manifest" href="/site.webmanifest?v=img2340-20260929" />
+  <script>
+    // Resolve the standalone iPhone fallback before styles render. Some iOS PWA
+    // sessions report a zero safe-area inset despite visible system chrome.
+    (() => {
+      const isIphone = /iPhone|iPod/.test(navigator.userAgent);
+      const standalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        navigator.standalone === true;
+      if (isIphone && standalone) {
+        document.documentElement.setAttribute("data-terraos-ios-standalone", "true");
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="/assets/terraos-maintenance.css?v=${MAINTENANCE_ASSET_REVISION}" />
   <link rel="stylesheet" href="/assets/terraos-maintenance-story.css?v=${MAINTENANCE_ASSET_REVISION}" data-terraos-story-styles="true" />
+  <link rel="stylesheet" href="/assets/terraos-top-safe.css?v=${MAINTENANCE_ASSET_REVISION}" />
   <title>TerraOS 3 — Solaris Studio</title>
 </head>
 <body>

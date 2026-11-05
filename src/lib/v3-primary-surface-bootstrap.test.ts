@@ -194,6 +194,44 @@ describe("Solaris Studio V3 primary surface bootstrap", () => {
     ).rejects.toThrow(/internal Solaris route/);
   });
 
+  it("rejects Home links that escape the origin through URL-normalized separators", async () => {
+    // Browsers interpret "/\external.example" and "/<newline>/external.example"
+    // as authority separators even though neither string begins with "//".
+    for (const to of ["/\\external.example", "/\n/external.example", "/\t/external.example"]) {
+      await expect(
+        loadV3PrimarySurfaceBundle(request, {
+          loadSnapshot: async () =>
+            snapshot({
+              primarySurfaces: {
+                upcoming: [
+                  { id: "unsafe", title: "Unsafe", description: "Unsafe link", to },
+                ],
+                latest: [],
+              },
+            }),
+        }),
+      ).rejects.toThrow(/internal Solaris route/);
+    }
+
+    const safe = await loadV3PrimarySurfaceBundle(request, {
+      loadSnapshot: async () =>
+        snapshot({
+          primarySurfaces: {
+            upcoming: [
+              {
+                id: "safe",
+                title: "Show",
+                description: "Public show",
+                to: "/shows/show-1?view=running-order#performances",
+              },
+            ],
+            latest: [],
+          },
+        }),
+    });
+    expect(safe.home.upcoming[0]?.to).toBe("/shows/show-1?view=running-order#performances");
+  });
+
   it("validates Participate progress without creating workflow truth", async () => {
     const bundle = await loadV3PrimarySurfaceBundle(request, {
       loadSnapshot: async () => snapshot(),

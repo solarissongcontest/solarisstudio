@@ -1,4 +1,5 @@
 import { V3_PUBLIC_ARCHIVE_CAPABILITIES } from "./v3-public-archive-capabilities";
+import { V3_PUBLIC_CALENDAR_CAPABILITIES } from "./v3-public-calendar-capabilities";
 import { V3_PUBLIC_CAPABILITY_REGISTRY } from "./v3-public-capability-registry";
 import { V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES } from "./v3-public-capability-supplements";
 
@@ -7,6 +8,7 @@ export const V3_PUBLIC_CAPABILITIES = [
   ...V3_PUBLIC_CAPABILITY_REGISTRY,
   ...V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES,
   ...V3_PUBLIC_ARCHIVE_CAPABILITIES,
+  ...V3_PUBLIC_CALENDAR_CAPABILITIES,
 ] as const;
 
 export { V3_PUBLIC_ARCHIVE_CAPABILITIES } from "./v3-public-archive-capabilities";
