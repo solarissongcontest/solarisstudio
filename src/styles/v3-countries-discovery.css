@@ -238,12 +238,12 @@
  * duplicating it inside the Countries editorial masthead. */
 .country-directory-mobile-masthead{margin-top:0;padding-bottom:.75rem}
 .country-directory-mobile-masthead h1,
-.countries-directory-editorial-header h1{
+.countries-library-hero h1{
   font-family:var(--font-sans,system-ui,sans-serif);
   font-size:clamp(1.9rem,7vw,2.4rem);
   font-weight:750;line-height:1.14;letter-spacing:-.035em;
   text-transform:none
 }
-.countries-directory-editorial-header{
+.countries-library-hero{
   margin-bottom:1rem;border-radius:0;background:transparent;box-shadow:none
 }

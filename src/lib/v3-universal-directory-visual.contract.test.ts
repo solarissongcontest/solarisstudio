@@ -47,7 +47,7 @@ describe("Solaris V3 universal directory visual foundation", () => {
     expect(css).toContain(".v3-countries-scope-button.is-selected");
     expect(css).toContain("background:var(--primary)");
     expect(read("src/routes/countries/index.tsx")).not.toContain("country-directory-mobile-back");
-    expect(css).toContain(".countries-directory-editorial-header h1");
+    expect(css).toContain(".countries-library-hero h1");
   });
 
   it("retains published edition winners and compact chronological history", () => {

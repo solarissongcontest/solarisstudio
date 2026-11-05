@@ -65,7 +65,7 @@ function WebCountriesPage({ presentation }: { presentation: "mobile-web" | "desk
         eyebrow="Delegation directory"
         title="Countries"
         description="Start with the current contest and movement across Terra Solaris, then browse the complete country archive when you need it."
-        className="directory-page-hero countries-library-hero countries-directory-editorial-header"
+        className="directory-page-hero countries-library-hero"
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
