@@ -174,7 +174,6 @@ export function V3DirectoryFamilyIndex({
           <>
             {presentation === "mobile-web" ? (
               <header className="v3-directory-mobile-header" data-directory-mobile-header="">
-                <Link to="/explore" className="v3-directory-back">{`Explore / ${title}`}</Link>
                 <p className="v3-directory-eyebrow">{eyebrow}</p>
                 <h1>{title}</h1>
                 <p>{browserIntro}</p>

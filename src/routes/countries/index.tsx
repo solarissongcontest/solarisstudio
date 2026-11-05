@@ -57,7 +57,6 @@ function WebCountriesPage({ presentation }: { presentation: "mobile-web" | "desk
     <AppShell>
       {mobileWeb ? (
         <header className="country-directory-mobile-masthead" data-country-directory-web-header="">
-          <Link to="/explore" className="country-directory-mobile-back">Explore / Countries</Link>
           <h1>Countries</h1>
           <p>Discover every country of Terra Solaris, explore its history and open its profile.</p>
         </header>
@@ -66,7 +65,7 @@ function WebCountriesPage({ presentation }: { presentation: "mobile-web" | "desk
         eyebrow="Delegation directory"
         title="Countries"
         description="Start with the current contest and movement across Terra Solaris, then browse the complete country archive when you need it."
-        className="directory-page-hero countries-library-hero"
+        className="directory-page-hero countries-library-hero countries-directory-editorial-header"
         actions={
           <div className="flex flex-wrap gap-2">
             <Link

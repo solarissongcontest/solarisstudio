@@ -233,3 +233,17 @@
 @media (max-width:359px){
   .v3-countries-discovery .v3-countries-scope-button{gap:.22rem;font-size:.72rem}
 }
+
+/* The browser shell already renders the semantic route breadcrumb. Avoid
+ * duplicating it inside the Countries editorial masthead. */
+.country-directory-mobile-masthead{margin-top:0;padding-bottom:.75rem}
+.country-directory-mobile-masthead h1,
+.countries-directory-editorial-header h1{
+  font-family:var(--font-sans,system-ui,sans-serif);
+  font-size:clamp(1.9rem,7vw,2.4rem);
+  font-weight:750;line-height:1.14;letter-spacing:-.035em;
+  text-transform:none
+}
+.countries-directory-editorial-header{
+  margin-bottom:1rem;border-radius:0;background:transparent;box-shadow:none
+}

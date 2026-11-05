@@ -16,6 +16,7 @@ describe("Solaris V3 universal directory visual foundation", () => {
     expect(source).toContain("role=\"search\"");
     expect(source).toContain("v3-directory-group-count");
     expect(source).not.toContain('eyebrow="Browse"');
+    expect(source).not.toContain('className="v3-directory-back"');
   });
 
   it("keeps Tools as an action launcher and Site Directory as a sitemap", () => {
@@ -27,6 +28,8 @@ describe("Solaris V3 universal directory visual foundation", () => {
     expect(css).toContain('[data-directory-kind="tools"]');
     expect(css).toContain('[data-directory-kind="sitemap"]');
     expect(css).toContain("v3-directory-tool-icon");
+    expect(css).toContain(".page-header h1");
+    expect(css).toContain(".v3-directory-search input:focus-visible");
     expect(tools).toContain("PUBLIC_TOOL_GROUPS");
     expect(sitemap).toContain("siteDirectoryDestinations");
   });
@@ -43,6 +46,8 @@ describe("Solaris V3 universal directory visual foundation", () => {
     expect(countries).toContain("<Check size={16}");
     expect(css).toContain(".v3-countries-scope-button.is-selected");
     expect(css).toContain("background:var(--primary)");
+    expect(read("src/routes/countries/index.tsx")).not.toContain("country-directory-mobile-back");
+    expect(css).toContain(".countries-directory-editorial-header h1");
   });
 
   it("retains published edition winners and compact chronological history", () => {
@@ -53,6 +58,7 @@ describe("Solaris V3 universal directory visual foundation", () => {
     expect(editions).toContain("directoryCountLabel(");
     expect(editions).toContain('aria-label="Clear search"');
     expect(editions).toContain('v3-editions-feature');
+    expect(editions).not.toContain('className="v3-directory-back"');
     expect(editions).toContain('v3-directory-group-title');
     expect(css).toContain(".v3-editions-directory .v3-editions-feature");
   });

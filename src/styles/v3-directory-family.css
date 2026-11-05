@@ -149,3 +149,30 @@
 @media (max-width:700px){
   .v3-editions-directory .v3-editions-feature-meta{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Screenshot review: ordinary directory mastheads must not inherit the
+ * decorative Solaris logo/display lettering or giant framed desktop hero. */
+.v3-directory-family[data-directory-experience="desktop-web"] .page-header {
+  max-width:76rem;margin:0 auto 1.1rem;
+  border:0;border-bottom:1px solid var(--border);
+  border-radius:0;background:transparent;box-shadow:none;
+  padding:0 0 1rem
+}
+.v3-directory-family[data-directory-experience="desktop-web"] .page-header h1 {
+  font-family:var(--font-sans,system-ui,sans-serif);
+  font-size:clamp(2rem,3vw,2.6rem);font-weight:750;
+  letter-spacing:-.035em;line-height:1.12;text-transform:none
+}
+.v3-directory-family[data-directory-experience="desktop-web"] .page-header p {
+  max-width:60ch
+}
+/* One accessible visible focus boundary, not a nested double focus ring. */
+.v3-directory-family .v3-directory-search input:focus-visible{
+  outline:none;border:0;box-shadow:none
+}
+.v3-directory-family .v3-directory-search:focus-within{
+  outline:2px solid var(--primary);outline-offset:2px
+}
+.v3-directory-family[data-directory-experience="mobile-web"] .v3-directory-mobile-header{
+  margin-top:0
+}
