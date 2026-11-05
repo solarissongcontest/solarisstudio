@@ -7,6 +7,7 @@ import {readFile,appendFile,mkdir,chmod} from 'node:fs/promises';
 import {homedir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {parseStagedManifest,verifyStaging,restoreApprovedStaging} from './lib/v3-staged-media-recovery.mjs';
+import {verifyRepositoryOwner,ownerSigningKey,currentRecoveryHead} from './lib/v3-owner-media-recovery.mjs';
 
 function parameter(name) {
  const i=process.argv.indexOf(name);return i>=0?process.argv[i+1]:null;
@@ -47,6 +48,20 @@ async function run() {
  const approvalPath=parameter('--approval-file');
  if(!approvalPath)throw Error('Signed approval file required for --execute');
  const approval=JSON.parse(await readFile(resolve(approvalPath),'utf8'));
+ // The owner path is opt-in, never inferred from a name written into JSON.
+ // Prove the same repository-owner identity again at execution time.
+ let ownerProof=null;
+ let signingKey=process.env.SOLARIS_RECOVERY_APPROVAL_HMAC_KEY;
+ if(approval?.owner_authorization){
+  if(process.env.SOLARIS_RECOVERY_OWNER_DECISION!=='I_APPROVE_RESTORATION_OF_PREVIOUSLY_PUBLIC_SOLARIS_IMAGES')
+   throw Error('Missing explicit Solaris owner publication decision');
+  if(approval.local_rehearsal_sha!==currentRecoveryHead())
+   throw Error('Recovery code changed since owner approval');
+  ownerProof=await verifyRepositoryOwner(
+   process.env.SOLARIS_RECOVERY_GITHUB_OWNER_TOKEN||process.env.GITHUB_TOKEN
+  );
+  signingKey=await ownerSigningKey();
+ }
  const stateDir=resolve(parameter('--state-dir')||
    join(homedir(),'.local/state/solaris-v3-staged-media-recovery'));
  if(!stateDir.startsWith(homedir()+'/'))throw Error('Checkpoint directory must be under operator home');
@@ -54,7 +69,7 @@ async function run() {
  const checkpoint=join(stateDir,'checkpoints.jsonl');
  const result=await restoreApprovedStaging({
   client,files,approval,
-  signingKey:process.env.SOLARIS_RECOVERY_APPROVAL_HMAC_KEY,
+  signingKey,ownerProof,
   manualAck:process.env.SOLARIS_RECOVERY_PRODUCTION_WRITE_APPROVED,
   readOnlyAck:process.env.SOLARIS_RECOVERY_READ_ONLY_EXCEPTION_APPROVED,
   readMode:platformMode,
@@ -74,6 +89,13 @@ run().catch(e=>{
   'Explicit protected production write acknowledgment missing',
   'Signed approval file required for --execute',
   'Checkpoint directory must be under operator home',
+  'Missing explicit Solaris owner publication decision',
+  'Recovery code changed since owner approval',
+  'A protected GitHub owner token is required',
+  'GitHub owner authentication unavailable',
+  'Authenticated GitHub identity is not the Solaris repository owner',
+  'Owner approval signing key missing',
+  'Unsafe owner signing key permissions',
  ]);
  console.error(allow.has(String(e.message))?e.message:'Recovery stopped: inspection or authorization failed');
  process.exitCode=1;
