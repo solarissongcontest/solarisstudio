@@ -1,4 +1,5 @@
 import { V3_VERIFIED_DOMAIN_TABLES } from "./v3-system-physical-audit";
+import { V3_SYSTEM_DOMAIN_REGISTRY } from "./v3-system-domain-registry";
 
 export type V3SharedPhysicalTableContract = {
   table: string;
@@ -79,12 +80,23 @@ function sorted(values: readonly string[]) {
   return [...values].sort((left, right) => left.localeCompare(right));
 }
 
-export function validateV3PhysicalTableOwnership() {
+export function validateV3PhysicalTableOwnership(
+  physicalDomains: Readonly<Record<string, readonly string[]>> = V3_VERIFIED_DOMAIN_TABLES,
+) {
   const failures: string[] = [];
   const ownerMap = new Map<string, string[]>();
+  const canonicalDomains = new Set(V3_SYSTEM_DOMAIN_REGISTRY.map((item) => item.domain));
 
-  for (const [domain, tables] of Object.entries(V3_VERIFIED_DOMAIN_TABLES)) {
+  for (const [domain, tables] of Object.entries(physicalDomains)) {
+    // The logical registry overlays only known domains. An extra physical
+    // inventory key must not silently become an unowned second authority.
+    if (!canonicalDomains.has(domain)) {
+      failures.push(`physical domain is not a registered System owner: ${domain}`);
+    }
     for (const table of tables) {
+      if (!/^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$/.test(table)) {
+        failures.push(`physical table is not schema-qualified: ${domain} -> ${table}`);
+      }
       const owners = ownerMap.get(table) ?? [];
       owners.push(domain);
       ownerMap.set(table, owners);

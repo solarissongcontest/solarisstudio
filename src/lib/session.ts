@@ -1,6 +1,7 @@
 /** Browser-session identity + local draft cache for public submissions. */
 
 import { captureGovernanceSnapshot } from "@/lib/governance-v5";
+import { createSecureClientId } from "@/lib/secure-client-id";
 import {
   CONFIRMATION_SUBMITTED_EVENT,
   dispatchSubmissionReceipt,
@@ -17,18 +18,16 @@ export type ConfirmationDraftSavedDetail<T = unknown> = {
   savedAt: string;
 };
 
-function randomId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return `s_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-}
-
 /** Stable per-browser id. Returns "" during SSR. */
 export function getBrowserSessionId(): string {
   if (typeof window === "undefined") return "";
   try {
     let id = window.localStorage.getItem(SESSION_KEY);
     if (!id) {
-      id = randomId();
+      id = createSecureClientId();
+      // Confirmation receipts and reconciliation must never use a guessable ID.
+      // Keep existing stored identities for compatibility with in-flight drafts.
+      if (!id) return "";
       window.localStorage.setItem(SESSION_KEY, id);
     }
     return id;
