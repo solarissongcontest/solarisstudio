@@ -68,13 +68,14 @@ describe("default page colour system", () => {
     const guide = read("src/components/GuideFAQ.tsx");
 
     expect(harmony).toContain(".page-header:not(.directory-page-hero)::after");
-    expect(editions).toContain("overflow-hidden rounded-2xl");
+    expect(editions).toContain("v3-directory-desktop-grid");
     expect(editions).toContain("Past editions");
     expect(editions).not.toContain("BackgroundFlag");
     expect(editions).not.toContain("rgba(10,30,58,.97)");
     expect(shows).toContain("border-border bg-surface");
     expect(shows).toContain("ShowStateBadge");
-    expect(tools).toContain("solaris-family-card");
+    expect(tools).toContain("V3DirectoryFamilyIndex");
+    expect(read("src/components/v3/V3DirectoryFamilyIndex.tsx")).toContain("v3-directory-desktop-card");
     expect(guide).toContain('className="data-panel rounded-2xl p-4 sm:p-5"');
   });
 

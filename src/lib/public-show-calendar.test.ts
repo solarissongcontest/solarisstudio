@@ -7,6 +7,7 @@ import {
   isCalendarSlug,
   parseCalendarStart,
   serializePublicCalendar,
+  upcomingPublicCalendarEvents,
   type PublicCalendarEdition,
   type PublicCalendarEvent,
 } from './public-show-calendar';
@@ -59,5 +60,21 @@ describe('Public show calendar export', () => {
       expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
     }
     expect(() => serializePublicCalendar(edition, [show], 'not-a-date')).toThrow('valid UTC');
+  });
+
+  it('keeps future scheduled shows until their canonical start, then removes them', () => {
+    const later = { ...show, id: 'later', startsAt: '2026-11-08T20:00:00.000Z' };
+    const events = [show, later];
+    expect(upcomingPublicCalendarEvents(events, Date.parse('2026-11-08T18:59:59Z'))).toEqual(events);
+    expect(upcomingPublicCalendarEvents(events, Date.parse('2026-11-08T19:00:00Z'))).toEqual(events);
+    expect(upcomingPublicCalendarEvents(events, Date.parse('2026-11-08T19:00:01Z'))).toEqual([later]);
+    expect(upcomingPublicCalendarEvents(events, Date.parse('2026-11-08T20:00:01Z'))).toEqual([]);
+  });
+
+  it('rejects ambiguous or corrupt upcoming instants without inventing schedule events', () => {
+    const invalid = { ...show, id: 'invalid', startsAt: '2026-11-08T20:00:00' };
+    const strange = { ...show, id: 'strange', startsAt: 'not-a-date' };
+    expect(upcomingPublicCalendarEvents([invalid, strange], Date.now())).toEqual([]);
+    expect(upcomingPublicCalendarEvents([show], Number.NaN)).toEqual([]);
   });
 });

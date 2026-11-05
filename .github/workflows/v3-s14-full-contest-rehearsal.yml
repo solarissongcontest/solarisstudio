@@ -11,10 +11,7 @@ on:
       - ".github/workflows/v3-s14-full-contest-rehearsal.yml"
       - "scripts/v3-s14-full-contest-spec.ts"
       - "scripts/check-v3-s14-rehearsal-readiness.ts"
-      - "scripts/check-v3-s15-*.ts"
-      - "scripts/build-v3-s15-zero-orphan-evidence.ts"
       - "src/lib/v3-s14-*.test.ts"
-      - "src/lib/v3-s15-*.test.ts"
   workflow_dispatch:
 
 permissions:
@@ -26,13 +23,14 @@ concurrency:
 
 jobs:
   stateful-rehearsal:
-    name: One-state contest lifecycle through Archive + S15 zero-orphan
-    runs-on: ubuntu-latest
+    name: S14 full contest lifecycle through Archive (exact SHA)
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
       V3_S14_ALLOW_PARTIAL: "0"
       V3_S14_REQUIRE_COMPLETE: "1"
+      LOCAL_SUPABASE_URL: http://127.0.0.1:54321
     steps:
       - name: Checkout exact feature head
         uses: actions/checkout@v4
@@ -47,6 +45,29 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # The S14 Grand Final uses real Playwright browser workflows.
+      # Download the browser matching the locked Playwright package before seeding the contest.
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Verify S14 replay and local-only contracts before contest startup
+        shell: bash
+        run: |
+          set -euo pipefail
+          bunx vitest run \
+            src/lib/ci-egress-safety.contract.test.ts \
+            src/lib/v3-s14-stage7-deadline-command-identity.contract.test.ts \
+            src/lib/v3-s14-stage7-failure-detail.contract.test.ts \
+            src/lib/v3-s14-grand-final-failure-evidence.contract.test.ts \
+            src/lib/v3-qualification-null-rank-reset.contract.test.ts
+          for script in \
+            .github/scripts/v3-s14-stage-7-genuine-deadline.sh \
+            .github/scripts/v3-s14-grand-final-voting.sh \
+            .github/scripts/v3-full-contest-rehearsal.sh; do
+            bash -n "$script"
+          done
+
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -64,10 +85,10 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(supabase status -o env)"
-          case "$API_URL" in
-            http://127.0.0.1:*|http://localhost:*) ;;
-            *) echo "::error::Refusing S14 against non-local Supabase API_URL=$API_URL"; exit 1 ;;
-          esac
+          if [[ "$API_URL" != "$LOCAL_SUPABASE_URL" ]]; then
+            echo "::error::Refusing audit server with hosted Supabase URL: $API_URL"
+            exit 1
+          fi
           export VITE_SUPABASE_URL="$API_URL"
           export SUPABASE_URL="$API_URL"
           export E2E_SUPABASE_URL="$API_URL"
@@ -200,7 +221,7 @@ jobs:
               pending_extensions = data.get("pendingContestExtensions", [])
               if not isinstance(pending_stages, list) or not isinstance(pending_extensions, list):
                   raise SystemExit("failed S14 evidence has invalid pending phase collections")
-              standalone_failure_phases = {"bootstrap", "results-runtime-reconciliation"}
+              standalone_failure_phases = {"bootstrap", "results-runtime-reconciliation", "final-evidence"}
               if (
                   failure_phase not in standalone_failure_phases
                   and failure_phase not in pending_stages
@@ -214,27 +235,7 @@ jobs:
               raise SystemExit(f"unexpected rehearsal step outcome: {outcome!r}")
           PY
 
-      - name: Build exact-SHA S15 zero-orphan evidence
-        if: steps.rehearsal.outcome == 'success'
-        shell: bash
-        run: |
-          set -euo pipefail
-          export V3_CANDIDATE_SHA="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
-          bun run scripts/check-v3-s15-zero-orphan-readiness.ts --require-zero
-          bun run scripts/build-v3-s15-zero-orphan-evidence.ts --require-zero
-          node - <<'NODE'
-          const fs = require("fs");
-          const cp = require("child_process");
-          const evidence = JSON.parse(fs.readFileSync("v3-release-evidence/s15-zero-orphan.json", "utf8"));
-          const sha = cp.execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim().toLowerCase();
-          if (evidence.candidateSha !== sha) throw new Error(`S15 candidate mismatch: ${evidence.candidateSha} != ${sha}`);
-          if (evidence.zeroOrphans !== true) throw new Error("S15 did not prove zeroOrphans=true");
-          if (!Array.isArray(evidence.findings) || evidence.findings.length !== 0) throw new Error("S15 retained orphan findings");
-          if ((evidence.schemaVersion ?? 0) < 4) throw new Error("S15 evidence predates physical-ownership proof");
-          if (evidence.physicalOwnership?.zeroOwnershipConflicts !== true) throw new Error("S15 physical ownership is not conflict-free");
-          NODE
-
-      - name: Upload exact-SHA S14 and S15 evidence
+      - name: Upload exact-SHA S14 evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:

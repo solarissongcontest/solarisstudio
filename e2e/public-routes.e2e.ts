@@ -16,6 +16,8 @@ const PR_SMOKE_PUBLIC_ROUTES = [
   "/pulse",
   "/result-lab",
   "/rules",
+  "/site-directory",
+  "/tools",
   "/televoting",
   "/wiki",
 ] as const;
@@ -71,6 +73,134 @@ test("representative non-country dynamic route passes desktop audit", async ({ p
   ].filter((route): route is string => Boolean(route));
 
   await auditRoutes(page, representativeDynamic, testInfo);
+});
+
+test("Country directory renders the correct mobile-web and desktop browse composition", async ({ page }, testInfo) => {
+  test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
+  await page.goto("/countries", { waitUntil: "domcontentloaded" });
+  const directory = page.locator("[data-country-directory-experience]");
+  const mobile = ["public-320", "public-390"].includes(testInfo.project.name);
+  await expect(directory).toHaveAttribute(
+    "data-country-directory-experience", mobile ? "mobile-web" : "desktop-web",
+  );
+  await expect(page.getByRole("heading", { name: "Countries", exact: true })).toHaveCount(1);
+  if (mobile) {
+    await expect(page.locator("[data-country-directory-web-header]")).toBeVisible();
+    await expect(directory.locator(".v3-countries-web-list")).toBeVisible();
+    await expect(directory.locator(".v3-countries-region-rail")).toHaveCount(0);
+    await expect(directory.getByRole("combobox", { name: "Filter by region" })).toBeVisible();
+  } else {
+    await expect(directory.locator(".v3-countries-region-rail")).toBeVisible();
+    await expect(directory.locator(".v3-countries-desktop-grid")).toBeVisible();
+    await expect(page.locator("[data-country-directory-web-header]")).toHaveCount(0);
+  }
+  await expect(directory.getByRole("searchbox", { name: "Search countries" })).toBeVisible();
+  await expect(directory.locator('a[href^="/countries/"]').first()).toBeVisible();
+  const ratio = await directory.locator('[data-flag-frame="standard"]').first().evaluate((frame) => {
+    const bounds = frame.getBoundingClientRect();
+    return bounds.width / bounds.height;
+  });
+  expect(ratio, "Country flags should remain 3:2 in every website directory").toBeCloseTo(1.5, 1);
+  if (["public-390", "public-1440"].includes(testInfo.project.name)) {
+    await testInfo.attach(`country-directory-${testInfo.project.name}.png`, {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+  }
+  const search = directory.getByRole("searchbox", { name: "Search countries" });
+  await search.fill("zz-no-such-solaris-country");
+  await expect(directory.getByText("No countries found")).toBeVisible();
+  await search.fill("");
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow, "Country directory must not overflow the browser viewport").toBeLessThanOrEqual(2);
+  if (!mobile) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(directory).toHaveAttribute("data-country-directory-experience", "mobile-web");
+    await expect(directory.locator(".v3-countries-web-list")).toBeVisible();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(directory).toHaveAttribute("data-country-directory-experience", "desktop-web");
+  }
+  // The directory is a navigation surface, not just a visually correct catalogue.
+  await directory.locator('a[href^="/countries/"]').first().click();
+  await expect(page).toHaveURL(/\/countries\/[^/]+\/?$/);
+});
+
+test("Public directory family distinguishes mobile website from desktop explorer", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  const mobile = testInfo.project.name === "public-390";
+  for (const route of ["/site-directory", "/tools"]) {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    const directory = page.locator("[data-directory-experience]");
+    await expect(directory).toHaveAttribute(
+      "data-directory-experience", mobile ? "mobile-web" : "desktop-web",
+    );
+    await expect(page.locator("[data-directory-boot]")).toHaveCount(0);
+    const title = route === "/tools" ? "Tools" : "All Solaris pages";
+    await expect(page.getByRole("heading", { level: 1, name: title })).toHaveCount(1);
+    if (mobile) {
+      await expect(page.locator("[data-directory-mobile-header]")).toBeVisible();
+      await expect(directory.locator(".v3-directory-mobile-list").first()).toBeVisible();
+      await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
+      await expect(directory.getByRole("combobox")).toBeVisible();
+    } else {
+      await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
+      await expect(directory.locator(".v3-directory-desktop-rail")).toBeVisible();
+      await expect(directory.locator(".v3-directory-desktop-grid").first()).toBeVisible();
+    }
+
+    const search = directory.getByRole("searchbox", {
+      name: route === "/tools" ? "Search Solaris tools" : "Search Solaris Studio pages",
+    });
+    await expect(search).toBeVisible();
+    await search.fill("unfindable-solaris-navigation-item");
+    await expect(directory.getByText(route === "/tools" ? "No matching tools" : "No matching pages")).toBeVisible();
+    await search.fill("");
+    await expect(directory.locator("a[href^='/']").first()).toBeVisible();
+
+    const overflow = await page.evaluate(() =>
+      Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    );
+    expect(overflow, `${route} must not overflow at ${testInfo.project.name}`).toBeLessThanOrEqual(2);
+    await testInfo.attach(`directory-family-${route.slice(1)}-${testInfo.project.name}.png`, {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+  }
+});
+
+test("Editions archive keeps distinct mobile-browser and desktop browse layouts", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  const mobile = testInfo.project.name === "public-390";
+  await page.goto("/editions", { waitUntil: "domcontentloaded" });
+  const directory = page.locator("[data-directory-experience]");
+  await expect(directory).toHaveAttribute(
+    "data-directory-experience", mobile ? "mobile-web" : "desktop-web",
+    { timeout: 15_000 },
+  );
+  await expect(page.getByRole("heading", { level: 1, name: "Editions" })).toHaveCount(1);
+  if (mobile) {
+    await expect(page.locator("[data-directory-mobile-header]")).toBeVisible();
+    await expect(directory.getByRole("combobox", { name: "Browse edition history" })).toBeVisible();
+    await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
+  } else {
+    await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
+    await expect(directory.locator(".v3-directory-desktop-rail")).toBeVisible();
+  }
+  const search = directory.getByRole("searchbox", { name: "Search editions" });
+  await expect(search).toBeVisible();
+  await search.fill("zz-no-such-solaris-edition");
+  await expect(directory.getByText("No matching editions")).toBeVisible();
+  await search.fill("");
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow, "Editions should not overflow").toBeLessThanOrEqual(2);
+  await testInfo.attach(`directory-family-editions-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
+  });
 });
 
 test("Country Glass atmosphere and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {
@@ -135,10 +265,12 @@ test("real country directory flags share their canonical crop", async ({ page },
   // The current database spells these two names Ampsia and Aquliateria.
   // The wide/square/tall fixture additionally covers unusual source ratios.
   const names = ["Abeven", "Adelanor", "Alberia", "Ampsia", "Aotea", "Aquliateria"];
-  await expect(page.locator(".directory-country-card").first()).toBeVisible();
+  const directory = page.locator("[data-country-directory-experience]");
+  const search = directory.getByRole("searchbox", { name: "Search countries" });
+  await expect(directory.locator('a[href^="/countries/"]').first()).toBeVisible();
   for (const name of names) {
-    await page.getByPlaceholder("Country, artist or song…").fill(name);
-    const card = page.locator(".directory-country-card").filter({ hasText: name }).first();
+    await search.fill(name);
+    const card = directory.locator('a[href^="/countries/"]').filter({ hasText: name }).first();
     await expect(card, `${name} directory card`).toBeVisible();
     const frame = card.locator('[data-flag-frame="standard"]');
     await expect(frame).toBeVisible();
@@ -153,7 +285,7 @@ test("real country directory flags share their canonical crop", async ({ page },
     expect(result.covered, `${name} must reach every frame edge`).toBe(true);
     expect(result.transform, `${name} must have no independent axis scaling`).not.toMatch(/matrix\([^,]+,\s*[^,]+,\s*[^,]+,/);
   }
-  await page.getByPlaceholder("Country, artist or song…").fill("");
+  await search.fill("");
   if (testInfo.project.name === "public-390") {
     await testInfo.attach("country-directory-six-flags-390.png", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
   }
@@ -179,13 +311,37 @@ test("representative page families remain usable at 200% text size", async ({ pa
   );
 
   const context = page.context();
-  for (const route of ["/editions", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
+  for (const route of ["/countries", "/site-directory", "/tools", "/editions", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
     const routePage = await context.newPage();
     try {
       await routePage.goto(route, { waitUntil: "domcontentloaded" });
+      // Country discovery deliberately waits for runtime app/website identity
+      // before mounting its heading. A DOMContentLoaded-only check can inspect
+      // that short-lived boot state instead of the actual country directory.
+      // Wait for the real page first; do not hide a missing heading after zoom.
+      if (route === "/countries") {
+        await expect(
+          routePage.locator("[data-country-directory-boot]"),
+          "Countries runtime boot must finish before accessibility verification",
+        ).toHaveCount(0, { timeout: 15_000 });
+      }
+      if (route === "/site-directory" || route === "/tools" || route === "/editions") {
+        await expect(
+          routePage.locator("[data-directory-boot]"),
+          `${route} runtime boot must finish before accessibility verification`,
+        ).toHaveCount(0, { timeout: 15_000 });
+      }
+      await expect(
+        routePage.locator("h1:visible"),
+        `${route} must expose one visible heading before text enlargement`,
+      ).toHaveCount(1, { timeout: 15_000 });
       await routePage.evaluate(() => {
         document.documentElement.style.fontSize = "200%";
       });
+      await expect(
+        routePage.locator("h1:visible"),
+        `${route} must retain one visible heading after text enlargement`,
+      ).toHaveCount(1);
       await routePage.waitForTimeout(100);
 
       const geometry = await routePage.evaluate(() => ({

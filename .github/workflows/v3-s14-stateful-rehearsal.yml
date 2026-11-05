@@ -23,7 +23,7 @@ concurrency:
 jobs:
   rehearsal:
     name: Stateful local contest rehearsal
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
       V3_VERIFICATION_TARGET: local
@@ -101,6 +101,28 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # This runner exercises the same S14 Grand Final Playwright browser paths.
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Verify S14 replay and local-only contracts before contest startup
+        shell: bash
+        run: |
+          set -euo pipefail
+          bunx vitest run \
+            src/lib/ci-egress-safety.contract.test.ts \
+            src/lib/v3-s14-stage7-deadline-command-identity.contract.test.ts \
+            src/lib/v3-s14-stage7-failure-detail.contract.test.ts \
+            src/lib/v3-s14-grand-final-failure-evidence.contract.test.ts \
+            src/lib/v3-qualification-null-rank-reset.contract.test.ts
+          for script in \
+            .github/scripts/v3-s14-stage-7-genuine-deadline.sh \
+            .github/scripts/v3-s14-grand-final-voting.sh \
+            .github/scripts/v3-full-contest-rehearsal.sh; do
+            bash -n "$script"
+          done
+
 
       - name: Start disposable local Supabase
         run: supabase start
