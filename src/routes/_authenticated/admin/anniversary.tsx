@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, CheckCircle2, History, Plus, RefreshCw, Save, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { isCurrentAnniversaryCommand } from "@/lib/anniversary-command-scope";
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
@@ -83,6 +84,8 @@ const EMPTY_MILESTONE: MilestoneDraft = {
 function AnniversarySettingsPage() {
   const { editionId, editionLabel, editionSlug, contextVersion } = useAdminContext();
   const queryClient = useQueryClient();
+  const activeContext = useRef({ editionId, contextVersion });
+  useLayoutEffect(() => { activeContext.current = { editionId, contextVersion }; }, [editionId, contextVersion]);
   const [auditReason, setAuditReason] = useState("");
   const [draft, setDraft] = useState<MilestoneDraft>(EMPTY_MILESTONE);
   const [pendingPublication, setPendingPublication] = useState<PendingPublication | null>(null);
@@ -115,7 +118,7 @@ function AnniversarySettingsPage() {
     mutationFn: async (input: StoryCommandInput) => {
       if (!input.editionId) throw new Error("Select an Organizer edition before changing Anniversary settings.");
       if (input.reason.trim().length < 5) throw new Error("Add an audit reason of at least 5 characters.");
-      if (input.editionId !== editionId || input.contextVersion !== contextVersion) {
+      if (!isCurrentAnniversaryCommand(input, activeContext.current)) {
         throw Object.assign(
           new Error("Organizer context changed. Reload this edition and review the Anniversary change again."),
           { status: 409 },
@@ -132,15 +135,18 @@ function AnniversarySettingsPage() {
         payload: input.payload ?? {},
       });
     },
-    onSuccess: async (execution) => {
+    onSuccess: async (execution, input) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["studio2-storytelling", execution.editionId] }),
         queryClient.invalidateQueries({ queryKey: ["studio2-anniversary-engine"] }),
       ]);
-      if (execution.editionId === editionId) setLastReceipt(execution);
+      if (!isCurrentAnniversaryCommand(input, activeContext.current)) return;
+      setLastReceipt(execution);
       toast.success(`${storyOperationLabel(execution.action)} completed.`);
     },
-    onError: (error) => toast.error(operationErrorText(error)),
+    onError: (error, input) => {
+      if (isCurrentAnniversaryCommand(input, activeContext.current)) toast.error(operationErrorText(error));
+    },
   });
 
   function currentCommand(input: Omit<StoryCommandInput, "editionId" | "contextVersion" | "reason">): StoryCommandInput | null {
@@ -217,7 +223,7 @@ function AnniversarySettingsPage() {
     });
     if (!command) return;
     await mutation.mutateAsync(command);
-    setDraft(EMPTY_MILESTONE);
+    if (isCurrentAnniversaryCommand(command, activeContext.current)) setDraft(EMPTY_MILESTONE);
   }
 
   function reviewPublication(action: PendingPublication["action"]) {
@@ -252,7 +258,7 @@ function AnniversarySettingsPage() {
       expectedRevision: reviewed.expectedRevision,
       reason: reviewed.reason,
     });
-    setPendingPublication(null);
+    if (isCurrentAnniversaryCommand(reviewed, activeContext.current)) setPendingPublication(null);
   }
 
   const loading = storyQuery.isLoading;

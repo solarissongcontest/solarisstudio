@@ -11,7 +11,7 @@ const storytelling = source("src/lib/studio2-storytelling.ts");
 const storytellingMigration = source("supabase/migrations/20260912194100_studio2_storytelling_anniversary.sql");
 
 describe("V3 Organizer Anniversary settings cutover", () => {
-  it("cuts over only the settings capability while historical date mutation remains separate", () => {
+  it("implements settings while retaining building until acceptance evidence passes", () => {
     const settings = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "workspace-anniversary-settings",
     );
@@ -20,7 +20,7 @@ describe("V3 Organizer Anniversary settings cutover", () => {
     );
 
     expect(settings).toBeDefined();
-    expect(settings?.migrationStatus).toBe("cutover");
+    expect(settings?.migrationStatus).toBe("building");
     expect(settings?.targetDomain).toBe("engagement-editorial");
     expect(settings?.targetRoute).toBe("/admin/anniversary");
     expect(settings?.ownerCapability).toBe("story.read");
@@ -37,7 +37,7 @@ describe("V3 Organizer Anniversary settings cutover", () => {
   it("consumes canonical Storytelling read and mutation authority instead of writing domain tables", () => {
     expect(anniversary).toContain("loadStudio2Storytelling");
     expect(anniversary).toContain("executeStudio2StoryOperation");
-    expect(anniversary).toContain('action: "create_manual_item"');
+    expect(anniversary).toContain('action: draft.id ? "update_item" : "create_manual_item"');
     expect(anniversary).toContain('"publish_storyline"');
     expect(anniversary).toContain('"unpublish_storyline"');
     expect(anniversary).not.toContain('.from("editions")');
@@ -60,8 +60,8 @@ describe("V3 Organizer Anniversary settings cutover", () => {
 
   it("binds reviewed publication and edits to exact Organizer scope and authoritative revision", () => {
     expect(anniversary).toContain("useAdminContext");
-    expect(anniversary).toContain("input.editionId !== editionId || input.contextVersion !== contextVersion");
-    expect(anniversary).toContain("pendingPublication.editionId");
+    expect(anniversary).toContain("!isCurrentAnniversaryCommand(input, activeContext.current)");
+    expect(anniversary).toContain("reviewed.editionId");
     expect(anniversary).toContain("reviewed.contextVersion !== contextVersion");
     expect(anniversary).toContain("expectedRevision: story.revision");
     expect(anniversary).toContain("Organizer context changed after publication review");
