@@ -193,3 +193,43 @@
 @media (prefers-reduced-motion: reduce) {
   .v3-countries-discovery .v3-country-desktop-item svg { transition: none; }
 }
+
+/* Directory scope is a collection choice, never a muted chip ambiguity. */
+.v3-countries-discovery .v3-countries-intro{padding-block:0}
+.v3-countries-discovery .v3-countries-title{
+  font-family:var(--font-sans,system-ui,sans-serif);
+  font-size:clamp(1.8rem,7vw,2.15rem);
+  font-weight:750;
+  letter-spacing:-.035em;
+}
+.v3-countries-discovery .v3-countries-lead{max-width:42ch;margin-top:.4rem;font-size:.84rem;line-height:1.45}
+.v3-countries-discovery .v3-countries-browser{margin-top:.85rem}
+.v3-countries-discovery .v3-countries-collections{margin-bottom:.8rem}
+.v3-countries-discovery .v3-countries-controls{margin-bottom:.75rem}
+.v3-countries-discovery .v3-countries-grid{margin-top:.75rem}
+.v3-countries-discovery .v3-countries-scope-button{
+  display:flex;align-items:center;justify-content:center;gap:.35rem;
+  min-height:46px;padding:.55rem .45rem;
+  background:var(--surface);border-color:var(--border);
+  color:var(--muted-foreground);font-variant-numeric:tabular-nums
+}
+.v3-countries-discovery .v3-countries-scope-button.is-selected{
+  color:var(--primary-foreground,var(--background));
+  background:var(--primary);
+  border-color:var(--primary);
+  box-shadow:0 0 0 1px var(--primary)
+}
+.v3-countries-discovery .v3-countries-scope-button:focus-visible{
+  outline:2px solid var(--foreground);outline-offset:3px
+}
+.v3-countries-discovery .solaris-app-directory-count{
+  min-width:0;font-size:.77rem;line-height:1.4;font-variant-numeric:tabular-nums
+}
+.v3-countries-discovery[data-country-directory-experience="installed-app"] .v3-countries-secondary{margin-top:1.45rem}
+.v3-countries-discovery[data-country-directory-experience="mobile-web"] .v3-countries-collections{margin-bottom:.65rem}
+.v3-countries-discovery[data-country-directory-experience="mobile-web"] .v3-countries-web-region select{
+  min-height:46px;border-radius:.8rem
+}
+@media (max-width:359px){
+  .v3-countries-discovery .v3-countries-scope-button{gap:.22rem;font-size:.72rem}
+}
