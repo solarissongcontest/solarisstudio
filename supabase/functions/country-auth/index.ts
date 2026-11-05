@@ -350,33 +350,22 @@ Deno.serve(async (req) => {
       return json({ error: message }, 400);
     }
 
-    // Auth creation and country ownership live in different Supabase subsystems,
-    // so make this flow compensating-transaction safe. The country_accounts
-    // UNIQUE constraints are the authoritative race boundary: if two signups
-    // pass the optimistic availability checks, only one ownership insert wins.
-    const { error: ownershipError } = await service.from("country_accounts").insert({
-      user_id: created.user.id,
-      country_id: countryId,
-      instagram_username: instagramUsername,
-      display_name: displayName,
-    });
+    // The sanctioned auth.users trigger creates ownership atomically with the
+    // Auth user. Verify its exact readback before issuing a session; never add
+    // a second service-role writer or compensate a successful trigger insert.
+    const { data: ownership, error: ownershipError } = await service
+      .from("country_accounts")
+      .select("user_id,country_id,instagram_username,display_name")
+      .eq("user_id", created.user.id)
+      .maybeSingle();
 
-    if (ownershipError) {
+    if (ownershipError || !ownership || ownership.country_id !== countryId ||
+        ownership.instagram_username !== instagramUsername || ownership.display_name !== displayName) {
       const { error: cleanupError } = await service.auth.admin.deleteUser(created.user.id);
       if (cleanupError) {
         console.error(
           "[country-auth] Failed to roll back Auth user after country ownership failure",
           cleanupError,
-        );
-      }
-
-      if (ownershipError.code === "23505") {
-        return json(
-          {
-            error:
-              "That country or Instagram username was claimed while your account was being created. Refresh and choose an available option.",
-          },
-          409,
         );
       }
 
