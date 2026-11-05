@@ -16,7 +16,9 @@ const PR_SMOKE_PUBLIC_ROUTES = [
   "/pulse",
   "/result-lab",
   "/rules",
+  "/encyclopedia",
   "/site-directory",
+  "/stories",
   "/tools",
   "/televoting",
   "/wiki",
@@ -203,6 +205,49 @@ test("Editions archive keeps distinct mobile-browser and desktop browse layouts"
   });
 });
 
+test("Stories and Reference preserve editorial mobile-web and desktop discovery", async ({ page }, testInfo) => {
+  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name));
+  const mobile = testInfo.project.name === "public-390";
+
+  await page.goto("/stories", { waitUntil: "domcontentloaded" });
+  const stories = page.locator(".v3-stories-directory");
+  await expect(stories).toHaveAttribute("data-directory-experience", mobile ? "mobile-web" : "desktop-web");
+  await expect(stories.getByRole("searchbox", { name: "Search published stories" })).toBeVisible();
+  if (mobile) {
+    await expect(stories.locator("[data-directory-mobile-header]")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Stories" })).toBeVisible();
+  } else {
+    await expect(stories.locator("[data-directory-mobile-header]")).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1, name: /Stories that survived/ })).toBeVisible();
+  }
+
+  await page.goto("/encyclopedia", { waitUntil: "domcontentloaded" });
+  const reference = page.locator(".v3-reference-directory");
+  const disabled = page.getByText("Reference is not enabled yet");
+  await expect.poll(async () => (await reference.count()) > 0 || (await disabled.count()) > 0).toBe(true);
+  if (await reference.count()) {
+    await expect(reference).toHaveAttribute("data-directory-experience", mobile ? "mobile-web" : "desktop-web");
+    await expect(reference.getByRole("searchbox", { name: "Search Reference" })).toBeVisible();
+    if (mobile) {
+      await expect(reference.locator("[data-directory-mobile-header]")).toBeVisible();
+      await expect(reference.getByRole("combobox", { name: "Filter Reference" })).toBeVisible();
+    } else {
+      await expect(reference.locator("[data-directory-mobile-header]")).toHaveCount(0);
+      await expect(reference.locator(".v3-directory-desktop-rail")).toBeVisible();
+    }
+  } else {
+    // A rollout-off state is legitimate but is not proof the enabled layout passed.
+    await expect(disabled).toBeVisible();
+  }
+  const overflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+  );
+  expect(overflow, "Reference must not overflow its browser viewport").toBeLessThanOrEqual(2);
+  await testInfo.attach(`directory-family-reference-${testInfo.project.name}.png`, {
+    body: await page.screenshot({ fullPage: true }), contentType: "image/png",
+  });
+});
+
 test("Country Glass atmosphere and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {
   test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
   test.skip(process.env.E2E_REAL_DATA !== "1", "Abeven Glass and SSC20 require the real archive, which the seeded audit runner does not contain.");
@@ -311,7 +356,7 @@ test("representative page families remain usable at 200% text size", async ({ pa
   );
 
   const context = page.context();
-  for (const route of ["/countries", "/site-directory", "/tools", "/editions", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
+  for (const route of ["/countries", "/site-directory", "/tools", "/editions", "/stories", "/encyclopedia", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
     const routePage = await context.newPage();
     try {
       await routePage.goto(route, { waitUntil: "domcontentloaded" });
