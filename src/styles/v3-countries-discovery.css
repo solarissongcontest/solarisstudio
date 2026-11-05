@@ -193,3 +193,29 @@
 @media (prefers-reduced-motion: reduce) {
   .v3-countries-discovery .v3-country-desktop-item svg { transition: none; }
 }
+
+/* Visible selected scope, consistent with other V3 directory selectors. */
+.v3-countries-discovery .v3-countries-scope-button{
+  display:flex;align-items:center;justify-content:center;gap:.4rem;
+  min-height:46px;min-width:0;background:var(--surface);
+  color:var(--muted-foreground);border-color:var(--border);
+  font-variant-numeric:tabular-nums
+}
+.v3-countries-discovery .v3-countries-scope-button[aria-pressed="true"]{
+  color:var(--foreground);border-color:var(--primary);
+  background:var(--surface-strong,var(--surface));
+  box-shadow:inset 0 -3px 0 var(--primary);
+  font-weight:780
+}
+.v3-countries-discovery .v3-countries-scope-button:focus-visible{
+  outline:2px solid var(--primary);outline-offset:3px
+}
+.v3-countries-discovery[data-country-directory-experience="installed-app"] .v3-countries-intro{padding-block:0}
+.v3-countries-discovery[data-country-directory-experience="installed-app"] .v3-countries-title{
+  font-family:var(--font-sans,system-ui,sans-serif);
+  margin-top:.2rem;font-size:clamp(1.85rem,7vw,2.15rem)
+}
+.v3-countries-discovery[data-country-directory-experience="installed-app"] .v3-countries-lead{margin-top:.35rem}
+.v3-countries-discovery[data-country-directory-experience="installed-app"] .v3-countries-browser{margin-top:.7rem}
+.v3-countries-discovery .v3-countries-collections{margin-bottom:.8rem}
+.v3-countries-discovery .v3-countries-controls{margin-bottom:.65rem}
