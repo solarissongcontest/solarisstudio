@@ -35,6 +35,12 @@ export {
   V3_SYSTEM_CONCEPT_OWNER,
 } from "./v3-system-domain-registry";
 export {
+  TERRA_GOVERNANCE_DOMAIN_REGISTRY,
+  TERRA_GOVERNANCE_FOUNDATION_EVENT_TYPES,
+  TERRA_GOVERNANCE_FOUNDATION_MIGRATIONS,
+  terraGovernanceDomain,
+} from "./terra-governance-domain-registry";
+export {
   V3_WORKFLOW_DEPENDENCY_REGISTRY,
   validateV3WorkflowDependencyRegistry,
   v3WorkflowDependency,
