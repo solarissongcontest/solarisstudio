@@ -273,7 +273,10 @@ jobs:
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-entry-restore-provenance-assert.sh"
 
       - name: Verify Televote receipt authority after upgrade
-        run: bash .github/scripts/v3-televote-reconciliation-rehearsal.sh
+        shell: bash
+        run: |
+          cd /tmp/solaris-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-televote-reconciliation-rehearsal.sh"
 
       - name: Run hostile V3 Jury reliability rehearsal after upgrade
         shell: bash
