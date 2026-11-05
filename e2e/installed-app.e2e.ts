@@ -417,7 +417,7 @@ test("installed app shell survives representative navigation without duplicate c
       await expect(directory.getByRole("heading", { level: 1, name: "22 chapters" })).toBeVisible();
       await expect(directory.locator('a[href^="/rules/chapters/"]')).toHaveCount(22);
       await expect(directory.getByRole("button", { name: "Filter chapters by category" })).toBeVisible();
-      await expect(directory.getByRole("textbox", { name: "Search Rulebook chapters" })).toBeVisible();
+      await expect(directory.getByRole("searchbox", { name: "Search Rulebook chapters" })).toBeVisible();
       await expect(directory.locator(".v3-directory-mobile-list,.v3-directory-desktop-rail")).toHaveCount(0);
     }
     if (route === "/editions") {
@@ -1010,7 +1010,7 @@ test("installed Rulebook directory keeps the app-native chapter list and region 
   await expect(directory.locator(".v3-directory-mobile-list")).toHaveCount(0);
   await expect(directory.locator(".v3-directory-desktop-rail")).toHaveCount(0);
   await expect(directory.getByRole("button", { name: "Filter chapters by category" })).toBeVisible();
-  const search = directory.getByRole("textbox", { name: "Search Rulebook chapters" });
+  const search = directory.getByRole("searchbox", { name: "Search Rulebook chapters" });
   await search.fill("22");
   await expect(directory.locator('a[href^="/rules/chapters/"]')).toHaveCount(1);
   await search.fill("");
