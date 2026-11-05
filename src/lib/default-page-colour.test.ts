@@ -74,7 +74,8 @@ describe("default page colour system", () => {
     expect(editions).not.toContain("rgba(10,30,58,.97)");
     expect(shows).toContain("border-border bg-surface");
     expect(shows).toContain("ShowStateBadge");
-    expect(tools).toContain("v3-directory-desktop-card");
+    expect(tools).toContain("V3DirectoryFamilyIndex");
+    expect(read("src/components/v3/V3DirectoryFamilyIndex.tsx")).toContain("v3-directory-desktop-card");
     expect(guide).toContain('className="data-panel rounded-2xl p-4 sm:p-5"');
   });
 
