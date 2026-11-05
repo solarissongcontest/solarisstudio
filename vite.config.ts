@@ -63,6 +63,13 @@ export default defineConfig({
                 name: "vendor-floating",
                 test: /[\\/]node_modules[\\/]@floating-ui[\\/]/,
               },
+              // The public session, database and storage clients already
+              // share this SDK. Keep its package internals consolidated
+              // instead of repeatedly framing tiny route-local chunks.
+              {
+                name: "vendor-supabase",
+                test: /[\\/]node_modules[\\/]@supabase[\\/]/,
+              },
               // Collapse small, frequently reused UI control adapters instead
               // of repeating module shells and gzip framing across lazy routes.
               // A minimum two-entry share prevents one-off page components
