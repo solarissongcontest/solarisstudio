@@ -219,3 +219,13 @@
 .v3-countries-discovery[data-country-directory-experience="installed-app"] .v3-countries-browser{margin-top:.7rem}
 .v3-countries-discovery .v3-countries-collections{margin-bottom:.8rem}
 .v3-countries-discovery .v3-countries-controls{margin-bottom:.65rem}
+
+/* Web Countries mastheads should match the shared directory UI family. */
+.country-directory-mobile-masthead h1,
+.countries-library-hero h1{
+  font-family:var(--font-sans,ui-sans-serif,system-ui,sans-serif);
+  font-weight:750;
+  line-height:1.12
+}
+.country-directory-mobile-masthead h1{font-size:clamp(1.85rem,7vw,2.1rem)}
+.countries-library-hero h1{font-size:clamp(2.1rem,3.4vw,2.8rem)}
