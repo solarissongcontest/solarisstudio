@@ -6,13 +6,13 @@ import { AppShell, PageHeader } from "@/components/AppShell";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
+import { directoryCountLabel } from "@/lib/v3-directory-count";
 import "@/styles/v3-directory-family.css";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
   AppEmptyState,
   AppGroupedList,
   AppScreen,
-  AppSectionHeader,
 } from "@/components/app/AppPrimitives";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
@@ -254,7 +254,7 @@ function EditionsPage() {
               <p>Explore the latest edition and past contests.</p>
             </header>
             {control}
-            <p className="v3-directory-results-count" role="status" aria-live="polite">Showing {visible.length} of {cards.length} published editions{search.trim() ? ` · ${searched.length} match search` : ""}</p>
+            <p className="v3-directory-results-count" role="status" aria-live="polite">{directoryCountLabel({ available: cards.length, matches: visible.length, rendered: visible.length, noun: "published editions" })}</p>
             {visibleLatest ? <LatestEdition card={visibleLatest} appMode /> : null}
             {visiblePast.length ? (
               <section className="v3-directory-group" aria-labelledby="app-edition-archive">
@@ -293,7 +293,7 @@ function EditionsPage() {
               ) : null}
               <div className="v3-directory-results">
                 {control}
-                <p className="v3-directory-results-count" role="status" aria-live="polite">Showing {visible.length} of {cards.length} published editions{search.trim() ? ` · ${searched.length} match search` : ""}</p>
+                <p className="v3-directory-results-count" role="status" aria-live="polite">{directoryCountLabel({ available: cards.length, matches: visible.length, rendered: visible.length, noun: "published editions" })}</p>
                 {visibleLatest ? <LatestEdition card={visibleLatest} /> : null}
                 {visiblePast.length ? (
                   <section className="v3-directory-group v3-editions-history" aria-labelledby="editions-archive-heading">
