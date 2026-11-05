@@ -202,7 +202,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
                     <ChevronRight size={19} className="shrink-0" aria-hidden="true" />
                   </Link>
                 ) : (
-                <a key={story.editionId} href={`/stories/${story.editionSlug}`} className="group rounded-2xl border border-border/60 bg-card/55 p-5 transition hover:-translate-y-0.5 hover:border-primary/25 hover:bg-card/75">
+                <Link key={story.editionId} to="/stories/$editionSlug" params={{ editionSlug: story.editionSlug }} className="group rounded-2xl border border-border/60 bg-card/55 p-5 transition hover:-translate-y-0.5 hover:border-primary/25 hover:bg-card/75">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[11px] font-black uppercase tracking-[0.14em] text-primary">
                       {story.editionNumber != null ? `SSC ${story.editionNumber}` : story.editionName}
@@ -218,7 +218,7 @@ function LegacyStoriesArchivePage({ presentation }: { presentation: V3DirectoryP
                       <p className="mt-1 text-sm font-semibold">{story.heroMoment.headline}</p>
                     </div>
                   ) : null}
-                </a>
+                </Link>
                 )
               ))}
             </div>
