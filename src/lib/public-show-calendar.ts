@@ -37,6 +37,21 @@ export function isCalendarSlug(value: unknown): value is string {
   return typeof value === 'string' && /^[a-z0-9][a-z0-9-]{0,119}$/.test(value);
 }
 
+/**
+ * The upcoming filter is strictly based on published canonical instants.
+ * Returning no matches for invalid/ambiguous dates prevents fabricated schedule claims.
+ */
+export function upcomingPublicCalendarEvents(
+  events: readonly PublicCalendarEvent[],
+  nowMs: number,
+): PublicCalendarEvent[] {
+  if (!Number.isFinite(nowMs)) return [];
+  return events.filter((event) => {
+    const start = parseCalendarStart(event.startsAt);
+    return start !== null && new Date(start).getTime() >= nowMs;
+  });
+}
+
 function calendarTimestamp(date: string) {
   return date.replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 }
