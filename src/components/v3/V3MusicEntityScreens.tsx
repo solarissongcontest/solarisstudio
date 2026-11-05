@@ -3,6 +3,7 @@ import { ChevronRight, Disc3, MicVocal, Search, X } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 
 import { useV3DirectoryPresentation } from "@/lib/v3-directory-presentation";
+import "@/styles/v3-music-directory.css";
 
 import type {
   V3ArtistDetail,
