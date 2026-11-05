@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import "@/styles/v3-shows-directory.css";
 import { useMemo, useState } from "react";
@@ -359,7 +359,7 @@ function ShowCard({ item, live = false }: { item: ShowDiscoveryItem; live?: bool
             rel="noreferrer"
             className="inline-flex min-h-11 items-center gap-1 font-semibold text-primary"
           >
-            Broadcast <ExternalLink className="size-3.5" aria-hidden="true" />
+            Broadcast <span aria-hidden="true">↗</span>
           </a>
         ) : null}
       </div>
