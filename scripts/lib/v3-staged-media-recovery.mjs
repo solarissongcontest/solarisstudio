@@ -1,6 +1,7 @@
 /** Legacy public-media staging recovery. Never automatically runs in CI. */
 import { createHash } from 'node:crypto';
 import { assertApprovedWrite, assertAssetClearance, detectMime, stableJson, validatePath } from './v3-media-recovery-core.mjs';
+import { assertOwnerAuthorization, OWNER_METHOD } from './v3-owner-media-recovery.mjs';
 const sha = data => createHash('sha256').update(data).digest('hex');
 const STAGING = 'solaris-upload-quarantine';
 const TARGET_PROJECT = 'dkxmnvekiopyesuzggeu';
@@ -31,15 +32,24 @@ export function parseStagedManifest(raw) {
 export function stagedDigest(files) {
  return sha(stableJson(files.map(({bucket,path,size,mime,sha256})=>({bucket,path,size,mime,sha256}))));
 }
-export function assertScopedMode(mode,approval,ack) {
+export function assertScopedMode(mode,approval,ack,ownerProof=null,now=new Date()) {
+ // A sole owner may authorize a narrowly scoped legacy-public restoration without
+ // inventing a second person. GitHub verifies the actual repository owner on each
+ // manual execute, and the proof stays fresh even when mode is not read_only.
+ const ownerAuthorized=assertOwnerAuthorization(approval,ownerProof,now);
  if(mode==='normal'||mode==='degraded')return;
  const ex=approval?.read_only_recovery_exception;
- if(mode!=='read_only'||ack!=='APPROVE_SCOPED_READ_ONLY_MEDIA_RECOVERY'||
-    ex?.scope!=='historical-public-media-only'||ex?.destination_project!==TARGET_PROJECT||
-    ex?.keeps_confirmation_and_general_mutations_locked!==true||
-    !ex?.independent_reviewer||ex.independent_reviewer===approval.operator||
-    ex?.change_ticket!==approval.change_ticket||!ex?.reason)
-    throw Error('Platform mode blocks unapproved media publication');
+ const scoped=mode==='read_only'&&ack==='APPROVE_SCOPED_READ_ONLY_MEDIA_RECOVERY'&&
+   ex?.scope==='historical-public-media-only'&&ex?.destination_project===TARGET_PROJECT&&
+   ex?.keeps_confirmation_and_general_mutations_locked===true&&
+   ex?.change_ticket===approval?.change_ticket&&typeof ex?.reason==='string'&&
+   ex.reason.trim().length>0;
+ const reviewerValid=ownerAuthorized
+   ? ex?.approval_method===OWNER_METHOD&&ex?.owner_github_login===approval.owner_authorization.github_login&&
+     !ex?.independent_reviewer
+   : !ex?.approval_method&&typeof ex?.independent_reviewer==='string'&&
+     ex.independent_reviewer.trim().length>0&&ex.independent_reviewer!==approval?.operator;
+ if(!scoped||!reviewerValid)throw Error('Platform mode blocks unapproved media publication');
 }
 export async function verifyStaging(client,files) {
  const {data: buckets,error}=await client.storage.listBuckets();
@@ -69,12 +79,12 @@ async function targetStatus(client,f){
  return bytes.length===f.size&&sha(bytes)===f.sha256?'identical':'collision';
 }
 export async function restoreApprovedStaging({
- client,files,approval,signingKey,manualAck,readOnlyAck,readMode,
+ client,files,approval,signingKey,manualAck,readOnlyAck,readMode,ownerProof=null,
  ci=process.env.CI,clock=()=>new Date(),checkpoint=async()=>{}
 }){
  const check=async()=>{
   assertApprovedWrite({approval,key:signingKey,digest:stagedDigest(files),ci,manualAck,now:clock()});
-  assertScopedMode(await readMode(),approval,readOnlyAck);
+  assertScopedMode(await readMode(),approval,readOnlyAck,ownerProof,clock());
  };
  await check();
  const byId=new Map(files.map(f=>[f.bucket+'/'+f.path+'#'+f.sha256,f]));
