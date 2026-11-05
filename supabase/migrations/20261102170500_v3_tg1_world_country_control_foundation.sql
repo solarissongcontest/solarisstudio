@@ -182,9 +182,13 @@ begin
     return public.studio2_reconcile_operation(v_operation_id) || jsonb_build_object('replayed', true);
   end if;
 
+  -- country_accounts remains sole current controller authority. A
+  -- suspended/inactive account may have a historical row but must not gain a
+  -- newly bound *current* political identity through this command.
   select ca.user_id into v_current_user_id
   from public.country_accounts ca
   where ca.country_id = p_country_id
+    and ca.status = 'active'
   for update;
   if v_current_user_id is null then
     raise exception using errcode = 'P0002', message = 'STATE_CHANGED';
