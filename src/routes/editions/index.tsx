@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, Search, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
@@ -251,18 +251,14 @@ function EditionsPage() {
             <header className="v3-directory-app-heading">
               <p className="v3-directory-eyebrow">CONTEST HISTORY</p>
               <h1>Editions</h1>
-              <p>Every published edition of the Solaris Song Contest.</p>
+              <p>Explore the latest edition and past contests.</p>
             </header>
             {control}
-            <p className="v3-directory-results-count" role="status">{visible.length} matching editions</p>
+            <p className="v3-directory-results-count" role="status" aria-live="polite">Showing {visible.length} of {cards.length} published editions{search.trim() ? ` · ${searched.length} match search` : ""}</p>
             {visibleLatest ? <LatestEdition card={visibleLatest} appMode /> : null}
             {visiblePast.length ? (
               <section className="v3-directory-group" aria-labelledby="app-edition-archive">
-                <AppSectionHeader
-                  eyebrow={`${visiblePast.length} editions`}
-                  title="Past editions"
-                  id="app-edition-archive"
-                />
+                <h2 id="app-edition-archive" className="v3-directory-group-title">Past editions <span className="v3-directory-group-count">{visiblePast.length}</span></h2>
                 <AppGroupedList>
                   {visiblePast.map((card) => <ArchiveEdition key={card.edition.id} card={card} appMode />)}
                 </AppGroupedList>
@@ -297,7 +293,7 @@ function EditionsPage() {
               ) : null}
               <div className="v3-directory-results">
                 {control}
-                <p className="v3-directory-results-count" role="status">{visible.length} matching editions</p>
+                <p className="v3-directory-results-count" role="status" aria-live="polite">Showing {visible.length} of {cards.length} published editions{search.trim() ? ` · ${searched.length} match search` : ""}</p>
                 {visibleLatest ? <LatestEdition card={visibleLatest} /> : null}
                 {visiblePast.length ? (
                   <section className="v3-directory-group v3-editions-history" aria-labelledby="editions-archive-heading">
@@ -349,27 +345,25 @@ function EditionDirectoryControls({
     { id: "latest", label: "Latest edition", count: latestCount },
     { id: "past", label: "Past editions", count: pastCount },
   ] as const;
+  const webSearch = (
+    <div className="v3-directory-search" role="search">
+      <Search size={18} aria-hidden="true" />
+      <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+        aria-label={searchLabel} placeholder="Search editions, hosts or winners…" autoComplete="off" />
+      {search ? (
+        <button type="button" className="v3-directory-search-clear" aria-label="Clear search" onClick={() => setSearch("")}>
+          <X size={16} aria-hidden="true" />
+        </button>
+      ) : null}
+    </div>
+  );
   if (presentation === "desktop-web") {
-    return (
-      <div className="v3-directory-controls">
-        <label className="v3-directory-search">
-          <Search size={18} aria-hidden="true" />
-          <span className="sr-only">{searchLabel}</span>
-          <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
-            aria-label={searchLabel} placeholder="Search editions, hosts or winners…" />
-        </label>
-      </div>
-    );
+    return <div className="v3-directory-controls">{webSearch}</div>;
   }
   if (presentation === "mobile-web") {
     return (
       <div className="v3-directory-controls">
-        <label className="v3-directory-search">
-          <Search size={18} aria-hidden="true" />
-          <span className="sr-only">{searchLabel}</span>
-          <input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
-            aria-label={searchLabel} placeholder="Search editions or hosts…" />
-        </label>
+        {webSearch}
         <label className="v3-directory-area-select">
           <span className="sr-only">Browse edition history</span>
           <select aria-label="Browse edition history" value={scope}
@@ -399,7 +393,8 @@ function EditionDirectoryControls({
             {options.map((option) => (
               <SheetClose asChild key={option.id}>
                 <button type="button" aria-pressed={scope === option.id} onClick={() => setScope(option.id)}>
-                  {option.label} <span>{option.count}</span>
+                  <span className="v3-directory-option-label">{scope === option.id ? <Check size={17} aria-hidden="true" /> : null}{option.label}</span>
+                  <span>{option.count}</span>
                 </button>
               </SheetClose>
             ))}
@@ -432,7 +427,7 @@ function EditionDirectoryRail({
       {options.map((option) => (
         <button key={option.id} type="button" aria-pressed={scope === option.id}
           onClick={() => setScope(option.id)}>
-          <span>{option.label}</span><span>{option.count}</span>
+          <span className="v3-directory-option-label">{scope === option.id ? <Check size={15} aria-hidden="true" /> : null}{option.label}</span><span>{option.count}</span>
         </button>
       ))}
     </aside>
@@ -523,17 +518,17 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
   return (
     <section aria-labelledby="current-edition-heading">
       <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-primary">
-        {edition.status === "completed" ? "Latest published edition" : "Current edition"}
+        {edition.status === "active" ? "Current edition" : "Latest published edition"}
       </p>
       <Link
         to="/editions/$slug"
         params={{ slug: edition.slug }}
-        className={appMode ? "solaris-app-card solaris-app-edition-current group block" : "group block rounded-2xl border border-primary/20 bg-surface p-4 transition-colors hover:bg-surface-strong sm:p-5"}
+        className={appMode ? "v3-editions-feature solaris-app-card solaris-app-edition-current group block" : "v3-editions-feature group block rounded-2xl border border-primary/20 bg-surface p-4 transition-colors hover:bg-surface-strong sm:p-5"}
       >
         <div className="flex min-w-0 items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-muted-foreground">
-              {edition.status === "completed" ? "Completed" : "In progress"}
+              {edition.status === "completed" ? "Completed" : "Published edition"}
             </p>
             <h2 id="current-edition-heading" className={appMode ? "mt-1 break-words text-xl font-bold tracking-[-.025em]" : "mt-1 break-words text-2xl font-bold tracking-[-.035em] sm:text-3xl"}>
               {editionLabel(edition)}
@@ -542,10 +537,10 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
           <span className="shrink-0 text-lg font-semibold text-primary transition-transform group-hover:translate-x-0.5">→</span>
         </div>
 
-        <div className="mt-4 grid gap-2 border-t border-border/60 pt-4 text-sm sm:grid-cols-3">
+        <div className="v3-editions-feature-meta mt-3 grid gap-1.5 border-t border-border/60 pt-3 text-sm sm:grid-cols-3">
           <p><span className="text-muted-foreground">Shows:</span> {editionShows.length}</p>
           <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
-          <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
+          {winner ? <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p> : null}
         </div>
       </Link>
     </section>
