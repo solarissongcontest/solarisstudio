@@ -59,11 +59,13 @@ do $$ declare v_count integer; begin
  delete from televoting.round_influence_results;
  get diagnostics v_count = row_count;
  if v_count <> 0 then raise exception 'Viewer deleted protected influence'; end if;
- begin
-  update televoting.round_influence_results set calculation_version=2;
-  raise exception 'Viewer update unexpectedly succeeded';
- exception when insufficient_privilege then null;
- end;
+ -- PostgreSQL RLS rejects a non-authorized UPDATE by selecting zero rows.
+ -- A zero-row UPDATE is a successful statement, not a permission exception.
+ update televoting.round_influence_results set calculation_version=2;
+ get diagnostics v_count = row_count;
+ if v_count <> 0 then
+  raise exception 'Viewer changed protected influence evidence';
+ end if;
 end $$;
 reset role;
 
