@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { BarChart3, CalendarDays, Check, ChevronRight, History, Search, SlidersHorizontal, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { AppEmptyState, AppGroupedList, AppScreen, AppSectionHeader } from "@/components/app/AppPrimitives";
@@ -15,6 +15,8 @@ export type V3DirectoryItem = {
   title: string;
   description: string;
   to: string;
+  /** Parameters preserve typed canonical deep links for rule chapters and future entities. */
+  params?: Record<string, string>;
   searchText?: string;
   eyebrow?: string;
   aliases?: readonly string[];
@@ -38,6 +40,8 @@ export function V3DirectoryFamilyIndex({
   itemNoun,
   groups,
   variant = "sitemap",
+  context,
+  noShell = false,
 }: {
   title: string;
   eyebrow: string;
@@ -50,6 +54,8 @@ export function V3DirectoryFamilyIndex({
   itemNoun: string;
   groups: readonly V3DirectoryGroup[];
   variant?: "actions" | "sitemap";
+  context?: ReactNode;
+  noShell?: boolean;
 }) {
   const { platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
@@ -136,7 +142,7 @@ export function V3DirectoryFamilyIndex({
         {scoped.filter((group) => group.items.length > 0).map((group) => (
           <section key={group.id} className="v3-directory-group" aria-labelledby={`directory-${group.id}`}>
             {presentation === "installed-app" ? (
-              <AppSectionHeader eyebrow={`${group.items.length} ${variant === "actions" ? "tools" : "pages"}`} id={`directory-${group.id}`} title={group.label} />
+              <AppSectionHeader eyebrow={`${group.items.length} ${itemNoun}`} id={`directory-${group.id}`} title={group.label} />
             ) : <h2 id={`directory-${group.id}`} className="v3-directory-group-title">{group.label}</h2>}
             <DirectoryItems items={group.items} presentation={presentation} variant={variant} groupId={group.id} />
           </section>
@@ -152,8 +158,7 @@ export function V3DirectoryFamilyIndex({
     </>
   );
 
-  return (
-    <AppShell>
+  const content = (
       <div className="v3-directory-family" data-directory-experience={presentation} data-directory-variant={variant}>
         {presentation === "installed-app" ? (
           <AppScreen>
@@ -162,6 +167,7 @@ export function V3DirectoryFamilyIndex({
               <h1>{title}</h1>
               <p>{intro}</p>
             </header>
+            {context}
             {contents}
           </AppScreen>
         ) : (
@@ -173,6 +179,7 @@ export function V3DirectoryFamilyIndex({
                 <p>{browserIntro}</p>
               </header>
             ) : <PageHeader eyebrow={eyebrow} title={title} description={intro} />}
+            {context}
             <div className="v3-directory-workspace">
               {presentation === "desktop-web" ? (
                 <aside className="v3-directory-desktop-rail" aria-label={`Filter ${itemNoun} by category`}>
@@ -190,8 +197,8 @@ export function V3DirectoryFamilyIndex({
           </>
         )}
       </div>
-    </AppShell>
   );
+  return noShell ? content : <AppShell>{content}</AppShell>;
 }
 
 function DirectoryItems({ items, presentation, variant, groupId }: {
@@ -203,7 +210,7 @@ function DirectoryItems({ items, presentation, variant, groupId }: {
   if (presentation === "installed-app" && variant === "actions") {
     return <div className="v3-directory-action-list">
       {items.map((item) => (
-        <Link key={item.id} to={item.to as any} className="v3-directory-action-row">
+        <Link key={item.id} to={item.to as any} params={item.params as any} className="v3-directory-action-row">
           <DirectoryCategoryIcon groupId={groupId} />
           <span className="min-w-0 flex-1">
             <strong>{item.title}</strong>
@@ -217,7 +224,7 @@ function DirectoryItems({ items, presentation, variant, groupId }: {
   if (presentation === "installed-app") {
     return <AppGroupedList>
       {items.map((item) => (
-        <Link key={item.id} to={item.to as any} className="solaris-app-list-row">
+        <Link key={item.id} to={item.to as any} params={item.params as any} className="solaris-app-list-row">
           <span className="min-w-0 flex-1">
             <strong className="block text-sm font-semibold">{item.title}</strong>
             <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
@@ -230,7 +237,7 @@ function DirectoryItems({ items, presentation, variant, groupId }: {
   if (presentation === "mobile-web") {
     return <div className="v3-directory-mobile-list">
       {items.map((item) => (
-        <Link key={item.id} to={item.to as any} className={variant === "actions" ? "v3-directory-mobile-row v3-directory-action-row" : "v3-directory-mobile-row"}>
+        <Link key={item.id} to={item.to as any} params={item.params as any} className={variant === "actions" ? "v3-directory-mobile-row v3-directory-action-row" : "v3-directory-mobile-row"}>
           {variant === "actions" ? <DirectoryCategoryIcon groupId={groupId} /> : null}
           <span className="min-w-0 flex-1"><strong>{item.title}</strong><span>{item.description}</span></span>
           <ChevronRight size={19} aria-hidden="true" />
@@ -240,7 +247,7 @@ function DirectoryItems({ items, presentation, variant, groupId }: {
   }
   return <div className="v3-directory-desktop-grid">
     {items.map((item) => (
-      <Link key={item.id} to={item.to as any} className={variant === "actions" ? "v3-directory-desktop-card v3-directory-action-card" : "v3-directory-desktop-card"}>
+      <Link key={item.id} to={item.to as any} params={item.params as any} className={variant === "actions" ? "v3-directory-desktop-card v3-directory-action-card" : "v3-directory-desktop-card"}>
         {variant === "actions" ? <DirectoryCategoryIcon groupId={groupId} /> : null}
         {item.eyebrow ? <span className="v3-directory-eyebrow">{item.eyebrow}</span> : null}
         <span className="v3-directory-card-top"><strong>{item.title}</strong><ChevronRight size={19} aria-hidden="true" /></span>
