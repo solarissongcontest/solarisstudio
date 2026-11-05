@@ -406,7 +406,7 @@ test("installed app shell survives representative navigation without duplicate c
       await expect(page.locator("[data-directory-mobile-header]")).toHaveCount(0);
       await expect(directory.getByRole("heading", { level: 1, name: route === "/archive" ? "Archive" : "Shows" })).toBeVisible();
       if (route === "/archive") {
-        await expect(directory.getByRole("button", { name: "Filter archive by subject" })).toBeVisible();
+        await expect(directory.getByRole("button", { name: "Filter archive topics by category" })).toBeVisible();
         await expect(directory.getByRole("searchbox", { name: "Search archive" })).toBeVisible();
       }
     }
