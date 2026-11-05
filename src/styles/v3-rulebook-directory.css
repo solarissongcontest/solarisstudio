@@ -127,3 +127,29 @@
 @media (prefers-reduced-motion: reduce) {
   .v3-rule-chapters-directory .v3-directory-desktop-card { transition: none; }
 }
+
+/* The legacy global display/hero styles use !important. Rulebook headings are
+ * navigation UI, so their explicit plain-language typography takes precedence. */
+body .v3-rule-chapters-directory .v3-directory-family[data-directory-experience="desktop-web"] .page-header:not(.directory-page-hero) {
+  margin: 0 0 .9rem !important;
+  padding: 0 0 .75rem !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+body .v3-rule-chapters-directory .v3-directory-family[data-directory-experience="desktop-web"] .page-header::before,
+body .v3-rule-chapters-directory .v3-directory-family[data-directory-experience="desktop-web"] .page-header::after {
+  content: none !important;
+  display: none !important;
+}
+body .v3-rule-chapters-directory .v3-directory-family[data-directory-experience="desktop-web"] .page-header h1 {
+  font-family: var(--font-sans, system-ui, sans-serif) !important;
+  font-size: clamp(1.95rem, 3vw, 2.25rem) !important;
+  font-weight: 750 !important;
+  letter-spacing: -.035em !important;
+  text-transform: none !important;
+}
