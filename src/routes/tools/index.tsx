@@ -1,142 +1,258 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ChevronRight, Search, SlidersHorizontal } from "lucide-react";
+import { useMemo, useState } from "react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { AppShell, PageHeader } from "@/components/AppShell";
+import { AppEmptyState, AppGroupedList, AppScreen, AppSectionHeader } from "@/components/app/AppPrimitives";
+import { useSolarisApp } from "@/components/app/AppRuntime";
+import { SolarisSearchField } from "@/components/app/SolarisSearchField";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
+import {
+  PUBLIC_TOOL_GROUPS,
+  filterPublicToolGroups,
+  countPublicTools,
+  type PublicTool,
+  type PublicToolArea,
+  type PublicToolGroup,
+} from "@/lib/v3-tool-directory";
+import "@/styles/v3-directory-family.css";
 
 export const Route = createFileRoute("/tools/")({
-  head: () => ({ meta: [{ title: "Tools — Solaris Studio" }] }),
+  head: () => ({
+    meta: [
+      { title: "Tools — Solaris Studio" },
+      { name: "description", content: "Browse Solaris scorecharts, predictions, result simulations and historical tools." },
+    ],
+  }),
   component: ToolsPage,
 });
 
-const TOOL_GROUPS = [
-  {
-    title: "Follow the contest",
-    description: "See what is happening now.",
-    tools: [
-      {
-        to: "/calendar",
-        title: "Show calendar",
-        description: "Check published show times and save an edition schedule to your phone or desktop calendar.",
-        eyebrow: "Public schedule",
-      },
-      {
-        to: "/pulse",
-        title: "Solaris Pulse",
-        description: "See recent updates, countries you follow, record changes and prediction movement.",
-        eyebrow: "Updates",
-      },
-      {
-        to: "/predictions",
-        title: "Prediction Arena",
-        description: "Make your picks before a round closes, then compare them with the real result later.",
-        eyebrow: "Predictions",
-      },
-    ],
-  },
-  {
-    title: "Explore results",
-    description: "See full voting details or test a different version of a published result.",
-    tools: [
-      {
-        to: "/scorecharts",
-        title: "Full Scorecharts",
-        description: "See the full voting table for each published show.",
-        eyebrow: "Detailed voting",
-      },
-      {
-        to: "/result-lab",
-        title: "Result Lab",
-        description: "Test different jury and televote balances or remove a jury. This never changes the official result.",
-        eyebrow: "What-if analysis",
-      },
-      {
-        to: "/taste-dna",
-        title: "Taste DNA",
-        description: "Rank the songs and see whether your choices are closest to the jury, televote or overall result.",
-        eyebrow: "Personal analytics",
-      },
-      {
-        to: "/broadcast-intelligence",
-        title: "Broadcast Intelligence",
-        description: "Replay a published result and see the biggest jumps, lead changes and turning points.",
-        eyebrow: "Results replay",
-      },
-      {
-        to: "/broadcast-intelligence/jury",
-        title: "Jury Replay",
-        description: "Reveal the published jury votes one jury at a time and watch the scoreboard build.",
-        eyebrow: "Jury replay",
-      },
-    ],
-  },
-  {
-    title: "Explore the archive",
-    description: "Explore past Solaris results, records and voting history.",
-    tools: [
-      {
-        to: "/archive-games",
-        title: "Archive Games",
-        description: "Play quick games made from real past Solaris results.",
-        eyebrow: "Games",
-      },
-      {
-        to: "/records",
-        title: "Records",
-        description: "See all-time records, streaks and milestones.",
-        eyebrow: "History",
-      },
-      {
-        to: "/compare",
-        title: "Compare countries",
-        description: "Put two countries side by side and compare their results and voting history.",
-        eyebrow: "Head-to-head",
-      },
-      {
-        to: "/relationships",
-        title: "Relationships",
-        description: "See which countries often vote for each other or have similar voting habits.",
-        eyebrow: "Voting network",
-      },
-    ],
-  },
-] as const;
-
 function ToolsPage() {
+  const { platformResolved } = useSolarisApp();
+  const presentation = useV3DirectoryPresentation();
+  const [query, setQuery] = useState("");
+  const [area, setArea] = useState<PublicToolArea>("all");
+
+  const searchable = useMemo(
+    () => filterPublicToolGroups(PUBLIC_TOOL_GROUPS, query),
+    [query],
+  );
+  const groups = useMemo(
+    () => filterPublicToolGroups(searchable, "", area),
+    [searchable, area],
+  );
+  const visible = countPublicTools(groups);
+  const totalMatching = countPublicTools(searchable);
+  const areas = PUBLIC_TOOL_GROUPS.map((group) => ({
+    id: group.id,
+    title: group.title,
+    count: searchable.find((entry) => entry.id === group.id)?.tools.length ?? 0,
+  }));
+  const label = area === "all" ? "All categories" : PUBLIC_TOOL_GROUPS.find((group) => group.id === area)?.title ?? "All categories";
+  const reset = () => { setArea("all"); setQuery(""); };
+
+  if (!platformResolved) {
+    return <div data-directory-boot="" role="status" aria-label="Opening Solaris tools" className="min-h-20" />;
+  }
+
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Explore Solaris"
-        title="Tools"
-        description="Scorecharts, predictions, result tests, comparisons and archive tools are all collected here."
-      />
-
-      <div className="space-y-5">
-        {TOOL_GROUPS.map((group) => (
-          <Panel key={group.title} title={group.title} description={group.description}>
-            <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {group.tools.map((tool) => (
-                <Link
-                  key={tool.to}
-                  to={tool.to}
-                  className="solaris-family-card group min-w-0 rounded-2xl border p-4 transition-colors focus-visible:ring-2 focus-visible:ring-primary/40"
-                >
-                  <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
-                    {tool.eyebrow}
-                  </p>
-                  <h2 className="mt-2 break-words font-display text-lg font-semibold">
-                    {tool.title}
-                  </h2>
-                  <p className="mt-2 break-words text-xs leading-relaxed text-muted-foreground">
-                    {tool.description}
-                  </p>
-                  <span className="mt-4 inline-block text-xs font-semibold text-primary">
-                    Open →
-                  </span>
-                </Link>
-              ))}
+      <div className="v3-directory-family" data-directory-experience={presentation}>
+        {presentation === "installed-app" ? (
+          <AppScreen>
+            <header className="v3-directory-app-heading">
+              <p className="v3-directory-eyebrow">EXPLORE SOLARIS</p>
+              <h1>Tools</h1>
+              <p>Explore results, follow the contest and revisit the archive.</p>
+            </header>
+            <div className="v3-directory-controls">
+              <SolarisSearchField
+                value={query}
+                onChange={setQuery}
+                label="Search Solaris tools"
+                placeholder="Search tools or topics…"
+              />
+              <Sheet>
+                <SheetTrigger asChild>
+                  <button type="button" className="v3-directory-sheet-trigger" aria-label="Filter tools by category">
+                    <SlidersHorizontal size={18} aria-hidden="true" />
+                    <span>{label}</span>
+                    <span className="v3-directory-count">{visible}</span>
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="bottom" aria-label="Filter tools by category" className="max-h-[80dvh] overflow-y-auto">
+                  <h2 className="mb-3 text-lg font-bold">Browse by category</h2>
+                  <div className="v3-directory-sheet-options">
+                    <SheetClose asChild>
+                      <button type="button" aria-pressed={area === "all"} onClick={() => setArea("all")}>
+                        All categories <span>{totalMatching}</span>
+                      </button>
+                    </SheetClose>
+                    {areas.map((item) => (
+                      <SheetClose key={item.id} asChild>
+                        <button type="button" aria-pressed={area === item.id} onClick={() => setArea(item.id)}>
+                          {item.title} <span>{item.count}</span>
+                        </button>
+                      </SheetClose>
+                    ))}
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
-          </Panel>
-        ))}
+            <p className="v3-directory-results-count" role="status">{visible} matching tools</p>
+            <ToolsGroups groups={groups} presentation={presentation} />
+            {!visible ? <ToolsEmpty onReset={reset} /> : null}
+          </AppScreen>
+        ) : (
+          <>
+            {presentation === "mobile-web" ? (
+              <header className="v3-directory-mobile-header" data-directory-mobile-header="">
+                <Link to="/explore" className="v3-directory-back">Explore / Tools</Link>
+                <p className="v3-directory-eyebrow">SOLARIS TOOLKIT</p>
+                <h1>Tools</h1>
+                <p>Find the right way to explore results, predictions or history.</p>
+              </header>
+            ) : (
+              <PageHeader
+                eyebrow="Explore Solaris"
+                title="Tools"
+                description="Scorecharts, predictions, result tests, comparisons and archive tools in one searchable collection."
+              />
+            )}
+            <div className="v3-directory-workspace">
+              {presentation === "desktop-web" ? (
+                <aside className="v3-directory-desktop-rail" aria-label="Filter tools by category">
+                  <h2>Browse tools</h2>
+                  <button type="button" aria-pressed={area === "all"} onClick={() => setArea("all")}>
+                    <span>All categories</span><span>{totalMatching}</span>
+                  </button>
+                  {areas.map((item) => (
+                    <button key={item.id} type="button" aria-pressed={area === item.id}
+                      onClick={() => setArea(item.id)}>
+                      <span>{item.title}</span><span>{item.count}</span>
+                    </button>
+                  ))}
+                </aside>
+              ) : null}
+              <div className="v3-directory-results">
+                <div className="v3-directory-controls">
+                  <label className="v3-directory-search">
+                    <Search size={18} aria-hidden="true" />
+                    <span className="sr-only">Search Solaris tools</span>
+                    <input
+                      type="search"
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder="Search tools and topics…"
+                      aria-label="Search Solaris tools"
+                      autoComplete="off"
+                    />
+                  </label>
+                  {presentation === "mobile-web" ? (
+                    <label className="v3-directory-area-select">
+                      <span className="sr-only">Browse tools by category</span>
+                      <select value={area} aria-label="Browse tools by category"
+                        onChange={(event) => setArea(event.target.value as PublicToolArea)}>
+                        <option value="all">All categories ({totalMatching})</option>
+                        {areas.map((item) => (
+                          <option value={item.id} key={item.id}>{item.title} ({item.count})</option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
+                </div>
+                <p className="v3-directory-results-count" role="status">{visible} matching tools</p>
+                <ToolsGroups groups={groups} presentation={presentation} />
+                {!visible ? <ToolsEmpty onReset={reset} /> : null}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </AppShell>
+  );
+}
+
+function ToolsGroups({
+  groups,
+  presentation,
+}: {
+  groups: readonly PublicToolGroup[];
+  presentation: V3DirectoryPresentation;
+}) {
+  return (
+    <div className="v3-directory-groups">
+      {groups.map((group) => {
+        const headingId = `tools-${group.id}`;
+        return (
+          <section className="v3-directory-group" key={group.id} aria-labelledby={headingId}>
+            {presentation === "installed-app" ? (
+              <>
+                <AppSectionHeader eyebrow="Browse" title={group.title} id={headingId} />
+                <p className="v3-directory-group-description">{group.description}</p>
+              </>
+            ) : (
+              <>
+                <h2 id={headingId} className="v3-directory-group-title">{group.title}</h2>
+                <p className="v3-directory-group-description">{group.description}</p>
+              </>
+            )}
+            {presentation === "installed-app" ? (
+              <AppGroupedList>
+                {group.tools.map((tool) => (
+                  <Link key={tool.to} to={tool.to as any} className="solaris-app-list-row">
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-foreground">{tool.title}</span>
+                      <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{tool.description}</span>
+                    </span>
+                    <ChevronRight size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                  </Link>
+                ))}
+              </AppGroupedList>
+            ) : presentation === "mobile-web" ? (
+              <div className="v3-directory-mobile-list">
+                {group.tools.map((tool) => <ToolMobileRow key={tool.to} tool={tool} />)}
+              </div>
+            ) : (
+              <div className="v3-directory-desktop-grid">
+                {group.tools.map((tool) => (
+                  <Link key={tool.to} to={tool.to as any} className="v3-directory-desktop-card">
+                    <span className="v3-directory-eyebrow">{tool.eyebrow}</span>
+                    <span className="v3-directory-card-top">
+                      <strong>{tool.title}</strong>
+                      <ChevronRight size={19} aria-hidden="true" />
+                    </span>
+                    <span className="v3-directory-card-description">{tool.description}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function ToolMobileRow({ tool }: { tool: PublicTool }) {
+  return (
+    <Link to={tool.to as any} className="v3-directory-mobile-row">
+      <span className="min-w-0 flex-1">
+        <strong>{tool.title}</strong>
+        <span>{tool.description}</span>
+      </span>
+      <ChevronRight size={19} aria-hidden="true" />
+    </Link>
+  );
+}
+
+function ToolsEmpty({ onReset }: { onReset: () => void }) {
+  return (
+    <AppEmptyState
+      title="No matching tools"
+      description="Try a different tool name or category."
+      action={<button type="button" onClick={onReset} className="solaris-app-empty-action">Clear filters</button>}
+    />
   );
 }

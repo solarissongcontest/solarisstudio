@@ -1,21 +1,23 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { AppEmptyState, AppGroupedList, AppScreen, AppSectionHeader } from "@/components/app/AppPrimitives";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import {
-  AppEmptyState,
-  AppGroupedList,
-  AppScreen,
-  AppSectionHeader,
-} from "@/components/app/AppPrimitives";
-import {
-  PUBLIC_DESTINATIONS,
-  publicSearchText,
-  type PublicArea,
-} from "@/lib/public-navigation";
+  filterSiteDirectory,
+  siteDirectoryAreaCounts,
+  siteDirectoryDestinations,
+  SITE_DIRECTORY_AREA_LABELS,
+  SITE_DIRECTORY_AREA_ORDER,
+  type SiteDirectoryArea,
+} from "@/lib/v3-site-directory";
+import type { PublicArea, PublicDestination } from "@/lib/public-navigation";
+import "@/styles/v3-directory-family.css";
 
 export const Route = createFileRoute("/site-directory/")({
   head: () => ({
@@ -30,157 +32,224 @@ export const Route = createFileRoute("/site-directory/")({
   component: SiteDirectoryPage,
 });
 
-const AREA_ORDER: PublicArea[] = ["explore", "participate", "results", "help", "me", "home"];
-
-const AREA_LABELS: Record<PublicArea, string> = {
-  home: "Home & updates",
-  explore: "Explore",
-  participate: "Participate",
-  results: "Results",
-  me: "Me",
-  help: "Rules & help",
-};
-
 function SiteDirectoryPage() {
-  const { isAppMode } = useSolarisApp();
+  const { platformResolved } = useSolarisApp();
+  const presentation = useV3DirectoryPresentation();
   const [query, setQuery] = useState("");
-  const normalizedQuery = query.trim().toLowerCase();
+  const [area, setArea] = useState<SiteDirectoryArea>("all");
 
-  const matches = useMemo(() => {
-    const discoverableDestinations = PUBLIC_DESTINATIONS.filter(
-      (item) => item.discoverable !== false,
-    );
-    if (!normalizedQuery) return discoverableDestinations;
-    const terms = normalizedQuery.split(/\s+/).filter(Boolean);
-    return discoverableDestinations.filter((item) => {
-      const searchable = publicSearchText(item);
-      return terms.every((term) => searchable.includes(term));
-    });
-  }, [normalizedQuery]);
-
-  const content = (
-    <>
-      {isAppMode ? (
-        <SolarisSearchField
-          value={query}
-          onChange={setQuery}
-          label="Search Solaris Studio pages"
-          placeholder="Search pages or tools…"
-          className="mb-5"
-        />
-      ) : (
-        <label className="mx-auto mb-7 flex min-h-12 max-w-2xl items-center gap-3 rounded-2xl border border-border/75 bg-surface/70 px-4">
-          <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span className="sr-only">Search Solaris Studio pages</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search pages, tools or old feature names…"
-            className="min-w-0 flex-1 border-0 bg-transparent py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground"
-            autoComplete="off"
-          />
-        </label>
-      )}
-
-      {matches.length ? (
-        <div className="space-y-8">
-          {AREA_ORDER.map((area) => {
-            const items = matches.filter((item) => item.area === area);
-            if (!items.length) return null;
-
-            return (
-              <section key={area} aria-labelledby={`directory-${area}`}>
-                {isAppMode ? (
-                  <AppSectionHeader
-                    eyebrow={area === "help" ? "Reference" : "Browse"}
-                    title={AREA_LABELS[area]}
-                    id={`directory-${area}`}
-                  />
-                ) : (
-                  <div className="mb-3 border-b border-border/60 pb-2">
-                    <h2 id={`directory-${area}`} className="font-display text-xl font-bold">
-                      {AREA_LABELS[area]}
-                    </h2>
-                  </div>
-                )}
-                {isAppMode ? (
-                  <AppGroupedList>
-                    {items.map((item) => (
-                      <Link key={item.id} to={item.to as any} className="solaris-app-list-row">
-                        <span className="min-w-0">
-                          <span className="block text-sm font-semibold text-foreground">{item.label}</span>
-                          <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
-                        </span>
-                        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                      </Link>
-                    ))}
-                  </AppGroupedList>
-                ) : (
-                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                    {items.map((item) => (
-                      <Link
-                        key={item.id}
-                        to={item.to as any}
-                        className="group min-w-0 rounded-xl border border-border/70 bg-surface/45 p-4 transition-colors hover:border-primary/30 hover:bg-surface/75"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <h3 className="font-semibold text-foreground">{item.label}</h3>
-                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.description}</p>
-                          </div>
-                          <span className="shrink-0 rounded-full border border-border/70 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{item.visibility}</span>
-                        </div>
-                        {item.aliases?.length ? (
-                          <p className="mt-3 text-[11px] text-muted-foreground">Also known as {item.aliases.join(", ")}</p>
-                        ) : null}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </section>
-            );
-          })}
-        </div>
-      ) : isAppMode ? (
-        <AppEmptyState
-          title="No matching page"
-          description="Try a product name, task, country-related term or an older Solaris feature name."
-          action={
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              className="solaris-app-empty-action"
-            >
-              Clear search
-            </button>
-          }
-        />
-      ) : (
-        <div className="rounded-2xl border border-border/70 bg-surface/45 px-5 py-10 text-center">
-          <h2 className="font-display text-xl font-bold">No matching page</h2>
-          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
-            Try a product name, task, country-related term or an older Solaris feature name.
-          </p>
-        </div>
-      )}
-    </>
+  const destinations = useMemo(siteDirectoryDestinations, []);
+  const searchMatches = useMemo(
+    () => filterSiteDirectory(destinations, query),
+    [destinations, query],
   );
+  const matches = useMemo(
+    () => filterSiteDirectory(searchMatches, "", area),
+    [searchMatches, area],
+  );
+  const areas = useMemo(() => siteDirectoryAreaCounts(searchMatches), [searchMatches]);
+  const reset = () => { setArea("all"); setQuery(""); };
+
+  // App identity must be resolved before rendering browser-only navigation.
+  if (!platformResolved) {
+    return <div data-directory-boot="" role="status" aria-label="Opening Solaris directory" className="min-h-20" />;
+  }
 
   return (
     <AppShell>
-      {isAppMode ? (
-        <AppScreen>{content}</AppScreen>
-      ) : (
-        <>
-          <PageHeader
-            eyebrow="Find"
-            title="All Solaris pages"
-            description="Search every public destination, including advanced tools and older Solaris names."
-          />
-          {content}
-        </>
-      )}
+      <div className="v3-directory-family" data-directory-experience={presentation}>
+        {presentation === "installed-app" ? (
+          <AppScreen>
+            <header className="v3-directory-app-heading">
+              <p className="v3-directory-eyebrow">EXPLORE SOLARIS</p>
+              <h1>All Solaris pages</h1>
+              <p>Every destination in one place, from countries and shows to your tools.</p>
+            </header>
+            <div className="v3-directory-controls">
+              <SolarisSearchField
+                value={query}
+                onChange={setQuery}
+                label="Search Solaris Studio pages"
+                placeholder="Search pages or tools…"
+              />
+              <Sheet>
+                <SheetTrigger asChild>
+                  <button type="button" className="v3-directory-sheet-trigger" aria-label="Filter pages by area">
+                    <SlidersHorizontal size={18} aria-hidden="true" />
+                    <span>{area === "all" ? "All areas" : SITE_DIRECTORY_AREA_LABELS[area]}</span>
+                    <span className="v3-directory-count">{matches.length}</span>
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="bottom" aria-label="Filter pages by area" className="max-h-[80dvh] overflow-y-auto">
+                  <h2 className="mb-3 text-lg font-bold">Browse by area</h2>
+                  <div className="v3-directory-sheet-options">
+                    <SheetClose asChild>
+                      <button type="button" aria-pressed={area === "all"} onClick={() => setArea("all")}>
+                        All areas <span>{searchMatches.length}</span>
+                      </button>
+                    </SheetClose>
+                    {areas.map((item) => (
+                      <SheetClose asChild key={item.area}>
+                        <button type="button" aria-pressed={area === item.area} onClick={() => setArea(item.area)}>
+                          {item.label} <span>{item.count}</span>
+                        </button>
+                      </SheetClose>
+                    ))}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+            <p className="v3-directory-results-count" role="status">{matches.length} matching pages</p>
+            <DirectoryGroups items={matches} presentation={presentation} />
+            {!matches.length ? <DirectoryEmpty onReset={reset} /> : null}
+          </AppScreen>
+        ) : (
+          <>
+            {presentation === "mobile-web" ? (
+              <header className="v3-directory-mobile-header" data-directory-mobile-header="">
+                <Link to="/explore" className="v3-directory-back">Explore / All pages</Link>
+                <p className="v3-directory-eyebrow">FIND YOUR WAY</p>
+                <h1>All Solaris pages</h1>
+                <p>Browse Solaris by topic or search for a page, tool or feature.</p>
+              </header>
+            ) : (
+              <PageHeader
+                eyebrow="Find your way"
+                title="All Solaris pages"
+                description="Browse every public Solaris destination, including advanced tools and older feature names."
+              />
+            )}
+            <div className="v3-directory-workspace">
+              {presentation === "desktop-web" ? (
+                <aside className="v3-directory-desktop-rail" aria-label="Filter directory by area">
+                  <h2>Browse by area</h2>
+                  <button type="button" aria-pressed={area === "all"} onClick={() => setArea("all")}>
+                    <span>All areas</span><span>{searchMatches.length}</span>
+                  </button>
+                  {areas.map((item) => (
+                    <button type="button" key={item.area} aria-pressed={area === item.area}
+                      onClick={() => setArea(item.area)}>
+                      <span>{item.label}</span><span>{item.count}</span>
+                    </button>
+                  ))}
+                </aside>
+              ) : null}
+              <div className="v3-directory-results">
+                <div className="v3-directory-controls">
+                  <label className="v3-directory-search">
+                    <Search size={18} aria-hidden="true" />
+                    <span className="sr-only">Search Solaris Studio pages</span>
+                    <input
+                      type="search"
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder="Search pages, tools or old feature names…"
+                      aria-label="Search Solaris Studio pages"
+                      autoComplete="off"
+                    />
+                  </label>
+                  {presentation === "mobile-web" ? (
+                    <label className="v3-directory-area-select">
+                      <span className="sr-only">Browse pages by area</span>
+                      <select aria-label="Browse pages by area" value={area}
+                        onChange={(event) => setArea(event.target.value as SiteDirectoryArea)}>
+                        <option value="all">All areas ({searchMatches.length})</option>
+                        {areas.map((item) => (
+                          <option key={item.area} value={item.area}>{item.label} ({item.count})</option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
+                </div>
+                <p className="v3-directory-results-count" role="status">{matches.length} matching pages</p>
+                <DirectoryGroups items={matches} presentation={presentation} />
+                {!matches.length ? <DirectoryEmpty onReset={reset} /> : null}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </AppShell>
+  );
+}
+
+function DirectoryGroups({
+  items,
+  presentation,
+}: {
+  items: readonly PublicDestination[];
+  presentation: V3DirectoryPresentation;
+}) {
+  return (
+    <div className="v3-directory-groups">
+      {SITE_DIRECTORY_AREA_ORDER.map((area: PublicArea) => {
+        const group = items.filter((item) => item.area === area);
+        if (!group.length) return null;
+        const headingId = `directory-${area}`;
+        return (
+          <section key={area} aria-labelledby={headingId} className="v3-directory-group">
+            {presentation === "installed-app" ? (
+              <AppSectionHeader eyebrow="Browse" title={SITE_DIRECTORY_AREA_LABELS[area]} id={headingId} />
+            ) : (
+              <h2 id={headingId} className="v3-directory-group-title">{SITE_DIRECTORY_AREA_LABELS[area]}</h2>
+            )}
+            {presentation === "installed-app" ? (
+              <AppGroupedList>
+                {group.map((item) => (
+                  <Link key={item.id} to={item.to as any} className="solaris-app-list-row">
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-foreground">{item.label}</span>
+                      <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
+                    </span>
+                    <ChevronRight size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                  </Link>
+                ))}
+              </AppGroupedList>
+            ) : presentation === "mobile-web" ? (
+              <div className="v3-directory-mobile-list">
+                {group.map((item) => (
+                  <Link key={item.id} to={item.to as any} className="v3-directory-mobile-row">
+                    <span className="min-w-0 flex-1">
+                      <strong>{item.label}</strong>
+                      <span>{item.description}</span>
+                    </span>
+                    <ChevronRight size={19} aria-hidden="true" />
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="v3-directory-desktop-grid">
+                {group.map((item) => (
+                  <Link key={item.id} to={item.to as any} className="v3-directory-desktop-card">
+                    <span className="v3-directory-card-top">
+                      <strong>{item.label}</strong>
+                      <ChevronRight size={19} aria-hidden="true" />
+                    </span>
+                    <span className="v3-directory-card-description">{item.description}</span>
+                    {item.aliases?.length ? (
+                      <span className="v3-directory-aliases">Also known as {item.aliases.join(", ")}</span>
+                    ) : null}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function DirectoryEmpty({ onReset }: { onReset: () => void }) {
+  return (
+    <AppEmptyState
+      title="No matching pages"
+      description="Try another page, feature or area. All available destinations remain searchable."
+      action={
+        <button type="button" onClick={onReset} className="solaris-app-empty-action">
+          Clear filters
+        </button>
+      }
+    />
   );
 }
