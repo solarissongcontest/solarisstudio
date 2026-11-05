@@ -65,3 +65,27 @@
 @media(prefers-reduced-motion:reduce) {
   .v3-music-directory .v3-music-browse-link {transition:none;}
 }
+
+/* Catalogue indexes: same controls as music discovery, but dense collections. */
+.v3-music-entity-index .v3-music-search-panel {
+  padding:.25rem 0 1rem;
+  margin-bottom:.25rem;
+}
+.v3-music-related-links {
+  display:flex;flex-wrap:wrap;gap:.55rem 1rem;align-items:center;
+  border-top:1px solid var(--music-divider);padding-top:.5rem;
+}
+.v3-music-related-links .v3-music-browse-link{margin-top:0}
+.v3-music-entity-detail .v3-screen-header .v3-display {
+  overflow-wrap:anywhere;text-wrap:balance;max-width:26ch;
+}
+.v3-music-detail-columns{display:grid;grid-template-columns:minmax(0,1fr);gap:1.5rem;min-width:0}
+.v3-music-detail-columns .v3-section{min-width:0}
+.v3-music-entity-detail .v3-music-preview-list{border-top:1px solid var(--music-divider)}
+.v3-music-entity-detail .v3-music-preview-list :is(a,div):last-child{border-bottom:0}
+.v3-music-directory--desktop-web .v3-music-detail-columns{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  align-items:start;gap:clamp(1.5rem,3vw,3rem)
+}
+.v3-music-directory--mobile-web .v3-music-detail-columns{gap:1.25rem}
+.v3-music-directory--installed-app .v3-music-detail-columns{gap:1rem}
