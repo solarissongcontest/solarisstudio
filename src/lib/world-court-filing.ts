@@ -170,10 +170,15 @@ export async function fetchCourtCaseFilings(caseId: string): Promise<CourtFiling
   return (data ?? []).map(parseCourtFiling);
 }
 
-function verifiedReceipt(input: unknown): { id: string; identifier: string; revision: number; status: CourtStatus } {
-  if (!obj(input) || input.ok !== true) throw new Error("Court operation was not acknowledged.");
-  return { id: uid(input.caseId), identifier: txt(input.identifier),
-    revision: version(input.revision), status: status(input.status) };
+function verifiedReceipt(input: unknown, expectedOperationId: string): { id: string; identifier: string; revision: number; status: CourtStatus } {
+  const receipt = obj(input) ? input : null;
+  const result = obj(receipt?.result) ? receipt.result : null;
+  if (receipt?.status !== "succeeded" || receipt.operationId !== expectedOperationId
+    || result?.ok !== true || result.operationId !== expectedOperationId) {
+    throw new Error("Court operation was not acknowledged with a matching receipt.");
+  }
+  return { id: uid(result.caseId), identifier: txt(result.identifier),
+    revision: version(result.revision), status: status(result.status) };
 }
 
 export async function fileCourtCase(input: {
@@ -190,7 +195,7 @@ export async function fileCourtCase(input: {
     p_operation_id: uid(op.operationId), p_idempotency_key: op.key,
   });
   check(error);
-  return verifiedReceipt(data);
+  return verifiedReceipt(data, op.operationId);
 }
 
 export async function submitCourtResponse(input: {
@@ -203,5 +208,5 @@ export async function submitCourtResponse(input: {
     p_operation_id: uid(op.operationId), p_idempotency_key: op.key,
   });
   check(error);
-  return verifiedReceipt(data);
+  return verifiedReceipt(data, op.operationId);
 }
