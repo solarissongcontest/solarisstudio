@@ -29,7 +29,9 @@ describe("Public Records browser presentation consolidation", () => {
   });
 
   it("retains all archive category and citation/link presentation on mobile web", () => {
-    expect(route).toContain("buildCanonicalFanRecords({");
+    expect(route).toContain("buildCanonicalFanRecordsWithCoverage({");
+    expect(route).toContain("const { records, archivedFinalEditions } = useMemo(");
+    expect(route).not.toContain("const showById = useMemo(");
     expect(route).toContain("data-records-mobile-web-coverage");
     expect(route).toContain("data-records-mobile-web-categories");
     expect(route).toContain("Tied countries share the record.");
