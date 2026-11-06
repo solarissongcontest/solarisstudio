@@ -11,6 +11,8 @@ import {
   verifiedWorldSearchTerm,
   WORLD_UNIFIED_SEARCH_LIMIT,
   WORLD_UNIFIED_SEARCH_MAX_PAGE,
+  worldPublicQueryVerified,
+  verifiedWorldFeaturedOrganizations,
   type WorldSearchCountry,
   type WorldSearchCategory,
 } from "@/lib/terra-world-unified-search";
@@ -136,9 +138,12 @@ export function WorldUnifiedSearchPage({
     staleTime: 90_000,
     retry: false,
   });
+  const verifiedFeatured = !canSearch && showOrganizations && worldPublicQueryVerified(featured)
+    ? verifiedWorldFeaturedOrganizations(featured.data ?? [])
+    : [];
   const visible = canSearch &&
-    (!showCountries || countryQuery.isSuccess) &&
-    (!showOrganizations || organizationQuery.isSuccess)
+    (!showCountries || worldPublicQueryVerified(countryQuery)) &&
+    (!showOrganizations || worldPublicQueryVerified(organizationQuery))
     ? {
       term: normalized,
       countries: showCountries ? countryQuery.data!.countries : [],
@@ -251,9 +256,7 @@ export function WorldUnifiedSearchPage({
               <p className="mt-2 text-sm text-muted-foreground">
                 Official GUARD and UNITY profiles, where published.
               </p>
-              {featured.isPending ? (
-                <p role="status" className="py-5 text-sm text-muted-foreground">Loading public institutions…</p>
-              ) : featured.isError ? (
+              {featured.isError || featured.isRefetchError ? (
                 <div role="alert" className="py-5 text-sm text-muted-foreground">
                   Featured institutions could not be verified.
                   <button type="button" onClick={() => void featured.refetch()}
@@ -261,9 +264,11 @@ export function WorldUnifiedSearchPage({
                     Retry
                   </button>
                 </div>
-              ) : featured.data.length ? (
+              ) : featured.isPending || featured.isFetching ? (
+                <p role="status" className="py-5 text-sm text-muted-foreground">Verifying public institutions…</p>
+              ) : verifiedFeatured.length ? (
                 <div className="mt-3 divide-y divide-border">
-                  {featured.data.map((organization) =>
+                  {verifiedFeatured.map((organization) =>
                     <OrganizationRow key={organization.id} organization={organization} />)}
                 </div>
               ) : (
@@ -275,20 +280,24 @@ export function WorldUnifiedSearchPage({
           </section>
         ) : null}
 
-        {canSearch && ((showCountries && countryQuery.isPending) || (showOrganizations && organizationQuery.isPending)) ? (
+        {canSearch && ((showCountries && (countryQuery.isPending || countryQuery.isFetching)) ||
+          (showOrganizations && (organizationQuery.isPending || organizationQuery.isFetching))) &&
+          !(showCountries && (countryQuery.isError || countryQuery.isRefetchError)) &&
+          !(showOrganizations && (organizationQuery.isError || organizationQuery.isRefetchError)) ? (
           <p role="status" aria-live="polite" className="py-8 text-sm text-muted-foreground">
             Searching published World records…
           </p>
         ) : null}
-        {canSearch && ((showCountries && countryQuery.isError) || (showOrganizations && organizationQuery.isError)) ? (
+        {canSearch && ((showCountries && (countryQuery.isError || countryQuery.isRefetchError)) ||
+          (showOrganizations && (organizationQuery.isError || organizationQuery.isRefetchError))) ? (
           <div role="alert" className="mt-8 border-y border-border py-6">
             <h2 className="text-lg font-semibold">World search is unavailable</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               Official results could not be verified. No cached or assumed results are being shown.
             </p>
             <button type="button" onClick={() => {
-              if (showCountries && countryQuery.isError) void countryQuery.refetch();
-              if (showOrganizations && organizationQuery.isError) void organizationQuery.refetch();
+              if (showCountries && (countryQuery.isError || countryQuery.isRefetchError)) void countryQuery.refetch();
+              if (showOrganizations && (organizationQuery.isError || organizationQuery.isRefetchError)) void organizationQuery.refetch();
             }}
               className="mt-4 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold">
               Try again
