@@ -4,8 +4,11 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowRight,
   BarChart3,
+  Blend,
+  FlaskConical,
   Globe2,
   History,
+  Network,
   PlayCircle,
   Settings2,
   ShieldAlert,
@@ -39,13 +42,13 @@ const ADVANCED_VOTING_TOOLS: Array<{
   title: string;
   description: string;
 }> = [
-  { to: "/admin/friend-voting", icon: Users, title: "Friend-voting intelligence", description: "Historical relationships, reciprocity and HOD-aware network analysis." },
+  { to: "/admin/friend-voting", icon: Network, title: "Friend-voting intelligence", description: "Historical relationships, reciprocity and HOD-aware network analysis." },
   { to: "/televoting/admin/analytics", icon: BarChart3, title: "Voting analytics", description: "Turnout, point distribution and entry performance." },
-  { to: "/televoting/admin/combined", icon: BarChart3, title: "Combined result tools", description: "Inspect how jury and public voting are combined." },
+  { to: "/televoting/admin/combined", icon: Blend, title: "Combined result tools", description: "Inspect how jury and public voting are combined." },
   { to: "/televoting/admin/result-integrity", icon: ShieldAlert, title: "Result integrity", description: "Review result sensitivity, support concentration and influence evidence before release." },
   { to: "/televoting/admin/integrity-declarations", icon: ShieldAlert, title: "Integrity declarations", description: "Review declaration trails attached to voting submissions." },
   { to: "/televoting/admin/audit-log", icon: History, title: "Voting audit log", description: "Review important organizer actions and integrity decisions." },
-  { to: "/televoting/admin/backtest", icon: PlayCircle, title: "Result backtest", description: "Rehearse historical result and integrity scenarios without changing official state." },
+  { to: "/televoting/admin/backtest", icon: FlaskConical, title: "Result backtest", description: "Rehearse historical result and integrity scenarios without changing official state." },
   { to: "/televoting/admin/editions", icon: Trophy, title: "Voting edition links", description: "Inspect the voting service projection of Solaris editions." },
 ];
 
