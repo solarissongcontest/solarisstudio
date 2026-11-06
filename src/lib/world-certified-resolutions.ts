@@ -80,10 +80,15 @@ export function parseWorldCertifiedResolutionDetail(raw: unknown): WorldCertifie
   if (!base || !r || !text(r.text) || !uuid(r.sourceMeasureId) ||
       !uuid(r.adoptedVersionId) || !hash(r.sourceVersionHash) ||
       !revision(r.revision) || !(r.effectiveAt === null || instant(r.effectiveAt))) return null;
-  const { measureId: _measureId, ...rest } = base;
-  return { ...rest, text: r.text, sourceMeasureId: r.sourceMeasureId,
+  return {
+    id: base.id, identifier: base.identifier, title: base.title,
+    organizationSlug: base.organizationSlug, organizationName: base.organizationName,
+    status: base.status, adoptedAt: base.adoptedAt,
+    voteId: base.voteId, resultHash: base.resultHash,
+    text: r.text, sourceMeasureId: r.sourceMeasureId,
     adoptedVersionId: r.adoptedVersionId, sourceVersionHash: r.sourceVersionHash,
-    revision: r.revision, effectiveAt: r.effectiveAt };
+    revision: r.revision, effectiveAt: r.effectiveAt,
+  };
 }
 export function parseWorldResolutionCandidate(raw: unknown): WorldResolutionCandidate | null {
   const r = record(raw);
