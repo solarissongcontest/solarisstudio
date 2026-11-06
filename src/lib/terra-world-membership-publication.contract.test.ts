@@ -12,6 +12,17 @@ describe("TG3 membership chronicle public rollout boundary", () => {
     expect(source.split("await requireWorldPublication(client);")).toHaveLength(3);
   });
 
+  it("applies the canonical recognized-institution vocabulary at all public read boundaries", () => {
+    const reader = readFileSync(resolve(process.cwd(),
+      "src/integrations/v3/terra-world-membership-chronicle.server.ts"), "utf8");
+    const decoder = readFileSync(resolve(process.cwd(),
+      "src/lib/terra-world-membership-chronicle.ts"), "utf8");
+    expect(reader.split('.in("status", [...WORLD_RECOGNIZED_INSTITUTION_STATUSES])')).toHaveLength(4);
+    expect(reader.split('select("id,slug,short_name,status,public_visibility"')).toHaveLength(4);
+    expect(reader).toContain("if (data) parseWorldChronicleInstitutions([data])");
+    expect(decoder).toContain("WORLD_RECOGNIZED_INSTITUTION_STATUSES");
+  });
+
   it("never presents cached identities and membership terms during refetch", () => {
     const source = readFileSync(resolve(process.cwd(),
       "src/components/world/TerraWorldMembershipChronicle.tsx"), "utf8");

@@ -8,8 +8,8 @@ import {
 } from "./terra-world-membership-chronicle";
 
 const organizations = [
-  { id: "guard", slug: "guard", short_name: "GUARD", public_visibility: "public" },
-  { id: "unity", slug: "unity", short_name: "UNITY", public_visibility: "public" },
+  { id: "guard", slug: "guard", short_name: "GUARD", public_visibility: "public", status: "active" },
+  { id: "unity", slug: "unity", short_name: "UNITY", public_visibility: "public", status: "active" },
 ];
 const country = [{ id: "oland", name: "Oland", short_code: "OLA", flag_image: "/flags/ola.png" }];
 const active = {
@@ -74,6 +74,9 @@ describe("Terra Solaris public membership chronicle", () => {
     expect(() => parseWorldChronicleInstitutions([{ ...organizations[0], public_visibility: "private" }])).toThrow(/visibility/);
     expect(() => parseWorldChronicleInstitutions([{ id: "guard", slug: "guard", short_name: "GUARD" }])).toThrow(/visibility/);
     expect(parseWorldChronicleInstitutions(organizations)).toHaveLength(2);
+    expect(() => parseWorldChronicleInstitutions([{ ...organizations[0], status: "proposed" }])).toThrow(/recognized institution status/);
+    expect(() => parseWorldChronicleInstitutions([{ ...organizations[0], status: undefined }])).toThrow(/recognized institution status/);
+    expect(parseWorldChronicleInstitutions([{ ...organizations[0], status: "historical" }])).toHaveLength(1);
   });
   it("rejects inconsistent page-count claims and oversized rows", () => {
     expect(() => parseWorldMembershipChronicle({ ...projection([active]), count: 0 })).toThrow(/page count/);

@@ -1,3 +1,4 @@
+import { WORLD_RECOGNIZED_INSTITUTION_STATUSES } from "@/lib/world-country-international";
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import {
   WORLD_MEMBERSHIP_CHRONICLE_ORGANIZATION_LIMIT,
@@ -39,8 +40,9 @@ async function requireWorldPublication(client: PublicClient): Promise<void> {
 
 async function readPublishedInstitutions(client: PublicClient) {
   const { data, count, error } = await client.from("world_organizations")
-    .select("id,slug,short_name,public_visibility", { count: "exact" })
+    .select("id,slug,short_name,status,public_visibility", { count: "exact" })
     .eq("public_visibility", "public")
+    .in("status", [...WORLD_RECOGNIZED_INSTITUTION_STATUSES])
     .order("short_name", { ascending: true })
     .limit(WORLD_MEMBERSHIP_CHRONICLE_ORGANIZATION_LIMIT);
   assertSuccess(error, "Terra Solaris institutions");
@@ -73,11 +75,14 @@ export async function loadWorldMembershipChronicle(input: {
   let selectedOrganization: { id: string; slug: string; short_name: string } | null = null;
   if (organizationSlug) {
     const { data, error } = await client.from("world_organizations")
-      .select("id,slug,short_name,public_visibility")
+      .select("id,slug,short_name,status,public_visibility")
       .eq("public_visibility", "public")
+    .in("status", [...WORLD_RECOGNIZED_INSTITUTION_STATUSES])
       .eq("slug", organizationSlug)
       .maybeSingle();
     assertSuccess(error, "selected institution");
+    // Do not trust an overpermissive RLS result from an unrecognized organization.
+    if (data) parseWorldChronicleInstitutions([data]);
     selectedOrganization = data;
     // Do not reveal whether an inaccessible organization exists.
     if (!selectedOrganization) {
@@ -124,8 +129,9 @@ export async function loadWorldMembershipChronicle(input: {
     organizations = [selectedOrganization];
   } else if (organizationIds.length) {
     const result = await client.from("world_organizations")
-      .select("id,slug,short_name,public_visibility")
+      .select("id,slug,short_name,status,public_visibility")
       .eq("public_visibility", "public")
+    .in("status", [...WORLD_RECOGNIZED_INSTITUTION_STATUSES])
       .in("id", organizationIds)
       .limit(WORLD_MEMBERSHIP_CHRONICLE_PAGE_SIZE);
     assertSuccess(result.error, "public institution identities");

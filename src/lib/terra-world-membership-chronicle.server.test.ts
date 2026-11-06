@@ -62,6 +62,7 @@ const organization = {
   slug: "guard",
   short_name: "GUARD",
   public_visibility: "public",
+  status: "active",
 };
 const country = {
   id: "country-1",
@@ -128,7 +129,12 @@ describe("TG3 World membership chronicle server query boundary", () => {
     expect(calls).toContainEqual({
       table: "world_organizations",
       method: "select",
-      args: ["id,slug,short_name,public_visibility"],
+      args: ["id,slug,short_name,status,public_visibility"],
+    });
+    expect(calls).toContainEqual({
+      table: "world_organizations",
+      method: "in",
+      args: ["status", ["recognized", "active", "suspended", "historical", "dissolved"]],
     });
     expect(calls).toContainEqual({
       table: "countries",
@@ -168,6 +174,28 @@ describe("TG3 World membership chronicle server query boundary", () => {
       countries: [noError([country])],
     });
     await expect(loadWorldMembershipChronicle(filters)).rejects.toThrow(/visibility/);
+  });
+
+  it("rejects a proposed organization before reading its members even if upstream returns it", async () => {
+    const calls = installPublicClient({
+      world_organizations: [noError({ ...organization, status: "proposed" })],
+    });
+    await expect(loadWorldMembershipChronicle({
+      ...filters, organization: "guard",
+    })).rejects.toThrow(/recognized institution status/);
+    expect(calls.some(({ table }) => table === "world_organization_memberships")).toBe(false);
+    expect(calls).toContainEqual({
+      table: "world_organizations", method: "in",
+      args: ["status", ["recognized", "active", "suspended", "historical", "dissolved"]],
+    });
+  });
+
+  it("rejects pre-recognition organizations from the public selector", async () => {
+    const calls = installPublicClient({
+      world_organizations: [noError([{ ...organization, status: "proposed" }], 1)],
+    });
+    await expect(loadWorldMembershipInstitutions()).rejects.toThrow(/recognized institution status/);
+    expect(calls.some(({ table }) => table === "world_organization_memberships")).toBe(false);
   });
 
   it("uses exact country equality, not LIKE wildcard matching", async () => {

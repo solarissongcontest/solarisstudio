@@ -1,3 +1,5 @@
+import { WORLD_RECOGNIZED_INSTITUTION_STATUSES } from "./world-country-international";
+
 /**
  * Public Terra Solaris institutional membership chronicle.
  *
@@ -103,6 +105,10 @@ export function parseWorldChronicleInstitutions(raw: unknown): WorldChronicleIns
     };
     if (row.public_visibility !== "public") {
       throw new Error("Unverified public institution visibility");
+    }
+    // An organization can have a public row before it is formally recognized.
+    if (!(WORLD_RECOGNIZED_INSTITUTION_STATUSES as readonly string[]).includes(String(row.status))) {
+      throw new Error("Unverified recognized institution status");
     }
     if (seen.has(institution.id)) throw new Error("Duplicate public institution");
     seen.add(institution.id);
