@@ -40,10 +40,24 @@ describe("V3 MySolaris Entry private context", () => {
     expect(source).toContain("editScopeInput.authorized");
   });
 
+  it("binds sensitive entry projections to the currently resolved session", () => {
+    expect(source).toContain("const session = useFanSession()");
+    expect(source).toContain("account.data?.access.userId === session.data.id");
+    expect(source).toContain("const ownCountry = access ? account.data?.country : null");
+    expect(source).toContain("Confirmation edit permissions could not be verified.");
+    expect(source).toContain("confirmationAccessQuery.refetch()");
+  });
+
   it("distinguishes failed access from an empty entry", () => {
-    expect(source).toContain("if (account.isError || featureQuery.isError)");
+    expect(source).toContain("session.isError ||");
+    expect(source).toContain("account.isError ||");
+    expect(source).toContain("featureQuery.isError ||");
+    expect(source).toContain("allEditions.isError ||");
+    expect(source).toContain("session.isPending ||");
+    expect(source).toContain("account.isPending ||");
     expect(source).toContain("Entry access could not be verified");
     expect(source).toContain("Retry access check");
+    expect(source).toContain("void session.refetch()");
     expect(source).toContain("void account.refetch()");
   });
 });
