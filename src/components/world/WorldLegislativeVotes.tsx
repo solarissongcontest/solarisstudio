@@ -46,7 +46,7 @@ function useActor() {
     });
     return ()=>{live=false;subscription.unsubscribe();};
   },[cache]);
-  return {id,ready,generation};
+  return {id,ready,generation,liveIdentity:idRef};
 }
 function errorText(err:unknown):string{
   if(err&&typeof err==="object"&&"code" in err){
@@ -120,9 +120,9 @@ export function WorldVoteDirectory(){
       <Link to="/world/votes/new" className="inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-semibold">
         Open an authorized vote
       </Link>
-      <Link to="/world/measures" className="inline-flex min-h-11 items-center rounded-lg border px-4 text-sm">
+      <a href="/world/measures" className="inline-flex min-h-11 items-center rounded-lg border px-4 text-sm">
         Proposals and bills
-      </Link>
+      </a>
     </div>
     <label className="mt-8 block max-w-sm text-sm font-medium">Institution
       <select value={slug} onChange={e=>setSlug(e.target.value)}
@@ -165,10 +165,9 @@ export function WorldVoteDetail({voteId}:{voteId:string}){
   const [busy,setBusy]=useState(false);
   const [receipt,setReceipt]=useState<WorldVoteReceipt|null>(null);
   const [problem,setProblem]=useState<string|null>(null);
-  const [confirmedActor,setConfirmedActor]=useState<string|null>(null);
   useEffect(()=>{
     setSelected({});setReview(null);uncertain.current=null;
-    setBusy(false);setReceipt(null);setProblem(null);setConfirmedActor(null);
+    setBusy(false);setReceipt(null);setProblem(null);
   },[actor.generation,voteId]);
   function prepare(countryId:string){
     const choice=selected[countryId];
@@ -183,11 +182,11 @@ export function WorldVoteDetail({voteId}:{voteId:string}){
     uncertain.current=action;setBusy(true);setProblem(null);setReview(null);
     try{
       const answer=await castWorldBallot(action);
-      if(submittingActor!==confirmedActor&&confirmedActor!==null)return;
+      if(actor.liveIdentity.current!==submittingActor)return;
       setReceipt(answer);uncertain.current=null;
       await cache.invalidateQueries({queryKey:["world","votes","private","mine",submittingActor,voteId]});
     }catch(error){
-      if(submittingActor!==confirmedActor&&confirmedActor!==null)return;
+      if(actor.liveIdentity.current!==submittingActor)return;
       setProblem(errorText(error));
       if(finalError(error)) {
         uncertain.current=null;
@@ -275,7 +274,7 @@ export function WorldVoteDetail({voteId}:{voteId:string}){
                 </label>)}
               </div>
               <button type="button" disabled={!selected[seat.countryId]}
-                onClick={()=>{setConfirmedActor(actor.id);prepare(seat.countryId)}}
+                onClick={()=>prepare(seat.countryId)}
                 className="mt-4 min-h-11 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-40">
                 Review ballot
               </button>
