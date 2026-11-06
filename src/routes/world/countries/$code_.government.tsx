@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { WorldCountryGovernmentScreen } from "@/components/world/WorldCountryGovernment";
+import { WorldPublicGate } from "@/components/world/WorldPublic";
 
 /**
  * Path-unnested route: /world/countries/:code/government is independent of
@@ -15,5 +16,5 @@ export const Route = createFileRoute("/world/countries/$code_/government")({
 
 function GovernmentPage() {
   const { code } = Route.useParams();
-  return <WorldCountryGovernmentScreen code={code} />;
+  return <WorldPublicGate verifyOnMount><WorldCountryGovernmentScreen code={code} /></WorldPublicGate>;
 }
