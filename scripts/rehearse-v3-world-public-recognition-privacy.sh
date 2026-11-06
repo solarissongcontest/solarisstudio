@@ -23,14 +23,14 @@ DB_URL="${DB_URL#\"}"; DB_URL="${DB_URL%\"}"
 
 [ -n "$API_URL" ] || fail 'Missing local Supabase API URL'
 [ -n "$DB_URL" ] || fail 'Missing local Supabase DB URL'
-case "$API_URL" in
-  http://127.0.0.1:*|http://localhost:*) ;;
-  *) fail 'Refusing hosted/non-loopback API endpoint' ;;
-esac
-case "$DB_URL" in
-  postgres://postgres:postgres@127.0.0.1:*/*|postgresql://postgres:postgres@127.0.0.1:*/*|postgres://postgres:postgres@localhost:*/*|postgresql://postgres:postgres@localhost:*/*) ;;
-  *) fail 'Refusing hosted/non-loopback database endpoint' ;;
-esac
+# Anchor the COMPLETE URLs, not just a loopback-looking prefix.
+# In particular, 127.0.0.1:54321@remote.example is a remote URL.
+if [[ ! "$API_URL" =~ ^http://(127[.]0[.]0[.]1|localhost):[0-9]{1,5}/?$ ]]; then
+  fail 'Refusing hosted/non-loopback API endpoint'
+fi
+if [[ ! "$DB_URL" =~ ^postgres(ql)?://postgres:postgres@(127[.]0[.]0[.]1|localhost):[0-9]{1,5}/postgres$ ]]; then
+  fail 'Refusing hosted/non-loopback database endpoint'
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 psql "$DB_URL" --no-psqlrc -v ON_ERROR_STOP=1 \
