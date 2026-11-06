@@ -28,6 +28,9 @@ import {
 } from "@/lib/v3-fantasy";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
+const FANTASY_GAME_FIELDS = "id,edition_id,show_id,name,opens_at,locks_at,status,roster_size,budget,captain_multiplier,scoring_version";
+const FANTASY_TEAM_FIELDS = "id,game_id,profile_id,state,captain_country_id,score";
+
 export const Route = createFileRoute("/fantasy/")({
   head: () => ({
     meta: [
@@ -75,7 +78,7 @@ function FantasyPage() {
     enabled: feature.data === true,
     queryKey: ["fantasy-games"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("fantasy_games").select("*").neq("status", "cancelled").order("locks_at", { ascending: false });
+      const { data, error } = await (supabase as any).from("fantasy_games").select(FANTASY_GAME_FIELDS).neq("status", "cancelled").order("locks_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as V3FantasyGame[];
     },
@@ -110,7 +113,7 @@ function FantasyPage() {
       if (authError || !viewerId || auth.user?.id !== viewerId) {
         throw new Error("Fantasy account changed. Refresh your session before continuing.");
       }
-      const { data, error } = await (supabase as any).from("fantasy_teams").select("*").eq("game_id", activeGame!.id).eq("profile_id", viewerId).maybeSingle();
+      const { data, error } = await (supabase as any).from("fantasy_teams").select(FANTASY_TEAM_FIELDS).eq("game_id", activeGame!.id).eq("profile_id", viewerId).maybeSingle();
       if (error) throw error;
       return data as V3FantasyTeam | null;
     },

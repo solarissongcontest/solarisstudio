@@ -119,6 +119,15 @@ const projection = source("src/lib/v3-fantasy.ts");
     expect(projection).toContain("canEditV3FantasyRoster");
     expect(projection).not.toContain('"archived"');
   });
+  it("bounds repeatedly fetched Fantasy game rows and caller-specific team reads", () => {
+    expect(route).toContain('const FANTASY_GAME_FIELDS = "id,edition_id,show_id,name,opens_at,locks_at,status,roster_size,budget,captain_multiplier,scoring_version"');
+    expect(route).toContain('const FANTASY_TEAM_FIELDS = "id,game_id,profile_id,state,captain_country_id,score"');
+    expect(route).toContain('.from("fantasy_games").select(FANTASY_GAME_FIELDS)');
+    expect(route).toContain('.from("fantasy_teams").select(FANTASY_TEAM_FIELDS)');
+    expect(route).not.toContain('.from("fantasy_games").select("*")');
+    expect(route).not.toContain('.from("fantasy_teams").select("*")');
+  });
+
   it("never presents failed, paused, pending or unpublished Fantasy leaderboard reads as empty scores", () => {
     expect(projection).toContain("normalizeV3FantasyStandings(payload: unknown)");
     expect(route).toContain("return normalizeV3FantasyStandings(data);");
