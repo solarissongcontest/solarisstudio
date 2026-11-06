@@ -117,6 +117,13 @@ describe("Unified World Search public rendering", () => {
     expect(organizations).not.toContain('aria-labelledby="world-search-countries"');
   });
 
+  it("does not display featured institutions in country-only browse mode", () => {
+    const html = renderWorldSearch(0, 0, "a", "active", "countries");
+    expect(html).toContain("Explore the world");
+    expect(html).not.toContain("Featured institutions");
+    expect(html).not.toContain("GUARD");
+  });
+
   it("shows published featured institutions without searching when the term is too short", () => {
     const html = renderWorldSearch(0, 0, "a");
     expect(html).toContain("Enter at least two characters");
