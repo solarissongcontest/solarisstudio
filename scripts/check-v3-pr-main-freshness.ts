@@ -415,6 +415,7 @@ export async function invalidateSuccessfulFreshnessAfterMainAdvance(): Promise<n
   if (!mainSha) throw new Error("current main SHA is not an exact 40-character SHA");
 
   let cursor: string | null = null;
+  const seenCursors = new Set<string>();
   let pageCount = 0;
   let scanned = 0;
   const targets: Array<{ number: number; headSha: string }> = [];
@@ -438,7 +439,23 @@ export async function invalidateSuccessfulFreshnessAfterMainAdvance(): Promise<n
       statusContexts: pull.commits.nodes[0]?.commit.status?.contexts ?? [],
     }));
     targets.push(...selectFreshnessHeadsToInvalidate(normalized, mainSha));
-    cursor = connection.pageInfo.hasNextPage ? connection.pageInfo.endCursor : null;
+    // A truncated or cyclic GraphQL scan cannot prove that all stale heads
+    // were invalidated. Reject it before publishing any new status.
+    const pageInfo = connection.pageInfo;
+    if (!pageInfo || typeof pageInfo.hasNextPage !== "boolean") {
+      throw new Error("GitHub GraphQL open-PR pagination omitted hasNextPage");
+    }
+    if (pageInfo.hasNextPage) {
+      const nextCursor = pageInfo.endCursor;
+      if (typeof nextCursor !== "string" || !nextCursor.trim() ||
+          nextCursor === cursor || seenCursors.has(nextCursor)) {
+        throw new Error("GitHub GraphQL open-PR pagination has missing or repeated cursor");
+      }
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    } else {
+      cursor = null;
+    }
   } while (cursor);
 
   for (const target of targets) {
