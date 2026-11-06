@@ -26,7 +26,7 @@ for (const key of Object.keys(env)) {
     delete env[key];
   }
 }
-const sqlFile = fileURLToPath(new URL("../.github/scripts/v3-world-09-schema-rehearsal.sql", import.meta.url));
+const sqlFile = fileURLToPath(new URL("./rehearse-v3-world-09-local.sql", import.meta.url));
 const result = spawnSync("psql", ["-X", "-q", "-v", "ON_ERROR_STOP=1", "-d", raw, "-f", sqlFile],
   { env, stdio: "inherit", timeout: 30_000 });
 if (result.error) throw result.error;
