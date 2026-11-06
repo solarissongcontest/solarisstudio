@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { parsePublishedTreaties } from "@/lib/world-treaties";
 
@@ -30,9 +30,9 @@ function TreatyDirectory() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 px-4 py-8 pb-24 sm:px-6">
       <header className="space-y-3">
-        <Link to="/world" className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">
+        <a href="/world" className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">
           Terra Solaris World
-        </Link>
+        </a>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Treaties and protocols</h1>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
           Published legal treaties connected to canonical institutional documents.
@@ -68,11 +68,10 @@ function TreatyDirectory() {
                       {treaty.organizationName} · {treaty.treatyType.replaceAll("_"," ")}
                     </p>
                     <h2 className="text-xl font-bold">
-                      <Link className="underline-offset-4 hover:underline"
-                        to="/world/documents/$organization/$document"
-                        params={{ organization: treaty.organizationSlug, document: treaty.documentSlug }}>
+                      <a className="underline-offset-4 hover:underline"
+                        href={`/world/documents/${encodeURIComponent(treaty.organizationSlug)}/${encodeURIComponent(treaty.documentSlug)}`}>
                         {treaty.title}
-                      </Link>
+                      </a>
                     </h2>
                   </div>
                   <span className="rounded-lg border border-border px-3 py-1 text-xs font-medium">
