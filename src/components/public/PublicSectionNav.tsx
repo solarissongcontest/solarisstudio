@@ -53,6 +53,7 @@ export function PublicSectionNav({
           className="public-section-nav-toggle"
           onClick={() => setCollapsed((value) => !value)}
           aria-expanded={!interactiveCollapsed}
+          aria-controls={`public-section-nav-links-${area}`}
           aria-label={interactiveCollapsed ? `Expand ${sectionLabel(area)} navigation` : `Collapse ${sectionLabel(area)} navigation`}
           title={interactiveCollapsed ? "Expand navigation" : "Collapse navigation"}
         >
@@ -65,7 +66,11 @@ export function PublicSectionNav({
         </button>
       ) : null}
 
-      <nav className="public-section-nav-body">
+      <nav
+        id={`public-section-nav-links-${area}`}
+        className="public-section-nav-body"
+        aria-label={`${sectionLabel(area)} section links`}
+      >
         <div className="px-2">
           <p className="public-site-sidebar-label">{sectionLabel(area)}</p>
           <p className="mt-1 text-[11px] leading-4 text-muted-foreground/70">
@@ -114,7 +119,6 @@ export function PublicSectionNav({
     </aside>
   );
 }
-
 
 /** Keep the current advanced destination discoverable on browser back/forward. */
 function AdvancedSectionNavigation({
