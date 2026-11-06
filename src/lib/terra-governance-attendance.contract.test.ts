@@ -83,6 +83,17 @@ describe("TG6 governed institutional roll-call", () => {
     expect(writer).not.toContain("world_ballots");
   });
 
+  it("never admits future-effective representation or member status to attendance", () => {
+    expect(writer).toContain("v_rep.starts_at > now()");
+    expect(writer).toContain("member_row.joined_at <= now()");
+    expect(manager).toContain("candidate.starts_at <= now()");
+    expect(manager).toContain("membership_row.joined_at <= now()");
+    expect(rehearsal).toContain("TG6_ATTENDANCE_FUTURE_REP_RECORD_ALLOWED");
+    expect(rehearsal).toContain("TG6_ATTENDANCE_FUTURE_MEMBER_RECORD_ALLOWED");
+    expect(rehearsal).toContain("TG6_ATTENDANCE_FUTURE_REP_IN_ROSTER");
+    expect(rehearsal).toContain("TG6_ATTENDANCE_FUTURE_MEMBER_IN_ROSTER");
+  });
+
   it("claims an R2 operation before mutable state checks and requires per-country revision CAS", () => {
     const claim = writer.indexOf("private.studio2_claim_operation");
     const replay = writer.indexOf("if coalesce((v_claim->>'replayed')::boolean,false)");
