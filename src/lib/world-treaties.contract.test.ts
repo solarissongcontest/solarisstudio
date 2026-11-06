@@ -107,6 +107,8 @@ describe("TG4 treaty registration and publication-safe index", () => {
     expect(admin).toContain("Listed countries");
     expect(admin).not.toMatch(/\.from\(["']world_treaties["']\)/);
     expect(publicRoute).toContain("world_get_published_treaties_v1");
+    expect(publicRoute).toContain("WorldPublicGate verifyOnMount");
+    expect(publicRoute).toContain("<AppShell>");
     expect(publicRoute).toContain("Listed · no signature");
     expect(publicRoute).toContain("No unpublished or cached fallback");
   });
