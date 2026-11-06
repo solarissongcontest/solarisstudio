@@ -207,30 +207,30 @@ function OrganizerDelegationsPage() {
                 </div>
                 <div className="divide-y divide-white/[0.07] border-t border-white/[0.07]">
                   {visibleAttention.slice(0, 12).map((requirement) => (
-                  <div
-                    key={requirement.id}
-                    className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-foreground">{requirement.countryName}</p>
-                        <AdminStatus tone="attention">Required</AdminStatus>
-                        {requirement.generation > 1 ? (
-                          <AdminStatus tone="neutral">Revision {requirement.generation}</AdminStatus>
-                        ) : null}
-                      </div>
-                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                        {requirement.reason}
-                      </p>
-                    </div>
-                    <Link
-                      to="/confirmations/admin/requirements"
-                      className="admin-action-secondary shrink-0"
+                    <div
+                      key={requirement.id}
+                      className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      Review <ArrowRight className="size-4" />
-                    </Link>
-                  </div>
-                ))}
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-foreground">{requirement.countryName}</p>
+                          <AdminStatus tone="attention">Required</AdminStatus>
+                          {requirement.generation > 1 ? (
+                            <AdminStatus tone="neutral">Revision {requirement.generation}</AdminStatus>
+                          ) : null}
+                        </div>
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                          {requirement.reason}
+                        </p>
+                      </div>
+                      <Link
+                        to="/confirmations/admin/requirements"
+                        className="admin-action-secondary shrink-0"
+                      >
+                        Review <ArrowRight className="size-4" />
+                      </Link>
+                    </div>
+                  ))}
                   {visibleAttention.length === 0 ? (
                     <p className="py-4 text-xs text-muted-foreground">
                       No unresolved obligations match this search. The edition-wide attention total remains unchanged.
