@@ -8,6 +8,23 @@ const workflowFiles = () => {
   return readdirSync(workflowDir).filter((name) => /\.ya?ml$/i.test(name));
 };
 
+/**
+ * A local-only browser audit has no reason to receive repository or organization
+ * credentials/configuration. The old named-secret check missed innocuous-looking
+ * aliases such as secrets.PROD_API_KEY or vars.FRONTEND_URL, including values
+ * referenced indirectly within GitHub Actions expressions.
+ *
+ * Parse complete expression bodies, not just a secret-name prefix.
+ * This guard never resolves or prints secret values.
+ */
+const externalConfigurationExpressions = (content: string): string[] =>
+  [...content.matchAll(/\$\{\{([\s\S]*?)\}\}/g)]
+    .map((match) => match[1])
+    .filter((expression) => /\b(?:secrets|vars)\b/i.test(expression));
+
+const executesBrowserOrDisposableSupabase = (content: string): boolean =>
+  /\bplaywright\b|\bsupabase\s+start\b/i.test(content);
+
 describe("CI egress safety contracts", () => {
   it("rejects hosted Supabase endpoints or Supabase secrets from every GitHub Actions workflow", () => {
     for (const name of workflowFiles()) {
@@ -32,6 +49,47 @@ describe("CI egress safety contracts", () => {
       expect(content, name).not.toContain("secrets.E2E_SUPABASE_PUBLISHABLE_KEY");
       expect(content, name).not.toMatch(/https:\/\/[^\s"']+\.supabase\.co/i);
     }
+  });
+
+  it("keeps browser and disposable-Supabase verification workflows free of GitHub secrets and remote config", () => {
+    const isolatedWorkflows = workflowFiles()
+      .map((name) => ({ name, content: source(`.github/workflows/${name}`) }))
+      .filter(({ content }) => executesBrowserOrDisposableSupabase(content));
+
+    expect(isolatedWorkflows.length).toBeGreaterThan(0);
+    for (const { name, content } of isolatedWorkflows) {
+      expect(
+        externalConfigurationExpressions(content),
+        `${name} must never inject GitHub secrets or org/repo vars into local automated verification`,
+      ).toEqual([]);
+    }
+  });
+
+  it("detects aliased and indirect credentials without rejecting local-only expressions", () => {
+    const rejected = [
+      "env: { API_KEY: ${{ secrets.PROD_API_KEY }} }",
+      "env: { URL: ${{ vars.PUBLIC_SITE_ORIGIN }} }",
+      "env: { API_KEY: ${{ secrets['NOT_NAMED_SUPABASE'] }} }",
+      "env: { KEY: ${{ format('{0}', secrets.BROWSER_TOKEN) }} }",
+      "env: { DATA: ${{ toJSON(secrets) }} }",
+      "env: { URL: ${{ github.event_name == 'push' && vars.E2E_TARGET || 'http://127.0.0.1:54321' }} }",
+    ];
+    for (const sourceText of rejected) {
+      expect(externalConfigurationExpressions(sourceText), sourceText).toHaveLength(1);
+    }
+    const accepted = [
+      "env: { URL: http://127.0.0.1:54321 }",
+      "env: { URL: ${{ env.LOCAL_SUPABASE_URL }} }",
+      "if: ${{ github.event_name == 'workflow_dispatch' }}",
+      "ref: ${{ github.event.pull_request.head.sha || github.sha }}",
+    ];
+    for (const sourceText of accepted) {
+      expect(externalConfigurationExpressions(sourceText), sourceText).toEqual([]);
+    }
+    expect(executesBrowserOrDisposableSupabase("run: bunx playwright test")).toBe(true);
+    expect(executesBrowserOrDisposableSupabase("run: supabase start")).toBe(true);
+    expect(executesBrowserOrDisposableSupabase("run: supabase db reset --local")).toBe(false);
+    expect(executesBrowserOrDisposableSupabase("with: { token: ${{ secrets.GITHUB_TOKEN }} }")).toBe(false);
   });
 
   it("keeps normal Quality CI pinned to loopback Supabase values", () => {
