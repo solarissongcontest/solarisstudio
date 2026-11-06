@@ -32,6 +32,15 @@ describe("Prediction builder unsaved-draft safety", () => {
     expect(source).toContain("setDraftDirty(false);\n      setMessage(\"Prediction saved");
   });
 
+  it("freezes all editable picks and blocks reentrant submissions while a server save is pending", () => {
+    const source = builder();
+    expect(source.match(/disabled=\\{locked \\|\\| submitPrediction\\.isPending\\}/g)?.length).toBe(5);
+    expect(source).not.toContain("disabled={locked}");
+    expect(source).toContain("if (submitPrediction.isPending) return;\\n    setDraftDirty(true);".replace("\\n", "\n"));
+    expect(source).toContain("event.preventDefault();\\n    if (submitPrediction.isPending) return;".replace("\\n", "\n"));
+    expect(source).toContain("disabled={submitPrediction.isPending}");
+  });
+
   it("does not display a mere draft as a submitted prediction in the workspace header", () => {
     expect(builder()).toContain("saved={hasSubmittedPrediction(savedPrediction)}");
   });
