@@ -2,9 +2,17 @@
  * Untrusted participant-supplied source links must not be emitted directly into
  * an Organizer href. This resolver never fetches or authorizes the resource.
  */
+function hasControlCharacters(value: string): boolean {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code <= 31 || code === 127) return true;
+  }
+  return false;
+}
+
 export function safeOrganizerEntrySourceUrl(source: string | null | undefined): string | null {
   // Check the original bytes before trim can discard leading/trailing controls.
-  if (!source || /[\u0000-\u001f\u007f]/.test(source)) return null;
+  if (!source || hasControlCharacters(source)) return null;
   const value = source.trim();
   if (!value) return null;
   try {
