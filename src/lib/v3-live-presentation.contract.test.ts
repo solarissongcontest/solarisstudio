@@ -53,6 +53,10 @@ describe("Public V3 Live presentation", () => {
     expect(screen).toContain("experience.voting.closedAt");
     expect(screen).toContain("experience.timing.resultsStartedAt");
     expect(screen).toContain("experience.timing.endedAt");
+    expect(screen).toContain('new Intl.DateTimeFormat("en-GB"');
+    expect(screen).toContain("timeZone: SOLARIS_TIME_ZONE");
+    expect(screen).not.toContain(".toLocaleTimeString(");
+    expect(screen).not.toContain(".toLocaleString(");
     expect(screen).toContain("do not independently advance");
     expect(screen).not.toContain("setTimeout(");
     expect(screen).not.toContain("setInterval(");
@@ -75,6 +79,20 @@ describe("Public V3 Live presentation", () => {
     expect(screen).toContain("disabled={refreshing}");
     expect(screen).toContain("motion-safe:animate-spin");
     expect(screen).toContain('aria-live="polite"');
+  });
+
+  it("does not use legacy Show Mode when V3 rollout is enabled but initial Live authority is absent", () => {
+    const routeGate = gate();
+    expect(routeGate).toContain("if (!rollout.data)");
+    expect(routeGate).toContain("if (!v3Enabled)");
+    expect(routeGate).not.toContain("if (!rollout.data || !v3Enabled)");
+    expect(routeGate).toContain("if (!bundle.data)");
+    expect(routeGate).toContain("Official Live state could not be verified");
+    expect(routeGate).toContain("onRetry={() => { void bundle.refetch(); }}");
+    expect(routeGate).toContain("refreshing={bundle.isFetching}");
+    // Legacy is an explicit server-rollout-off choice, never an undefined read fallback.
+    expect(routeGate.split("return <>{fallback}</>;").length - 1).toBe(1);
+    expect(routeGate).not.toContain("setInterval(");
   });
 
   it("surfaces stale authoritative snapshots instead of pretending they are current", () => {
