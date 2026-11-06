@@ -11,7 +11,7 @@ describe("Organizer System Settings exact edition context", () => {
   it("resolves edition-scoped content only from shell-owned OrganizerContext", () => {
     expect(route).toContain("const { editionId } = useAdminContext()");
     expect(route).toContain(
-      "() => (editionId ? editions.find((edition) => edition.id === editionId) ?? null : null)",
+      "() => (editionsReady && editionId ? editions.find((edition) => edition.id === editionId) ?? null : null)",
     );
     expect(route).not.toContain("ordered[0]");
     expect(route).not.toContain("[...editions].sort(");
@@ -23,12 +23,12 @@ describe("Organizer System Settings exact edition context", () => {
     expect(route).toContain(
       "useAdminOperationalSchedule(selectedEdition?.id ?? null, selectedEdition?.slug ?? null)",
     );
-    expect(route).toContain("if (!selectedEdition || !form.label.trim() || !form.due_at) return");
-    expect(route).toContain("disabled={!selectedEdition}");
+    expect(route).toContain("if (!selectedEdition || createEditionId !== selectedEdition.id || !form.label.trim() || !form.due_at) return");
+    expect(route).toContain("disabled={!selectedEdition || deadlinesError}");
   });
 
   it("fails closed visibly for edition-scoped schedule and reminder surfaces", () => {
-    expect(route).toContain('title={editionsLoading ? "Resolving Organizer edition" : "Organizer edition required"}');
+    expect(route).toContain("Operational metrics unavailable");
     expect(route).toContain('eyebrow={selectedEdition ? editionLabel(selectedEdition) : "Edition context required"}');
     expect(route).toContain('title={editionsLoading ? "Resolving Organizer edition" : "Select an Organizer edition"}');
     expect(route).toContain("description={editionContextMessage}");
@@ -41,4 +41,30 @@ describe("Organizer System Settings exact edition context", () => {
     expect(route).toContain("applyPlatformModeChange");
     expect(route).toContain("Platform controls remain available globally");
   });
+  it("does not treat failed or in-flight edition refreshes as valid private read context", () => {
+    expect(route).toContain("editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching");
+    expect(route).toContain("editionsReady && editionId");
+    expect(route).toContain("Retry edition lookup");
+    expect(route).toContain("void editionsQuery.refetch()");
+    expect(route).toContain("Edition lookup failed");
+    expect(route).toContain("editionsQuery.error");
+  });
+
+  it("does not show misleading zero metrics or empty reminders when scoped reads fail", () => {
+    expect(route).toContain("selectedEdition && !deadlinesError && !scheduleError");
+    expect(route).toContain("Operational metrics unavailable");
+    expect(route).toContain("Custom reminders could not be verified");
+    expect(route).toContain("Retry reminders");
+    expect(route).toContain("void refetchDeadlines()");
+    expect(route).toContain("Schedule could not be verified");
+  });
+
+  it("locks unfinished reminder drafts to their original edition and closes on context loss", () => {
+    expect(route).toContain("const [createEditionId, setCreateEditionId]");
+    expect(route).toContain("createOpen && createEditionId && createEditionId !== selectedEdition?.id");
+    expect(route).toContain("createEditionId !== selectedEdition.id");
+    expect(route).toContain("setCreateEditionId(selectedEdition?.id ?? null)");
+    expect(route).toContain("setCreateEditionId(null)");
+  });
+
 });
