@@ -57,6 +57,8 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
     queryKey: ["world", "public", "bodies", slug, term, status, page],
     queryFn: () => readPublicWorldBodies(slug, page, { term, status }),
     enabled: valid,
+    // Preserve the verified parent and search controls while the next filtered page loads.
+    placeholderData: (previous) => previous,
     staleTime: 90_000,
     retry: false,
   });
@@ -106,7 +108,8 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
         {term || status !== "all" ? <button type="button" onClick={clearFilters}
           className="min-h-12 rounded-xl border border-border px-4 text-sm font-medium">Clear</button> : null}
       </form>
-      <section aria-label="Published institutional bodies" className="mt-4 max-w-4xl">
+      {query.isPlaceholderData ? <p role="status" className="mt-6 text-sm text-muted-foreground">Updating public body results…</p> : null}
+      {!query.isPlaceholderData ? <section aria-label="Published institutional bodies" className="mt-4 max-w-4xl">
         <p className="py-4 text-sm text-muted-foreground" aria-live="polite">{result.total} matching public {result.total === 1 ? "body" : "bodies"}</p>
         {result.bodies.length === 0 ? <p className="py-6 text-sm text-muted-foreground">
           {term || status !== "all" ? "No matching public bodies. Try another name or status." : "No public bodies are recorded."}
@@ -125,7 +128,7 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
             onClick={() => setPage((p) => p + 1)}
             className="min-h-11 rounded-xl border border-border px-4 disabled:opacity-40">Next</button>
         </nav> : null}
-      </section>
+      </section> : null}
     </> : null}
   </Frame>;
 }
