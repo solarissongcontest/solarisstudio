@@ -16,6 +16,7 @@ type Props = {
   entryId: string;
   targetType: "internal" | "national_final";
   currentVersionId: string | null;
+  isScopeCurrent: () => boolean;
 };
 
 function readableTime(value: string | null): string {
@@ -30,6 +31,7 @@ export function OrganizerEntryVersionHistory({
   entryId,
   targetType,
   currentVersionId,
+  isScopeCurrent,
 }: Props) {
   const scope = `${editionId}:${submissionId}:${targetType}:${entryId}:${currentVersionId ?? "unbound"}`;
   const activeScope = useRef(scope);
@@ -56,13 +58,18 @@ export function OrganizerEntryVersionHistory({
   }, [scope]);
 
   async function loadPage(older: boolean) {
+    if (!isScopeCurrent()) {
+      setError("Organizer response or edition changed. Reopen the current Entry before loading history.");
+      return;
+    }
     if (inFlight.current || (older && beforeRevision == null)) return;
     inFlight.current = true;
     const generation = ++requestGeneration.current;
     const requestedScope = scope;
     const cursor = older ? beforeRevision : null;
     const isCurrent = () =>
-      generation === requestGeneration.current && activeScope.current === requestedScope;
+      generation === requestGeneration.current && activeScope.current === requestedScope &&
+      isScopeCurrent();
     setBusy(true);
     setError(null);
     try {
