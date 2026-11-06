@@ -45,12 +45,13 @@ function ErrorMessage({ error, retry }: { error: unknown; retry: () => void }) {
 function History({ caseId }: { caseId: string }) {
   const history = useQuery({
     queryKey: ["world", "mediation", "history", caseId],
+    gcTime: 0,
     queryFn: () => fetchMediationHistory(caseId),
     staleTime: 0,
     refetchOnMount: "always",
     retry: false,
   });
-  if (history.isPending) return <StateMessage>Loading private case history…</StateMessage>;
+  if (history.isPending || history.isFetching) return <StateMessage>Loading private case history…</StateMessage>;
   if (history.isError) return <ErrorMessage error={history.error} retry={() => void history.refetch()} />;
   if (!history.data.length) return <StateMessage>No actions have been recorded yet.</StateMessage>;
   return (
