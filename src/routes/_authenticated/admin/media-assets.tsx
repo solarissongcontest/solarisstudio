@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { AlertTriangle, ExternalLink, Images, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
@@ -11,6 +11,11 @@ import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminSh
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions } from '@/lib/data';
 import { MEDIA_ASSET_TYPES, type MediaAssetType } from '@/lib/media-asset-vault';
+import { describeOrganizerMediaSource, resolveOrganizerMediaPreviewSource } from '@/lib/v3-organizer-media-preview-source';
+import {
+  countOutdatedOrganizerMediaReviewSelections,
+  resolveOrganizerMediaReviewTargets,
+} from '@/lib/v3-organizer-media-review-selection';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
 import {
   STUDIO2_MEDIA_ASSET_STATES,
@@ -84,16 +89,19 @@ function MediaAssetsPage() {
   const queryClient = useQueryClient();
   const editionsQuery = useEditions();
   const countriesQuery = useCountries();
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
+  const [selectedSources, setSelectedSources] = useState<Map<string, string>>(() => new Map());
   const [reviewReason, setReviewReason] = useState('');
+  const [retryingInventory, setRetryingInventory] = useState(false);
+  const inventoryRetryInFlightRef = useRef(false);
   const [pendingReview, setPendingReview] = useState<PendingMediaReview | null>(null);
+  const reviewCommitInFlightRef = useRef(false);
 
   const editions = editionsQuery.data ?? [];
   const selectedEdition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = selectedEdition?.id ?? '';
 
   useEffect(() => {
-    setSelectedKeys(new Set());
+    setSelectedSources(new Map());
     setReviewReason('');
     setPendingReview(null);
   }, [resolvedEditionId]);
@@ -123,6 +131,10 @@ function MediaAssetsPage() {
     cockpits: cockpitQuery.data ?? [],
     reviews: reviewsQuery.data ?? [],
   }) : [], [selectedEdition, countriesQuery.data, cockpitQuery.data, reviewsQuery.data]);
+  const selectedKeys = new Set(selectedSources.keys());
+  const outdatedSelectedCount = countOutdatedOrganizerMediaReviewSelections(
+    inventory, selectedSources, resolvedEditionId,
+  );
 
   const normalizedQuery = (search.q ?? '').trim().toLocaleLowerCase();
   const statusFilter = search.status ?? 'all';
@@ -164,7 +176,8 @@ function MediaAssetsPage() {
         <div className="min-w-0">
           <p>{item.title}</p>
           <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
-            {item.sourceUrl ?? (item.required ? 'Required source not supplied' : 'No source supplied')}
+            {item.sourceUrl ? describeOrganizerMediaSource(item.sourceUrl)
+              : (item.required ? 'Required source not supplied' : 'No source supplied')}
           </p>
         </div>
       ),
@@ -199,7 +212,8 @@ function MediaAssetsPage() {
   ] satisfies readonly AdminDataColumn<Studio2MediaAssetItem>[];
   const selectedItems = inventory.filter((item) => selectedKeys.has(item.assetKey));
   const reviewableSelected = selectedItems.filter((item) => Boolean(item.sourceFingerprint) && !item.processing);
-  const canApproveSelected = reviewableSelected.length === selectedItems.length
+  const canApproveSelected = outdatedSelectedCount === 0 &&
+    reviewableSelected.length === selectedItems.length
     && reviewableSelected.every((item) => !item.validation.some((check) => check.level === 'blocked'));
   const error = editionsQuery.error ?? countriesQuery.error ?? cockpitQuery.error ?? reviewsQuery.error;
 
@@ -212,23 +226,18 @@ function MediaAssetsPage() {
         throw new Error('The reviewed media decision is missing its exact asset set or audit reason.');
       }
 
-      const currentByKey = new Map(inventory.map((item) => [item.assetKey, item] as const));
-      const exactItems = review.items.map((reviewed) => {
-        const current = currentByKey.get(reviewed.assetKey);
-        if (!current || current.editionId !== review.commandEditionId) {
-          throw new Error('A reviewed media asset is no longer present in this edition. Reload and review again.');
-        }
-        if (!current.sourceFingerprint || current.processing) {
-          throw new Error(`${current.title} is no longer reviewable. Reload the current media state.`);
-        }
-        if (current.sourceFingerprint !== reviewed.sourceFingerprint) {
-          throw new Error(`${current.title} changed after this review opened. Review the replacement source instead.`);
-        }
-        if (review.decision === 'approved' && current.validation.some((check) => check.level === 'blocked')) {
-          throw new Error(`${current.title} now has a blocking validation check and cannot be approved.`);
-        }
-        return current;
-      });
+      // Re-run the same exact-edition, duplicate-identity and source-version
+      // guard used when opening the review. A Map built from inventory could
+      // otherwise silently overwrite ambiguous duplicate asset identities.
+      const reviewedSources = new Map(review.items.map((item) =>
+        [item.assetKey, item.sourceFingerprint] as const,
+      ));
+      if (reviewedSources.size !== review.items.length) {
+        throw new Error('The reviewed media set contains duplicate asset identities. Reopen review.');
+      }
+      const exactItems = resolveOrganizerMediaReviewTargets(
+        inventory, reviewedSources, review.commandEditionId, review.decision,
+      );
 
       return commitOrganizerMediaReviewOperation({
         currentEditionId: review.commandEditionId,
@@ -247,12 +256,44 @@ function MediaAssetsPage() {
       await queryClient.invalidateQueries({ queryKey: ['studio2-media-asset-reviews', variables.commandEditionId] });
       if (editionId !== variables.commandEditionId) return;
       toast.success(variables.decision === 'approved' ? 'Media assets approved.' : 'Media assets marked invalid.');
-      setSelectedKeys(new Set());
+      setSelectedSources(new Map());
       setReviewReason('');
       setPendingReview(null);
     },
     onError: (mutationError) => toast.error(errorText(mutationError)),
   });
+
+  async function confirmPendingMediaReview() {
+    const reviewed = pendingReview;
+    if (!reviewed || reviewCommitInFlightRef.current || reviewMutation.isPending) return;
+    // A synchronous lock is required because two modal click events may occur
+    // before React publishes the async mutation's pending state.
+    reviewCommitInFlightRef.current = true;
+    try {
+      await reviewMutation.mutateAsync(reviewed);
+    } finally {
+      reviewCommitInFlightRef.current = false;
+    }
+  }
+
+  async function retryInventory() {
+    // Manual, finite retry only. Do not refetch every historical edition or
+    // trigger a production-facing polling loop on an error screen.
+    // React state alone is not a synchronous lock against rapid double clicks.
+    if (retryingInventory || inventoryRetryInFlightRef.current) return;
+    inventoryRetryInFlightRef.current = true;
+    setRetryingInventory(true);
+    try {
+      await Promise.all([
+        editionsQuery.refetch(),
+        countriesQuery.refetch(),
+        ...(resolvedEditionId ? [cockpitQuery.refetch(), reviewsQuery.refetch()] : []),
+      ]);
+    } finally {
+      inventoryRetryInFlightRef.current = false;
+      setRetryingInventory(false);
+    }
+  }
 
   function updateSearch(patch: Partial<MediaSearch>) {
     void navigate({
@@ -262,38 +303,52 @@ function MediaAssetsPage() {
   }
 
   function toggleSelection(assetKey: string) {
-    setSelectedKeys((current) => {
-      const next = new Set(current);
+    const asset = inventory.find((item) => item.assetKey === assetKey);
+    setSelectedSources((current) => {
+      const next = new Map(current);
       if (next.has(assetKey)) next.delete(assetKey);
-      else next.add(assetKey);
+      else if (asset?.sourceFingerprint && !asset.processing &&
+          asset.editionId === resolvedEditionId) next.set(assetKey, asset.sourceFingerprint);
       return next;
     });
   }
 
   function selectVisible() {
-    const reviewable = filtered.filter((item) => item.sourceFingerprint && !item.processing);
-    setSelectedKeys(new Set(reviewable.map((item) => item.assetKey)));
+    const reviewable = filtered.filter((item) => item.sourceFingerprint && !item.processing &&
+      item.editionId === resolvedEditionId);
+    setSelectedSources(new Map(reviewable.map((item) =>
+      [item.assetKey, item.sourceFingerprint!] as const,
+    )));
   }
 
-  function requestReview(decision: Studio2MediaReviewDecision) {
-    if (!selectedEdition || editionId !== selectedEdition.id) {
+  function requestReview(
+    decision: Studio2MediaReviewDecision,
+    singleAssetReview?: { assetKey: string; sourceFingerprint: string; reason: string },
+  ) {
+    if (!selectedEdition || editionId !== selectedEdition.id ||
+        reviewMutation.isPending || reviewCommitInFlightRef.current) {
       toast.error('Select the current Organizer edition again before reviewing media.');
       return;
     }
-    if (!reviewableSelected.length || reviewableSelected.length !== selectedItems.length) {
-      toast.error('Only uploaded assets that are not processing can be reviewed.');
-      return;
-    }
-    if (reviewReason.trim().length < 5) {
+    const auditReason = singleAssetReview?.reason ?? reviewReason;
+    if (auditReason.trim().length < 5) {
       toast.error('Add an audit reason of at least 5 characters.');
       return;
     }
-    if (decision === 'approved' && !canApproveSelected) {
-      toast.error('Resolve blocked validation checks before approving these assets.');
+    let exactAssets: Studio2MediaAssetItem[];
+    try {
+      const selection = singleAssetReview
+        ? new Map([[singleAssetReview.assetKey, singleAssetReview.sourceFingerprint]])
+        : selectedSources;
+      exactAssets = resolveOrganizerMediaReviewTargets(
+        inventory, selection, selectedEdition.id, decision,
+      );
+    } catch (error) {
+      toast.error(errorText(error));
       return;
     }
 
-    const items = reviewableSelected.map((item) => ({
+    const items = exactAssets.map((item) => ({
       assetKey: item.assetKey,
       assetType: item.assetType,
       countryId: item.countryId,
@@ -308,7 +363,7 @@ function MediaAssetsPage() {
     try {
       const operation = prepareOrganizerMediaReviewOperation({
         editionId: selectedEdition.id,
-        reason: reviewReason,
+        reason: auditReason,
         reviews: items.map((item) => ({
           assetKey: item.assetKey,
           assetType: item.assetType,
@@ -327,6 +382,7 @@ function MediaAssetsPage() {
         items,
         operation,
       });
+      if (singleAssetReview) updateSearch({ asset: undefined });
     } catch (prepareError) {
       toast.error(errorText(prepareError));
     }
@@ -347,12 +403,24 @@ function MediaAssetsPage() {
           }
         />
 
-        {!selectedEdition && !editionsQuery.isLoading ? (
-          <AdminCard><AdminEmptyState icon={Images} title="No edition selected" description="Select the exact Organizer edition before reviewing media operations. Solaris will not substitute the newest edition for missing or stale context." /></AdminCard>
-        ) : editionsQuery.isLoading || countriesQuery.isLoading || cockpitQuery.isLoading || reviewsQuery.isLoading ? (
+        {editionsQuery.isLoading || countriesQuery.isLoading || cockpitQuery.isLoading || reviewsQuery.isLoading ? (
           <AdminCard><p className="py-12 text-center text-sm text-muted-foreground">Building media inventory…</p></AdminCard>
         ) : error ? (
-          <AdminCard><AdminEmptyState icon={AlertTriangle} title="Media operations could not load" description={errorText(error)} /></AdminCard>
+          <AdminCard>
+            <AdminEmptyState icon={AlertTriangle} title="Media operations could not load" description={errorText(error)} />
+            <div className="mt-3 flex justify-center">
+              <button
+                type="button"
+                className="admin-action-secondary"
+                disabled={retryingInventory}
+                onClick={() => void retryInventory()}
+              >
+                {retryingInventory ? 'Retrying inventory…' : 'Retry loading media inventory'}
+              </button>
+            </div>
+          </AdminCard>
+        ) : !selectedEdition ? (
+          <AdminCard><AdminEmptyState icon={Images} title="No edition selected" description="Select the exact Organizer edition before reviewing media operations. Solaris will not substitute the newest edition for missing or stale context." /></AdminCard>
         ) : (
           <>
             <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
@@ -395,12 +463,19 @@ function MediaAssetsPage() {
                 <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row xl:max-w-3xl">
                   <input aria-label="Review reason" value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} className="admin-input min-w-0 flex-1" placeholder="Review reason (required)" />
                   <button type="button" className="admin-action-secondary" onClick={selectVisible}>Select visible</button>
-                  <button type="button" className="admin-action-secondary" onClick={() => setSelectedKeys(new Set())} disabled={!selectedKeys.size}>Clear</button>
+                  <button type="button" className="admin-action-secondary" onClick={() => setSelectedSources(new Map())} disabled={!selectedKeys.size}>Clear</button>
                   <button type="button" className="admin-action-primary" disabled={!resolvedEditionId || !selectedKeys.size || reviewReason.trim().length < 5 || !canApproveSelected || reviewMutation.isPending} onClick={() => requestReview('approved')}>Review approval</button>
-                  <button type="button" className="admin-action-secondary" disabled={!resolvedEditionId || !selectedKeys.size || reviewReason.trim().length < 5 || reviewMutation.isPending} onClick={() => requestReview('invalid')}>Review invalidation</button>
+                  <button type="button" className="admin-action-secondary" disabled={!resolvedEditionId || !selectedKeys.size || reviewReason.trim().length < 5 || outdatedSelectedCount > 0 || reviewMutation.isPending} onClick={() => requestReview('invalid')}>Review invalidation</button>
                 </div>
               </div>
               {selectedKeys.size ? <p className="mt-3 text-xs text-muted-foreground">{selectedKeys.size} selected · {reviewableSelected.length} reviewable</p> : null}
+              {outdatedSelectedCount > 0 ? (
+                <p role="alert" className="mt-2 text-xs text-amber-100">
+                  {outdatedSelectedCount} selected media source{outdatedSelectedCount === 1 ? "" : "s"} changed
+                  or disappeared since selection. Clear and explicitly reselect the replacement
+                  before approving or invalidating any media.
+                </p>
+              ) : null}
             </AdminCard>
 
             <AdminCard>
@@ -418,16 +493,23 @@ function MediaAssetsPage() {
           </>
         )}
 
-        <MediaAssetSheet asset={selectedAsset} reviews={(reviewsQuery.data ?? []).filter((review) => review.assetKey === selectedAsset?.assetKey)} onClose={() => updateSearch({ asset: undefined })} />
+        <MediaAssetSheet
+          key={selectedAsset
+            ? [selectedAsset.editionId, selectedAsset.assetKey, selectedAsset.sourceFingerprint ?? 'no-fingerprint', selectedAsset.sourceUrl ?? 'no-url'].join(':')
+            : 'no-asset'}
+          asset={selectedAsset}
+          reviews={(reviewsQuery.data ?? []).filter((review) => review.assetKey === selectedAsset?.assetKey)}
+          onClose={() => updateSearch({ asset: undefined })}
+          onRequestReview={(assetKey, sourceFingerprint, decision, reason) => requestReview(decision, { assetKey, sourceFingerprint, reason })}
+          reviewPending={reviewMutation.isPending}
+        />
 
         <AdminConfirmSheet
           open={Boolean(pendingReview)}
           onClose={() => {
-            if (!reviewMutation.isPending) setPendingReview(null);
+            if (!reviewMutation.isPending && !reviewCommitInFlightRef.current) setPendingReview(null);
           }}
-          onConfirm={async () => {
-            if (pendingReview) await reviewMutation.mutateAsync(pendingReview);
-          }}
+          onConfirm={confirmPendingMediaReview}
           title={pendingReview?.decision === 'approved' ? 'Approve these exact media sources?' : 'Mark these exact media sources invalid?'}
           description={pendingReview ? (
             <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
@@ -447,7 +529,9 @@ function MediaAssetsPage() {
                       </div>
                       <AdminStatus tone={stateTone(item.state)}>{stateLabel(item.state)}</AdminStatus>
                     </div>
-                    <p className="mt-2 break-all font-mono text-[10px] text-muted-foreground">Source fingerprint: {item.sourceFingerprint}</p>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Exact source identity is attached to the reviewed operation; private URL details are hidden.
+                    </p>
                   </div>
                 ))}
               </div>
@@ -465,17 +549,139 @@ function MediaAssetsPage() {
   );
 }
 
-function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAssetItem | null; reviews: Awaited<ReturnType<typeof listStudio2MediaAssetReviews>>; onClose: () => void }) {
+function MediaAssetSheet({
+  asset, reviews, onClose, onRequestReview, reviewPending,
+}: {
+  asset: Studio2MediaAssetItem | null;
+  reviews: Awaited<ReturnType<typeof listStudio2MediaAssetReviews>>;
+  onClose: () => void;
+  onRequestReview: (assetKey: string, sourceFingerprint: string, decision: Studio2MediaReviewDecision, reason: string) => void;
+  reviewPending: boolean;
+}) {
+  // The sheet is keyed by edition, asset identity, fingerprint and URL, so
+  // switching or replacing a source discards both old review notes and preview.
+  const [singleAssetReviewReason, setSingleAssetReviewReason] = useState('');
+  const [previewTarget, setPreviewTarget] = useState<string | null>(null);
+  const [failedPreviewTarget, setFailedPreviewTarget] = useState<string | null>(null);
+  const [previewAttempt, setPreviewAttempt] = useState(0);
+  const source = asset ? resolveOrganizerMediaPreviewSource(asset.sourceUrl, asset.assetType) : null;
+  const previewKey = asset
+    ? [asset.editionId, asset.assetKey, asset.sourceFingerprint ?? 'no-source', source?.url ?? 'no-url'].join(':')
+    : null;
+  const previewVisible = Boolean(source?.previewKind && previewKey && previewTarget === previewKey);
+  const dismiss = () => {
+    setPreviewTarget(null);
+    setFailedPreviewTarget(null);
+    setPreviewAttempt(0);
+    onClose();
+  };
   return (
-    <AdminSheet open={Boolean(asset)} onClose={onClose} title={asset?.title ?? 'Media asset'} description={asset ? `${assetTypeLabel(asset.assetType)} · ${stateLabel(asset.state)}` : undefined}>
+    <AdminSheet open={Boolean(asset)} onClose={dismiss} title={asset?.title ?? 'Media asset'} description={asset ? `${assetTypeLabel(asset.assetType)} · ${stateLabel(asset.state)}` : undefined}>
       {asset ? (
         <div className="space-y-5">
           <section>
             <h3 className="text-sm font-semibold">Canonical source</h3>
             <div className="mt-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
               <div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">Current state</span><AdminStatus tone={stateTone(asset.state)}>{stateLabel(asset.state)}</AdminStatus></div>
-              <p className="mt-3 break-all text-sm">{asset.sourceUrl ?? 'No source supplied.'}</p>
-              {asset.sourceUrl ? <a href={asset.sourceUrl} target="_blank" rel="noreferrer" className="admin-action-secondary mt-3 inline-flex">Open source <ExternalLink className="size-4" /></a> : null}
+              <p className="mt-3 text-sm">{describeOrganizerMediaSource(asset.sourceUrl)}</p>
+              {asset.sourceFingerprint ? (
+                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                  Review is bound to the currently submitted source. A changed URL or source
+                  identity requires a fresh reviewed decision.
+                </p>
+              ) : null}
+              {source ? (
+                <a href={source.url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="admin-action-secondary mt-3 inline-flex">
+                  Open source <ExternalLink className="size-4" />
+                </a>
+              ) : asset.sourceUrl ? (
+                <p className="mt-2 text-xs text-amber-100">
+                  This source is not a safe HTTP(S) link. Direct opening and preview are disabled.
+                </p>
+              ) : null}
+              {source?.previewKind && previewKey ? (
+                <div className="mt-3 space-y-2 rounded-xl border border-white/[0.08] bg-black/10 p-3">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    External {source.previewKind} from {source.host}. Media is loaded only if you choose to preview it.
+                    Large files may consume data. This preview is not an editorial approval.
+                  </p>
+                  {!previewVisible ? (
+                    <button
+                      type="button"
+                      className="admin-action-secondary"
+                      onClick={() => {
+                        setFailedPreviewTarget(null);
+                        setPreviewAttempt(0);
+                        setPreviewTarget(previewKey);
+                      }}
+                    >
+                      Load preview from {source.host}
+                    </button>
+                  ) : failedPreviewTarget === previewKey ? (
+                    <div role="status" className="space-y-2 text-xs text-amber-100">
+                      <p>
+                        This source could not be previewed. It may be unavailable, access-restricted
+                        or unsupported by this browser.
+                      </p>
+                      <button
+                        type="button"
+                        className="admin-action-secondary"
+                        onClick={() => {
+                          setFailedPreviewTarget(null);
+                          setPreviewAttempt((previous) => previous + 1);
+                        }}
+                      >
+                        Retry preview
+                      </button>
+                    </div>
+                  ) : source.previewKind === 'image' ? (
+                    <img
+                      key={`${previewKey}:${previewAttempt}`}
+                      src={source.url}
+                      alt={`Organizer preview of ${asset.title}`}
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      onError={() => setFailedPreviewTarget(previewKey)}
+                      className="max-h-80 w-full rounded-lg object-contain"
+                    />
+                  ) : source.previewKind === 'audio' ? (
+                    <audio
+                      key={`${previewKey}:${previewAttempt}`}
+                      src={source.url}
+                      controls
+                      preload="none"
+                      onError={() => setFailedPreviewTarget(previewKey)}
+                      className="w-full"
+                      aria-label={`Organizer audio preview: ${asset.title}`}
+                    />
+                  ) : (
+                    <video
+                      key={`${previewKey}:${previewAttempt}`}
+                      src={source.url}
+                      controls
+                      preload="none"
+                      playsInline
+                      onError={() => setFailedPreviewTarget(previewKey)}
+                      className="max-h-80 w-full rounded-lg bg-black object-contain"
+                      aria-label={`Organizer video preview: ${asset.title}`}
+                    />
+                  )}
+                  {previewVisible ? (
+                    <button
+                      type="button"
+                      className="admin-action-secondary"
+                      onClick={() => {
+                        setPreviewTarget(null);
+                        setFailedPreviewTarget(null);
+                        setPreviewAttempt(0);
+                      }}
+                    >
+                      Unload preview
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
               {asset.sourceUpdatedAt ? <p className="mt-3 text-xs text-muted-foreground">Canonical entry updated {formatTimestamp(asset.sourceUpdatedAt)}</p> : null}
             </div>
           </section>
@@ -490,6 +696,61 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
                 </div>
               ))}
             </div>
+          </section>
+
+          <section className="space-y-3 rounded-xl border border-white/[0.09] bg-white/[0.025] p-3">
+            <div>
+              <h3 className="text-sm font-semibold">Review this source</h3>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Apply one audited decision to the exact source identity currently loaded for this asset.
+                If its content changes, the canonical operation refuses this review and the
+                replacement must be inspected again.
+              </p>
+            </div>
+            {asset.sourceFingerprint && !asset.processing ? (
+              <>
+                <label className="block space-y-1.5 text-xs">
+                  <span className="font-semibold">Organizer audit reason (required)</span>
+                  <textarea
+                    value={singleAssetReviewReason}
+                    onChange={(event) => setSingleAssetReviewReason(event.target.value)}
+                    rows={3}
+                    disabled={reviewPending}
+                    className="admin-input min-h-24 w-full"
+                    placeholder="Record what you checked and why this source is acceptable or invalid."
+                  />
+                </label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    disabled={reviewPending || singleAssetReviewReason.trim().length < 5 ||
+                      asset.validation.some((check) => check.level === 'blocked')}
+                    onClick={() => onRequestReview(asset.assetKey, asset.sourceFingerprint!, 'approved', singleAssetReviewReason)}
+                    className="admin-action-primary w-full"
+                  >
+                    Review approval
+                  </button>
+                  <button
+                    type="button"
+                    disabled={reviewPending || singleAssetReviewReason.trim().length < 5}
+                    onClick={() => onRequestReview(asset.assetKey, asset.sourceFingerprint!, 'invalid', singleAssetReviewReason)}
+                    className="admin-action-secondary w-full"
+                  >
+                    Review invalidation
+                  </button>
+                </div>
+                {asset.validation.some((check) => check.level === 'blocked') ? (
+                  <p className="text-xs text-amber-100">
+                    Approval is disabled because this source has a blocking validation check.
+                    Invalidation remains available with an audit reason.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-xs text-amber-100">
+                This source is missing or processing and cannot be reviewed yet.
+              </p>
+            )}
           </section>
 
           <section>
