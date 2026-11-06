@@ -59,7 +59,7 @@ create table public.world_domestic_office_terms (
   updated_at timestamptz not null default now(),
   foreign key(office_id,country_id) references public.world_domestic_offices(id,country_id) on delete restrict,
   foreign key(holder_person_id,country_id) references public.world_lore_people(id,country_id) on delete restrict,
-  constraint world_domestic_term_dates check (actual_end_at is null or actual_end_at >= started_at),
+  constraint world_domestic_term_dates check (actual_end_at is null or actual_end_at > started_at),
   constraint world_domestic_term_state check (
     (status='active' and actual_end_at is null)
     or (status in ('ended','resigned','removed') and actual_end_at is not null)
@@ -129,7 +129,7 @@ begin
   ) then
     raise exception using errcode='42501',message='AUTHORIZATION';
   end if;
-  if p_kind not in ('lore_person','office','term_start','term_end')
+  if p_kind not in ('lore_person','office','term_start','term_end','term_publish')
     or p_payload is null or jsonb_typeof(p_payload)<>'object'
     or pg_column_size(p_payload)>16384
     or p_expected_revision is null or p_expected_revision<0
@@ -245,7 +245,7 @@ begin
     v_started := (p_payload ->> 'startedAt')::timestamptz;
     v_ended := nullif(p_payload ->> 'endedAt','')::timestamptz;
     if v_started>now() or (v_ended is not null and
-      (v_ended<v_started or v_ended>now())) then
+      (v_ended<=v_started or v_ended>now())) then
       raise exception using errcode='22023',message='VALIDATION';
     end if;
     v_status := case when v_ended is null then 'active' else 'ended' end;
@@ -282,6 +282,22 @@ begin
       left(nullif(btrim(p_payload ->> 'appointmentMethod'),''),120),
       left(nullif(btrim(p_payload ->> 'reasonStarted'),''),500),v_operation
     ) returning id,revision into v_record,v_revision;
+  elsif p_kind='term_publish' then
+    if p_subject_id is null or p_expected_revision<1
+       or not v_visible then
+      raise exception using errcode='22023',message='VALIDATION';
+    end if;
+    update public.world_domestic_office_terms t set
+      visibility='public',revision=t.revision+1,updated_at=now()
+    from public.world_domestic_offices o, public.world_lore_people p
+    where t.id=p_subject_id and t.country_id=p_country_id
+      and t.revision=p_expected_revision and t.visibility='draft'
+      and o.id=t.office_id and o.country_id=p_country_id and o.visibility='public'
+      and p.id=t.holder_person_id and p.country_id=p_country_id and p.visibility='public'
+    returning t.id,t.revision into v_record,v_revision;
+    if v_record is null then
+      raise exception using errcode='40001',message='VERSION_CONFLICT_OR_PARENT_UNPUBLISHED';
+    end if;
   else
     if p_subject_id is null or p_expected_revision<1 then
       raise exception using errcode='22023',message='VALIDATION';
