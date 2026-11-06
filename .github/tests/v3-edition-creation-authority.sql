@@ -9,8 +9,9 @@ insert into auth.sessions(id,user_id,created_at,updated_at) values
  ('27270000-0000-4000-8000-000000000011','27270000-0000-4000-8000-000000000001',now(),now()),
  ('27270000-0000-4000-8000-000000000012','27270000-0000-4000-8000-000000000002',now(),now()),
  ('27270000-0000-4000-8000-000000000013','27270000-0000-4000-8000-000000000003',now(),now());
-insert into public.user_roles(user_id,role) values
- ('27270000-0000-4000-8000-000000000001','organizer');
+insert into public.studio2_capability_grants(user_id,capability,edition_id) values
+ ('27270000-0000-4000-8000-000000000001','edition.manage',null),
+ ('27270000-0000-4000-8000-000000000001','delegation.manage',null);
 
 insert into public.editions(id,name,year,slug,edition_number,status,published,editing_enabled,data_revision)
 values
@@ -28,6 +29,12 @@ reset role;
 
 do $test$
 begin
+  if exists(select 1 from public.editions where edition_number=272703 and (published or status<>'draft')) then
+    raise exception 'Creation published or activated the private draft';
+  end if;
+  if exists(select 1 from pg_proc where oid='public.v3_create_edition(integer,text,integer,uuid,text,text,text,boolean)'::regprocedure and proargnames && array['p_published','p_status']) then
+    raise exception 'Creation exposes caller-controlled publication/lifecycle arguments';
+  end if;
   if (select count(*) from public.editions where edition_number=272703) <> 1 then
     raise exception 'Edition create retry duplicated canonical state';
   end if;
@@ -71,7 +78,7 @@ begin
  end loop;
  select id into v_id from public.editions where edition_number=272703;
  v_payload:=jsonb_build_object('id',v_id,'edition_number',272703,'name','Created through authority','description',null,'status','draft');
- if public.admin_confirmation_save_edition(v_payload) is distinct from v_id then
+ if public.admin_confirmation_save_edition(v_payload||'{"published":true}'::jsonb) is distinct from v_id then
   raise exception 'Confirmation lost its authorized existing-Edition assertion';
  end if;
  begin
