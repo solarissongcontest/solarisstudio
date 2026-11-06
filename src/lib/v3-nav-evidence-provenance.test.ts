@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { resolveNavbarEvidenceProvenance } from "../../e2e/v3-navigation/navbar-evidence-provenance";
 
@@ -56,6 +58,19 @@ describe("installed V3 N14 evidence commit identity", () => {
         ci: true,
       }),
     ).toThrow(/checked-out Git commit/);
+  });
+
+  it("binds both installed navigation reports to source identity and refuses headless N14 certification", () => {
+    const geometry = readFileSync(resolve(process.cwd(), "e2e/v3-navigation/geometry-report-installed-app.e2e.ts"), "utf8");
+    const frame = readFileSync(resolve(process.cwd(), "e2e/v3-navigation/frame-profile-installed-app.e2e.ts"), "utf8");
+    for (const evidenceSource of [geometry, frame]) {
+      expect(evidenceSource).toContain("...readNavbarEvidenceProvenance()");
+      expect(evidenceSource).not.toContain("candidateSha: process.env.GITHUB_SHA");
+    }
+    expect(frame).toContain("automatedCadenceCheckEligible: cadenceSufficient");
+    expect(frame).toContain("certificationEligible: false");
+    expect(frame).toContain('physicalDeviceGate: "N14-required"');
+    expect(frame).not.toContain("certificationEligible: cadenceSufficient");
   });
 
   it("reports a non-PR checkout truthfully without inventing a reviewed N0/N14 identity", () => {
