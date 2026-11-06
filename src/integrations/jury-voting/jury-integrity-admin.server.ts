@@ -1,6 +1,6 @@
 import { getSolarisCapabilitiesServer } from "@/integrations/supabase/capabilities.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { numberValue, percentageValue, peerCountValue, proportionValue } from "./jury-integrity-readback";
+import { assertJuryIntegrityV5Evidence, numberValue, percentageValue, peerCountValue, proportionValue } from "./jury-integrity-readback";
 
 export type JuryIntegrityTargetEvidence = {
   targetCountryId: string;
@@ -76,6 +76,13 @@ export async function listJuryIntegrityCasesServer(editionId: string) {
   );
   if (mismatchedPreflight) {
     throw new Error("Jury Integrity returned evidence outside the selected edition scope");
+  }
+  for (const row of preflights) {
+    const evidence = asObject(asObject(row.admin_evidence).juryIndependence);
+    assertJuryIntegrityV5Evidence(
+      { risk: row.risk_score, confidence: row.confidence },
+      evidence,
+    );
   }
 
   const showIds = [...new Set(preflights.map((row: any) => String(row.show_id ?? "")).filter(Boolean))];
