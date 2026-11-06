@@ -7,7 +7,8 @@ import {
   AppSectionHeader,
 } from "@/components/app/AppPrimitives";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
-import { ArchiveDataError, ArchiveDataLoading } from "@/components/ArchiveDataState";
+import { ArchiveDataLoading } from "@/components/ArchiveDataState";
+import { PublicDataState } from "@/components/public/PublicDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { FlagFrame } from "@/components/FlagMedia";
 import type { CountryDirectoryPresentation } from "@/lib/country-directory-presentation";
@@ -88,7 +89,23 @@ export function V3CountriesDiscoveryScreen({
     return <ArchiveDataLoading label="Loading country discovery…" />;
   }
   if (countriesQuery.isError) {
-    return <ArchiveDataError />;
+    return (
+      <PublicDataState
+        kind="error"
+        title="Country directory unavailable"
+        description="Published country information could not be loaded. Retry without changing your filters."
+        action={
+          <button
+            type="button"
+            className="min-h-11 rounded-xl border border-border bg-surface px-4 text-sm font-semibold"
+            onClick={() => void countriesQuery.refetch()}
+            disabled={countriesQuery.isFetching}
+          >
+            {countriesQuery.isFetching ? "Retrying…" : "Retry countries"}
+          </button>
+        }
+      />
+    );
   }
 
   // The active contest is a small, finite lineup: show every published participant.
