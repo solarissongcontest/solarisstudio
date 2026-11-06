@@ -53,6 +53,8 @@ alter table public.world_domestic_structure_revisions enable row level security;
 revoke all on public.world_domestic_legislatures,
   public.world_domestic_chambers, public.world_domestic_structure_revisions
   from public,anon,authenticated;
+revoke all on public.world_domestic_legislatures,
+  public.world_domestic_chambers, public.world_domestic_structure_revisions from service_role;
 grant select on public.world_domestic_legislatures,
   public.world_domestic_chambers, public.world_domestic_structure_revisions to service_role;
 
