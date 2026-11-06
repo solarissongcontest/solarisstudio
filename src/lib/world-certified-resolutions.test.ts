@@ -46,6 +46,10 @@ const receipt = {
   identifier: listRow.identifier, status: "adopted",
   revision: 1, operationId: operation, replayed: false,
 };
+const receiptEnvelope = {
+  status: "succeeded", command: "world.resolution.publish", operationId: operation,
+  result: { ...receipt, replayed: undefined }, replayed: false,
+};
 
 describe("WORLD-06 TG9 certified resolutions", () => {
   beforeEach(() => { vi.clearAllMocks(); mocks.rollout.mockResolvedValue(true); });
@@ -100,8 +104,8 @@ describe("WORLD-06 TG9 certified resolutions", () => {
   });
 
   it("requires an R2 receipt and verifies the same operation identity", async () => {
-    mocks.rpc.mockResolvedValueOnce({ data: receipt, error: null })
-      .mockResolvedValueOnce({ data: { ...receipt, operationId: org }, error: null });
+    mocks.rpc.mockResolvedValueOnce({ data: receiptEnvelope, error: null })
+      .mockResolvedValueOnce({ data: { ...receiptEnvelope, operationId: org }, error: null });
     const args = {
       voteId: vote, expectedMeasureRevision: 3,
       operationId: operation, idempotencyKey: "safe-retry-key-1",
@@ -113,7 +117,32 @@ describe("WORLD-06 TG9 certified resolutions", () => {
       p_correlation_id: operation,
     });
     await expect(materializeWorldCertifiedResolution(args)).rejects.toThrow("receipt");
-    expect(parseWorldResolutionReceipt({ ...receipt, status: "invented" })).toBeNull();
+    expect(parseWorldResolutionReceipt(receipt)).toBeNull();
+    expect(parseWorldResolutionReceipt({ ...receiptEnvelope, status: "invented" })).toBeNull();
+    expect(parseWorldResolutionReceipt({ ...receiptEnvelope, command: "world.vote.certify" })).toBeNull();
+  });
+
+  it("recovers only a succeeded, actor-owned S2 publication receipt after a lost response", async () => {
+    const args = {
+      voteId: vote, expectedMeasureRevision: 3,
+      operationId: operation, idempotencyKey: "same-command-retry-key",
+    };
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: { message: "Network interrupted" } })
+      .mockResolvedValueOnce({ data: { ...receiptEnvelope, replayed: undefined }, error: null });
+    await expect(materializeWorldCertifiedResolution(args)).resolves.toEqual({ ...receipt, replayed: true });
+    expect(mocks.rpc).toHaveBeenLastCalledWith("studio2_reconcile_operation", {
+      p_operation_id: operation,
+    });
+  });
+
+  it("rejects unrelated or unresolved receipts and does not invent publication success", async () => {
+    const args = {
+      voteId: vote, expectedMeasureRevision: 3,
+      operationId: operation, idempotencyKey: "same-command-retry-key",
+    };
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: { message: "Network interrupted" } })
+      .mockResolvedValueOnce({ data: { ...receiptEnvelope, command: "world.vote.certify" }, error: null });
+    await expect(materializeWorldCertifiedResolution(args)).rejects.toThrow("Network interrupted");
   });
 
   it("registers one canonical certified vote -> immutable resolution path and excludes private data", () => {
