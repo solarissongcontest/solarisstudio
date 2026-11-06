@@ -124,7 +124,7 @@ function OfficialEditor({item,onSaved}:{item:WorldDomesticOfficials;onSaved:()=>
       {kind==="term_end"||kind==="term_publish"?<>
         <label className="grid gap-2 text-sm font-medium"><span>{kind==="term_publish"?"Draft term":"Active term"}</span>
           <select className={field} required value={termId}
-            onChange={e=>{setTermId(e.target.value);setTermRevision(activeTerms.find(t=>t.id===e.target.value)?.revision??0);}}>
+            onChange={e=>{setTermId(e.target.value);setTermRevision((kind==="term_publish"?draftTerms:activeTerms).find(t=>t.id===e.target.value)?.revision??0);}}>
             <option value="">Choose {kind==="term_publish"?"a draft term":"an active term"}</option>
             {(kind==="term_publish"?draftTerms:activeTerms).map(t=><option key={t.id} value={t.id}>{t.officeTitle} · {t.holderDisplayName}</option>)}
           </select></label>
