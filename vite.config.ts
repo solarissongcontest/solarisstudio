@@ -44,6 +44,9 @@ export default defineConfig({
     },
     build: {
       rolldownOptions: {
+        // Rolldown reorders modules only when execution semantics allow it.
+        // Group similar source modules to improve real gzip compressibility.
+        chunkModulesOrder: "module-id",
         output: {
           // Shorten private module bindings without changing export signatures.
           minify: { compress: true, mangle: { toplevel: true } },
