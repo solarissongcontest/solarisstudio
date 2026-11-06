@@ -146,6 +146,8 @@ describe("TG14 immutable Court judgment and reconsideration",()=>{
       "pending.judgment_id=v_previous.id",
       "where decided.request_id=pending.id",
       "RECONSIDERATION_PENDING",
+      "PUBLICATION_CONTINUITY_REQUIRED",
+      "TOO_MANY_RELATED_FILINGS",
       "v_case.status='decided' and p_target_state='closed'",
       "v_case.status='closed' and p_target_state='archived'",
     ])expect(source).toContain(value);
