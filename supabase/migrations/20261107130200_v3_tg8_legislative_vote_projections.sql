@@ -172,12 +172,12 @@ as $vote_manage$
 $vote_manage$;
 
 create or replace function public.world_vote_openable_rules_v1(
-  p_organization_id uuid
+  p_organization_id uuid,p_organ_id uuid default null
 ) returns jsonb language sql stable security definer set search_path=pg_catalog
 as $openable$
   select case when auth.uid() is null or
     not coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
-    or not public.world_access_allowed('world.vote.open',p_organization_id,null,null,null,null)
+    or not public.world_access_allowed('world.vote.open',p_organization_id,null,p_organ_id,null,null)
     then '[]'::jsonb
     else coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -192,6 +192,43 @@ as $openable$
       ) rule_row
     ),'[]'::jsonb) end
 $openable$;
+
+create or replace function public.world_vote_openable_measures_v1(
+  p_organization_id uuid
+) returns jsonb language sql stable security definer set search_path=pg_catalog
+as $openable_measures$
+  select case when auth.uid() is null or
+    not coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+    then '[]'::jsonb
+    else coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id',m.id,'title',v.title,'identifier',m.identifier,
+        'organizationId',m.organization_id,'organId',m.organ_id,
+        'state',m.state,'revision',m.revision
+      ) order by m.registered_at desc,m.id)
+      from (
+        select m.* from public.world_measures m
+        join public.world_organization_organs organ on organ.id=m.organ_id
+        where m.organization_id=p_organization_id
+          and m.state in ('registered','scheduled','under_debate')
+          and organ.status='active'
+          and m.registered_at is not null
+          and public.world_access_allowed('world.vote.open',
+            m.organization_id,null,m.organ_id,null,null)
+          and not exists(select 1 from public.world_votes vote
+            where vote.measure_id=m.id and vote.status='open')
+        order by m.registered_at desc,m.id
+        limit 50
+      ) m
+      join public.world_measure_versions v on v.id=m.current_version_id
+      where v.publication_state='published'
+    ),'[]'::jsonb) end
+$openable_measures$;
+
+revoke all on function public.world_vote_openable_measures_v1(uuid)
+  from public,anon,authenticated;
+grant execute on function public.world_vote_openable_measures_v1(uuid)
+  to authenticated,service_role;
 
 revoke all on function public.world_vote_public_list_v1(text,integer)
   from public,anon,authenticated;
@@ -209,9 +246,9 @@ revoke all on function public.world_vote_manage_v1(uuid)
   from public,anon,authenticated;
 grant execute on function public.world_vote_manage_v1(uuid)
   to authenticated,service_role;
-revoke all on function public.world_vote_openable_rules_v1(uuid)
+revoke all on function public.world_vote_openable_rules_v1(uuid,uuid)
   from public,anon,authenticated;
-grant execute on function public.world_vote_openable_rules_v1(uuid)
+grant execute on function public.world_vote_openable_rules_v1(uuid,uuid)
   to authenticated,service_role;
 
 commit;
