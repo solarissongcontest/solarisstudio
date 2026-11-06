@@ -93,17 +93,7 @@ export function PublicSectionNav({
         ) : null}
 
         {advanced.length ? (
-          <details className="group mt-4 border-t border-border/55 pt-3">
-            <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-2 text-xs font-semibold text-muted-foreground hover:bg-surface/70 hover:text-foreground [&::-webkit-details-marker]:hidden">
-              <span>{area === "results" ? "More result tools" : "Advanced"}</span>
-              <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="mt-1 space-y-0.5">
-              {advanced.map((item) => (
-                <SectionLink key={item.id} item={item} active={item.to === activeTo} area={area} />
-              ))}
-            </div>
-          </details>
+          <AdvancedSectionNavigation area={area} items={advanced} activeTo={activeTo} />
         ) : null}
 
         <div className="mt-4 border-t border-border/55 pt-3">
@@ -122,6 +112,41 @@ export function PublicSectionNav({
         </div>
       </nav>
     </aside>
+  );
+}
+
+
+/** Keep the current advanced destination discoverable on browser back/forward. */
+function AdvancedSectionNavigation({
+  area,
+  items,
+  activeTo,
+}: {
+  area: PublicArea;
+  items: PublicDestination[];
+  activeTo?: string;
+}) {
+  const activeIsAdvanced = items.some((item) => item.to === activeTo);
+  const [open, setOpen] = useState(activeIsAdvanced);
+
+  useEffect(() => setOpen(activeIsAdvanced), [activeIsAdvanced, activeTo]);
+
+  return (
+    <details
+      className="group mt-4 border-t border-border/55 pt-3"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-2 text-xs font-semibold text-muted-foreground hover:bg-surface/70 hover:text-foreground [&::-webkit-details-marker]:hidden">
+        <span>{area === "results" ? "More result tools" : "Advanced"}</span>
+        <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
+      </summary>
+      <div className="mt-1 space-y-0.5">
+        {items.map((item) => (
+          <SectionLink key={item.id} item={item} active={item.to === activeTo} area={area} />
+        ))}
+      </div>
+    </details>
   );
 }
 
