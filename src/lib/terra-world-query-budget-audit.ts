@@ -46,7 +46,7 @@ export function auditWorldPublicQueryBudget(
     return body;
   };
   const cap = (path: string, source: string, name: string, max: number) => {
-    const match = new RegExp(`(?:export\s+)?const\s+${name}\s*=\s*(\d+)\s*;`).exec(source);
+    const match = new RegExp(String.raw`(?:export\s+)?const\s+${name}\s*=\s*(\d+)\s*;`).exec(source);
     const value = match ? Number(match[1]) : NaN;
     if (!Number.isSafeInteger(value) || value < 1 || value > max) {
       fail(path, "page-cap", `${name} must remain an explicit integer between 1 and ${max}`);
@@ -99,7 +99,7 @@ export function auditWorldPublicQueryBudget(
     ORGANIZATION_COLUMNS: "id,slug,short_name,official_name,status,public_visibility",
   } as const;
   for (const [name, allowed] of Object.entries(approvedColumns)) {
-    const match = new RegExp(`const\s+${name}\s*=\s*["']([^"']+)["']`).exec(countrySource);
+    const match = new RegExp(String.raw`const\s+${name}\s*=\s*["']([^"']+)["']`).exec(countrySource);
     if (!match || match[1] !== allowed) {
       fail(COUNTRY, "approved-column-list", `${name} must retain the reviewed publication-safe field projection`);
     }
