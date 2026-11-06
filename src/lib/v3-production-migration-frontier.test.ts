@@ -94,6 +94,16 @@ describe("V3 hosted production migration frontier", () => {
     expect(operator).not.toContain('if [[ "$version" < "$EXPECTED_REMOTE_HEAD" || "$version" == "$EXPECTED_REMOTE_HEAD" ]]; then\\n    mapfile -t matches');
   });
 
+  it("fails closed when the repository directory has files but no SQL migrations", () => {
+    const report = auditV3ProductionMigrationFrontier(
+      ["README.md", ".gitkeep", "config.toml"],
+      [{ version: cutover, name: "historical_bootstrap" }],
+    );
+    expect(report.repositoryCount).toBe(0);
+    expect(report.errors).toContain("Repository migration inventory contains no SQL migrations");
+    expect(report.historyReconciled).toBe(false);
+  });
+
   it("fails closed when remote evidence is missing or too old", () => {
     const noEvidence = auditV3ProductionMigrationFrontier([historicRepo, canonical], []);
     expect(noEvidence.historyReconciled).toBe(false);
