@@ -151,7 +151,7 @@ function V3OfficialNoticesBoundInbox({
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({
-        queryKey: ["v3-delegation-notices", userId, editionId ?? "current"],
+        queryKey: ["v3-delegation-notices", userId, countryId, editionId ?? "current"],
       }),
       queryClient.invalidateQueries({
         queryKey: ["v3-notifications-inbox", userId, editionId ?? "current"],
