@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,7 +7,11 @@ import { describe, expect, it } from "vitest";
 
 const guard = fileURLToPath(new URL("../check-v3-capability-status-transitions.ts", import.meta.url));
 const publicRegistry = `export const PUBLIC = [
-  { id: "home", classification: "redesign", specificationStatus: "parity" },
+  {
+    id: "home",
+    classification: "redesign",
+    specificationStatus: "parity",
+  },
 ];`;
 
 function organizerRegistry(options: { includeAccess?: boolean; accessStatus?: string; accessClass?: string } = {}) {
@@ -92,7 +96,11 @@ describe("S15 capability status history is fail-closed", () => {
   it("continues rejecting a deleted Public capability", () => {
     const result = runTransitionGuard(
       organizerRegistry(),
-      `export const PUBLIC = [{ id: "unrelated", classification: "redesign", specificationStatus: "parity" }];`,
+      `export const PUBLIC = [{
+        id: "unrelated",
+        classification: "redesign",
+        specificationStatus: "parity",
+      }];`,
     );
     expect(result.status).toBe(1);
     expect(result.output).toContain("Public home: capability row disappeared");
