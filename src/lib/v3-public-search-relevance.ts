@@ -1,5 +1,5 @@
 import type { PublicSearchResult } from "./public-search";
-import { matchesPublicSearch } from "./public-search";
+import { matchesPublicSearch, navigationSearchResults } from "./public-search";
 
 /**
  * The published Search projection remains the source of truth. This helper
@@ -101,6 +101,17 @@ function relevanceScore(result: PublicSearchResult, query: string): number {
   if (description.includes(q)) return 5;
   if (matchesPublicSearch(query, result.label, result.description, result.keywords)) return 6;
   return 7;
+}
+
+/**
+ * Preserve exactly the existing discoverable public destination catalog,
+ * extending its local matching to one typo. Do not mint destinations or
+ * load additional archive data in installed-app Search.
+ */
+export function navigationV3PublicSearchResults(query: string): PublicSearchResult[] {
+  return navigationSearchResults("").filter((item) =>
+    matchesV3PublicSearch(query, item.label, item.description, item.keywords),
+  );
 }
 
 /** Stable ordering preserves provider/editorial priority on tied relevance. */
