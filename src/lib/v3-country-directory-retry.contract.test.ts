@@ -38,6 +38,8 @@ describe("V3 Country discovery recovery", () => {
     expect(screen).toContain("if (participatingOnly && participantsQuery.isError) setParticipatingOnly(false)");
     expect(screen).toContain("const selectedParticipatingOnly = effectiveParticipatingScope(participatingOnly, currentLineupReady)");
     expect(screen).toContain("onClick={() => void participantsQuery.refetch()}");
+    expect(screen).toContain("disabled={participantsQuery.isFetching}");
+    expect(screen).toContain('participantsQuery.isFetching ? "Retrying…" : "Retry lineup"');
     expect(screen).not.toContain("countriesQuery.isError || editionsQuery.isError");
   });
 });
