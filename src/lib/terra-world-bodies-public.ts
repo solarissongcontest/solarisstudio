@@ -99,7 +99,7 @@ export async function readPublicWorldBodies(
   const page = Number.isSafeInteger(requestedPage)
     ? Math.max(0, Math.min(1000, requestedPage)) : 0;
   const { data, error, count } = await (supabase as any).from("world_organization_organs")
-    .select("id,organization_id,slug,name,short_name,type,description,status,visibility,sort_order", { count: "exact" })
+    .select("id,organization_id,slug,name,short_name,type,status,visibility,sort_order", { count: "exact" })
     .eq("organization_id", organization.id).eq("visibility", "public")
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true })
