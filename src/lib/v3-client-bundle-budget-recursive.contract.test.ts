@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 describe("V3 fixed client bundle budget nested-asset regression", () => {
   it("executes the pure Node nested-asset fixtures in Quality CI", () => {
     const result = spawnSync(
-      process.execPath,
+      "node",
       ["--test", "scripts/check-client-bundle-budget.recursive.test.mjs"],
       {
         cwd: process.cwd(),
