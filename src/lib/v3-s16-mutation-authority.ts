@@ -310,6 +310,12 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
   },
 ];
 
+export function isV3S16UnsafeStandaloneIdentityWriter(file: V3S16SourceFile): boolean {
+  return file.path.startsWith("scripts/") &&
+    !/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file.path) &&
+    !file.path.includes("/fixtures/") &&
+    /\bauth\s*\.\s*admin\s*\.\s*(?:updateUserById|deleteUser)\s*\(/.test(file.source);
+}
 export function scanV3S16StaticAuthority(
   files: readonly V3S16SourceFile[],
   domains: readonly V3S16DomainDefinition[] = V3_S16_CRITICAL_DOMAINS,
@@ -324,16 +330,11 @@ export function scanV3S16StaticAuthority(
   );
   const migrationFiles = files.filter((file) => file.path.startsWith("supabase/migrations/"));
 
-  // Standalone utility scripts are not canonical application mutation owners.
-  // Isolated rehearsals may legitimately write disposable data, so exclude
-  // scripts from the generic table scanner above. Account identity mutations
-  // are different: a raw auth.admin call in an executable utility bypasses
-  // actor-bound server authorization, review, and audit receipts entirely.
+  // Isolated data rehearsal scripts are not production canonical-table
+  // writers. But a standalone auth.admin identity mutation bypasses governed
+  // actor authorization and receipts even when a service-role key is present.
   for (const file of files) {
-    if (!file.path.startsWith("scripts/") ||
-        /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file.path) ||
-        file.path.includes("/fixtures/")) continue;
-    if (!/\.auth\s*\.\s*admin\s*\.\s*(?:updateUserById|deleteUser)\s*\(/.test(file.source)) continue;
+    if (!isV3S16UnsafeStandaloneIdentityWriter(file)) continue;
     findings.push({
       domain: "account-session",
       kind: "competing_legacy_writer",
