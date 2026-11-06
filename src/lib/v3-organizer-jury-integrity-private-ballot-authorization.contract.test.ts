@@ -43,6 +43,8 @@ describe("Organizer Jury Integrity protected ballot boundary", () => {
   it("renders failed authorized reads as errors with an explicit accessible retry", () => {
     expect(page).toContain('role="alert"');
     expect(page).toContain("No integrity conclusion can be drawn");
+    expect(page).toContain("query.data && !query.error && !query.isLoading");
+    expect(page).not.toContain("query.data?.stats.total ?? 0");
     expect(page).toContain("onClick={() => void query.refetch()}");
     expect(page).toContain("disabled={query.isFetching}");
     expect(page).toContain("aria-busy={query.isFetching}");
