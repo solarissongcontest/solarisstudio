@@ -19,13 +19,20 @@ type QueryResponse = {
 type QueryCall = { table: string; method: string; args: unknown[] };
 type ResponseQueues = Record<string, QueryResponse[]>;
 
-function installPublicClient(responses: ResponseQueues) {
+function installPublicClient(
+  responses: ResponseQueues,
+  rollout: QueryResponse = { data: true, error: null },
+) {
   const calls: QueryCall[] = [];
   const queues = Object.fromEntries(
     Object.entries(responses).map(([table, items]) => [table, [...items]]),
   );
 
   const client = {
+    rpc(name: string, args: Record<string, unknown>) {
+      calls.push({ table: "rpc", method: name, args: [args] });
+      return Promise.resolve(rollout);
+    },
     from(table: string) {
       const response = queues[table]?.shift();
       if (!response) {
@@ -77,6 +84,27 @@ const filters = { page: 0, organization: "", country: "", scope: "all" as const 
 describe("TG3 World membership chronicle server query boundary", () => {
   beforeEach(() => runtime.create.mockReset());
 
+  it("fails closed before table reads when World publication is disabled", async () => {
+    const calls = installPublicClient({}, noError(false));
+    await expect(loadWorldMembershipChronicle(filters)).rejects.toThrow(/rollout/);
+    expect(calls).toEqual([{
+      table: "rpc", method: "studio2_feature_enabled",
+      args: [{ p_key: "terra_world_public", p_edition_id: null }],
+    }]);
+  });
+
+  it("does not disclose private institutional filter names when the rollout check fails", async () => {
+    const calls = installPublicClient({}, { data: true, error: new Error("RPC unavailable") });
+    await expect(loadWorldMembershipInstitutions()).rejects.toThrow(/rollout/);
+    expect(calls.every((call) => call.table === "rpc")).toBe(true);
+  });
+
+  it("rejects ambiguous nonboolean publication state", async () => {
+    const calls = installPublicClient({}, noError(null));
+    await expect(loadWorldMembershipChronicle(filters)).rejects.toThrow(/rollout/);
+    expect(calls.every((call) => call.table === "rpc")).toBe(true);
+  });
+
   it("reads only displayed member identities and explicitly public institutions", async () => {
     const calls = installPublicClient({
       world_organization_memberships: [noError([membership], 1)],
@@ -108,7 +136,11 @@ describe("TG3 World membership chronicle server query boundary", () => {
       args: ["id", ["country-1"]],
     });
     expect(calls.some(({ table, method }) => table === "world_organizations" && method === "range")).toBe(false);
-    expect(calls.every(({ method }) => method !== "rpc")).toBe(true);
+    expect(calls).toContainEqual({
+      table: "rpc",
+      method: "studio2_feature_enabled",
+      args: [{ p_key: "terra_world_public", p_edition_id: null }],
+    });
   });
 
   it("returns an empty result for unknown or private institution without probing its members", async () => {
