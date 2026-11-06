@@ -2,8 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { Bell, BellOff, BookmarkCheck, ChevronRight, Radio, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { supabase } from "@/integrations/supabase/client";
 import { useMyFollows, useSetFanFollow } from "@/lib/engagement-data";
+import { assertCurrentFollowingActor } from "@/lib/v3-following-actor";
 import {
   buildV3FollowingSavedProjection,
   searchV3FollowingSavedItems,
@@ -183,8 +183,8 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
     let mutationDispatched = false;
     try {
       // Do not dispatch a stale preference click under a different login.
-      const { data: auth, error: authError } = await supabase.auth.getUser();
-      if (authError || !auth.user || auth.user.id !== viewerId || latestViewerId.current !== viewerId) {
+      await assertCurrentFollowingActor(viewerId);
+      if (latestViewerId.current !== viewerId) {
         throw new Error("Following account changed before the preference update.");
       }
       mutationDispatched = true;

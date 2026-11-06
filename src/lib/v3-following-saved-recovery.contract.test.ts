@@ -106,17 +106,26 @@ describe("V3 Following & Saved read and mutation recovery", () => {
 
   it("checks the live actor before dispatching the saved preference writer", () => {
     const source = screen();
-    expect(source).toContain('import { supabase } from "@/integrations/supabase/client";');
+    expect(source).not.toContain("integrations/supabase");
+    expect(source).toContain('import { assertCurrentFollowingActor } from "@/lib/v3-following-actor";');
     expect(source).toContain("const latestViewerId = useRef(viewerId);");
-    expect(source).toContain("const { data: auth, error: authError } = await supabase.auth.getUser();");
-    expect(source).toContain("auth.user.id !== viewerId || latestViewerId.current !== viewerId");
-    expect(source.indexOf("supabase.auth.getUser()")).toBeLessThan(source.indexOf("await setFollow.mutateAsync({"));
+    expect(source).toContain("await assertCurrentFollowingActor(viewerId);");
+    expect(source).toContain("latestViewerId.current !== viewerId");
+    expect(source.indexOf("assertCurrentFollowingActor(viewerId)")).toBeLessThan(source.indexOf("await setFollow.mutateAsync({"));
     expect(source).toContain("Following account changed before the preference update.");
     expect(source).toContain("let mutationDispatched = false;");
     expect(source).toContain("mutationDispatched = true;");
     expect(source).toContain("if (mutationDispatched) {");
     expect(source.indexOf("mutationDispatched = true;"))
       .toBeGreaterThan(source.indexOf("Following account changed before the preference update."));
+  });
+
+  it("keeps the authentication lookup inside the existing integration boundary", () => {
+    const integration = readFileSync(resolve(process.cwd(), "src/integrations/v3/following-actor.ts"), "utf8");
+    const adapter = readFileSync(resolve(process.cwd(), "src/lib/v3-following-actor.ts"), "utf8");
+    expect(adapter).toContain('@/integrations/v3/following-actor');
+    expect(integration).toContain("await supabase.auth.getUser()");
+    expect(integration).toContain("data.user.id !== expectedViewerId");
   });
 
 });
