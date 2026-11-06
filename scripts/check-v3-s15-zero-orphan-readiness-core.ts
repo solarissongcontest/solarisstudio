@@ -26,6 +26,8 @@ import {
   V3_NOTIFICATION_PROVIDER_REGISTRY,
 } from "../src/lib/v3-notification-provider-registry";
 import { V3_SEARCH_PROVIDER_REGISTRY } from "../src/lib/v3-search-provider-registry";
+import { auditV3RuntimeRouteDeclarations, parseV3RuntimeRouteId } from "../src/lib/v3-s15-route-discovery";
+import { V3_PUBLIC_ROUTE_OWNERSHIP } from "../src/lib/v3-public-route-ownership";
 
 const requireZero = process.argv.includes("--require-zero");
 const findings: string[] = [];
@@ -46,10 +48,6 @@ function setDiff(expected: Iterable<string>, actual: Iterable<string>) {
     missing: [...expectedSet].filter((item) => !actualSet.has(item)).sort(),
     extra: [...actualSet].filter((item) => !expectedSet.has(item)).sort(),
   };
-}
-
-function routeIdFromSource(source: string) {
-  return source.match(/createFileRoute\(\s*["'`]([^"'`]+)["'`]\s*\)/)?.[1] ?? null;
 }
 
 function publicPath(routeId: string) {
@@ -81,13 +79,16 @@ function routeMatches(pattern: string, route: string) {
 
 function publicOwner(route: string) {
   const normalized = normalizeDynamicSegments(route);
-  return (
-    V3_PUBLIC_CAPABILITIES.find((item) =>
-      [...item.legacyRoutes, item.targetRoute].some((pattern) =>
-        routeMatches(normalizedPattern(pattern), normalized),
-      ),
-    )?.id ?? null
+  const registered = V3_PUBLIC_CAPABILITIES.find((item) =>
+    [...item.legacyRoutes, item.targetRoute].some((pattern) =>
+      routeMatches(normalizedPattern(pattern), normalized),
+    ),
   );
+  if (registered) return registered.id;
+  const alias = V3_PUBLIC_ROUTE_OWNERSHIP.find((item) =>
+    routeMatches(normalizedPattern(item.routePattern), normalized),
+  );
+  return alias && V3_PUBLIC_CAPABILITIES.some((item) => item.id === alias.ownerId) ? alias.ownerId : null;
 }
 
 function organizerOwner(route: string) {
@@ -176,6 +177,11 @@ for (const [event, owners] of eventOwners) {
   if (owners.size > 1) findings.push(`SYSTEM_EVENT_MULTIPLE_OWNERS ${event} -> ${[...owners].sort().join(",")}`);
 }
 
+for (const alias of V3_PUBLIC_ROUTE_OWNERSHIP) {
+  if (!V3_PUBLIC_CAPABILITIES.some((item) => item.id === alias.ownerId)) {
+    findings.push(`PUBLIC_ROUTE_ALIAS_OWNER_ORPHAN ${alias.routePattern} -> ${alias.ownerId}`);
+  }
+}
 for (const capability of V3_PUBLIC_CAPABILITIES) {
   if (!["cutover", "retired"].includes(capability.specificationStatus)) {
     findings.push(`PUBLIC_CUTOVER_UNRESOLVED ${capability.id}:${capability.specificationStatus}`);
@@ -204,9 +210,13 @@ let publicRuntimeRoutes = 0;
 let organizerRuntimeRoutes = 0;
 let apiRuntimeRoutes = 0;
 const routeFiles = filesUnder(resolve(process.cwd(), "src/routes")).filter((path) => /\.(?:ts|tsx)$/.test(path));
-for (const file of routeFiles) {
-  const source = readFileSync(file, "utf8");
-  const rawRoute = routeIdFromSource(source);
+const routeSources = routeFiles.map((file) => ({
+  path: file.slice(process.cwd().length + 1),
+  source: readFileSync(file, "utf8"),
+}));
+for (const issue of auditV3RuntimeRouteDeclarations(routeSources)) findings.push(issue);
+for (const { source } of routeSources) {
+  const rawRoute = parseV3RuntimeRouteId(source);
   if (!rawRoute) continue;
   const route = publicPath(rawRoute);
   if (!route || route.startsWith("/dev/")) continue;
