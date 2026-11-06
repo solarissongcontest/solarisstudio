@@ -96,14 +96,19 @@ describe("TG16 fictional people, offices and historical terms",()=>{
     expect(forwarding).toHaveBeenCalledTimes(1);
   });
   it("requires a real operation receipt and surfaces conflicts",async()=>{
-    rpc.mockResolvedValueOnce({data:{ok:true,id:personId,kind:"lore_person",
-      revision:1,operationId},error:null});
+    rpc.mockResolvedValueOnce({data:{operationId,status:"succeeded",error:null,
+      result:{ok:true,id:personId,kind:"lore_person",revision:1,operationId}},error:null});
     await expect(writeWorldDomesticOfficial({countryId,kind:"lore_person",subjectId:null,
       payload:{name:"Fictional President",published:true},expectedRevision:0,
       operationId,idempotencyKey:operationId})).resolves.toMatchObject({id:personId});
     expect(rpc).toHaveBeenCalledWith("world_write_domestic_official_v1",expect.objectContaining({
       p_country_id:countryId,p_kind:"lore_person",p_expected_revision:0,
     }));
+    rpc.mockResolvedValueOnce({data:{operationId,status:"processing",error:null,
+      result:{ok:true,id:personId,kind:"lore_person",revision:1,operationId}},error:null});
+    await expect(writeWorldDomesticOfficial({countryId,kind:"lore_person",subjectId:personId,
+      payload:{name:"Invalid pending"},expectedRevision:1,operationId,
+      idempotencyKey:operationId})).rejects.toThrow("receipt");
     rpc.mockResolvedValueOnce({data:null,error:{code:"40001",message:"VERSION_CONFLICT"}});
     await expect(writeWorldDomesticOfficial({countryId,kind:"office",subjectId:officeId,
       payload:{title:"Renamed"},expectedRevision:1,operationId,idempotencyKey:operationId}))
