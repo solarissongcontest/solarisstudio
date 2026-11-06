@@ -54,6 +54,22 @@ describe("V3 installed dock interrupted gesture recovery", () => {
     expect(installed).toContain("data-solaris-keyboard-open");
   });
 
+
+  it("removes keyboard-obscured public and Organizer navigation from the focus order", () => {
+    const geometry = read("src/styles/v3-navigation-fixed-geometry.css");
+    const organizer = read("src/styles/v3-organizer-navigation.css");
+    const installedKeyboardRule = geometry.match(
+      /html\[data-solaris-keyboard-open\] \[data-solaris-v3\] \.v3-bottom-nav\.v3-liquid-tabbar \{([^}]*)\}/,
+    )?.[1];
+    const organizerKeyboardRule = organizer.match(
+      /html\[data-solaris-keyboard-open\] \.admin-mobile-nav\[data-v6-organizer-tabbar\] \{([^}]*)\}/,
+    )?.[1];
+
+    expect(installedKeyboardRule).toContain("visibility: hidden;");
+    expect(organizerKeyboardRule).toContain("visibility: hidden;");
+    expect(organizerKeyboardRule).toContain("pointer-events: none;");
+  });
+
   it("keeps V3 Liquid gesture teardown and live-update safeguards intact", () => {
     expect(liquid).toContain("clearAppUpdateBlocker(V3_LIQUID_LENS_UPDATE_BLOCKER)");
     expect(liquid).toContain("setAppUpdateBlocker(");
