@@ -464,6 +464,11 @@ export function AdminWorldDocumentDraftWorkspace() {
           title="Document drafts"
           description="Create institutional legal Works and versioned unpublished text. Canonical commands own every write. Publication and amendments remain separate, reviewed operations."
         />
+        <p className="text-sm text-muted-foreground">
+          Once a draft is saved, <a className="font-semibold underline underline-offset-4"
+            href="/admin/world-document-publication">prepare and review official publication</a>
+          {" "}through the separate governed R2/R3 lifecycle.
+        </p>
 
         {organizations.isPending ? <p role="status">Loading institutions…</p> : organizations.isError ? (
           <div role="alert" className="space-y-3 rounded-xl border border-destructive/40 p-5">
