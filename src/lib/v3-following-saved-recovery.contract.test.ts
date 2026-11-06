@@ -84,7 +84,7 @@ describe("V3 Following & Saved read and mutation recovery", () => {
 
   it("never shows an old account's delayed mutation message to a different viewer", () => {
     const source = screen();
-    expect(source).toContain('useEffect(() => {\n    setMessage(null);\n    setSearch("");\n  }, [viewerId]);');
+    expect(source).toContain('useEffect(() => {\n    latestViewerId.current = viewerId;\n    setMessage(null);\n    setSearch("");\n  }, [viewerId]);');
     expect(source).toContain("setMessage({ viewerId, text: following ?");
     expect(source).toContain("setMessage({ viewerId, text: \"Update not confirmed.");
     expect(source).toContain("message?.viewerId === viewerId");
@@ -97,4 +97,14 @@ describe("V3 Following & Saved read and mutation recovery", () => {
     expect(source).not.toContain("Nothing else was changed.");
     expect(source).toContain("} finally {");
   });
+  it("rejects an account switch before dispatching a Following mutation", () => {
+    const source = screen();
+    expect(source).toContain('import { supabase } from "@/integrations/supabase/client";');
+    expect(source).toContain("const latestViewerId = useRef(viewerId);");
+    expect(source).toContain("const { data: auth, error: authError } = await supabase.auth.getUser();");
+    expect(source).toContain("auth.user.id !== viewerId || latestViewerId.current !== viewerId");
+    expect(source.indexOf("supabase.auth.getUser()")).toBeLessThan(source.indexOf("await setFollow.mutateAsync({"));
+    expect(source).toContain("Following account changed before the preference update.");
+  });
+
 });
