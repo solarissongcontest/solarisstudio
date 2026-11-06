@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertOrganizerResponsePageContinuity,
   assertOrganizerResponsePageDisjoint,
+  assertOrganizerResponsePageCoverage,
   safeOrganizerResponseSongUrl,
   assertOrganizerNextInLineRowsInScope,
   assertOrganizerResponseRowsInEdition,
@@ -64,6 +65,26 @@ describe("Organizer Confirmation response queue page guards", () => {
     expect(route).toContain("if (page.page.hasMore && newRows.length === 0)");
     expect(route).toContain("setRows((current) => [...current, ...newRows]);");
     expect(route).not.toContain("newRows.forEach((row) => byId.set(row.id, row));");
+  });
+  it("requires final pagination to cover the full canonical response count", () => {
+    expect(() => assertOrganizerResponsePageCoverage(0, 10, 10, false)).not.toThrow();
+    expect(() => assertOrganizerResponsePageCoverage(20, 10, 30, false)).not.toThrow();
+    expect(() => assertOrganizerResponsePageCoverage(0, 0, 0, false)).not.toThrow();
+    expect(() => assertOrganizerResponsePageCoverage(20, 9, 30, false)).toThrow(/does not match/);
+    expect(() => assertOrganizerResponsePageCoverage(20, 11, 30, false)).toThrow(/does not match/);
+  });
+  it("rejects overfilled, prematurely final, and malformed intermediate pages", () => {
+    expect(() => assertOrganizerResponsePageCoverage(20, 9, 30, true)).not.toThrow();
+    expect(() => assertOrganizerResponsePageCoverage(20, 10, 30, true)).toThrow(/does not match/);
+    expect(() => assertOrganizerResponsePageCoverage(20, 11, 30, true)).toThrow(/does not match/);
+    expect(() => assertOrganizerResponsePageCoverage(-1, 2, 5, true)).toThrow(/invalid response counts/);
+    expect(() => assertOrganizerResponsePageCoverage(0, 1, 1.5, false)).toThrow(/invalid response counts/);
+  });
+  it("validates both the initial and next page before rendering or appending", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses.tsx"), "utf8");
+    expect(route).toContain("assertOrganizerResponsePageCoverage(0, initialRows.length, page.totalCount, page.page.hasMore)");
+    expect(route).toContain("assertOrganizerResponsePageCoverage(rows.length, newRows.length, page.totalCount, page.page.hasMore)");
   });
   it("allows ordinary and signed HTTP(S) source links", () => {
     expect(safeOrganizerResponseSongUrl("https://song.example.test/entry.mp3?token=opaque")).toBe(
