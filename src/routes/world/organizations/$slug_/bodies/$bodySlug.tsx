@@ -14,5 +14,5 @@ export const Route = createFileRoute("/world/organizations/$slug/bodies/$bodySlu
 
 function BodyPage() {
   const { slug, bodySlug } = Route.useParams();
-  return <WorldPublicGate><WorldBodyDetails slug={slug} bodySlug={bodySlug} /></WorldPublicGate>;
+  return <WorldPublicGate verifyOnMount><WorldBodyDetails slug={slug} bodySlug={bodySlug} /></WorldPublicGate>;
 }
