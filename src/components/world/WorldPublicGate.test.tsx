@@ -78,6 +78,26 @@ describe("World public rollout gate", () => {
     }
   });
 
+  it("does not display cached World content while the feature flag is being rechecked", () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const key = ["world", "public", "rollout"];
+    client.setQueryData(key, true);
+    const query = client.getQueryCache().find({ queryKey: key, exact: true });
+    expect(query).toBeDefined();
+    query!.setState({ fetchStatus: "fetching" });
+    try {
+      const html = renderToStaticMarkup(
+        <QueryClientProvider client={client}>
+          <WorldPublicGate><section>Published world profile sentinel</section></WorldPublicGate>
+        </QueryClientProvider>,
+      );
+      expect(html).toContain("Checking Terra Solaris availability");
+      expect(html).not.toContain("Published world profile sentinel");
+    } finally {
+      client.clear();
+    }
+  });
+
   it("mounts the reader only after the server-approved decision is true", () => {
     const html = renderWorldGate(true);
     expect(html).toContain("Published world profile sentinel");
