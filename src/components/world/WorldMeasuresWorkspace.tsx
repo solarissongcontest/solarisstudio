@@ -168,10 +168,16 @@ export function WorldMeasureDetailPage({ measureId }: { measureId: string }) {
                 </li>)}
             </ol>
           </section> : null}
-          <Link to="/world/measures/$measureId/manage" params={{ measureId }}
-            className="mt-7 inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-semibold">
-            Manage this measure (authorized members)
-          </Link>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <Link to="/world/measures/$measureId/manage" params={{ measureId }}
+              className="inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-semibold">
+              Manage this measure (authorized members)
+            </Link>
+            <Link to="/world/measures/$measureId/amendments" params={{ measureId }}
+              className="inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-semibold">
+              Propose or review amendments
+            </Link>
+          </div>
         </footer>
       </>}
   </main>;
