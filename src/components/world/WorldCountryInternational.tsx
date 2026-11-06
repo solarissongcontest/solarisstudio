@@ -12,6 +12,7 @@ import {
   normalizeWorldCountrySearch,
   validWorldCountryCode,
   visibleWorldCountryAffiliations,
+  verifiedWorldQueryData,
   type WorldCountryAffiliation,
   type WorldPublicCountry,
   type WorldPublicInstitution,
@@ -111,6 +112,7 @@ export function WorldCountriesDirectory() {
   const query = useQuery({
     queryKey: ["world", "country-international-directory", safeSearch, page],
     staleTime: 120_000,
+    refetchOnMount: "always",
     retry: 1,
     queryFn: () => fetchWorldCountryDirectory(safeSearch, page),
   });
@@ -119,12 +121,12 @@ export function WorldCountriesDirectory() {
   // If a concurrent deletion empties the selected page, recover to the last
   // valid page instead of presenting a misleading zero-results dead end.
   useEffect(() => {
-    if (query.isSuccess && page > 0 && page * WORLD_COUNTRY_PAGE_SIZE >= query.data.count) {
+    if (verifiedWorldQueryData(query) && page > 0 && page * WORLD_COUNTRY_PAGE_SIZE >= query.data.count) {
       setPage(Math.max(0, Math.ceil(query.data.count / WORLD_COUNTRY_PAGE_SIZE) - 1));
     }
   }, [page, query.data, query.isSuccess]);
 
-  const visibleCountryData = query.isSuccess ? query.data : undefined;
+  const visibleCountryData = verifiedWorldQueryData(query);
   const total = visibleCountryData?.count ?? 0;
   const start = page * WORLD_COUNTRY_PAGE_SIZE;
   return <>
@@ -147,11 +149,11 @@ export function WorldCountriesDirectory() {
       </div>
 
       <p role="status" aria-live="polite" className="mt-5 text-xs text-muted-foreground">
-        {query.isPending ? "Loading countries…" : query.isError ? "Countries unavailable" :
+        {query.isError ? "Countries unavailable" : query.isPending || query.isFetching || !query.isFetchedAfterMount ? "Loading countries…" :
           total === 0 ? "No matching countries" :
             "Countries " + (start + 1) + "–" + Math.min(start + WORLD_COUNTRY_PAGE_SIZE, total) + " of " + total}
       </p>
-      {query.isPending ? <ArchiveDataLoading label="Loading public country identities…" /> : null}
+      {!query.isError && (query.isPending || query.isFetching || !query.isFetchedAfterMount) ? <ArchiveDataLoading label="Loading public country identities…" /> : null}
       {query.isError ? <FailureState title="Countries unavailable" retry={() => void query.refetch()} /> : null}
       {visibleCountryData && visibleCountryData.countries.length === 0 ? (
         <div className="py-10">
@@ -185,6 +187,7 @@ function useCountryMemberships(countryId: string | undefined, phase: Phase, page
   return useQuery({
     queryKey: ["world", "country-international-memberships", countryId, phase, page],
     enabled: Boolean(countryId),
+    refetchOnMount: "always",
     staleTime: 120_000,
     retry: 1,
     queryFn: () => fetchWorldCountryMembershipPage(countryId ?? "", phase, page),
@@ -267,6 +270,7 @@ export function WorldCountryInternational({ code }: { code: string }) {
   const identity = useQuery({
     queryKey: ["world", "country-international-identity", canonicalCode],
     enabled: validCode,
+    refetchOnMount: "always",
     staleTime: 5 * 60_000,
     retry: 1,
     queryFn: () => fetchWorldCountryIdentity(canonicalCode),
@@ -276,13 +280,13 @@ export function WorldCountryInternational({ code }: { code: string }) {
   const historical = useCountryMemberships(identity.data?.id, "historical", historyPage);
 
   useEffect(() => {
-    if (current.isSuccess && currentPage > 0 &&
+    if (verifiedWorldQueryData(current) && currentPage > 0 &&
         currentPage * WORLD_AFFILIATION_PAGE_SIZE >= current.data.count) {
       setCurrentPage(Math.max(0, Math.ceil(current.data.count / WORLD_AFFILIATION_PAGE_SIZE) - 1));
     }
   }, [current.data, current.isSuccess, currentPage]);
   useEffect(() => {
-    if (historical.isSuccess && historyPage > 0 &&
+    if (verifiedWorldQueryData(historical) && historyPage > 0 &&
         historyPage * WORLD_AFFILIATION_PAGE_SIZE >= historical.data.count) {
       setHistoryPage(Math.max(0, Math.ceil(historical.data.count / WORLD_AFFILIATION_PAGE_SIZE) - 1));
     }
@@ -291,13 +295,16 @@ export function WorldCountryInternational({ code }: { code: string }) {
   // Resolve only the organizations on the visible current/historical pages.
   // This independently enforces the world_organizations PUBLIC RLS boundary
   // after the membership RLS boundary, including visibility changes mid-read.
+  const verifiedCurrent = verifiedWorldQueryData(current);
+  const verifiedHistorical = verifiedWorldQueryData(historical);
   const organizationIds = useMemo(() => Array.from(new Set([
-    ...(current.isSuccess ? current.data?.rows ?? [] : []),
-    ...(historical.isSuccess ? historical.data?.rows ?? [] : []),
-  ].map((item) => item.organizationId))), [current.data, current.isSuccess, historical.data, historical.isSuccess]);
+    ...(verifiedCurrent?.rows ?? []),
+    ...(verifiedHistorical?.rows ?? []),
+  ].map((item) => item.organizationId))), [verifiedCurrent, verifiedHistorical]);
   const institutions = useQuery({
     queryKey: ["world", "country-international-public-institutions", organizationIds.join(",")],
-    enabled: Boolean(identity.data) && organizationIds.length > 0,
+    enabled: Boolean(verifiedWorldQueryData(identity)) && organizationIds.length > 0,
+    refetchOnMount: "always",
     staleTime: 120_000,
     retry: 1,
     queryFn: () => fetchWorldPublicCountryInstitutions(organizationIds),
@@ -307,16 +314,18 @@ export function WorldCountryInternational({ code }: { code: string }) {
     <h1 className="text-xl font-bold">Country not found</h1>
     <Link to="/world/countries" className="mt-4 inline-flex min-h-11 items-center text-primary">Browse countries</Link>
   </div>;
-  if (identity.isPending) return <div className="mx-auto max-w-5xl px-4 py-10"><ArchiveDataLoading label="Opening country identity…" /></div>;
   if (identity.isError) return <div className="mx-auto max-w-5xl px-4 py-10"><FailureState retry={() => void identity.refetch()} /></div>;
-  if (!identity.data) return <div className="mx-auto max-w-4xl px-4 py-12">
+  if (identity.isPending || identity.isFetching || !identity.isFetchedAfterMount) return <div className="mx-auto max-w-5xl px-4 py-10"><ArchiveDataLoading label="Opening country identity…" /></div>;
+  const verifiedIdentity = verifiedWorldQueryData(identity);
+  if (!verifiedIdentity) return <div className="mx-auto max-w-4xl px-4 py-12">
     <h1 className="text-xl font-bold">Country not found</h1>
     <p className="mt-2 text-sm text-muted-foreground">No current public country identity matches this address.</p>
     <Link to="/world/countries" className="mt-4 inline-flex min-h-11 items-center font-semibold text-primary">Browse countries</Link>
   </div>;
 
-  const country = identity.data;
-  const institutionsReady = !organizationIds.length || (institutions.isSuccess && Array.isArray(institutions.data));
+  const country = verifiedIdentity;
+  const verifiedInstitutions = verifiedWorldQueryData(institutions);
+  const institutionsReady = !organizationIds.length || Array.isArray(verifiedInstitutions);
   const institutionError = institutions.isError;
   return <>
     <div className="mx-auto w-full max-w-5xl px-4 pb-14 pt-6 sm:px-6">
@@ -342,21 +351,21 @@ export function WorldCountryInternational({ code }: { code: string }) {
         Only institutions whose records are currently public can appear here.
         Historical affiliations are separated from current ones.
       </p>
-      {institutions.isPending && organizationIds.length > 0 ?
+      {!institutionError && !institutionsReady && organizationIds.length > 0 ?
         <p className="mt-4 text-sm text-muted-foreground" role="status">Verifying public institutional identities…</p> : null}
       {institutionError ? <FailureState title="Institution identities unavailable" retry={() => void institutions.refetch()} /> : null}
       {institutionsReady ? <>
         <AffiliationGroup title="Current memberships"
           description="Active memberships, associates, observers and suspended members recorded by each institution."
           phase="current" page={currentPage} setPage={setCurrentPage}
-          data={current.isSuccess ? current.data : undefined} loading={current.isPending} error={current.isError}
-          fetching={current.isFetching} institutions={institutions.data ?? []} retry={() => void current.refetch()} />
+          data={verifiedCurrent} loading={!current.isError && (current.isPending || current.isFetching || !current.isFetchedAfterMount)} error={current.isError}
+          fetching={current.isFetching} institutions={verifiedInstitutions ?? []} retry={() => void current.refetch()} />
         <div className="border-t border-border" />
         <AffiliationGroup title="Former affiliations"
           description="Published historical terms. These records do not imply current membership."
           phase="historical" page={historyPage} setPage={setHistoryPage}
-          data={historical.isSuccess ? historical.data : undefined} loading={historical.isPending} error={historical.isError}
-          fetching={historical.isFetching} institutions={institutions.data ?? []} retry={() => void historical.refetch()} />
+          data={verifiedHistorical} loading={!historical.isError && (historical.isPending || historical.isFetching || !historical.isFetchedAfterMount)} error={historical.isError}
+          fetching={historical.isFetching} institutions={verifiedInstitutions ?? []} retry={() => void historical.refetch()} />
       </> : null}
     </div>
   </>;
