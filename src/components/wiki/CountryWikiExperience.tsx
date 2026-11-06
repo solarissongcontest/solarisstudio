@@ -59,6 +59,7 @@ import {
 } from "@/lib/qualification";
 import { countryThemeToVisual, useCountryTheme } from "@/lib/visual-theme";
 import { useCountryDirectoryPresentation } from "@/lib/use-country-directory-presentation";
+import { resolveWikiArticleAnchor } from "@/lib/wiki-article-anchor";
 import "@/wiki-mobile-web.css";
 
 type PublicArchive = ReturnType<typeof buildPublicCountryArchive>;
@@ -663,16 +664,20 @@ function useWikiArticleNavigation(sections: WikiNavItem[]) {
   }, []);
 
   useEffect(() => {
-    const hashId = decodeURIComponent(window.location.hash.slice(1));
-    if (hashId && sections.some((section) => section.id === hashId)) {
-      window.setTimeout(() => navigate(hashId, "replace"), 80);
-    }
+    const sectionIds = sections.map((section) => section.id);
+    const initialId = resolveWikiArticleAnchor(window.location.hash, sectionIds);
+    const initialTimer = initialId
+      ? window.setTimeout(() => navigate(initialId, "replace"), 80)
+      : null;
     const handleHash = () => {
-      const id = decodeURIComponent(window.location.hash.slice(1));
-      if (sections.some((section) => section.id === id)) navigate(id, "replace");
+      const id = resolveWikiArticleAnchor(window.location.hash, sectionIds);
+      if (id) navigate(id, "replace");
     };
     window.addEventListener("hashchange", handleHash);
-    return () => window.removeEventListener("hashchange", handleHash);
+    return () => {
+      if (initialTimer !== null) window.clearTimeout(initialTimer);
+      window.removeEventListener("hashchange", handleHash);
+    };
   }, [navigate, sections]);
 
   useEffect(() => {
