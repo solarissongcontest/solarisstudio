@@ -112,6 +112,11 @@ describe("V3 Following & Saved read and mutation recovery", () => {
     expect(source).toContain("auth.user.id !== viewerId || latestViewerId.current !== viewerId");
     expect(source.indexOf("supabase.auth.getUser()")).toBeLessThan(source.indexOf("await setFollow.mutateAsync({"));
     expect(source).toContain("Following account changed before the preference update.");
+    expect(source).toContain("let mutationDispatched = false;");
+    expect(source).toContain("mutationDispatched = true;");
+    expect(source).toContain("if (mutationDispatched) {");
+    expect(source.indexOf("mutationDispatched = true;"))
+      .toBeGreaterThan(source.indexOf("Following account changed before the preference update."));
   });
 
 });
