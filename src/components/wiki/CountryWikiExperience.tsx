@@ -346,6 +346,7 @@ function CountryWikiArticle({
                   type="button"
                   onClick={() => navigate(section.id)}
                   aria-current={section.id === activeId ? "location" : undefined}
+                  className={`min-h-12 shrink-0 whitespace-nowrap border-b-2 bg-transparent px-0.5 py-2 text-[.8125rem] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${section.id === activeId ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}
                 >
                   {section.label}
                 </button>
