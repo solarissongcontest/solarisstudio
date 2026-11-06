@@ -19,6 +19,86 @@ const RECORD_KEYS = new Set([
 ]);
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
+/**
+ * JSON.parse silently accepts duplicate object keys, including escaped key
+ * spellings. For historical provenance that creates an ambiguous source even
+ * though the resulting JavaScript object appears valid. Scan every object and
+ * reject duplicates before using any parsed record.
+ *
+ * JSON.parse first establishes valid JSON syntax; this bounded scanner then
+ * follows that grammar solely to track object keys. The original bytes remain
+ * unchanged and continue to determine the manifest SHA-256 receipt.
+ */
+function parseUnambiguousManifestBytes(bytes) {
+  if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > MAX_MANIFEST_BYTES) {
+    throw new Error('manifest bytes: missing or exceeds 2 MiB');
+  }
+  let raw;
+  try {
+    raw = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw new Error('manifest: invalid UTF-8 source bytes');
+  }
+  const parsed = JSON.parse(raw);
+  let position = 0;
+  const whitespace = () => {
+    while (position < raw.length && /[ \t\r\n]/u.test(raw[position])) position++;
+  };
+  const scanString = () => {
+    const start = position++;
+    while (position < raw.length) {
+      if (raw[position] === '\\') { position += 2; continue; }
+      if (raw[position] === '"') {
+        position++;
+        return JSON.parse(raw.slice(start, position));
+      }
+      position++;
+    }
+    throw new Error('manifest: unterminated string');
+  };
+  const scanValue = (depth) => {
+    if (depth > 64) throw new Error('manifest: JSON nesting exceeds 64 levels');
+    whitespace();
+    if (raw[position] === '{') {
+      position++;
+      const names = new Set();
+      whitespace();
+      if (raw[position] === '}') { position++; return; }
+      while (position < raw.length) {
+        const name = scanString();
+        if (names.has(name)) throw new Error(`manifest: duplicate JSON object key ${JSON.stringify(name)}`);
+        names.add(name);
+        whitespace();
+        position++; // colon (syntax already checked by JSON.parse)
+        scanValue(depth + 1);
+        whitespace();
+        if (raw[position] === '}') { position++; return; }
+        position++; // comma
+        whitespace();
+      }
+    } else if (raw[position] === '[') {
+      position++;
+      whitespace();
+      if (raw[position] === ']') { position++; return; }
+      while (position < raw.length) {
+        scanValue(depth + 1);
+        whitespace();
+        if (raw[position] === ']') { position++; return; }
+        position++; // comma
+      }
+    } else if (raw[position] === '"') {
+      scanString();
+    } else {
+      // Primitive JSON token; JSON.parse has already verified its grammar.
+      while (position < raw.length && !/[,}\] \t\r\n]/u.test(raw[position])) position++;
+    }
+  };
+  scanValue(0);
+  whitespace();
+  if (position !== raw.length) throw new Error('manifest: unexpected JSON trailing content');
+  return parsed;
+}
+
 function assertObject(value, context) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${context}: must be an object`);
@@ -75,6 +155,10 @@ function requireUtc(value, context) {
  * is not an import receipt and does not create canonical history.
  */
 export function validateGagManifest(manifest, sourceBytes, manifestBytes) {
+  const parsedSource = parseUnambiguousManifestBytes(manifestBytes);
+  if (JSON.stringify(manifest) !== JSON.stringify(parsedSource)) {
+    throw new Error('manifest: supplied object does not match source manifest bytes');
+  }
   assertObject(manifest, 'manifest');
   knownKeys(manifest, MANIFEST_KEYS, 'manifest');
   if (manifest.schemaVersion !== 1) throw new Error('manifest.schemaVersion: expected 1');
