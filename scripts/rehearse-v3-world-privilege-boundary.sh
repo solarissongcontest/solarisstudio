@@ -38,6 +38,10 @@ if (api.username || api.password) throw new Error('API_URL cannot contain creden
 verify(dbRaw, new Set(['postgres:', 'postgresql:']), 'DB_URL');
 NODE
 
+# libpq environment variables can override a URL host (especially PGHOSTADDR).
+# Refuse inherited client authority and use only the verified explicit DB_URL.
+unset PGHOST PGHOSTADDR PGSERVICE PGSERVICEFILE PGPORT PGDATABASE PGUSER
+
 # No production traffic, no migrations, no seed changes. PostgreSQL read-only transaction.
 psql "$DB_URL" --no-psqlrc -X -v ON_ERROR_STOP=1 \
   -f "$SCRIPT_DIR/rehearse-v3-world-privilege-boundary.sql"
