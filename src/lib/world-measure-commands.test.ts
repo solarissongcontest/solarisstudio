@@ -151,6 +151,18 @@ describe("WORLD-05 TG7 actual RPC consumers", () => {
     }));
   });
 
+  it("scopes country control to the current account and purges stale drafts on auth change", () => {
+    const source = readFileSync(resolve(process.cwd(),
+      "src/components/world/WorldMeasureSubmission.tsx"), "utf8");
+    expect(source).toContain('queryKey: ["world", "measures", "current-controlled-country", actorId]');
+    expect(source).toContain("enabled: actorReady && Boolean(actorId)");
+    expect(source).toContain("onAuthStateChange");
+    expect(source).toContain('cache.removeQueries({ queryKey: ["world", "measures", "current-controlled-country"] })');
+    expect(source).toContain("authRevision.current !== submittingRevision");
+    expect(source).toContain("setReview(null)");
+    expect(source).toContain("setReceipt(null)");
+  });
+
   it("never bypasses existing mutation/RLS authority and keeps public rollout gating", () => {
     const service = readFileSync(resolve(process.cwd(), "src/lib/world-measure-commands.ts"), "utf8");
     expect(service).not.toMatch(/\.from\(["']world_measures["']\)/);
