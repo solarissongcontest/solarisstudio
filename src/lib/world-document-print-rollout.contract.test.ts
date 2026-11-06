@@ -21,5 +21,12 @@ describe("TG4 public print rollout contract", () => {
     expect(page).toContain('refetchOnMount: "always"');
     expect(page).toContain("query.isFetchedAfterMount && !query.isFetching");
     expect(page).toContain("getWorldDocumentDetail({ organization, document, version: version ?? undefined }, signal)");
+    // The version's complete legal wording may contain binding preamble text
+    // outside the structured provisions; printing must not silently omit it.
+    expect(page).toContain('model.articles.length > 0 && model.plainText');
+    expect(page).toContain('Complete published text');
+    expect(page).toContain('{model.plainText}');
+    expect(page).toContain('Repealed provision');
+    expect(page).toContain('Omitted provision');
   });
 });
