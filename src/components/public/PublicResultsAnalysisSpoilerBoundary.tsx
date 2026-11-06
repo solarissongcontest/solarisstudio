@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from "react";
-import { Eye } from "lucide-react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
@@ -69,9 +68,8 @@ export function PublicResultsAnalysisSpoilerBoundary({
           <button
             type="button"
             onClick={() => setRevealedResultKey(gate.revealKey)}
-            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="mt-4 min-h-11 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            <Eye className="size-4" aria-hidden="true" />
             {replay ? "Reveal this replay" : "Reveal this simulation"}
           </button>
         </Panel>
