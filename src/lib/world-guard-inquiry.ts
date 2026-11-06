@@ -49,7 +49,6 @@ const id = (x:unknown):string => {
   if(!UUID.test(value)) throw new Error("Invalid GUARD inquiry identifier.");
   return value;
 };
-const optionalId = (x:unknown):string|null => x===null?null:id(x);
 const revision = (x:unknown):number => {
   if(typeof x!=="number"||!Number.isSafeInteger(x)||x<1) throw new Error("Inquiry revision was not verified.");
   return x;
