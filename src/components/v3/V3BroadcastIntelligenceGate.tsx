@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Eye } from "lucide-react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3Screen, V3ScreenHeader, V3StatusChip, V3Surface } from "@/components/v3/V3Foundation";
@@ -106,9 +105,8 @@ export function V3BroadcastIntelligenceGate({
             <button
               type="button"
               onClick={() => setRevealedResultKey(spoilerGate.revealKey)}
-              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--v3-accent)] px-4 text-sm font-semibold text-[var(--v3-bg-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+              className="mt-4 min-h-11 rounded-xl bg-[var(--v3-accent)] px-4 text-sm font-semibold text-[var(--v3-bg-base)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
             >
-              <Eye className="size-4" aria-hidden="true" />
               Reveal this replay
             </button>
             <p className="mt-3 text-xs leading-5 text-white/42">
