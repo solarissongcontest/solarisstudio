@@ -710,6 +710,15 @@ test("installed app shell survives representative navigation without duplicate c
         expect(item.width).toBeGreaterThanOrEqual(44);
         expect(item.height).toBeGreaterThanOrEqual(44);
       });
+      if (viewport.width === 956) {
+        // A landscape phone crosses the old tablet-width breakpoint. Its dock
+        // must still leave the accessibility tree when a keyboard obstructs it.
+        await page.evaluate(() => document.documentElement.setAttribute("data-solaris-keyboard-open", "true"));
+        await expect(nav).toBeHidden();
+        await expect(nav).toHaveCSS("visibility", "hidden");
+        await page.evaluate(() => document.documentElement.removeAttribute("data-solaris-keyboard-open"));
+        await expect(nav).toBeVisible();
+      }
       if (viewport.layout === "bar") {
         expect(bounds.material.height).toBeGreaterThanOrEqual(54);
         expect(bounds.material.height).toBeLessThanOrEqual(65);
