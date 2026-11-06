@@ -411,22 +411,110 @@ export async function previewStudio2EligibilityOverrideChange(
   return mapEligibilityOverridePreview(data);
 }
 
+type Studio2EligibilityOverrideChangeInput = {
+  action: Studio2EligibilityOverrideAction;
+  editionId: string;
+  countryId: string;
+  affectedRule: string;
+  overrideId?: string | null;
+  reason: string;
+  expiresAt?: string | null;
+  operationId: string;
+  idempotencyKey: string;
+  expectedVersion: number;
+};
+
+function mapEligibilityOverrideReceipt(
+  value: unknown,
+  input: Studio2EligibilityOverrideChangeInput,
+): Studio2EligibilityOverrideReceipt {
+  const row = object(value, 'eligibility override receipt');
+  const override = mapOverride(row);
+  if (row.ok !== true || row.riskClass !== 'R2') {
+    throw new Error('Eligibility override change did not return an R2 receipt.');
+  }
+
+  const receipt: Studio2EligibilityOverrideReceipt = {
+    ...override,
+    ok: true,
+    riskClass: 'R2',
+    action: eligibilityOverrideAction(row.action),
+    operationId: string(row.operationId, 'override operation id'),
+    previousVersion: Number(row.previousVersion ?? 0),
+    version: Number(row.version ?? 0),
+  };
+
+  if (
+    receipt.operationId !== input.operationId ||
+    receipt.action !== input.action ||
+    receipt.editionId !== input.editionId ||
+    receipt.countryId !== input.countryId ||
+    receipt.affectedRule !== input.affectedRule ||
+    receipt.previousVersion !== input.expectedVersion ||
+    !Number.isInteger(receipt.version) ||
+    receipt.version <= receipt.previousVersion
+  ) {
+    throw new Error('Eligibility override receipt did not match the reviewed operation.');
+  }
+
+  return receipt;
+}
+
+function missingOperation(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const row = error as Record<string, unknown>;
+  return row.code === 'P0002' || row.message === 'UNKNOWN';
+}
+
+async function reconcileEligibilityOverrideChange(
+  input: Studio2EligibilityOverrideChangeInput,
+  client: SupabaseRpcClient,
+): Promise<Studio2EligibilityOverrideReceipt | null> {
+  const { data, error } = await client.rpc('studio2_reconcile_operation', {
+    p_operation_id: input.operationId,
+  });
+
+  if (error) {
+    if (missingOperation(error)) return null;
+    throw error;
+  }
+
+  const receipt = object(data, 'eligibility operation reconciliation');
+  if (string(receipt.operationId, 'reconciled operation id') !== input.operationId) {
+    throw new Error('Eligibility reconciliation returned a different operation.');
+  }
+  if (string(receipt.command, 'reconciled command') !== `eligibility.override.${input.action}`) {
+    throw new Error('Eligibility reconciliation returned a different command.');
+  }
+
+  const status = string(receipt.status, 'reconciled operation status');
+  if (status === 'succeeded') {
+    if (receipt.result == null) {
+      throw new Error('Eligibility reconciliation succeeded without a canonical result.');
+    }
+    return mapEligibilityOverrideReceipt(receipt.result, input);
+  }
+  if (status === 'processing' || status === 'uncertain') {
+    throw new Error('Eligibility operation outcome is still unresolved. Reconcile again before replaying it.');
+  }
+  if (status === 'failed') {
+    throw new Error('The previous eligibility operation failed. Refresh and review the decision again.');
+  }
+  throw new Error('Eligibility reconciliation returned an unsupported operation state.');
+}
+
 export async function applyStudio2EligibilityOverrideChange(
-  input: {
-    action: Studio2EligibilityOverrideAction;
-    editionId: string;
-    countryId: string;
-    affectedRule: string;
-    overrideId?: string | null;
-    reason: string;
-    expiresAt?: string | null;
-    operationId: string;
-    idempotencyKey: string;
-    expectedVersion: number;
-  },
+  input: Studio2EligibilityOverrideChangeInput,
   client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
 ): Promise<Studio2EligibilityOverrideReceipt> {
-  const data = await rpc(
+  // Every invocation reconciles the stable operation id before mutation. A fresh
+  // review receives P0002/UNKNOWN and may proceed; a replay can only continue if
+  // no prior operation exists. Existing success is returned without reapplying,
+  // while processing/uncertain/failed states fail closed.
+  const existing = await reconcileEligibilityOverrideChange(input, client);
+  if (existing) return existing;
+
+  const { data, error } = await client.rpc(
     'studio2_apply_eligibility_override_change',
     {
       p_action: input.action,
@@ -440,21 +528,19 @@ export async function applyStudio2EligibilityOverrideChange(
       p_idempotency_key: input.idempotencyKey,
       p_expected_version: input.expectedVersion,
     },
-    client,
   );
 
-  const row = object(data, 'eligibility override receipt');
-  const override = mapOverride(row);
-  if (row.ok !== true || row.riskClass !== 'R2') {
-    throw new Error('Eligibility override change did not return an R2 receipt.');
+  if (!error) return mapEligibilityOverrideReceipt(data, input);
+
+  // The write may have committed even when its response was lost. Reconcile the
+  // exact operation once immediately; never ask the UI to infer success from a
+  // changed table row or to manufacture a second operation identity.
+  try {
+    const reconciled = await reconcileEligibilityOverrideChange(input, client);
+    if (reconciled) return reconciled;
+  } catch (reconciliationError) {
+    throw reconciliationError;
   }
-  return {
-    ...override,
-    ok: true,
-    riskClass: 'R2',
-    action: eligibilityOverrideAction(row.action),
-    operationId: string(row.operationId, 'override operation id'),
-    previousVersion: Number(row.previousVersion ?? 0),
-    version: Number(row.version ?? 0),
-  };
+
+  throw error;
 }
