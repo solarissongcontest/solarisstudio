@@ -45,10 +45,9 @@ function renderGate(rollout?: boolean) {
 }
 
 describe("World Country International publication boundary", () => {
-  it("never renders country records when the World flag is disabled", () => {
+  it("does not treat a cached disabled decision as the current route's verified rollout", () => {
     const html = renderGate(false);
-    expect(html).toContain("not yet available");
-    expect(html).toContain("Return to Explore");
+    expect(html).toContain("Checking Terra Solaris availability");
     expect(html).not.toContain("International records sentinel");
   });
 
