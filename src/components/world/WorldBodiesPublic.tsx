@@ -55,7 +55,7 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
   const valid = validWorldSlug(slug);
   const query = useQuery({
     queryKey: ["world", "public", "bodies", slug, term, status, page],
-    queryFn: () => readPublicWorldBodies(slug, page, { term, status }),
+    queryFn: ({ signal }) => readPublicWorldBodies(slug, page, { term, status, signal }),
     enabled: valid,
     // Preserve the verified parent and search controls while the next filtered page loads.
     placeholderData: (previous) => previous?.organization.slug === slug ? previous : undefined,
