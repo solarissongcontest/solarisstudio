@@ -134,7 +134,7 @@ function directCriticalWritesInSource(source: string, file: string): DirectWrite
             file,
             table,
             method,
-            line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1,
+            line: ast.getLineAndCharacterOfPosition(node.expression.name.getStart(ast)).line + 1,
           });
         }
       }
