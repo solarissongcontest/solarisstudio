@@ -20,13 +20,18 @@ declare
     'world_lore_people',
     'world_domestic_offices',
     'world_domestic_office_terms',
-    'world_domestic_official_revisions'
+    'world_domestic_official_revisions',
+    'world_domestic_measures',
+    'world_domestic_measure_versions',
+    'world_domestic_measure_transitions',
+    'world_domestic_laws'
   ];
   function_signature text;
   expected_functions text[] := array[
     'world_write_domestic_canon_v1(uuid,text,uuid,jsonb,bigint,uuid,text)',
     'world_write_domestic_structure_v1(uuid,text,uuid,jsonb,bigint,uuid,text)',
-    'world_write_domestic_official_v1(uuid,text,uuid,jsonb,bigint,uuid,text)'
+    'world_write_domestic_official_v1(uuid,text,uuid,jsonb,bigint,uuid,text)',
+    'world_write_domestic_measure_v1(uuid,text,uuid,jsonb,bigint,uuid,text)'
   ];
   projection_name text;
 begin
@@ -67,7 +72,9 @@ begin
       'world_domestic_country_v1(text)',
       'world_domestic_legislature_v1(text)',
       'world_domestic_officials_v1(text)',
-      'world_history_timeline_v1(integer,text)'
+      'world_history_timeline_v1(integer,text)',
+      'world_domestic_laws_v1(text)',
+      'world_domestic_measure_detail_v1(uuid)'
     ] loop
     if to_regprocedure('public.'||projection_name) is null then
       raise exception 'WORLD09_PUBLIC_PROJECTION_MISSING: %',projection_name;
