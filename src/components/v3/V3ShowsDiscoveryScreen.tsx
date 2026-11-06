@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
 import type { V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import "@/styles/v3-shows-directory.css";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { AppEmptyState, AppSectionHeader } from "@/components/app/AppPrimitives";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
@@ -99,51 +99,22 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
   // avoiding duplicate controls, translation drift and client bundle cost.
   const filterFields = (
     <>
-      <label className="text-xs font-semibold text-muted-foreground">
-            Edition
-            <select
-              value={editionId}
-              onChange={(event) => setEditionId(event.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All editions</option>
-              {editions.map((edition) => (
-                <option key={edition.id} value={edition.id}>
-                  {editionLabel(edition)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-muted-foreground">
-            Show type
-            <select
-              value={kind}
-              onChange={(event) => setKind(event.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All show types</option>
-              {kinds.map((value) => (
-                <option key={value} value={value}>
-                  {showKindLabel(value)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-muted-foreground">
-            State
-            <select
-              value={state}
-              onChange={(event) => setState(event.target.value as ShowDiscoveryState | "all")}
-              className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
-            >
-              <option value="all">All states</option>
-              {STATE_ORDER.map((value) => (
-                <option key={value} value={value}>
-                  {stateFilterLabel(value)}
-                </option>
-              ))}
-            </select>
-          </label>
+      <ShowFilterSelect label="Edition" allLabel="All editions" value={editionId} onChange={setEditionId}>
+        {editions.map((edition) => (
+          <option key={edition.id} value={edition.id}>{editionLabel(edition)}</option>
+        ))}
+      </ShowFilterSelect>
+      <ShowFilterSelect label="Show type" allLabel="All show types" value={kind} onChange={setKind}>
+        {kinds.map((value) => (
+          <option key={value} value={value}>{showKindLabel(value)}</option>
+        ))}
+      </ShowFilterSelect>
+      <ShowFilterSelect label="State" allLabel="All states" value={state}
+        onChange={(value) => setState(value as ShowDiscoveryState | "all")}>
+        {STATE_ORDER.map((value) => (
+          <option key={value} value={value}>{stateFilterLabel(value)}</option>
+        ))}
+      </ShowFilterSelect>
     </>
   );
 
@@ -332,6 +303,27 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
         </section>
       ) : null}
     </div>
+  );
+}
+
+function ShowFilterSelect({
+  label, allLabel, value, onChange, children,
+}: {
+  label: string;
+  allLabel: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <label className="text-xs font-semibold text-muted-foreground">
+      {label}
+      <select value={value} onChange={(event) => onChange(event.target.value)}
+        className="mt-1 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground">
+        <option value="all">{allLabel}</option>
+        {children}
+      </select>
+    </label>
   );
 }
 
