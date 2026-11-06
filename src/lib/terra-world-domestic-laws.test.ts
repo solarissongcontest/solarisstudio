@@ -121,8 +121,8 @@ describe("WORLD-09 TG16 country-controlled domestic laws",()=>{
     expect(forwarded).toHaveBeenCalledTimes(1);
   });
   it("requires authoritative receipts and reports CAS conflicts rather than client-side fake success",async()=>{
-    rpc.mockResolvedValueOnce({data:{ok:true,id:measureId,revision:1,
-      operationId,action:"create"},error:null});
+    rpc.mockResolvedValueOnce({data:{operationId,status:"succeeded",error:null,
+      result:{ok:true,id:measureId,revision:1,operationId,action:"create"}},error:null});
     await expect(writeDomesticMeasure({
       countryId,measureId:null,action:"create",
       payload:{title:"Fictional Law",body:"Article I",processKind:"democratic"},
@@ -131,6 +131,16 @@ describe("WORLD-09 TG16 country-controlled domestic laws",()=>{
     expect(rpc).toHaveBeenCalledWith("world_write_domestic_measure_v1",expect.objectContaining({
       p_action:"create",p_expected_revision:0,p_country_id:countryId,
     }));
+    rpc.mockResolvedValueOnce({data:{operationId,status:"processing",error:null,
+      result:{ok:true,id:measureId,revision:1,operationId,action:"create"}},error:null});
+    await expect(writeDomesticMeasure({countryId,measureId:null,action:"create",
+      payload:{title:"Unconfirmed",body:"Article I",processKind:"democratic"},
+      expectedRevision:0,operationId,idempotencyKey:operationId})).rejects.toThrow("receipt");
+    rpc.mockResolvedValueOnce({data:{operationId,status:"succeeded",error:null,
+      result:{ok:true,id:measureId,revision:1,operationId:lawId,action:"create"}},error:null});
+    await expect(writeDomesticMeasure({countryId,measureId:null,action:"create",
+      payload:{title:"Mismatched",body:"Article I",processKind:"decree"},
+      expectedRevision:0,operationId,idempotencyKey:operationId})).rejects.toThrow("receipt");
     rpc.mockResolvedValueOnce({data:null,error:{code:"40001",message:"VERSION_CONFLICT"}});
     await expect(writeDomesticMeasure({
       countryId,measureId,action:"advance",payload:{nextStatus:"enacted"},
