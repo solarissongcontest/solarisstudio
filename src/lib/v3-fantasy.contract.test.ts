@@ -82,11 +82,26 @@ const projection = source("src/lib/v3-fantasy.ts");
   it("keeps roster mutation on the existing server-authoritative Fantasy writer", () => {
     expect(route).toContain("fantasyRosterReady({ game: activeGame, selected: rosterSelected, choices: choices.data ?? [] })");
     expect(route).toContain('.rpc("submit_fantasy_team"');
-    expect(route).toContain("_game_id: activeGame.id");
-    expect(route).toContain("_country_ids: rosterSelected");
-    expect(route).toContain("_captain_country_id: rosterCaptain || null");
+    expect(route).toContain("_game_id: intent.gameId");
+    expect(route).toContain("_country_ids: intent.countryIds");
+    expect(route).toContain("_captain_country_id: intent.captainId");
+    expect(route).toContain("countryIds: [...rosterSelected]");
     expect(route).not.toContain("localStorage");
     expect(route).not.toContain("sessionStorage");
+  });
+
+  it("pins an in-flight save to its original account/game and cannot clear another draft", () => {
+    expect(route).toContain("const latestRosterScope = useRef(rosterScope)");
+    expect(route).toContain("latestRosterScope.current = rosterScope");
+    expect(route).toContain("latestRosterScope.current !== intent.scope");
+    expect(route).toContain("activeGame.id !== intent.gameId");
+    expect(route).toContain("auth.user?.id !== intent.viewerId");
+    expect(route).toContain('queryKey: ["fantasy-my-team", intent.gameId, intent.viewerId]');
+    expect(route).toContain('queryKey: ["fantasy-my-team-entries", intent.viewerId]');
+    expect(route).toContain("if (latestRosterScope.current === intent.scope) setDraftDirty(false)");
+    expect(route).toContain("onSubmit={submitRoster}");
+    expect(route).toContain("onClick={submitRoster}");
+    expect(route).toContain("submit.variables?.scope === rosterScope");
   });
 
   it("keeps V3 installed-app cutover reversible behind server-evaluated rollout", () => {

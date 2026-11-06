@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
@@ -84,6 +84,9 @@ function FantasyPage() {
   });
   const activeGame = games.data?.find((game) => game.id === gameId) ?? games.data?.[0] ?? null;
   const rosterScope = `${viewerId ?? "anonymous"}:${activeGame?.id ?? "none"}`;
+  // Read on each render so an old mutation cannot clear a newly scoped draft.
+  const latestRosterScope = useRef(rosterScope);
+  latestRosterScope.current = rosterScope;
   // State from a prior account or game is never displayed or submitted while
   // the new caller-scoped canonical team is still being resolved.
   const rosterSelected = draftScope === rosterScope ? selected : [];
@@ -151,30 +154,50 @@ function FantasyPage() {
   });
 
   const submit = useMutation({
-    mutationFn: async () => {
-      if (!activeGame) throw new Error("Fantasy game is unavailable.");
-      if (!fantasyRosterReady({ game: activeGame, selected: rosterSelected, choices: choices.data ?? [] })) {
+    mutationFn: async (intent: {
+      gameId: string;
+      viewerId: string;
+      scope: string;
+      countryIds: string[];
+      captainId: string | null;
+    }) => {
+      // Freeze the submitting scope and payload. A later account/game change
+      // must not make an older async callback write or reconcile that new scope.
+      if (!activeGame || activeGame.id !== intent.gameId || viewerId !== intent.viewerId || latestRosterScope.current !== intent.scope) {
+        throw new Error("Fantasy account or game changed before saving.");
+      }
+      if (!fantasyRosterReady({ game: activeGame, selected: intent.countryIds, choices: choices.data ?? [] })) {
         throw new Error("Review your roster eligibility, size and budget before saving.");
       }
       const { data: auth, error: authError } = await supabase.auth.getUser();
-      if (authError || !viewerId || auth.user?.id !== viewerId) {
+      if (authError || auth.user?.id !== intent.viewerId || latestRosterScope.current !== intent.scope) {
         throw new Error("Fantasy account changed. Sign in again before saving.");
       }
       const { error } = await (supabase as any).rpc("submit_fantasy_team", {
-        _game_id: activeGame.id,
-        _country_ids: rosterSelected,
-        _captain_country_id: rosterCaptain || null,
+        _game_id: intent.gameId,
+        _country_ids: intent.countryIds,
+        _captain_country_id: intent.captainId,
       });
       if (error) throw error;
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team", activeGame?.id, viewerId] });
-      await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team-entries"] });
-      // A successful server acknowledgement has now been reconciled; the next
-      // authoritative snapshot may replace this submitted local draft.
-      setDraftDirty(false);
+    onSuccess: async (_result, intent) => {
+      await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team", intent.gameId, intent.viewerId] });
+      await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team-entries", intent.viewerId] });
+      // Success for account/game A cannot mark account/game B's unsaved work clean.
+      if (latestRosterScope.current === intent.scope) setDraftDirty(false);
     },
   });
+
+  const submitRoster = () => {
+    if (!activeGame || !viewerId || submit.isPending) return;
+    submit.mutate({
+      gameId: activeGame.id,
+      viewerId,
+      scope: rosterScope,
+      countryIds: [...rosterSelected],
+      captainId: rosterCaptain || null,
+    });
+  };
 
   const cost = fantasyBudgetUsed(rosterSelected, choices.data ?? []);
   const rosterReady = Boolean(
@@ -264,10 +287,10 @@ function FantasyPage() {
           standings={activeGame.status === "scored" ? (leaderboard.data ?? []) : []}
           viewerId={viewerId}
           submitting={submit.isPending}
-          submitError={submit.isError ? (submit.error instanceof Error ? submit.error.message : "Roster could not be saved.") : null}
+          submitError={submit.isError && submit.variables?.scope === rosterScope ? (submit.error instanceof Error ? submit.error.message : "Roster could not be saved.") : null}
           onToggle={toggle}
           onCaptain={(id) => { if (!submit.isPending) { setDraftScope(rosterScope); setDraftDirty(true); setCaptain(id); } }}
-          onSubmit={() => submit.mutate()}
+          onSubmit={submitRoster}
         />
       </V3AppShell>
     );
@@ -358,13 +381,13 @@ function FantasyPage() {
             <button
               type="button"
               disabled={locked || !viewerId || submit.isPending || !rosterReady}
-              onClick={() => submit.mutate()}
+              onClick={submitRoster}
               className="min-h-11 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               {myTeam.data ? "Update roster" : "Save roster"}
             </button>
             {cost > activeGame.budget ? <p className="text-sm text-destructive">Budget exceeded.</p> : null}
-            {submit.isError ? <p className="text-sm text-destructive">{submit.error instanceof Error ? submit.error.message : "Roster could not be saved."}</p> : null}
+            {submit.isError && submit.variables?.scope === rosterScope ? <p className="text-sm text-destructive">{submit.error instanceof Error ? submit.error.message : "Roster could not be saved."}</p> : null}
             {myTeam.data ? <p className="text-sm text-muted-foreground">Saved · {myTeam.data.state}{canShowV3FantasyTeamScore(activeGame, myTeam.data) ? ` · ${myTeam.data.score!.toFixed(1)} pts` : ""}</p> : null}
           </div>
 
