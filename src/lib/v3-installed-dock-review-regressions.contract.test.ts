@@ -121,4 +121,13 @@ describe("V3 installed dock review regressions", () => {
     expect(tab).toContain('className="sr-only"');
     expect(tab).toContain('{badge} item{badge === 1 ? " needs" : "s need"} attention');
   });
+
+  it("shows keyboard focus distinctly from selection with a forced-colors-safe ring", () => {
+    const dock = source("src/styles/v3-installed-app-navbar.css");
+    expect(dock).toContain("html[data-solaris-app] .solaris-app-tabbar .solaris-app-tab:focus-visible");
+    expect(dock).toContain("outline: 2px solid var(--solaris-app-tab-focus-color, #d9f5ff)");
+    expect(dock).toContain("outline-offset: -4px");
+    expect(dock).toContain("@media (forced-colors: active)");
+    expect(dock).toContain("outline: 2px solid Highlight");
+  });
 });
