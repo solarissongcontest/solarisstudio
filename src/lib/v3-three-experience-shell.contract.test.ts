@@ -62,6 +62,14 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(css).toContain('[data-v3-shell-experience="web"] [data-v3-legacy-route-adapter]');
     expect(css).toContain('> .v3-legacy-route-bottom-clearance');
     expect(css).toContain("height: max(20px, env(safe-area-inset-bottom))");
+    // A rotated tablet browser or a short desktop window can exceed 1023px.
+    // The website-only spacer removal must not be trapped in the mobile query.
+    const mobileQueryStart = css.indexOf("@media (max-width: 1023px)");
+    const mobileQueryEnd = css.indexOf("\n}\n", mobileQueryStart);
+    const webSpacerRule = css.indexOf("html:not([data-solaris-app]) [data-solaris-v3]");
+    expect(mobileQueryStart).toBeGreaterThanOrEqual(0);
+    expect(mobileQueryEnd).toBeGreaterThan(mobileQueryStart);
+    expect(webSpacerRule).toBeGreaterThan(mobileQueryEnd);
     expect(appGeometry).toContain("calc(106px + env(safe-area-inset-bottom))");
     expect(appGeometry).toContain("calc(var(--v3-bottom-obstruction, 0px) + 24px)");
   });
