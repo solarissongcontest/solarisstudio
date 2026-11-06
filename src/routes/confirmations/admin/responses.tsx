@@ -29,6 +29,7 @@ import {
 import {
   assertOrganizerResponsePageContinuity,
   assertOrganizerResponsePageDisjoint,
+  assertOrganizerResponsePageCoverage,
   safeOrganizerResponseSongUrl,
   assertOrganizerNextInLineRowsInScope,
   assertOrganizerResponseRowsInEdition,
@@ -335,7 +336,9 @@ function ConfirmationResponsesList() {
         if (page.page.hasMore && !page.page.nextCursor) {
           throw new Error("Confirmation projection returned an incomplete page cursor.");
         }
-        setRows(assertOrganizerResponseRowsInEdition(page.rows, editionId));
+        const initialRows = assertOrganizerResponseRowsInEdition(page.rows, editionId);
+        assertOrganizerResponsePageCoverage(0, initialRows.length, page.totalCount, page.page.hasMore);
+        setRows(initialRows);
         setResponseCursor(page.page.hasMore ? page.page.nextCursor : null);
         setResponseTotalCount(page.totalCount);
         setResponseStateVersion(page.stateVersion);
@@ -419,6 +422,7 @@ function ConfirmationResponsesList() {
         throw new Error("Confirmation response pagination returned an empty continuation page. Reload the current edition.");
       }
       assertOrganizerResponsePageDisjoint(rows, newRows);
+      assertOrganizerResponsePageCoverage(rows.length, newRows.length, page.totalCount, page.page.hasMore);
       setRows((current) => [...current, ...newRows]);
       setResponseCursor(page.page.hasMore ? page.page.nextCursor : null);
       setResponseTotalCount(page.totalCount);
