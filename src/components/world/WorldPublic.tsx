@@ -11,6 +11,7 @@ import { publicWorldRolloutDisplay } from "@/lib/terra-world-rollout-gate";
 import {
   WORLD_DIRECTORY_PAGE_SIZE,
   currentWorldMemberships,
+  currentWorldRepresentatives,
   fetchWorldDirectory,
   fetchFeaturedWorldOrganizations,
   fetchWorldPublicEnabled,
@@ -351,8 +352,8 @@ export function WorldOrganizationPage({
     new Map((verifiedCountries ?? []).map((country) => [country.id, country])),
     [verifiedCountries]);
   const representativesByCountry = useMemo(() =>
-    new Map((verifiedProjection?.representatives ?? [])
-      .filter((rep) => rep.endsAt === null && rep.role === "representative" && rep.votingAuthority)
+    new Map((verifiedProjection ? currentWorldRepresentatives(verifiedProjection) : [])
+      .filter((rep) => rep.role === "representative" && rep.votingAuthority)
       .map((rep) => [rep.countryId, rep])),
     [verifiedProjection]);
   const officesByCountry = useMemo(() => {

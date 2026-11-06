@@ -21,6 +21,7 @@ import {
   WORLD_PUBLIC_ROLLOUT_KEY,
   cleanWorldSearch,
   currentWorldMemberships,
+  currentWorldRepresentatives,
   fetchWorldDirectory,
   fetchFeaturedWorldOrganizations,
   fetchWorldPublicEnabled,
@@ -138,16 +139,19 @@ describe("TG3 world publication-safe projections", () => {
       organization, organs: [], memberships: [], offices: [],
       representatives: [
         { id: "rep-a", countryId: "country-a", displayName: "Delegation A",
-          role: "representative", votingAuthority: true, endsAt: null,
+          role: "representative", votingAuthority: true,
+          startsAt: "2020-01-01T00:00:00Z", endsAt: null,
           userId: "private", personId: "private", votingToken: "private" },
         { id: "rep-b", countryId: "country-b", displayName: "Former delegate",
-          role: "representative", votingAuthority: false, endsAt: "2025-01-01" },
+          role: "representative", votingAuthority: false,
+          startsAt: "2020-01-01T00:00:00Z", endsAt: "2025-01-01" },
       ],
     }, "guard");
     expect(projection?.representatives).toHaveLength(2);
     expect(projection?.representatives[0]).toEqual({
       id: "rep-a", countryId: "country-a", displayName: "Delegation A",
-      role: "representative", votingAuthority: true, endsAt: null,
+      role: "representative", votingAuthority: true,
+          startsAt: "2020-01-01T00:00:00Z", endsAt: null,
     });
     expect(projection?.representatives[0]).not.toHaveProperty("votingToken");
     expect(projection?.representatives[0]).not.toHaveProperty("userId");
@@ -158,13 +162,32 @@ describe("TG3 world publication-safe projections", () => {
     const projection = parseWorldProjection({
       organization, organs: [], offices: [],
       memberships: [
-        { id: "a", countryId: "a", membershipType: "member", status: "member", endedAt: null },
-        { id: "b", countryId: "b", membershipType: "member", status: "suspended", endedAt: null },
-        { id: "c", countryId: "c", membershipType: "member", status: "former", endedAt: "2026-01-01" },
-        { id: "d", countryId: "d", membershipType: "member", status: "former", endedAt: null },
+        { id: "a", countryId: "a", joinedAt: "2020-01-01T00:00:00Z", membershipType: "member", status: "member", endedAt: null },
+        { id: "b", countryId: "b", joinedAt: "2020-01-01T00:00:00Z", membershipType: "member", status: "suspended", endedAt: null },
+        { id: "c", countryId: "c", joinedAt: "2020-01-01T00:00:00Z", membershipType: "member", status: "former", endedAt: "2026-01-01" },
+        { id: "d", countryId: "d", joinedAt: "2020-01-01T00:00:00Z", membershipType: "member", status: "former", endedAt: null },
+        { id: "e", countryId: "e", joinedAt: "2099-01-01T00:00:00Z", membershipType: "member", status: "member", endedAt: null },
+        { id: "f", countryId: "f", membershipType: "member", status: "member", endedAt: null },
       ],
     }, "guard");
-    expect(currentWorldMemberships(projection!).map((member) => member.countryId)).toEqual(["a", "b"]);
+    expect(currentWorldMemberships(projection!, new Date("2026-11-07T00:00:00Z"))
+      .map((member) => member.countryId)).toEqual(["a", "b"]);
+  });
+
+  it("hides future or undated representatives from the current roster", () => {
+    const projection = parseWorldProjection({
+      organization, organs: [], memberships: [], offices: [],
+      representatives: [
+        { id: "current", countryId: "a", displayName: "Current", role: "representative",
+          votingAuthority: true, startsAt: "2020-01-01T00:00:00Z", endsAt: null },
+        { id: "future", countryId: "b", displayName: "Future", role: "representative",
+          votingAuthority: true, startsAt: "2099-01-01T00:00:00Z", endsAt: null },
+        { id: "undated", countryId: "c", displayName: "Undated", role: "representative",
+          votingAuthority: true, endsAt: null },
+      ],
+    }, "guard");
+    expect(currentWorldRepresentatives(projection!, new Date("2026-11-07T00:00:00Z"))
+      .map((representative) => representative.id)).toEqual(["current"]);
   });
 
   it("does not invent an officeholder where a term is not active", () => {

@@ -41,6 +41,7 @@ export type WorldMembership = {
   countryId: string;
   status: string;
   membershipType: string;
+  joinedAt: string | null;
   endedAt: string | null;
 };
 
@@ -50,6 +51,7 @@ export type WorldRepresentative = {
   displayName: string;
   role: string;
   votingAuthority: boolean;
+  startsAt: string | null;
   endsAt: string | null;
 };
 
@@ -130,7 +132,8 @@ export function parseWorldProjection(input: unknown, requestedSlug: string): Wor
       return row && nonempty(row.id) && nonempty(row.countryId) &&
         nonempty(row.status) && nonempty(row.membershipType)
         ? [{ id: row.id, countryId: row.countryId, status: row.status,
-          membershipType: row.membershipType, endedAt: optionalText(row.endedAt) }]
+          membershipType: row.membershipType, joinedAt: optionalText(row.joinedAt),
+          endedAt: optionalText(row.endedAt) }]
         : [];
     }),
     representatives: items(raw.representatives).flatMap((value) => {
@@ -140,7 +143,7 @@ export function parseWorldProjection(input: unknown, requestedSlug: string): Wor
         typeof row.votingAuthority === "boolean"
         ? [{ id: row.id, countryId: row.countryId, displayName: row.displayName,
           role: row.role, votingAuthority: row.votingAuthority,
-          endsAt: optionalText(row.endsAt) }]
+          startsAt: optionalText(row.startsAt), endsAt: optionalText(row.endsAt) }]
         : [];
     }),
     offices: items(raw.offices).flatMap((value) => {
@@ -161,9 +164,31 @@ export function parseWorldProjection(input: unknown, requestedSlug: string): Wor
   };
 }
 
-export function currentWorldMemberships(projection: WorldProjection): WorldMembership[] {
+/**
+ * Read-only presentation guard for canonical effective dates. Never infer ballot
+ * eligibility from this: official membership and representation remain on TG2.
+ */
+function effectivePublicStart(value: string | null | undefined, asOfMs: number): boolean {
+  const started = typeof value === "string" ? Date.parse(value) : Number.NaN;
+  return Number.isFinite(started) && Number.isFinite(asOfMs) && started <= asOfMs;
+}
+
+export function currentWorldMemberships(
+  projection: WorldProjection, asOf = new Date(),
+): WorldMembership[] {
+  const now = asOf.getTime();
   return projection.memberships.filter((row) =>
-    row.endedAt === null && ["member", "associate", "observer", "suspended"].includes(row.status));
+    row.endedAt === null &&
+    ["member", "associate", "observer", "suspended"].includes(row.status) &&
+    effectivePublicStart(row.joinedAt, now));
+}
+
+export function currentWorldRepresentatives(
+  projection: WorldProjection, asOf = new Date(),
+): WorldRepresentative[] {
+  const now = asOf.getTime();
+  return projection.representatives.filter((row) =>
+    row.endsAt === null && effectivePublicStart(row.startsAt, now));
 }
 
 export function cleanWorldSearch(term: string): string {

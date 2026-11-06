@@ -68,6 +68,7 @@ const profile = {
     countryId: "country-oland",
     membershipType: "member",
     status: "member",
+    joinedAt: "2020-01-01T00:00:00Z",
     endedAt: null,
   }],
   representatives: [{
@@ -76,6 +77,7 @@ const profile = {
     displayName: "REPRESENTATIVE_SENTINEL",
     role: "representative",
     votingAuthority: true,
+    startsAt: "2020-01-01T00:00:00Z",
     endsAt: null,
   }],
   offices: [{
