@@ -218,6 +218,18 @@ reset role;
 update public.world_sessions set status='concluded'
 where id=(current_setting('solaris.tg6_attendance_fixture')::jsonb->>'sessionId')::uuid;
 
+do $unpublished_minutes_archive_negative$
+declare v jsonb:=current_setting('solaris.tg6_attendance_fixture')::jsonb;
+begin
+ begin
+   update public.world_sessions set status='archived'
+   where id=(v->>'sessionId')::uuid;
+   raise exception 'TG6_MINUTES_UNPUBLISHED_ARCHIVE_ALLOWED';
+ exception when check_violation then null;
+ end;
+end
+$unpublished_minutes_archive_negative$;
+
 set local role authenticated;
 set local request.jwt.claim.role='authenticated';
 do $publish$
