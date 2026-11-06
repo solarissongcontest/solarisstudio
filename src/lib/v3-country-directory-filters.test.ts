@@ -118,7 +118,8 @@ describe("V3 countries directory filters", () => {
     expect(source).toContain("aria-pressed={!selectedParticipatingOnly}");
     expect(source).toContain("setParticipatingOnly(true)");
     expect(source).toContain("setParticipatingOnly(false)");
-    expect(source).toContain('<CountryTile key={country.id} country={country} presentation={presentation} />');
+    expect(source).toContain('<CountryTile key={country.id} country={country} presentation={presentation}');
+    expect(source).toContain('status={selectedParticipatingOnly ? undefined : publishedStatuses.get(country.id)}');
     expect(source).toContain('"v3-countries-grid grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4"');
     expect(source).not.toContain("discovery.participating.slice(0, 9)");
     expect(source).not.toContain("<AppGroupedList>");
