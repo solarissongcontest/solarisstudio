@@ -114,8 +114,11 @@ export async function readPublicWorldBodies(
     ? Math.max(0, Math.min(WORLD_BODIES_MAX_PAGE, requestedPage)) : 0;
   const term = cleanWorldBodySearch(options.term ?? "");
   let request = (supabase as any).from("world_organization_organs")
-    .select("id,organization_id,slug,name,short_name,type,status,visibility,sort_order", { count: "exact" })
-    .eq("organization_id", organization.id).eq("visibility", "public");
+    .select("id,organization_id,slug,name,short_name,type,status,visibility,sort_order,world_organizations!inner(id)", { count: "exact" })
+    .eq("organization_id", organization.id).eq("visibility", "public")
+    // A signed-in manager can have additional private RLS permissions.
+    // Require a public parent in this SAME read, not just the earlier lookup.
+    .eq("world_organizations.public_visibility", "public");
   if (options.status === "active" || options.status === "inactive" || options.status === "historical") {
     request = request.eq("status", options.status);
   }
@@ -138,8 +141,9 @@ export async function readPublicWorldBodies(
       throw new Error("Public institutional bodies could not be loaded.");
     }
     let recount = (supabase as any).from("world_organization_organs")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", organization.id).eq("visibility", "public");
+      .select("id,world_organizations!inner(id)", { count: "exact", head: true })
+      .eq("organization_id", organization.id).eq("visibility", "public")
+      .eq("world_organizations.public_visibility", "public");
     if (options.status === "active" || options.status === "inactive" || options.status === "historical") {
       recount = recount.eq("status", options.status);
     }
@@ -184,9 +188,10 @@ export async function readPublicWorldBody(
   const organization = await readPublicWorldInstitution(slug, signal);
   if (!organization) return null;
   let request = (supabase as any).from("world_organization_organs")
-    .select("id,organization_id,slug,name,short_name,type,description,status,visibility,sort_order")
+    .select("id,organization_id,slug,name,short_name,type,description,status,visibility,sort_order,world_organizations!inner(id)")
     .eq("organization_id", organization.id)
-    .eq("slug", bodySlug).eq("visibility", "public");
+    .eq("slug", bodySlug).eq("visibility", "public")
+    .eq("world_organizations.public_visibility", "public");
   if (signal) request = request.abortSignal(signal);
   const { data, error } = await request.maybeSingle();
   if (error) throw new Error("This institutional body could not be checked.");
@@ -235,10 +240,15 @@ export async function readPublicBodyOffices(
     throw new Error("Institutional body identity is inconsistent.");
   }
   let request = (supabase as any).from("world_organization_offices")
-    .select("id,organization_id,organ_id,title,office_type,active")
+    .select("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id),world_organization_organs!inner(id)")
     .eq("organization_id", organization.id)
     .eq("organ_id", body.id)
     .eq("active", true)
+    // TG2 grants scoped private-manager reads too. Explicit inner-join public
+    // predicates prevent those grants from broadening a public detail screen.
+    .eq("world_organizations.public_visibility", "public")
+    .eq("world_organization_organs.organization_id", organization.id)
+    .eq("world_organization_organs.visibility", "public")
     .order("display_priority", { ascending: true })
     .order("id", { ascending: true });
   if (signal) request = request.abortSignal(signal);
