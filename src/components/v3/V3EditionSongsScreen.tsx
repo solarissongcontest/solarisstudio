@@ -270,10 +270,10 @@ export function V3EditionSongsScreen({
       {!hideSpoilers ? (
         <V3Section title="Explore music">
           <V3ActionCard
-            title="Songs & artists"
-            description="Open the first-class publication-safe music discovery surface"
+            title="Published songs & artists"
+            description="Browse published entries, artists and songs in Solaris Reference"
             icon={Disc3}
-            to="/music"
+            to="/encyclopedia"
           />
         </V3Section>
       ) : null}
