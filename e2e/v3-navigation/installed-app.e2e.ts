@@ -679,3 +679,50 @@ test(
     await context.close();
   },
 );
+
+
+test("installed app shell survives representative navigation without duplicate chrome: wide landscape iPhone keeps bottom dock while iPad receives rail", async ({ browser }, testInfo) => {
+  test.skip(testInfo.project.name !== "ios-pwa-portrait", "Run the isolated installed WebKit project.");
+
+  const session = await signInLocalCountry();
+  const { baseURL } = requiredLocalConfig();
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  await installSession(context, session);
+  const page = await context.newPage();
+  try {
+    await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });
+    await applyNavbarInstalledCssEmulation(page);
+    const nav = page.locator(".solaris-app-tabbar");
+    await expect(nav).toBeVisible();
+
+    for (const viewport of [
+      { width: 956, height: 440, layout: "bar" },
+      { width: 1024, height: 768, layout: "rail" },
+      { width: 390, height: 844, layout: "bar" },
+    ] as const) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await expect(nav).toHaveAttribute("data-layout", viewport.layout);
+      const bounds = await readGeometry(page);
+      expect(bounds, `${viewport.width}x${viewport.height} should render installed navigation`).not.toBeNull();
+      if (!bounds) continue;
+      expect(bounds.items).toHaveLength(5);
+      bounds.items.forEach((item) => {
+        expect(item.width).toBeGreaterThanOrEqual(44);
+        expect(item.height).toBeGreaterThanOrEqual(44);
+      });
+      if (viewport.layout === "bar") {
+        expect(bounds.material.height).toBeGreaterThanOrEqual(54);
+        expect(bounds.material.height).toBeLessThanOrEqual(65);
+        expect(bounds.material.width).toBeLessThanOrEqual(415);
+        expect(bounds.bar.top).toBeGreaterThan(viewport.height / 2);
+        expect(bounds.bar.bottom).toBeLessThanOrEqual(viewport.height + 1);
+        expect(bounds.obstruction).toBeGreaterThan(0);
+      } else {
+        expect(bounds.material.width).toBeLessThanOrEqual(101);
+        expect(bounds.bar.top).toBeLessThan(viewport.height / 2);
+      }
+    }
+  } finally {
+    await context.close();
+  }
+});
