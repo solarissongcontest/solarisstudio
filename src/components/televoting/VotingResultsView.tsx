@@ -264,13 +264,13 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
   // No stale admin presence or stored conversion may authorize a result command
   // while a protected read is refreshing or has failed.
   if (!actorId || adminLoading || adminFetching || (admin && effectiveRoundId && (isLoading || conversionFetching))) {
-    return <div className="admin-page mx-auto max-w-5xl pb-5"><AdminCard className="py-10 text-center text-sm text-muted-foreground" role="status">Verifying official result permissions and data…</AdminCard></div>;
+    return <div className="admin-page mx-auto max-w-5xl pb-5" role="status"><AdminCard className="py-10 text-center text-sm text-muted-foreground">Verifying official result permissions and data…</AdminCard></div>;
   }
   const privateReadError = adminError ?? (admin && effectiveRoundId ? error : null);
   if (privateReadError || (admin && effectiveRoundId && !data)) {
     return (
-      <div className="admin-page mx-auto max-w-5xl pb-5">
-        <AdminCard className="space-y-3 border-rose-200/15 bg-rose-200/[0.045] text-sm text-rose-100" role="alert">
+      <div className="admin-page mx-auto max-w-5xl pb-5" role="alert">
+        <AdminCard className="space-y-3 border-rose-200/15 bg-rose-200/[0.045] text-sm text-rose-100">
           <p className="font-semibold">Official Televote result unavailable</p>
           <p>Protected result data or Organizer identity could not be verified. Publication and recalculation are disabled.</p>
           <p className="break-words text-xs">{privateReadError instanceof Error ? privateReadError.message : "Protected result read unavailable"}</p>
