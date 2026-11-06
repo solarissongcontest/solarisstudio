@@ -30,7 +30,17 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).toContain("editionsQuery.isSuccess && !editionsQuery.error");
     expect(route).toContain('const resolvedEditionId = editionId && organizerEdition ? organizerEdition.id : "";');
     expect(route).toContain('editionAvailable={Boolean(resolvedEditionId)}');
-    expect(route).toContain('enabled: editionsQuery.isSuccess && (!editionId || Boolean(resolvedEditionId))');
+    expect(route).toContain('enabled: editionContextVerified');
+  });
+
+  it("pauses permission evaluation and R3 review actions during stale-context revalidation", () => {
+    expect(route).toContain("editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching");
+    expect(route).toContain("!editionsQuery.isFetching &&");
+    expect(route).toContain("enabled: editionContextVerified");
+    expect(route).toContain("if (!editionContextVerified || (editionId && !resolvedEditionId))");
+    expect(route).toContain("onApprove={(approval) => {\\n            if (!editionContextVerified) return;".replace(/\\n/g, "\n"));
+    expect(route).toContain("onApply={(approval) => {\\n            if (!editionContextVerified) return;".replace(/\\n/g, "\n"));
+    expect(route).toContain("if (!editionContextVerified) {");
   });
 
   it("does not reinterpret stale edition context as a global permission evaluation", () => {
@@ -38,7 +48,7 @@ describe("V3 Organizer Access & Permissions context lock", () => {
       'editionId ? (resolvedEditionId || "unverified") : "global"',
     );
     expect(route).toContain(
-      'enabled: editionsQuery.isSuccess && (!editionId || Boolean(resolvedEditionId))',
+      'enabled: editionContextVerified',
     );
     expect(route).toContain('editionId: resolvedEditionId || null');
   });
