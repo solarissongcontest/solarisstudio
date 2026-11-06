@@ -1,0 +1,33 @@
+/*
+ * Browser navigation respects the operating system's high contrast palette.
+ * Indicators use system colors, not theme variables which can disappear when
+ * Chromium/Windows override normal backgrounds.
+ * Do not touch the installed V3 Liquid dock.
+ */
+@media (forced-colors: active) {
+  [data-solaris-v3] [data-v3-shell-experience="web"] .v3-web-top-context__brand {
+    color: LinkText;
+  }
+  [data-solaris-v3] [data-v3-shell-experience="web"] .v3-web-top-context__brand:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+  [data-solaris-v3] [data-v3-shell-experience="web"] .v3-mobile-web-primary-nav__item[aria-current] {
+    color: Highlight;
+    border-bottom-color: Highlight;
+    border-bottom-width: 3px;
+  }
+  [data-solaris-v3] [data-v3-shell-experience="web"] .v3-mobile-web-primary-nav__item:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: -3px;
+  }
+  [data-solaris-v3] [data-v3-shell-experience="web"] .v3-desktop-primary-nav__item[aria-current] {
+    color: Highlight;
+    outline: 2px solid Highlight;
+    outline-offset: -3px;
+  }
+  [data-solaris-v3] [data-v3-shell-experience="web"] .v3-desktop-primary-nav__item:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}

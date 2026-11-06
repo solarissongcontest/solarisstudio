@@ -14,6 +14,20 @@ describe("V3 three-experience top-context composition", () => {
     expect(shell).toContain('data-v3-shell-experience={!platformResolved ? "resolving" : isAppMode ? "app" : "web"}');
   });
 
+  it("keeps browser active, focus and brand indicators visible in system high contrast", () => {
+    const web = source("src/components/v3/V3WebTopContext.tsx");
+    const css = source("src/styles/v3-web-high-contrast.css");
+    expect(web).toContain('import "@/styles/v3-web-high-contrast.css"');
+    expect(css).toContain("@media (forced-colors: active)");
+    expect(css).toContain('[data-v3-shell-experience="web"]');
+    expect(css).toContain(".v3-mobile-web-primary-nav__item[aria-current]");
+    expect(css).toContain(".v3-desktop-primary-nav__item[aria-current]");
+    expect(css).toContain(".v3-web-top-context__brand:focus-visible");
+    expect(css).toContain("border-bottom-color: Highlight;");
+    expect(css).toContain("outline: 2px solid Highlight;");
+    expect(css).not.toContain(".v3-liquid-tabbar");
+  });
+
   it("gives the browser semantic branded navigation without an app-style sticky masthead", () => {
     const web = source("src/components/v3/V3WebTopContext.tsx");
     const css = source("src/styles/v3-web-top-context.css");

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import "@/styles/v3-web-top-context.css";
+import "@/styles/v3-web-high-contrast.css";
 
 /**
  * Website masthead, deliberately distinct from the installed PWA top context.
