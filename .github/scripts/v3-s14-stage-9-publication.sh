@@ -31,6 +31,12 @@ where version_row.show_id='$show_id'::uuid and version_row.version=$version;
 " | normalise_json
 }
 
+assert_anonymous_result_still_hidden() {
+  local show_id="$1" context="$2"
+  [[ "$(anonymous_result_snapshot "$show_id")" == "[]" ]] || \
+    fail "$context exposed unpublished Results for show $show_id"
+}
+
 apply_publication_change() {
   local show_id="$1" target_state="$2" config="$3" operation_id="$4" idempotency_key="$5"
   local expected_version
@@ -56,6 +62,7 @@ run_s14_stage_9_publication() {
   result_config='{"participants":true,"artists":true,"songs":true,"semi_split":false,"running_order":true,"qualifiers":false,"results":true,"jury_results":false,"televote_results":false,"detailed_voting":false}'
   show_ordinal=0
   realtime_disconnect_proven=0
+  first_semi_public_snapshot=""
 
   for show_id in "$SEMI_ONE_ID" "$SEMI_TWO_ID"; do
     show_ordinal=$((show_ordinal+1))
@@ -106,6 +113,21 @@ run_s14_stage_9_publication() {
     expect_success "anonymous publication state refresh $show_id"
     expect_json "anonymous show is published $show_id" '0.published' true
     expect_json "anonymous show exposes Results $show_id" '0.publication_config.results' true
+
+    # The first result release must not publish either other show. After the
+    # second release, the Grand Final must remain private and SF1 must retain
+    # exactly the same anonymous result snapshot. This checks cross-show
+    # publication boundaries, not merely each show's own transition.
+    if [[ "$show_id" == "$SEMI_ONE_ID" ]]; then
+      first_semi_public_snapshot="$post_refresh"
+      assert_anonymous_result_still_hidden "$SEMI_TWO_ID" "after SF1 publication"
+      assert_anonymous_result_still_hidden "$FINAL_ID" "after SF1 publication"
+    else
+      assert_anonymous_result_still_hidden "$FINAL_ID" "after SF2 publication"
+      [[ -n "$first_semi_public_snapshot" ]] || fail "SF1 publication snapshot was not retained"
+      [[ "$(anonymous_result_snapshot "$SEMI_ONE_ID")" == "$first_semi_public_snapshot" ]] || \
+        fail "SF2 publication changed the already-published immutable SF1 Results snapshot"
+    fi
 
     realtime_disconnect_proven=$((realtime_disconnect_proven+1))
   done
