@@ -41,6 +41,20 @@ describe("Organizer Delivery & Jobs operation recovery", () => {
     expect(adapter).toContain('"studio2_reconcile_operation"');
   });
 
+  it("drops stale retry/reconciliation state on account change and isolates private telemetry", () => {
+    expect(route).toContain('import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext"');
+    expect(route).toContain("const actorId = useAuthenticatedUser().id;");
+    expect(route).toContain("const currentActorRef = useRef(actorId);");
+    expect(route).toContain('queryKey: ["admin-system-runtime-health", actorId]');
+    expect(route).toContain("currentActorRef.current = actorId;");
+    expect(route).toContain("retryIdentities.current.clear();");
+    expect(route).toContain("setRetryRecovery(null);");
+    expect(route).toContain("if (actorIdAtRequest !== currentActorRef.current) return;");
+    expect(route).toContain("if (currentActorRef.current !== actorIdAtRequest)");
+    expect(route).toContain("actorIdAtRequest: actorId");
+    expect(route).toContain('queryKey: ["admin-system-runtime-health", actorIdAtRequest]');
+  });
+
   it("keeps the original operation identity stable until the outcome settles", () => {
     expect(route).toContain("retryIdentities.current.get(deliveryId)");
     expect(route).toContain("retryIdentities.current.set(deliveryId, identity)");
