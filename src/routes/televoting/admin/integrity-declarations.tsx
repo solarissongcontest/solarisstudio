@@ -90,7 +90,7 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
     actorId: string;
   } | null>(null);
 
-  const { data: admin, isLoading: adminLoading } = useQuery({
+  const { data: admin, isLoading: adminLoading, isFetching: adminFetching, error: adminError, refetch: retryAdmin } = useQuery({
     queryKey: ["merged-televoting-admin", actorId],
     queryFn: () => getAdmin(),
     enabled: Boolean(actorId),
@@ -102,13 +102,13 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
   });
 
   useEffect(() => {
-    if (!adminLoading && !admin) {
+    if (actorId && !adminLoading && !adminFetching && !admin && !adminError) {
       void navigate({
         to: "/auth",
         search: { redirect: "/televoting/admin/integrity-declarations" },
       });
     }
-  }, [admin, adminLoading, navigate]);
+  }, [actorId, admin, adminLoading, adminFetching, adminError, navigate]);
 
   const { data: rowsData, isLoading, isFetching, error, refetch } = useQuery<IntegrityDeclarationRow[]>({
     queryKey: ["merged-integrity-declarations", actorId, editionId],
@@ -129,7 +129,7 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
     refetchOnReconnect: false,
   });
   const rows = rowsData ?? [];
-  const readVerified = Boolean(actorId && admin && !adminLoading && !isLoading && !isFetching && !error && rowsData);
+  const readVerified = Boolean(actorId && admin && !adminLoading && !adminFetching && !adminError && !isLoading && !isFetching && !error && rowsData);
   useEffect(() => {
     if (!readVerified) setPendingInvalidation(null);
   }, [readVerified]);
@@ -220,18 +220,18 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
         />
         <AdminCard>
           <p role="status" className="text-sm font-semibold">
-            {adminLoading || isLoading || isFetching ? "Verifying integrity declarations…" : "Integrity declarations unavailable"}
+            {adminLoading || adminFetching || isLoading || isFetching ? "Verifying integrity declarations…" : "Integrity declarations unavailable"}
           </p>
-          {error ? (
+          {(adminError || error) ? (
             <p role="alert" className="mt-2 text-sm text-rose-100">
-              {error instanceof Error ? error.message : "Private declaration read failed."}
+              {(adminError || error) instanceof Error ? (adminError || error).message : "Private declaration read failed."}
             </p>
           ) : null}
           <button
             type="button"
             className="admin-action-secondary mt-3 min-h-11"
-            disabled={!admin || isFetching}
-            onClick={() => void refetch()}
+            disabled={adminLoading || adminFetching || isFetching || (!admin && !adminError)}
+            onClick={() => void (adminError ? retryAdmin() : refetch())}
           >
             Retry declarations
           </button>
