@@ -1,5 +1,9 @@
 import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
 import { assertDisplayedEntryVersion } from "@/lib/v3-entry-review-preview";
+import {
+  inspectOrganizerEntrySource,
+  safeOrganizerEntrySourceUrl,
+} from "@/lib/v3-organizer-entry-source-inspection";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -221,6 +225,7 @@ function formatRange(start?: string | null, end?: string | null) {
 }
 
 function TechnicalRows({ entry }: { entry: ReviewEntry }) {
+  const replacementLink = safeOrganizerEntrySourceUrl(entry.replacement_video_url);
   return (
     <div className="mt-3 grid gap-2 sm:grid-cols-3">
       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
@@ -238,23 +243,51 @@ function TechnicalRows({ entry }: { entry: ReviewEntry }) {
       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
         <p className="admin-section-label">Replacement video</p>
         {entry.replacement_video_required ? (
-          entry.replacement_video_url ? (
+          replacementLink ? (
             <a
-              href={entry.replacement_video_url}
+              href={replacementLink}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-sky-100/80 underline"
             >
               Open video <ExternalLink className="size-3.5" />
             </a>
           ) : (
-            <p className="mt-1 text-xs font-semibold text-amber-100">Required · URL missing</p>
+            <p className="mt-1 text-xs font-semibold text-amber-100">
+              {entry.replacement_video_url?.trim() ? 'Required · URL unsafe' : 'Required · URL missing'}
+            </p>
           )
         ) : (
           <p className="mt-1 text-xs font-semibold">Not needed</p>
         )}
       </div>
     </div>
+  );
+}
+
+function EntrySourceInspection({ entry }: { entry: ReviewEntry }) {
+  const inspection = inspectOrganizerEntrySource(entry);
+  return (
+    <section aria-label="Submitted Entry metadata checks" className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
+      <p className="text-sm font-semibold">Submission metadata inspection</p>
+      <ul className="mt-3 space-y-2">
+        {inspection.checks.map((check) => (
+          <li key={check.id} className="flex items-start justify-between gap-3 text-xs">
+            <div>
+              <p className="font-semibold">{check.label}</p>
+              <p className="mt-0.5 leading-relaxed text-muted-foreground">{check.detail}</p>
+            </div>
+            <AdminStatus tone={check.status === "present" ? "ready" : check.status === "attention" ? "attention" : "neutral"}>
+              {check.status === "present" ? "Present" : check.status === "attention" ? "Inspect" : "Manual"}
+            </AdminStatus>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+        This checklist is not the authoritative validation, a rule verdict or permission to approve.
+        The review command checks canonical state independently.
+      </p>
+    </section>
   );
 }
 
@@ -295,6 +328,8 @@ function EntryReviewCard({
   } | null>(null);
   const reconcileOperation = useServerFn(reconcileSystemOperation);
   const status = reviewLabel(entry);
+  const inspection = inspectOrganizerEntrySource(entry);
+  const sourceIssues = inspection.checks.filter((check) => check.status === "attention").length;
 
   async function recoverReview(operationId: string) {
     if (!isScopeCurrent()) return false;
@@ -529,17 +564,17 @@ function EntryReviewCard({
               {typeof entry.position === "number" ? (
                 <span>Running order {entry.position}</span>
               ) : null}
-              {entry.song_url ? (
+              {inspection.songUrl ? (
                 <a
-                  href={entry.song_url}
+                  href={inspection.songUrl}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="inline-flex min-h-9 items-center gap-1 text-sky-100/75 hover:text-sky-100"
                 >
                   Open song <ExternalLink className="size-3.5" />
                 </a>
               ) : (
-                <span>No song link</span>
+                <span>{entry.song_url?.trim() ? "Song link needs inspection" : "No song link"}</span>
               )}
             </div>
           </div>
@@ -551,6 +586,11 @@ function EntryReviewCard({
 
         <TechnicalRows entry={entry} />
         <EntryVersionEvidence entry={entry} />
+        {sourceIssues > 0 ? (
+          <p className="mt-2 text-xs font-medium text-amber-100">
+            {sourceIssues} metadata {sourceIssues === 1 ? "item needs" : "items need"} inspection before the next review decision.
+          </p>
+        ) : null}
 
         {entry.review_reason ? (
           <p className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-xs leading-relaxed text-muted-foreground">
@@ -601,6 +641,7 @@ function EntryReviewCard({
 
           <TechnicalRows entry={entry} />
           <EntryVersionEvidence entry={entry} />
+          <EntrySourceInspection entry={entry} />
 
           <div className="space-y-2">
             <Label htmlFor={`review-reason-${entry.id}`}>Organiser reason</Label>
