@@ -129,6 +129,16 @@ export function WorldDocumentPrintPage({
               ) : model.plainText ? (
                 <p className="whitespace-pre-wrap break-words text-[15px] leading-7">{model.plainText}</p>
               ) : <p className="text-sm text-slate-600">This published Version has no public text.</p>}
+              {model.articles.length > 0 && model.plainText ? (
+                <section className="mt-10 border-t-2 border-slate-900 pt-6" aria-labelledby="world-print-complete-text">
+                  <h2 id="world-print-complete-text" className="text-lg font-bold">Complete published text</h2>
+                  <p className="mt-2 text-xs text-slate-600">
+                    The complete plain-text record may contain a preamble or other legal wording
+                    outside the structured articles above.
+                  </p>
+                  <div className="mt-5 whitespace-pre-wrap break-words text-[15px] leading-7">{model.plainText}</div>
+                </section>
+              ) : null}
             </div>
             <footer className="mt-12 border-t border-slate-400 pt-5">
               <p className="text-xs font-semibold">Source citation</p>
