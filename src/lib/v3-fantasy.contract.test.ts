@@ -119,4 +119,29 @@ const projection = source("src/lib/v3-fantasy.ts");
     expect(projection).toContain("canEditV3FantasyRoster");
     expect(projection).not.toContain('"archived"');
   });
+  it("never presents failed, paused, pending or unpublished Fantasy leaderboard reads as empty scores", () => {
+    expect(projection).toContain("normalizeV3FantasyStandings(payload: unknown)");
+    expect(route).toContain("return normalizeV3FantasyStandings(data ?? [])");
+    expect(route).toContain('activeGame?.status !== "scored" ? "unpublished"');
+    expect(route).toContain('leaderboard.isError ? "error"');
+    expect(route).toContain('leaderboard.isPending && leaderboard.isPaused ? "paused"');
+    expect(route).toContain('leaderboard.isPending ? "loading"');
+    expect(route).toContain("standingsState={standingsState}");
+    expect(route).toContain("onRetryStandings={() => void leaderboard.refetch()}");
+    expect(screen).toContain('standingsState === "error" ? (');
+    expect(screen).toContain('standingsState === "paused" ? (');
+    expect(screen).toContain('standingsState === "loading" ? (');
+    expect(screen).toContain('data-v3-fantasy-standings-state="error"');
+    expect(screen).toContain("onClick={onRetryStandings}");
+    expect(route).toContain("Retry standings");
+  });
+
+  it("distinguishes rollout read failure from a feature explicitly disabled by the server", () => {
+    expect(route).toContain("Fantasy availability could not be verified");
+    expect(route).toContain("feature.isPending && feature.isPaused ? (");
+    expect(route).toContain("feature.refetch()");
+    expect(route).toContain("This does not mean Fantasy is disabled.");
+    expect(route.indexOf("{feature.isError ? (")).toBeLessThan(route.indexOf(") : feature.data !== true ? ("));
+  });
+
 });
