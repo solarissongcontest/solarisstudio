@@ -129,6 +129,20 @@ describe("TG3 published body route ownership", () => {
     expect(bodies).toContain("offices.isPending || !offices.isFetchedAfterMount || offices.isFetching");
   });
 
+  it("requires a fresh feature rollout decision on both institutional-body routes", () => {
+    const directory = readFileSync(resolve(bodyRoutes, "index.tsx"), "utf8");
+    const detail = readFileSync(resolve(bodyRoutes, "$bodySlug.tsx"), "utf8");
+    const gate = readFileSync(resolve(process.cwd(), "src/components/world/WorldPublic.tsx"), "utf8");
+    expect(directory).toContain("<WorldPublicGate verifyOnMount>");
+    expect(detail).toContain("<WorldPublicGate verifyOnMount>");
+    expect(gate).toContain('refetchOnMount: verifyOnMount ? "always" : undefined');
+    expect(gate).toContain("publicWorldRolloutDisplay(rollout, verifyOnMount)");
+    // A route may show cached public bodies only after both its own reader
+    // and the canonical rollout flag succeed for the current navigation.
+    expect(gate).toContain('publication === "checking"');
+    expect(gate).toContain('publication === "disabled"');
+  });
+
   it("keeps stable URL paths for both canonical public body screens", () => {
     const directory = readFileSync(resolve(bodyRoutes, "index.tsx"), "utf8");
     const detail = readFileSync(resolve(bodyRoutes, "$bodySlug.tsx"), "utf8");
