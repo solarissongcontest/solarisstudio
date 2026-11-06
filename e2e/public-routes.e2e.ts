@@ -118,7 +118,7 @@ test("Country directory renders the correct mobile-web and desktop browse compos
   }
   const search = directory.getByRole("searchbox", { name: "Search countries" });
   await search.fill("zz-no-such-solaris-country");
-  await expect(directory.getByText("No countries found")).toBeVisible();
+  await expect(directory.getByText("No matching countries", { exact: true })).toBeVisible();
   await search.fill("");
   const overflow = await page.evaluate(() =>
     Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
