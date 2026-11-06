@@ -107,6 +107,35 @@ describe("TG13 Ethics Committee findings and nonbinding recommendations",()=>{
     for(const privateField of ["v_findings","v_reasoning","v_recommendation","p_recommendation_kind"])
       expect(event).not.toContain(privateField);
   });
+  it("supports exact idempotent replay after case transitions to findings_prepared",()=>{
+    const source=sql();
+    const body=source.slice(source.indexOf("create function public.world_prepare_ethics_findings_v1"),
+      source.indexOf("end $prepare$;"));
+    const claim=body.indexOf("private.studio2_claim_operation(");
+    const replay=body.indexOf("coalesce((v_claim->>'replayed')::boolean,false)");
+    const state=body.indexOf("v_case.status not in ('assigned','under_review')");
+    expect(claim).toBeGreaterThan(0);
+    expect(replay).toBeGreaterThan(claim);
+    expect(state).toBeGreaterThan(replay);
+    expect(body).not.toContain("or not public.world_ethics_can_prepare_findings_v1(p_case_id)");
+    expect(body).toContain("join public.world_ethics_committee_memberships m");
+    expect(body).toContain("m.user_id=auth.uid()");
+  });
+  it("provides a rollback-only and genuinely local-only SQL security rehearsal",()=>{
+    const runner=read("scripts/rehearse-v3-world-ethics-findings.sh");
+    const fixture=read("scripts/rehearse-v3-world-ethics-findings.sql");
+    expect(runner).toContain("supabase status -o json");
+    expect(runner).toContain("new URL(api)");
+    expect(runner).toContain("new URL(db)");
+    expect(runner).toContain("a.hostname");
+    expect(runner).toContain("d.search || d.hash");
+    expect(runner).not.toContain("eval ");
+    expect(runner).not.toContain("DATABASE_URL");
+    expect(fixture.trim()).toMatch(/rollback;$/);
+    expect(fixture).toContain("TG13_ETHICS_FINDINGS_RLS_NOT_ENABLED");
+    expect(fixture).toContain("TG13_ETHICS_FINDINGS_RAW_DML_OR_ANON_READ");
+    expect(fixture).toContain("TG13_ETHICS_IMMUTABLE_TRIGGER_MISSING");
+  });
   it("requires private actor revalidation, validated route and exact-operation retry UI",()=>{
     const client=read("src/lib/world-ethics-findings.ts");
     const ui=read("src/components/world/WorldEthicsFindings.tsx");
@@ -124,6 +153,8 @@ describe("TG13 Ethics Committee findings and nonbinding recommendations",()=>{
     expect(ui).toContain("setDraftScope(actorScope)");
     expect(ui).toContain("opScope.current!==activeScope.current");
     expect(ui).toContain("Retry original operation");
+    expect(ui).toContain("retry.current.input,retry.current.op");
+    expect(ui).toContain("mutation.isPending");
     expect(ui).toContain("crypto.randomUUID()");
     expect(ui).not.toContain("service_role");
     expect(client).not.toMatch(/\.from\("world_ethics_findings"\)[\s\S]{0,100}?\.(?:insert|update|upsert|delete)\(/);
