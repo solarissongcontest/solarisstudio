@@ -115,7 +115,16 @@ describe("Organizer Media Review opt-in external preview", () => {
   it("retries only known inventory projections on a deliberate click", () => {
     const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
     expect(route).toContain("async function retryInventory()");
-    expect(route).toContain("if (retryingInventory) return;");
+    expect(route).toContain("if (retryingInventory || inventoryRetryInFlightRef.current) return;");
+    expect(route).toContain("const inventoryRetryInFlightRef = useRef(false);");
+    const retry = route.slice(route.indexOf("async function retryInventory()"),
+      route.indexOf("function updateSearch(", route.indexOf("async function retryInventory()")));
+    expect(retry).toContain("inventoryRetryInFlightRef.current = true;");
+    expect(retry).toContain("inventoryRetryInFlightRef.current = false;");
+    expect(retry.indexOf("inventoryRetryInFlightRef.current = true;"))
+      .toBeLessThan(retry.indexOf("editionsQuery.refetch()"));
+    expect(retry.indexOf("inventoryRetryInFlightRef.current = false;"))
+      .toBeGreaterThan(retry.indexOf("editionsQuery.refetch()"));
     expect(route).toContain("editionsQuery.refetch()");
     expect(route).toContain("countriesQuery.refetch()");
     expect(route).toContain("resolvedEditionId ? [cockpitQuery.refetch(), reviewsQuery.refetch()] : []");
