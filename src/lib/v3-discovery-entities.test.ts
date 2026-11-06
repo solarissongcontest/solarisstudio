@@ -165,6 +165,36 @@ describe("V3 Chat 3 show discovery", () => {
     expect(result.liveNow[0]?.stateLabel).toBe("Paused");
     expect(result.upNext[0]?.stateLabel).toBe("Delayed");
   });
+  it("retains recent published broadcasts across edition rollover without calling cancellations completed", () => {
+    const unpublished = { ...edition("e20", 20, "archived"), published: false };
+    const editions = [
+      edition("e23", 23),
+      edition("e22", 22, "archived"),
+      edition("e21", 21, "archived"),
+      unpublished,
+    ];
+    const shows = [
+      show("new-historical", "e22", "ended", 3),
+      show("cancelled-historical", "e22", "cancelled", 4),
+      show("older-historical", "e21", "ended", 2),
+      show("unpublished-historical", "e20", "ended", 5),
+    ];
+
+    const result = buildShowDiscovery({ editions, shows });
+    expect(result.currentEdition?.id).toBe("e23");
+    expect(result.recent.map((item) => item.show.id)).toEqual([
+      "new-historical", "older-historical",
+    ]);
+    expect(result.archive.map((item) => item.show.id)).toContain("cancelled-historical");
+    expect(result.recent.some((item) => item.show.id === "unpublished-historical")).toBe(false);
+
+    const archiveOnly = buildShowDiscovery({ editions: editions.slice(1), shows });
+    expect(archiveOnly.currentEdition).toBeNull();
+    expect(archiveOnly.recent.map((item) => item.show.id)).toEqual([
+      "new-historical", "older-historical",
+    ]);
+  });
+
   it("keeps stale scheduled and live shows of archived editions out of current discovery", () => {
     const result = buildShowDiscovery({
       editions: [edition("e22", 22), edition("e21", 21, "archived")],
