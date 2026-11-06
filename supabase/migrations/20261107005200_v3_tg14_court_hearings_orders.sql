@@ -157,7 +157,7 @@ begin
  if p_expected_revision is null or p_expected_revision<1
   or p_operation_id is null or nullif(btrim(coalesce(p_idempotency_key,'')),'') is null
   or p_starts_at is null or p_ends_at is null
-  or p_ends_at<=p_starts_at or p_starts_at<=now()
+  or p_ends_at<=p_starts_at
   or p_ends_at-p_starts_at>interval '14 days'
   or p_format not in ('written','video','in_person','hybrid')
   or length(coalesce(v_location,''))>500 then
@@ -184,6 +184,11 @@ begin
  select * into v_case from public.world_court_cases where id=p_case_id for update;
  if v_case.revision is distinct from p_expected_revision then
   raise exception using errcode='40001',message='VERSION_CONFLICT';
+ end if;
+ -- A duplicate completed schedule must replay even after its original start.
+ -- New schedules still require a future start at the case-lock boundary.
+ if p_starts_at<=now() then
+  raise exception using errcode='23514',message='HEARING_START_IN_PAST';
  end if;
  if not public.world_access_allowed('world.court.manage',
    v_case.organization_id,null,null,'court',v_case.id) then
