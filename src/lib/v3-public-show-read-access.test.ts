@@ -101,5 +101,10 @@ describe("V3 Show detail public query scope", () => {
     expect(source).toContain("useShowVoters(readAccess.votersId)");
     expect(source).toContain("useContestEntities(readAccess.editionId)");
     expect(source).toContain("enabled: Boolean(readAccess.televoteDetailId)");
+    // Rendering only reaches the Edition link after the explicit missing-context
+    // guard. No inaccessible Edition can fall through to a fictitious URL.
+    expect(source).toContain("if (!show || !showEdition)");
+    expect(source).toContain('params={{ slug: showEdition.slug }}');
+    expect(source).not.toContain("showEdition?.published && showEdition.id === show.edition_id");
   });
 });
