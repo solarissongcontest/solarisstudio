@@ -51,6 +51,9 @@ describe("V3 installed dock interrupted gesture recovery", () => {
 
   it("requires a completed long-press before any installed AppTabBar drag commits", () => {
     expect(installed).toContain("isEngaged: isHoldEngaged");
+    expect(installed).toContain("const dragging = held;");
+    expect(installed).not.toContain("setDragging(true)");
+    expect(installed).not.toContain("setDragging(false)");
     expect(installed).toContain("startY: event.clientY");
     const move = installed.slice(installed.indexOf("const moveDrag ="), installed.indexOf("const finishDrag ="));
     expect(move).toMatch(/if \(!isHoldEngaged\(event.pointerId\)\) \{/);
