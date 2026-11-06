@@ -20,6 +20,43 @@ type PredictionLeagueStandingRow = Omit<
   position: number | string;
 };
 
+/**
+ * The leaderboard RPC owns scoring, publication and ordering. This adapter
+ * refuses malformed read projections instead of rendering invented positions
+ * or NaN points as if they were authoritative contest data.
+ */
+export function normalizePredictionLeagueStandings(
+  rows: readonly PredictionLeagueStandingRow[],
+): PredictionLeagueStanding[] {
+  return rows.map((row) => {
+    const score = Number(row.score);
+    const rounds = Number(row.rounds);
+    const position = Number(row.position);
+    if (
+      !row.profileId ||
+      typeof row.displayName !== "string" ||
+      !row.displayName.trim() ||
+      (typeof row.score === "string" && !row.score.trim()) ||
+      !Number.isFinite(score) ||
+      score < 0 ||
+      !Number.isSafeInteger(rounds) ||
+      rounds < 1 ||
+      !Number.isSafeInteger(position) ||
+      position < 1
+    ) {
+      throw new Error("Public Prediction League standings contain an invalid canonical row.");
+    }
+    return {
+      profileId: row.profileId,
+      displayName: row.displayName,
+      score,
+      rounds,
+      position,
+      lastScoredAt: row.lastScoredAt,
+    };
+  });
+}
+
 export function usePredictionLeagueStandings(
   enabled: boolean,
   editionId: string | null = null,
@@ -33,12 +70,7 @@ export function usePredictionLeagueStandings(
       });
       if (error) throw error;
 
-      return ((data ?? []) as PredictionLeagueStandingRow[]).map((row) => ({
-        ...row,
-        score: Number(row.score),
-        rounds: Number(row.rounds),
-        position: Number(row.position),
-      }));
+      return normalizePredictionLeagueStandings((data ?? []) as PredictionLeagueStandingRow[]);
     },
     staleTime: 30_000,
     retry: false,
