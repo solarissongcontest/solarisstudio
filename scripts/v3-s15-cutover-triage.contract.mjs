@@ -57,18 +57,23 @@ test("rejects stale/malformed/conflicting or falsely green inventories",()=>{
     {...fixture(),candidateSha:"b".repeat(40)},
     {...fixture(),schemaVersion:3},
     {...fixture(),findings:["PUBLIC_CUTOVER_UNRESOLVED entry:building"]},
-    fixture(["PUBLIC_CUTOVER_UNRESOLVED entry:building"],false,false),
     {...fixture(["PUBLIC_CUTOVER_UNRESOLVED entry:building"]),findings:["PUBLIC_CUTOVER_UNRESOLVED entry:building","PUBLIC_CUTOVER_UNRESOLVED entry:building"]},
     fixture(["PUBLIC_CUTOVER_UNRESOLVED"]),
     fixture(["PUBLIC_CUTOVER_UNRESOLVED invalid-without-status"]),
     {...fixture(),physicalOwnership:null},
     {...fixture(),findings:[null]},
   ]) {
-    // An ownership conflict is valid S15 failure evidence: reject only falsified success, not real failures.
-    if(bad.physicalOwnership?.zeroOwnershipConflicts===false && bad.zeroOrphans===false)continue;
     assert.throws(()=>buildS15CutoverTriage(bad,sha));
   }
   assert.throws(()=>buildS15CutoverTriage(fixture(),"short"));
+});
+
+test("retains real physical ownership conflicts as blockers, without inventing green S15",()=>{
+  const r=buildS15CutoverTriage(fixture(["PUBLIC_CUTOVER_UNRESOLVED entry:building"],false,false),sha);
+  assert.equal(r.sourceZeroOrphans,false);
+  assert.equal(r.physicalOwnershipConflictFree,false);
+  assert.equal(r.releaseCertified,false);
+  assert.equal(r.cutoverCount,1);
 });
 
 test("workflow uploads separate triage artifacts without weakening zero-orphan dispatch",()=>{
