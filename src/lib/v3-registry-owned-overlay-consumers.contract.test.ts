@@ -25,8 +25,14 @@ describe("registry-owned app overlay and resume consumers", () => {
 
   it("actively closes first-run onboarding when protected work takes ownership", () => {
     const firstRun = source("src/components/app/AppFirstRun.tsx");
-    expect(firstRun).toContain("if (!isAppMode || !appFirstRunAllowedOnPath(pathname)) {");
+    // The overlay must close for protected work AND stay closed once its
+    // optional first-run education was completed in this mounted session.
+    expect(firstRun).toContain(
+      "if (!isAppMode || !appFirstRunAllowedOnPath(pathname) || completedThisSession) {",
+    );
     expect(firstRun).toContain("setOpen(false)");
+    expect(firstRun).toContain("return;");
+    expect(firstRun).toContain("[completedThisSession, isAppMode, pathname]");
   });
 
   it("records critical-task resume telemetry from the canonical screen registry", () => {

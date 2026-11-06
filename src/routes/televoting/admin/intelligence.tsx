@@ -4,5 +4,4 @@ export const Route = createFileRoute("/televoting/admin/intelligence")({
   beforeLoad: () => {
     throw redirect({ to: "/admin/friend-voting" });
   },
-  component: () => null,
 });
