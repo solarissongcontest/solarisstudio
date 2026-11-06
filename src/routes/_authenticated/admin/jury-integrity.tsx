@@ -136,7 +136,12 @@ function JuryIntegrityPage() {
         <AdminCard>
           <div role="alert">
             <p className="text-sm font-semibold text-red-200">Jury integrity evidence could not be loaded</p>
-            <p className="mt-1 text-xs text-muted-foreground">No integrity conclusion can be drawn from an unavailable or unauthorized readback. Use Retry integrity evidence above after resolving the issue.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              No integrity conclusion can be drawn from an unavailable or unauthorized readback.
+              {query.error instanceof Error && query.error.message.includes("Jury integrity evidence is incomplete")
+                ? " The bounded read could not verify all cases. Review pagination or service health before trusting risk totals."
+                : " Use Retry integrity evidence above after resolving the issue."}
+            </p>
           </div>
         </AdminCard>
       ) : cases.length ? (
