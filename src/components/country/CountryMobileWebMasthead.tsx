@@ -5,6 +5,8 @@ import { useId, useState, type ReactNode } from "react";
 import { FlagFrame } from "@/components/FlagMedia";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 
+const COUNTRY_MOBILE_LINK_CLASS = "country-mobile-web-action inline-flex min-h-11 items-center rounded-lg border border-border bg-transparent px-3 py-2 text-sm font-semibold text-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+
 /**
  * Editorial Country identity for a mobile browser, not the installed PWA.
  * It consumes the same canonical identity but does not inherit the app layout.
@@ -104,13 +106,13 @@ export function CountryMobileWebMasthead({
       ) : null}
 
       <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Country links">
-        <Link to="/wiki/$code" params={{ code: identity.code }} className="country-mobile-web-action inline-flex min-h-11 items-center rounded-lg border border-border bg-transparent px-3 py-2 text-sm font-semibold text-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        <Link to="/wiki/$code" params={{ code: identity.code }} className={COUNTRY_MOBILE_LINK_CLASS}>
           Wiki
         </Link>
-        <Link to="/compare" search={{ a: identity.code }} className="country-mobile-web-action inline-flex min-h-11 items-center rounded-lg border border-border bg-transparent px-3 py-2 text-sm font-semibold text-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        <Link to="/compare" search={{ a: identity.code }} className={COUNTRY_MOBILE_LINK_CLASS}>
           Compare
         </Link>
-        <Link to="/voting-dna/$code" params={{ code: identity.code }} className="country-mobile-web-action inline-flex min-h-11 items-center rounded-lg border border-border bg-transparent px-3 py-2 text-sm font-semibold text-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        <Link to="/voting-dna/$code" params={{ code: identity.code }} className={COUNTRY_MOBILE_LINK_CLASS}>
           Voting DNA
         </Link>
         <span className="country-mobile-web-follow inline-flex min-h-11 items-center">{follow}</span>
