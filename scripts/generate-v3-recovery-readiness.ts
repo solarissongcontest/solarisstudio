@@ -1,5 +1,7 @@
+import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { buildV3RecoveryReadinessReport } from "../src/lib/v3-recovery-guardrails";
+import { verifyV3RecoveryEvidenceCommit } from "../src/lib/v3-recovery-evidence-identity";
 import { validateV3ProjectionReconciliationRegistry } from "../src/lib/v3-projection-reconciliation-registry";
 
 function requiredEnvironment(name: string) {
@@ -11,9 +13,28 @@ function requiredEnvironment(name: string) {
   return value;
 }
 
-const commitSha = requiredEnvironment("V3_RECOVERY_EVIDENCE_SHA").toLowerCase();
-if (!/^[0-9a-f]{40}$/.test(commitSha)) {
-  console.error("[v3-recovery-readiness] V3_RECOVERY_EVIDENCE_SHA must be an exact 40-character commit SHA");
+function checkedOutSha(): string {
+  try {
+    return execFileSync("git", ["rev-parse", "--verify", "HEAD"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 5000,
+    }).trim();
+  } catch {
+    console.error("[v3-recovery-readiness] cannot verify checked-out Git HEAD");
+    process.exit(2);
+  }
+}
+
+let commitSha: string;
+try {
+  commitSha = verifyV3RecoveryEvidenceCommit(
+    requiredEnvironment("V3_RECOVERY_EVIDENCE_SHA"),
+    checkedOutSha(),
+  );
+} catch (error) {
+  console.error(`[v3-recovery-readiness] ${error instanceof Error ? error.message : String(error)}`);
   process.exit(2);
 }
 
