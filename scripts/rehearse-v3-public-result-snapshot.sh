@@ -18,7 +18,7 @@ node - "$API_URL" "$DB_URL" <<'NODE' || fail "Refusing hosted/non-loopback rehea
 const [apiRaw, dbRaw] = process.argv.slice(2);
 const localhost = (host) => host === "127.0.0.1" || host === "localhost" || host === "[::1]";
 const parsed = (raw) => {
-  if (!raw || /[\\s\\\\]/.test(raw)) throw new Error("Malformed endpoint");
+  if (!raw || /[\s\\]/.test(raw)) throw new Error("Malformed endpoint");
   return new URL(raw);
 };
 try {
@@ -35,7 +35,7 @@ try {
     db.pathname !== "/postgres" || db.search || db.hash
   ) throw new Error("Database URL must identify local PostgreSQL without overrides");
 } catch (error) {
-  process.stderr.write("Local-only URL preflight rejected endpoint: " + error.message + "\\n");
+  process.stderr.write("Local-only URL preflight rejected endpoint: " + error.message + "\n");
   process.exit(1);
 }
 NODE
