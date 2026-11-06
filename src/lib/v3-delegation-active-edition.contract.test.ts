@@ -28,6 +28,19 @@ describe("Public Delegation current-edition authority", () => {
     expect(resolveActivePublicEdition([{ ...current, published: false }])).toBeNull();
   });
 
+  it("renders the actual between-editions state in the installed PWA without hiding history", () => {
+    const source = readFileSync("src/integrations/v3/delegation-source.server.ts", "utf8");
+    const gate = readFileSync("src/components/v3/V3DelegationRouteGate.tsx", "utf8");
+    const screen = readFileSync("src/components/v3/V3DelegationScreen.tsx", "utf8");
+    expect(source).toContain("activeEditionLabel: currentEdition");
+    expect(gate).toContain("activeEditionLabel={bundle.activeEditionLabel}");
+    expect(screen).toContain('activeEditionLabel === null ? "Between editions" : "Current entry"');
+    expect(screen).toContain("No active published edition");
+    expect(screen).toContain("Browse this country's published participation history below.");
+    expect(screen).toContain("projection.participationHistory.map((entry)");
+    expect(screen).toContain("No public entry yet{activeEditionLabel");
+  });
+
   it("uses the same authoritative active edition for published current entry and result slots", () => {
     const source = readFileSync("src/integrations/v3/delegation-source.server.ts", "utf8");
     expect(source).toContain("import { resolveActivePublicEdition }");
