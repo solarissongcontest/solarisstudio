@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const editionId = "00000000-0000-4000-8000-00000000a791";
 const fixture = vi.hoisted(() => ({
-  requireCapability: vi.fn(),
+  getCapabilities: vi.fn(),
   privilegedSchema: vi.fn(),
 }));
 
-// This test never creates a real Supabase client or touches hosted data.
+// No Supabase client is constructed and this test never contacts hosted data.
 vi.mock("@/integrations/supabase/capabilities.server", () => ({
-  requireSolarisCapabilityServer: fixture.requireCapability,
+  getSolarisCapabilitiesServer: fixture.getCapabilities,
 }));
 vi.mock("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: { schema: fixture.privilegedSchema },
@@ -16,66 +17,52 @@ vi.mock("@/integrations/supabase/client.server", () => ({
 import { listJuryIntegrityCasesServer } from "./jury-integrity-admin.server";
 
 beforeEach(() => {
-  fixture.requireCapability.mockReset();
+  fixture.getCapabilities.mockReset();
   fixture.privilegedSchema.mockReset();
 });
 
 describe("Jury integrity evidence service-role authorization", () => {
-  it("rejects an absent edition before authorization or private reads", async () => {
+  it("rejects an absent edition before resolving permissions or private reads", async () => {
     await expect(listJuryIntegrityCasesServer("  ")).rejects.toThrow(
       "Jury Integrity requires an explicit edition scope",
     );
-    expect(fixture.requireCapability).not.toHaveBeenCalled();
+    expect(fixture.getCapabilities).not.toHaveBeenCalled();
     expect(fixture.privilegedSchema).not.toHaveBeenCalled();
   });
 
-  it("rejects unauthorized users without querying protected integrity evidence", async () => {
-    fixture.requireCapability.mockRejectedValue(
-      new Error("Missing Solaris capability: integrity.read"),
-    );
-    await expect(
-      listJuryIntegrityCasesServer("00000000-0000-4000-8000-00000000a791"),
-    ).rejects.toThrow("Missing Solaris capability: integrity.read");
-
-    expect(fixture.requireCapability).toHaveBeenCalledTimes(1);
-    expect(fixture.requireCapability).toHaveBeenCalledWith(
-      "integrity.read",
-      "00000000-0000-4000-8000-00000000a791",
-    );
+  it("does not access protected evidence when the identity lookup fails", async () => {
+    fixture.getCapabilities.mockRejectedValue(new Error("Not authenticated"));
+    await expect(listJuryIntegrityCasesServer(editionId)).rejects.toThrow("Not authenticated");
+    expect(fixture.getCapabilities).toHaveBeenCalledExactlyOnceWith(editionId);
     expect(fixture.privilegedSchema).not.toHaveBeenCalled();
   });
 
-  it("denies private jury score evidence when integrity permission alone is present", async () => {
-    fixture.requireCapability.mockImplementation(async (capability: string) => {
-      if (capability === "jury.ballots.read") {
-        throw new Error("Missing Solaris capability: jury.ballots.read");
-      }
+  it.each([
+    [[], "integrity.read"],
+    [["jury.ballots.read"], "integrity.read"],
+    [["integrity.read"], "jury.ballots.read"],
+  ])("denies insufficient scope %o before any privileged query", async (capabilities, missing) => {
+    fixture.getCapabilities.mockResolvedValue({ userId: "fixture-user", authoritative: true, capabilities });
+    await expect(listJuryIntegrityCasesServer(editionId)).rejects.toThrow(
+      `Solaris capability required: ${missing}`,
+    );
+    expect(fixture.getCapabilities).toHaveBeenCalledExactlyOnceWith(editionId);
+    expect(fixture.privilegedSchema).not.toHaveBeenCalled();
+  });
+
+  it("normalizes edition scope and enters protected reads only after both permissions", async () => {
+    fixture.getCapabilities.mockResolvedValue({
+      userId: "fixture-user",
+      authoritative: true,
+      capabilities: ["integrity.read", "jury.ballots.read"],
     });
-
-    await expect(
-      listJuryIntegrityCasesServer("00000000-0000-4000-8000-00000000a791"),
-    ).rejects.toThrow("Missing Solaris capability: jury.ballots.read");
-
-    expect(fixture.requireCapability.mock.calls).toEqual([
-      ["integrity.read", "00000000-0000-4000-8000-00000000a791"],
-      ["jury.ballots.read", "00000000-0000-4000-8000-00000000a791"],
-    ]);
-    expect(fixture.privilegedSchema).not.toHaveBeenCalled();
-  });
-
-  it("normalizes edition scope and enters the protected query only after capability approval", async () => {
-    fixture.requireCapability.mockResolvedValue(undefined);
     fixture.privilegedSchema.mockImplementation(() => {
-      expect(fixture.requireCapability.mock.calls).toEqual([
-        ["integrity.read", "00000000-0000-4000-8000-00000000a791"],
-        ["jury.ballots.read", "00000000-0000-4000-8000-00000000a791"],
-      ]);
+      expect(fixture.getCapabilities).toHaveBeenCalledExactlyOnceWith(editionId);
       throw new Error("CONTROLLED_PRIVILEGED_READ_REACHED");
     });
-
-    await expect(
-      listJuryIntegrityCasesServer(" 00000000-0000-4000-8000-00000000a791 "),
-    ).rejects.toThrow("CONTROLLED_PRIVILEGED_READ_REACHED");
+    await expect(listJuryIntegrityCasesServer(` ${editionId} `)).rejects.toThrow(
+      "CONTROLLED_PRIVILEGED_READ_REACHED",
+    );
     expect(fixture.privilegedSchema).toHaveBeenCalledTimes(1);
   });
 });
