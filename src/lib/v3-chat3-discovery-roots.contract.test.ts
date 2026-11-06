@@ -13,7 +13,7 @@ describe("V3 Public completion Chat 3 discovery roots", () => {
     expect(screen).toContain('className="v3-countries-title"');
     expect(screen).toContain('presentation === "installed-app"');
     expect(screen).toContain('? "Countries"');
-    expect(screen).toContain('aria-pressed={!participatingOnly}');
+    expect(screen).toContain('aria-pressed={!selectedParticipatingOnly}');
     expect(screen).toContain('<Check size={16}');
     expect(screen).toContain('data-country-directory-experience={presentation}');
     expect(screen).toContain('aria-labelledby="countries-page-title"');
@@ -23,7 +23,7 @@ describe("V3 Public completion Chat 3 discovery roots", () => {
     expect(screen.indexOf('className="v3-countries-browser scroll-mt-24"')).toBeLessThan(
       screen.indexOf('eyebrow="Current movement"'),
     );
-    expect(screen).toContain("participatingOnly && activeEdition ? filtered : filtered.slice(0, visibleCount)");
+    expect(screen).toContain("selectedParticipatingOnly ? filtered : filtered.slice(0, visibleCount)");
     expect(screen).toContain("usePublicEditionParticipants(activeEdition?.id)");
     expect(screen).not.toContain("useAllParticipants");
     expect(screen).not.toContain("useAllResults");

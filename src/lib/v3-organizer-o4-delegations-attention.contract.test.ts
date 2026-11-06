@@ -12,8 +12,15 @@ const adminDomains = readFileSync("src/components/admin/admin-domains.ts", "utf8
 
 describe("Organizer O4 Delegations attention boundary", () => {
   it("fails closed without explicit Organizer edition context", () => {
-    expect(route).toContain("enabled: Boolean(editionId)");
-    expect(route).toContain("loadConfirmationRequirements(editionId!)");
+    // The shell's raw id is not proof of an accessible edition.
+    // Only the resolved Organizer edition may reach the Confirmation query.
+    expect(route).toContain("selectOrganizerEdition(editionsQuery.data ?? [], editionId)");
+    expect(route).toContain('const resolvedEditionId = selectedEdition?.id ?? "";');
+    expect(route).toContain("enabled: Boolean(resolvedEditionId)");
+    expect(route).toContain("loadConfirmationRequirements(resolvedEditionId)");
+    expect(route).not.toContain("loadConfirmationRequirements(editionId!)");
+    expect(route).toContain("Edition context could not be verified");
+    expect(route).toContain("Edition context required");
     expect(route).toContain("Solaris will not substitute another edition");
   });
 
