@@ -334,6 +334,14 @@ begin
     return public.studio2_reconcile_operation(v_operation_id)
       || jsonb_build_object('replayed',true);
   end if;
+  -- A real account link must already be provably attached to the durable
+  -- person identity. Never appoint an arbitrary login as another person.
+  if p_user_id is not null and not exists (
+    select 1 from public.world_country_control_terms term
+    where term.person_id=p_person_id and term.user_id=p_user_id
+  ) then
+    raise exception using errcode='42501',message='PERSON_LOGIN_MISMATCH';
+  end if;
 
   insert into public.world_ethics_committee_memberships(
     organization_id,organ_id,person_id,user_id,appointment_reference,appointed_by_user_id
@@ -501,6 +509,23 @@ begin
       || jsonb_build_object('replayed',true);
   end if;
   select * into v_case from public.world_ethics_cases where id=p_case_id for update;
+  -- Reporter writes must remain scoped to the live country controller at
+  -- commit time. Explicit case managers still use the canonical grant engine.
+  if not (
+    exists (select 1 from public.country_accounts ca
+      where ca.user_id=auth.uid() and ca.country_id=v_case.reporting_country_id
+        and ca.status='active')
+    or public.world_access_allowed(
+      'world.ethics.evidence.append',v_case.organization_id,null,v_case.organ_id,
+      'ethics',v_case.id
+    )
+    or public.world_access_allowed(
+      'world.ethics.case.manage',v_case.organization_id,null,v_case.organ_id,
+      'ethics',v_case.id
+    )
+  ) then
+    raise exception using errcode='42501',message='AUTHORIZATION';
+  end if;
   if v_case.status in ('concluded','archived') then
     raise exception using errcode='23514',message='STATE_CHANGED';
   end if;
