@@ -146,6 +146,37 @@ describe("Organizer Entry Review current-version queue", () => {
     })).toBe(false);
   });
 
+  it("keeps missing-title current declines visible in correction queues", () => {
+    const missing = { ...accepted(), song_title: " ", review_status: "declined" };
+    expect(deriveOrganizerResponseReviewState(internal(missing))).toBe("issue");
+    expect(hasCurrentOrganizerResponseReviewDecision(internal(missing),
+      "internal", "declined")).toBe(true);
+    expect(hasCurrentOrganizerResponseReviewDecision(internal(missing),
+      "internal", "accepted")).toBe(false);
+    const nf = nationalFinal([missing], "entry-1");
+    expect(deriveOrganizerResponseReviewState(nf)).toBe("issue");
+    expect(hasCurrentOrganizerResponseReviewDecision(nf,
+      "national_final", "declined")).toBe(true);
+  });
+
+  it("does not mark whitespace-only or absent candidate titles ready", () => {
+    const blankAccepted = { ...accepted(), song_title: "   " };
+    expect(deriveOrganizerResponseReviewState(internal(blankAccepted))).toBe("review");
+    expect(hasCurrentOrganizerResponseReviewDecision(internal(blankAccepted),
+      "internal", "accepted")).toBe(false);
+    const nf = nationalFinal([blankAccepted], "entry-1");
+    expect(deriveOrganizerResponseReviewState(nf)).toBe("review");
+    expect(hasCurrentOrganizerResponseReviewDecision(nf,
+      "national_final", "accepted")).toBe(false);
+    expect(describeOrganizerNationalFinalQueue(nf)).toMatch(/reviews still incomplete/);
+    expect(deriveOrganizerResponseReviewState(nationalFinal([
+      { ...accepted(), song_title: null },
+    ], "entry-1"))).toBe("review");
+    expect(deriveOrganizerResponseReviewState(nationalFinal([
+      accepted(), { ...accepted(), id: "entry-2", song_title: "" },
+    ], "entry-1"))).toBe("review");
+  });
+
   it("counts a song as submitted only from the active, known selection", () => {
     expect(hasCurrentOrganizerResponseSongSubmission(internal(accepted()))).toBe(true);
     expect(hasCurrentOrganizerResponseSongSubmission({
