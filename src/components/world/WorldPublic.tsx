@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
 import { supabase } from "@/integrations/supabase/client";
+import { publicWorldRolloutDisplay } from "@/lib/terra-world-rollout-gate";
 import {
   WORLD_DIRECTORY_PAGE_SIZE,
   currentWorldMemberships,
@@ -33,18 +34,19 @@ export function WorldPublicGate({
     retry: false,
   });
   // A cached enabled flag is not proof that this route is still published.
-  // An error is handled first, so a failed refresh cannot leave this loading.
-  if (rollout.isError) {
+  // Keep the display decision independent from React rendering for regression tests.
+  const publication = publicWorldRolloutDisplay(rollout, verifyOnMount);
+  if (publication === "error") {
     return (
       <PublicFrame>
         <QueryFailure message="World availability could not be verified. No institutional records were loaded." retry={() => void rollout.refetch()} />
       </PublicFrame>
     );
   }
-  if (rollout.isPending || (verifyOnMount && (!rollout.isFetchedAfterMount || rollout.isFetching))) {
+  if (publication === "checking") {
     return <PublicFrame><LoadingWorld label="Checking Terra Solaris availability" /></PublicFrame>;
   }
-  if (!rollout.data) {
+  if (publication === "disabled") {
     return (
       <PublicFrame>
         <div className="max-w-2xl rounded-2xl border border-border p-6 sm:p-9">
