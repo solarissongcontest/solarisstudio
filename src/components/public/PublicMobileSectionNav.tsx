@@ -47,6 +47,14 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
     return () => document.removeEventListener("pointerdown", onOutsidePointerDown);
   }, [open]);
 
+  // Activating a disclosure link with Enter closes its panel. Keep keyboard
+  // focus on the still-visible trigger instead of stranding it on a hidden
+  // link; pointer navigation must never steal focus.
+  const closeAfterNavigation = (keyboardActivated: boolean) => {
+    setOpen(false);
+    if (keyboardActivated) triggerRef.current?.focus();
+  };
+
   if (!hasLocalNavigation(area)) return null;
   // Entity pages already have a breadcrumb and global Explore navigation.
   if (/^\/(?:countries|editions|shows|wiki)\/[^/]+/.test(pathname)) return null;
@@ -100,14 +108,14 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
         className="public-mobile-section-panel"
         hidden={!open}
       >
-        <MobileGroup area={area} items={primary} activeTo={active?.to} onNavigate={() => setOpen(false)} />
+        <MobileGroup area={area} items={primary} activeTo={active?.to} onNavigate={closeAfterNavigation} />
         {secondary.length ? (
           <MobileGroup
             area={area}
             label="More"
             items={secondary}
             activeTo={active?.to}
-            onNavigate={() => setOpen(false)}
+            onNavigate={closeAfterNavigation}
           />
         ) : null}
         {advanced.length ? (
@@ -116,7 +124,7 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
             label={area === "results" ? "More result tools" : "Advanced"}
             items={advanced}
             activeTo={active?.to}
-            onNavigate={() => setOpen(false)}
+            onNavigate={closeAfterNavigation}
           />
         ) : null}
 
@@ -124,12 +132,12 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
           <Link
             to="/site-directory"
             className="public-mobile-section-link"
-            onClick={() => {
+            onClick={(event) => {
               trackPublicUxEvent("section_nav_clicked", {
                 target: "/site-directory",
                 metadata: { area, visibility: "directory", source: "mobile_section" },
               });
-              setOpen(false);
+              closeAfterNavigation(event.detail === 0);
             }}
           >
             All Solaris pages
@@ -151,7 +159,7 @@ function MobileGroup({
   label?: string;
   items: ReturnType<typeof publicDestinationsForArea>;
   activeTo?: string;
-  onNavigate: () => void;
+  onNavigate: (keyboardActivated: boolean) => void;
 }) {
   return (
     <div className="space-y-1">
@@ -165,7 +173,7 @@ function MobileGroup({
           key={item.id}
           to={item.to as any}
           aria-current={item.to === activeTo ? "page" : undefined}
-          onClick={() => {
+          onClick={(event) => {
             trackPublicUxEvent("section_nav_clicked", {
               target: item.to,
               metadata: {
@@ -174,7 +182,7 @@ function MobileGroup({
                 source: "mobile_section",
               },
             });
-            onNavigate();
+            onNavigate(event.detail === 0);
           }}
           className={cn(
             "public-mobile-section-link",

@@ -35,6 +35,10 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
     expect(mobile).toContain("setOpen(false)");
     expect(mobile).toContain("triggerRef.current?.focus()");
     expect(mobile).toContain("ref={triggerRef}");
+    expect(mobile).toContain("const closeAfterNavigation = (keyboardActivated: boolean) => {");
+    expect(mobile).toContain("if (keyboardActivated) triggerRef.current?.focus()");
+    expect(mobile).toContain("onNavigate(event.detail === 0)");
+    expect(mobile).toContain("closeAfterNavigation(event.detail === 0)");
   });
 
   it("keeps advanced section links reachable on tablet web without squeezing touch targets", () => {

@@ -65,6 +65,17 @@ test("mobile browser section navigation supports keyboard disclosure, Escape, an
   await expect(page).toHaveURL(/\/results\/?(?:[?#].*)?$/);
   await expect(nav.locator(".public-mobile-section-trigger")).toHaveAttribute("aria-expanded", "false");
   await expect(panel).toBeHidden();
+
+  // Enter follows the selected destination and closes the panel. The link
+  // becomes hidden, so keyboard focus must return to the visible trigger.
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  await expect(panel).toBeVisible();
+  await scorechartsLink.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/scorecharts\/?(?:[?#].*)?$/);
+  await expect(panel).toBeHidden();
+  await expect(trigger).toBeFocused();
 });
 
 test("tablet browser keeps Advanced destinations keyboard-accessible with readable touch targets", async ({ page }, testInfo) => {
