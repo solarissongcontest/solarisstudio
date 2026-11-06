@@ -2,9 +2,26 @@ import type { QueryClient } from "@tanstack/react-query";
 
 type AccountUser = { id: string } | null | undefined;
 
+// Explicit, actor-scoped fan query families. Keep this exact-match list separate
+// from public feeds/leaderboards so account switches never purge public caches.
+const privateFanQueryRoots = new Set([
+  "fan-follows",
+  "fan-event-reads",
+  "notification-preferences",
+  "fan-profile",
+  "my-prediction",
+  "prediction-history",
+  "fan-taste-ballots",
+  "fantasy-my-team",
+  "fantasy-my-team-entries",
+  // Used by the pending Following/Save integration; keep its cache isolated
+  // when that feature is merged without introducing a second logout owner.
+  "v3-follow-entity-details",
+]);
+
 export function isPrivateAccountQuery(key: readonly unknown[]) {
   const root = String(key[0] ?? "");
-  return /^(edition-selection|user-prefs|user-country-ownership|mysolaris-|my-solaris-|my-country-|hod-history|hod-identity-suggestions|permission-engine-|authenticated-identity-gate|organizer-access-gate|v3-organizer|confirmation-requirements|owned-|country-confirmation-|country-jury-|home-personal-attention|participate-jury-|participate-confirmation-access|admin-|studio2-|organisation-backend-contract|v3-rollout-probe|v3-primary-surface-bundle)/.test(
+  return privateFanQueryRoots.has(root) || /^(edition-selection|user-prefs|user-country-ownership|mysolaris-|my-solaris-|my-country-|hod-history|hod-identity-suggestions|permission-engine-|authenticated-identity-gate|organizer-access-gate|v3-organizer|confirmation-requirements|owned-|country-confirmation-|country-jury-|home-personal-attention|participate-jury-|participate-confirmation-access|admin-|studio2-|organisation-backend-contract|v3-rollout-probe|v3-primary-surface-bundle)/.test(
     root,
   );
 }
