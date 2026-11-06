@@ -64,8 +64,10 @@ describe("V3 Results analysis spoiler reveal", () => {
     expect(gate).toContain("serverPreferences.isError");
     expect(gate).toContain("resolveV3ResultsAnalysisReveal({");
     expect(gate).toContain("spoilerGate.protected ? (");
-    expect(gate).toContain('data-v3-broadcast-spoiler-protected=""');
-    expect(gate).toContain("Reveal this replay");
+    expect(gate).toContain("<V3AnalysisRevealScreen");
+    const reveal = readFileSync(resolve(process.cwd(), "src/components/v3/V3AnalysisRevealScreen.tsx"), "utf8");
+    expect(reveal).toContain("data-v3-broadcast-spoiler-protected");
+    expect(reveal).toContain("Reveal this replay");
     expect(gate).toContain("setRevealedResultKey(null)");
     expect(gate).not.toContain("localStorage");
     expect(gate).not.toContain(".insert(");
