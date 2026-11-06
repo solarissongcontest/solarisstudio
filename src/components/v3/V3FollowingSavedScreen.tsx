@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Bell, BellOff, BookmarkCheck, ChevronRight, Radio, Trash2 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import { useMyFollows, useSetFanFollow } from "@/lib/engagement-data";
@@ -107,7 +107,11 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
   const setFollow = useSetFanFollow(viewerId);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const mutationInFlight = useRef(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ viewerId: string; text: string } | null>(null);
+
+  useEffect(() => {
+    setMessage(null);
+  }, [viewerId]);
 
   const projection = useMemo(() => {
     if (!follows.data?.schemaReady) return null;
@@ -150,10 +154,10 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
         following,
         notificationLevel,
       });
-      setMessage(following ? `Updated ${item.title}.` : `Removed ${item.title} from Following & Saved.`);
+      setMessage({ viewerId, text: following ? `Updated ${item.title}.` : `Removed ${item.title} from Following & Saved.` });
     } catch (error) {
       console.error("[V3 Following & Saved] Preference update failed", error);
-      setMessage("Update not confirmed. Check your saved items before trying again.");
+      setMessage({ viewerId, text: "Update not confirmed. Check your saved items before trying again." });
     } finally {
       mutationInFlight.current = false;
       setPendingKey(null);
@@ -169,9 +173,9 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
           description="Keep meaningful Solaris entities close and choose how many updates you want from each one."
         />
 
-        {message ? (
+        {message?.viewerId === viewerId ? (
           <p className="mb-4 rounded-xl border border-[var(--v3-border)] px-4 py-3 text-sm" role="status" aria-live="polite">
-            {message}
+            {message.text}
           </p>
         ) : null}
 
