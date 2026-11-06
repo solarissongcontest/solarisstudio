@@ -72,7 +72,7 @@ async function loadAdminDeadlines(editionId?: string | null) {
     .order("due_at", { ascending: true });
 
   if (error) {
-    if (missingSchema(error)) return [] as AdminDeadline[];
+    // Missing private authority is not an all-clear: preserve a visible read failure.
     throw error;
   }
 
@@ -128,7 +128,7 @@ export function useAdminAudit(limit = 30) {
         .limit(limit);
 
       if (error) {
-        if (missingSchema(error)) return [] as AdminAuditRow[];
+        // Audit history must not silently become empty when its authority fails.
         throw error;
       }
 
