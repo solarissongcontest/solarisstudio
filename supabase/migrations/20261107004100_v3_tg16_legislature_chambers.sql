@@ -53,7 +53,7 @@ alter table public.world_domestic_structure_revisions enable row level security;
 revoke all on public.world_domestic_legislatures,
   public.world_domestic_chambers, public.world_domestic_structure_revisions
   from public,anon,authenticated;
-grant all on public.world_domestic_legislatures,
+grant select on public.world_domestic_legislatures,
   public.world_domestic_chambers, public.world_domestic_structure_revisions to service_role;
 
 create function public.world_write_domestic_structure_v1(
