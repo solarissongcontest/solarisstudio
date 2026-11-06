@@ -19,6 +19,17 @@ describe("Organizer HOD history private actor and evidence freshness", () => {
     expect(route).toContain('queryClient.invalidateQueries({ queryKey: ["hod-history"] })');
   });
 
+  it("cancels and evicts both private actor cache entries on workspace unmount", () => {
+    expect(route).toContain('import { useEffect, useMemo, useState');
+    expect(route).toContain('const historyKey = { queryKey: ["hod-history", actorId], exact: true };');
+    expect(route).toContain('const suggestionsKey = { queryKey: ["hod-identity-suggestions", actorId], exact: true };');
+    expect(route).toContain("void queryClient.cancelQueries(historyKey);");
+    expect(route).toContain("void queryClient.cancelQueries(suggestionsKey);");
+    expect(route).toContain("queryClient.removeQueries(historyKey);");
+    expect(route).toContain("queryClient.removeQueries(suggestionsKey);");
+    expect(route).toContain("}, [actorId, queryClient]);");
+  });
+
   it("never treats cached private history or identity evidence as fresh verification", () => {
     expect(route).toContain("historyQuery.isSuccess && !historyQuery.isFetching && !historyQuery.error");
     expect(route).toContain("suggestionsQuery.isSuccess && !suggestionsQuery.isFetching && !suggestionsQuery.error");

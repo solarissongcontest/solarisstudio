@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, History, Info, Lightbulb, Plus, Trash2, UserRoundCog } from "lucide-react";
@@ -191,6 +191,18 @@ function HodHistoryWorkspace({ actorId }: { actorId: string }) {
     gcTime: 0,
     refetchOnMount: "always",
   });
+  // The canonical auth cache purge does not yet recognize these Organizer-specific
+  // query roots. Unmount on actor switch must cancel and evict both private reads
+  // instead of retaining a previous account's HOD identities or Televote evidence.
+  useEffect(() => () => {
+    const historyKey = { queryKey: ["hod-history", actorId], exact: true };
+    const suggestionsKey = { queryKey: ["hod-identity-suggestions", actorId], exact: true };
+    void queryClient.cancelQueries(historyKey);
+    void queryClient.cancelQueries(suggestionsKey);
+    queryClient.removeQueries(historyKey);
+    queryClient.removeQueries(suggestionsKey);
+  }, [actorId, queryClient]);
+
   // A cached private result is not fresh authorization or current history.
   // Mask stale people, assignments and Televote-derived evidence during
   // refreshes, errors and account transitions.
