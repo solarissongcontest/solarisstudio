@@ -99,6 +99,7 @@ describe("MySolaris product consolidation", () => {
     expect(tasksRoute).toContain('Unable to verify Organizer access.');
     expect(tasksModule).toContain("const country = organizerInspection ? organizerCountry : ownCountry;");
     expect(tasksModule).not.toContain("const country = organizerCountry ?? ownCountry;");
+    expect(tasksModule).toContain("{isAppMode && !organizerInspection ? (");
   });
 
   it("has real canonical route surfaces behind the remaining workspace destinations", () => {
