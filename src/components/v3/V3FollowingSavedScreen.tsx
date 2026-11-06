@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Bell, BellOff, BookmarkCheck, ChevronRight, Radio, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { supabase } from "@/integrations/supabase/client";
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import { useMyFollows, useSetFanFollow } from "@/lib/engagement-data";
 import {
@@ -108,10 +109,12 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
   const setFollow = useSetFanFollow(viewerId);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const mutationInFlight = useRef(false);
+  const latestViewerId = useRef(viewerId);
   const [message, setMessage] = useState<{ viewerId: string; text: string } | null>(null);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
+    latestViewerId.current = viewerId;
     setMessage(null);
     setSearch("");
   }, [viewerId]);
@@ -167,6 +170,12 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
     setPendingKey(operationKey);
     setMessage(null);
     try {
+      // A stale click from an earlier account must not mutate the currently
+      // authenticated account when login changes while the handler is pending.
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth.user || auth.user.id !== viewerId || latestViewerId.current !== viewerId) {
+        throw new Error("Following account changed before the preference update.");
+      }
       await setFollow.mutateAsync({
         entityType: item.entityType,
         entityId: item.entityId,
