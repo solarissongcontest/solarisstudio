@@ -25,6 +25,18 @@ describe("Reference category browsing", () => {
     expect(source).not.toContain('href: "/entries"');
   });
 
+  it("keeps unavailable rollout distinct from a deliberate disabled Reference", () => {
+    expect(source).toContain("if (feature.isError) {");
+    expect(source).toContain('title="Reference availability could not be checked"');
+    expect(source).toContain("Retry availability check");
+    expect(source).toContain("feature.refetch()");
+    expect(source).toContain("if (feature.data !== true) {");
+    expect(source).toContain('title="Reference is not enabled yet"');
+    expect(source).toContain("Retry archive totals");
+    expect(source).toContain("coverageQuery.refetch()");
+    expect(source).not.toContain("feature.isError || feature.data !== true");
+  });
+
   it("preserves server-owned publication and feature gates", () => {
     expect(source).toContain('isStudio2FeatureEnabled("public_encyclopedia")');
     expect(source).toContain('rpc(\n        "solaris_public_search"');
