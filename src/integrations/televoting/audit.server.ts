@@ -1,4 +1,5 @@
 import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
+import { redactVotingAuditPayload } from "@/lib/v3-voting-audit-redaction";
 
 export type AuditJson =
   | string
@@ -52,8 +53,8 @@ export async function listMergedAuditLogServer(filters: {
     action: String(row.action ?? "unknown"),
     target_type: row.target_type == null ? null : String(row.target_type),
     target_id: row.target_id == null ? null : String(row.target_id),
-    old_values: (row.old_values ?? null) as AuditJson | null,
-    new_values: (row.new_values ?? null) as AuditJson | null,
+    old_values: redactVotingAuditPayload((row.old_values ?? null) as AuditJson) as AuditJson,
+    new_values: redactVotingAuditPayload((row.new_values ?? null) as AuditJson) as AuditJson,
     reason: row.reason == null ? null : String(row.reason),
     created_at: String(row.created_at),
   }));
