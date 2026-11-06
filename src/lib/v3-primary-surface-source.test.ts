@@ -116,6 +116,11 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
       "show:later",
       "show:last",
     ]);
+    // Canonical Europe/Helsinki: 07:00 UTC is 10:00 EEST on 12 October.
+    expect(snapshot.primarySurfaces.upcoming[0]?.description).toContain("12 Oct 2026");
+    expect(snapshot.primarySurfaces.upcoming[0]?.description).toContain("10:00");
+    expect(snapshot.primarySurfaces.upcoming[1]?.description).toContain("12:00");
+    expect(snapshot.primarySurfaces.upcoming[2]?.description).toContain("15:00");
   });
 
   it("retains undated legacy upcoming shows but excludes terminal Show Mode phases", () => {
@@ -136,6 +141,9 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
       "show:legacy-early",
       "show:legacy-late",
     ]);
+    expect(snapshot.primarySurfaces.upcoming.every((item) =>
+      item.description === "Public show information is available.",
+    )).toBe(true);
   });
 
   it("deduplicates country/entity aliases across mixed canonical and show rows", () => {

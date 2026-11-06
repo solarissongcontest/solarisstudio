@@ -20,6 +20,7 @@ import {
   type VotingTaskInput,
 } from "./participation-os";
 import { isShowPublic, showPublishesResults } from "./publication";
+import { formatEventDateTime } from "./public-time";
 import { showModeConfig } from "./show-mode";
 import type { PublicRound } from "./confirmation-rounds.functions";
 import type { V3ShowState } from "./v3-domain-state";
@@ -200,10 +201,12 @@ function upcomingItems(
         left.show.id.localeCompare(right.show.id),
     )
     .slice(0, 3)
-    .map(({ show }) => ({
+    .map(({ show, startsAt }) => ({
       id: `show:${show.id}`,
       title: show.name,
-      description: "Public show information is available.",
+      description: startsAt === null
+        ? "Public show information is available."
+        : `Scheduled ${formatEventDateTime(new Date(startsAt), { locale: "en-GB" })}`,
       to: `/shows/${show.id}`,
     }));
 }
