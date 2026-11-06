@@ -37,6 +37,8 @@ describe("TG3 scoped public membership history SQL contract", () => {
     expect(migration).toContain("representation_row.country_id = p_country_id");
     expect(migration).toContain("term_row.represented_country_id = p_country_id");
     expect(migration).toContain("term_row.actual_end_at is null");
+    expect(migration).toContain("term_row.started_at <= now()");
+    expect(migration).toContain("'effectiveAt', now()");
     expect(migration).toContain("term_row.status = 'active'");
     expect(migration).toContain("office_row.active");
   });
