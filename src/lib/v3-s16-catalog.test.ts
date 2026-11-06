@@ -26,6 +26,13 @@ describe("S16 trustworthy catalog evidence",()=>{
     expect(potentialS16Write(sql,"public.editions","public")).toBe(true);
   }
  });
+ it("does not omit later tables in multi-target TRUNCATE statements",()=>{
+  expect(potentialS16Write("TRUNCATE TABLE public.safe_table, public.editions RESTART IDENTITY","public.editions","public")).toBe(true);
+  expect(potentialS16Write('TRUNCATE ONLY "public"."safe,table", ONLY "public"."editions" CASCADE',"public.editions","public")).toBe(true);
+  expect(potentialS16Write("TRUNCATE TABLE /* context */ public.safe_table, /* scope */ editions","public.editions",null)).toBe(true);
+  expect(potentialS16Write("TRUNCATE public.safe_table, televoting.editions","public.editions","public")).toBe(false);
+  expect(potentialS16Write("TRUNCATE public.safe_table, editions","public.editions","private")).toBe(false);
+ });
  it("preserves conservative dynamic-SQL candidate detection without treating comments as writes",()=>{
   expect(potentialS16Write("EXECUTE 'UPDATE /* audit */ public.editions SET name = 1'","public.editions","public")).toBe(true);
   expect(potentialS16Write("/* UPDATE public.editions SET name = 1 */ SELECT 1","public.editions","public")).toBe(false);
