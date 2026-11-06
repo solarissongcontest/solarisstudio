@@ -200,6 +200,103 @@ begin
   ) then raise exception 'TG10_ALREADY_CAST_VOTE_TASK_LEAK'; end if;
 end $tg10_cast$;
 
+
+-- A frozen approved proxy is eligible instead of the representative. A live
+-- revocation must immediately invalidate this task without relying on an
+-- asynchronous notification projection or modifying immutable electorate.
+do $tg10_proxy_revocation$
+declare
+  v jsonb := current_setting('solaris.tg8_fixture')::jsonb;
+  v_proxy uuid := gen_random_uuid();
+  v_proxy_vote uuid := gen_random_uuid();
+  v_rep public.world_organization_representations%rowtype;
+  v_member public.world_organization_memberships%rowtype;
+  v_inserted integer;
+begin
+  select * into strict v_rep
+  from public.world_organization_representations
+  where organization_id = (v->>'orgId')::uuid
+    and country_id = (v->>'countryA')::uuid
+    and user_id = (v->>'repA')::uuid;
+
+  select * into strict v_member
+  from public.world_organization_memberships
+  where organization_id = (v->>'orgId')::uuid
+    and country_id = (v->>'countryA')::uuid
+    and status = 'member' and ended_at is null;
+
+  insert into public.world_representation_proxies (
+    id, representation_id, proxy_person_id, proxy_user_id,
+    valid_from, valid_until, status, revision
+  ) select
+    v_proxy, v_rep.id, person.id, (v->>'repB')::uuid,
+    clock_timestamp() - interval '1 hour',
+    clock_timestamp() + interval '1 hour',
+    'approved', 1
+  from public.delegation_people person
+  where person.identity_key = 'tg8:' || (
+    select rep_b.person_id::text
+    from public.world_organization_representations rep_b
+    where rep_b.organization_id = (v->>'orgId')::uuid
+      and rep_b.user_id = (v->>'repB')::uuid
+    limit 1
+  );
+  get diagnostics v_inserted = row_count;
+  if v_inserted <> 1 then
+    raise exception 'TG10_PROXY_PERSON_IDENTITY_MISSING';
+  end if;
+
+  -- The parent TG8 fixture has an already-closed independent measure/vote.
+  -- Freeze another transient OPEN vote for that measure, fully inside TG10's
+  -- savepoint, so the ordinary TG10 cast test can keep its own electorate.
+  insert into public.world_votes (
+    id, organization_id, organ_id, measure_id, measure_version_id,
+    rule_id, rule_snapshot, electorate_count,
+    opened_at, closes_at, open_operation_id
+  )
+  select
+    v_proxy_vote, old_vote.organization_id, old_vote.organ_id,
+    old_vote.measure_id, old_vote.measure_version_id,
+    old_vote.rule_id, old_vote.rule_snapshot, 1,
+    clock_timestamp() - interval '5 minutes',
+    clock_timestamp() + interval '1 hour', gen_random_uuid()
+  from public.world_votes old_vote
+  where old_vote.id = (v->>'closedVoteId')::uuid
+    and old_vote.status = 'open';
+  -- TG8's historical fixture is still an 'open' status row until certified;
+  -- only its close instant has already elapsed. That is expected here.
+  get diagnostics v_inserted = row_count;
+  if v_inserted <> 1 then
+    raise exception 'TG10_PROXY_VOTE_FIXTURE_MISSING';
+  end if;
+
+  insert into public.world_vote_eligibility (
+    vote_id, country_id, membership_id, membership_revision,
+    representation_id, representation_revision, representative_person_id,
+    proxy_id, proxy_revision, snapshotted_at
+  ) values (
+    v_proxy_vote, v_member.country_id, v_member.id, v_member.revision,
+    v_rep.id, v_rep.revision, v_rep.person_id,
+    v_proxy, 1, clock_timestamp()
+  );
+
+  if not private.world_vote_task_recipient_eligible_v1(
+    v_proxy_vote, v_member.country_id, (v->>'repB')::uuid
+  ) then raise exception 'TG10_APPROVED_PROXY_TASK_DENIED'; end if;
+
+  if private.world_vote_task_recipient_eligible_v1(
+    v_proxy_vote, v_member.country_id, (v->>'repA')::uuid
+  ) then raise exception 'TG10_REPLACED_REPRESENTATIVE_TASK_LEAK'; end if;
+
+  update public.world_representation_proxies proxy
+  set status = 'revoked', revoked_at = clock_timestamp(), revision = revision + 1
+  where proxy.id = v_proxy;
+
+  if private.world_vote_task_recipient_eligible_v1(
+    v_proxy_vote, v_member.country_id, (v->>'repB')::uuid
+  ) then raise exception 'TG10_REVOKED_PROXY_TASK_LEAK'; end if;
+end $tg10_proxy_revocation$;
+
 -- Restore TG8 fixture, vote, actor GUCs, flags and all sensitive test records.
 -- TG8 must still be able to open and certify its own separate fixture votes.
 rollback to savepoint tg10_vote_task_eligibility;
