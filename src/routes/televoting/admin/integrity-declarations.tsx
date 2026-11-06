@@ -13,6 +13,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import {
   AdminCard,
   AdminCardHeader,
@@ -46,6 +47,7 @@ type Filter = "all" | "signed" | "submitted" | "unsigned";
 
 function IntegrityDeclarationsRoute() {
   const { editionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
 
   if (!editionId) {
     return (
@@ -67,10 +69,11 @@ function IntegrityDeclarationsRoute() {
     );
   }
 
-  return <IntegrityDeclarationsPage key={editionId} editionId={editionId} />;
+  return <IntegrityDeclarationsPage key={`${actorId}:${editionId}`} editionId={editionId} />;
 }
 
 function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
+  const actorId = useAuthenticatedUser().id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const getAdmin = useServerFn(getMergedTelevotingAdmin);
@@ -84,11 +87,18 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
     operationId: string;
     idempotencyKey: string;
     editionId: string;
+    actorId: string;
   } | null>(null);
 
   const { data: admin, isLoading: adminLoading } = useQuery({
-    queryKey: ["merged-televoting-admin"],
+    queryKey: ["merged-televoting-admin", actorId],
     queryFn: () => getAdmin(),
+    enabled: Boolean(actorId),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   useEffect(() => {
@@ -100,8 +110,8 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
     }
   }, [admin, adminLoading, navigate]);
 
-  const { data: rows = [], isLoading, error } = useQuery<IntegrityDeclarationRow[]>({
-    queryKey: ["merged-integrity-declarations", editionId],
+  const { data: rowsData, isLoading, isFetching, error, refetch } = useQuery<IntegrityDeclarationRow[]>({
+    queryKey: ["merged-integrity-declarations", actorId, editionId],
     queryFn: async () => {
       const result = await getDeclarations({
         data: { editionId, limit: 500, signedOnly: false },
@@ -111,9 +121,18 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
       }
       return result;
     },
-    enabled: Boolean(admin),
-    refetchInterval: 60_000,
+    enabled: Boolean(actorId && admin),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
+  const rows = rowsData ?? [];
+  const readVerified = Boolean(actorId && admin && !adminLoading && !isLoading && !isFetching && !error && rowsData);
+  useEffect(() => {
+    if (!readVerified) setPendingInvalidation(null);
+  }, [readVerified]);
 
   const previewInvalidation = useMutation({
     mutationFn: previewVotingDeclarationInvalidation,
@@ -122,7 +141,7 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
         throw new Error("Voting declaration preview returned evidence for a different declaration");
       }
       if (preview.alreadyApplied) {
-        await queryClient.invalidateQueries({ queryKey: ["merged-integrity-declarations", editionId] });
+        await queryClient.invalidateQueries({ queryKey: ["merged-integrity-declarations", actorId, editionId] });
         return;
       }
       const row = rows.find((item) => item.id === preflightId);
@@ -137,13 +156,14 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
         operationId,
         idempotencyKey: operationId,
         editionId,
+        actorId,
       });
     },
   });
 
   const invalidateDeclaration = useMutation({
     mutationFn: async (pending: NonNullable<typeof pendingInvalidation>) => {
-      if (pending.editionId !== editionId || pending.row.canonical_edition_id !== editionId) {
+      if (pending.actorId !== actorId || pending.editionId !== editionId || pending.row.canonical_edition_id !== editionId) {
         throw Object.assign(
           new Error("Organizer edition context changed before declaration invalidation. Reopen the declaration from the current edition."),
           { status: 409 },
@@ -158,7 +178,7 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
     },
     onSuccess: async () => {
       setPendingInvalidation(null);
-      await queryClient.invalidateQueries({ queryKey: ["merged-integrity-declarations", editionId] });
+      await queryClient.invalidateQueries({ queryKey: ["merged-integrity-declarations", actorId, editionId] });
     },
   });
 
@@ -189,6 +209,36 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
         .includes(term);
     });
   }, [filter, query, rows]);
+
+  if (!readVerified) {
+    return (
+      <div className="mx-auto max-w-5xl space-y-4" data-v3-organizer-declaration-edition={editionId}>
+        <AdminPageHeader
+          eyebrow="Voting integrity"
+          title="Declarations"
+          description="Private declaration evidence must be verified for the signed-in Organizer and selected edition."
+        />
+        <AdminCard>
+          <p role="status" className="text-sm font-semibold">
+            {adminLoading || isLoading || isFetching ? "Verifying integrity declarations…" : "Integrity declarations unavailable"}
+          </p>
+          {error ? (
+            <p role="alert" className="mt-2 text-sm text-rose-100">
+              {error instanceof Error ? error.message : "Private declaration read failed."}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className="admin-action-secondary mt-3 min-h-11"
+            disabled={!admin || isFetching}
+            onClick={() => void refetch()}
+          >
+            Retry declarations
+          </button>
+        </AdminCard>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-4" data-v3-organizer-declaration-edition={editionId}>
