@@ -188,6 +188,7 @@ function CasePanel({
 export function WorldMediationWorkspace() {
   const data = useQuery({
     queryKey: ["world", "mediation", "workspace"],
+    gcTime: 0,
     queryFn: fetchMediationWorkspace,
     staleTime: 0,
     refetchOnMount: "always",
@@ -243,12 +244,12 @@ export function WorldMediationWorkspace() {
           Private, recorded mediation between Terra Solaris countries. Informal diplomacy remains freeform.
           A request begins only when the other country accepts. No mediator can accept for it.
         </p>
-        {data.isPending ? <StateMessage>Checking your institutional access and cases…</StateMessage> : null}
+        {(data.isPending || data.isFetching) ? <StateMessage>Checking your institutional access and cases…</StateMessage> : null}
         {data.isError ? <div className="mt-6"><ErrorMessage error={data.error} retry={refresh} /></div> : null}
-        {data.isSuccess && !data.data.signedIn ? (
+        {data.isSuccess && !data.isFetching && !data.data.signedIn ? (
           <div className="mt-7"><StateMessage>Sign in with your Solaris account to access mediation. Private case records are never available anonymously.</StateMessage></div>
         ) : null}
-        {data.isSuccess && data.data.signedIn ? (
+        {data.isSuccess && !data.isFetching && data.data.signedIn ? (
           <>
             <section className="mt-9 border-t border-border pt-6" aria-labelledby="mediation-request">
               <div className="flex flex-wrap items-center gap-3">
