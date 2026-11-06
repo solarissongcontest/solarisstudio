@@ -101,6 +101,15 @@ describe("TG3 world publication-safe projections", () => {
       .toHaveLength(1);
   });
 
+  it("does not classify proposed institutions as official public organizations", () => {
+    expect(parseWorldDirectoryRows([{ ...row, id: "proposal", slug: "proposal", status: "proposed" }]))
+      .toEqual([]);
+    expect(parseWorldProjection({
+      organization: { ...organization, slug: "unity", status: "proposed" },
+      organs: [], memberships: [], offices: [],
+    }, "unity")).toBeNull();
+  });
+
   it("rejects invalid public identity instead of producing navigable broken links", () => {
     expect(parseWorldDirectoryRows([{ ...row, slug: "../private" }])).toEqual([]);
   });
@@ -177,8 +186,19 @@ describe("TG3 world publication-safe projections", () => {
     expect(mocks.chain.select).toHaveBeenCalledWith(
       "id,slug,official_name,short_name,type,description,status,public_visibility", { count: "exact" });
     expect(mocks.chain.eq).toHaveBeenCalledWith("public_visibility", "public");
+    expect(mocks.chain.in).toHaveBeenCalledWith("status",
+      ["recognized", "active", "suspended", "historical", "dissolved"]);
     expect(mocks.chain.range).toHaveBeenCalledWith(2 * WORLD_DIRECTORY_PAGE_SIZE, 3 * WORLD_DIRECTORY_PAGE_SIZE - 1);
     expect(result.organizations).toHaveLength(1);
+  });
+
+  it("fails closed when an unrecognized organization escapes upstream status filtering", async () => {
+    mocks.chain.range.mockResolvedValueOnce({
+      data: [row, { ...row, id: "proposal", slug: "proposal", status: "proposed" }],
+      count: 2, error: null,
+    });
+    await expect(fetchWorldDirectory({ term: "", filter: "all", page: 0 }))
+      .rejects.toThrow("World organization publication could not be verified");
   });
 
   it("rejects missing count proof instead of displaying a false zero", async () => {
