@@ -100,7 +100,7 @@ export default defineConfig({
                 name: "shared-client-helpers",
                 test: /[\\/]src[\\/]lib[\\/](?!.*(?:\.server\.|\.test\.|\.contract\.|\.spec\.))/,
                 minShareCount: 2,
-                minSize: 5000,
+                minSize: 2500,
                 priority: 1,
               },
             ],
