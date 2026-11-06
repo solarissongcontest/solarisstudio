@@ -33,16 +33,22 @@ export function TerraWorldMembershipChronicle() {
     queryKey: ["terra-world", "membership-institutions"],
     queryFn: () => loadInstitutions(),
     staleTime: 10 * 60_000,
+    refetchOnMount: "always",
     retry: 1,
   });
   const history = useQuery({
     queryKey: ["terra-world", "membership-history", scope, organization, country, page],
     queryFn: () => load({ data: { scope, organization, country, page } }),
     staleTime: 5 * 60_000,
+    refetchOnMount: "always",
     retry: 1,
   });
 
-  const total = history.data?.total ?? 0;
+  const verifiedInstitutions = institutions.isSuccess && institutions.isFetchedAfterMount &&
+    !institutions.isFetching && !institutions.isRefetchError ? institutions.data : undefined;
+  const verifiedHistory = history.isSuccess && history.isFetchedAfterMount &&
+    !history.isFetching && !history.isRefetchError ? history.data : undefined;
+  const total = verifiedHistory?.total ?? 0;
   return (
     <section aria-labelledby="world-membership-timeline-heading">
       <header className="max-w-3xl">
@@ -72,7 +78,7 @@ export function TerraWorldMembershipChronicle() {
             Institution
             <select
               value={organization}
-              disabled={institutions.isPending || institutions.isError}
+              disabled={!verifiedInstitutions}
               onChange={(event) => {
                 setOrganization(event.target.value);
                 setPage(0);
@@ -80,7 +86,7 @@ export function TerraWorldMembershipChronicle() {
               className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground"
             >
               <option value="">All published institutions</option>
-              {(institutions.data ?? []).map((item) => (
+              {(verifiedInstitutions ?? []).map((item) => (
                 <option key={item.id} value={item.slug}>{item.shortName}</option>
               ))}
             </select>
@@ -103,7 +109,7 @@ export function TerraWorldMembershipChronicle() {
             Apply
           </button>
         </form>
-        {institutions.isError ? (
+        {institutions.isError || institutions.isRefetchError ? (
           <p role="status" className="mt-3 text-xs text-muted-foreground">
             Institution filters are currently unavailable. Public records can still be browsed without that filter.
             <button type="button" onClick={() => void institutions.refetch()} className="ml-2 min-h-11 font-semibold text-primary underline">Retry filter</button>
@@ -133,7 +139,7 @@ export function TerraWorldMembershipChronicle() {
       </div>
 
       <div className="mt-7" aria-live="polite">
-        {history.isPending ? (
+        {!history.isError && (history.isPending || history.isFetching || !history.isFetchedAfterMount) ? (
           <div role="status" className="space-y-3">
             <p className="text-sm text-muted-foreground">Loading published membership records…</p>
             <div aria-hidden="true" className="space-y-3">
@@ -144,7 +150,7 @@ export function TerraWorldMembershipChronicle() {
           </div>
         ) : null}
 
-        {history.isError ? (
+        {history.isError || history.isRefetchError ? (
           <div role="alert" className="space-y-3 rounded-2xl border border-border p-6">
             <h2 className="text-lg font-semibold">Institutional history is unavailable</h2>
             <p className="text-sm leading-6 text-muted-foreground">
@@ -156,13 +162,13 @@ export function TerraWorldMembershipChronicle() {
           </div>
         ) : null}
 
-        {history.isSuccess && history.data.records.length === 0 ? (
+        {verifiedHistory && verifiedHistory.records.length === 0 ? (
           <div className="rounded-2xl border border-border p-6">
             <p className="font-semibold">No public membership terms match these filters.</p>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               An empty history does not mean a country never participated in an institution. Unrecorded or unpublished activity is deliberately not inferred.
             </p>
-            {page > 0 && history.data.total > 0 ? (
+            {page > 0 && verifiedHistory.total > 0 ? (
               <button type="button" className="mt-4 min-h-11 text-sm font-semibold text-primary underline" onClick={() => setPage(0)}>
                 Return to first page
               </button>
@@ -177,9 +183,9 @@ export function TerraWorldMembershipChronicle() {
           </div>
         ) : null}
 
-        {history.isSuccess && history.data.records.length > 0 ? (
+        {verifiedHistory && verifiedHistory.records.length > 0 ? (
           <ol className="relative divide-y divide-border/60" aria-label="Published institutional membership terms">
-            {history.data.records.map((entry) => (
+            {verifiedHistory.records.map((entry) => (
               <li key={entry.id} className="grid gap-3 py-5 sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.45fr)] sm:items-center">
                 <div className="flex min-w-0 items-start gap-4">
                   <FlagChip
@@ -223,7 +229,7 @@ export function TerraWorldMembershipChronicle() {
           </ol>
         ) : null}
 
-        {history.isSuccess && total > 0 ? (
+        {verifiedHistory && total > 0 ? (
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5 text-sm text-muted-foreground">
             <span>
               Showing {page * WORLD_MEMBERSHIP_CHRONICLE_PAGE_SIZE + 1}–{Math.min(total, (page + 1) * WORLD_MEMBERSHIP_CHRONICLE_PAGE_SIZE)} of {total} public terms
