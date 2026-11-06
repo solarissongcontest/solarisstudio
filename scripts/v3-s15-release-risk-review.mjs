@@ -12,7 +12,13 @@ const SHA = /^[0-9a-f]{40}$/;
 const DIGEST = /^[0-9a-f]{64}$/;
 const RISKS = new Set(["hard_blocker", "conditional_blocker", "tracked_v3_debt", "obsolete_replaced"]);
 const GITHUB_EVIDENCE = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/(?:issues|pull|commit|blob)\/[A-Za-z0-9_./#-]+$/;
+const GITHUB_ACTIONS_EVIDENCE = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/runs\/[1-9][0-9]*(?:\/artifacts\/[1-9][0-9]*)?$/;
 const nonempty = (value) => typeof value === "string" && value.trim().length > 0;
+const validReviewDate = (value) => {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(value + "T00:00:00Z");
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+};
 const key = (lane, id) => lane + "\u0000" + id;
 
 export function assessS15ReleaseRisk(triage, candidateSha, review = null, rawS15 = null) {
@@ -83,7 +89,7 @@ export function assessS15ReleaseRisk(triage, candidateSha, review = null, rawS15
         !RISKS.has(item.releaseRisk)) throw new Error("Review contradicts canonical S15 owner/finding/risk vocabulary");
     if (!nonempty(item.reviewer) || !nonempty(item.reason) || item.reason.trim().length < 24 ||
         !Array.isArray(item.evidenceUrls) || !item.evidenceUrls.length ||
-        item.evidenceUrls.some((url) => typeof url !== "string" || !GITHUB_EVIDENCE.test(url))) {
+        item.evidenceUrls.some((url) => typeof url !== "string" || !(GITHUB_EVIDENCE.test(url) || GITHUB_ACTIONS_EVIDENCE.test(url)))) {
       throw new Error("Risk review requires a named reviewer, specific reason and GitHub evidence: " + id);
     }
     if (item.releaseRisk === "conditional_blocker" &&
@@ -94,13 +100,35 @@ export function assessS15ReleaseRisk(triage, candidateSha, review = null, rawS15
       throw new Error("Conditional risk needs release scope and evidence for exclusion: " + id);
     }
     if (item.releaseRisk === "tracked_v3_debt" &&
-        (!/^\d{4}-\d{2}-\d{2}$/.test(item.reviewBy || "") ||
+        (!validReviewDate(item.reviewBy) ||
          !nonempty(item.launchExclusionRationale))) {
       throw new Error("Tracked debt requires review date and explicit non-launch rationale: " + id);
     }
     if (item.releaseRisk === "obsolete_replaced" && !nonempty(item.replacementOrRetirement))
       throw new Error("Obsolete status requires explicit replacement or retirement: " + id);
     approved.set(id, item);
+  }
+
+  if (review?.pendingCutovers !== undefined) {
+    if (!Array.isArray(review.pendingCutovers)) {
+      throw new Error("S15 pending owner review queue must be an array");
+    }
+    const stillPending = new Map([...current].filter(([id]) => !approved.has(id)));
+    if (review.pendingCutovers.length !== stillPending.size) {
+      throw new Error("S15 pending review queue omits or duplicates unreviewed cutovers");
+    }
+    const seen = new Set();
+    for (const pending of review.pendingCutovers) {
+      const id = pending && key(pending.lane, pending.capabilityId);
+      const expected = id && stillPending.get(id);
+      if (!expected || seen.has(id) ||
+          pending.owner !== expected.owner || pending.sourceFinding !== expected.sourceFinding ||
+          pending.releaseRisk !== null || pending.reviewer !== null || pending.reason !== null ||
+          !Array.isArray(pending.evidenceUrls) || pending.evidenceUrls.length > 0) {
+        throw new Error("S15 pending cutover must remain an unchanged, unresolved owner-review row");
+      }
+      seen.add(id);
+    }
   }
 
   const rows = triage.cutovers.map((source) => {
@@ -149,7 +177,7 @@ export function s15OwnerReviewTemplate(report) {
       sourceFinding: row.sourceFinding, releaseRisk: null, reviewer: null,
       reason: null, evidenceUrls: [],
     })),
-    instructions: "Move a pending row to decisions only after adding real risk, named reviewer, specific reason and relevant GitHub evidence. Unreviewed risks remain unknown. This is never release certification.",
+    instructions: "Move a completed pending row out of pendingCutovers and into decisions only after adding real risk, named reviewer, specific reason and relevant GitHub evidence. Never edit risk or reviewer on a pending row. Unreviewed risks remain unknown. This is never release certification.",
     certificationClaim: false,
   };
 }

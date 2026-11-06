@@ -148,6 +148,44 @@ test("produces exact-source owner handoff without inventing review decisions", (
   assert.deepEqual(doc.pendingCutovers.map(row=>row.sourceFinding),r.rows.map(row=>row.sourceFinding));
 });
 
+test("accepts real GitHub Actions run evidence but rejects untraceable run URLs", () => {
+  const t=triage();
+  const run={...decision(t.cutovers[0],"hard_blocker"),
+    evidenceUrls:["https://github.com/solarissongcontest/solarisstudio/actions/runs/42309790737"]};
+  assert.equal(assessS15ReleaseRisk(t,SHA,review([run]),SOURCE_RAW).counts.hardBlockers,1);
+  assert.throws(()=>assessS15ReleaseRisk(t,SHA,review([{
+    ...run,evidenceUrls:["https://github.com/solarissongcontest/solarisstudio/actions/runs/not-a-run"]
+  }]),SOURCE_RAW),/requires a named reviewer/);
+});
+
+test("validates calendar dates for tracked debt instead of accepting impossible review deadlines", () => {
+  const t=triage();
+  const base={...decision(t.cutovers[0],"tracked_v3_debt"),
+    launchExclusionRationale:"Not part of active contest routes"};
+  assert.throws(()=>assessS15ReleaseRisk(t,SHA,review([{...base,reviewBy:"2027-02-30"}]),SOURCE_RAW),
+    /Tracked debt requires review date/);
+  assert.equal(assessS15ReleaseRisk(t,SHA,review([{...base,reviewBy:"2028-02-29"}]),SOURCE_RAW).counts.trackedV3Debt,1);
+});
+
+test("pending owner-review rows cannot silently masquerade as completed decisions", () => {
+  const t=triage();
+  const template=s15OwnerReviewTemplate(assessS15ReleaseRisk(t,SHA,null,SOURCE_RAW));
+  assert.equal(assessS15ReleaseRisk(t,SHA,template,SOURCE_RAW).counts.unreviewed,3);
+  const malformed={...template,pendingCutovers:template.pendingCutovers.map((x,i) =>
+    i===0?{...x,releaseRisk:"hard_blocker"}:x)};
+  assert.throws(()=>assessS15ReleaseRisk(t,SHA,malformed,SOURCE_RAW),
+    /pending cutover must remain an unchanged/);
+  assert.throws(()=>assessS15ReleaseRisk(t,SHA,{
+    ...template,pendingCutovers:template.pendingCutovers.slice(1)
+  },SOURCE_RAW),/omits or duplicates/);
+  const ownerDecision=decision(t.cutovers[0],"hard_blocker");
+  const reviewed={...template,decisions:[ownerDecision],pendingCutovers:template.pendingCutovers.slice(1)};
+  const result=assessS15ReleaseRisk(t,SHA,reviewed,SOURCE_RAW);
+  assert.equal(result.decisionsRecorded,1);
+  assert.equal(result.counts.unreviewed,2);
+  assert.equal(result.releaseCertified,false);
+});
+
 test("CLI emits real read-only JSON and Markdown without owner decisions or Supabase", () => {
   const root=mkdtempSync(join(tmpdir(),"v3-s15-release-risk-"));
   try {
