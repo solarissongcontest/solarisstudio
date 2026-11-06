@@ -9,6 +9,8 @@ describe("Reference category browsing", () => {
     expect(source).toContain('kind: "country", label: "Countries"');
     expect(source).toContain('kind: "show", label: "Shows"');
     expect(source).toContain('kind: "story", label: "Stories"');
+    expect(source).toContain('kind: "rule", label: "Official rules"');
+    expect(source).toContain('href: "/rules"');
     expect(source).toContain('kind === "all" || destination.kind === kind');
     expect(source).toContain("browseDestinations.map(({ label, description, href }) =>");
     expect(source).not.toContain("BROWSE_DESTINATIONS.map(");
