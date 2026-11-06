@@ -56,6 +56,21 @@ from public.world_organizations o
 join public.world_organization_organs organ on organ.organization_id = o.id
 where o.slug = 'tg19-c708-public' and organ.slug = 'tg19-public-organ';
 
+-- Membership histories must also obey the organization visibility boundary.
+-- Fixed fixture UUIDs permit a direct RLS check without resolving a private
+-- organization ID through another RLS-restricted SELECT.
+insert into public.countries (id, name, short_code)
+values ('c7080000-0000-4000-8000-000000000003', 'TG19 Isolation Country', 'T19');
+
+insert into public.world_organization_memberships
+  (id, organization_id, country_id, membership_type, status)
+select case when slug = 'tg19-c708-public'
+    then 'c7080000-0000-4000-8000-000000000001'::uuid
+    else 'c7080000-0000-4000-8000-000000000002'::uuid end,
+  id, 'c7080000-0000-4000-8000-000000000003'::uuid, 'member', 'member'
+from public.world_organizations
+where slug in ('tg19-c708-public', 'tg19-c708-private');
+
 -- Both caller roles have NO World management capability or JWT identity.
 -- The SECURITY DEFINER RPC must implement its own publication filtering.
 set local role anon;
@@ -73,6 +88,12 @@ begin
   ) then
     raise exception 'TG19_ANON_PUBLIC_ORGANIZATION_MISSING';
   end if;
+  if exists (
+    select 1 from public.world_organization_memberships
+    where id = 'c7080000-0000-4000-8000-000000000002'
+  ) then
+    raise exception 'TG19_NO_JWT_PRIVATE_MEMBERSHIP_LEAK';
+  end if;
   if public.world_organization_projection_v1('tg19-c708-private') is not null then
     raise exception 'TG19_ANON_PRIVATE_PROJECTION_LEAK';
   end if;
@@ -84,6 +105,19 @@ begin
     where slug = 'tg19-secret-office'
   ) then
     raise exception 'TG19_ANON_PRIVATE_CHILD_RLS_LEAK';
+  end if;
+
+  if exists (
+    select 1 from public.world_organization_memberships
+    where id = 'c7080000-0000-4000-8000-000000000002'
+  ) then
+    raise exception 'TG19_ANON_PRIVATE_MEMBERSHIP_RLS_LEAK';
+  end if;
+  if not exists (
+    select 1 from public.world_organization_memberships
+    where id = 'c7080000-0000-4000-8000-000000000001'
+  ) then
+    raise exception 'TG19_ANON_PUBLIC_MEMBERSHIP_MISSING';
   end if;
 
   visible := public.world_organization_projection_v1('tg19-c708-public');
@@ -98,6 +132,12 @@ begin
     where office->>'slug' = 'tg19-public-office'
   ) then
     raise exception 'TG19_ANON_PUBLIC_CHILDREN_MISSING';
+  end if;
+  if not exists (
+    select 1 from jsonb_array_elements(visible->'memberships') member
+    where member->>'id' = 'c7080000-0000-4000-8000-000000000001'
+  ) then
+    raise exception 'TG19_ANON_PUBLIC_MEMBERSHIP_PROJECTION_MISSING';
   end if;
   if exists (
     select 1 from jsonb_array_elements(visible->'organs') organ
