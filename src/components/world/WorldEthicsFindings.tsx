@@ -18,7 +18,8 @@ const titles: Record<EthicsRecommendation,string> = {
   assistance_freeze: "Recommend assistance freeze",
   court_referral: "Recommend Court referral", other: "Other recommendation",
 };
-type Retry = { payload: string; op: EthicsFindingsOperation };
+type FindingInput = Parameters<typeof prepareEthicsFinding>[0];
+type Retry = { payload: string; input: FindingInput; op: EthicsFindingsOperation };
 
 export function WorldEthicsFindings({ caseId }: { caseId: string }) {
   const actor = useTg13PrivateActor();
@@ -54,27 +55,27 @@ export function WorldEthicsFindings({ caseId }: { caseId: string }) {
   const visibleWorkspace = safe && query.data ? query.data : null;
   const record = visibleWorkspace?.record ?? null;
   const canPrepare = !!visibleWorkspace && canSubmitEthicsFinding(visibleWorkspace);
-  const locked=uncertain || completed;
   const submitReady=canPrepare && record?.id===confirm.trim()
     && findings.trim().length>=20 && reasoning.trim().length>=20
     && (recommendation==="none" || details.trim().length>=10);
   const mutation=useMutation({
     mutationFn: async () => {
-      if (!actorScope || !record || !canPrepare) throw new Error("AUTHORIZATION");
+      if (!actorScope || !record) throw new Error("AUTHORIZATION");
+      if (!retry.current && !canPrepare) throw new Error("AUTHORIZATION");
       const input={
         caseId:record.id,findings:findings.trim(),reasoning:reasoning.trim(),
         recommendation,recommendationText:recommendation==="none"?null:details.trim(),
         expectedRevision:record.revision,
       };
       const payload=JSON.stringify(input);
-      if(retry.current && retry.current.payload!==payload)
-        throw new Error("This official operation cannot be modified during recovery.");
       if(!retry.current){
         const operationId=crypto.randomUUID();
-        retry.current={payload,op:{operationId,key:`world-ethics-${operationId}`}};
+        retry.current={payload,input,op:{operationId,key:`world-ethics-${operationId}`}};
       }
+      // Replay the exact original payload and operation, even if a background
+      // refetch has observed the successful findings_prepared transition.
       opScope.current=actorScope;
-      return prepareEthicsFinding(input,retry.current.op);
+      return prepareEthicsFinding(retry.current.input,retry.current.op);
     },
     retry:false,
     onSuccess:(result)=>{
@@ -87,6 +88,7 @@ export function WorldEthicsFindings({ caseId }: { caseId: string }) {
       if(opScope.current===activeScope.current)setUncertain(true);
     },
   });
+  const locked=uncertain || completed || mutation.isPending;
   const refresh=()=>void query.refetch();
   return (
     <AppShell>
