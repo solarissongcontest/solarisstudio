@@ -45,4 +45,15 @@ describe("Organizer Televoting overview authorization", () => {
     expect(overviewPage).toContain("Retry voting status");
   });
 
+  it("does not run indefinite idle overview polling and preserves live refresh cadence", () => {
+    expect(overviewPage).toContain("refetchInterval: (query) =>");
+    expect(overviewPage).toContain('query.state.status === "success"');
+    expect(overviewPage).toContain("(query.state.data?.openRounds ?? 0) > 0");
+    expect(overviewPage).toContain("? 60_000");
+    expect(overviewPage).toContain(": false");
+    expect(overviewPage).toContain("refetchOnWindowFocus: false");
+    expect(overviewPage).toContain("Refresh voting status");
+    expect(overviewPage).toContain("refetchIntervalInBackground: false");
+  });
+
 });
