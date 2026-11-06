@@ -98,7 +98,12 @@ function readTaskDraft(roundId: string): TelevoteTaskDraft | null {
 
 function storedReceipt(roundId: string) {
   if (typeof window === "undefined") return false;
-  return readTelevoteReceipt(window.localStorage, roundId) !== null;
+  try {
+    return readTelevoteReceipt(window.localStorage, roundId) !== null;
+  } catch {
+    // Accessing localStorage itself may throw in restricted browser contexts.
+    return false;
+  }
 }
 
 function severityLabel(severity: VoteIntegritySeverity) {
