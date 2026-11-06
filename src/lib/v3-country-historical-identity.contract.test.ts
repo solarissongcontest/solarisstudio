@@ -67,7 +67,11 @@ describe("canonical Country historical identity presentation", () => {
     const sections = readFileSync("src/components/country/CountryCustomSections.tsx", "utf8");
     const world = readFileSync("src/components/CountryWorldOverview.tsx", "utf8");
     expect(sections).toContain("const formerIdentities = groupFormerCountryIdentities(verifiedHistory, country)");
-    expect(sections).toContain("identityHistory.isSuccess && !identityHistory.isError");
+    expect(sections).toContain("usePublicCountryIdentityHistory(country.id, true)");
+    expect(sections).toContain("identityHistory.isSuccess && identityHistory.isFetchedAfterMount");
+    const historyHook = readFileSync("src/lib/country-history.ts", "utf8");
+    expect(historyHook).toContain('refetchOnMount: verifyOnMount ? "always" : undefined');
+    expect(historyHook).toContain(".abortSignal(signal)");
     expect(sections).toContain("!identityHistory.isRefetchError && !identityHistory.isFetching");
     expect(sections).toContain('anchorId={surface === "country" ? "former-identities" : undefined}');
     expect(sections).toContain('className="aspect-[3/2] w-full');
