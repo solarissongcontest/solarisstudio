@@ -24,6 +24,10 @@ describe("V3 shell permission resolution", () => {
     expect(source).toContain('setAccessResolution("ready")');
     expect(source).toContain('setAccessResolution("unavailable")');
     expect(source).toContain("accessRequestRef.current += 1");
+    expect(source).toContain("const eventRequestId = ++accessRequestRef.current");
+    expect(source).toContain("eventRequestId !== accessRequestRef.current");
+    expect(source).toContain("identity revocation must not remain visible until the next timer tick.");
+    expect(source).toContain("void refresh(session?.user?.id ?? null, session?.user?.email ?? null)");
   });
 
   it("does not expose permission-sensitive shell navigation before access is ready", () => {

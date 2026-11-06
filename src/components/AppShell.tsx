@@ -189,10 +189,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       .catch((error) => markUnavailable(bootstrapRequestId, error));
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      window.setTimeout(
-        () => void refresh(session?.user?.id ?? null, session?.user?.email ?? null),
-        0,
-      );
+      // Invalidate pending bootstrap and account checks synchronously. An
+      // identity revocation must not remain visible until the next timer tick.
+      const eventRequestId = ++accessRequestRef.current;
+      setEmail(null);
+      setAccess(EMPTY_ACCESS);
+      setMenuOpen(false);
+      setAccessResolution("resolving");
+      window.setTimeout(() => {
+        if (!alive || eventRequestId !== accessRequestRef.current) return;
+        void refresh(session?.user?.id ?? null, session?.user?.email ?? null);
+      }, 0);
     });
 
     return () => {
