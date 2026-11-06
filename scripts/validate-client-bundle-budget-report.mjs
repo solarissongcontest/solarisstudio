@@ -114,8 +114,8 @@ for (const asset of report.assets) {
     cssCount += 1;
     cssGzip += actualGzip;
     if (actualGzip > SINGLE_CSS_GZIP_LIMIT ||
-        (/^app-shell-.*\\.css$/.test(basename(asset.path)) && actualGzip > APP_SHELL_CSS_GZIP_LIMIT) ||
-        (/^styles-.*\\.css$/.test(basename(asset.path)) && actualGzip > GLOBAL_STYLES_CSS_GZIP_LIMIT)) {
+        (/^app-shell-.*\.css$/.test(basename(asset.path)) && actualGzip > APP_SHELL_CSS_GZIP_LIMIT) ||
+        (/^styles-.*\.css$/.test(basename(asset.path)) && actualGzip > GLOBAL_STYLES_CSS_GZIP_LIMIT)) {
       thresholdViolated = true;
     }
   }
