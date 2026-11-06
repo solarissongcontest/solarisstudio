@@ -140,12 +140,16 @@ export function auditWorldDarkLaunchMigrations(files) {
         });
       } else if (file.name.slice(0, 14) >= WORLD_FLAG_VERSION && (
         action.startsWith("truncate") ||
-        (/^(?:update|delete\s+from)/.test(action) && !/\bwhere\b/i.test(statement))
+        (/^(?:update|delete\s+from)/.test(action) &&
+          !/\bwhere\s+key\s*=\s*'(?!terra_world_public')[a-z0-9_.-]+'\s*;?\s*$/i.test(statement))
       )) {
+        // A WHERE clause alone is not a World exclusion: !=, OR, dynamic
+        // concatenation, or an unbound key could still mutate World. New DML
+        // must prove one other literal key, or be reviewed explicitly.
         findings.push({
-          code: "WORLD_FLAG_UNSCOPED_FEATURE_FLAG_WRITE",
+          code: "WORLD_FLAG_UNPROVEN_FEATURE_FLAG_WRITE_SCOPE",
           file: file.name,
-          detail: `Unscoped ${action.replace(/\s+/g, " ")} could mutate terra_world_public`,
+          detail: `${action.replace(/\s+/g, " ")} cannot prove it excludes terra_world_public`,
         });
       }
     }
