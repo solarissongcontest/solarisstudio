@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import { RefreshCcw } from "lucide-react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
@@ -71,12 +70,8 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
                 if (bundle.isError || !bundle.data) void bundle.refetch();
                 else void rollout.refetch();
               }}
-              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:cursor-wait disabled:opacity-50"
+              className="mt-4 min-h-11 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:opacity-50"
             >
-              <RefreshCcw
-                aria-hidden="true"
-                className={`size-4 ${retrying ? "motion-safe:animate-spin" : ""}`}
-              />
               {retrying ? "Retrying results…" : "Retry official results"}
             </button>
           </V3Surface>
