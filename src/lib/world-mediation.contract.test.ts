@@ -111,7 +111,9 @@ describe("TG13 mediation state and private evidence", () => {
     expect(adapter).toContain('.from("world_mediation_history")');
     expect(adapter).toContain('world_request_mediation_v1');
     expect(adapter).toContain('world_transition_mediation_v1');
-    expect(adapter).toContain('if (!isObject(input) || input.ok !== true)');
+    expect(adapter).toContain('receipt?.status !== "succeeded"');
+    expect(adapter).toContain("receipt.operationId !== expectedOperationId");
+    expect(adapter).toContain("result.operationId !== expectedOperationId");
     expect(component).toContain('crypto.randomUUID()');
     expect(component).toContain('previous?.fingerprint === fingerprint');
     expect(component).toContain('new Map(');
