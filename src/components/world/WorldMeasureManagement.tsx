@@ -91,6 +91,10 @@ export function WorldMeasureManagement({ measureId }: { measureId: string }) {
   const version = measure?.versions[0];
   const correctionAllowed = canSubmit && measure?.state === "needs_correction";
   const reviewAllowed = canReview && ["submitted", "procedural_review"].includes(measure?.state ?? "");
+  const allowedDecisions = measure?.state === "submitted"
+    ? ["procedural_review", "needs_correction"]
+    : ["registered", "needs_correction"];
+  const decision = allowedDecisions.includes(state) ? state : allowedDecisions[0];
   const frozen = busy || Boolean(review) || Boolean(uncertain.current);
   // A fresh authoritative revision supersedes the local edit form. Never
   // silently carry an older draft over a newly returned measure version.
@@ -105,18 +109,18 @@ export function WorldMeasureManagement({ measureId }: { measureId: string }) {
   function prepareReview(event: FormEvent) {
     event.preventDefault();
     if (!measure || !reviewAllowed || frozen || permissions.isError) return;
-    if (state === "registered" && measure.state !== "procedural_review") {
+    if (decision === "registered" && measure.state !== "procedural_review") {
       setError("Start procedural review before registering a measure."); return;
     }
-    if (state === "needs_correction" && (note.trim().length < 8 || note.length > 500)) {
+    if (decision === "needs_correction" && (note.trim().length < 8 || note.length > 500)) {
       setError("Give a procedural reason between 8 and 500 characters."); return;
     }
-    if (state === "registered" && (!identifier.trim() || identifier.trim().length > 160)) {
+    if (decision === "registered" && (!identifier.trim() || identifier.trim().length > 160)) {
       setError("Specify the official institution-approved identifier."); return;
     }
     setError(null);
     setReview({ type: "review", measureId: measure.id, expectedRevision: measure.revision,
-      targetState: state, identifier, proceduralNote: note, operationId: crypto.randomUUID() });
+      targetState: decision as ReviewAction["targetState"], identifier, proceduralNote: note, operationId: crypto.randomUUID() });
   }
   function prepareCorrection(event: FormEvent) {
     event.preventDefault();
@@ -246,7 +250,7 @@ export function WorldMeasureManagement({ measureId }: { measureId: string }) {
           </p>
           <form onSubmit={prepareReview} className="mt-4 space-y-4">
             <label className="block text-sm font-medium">Decision
-              <select value={state} disabled={frozen} onChange={(e) =>
+              <select value={decision} disabled={frozen} onChange={(e) =>
                 setState(e.target.value as ReviewAction["targetState"])}
                 className="mt-2 min-h-11 w-full rounded-lg border bg-background px-3">
                 {measure.state === "submitted" && <option value="procedural_review">Begin review</option>}
@@ -255,7 +259,7 @@ export function WorldMeasureManagement({ measureId }: { measureId: string }) {
                   <option value="registered">Register and publish</option>}
               </select>
             </label>
-            {state === "registered" && <label className="block text-sm font-medium">
+            {decision === "registered" && <label className="block text-sm font-medium">
               Institution-approved permanent identifier
               <input disabled={frozen} value={identifier} maxLength={160}
                 onChange={(e) => setIdentifier(e.target.value)}
@@ -263,7 +267,7 @@ export function WorldMeasureManagement({ measureId }: { measureId: string }) {
                 className="mt-2 min-h-11 w-full rounded-lg border bg-background px-3" />
             </label>}
             <label className="block text-sm font-medium">
-              Procedural reason {state === "needs_correction" ? "(required)" : "(optional)"}
+              Procedural reason {decision === "needs_correction" ? "(required)" : "(optional)"}
               <textarea disabled={frozen} value={note} onChange={(e) => setNote(e.target.value)}
                 maxLength={500} rows={3} className="mt-2 w-full rounded-lg border bg-background p-3" />
             </label>
