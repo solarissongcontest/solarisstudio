@@ -63,6 +63,12 @@ export function publicWorldFollowPushPreview(
 ): { title: string; body: string } {
   // Caller must still validate org identity, public publication and recipient
   // authorization before dispatch. This intentionally has NO event title/body.
+  // Never reflect a candidate organization name on a lock screen until the
+  // authoritative publication check is complete. Required-role/private notices
+  // must use a separate generic sensitive-message delivery class.
+  if (event.verifiedPublic !== true) {
+    return { title: "Terra Solaris", body: "An update is available in Solaris." };
+  }
   const title = organizationDisplayName.trim().slice(0, 80) || "Terra Solaris";
   return { title, body: event.category === "statements"
     ? "A new official statement is available."
