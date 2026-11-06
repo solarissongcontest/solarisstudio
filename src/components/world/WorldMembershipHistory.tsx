@@ -111,8 +111,11 @@ export function WorldMembershipHistoryScreen({ slug, code }: { slug: string; cod
     );
   }
 
-  const current = currentMembershipPeriod(state.membership);
-  const currentReps = currentRepresentativePeriods(state.representations);
+  const current = currentMembershipPeriod(state.membership, state.effectiveAt);
+  const currentReps = currentRepresentativePeriods(state.representations, state.effectiveAt);
+  const scheduled = state.membership.find((period) =>
+    period.endedAt === null && Date.parse(period.joinedAt) > Date.parse(state.effectiveAt)
+  ) ?? null;
   const completed = state.membership.filter((period) => period.endedAt !== null);
 
   return (
@@ -168,10 +171,12 @@ export function WorldMembershipHistoryScreen({ slug, code }: { slug: string; cod
               </div>
             ) : (
               <div className="mt-4 border-y border-border py-5">
-                <p className="font-semibold">No current membership recorded</p>
+                <p className="font-semibold">No currently effective membership recorded</p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  The country may have historical membership or may never have joined.
-                  No membership has been inferred from country existence.
+                  {scheduled
+                    ? "A future membership is scheduled for " + formatWorldDate(scheduled.joinedAt) +
+                      ". It does not grant current voting or representation."
+                    : "The country may have historical membership or may never have joined."}
                 </p>
               </div>
             )}
@@ -192,7 +197,10 @@ export function WorldMembershipHistoryScreen({ slug, code }: { slug: string; cod
                     </div>
                     <p className="text-sm text-muted-foreground sm:text-right">
                       {formatWorldDate(period.joinedAt)}
-                      {period.endedAt ? " – " + formatWorldDate(period.endedAt) : " – present"}
+                      {period.endedAt
+                        ? " – " + formatWorldDate(period.endedAt)
+                        : Date.parse(period.joinedAt) > Date.parse(state.effectiveAt)
+                          ? " – scheduled" : " – present"}
                     </p>
                   </li>
                 ))}
@@ -220,14 +228,20 @@ export function WorldMembershipHistoryScreen({ slug, code }: { slug: string; cod
                   <li key={rep.id} className="py-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="font-semibold">{rep.displayName}</p>
-                      <span className="text-xs text-muted-foreground">{rep.endsAt ? "Former" : "Current"}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {rep.endsAt ? "Former" :
+                          Date.parse(rep.startsAt) > Date.parse(state.effectiveAt)
+                            ? "Scheduled" : "Current"}
+                      </span>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {membershipLabel(rep.role)}{rep.votingAuthority ? " · Voting authority recorded" : ""}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {formatWorldDate(rep.startsAt)}
-                      {rep.endsAt ? " – " + formatWorldDate(rep.endsAt) : " – present"}
+                      {rep.endsAt ? " – " + formatWorldDate(rep.endsAt)
+                        : Date.parse(rep.startsAt) > Date.parse(state.effectiveAt)
+                          ? " – scheduled" : " – present"}
                     </p>
                   </li>
                 ))}
