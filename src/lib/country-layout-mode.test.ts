@@ -27,6 +27,11 @@ describe("country page presentation ownership", () => {
     expect(route).toContain("<ResponsiveTabs");
     expect(route).toContain("<CountryDesignV2Hero");
     expect(route).toContain("<CountryIdentityHero");
+    // When Reference is published, /wiki/$code redirects to /countries/$code.
+    // Country links must open the index, not navigate back to themselves.
+    expect(route.match(/<Link to="\\/wiki">Reference<\\/Link>/g)).toHaveLength(2);
+    expect(route).toContain('wiki: { label: "Reference", href: "/wiki" }');
+    expect(route).not.toContain('to="/wiki/$code"');
   });
 
   it("shares runtime-first layout selection with Wiki while keeping its browser article intact", () => {
