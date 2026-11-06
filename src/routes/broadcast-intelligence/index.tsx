@@ -20,6 +20,7 @@ import { FlagChip } from "@/components/FlagChip";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { DataStoryPage, ResponsiveHistory, type PublicDataColumn } from "@/components/public/PublicDataStory";
 import { V3BroadcastIntelligenceGate } from "@/components/v3/V3BroadcastIntelligenceGate";
+import { PublicResultsAnalysisSpoilerBoundary } from "@/components/public/PublicResultsAnalysisSpoilerBoundary";
 
 import {
   broadcastEntriesFromResults,
@@ -400,7 +401,8 @@ function LegacyBroadcastIntelligencePage() {
   if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Broadcast Intelligence" title="Replay the voting" description="Replay and inspect a published result." /><ArchiveDataError /></AppShell>;
 
   return (
-    <AppShell>
+    <PublicResultsAnalysisSpoilerBoundary selectedShowId={selectedShow?.id ?? null} title="Broadcast Intelligence">
+      <AppShell>
       <PageHeader
         eyebrow="Broadcast Intelligence"
         title="Replay the voting"
@@ -966,6 +968,7 @@ function LegacyBroadcastIntelligencePage() {
         </div>
         </div>
       </DataStoryPage>
-    </AppShell>
+      </AppShell>
+    </PublicResultsAnalysisSpoilerBoundary>
   );
 }
