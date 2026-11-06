@@ -4,7 +4,7 @@
  * Consumes the unchanged exact-SHA S15 scanner artifact; never queries Supabase.
  */
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SHA = /^[0-9a-f]{40}$/;
