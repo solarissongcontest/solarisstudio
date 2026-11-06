@@ -128,7 +128,7 @@ export function WorldUnifiedSearchPage({
   // organization request, or vice versa. Both readers remain RLS-authorized.
   const countryQuery = useQuery({
     queryKey: ["world", "public", "country-search", normalized, countryPage],
-    queryFn: () => fetchWorldCountrySearchPage(normalized, countryPage),
+    queryFn: ({ signal }) => fetchWorldCountrySearchPage(normalized, countryPage, signal),
     enabled: canSearch && showCountries,
     staleTime: 90_000,
     // Recheck publication when revisiting this result page, not just on cache expiry.
@@ -137,7 +137,7 @@ export function WorldUnifiedSearchPage({
   });
   const organizationQuery = useQuery({
     queryKey: ["world", "public", "organization-search", normalized, organizationPage],
-    queryFn: () => fetchWorldOrganizationSearchPage(normalized, organizationPage),
+    queryFn: ({ signal }) => fetchWorldOrganizationSearchPage(normalized, organizationPage, signal),
     enabled: canSearch && showOrganizations,
     staleTime: 90_000,
     // Recheck publication when revisiting this result page, not just on cache expiry.
