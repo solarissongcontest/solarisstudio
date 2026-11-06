@@ -84,11 +84,15 @@ export function decodePublicWorldBody(input: unknown, organizationId: string): P
 }
 
 /** No details are loaded for an unverified public parent organization. */
-export async function readPublicWorldInstitution(slug: string): Promise<PublicWorldInstitution | null> {
+export async function readPublicWorldInstitution(
+  slug: string, signal?: AbortSignal,
+): Promise<PublicWorldInstitution | null> {
   if (!validWorldSlug(slug)) return null;
-  const { data, error } = await (supabase as any).from("world_organizations")
+  let request = (supabase as any).from("world_organizations")
     .select("id,slug,short_name,official_name,status,public_visibility")
-    .eq("slug", slug).eq("public_visibility", "public").maybeSingle();
+    .eq("slug", slug).eq("public_visibility", "public");
+  if (signal) request = request.abortSignal(signal);
+  const { data, error } = await request.maybeSingle();
   if (error) throw new Error("This institution could not be checked.");
   return decodePublicWorldInstitution(data, slug);
 }
@@ -104,7 +108,7 @@ export async function readPublicWorldBodies(
   slug: string, requestedPage: number,
   options: { term?: string; status?: WorldBodyStatusFilter; signal?: AbortSignal } = {},
 ): Promise<WorldBodyDirectory | null> {
-  const organization = await readPublicWorldInstitution(slug);
+  const organization = await readPublicWorldInstitution(slug, options.signal);
   if (!organization) return null;
   const page = Number.isSafeInteger(requestedPage)
     ? Math.max(0, Math.min(WORLD_BODIES_MAX_PAGE, requestedPage)) : 0;
@@ -172,15 +176,17 @@ export async function readPublicWorldBodies(
 }
 
 export async function readPublicWorldBody(
-  slug: string, bodySlug: string,
+  slug: string, bodySlug: string, signal?: AbortSignal,
 ): Promise<{ organization: PublicWorldInstitution; body: PublicWorldBody } | null> {
   if (!validWorldSlug(slug) || !validWorldSlug(bodySlug)) return null;
-  const organization = await readPublicWorldInstitution(slug);
+  const organization = await readPublicWorldInstitution(slug, signal);
   if (!organization) return null;
-  const { data, error } = await (supabase as any).from("world_organization_organs")
+  let request = (supabase as any).from("world_organization_organs")
     .select("id,organization_id,slug,name,short_name,type,description,status,visibility,sort_order")
     .eq("organization_id", organization.id)
-    .eq("slug", bodySlug).eq("visibility", "public").maybeSingle();
+    .eq("slug", bodySlug).eq("visibility", "public");
+  if (signal) request = request.abortSignal(signal);
+  const { data, error } = await request.maybeSingle();
   if (error) throw new Error("This institutional body could not be checked.");
   const body = decodePublicWorldBody(data, organization.id);
   if (!body || body.slug !== bodySlug) return null;
@@ -220,20 +226,21 @@ export function decodePublicBodyOffice(
 }
 
 export async function readPublicBodyOffices(
-  organization: PublicWorldInstitution, body: PublicWorldBody,
+  organization: PublicWorldInstitution, body: PublicWorldBody, signal?: AbortSignal,
 ): Promise<PublicWorldBodyOffice[]> {
   if (body.organizationId !== organization.id ||
       !validWorldSlug(organization.slug) || !validWorldSlug(body.slug)) {
     throw new Error("Institutional body identity is inconsistent.");
   }
-  const { data, error } = await (supabase as any).from("world_organization_offices")
+  let request = (supabase as any).from("world_organization_offices")
     .select("id,organization_id,organ_id,title,office_type,active")
     .eq("organization_id", organization.id)
     .eq("organ_id", body.id)
     .eq("active", true)
     .order("display_priority", { ascending: true })
-    .order("id", { ascending: true })
-    .limit(WORLD_BODY_OFFICE_LIMIT);
+    .order("id", { ascending: true });
+  if (signal) request = request.abortSignal(signal);
+  const { data, error } = await request.limit(WORLD_BODY_OFFICE_LIMIT);
   if (error || !Array.isArray(data) || data.length > WORLD_BODY_OFFICE_LIMIT) {
     throw new Error("Public institutional offices could not be verified.");
   }
