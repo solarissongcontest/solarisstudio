@@ -95,17 +95,22 @@ export function useClearOwnedCountryEditionIdentity() {
   });
 }
 
-export function usePublicCountryIdentityHistory(countryId?: string) {
+export function usePublicCountryIdentityHistory(countryId?: string, verifyOnMount = false) {
   return useQuery({
     enabled: Boolean(countryId),
     queryKey: ["public-country-identity-history", countryId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
+      if (signal.aborted) throw new DOMException("Country history read cancelled", "AbortError");
       const { data, error } = await supabase.rpc("public_country_identity_history", {
         _country_id: countryId,
-      });
+      }).abortSignal(signal);
       if (error) throw error;
       return (data ?? []) as PublicCountryIdentityHistoryRow[];
     },
     staleTime: 60_000,
+    // Canonical public Country uses a fresh server check before revealing
+    // historical flags; other consumers retain the existing cache contract.
+    refetchOnMount: verifyOnMount ? "always" : undefined,
+    retry: false,
   });
 }
