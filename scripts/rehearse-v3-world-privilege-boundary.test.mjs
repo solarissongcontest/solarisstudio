@@ -78,6 +78,8 @@ test('TG19 SQL catalog audit is read only and checks every World persistent tabl
   assert.match(audit, /left\(c\.relname, 6\) = 'world_'/);
   assert.match(audit, /world_table\.relrowsecurity/);
   assert.match(audit, /world_table\.relkind in \('r', 'p'\)/);
+  assert.match(audit, /pg_catalog\.has_column_privilege\(/);
+  assert.match(audit, /RAW_COLUMN_%s_GRANTED/);
   for (const privilege of ['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) {
     assert.ok(audit.includes("'" + privilege + "'"));
   }
