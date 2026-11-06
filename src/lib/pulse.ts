@@ -1,5 +1,6 @@
 import type { ContentEventRow, FanFollowRow } from "@/integrations/supabase/app-types";
 import type { Edition, Participant, ResultRow, Show } from "@/lib/data";
+import { resolveShowPublication, showPublishesResults } from "@/lib/publication";
 
 export type PulseCategory =
   | "entries"
@@ -246,6 +247,44 @@ export function buildRecordInsights({
 
   const showMap = new Map(shows.map((show) => [show.id, show]));
   const editionMap = new Map(editions.map((edition) => [edition.id, edition]));
+  const publishedEditionIds = new Set(
+    editions.filter((edition) => edition.published).map((edition) => edition.id),
+  );
+
+  // Pulse is a public surface even when the caller also has Organizer access.
+  // Raw results returned by legacy queries are not proof of public visibility.
+  // Edition-wide rows with no show cannot establish a publication boundary.
+  const publicResults = results.filter((result) => {
+    const show = result.show_id ? showMap.get(result.show_id) : undefined;
+    return Boolean(
+      show &&
+        show.edition_id === result.edition_id &&
+        publishedEditionIds.has(result.edition_id) &&
+        showPublishesResults(show),
+    );
+  });
+
+  const visibleMetric = (
+    result: ResultRow,
+    metric: "jury_points" | "televote_points" | "total_points",
+  ) => {
+    const show = result.show_id ? showMap.get(result.show_id) : undefined;
+    if (!show) return false;
+    const publication = resolveShowPublication(show);
+    if (metric === "jury_points") return publication.jury_results;
+    if (metric === "televote_points") return publication.televote_results;
+    return publication.results;
+  };
+
+  const visiblePlacement = (result: ResultRow) => {
+    const show = result.show_id ? showMap.get(result.show_id) : undefined;
+    return Boolean(show && resolveShowPublication(show).results);
+  };
+
+  const visibleRunningOrder = (result: ResultRow) => {
+    const show = result.show_id ? showMap.get(result.show_id) : undefined;
+    return Boolean(show && resolveShowPublication(show).running_order);
+  };
   const participantMap = new Map(
     participants.map((participant) => [
       `${participant.show_id ?? "edition"}:${participant.country_id}`,
@@ -253,8 +292,8 @@ export function buildRecordInsights({
     ]),
   );
 
-  const current = results.filter((result) => result.edition_id === latestEdition.id);
-  const historical = results.filter((result) => result.edition_id !== latestEdition.id);
+  const current = publicResults.filter((result) => result.edition_id === latestEdition.id);
+  const historical = publicResults.filter((result) => result.edition_id !== latestEdition.id);
   const insights: RecordInsight[] = [];
 
   const metricDefinitions = [
@@ -278,8 +317,12 @@ export function buildRecordInsights({
     });
 
     for (const [metric, label] of metricDefinitions) {
+      if (!visibleMetric(result, metric)) continue;
       const value = result[metric];
-      const historicalValues = comparable.map((candidate) => candidate[metric]).filter((score) => score > 0);
+      const historicalValues = comparable
+        .filter((candidate) => visibleMetric(candidate, metric))
+        .map((candidate) => candidate[metric])
+        .filter((score) => score > 0);
       if (historicalValues.length < 3 || value <= 0) continue;
       const record = Math.max(...historicalValues);
       if (record <= 0) continue;
@@ -306,9 +349,14 @@ export function buildRecordInsights({
       }
     }
 
-    if (result.final_rank != null) {
+    if (visiblePlacement(result) && result.final_rank != null) {
       const previousRanks = historical
-        .filter((candidate) => resultIdentity(candidate) === identity && candidate.final_rank != null)
+        .filter(
+          (candidate) =>
+            visiblePlacement(candidate) &&
+            resultIdentity(candidate) === identity &&
+            candidate.final_rank != null,
+        )
         .map((candidate) => candidate.final_rank as number);
       if (previousRanks.length) {
         const best = Math.min(...previousRanks);
@@ -325,14 +373,19 @@ export function buildRecordInsights({
       }
     }
 
-    if (result.final_rank != null && result.show_id) {
+    if (visiblePlacement(result) && visibleRunningOrder(result) && result.final_rank != null && result.show_id) {
       const participant = participantMap.get(`${result.show_id}:${identity}`);
       const runningOrder = participant?.running_order;
       if (runningOrder != null) {
         const climb = runningOrder - result.final_rank;
         const historicalClimbs = historical
           .filter((candidate) => {
-            if (candidate.final_rank == null || !candidate.show_id) return false;
+            if (
+              candidate.final_rank == null ||
+              !candidate.show_id ||
+              !visiblePlacement(candidate) ||
+              !visibleRunningOrder(candidate)
+            ) return false;
             const candidateShow = showMap.get(candidate.show_id);
             if (showBucket(candidateShow) !== bucket) return false;
             const candidateIdentity = resultIdentity(candidate);

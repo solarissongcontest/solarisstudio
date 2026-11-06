@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   MAINTENANCE_CONFIRMATION_API_PATH,
-  MAINTENANCE_RETURN_DATE,
   TERRAOS3_ESTIMATED_LAUNCH_AT,
   isMaintenanceHodAppRouteAllowed,
   maintenanceHodAccessEnabled,
@@ -24,6 +23,24 @@ const launchRestore = readFileSync("src/components/app/AppLaunchRestoreCoordinat
 const serverEntry = readFileSync("src/server.ts", "utf8");
 const maintenanceCss = readFileSync("public/assets/terraos-maintenance.css", "utf8");
 const maintenanceMotion = readFileSync("public/assets/terraos-maintenance.js", "utf8");
+const MAINTENANCE_ORIGIN = "https://maintenance.solaris.test";
+
+function localMaintenanceRuntimeUrl(html: string) {
+  const sources = [...html.matchAll(/<script\b[^>]*\bsrc=(["'])([^"']+)\1[^>]*><\/script>/gi)]
+    .map((match) => match[2]);
+  const runtimeSources = sources.filter(
+    (source) => new URL(source, MAINTENANCE_ORIGIN).pathname === "/assets/terraos-maintenance.js",
+  );
+
+  if (runtimeSources.length !== 1) {
+    throw new Error(`expected exactly one TerraOS maintenance runtime, found ${runtimeSources.length}`);
+  }
+
+  const runtime = new URL(runtimeSources[0], MAINTENANCE_ORIGIN);
+  if (runtime.origin !== MAINTENANCE_ORIGIN) throw new Error("maintenance runtime must be local");
+  if (!runtime.searchParams.get("v")) throw new Error("maintenance runtime must be versioned");
+  return runtime;
+}
 
 describe("maintenance HOD access flag", () => {
   it("fails closed unless explicitly enabled", () => {
@@ -103,7 +120,7 @@ describe("maintenance HOD route isolation", () => {
 });
 
 describe("TerraOS 3 maintenance page + HOD integration", () => {
-  const teaser = renderMaintenancePage(new Date("2026-10-24T13:00:00+03:00"));
+  const teaser = renderMaintenancePage(new Date("2026-11-02T00:00:00+02:00"));
 
   it("preserves a formatting-independent HOD insertion point", () => {
     expect(teaser).toContain("<footer>");
@@ -111,8 +128,7 @@ describe("TerraOS 3 maintenance page + HOD integration", () => {
     expect(serverEntry).toContain("isolateMaintenanceHodPortalMarkup");
     expect(teaser).toContain("TerraOS 3");
     expect(teaser).toContain("Solaris, reimagined.");
-    expect(teaser).toContain("Estimated arrival");
-    expect(teaser).toContain(MAINTENANCE_RETURN_DATE);
+    expect(teaser).toMatch(/Estimated arrival|TerraOS 3 is being prepared\./);
     expect(teaser).toContain(`data-terraos-launch-at="${TERRAOS3_ESTIMATED_LAUNCH_AT}"`);
   });
 
@@ -121,13 +137,26 @@ describe("TerraOS 3 maintenance page + HOD integration", () => {
     expect(maintenanceCss).toContain("--primary:");
   });
 
-  it("moves the injected portal into the dedicated Confirmation chapter through the static runtime", () => {
-    expect(teaser).toContain('data-confirmation-host');
+  it("loads one versioned local runtime and keeps the Confirmation relocation contract", () => {
+    expect(teaser).toContain("data-confirmation-host");
     expect(teaser).toContain('id="confirmation-access"');
-    expect(teaser).toContain('<script src="/assets/terraos-maintenance.js"></script>');
+
+    const runtime = localMaintenanceRuntimeUrl(teaser);
+    expect(runtime.pathname).toBe("/assets/terraos-maintenance.js");
+    expect(runtime.searchParams.get("v")).toBeTruthy();
+
     expect(maintenanceMotion).toContain("const portal = document.querySelector('.hod-portal')");
     expect(maintenanceMotion).toContain("const confirmationHost = document.querySelector('[data-confirmation-host]')");
     expect(maintenanceMotion).toContain("confirmationHost.appendChild(portal)");
+  });
+
+  it("rejects a remote maintenance runtime even when its pathname is correct", () => {
+    const remotelySubstituted = teaser.replace(
+      /\/assets\/terraos-maintenance\.js\?v=[^"']+/,
+      "https://cdn.example.test/assets/terraos-maintenance.js?v=mutated",
+    );
+
+    expect(() => localMaintenanceRuntimeUrl(remotelySubstituted)).toThrow(/must be local/);
   });
 
   it("renders production V3 components in fixture-safe teaser surfaces", () => {
@@ -156,7 +185,7 @@ describe("TerraOS 3 maintenance page + HOD integration", () => {
     ]) expect(teaser).toContain(fragment);
     expect(teaser).not.toContain("data-terraos-teaser-phase");
     expect(teaser).not.toContain("data-next-reveal");
-    expect(teaser).not.toContain("More on 19.10");
+    expect(teaser).not.toMatch(/More on (?:19|20|21)\.10/i);
     expect(maintenanceMotion).not.toContain("fetch(");
     expect(maintenanceMotion).not.toContain("XMLHttpRequest");
   });

@@ -14,7 +14,7 @@ function organizerRoute(pathname: string) {
   );
 }
 
-export function shouldOwnCriticalRouteStateFrame(pathname: string, searchStr = "") {
+function shouldOwnCriticalRouteStateFrame(pathname: string, searchStr = "") {
   if (organizerRoute(pathname)) return false;
   return resolveSolarisAppScreen(pathname, searchStr).behavior.criticalTask;
 }
@@ -75,12 +75,83 @@ export function AppRouteStateFrame({
   );
 }
 
-export function AppRouteSkeleton() {
+type AppRouteSkeletonVariant =
+  | "generic"
+  | "reference"
+  | "notifications"
+  | "article";
+
+function SkeletonBlock({ className = "" }: { className?: string }) {
+  return <div className={`solaris-app-route-skeleton-card ${className}`} />;
+}
+
+export function AppRouteSkeleton({
+  variant = "generic",
+  label = "Loading this view…",
+}: {
+  variant?: AppRouteSkeletonVariant;
+  label?: string;
+} = {}) {
   return (
-    <div className="solaris-app-route-skeleton" aria-hidden="true">
-      <div className="solaris-app-route-skeleton-line is-short" />
-      <div className="solaris-app-route-skeleton-card" />
-      <div className="solaris-app-route-skeleton-card is-compact" />
+    <div
+      className="solaris-app-route-skeleton"
+      role="status"
+      aria-live="polite"
+      data-v3-route-skeleton={variant}
+    >
+      <span className="sr-only">{label}</span>
+      <div aria-hidden="true">
+        {variant === "reference" ? (
+          <>
+            <div className="solaris-app-route-skeleton-line is-short" />
+            <div className="solaris-app-route-skeleton-line mt-3 max-w-64" />
+            <SkeletonBlock className="mt-5 !h-12" />
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <SkeletonBlock className="is-compact !h-24" />
+              <SkeletonBlock className="is-compact !h-24" />
+              <SkeletonBlock className="is-compact !h-24" />
+              <SkeletonBlock className="is-compact !h-24" />
+            </div>
+          </>
+        ) : variant === "notifications" ? (
+          <>
+            <div className="solaris-app-route-skeleton-line is-short" />
+            <SkeletonBlock className="mt-5 !h-28" />
+            <div className="mt-5 overflow-hidden rounded-2xl border border-border/60">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="flex min-h-16 items-center gap-3 border-b border-border/50 p-3 last:border-b-0"
+                >
+                  <div className="solaris-app-route-skeleton-card !size-9 !min-h-9 shrink-0 rounded-xl" />
+                  <div className="min-w-0 flex-1">
+                    <div className="solaris-app-route-skeleton-line !h-3 max-w-48" />
+                    <div className="solaris-app-route-skeleton-line mt-2 !h-2.5 max-w-32" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : variant === "article" ? (
+          <>
+            <div className="solaris-app-route-skeleton-line is-short" />
+            <div className="solaris-app-route-skeleton-line mt-3 max-w-72" />
+            <div className="mt-6 space-y-3">
+              <div className="solaris-app-route-skeleton-line max-w-full" />
+              <div className="solaris-app-route-skeleton-line max-w-[92%]" />
+              <div className="solaris-app-route-skeleton-line max-w-[84%]" />
+              <div className="solaris-app-route-skeleton-line max-w-[96%]" />
+              <div className="solaris-app-route-skeleton-line max-w-[68%]" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="solaris-app-route-skeleton-line is-short" />
+            <SkeletonBlock />
+            <SkeletonBlock className="is-compact" />
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -13,12 +13,29 @@ const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
 const browserAuditWorkflow = source(".github/workflows/browser-audit.yml");
 
 describe("PR Browser Audit bounded smoke and route isolation contract", () => {
-  it("keeps PR smoke bounded and retry-free while reporting every representative failure", () => {
+  it("keeps browser CI retry-free while reporting every selected failure", () => {
     expect(playwrightConfig).toContain('process.env.GITHUB_EVENT_NAME === "pull_request"');
     expect(playwrightConfig).toContain("timeout: representativeCI ? 90_000");
-    expect(playwrightConfig).toContain("retries: representativeCI ? 0");
+    expect(playwrightConfig).toContain("retries: 0");
+    expect(playwrightConfig).not.toMatch(/retries:\s*[^\n]*\?\s*1/);
     expect(playwrightConfig).toContain("maxFailures: 0");
     expect(playwrightConfig).not.toContain("maxFailures: prSmoke ? 1 : 0");
+  });
+
+  it("binds Browser Audit checkout and retained evidence to the exact candidate SHA", () => {
+    const exactShaExpression = "${{ github.event.pull_request.head.sha || github.sha }}";
+
+    expect(browserAuditWorkflow).toContain("- name: Checkout exact source");
+    expect(browserAuditWorkflow).toContain(`ref: ${exactShaExpression}`);
+    expect(browserAuditWorkflow).toContain("- name: Verify exact browser-audit source");
+    expect(browserAuditWorkflow).toContain(`BROWSER_AUDIT_SOURCE_SHA: ${exactShaExpression}`);
+    expect(browserAuditWorkflow).toContain('checkout_sha="$(git rev-parse HEAD');
+    expect(browserAuditWorkflow).toContain('if [ "$checkout_sha" != "$expected" ]');
+    expect(browserAuditWorkflow).toContain('echo "candidate_sha=$expected"');
+    expect(browserAuditWorkflow).toContain("artifacts/browser-audit/provenance.txt");
+    expect(browserAuditWorkflow).toContain(`name: organizer-preflight-${exactShaExpression}`);
+    expect(browserAuditWorkflow).toContain(`name: browser-audit-summary-${exactShaExpression}`);
+    expect(browserAuditWorkflow).toContain(`name: browser-audit-${exactShaExpression}`);
   });
 
   it("isolates Organizer route crawls so one route cannot cancel the next navigation", () => {

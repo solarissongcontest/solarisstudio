@@ -5,17 +5,16 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("installed app archive loading policy", () => {
-  it("keeps Country directory identity-first in installed mode", () => {
-    const countries = source("src/routes/countries/index.tsx");
-    const appStart = countries.indexOf("function AppCountriesPage()");
-    const webStart = countries.indexOf("function WebCountriesPage()");
-    const app = countries.slice(appStart, webStart);
+  it("keeps Country discovery off the full archive fan-out", () => {
+    const route = source("src/routes/countries/index.tsx");
+    const countries = source("src/components/v3/V3CountriesDiscoveryScreen.tsx");
 
-    expect(app).toContain("useCountries()");
-    expect(app).not.toContain("useAllParticipants()");
-    expect(app).not.toContain("useAllResults()");
-    expect(app).not.toContain("useAllJuryVotes()");
-    expect(app).not.toContain("useAllTelevotes()");
+    expect(route).toContain("V3CountriesDiscoveryScreen");
+    expect(countries).toContain("usePublicEditionParticipants(activeEdition?.id)");
+    expect(countries).not.toContain("useAllParticipants");
+    expect(countries).not.toContain("useAllResults");
+    expect(countries).not.toContain("useAllJuryVotes");
+    expect(countries).not.toContain("useAllTelevotes");
   });
 
   it("defers full Country and Wiki archives until after identity paint", () => {

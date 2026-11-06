@@ -74,6 +74,100 @@ describe("Public V3 P9 artist/song identity", () => {
     expect(first.entryId).not.toBe(second.entryId);
   });
 
+  it("derives detail URLs from canonical opaque IDs instead of trusting a stale href", () => {
+    const artist = firstClassMusicIdentity({
+      kind: "artist",
+      publicEntityId: "artist:stable:1",
+      label: "Original artist",
+    });
+    const song = firstClassMusicIdentity({
+      kind: "song",
+      publicEntityId: "song:stable:1",
+      label: "Original song",
+    });
+    if (!musicIdentityIsRoutable(artist) || !musicIdentityIsRoutable(song)) {
+      throw new Error("Expected first-class music identities");
+    }
+
+    // Even a compromised or stale presentation object must never control
+    // the navigation destination independently of the canonical identity.
+    expect(musicEntityHref({ ...artist, href: "https://attacker.example/collect" })).toBe(
+      "/artists/artist%3Astable%3A1",
+    );
+    expect(musicEntityHref({ ...song, href: "/artists/wrong-song" })).toBe(
+      "/songs/song%3Astable%3A1",
+    );
+    expect(musicEntityHref({ ...artist, label: "Renamed artist" })).toBe(musicEntityHref(artist));
+  });
+
+  it("rejects normalized dot segments instead of navigating outside music detail routes", () => {
+    for (const id of [".", "..", " . ", "\t..\n"]) {
+      expect(() =>
+        firstClassMusicIdentity({ kind: "song", publicEntityId: id, label: "Song" }),
+      ).toThrow("Public entity id is not a valid path segment");
+    }
+
+    const artist = firstClassMusicIdentity({
+      kind: "artist",
+      publicEntityId: "durable-artist-id",
+      label: "Artist",
+    });
+    if (!musicIdentityIsRoutable(artist)) {
+      throw new Error("Expected a first-class artist identity");
+    }
+    expect(musicIdentityIsRoutable({ ...artist, publicEntityId: ".." })).toBe(false);
+    expect(musicEntityHref({ ...artist, publicEntityId: ".." })).toBeNull();
+  });
+
+  it.each([
+    ["../other", "/songs/..%2Fother"],
+    ["%2e%2e", "/songs/%252e%252e"],
+    ["//elsewhere.example", "/songs/%2F%2Felsewhere.example"],
+    ["song?redirect=/admin#private", "/songs/song%3Fredirect%3D%2Fadmin%23private"],
+  ])("encodes opaque id %j into one canonical path segment", (id, expected) => {
+    const song = firstClassMusicIdentity({ kind: "song", publicEntityId: id, label: "Song" });
+    const href = musicEntityHref(song);
+    const resolved = new URL(href!, "https://solaris.example");
+
+    expect(href).toBe(expected);
+    expect(resolved.origin).toBe("https://solaris.example");
+    expect(resolved.pathname).toBe(expected);
+    expect(resolved.search).toBe("");
+    expect(resolved.hash).toBe("");
+    expect(decodeURIComponent(resolved.pathname.split("/")[2])).toBe(id);
+  });
+
+  it("refuses malformed cached kinds and IDs even when their href looks valid", () => {
+    const artist = firstClassMusicIdentity({
+      kind: "artist", publicEntityId: "artist-id", label: "Artist",
+    });
+    if (!musicIdentityIsRoutable(artist)) {
+      throw new Error("Expected a first-class artist identity");
+    }
+    for (const identity of [
+      { ...artist, kind: "unknown" as never },
+      { ...artist, publicEntityId: " " },
+      { ...artist, publicEntityId: null as never },
+    ]) {
+      expect(musicIdentityIsRoutable(identity)).toBe(false);
+      expect(musicEntityHref(identity)).toBeNull();
+    }
+  });
+
+  it("preserves distinct opaque URLs when artists or songs have identical labels", () => {
+    const first = firstClassMusicIdentity({
+      kind: "song",
+      publicEntityId: "song-1",
+      label: "Same title",
+    });
+    const second = firstClassMusicIdentity({
+      kind: "song",
+      publicEntityId: "song-2",
+      label: "Same title",
+    });
+    expect(musicEntityHref(first)).not.toBe(musicEntityHref(second));
+  });
+
   it("rejects blank identity inputs", () => {
     expect(() =>
       entryBoundMusicIdentity({ kind: "song", entryId: " ", label: "Title" }),

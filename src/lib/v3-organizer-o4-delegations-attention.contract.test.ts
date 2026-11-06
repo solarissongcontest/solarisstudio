@@ -12,9 +12,31 @@ const adminDomains = readFileSync("src/components/admin/admin-domains.ts", "utf8
 
 describe("Organizer O4 Delegations attention boundary", () => {
   it("fails closed without explicit Organizer edition context", () => {
-    expect(route).toContain("enabled: Boolean(editionId)");
-    expect(route).toContain("loadConfirmationRequirements(editionId!)");
+    // The shell's raw id is not proof of an accessible edition.
+    // Only the resolved Organizer edition may reach the Confirmation query.
+    expect(route).toContain("selectOrganizerEdition(editionsQuery.data ?? [], verifiedChoiceId)");
+    expect(route).toContain('const resolvedEditionId = selectedEdition?.id ?? "";');
+    expect(route).toContain("editionsQuery.isSuccess && !editionsQuery.error");
+    expect(route).toContain("enabled: editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching && Boolean(resolvedEditionId)");
+    expect(route).not.toContain("enabled: Boolean(resolvedEditionId)");
+    expect(route).toContain("loadConfirmationRequirements(resolvedEditionId)");
+    expect(route).not.toContain("loadConfirmationRequirements(editionId!)");
+    expect(route).toContain("Edition context could not be verified");
+    expect(route).toContain("Edition context required");
     expect(route).toContain("Solaris will not substitute another edition");
+  });
+
+  it("requires a user-chosen, actor-bound edition regardless of NAV's initial fallback", () => {
+    expect(route).toContain('const explicitEditionId = explicitChoice?.actorId === actorId ? explicitChoice.editionId : "";');
+    expect(route).toContain('Choose an edition for this Delegations review');
+    expect(route).toContain('No edition is inferred from the Organizer shell.');
+    expect(route).toContain("const { editionId, setEditionContext } = useAdminContext();");
+  });
+
+  it("never reuses cached edition rows to read private obligations after a failed context refresh", () => {
+    expect(route).toContain("editionsQuery.isSuccess && !editionsQuery.error");
+    expect(route).toContain("enabled: editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching && Boolean(resolvedEditionId)");
+    expect(route).toContain('const resolvedEditionId = selectedEdition?.id ?? "";');
   });
 
   it("uses canonical Confirmation requirements rather than entry-review state for attention", () => {

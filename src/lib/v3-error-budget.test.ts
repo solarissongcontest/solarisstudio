@@ -107,6 +107,73 @@ describe("System V3 S10 evidence-backed error budget", () => {
     expect(JSON.stringify(breached)).not.toContain("Infinity");
   });
 
+
+  it("does not falsely exhaust an exact decimal budget at its integer boundary", () => {
+    const exact = evaluateV3OperationErrorBudget(
+      objective({
+        targetSuccessRatio: 0.9995,
+        minimumCompletedOperations: 2000,
+        evidence: { ...objective().evidence, sampleCount: 2000 },
+      }),
+      observation({ completedOperations: 2000, succeededOperations: 1999 }),
+    );
+    expect(exact.status).toBe("within_budget");
+    expect(exact.budget.allowedBadOperations).toBe(1);
+    expect(exact.budget.remainingBadOperations).toBe(0);
+    expect(exact.budget.consumedRatio).toBe(1);
+    expect(exact.budget.burnRate).toBe(1);
+
+    const exhausted = evaluateV3OperationErrorBudget(
+      objective({
+        targetSuccessRatio: 0.9995,
+        minimumCompletedOperations: 2000,
+        evidence: { ...objective().evidence, sampleCount: 2000 },
+      }),
+      observation({ completedOperations: 2000, succeededOperations: 1998 }),
+    );
+    expect(exhausted.status).toBe("exhausted");
+    expect(exhausted.budget.overspentBadOperations).toBe(1);
+  });
+
+  it("does not round a genuinely stricter target up to forgive a bad operation", () => {
+    const result = evaluateV3OperationErrorBudget(
+      objective({
+        targetSuccessRatio: 0.9995000000000002,
+        minimumCompletedOperations: 2000,
+        evidence: { ...objective().evidence, sampleCount: 2000 },
+      }),
+      observation({ completedOperations: 2000, succeededOperations: 1999 }),
+    );
+    expect(result.status).toBe("exhausted");
+    expect(result.budget.allowedBadOperations).toBeLessThan(1);
+  });
+
+  it("honours a mathematically exact ten-failure boundary without binary rounding", () => {
+    const result = evaluateV3OperationErrorBudget(
+      objective({ targetSuccessRatio: 0.9 }),
+      observation({ completedOperations: 100, succeededOperations: 90 }),
+    );
+    expect(result.status).toBe("within_budget");
+    expect(result.budget.allowedBadOperations).toBe(10);
+    expect(result.budget.consumedRatio).toBe(1);
+  });
+
+  it("rejects unsafe integer operation counts and objective evidence totals", () => {
+    const tooMany = Number.MAX_SAFE_INTEGER + 1;
+    expect(
+      evaluateV3OperationErrorBudget(objective(), observation({
+        completedOperations: tooMany,
+        succeededOperations: tooMany,
+      })).status,
+    ).toBe("invalid_observation");
+    expect(
+      evaluateV3OperationErrorBudget(
+        objective({ evidence: { ...objective().evidence, sampleCount: tooMany } }),
+        observation(),
+      ).status,
+    ).toBe("invalid_objective");
+  });
+
   it("returns insufficient_data below the evidence-backed sample floor", () => {
     const result = evaluateV3OperationErrorBudget(
       objective({ minimumCompletedOperations: 100 }),

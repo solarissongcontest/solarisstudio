@@ -11,8 +11,9 @@ import {
 import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { usePublicPresentationMode } from "@/lib/use-public-presentation-mode";
 import { V3RecordsGate } from "@/components/v3/V3RecordsGate";
-import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
+import { buildCanonicalFanRecordsWithCoverage } from "@/lib/canonical-fan-records";
 import {
   useAllJuryVotes,
   useAllParticipants,
@@ -74,6 +75,53 @@ function RecordsPage() {
   return <LegacyRecordsPage />;
 }
 
+function RecordsPageHeader({ mobileWeb, ready }: { mobileWeb: boolean; ready: boolean }) {
+  if (mobileWeb) {
+    return (
+      <header
+        className={`mb-5 border-b border-border/70 ${ready ? "pb-5" : "pb-4"}`}
+        data-records-mobile-web-header
+      >
+        <p className="text-[11px] font-bold uppercase tracking-[.16em] text-primary">Hall of records</p>
+        <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">Records</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {ready
+            ? "Achievements, streaks and unusual results from the published SSC archive. Tied countries share the record."
+            : "Verified records from the published archive."}
+        </p>
+        {ready ? (
+          <Link
+            to="/archive-games"
+            className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary"
+          >
+            Play Archive Games →
+          </Link>
+        ) : null}
+      </header>
+    );
+  }
+
+  return (
+    <PageHeader
+      eyebrow="Hall of records"
+      title="Records"
+      description={
+        ready
+          ? "The extreme, impressive and occasionally unfortunate corners of SSC history, with ties shown properly instead of quietly choosing one country and hoping nobody notices."
+          : "Verified records from the published archive."
+      }
+      actions={ready ? (
+        <Link
+          to="/archive-games"
+          className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto"
+        >
+          Play Archive Games →
+        </Link>
+      ) : undefined}
+    />
+  );
+}
+
 function LegacyRecordsPage() {
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
@@ -91,10 +139,12 @@ function LegacyRecordsPage() {
   // an even longer mobile page. Start with the most useful category and keep
   // "All" available for people who deliberately want the full archive.
   const [tab, setTab] = useState<Tab>("career");
+  const presentationMode = usePublicPresentationMode();
+  const mobileWeb = presentationMode === "mobile-web";
 
-  const records = useMemo(
+  const { records, archivedFinalEditions } = useMemo(
     () =>
-      buildCanonicalFanRecords({
+      buildCanonicalFanRecordsWithCoverage({
         countries: countries ?? [],
         editions: editions ?? [],
         shows: shows ?? [],
@@ -109,23 +159,13 @@ function LegacyRecordsPage() {
     tab === "all"
       ? records
       : records.filter((record) => record.category === tab);
-  const showById = useMemo(
-    () => new Map((shows ?? []).map((show) => [show.id, show])),
-    [shows],
+  const coverageDescription = (
+    <>
+      These records use {archivedFinalEditions} edition{archivedFinalEditions === 1 ? "" : "s"} with archived
+      Grand Final results, plus the jury and qualification data that is actually stored.
+      Missing editions are excluded rather than treated as zeroes, so records can change when older archive data is added.
+    </>
   );
-  const archivedFinalEditions = useMemo(
-    () =>
-      new Set(
-        (results ?? [])
-          .filter((result) => {
-            const kind = showById.get(result.show_id ?? "")?.kind;
-            return kind === "grand-final" || kind === "final";
-          })
-          .map((result) => result.edition_id),
-      ).size,
-    [results, showById],
-  );
-
   const archiveQueries = [
     countriesQuery,
     editionsQuery,
@@ -134,88 +174,86 @@ function LegacyRecordsPage() {
     resultsQuery,
     juryQuery,
   ];
-  if (archiveIsLoading(...archiveQueries)) {
+  const loading = archiveIsLoading(...archiveQueries);
+  const failed = archiveHasError(...archiveQueries);
+  if (loading || failed) {
     return (
       <AppShell>
-        <PageHeader
-          eyebrow="Hall of records"
-          title="Records"
-          description="Verified records from the published archive."
-        />
-        <ArchiveDataLoading label="Calculating records from the archive…" />
-      </AppShell>
-    );
-  }
-  if (archiveHasError(...archiveQueries)) {
-    return (
-      <AppShell>
-        <PageHeader
-          eyebrow="Hall of records"
-          title="Records"
-          description="Verified records from the published archive."
-        />
-        <ArchiveDataError />
+        <RecordsPageHeader mobileWeb={mobileWeb} ready={false} />
+        {loading ? (
+          <ArchiveDataLoading label="Calculating records from the archive…" />
+        ) : (
+          <ArchiveDataError />
+        )}
       </AppShell>
     );
   }
 
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Hall of records"
-        title="Records"
-        description="The extreme, impressive and occasionally unfortunate corners of SSC history, with ties shown properly instead of quietly choosing one country and hoping nobody notices."
-        actions={
-          <Link
-            to="/archive-games"
-            className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto"
-          >
-            Play Archive Games →
-          </Link>
-        }
-      />
+      <div data-records-presentation={presentationMode}>
+        <RecordsPageHeader mobileWeb={mobileWeb} ready />
 
-      <Panel className="mb-5" title="Archive coverage">
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          These records currently use {archivedFinalEditions} edition
-          {archivedFinalEditions === 1 ? "" : "s"} with archived Grand Final
-          results, plus the jury and qualification data that is actually stored.
-          Missing editions are excluded rather than treated as zeroes, so a record
-          can change when older archive data is added.
-        </p>
-      </Panel>
+        {mobileWeb ? (
+          <details className="mb-5 border-y border-border/70" data-records-mobile-web-coverage>
+            <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-3 py-3 text-sm font-semibold">
+              <span>Archive coverage</span>
+              <span className="text-xs font-medium text-muted-foreground">{archivedFinalEditions} final editions</span>
+            </summary>
+            <p className="pb-4 text-sm leading-6 text-muted-foreground">
+              {coverageDescription}
+            </p>
+          </details>
+        ) : (
+          <Panel className="mb-5" title="Archive coverage">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {coverageDescription}
+            </p>
+          </Panel>
+        )}
 
-      <ResponsiveTabs
-        value={tab}
-        options={TABS}
-        onChange={setTab}
-        label="Record category"
-        className="mb-5"
-      />
+        {mobileWeb ? (
+          <nav aria-label="Record categories" className="mb-5 flex min-w-0 gap-4 overflow-x-auto border-b border-border/70" data-records-mobile-web-categories>
+            {TABS.map((option) => (
+              <button
+                type="button"
+                key={option.value}
+                onClick={() => setTab(option.value)}
+                aria-pressed={tab === option.value}
+                className={tab === option.value
+                  ? "min-h-12 shrink-0 whitespace-nowrap border-b-2 border-primary px-1 text-sm font-semibold text-foreground"
+                  : "min-h-12 shrink-0 whitespace-nowrap border-b-2 border-transparent px-1 text-sm font-medium text-muted-foreground hover:text-foreground"}
+              >
+                {option.label}
+              </button>
+            ))}
+          </nav>
+        ) : (
+          <ResponsiveTabs value={tab} options={TABS} onChange={setTab} label="Record category" className="mb-5" />
+        )}
 
-      {filtered.length ? (
-        <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-          {filtered.map((record) => (
-            <RecordCard key={record.id} record={record} />
-          ))}
-        </div>
-      ) : (
-        <Panel>
-          <p className="text-sm text-muted-foreground">
-            No records in this category yet.
-          </p>
-        </Panel>
-      )}
+        {filtered.length ? (
+          <div className={mobileWeb ? "min-w-0 divide-y divide-border/70" : "grid gap-3 lg:grid-cols-2 2xl:grid-cols-3"}>
+            {filtered.map((record) => (
+              <RecordCard key={record.id} record={record} mobileWeb={mobileWeb} />
+            ))}
+          </div>
+        ) : mobileWeb ? (
+          <p role="status" className="py-6 text-sm text-muted-foreground">No records in this category yet.</p>
+        ) : (
+          <Panel><p className="text-sm text-muted-foreground">No records in this category yet.</p></Panel>
+        )}
+      </div>
     </AppShell>
   );
 }
 
-function RecordCard({ record }: { record: FanRecord }) {
+function RecordCard({ record, mobileWeb }: { record: FanRecord; mobileWeb: boolean }) {
   const primaryHolders = record.holders.slice(0, 8);
   const remainingHolders = record.holders.slice(8);
 
   return (
-    <article className="glass flex min-h-[250px] min-w-0 flex-col overflow-hidden p-4 sm:p-5">
+    <article className={mobileWeb ? "min-w-0 py-5 first:pt-0" : "glass flex min-h-[250px] min-w-0 flex-col overflow-hidden p-4 sm:p-5"} data-records-mobile-web-row={mobileWeb ? "" : undefined}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
@@ -232,16 +270,16 @@ function RecordCard({ record }: { record: FanRecord }) {
         )}
       </div>
 
-      <p className="numeric mt-4 break-words text-3xl font-black tracking-[-.045em] text-foreground">
+      <p className={mobileWeb ? "numeric mt-3 break-words text-[clamp(1.65rem,8vw,2.5rem)] font-extrabold tracking-tight text-foreground" : "numeric mt-4 break-words text-3xl font-black tracking-[-.045em] text-foreground"}>
         {record.value}
       </p>
       <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
         {record.explanation}
       </p>
 
-      <div className="mt-4 divide-y divide-border/55 rounded-xl border border-border/60 bg-surface/45 px-3">
+      <div className={mobileWeb ? "mt-4 divide-y divide-border/55 border-y border-border/65" : "mt-4 divide-y divide-border/55 rounded-xl border border-border/60 bg-surface/45 px-3"}>
         {primaryHolders.map((holder) => (
-          <RecordHolderRow key={holder.countryId} holder={holder} />
+          <RecordHolderRow key={holder.countryId} holder={holder} mobileWeb={mobileWeb} />
         ))}
       </div>
 
@@ -252,7 +290,7 @@ function RecordCard({ record }: { record: FanRecord }) {
           </summary>
           <div className="divide-y divide-border/55 border-t border-border/55 px-3">
             {remainingHolders.map((holder) => (
-              <RecordHolderRow key={holder.countryId} holder={holder} />
+              <RecordHolderRow key={holder.countryId} holder={holder} mobileWeb={mobileWeb} />
             ))}
           </div>
         </details>
@@ -261,7 +299,7 @@ function RecordCard({ record }: { record: FanRecord }) {
   );
 }
 
-function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
+function RecordHolderRow({ holder, mobileWeb }: { holder: FanRecordHolder; mobileWeb: boolean }) {
   return (
     <div className="py-3 first:pt-2.5 last:pb-2.5">
       <div className="flex min-w-0 items-start gap-3">
@@ -276,7 +314,7 @@ function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
             <Link
               to="/countries/$code"
               params={{ code: holder.shortCode }}
-              className="truncate text-sm font-semibold text-foreground hover:text-primary"
+              className={mobileWeb ? "break-words text-sm font-semibold text-foreground hover:text-primary" : "truncate text-sm font-semibold text-foreground hover:text-primary"}
             >
               {holder.countryName}
             </Link>
@@ -287,7 +325,7 @@ function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
             )}
           </div>
           {(holder.artist || holder.song) && (
-            <p className="mt-1 truncate text-[11px] font-medium text-foreground/85">
+            <p className={mobileWeb ? "mt-1 break-words text-xs font-medium leading-5 text-foreground/85" : "mt-1 truncate text-[11px] font-medium text-foreground/85"}>
               {[holder.artist, holder.song].filter(Boolean).join(" · ")}
             </p>
           )}

@@ -109,7 +109,10 @@ describe("S14 Stage 10 archive certification against current canonical V3 System
     expect(archive).toContain("replay exact archive operation");
     expect(archive).toContain("archive exact retry replays durable receipt");
     expect(archive).toContain("studio2_reconcile_operation");
-    expect(archive).toContain("archive operation cannot be reconciled from its durable receipt");
+    expect(archive).toContain('rpc_request "$ORGANIZER_A_TOKEN" studio2_reconcile_operation');
+    expect(archive).toContain('expect_success "reconcile completed S14 Archive operation receipt"');
+    expect(archive).toContain('expect_json "Archive reconciliation durable receipt" status succeeded');
+    expect(archive).not.toContain('reconciled_archive_status="$(db_scalar');
     expect(archiveMigration).toContain("studio2_claim_operation");
     expect(archiveMigration).toContain("'replayed', true");
     expect(transitionConflictMigration).toContain("PT409");
@@ -122,6 +125,8 @@ describe("S14 Stage 10 archive certification against current canonical V3 System
     expect(archive).toContain("consumer_key='edition.tasks'");
     expect(archive).toContain("studio2_claim_domain_event_deliveries");
     expect(archive).toContain("studio2_process_edition_domain_event");
+    expect(archive).toContain('claimed_archive_events="$(service_value');
+    expect(archive).toContain('service_value "select public.studio2_process_edition_domain_event(');
     expect(archive).toContain("v3_domain_event_consumer_receipts");
     expect(archive).toContain("lifecycleAuthority");
     expect(archive).toContain("studio2_edition_runtime");

@@ -73,11 +73,11 @@ function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
   return (
     <V3Surface level="raised" className="overflow-hidden">
       {edition.artworkUrl ? (
-        <div className="relative aspect-[16/7] overflow-hidden border-b border-white/[0.06] bg-white/[0.025]">
+        <div className="relative border-b border-white/[0.06] bg-white/[0.025]">
           <img
             src={edition.artworkUrl}
             alt=""
-            className="h-full w-full object-cover"
+            className="block h-auto max-h-[34rem] w-full object-contain"
             loading="lazy"
           />
           <div

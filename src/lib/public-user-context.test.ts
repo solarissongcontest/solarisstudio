@@ -24,6 +24,22 @@ describe("public user context", () => {
     expect(me?.description).not.toContain("tasks");
   });
 
+  it("does not expose stale delegation identity when the viewer is signed out", () => {
+    const context = buildPublicUserContext({
+      userId: null,
+      access: { isOrganizer: true, countryId: "previous-user-country" },
+      currentEdition: "SSC 22",
+    });
+    expect(context).toMatchObject({
+      signedIn: false,
+      organizer: false,
+      hod: false,
+      currentEdition: "SSC 22",
+    });
+    expect(context).not.toHaveProperty("countryId");
+    expect(publicGlobalAreasForContext(context).find((item) => item.id === "me")?.to).toBe("/auth");
+  });
+
   it("routes signed-in members through canonical Me and keeps responsibilities out of its copy", () => {
     const context = buildPublicUserContext({
       userId: "user-1",

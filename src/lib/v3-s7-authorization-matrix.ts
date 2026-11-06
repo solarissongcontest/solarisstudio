@@ -40,6 +40,11 @@ export type V3AuthorizationObjectType =
   | "feature_rollout"
   | "permission_assignment"
   | "governance_motion"
+  | "world_organization"
+  | "world_membership"
+  | "world_representation"
+  | "world_proxy"
+  | "world_office"
   | "host"
   | "story";
 
@@ -218,6 +223,25 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     domainSafeguards: ["target scope", "grant expiry", "permission administration audit"],
   },
   {
+    prefix: "world.",
+    domain: "world",
+    operationScope: "global",
+    scopeLevels: ["platform", "object"],
+    objectTypes: [
+      "world_organization",
+      "world_membership",
+      "world_representation",
+      "world_proxy",
+      "world_office",
+      "country",
+    ],
+    domainSafeguards: [
+      "organization/object scope",
+      "world capability grant scope",
+      "country/representative authority where applicable",
+    ],
+  },
+  {
     prefix: "governance.",
     domain: "governance",
     operationScope: "global",
@@ -268,6 +292,7 @@ function effectFor(capability: SolarisCapability): V3AuthorizationEffect {
   if (
     capability.endsWith(".read") ||
     capability.endsWith(".read_private") ||
+    capability.endsWith(".view_private") ||
     capability.endsWith(".preview") ||
     capability.endsWith(".audit")
   ) {
@@ -275,7 +300,8 @@ function effectFor(capability: SolarisCapability): V3AuthorizationEffect {
   }
   if (
     capability.endsWith(".verify") ||
-    capability.endsWith(".approve")
+    capability.endsWith(".approve") ||
+    capability.endsWith(".review")
   ) {
     return "review";
   }

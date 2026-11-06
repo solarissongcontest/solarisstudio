@@ -1,6 +1,7 @@
 import type {
   NoticeAudience,
   NoticeInboxState,
+  NoticeReceipt,
   OperationalNotice,
 } from "./official-communications";
 
@@ -30,6 +31,22 @@ export function v3OfficialNoticeNeedsAction(
 ): boolean {
   if (!notice.acknowledgementRequired) return false;
   return state === "acknowledgement_required" || state === "unread";
+}
+
+/**
+ * An archive status is not proof that an official acknowledgement occurred.
+ * Preserve the independently server-recorded receipt even when the inbox
+ * displays the notice as archived.
+ */
+export function v3OfficialNoticeAcknowledgementState(
+  notice: Pick<OperationalNotice, "acknowledgementRequired">,
+  inboxState: NoticeInboxState,
+  receipt?: Pick<NoticeReceipt, "acknowledgedAt"> | null,
+): "not-required" | "recorded" | "archived-unacknowledged" | "required" {
+  if (!notice.acknowledgementRequired) return "not-required";
+  if (receipt?.acknowledgedAt) return "recorded";
+  if (inboxState === "archived") return "archived-unacknowledged";
+  return "required";
 }
 
 export function v3OfficialNoticeResolved(state: NoticeInboxState): boolean {

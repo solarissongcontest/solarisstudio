@@ -1,0 +1,33 @@
+/*
+ * TerraOS maintenance shell's top-system-safe-zone boundary.
+ * The marketing backdrop may fill the status-bar region, but its fixed
+ * branding/Confirmation controls and hero text must remain below it.
+ * This file is loaded after the existing maintenance styles.
+ */
+:root {
+  --terraos-system-top-safe: env(safe-area-inset-top, 0px);
+  --terraos-top-comfort: 0.65rem;
+}
+
+@media (orientation: portrait) {
+  html[data-terraos-ios-standalone="true"] {
+    /* iOS standalone can report 0px with the status bar/Dynamic Island present. */
+    --terraos-system-top-safe: max(env(safe-area-inset-top, 0px), 3.75rem);
+  }
+}
+
+.product-bar {
+  top: calc(var(--terraos-system-top-safe) + var(--terraos-top-comfort));
+}
+
+@media (max-width: 980px) {
+  .hero {
+    padding-top: calc(var(--terraos-system-top-safe) + 6.4rem);
+  }
+}
+
+@media (max-width: 680px) {
+  .hero {
+    padding-top: calc(var(--terraos-system-top-safe) + 5.8rem);
+  }
+}

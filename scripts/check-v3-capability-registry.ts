@@ -152,7 +152,12 @@ for (const alias of V3_ORGANIZER_ROUTE_OWNERSHIP) {
   }
 }
 
-const expectedV3Flags = SOLARIS_FEATURE_FLAGS.filter((flag) => flag.startsWith("solaris_app_v3"));
+// Terra Solaris World is a new V3 public capability but intentionally owns a
+// distinct rollout key. Treat it as a canonical V3 product flag rather than
+// excluding it from ownership simply because its prefix is different.
+const expectedV3Flags = SOLARIS_FEATURE_FLAGS.filter(
+  (flag) => flag.startsWith("solaris_app_v3") || flag === "terra_world_public",
+);
 const mappedV3Flags = new Set([...V3_PUBLIC_FEATURE_FLAGS, ...V3_ORGANIZER_FEATURE_FLAGS]);
 const flagDiff = setDiff(expectedV3Flags, mappedV3Flags);
 if (flagDiff.missing.length || flagDiff.extra.length) {

@@ -1,0 +1,539 @@
+name: V3 #1872 no-regression certification
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-1872-no-regression-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+
+env:
+  VITE_SUPABASE_URL: http://127.0.0.1:54321
+  VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+  SUPABASE_URL: http://127.0.0.1:54321
+  SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+  SUPABASE_PROJECT_ID: local
+  SUPABASE_PROJECT_REF: local
+  VITE_SUPABASE_PROJECT_ID: local
+  VITE_SUPABASE_PROJECT_REF: local
+  V3_VERIFICATION_TARGET: local
+  VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+  VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+  CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+  CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_quality_ci_local_only
+
+jobs:
+  baseline-unit:
+    name: Exact main unit baseline
+    if: github.event.pull_request.number == 1872
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact base SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Capture exact Quality unit transcript
+        shell: bash
+        run: |
+          set +e
+          bun test 2>&1 | tee unit-test-output.txt
+          status=${PIPESTATUS[0]}
+          printf '%s\n' "$status" > unit-test-status.txt
+          exit 0
+
+      - name: Upload base transcript
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1872-base-unit-${{ github.event.pull_request.base.sha }}
+          path: |
+            unit-test-output.txt
+            unit-test-status.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  candidate-unit:
+    name: Exact #1872 unit candidate
+    if: github.event.pull_request.number == 1872
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Capture exact Quality unit transcript
+        shell: bash
+        run: |
+          set +e
+          bun test 2>&1 | tee unit-test-output.txt
+          status=${PIPESTATUS[0]}
+          printf '%s\n' "$status" > unit-test-status.txt
+          exit 0
+
+      - name: Upload candidate transcript
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1872-candidate-unit-${{ github.event.pull_request.head.sha }}
+          path: |
+            unit-test-output.txt
+            unit-test-status.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  compare-unit-delta:
+    name: Unit baseline-delta certification
+    if: github.event.pull_request.number == 1872
+    needs:
+      - baseline-unit
+      - candidate-unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact PR head comparator
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Download base transcript
+        uses: actions/download-artifact@v4
+        with:
+          name: v3-1872-base-unit-${{ github.event.pull_request.base.sha }}
+          path: baseline
+
+      - name: Download candidate transcript
+        uses: actions/download-artifact@v4
+        with:
+          name: v3-1872-candidate-unit-${{ github.event.pull_request.head.sha }}
+          path: candidate
+
+      - name: Reject deleted baseline test files
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          deleted="$(git diff --diff-filter=D --name-only "$BASE_SHA" "$HEAD_SHA" -- src | grep -E '\.test\.(ts|tsx|js|jsx)$' || true)"
+          if [ -n "$deleted" ]; then
+            echo "::error::Candidate deletes baseline test files:"
+            printf '%s\n' "$deleted"
+            exit 1
+          fi
+
+      - name: Compare deterministic failure identities
+        run: |
+          node scripts/compare-bun-test-failures.mjs \
+            baseline/unit-test-output.txt \
+            baseline/unit-test-status.txt \
+            candidate/unit-test-output.txt \
+            candidate/unit-test-status.txt \
+            v3-1872-no-regression.json
+
+      - name: Upload no-regression certification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1872-no-regression-${{ github.event.pull_request.head.sha }}
+          path: v3-1872-no-regression.json
+          if-no-files-found: error
+          retention-days: 14
+
+  baseline-lint:
+    name: Exact main independent lint baseline
+    if: github.event.pull_request.number == 1872
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact base SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Capture exact bun run lint baseline
+        shell: bash
+        run: |
+          set +e
+          bun run lint 2>&1 | tee lint-output.txt
+          status=${PIPESTATUS[0]}
+          printf '%s\n' "$status" > lint-status.txt
+          bunx eslint . -f json > eslint-diagnostic.json
+          printf '%s\n' "$?" > eslint-json-status.txt
+          exit 0
+
+      - name: Normalize blocking ESLint diagnostics
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const data = JSON.parse(fs.readFileSync('eslint-diagnostic.json', 'utf8'));
+          const errors = [];
+          for (const result of data) {
+            const file = path.relative(process.cwd(), result.filePath).replaceAll('\\', '/');
+            for (const message of result.messages ?? []) {
+              if (message.severity !== 2) continue;
+              errors.push({
+                file,
+                line: message.line ?? 1,
+                column: message.column ?? 1,
+                endLine: message.endLine ?? message.line ?? 1,
+                endColumn: message.endColumn ?? message.column ?? 1,
+                rule: message.ruleId ?? 'eslint',
+                message: String(message.message ?? 'ESLint diagnostic'),
+              });
+            }
+          }
+          errors.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+          fs.writeFileSync('eslint-errors.json', JSON.stringify(errors, null, 2) + '\n');
+          console.log(`Exact main blocking ESLint diagnostics: ${errors.length}`);
+          NODE
+
+      - name: Upload exact main lint evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1872-base-lint-${{ github.event.pull_request.base.sha }}
+          path: |
+            lint-output.txt
+            lint-status.txt
+            eslint-diagnostic.json
+            eslint-json-status.txt
+            eslint-errors.json
+          if-no-files-found: error
+          retention-days: 7
+
+  candidate-lint:
+    name: Exact #1872 independent lint candidate
+    if: github.event.pull_request.number == 1872
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Capture exact bun run lint candidate
+        shell: bash
+        run: |
+          set +e
+          bun run lint 2>&1 | tee lint-output.txt
+          status=${PIPESTATUS[0]}
+          printf '%s\n' "$status" > lint-status.txt
+          bunx eslint . -f json > eslint-diagnostic.json
+          printf '%s\n' "$?" > eslint-json-status.txt
+          exit 0
+
+      - name: Normalize blocking ESLint diagnostics
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const data = JSON.parse(fs.readFileSync('eslint-diagnostic.json', 'utf8'));
+          const errors = [];
+          for (const result of data) {
+            const file = path.relative(process.cwd(), result.filePath).replaceAll('\\', '/');
+            for (const message of result.messages ?? []) {
+              if (message.severity !== 2) continue;
+              errors.push({
+                file,
+                line: message.line ?? 1,
+                column: message.column ?? 1,
+                endLine: message.endLine ?? message.line ?? 1,
+                endColumn: message.endColumn ?? message.column ?? 1,
+                rule: message.ruleId ?? 'eslint',
+                message: String(message.message ?? 'ESLint diagnostic'),
+              });
+            }
+          }
+          errors.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+          fs.writeFileSync('eslint-errors.json', JSON.stringify(errors, null, 2) + '\n');
+          console.log(`Exact candidate blocking ESLint diagnostics: ${errors.length}`);
+          NODE
+
+      - name: Upload exact candidate lint evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1872-candidate-lint-${{ github.event.pull_request.head.sha }}
+          path: |
+            lint-output.txt
+            lint-status.txt
+            eslint-diagnostic.json
+            eslint-json-status.txt
+            eslint-errors.json
+          if-no-files-found: error
+          retention-days: 7
+
+  compare-lint-delta:
+    name: Independent lint no-regression certification
+    if: github.event.pull_request.number == 1872
+    needs:
+      - baseline-lint
+      - candidate-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download exact main lint evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: v3-1872-base-lint-${{ github.event.pull_request.base.sha }}
+          path: baseline
+
+      - name: Download exact candidate lint evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: v3-1872-candidate-lint-${{ github.event.pull_request.head.sha }}
+          path: candidate
+
+      - name: Compare blocking ESLint diagnostic identities
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const baseline = JSON.parse(fs.readFileSync('baseline/eslint-errors.json', 'utf8'));
+          const candidate = JSON.parse(fs.readFileSync('candidate/eslint-errors.json', 'utf8'));
+          const key = (entry) => JSON.stringify(entry);
+          const baseKeys = new Set(baseline.map(key));
+          const candidateKeys = new Set(candidate.map(key));
+          const shared = candidate.filter((entry) => baseKeys.has(key(entry)));
+          const introduced = candidate.filter((entry) => !baseKeys.has(key(entry)));
+          const resolved = baseline.filter((entry) => !candidateKeys.has(key(entry)));
+          const report = {
+            baseSha: '${{ github.event.pull_request.base.sha }}',
+            candidateSha: '${{ github.event.pull_request.head.sha }}',
+            mainErrors: baseline.length,
+            candidateErrors: candidate.length,
+            sharedInheritedErrors: shared.length,
+            newCandidateErrors: introduced.length,
+            resolvedInheritedErrors: resolved.length,
+            introduced,
+            resolved,
+          };
+          fs.writeFileSync('v3-1872-lint-no-regression.json', JSON.stringify(report, null, 2) + '\n');
+          console.log(`Main lint errors: ${report.mainErrors}`);
+          console.log(`#1872 lint errors: ${report.candidateErrors}`);
+          console.log(`Shared inherited lint errors: ${report.sharedInheritedErrors}`);
+          console.log(`New #1872 lint errors: ${report.newCandidateErrors}`);
+          console.log(`Resolved inherited lint errors: ${report.resolvedInheritedErrors}`);
+          if (introduced.length > 0) {
+            for (const error of introduced) {
+              console.log(`::error file=${error.file},line=${error.line},col=${error.column},title=${error.rule}::${error.message.replaceAll('%', '%25').replaceAll('\\r', '%0D').replaceAll('\\n', '%0A')}`);
+            }
+            process.exit(1);
+          }
+          NODE
+
+      - name: Upload independent lint no-regression certification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1872-lint-no-regression-${{ github.event.pull_request.head.sha }}
+          path: v3-1872-lint-no-regression.json
+          if-no-files-found: error
+          retention-days: 14
+
+  candidate-owned-gates:
+    name: #1872 targeted contracts and production-sensitive gates
+    if: github.event.pull_request.number == 1872
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate and fetch exact base
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$BASE_SHA"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run every test file added or modified by #1872
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- src \
+            | grep -E '\.test\.(ts|tsx|js|jsx)$' \
+            | sort -u > v3-1872-targeted-tests.txt
+          if [ ! -s v3-1872-targeted-tests.txt ]; then
+            echo "::error::No #1872-owned test files were discovered. Refusing empty targeted certification."
+            exit 1
+          fi
+          mapfile -t tests < v3-1872-targeted-tests.txt
+          printf 'Running %s #1872-owned test files\n' "${#tests[@]}"
+          bun test "${tests[@]}"
+
+      - name: Verify V3 production isolation
+        run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Enforce V3 capability status transitions
+        shell: bash
+        env:
+          V3_STATUS_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: bun run scripts/check-v3-capability-status-transitions.ts
+
+      - name: Enforce V3 capability and system registries
+        run: bun run certify:v3-registry
+
+      - name: Enforce V3 non-route discovery registries
+        run: bun run scripts/check-v3-non-route-capabilities.ts
+
+      - name: Enforce System V3 S1 dependency and consequence registries
+        run: bun run scripts/check-v3-system-s1-registries.ts
+
+      - name: Enforce structural V3 release integrity
+        run: bun run scripts/check-v3-release-integrity.ts
+
+      - name: Force fresh route generation
+        run: rm -f src/routeTree.gen.ts
+
+      - name: Production build
+        run: bun run build
+
+      - name: Enforce client performance budget
+        run: bun run budget:client
+
+      - name: Verify generated route tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s src/routeTree.gen.ts
+          if git ls-files --error-unmatch src/routeTree.gen.ts >/dev/null 2>&1; then
+            echo "::error::src/routeTree.gen.ts must remain generated and untracked"
+            exit 1
+          fi
+          git check-ignore -q src/routeTree.gen.ts
+
+      - name: TypeScript
+        run: bun run typecheck
+
+      - name: Verify certification did not mutate tracked source
+        run: git diff --exit-code -- .
+
+      - name: Upload targeted contract manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-1872-targeted-tests-${{ github.event.pull_request.head.sha }}
+          path: v3-1872-targeted-tests.txt
+          if-no-files-found: error
+          retention-days: 14

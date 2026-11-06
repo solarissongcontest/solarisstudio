@@ -25,7 +25,11 @@ describe("offline shell canonical root mapping", () => {
   });
 
   it("rejects protocol-relative and backslash paths from saved offline navigation", () => {
-    expect(offlineShell).toContain('!item.path.startsWith("//")');
-    expect(offlineShell).toContain('!item.path.includes("\\\\")');
+    // Cached public rows now pass through a strict display-time allowlist.
+    // The old two prefix checks were insufficient for private/encoded paths.
+    expect(offlineShell).toContain('candidate.startsWith("//")');
+    expect(offlineShell).toContain('decoded.includes("\\\\")');
+    expect(offlineShell).toContain('!isSafeOfflinePublicPath(item.path)');
+    expect(offlineShell).toContain('return OFFLINE_PUBLIC_DETAILS.some((pattern) => pattern.test(candidate))');
   });
 });

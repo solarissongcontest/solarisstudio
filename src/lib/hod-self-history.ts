@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
+import { assertOwnedHistoryCountry, scopedOwnedHistoryQueryKey } from "@/lib/owned-history-scope";
+import { useOwnedHistoryScope } from "@/lib/owned-history-scope-runtime";
 
 const supabase = typedSupabase as any;
 
@@ -19,14 +21,17 @@ export type OwnedHodHistory = {
   editions: OwnedHodEdition[];
 };
 
-export function useOwnedHodHistory(enabled = true) {
+export function useOwnedHodHistory(enabled = true, expectedViewerId?: string) {
+  const scope = useOwnedHistoryScope(expectedViewerId);
   return useQuery({
-    enabled,
-    queryKey: ["owned-hod-edition-history"],
+    enabled: enabled && scope !== null,
+    queryKey: scopedOwnedHistoryQueryKey("owned-hod-edition-history", scope),
     queryFn: async () => {
+      if (!scope) throw new Error("Verified delegation access is required for history.");
       const { data, error } = await supabase.rpc("owned_hod_edition_history");
       if (error) throw error;
-      const value = (data ?? {}) as Partial<OwnedHodHistory>;
+      assertOwnedHistoryCountry(data, scope);
+      const value = data as Partial<OwnedHodHistory>;
       return {
         country_id: String(value.country_id ?? ""),
         auto_assign_future: value.auto_assign_future !== false,
