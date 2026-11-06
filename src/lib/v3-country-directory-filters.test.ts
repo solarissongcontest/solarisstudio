@@ -146,7 +146,8 @@ describe("V3 countries directory filters", () => {
     expect(source).not.toContain("countriesQuery.isLoading || editionsQuery.isLoading");
     expect(source).not.toContain("countriesQuery.isError || editionsQuery.isError");
     expect(source).not.toContain("(participatingOnly && pendingCurrentParticipants)");
-    expect(source).not.toContain("(participatingOnly && participantsQuery.isError)");
+    // The error-triggered effect resets the requested scope; it is not a full-page error gate.
+    expect(source).toContain("if (participatingOnly && participantsQuery.isError) setParticipatingOnly(false)");
     expect(source).toContain("disabled={!currentLineupReady}");
     expect(source).toContain("Retry lineup");
     expect(source).toContain("You can still browse all countries.");
