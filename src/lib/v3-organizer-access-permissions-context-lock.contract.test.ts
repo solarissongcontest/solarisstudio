@@ -43,6 +43,15 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).toContain("if (!editionContextVerified) {");
   });
 
+  it("visibly disables the R3 approvals queue on unverified or refreshing edition context", () => {
+    expect(route).toContain("actionsAvailable={editionContextVerified}");
+    expect(route).toContain("actionsAvailable: boolean;");
+    expect(route).toContain("disabled={!actionsAvailable}");
+    expect(route).toContain("Scope verification required");
+    expect(route).toContain("R3 approval actions are paused until the Organizer edition context can be verified.");
+    expect(route).toContain("if (!editionContextVerified) return;");
+  });
+
   it("does not reinterpret stale edition context as a global permission evaluation", () => {
     expect(route).toContain(
       'editionId ? (resolvedEditionId || "unverified") : "global"',
