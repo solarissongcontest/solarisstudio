@@ -89,18 +89,19 @@ test("desktop website collapse control references and restores its actual naviga
 
   await expect(sidebar).toBeVisible();
   await expect(toggle).toBeVisible();
-  await expect(body).toBeVisible();
 
   const controlledId = await toggle.getAttribute("aria-controls");
   expect(controlledId).toBeTruthy();
   await expect(body).toHaveAttribute("id", controlledId!);
-  await expect(toggle).toHaveAttribute("aria-expanded", "true");
-
-  await toggle.click();
+  // Data-explorer navigation intentionally starts collapsed after hydration.
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(body).toBeHidden();
 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect(body).toBeVisible();
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(body).toBeHidden();
 });
