@@ -25,6 +25,8 @@ import {
 } from "@/lib/app-search-state";
 import type { AccountAccess } from "@/lib/country-account";
 import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
+import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
+import { canSuggestDelegationSearchActions } from "@/lib/public-search-action-visibility";
 import {
   editionLabel,
   useAllJuryVotes,
@@ -501,17 +503,12 @@ function WebPublicPaletteDialog({
   const normalized = query.trim();
 
   const actionResults = useMemo<PublicSearchResult[]>(() => {
-    const currentEdition =
-      editions.find(
-        (edition) =>
-          !["complete", "completed", "finished"].includes(
-            String(edition.status ?? "").toLowerCase(),
-          ),
-      ) ??
-      editions[0] ??
-      null;
-    const myCountry = access?.countryId
-      ? countries.find((country) => country.id === access.countryId) ?? null
+    // Reuse published contest selection; an unpublished edition or a locally
+    // guessed lifecycle must never become a Search shortcut.
+    const currentEdition = resolveCurrentPublicEdition(editions);
+    const canOpenDelegation = canSuggestDelegationSearchActions(access);
+    const myCountry = canOpenDelegation
+      ? countries.find((country) => country.id === access!.countryId) ?? null
       : null;
 
     return [
@@ -527,14 +524,16 @@ function WebPublicPaletteDialog({
             },
           ]
         : []),
-      {
-        id: "action:confirmation",
-        label: "Continue confirmation",
-        description: "Open the current country confirmation workflow.",
-        href: "/confirmations",
-        group: "Actions",
-        keywords: "confirmation participate country entry",
-      },
+      ...(canOpenDelegation
+        ? [{
+            id: "action:confirmation",
+            label: "Continue confirmation",
+            description: "Open your country confirmation workflow.",
+            href: "/confirmations",
+            group: "Actions",
+            keywords: "confirmation participate country entry",
+          }]
+        : []),
       ...(myCountry
         ? [
             {
@@ -572,7 +571,7 @@ function WebPublicPaletteDialog({
         keywords: "all pages site directory sitemap browse",
       },
     ];
-  }, [access?.countryId, countries, editions]);
+  }, [access, countries, editions]);
 
   const visibleRecents = usePublicationSafeRecents();
   const recentResults = useMemo<PublicSearchResult[]>(
