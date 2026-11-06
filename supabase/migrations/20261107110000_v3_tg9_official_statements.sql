@@ -147,12 +147,14 @@ begin
     raise exception using errcode = '22023', message = 'VALIDATION';
   end if;
 
-  if not exists (
-    select 1 from public.world_organizations org
+  -- Lock institutional publishability through the transaction: a concurrent
+  -- dissolution/private-transition cannot race a formal publication.
+  perform 1 from public.world_organizations org
     where org.id = p_organization_id
       and org.status in ('recognized','active')
       and org.public_visibility = 'public'
-  ) then
+    for share;
+  if not found then
     raise exception using errcode = '23514', message = 'ORGANIZATION_NOT_PUBLISHABLE';
   end if;
 
@@ -178,7 +180,7 @@ begin
       and term.status = 'active'
       and term.started_at <= now()
       and term.actual_end_at is null
-    limit 1;
+    limit 1 for share of term, office_row;
     if v_office_person is null then
       raise exception using errcode = '42501', message = 'ISSUING_OFFICE_NOT_HELD';
     end if;
