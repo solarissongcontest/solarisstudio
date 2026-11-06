@@ -135,6 +135,17 @@ describe("TG3 public institution bodies", () => {
     expect(mockFrom).toHaveBeenCalledTimes(1);
     expect(org.eq).toHaveBeenCalledWith("public_visibility", "public");
   });
+  it("passes cancellation through the public parent lookup and body detail lookup", async () => {
+    const controller = new AbortController();
+    const org = chain({ data: parent, error: null });
+    const body = chain({ data: organ, error: null });
+    mockFrom.mockImplementation((name: string) =>
+      name === "world_organizations" ? org : body);
+    const result = await readPublicWorldBody("guard", "gag", controller.signal);
+    expect(result?.body.slug).toBe("gag");
+    expect(org.abortSignal).toHaveBeenCalledWith(controller.signal);
+    expect(body.abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
   it("reads a body under the exact public parent and publication predicate", async () => {
     const org = chain({ data: parent, error: null });
     const body = chain({ data: organ, error: null });
@@ -292,6 +303,15 @@ describe("TG3 institution body offices", () => {
     expect(query.select).toHaveBeenCalledWith("id,organization_id,organ_id,title,office_type,active");
   });
 
+  it("cancels bounded public office requests when their page unmounts", async () => {
+    const controller = new AbortController();
+    const query = chain({});
+    query.limit.mockResolvedValue({ data: [office], error: null });
+    mockFrom.mockReturnValue(query);
+    const rows = await readPublicBodyOffices(publicParent, publicBody, controller.signal);
+    expect(rows).toHaveLength(1);
+    expect(query.abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
   it("fails closed on foreign office payloads or malformed arrays", async () => {
     const query = chain({});
     query.limit = vi.fn().mockResolvedValue({ data: [{ ...office, organ_id: "secret" }], error: null });
