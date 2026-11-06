@@ -64,7 +64,7 @@ export function CountryMobileWebMasthead({
         <div className="mt-4">
           <p
             id={descriptionId}
-            className="country-mobile-web-description text-sm leading-6 text-muted-foreground"
+            className={`country-mobile-web-description text-sm leading-6 text-muted-foreground${hasLongDescription && !descriptionExpanded ? " line-clamp-3" : ""}`}
             data-collapsed={hasLongDescription && !descriptionExpanded ? "true" : undefined}
           >
             {identity.description}
