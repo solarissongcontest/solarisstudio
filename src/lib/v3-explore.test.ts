@@ -158,6 +158,29 @@ describe("V3 Explore projection", () => {
     ]);
   });
 
+  it("converges Wiki and Encyclopedia into one discoverable Reference destination", () => {
+    const projection = buildV3ExploreRootProjection(rootInput());
+    expect(projection.archive.links).toEqual([
+      { key: "editions", label: "Editions", href: "/editions/" },
+      { key: "reference", label: "Reference", href: "/wiki" },
+    ]);
+    // A separately gated Reference deployment must not be assumed to be on.
+    // A Wiki compatibility route remains usable until that rollout is available.
+    expect(projection.archive.links).not.toContainEqual(
+      expect.objectContaining({ key: "encyclopedia" }),
+    );
+  });
+
+  it("uses an explicitly enabled canonical Reference route without duplicating the archive choice", () => {
+    const projection = buildV3ExploreRootProjection(
+      rootInput({ routes: { ...routes, reference: "/encyclopedia" } }),
+    );
+    expect(projection.archive.links).toEqual([
+      { key: "editions", label: "Editions", href: "/editions/" },
+      { key: "reference", label: "Reference", href: "/encyclopedia" },
+    ]);
+  });
+
   it("makes core public tools discoverable without exposing Live outside canonical live state", () => {
     const preShow = buildV3ExploreRootProjection(rootInput());
 
@@ -179,6 +202,23 @@ describe("V3 Explore projection", () => {
     expect(live.more[0]).toEqual({ key: "live", label: "Live", href: "/show-mode" });
     expect(live.more).toContainEqual({ key: "results", label: "Results", href: "/results" });
     expect(live.more).toContainEqual({ key: "rules", label: "Rules", href: "/rules" });
+  });
+
+  it("links to the already public Prediction Arena without inventing game availability", () => {
+    const projection = buildV3ExploreRootProjection(
+      rootInput({ routes: { ...routes, predictions: "/predictions" } }),
+    );
+
+    expect(projection.more).toContainEqual({
+      key: "predictions",
+      label: "Predictions",
+      href: "/predictions",
+    });
+    // Fantasy requires a separate rollout decision; Explore must not imply
+    // the game is available without server-owned evidence.
+    expect(projection.more).not.toContainEqual(
+      expect.objectContaining({ key: "fantasy" }),
+    );
   });
 
   it("keeps result-analysis tools owned by Results rather than Explore", () => {

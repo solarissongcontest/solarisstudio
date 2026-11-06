@@ -1,81 +1,59 @@
 import { readFileSync } from "node:fs";
-
 import { describe, expect, it } from "vitest";
+import { SOLARIS_ROLE_PRESETS } from "./role-presets";
 
-const auth = readFileSync(
-  "src/integrations/televoting/private-analysis-auth.server.ts",
-  "utf8",
-);
-const analytics = readFileSync(
-  "src/integrations/televoting/analytics.functions.ts",
-  "utf8",
-);
-const intelligence = readFileSync(
-  "src/integrations/televoting/intelligence.functions.ts",
-  "utf8",
-);
-const rolePresets = readFileSync("src/lib/role-presets.ts", "utf8");
+const read = (file: string) => readFileSync(file, "utf8");
+const auth = read("src/integrations/televoting/private-analysis-auth.server.ts");
+const analytics = read("src/integrations/televoting/analytics.functions.ts");
+const intelligence = read("src/integrations/televoting/intelligence.functions.ts");
 
-describe("Organizer V3 private voting analysis authorization", () => {
-  it("requires the complete cross-channel privacy bundle from one authoritative context", () => {
+function handlerBody(source: string, name: string) {
+  const start = source.indexOf(`export const ${name}`);
+  if (start < 0) throw new Error(`Missing server function ${name}`);
+  const next = source.indexOf("\nexport const ", start + 1);
+  return source.slice(start, next < 0 ? undefined : next);
+}
+
+describe("Organizer private cross-channel voting analysis", () => {
+  it("requires Televote, jury and integrity reads from one authenticated global scope", () => {
     expect(auth).toContain('"televote.ballots.read"');
     expect(auth).toContain('"jury.ballots.read"');
     expect(auth).toContain('"integrity.read"');
     expect(auth).toContain("await getSolarisCapabilitiesServer(null)");
     expect(auth).toContain("context.capabilities.includes(capability)");
     expect(auth).not.toContain("requireMergedTelevotingAdminServer");
-  });
-
-  it("matches the existing votingSupervisor least-privilege preset", () => {
-    const presetStart = rolePresets.indexOf("votingSupervisor: [");
-    const presetEnd = rolePresets.indexOf("],", presetStart);
-    const preset = rolePresets.slice(presetStart, presetEnd);
-
-    expect(preset).toContain("'jury.ballots.read'");
-    expect(preset).toContain("'televote.ballots.read'");
-    expect(preset).toContain("'integrity.read'");
-  });
-
-  it("guards Analytics before importing its raw cross-channel engine", () => {
-    const guard = analytics.indexOf("await requirePrivateVotingAnalysisServer();");
-    const engine = analytics.indexOf(
-      '"@/integrations/televoting/analytics.server"',
-    );
-
-    expect(guard).toBeGreaterThan(-1);
-    expect(engine).toBeGreaterThan(guard);
-  });
-
-  it("guards every public Intelligence server-function entry before analysis work", () => {
-    for (const exportedName of [
-      "getMergedTelevotingIntelligence",
-      "getLightweightFriendVotingIntelligence",
-      "getFriendVotingCoordination",
-    ]) {
-      const start = intelligence.indexOf(`export const ${exportedName}`);
-      expect(start, exportedName).toBeGreaterThan(-1);
-      const next = intelligence.indexOf("export const ", start + 1);
-      const block = intelligence.slice(start, next === -1 ? undefined : next);
-      const guard = block.indexOf("await requirePrivateAnalysis();");
-
-      expect(guard, exportedName).toBeGreaterThan(-1);
+    for (const capability of ["televote.ballots.read", "jury.ballots.read", "integrity.read"] as const) {
+      expect(SOLARIS_ROLE_PRESETS.votingSupervisor).toContain(capability);
     }
   });
 
-  it("keeps capability resolution ahead of settings, network, and analysis imports", () => {
-    const firstHandler = intelligence.indexOf(
-      "export const getMergedTelevotingIntelligence",
-    );
-    const firstGuard = intelligence.indexOf(
-      "await requirePrivateAnalysis();",
-      firstHandler,
-    );
-    const resilientCall = intelligence.indexOf(
-      "getResilientFriendVotingIntelligence(data)",
-      firstHandler,
-    );
+  it("authorizes scoped Analytics before importing its privileged engine", () => {
+    const code = handlerBody(analytics, "getMergedScopedAnalytics");
+    expect(code).toContain("await requirePrivateVotingAnalysisServer()");
+    expect(code.indexOf("await requirePrivateVotingAnalysisServer()"))
+      .toBeLessThan(code.indexOf('import("@/integrations/televoting/analytics.server")'));
+  });
 
-    expect(firstGuard).toBeGreaterThan(firstHandler);
-    expect(resilientCall).toBeGreaterThan(firstGuard);
+  it.each([
+    "getMergedTelevotingIntelligence",
+    "getLightweightFriendVotingIntelligence",
+    "getFriendVotingCoordination",
+  ])("authorizes %s before private analysis starts", (name) => {
+    const code = handlerBody(intelligence, name);
+    const gate = code.indexOf("await requirePrivateAnalysis()");
+    expect(gate).toBeGreaterThan(-1);
+    const privateActions = [
+      "getResilientFriendVotingIntelligence(data)",
+      'import("@/integrations/televoting/coordination-groups.server")',
+      'import("@/integrations/televoting/friend-voting-settings.server")',
+    ].map((needle) => code.indexOf(needle)).filter((x) => x >= 0);
+    expect(privateActions.length).toBeGreaterThan(0);
+    expect(gate).toBeLessThan(Math.min(...privateActions));
+  });
+
+  it("keeps all adapters observational and away from result/ballot mutations", () => {
+    for (const file of [analytics, intelligence, auth]) {
+      expect(file).not.toMatch(/\.insert\(|\.update\(|\.upsert\(|\.delete\(/);
+    }
   });
 });

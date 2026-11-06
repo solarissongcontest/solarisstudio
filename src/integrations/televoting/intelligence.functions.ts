@@ -37,6 +37,13 @@ const normalizeInput = (data?: IntelligenceInput) => ({
   editionId: data?.editionId ? String(data.editionId) : null,
 });
 
+async function requirePrivateAnalysis() {
+  const { requirePrivateVotingAnalysisServer } = await import(
+    "@/integrations/televoting/private-analysis-auth.server"
+  );
+  await requirePrivateVotingAnalysisServer();
+}
+
 const emptyCoordination = (warning: string | null = null): CoordinationPayload => ({
   groups: [],
   edges: [],
@@ -51,13 +58,6 @@ const emptyCoordination = (warning: string | null = null): CoordinationPayload =
   analysisDegraded: Boolean(warning),
   analysisWarning: warning,
 });
-
-async function requirePrivateAnalysis() {
-  const { requirePrivateVotingAnalysisServer } = await import(
-    "@/integrations/televoting/private-analysis-auth.server"
-  );
-  return requirePrivateVotingAnalysisServer();
-}
 
 function sanitizeResultForScope(result: any, scope: NormalizedInput) {
   const stats = { ...result.stats };
@@ -172,7 +172,6 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
     await requirePrivateAnalysis();
-
     const resilient = await getResilientFriendVotingIntelligence(data);
     const { result, settings, effectiveScope } = resilient;
     let coordination: CoordinationPayload = emptyCoordination();
@@ -217,7 +216,6 @@ export const getLightweightFriendVotingIntelligence = createServerFn({ method: "
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
     await requirePrivateAnalysis();
-
     const resilient = await getResilientFriendVotingIntelligence(data);
     const { result, settings } = resilient;
     const allRelationships = result.relationships;
@@ -238,7 +236,6 @@ export const getFriendVotingCoordination = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
     await requirePrivateAnalysis();
-
     if (data.lens !== "hod") return emptyCoordination();
 
     if (!data.editionId && !data.hodPersonId) {
