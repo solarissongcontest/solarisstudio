@@ -472,8 +472,12 @@ function ConfirmationResponsesList() {
         if (roundId !== "all" && row.submission_rounds?.id !== roundId) return false;
         if (!matchesFilter(row, filter)) return false;
         if (!term) return true;
-        const internal = row.internal_entries;
-        const nfEntries = row.national_finals?.national_final_entries ?? [];
+        // Search only the currently participating, known Entry selection;
+        // retained historical metadata must not masquerade as a live song.
+        const internal = row.participating && row.selection_method === "internal" &&
+          !row.entry_unknown ? row.internal_entries : null;
+        const nfEntries = row.participating && row.selection_method === "national_final" &&
+          !row.nf_entries_unknown ? activeNfEntries(row) : [];
         return [
           row.country,
           row.instagram_username,
@@ -730,15 +734,21 @@ function ConfirmationResponsesList() {
         <section className="grid gap-3 lg:grid-cols-2">
           {filtered.map((row) => {
             const state = responseCardState(row);
-            const internal = row.internal_entries;
-            const nf = row.national_finals;
-            const activeEntries = activeNfEntries(row);
+            const internal = row.selection_method === "internal" && !row.entry_unknown
+              ? row.internal_entries : null;
+            const nf = row.selection_method === "national_final" && !row.nf_entries_unknown
+              ? row.national_finals : null;
+            const activeEntries = nf ? activeNfEntries(row) : [];
             const entrySummary = !row.participating
               ? "Not participating"
               : row.selection_method === "internal"
-                ? internal?.song_title ? `${internal.artist || "Unknown artist"} — ${internal.song_title}` : "Internal entry not decided yet"
+                ? internal?.song_title?.trim()
+                  ? `${internal.artist || "Unknown artist"} — ${internal.song_title}`
+                  : "Current internal Entry not confirmed yet"
                 : row.selection_method === "national_final"
-                  ? `${nf?.nf_name || "National Final"} · ${activeEntries.length} ${activeEntries.length === 1 ? "entry" : "entries"}`
+                  ? row.nf_entries_unknown
+                    ? "Current National Final candidates not confirmed yet"
+                    : `${nf?.nf_name || "National Final"} · ${activeEntries.length} ${activeEntries.length === 1 ? "entry" : "entries"}`
                   : "Selection method not submitted yet";
             return (
               <AdminCard key={row.id} className={`!p-4 transition-shadow ${cardGlow(state)}`}>
