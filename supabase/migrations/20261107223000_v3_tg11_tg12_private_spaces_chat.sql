@@ -279,8 +279,8 @@ as $$
     where public.studio2_feature_enabled('terra_private_spaces',null)
       and (
         private.world_space_member_since_v1(o.id) is not null
-        or public.world_access_allowed('world.space.manage',o.id)
-        or public.world_access_allowed('world.organization.settings.manage',o.id)
+        or (public.studio2_access_allowed('system.manage',null,false) and
+          public.world_access_allowed('world.space.manage',o.id))
       )
     limit 100
   ) q
@@ -299,7 +299,8 @@ begin
   if not found then return null; end if;
   v_manage := public.world_access_allowed('world.space.manage',v_org.id)
     or public.world_access_allowed('world.organization.settings.manage',v_org.id);
-  if private.world_space_member_since_v1(v_org.id) is null and not v_manage
+  if private.world_space_member_since_v1(v_org.id) is null
+     and not public.studio2_access_allowed('system.manage',null,false)
   then return null; end if;
   return jsonb_build_object('organizationId',v_org.id,
     'name',v_org.short_name,'canManage',v_manage);
@@ -320,6 +321,9 @@ begin
   then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
   if not public.studio2_feature_enabled('terra_private_spaces',null) then
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
+  if private.world_space_member_since_v1(p_organization_id) is null
+     and not public.studio2_access_allowed('system.manage',null,false) then
+    raise exception using errcode='42501',message='MEMBERSHIP_REVOKED'; end if;
   if p_request_id is null or length(btrim(coalesce(p_name,''))) not between 1 and 100
      or p_visibility not in ('members','leadership','organ','custom')
      or p_history not in ('from_join','all_member_history','custom')
@@ -358,6 +362,9 @@ begin
   then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
   if not public.studio2_feature_enabled('terra_private_spaces',null) then
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
+  if private.world_space_member_since_v1(v_space.organization_id) is null
+     and not public.studio2_access_allowed('system.manage',null,false) then
+    raise exception using errcode='42501',message='MEMBERSHIP_REVOKED'; end if;
   if p_user_id is null or p_role not in ('member','moderator')
   then raise exception using errcode='22023', message='VALIDATION'; end if;
   if p_active then
