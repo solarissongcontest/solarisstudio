@@ -26,6 +26,7 @@ import {
   type ConfirmationEditScope,
 } from "@/lib/confirmation-edit-scope";
 import { useCountries, useEditions } from "@/lib/data";
+import { useFanSession } from "@/lib/prediction-data";
 import {
   buildEntryReadinessModel,
   type EntryReadinessStatus,
@@ -82,12 +83,17 @@ export function MySolarisEntryModule() {
       ? locationSearch.country
       : undefined;
   const account = useMyCountryAccount();
+  const session = useFanSession();
   const queryClient = useQueryClient();
   const countries = useCountries();
   const allEditions = useEditions();
-  const access = account.data?.access;
+  // A cached private account must never be projected under a different session.
+  const access =
+    session.data?.id && account.data?.access.userId === session.data.id
+      ? account.data.access
+      : undefined;
   const actorId = access?.userId ?? null;
-  const ownCountry = account.data?.country;
+  const ownCountry = access ? account.data?.country : null;
   const organizerInspection = Boolean(access?.isOrganizer && targetCountryId);
   const organizerCountry = organizerInspection
     ? (countries.data ?? []).find((candidate) => candidate.id === targetCountryId)
@@ -256,6 +262,8 @@ export function MySolarisEntryModule() {
   }, [workspaceQuery.data]);
 
   if (
+    session.isPending ||
+    account.isPending ||
     featureQuery.isLoading ||
     account.isLoading ||
     (targetCountryId && access?.isOrganizer && countries.isLoading)
@@ -269,7 +277,14 @@ export function MySolarisEntryModule() {
     );
   }
 
-  if (account.isError || featureQuery.isError) {
+  if (
+    session.isError ||
+    account.isError ||
+    featureQuery.isError ||
+    allEditions.isError ||
+    (targetCountryId && access?.isOrganizer && countries.isError) ||
+    (session.data?.id && account.data && account.data.access.userId !== session.data.id)
+  ) {
     return (
       <AppShell>
         <PageHeader
@@ -279,7 +294,7 @@ export function MySolarisEntryModule() {
           actions={
             <button
               type="button"
-              onClick={() => { void account.refetch(); void featureQuery.refetch(); }}
+              onClick={() => { void session.refetch(); void account.refetch(); void featureQuery.refetch(); void countries.refetch(); void allEditions.refetch(); }}
               className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold"
             >
               Retry access check
@@ -494,7 +509,18 @@ export function MySolarisEntryModule() {
                     </div>
                   )}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {currentConfirmation?.can_edit && !organizerInspection ? (
+                    {confirmationAccessQuery.isError && !organizerInspection ? (
+                      <div role="alert" className="rounded-xl border border-destructive/20 bg-destructive/[0.06] p-3 text-xs">
+                        <p>Confirmation edit permissions could not be verified. No submission status was changed.</p>
+                        <button
+                          type="button"
+                          className="mt-2 min-h-10 rounded-lg border border-border px-3 font-semibold"
+                          onClick={() => { void confirmationAccessQuery.refetch(); }}
+                        >
+                          Retry Confirmation access
+                        </button>
+                      </div>
+                    ) : currentConfirmation?.can_edit && !organizerInspection ? (
                       <button
                         type="button"
                         disabled={editConfirmation.isPending || !editScopeInput.authorized}
