@@ -31,6 +31,8 @@ describe("V3 Search shared-device recent publication", () => {
       { path: "/editions/%2Fhidden" },
       { path: "/stories/%00private" },
       { path: "/editions/ssc22/private" },
+      { path: "/editions/%2e%2e" },
+      { path: "/stories/%2e" },
       { path: "/stories/%E0%A4%A" },
       { path: "/editions/ssc21/" },
     ])).toEqual({ editionSlugs: ["ssc21"], storySlugs: [] });
