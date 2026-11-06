@@ -22,7 +22,8 @@ describe('V3 Organizer exact-source media review preview', () => {
     expect(route).toContain('reason: reviewReason.trim()');
     expect(route).toContain('assetKey: item.assetKey');
     expect(route).toContain('sourceFingerprint: item.sourceFingerprint!');
-    expect(route).toContain('Source fingerprint: {item.sourceFingerprint}');
+    expect(route).toContain('Source identity: {describeOrganizerMediaSource(item.sourceUrl)}');
+    expect(route).not.toContain('Source fingerprint: {item.sourceFingerprint}');
   });
 
   it('fails closed when a reviewed source changes before apply', () => {

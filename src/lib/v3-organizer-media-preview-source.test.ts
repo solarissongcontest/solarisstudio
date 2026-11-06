@@ -64,10 +64,10 @@ describe("Organizer Media Review opt-in external preview", () => {
   });
   it("rejects control characters before browser URL normalization", () => {
     for (const url of [
-      "https://cdn.example.test/a\\n@evil.example/image.jpg",
-      "https://cdn.example.test/a\\t.jpg",
-      "https://cdn.example.test/file.jpg\\r",
-      "\\nhttps://cdn.example.test/file.jpg",
+      "https://cdn.example.test/a\n@evil.example/image.jpg",
+      "https://cdn.example.test/a\t.jpg",
+      "https://cdn.example.test/file.jpg\r",
+      "\nhttps://cdn.example.test/file.jpg",
     ]) {
       expect(resolveOrganizerMediaPreviewSource(url, "artist_photo")).toBeNull();
     }

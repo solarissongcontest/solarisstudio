@@ -15,6 +15,15 @@ const imageExtensions = new Set(["png", "jpg", "jpeg", "webp", "gif", "avif"]);
 const audioExtensions = new Set(["mp3", "m4a", "wav", "ogg", "flac"]);
 const videoExtensions = new Set(["mp4", "webm", "mov"]);
 
+/** Avoid URL normalizers silently discarding newline, tab or other control characters. */
+function hasOrganizerMediaUrlControlCharacters(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 0x1f || code === 0x7f) return true;
+  }
+  return false;
+}
+
 /**
  * A source is an untrusted URL even when its identity is in an authorized
  * Organizer projection. Never render javascript:, data:, blob: or relative
@@ -28,7 +37,7 @@ export function resolveOrganizerMediaPreviewSource(
   sourceUrl: string | null | undefined,
   assetType: MediaAssetType,
 ): OrganizerMediaPreviewSource | null {
-  if (sourceUrl && /[\u0000-\u001f\u007f]/.test(sourceUrl)) return null;
+  if (sourceUrl && hasOrganizerMediaUrlControlCharacters(sourceUrl)) return null;
   const trimmed = sourceUrl?.trim();
   if (!trimmed) return null;
   try {
@@ -63,7 +72,7 @@ export function describeOrganizerMediaSource(
   sourceUrl: string | null | undefined,
 ): string {
   if (!sourceUrl?.trim()) return "No source supplied";
-  if (/[\u0000-\u001f\u007f]/.test(sourceUrl)) return "Source link requires inspection";
+  if (hasOrganizerMediaUrlControlCharacters(sourceUrl)) return "Source link requires inspection";
   try {
     const source = new URL(sourceUrl.trim());
     if ((source.protocol !== "http:" && source.protocol !== "https:") ||

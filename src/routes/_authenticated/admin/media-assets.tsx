@@ -38,6 +38,7 @@ type PendingMediaReviewItem = {
   countryId: string | null;
   entryId: string | null;
   sourceFingerprint: string;
+  sourceUrl: string | null;
   title: string;
   countryName: string | null;
   entryLabel: string | null;
@@ -299,6 +300,7 @@ function MediaAssetsPage() {
         countryId: item.countryId,
         entryId: item.entryId,
         sourceFingerprint: item.sourceFingerprint!,
+        sourceUrl: item.sourceUrl ?? null,
         title: item.title,
         countryName: item.countryName,
         entryLabel: item.entryLabel,
