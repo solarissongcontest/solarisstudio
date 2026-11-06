@@ -105,9 +105,9 @@ export function WorldWorkspacesDirectory() {
       !identity.data ? <SignInNotice /> :
       organizations.isPending || !organizations.isFetchedAfterMount ? <p role="status">Checking current institutional access…</p> :
       !visible ? <AccessNotice message="Institutional access could not be verified. Previously cached private rooms are hidden." retry={() => void organizations.refetch()} /> :
-      organizations.data.length === 0 ? <AccessNotice message="No private institutional rooms are currently accessible to this account. A membership, office or room invitation may be required." /> :
+      !organizations.data?.length ? <AccessNotice message="No private institutional rooms are currently accessible to this account. A membership, office or room invitation may be required." /> :
       <section aria-label="Your organizations" className="divide-y divide-border">
-        {organizations.data.map((organization) => <Link key={organization.slug} to="/world/workspaces/$slug" params={{ slug: organization.slug }}
+        {(organizations.data ?? []).map((organization) => <Link key={organization.slug} to="/world/workspaces/$slug" params={{ slug: organization.slug }}
           className="group flex min-h-24 items-center gap-4 py-4 focus-visible:rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-muted"><MessageSquare className="size-5" aria-hidden="true" /></span>
           <span className="min-w-0 flex-1">
