@@ -103,6 +103,20 @@ describe("Organizer Confirmation response queue page guards", () => {
     expect(cursorCheck).toBeGreaterThan(-1);
     expect(append).toBeGreaterThan(cursorCheck);
   });
+  it("stops pagination after a failed page and requires a fresh edition reload", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses.tsx"), "utf8");
+    const catchAt = route.indexOf('setError(caught instanceof Error ? caught.message : "More responses could not be loaded.");');
+    const cursorCleared = route.indexOf("setResponseCursor(null);", catchAt);
+    const catchFinally = route.indexOf("} finally {", catchAt);
+    expect(catchAt).toBeGreaterThan(-1);
+    expect(cursorCleared).toBeGreaterThan(catchAt);
+    expect(cursorCleared).toBeLessThan(catchFinally);
+    expect(route).toContain('mode !== "next_in_line" && responseCursor && !visibleError');
+    expect(route).toContain('onClick={retryVisibleQueue}');
+    expect(route).toContain('setResponseReloadKey((current) => current + 1)');
+  });
+
   it("allows ordinary and signed HTTP(S) source links", () => {
     expect(safeOrganizerResponseSongUrl("https://song.example.test/entry.mp3?token=opaque")).toBe(
       "https://song.example.test/entry.mp3?token=opaque",
