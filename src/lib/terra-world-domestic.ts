@@ -111,14 +111,23 @@ export async function readWorldDomesticCountry(code: string, signal?: AbortSigna
   return parseDomesticCountry(data, code);
 }
 
-export function parseDomesticWriteReceipt(data: unknown): DomesticWriteReceipt {
-  if (!isRecord(data) || data.ok !== true || !UUID.test(String(data.id)) ||
-      !UUID.test(String(data.operationId)) || !integer(data.revision) ||
-      !["party", "election", "editorial_history"].includes(String(data.kind))) {
+export function parseDomesticWriteReceipt(data: unknown, expectedOperationId?: string): DomesticWriteReceipt {
+  // studio2_reconcile_operation returns a STATUS envelope. The authoritative
+  // command result is nested; never treat a pending/failed receipt as success.
+  if (!isRecord(data) || data.status !== "succeeded" || data.error !== null ||
+      !UUID.test(String(data.operationId)) || !isRecord(data.result)) {
     throw new Error("Missing authoritative domestic operation receipt");
   }
-  return { ok: true, id: data.id as string, kind: data.kind as DomesticRecordKind,
-    revision: data.revision as number, operationId: data.operationId as string,
+  const result = data.result;
+  if (result.ok !== true || !UUID.test(String(result.id)) ||
+      result.operationId !== data.operationId ||
+      (expectedOperationId !== undefined && data.operationId !== expectedOperationId) ||
+      !integer(result.revision) ||
+      !["party", "election", "editorial_history"].includes(String(result.kind))) {
+    throw new Error("Missing authoritative domestic operation receipt");
+  }
+  return { ok: true, id: result.id as string, kind: result.kind as DomesticRecordKind,
+    revision: result.revision as number, operationId: data.operationId as string,
     replayed: data.replayed === true };
 }
 
@@ -146,5 +155,5 @@ export async function writeWorldDomesticCanon(input: DomesticCommand): Promise<D
     if (error.code === "42501") throw new Error("You no longer control this country.");
     throw new Error(error.message || "Domestic record could not be saved.");
   }
-  return parseDomesticWriteReceipt(data);
+  return parseDomesticWriteReceipt(data, input.operationId);
 }
