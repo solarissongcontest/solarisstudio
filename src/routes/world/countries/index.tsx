@@ -15,5 +15,5 @@ export const Route = createFileRoute("/world/countries/")({
 });
 
 function WorldCountriesRoute() {
-  return <AppShell><WorldCountryRolloutGate><WorldCountriesDirectory /></WorldCountryRolloutGate></AppShell>;
+  return <WorldCountryRolloutGate><AppShell><WorldCountriesDirectory /></AppShell></WorldCountryRolloutGate>;
 }
