@@ -12,6 +12,26 @@ const browserAudit = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
 
 export default defineConfig({
   vite: {
+    plugins: [
+      {
+        // Rolldown's catch-all shared grouping is beneficial in the browser,
+        // but can change SSR module evaluation order in Cloudflare Workers.
+        // Keep the existing vendor groups while disabling only this group
+        // for non-client environments. Never sacrifice server correctness to
+        // get a smaller browser download.
+        name: "solaris-client-only-shared-cross-route",
+        configEnvironment(name, options) {
+          if (name === "client") return;
+          const output = options.build?.rolldownOptions?.output;
+          if (!output || Array.isArray(output)) return;
+          const splitting = output.codeSplitting;
+          if (!splitting || typeof splitting !== "object") return;
+          splitting.groups = splitting.groups?.filter(
+            (group) => group.name !== "shared-cross-route",
+          );
+        },
+      },
+    ],
     resolve: {
       // Broadcast uses only canvas-confetti's one-shot default function. Keep
       // that narrow decorative effect local instead of shipping the general
