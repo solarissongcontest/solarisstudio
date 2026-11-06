@@ -38,6 +38,10 @@ import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import {
+  mustReviewLoadedJuryDraft,
+  normalizeJuryDraftSelections,
+} from "@/lib/v3-jury-ballot-draft";
+import {
   lookupV3JuryReceipt,
   loadV3JuryDraft,
   reconcileV3JurySubmission,
@@ -273,6 +277,12 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
   const submitBallot = useServerFn(submitV3JuryBallot);
   const reconcileSubmission = useServerFn(reconcileV3JurySubmission);
   const draftKey = `solaris:jury-ballot-draft:${userId}:${country.id}:${round.show_id}`;
+  const eligibleCountryIds = useMemo(
+    () => new Set(round.entries
+      .filter((entry) => round.allow_self_vote || entry.country_id !== country.id)
+      .map((entry) => entry.country_id)),
+    [country.id, round.allow_self_vote, round.entries],
+  );
   const [deviceId] = useState(() => getOrCreateBrowserId(
     typeof window === "undefined" ? null : window.localStorage,
     "ssc.v3.jury.device",
@@ -282,19 +292,25 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
     "ssc.v3.jury.session",
   ));
   const [stage, setStage] = useState<Stage>("vote");
-  const [selections, setSelections] = useState<Array<string | null>>(() => {
-    if (typeof window === "undefined") return round.point_scale.map(() => null);
+  const [restoredLocalDraft] = useState<Array<string | null> | null>(() => {
+    if (typeof window === "undefined") return null;
     try {
       const raw = window.sessionStorage.getItem(draftKey);
-      if (!raw) return round.point_scale.map(() => null);
-      const parsed = JSON.parse(raw) as { selections?: Array<string | null> };
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { selections?: unknown };
       return Array.isArray(parsed.selections) && parsed.selections.length === round.point_scale.length
-        ? parsed.selections
-        : round.point_scale.map(() => null);
+        ? normalizeJuryDraftSelections(parsed.selections, eligibleCountryIds, round.point_scale.length)
+        : null;
     } catch {
-      return round.point_scale.map(() => null);
+      return null;
     }
   });
+  const [selections, setSelections] = useState<Array<string | null>>(
+    () => restoredLocalDraft ?? round.point_scale.map(() => null),
+  );
+  const selectionsRef = useRef(selections);
+  selectionsRef.current = selections;
+  const editedDuringLoadRef = useRef(false);
   const [acceptedRule, setAcceptedRule] = useState(false);
   const [report, setReport] = useState<VoteIntegrityReport | null>(null);
   const [signedName, setSignedName] = useState("");
@@ -309,10 +325,14 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
   const [draftReady, setDraftReady] = useState(false);
   const [serverRevision, setServerRevision] = useState(0);
   const [draftStatus, setDraftStatus] = useState<"loading" | "saved" | "saving" | "offline" | "conflict">("loading");
-  const [draftConflict, setDraftConflict] = useState<{ selections: Array<string | null>; revision: number } | null>(null);
+  const [draftConflict, setDraftConflict] = useState<{ selections: Array<string | null>; revision: number; reason: "server_changed" | "local_restore" } | null>(null);
   const lastSavedFingerprint = useRef<string | null>(null);
 
-  const ballot = useMemo(() => round.point_scale.map((points, index) => ({ target_country_id: selections[index], points })).filter((entry): entry is { target_country_id: string; points: number } => Boolean(entry.target_country_id)), [round.point_scale, selections]);
+  const validSelections = useMemo(
+    () => normalizeJuryDraftSelections(selections, eligibleCountryIds, round.point_scale.length),
+    [eligibleCountryIds, round.point_scale.length, selections],
+  );
+  const ballot = useMemo(() => round.point_scale.map((points, index) => ({ target_country_id: validSelections[index], points })).filter((entry): entry is { target_country_id: string; points: number } => Boolean(entry.target_country_id)), [round.point_scale, validSelections]);
   const complete = ballot.length === round.point_scale.length;
 
   useEffect(() => {
@@ -326,12 +346,25 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
       .then((result) => {
         if (cancelled) return;
         const remoteSelections = result.payload?.selections ?? null;
-        if (result.found === true && remoteSelections?.length === round.point_scale.length) {
-          setSelections(remoteSelections);
-          lastSavedFingerprint.current = JSON.stringify(remoteSelections);
+        if (result.found === true) {
+          if (!remoteSelections || remoteSelections.length !== round.point_scale.length) {
+            throw new Error("The saved jury draft does not match this show's score scale.");
+          }
+          const serverDraft = normalizeJuryDraftSelections(remoteSelections, eligibleCountryIds, round.point_scale.length);
+          const localDraft = normalizeJuryDraftSelections(selectionsRef.current, eligibleCountryIds, round.point_scale.length);
+          if (mustReviewLoadedJuryDraft(localDraft, serverDraft, restoredLocalDraft !== null || editedDuringLoadRef.current)) {
+            setDraftConflict({ selections: serverDraft, revision: result.serverRevision, reason: "local_restore" });
+            setDraftStatus("conflict");
+          } else {
+            setSelections(serverDraft);
+            // Keep the raw fingerprint so a stale roster selection is CAS-saved away.
+            lastSavedFingerprint.current = JSON.stringify(remoteSelections);
+            setDraftStatus("saved");
+          }
+        } else {
+          setDraftStatus("saved");
         }
         setServerRevision(result.serverRevision);
-        setDraftStatus("saved");
         setDraftReady(true);
       })
       .catch(() => {
@@ -340,7 +373,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
         setDraftReady(true);
       });
     return () => { cancelled = true; };
-  }, [loadDraft, round.point_scale.length, round.show_id, v3ReliabilityEnabled]);
+  }, [eligibleCountryIds, loadDraft, restoredLocalDraft, round.point_scale.length, round.show_id, v3ReliabilityEnabled]);
 
   useEffect(() => {
     if (typeof window === "undefined" || stage === "done") return;
@@ -374,7 +407,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
         if (result.conflict === true) {
           const newerSelections = result.payload?.selections ?? [];
           if (newerSelections.length === round.point_scale.length) {
-            setDraftConflict({ selections: newerSelections, revision: nextRevision });
+            setDraftConflict({ selections: normalizeJuryDraftSelections(newerSelections, eligibleCountryIds, round.point_scale.length), revision: nextRevision, reason: "server_changed" });
             setDraftStatus("conflict");
             return;
           }
@@ -389,7 +422,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
       }).catch(() => setDraftStatus("offline"));
     }, 750);
     return () => window.clearTimeout(timer);
-  }, [deviceId, draftConflict, draftReady, round.point_scale.length, round.show_id, saveDraft, selections, serverRevision, sessionId, stage, v3ReliabilityEnabled]);
+  }, [deviceId, draftConflict, draftReady, eligibleCountryIds, round.point_scale.length, round.show_id, saveDraft, selections, serverRevision, sessionId, stage, v3ReliabilityEnabled]);
 
   const submitMutation = useMutation({
     mutationFn: async (token: string) => {
@@ -528,8 +561,10 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
   }
 
   function selectCountry(index: number, countryId: string) {
+    editedDuringLoadRef.current = true;
     setReport(null);
-    setSelections((previous) => previous.map((value, itemIndex) => itemIndex === index ? countryId || null : countryId && value === countryId ? null : value));
+    setSelections((previous) => normalizeJuryDraftSelections(previous, eligibleCountryIds, round.point_scale.length)
+      .map((value, itemIndex) => itemIndex === index ? countryId || null : countryId && value === countryId ? null : value));
   }
 
   function useServerDraft() {
@@ -630,8 +665,8 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
       <div className="space-y-4">
         {draftConflict ? (
           <div className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-4" role="alert" data-v3-jury-draft="conflict">
-            <p className="text-sm font-semibold text-amber-100">A newer ballot draft was saved on another device.</p>
-            <p className="mt-1 text-xs leading-relaxed text-amber-100/80">Solaris stopped this device from overwriting it. Choose which draft to continue with.</p>
+            <p className="text-sm font-semibold text-amber-100">{draftConflict.reason === "local_restore" ? "Your device and server have different jury drafts." : "A newer ballot draft was saved on another device."}</p>
+            <p className="mt-1 text-xs leading-relaxed text-amber-100/80">Solaris has preserved your choices rather than replacing them silently. Choose which ballot to continue with.</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <Button variant="outline" onClick={useServerDraft}>Use newer server draft</Button>
               <Button onClick={overwriteAfterConflict}>Keep this device’s draft</Button>
@@ -640,7 +675,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
         ) : null}
         <div className="space-y-2">
           {round.point_scale.map((points, index) => {
-            const selected = selections[index] ?? "";
+            const selected = validSelections[index] ?? "";
             return (
               <div key={`${points}-${index}`} className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 rounded-xl border border-border bg-surface p-2.5">
                 <div className="text-center"><p className="numeric text-xl font-black text-primary">{points}</p><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">points</p></div>
