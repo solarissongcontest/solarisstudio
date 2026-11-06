@@ -11,7 +11,7 @@ import {
   createWorldRoom, editWorldRoomMessage, getMyWorldWorkspaces, getWorldWorkspaceContext,
   getWorldRoomMessages, getWorldRooms, isVisiblePrivateWorldQuery,
   moderateWorldRoomMessage, reactToWorldRoomMessage, searchWorldRoomMessages, sendWorldRoomMessage,
-  type WorldChatMessage, type WorldPrivateRoom,
+  type WorldPrivateRoom,
 } from "@/lib/terra-world-private";
 
 function useWorldPrivateIdentity() {
@@ -359,7 +359,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
               </button>
             </div>
             {showAccess && selectedRoom.canManage && identity.data ? <WorldRoomAccessManager
-              roomId={selectedRoom.id} actorId={identity.data} online={online}
+              roomId={selectedRoom.id} visibility={selectedRoom.visibility} actorId={identity.data} online={online}
               onClose={() => setShowAccess(false)}
             /> : null}
             <form className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2" onSubmit={(event) => {
