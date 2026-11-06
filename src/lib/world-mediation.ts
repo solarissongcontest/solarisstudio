@@ -183,9 +183,14 @@ export async function fetchMediationHistory(caseId: string): Promise<MediationHi
 
 export type MediationOperation = { operationId: string; key: string };
 
-function verifiedReceipt(input: unknown): { caseId: string; revision: number; state: MediationState } {
-  if (!isObject(input) || input.ok !== true) throw new Error("Mediation operation was not acknowledged.");
-  return { caseId: uuid(input.caseId), revision: revision(input.revision), state: state(input.state) };
+function verifiedReceipt(input: unknown, expectedOperationId: string): { caseId: string; revision: number; state: MediationState } {
+  const receipt = isObject(input) ? input : null;
+  const result = isObject(receipt?.result) ? receipt.result : null;
+  if (receipt?.status !== "succeeded" || receipt.operationId !== expectedOperationId
+    || result?.ok !== true || result.operationId !== expectedOperationId) {
+    throw new Error("Mediation operation was not acknowledged with a matching receipt.");
+  }
+  return { caseId: uuid(result.caseId), revision: revision(result.revision), state: state(result.state) };
 }
 
 /** No UI may infer success from a network request without a verified server receipt. */
@@ -203,7 +208,7 @@ export async function requestMediation(
     p_idempotency_key: operation.key,
   });
   check(error);
-  return verifiedReceipt(data);
+  return verifiedReceipt(data, operation.operationId);
 }
 
 export async function transitionMediation(
@@ -217,5 +222,5 @@ export async function transitionMediation(
     p_operation_id: uuid(operation.operationId), p_idempotency_key: operation.key,
   });
   check(error);
-  return verifiedReceipt(data);
+  return verifiedReceipt(data, operation.operationId);
 }
