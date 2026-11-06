@@ -106,6 +106,12 @@ function LegacyPredictionLeaguePage() {
             </Button>
           </div>
         </Panel>
+      ) : feature.isPending && feature.isPaused ? (
+        <Panel title="Prediction League availability not verified">
+          <p role="status" className="text-sm text-muted-foreground">
+            The connection is paused. Reconnect before Solaris can confirm whether the league is enabled.
+          </p>
+        </Panel>
       ) : feature.data !== true ? (
         <Panel title="Prediction League is not enabled yet"><p className="text-sm text-muted-foreground">The scoring and leaderboard product is installed but remains behind its rollout flag during verification.</p></Panel>
       ) : (
@@ -130,6 +136,10 @@ function LegacyPredictionLeaguePage() {
                   Retry standings
                 </Button>
               </div>
+            ) : standings.isPending && standings.isPaused ? (
+              <p role="status" className="text-sm text-muted-foreground">
+                Standings cannot be verified while the connection is paused. Reconnect to load scored results.
+              </p>
             ) : standings.data?.length ? (
               <PublicResponsiveDataView
                 rows={standings.data}
