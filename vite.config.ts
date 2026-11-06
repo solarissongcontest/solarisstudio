@@ -25,9 +25,6 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         output: {
-          // Module-id order makes shared chunks' module-local symbols and
-          // static data more gzip-friendly without changing their contents.
-          chunkModulesOrder: "module-id",
           // JS is already minified in production; mangle only private top-level
           // module bindings, keeping public export contracts and runtime data.
           minify: { compress: true, mangle: { toplevel: true } },
