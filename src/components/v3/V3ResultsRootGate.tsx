@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import { RefreshCcw } from "lucide-react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
@@ -47,10 +48,41 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
     );
   }
 
-  // V3 never takes authority from an unresolved or failed public bundle. The
-  // established route remains available as a reversible rollout fallback.
+  // A failed publication snapshot is not permission to mount legacy archive
+  // readers, which could present mutable/unverified Result rows. The reversible
+  // legacy fallback is reserved for an explicitly server-disabled V3 rollout.
   if (bundle.isError || !bundle.data || rollout.isError || !rollout.data) {
-    return <>{fallback}</>;
+    const retrying = bundle.isFetching || rollout.isFetching;
+    return (
+      <V3AppShell editionLabel="Solaris Studio" phaseLabel="Results" activeArea="results">
+        <V3Screen>
+          <V3Surface level="raised" className="p-5" data-v3-results-authority-unavailable="">
+            <h1 className="text-2xl font-bold tracking-[-0.03em]">
+              Official results temporarily unavailable
+            </h1>
+            <p role="status" className="mt-3 max-w-prose text-sm leading-6 text-[var(--v3-text-secondary)]">
+              Solaris could not verify the current published result. No outcome
+              is shown until the authoritative Results service can be reached.
+            </p>
+            <button
+              type="button"
+              disabled={retrying}
+              onClick={() => {
+                if (bundle.isError || !bundle.data) void bundle.refetch();
+                else void rollout.refetch();
+              }}
+              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:cursor-wait disabled:opacity-50"
+            >
+              <RefreshCcw
+                aria-hidden="true"
+                className={`size-4 ${retrying ? "motion-safe:animate-spin" : ""}`}
+              />
+              {retrying ? "Retrying results…" : "Retry official results"}
+            </button>
+          </V3Surface>
+        </V3Screen>
+      </V3AppShell>
+    );
   }
 
   const v3Enabled = rollout.data.enabled === true && rollout.data.resultsEnabled === true;
