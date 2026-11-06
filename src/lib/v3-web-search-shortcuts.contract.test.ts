@@ -36,6 +36,36 @@ describe("V3 web Search canonical discovery shortcuts", () => {
     expect(web).toContain('Type one more character to search published Solaris content.');
   });
 
+  it("uses only published show, edition, result and participant sources for web discovery", () => {
+    const archive = palette.slice(
+      palette.indexOf("function WebSearchArchiveResults"),
+      palette.indexOf("function renderSearchGroups"),
+    );
+    expect(archive).toContain("publicSearchPublicationScope(editions, shows)");
+    expect(archive).toContain("publicSearchRowsForPublishedShows(results, publishedResultShowIds)");
+    expect(archive).toContain("publicSearchRowsForPublishedShows(jury, detailedVotingShowIds)");
+    expect(archive).toContain("usePublicSearchParticipants()");
+    expect(archive).not.toContain("useAllParticipants()");
+    expect(archive).toContain("publicEditionIds.has(participant.edition_id)");
+    expect(archive).toContain("...publicEditions");
+    expect(archive).toContain("...publicShows");
+  });
+
+  it("fails closed on unavailable archive data and distinguishes errors from empty matches", () => {
+    const archive = palette.slice(
+      palette.indexOf("function WebSearchArchiveResults"),
+      palette.indexOf("function renderSearchGroups"),
+    );
+    for (const name of ["shows", "participants", "results", "jury"]) {
+      expect(archive).toContain(`const ${name} = ${name}Query.isError ? []`);
+      expect(archive).toContain(`if (${name}Query.isError) void ${name}Query.refetch()`);
+    }
+    expect(archive).toContain("hasArchiveError");
+    expect(archive).toContain("!isFetching && !hasArchiveError && !searchResults.length");
+    expect(archive).toContain('role="alert"');
+    expect(archive).toContain("Retry unavailable sources");
+  });
+
   it("retains public results, comparison, directory and recent navigation for everyone", () => {
     expect(web).toContain('id: "action:latest-results"');
     expect(web).toContain('id: "action:compare"');
