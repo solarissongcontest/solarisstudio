@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Edition, Show } from "./data";
+import { resolvePublicationConfig } from "./publication";
 import {
   excludeSearchSpoilerEdition,
   excludeSearchSpoilerStories,
@@ -31,7 +32,7 @@ function show(id: string, editionId: string, publication: boolean, kind = "grand
     name: id,
     kind,
     published: true,
-    publication_config: { participants: true, results: publication },
+    publication_config: resolvePublicationConfig({ participants: true, results: publication }),
     status: "complete",
     qualifier_count: null,
     theme_id: null,
