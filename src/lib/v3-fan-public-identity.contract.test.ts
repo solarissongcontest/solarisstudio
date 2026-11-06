@@ -32,7 +32,7 @@ describe("V3 fan public identity", () => {
     expect(screen).toContain('setVisibility("private")');
     expect(screen).toContain("setLeaderboardOptIn(false)");
     expect(screen).toContain("}, [viewerId]);");
-    expect(screen).toContain("}, [viewerId, profile.data]);
+    expect(screen).toContain("}, [viewerId, profile.data, dirty, saveProfile.isPending]);");
   });
 
   it("recovers a failed caller-scoped profile read without mutating state", () => {
@@ -56,4 +56,14 @@ describe("V3 fan public identity", () => {
     expect(me).toContain('to="/my-solaris/profile"');
     expect(me).toContain("fan-facing Solaris features");
   });
+  it("preserves unsaved fan identity edits across refetch without hiding save uncertainty", () => {
+    expect(screen).toContain("const [dirty, setDirty] = useState(false)");
+    expect(screen).toContain("if (!profile.data || dirty || saveProfile.isPending) return;");
+    expect(screen).toContain("setDirty(true)");
+    expect(screen).toContain("setDirty(false)");
+    expect(screen).toContain("Unsaved fan identity changes.");
+    expect(screen).toContain("disabled={saveProfile.isPending}");
+    expect(screen).toContain("await promise;");
+  });
+
 });
