@@ -60,6 +60,17 @@ function assertLocalUrl(key: string, rawValue: string) {
     throw new Error(`${key} is set but is not a valid URL; refusing automated V3 verification`);
   }
 
+  // Checking a hostname alone would classify e.g. ftp://localhost as a
+  // safe Supabase/database target. Require the protocol appropriate to the
+  // connection class before certifying any configured target as loopback.
+  const databaseUrl = DATABASE_URL_KEYS.some((name) => name === key);
+  const expectedProtocols = databaseUrl ? ["postgres:", "postgresql:"] : ["http:", "https:"];
+  if (!expectedProtocols.includes(parsed.protocol.toLowerCase())) {
+    throw new Error(
+      `${key} uses an unsupported URL protocol; refusing ambiguous Supabase/database routing in automated V3 verification`,
+    );
+  }
+
   // A libpq URI's query parameters can redirect a loopback-looking DB URL.
   // Deny all explicit connection-authority overrides before any test traffic.
   const overrideKeys = new Set(["host", "hostaddr", "service"]);
@@ -117,6 +128,37 @@ export function assertV3ProductionIsolation(environment: NodeJS.ProcessEnv = pro
       configuredLocalUrls += 1;
     } catch (error) {
       errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  // Libpq environment variables can route a separate psql invocation even when
+  // the Supabase CLI URLs above are local. Treat these as connection authorities,
+  // not harmless configuration, and fail closed on service-file indirection.
+  for (const key of ["PGHOST", "PGHOSTADDR"] as const) {
+    const value = environment[key]?.trim();
+    if (!value) continue;
+    inspected.push(key);
+    // Comma-separated libpq hosts allow fallback to a remote target.
+    // Unix sockets and hostname aliases are deliberately not accepted here:
+    // the automated rehearsal contract requires an explicit loopback target.
+    if (value.includes(",") || !loopbackHost(value)) {
+      errors.push(`${key} is not an explicit loopback PostgreSQL host; refusing indirect database routing in automated V3 verification`);
+    }
+  }
+
+  for (const key of ["PGSERVICE", "PGSERVICEFILE"] as const) {
+    if (!environment[key]?.trim()) continue;
+    inspected.push(key);
+    errors.push(`${key} configures indirect PostgreSQL service routing; refusing automated V3 verification`);
+  }
+
+  const pgDatabase = environment.PGDATABASE?.trim();
+  if (pgDatabase) {
+    inspected.push("PGDATABASE");
+    // PostgreSQL accepts connection-string forms in database contexts. Only
+    // ordinary database names are appropriate as ambient CI configuration.
+    if (pgDatabase.includes("://") || pgDatabase.includes("=")) {
+      errors.push("PGDATABASE is a connection string rather than a database name; refusing indirect database routing");
     }
   }
 
