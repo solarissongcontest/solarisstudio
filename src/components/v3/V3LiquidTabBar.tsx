@@ -270,9 +270,13 @@ export function V3LiquidTabBar({
   );
 
   useEffect(() => {
-    const resetInterruptedGesture = () => clearDrag();
+    const resetInterruptedGesture = () => {
+      // A late WebKit synthetic click must not commit an interrupted drag.
+      if (dragState.current) suppressClick.current = true;
+      clearDrag();
+    };
     const resetWhenHidden = () => {
-      if (document.visibilityState !== "visible") clearDrag();
+      if (document.visibilityState !== "visible") resetInterruptedGesture();
     };
     const root = document.documentElement;
     const rootInterruptionObserver =
@@ -282,7 +286,7 @@ export function V3LiquidTabBar({
               root.hasAttribute("data-solaris-feature-overlay-open") ||
               root.hasAttribute("data-solaris-keyboard-open")
             ) {
-              clearDrag();
+              resetInterruptedGesture();
             }
           })
         : null;
@@ -318,6 +322,9 @@ export function V3LiquidTabBar({
     index: number,
     active: boolean,
   ) => {
+    // Pointer cancellation may have no click event. A later normal gesture
+    // must never inherit the previous gesture's click suppression.
+    suppressClick.current = false;
     if (
       !active ||
       collapsed ||
@@ -588,6 +595,10 @@ export function V3LiquidTabBar({
               onPointerUp={finishDrag}
               onPointerCancel={cancelDrag}
               onLostPointerCapture={cancelDrag}
+              onKeyDown={() => {
+                // Keyboard and assistive activation is independent of pointer gestures.
+                suppressClick.current = false;
+              }}
               onClick={(event) => {
                 if (suppressClick.current) {
                   suppressClick.current = false;
