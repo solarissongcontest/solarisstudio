@@ -5,6 +5,10 @@ const source = readFileSync(
   "src/routes/_authenticated/admin/command-assistant.tsx",
   "utf8",
 );
+const commandRegistry = readFileSync(
+  "src/lib/solaris-command-assistant.ts",
+  "utf8",
+);
 const registry = readFileSync(
   "src/lib/v3-organizer-capability-registry.ts",
   "utf8",
@@ -31,11 +35,29 @@ describe("V3 Organizer Command Assistant edition context", () => {
     expect(source).not.toContain('.from("studio2_incidents")');
   });
 
-  it("fails closed instead of presenting stale scope as an empty edition", () => {
-    expect(source).toContain('title="Choose an edition"');
+  it("makes global-versus-edition command scope explicit", () => {
+    expect(commandRegistry).toContain('scope: "global"');
+    expect(commandRegistry).toContain('scope: "edition"');
+    expect(commandRegistry).toContain("partitionSolarisAssistantCommandsByContext");
     expect(source).toContain(
-      "Command Assistant will not turn a missing or stale edition into an all-editions query or a misleading zero-state summary.",
+      "partitionSolarisAssistantCommandsByContext(matches, Boolean(selectedEdition))",
     );
+  });
+
+  it("does not render edition-scoped matches as navigation before context is verified", () => {
+    expect(source).toContain("commandContext.available.map");
+    expect(source).toContain("commandContext.blockedByEdition.map");
+    expect(source).toContain("Edition required");
+    expect(source).toContain(
+      "they are deliberately not links until the edition context is verified",
+    );
+  });
+
+  it("distinguishes a stale stored edition from no edition selection", () => {
+    expect(source).toContain("editionId && !selectedEdition");
+    expect(source).toContain("Selected edition is unavailable");
+    expect(source).toContain('onClick={() => setEditionId("")}');
+    expect(source).toContain("Clear unavailable context");
     expect(source).toContain("Confirming edition context…");
   });
 
