@@ -130,6 +130,18 @@ describe("Organizer Entry Review detail summary", () => {
     expect(route).not.toContain("winner={data.national_final?.winning_entry_id === entry.id}");
   });
 
+  it("only offers National Final winner selection for an accepted current Entry version", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    const choose = route.slice(route.indexOf("async function chooseWinner()"),
+      route.indexOf("async function clearWinner()"));
+    expect(choose).toContain('effectiveOrganizerEntryReviewStatus(entry) !== "accepted"');
+    expect(choose).toContain("Accept this candidate on its current Entry version");
+    expect(route).toContain('disabled={busy || !reason.trim() || effectiveOrganizerEntryReviewStatus(entry) !== "accepted"}');
+    expect(route).toContain("Review and accept this candidate's current Entry version");
+    expect(route).toContain("storedWinner && onClearWinner");
+  });
+
   it("keeps the dashboard summary on the same current-version interpretation", () => {
     const route = readFileSync(resolve(process.cwd(),
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
