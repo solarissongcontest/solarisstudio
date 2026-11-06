@@ -96,6 +96,31 @@ describe("TG16 fictional people, offices and historical terms",()=>{
     expect(()=>parseWorldDomesticOfficials({...officials,people:[{...officials.people[0],
       revision:0}]},"OL")).toThrow();
   });
+  it("keeps the complete TG17 function syntactically delimited and uses true page lookahead",()=>{
+    const from=SQL.indexOf("create or replace function public.world_history_timeline_v1(");
+    const until=SQL.indexOf("do $contract$",from);
+    expect(from).toBeGreaterThan(0);
+    expect(until).toBeGreaterThan(from);
+    const functionBody=SQL.slice(from,until);
+    expect(functionBody).toContain("p_country_code !~ '^[[:alnum:]-]+
+    expect(SQL).toContain("create or replace function public.world_history_timeline_v1");
+    expect(SQL).toContain("from public.world_domestic_office_terms t");
+    expect(SQL).toContain("'domestic_office','world_domestic_office_terms'");
+    expect(SQL).toContain("t.visibility='public'");
+    expect(SQL).toContain("t.actual_end_at is not null");
+    expect(SQL).toContain("t.holder_display_name || ' appointed ' || t.office_title");
+    expect(SQL).not.toContain("insert into public.world_history_events");
+  });
+});
+");
+    expect(functionBody).toContain("limit 21 offset p_page*20");
+    expect(functionBody).toContain("count(*) > 20");
+    expect(functionBody).toContain("filter (where n.rn <= 20)");
+    expect(functionBody.match(/\\$history\\$/g)).toHaveLength(2);
+    expect(functionBody).not.toContain("do $contract$");
+    expect(functionBody).not.toContain("notify pgrst");
+    expect(SQL.match(/do \\$contract\\$/g)).toHaveLength(1);
+  });
   it("derives published office appointments and conclusions into TG17 without editorial duplicates",()=>{
     expect(SQL).toContain("create or replace function public.world_history_timeline_v1");
     expect(SQL).toContain("from public.world_domestic_office_terms t");
