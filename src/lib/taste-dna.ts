@@ -159,7 +159,12 @@ export function buildTasteDna({
   if (ranking.length < 3 || results.length < 3) return null;
 
   const universe = results.map((entry) => entry.id);
-  const fanRanking = uniqueRanking(ranking, universe);
+  const publishedIds = new Set(universe);
+  const personalRanking = [...new Set(ranking.filter((id) => publishedIds.has(id)))];
+  // Filling omitted entries with the official order must not invent a user's taste.
+  if (personalRanking.length < 3) return null;
+
+  const fanRanking = uniqueRanking(personalRanking, universe);
   const juryRanking = rankingFromScores(results, (entry) => entry.juryPoints);
   const televoteRanking = rankingFromScores(results, (entry) => entry.televotePoints);
   const overallRanking = rankingFromScores(results, (entry) => entry.totalPoints);
@@ -189,6 +194,12 @@ export function buildTasteDna({
   else personalityLabel = "Certified chaos voter";
 
   const juryMatches = juryBallots
+    .map((ballot) => ({
+      ...ballot,
+      // Only published-field entries count. Duplicates or stale IDs must never
+      // create a fake opposite jury or distort a genuine match.
+      ranking: [...new Set(ballot.ranking.filter((id) => publishedIds.has(id)))],
+    }))
     .filter((ballot) => ballot.ranking.length)
     .map((ballot) => ({
       key: ballot.key,
@@ -199,7 +210,8 @@ export function buildTasteDna({
 
   const historyIncludingCurrent = [
     ...history,
-    { showId: "__current__", ranking: fanRanking },
+    // Comparison padding completes the field, but is not a personal vote.
+    { showId: "__current__", ranking: personalRanking },
   ];
   const favouriteStats = new Map<
     string,

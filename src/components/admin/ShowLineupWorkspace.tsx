@@ -114,10 +114,10 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   const [runningOrderDirty, setRunningOrderDirty] = useState(false);
 
   useEffect(() => {
-    if (!orderedShows.length) {
-      setShowId("");
-      return;
-    }
+    // Preserve an explicit deep-linked show while the asynchronous show list
+    // is still loading. The route consumes ?show= after mount, so clearing
+    // showId here would lose that entry point and fall back to the first show.
+    if (!orderedShows.length) return;
     if (initialShow && orderedShows.some((show) => show.id === initialShow) && showId !== initialShow) {
       setShowId(initialShow);
       return;

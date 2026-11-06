@@ -106,6 +106,164 @@ describe("public contest state", () => {
     expect(state.statusLabel).toBe("Live");
   });
 
+  it("does not announce a private or publication-locked show as Live", () => {
+    for (const privateShow of [
+      show({ published: false, status: "live" }),
+      show({
+        published: true,
+        status: "live",
+        publication_config: {
+          participants: false,
+          artists: false,
+          songs: false,
+          semi_split: false,
+          running_order: false,
+          qualifiers: false,
+          results: false,
+          jury_results: false,
+          televote_results: false,
+          detailed_voting: false,
+        },
+      }),
+    ]) {
+      const state = resolvePublicContestState({
+        editions: [edition({ status: "active" })],
+        shows: [privateShow],
+        results: [],
+      });
+
+      expect(state.phase).toBe("submissions");
+      expect(state.statusLabel).not.toBe("Live");
+    }
+  });
+
+  it("does not infer public Live from an operational live_show lifecycle", () => {
+    const privateLive = show({ published: false, status: "live" });
+    const lockedLive = show({
+      published: true,
+      status: "live",
+      publication_config: {
+        participants: false,
+        artists: false,
+        songs: false,
+        semi_split: false,
+        running_order: false,
+        qualifiers: false,
+        results: false,
+        jury_results: false,
+        televote_results: false,
+        detailed_voting: false,
+      },
+    });
+
+    for (const hidden of [privateLive, lockedLive]) {
+      const state = resolvePublicContestState({
+        editions: [edition({ status: "live_show" })],
+        shows: [hidden],
+        results: [],
+      });
+      expect(state.phase).toBe("pre_show");
+      // The canonical lifecycle remains Live, while public presentation stays gated.
+      expect(state.lifecycle).toBe("live_show");
+      expect(state.statusLabel).not.toBe("Live");
+    }
+
+    const publicLive = resolvePublicContestState({
+      editions: [edition({ status: "live_show" })],
+      shows: [show({ status: "live" })],
+      results: [],
+    });
+    expect(publicLive.phase).toBe("live");
+    expect(publicLive.statusLabel).toBe("Live");
+  });
+
+  it("does not announce Results for an unpublished final, even with result flags and rows", () => {
+    const state = resolvePublicContestState({
+      editions: [edition({ status: "active" })],
+      shows: [
+        show({
+          published: false,
+          publication_config: {
+            participants: true,
+            artists: true,
+            songs: true,
+            semi_split: true,
+            running_order: true,
+            qualifiers: true,
+            results: true,
+            jury_results: true,
+            televote_results: true,
+            detailed_voting: true,
+          },
+        }),
+      ],
+      results: [result()],
+    });
+
+    expect(state.phase).toBe("submissions");
+    expect(state.statusLabel).not.toBe("Results");
+  });
+
+  it("does not treat operational Results lifecycle as public Final publication", () => {
+    const privateFinal = show({
+      published: false,
+      publication_config: {
+        participants: true,
+        artists: true,
+        songs: true,
+        semi_split: true,
+        running_order: true,
+        qualifiers: true,
+        results: true,
+        jury_results: true,
+        televote_results: true,
+        detailed_voting: true,
+      },
+    });
+    const withheldFinal = show({
+      published: true,
+      publication_config: {
+        participants: true,
+        artists: true,
+        songs: true,
+        semi_split: true,
+        running_order: true,
+        qualifiers: false,
+        results: false,
+        jury_results: false,
+        televote_results: false,
+        detailed_voting: false,
+      },
+    });
+
+    for (const finalShow of [privateFinal, withheldFinal]) {
+      const state = resolvePublicContestState({
+        editions: [edition({ status: "results" })],
+        shows: [finalShow],
+        results: [result()],
+      });
+      expect(state.phase).toBe("results_pending");
+      // Do not falsify the operational lifecycle to suppress a publication leak.
+      expect(state.lifecycle).toBe("results");
+      expect(state.statusLabel).toBe("Results pending");
+    }
+
+    const withoutRanks = resolvePublicContestState({
+      editions: [edition({ status: "results" })],
+      shows: [show()],
+      results: [],
+    });
+    expect(withoutRanks.phase).toBe("results_pending");
+
+    const publicFinal = resolvePublicContestState({
+      editions: [edition({ status: "results" })],
+      shows: [show()],
+      results: [result()],
+    });
+    expect(publicFinal.phase).toBe("results_published");
+    expect(publicFinal.statusLabel).toBe("Results");
+  });
+
   it("does not call prepared result rows published when the show result layer is private", () => {
     const state = resolvePublicContestState({
       editions: [edition({ status: "active" })],
@@ -153,6 +311,61 @@ describe("public contest state", () => {
 
     expect(state.phase).toBe("post_edition");
     expect(state.statusLabel).toBe("Completed");
+  });
+
+  it("never revives a completed or archived edition from a stale live show", () => {
+    for (const status of ["completed", "archived"]) {
+      const state = resolvePublicEditionState({
+        edition: edition({ status }),
+        shows: [show({ status: "live" })],
+        results: [],
+      });
+
+      expect(state.phase, status).toBe("post_edition");
+      expect(state.statusLabel, status).toBe("Completed");
+      expect(state.primaryAction?.to, status).toBe("/editions/ssc-22");
+    }
+  });
+
+  it("uses canonical lifecycle states in public Home rather than treating them as planning", () => {
+    const examples = [
+      ["confirmations", "confirmations"],
+      ["pre_show", "pre_show"],
+      ["jury_voting", "jury_voting"],
+      ["vote_verification", "results_pending"],
+      ["post_edition", "post_edition"],
+    ] as const;
+
+    for (const [status, expectedPhase] of examples) {
+      const state = resolvePublicEditionState({
+        edition: edition({ status }),
+        shows: [show({ status: "scheduled" })],
+        results: [],
+      });
+      expect(state.lifecycle, status).toBe(status);
+      expect(state.phase, status).toBe(expectedPhase);
+    }
+  });
+
+  it("does not select a canonical post_edition as the current live edition", () => {
+    const selected = resolveCurrentPublicEdition([
+      edition({
+        id: "edition-23",
+        edition_number: 23,
+        slug: "ssc-23",
+        status: "post_edition",
+      }),
+      edition({ status: "confirmations" }),
+    ]);
+    expect(selected?.id).toBe("edition-22");
+
+    const old = resolvePublicEditionState({
+      edition: edition({ status: "post_edition" }),
+      shows: [show({ status: "live" })],
+      results: [],
+    });
+    expect(old.phase).toBe("post_edition");
+    expect(old.statusLabel).toBe("Completed");
   });
 
   it("returns a useful between-editions state when no edition is public", () => {

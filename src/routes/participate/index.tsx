@@ -7,6 +7,7 @@ import {
   Music2,
   Scale,
   Vote,
+  AlertTriangle,
 } from "lucide-react";
 import { useMemo } from "react";
 
@@ -31,6 +32,7 @@ import {
   type ParticipationAction,
 } from "@/lib/participation-state";
 import { buildParticipationTasks, type VotingTaskInput } from "@/lib/participation-os";
+import { projectJurySummary, type JurySummary } from "@/lib/public-participation-jury-summary";
 import { computeAvailability } from "@/lib/ssc";
 
 export const Route = createFileRoute("/participate/")({
@@ -46,19 +48,6 @@ export const Route = createFileRoute("/participate/")({
   }),
   component: ParticipatePage,
 });
-
-type VotingRoundSummary = {
-  id: string;
-  name: string;
-  opensAt: string | null;
-  closesAt: string | null;
-};
-
-type JurySummary = {
-  signedIn: boolean;
-  openRound: VotingRoundSummary | null;
-  completedOpenRound: VotingRoundSummary | null;
-};
 
 type TelevoteSummary = {
   openRound: {
@@ -80,36 +69,23 @@ function confirmationReason(round: PublicRound) {
 }
 
 async function loadJurySummary(): Promise<JurySummary> {
-  const { data: sessionData } = await typedSupabase.auth.getSession();
+  const { data: sessionData, error: sessionError } = await typedSupabase.auth.getSession();
+  if (sessionError) throw sessionError;
   if (!sessionData.session) {
-    return { signedIn: false, openRound: null, completedOpenRound: null };
+    return {
+      signedIn: false,
+      restriction: null,
+      openRound: null,
+      completedOpenRound: null,
+    };
   }
 
   const { data, error } = await (typedSupabase as any).rpc("country_jury_voting_context");
-  if (error || !data?.ok) {
-    return { signedIn: true, openRound: null, completedOpenRound: null };
-  }
+  if (error) throw error;
 
-  const rounds = Array.isArray(data.rounds) ? data.rounds : [];
-  const openRound = rounds.find(
-    (round: any) => round.status === "open" && round.eligible && !round.already_submitted,
-  );
-  const completedOpenRound = rounds.find(
-    (round: any) => round.status === "open" && round.eligible && round.already_submitted,
-  );
-
-  const summarize = (round: any): VotingRoundSummary => ({
-    id: String(round.show_id ?? round.id ?? round.show_name ?? "jury"),
-    name: String(round.show_name ?? "Jury voting"),
-    opensAt: round.opens_at ? String(round.opens_at) : null,
-    closesAt: round.closes_at ? String(round.closes_at) : null,
-  });
-
-  return {
-    signedIn: true,
-    openRound: openRound ? summarize(openRound) : null,
-    completedOpenRound: completedOpenRound ? summarize(completedOpenRound) : null,
-  };
+  // Use the canonical RPC's caller-scoped result. Unknown or malformed
+  // responses must remain errors, not fabricated "no voting due" claims.
+  return { signedIn: true, ...projectJurySummary(data) };
 }
 
 async function loadTelevoteSummary(): Promise<TelevoteSummary> {
@@ -120,7 +96,8 @@ async function loadTelevoteSummary(): Promise<TelevoteSummary> {
     .limit(1)
     .maybeSingle();
 
-  if (error || !data) return { openRound: null };
+  if (error) throw error;
+  if (!data) return { openRound: null };
   const edition = Array.isArray((data as any).editions)
     ? (data as any).editions[0]
     : (data as any).editions;
@@ -238,9 +215,13 @@ function LegacyParticipatePage() {
             id: "jury",
             status: "unavailable",
             title: "Jury voting",
-            description: jury?.signedIn
-              ? "No jury ballot currently needs your delegation. Friend-voting integrity checks apply when voting opens."
-              : "Country account required. Sign in to check official jury voting; friend-voting integrity checks apply before submission.",
+            description: jury?.restriction === "account_suspended"
+              ? "Your country account is suspended. Contact the Organizer before attempting jury voting."
+              : jury?.restriction === "country_account_required"
+                ? "This account does not have an assigned country delegation."
+                : jury?.signedIn
+                  ? "No jury ballot currently needs your delegation. Friend-voting integrity checks apply when voting opens."
+                  : "Country account required. Sign in to check official jury voting; friend-voting integrity checks apply before submission.",
             to: "/jury-voting",
             priority: 20,
           };
@@ -266,8 +247,21 @@ function LegacyParticipatePage() {
           priority: 30,
         };
 
-    return sortParticipationActions([confirmationAction, televoteAction, juryAction]);
-  }, [confirmationsQuery.data, juryQuery.data, televoteQuery.data]);
+    // A cached status is not proof of a currently open voting window once
+    // its refresh fails. Do not advertise stale availability or closure.
+    return sortParticipationActions([
+      ...(!confirmationsQuery.isError ? [confirmationAction] : []),
+      ...(!televoteQuery.isError ? [televoteAction] : []),
+      ...(!juryQuery.isError ? [juryAction] : []),
+    ]);
+  }, [
+    confirmationsQuery.data,
+    confirmationsQuery.isError,
+    juryQuery.data,
+    juryQuery.isError,
+    televoteQuery.data,
+    televoteQuery.isError,
+  ]);
 
   const appTasks = useMemo(() => {
     const rounds = confirmationsQuery.data ?? [];
@@ -352,6 +346,20 @@ function LegacyParticipatePage() {
   );
   const appAuthKnown = !juryQuery.isLoading;
   const appSignedIn = juryQuery.data?.signedIn === true;
+  const statusError =
+    confirmationsQuery.isError ||
+    juryQuery.isError ||
+    televoteQuery.isError ||
+    (isAppMode && appSignedIn && confirmationAccessQuery.isError);
+
+  const retryStatus = () => {
+    if (confirmationsQuery.isError) void confirmationsQuery.refetch();
+    if (juryQuery.isError) void juryQuery.refetch();
+    if (televoteQuery.isError) void televoteQuery.refetch();
+    if (isAppMode && appSignedIn && confirmationAccessQuery.isError) {
+      void confirmationAccessQuery.refetch();
+    }
+  };
   const loading =
     confirmationsQuery.isLoading ||
     juryQuery.isLoading ||
@@ -379,6 +387,8 @@ function LegacyParticipatePage() {
               </p>
             </div>
           </div>
+        ) : statusError ? (
+          <ParticipationStatusRecovery onRetry={retryStatus} />
         ) : !appSignedIn ? (
           <section className="solaris-app-task-summary" aria-labelledby="app-participate-sign-in">
             <div className="min-w-0">
@@ -417,6 +427,10 @@ function LegacyParticipatePage() {
           <h2 id="participate-attention-title">Needs your attention</h2>
         </div>
 
+        {statusError ? (
+          <ParticipationStatusRecovery onRetry={retryStatus} />
+        ) : null}
+
         {loading ? (
           <PublicCurrentStatus
             icon={Clock3}
@@ -449,7 +463,7 @@ function LegacyParticipatePage() {
               </PublicDestinationGrid>
             ) : null}
           </div>
-        ) : (
+        ) : statusError ? null : (
           <PublicCurrentStatus
             icon={CheckCircle2}
             eyebrow="Up to date"
@@ -507,6 +521,31 @@ function LegacyParticipatePage() {
         ]}
       />
     </AppShell>
+  );
+}
+
+function ParticipationStatusRecovery({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div role="alert" className="rounded-2xl border border-border/70 bg-card/60 px-4 py-5 sm:px-5">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-500" aria-hidden="true" />
+        <div>
+          <h2 className="text-base font-semibold">Participation status could not be verified</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            One or more voting or confirmation services could not be reached.
+            This does not mean that your actions are complete or that voting is closed.
+            Open an individual service to check its current status.
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-4 text-sm font-semibold hover:bg-surface/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            Retry status
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

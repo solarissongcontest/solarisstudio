@@ -1,4 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const archiveInvariantFixes = readFileSync(
@@ -169,6 +172,43 @@ describe('System V3 S14 Archive review-fix contract', () => {
       const isolationGuard = verifier.indexOf('bun run scripts/check-v3-production-isolation.ts');
       expect(identityExport).toBeGreaterThanOrEqual(0);
       expect(isolationGuard).toBeGreaterThan(identityExport);
+    }
+  });
+
+  it('upgrades the complete candidate delta without rewriting adopted migrations', () => {
+    const start = workflow.indexOf('          # Exercise the complete candidate delta');
+    const end = workflow.indexOf('          cd /tmp/solaris-s14-main', start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const root = mkdtempSync(join(tmpdir(), 'archive-upgrade-delta-'));
+    try {
+      const candidate = join(root, 'candidate');
+      const main = join(root, 'main');
+      for (const directory of [candidate, main]) {
+        mkdirSync(join(directory, 'supabase/migrations'), { recursive: true });
+        writeFileSync(join(directory, 'supabase/migrations/001_adopted.sql'), 'select 1;');
+      }
+      const added = join(candidate, 'supabase/migrations/002_results_dependency.sql');
+      const retained = join(main, 'supabase/migrations/003_newer_main.sql');
+      writeFileSync(added, 'select 2;');
+      writeFileSync(retained, 'select 3;');
+      const script = 'set -euo pipefail\n' + workflow.slice(start, end)
+        .split('\n').map((line) => line.slice(10)).join('\n')
+        .replaceAll('/tmp/solaris-s14-main', main);
+      const env = { ...process.env, GITHUB_WORKSPACE: candidate };
+      execFileSync('bash', ['-c', script], { env });
+      expect(readFileSync(join(main, 'supabase/migrations/002_results_dependency.sql'), 'utf8'))
+        .toBe('select 2;');
+      expect(readFileSync(retained, 'utf8')).toBe('select 3;');
+
+      writeFileSync(join(candidate, 'supabase/migrations/001_adopted.sql'), 'select 99;');
+      const drift = spawnSync('bash', ['-c', script], { env, encoding: 'utf8' });
+      expect(drift.status).not.toBe(0);
+      expect(drift.stdout).toContain('Already-adopted migration differs');
+      expect(readFileSync(join(main, 'supabase/migrations/001_adopted.sql'), 'utf8'))
+        .toBe('select 1;');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 });

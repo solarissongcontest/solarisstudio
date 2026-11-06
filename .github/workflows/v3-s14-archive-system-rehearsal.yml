@@ -7,6 +7,8 @@ on:
     paths:
       - "supabase/migrations/**"
       - ".github/scripts/v3-s14-archive-system-rehearsal.sh"
+      - ".github/scripts/v3-start-disposable-supabase.sh"
+      - ".github/scripts/prepare-archive-local-config.py"
       - ".github/scripts/v3-s14-archive-guard-rehearsal.sh"
       - ".github/scripts/v3-s14-archive-delete-guard-rehearsal.sh"
       - ".github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh"
@@ -68,7 +70,7 @@ jobs:
           version: 2.113.0
 
       - name: Start isolated local Supabase
-        run: supabase start
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
 
       - name: Rebuild from complete migration chain
         run: supabase db reset --local --no-seed
@@ -160,30 +162,25 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-s14-main
-          supabase start
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
           supabase db reset --local --no-seed
 
       - name: Apply only the S14 feature migration delta
         shell: bash
         run: |
           set -euo pipefail
-          for migration in \
-            20261019112100_v3_s14_archive_consequence_reconciliation.sql \
-            20261019112200_v3_s14_final_results_readiness_hardening.sql \
-            20261019112300_v3_s14_transition_http409.sql \
-            20261019112400_v3_s14_archive_task_registry_alignment.sql \
-            20261019112500_v3_s14_resolved_task_notification_invariant.sql \
-            20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql \
-            20261020130000_v3_s14_archive_invariant_forward_fixes.sql \
-            20261020140000_v3_s14_archive_runtime_update_guard.sql \
-            20261021110000_v3_s14_archive_guard_authority_forward_fix.sql \
-            20261021161000_v3_s14_task_reconciliation_service_boundary.sql \
-            20261021163000_v3_s14_failed_task_delivery_evidence.sql \
-            20261021202000_v3_s14_archive_reconciliation_convergence.sql
-          do
-            cp \
-              "$GITHUB_WORKSPACE/supabase/migrations/$migration" \
-              "/tmp/solaris-s14-main/supabase/migrations/$migration"
+          # Exercise the complete candidate delta, including Results snapshot
+          # dependencies. Never overwrite an already-adopted main migration.
+          for migration in "$GITHUB_WORKSPACE"/supabase/migrations/*.sql; do
+            target="/tmp/solaris-s14-main/supabase/migrations/$(basename "$migration")"
+            if [[ -f "$target" ]]; then
+              cmp -s "$migration" "$target" || {
+                echo "::error::Already-adopted migration differs: $(basename "$migration")"
+                exit 1
+              }
+            else
+              cp "$migration" "$target"
+            fi
           done
           cd /tmp/solaris-s14-main
           # These feature migrations intentionally sort before newer migrations

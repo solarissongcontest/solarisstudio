@@ -42,4 +42,69 @@ describe("Permission Engine v2 capability model", () => {
       "Missing Solaris capability: permissions.audit",
     );
   });
+
+  it("does not promote malformed or expired grants into perpetual access", () => {
+    const now = new Date("2026-09-14T12:00:00Z");
+    for (const expiresAt of [
+      "",
+      "  ",
+      "not-a-date",
+      "2026-09-14T11:59:59Z",
+      "2026-09-14T12:00:00Z",
+    ]) {
+      expect(
+        hasCapability([{ capability: "results.preview", expiresAt }], "results.preview", { now }),
+      ).toBe(false);
+    }
+
+    expect(
+      hasCapability(
+        [{ capability: "results.preview", expiresAt: "2026-09-14T12:00:01Z" }],
+        "results.preview",
+        { now },
+      ),
+    ).toBe(true);
+    expect(
+      hasCapability([{ capability: "results.preview", expiresAt: null }], "results.preview", {
+        now,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not interpret an explicitly empty edition scope as a global grant", () => {
+    for (const editionId of ["", "  "]) {
+      const grants = [{ capability: "entry.edit" as const, editionId }];
+      expect(hasCapability(grants, "entry.edit")).toBe(false);
+      expect(hasCapability(grants, "entry.edit", { editionId: "ssc-21" })).toBe(false);
+      expect(hasCapability(grants, "entry.edit", { editionId })).toBe(false);
+    }
+
+    expect(hasCapability([{ capability: "entry.edit", editionId: null }], "entry.edit")).toBe(
+      true,
+    );
+  });
+
+  it("denies all grants when the supplied authorization clock is invalid", () => {
+    const now = new Date("invalid");
+    expect(
+      hasCapability(
+        [{ capability: "results.preview", expiresAt: "2026-09-14T12:00:01Z" }],
+        "results.preview",
+        { now },
+      ),
+    ).toBe(false);
+    expect(hasCapability([{ capability: "results.preview" }], "results.preview", { now })).toBe(
+      false,
+    );
+  });
+
+  it("fails closed for an unexpected non-string expiry from untyped runtime data", () => {
+    expect(
+      hasCapability(
+        [{ capability: "entry.edit", expiresAt: 123 as unknown as string }],
+        "entry.edit",
+        { now: new Date("2026-09-14T12:00:00Z") },
+      ),
+    ).toBe(false);
+  });
 });

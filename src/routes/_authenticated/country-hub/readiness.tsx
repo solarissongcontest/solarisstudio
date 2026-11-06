@@ -16,5 +16,4 @@ export const Route = createFileRoute("/_authenticated/country-hub/readiness")({
       replace: true,
     });
   },
-  component: () => null,
 });

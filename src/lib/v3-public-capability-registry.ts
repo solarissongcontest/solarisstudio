@@ -406,6 +406,22 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     acceptanceScenarioId: "public.v3-shell-five-root-navigation",
   },
   {
+    id: "terra-world-institutions",
+    // New Terra Solaris world routes do not belong to a legacy V6 surface.
+    sourceFeatureFlags: ["terra_world_public"],
+    legacyRoutes: ["/world", "/world/*"],
+    legacyComponents: ["WorldPublic", "WorldExploreEntry"],
+    backendOwners: ["world-institutions", "world-country-control", "country-identity"],
+    personas: ALL_PUBLIC_PERSONAS,
+    authRequirement: "public",
+    classification: "redesign",
+    targetArea: "explore",
+    targetRoute: "/world",
+    specificationStatus: "building",
+    acceptanceScenarioId: "public.terra-world-organizations-public-discovery",
+    migrationEvidence: "TG2 authoritative organizations + TG3 public pages, independently disabled rollout and Explore entry; exact-SHA release certification still required.",
+  },
+  {
     id: "explore-root",
     sourceFeatureFlags: ["solaris_app_v3_explore"],
     legacyRoutes: [

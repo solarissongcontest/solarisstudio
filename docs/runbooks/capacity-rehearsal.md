@@ -45,15 +45,21 @@ For every major system, eventual certification must define **normal, contest-day
 - `V3_CAPACITY_SCENARIO_ID` — evidence identity for the registered scenario family.
 - `V3_CAPACITY_REQUESTS` — explicit total request count.
 - `V3_CAPACITY_CONCURRENCY` — explicit worker concurrency.
+- `V3_CAPACITY_SAFETY_MAX_REQUESTS` — independently approved ceiling on total requests for this rehearsal (must be at least the requested count).
+- `V3_CAPACITY_SAFETY_MAX_CONCURRENCY` — independently approved ceiling on simultaneously active requests (must be at least the requested concurrency).
+- `V3_CAPACITY_REQUEST_TIMEOUT_MS` — positive per-request abort deadline, including slow response bodies.
+- `V3_CAPACITY_MAX_RESPONSE_BYTES` — positive maximum bytes accepted from any single response; enforced while streaming, even without Content-Length.
 - `V3_CAPACITY_COMMIT_SHA` — exact 40-character repository SHA for the code under rehearsal.
 - `V3_CAPACITY_LOAD_SOURCE` — one of `production-telemetry`, `contest-participation-or-audience`, `provider-constraint`, `historical-peak`, `approved-forecast`, `explicit-rehearsal-plan`, or `exploratory`.
 - `V3_CAPACITY_LOAD_RATIONALE` — short human-readable explanation for why this load shape was selected.
 - optional `V3_CAPACITY_METHOD`, `V3_CAPACITY_HEADERS_JSON`, `V3_CAPACITY_BODY`.
 - optional loopback `DB_URL` for PostgreSQL activity, lock/connection pressure and canonical DomainEvent queue/retry measurements.
 - when `DB_URL` is present, `V3_CAPACITY_DB_SAMPLE_MS` is required so mid-run pressure is sampled at an explicit interval rather than hidden behind a magic default.
+- when `DB_URL` is present, `V3_CAPACITY_DB_QUERY_TIMEOUT_MS` is also required to give every local PostgreSQL sampling command an explicit execution deadline.
+- request/DB timer values must be within Node's supported timer range (1–2,147,483,647 ms); larger values are rejected instead of silently clamping to approximately 1 ms.
 - optional `V3_CAPACITY_OUTPUT` for the JSON report.
 
-The harness has **no default request count, concurrency, duration target or pass/fail latency threshold**.
+The harness has **no default request count, concurrency, duration target or pass/fail latency threshold**. The four safety limits are also required explicit operator decisions; the harness must reject unsafe/non-integer values and abort when it sees unexpectedly large responses. Choose request/concurrency ceilings and the timeout/response-size bounds from the same documented local rehearsal plan, never from an assumed production quota. No automated test needs hosted Supabase to exercise these guards.
 
 Example against an already running local worker/API:
 
@@ -62,11 +68,16 @@ V3_CAPACITY_URL=http://127.0.0.1:4173/api/health \
 V3_CAPACITY_SCENARIO_ID=show-start-live-refresh \
 V3_CAPACITY_REQUESTS=<explicit-rehearsal-count> \
 V3_CAPACITY_CONCURRENCY=<explicit-rehearsal-concurrency> \
+V3_CAPACITY_SAFETY_MAX_REQUESTS=<approved-request-ceiling> \
+V3_CAPACITY_SAFETY_MAX_CONCURRENCY=<approved-concurrency-ceiling> \
+V3_CAPACITY_REQUEST_TIMEOUT_MS=<approved-per-request-timeout-ms> \
+V3_CAPACITY_MAX_RESPONSE_BYTES=<approved-per-response-byte-ceiling> \
 V3_CAPACITY_COMMIT_SHA=$(git rev-parse HEAD) \
 V3_CAPACITY_LOAD_SOURCE=<documented-source> \
 V3_CAPACITY_LOAD_RATIONALE='<why-this-load-shape>' \
 DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
 V3_CAPACITY_DB_SAMPLE_MS=<explicit-sampling-interval> \
+V3_CAPACITY_DB_QUERY_TIMEOUT_MS=<approved-db-query-timeout-ms> \
 node .github/scripts/v3-s12-local-capacity-rehearsal.mjs
 ```
 
@@ -83,7 +94,7 @@ Each representative scenario must retain:
 - relevant database activity deltas,
 - local connection and active-connection peaks where a local database is attached,
 - local lock-wait and ungranted-lock peaks,
-- observed client response bytes,
+- observed client response bytes (only for completed bounded responses; an unexpectedly oversized response aborts the rehearsal),
 - capacity-harness process memory before/after and peak observed during requests,
 - DomainEvent/outbox queue depth before/after and peak observed where applicable,
 - retry/dead-letter pressure before/after and peak observed where applicable.
@@ -133,14 +144,14 @@ Solaris has a bounded contest scale. Rehearsals should model realistic synchroni
 
 The harness returns measurements, not an invented SLO. For a certification rehearsal, compare the report against S10/S12 thresholds established separately from measured baselines. Fail on any required invariant or threshold breach and retain the raw report.
 
-For smoke-style local runs, `V3_CAPACITY_REQUIRE_ALL_SUCCESS=1` can fail the process on any HTTP/transport error. That is a correctness switch, not a latency/capacity target.
+For smoke-style local runs, `V3_CAPACITY_REQUIRE_ALL_SUCCESS=1` can fail the process on any HTTP/transport error. A safety-ceiling violation always fails immediately even when this optional correctness switch is absent; a timed-out request counts as a transport error. That is a correctness switch, not a latency/capacity target.
 
 ## Evidence to retain
 
 - exact repository SHA and runtime build identity,
 - scenario ID and endpoint/workflow mapping,
 - source and rationale for request count/concurrency/duration,
-- local database sampling interval when attached,
+- local database sampling interval and database query timeout when attached,
 - local runtime/database versions,
 - start/end timestamps,
 - complete JSON report,

@@ -94,6 +94,15 @@ describe("System V3 S11 recovery guardrails", () => {
     expect(duplicateBatch.status).toBe("blocked");
     expect(duplicateBatch.blockedReason).toBe("duplicate_scope");
 
+    const caseAliasedBatch = planV3ProjectionRecoveryBatch(taskProjection, [
+      { editionId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
+      { editionId: "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA" },
+    ]);
+    expect(caseAliasedBatch.status).toBe("blocked");
+    expect(caseAliasedBatch.blockedReason).toBe("duplicate_scope");
+    expect(caseAliasedBatch.plans[0].scope).toEqual({ editionId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" });
+    expect(caseAliasedBatch.plans[1].scope).toEqual({ editionId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" });
+
     const mixedBatch = planV3ProjectionRecoveryBatch(taskProjection, [
       { editionId: "11111111-1111-4111-8111-111111111111" },
       {},

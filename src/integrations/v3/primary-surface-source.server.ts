@@ -7,6 +7,7 @@ import type {
   CountryConfirmationRequirement,
 } from "@/lib/confirmation-country-account";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
+import { normalizeLegacyEditionStatus } from "@/lib/edition-state";
 import type { Edition, ResultRow, Show } from "@/lib/data";
 import {
   tasksFromHodWorkspace,
@@ -362,6 +363,16 @@ async function loadSnapshotForRequest(input: {
     throw new Error("Requested V3 bootstrap edition is not public.");
   }
   const editionId = selectedEdition?.id ?? null;
+  // Televoting's remote active edition is global, not a filter on the
+  // historical Solaris edition selected by this request. Only the current
+  // published Solaris edition may consume the open-vote shortcut.
+  const currentEditionId = resolveCurrentPublicEdition(editions)?.id ?? null;
+  const lifecycle = normalizeLegacyEditionStatus(selectedEdition?.status);
+  const isCurrentEdition =
+    editionId != null &&
+    editionId === currentEditionId &&
+    lifecycle !== "post_edition" &&
+    lifecycle !== "archived";
 
   const [showsResult, resultsResult, participantCount, publicTelevote] = editionId
     ? await Promise.all([
@@ -375,7 +386,7 @@ async function loadSnapshotForRequest(input: {
           .select(RESULT_COLUMNS)
           .eq("edition_id", editionId),
         loadDelegationCount(publicClient, editionId),
-        loadOpenPublicTelevote(publicClient),
+        isCurrentEdition ? loadOpenPublicTelevote(publicClient) : Promise.resolve(null),
       ])
     : [
         { data: [], error: null },

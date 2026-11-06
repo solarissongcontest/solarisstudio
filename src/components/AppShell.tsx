@@ -358,13 +358,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <p className="truncate text-[11px] text-muted-foreground">
                     {visibleAccountEmail ?? "Country account"}
                   </p>
-                  <button
-                    type="button"
-                    onClick={signOut}
-                    className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold transition-[background-color,transform] duration-150 ease-out active:scale-[0.98] motion-reduce:active:scale-100"
-                  >
-                    Sign out
-                  </button>
+                  <SheetClose asChild>
+                    <button
+                      type="button"
+                      onClick={signOut}
+                      className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold transition-[background-color,transform] duration-150 ease-out active:scale-[0.98] motion-reduce:active:scale-100"
+                    >
+                      Sign out
+                    </button>
+                  </SheetClose>
                 </div>
               ) : (
                 <SheetClose asChild>

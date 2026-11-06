@@ -37,7 +37,10 @@ log "Seeding one finalized immutable result version"
 db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_ID','S3 Publication Country','P3B');"
 db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_ID','S3 Publication',2026,'s3-publication',9941,'active',false);"
 db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published,publication_config) values ('$SHOW_ID','$EDITION_ID','S3 Publication Final','final',1,false,'{}'::jsonb);"
-db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_ID','$SHOW_ID','$COUNTRY_ID',12,10,22,1);"
+# Version capture requires a real confirmed identity; the raw row below
+# remains a synthetic invariant fixture, rather than an orphan Result.
+db_exec "insert into public.participants(edition_id,show_id,country_id,participation_status) values ('$EDITION_ID','$SHOW_ID','$COUNTRY_ID','confirmed');"
+db_exec "insert into public.results(id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank) values ('$RESULT_ID','$EDITION_ID','$SHOW_ID','$COUNTRY_ID',12,10,22,1) on conflict (show_id,country_id) where show_id is not null do update set id=excluded.id,jury_points=excluded.jury_points,televote_points=excluded.televote_points,total_points=excluded.total_points,final_rank=excluded.final_rank;"
 db_exec "insert into public.studio2_result_operations(show_id,edition_id,calculation_version,last_calculated_at,reviewed_version,reviewed_at,locked_version,locked_at,reveal_ready_version,reveal_ready_at) values ('$SHOW_ID','$EDITION_ID',1,now(),1,now(),1,now(),1,now());"
 
 [[ "$(db_value "select count(*) from private.v3_result_versions where show_id='$SHOW_ID' and version=1;")" == '1' ]] || fail "immutable result version was not captured"

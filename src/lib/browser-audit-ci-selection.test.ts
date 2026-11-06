@@ -64,12 +64,13 @@ describe("Browser Audit CI selection", () => {
 
   it.each([
     { GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_REF: "refs/heads/main" },
-    { GITHUB_EVENT_NAME: "pull_request", GITHUB_HEAD_REF: "feature/public-final-quality" },
-  ])("retains exhaustive explicit certification: %j", (env) => {
+    { GITHUB_EVENT_NAME: "pull_request", GITHUB_HEAD_REF: "release-candidate" },
+  ])("retains exhaustive explicit certification without branch-name coupling: %j", (env) => {
     const config = configFor({ ...env, E2E_FULL_AUDIT: "1" });
     expect(config.projects.length).toBeGreaterThan(20);
     expect(config.projects.map(({ name }) => name)).toContain("public-320");
     expect(config.grepInvert).toBeUndefined();
+    expect(config.retries).toBe(0);
   });
 
   it("keeps routine main bounded even with an inherited exhaustive request", () => {
@@ -79,6 +80,7 @@ describe("Browser Audit CI selection", () => {
       E2E_FULL_AUDIT: "1",
     });
     expect(config.projects).toHaveLength(5);
+    expect(config.retries).toBe(0);
   });
 
   it.each(["SUPABASE_URL", "VITE_CONFIRMATIONS_SUPABASE_URL", "EXTRA_SUPABASE_URL"])(

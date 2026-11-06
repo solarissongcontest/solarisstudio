@@ -25,15 +25,25 @@ export type V3PredictionRoundProjection = {
   breakdown: V3PredictionBreakdown | null;
 };
 
+/**
+ * Only server-recorded submitted, locked or scored entries unlock submission
+ * affordances. A saved draft is not a submission.
+ */
+export function hasSubmittedPrediction(
+  entry?: Pick<SavedPredictionEntry, "state"> | null,
+): boolean {
+  return entry?.state === "submitted" || entry?.state === "locked" || entry?.state === "scored";
+}
+
 export function predictionState(
   round: PredictionRound,
   entry?: SavedPredictionEntry | null,
 ): V3PredictionState | null {
   if (round.status === "cancelled") return null;
-  if (round.status === "scored" || entry?.prediction_score) return "scored";
+  if (round.status === "scored") return "scored";
   if (round.status === "scoring") return "scoring";
   if (round.status === "locked") return "locked";
-  if (round.status === "open") return entry ? "submitted" : "open";
+  if (round.status === "open") return hasSubmittedPrediction(entry) ? "submitted" : "open";
   return "upcoming";
 }
 
@@ -56,7 +66,8 @@ export function projectPredictionRound(
 ): V3PredictionRoundProjection | null {
   const state = predictionState(round, entry);
   if (!state) return null;
-  const score = entry?.prediction_score ?? null;
+  // A previous score does not override a round that is currently locked or scoring.
+  const score = state === "scored" ? entry?.prediction_score ?? null : null;
   return {
     id: round.id,
     showId: round.show_id,
@@ -81,4 +92,16 @@ export function projectPredictionRounds(
   return rounds
     .map((round) => projectPredictionRound(round, entries.get(round.id)))
     .filter((round): round is V3PredictionRoundProjection => Boolean(round));
+}
+
+/**
+ * A scored round is not automatically the viewer's prediction history.
+ * Require both a saved submission and a canonical score before displaying it.
+ */
+export function projectPersonalScoredPredictionRounds(
+  rounds: readonly V3PredictionRoundProjection[],
+): V3PredictionRoundProjection[] {
+  return rounds
+    .filter((round) => round.state === "scored" && round.savedEntryId !== null && round.score !== null)
+    .reverse();
 }

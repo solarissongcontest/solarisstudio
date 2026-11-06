@@ -69,6 +69,7 @@ function safePath(pathname: string) {
     !pathname.startsWith("//") &&
     !pathname.includes("\\") &&
     !pathname.startsWith("/admin") &&
+    !pathname.startsWith("/organizer") &&
     !pathname.startsWith("/confirmations/admin") &&
     !pathname.startsWith("/televoting/admin")
   );
@@ -116,6 +117,29 @@ export function appTabForPath(pathname: string): AppTabId | null {
   return appTabForLocation(pathname);
 }
 
+/**
+ * Tab memory is not a workflow-resume authority. Focused contest tasks and
+ * immersive screens have their own canonical recovery path and must never
+ * become the automatic destination of a primary tab or restored cold launch.
+ */
+function memorySafeAppTab(pathname: string, searchStr = ""): AppTabId | null {
+  // The registry recognizes /broadcast/:showId as immersive, while an exact
+  // /broadcast (or future /show-mode/* variant) may resolve to its generic
+  // fallback. Never persist those live-production routes as ordinary tab
+  // history, even during incremental route/registry cutover. This matches the
+  // existing cold-launch exclusion without rejecting /broadcast-intelligence.
+  if (!safePath(pathname) || /^\/(?:broadcast|show-mode)(?:\/|$)/.test(pathname)) return null;
+  const screen = resolveSolarisAppScreen(pathname, searchStr);
+  if (
+    screen.behavior.criticalTask ||
+    screen.behavior.immersive ||
+    screen.chrome.tabbar !== "full"
+  ) {
+    return null;
+  }
+  return screen.hierarchy.rootTab;
+}
+
 export function appEntryHref(entry: Pick<AppHistoryEntry, "pathname" | "searchStr">) {
   return `${entry.pathname}${normalizeSearch(entry.searchStr)}`;
 }
@@ -146,13 +170,20 @@ export function readAppNavigationState(
       const history = (Array.isArray(candidate.history) ? candidate.history : [])
         .map(sanitizeEntry)
         .filter((entry): entry is AppHistoryEntry => Boolean(entry))
-        .filter((entry) => appTabForLocation(entry.pathname, entry.searchStr) === tab)
+        .filter((entry) => memorySafeAppTab(entry.pathname, entry.searchStr) === tab)
         .slice(-MAX_HISTORY_PER_TAB);
-      const current = sanitizeEntry(candidate.current) ?? history.at(-1) ?? null;
-      if (!current || appTabForLocation(current.pathname, current.searchStr) !== tab) continue;
+      const current = sanitizeEntry(candidate.current);
+      const validCurrent =
+        current && memorySafeAppTab(current.pathname, current.searchStr) === tab
+          ? current
+          : null;
+      // An obsolete/critical current entry must not erase the last valid page
+      // already present in this tab's sanitized browsing history.
+      const resolved = validCurrent ?? history.at(-1) ?? null;
+      if (!resolved) continue;
       tabs[tab] = {
-        current,
-        history: history.length ? history : [current],
+        current: resolved,
+        history: history.length ? history : [resolved],
       };
     }
     return { version: 1, activeTab, tabs };
@@ -180,19 +211,27 @@ export function rememberAppLocation(
   storage: Storage | null = browserStorage(),
   launchStorage: Storage | null = browserSessionStorage(),
 ) {
-  if (!storage || !safePath(pathname) || hasPendingAppLaunchTransaction(launchStorage)) return;
-  const tab = appTabForLocation(pathname, searchStr);
+  if (!storage || hasPendingAppLaunchTransaction(launchStorage)) return;
+  const tab = memorySafeAppTab(pathname, searchStr);
   if (!tab) return;
 
   const state = readAppNavigationState(storage);
   const previous = state.tabs[tab];
+  const normalizedSearch = normalizeSearch(searchStr);
+  const href = pathname + normalizedSearch;
+  // Route changes cannot inherit a different page's scroll depth. A previously
+  // visited identical URL may restore its own scroll, including query context.
+  const rememberedEntry =
+    previous?.current && appEntryHref(previous.current) === href
+      ? previous.current
+      : previous?.history.filter((entry) => appEntryHref(entry) === href).at(-1);
   const next: AppHistoryEntry = {
     pathname,
-    searchStr: normalizeSearch(searchStr),
+    searchStr: normalizedSearch,
     scrollY:
       typeof scrollY === "number" && Number.isFinite(scrollY)
         ? Math.max(0, scrollY)
-        : (previous?.current.scrollY ?? 0),
+        : rememberedEntry?.scrollY ?? 0,
     visitedAt: new Date().toISOString(),
   };
   const last = previous?.history.at(-1);
@@ -237,7 +276,7 @@ export function updateAppScrollPosition(
 }
 
 function destinationAllowedForSession(entry: AppHistoryEntry, tab: AppTabId, signedIn: boolean) {
-  if (appTabForLocation(entry.pathname, entry.searchStr) !== tab) return false;
+  if (memorySafeAppTab(entry.pathname, entry.searchStr) !== tab) return false;
   if (tab !== "me") return true;
   if (signedIn) return !/^\/(auth|reset|recover)(\/|$)/.test(entry.pathname);
   return !/^\/my-solaris(\/|$)/.test(entry.pathname);

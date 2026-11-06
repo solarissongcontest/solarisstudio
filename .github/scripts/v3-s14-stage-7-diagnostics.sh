@@ -7,6 +7,10 @@ set -euo pipefail
 # the first failing Public Voting boundary without changing contest semantics.
 
 s14_stage7_mark() {
+  # The same status, deadline and ballot helpers run again for the Grand Final.
+  # Never overwrite the active contest extension with a Stage 7 diagnostic:
+  # failure evidence must identify the phase that actually failed.
+  [[ "${CURRENT_STAGE:-}" == stage-7-public-voting* ]] || return 0
   CURRENT_STAGE="stage-7-public-voting:$1"
   log "S14_STAGE7_DIAGNOSTIC $CURRENT_STAGE"
 }

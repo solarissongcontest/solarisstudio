@@ -8,7 +8,82 @@ export type AppViewportSnapshot = {
   keyboardOpen: boolean;
 };
 
+export type AppKeyboardViewportInput = {
+  layoutHeight: number;
+  viewportHeight: number;
+  viewportOffsetTop: number;
+  viewportScale: number;
+  editableFocus: boolean;
+};
+
 const KEYBOARD_THRESHOLD_PX = 120;
+const PINCH_ZOOM_SCALE_EPSILON = 0.05;
+
+function activeElementMayOwnKeyboard() {
+  if (typeof document === "undefined") return false;
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement)) return false;
+
+  if (active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement) {
+    return !active.hasAttribute("disabled");
+  }
+
+  if (active instanceof HTMLInputElement) {
+    if (active.disabled || active.readOnly) return false;
+    return ![
+      "button",
+      "checkbox",
+      "color",
+      "file",
+      "hidden",
+      "image",
+      "radio",
+      "range",
+      "reset",
+      "submit",
+    ].includes(active.type);
+  }
+
+  return active.isContentEditable;
+}
+
+export function resolveAppKeyboardViewport({
+  layoutHeight,
+  viewportHeight,
+  viewportOffsetTop,
+  viewportScale,
+  editableFocus,
+}: AppKeyboardViewportInput) {
+  const safeScale =
+    Number.isFinite(viewportScale) && viewportScale > 0 ? viewportScale : 1;
+  const rawInset = Math.max(
+    0,
+    layoutHeight - (viewportHeight + viewportOffsetTop),
+  );
+  const pinchZoomed =
+    Math.abs(safeScale - 1) > PINCH_ZOOM_SCALE_EPSILON;
+
+  // VisualViewport height shrinks for both pinch zoom and the software keyboard.
+  // At ~1x retain the established offset-aware bottom-occlusion calculation.
+  // While pinch-zoomed, first normalize the visible height back to the 1x screen
+  // scale; viewportOffsetTop is page pan in layout CSS pixels, not keyboard height,
+  // so it must not be mixed into that normalized estimate. Editable focus remains
+  // a fail-closed prerequisite because zoom alone is not evidence of an IME.
+  const zoomNormalizedInset = Math.max(
+    0,
+    layoutHeight - viewportHeight * safeScale,
+  );
+  const keyboardInset = pinchZoomed
+    ? editableFocus && zoomNormalizedInset >= KEYBOARD_THRESHOLD_PX
+      ? zoomNormalizedInset
+      : 0
+    : rawInset;
+
+  return {
+    keyboardInset,
+    keyboardOpen: keyboardInset >= KEYBOARD_THRESHOLD_PX,
+  };
+}
 
 function readViewport(): AppViewportSnapshot {
   if (typeof window === "undefined") {
@@ -29,10 +104,13 @@ function readViewport(): AppViewportSnapshot {
   const viewportOffsetLeft = visual?.offsetLeft ?? 0;
   const viewportOffsetTop = visual?.offsetTop ?? 0;
   const viewportScale = visual?.scale ?? 1;
-  const keyboardInset = Math.max(
-    0,
-    window.innerHeight - (viewportHeight + viewportOffsetTop),
-  );
+  const keyboard = resolveAppKeyboardViewport({
+    layoutHeight: window.innerHeight,
+    viewportHeight,
+    viewportOffsetTop,
+    viewportScale,
+    editableFocus: activeElementMayOwnKeyboard(),
+  });
 
   return {
     viewportWidth,
@@ -40,20 +118,38 @@ function readViewport(): AppViewportSnapshot {
     viewportOffsetLeft,
     viewportOffsetTop,
     viewportScale,
-    keyboardInset,
-    keyboardOpen: keyboardInset >= KEYBOARD_THRESHOLD_PX,
+    keyboardInset: keyboard.keyboardInset,
+    keyboardOpen: keyboard.keyboardOpen,
   };
 }
 
 function applyViewportCss(snapshot: AppViewportSnapshot) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  root.style.setProperty("--solaris-visual-viewport-width", `${snapshot.viewportWidth}px`);
-  root.style.setProperty("--solaris-visual-viewport-height", `${snapshot.viewportHeight}px`);
-  root.style.setProperty("--solaris-visual-viewport-offset-left", `${snapshot.viewportOffsetLeft}px`);
-  root.style.setProperty("--solaris-visual-viewport-offset-top", `${snapshot.viewportOffsetTop}px`);
-  root.style.setProperty("--solaris-visual-viewport-scale", String(snapshot.viewportScale));
-  root.style.setProperty("--solaris-keyboard-inset", `${snapshot.keyboardInset}px`);
+  root.style.setProperty(
+    "--solaris-visual-viewport-width",
+    `${snapshot.viewportWidth}px`,
+  );
+  root.style.setProperty(
+    "--solaris-visual-viewport-height",
+    `${snapshot.viewportHeight}px`,
+  );
+  root.style.setProperty(
+    "--solaris-visual-viewport-offset-left",
+    `${snapshot.viewportOffsetLeft}px`,
+  );
+  root.style.setProperty(
+    "--solaris-visual-viewport-offset-top",
+    `${snapshot.viewportOffsetTop}px`,
+  );
+  root.style.setProperty(
+    "--solaris-visual-viewport-scale",
+    String(snapshot.viewportScale),
+  );
+  root.style.setProperty(
+    "--solaris-keyboard-inset",
+    `${snapshot.keyboardInset}px`,
+  );
   root.toggleAttribute("data-solaris-keyboard-open", snapshot.keyboardOpen);
 }
 

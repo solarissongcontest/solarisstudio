@@ -58,10 +58,26 @@ export function v3DeliveryClass(importance: SolarisTaskImportance): V3DeliveryCl
 }
 
 export function v3Urgency(task: SolarisTask, now: number): V3Urgency {
-  if (!task.actionRequired) return "none";
+  // Requiredness and time pressure are independent. An open optional
+  // side competition or public vote may close very soon without becoming an
+  // official delegation obligation. Conversely, scheduled, waiting and
+  // resolved tasks must never be shown as urgent merely because their stored
+  // deadline is near (or has passed).
+  if (
+    task.state === "upcoming" ||
+    task.state === "waiting" ||
+    task.state === "completed" ||
+    task.state === "finished"
+  ) {
+    return "none";
+  }
+  if (!task.actionRequired && task.state !== "available") return "none";
 
   const deadline = parseTime(task.deadline);
-  if (deadline == null) return task.state === "problem" ? "high" : "medium";
+  if (deadline == null) {
+    if (task.state === "problem") return "high";
+    return task.actionRequired ? "medium" : "none";
+  }
 
   const remaining = deadline - now;
   if (remaining <= 0) return "immediate";
@@ -155,7 +171,14 @@ export function projectV3Attention(
   actions: readonly V3ActionProjection[],
 ): V3AttentionProjection {
   const actionable = actions
-    .filter((action) => action.actionRequired && !action.completed)
+    .filter(
+      (action) =>
+        action.deliveryClass !== "optional" &&
+        action.actionRequired &&
+        !action.completed &&
+        action.sourceState !== "waiting" &&
+        action.sourceState !== "upcoming",
+    )
     .sort((a, b) => attentionScore(b) - attentionScore(a));
 
   const primary = actionable[0] ?? null;

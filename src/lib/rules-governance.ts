@@ -4,8 +4,12 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   BUNDLED_RULEBOOK_META,
+  SSC_RULE_CHAPTERS,
   applyPublishedRulebookRelease,
+  buildRuleSnapshot,
+  compareRulebookVersions,
   getRuleById,
+  isPublishedReleaseCompatibleWithBundledCanon,
   type RulebookRelease,
 } from "@/lib/ssc-rules/index";
 
@@ -40,6 +44,54 @@ export async function fetchAdminRulebookReleases(): Promise<RulebookRelease[]> {
   return Array.isArray(data) ? (data as RulebookRelease[]) : [];
 }
 
+/**
+ * A structural rulebook release can ship with the application before the
+ * governance database pointer is advanced. Keep the public history truthful in
+ * that deployment window instead of showing an older server release as Current.
+ * Once Supabase publishes the same or a newer version this synthetic row
+ * disappears automatically and the server history is used unchanged.
+ */
+export function reconcileRulebookReleaseHistory(
+  releases: RulebookRelease[],
+): RulebookRelease[] {
+  const serverCurrent = releases.find((release) => release.is_current);
+  if (
+    serverCurrent &&
+    compareRulebookVersions(serverCurrent.version, BUNDLED_RULEBOOK_META.version) >= 0
+  ) {
+    return releases;
+  }
+
+  const chapter = SSC_RULE_CHAPTERS.find((candidate) => candidate.number === 22);
+  const changes = (chapter?.rules ?? []).map((rule) => ({
+    rule_id: rule.id,
+    change_kind: "added" as const,
+    before_snapshot: null,
+    after_snapshot: buildRuleSnapshot(rule.id),
+    rationale:
+      "Added the Roleplay & Worldbuilding framework, including country protection, Dormancy, territorial change and canonical-map rules.",
+  }));
+
+  const bundledRelease: RulebookRelease = {
+    version: BUNDLED_RULEBOOK_META.version,
+    is_current: true,
+    title: BUNDLED_RULEBOOK_META.status,
+    summary:
+      "Adds Chapter 22, Roleplay & Worldbuilding, while carrying forward the already-published v4.0.1 definitions.",
+    base_version: serverCurrent?.version ?? null,
+    effective_from: null,
+    published_at: null,
+    changes,
+  };
+
+  return [
+    bundledRelease,
+    ...releases.map((release) =>
+      release.is_current ? { ...release, is_current: false } : release,
+    ),
+  ];
+}
+
 const subscribeToHydration = () => () => undefined;
 const getClientHydrationSnapshot = () => true;
 const getServerHydrationSnapshot = () => false;
@@ -67,25 +119,28 @@ export function usePublishedRulebook() {
 
   useEffect(() => {
     if (!hydrated) return;
-    // Apply the immutable overlay only after the first client snapshot is
-    // hydrated. This keeps sibling Rules consumers on the bundled baseline
-    // during hydration, even when a cached query is already available.
+    // Apply only releases that are at least as new as the bundled canon. A
+    // deployment can therefore ship a new structural chapter safely before an
+    // older database release pointer is advanced, without visually downgrading
+    // or relabelling the bundled rulebook.
     applyPublishedRulebookRelease(query.data ?? null);
   }, [hydrated, query.data]);
 
   const data = hydrated ? query.data : undefined;
+  const effectiveData =
+    data && isPublishedReleaseCompatibleWithBundledCanon(data) ? data : undefined;
 
   return {
     ...query,
-    data,
-    version: data?.version ?? BUNDLED_RULEBOOK_META.version,
+    data: effectiveData,
+    version: effectiveData?.version ?? BUNDLED_RULEBOOK_META.version,
   };
 }
 
 export function useRulebookReleaseHistory() {
   return useQuery({
     queryKey: ["public-rulebook-release-history"],
-    queryFn: fetchRulebookReleaseHistory,
+    queryFn: async () => reconcileRulebookReleaseHistory(await fetchRulebookReleaseHistory()),
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });

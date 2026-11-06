@@ -78,6 +78,22 @@ const recoveryReadiness: V3RecoveryReadinessSummary = {
   deadLetterReplayAvailable: true,
 };
 
+function collectObjectKeys(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(collectObjectKeys);
+  if (!value || typeof value !== "object") return [];
+  return Object.entries(value as Record<string, unknown>).flatMap(([key, nested]) => [
+    key,
+    ...collectObjectKeys(nested),
+  ]);
+}
+
+function expectNoPrivateHealthKeys(value: unknown) {
+  const keys = collectObjectKeys(value);
+  for (const forbiddenKey of ["actorId", "actor_id", "userId", "user_id", "payload", "rawPayload"]) {
+    expect(keys).not.toContain(forbiddenKey);
+  }
+}
+
 describe("System V3 privacy-safe System Health contract", () => {
   it("returns aggregate healthy state without user, payload or high-cardinality labels", () => {
     const health = buildV3SystemHealth({
@@ -97,8 +113,31 @@ describe("System V3 privacy-safe System Health contract", () => {
       rawPayloads: false,
       highCardinalityLabels: false,
     });
-    expect(JSON.stringify(health)).not.toContain("actorId");
-    expect(JSON.stringify(health)).not.toContain("payload");
+    expectNoPrivateHealthKeys(health);
+  });
+
+  it("checks privacy by semantic field names rather than harmless prose substrings", () => {
+    const operatorAction = "Inspect aggregate payload shape before bounded recovery.";
+    const health = buildV3SystemHealth({
+      snapshot: snapshot({ operations: { successRate: 0.8 } }),
+      evaluation: evaluation({
+        status: "critical",
+        alerts: [
+          {
+            code: "operation_success_rate_low",
+            severity: "critical",
+            metric: "operationSuccessRate",
+            observed: 0.8,
+            threshold: 0.9,
+            operatorAction,
+          },
+        ],
+      }),
+      recoveryReadiness,
+    });
+
+    expect(health.operatorActions).toContain(operatorAction);
+    expectNoPrivateHealthKeys(health);
   });
 
   it("degrades on actionable reconciliation state even when a policy did not threshold it", () => {
