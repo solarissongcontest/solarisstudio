@@ -132,6 +132,25 @@ begin
     raise exception using errcode='23514',message='INACTIVE_INSTITUTION';
   end if;
 
+  -- Existing approved or pending proxy mandates were issued against the
+  -- original session window. Do not silently move a meeting beyond one
+  -- of those still-live authorizations. The TG6 proxy request path holds a
+  -- share lock on the session, so new requests serialize with this update.
+  if exists (
+    select 1 from public.world_representation_proxies proxy_row
+    where proxy_row.session_id=p_session_id
+      and proxy_row.status in ('requested','approved')
+      and proxy_row.revoked_at is null
+      and proxy_row.valid_until > now()
+      and (
+        proxy_row.valid_from < p_starts_at
+        or proxy_row.valid_until > p_ends_at
+      )
+  ) then
+    raise exception using errcode='23514',
+      message='SESSION_PROXY_WINDOW_CONFLICT';
+  end if;
+
   update public.world_sessions
   set starts_at=p_starts_at,
       ends_at=p_ends_at,
