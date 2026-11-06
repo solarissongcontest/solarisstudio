@@ -347,6 +347,78 @@ begin
 end
 $controller$;
 
+-- Pending nominations lose approval eligibility if a representation becomes
+-- future-effective or the country's admission is rescheduled into the future.
+-- The same pending proxy must still be approvable after fixture restoration.
+reset role;
+do $tg6_future_approval_rep_setup$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+ update public.world_organization_representations
+ set starts_at=now()+interval '1 hour'
+ where id=(v->>'representationId')::uuid;
+end
+$tg6_future_approval_rep_setup$;
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $tg6_future_approval_rep_negative$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+ perform set_config('request.jwt.claim.sub',v->>'chair',true);
+ perform set_config('request.jwt.claims',
+    jsonb_build_object('sub',v->>'chair','role','authenticated')::text,true);
+ begin
+   perform public.world_approve_proxy_v1(
+     (v->>'proxyId')::uuid,'approved',1,
+     gen_random_uuid(),'tg6-future-rep-approval:'||gen_random_uuid()::text);
+   raise exception 'TG6_PROXY_FUTURE_REP_APPROVAL_ALLOWED';
+ exception when check_violation then null;
+ end;
+end
+$tg6_future_approval_rep_negative$;
+reset role;
+do $tg6_future_approval_member_setup$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+ update public.world_organization_representations
+ set starts_at=now()-interval '1 minute'
+ where id=(v->>'representationId')::uuid;
+ update public.world_organization_memberships
+ set joined_at=now()+interval '1 hour'
+ where organization_id=(v->>'organizationId')::uuid
+   and country_id=(v->>'countryId')::uuid;
+end
+$tg6_future_approval_member_setup$;
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $tg6_future_approval_member_negative$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+ perform set_config('request.jwt.claim.sub',v->>'chair',true);
+ perform set_config('request.jwt.claims',
+    jsonb_build_object('sub',v->>'chair','role','authenticated')::text,true);
+ begin
+   perform public.world_approve_proxy_v1(
+     (v->>'proxyId')::uuid,'approved',1,
+     gen_random_uuid(),'tg6-future-member-approval:'||gen_random_uuid()::text);
+   raise exception 'TG6_PROXY_FUTURE_MEMBER_APPROVAL_ALLOWED';
+ exception when check_violation then null;
+ end;
+end
+$tg6_future_approval_member_negative$;
+reset role;
+do $tg6_future_approval_restore$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+ update public.world_organization_memberships
+ set joined_at=now()-interval '1 minute'
+ where organization_id=(v->>'organizationId')::uuid
+   and country_id=(v->>'countryId')::uuid;
+end
+$tg6_future_approval_restore$;
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+
 do $unauthorized_approval$
 declare
   v jsonb := current_setting('solaris.tg6_proxy_fixture')::jsonb;
