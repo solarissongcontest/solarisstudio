@@ -67,6 +67,17 @@ describe("V3 installed dock review regressions", () => {
     expect(css).toContain("@media (min-width: 900px) and (min-height: 600px)");
   });
 
+  it("removes the keyboard-covered floating dock from focus and touch rather than only fading it", () => {
+    const dock = source("src/styles/v3-installed-app-navbar.css");
+    expect(dock).toContain(
+      "html[data-solaris-app][data-solaris-keyboard-open] .solaris-app-tabbar",
+    );
+    expect(dock).toContain("visibility: hidden;");
+    expect(dock).toContain("pointer-events: none;");
+    expect(tab).toContain('root.hasAttribute("data-solaris-keyboard-open")');
+    expect(tab).toContain('root.style.setProperty("--solaris-bottom-obstruction", "0px")');
+  });
+
   it("names the installed V3 landmark without relabeling legacy tab bars", () => {
     expect(tab).toContain('ariaLabel = "Solaris Studio"');
     expect(tab).toContain("ariaLabel?: string;");
