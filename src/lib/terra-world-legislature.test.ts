@@ -32,6 +32,10 @@ describe("TG16 legislature and chamber contracts",()=>{
     expect(SQL).not.toContain("public.country_profile_sections");
     expect(SQL).toContain("foreign key (legislature_id,country_id)");
   });
+  it("enforces the parent World publication decision inside command and reader",()=>{
+    expect(SQL.split("studio2_feature_enabled('terra_world_public'").length - 1).toBe(2);
+    expect(SQL).toContain("WORLD_NOT_PUBLISHED");
+  });
   it("uses one owner for mutations, guarded revision and idempotent canonical receipts",()=>{
     expect(SQL).toContain("private.studio2_claim_operation");
     expect(SQL).toContain("private.studio2_complete_operation");
