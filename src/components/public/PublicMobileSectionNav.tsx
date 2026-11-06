@@ -71,41 +71,41 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
         className="public-mobile-section-panel"
         hidden={!open}
       >
-          <MobileGroup area={area} items={primary} activeTo={active?.to} onNavigate={() => setOpen(false)} />
-          {secondary.length ? (
-            <MobileGroup
-              area={area}
-              label="More"
-              items={secondary}
-              activeTo={active?.to}
-              onNavigate={() => setOpen(false)}
-            />
-          ) : null}
-          {advanced.length ? (
-            <MobileGroup
-              area={area}
-              label={area === "results" ? "More result tools" : "Advanced"}
-              items={advanced}
-              activeTo={active?.to}
-              onNavigate={() => setOpen(false)}
-            />
-          ) : null}
+        <MobileGroup area={area} items={primary} activeTo={active?.to} onNavigate={() => setOpen(false)} />
+        {secondary.length ? (
+          <MobileGroup
+            area={area}
+            label="More"
+            items={secondary}
+            activeTo={active?.to}
+            onNavigate={() => setOpen(false)}
+          />
+        ) : null}
+        {advanced.length ? (
+          <MobileGroup
+            area={area}
+            label={area === "results" ? "More result tools" : "Advanced"}
+            items={advanced}
+            activeTo={active?.to}
+            onNavigate={() => setOpen(false)}
+          />
+        ) : null}
 
-          <div className="border-t border-border/60 pt-2">
-            <Link
-              to="/site-directory"
-              className="public-mobile-section-link"
-              onClick={() => {
-                trackPublicUxEvent("section_nav_clicked", {
-                  target: "/site-directory",
-                  metadata: { area, visibility: "directory", source: "mobile_section" },
-                });
-                setOpen(false);
-              }}
-            >
-              All Solaris pages
-            </Link>
-          </div>
+        <div className="border-t border-border/60 pt-2">
+          <Link
+            to="/site-directory"
+            className="public-mobile-section-link"
+            onClick={() => {
+              trackPublicUxEvent("section_nav_clicked", {
+                target: "/site-directory",
+                metadata: { area, visibility: "directory", source: "mobile_section" },
+              });
+              setOpen(false);
+            }}
+          >
+            All Solaris pages
+          </Link>
+        </div>
       </div>
     </nav>
   );
