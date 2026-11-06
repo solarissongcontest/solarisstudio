@@ -79,6 +79,16 @@ describe("Organizer V3 website and installed navigation families", () => {
     expect(css).not.toContain('[data-organizer-generation="v3"][data-organizer-runtime="web"]');
   });
 
+  it("maintains real active/focus indicators under operating-system forced colors", () => {
+    const css = source("src/styles/v3-organizer-web-navigation.css");
+    expect(css).toContain("@media (forced-colors: active)");
+    expect(css).toContain('v3-organizer-web-navigation__link[data-active="true"]');
+    expect(css).toContain("border-bottom-color: Highlight;");
+    expect(css).toContain("outline: 2px solid Highlight;");
+    expect(css).toContain('v3-organizer-web-navigation__link[aria-disabled="true"]');
+    expect(css).toContain("color: GrayText;");
+  });
+
   it("reveals an offscreen active browser section without scrolling the page", () => {
     const container = { left: 0, right: 320 };
     expect(organizerWebSectionRevealDelta(container, { left: 20, right: 100 })).toBe(0);

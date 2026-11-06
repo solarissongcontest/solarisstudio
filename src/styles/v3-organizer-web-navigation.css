@@ -76,3 +76,19 @@
     scroll-padding-bottom: calc(max(106px, var(--v3-bottom-obstruction, 0px)) + 24px);
   }
 }
+
+/* Windows High Contrast and other forced-color modes must retain a physical
+ * current-destination indicator. Native system colors preserve user choice. */
+@media (forced-colors: active) {
+  .admin-control-room .v3-organizer-web-navigation__link[data-active="true"] {
+    color: Highlight;
+    border-bottom-color: Highlight;
+  }
+  .admin-control-room .v3-organizer-web-navigation__link:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: -3px;
+  }
+  .admin-control-room .v3-organizer-web-navigation__link[aria-disabled="true"] {
+    color: GrayText;
+  }
+}
