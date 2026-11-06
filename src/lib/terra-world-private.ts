@@ -12,6 +12,9 @@ export type WorldPrivateOrganization = {
 };
 export type WorldPrivateRoom = {
   id: string;
+  organizationId: string;
+  canManage: boolean;
+  canModerate: boolean;
   name: string;
   description: string;
   visibility: "members" | "leadership" | "organ" | "custom";
@@ -53,7 +56,8 @@ const isOrganization = (x: unknown): x is WorldPrivateOrganization =>
   isRecord(x) && typeof x.slug === "string" &&
   typeof x.name === "string" && typeof x.rooms === "number";
 const isRoom = (x: unknown): x is WorldPrivateRoom =>
-  isRecord(x) && isValidRoomId(x.id) &&
+  isRecord(x) && isValidRoomId(x.id) && isValidRoomId(x.organizationId) &&
+  typeof x.canManage === "boolean" && typeof x.canModerate === "boolean" &&
   typeof x.name === "string" && typeof x.description === "string" &&
   typeof x.history === "string" && typeof x.visibility === "string" &&
   x.status === "active" && typeof x.revision === "number";
@@ -125,4 +129,23 @@ export function isVisiblePrivateWorldQuery(state: {
   // revalidation, or offline. Auth changes also remove the query root.
   return online && state.isSuccess && !state.isError &&
     !state.isRefetchError && !state.isPending && state.isFetchedAfterMount;
+}
+
+export async function createWorldRoom(input: {
+  organizationId: string; name: string; description: string;
+  visibility: WorldPrivateRoom["visibility"];
+  history: WorldPrivateRoom["history"];
+  organId?: string | null;
+  requestId: string;
+}) {
+  if (!isValidRoomId(input.organizationId) || !isValidRoomId(input.requestId) ||
+      input.name.trim().length < 1 || input.name.trim().length > 100) {
+    throw new Error("Room name must be between 1 and 100 characters.");
+  }
+  return callWorldPrivateRpc("world_space_create_v1", {
+    p_organization_id: input.organizationId, p_name: input.name,
+    p_description: input.description, p_visibility: input.visibility,
+    p_history: input.history, p_organ_id: input.organId ?? null,
+    p_request_id: input.requestId,
+  });
 }
