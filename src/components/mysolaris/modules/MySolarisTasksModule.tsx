@@ -41,6 +41,7 @@ export function MySolarisTasksModule() {
   const countries = useCountries();
   const allEditions = useEditions();
   const access = account.data?.access;
+  const actorId = access?.userId ?? null;
   const ownCountry = account.data?.country;
   const organizerInspection = Boolean(access?.isOrganizer && targetCountryId);
   const organizerCountry = organizerInspection
@@ -58,8 +59,8 @@ export function MySolarisTasksModule() {
   });
 
   const editionsQuery = useQuery({
-    queryKey: ["studio2-hod-editions", country?.id ?? "none"],
-    enabled: featureQuery.data === true && Boolean(country?.id),
+    queryKey: ["studio2-hod-editions", actorId, country?.id ?? "none"],
+    enabled: featureQuery.data === true && Boolean(actorId && country?.id),
     queryFn: () => listStudio2HodEditions(country!.id),
   });
 
@@ -82,26 +83,45 @@ export function MySolarisTasksModule() {
   }, [availableEditions, editionId]);
 
   const workspaceQuery = useQuery({
-    queryKey: ["studio2-hod-workspace", country?.id ?? "none", editionId || "none"],
-    enabled: featureQuery.data === true && Boolean(country?.id && editionId),
+    queryKey: ["studio2-hod-workspace", actorId, country?.id ?? "none", editionId || "none"],
+    enabled: featureQuery.data === true && Boolean(actorId && country?.id && editionId),
     queryFn: () => loadStudio2HodWorkspace(editionId, country!.id),
   });
 
   const eligibilityOverridesQuery = useQuery({
     queryKey: [
       "studio2-eligibility-overrides",
+      actorId,
       editionId || "none",
       country?.id ?? "none",
       "active",
     ],
-    enabled: featureQuery.data === true && Boolean(country?.id && editionId),
+    enabled: featureQuery.data === true && Boolean(actorId && country?.id && editionId),
     queryFn: () => listStudio2EligibilityOverrides(editionId, { countryId: country!.id }),
     staleTime: 15_000,
   });
 
+  // The same delegation may have different authenticated controllers over time.
+  // A private task snapshot must never be shared between different accounts.
+  useEffect(() => {
+    if (!actorId || !country?.id) return;
+    const scopedQueries = [
+      ["studio2-hod-editions", actorId, country.id],
+      ["studio2-hod-workspace", actorId, country.id],
+      // Eligibility is edition-first after the actor and thus cleared by actor.
+      ["studio2-eligibility-overrides", actorId],
+    ];
+    return () => {
+      for (const queryKey of scopedQueries) {
+        void queryClient.cancelQueries({ queryKey });
+        queryClient.removeQueries({ queryKey });
+      }
+    };
+  }, [queryClient, actorId, country?.id]);
+
   const refreshWorkspace = async () => {
     await queryClient.invalidateQueries({
-      queryKey: ["studio2-hod-workspace", country?.id ?? "none", editionId],
+      queryKey: ["studio2-hod-workspace", actorId, country?.id ?? "none", editionId],
     });
   };
 
