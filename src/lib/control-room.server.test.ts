@@ -15,8 +15,8 @@ import { loadControlRoomModelServer } from './control-room.server';
 
 function arrange({
   capabilities = ['edition.read', 'incident.read'],
-  active = 0,
-  critical = 0,
+  active = 0 as number | null,
+  critical = 0 as number | null,
   incidentError = null as { message: string } | null,
   healthData = { status: 'ready', issues_count: 0, critical_count: 0 } as Record<string, unknown> | null,
   shows = [] as Array<{ id: string; status: string }>,
@@ -171,6 +171,30 @@ describe('Organizer Control Room server incident verification', () => {
     expect(model.issues.incidents).toBeNull();
     expect(model.issues.criticalIncidents).toBe(2);
     expect(model.overallHealth).toBe('critical');
+  });
+
+  it('preserves a verified critical count when the active HEAD count is missing', async () => {
+    arrange({ active: null, critical: 2 });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(model.issues.incidents).toBeNull();
+    expect(model.issues.criticalIncidents).toBe(2);
+    expect(model.overallHealth).toBe('critical');
+  });
+
+  it('preserves attention when active incidents are counted but critical HEAD count is missing', async () => {
+    arrange({ active: 3, critical: null });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(model.issues.incidents).toBe(3);
+    expect(model.issues.criticalIncidents).toBeNull();
+    expect(model.overallHealth).toBe('attention');
+  });
+
+  it('refuses a healthy status when one count is zero and the other is unverified', async () => {
+    arrange({ active: 0, critical: null });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(model.issues.incidents).toBe(0);
+    expect(model.issues.criticalIncidents).toBeNull();
+    expect(model.overallHealth).toBe('unknown');
   });
 
   it('uses the authoritative live Show rundown for current and next cue labels', async () => {

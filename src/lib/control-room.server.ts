@@ -82,7 +82,7 @@ function verifyHealthSummary(value: unknown): VerifiedHealthSummary {
   return { status, issues, critical };
 }
 
-type IncidentSignalCounts = { active: number | null; critical: number };
+type IncidentSignalCounts = { active: number | null; critical: number | null };
 
 /**
  * Only callers with canonical incident or integrity read capability may
@@ -118,17 +118,22 @@ async function loadIncidentSignals(
     throw error;
   }
 
-  // Missing count evidence must not be converted to an invented clean state.
-  if (
-    !Number.isSafeInteger(active.count) || active.count < 0 ||
-    !Number.isSafeInteger(critical.count) || critical.count < 0
-  ) {
-    return null;
-  }
-  // Concurrent incident changes can make two HEAD snapshots disagree. Keep
-  // the confirmed critical signal; only the inconsistent total is unverified.
-  if (critical.count > active.count) return { active: null, critical: critical.count };
-  return { active: active.count, critical: critical.count };
+  // Separate HEAD reads can have independent evidence quality. Never drop a
+  // verified positive signal just because the other count is missing.
+  const verifiedCount = (value: unknown): number | null =>
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
+  const activeCount = verifiedCount(active.count);
+  const criticalCount = verifiedCount(critical.count);
+  if (activeCount === null && criticalCount === null) return null;
+
+  // Concurrent changes can make the two snapshots contradictory. Preserve
+  // critical incidents, but do not assert a false exact active total.
+  return {
+    active: activeCount !== null && criticalCount !== null && criticalCount > activeCount
+      ? null
+      : activeCount,
+    critical: criticalCount,
+  };
 }
 
 type LiveCueLabels = { current: string | null; next: string | null };
