@@ -24,6 +24,9 @@ describe("Public Terra Solaris World Search integration", () => {
     expect(searchRoute).toContain("<WorldPublicGate>");
     expect(searchRoute).toContain("<WorldUnifiedSearchPage");
     expect(searchRoute).toContain('createFileRoute("/world/search/")');
+    expect(searchRoute).toContain("parseWorldSearchCategory(search.type)");
+    expect(searchRoute).toContain("onCategoryChange=");
+    expect(searchRoute).toContain("c: 0, o: 0, type: parseWorldSearchCategory(next)");
   });
 
   it("reuses the existing World capability instead of adding a competing rollout flag", () => {
