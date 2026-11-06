@@ -108,6 +108,8 @@ describe("TG6 institutional acting-proxy authorization", () => {
     expect(fixture).toContain("TG6_PROXY_FUTURE_MEMBER_REQUEST_ALLOWED");
     expect(fixture).toContain("TG6_PROXY_FUTURE_REP_CANDIDATES_EXPOSED");
     expect(fixture).toContain("TG6_PROXY_FUTURE_MEMBER_CANDIDATES_EXPOSED");
+    expect(fixture).toContain("TG6_PROXY_FUTURE_REP_APPROVAL_ALLOWED");
+    expect(fixture).toContain("TG6_PROXY_FUTURE_MEMBER_APPROVAL_ALLOWED");
   });
 
   it("allows approval only by institutional world proxy approvers and exactly once", () => {
