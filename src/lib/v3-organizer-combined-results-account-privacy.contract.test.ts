@@ -38,6 +38,10 @@ describe("Organizer Combined Results exact-edition private boundary", () => {
     expect(source).toContain("editionId: remoteEditionId");
     expect(source).toContain("if (!editionPage?.linked || !editionPage.edition)");
     expect(source).toContain("Legacy unassigned aggregates are not silently adopted.");
+    expect(source).toContain("const selectedAggregationVerified = aggregations.some(");
+    expect(source).toContain("if (selectedId && !selectedAggregationVerified)");
+    expect(source).toContain("detail && selectedAggregationVerified ? (");
+    expect(source).toContain("key={selectedId}");
   });
 
   it("bounds the privileged list at the server query, not just the displayed table", () => {

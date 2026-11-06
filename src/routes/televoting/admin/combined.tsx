@@ -178,6 +178,7 @@ function CombinedResultsPage({ editionId }: { editionId: string }) {
     () => (editionPage?.edition?.rounds ?? []).map((round) => ({ ...round, editionName: editionPage!.edition!.name })),
     [editionPage],
   );
+  const selectedAggregationVerified = aggregations.some((aggregation) => aggregation.id === selectedId);
 
   useEffect(() => {
     if (!aggregations.some((aggregation) => aggregation.id === selectedId)) {
@@ -262,6 +263,9 @@ function CombinedResultsPage({ editionId }: { editionId: string }) {
     );
   }
   if (!admin) return null;
+  if (selectedId && !selectedAggregationVerified) {
+    return <section className="glass p-8 text-center text-sm text-muted-foreground" role="status">Revalidating the selected Combined result…</section>;
+  }
   if (!editionPage?.linked || !editionPage.edition) {
     return (
       <section className="glass space-y-3 p-6">
@@ -321,8 +325,9 @@ function CombinedResultsPage({ editionId }: { editionId: string }) {
         <div className="min-w-0 space-y-5">
           {detailLoading ? <section className="glass p-8 text-center text-sm text-muted-foreground">Loading workspace…</section> : null}
           {detailError ? <section className="glass border-red-300/20 p-5 text-sm text-red-100">{(detailError as Error).message}</section> : null}
-          {detail ? (
+          {detail && selectedAggregationVerified ? (
             <CombinedWorkspace
+              key={selectedId}
               detail={detail}
               allRounds={allRounds}
               onRefresh={refresh}
