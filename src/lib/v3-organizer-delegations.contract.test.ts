@@ -127,7 +127,7 @@ describe('V3 Organizer Delegations context boundary', () => {
 
   it('fails closed before rendering country detail without an exact selected edition', () => {
     expect(countriesRoute).toContain(
-      'const selectedEdition = selectOrganizerEdition(editionsQuery.data ?? [], verifiedChoiceId);',
+      'const selectedEdition = selectOrganizerEdition(editionsQuery.data ?? [], editionId);',
     );
     expect(countriesRoute).toContain("if (pathname.startsWith('/admin/countries/'))");
     expect(countriesRoute).toContain('if (!selectedEdition)');
