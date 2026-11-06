@@ -94,6 +94,7 @@ type PendingAccessChange = {
   idempotencyKey: string;
   reviewContextEditionId: string | null;
   reviewContextActorId: string;
+  reviewContextEpoch: number;
   scopeLabel: string;
 };
 
@@ -117,6 +118,8 @@ function AccessPermissionsPage() {
   const currentActorRef = useRef(actorId);
   // Tracks the committed Organizer context across an in-flight password step.
   const currentEditionRef = useRef<string | null>(editionId ?? null);
+  // A→B→A must not revive a review opened before the intervening context change.
+  const reviewContextEpochRef = useRef(0);
   const editionsQuery = useEditions();
   // A failed background refresh can retain cached edition rows. Do not
   // promote that cached identity to verified permission scope.
@@ -156,6 +159,7 @@ function AccessPermissionsPage() {
     mode: "approve" | "apply";
     reviewContextEditionId: string | null;
     reviewContextActorId: string;
+    reviewContextEpoch: number;
   } | null>(null);
   const [approvalPassword, setApprovalPassword] = useState("");
 
@@ -242,8 +246,12 @@ function AccessPermissionsPage() {
       }
       const reviewContextEditionId = editionId ?? null;
       const reviewContextActorId = actorId;
+      const reviewContextEpoch = reviewContextEpochRef.current;
       const command = permissionCommand(change);
       const preview = await previewPermissionChange(command);
+      if (reviewContextEpochRef.current !== reviewContextEpoch) {
+        throw new Error("Organizer review context changed while the R3 preview was loading. Nothing was requested.");
+      }
       if (currentActorRef.current !== reviewContextActorId) {
         throw new Error("Organizer account changed while the R3 preview was loading. Nothing was requested.");
       }
@@ -273,10 +281,12 @@ function AccessPermissionsPage() {
         idempotencyKey: operation.idempotencyKey,
         reviewContextEditionId,
         reviewContextActorId,
+        reviewContextEpoch,
         scopeLabel: permissionScopeLabel(preview.editionId, editionLabels),
       };
     },
     onSuccess: (pending) => {
+      if (reviewContextEpochRef.current !== pending.reviewContextEpoch) return;
       if (currentActorRef.current !== pending.reviewContextActorId) return;
       if (!verifiedEditionRef.current || currentEditionRef.current !== pending.reviewContextEditionId) return;
       if (pending.preview.alreadyApplied) {
@@ -298,6 +308,9 @@ function AccessPermissionsPage() {
       pending: PendingAccessChange;
       password: string;
     }) => {
+      if (reviewContextEpochRef.current !== pending.reviewContextEpoch) {
+        throw new Error("Organizer review context changed after the R3 review opened. Nothing was requested.");
+      }
       if (currentActorRef.current !== pending.reviewContextActorId) {
         throw new Error("Organizer account changed after the R3 review opened. Nothing was requested.");
       }
@@ -307,6 +320,9 @@ function AccessPermissionsPage() {
         );
       }
       await reauthenticatePermissionR3(password);
+      if (reviewContextEpochRef.current !== pending.reviewContextEpoch) {
+        throw new Error("Organizer review context changed during reauthentication. Nothing was requested.");
+      }
       if (currentActorRef.current !== pending.reviewContextActorId) {
         throw new Error("Organizer account changed during reauthentication. Nothing was requested.");
       }
@@ -321,7 +337,7 @@ function AccessPermissionsPage() {
       });
     },
     onSuccess: async (_receipt, variables) => {
-      if (currentActorRef.current === variables.pending.reviewContextActorId && currentEditionRef.current === variables.pending.reviewContextEditionId) {
+      if (reviewContextEpochRef.current === variables.pending.reviewContextEpoch && currentActorRef.current === variables.pending.reviewContextActorId && currentEditionRef.current === variables.pending.reviewContextEditionId) {
         setPendingChange(null);
         setReauthPassword("");
         setMessage("Second-operator approval requested. Another authorized organizer must approve it before the change can be applied.");
@@ -338,12 +354,17 @@ function AccessPermissionsPage() {
       password,
       reviewContextEditionId,
       reviewContextActorId,
+      reviewContextEpoch,
     }: {
       approval: PermissionChangeApproval;
       password: string;
       reviewContextEditionId: string | null;
       reviewContextActorId: string;
+      reviewContextEpoch: number;
     }) => {
+      if (reviewContextEpochRef.current !== reviewContextEpoch) {
+        throw new Error("Organizer review context changed during the R3 operation. Nothing was applied.");
+      }
       if (currentActorRef.current !== reviewContextActorId) {
         throw new Error("Organizer account changed after this R3 review opened. Nothing was applied.");
       }
@@ -351,6 +372,9 @@ function AccessPermissionsPage() {
         throw new Error("Organizer edition context changed after this R3 review opened or could not be verified. Nothing was approved.");
       }
       await reauthenticatePermissionR3(password);
+      if (reviewContextEpochRef.current !== reviewContextEpoch) {
+        throw new Error("Organizer review context changed during the R3 operation. Nothing was applied.");
+      }
       if (currentActorRef.current !== reviewContextActorId) {
         throw new Error("Organizer account changed during reauthentication. Nothing was applied.");
       }
@@ -360,7 +384,7 @@ function AccessPermissionsPage() {
       return approvePermissionChangeApproval(approval.id);
     },
     onSuccess: async (_receipt, variables) => {
-      if (currentActorRef.current === variables.reviewContextActorId && currentEditionRef.current === variables.reviewContextEditionId) {
+      if (reviewContextEpochRef.current === variables.reviewContextEpoch && currentActorRef.current === variables.reviewContextActorId && currentEditionRef.current === variables.reviewContextEditionId) {
         setApprovalAction(null);
         setApprovalPassword("");
         setMessage("R3 permission change approved. The original requester can now apply it.");
@@ -377,12 +401,17 @@ function AccessPermissionsPage() {
       password,
       reviewContextEditionId,
       reviewContextActorId,
+      reviewContextEpoch,
     }: {
       approval: PermissionChangeApproval;
       password: string;
       reviewContextEditionId: string | null;
       reviewContextActorId: string;
+      reviewContextEpoch: number;
     }) => {
+      if (reviewContextEpochRef.current !== reviewContextEpoch) {
+        throw new Error("Organizer review context changed during the R3 operation. Nothing was applied.");
+      }
       if (currentActorRef.current !== reviewContextActorId) {
         throw new Error("Organizer account changed after this R3 review opened. Nothing was applied.");
       }
@@ -393,6 +422,9 @@ function AccessPermissionsPage() {
         throw new Error("This approval is not actionable by the current organizer.");
       }
       await reauthenticatePermissionR3(password);
+      if (reviewContextEpochRef.current !== reviewContextEpoch) {
+        throw new Error("Organizer review context changed during the R3 operation. Nothing was applied.");
+      }
       if (currentActorRef.current !== reviewContextActorId) {
         throw new Error("Organizer account changed during reauthentication. Nothing was applied.");
       }
@@ -412,7 +444,7 @@ function AccessPermissionsPage() {
       });
     },
     onSuccess: async (_receipt, variables) => {
-      if (currentActorRef.current === variables.reviewContextActorId && currentEditionRef.current === variables.reviewContextEditionId) {
+      if (reviewContextEpochRef.current === variables.reviewContextEpoch && currentActorRef.current === variables.reviewContextActorId && currentEditionRef.current === variables.reviewContextEditionId) {
         setApprovalAction(null);
         setApprovalPassword("");
         setMessage("Access change applied with fresh authentication and second-operator approval.");
@@ -445,6 +477,11 @@ function AccessPermissionsPage() {
     },
   });
   const resetSimulation = simulation.reset;
+
+  // A refresh, revocation, actor switch or A→B→A scope round-trip invalidates every pending R3 review.
+  useEffect(() => {
+    reviewContextEpochRef.current += 1;
+  }, [actorId, editionId, editionContextVerified]);
 
   useEffect(() => {
     currentActorRef.current = actorId;
@@ -598,6 +635,7 @@ function AccessPermissionsPage() {
               mode: "approve",
               reviewContextEditionId: editionId ?? null,
               reviewContextActorId: actorId,
+              reviewContextEpoch: reviewContextEpochRef.current,
             });
           }}
           onApply={(approval) => {
@@ -608,6 +646,7 @@ function AccessPermissionsPage() {
               mode: "apply",
               reviewContextEditionId: editionId ?? null,
               reviewContextActorId: actorId,
+              reviewContextEpoch: reviewContextEpochRef.current,
             });
           }}
         />
@@ -783,6 +822,7 @@ function AccessPermissionsPage() {
                 password: approvalPassword,
                 reviewContextEditionId: approvalAction.reviewContextEditionId,
                 reviewContextActorId: approvalAction.reviewContextActorId,
+                reviewContextEpoch: approvalAction.reviewContextEpoch,
               });
             } else {
               await applyApproved.mutateAsync({
@@ -790,6 +830,7 @@ function AccessPermissionsPage() {
                 password: approvalPassword,
                 reviewContextEditionId: approvalAction.reviewContextEditionId,
                 reviewContextActorId: approvalAction.reviewContextActorId,
+                reviewContextEpoch: approvalAction.reviewContextEpoch,
               });
             }
           }}

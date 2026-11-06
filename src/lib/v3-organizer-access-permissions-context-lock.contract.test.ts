@@ -200,6 +200,22 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).toContain('Organizer account changed during reauthentication.');
   });
 
+  it("rejects A→B→A context restoration while an R3 preview or password step is pending", () => {
+    expect(route).toContain("const reviewContextEpochRef = useRef(0);");
+    expect(route).toContain("reviewContextEpochRef.current += 1;");
+    expect(route).toContain("}, [actorId, editionId, editionContextVerified]);");
+    expect(route).toContain("const reviewContextEpoch = reviewContextEpochRef.current;");
+    expect(route).toContain("reviewContextEpoch: number;");
+    expect(route).toContain("reviewContextEpoch: reviewContextEpochRef.current,");
+    expect(route).toContain("reviewContextEpoch: approvalAction.reviewContextEpoch,");
+    expect(route).toContain("reviewContextEpochRef.current !== reviewContextEpoch");
+    expect(route).toContain("reviewContextEpochRef.current !== pending.reviewContextEpoch");
+    expect(route).toContain("reviewContextEpochRef.current !== pending.reviewContextEpoch) return;");
+    expect(route).toContain("reviewContextEpochRef.current === variables.pending.reviewContextEpoch");
+    expect(route).toContain("reviewContextEpochRef.current === variables.reviewContextEpoch");
+    expect(route).toContain("Organizer review context changed while the R3 preview was loading.");
+  });
+
   it("preserves the existing server-authoritative R3 permission operation pipeline", () => {
     for (const contract of [
       'previewPermissionChange(command)',
