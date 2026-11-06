@@ -81,6 +81,7 @@ const BROWSE_DESTINATIONS = [
   { kind: "country", label: "Countries", description: "Open canonical country profiles and participation history.", href: "/countries" },
   { kind: "show", label: "Shows", description: "Find published shows and their edition context.", href: "/shows" },
   { kind: "story", label: "Stories", description: "Continue into published Solaris editorial history.", href: "/stories" },
+  { kind: "rule", label: "Official rules", description: "Read the current published Rules and guidance.", href: "/rules" },
 ] as const;
 
 function parseSearchRows(value: unknown): ReferenceItem[] {
