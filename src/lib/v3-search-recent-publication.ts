@@ -12,8 +12,14 @@ function singleSegment(path: string, kind: "editions" | "stories"): string | nul
   if (!match) return null;
   try {
     const slug = decodeURIComponent(match[1]);
-    // Never create a new lookup route from an encoded slash or control byte.
-    if (!slug || slug.length > 160 || /[/\\?#\u0000-\u001f\u007f]/.test(slug)) return null;
+    // Reject encoded separators, dot-segment traversal and control bytes
+    // before a stored shared-device URL can trigger any publication request.
+    if (!slug || slug.length > 160 || slug === "." || slug === ".." ||
+        /[/\\\\?#]/.test(slug) ||
+        [...slug].some((character) => {
+          const code = character.charCodeAt(0);
+          return code <= 0x1f || code === 0x7f;
+        })) return null;
     return slug;
   } catch {
     return null;
