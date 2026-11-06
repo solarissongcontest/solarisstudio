@@ -68,7 +68,7 @@ describe("Integrated Terra Solaris public discovery chain", () => {
 
   it("requires an officially published parent in every body or office read", () => {
     expect(bodyReader).toContain("worldBodyParentPublished(row.status)");
-    expect(bodyReader).toContain("worldBodyParentPublished(parent.status)"));
+    expect(bodyReader).toContain("worldBodyParentPublished(parent.status)");
     expect(bodyReader).toContain('.in("status", [...WORLD_PUBLISHED_BODY_PARENT_STATUSES])');
     expect(bodyReader.split('world_organizations!inner(id,public_visibility,status)').length - 1)
       .toBe(4);
