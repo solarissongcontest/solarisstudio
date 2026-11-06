@@ -4,11 +4,11 @@ import { TERRA_GOVERNANCE_DOMAIN_REGISTRY } from "./terra-governance-domain-regi
 import { authorizationPolicyForCapability } from "./v3-s7-authorization-matrix";
 
 describe("Terra Solaris Governance authorization registration", () => {
-  it("registers every TG2 world capability in the fail-closed S7 authorization matrix", () => {
+  it("registers every implemented world capability in the fail-closed S7 authorization matrix", () => {
     const capabilities = new Set(
-      TERRA_GOVERNANCE_DOMAIN_REGISTRY.filter((domain) => domain.wave === "TG2").flatMap(
-        (domain) => domain.capabilities,
-      ),
+      TERRA_GOVERNANCE_DOMAIN_REGISTRY.filter((domain) =>
+        domain.wave === "TG2" || domain.wave === "TG4",
+      ).flatMap((domain) => domain.capabilities),
     );
 
     for (const capability of capabilities) {
@@ -34,6 +34,15 @@ describe("Terra Solaris Governance authorization registration", () => {
 
     expect(policy.effect).toBe("review");
     expect(policy.riskTier).toBe(2);
+    expect(policy.serverAuthoritativeMutationRequired).toBe(true);
+  });
+
+  it("classifies document publication as critical server-authoritative publication", () => {
+    const policy = authorizationPolicyForCapability("world.document.publish");
+
+    expect(policy.objectTypes).toContain("world_document");
+    expect(policy.effect).toBe("publish");
+    expect(policy.riskTier).toBe(4);
     expect(policy.serverAuthoritativeMutationRequired).toBe(true);
   });
 });

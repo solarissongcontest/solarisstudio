@@ -9,7 +9,7 @@ export type TerraGovernanceImplementationState =
 
 export type TerraGovernanceDomainOwner = {
   id: string;
-  wave: "TG1" | "TG2" | "TG3+";
+  wave: "TG1" | "TG2" | "TG4" | "TG3+";
   implementationState: TerraGovernanceImplementationState;
   canonicalOwner: string;
   canonicalTables: readonly string[];
@@ -182,6 +182,54 @@ export const TERRA_GOVERNANCE_DOMAIN_REGISTRY: readonly TerraGovernanceDomainOwn
       "Office-derived authority is capability data, never frontend title matching.",
     ],
   },
+  {
+    id: "world-documents",
+    wave: "TG4",
+    implementationState: "implemented",
+    canonicalOwner: "generic institutional legal document Work/Version/Provision/Artifact state",
+    canonicalTables: [
+      "public.world_documents",
+      "public.world_document_versions",
+      "public.world_document_provisions",
+      "public.world_document_version_provisions",
+      "public.world_document_artifacts",
+    ],
+    existingSolarisOwnersReused: [
+      "public.world_organizations",
+      "public.world_access_allowed",
+      "public.studio2_capabilities",
+      "public.studio2_capability_grants",
+      "public.studio2_operation_receipts",
+      "private.v3_domain_events",
+      "private.v3_domain_event_outbox",
+      "private.v3_domain_event_consumer_receipts",
+    ],
+    commands: [
+      "world.document.create",
+      "world.document.version.create",
+      "world.document.version.update_draft",
+      "world.document.version.publish",
+    ],
+    projections: [
+      "public.world_get_document_index_v1",
+      "public.world_get_document_v1",
+      "public.world_get_document_archive_v1",
+    ],
+    eventTypes: [
+      "world.document.created",
+      "world.document.version_created",
+      "world.document.version_published",
+      "world.document.version_superseded",
+    ],
+    capabilities: ["world.document.manage", "world.document.publish"],
+    notes: [
+      "Published legal text is immutable and superseded versions remain permanent.",
+      "Provision semantic identity survives renumbering and relocation between versions.",
+      "Artifacts are representations; the structured Version remains authoritative.",
+      "Existing V3 Archive remains the historical owner; TG4 does not create a world_archive truth store.",
+      "Full exact-head CI certification is deferred until the stacked PR is retargeted to main because repository workflows only trigger for main-targeting pull requests.",
+    ],
+  },
 ] as const;
 
 export const TERRA_GOVERNANCE_FOUNDATION_MIGRATIONS = [
@@ -196,6 +244,25 @@ export const TERRA_GOVERNANCE_FOUNDATION_MIGRATIONS = [
 export const TERRA_GOVERNANCE_FOUNDATION_EVENT_TYPES = [
   "world.country_control_linked",
   "world.representation.changed",
+] as const;
+
+export const TERRA_GOVERNANCE_TG4_MIGRATIONS = [
+  "20261103163000_v3_tg4_world_document_state.sql",
+  "20261103164000_v3_tg4_world_document_commands.sql",
+  "20261103165000_v3_tg4_world_document_archive_projection.sql",
+  "20261103165500_v3_tg4_world_document_hardening.sql",
+  "20261103165700_v3_tg4_world_document_identity_scope.sql",
+  "20261103165900_v3_tg4_world_document_hierarchy_integrity.sql",
+  "20261103170100_v3_tg4_world_document_hierarchy_cycles.sql",
+  "20261103170500_v3_tg4_world_document_published_provision_guard.sql",
+  "20261103171000_v3_tg4_world_document_provenance_privacy.sql",
+] as const;
+
+export const TERRA_GOVERNANCE_TG4_EVENT_TYPES = [
+  "world.document.created",
+  "world.document.version_created",
+  "world.document.version_published",
+  "world.document.version_superseded",
 ] as const;
 
 export function terraGovernanceDomain(id: string) {
