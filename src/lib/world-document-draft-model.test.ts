@@ -76,6 +76,15 @@ describe("TG4 governed institutional draft models", () => {
       version: { ...snapshot().version, revision: null },
     }))).toThrow();
     expect(() => parseWorldDocumentDraftSnapshot(snapshot({ history: null }))).toThrow();
+    expect(() => parseWorldDocumentDraftSnapshot(snapshot({
+      version: { ...snapshot().version, sourceProvenance: undefined },
+    }))).toThrow(/version/i);
+    expect(() => parseWorldDocumentDraftSnapshot(snapshot({
+      version: { ...snapshot().version, sourceProvenance: null },
+    }))).toThrow();
+    expect(parseWorldDocumentDraftSnapshot(snapshot()).version?.sourceProvenance).toEqual({
+      sourceKind: "institutional",
+    });
   });
 
   it("detects a pending draft even when the canonical current version is published", () => {
@@ -104,6 +113,8 @@ describe("TG4 governed institutional draft models", () => {
     expect(doc.revision).toBeNull();
     expect(doc.hasUnpublishedDraft).toBe(false);
     expect(doc.pendingDraft).toBeNull();
+    expect(doc.version?.sourceProvenance).toBeNull();
+    expect(doc.version?.sourceDescription).toBeNull();
   });
 
   it("never treats a receipt with a different operation or command as success", () => {
@@ -240,7 +251,16 @@ describe("TG4 governed institutional draft models", () => {
     expect(screen).toContain("executing.current.has(review.operationId)");
     expect(screen).not.toContain("p_provisions: []");
 
-    expect(screen).not.toContain("world_update_document_version_draft_v1");
+    expect(screen).toContain("world_update_document_version_draft_v1");
+    expect(screen).toContain("p_source_description: version.sourceDescription");
+    expect(screen).toContain("p_source_provenance: version.sourceProvenance");
+    expect(screen).toContain("p_effective_from: version.effectiveFrom");
+    expect(screen).toContain("p_expected_version_revision: version.revision");
+    expect(screen).toContain('worldDocumentDraftSignature');
+    expect(screen).toContain('originalDraft.current');
+    expect(screen).toContain('reviewDraftUpdate');
+    expect(screen).toContain('hydratedPendingRevision');
+    expect(screen).toContain('gcTime: 0');
     expect(screen).not.toMatch(/\.from\(["']world_document(?:s|_versions)["']\)/);
     expect(screen).not.toContain("world_publish_document_version_v1");
     expect(screen).not.toContain("service_role");
