@@ -23,6 +23,26 @@ describe("V3 Organizer Confirmation rounds", () => {
     expect(rounds).toContain("expectedVersion: pending.preview.expectedVersion");
   });
 
+  it("rejects stale or contradictory impact reviews across Organizer edition changes", () => {
+    expect(rounds).toContain("const organizerEditionRef = useRef(organizerEditionId)");
+    expect(rounds).toContain("const previewRequestRef = useRef(0)");
+    expect(rounds).toContain("const requestId = ++previewRequestRef.current");
+    expect(rounds).toContain("organizerEditionRef.current !== reviewedEditionId");
+    expect(rounds).toContain("preview.editionId !== reviewedEditionId");
+    expect(rounds).toContain("preview.changeKind !== input.kind");
+    expect(rounds).toContain("preview.roundId !== (input.roundId ?? null)");
+    expect(rounds).toContain("pending.preview.editionId !== editionId");
+    expect(rounds).toContain("organizerEditionRef.current !== pending.preview.editionId");
+    expect(rounds).toContain("previewRequestRef.current += 1");
+    expect(rounds).toContain("STALE_ROUND_REVIEW_ERROR");
+  });
+
+  it("does not let a superseded preview clear the busy state of a newer review", () => {
+    expect(rounds).toContain("if (previewRequestRef.current === requestId)");
+    expect(rounds).toContain("if (input.roundId) setRoundBusy(null)");
+    expect(rounds).toContain("else setBusy(false)");
+  });
+
   it("preserves distinct submission and correction consequences", () => {
     expect(rounds).toContain("No new confirmation requirements were created");
     expect(rounds).toContain("Existing correction access is unchanged");
