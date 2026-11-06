@@ -306,7 +306,9 @@ export const V3_S16_CRITICAL_DOMAINS: readonly V3S16DomainDefinition[] = [
     risk: "integrity_critical",
     canonicalTables: ["public.editions", "public.shows", "public.studio2_edition_runtime"],
     canonicalOwner: "edition/live-show domains",
-    canonicalCommands: ["public.v3_apply_edition_metadata_change", "public.v3_apply_edition_visual_change"],
+    canonicalCommands: ["public.v3_apply_edition_metadata_change", "public.v3_apply_edition_visual_change",
+      "public.v3_save_show_rundown", "public.v3_set_show_rundown_lock", "public.v3_transition_show_cue"],
+    sanctionedWriteTriggers: ["v3_guard_show_cue_authority"],
   },
 ];
 
