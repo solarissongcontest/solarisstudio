@@ -8,8 +8,10 @@ const ui = readFileSync(resolve(process.cwd(), "src/components/world/WorldPrivat
 
 describe("TG11/TG12 private workspace authority contracts", () => {
   it("has matched PostgreSQL function delimiters and transactional DDL", () => {
-    expect((sql.match(/as \$\$/g) ?? []).length).toBe(13);
-    expect((sql.match(/^\$\$;/gm) ?? []).length).toBe(13);
+    expect((sql.match(/as \$\$/g) ?? []).length).toBe(11);
+    expect((sql.match(/^\$\$;/gm) ?? []).length).toBe(11);
+    expect((sql.match(/as \$[a-z]+\$/g) ?? []).length).toBe(4);
+    expect((sql.match(/^\$[a-z]+\$;/gm) ?? []).length).toBe(4);
     expect(sql.startsWith("begin;")).toBe(true);
     expect(sql.trimEnd().endsWith("commit;")).toBe(true);
   });
