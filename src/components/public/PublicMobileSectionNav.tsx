@@ -16,9 +16,29 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const navigationRef = useRef<HTMLElement>(null);
+  const focusRouteHeadingRef = useRef(false);
 
   // Browser history and direct links must not carry an expanded menu to a new page.
-  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    setOpen(false);
+    if (!focusRouteHeadingRef.current) return;
+    focusRouteHeadingRef.current = false;
+
+    // A route transition may replace the focused link (and sometimes the
+    // disclosure trigger). After the new page paints, focus its heading so
+    // keyboard and screen-reader users enter the destination instead of
+    // falling back to the document body.
+    const frame = window.requestAnimationFrame(() => {
+      const heading = document.querySelector<HTMLElement>(".public-site-content h1");
+      if (heading) {
+        heading.tabIndex = -1;
+        heading.focus({ preventScroll: true });
+      } else {
+        triggerRef.current?.focus();
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname]);
 
   // The tablet/desktop rail replaces this disclosure at 768px. If the user
   // rotates or resizes back to mobile, do not resurrect a stale open panel.
@@ -50,9 +70,12 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
   // Activating a disclosure link with Enter closes its panel. Keep keyboard
   // focus on the still-visible trigger instead of stranding it on a hidden
   // link; pointer navigation must never steal focus.
-  const closeAfterNavigation = (keyboardActivated: boolean) => {
+  const closeAfterNavigation = (keyboardActivated: boolean, targetPath: string) => {
     setOpen(false);
-    if (keyboardActivated) triggerRef.current?.focus();
+    if (!keyboardActivated) return;
+    focusRouteHeadingRef.current = pathname !== targetPath;
+    // Retain a visible focus location until navigation completes.
+    triggerRef.current?.focus();
   };
 
   if (!hasLocalNavigation(area)) return null;
@@ -137,7 +160,7 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
                 target: "/site-directory",
                 metadata: { area, visibility: "directory", source: "mobile_section" },
               });
-              closeAfterNavigation(event.detail === 0);
+              closeAfterNavigation(event.detail === 0, "/site-directory");
             }}
           >
             All Solaris pages
@@ -159,7 +182,7 @@ function MobileGroup({
   label?: string;
   items: ReturnType<typeof publicDestinationsForArea>;
   activeTo?: string;
-  onNavigate: (keyboardActivated: boolean) => void;
+  onNavigate: (keyboardActivated: boolean, targetPath: string) => void;
 }) {
   return (
     <div className="space-y-1">
@@ -182,7 +205,7 @@ function MobileGroup({
                 source: "mobile_section",
               },
             });
-            onNavigate(event.detail === 0);
+            onNavigate(event.detail === 0, item.to);
           }}
           className={cn(
             "public-mobile-section-link",

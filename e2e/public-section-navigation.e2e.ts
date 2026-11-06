@@ -67,7 +67,7 @@ test("mobile browser section navigation supports keyboard disclosure, Escape, an
   await expect(panel).toBeHidden();
 
   // Enter follows the selected destination and closes the panel. The link
-  // becomes hidden, so keyboard focus must return to the visible trigger.
+  // becomes hidden; focus must move into the new page, not the document body.
   await trigger.focus();
   await page.keyboard.press("Enter");
   await expect(panel).toBeVisible();
@@ -75,7 +75,9 @@ test("mobile browser section navigation supports keyboard disclosure, Escape, an
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/scorecharts\/?(?:[?#].*)?$/);
   await expect(panel).toBeHidden();
-  await expect(trigger).toBeFocused();
+  const destinationHeading = page.locator(".public-site-content h1").first();
+  await expect(destinationHeading).toBeVisible();
+  await expect(destinationHeading).toBeFocused();
 });
 
 test("tablet browser keeps Advanced destinations keyboard-accessible with readable touch targets", async ({ page }, testInfo) => {
