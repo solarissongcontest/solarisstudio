@@ -523,14 +523,14 @@ function CountryProfilePage() {
         )}
 
         {countryLayoutMode === "mobile-web" ? (
-          <nav className="country-mobile-web-tabs scroll-slim mb-5" aria-label="Country sections">
+          <nav className="country-mobile-web-tabs scroll-slim mb-5 flex gap-4 overflow-x-auto overscroll-x-contain border-b border-border" aria-label="Country sections">
             {TABS.map((option) => (
               <button
                 key={option.value}
                 type="button"
                 onClick={() => setTab(option.value)}
                 aria-current={tab === option.value ? "page" : undefined}
-                className={tab === option.value ? "is-selected" : undefined}
+                className={`min-h-12 shrink-0 cursor-pointer whitespace-nowrap border-b-2 bg-transparent px-0.5 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${tab === option.value ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}
               >
                 {option.label}
               </button>
