@@ -147,6 +147,6 @@ describe("TG3 published body route ownership", () => {
     const directory = readFileSync(resolve(bodyRoutes, "index.tsx"), "utf8");
     const detail = readFileSync(resolve(bodyRoutes, "$bodySlug.tsx"), "utf8");
     expect(directory).toContain('createFileRoute("/world/organizations/$slug/bodies")');
-    expect(detail).toContain('createFileRoute("/world/organizations/$slug/bodies/$bodySlug")');
+    expect(detail).toContain('createFileRoute("/world/organizations/$slug_/bodies/$bodySlug")');
   });
 });
