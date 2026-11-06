@@ -212,8 +212,19 @@ test("desktop advanced section follows deep links and browser history", async ({
   await expect(advanced).toHaveAttribute("open", "");
   await expect(resultLab).toHaveAttribute("aria-current", "page");
 
-  // A direct deep-link reload must initialize the current Advanced group open.
+  // A direct deep-link reload must expose the active link, not just set the
+  // details element's open attribute inside an otherwise collapsed sidebar.
   await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(sidebar).not.toHaveClass(/is-collapsed/);
+  await expect(advanced).toBeVisible();
   await expect(advanced).toHaveAttribute("open", "");
+  await expect(resultLab).toBeVisible();
   await expect(resultLab).toHaveAttribute("aria-current", "page");
+
+  // Manual collapse remains available after the current route was exposed.
+  const toggle = sidebar.locator(".public-section-nav-toggle");
+  await expect(toggle).toBeVisible();
+  await toggle.click();
+  await expect(sidebar).toHaveClass(/is-collapsed/);
+  await expect(resultLab).toBeHidden();
 });
