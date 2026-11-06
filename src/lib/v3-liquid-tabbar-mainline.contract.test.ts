@@ -47,6 +47,15 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     );
   });
 
+  it("recovers pointer and keyboard tab activation after a cancelled lens gesture", () => {
+    const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const start = tabs.slice(tabs.indexOf("const startDrag ="), tabs.indexOf("const moveDrag ="));
+    expect(start).toMatch(/suppressClick\.current = false;[\s\S]*?if \(/);
+    expect(tabs).toContain("onKeyDown={() => {");
+    expect(tabs).toContain("onPointerCancel={cancelDrag}");
+    expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
+  });
+
   it("keeps the pointer-move hot path free of layout reads", () => {
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const moveStart = tabs.indexOf("const moveDrag =");
