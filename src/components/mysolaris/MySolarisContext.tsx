@@ -56,6 +56,7 @@ export type MySolarisContextValue = {
     completed: number;
   };
   unreadNoticeCount: number;
+  noticeAttentionCount: number;
   tasks: SolarisTask[];
   deadlines: MySolarisDeadline[];
   priorities: MySolarisPriorityItem[];
@@ -138,15 +139,22 @@ export function MySolarisProvider({
     queryKey: ["mysolaris-notice-summary", userId, countryId, currentEdition?.id, "recipient-inbox"],
     queryFn: async () => {
       const notices = await loadStudio2RecipientNoticeInbox(currentEdition?.id);
+      const unread = notices.filter(
+        (item) => item.inboxState === "unread" || item.inboxState === "acknowledgement_required",
+      );
+      const outstandingAcknowledgements = notices.filter(
+        (item) => item.notice.acknowledgementRequired && !item.receipt?.acknowledgedAt,
+      );
+      // Archive is a recipient presentation state, not a receipt that
+      // completes required acknowledgement. Deduplicate overlapping notices.
+      const attentionIds = new Set([
+        ...unread.map((item) => item.notice.id),
+        ...outstandingAcknowledgements.map((item) => item.notice.id),
+      ]);
       return {
-        unreadNoticeCount: notices.filter(
-          (item) => item.inboxState === "unread" || item.inboxState === "acknowledgement_required",
-        ).length,
-        acknowledgementTasks: notices.filter(
-          (item) =>
-            item.inboxState === "acknowledgement_required" ||
-            (item.notice.acknowledgementRequired && item.inboxState === "unread"),
-        ).length,
+        unreadNoticeCount: unread.length,
+        noticeAttentionCount: attentionIds.size,
+        acknowledgementTasks: outstandingAcknowledgements.length,
       };
     },
     staleTime: 20_000,
@@ -188,8 +196,9 @@ export function MySolarisProvider({
 
   const noticeSummary = includeParticipationContext && noticesQuery.data
     ? noticesQuery.data
-    : { unreadNoticeCount: 0, acknowledgementTasks: 0 };
+    : { unreadNoticeCount: 0, noticeAttentionCount: 0, acknowledgementTasks: 0 };
   const unreadNoticeCount = noticeSummary.unreadNoticeCount;
+  const noticeAttentionCount = noticeSummary.noticeAttentionCount;
   const acknowledgementTasks = noticeSummary.acknowledgementTasks;
 
   const deadlines = useMemo(
@@ -296,8 +305,8 @@ export function MySolarisProvider({
 
     writeAppAttentionSummary({
       participate: taskCounts.needsAction,
-      me: unreadNoticeCount,
-      osBadge: unreadNoticeCount,
+      me: noticeAttentionCount,
+      osBadge: noticeAttentionCount,
     });
   }, [
     confirmationQuery.isLoading,
@@ -307,7 +316,7 @@ export function MySolarisProvider({
     noticesQuery.isLoading,
     roundsQuery.isLoading,
     taskCounts.needsAction,
-    unreadNoticeCount,
+    noticeAttentionCount,
     userQuery.data,
     userQuery.isLoading,
     userQuery.isError,
@@ -329,6 +338,7 @@ export function MySolarisProvider({
     capabilities,
     taskCounts,
     unreadNoticeCount,
+    noticeAttentionCount,
     tasks,
     deadlines,
     priorities,

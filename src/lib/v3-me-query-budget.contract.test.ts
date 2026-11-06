@@ -58,6 +58,18 @@ describe("V3 Me identity-only query budget", () => {
     expect(meRoot).toContain("Retry account check");
   });
 
+  it("counts archived outstanding required notices in tasks and badge attention from receipt truth", () => {
+    const nav = source("src/components/mysolaris/MySolarisWorkspaceNav.tsx");
+    expect(context).toContain("item.notice.acknowledgementRequired && !item.receipt?.acknowledgedAt");
+    expect(context).toContain("const attentionIds = new Set([");
+    expect(context).toContain("noticeAttentionCount: attentionIds.size");
+    expect(context).toContain("acknowledgementTasks: outstandingAcknowledgements.length");
+    expect(context).toContain("unreadNoticeCount: unread.length");
+    expect(context).toContain("me: noticeAttentionCount");
+    expect(context).toContain("osBadge: noticeAttentionCount");
+    expect(nav).toContain("workspace.noticeAttentionCount");
+  });
+
   it("does not poll current membership unnecessarily from the V3 Me root", () => {
     expect(context).toContain("refetchInterval: includeParticipationContext ? 30_000 : false");
     expect(context).toContain("refetchOnWindowFocus: includeParticipationContext");
