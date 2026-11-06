@@ -78,6 +78,13 @@ function OrganizerDelegationsPage() {
         eyebrow={selectedEditionLabel ?? "Current edition"}
         title="Delegations"
         description="Exception-first delegation operations. Confirmation attention is derived from the canonical requirement projection for the exact Organizer edition, never from entry-review status."
+        actions={selectedEdition ? (
+          <Link to="/admin/countries" className="admin-action-secondary">
+            <Flag className="size-4" />
+            Browse delegation roster
+            <ArrowRight className="size-4" />
+          </Link>
+        ) : undefined}
       />
 
       {editionsQuery.isLoading ? (

@@ -26,6 +26,21 @@ describe('V3 Organizer Delegations context boundary', () => {
     expect(delegationsRoute).not.toContain('loadConfirmationRequirements(editionId!)');
   });
 
+  it('keeps the canonical delegation roster reachable when Confirmation obligations cannot load', () => {
+    // The independent country cockpit stays behind its own delegation.read route gate.
+    // An unverified or missing edition cannot expose this link.
+    expect(delegationsRoute).toContain('actions={selectedEdition ? (');
+    expect(delegationsRoute).toContain('to="/admin/countries"');
+    expect(delegationsRoute).toContain('Browse delegation roster');
+    expect(delegationsRoute).toContain(') : undefined}');
+    expect(countriesRoute).toContain("const cockpitQuery = useQuery({");
+    expect(countriesRoute).toContain("enabled: Boolean(resolvedEditionId)");
+    const headerLink = delegationsRoute.indexOf('Browse delegation roster');
+    const requirementsError = delegationsRoute.indexOf('requirementsQuery.isError ? (');
+    expect(headerLink).toBeGreaterThan(0);
+    expect(headerLink).toBeLessThan(requirementsError);
+  });
+
   it('filters the already-loaded attention list without suppressing canonical totals or fetching more data', () => {
     expect(delegationsRoute).toContain('const [attentionSearch, setAttentionSearch] = useState("");');
     expect(delegationsRoute).toContain('const visibleAttention = attentionNeedle');
