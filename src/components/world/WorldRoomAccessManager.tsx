@@ -12,6 +12,7 @@ import {
 
 type Props = {
   roomId: string;
+  visibility: "members" | "leadership" | "organ" | "custom";
   actorId: string;
   online: boolean;
   onClose: () => void;
@@ -20,7 +21,7 @@ type Props = {
 /** Separate client presentation for the TG11 canonical governed invite RPC.
  * No raw room-grant table reads/writes and no unbounded member directory.
  */
-export function WorldRoomAccessManager({ roomId, actorId, online, onClose }: Props) {
+export function WorldRoomAccessManager({ roomId, visibility, actorId, online, onClose }: Props) {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
@@ -78,7 +79,9 @@ export function WorldRoomAccessManager({ roomId, actorId, online, onClose }: Pro
           <ShieldCheck className="size-4" aria-hidden="true" /> Room access
         </h3>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          Only current institutional members are eligible. Ending membership revokes access immediately.
+          {visibility === "members" ?
+            "Every active institutional member already has room access. Grants only add moderator privileges." :
+            "Only current institutional members are eligible. Ending membership revokes access immediately."}
         </p>
       </div>
       <button type="button" onClick={onClose} className="min-h-11 rounded-lg border border-border px-4 text-sm font-medium">
@@ -119,12 +122,17 @@ export function WorldRoomAccessManager({ roomId, actorId, online, onClose }: Pro
                 className="min-h-11 rounded-lg border border-border px-3 text-xs font-semibold disabled:opacity-50">
                 {user.role === "moderator" ? "Remove moderator" : "Make moderator"}
               </button>
-              <button type="button" disabled={mutation.isPending}
+              {visibility !== "members" || user.role === "moderator" ? <button type="button" disabled={mutation.isPending}
                 onClick={() => submit(user, user.role, false)}
                 className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-border px-3 text-xs font-semibold text-destructive disabled:opacity-50">
-                <UserX className="size-4" aria-hidden="true" /> Revoke
-              </button>
+                <UserX className="size-4" aria-hidden="true" /> {visibility === "members" ? "Remove extra role" : "Revoke"}
+              </button> : null}
             </> :
+              visibility === "members" ?
+              <button type="button" disabled={mutation.isPending} onClick={() => submit(user, "moderator", true)}
+                className="min-h-11 rounded-lg border border-border px-3 text-xs font-semibold disabled:opacity-50">
+                Make moderator
+              </button> :
               <button type="button" disabled={mutation.isPending}
                 onClick={() => submit(user, "member", true)}
                 className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:opacity-50">
