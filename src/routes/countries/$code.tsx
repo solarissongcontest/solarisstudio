@@ -40,7 +40,7 @@ import {
   useEditions,
 } from "@/lib/data-live";
 import { canonicalEditionEntries, canonicalEntryFor } from "@/lib/entry-utils";
-import { resolveCountryCurrentContext } from "@/lib/v3-country-current-context";
+import { isPublishedCurrentCountryEntry, resolveCountryCurrentContext } from "@/lib/v3-country-current-context";
 import { buildCountryDiscovery } from "@/lib/v3-discovery-entities";
 import { computeCountryForm } from "@/lib/form";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
@@ -450,11 +450,10 @@ function CountryProfilePage() {
     loading: currentContextLoading,
     error: currentContextError,
   });
-  const latestEntryIsCurrent = Boolean(
-    latestEntry &&
-    countryDiscovery.currentEdition?.id === latestEntry.edition_id &&
-    !currentContextLoading &&
-    !currentContextError,
+  const latestEntryIsCurrent = isPublishedCurrentCountryEntry(
+    countryDiscovery.currentEdition?.id,
+    latestEntry?.edition_id,
+    { loading: currentContextLoading, error: currentContextError },
   );
 
   const chartData =
