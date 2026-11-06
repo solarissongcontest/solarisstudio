@@ -66,6 +66,13 @@ export function useSetFanFollow(profileId?: string) {
       notificationLevel?: FanFollowRow["notification_level"];
     }) => {
       if (!profileId) throw new Error("Sign in to follow this item.");
+      // A mounted account can change while an older view still has handlers.
+      // The RPC uses auth.uid(), not profileId, so an old handler must not
+      // accidentally mutate the newly signed-in viewer's follows.
+      const { data: currentAuth, error: authError } = await supabase.auth.getUser();
+      if (authError || currentAuth.user?.id !== profileId) {
+        throw new Error("Your Solaris account changed. Reload your saved items before editing.");
+      }
       const { data, error } = await supabase.rpc("set_fan_follow", {
         _entity_type: entityType,
         _entity_id: entityId,

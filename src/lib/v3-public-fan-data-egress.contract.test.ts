@@ -42,6 +42,19 @@ describe("V3 Public fan-data egress boundaries", () => {
     expect(taste).toContain('{ onConflict: "profile_id,show_id" }');
   });
 
+  it("refuses a stale account's follow handler before calling the canonical RPC", () => {
+    const followMutator = engagement.slice(
+      engagement.indexOf("export function useSetFanFollow"),
+      engagement.indexOf("export function useContentEvents"),
+    );
+    expect(followMutator).toContain("await supabase.auth.getUser()");
+    expect(followMutator).toContain("currentAuth.user?.id !== profileId");
+    expect(followMutator).toContain("Your Solaris account changed.");
+    expect(followMutator.indexOf("currentAuth.user?.id !== profileId")).toBeLessThan(
+      followMutator.indexOf('supabase.rpc("set_fan_follow"'),
+    );
+  });
+
   it("does not add polling or realtime fan-out to these reusable hooks", () => {
     expect(engagement).not.toContain("refetchInterval");
     expect(engagement).not.toContain(".channel(");
