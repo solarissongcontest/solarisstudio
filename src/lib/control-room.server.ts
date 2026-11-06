@@ -53,6 +53,35 @@ async function loadPersistedRuntimeState(
   }
 }
 
+type VerifiedHealthSummary = {
+  status: 'ready' | 'needs-attention' | 'blocked' | null;
+  issues: number | null;
+  critical: number | null;
+};
+
+/**
+ * The health RPC is an external evidence boundary. Invalid or inconsistent
+ * counts must not become a verified all-clear through JS coercion.
+ * Preserve explicit blocked/attention states even if their counts are bad.
+ */
+function verifyHealthSummary(value: unknown): VerifiedHealthSummary {
+  const unknown = { status: null, issues: null, critical: null } as const;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return unknown;
+  const row = value as Record<string, unknown>;
+  const status =
+    row.status === 'ready' || row.status === 'needs-attention' || row.status === 'blocked'
+      ? row.status
+      : null;
+  const count = (v: unknown) =>
+    typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 ? v : null;
+  const issues = count(row.issues_count);
+  const critical = count(row.critical_count);
+  if (issues != null && critical != null && critical > issues) {
+    return { status: status === 'blocked' || status === 'needs-attention' ? status : null, issues: null, critical: null };
+  }
+  return { status, issues, critical };
+}
+
 type IncidentSignalCounts = { active: number; critical: number };
 
 /**
@@ -96,6 +125,7 @@ async function loadIncidentSignals(
   ) {
     return null;
   }
+  if (critical.count > active.count) return null;
   return { active: active.count, critical: critical.count };
 }
 
@@ -173,17 +203,17 @@ export async function loadControlRoomModelServer(editionId: string): Promise<Con
     loadLiveRundownCueLabels(db, editionId, canManageEdition),
   ]);
 
-  const health = healthError && missingSchema(healthError) ? null : healthData;
   if (healthError && !missingSchema(healthError)) throw healthError;
+  const health = verifyHealthSummary(healthError ? null : healthData);
 
   return buildControlRoomModel({
     editionId: edition.id,
     editionName: edition.name,
     legacyEditionStatus: edition.status,
     runtimeState,
-    healthStatus: health?.status ?? null,
-    healthIssues: health?.issues_count ?? null,
-    criticalIssues: health?.critical_count ?? null,
+    healthStatus: health.status,
+    healthIssues: health.issues,
+    criticalIssues: health.critical,
     activeIncidents: incidentCounts?.active ?? null,
     criticalIncidents: incidentCounts?.critical ?? null,
     currentSegment: liveCues?.current ?? null,
