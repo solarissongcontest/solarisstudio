@@ -49,6 +49,19 @@ describe("V3 installed dock interrupted gesture recovery", () => {
     }
   });
 
+  it("requires a completed long-press before any installed AppTabBar drag commits", () => {
+    expect(installed).toContain("isEngaged: isHoldEngaged");
+    expect(installed).toContain("startY: event.clientY");
+    const move = installed.slice(installed.indexOf("const moveDrag ="), installed.indexOf("const finishDrag ="));
+    expect(move).toMatch(/if \(!isHoldEngaged\(event.pointerId\)\) \{/);
+    expect(move).toContain("moveHold(event.pointerId, event.clientX, event.clientY)");
+    expect(move).toContain("holdMovementExceeded(drag.startX, drag.startY, event.clientX, event.clientY)");
+    expect(move).toContain("suppressClick.current = true;");
+    const finish = installed.slice(installed.indexOf("const finishDrag ="), installed.indexOf("const cancelDrag ="));
+    expect(finish).toMatch(/if \(!isHoldEngaged\(event.pointerId\)\) \{\s*clearDrag\(\);\s*return;\s*\}/);
+    expect(finish).toContain("suppressClick.current = true;");
+  });
+
   it("installed AppTabBar cancels and disposes every lifecycle interruption", () => {
     for (const event of ["blur", "resize", "orientationchange", "pagehide"]) {
       expect(installed).toContain('window.addEventListener("' + event + '", resetInterruptedGesture)');
