@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { AlertCircle, ArrowLeft, CheckCircle2, ClipboardList, ShieldCheck } from "lucide-react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { GuardExternalApplicationForm } from "@/components/world/GuardExternalApplicationForm";
 import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import {
@@ -196,6 +197,14 @@ function GuardApplicationReviewPage() {
           </div>
         ) : review.data ? (
           <>
+            {phase === "submitted" && review.data.canIntroduce ? (
+              <GuardExternalApplicationForm
+                key={currentUser.id}
+                organizationId={review.data.organizationId}
+                actorId={currentUser.id}
+              />
+            ) : null}
+
             <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
               <div>
                 <h2 className="text-lg font-semibold">
@@ -233,7 +242,8 @@ function GuardApplicationReviewPage() {
                         </p>
                         <h3 className="mt-1 text-lg font-semibold">{application.officialDesignation}</h3>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Submitted {new Date(application.submittedAt).toLocaleString()} · Revision {application.revision}
+                          {application.intakeSource === "external" ? "Chairperson-recorded external intake" : "Country-submitted application"}
+                          {" · "}{new Date(application.submittedAt).toLocaleString()} · Revision {application.revision}
                         </p>
                       </div>
                       <span className="self-start rounded-full border border-border px-3 py-1 text-xs">
@@ -244,6 +254,14 @@ function GuardApplicationReviewPage() {
                     <details className="rounded-xl border border-border p-4">
                       <summary className="cursor-pointer font-medium">Read private application</summary>
                       <dl className="mt-4 space-y-4 text-sm">
+                        {application.intakeSource === "external" && (
+                          <div>
+                            <dt className="font-semibold">Private external source reference</dt>
+                            <dd className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">
+                              {application.sourceReference}
+                            </dd>
+                          </div>
+                        )}
                         <div><dt className="font-semibold">Government system</dt>
                           <dd className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">
                             {application.governmentSystem}
