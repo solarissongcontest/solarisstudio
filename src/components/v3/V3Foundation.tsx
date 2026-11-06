@@ -281,6 +281,14 @@ function journeyIcon(state: V3JourneyState): LucideIcon {
   return Clock3;
 }
 
+const JOURNEY_STATE_LABELS: Record<V3JourneyState, string> = {
+  complete: "Complete",
+  active: "In progress",
+  waiting: "Waiting",
+  locked: "Locked",
+  problem: "Action needed",
+};
+
 export function V3JourneyStep({
   title,
   detail,
@@ -294,12 +302,13 @@ export function V3JourneyStep({
 }) {
   const Icon = journeyIcon(state);
   return (
-    <div className="v3-journey-step" data-state={state}>
+    <div className="v3-journey-step" data-state={state} role="listitem">
       <span className="v3-journey-step__marker" aria-hidden="true">
         <Icon className="size-3.5" />
       </span>
       <span className="min-w-0">
         <span className="v3-journey-step__title">{title}</span>
+        <span className="sr-only">Status: {JOURNEY_STATE_LABELS[state]}</span>
         {detail ? <span className="v3-journey-step__detail">{detail}</span> : null}
       </span>
       {trailing ? <span className="v3-journey-step__trailing">{trailing}</span> : null}
@@ -308,5 +317,5 @@ export function V3JourneyStep({
 }
 
 export function V3Journey({ children }: { children: ReactNode }) {
-  return <div className="v3-journey">{children}</div>;
+  return <div className="v3-journey" role="list">{children}</div>;
 }
