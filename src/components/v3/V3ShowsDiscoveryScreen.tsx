@@ -141,46 +141,19 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
 
   return (
     <div className="v3-shows-directory space-y-8" data-show-directory-experience={presentation}>
-      {discovery.liveNow.length > 0 ? (
-        <ShowCollection
-          presentation={presentation}
-          id="shows-live-now"
-          eyebrow="Live now"
-          title="On air"
-          items={discovery.liveNow}
-          emphasis="live"
-        />
-      ) : null}
-
-      {discovery.upNext.length > 0 ? (
-        <ShowCollection
-          presentation={presentation}
-          id="shows-up-next"
-          eyebrow="Up next"
-          title="Coming shows"
-          items={discovery.upNext.slice(0, 4)}
-        />
-      ) : null}
-
-      {discovery.recent.length > 0 ? (
-        <ShowCollection
-          presentation={presentation}
-          id="shows-recent"
-          eyebrow="Recent"
-          title="Latest completed"
-          items={discovery.recent}
-        />
-      ) : null}
-
-      {discovery.currentEdition && discovery.currentEditionShows.length > 0 ? (
-        <ShowCollection
-          presentation={presentation}
-          id="shows-current-edition"
-          eyebrow="Current edition"
-          title={editionLabel(discovery.currentEdition)}
-          items={discovery.currentEditionShows}
-        />
-      ) : null}
+      {[
+        { id: "shows-live-now", eyebrow: "Live now", title: "On air",
+          items: discovery.liveNow, emphasis: "live" as const },
+        { id: "shows-up-next", eyebrow: "Up next", title: "Coming shows",
+          items: discovery.upNext.slice(0, 4), emphasis: "normal" as const },
+        { id: "shows-recent", eyebrow: "Recent", title: "Latest completed",
+          items: discovery.recent, emphasis: "normal" as const },
+        { id: "shows-current-edition", eyebrow: "Current edition",
+          title: discovery.currentEdition ? editionLabel(discovery.currentEdition) : "",
+          items: discovery.currentEditionShows, emphasis: "normal" as const },
+      ].filter((collection) => collection.items.length > 0).map((collection) => (
+        <ShowCollection key={collection.id} presentation={presentation} {...collection} />
+      ))}
 
       <section id="shows-browse" aria-labelledby="shows-browse-title" className="scroll-mt-24">
         <h2 id="shows-browse-title" className="v3-shows-browse-heading">All public shows</h2>
