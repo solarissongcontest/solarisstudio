@@ -91,8 +91,14 @@ describe("World country International public read boundaries", () => {
     ]) {
       expect(() => parseWorldCountryAffiliations([{ ...current, joined_at: invalidJoinedAt }], country.id, "current")).toThrow();
     }
+    // This leap-day timestamp is valid, but it only becomes current after its effective start.
     expect(parseWorldCountryAffiliations([{ ...current, joined_at: "2028-02-29T00:00:00+02:00" }],
-      country.id, "current")).toHaveLength(1);
+      country.id, "current", new Date("2030-01-01T00:00:00Z"))).toHaveLength(1);
+    expect(() => parseWorldCountryAffiliations([{ ...current, joined_at: "2028-02-29T00:00:00+02:00" }],
+      country.id, "current", new Date("2026-11-07T00:00:00Z")))
+      .toThrow("Future-effective membership");
+    expect(() => parseWorldCountryAffiliations([{ ...current, joined_at: "2099-01-01T00:00:00Z" }],
+      country.id, "current")).toThrow("Future-effective membership");
     expect(() => parseWorldCountryAffiliations([{ ...historical, ended_at: "2020-01-01T00:00:00Z" }],
       country.id, "historical")).toThrow("before it begins");
   });

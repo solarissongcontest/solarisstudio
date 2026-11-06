@@ -108,7 +108,12 @@ export async function fetchWorldCountryMembershipPage(
   let request = (supabase as any).from("world_organization_memberships")
     .select(MEMBERSHIP_COLUMNS, { count: "exact" }).eq("country_id", countryId);
   if (phase === "current") {
-    request = request.is("ended_at", null).in("status", ["member", "observer", "associate", "suspended"]);
+    // PostgreSQL's timestamp literal 'now' is evaluated by the DB server,
+    // not by an untrusted or skewed device clock. Exclude future starts
+    // before exact count/pagination so they cannot displace current rows.
+    request = request.is("ended_at", null)
+      .in("status", ["member", "observer", "associate", "suspended"])
+      .lte("joined_at", "now");
   } else {
     request = request.not("ended_at", "is", null).in("status", ["withdrawn", "expelled", "former"]);
   }

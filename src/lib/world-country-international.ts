@@ -180,6 +180,7 @@ export function parseWorldCountryAffiliations(
   value: unknown,
   expectedCountryId: string,
   phase: "current" | "historical",
+  asOf = new Date(),
 ): WorldCountryAffiliation[] {
   if (!expectedCountryId) throw new Error("Missing expected country identity");
   const ids = new Set<string>();
@@ -207,6 +208,11 @@ export function parseWorldCountryAffiliations(
     }
     if (phase === "current" && (!CURRENT_STATES.has(status) || endedAt !== null)) {
       throw new Error("Non-current membership in current affiliations");
+    }
+    // Defense in depth against a misconfigured RLS/filter or stale API row.
+    // This is public presentation only, not official admission/vote eligibility.
+    if (phase === "current" && !(Date.parse(joinedAt) <= asOf.getTime())) {
+      throw new Error("Future-effective membership in current affiliations");
     }
     if (phase === "historical" && (!HISTORICAL_STATES.has(status) || endedAt === null)) {
       throw new Error("Non-historical membership in past affiliations");
