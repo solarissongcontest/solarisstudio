@@ -68,6 +68,21 @@ test("nested app-shell CSS still receives its tighter 15-KiB gzip budget", () =>
   assert.ok(report.failures.some((message) => message.includes("App shell CSS gzip")));
 });
 
+test("split nested app-shell chunks cannot each evade the shared 15-KiB cap", () => {
+  const { result, report } = exerciseBudget({
+    "entry.js": "console.log('entry');",
+    "css/a/app-shell-first.css": randomBytes(9_000),
+    "css/b/app-shell-second.css": randomBytes(9_000),
+  });
+  assert.equal(result.status, 1);
+  assert.equal(report.withinBudget, false);
+  assert.ok(report.aggregateGzipBytes < FIXED_GZIP_CAP);
+  assert.ok(report.failures.some((message) =>
+    message.includes("App shell CSS gzip") &&
+    message.includes("app-shell-first.css") &&
+    message.includes("app-shell-second.css")));
+});
+
 test("nested public passthrough files are excluded only when byte-identical to public assets", () => {
   const bytes = randomBytes(1_900_000);
   const { result, report } = exerciseBudget({
