@@ -39,7 +39,7 @@ export function AdminShell({
   const organizerModeResolved =
     !organizerV3.isLoading && !organizerV3.isError && organizerV3.data != null;
   const organizerV3Enabled =
-    organizerModeResolved && organizerV3.data.organizerEnabled === true;
+    organizerModeResolved && organizerV3.data?.organizerEnabled === true;
   const { isAppMode, platformResolved } = useSolarisApp();
   const organizerToolbarStyle = {
     "--organizer-toolbar-title-scale": (1.035 - morphProgress * 0.035).toFixed(4),
