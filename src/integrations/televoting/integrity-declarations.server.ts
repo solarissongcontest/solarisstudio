@@ -114,6 +114,7 @@ export async function listIntegrityDeclarationsServer(input: {
   if (!scopedEditionId) {
     throw new Error("Voting integrity declarations require an explicit edition scope");
   }
+  // Caller's exact-edition integrity capability precedes all service-role evidence reads.
   await requireSolarisCapabilityServer("integrity.read", scopedEditionId);
 
   const limit = Math.max(1, Math.min(1000, Number(input.limit ?? 300)));

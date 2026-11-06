@@ -1,6 +1,6 @@
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import { loadV3ResultsBundle } from "@/integrations/v3/results-source.server";
-import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
+import { resolveActivePublicEdition } from "@/lib/v3-discovery-entities";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 import type { Edition } from "@/lib/data";
 import {
@@ -51,7 +51,9 @@ type ParsedProfile = {
 };
 
 export type V3DelegationServerBundle = {
+  countryId: string;
   projection: V3CountryExploreProjection;
+  activeEditionLabel: string | null;
   shell: {
     editionLabel: string;
     phaseLabel: string;
@@ -143,7 +145,9 @@ function parseProfile(
       history: entries,
       geography: null,
       actions: {
-        wiki: { label: "Wiki", href: `/wiki/${code}` },
+        // The legacy detail URL redirects back to this same Country once Reference is enabled.
+        // The Wiki index performs the authorized Reference rollout redirect instead.
+        wiki: { label: "Reference", href: "/wiki" },
         compare: { label: "Compare", href: `/compare?a=${encodeURIComponent(code)}` },
       },
     },
@@ -217,7 +221,10 @@ export async function loadV3DelegationBundle(input: {
   throwIfError(editionsResult.error, "Could not resolve the current public Solaris edition");
 
   const publishedEditions = (editionsResult.data ?? []) as Edition[];
-  const currentEdition = resolveCurrentPublicEdition(publishedEditions);
+  // The newest *archived* edition is useful history, not a current contest.
+  // Keep it out of the Current entry/result slots while preserving every
+  // published participation in the history projection.
+  const currentEdition = resolveActivePublicEdition(publishedEditions);
   const editionHrefById = new Map<string, string>();
   for (const edition of publishedEditions) {
     const id = stringOrNull(edition.id);
@@ -235,6 +242,10 @@ export async function loadV3DelegationBundle(input: {
   });
 
   return {
+    countryId: profile.countryId,
+    activeEditionLabel: currentEdition
+      ? currentEdition.edition_number == null ? currentEdition.name : `SSC ${currentEdition.edition_number}`
+      : null,
     projection: buildV3CountryExploreProjection(
       profile.identity,
       editionHrefById,

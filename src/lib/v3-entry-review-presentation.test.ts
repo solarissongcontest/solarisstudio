@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import type { V3EntryCandidate } from "@/lib/v3-entry";
@@ -98,6 +99,15 @@ describe("V3 Entry candidate review presentation", () => {
         }),
       ),
     ).toEqual({ label: "Removed by organizer", tone: "danger" });
+  });
+
+  it("labels review notes with the existing version-aware review status", () => {
+    const screen = readFileSync("src/components/v3/V3EntryScreen.tsx", "utf8");
+
+    expect(screen).toContain("Review note · {review.label}");
+    expect(screen).toContain("candidate.reviewReason?.trim()");
+    expect(screen).toContain("deriveV3EntryCandidateReviewPresentation(candidate)");
+    expect(screen).not.toContain("v3EntryReviewReasonLabel");
   });
 
   it("keeps pending current versions in waiting state", () => {

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Archive, BarChart3, BookOpen, GitCompareArrows, Trophy, Vote } from "lucide-react";
 
+import type { ReactNode } from "react";
 import type { V3CountryExploreProjection } from "@/lib/v3-explore-entities";
 import {
   V3ActionCard,
@@ -14,7 +15,9 @@ import {
 
 export type V3DelegationScreenProps = {
   projection: V3CountryExploreProjection;
+  followControl: ReactNode;
   hideResultSpoilers: boolean;
+  activeEditionLabel?: string | null;
 };
 
 function statusPresentation(status: string | null): {
@@ -64,7 +67,9 @@ function EditionContextLink({
  */
 export function V3DelegationScreen({
   projection,
+  followControl,
   hideResultSpoilers,
+  activeEditionLabel,
 }: V3DelegationScreenProps) {
   const currentStatus = projection.currentEntry
     ? statusPresentation(projection.currentEntry.status)
@@ -114,12 +119,22 @@ export function V3DelegationScreen({
                 Public Solaris delegation identity and published entry history.
               </p>
             )}
+            <div className="mt-4 flex min-h-11 items-center">
+              {followControl}
+            </div>
           </div>
         </div>
       </V3Surface>
 
-      <V3Section title="Current entry">
-        {projection.currentEntry ? (
+      <V3Section title={activeEditionLabel === null ? "Between editions" : "Current entry"}>
+        {activeEditionLabel === null ? (
+          <V3Surface className="p-4">
+            <p className="text-sm font-semibold">No active published edition</p>
+            <p className="mt-1 text-xs leading-5 text-white/48">
+              Browse this country's published participation history below.
+            </p>
+          </V3Surface>
+        ) : projection.currentEntry ? (
           <V3Surface className="p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
@@ -136,7 +151,7 @@ export function V3DelegationScreen({
           </V3Surface>
         ) : (
           <V3Surface className="p-4">
-            <p className="text-sm font-semibold">No public entry yet</p>
+            <p className="text-sm font-semibold">No public entry yet{activeEditionLabel ? ` for ${activeEditionLabel}` : ""}</p>
             <p className="mt-1 text-xs leading-5 text-white/48">
               Entry details appear only after the canonical publication rules expose them.
             </p>

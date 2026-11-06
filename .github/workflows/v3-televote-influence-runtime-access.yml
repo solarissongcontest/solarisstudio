@@ -1,0 +1,96 @@
+name: V3 Televote influence runtime access
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/scripts/sql/televote-influence-runtime-access.sql'
+      - '.github/workflows/v3-televote-influence-runtime-access.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: influence-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rehearsal:
+    name: Influence ACL (${{ matrix.mode }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [clean-replay, current-main-upgrade]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Prepare isolated migration chain
+        shell: bash
+        env:
+          REHEARSAL_MODE: ${{ matrix.mode }}
+        run: |
+          set -euo pipefail
+          if [[ "$REHEARSAL_MODE" == 'current-main-upgrade' ]]; then
+            git fetch origin main --no-tags
+            git worktree add /tmp/influence-main origin/main
+            cd /tmp/influence-main
+          fi
+          # Each rehearsal owns a disposable local project and a distinct port family.
+          # Never discover or reuse a hosted project when local ports are occupied.
+          if [[ "$REHEARSAL_MODE" == 'clean-replay' ]]; then
+            port_base=56320
+          else
+            port_base=57320
+          fi
+          sed -i "1c project_id = \"solaris_influence_${REHEARSAL_MODE}\"" supabase/config.toml
+          cat >> supabase/config.toml <<TOML
+          [api]
+          port = $((port_base + 1))
+          [db]
+          port = $((port_base + 2))
+          shadow_port = $((port_base + 0))
+          [studio]
+          port = $((port_base + 3))
+          [inbucket]
+          port = $((port_base + 4))
+          [analytics]
+          port = $((port_base + 7))
+          TOML
+          supabase start
+          supabase db reset --local --no-seed
+          if [[ "$REHEARSAL_MODE" == 'current-main-upgrade' ]]; then
+            cp "$GITHUB_WORKSPACE/supabase/migrations/20261105140500_v3_televote_influence_role_runtime_access.sql" supabase/migrations/
+            supabase migration up --local
+          fi
+      - name: Verify real role access and public denial
+        shell: bash
+        env:
+          REHEARSAL_MODE: ${{ matrix.mode }}
+        run: |
+          set -euo pipefail
+          if [[ "$REHEARSAL_MODE" == 'current-main-upgrade' ]]; then cd /tmp/influence-main; fi
+          eval "$(supabase status -o env)"
+          # Reject query-string host overrides and deceptive additional authorities.
+          local_db_pattern='^postgres(ql)?://postgres:postgres@(127[.]0[.]0[.]1|localhost):[0-9]+/postgres$'
+          if [[ ! "$DB_URL" =~ $local_db_pattern ]]; then
+            echo 'Refusing non-local database' >&2
+            exit 1
+          fi
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/.github/scripts/sql/televote-influence-runtime-access.sql"
+      - name: Stop isolated stack
+        if: always()
+        shell: bash
+        env:
+          REHEARSAL_MODE: ${{ matrix.mode }}
+        run: |
+          if [[ "$REHEARSAL_MODE" == 'current-main-upgrade' ]]; then cd /tmp/influence-main 2>/dev/null || exit 0; fi
+          supabase stop --no-backup || true
