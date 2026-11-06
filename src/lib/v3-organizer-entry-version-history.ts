@@ -40,13 +40,19 @@ function text(value: unknown): string | null {
 }
 
 function credits(value: unknown) {
-  if (!Array.isArray(value)) return [] as { name: string; role: string }[];
-  return value.flatMap((item) => {
+  if (value == null) return [] as { name: string; role: string }[];
+  if (!Array.isArray(value) || value.length > 100) {
+    throw new Error("Entry history returned malformed or oversized credit evidence.");
+  }
+  return value.map((item) => {
     const row = record(item);
     const name = text(row?.name);
     const role = text(row?.role);
-    return name && role ? [{ name, role }] : [];
-  }).slice(0, 100);
+    if (!name || !role) {
+      throw new Error("Entry history returned incomplete credit evidence.");
+    }
+    return { name, role };
+  });
 }
 
 export function parseOrganizerEntryRevisions(
