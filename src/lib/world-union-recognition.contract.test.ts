@@ -7,7 +7,7 @@ import {
 } from "./world-union-recognition";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
-const sql = () => read("supabase/migrations/20261107006000_v3_tg15_union_founder_consent.sql");
+const sql = () => read("supabase/migrations/20261107005500_v3_tg15_union_founder_consent.sql");
 const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const own = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const invited = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
