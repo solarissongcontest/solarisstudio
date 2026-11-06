@@ -464,9 +464,14 @@ export function AppTabBar({
               }}
               onClick={(event) => {
                 if (suppressClick.current) {
+                  // A cancelled pointer can leave a synthetic click pending.
+                  // VoiceOver/assistive activation uses a detail=0 click without
+                  // pointerdown or keydown and must not be swallowed by that flag.
                   suppressClick.current = false;
-                  event.preventDefault();
-                  return;
+                  if (event.detail > 0) {
+                    event.preventDefault();
+                    return;
+                  }
                 }
 
                 const wasCollapsed = collapsed;
