@@ -25,7 +25,7 @@ export type TerraOsPublicReadiness = {
 };
 
 const PUBLIC_STATUS_SCORE: Record<
-  (typeof V3_PUBLIC_CAPABILITIES)[number]["specificationStatus"],
+  PublicCapabilityMigration["specificationStatus"],
   number
 > = {
   discovered: 0.05,
@@ -124,7 +124,7 @@ export function getTerraOsPublicReadiness(): TerraOsPublicReadiness {
   );
 
   const participation = publicScore(
-    (item) => item.targetArea === "participate" || item.id === "confirmations",
+    (item) => item.targetArea === "participate",
   );
 
   const publicProduct = publicScore((item) =>

@@ -102,14 +102,18 @@ export function validateV3NavigationReferenceBaseline(
   if (!baseline.geometry) {
     failures.push("geometry is required");
   } else {
-    const entries = Object.entries(baseline.geometry).filter(([key]) => key !== "iconCenterX");
-    for (const [key, value] of entries) {
-      if (!finitePositive(value)) failures.push(`geometry.${key} must be positive`);
+    const requiredDimensions = [
+      "shellWidth", "shellMaxWidth", "shellHeightExpanded", "shellHeightCompact",
+      "horizontalInset", "bottomInset", "shellRadius", "slotWidth", "iconOpticalSize",
+      "lensWidth", "lensHeight", "lensRadius", "lensCenterX", "lensOvershootMax",
+      "compactWidth", "compactHeight", "shadowSpreadBudget", "viewportWidth",
+    ] as const satisfies readonly (keyof V3NavigationReferenceGeometry)[];
+    for (const key of requiredDimensions) {
+      if (!finitePositive(baseline.geometry[key])) failures.push(`geometry.${key} must be positive`);
     }
-    if (baseline.geometry.iconCenterX.length !== 5) {
+    if (!Array.isArray(baseline.geometry.iconCenterX) || baseline.geometry.iconCenterX.length !== 5) {
       failures.push("geometry.iconCenterX must contain five tab centers");
-    }
-    if (baseline.geometry.iconCenterX.some((value) => !Number.isFinite(value))) {
+    } else if (baseline.geometry.iconCenterX.some((value) => !finitePositive(value))) {
       failures.push("geometry.iconCenterX must contain finite values");
     }
   }
