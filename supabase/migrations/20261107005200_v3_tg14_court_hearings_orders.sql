@@ -125,14 +125,20 @@ as $projection$
   'title',ord.title,'body',ord.body,'effectiveAt',ord.effective_at,
   'publishedAt',ord.published_at
  ) order by ord.order_number),'[]'::jsonb)
- from public.world_court_orders ord
- join public.world_court_cases c on c.id=ord.case_id
- join public.world_organizations org on org.id=c.organization_id
- where ord.case_id=p_case_id and ord.publicly_listed
-  and c.public_metadata @> '{"listed":true}'::jsonb
-  and org.slug='unity' and org.public_visibility='public'
-  and org.status in ('active','recognized')
-  and public.studio2_feature_enabled('terra_world_public',null) is true
+ from (
+  select ord.id,ord.case_id,ord.order_number,ord.title,ord.body,
+    ord.effective_at,ord.published_at
+  from public.world_court_orders ord
+  join public.world_court_cases c on c.id=ord.case_id
+  join public.world_organizations org on org.id=c.organization_id
+  where ord.case_id=p_case_id and ord.publicly_listed
+   and c.public_metadata @> '{"listed":true}'::jsonb
+   and org.slug='unity' and org.public_visibility='public'
+   and org.status in ('active','recognized')
+   and public.studio2_feature_enabled('terra_world_public',null) is true
+  order by ord.order_number desc,ord.id
+  limit 50
+ ) ord
 $projection$;
 revoke all on function public.world_court_public_orders_v1(uuid)
  from public,anon,authenticated;
