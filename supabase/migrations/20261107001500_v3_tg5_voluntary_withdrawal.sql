@@ -110,7 +110,7 @@ begin
       from public.world_organization_memberships membership
       where membership.organization_id=organization_row.id
         and membership.country_id=p_country_id
-      order by membership.joined_at desc,membership.id desc
+      order by (membership.ended_at is null) desc, membership.joined_at desc, membership.id desc
       limit 1
     ) membership_row on true
     where organization_row.slug in ('guard','unity')
@@ -223,6 +223,15 @@ begin
   -- End each open representation, including non-voting auxiliaries. A future
   -- starts_at is preserved (never rewrite history); its ends_at is set to
   -- starts_at, ensuring it cannot become effective after membership loss.
+  -- Consistent parent -> representation -> proxy lock order reduces
+  -- contention with TG2 representative assignment and TG6 proxy commands.
+  update public.world_organization_representations representation_row
+    set ends_at=greatest(v_effective_at,representation_row.starts_at)
+  where representation_row.organization_id=p_organization_id
+    and representation_row.country_id=p_country_id
+    and representation_row.ends_at is null;
+  get diagnostics v_representations = row_count;
+
   update public.world_representation_proxies proxy_row
     set status='revoked',revoked_at=v_effective_at,
         revision=proxy_row.revision+1
@@ -232,13 +241,6 @@ begin
     and representation_row.country_id=p_country_id
     and proxy_row.status in ('requested','approved');
   get diagnostics v_proxies = row_count;
-
-  update public.world_organization_representations representation_row
-    set ends_at=greatest(v_effective_at,representation_row.starts_at)
-  where representation_row.organization_id=p_organization_id
-    and representation_row.country_id=p_country_id
-    and representation_row.ends_at is null;
-  get diagnostics v_representations = row_count;
 
   update public.world_organization_memberships membership
     set status='withdrawn',
