@@ -85,7 +85,15 @@ export function parseWorldMeasureDetail(value: unknown): WorldMeasureDetail | nu
     return { id: item.id, number: item.number, title: item.title,
       contentHash: item.contentHash, createdAt: item.createdAt };
   });
-  return { ...parseWorldMeasureListItem(value), categoryLabel: value.categoryLabel,
+  // Detail deliberately returns fewer fields than the bounded directory. Do
+  // not require non-projected list columns or silently populate them from cache.
+  const list = {
+    ...value,
+    title: currentVersion.title,
+    summary: currentVersion.summary,
+    submittedAt: value.registeredAt,
+  };
+  return { ...parseWorldMeasureListItem(list), categoryLabel: value.categoryLabel,
     currentVersion, publishedHistory: history };
 }
 export function parseWorldMeasureManager(value: unknown): WorldMeasureManager {
@@ -184,7 +192,7 @@ export function validateWorldMeasureSubmit(input: WorldMeasureSubmitInput): stri
   if (!input.title.trim() || input.title.trim().length > 180) return "Enter a title up to 180 characters.";
   if (!input.fullText.trim() || input.fullText.trim().length > 25000) return "Enter measure text up to 25,000 characters.";
   if (input.summary.length > 2000) return "Keep the summary under 2,000 characters.";
-  if (input.categoryCode !== null && !/^[A-Za-z0-9_-]{1,30}$/.test(input.categoryCode)) {
+  if (input.categoryCode !== null && !/^[A-Za-z0-9._-]{1,30}$/.test(input.categoryCode)) {
     return "Choose a valid institutional category.";
   }
   return null;
