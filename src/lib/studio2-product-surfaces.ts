@@ -191,6 +191,15 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
     route: "/admin/operations", surfaceLabel: "Organizer V3", dependsOn: ["solaris_app_v3"],
     description: "Reversible Organizer V3 operational shell over existing canonical admin authorities, with Overview, Tasks, Control, Live and More ownership and edition-scoped navigation continuity.",
   },
+  terra_world_public: {
+    key: "terra_world_public",
+    label: "Terra Solaris · World",
+    state: "integrated",
+    audience: "public",
+    route: "/world",
+    surfaceLabel: "Terra Solaris",
+    description: "Publication-safe world, GUARD, UNITY and institutional discovery, independently gated until TG2 and TG3 are verified.",
+  },
 };
 
 export const STUDIO2_PRODUCT_SURFACE_LIST = Object.values(STUDIO2_PRODUCT_SURFACES);
