@@ -92,6 +92,11 @@ export function WorldSessionDetail({ sessionId }: { sessionId: string }) {
                   className="inline-flex min-h-11 items-center rounded-xl border border-border px-3 text-sm font-semibold hover:border-primary/50">
                   Attendance
                 </Link>
+                <Link to={"/world/sessions/$sessionId/schedule" as any}
+                  params={{ sessionId } as any}
+                  className="inline-flex min-h-11 items-center rounded-xl border border-border px-3 text-sm font-semibold hover:border-primary/50">
+                  Edit schedule
+                </Link>
                 <Link to={"/world/sessions/$sessionId/manage" as any}
                   params={{ sessionId } as any}
                   className="inline-flex min-h-11 items-center rounded-xl border border-border px-3 text-sm font-semibold hover:border-primary/50">
