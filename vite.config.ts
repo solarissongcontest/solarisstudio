@@ -25,8 +25,9 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         output: {
-          // Retain licence and tree-shaking annotations, omit non-runtime
-          // documentation comments from emitted production JS.
+          // Keep licence notices and tree-shaking annotations, but omit
+          // non-runtime JSDoc from production JS to cut transfer bytes.
+          // Exact-head CI must verify this changes only the emitted comments.
           comments: { legal: true, annotation: true, jsdoc: false },
           // JS is already minified in production; mangle only private top-level
           // module bindings, keeping public export contracts and runtime data.
