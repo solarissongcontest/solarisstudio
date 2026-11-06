@@ -3,6 +3,7 @@ import { Compass, Home, Trophy, UserRound, Vote, type LucideIcon } from "lucide-
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
+import { APP_RESUME_EVENT } from "@/lib/app-lifecycle";
 import {
   appEntryHref,
   appTabRoot,
@@ -39,6 +40,7 @@ type PrimaryArea = (typeof PUBLIC_GLOBAL_AREAS)[number]["id"];
 
 type DragState = {
   pointerId: number;
+  captureTarget: HTMLAnchorElement;
   startX: number;
   startY: number;
   originIndex: number;
@@ -242,6 +244,18 @@ export function AppTabBar({
   };
 
   const resetDragDom = useCallback(() => {
+    // A hidden or interrupted dock must not keep pointer capture.
+    const drag = dragState.current;
+    dragState.current = null;
+    if (drag) {
+      try {
+        if (drag.captureTarget.hasPointerCapture?.(drag.pointerId)) {
+          drag.captureTarget.releasePointerCapture?.(drag.pointerId);
+        }
+      } catch {
+        // The browser may already have cancelled the pointer.
+      }
+    }
     const material = materialRef.current;
     material?.style.setProperty("--solaris-tab-drag-x", "0px");
     material?.style.setProperty("--solaris-tab-drag-scale-x", "1");
@@ -249,7 +263,6 @@ export function AppTabBar({
     material?.style.setProperty("--solaris-tabbar-pull-height", "0px");
     material?.style.setProperty("--solaris-tabbar-pull-radius", "0px");
     material?.removeAttribute("data-drag-direction");
-    dragState.current = null;
   }, []);
 
   const clearDrag = useCallback(() => {
@@ -273,13 +286,34 @@ export function AppTabBar({
       if (document.visibilityState !== "visible") clearDrag();
     };
 
+    const root = document.documentElement;
+    const rootInterruptionObserver =
+      typeof MutationObserver !== "undefined"
+        ? new MutationObserver(() => {
+            if (
+              root.hasAttribute("data-solaris-feature-overlay-open") ||
+              root.hasAttribute("data-solaris-keyboard-open")
+            ) clearDrag();
+          })
+        : null;
+    rootInterruptionObserver?.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-solaris-feature-overlay-open", "data-solaris-keyboard-open"],
+    });
     window.addEventListener("blur", resetInterruptedGesture);
+    window.addEventListener("resize", resetInterruptedGesture);
     window.addEventListener("orientationchange", resetInterruptedGesture);
+    window.addEventListener("pagehide", resetInterruptedGesture);
+    window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
     document.addEventListener("visibilitychange", resetWhenHidden);
 
     return () => {
+      rootInterruptionObserver?.disconnect();
       window.removeEventListener("blur", resetInterruptedGesture);
+      window.removeEventListener("resize", resetInterruptedGesture);
       window.removeEventListener("orientationchange", resetInterruptedGesture);
+      window.removeEventListener("pagehide", resetInterruptedGesture);
+      window.removeEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
       // Unmount/StrictMode teardown must not set React state. The press-hold
       // hook cancels its own timer; only imperative DOM/ref cleanup is needed.
@@ -306,6 +340,7 @@ export function AppTabBar({
 
     dragState.current = {
       pointerId: event.pointerId,
+      captureTarget: event.currentTarget,
       startX: event.clientX,
       startY: event.clientY,
       originIndex: index,
@@ -478,6 +513,10 @@ export function AppTabBar({
               onPointerUp={finishDrag}
               onPointerCancel={cancelDrag}
               onLostPointerCapture={cancelDrag}
+              onKeyDown={() => {
+                // Keyboard tab activation cannot inherit stale touch suppression.
+                suppressClick.current = false;
+              }}
               onClick={(event) => {
                 if (suppressClick.current) {
                   suppressClick.current = false;
