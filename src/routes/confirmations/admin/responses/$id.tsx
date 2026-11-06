@@ -230,6 +230,9 @@ function entryCardClass(entry: ReviewEntry, winner?: boolean) {
   if (status === "declined") {
     return "border-amber-300/35 bg-amber-300/[0.035] shadow-[0_0_16px_rgba(252,211,77,0.10)]";
   }
+  if (status === "accepted" && !entry.song_title?.trim()) {
+    return "border-amber-300/35 bg-amber-300/[0.035]";
+  }
   if (status === "accepted") {
     return winner
       ? "border-emerald-300/40 bg-emerald-300/[0.04] shadow-[0_0_16px_rgba(110,231,183,0.12)]"
@@ -702,6 +705,9 @@ function EntryReviewCard({
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             <AdminStatus tone={reviewTone(status)}>{status}</AdminStatus>
+            {status === "accepted" && !entry.song_title?.trim() ? (
+              <AdminStatus tone="attention">Missing song title · inspect</AdminStatus>
+            ) : null}
             {winner ? <AdminStatus tone="ready">Winner</AdminStatus> : null}
             {storedWinner && !winner ? (
               <AdminStatus tone="attention">
