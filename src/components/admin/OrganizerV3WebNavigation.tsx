@@ -4,6 +4,7 @@ import {
   v3OrganizerTabForPath,
   v3OrganizerTabRoot,
 } from "@/lib/v3-organizer";
+import { useOrganizerWebSectionVisibility } from "@/lib/v3-organizer-web-section-scroll";
 import "@/styles/v3-organizer-web-navigation.css";
 
 const labels = {
@@ -19,8 +20,10 @@ const normalize = (path: string) => path.replace(/\/+$/, "") || "/";
 /** Browser links use native history, not installed app route memory. */
 export function OrganizerV3WebNavigation({ pathname }: { pathname: string }) {
   const activeTab = v3OrganizerTabForPath(pathname);
+  const navRef = useOrganizerWebSectionVisibility(pathname);
   return (
     <nav
+      ref={navRef}
       className="v3-organizer-web-navigation"
       aria-label="Organizer website sections"
       data-organizer-v3-web-navigation=""

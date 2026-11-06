@@ -4,6 +4,7 @@ import { useEditions } from "@/lib/data";
 import { adminDelegationRoute, adminEditionRoute } from "@/lib/admin-app-navigation";
 import { useAdminContext } from "./AdminContext";
 import { resolveAdminEditionContext } from "./admin-edition-context";
+import { useOrganizerWebSectionVisibility } from "@/lib/v3-organizer-web-section-scroll";
 import "@/styles/v3-organizer-web-navigation.css";
 
 const normalize = (path: string) => path.replace(/\/+$/, "") || "/";
@@ -37,9 +38,11 @@ export function OrganizerLegacyWebNavigation({ pathname }: { pathname: string })
   ] as const;
   const earlierActive = items.some((item) => item.id !== "more" && item.active);
   const normalizedCurrent = normalize(pathname);
+  const navRef = useOrganizerWebSectionVisibility(`${pathname}:${slug ?? "unscoped"}`);
 
   return (
     <nav
+      ref={navRef}
       className="v3-organizer-web-navigation"
       aria-label="Organizer website sections"
       data-organizer-legacy-web-navigation=""

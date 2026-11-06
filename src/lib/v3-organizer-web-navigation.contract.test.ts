@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { organizerWebSectionRevealDelta } from "./v3-organizer-web-section-scroll";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
@@ -76,5 +77,21 @@ describe("Organizer V3 website and installed navigation families", () => {
     const css = source("src/styles/v3-organizer-web-navigation.css");
     expect(css).toContain('[data-organizer-runtime="web"]');
     expect(css).not.toContain('[data-organizer-generation="v3"][data-organizer-runtime="web"]');
+  });
+
+  it("reveals an offscreen active browser section without scrolling the page", () => {
+    const container = { left: 0, right: 320 };
+    expect(organizerWebSectionRevealDelta(container, { left: 20, right: 100 })).toBe(0);
+    expect(organizerWebSectionRevealDelta(container, { left: -28, right: 80 })).toBe(-28);
+    expect(organizerWebSectionRevealDelta(container, { left: 275, right: 363 })).toBe(43);
+    const hook = source("src/lib/v3-organizer-web-section-scroll.ts");
+    expect(hook).toContain('nav.querySelector<HTMLElement>("[aria-current]")');
+    expect(hook).toContain("nav.scrollLeft += delta");
+    expect(hook).not.toContain("scrollIntoView");
+    expect(hook).toContain('window.addEventListener("resize", revealActiveSection)');
+    expect(source("src/components/admin/OrganizerV3WebNavigation.tsx")).toContain("ref={navRef}");
+    const legacy = source("src/components/admin/OrganizerLegacyWebNavigation.tsx");
+    expect(legacy).toContain("ref={navRef}");
+    expect(legacy).toContain('${pathname}:${slug ?? "unscoped"}');
   });
 });
