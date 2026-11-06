@@ -70,7 +70,7 @@ export function CountryMobileWebMasthead({
           {hasLongDescription ? (
             <button
               type="button"
-              className="country-mobile-web-description-toggle text-sm font-semibold text-primary"
+              className="country-mobile-web-description-toggle mt-1 inline-flex min-h-11 items-center rounded px-1 text-sm font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               aria-controls={descriptionId}
               aria-expanded={descriptionExpanded}
               onClick={() => setDescriptionExpanded((expanded) => !expanded)}
@@ -104,16 +104,16 @@ export function CountryMobileWebMasthead({
       ) : null}
 
       <div className="mt-5 flex flex-wrap items-center gap-2" aria-label="Country links">
-        <Link to="/wiki/$code" params={{ code: identity.code }} className="country-mobile-web-action">
+        <Link to="/wiki/$code" params={{ code: identity.code }} className="country-mobile-web-action inline-flex min-h-11 items-center rounded-lg border border-border bg-transparent px-3 py-2 text-sm font-semibold text-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           Wiki
         </Link>
-        <Link to="/compare" search={{ a: identity.code }} className="country-mobile-web-action">
+        <Link to="/compare" search={{ a: identity.code }} className="country-mobile-web-action inline-flex min-h-11 items-center rounded-lg border border-border bg-transparent px-3 py-2 text-sm font-semibold text-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           Compare
         </Link>
-        <Link to="/voting-dna/$code" params={{ code: identity.code }} className="country-mobile-web-action">
+        <Link to="/voting-dna/$code" params={{ code: identity.code }} className="country-mobile-web-action inline-flex min-h-11 items-center rounded-lg border border-border bg-transparent px-3 py-2 text-sm font-semibold text-foreground no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           Voting DNA
         </Link>
-        <span className="country-mobile-web-follow">{follow}</span>
+        <span className="country-mobile-web-follow inline-flex min-h-11 items-center">{follow}</span>
       </div>
     </section>
   );
