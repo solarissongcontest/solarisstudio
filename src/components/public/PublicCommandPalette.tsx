@@ -825,6 +825,7 @@ function WebSearchArchiveResults({
             normalized,
             edition.name,
             edition.edition_number,
+            edition.edition_number == null ? null : `SSC ${edition.edition_number}`,
             edition.year,
             edition.host_city,
             edition.slug,
@@ -846,6 +847,7 @@ function WebSearchArchiveResults({
             show.kind,
             edition?.name,
             edition?.edition_number,
+            edition?.edition_number == null ? null : `SSC ${edition.edition_number}`,
           );
         })
         .map((show) => {
@@ -887,6 +889,7 @@ function WebSearchArchiveResults({
             country?.short_code,
             edition?.name,
             edition?.edition_number,
+            edition?.edition_number == null ? null : `SSC ${edition.edition_number}`,
           );
         })
         .map((entry) => {
