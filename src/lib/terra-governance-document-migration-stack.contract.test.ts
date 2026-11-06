@@ -61,6 +61,7 @@ describe("Terra Solaris Governance TG4 migration stack", () => {
       "v3.tg4.world-document-effective-date",
       "v3.tg4.world-document-manager-provenance",
       "v3.tg4.world-document-draft-updater-guard",
+      "v3.tg4.world-treaty-register",
     ];
 
     expect(TERRA_GOVERNANCE_TG4_MIGRATIONS).toHaveLength(expectedContracts.length);
