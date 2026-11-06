@@ -187,6 +187,8 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(organizer).toContain('window.matchMedia("(max-width: 899px), (max-height: 599px)")');
     expect(organizer).toContain("(window.innerWidth >= 900 && window.innerHeight >= 600)");
     expect(organizerCss).toContain("@media (min-width: 900px) and (min-height: 600px)");
+    expect(organizerCss).toContain("html:not([data-solaris-app]) [data-organizer-v3-liquid-nav]");
+    expect(tabs).toContain("bar.getClientRects().length === 0");
     expect(responsive).toContain("@media (min-width: 1024px) and (max-height: 599px)");
     expect(responsive).toContain("html[data-solaris-app] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar");
     expect(geometry).toContain("@media (min-width: 1024px) and (min-height: 600px)");

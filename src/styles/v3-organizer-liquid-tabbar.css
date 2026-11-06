@@ -41,3 +41,11 @@
     display: none;
   }
 }
+
+/* Wide, short windows may be a landscape installed phone or an ordinary
+   desktop browser. Only the installed runtime keeps its floating dock. */
+@media (min-width: 900px) and (max-height: 599px) {
+  html:not([data-solaris-app]) [data-organizer-v3-liquid-nav] {
+    display: none;
+  }
+}

@@ -151,6 +151,7 @@ export function V3LiquidTabBar({
       syncDirection();
       if (
         !bar ||
+        bar.getClientRects().length === 0 ||
         (window.innerWidth >= 1024 && window.innerHeight >= 600) ||
         root.hasAttribute("data-solaris-keyboard-open")
       ) {
