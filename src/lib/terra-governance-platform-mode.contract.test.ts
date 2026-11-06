@@ -13,13 +13,12 @@ const access = migration.split(
   "create or replace function public.world_access_allowed(",
 )[1]?.split("$allowed$;")[0];
 
-describe("WORLD-01 TG2 operational mode authority for all institution grants", () => 
+describe("WORLD-01 TG2 operational mode authority for all institution grants", () => {
   it("runs stub-only local-target and malicious-CLI regression tests", () => {
     execFileSync(process.execPath, [
       "--test", "scripts/rehearse-v3-world-platform-mode.security.test.mjs",
     ], { cwd: process.cwd(), stdio: "pipe", timeout: 30_000 });
   });
-{
   it("enforces the existing canonical mode policy BEFORE any world grant branch", () => {
     expect(access).toBeDefined();
     expect(access).toContain("from public.studio2_capabilities capability");
