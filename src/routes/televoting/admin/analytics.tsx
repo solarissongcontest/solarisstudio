@@ -1,11 +1,11 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Activity, BarChart3, CalendarDays, Scale, ShieldAlert, Trophy, UserRoundCog, Users } from "lucide-react";
 
 import { AdminPageHeader } from "@/components/admin/AdminUI";
-import { getMergedTelevotingAdmin } from "@/integrations/televoting/admin-auth.functions";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { getMergedScopedAnalytics, type MergedAnalysisScope } from "@/integrations/televoting/analytics.functions";
 import { cn } from "@/lib/utils";
 
@@ -26,20 +26,22 @@ function scopeKey(scope: MergedAnalysisScope) {
 }
 
 function TelevotingAnalyticsPage() {
-  const navigate = useNavigate();
-  const getAdmin = useServerFn(getMergedTelevotingAdmin);
+  const actorId = useAuthenticatedUser().id;
   const getAnalytics = useServerFn(getMergedScopedAnalytics);
   const [scope, setScope] = useState<MergedAnalysisScope>({ mode: "all_editions" });
   const [hodPersonId, setHodPersonId] = useState<string | null>(null);
   const [view, setView] = useState<View>("summary");
 
-  const { data: admin, isLoading: adminLoading } = useQuery({ queryKey: ["merged-televoting-admin"], queryFn: () => getAdmin() });
-  useEffect(() => { if (!adminLoading && !admin) void navigate({ to: "/televoting/admin/sign-in" }); }, [admin, adminLoading, navigate]);
-
+  // All private readback is actor-scoped; server capability checks own access.
   const { data, isLoading, error } = useQuery({
-    queryKey: ["merged-televoting-analytics", scopeKey(scope), hodPersonId ?? "all-hods"],
+    queryKey: ["merged-televoting-analytics", actorId, scopeKey(scope), hodPersonId ?? "all-hods"],
     queryFn: () => getAnalytics({ data: { scope, hodPersonId } }),
-    enabled: Boolean(admin),
+    enabled: Boolean(actorId),
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const allEditions = data?.scope.allEditions ?? [];
@@ -117,7 +119,7 @@ function TelevotingAnalyticsPage() {
         {(["summary", "editions", "delegations", "controllers", "entries", "channels", "distribution", "activity"] as View[]).map((item) => <button key={item} type="button" onClick={() => setView(item)} className={cn("min-w-0 rounded-xl px-3 py-2 text-xs capitalize transition", view === item ? "bg-sky-200/12 text-sky-100" : "text-muted-foreground hover:text-foreground")}>{item}</button>)}
       </div>
 
-      {adminLoading || isLoading ? <section className="glass-strong p-8 text-center text-sm text-muted-foreground">Calculating jury, televote and HOD-aware analytics…</section> : error || !data ? <section className="glass-strong border-destructive/30 p-6 text-sm text-destructive">{error instanceof Error ? error.message : "Analytics could not be loaded."}</section> : (
+      {isLoading ? <section className="glass-strong p-8 text-center text-sm text-muted-foreground">Calculating jury, televote and HOD-aware analytics…</section> : error || !data ? <section className="glass-strong border-destructive/30 p-6 text-sm text-destructive">{error instanceof Error ? error.message : "Analytics could not be loaded."}</section> : (
         <>
           {hodPersonId && data.hod.selectedPersonName ? <div className="mb-4 rounded-2xl border border-violet-200/15 bg-violet-200/[0.07] p-4 text-sm"><span className="font-semibold text-violet-100">HOD filter: {data.hod.selectedPersonName}</span><span className="ml-2 text-muted-foreground">Only voting activity from editions assigned to this controller is included.</span></div> : null}
 
