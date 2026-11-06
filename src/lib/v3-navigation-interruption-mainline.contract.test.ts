@@ -79,6 +79,27 @@ describe("V3 installed dock interrupted gesture recovery", () => {
     expect(organizerKeyboardRule).toContain("pointer-events: none;");
   });
 
+  it("ends held gestures on route/auth changes before a stale pointer can navigate", () => {
+    for (const source of [installed, liquid]) {
+      const start = source.indexOf("const navigationIdentity =");
+      const end = source.indexOf("const resetInterruptedGesture =", start);
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeGreaterThan(start);
+      const guard = source.slice(start, end);
+      expect(guard).toContain("const previousNavigationIdentity = useRef(navigationIdentity)");
+      expect(guard).toContain("useLayoutEffect(() => {");
+      expect(guard).toContain("if (previousNavigationIdentity.current === navigationIdentity) return;");
+      expect(guard).toContain("if (dragState.current || held) suppressClick.current = true;");
+      expect(guard).toContain("clearDrag();");
+      expect(guard).toContain("[clearDrag, held, navigationIdentity]");
+    }
+    expect(installed).toContain('signedIn ? "signed-in" : "anonymous"');
+    expect(installed).toContain("${searchStr}");
+    expect(liquid).toContain("destination.id");
+    expect(liquid).toContain("destination.to");
+    expect(liquid).toContain("clearAppUpdateBlocker(V3_LIQUID_LENS_UPDATE_BLOCKER)");
+  });
+
   it("keeps V3 Liquid gesture teardown and live-update safeguards intact", () => {
     expect(liquid).toContain("clearAppUpdateBlocker(V3_LIQUID_LENS_UPDATE_BLOCKER)");
     expect(liquid).toContain("setAppUpdateBlocker(");
