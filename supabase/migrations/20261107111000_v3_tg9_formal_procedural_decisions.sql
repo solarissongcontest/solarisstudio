@@ -49,7 +49,7 @@ create table public.world_decision_versions (
   unique(decision_id,id),
   constraint world_decision_versions_correction_required check(
     (version_number=1 and correction_reason is null)
-    or (version_number>1 and length(btrim(correction_reason)) between 5 and 2000)
+    or (version_number>1 and length(btrim(coalesce(correction_reason,''))) between 5 and 2000)
   )
 );
 alter table public.world_decisions
