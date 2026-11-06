@@ -27,7 +27,7 @@ export type OrganizerResponseReviewEvidence = {
   internal_entries: (OrganizerEntryReviewEvidence & { song_title?: string | null }) | null;
   national_finals: {
     winning_entry_id: string | null;
-    national_final_entries: (OrganizerEntryReviewEvidence & { id: string })[];
+    national_final_entries: (OrganizerEntryReviewEvidence & { id: string; song_title?: string | null })[];
   } | null;
 };
 
@@ -81,9 +81,11 @@ export function deriveOrganizerResponseReviewState(
 
   if (response.selection_method === "internal") {
     const entry = response.internal_entries;
-    if (!entry?.song_title || response.entry_unknown) return "neutral";
+    if (!entry || response.entry_unknown) return "neutral";
     const state = classifyOrganizerEntryReview(entry);
     if (state === "declined" || state === "removed") return "issue";
+    // A historical or empty title does not prove the current song is ready.
+    if (!entry.song_title?.trim()) return "review";
     return state === "accepted" ? "ready" : "review";
   }
 
@@ -94,7 +96,8 @@ export function deriveOrganizerResponseReviewState(
     if (!entries.length || response.nf_entries_unknown) return "neutral";
     const states = entries.map(classifyOrganizerEntryReview);
     if (states.includes("declined")) return "issue";
-    if (states.some((state) => state !== "accepted")) return "review";
+    if (states.some((state) => state !== "accepted") ||
+        entries.some((entry) => !entry.song_title?.trim())) return "review";
     // A missing or foreign winner must not make the delegation look ready.
     const winnerId = response.national_finals?.winning_entry_id;
     return winnerId && entries.some((entry) => entry.id === winnerId) ? "ready" : "neutral";
@@ -143,12 +146,17 @@ export function hasCurrentOrganizerResponseReviewDecision(
   if (!response.participating || response.selection_method !== method) return false;
   if (method === "internal") {
     const entry = response.internal_entries;
-    return !response.entry_unknown && Boolean(entry?.song_title) &&
-      Boolean(entry && classifyOrganizerEntryReview(entry) === decision);
+    // Declines can legitimately describe missing-title corrections; do not
+    // hide them from the correction queue. Acceptance requires a real title.
+    return !response.entry_unknown && Boolean(entry) &&
+      Boolean(entry && classifyOrganizerEntryReview(entry) === decision) &&
+      (decision !== "accepted" || Boolean(entry?.song_title?.trim()));
   }
   if (response.nf_entries_unknown) return false;
   return (response.national_finals?.national_final_entries ?? [])
-    .some((entry) => !entry.removed && classifyOrganizerEntryReview(entry) === decision);
+    .some((entry) => !entry.removed &&
+      classifyOrganizerEntryReview(entry) === decision &&
+      (decision !== "accepted" || Boolean(entry.song_title?.trim())));
 }
 
 /**
@@ -172,7 +180,8 @@ export function describeOrganizerNationalFinalQueue(
   if (reviewStates.includes("declined")) {
     return "National Final entries require corrections";
   }
-  if (reviewStates.some((state) => state !== "accepted")) {
+  if (reviewStates.some((state) => state !== "accepted") ||
+      entries.some((entry) => !entry.song_title?.trim())) {
     return winner
       ? "Winner recorded · current Entry reviews still incomplete"
       : "National Final entries still need review";
