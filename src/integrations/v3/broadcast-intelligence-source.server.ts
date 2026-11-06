@@ -1,10 +1,11 @@
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
+import { loadV3PublishedResultSnapshot } from "@/integrations/v3/public-result-snapshot.server";
 import {
-  broadcastEntriesFromResults,
   buildBroadcastIntelligence,
+  type BroadcastEntry,
 } from "@/lib/broadcast-intelligence";
-import type { Country, Edition, ResultRow, Show } from "@/lib/data";
-import { entityDisplayMap, entityKeyOf, type ContestEntityRow } from "@/lib/entities";
+import type { Country, Edition, Show } from "@/lib/data";
+import { entityDisplayMap, type ContestEntityRow } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 import type {
   V3BroadcastIdentity,
@@ -15,8 +16,6 @@ import type {
 const EDITION_COLUMNS = "id,edition_number,name,slug,published";
 const SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,publication_config";
-const RESULT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 const ENTITY_COLUMNS =
   "id,edition_id,entity_type,country_id,display_name,abbreviation,flag_image,region,historical_identity_override";
 const COUNTRY_COLUMNS =
@@ -24,16 +23,6 @@ const COUNTRY_COLUMNS =
 
 type BroadcastSourceClient = {
   from(table: string): any;
-  rpc(name: string, args?: Record<string, unknown>): PromiseLike<{
-    data: unknown;
-    error: unknown;
-  }>;
-};
-
-type PublicParticipantState = {
-  edition_id: string;
-  country_id: string;
-  participation_status?: string | null;
 };
 
 function throwIfError(error: unknown, label: string) {
@@ -58,60 +47,34 @@ function emptyIntelligence() {
   return buildBroadcastIntelligence([]);
 }
 
-function parseParticipantStates(value: unknown): PublicParticipantState[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((candidate) => {
-    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
-      return [];
-    }
-    const row = candidate as Record<string, unknown>;
-    if (
-      typeof row.edition_id !== "string" ||
-      typeof row.country_id !== "string"
-    ) {
-      return [];
-    }
-    return [
-      {
-        edition_id: row.edition_id,
-        country_id: row.country_id,
-        participation_status:
-          typeof row.participation_status === "string"
-            ? row.participation_status
-            : null,
-      },
-    ];
-  });
-}
-
-function filterNonCompetingRows(
-  rows: readonly ResultRow[],
-  participants: readonly PublicParticipantState[],
-) {
-  const excluded = new Set(
-    participants
-      .filter(
-        (participant) =>
-          participant.participation_status === "withdrawn" ||
-          participant.participation_status === "disqualified",
-      )
-      .map(
-        (participant) =>
-          `${participant.edition_id}:${participant.country_id}`,
-      ),
-  );
-  if (!excluded.size) return [...rows];
-  return rows.filter(
-    (row) => !excluded.has(`${row.edition_id}:${row.country_id}`),
-  );
+function emptyBundle(input: {
+  edition: Pick<Edition, "slug" | "edition_number" | "name"> | null;
+  options: V3BroadcastShowOption[];
+  selectedShowId: string | null;
+}): V3BroadcastIntelligenceBundle {
+  return {
+    rolloutEditionSlug: input.edition?.slug ?? null,
+    shell: {
+      editionLabel: editionLabel(input.edition),
+      phaseLabel: "Broadcast Intelligence",
+    },
+    options: input.options,
+    selectedShowId: input.selectedShowId,
+    entries: [],
+    intelligence: emptyIntelligence(),
+    identities: [],
+    generatedAt: new Date().toISOString(),
+  };
 }
 
 /**
  * Publication-safe, show-scoped source for Broadcast Intelligence.
  *
- * The browser may nominate a public show id, but this source first rebuilds the
- * eligible show list from canonical publication state. An unpublished or
- * partially published show can therefore never be unlocked by client input.
+ * The browser may nominate a public Show id, but this source first rebuilds the
+ * eligible Show list from canonical publication state. The selected Show then
+ * has to resolve to the exact immutable published Result Version selected by
+ * canonical Publication. There is intentionally no mutable `public.results`
+ * compatibility fallback.
  */
 export async function loadV3BroadcastIntelligenceBundle(
   requestedShowId?: string | null,
@@ -131,19 +94,7 @@ export async function loadV3BroadcastIntelligenceBundle(
   const editions = (editionsResult.data ?? []) as Edition[];
   const latestEdition = editions[0] ?? null;
   if (!editions.length) {
-    return {
-      rolloutEditionSlug: null,
-      shell: {
-        editionLabel: "Solaris Studio",
-        phaseLabel: "Broadcast Intelligence",
-      },
-      options: [],
-      selectedShowId: null,
-      entries: [],
-      intelligence: emptyIntelligence(),
-      identities: [],
-      generatedAt: new Date().toISOString(),
-    };
+    return emptyBundle({ edition: null, options: [], selectedShowId: null });
   }
 
   const editionMap = new Map(editions.map((edition) => [edition.id, edition]));
@@ -210,62 +161,50 @@ export async function loadV3BroadcastIntelligenceBundle(
     : latestEdition;
 
   if (!selectedShow || !selectedEdition) {
-    return {
-      rolloutEditionSlug: selectedEdition?.slug ?? null,
-      shell: {
-        editionLabel: editionLabel(selectedEdition),
-        phaseLabel: "Broadcast Intelligence",
-      },
+    return emptyBundle({
+      edition: selectedEdition,
       options,
       selectedShowId: null,
-      entries: [],
-      intelligence: emptyIntelligence(),
-      identities: [],
-      generatedAt: new Date().toISOString(),
-    };
+    });
   }
 
-  const [resultsResult, entitiesResult, participantsResult] = await Promise.all([
-    client
-      .from("results")
-      .select(RESULT_COLUMNS)
-      .eq("show_id", selectedShow.id)
-      .not("final_rank", "is", null)
-      .order("final_rank", { ascending: true }),
-    client
-      .from("contest_entities")
-      .select(ENTITY_COLUMNS)
-      .eq("edition_id", selectedEdition.id),
-    client.rpc("public_safe_participants", {
-      _edition_id: selectedEdition.id,
-      _show_id: null,
-    }),
-  ]);
-  throwIfError(
-    resultsResult.error,
-    "Could not load published Broadcast Intelligence result",
-  );
+  const snapshot = await loadV3PublishedResultSnapshot(selectedShow.id);
+  if (!snapshot) {
+    return emptyBundle({
+      edition: selectedEdition,
+      options,
+      selectedShowId: selectedShow.id,
+    });
+  }
+  if (snapshot.edition.id !== selectedEdition.id) {
+    throw new Error(
+      "Canonical published Result snapshot escaped the selected Edition scope",
+    );
+  }
+  if (!snapshot.availability.jury || !snapshot.availability.televote) {
+    return emptyBundle({
+      edition: selectedEdition,
+      options,
+      selectedShowId: selectedShow.id,
+    });
+  }
+
+  const entitiesResult = await client
+    .from("contest_entities")
+    .select(ENTITY_COLUMNS)
+    .eq("edition_id", selectedEdition.id);
   throwIfError(
     entitiesResult.error,
     "Could not load public Broadcast Intelligence identities",
   );
-  throwIfError(
-    participantsResult.error,
-    "Could not load public participant state for Broadcast Intelligence",
-  );
 
-  const participantStates = parseParticipantStates(participantsResult.data);
-  const rows = filterNonCompetingRows(
-    (resultsResult.data ?? []) as ResultRow[],
-    participantStates,
-  );
   const entities = (entitiesResult.data ?? []) as ContestEntityRow[];
   const countryIds = new Set<string>();
   for (const entity of entities) {
     if (entity.country_id) countryIds.add(entity.country_id);
   }
-  for (const row of rows) {
-    if (row.country_id) countryIds.add(row.country_id);
+  for (const row of snapshot.rows) {
+    if (row.countryId) countryIds.add(row.countryId);
   }
 
   let countries: Country[] = [];
@@ -282,14 +221,27 @@ export async function loadV3BroadcastIntelligenceBundle(
   }
 
   const displayMap = entityDisplayMap(entities, countries);
-  const analysisRows = rows.flatMap((row) => {
-    const key = entityKeyOf(row);
-    return displayMap.has(key) ? [{ ...row, country_id: key }] : [];
+  const entries: BroadcastEntry[] = snapshot.rows.flatMap((row) => {
+    const id = row.contestEntityId ?? row.countryId ?? "";
+    const display = displayMap.get(id);
+    if (!display) return [];
+    if (row.juryPoints == null || row.televotePoints == null) {
+      throw new Error(
+        "Canonical published Result snapshot is missing public split points",
+      );
+    }
+    return [
+      {
+        id,
+        name: display.name,
+        juryPoints: row.juryPoints,
+        televotePoints: row.televotePoints,
+        totalPoints: row.totalPoints,
+        officialRank: row.finalRank,
+      },
+    ];
   });
-  const entries = broadcastEntriesFromResults(
-    analysisRows,
-    (id) => displayMap.get(id)?.name ?? "Unknown entry",
-  );
+
   const intelligence = buildBroadcastIntelligence(entries);
 
   const identities: V3BroadcastIdentity[] = entries.flatMap((entry) => {
