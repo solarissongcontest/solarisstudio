@@ -1,5 +1,7 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
 
+import { applyNavbarInstalledCssEmulation } from "./v3-navigation/navbar-local-rollout";
+
 type AccountState = "COUNTRY" | "ORGANIZER" | "SUSPENDED";
 
 type E2ESession = {
@@ -295,6 +297,10 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.locator("html")).toHaveAttribute("data-solaris-runtime", "standalone");
+    // JS standalone emulation does not change the browser's CSS display-mode.
+    // Apply the source-derived installed stylesheet before asserting visible
+    // navigation; normal iOS PWAs use the unmodified production media query.
+    await applyNavbarInstalledCssEmulation(page);
     const primaryNav = page.getByRole("navigation", { name: "Primary app navigation" });
     await expect(primaryNav).toBeVisible();
     await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).toBeVisible();
