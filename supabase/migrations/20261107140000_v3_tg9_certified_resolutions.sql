@@ -269,6 +269,62 @@ revoke all on function public.world_public_resolution_v1(uuid)
 grant execute on function public.world_public_resolution_v1(uuid)
  to anon,authenticated,service_role;
 
+
+-- Private publisher preview. Source text is read from the frozen TG7 version,
+-- never from a browser-supplied adoption. No ballot choices are included.
+create function public.world_resolution_candidate_v1(p_vote_id uuid)
+returns jsonb language plpgsql stable security definer set search_path=pg_catalog
+as $candidate$
+declare
+ v_vote public.world_votes%rowtype;
+ v_measure public.world_measures%rowtype;
+ v_version public.world_measure_versions%rowtype;
+ v_result public.world_vote_results%rowtype;
+begin
+ if auth.uid() is null or p_vote_id is null
+    or not coalesce(public.studio2_feature_enabled('terra_world_legislative_voting',null),false)
+    or not coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+ then raise exception using errcode='42501',message='RESOLUTION_PREVIEW_UNAVAILABLE'; end if;
+ select * into v_vote from public.world_votes where id=p_vote_id;
+ if v_vote.id is null or not public.world_access_allowed(
+   'world.resolution.publish',v_vote.organization_id,null,v_vote.organ_id,null,null)
+ then raise exception using errcode='42501',message='RESOLUTION_AUTHORIZATION'; end if;
+ select * into v_result from public.world_vote_results where vote_id=v_vote.id;
+ select * into v_measure from public.world_measures where id=v_vote.measure_id;
+ select * into v_version from public.world_measure_versions where id=v_vote.measure_version_id;
+ if v_vote.status<>'certified' or v_result.vote_id is null
+    or v_result.outcome<>'passed' or not v_result.quorum_met or not v_result.threshold_met
+    or v_result.organization_id<>v_vote.organization_id
+    or v_result.measure_id<>v_vote.measure_id
+    or v_measure.id is null or v_measure.state<>'adopted'
+    or v_measure.current_version_id<>v_vote.measure_version_id
+    or v_measure.visibility<>'public' or v_measure.identifier is null
+    or v_measure.measure_type not in ('draft_resolution','proposal','bill','motion')
+    or v_version.id is null or v_version.publication_state<>'published'
+    or exists(select 1 from public.world_resolutions r where r.vote_id=v_vote.id)
+    or not exists (
+       select 1 from public.world_organizations org
+       join public.world_organization_organs organ on organ.organization_id=org.id
+       where org.id=v_vote.organization_id and organ.id=v_vote.organ_id
+         and org.status in ('active','recognized') and org.public_visibility='public'
+         and organ.visibility='public' and organ.status='active'
+    )
+ then return null; end if;
+ return jsonb_build_object(
+   'voteId',v_vote.id,'measureId',v_measure.id,
+   'identifier',v_measure.identifier||'/RES',
+   'title',v_version.title,'text',v_version.full_text,
+   'expectedMeasureRevision',v_measure.revision,
+   'resultHash',v_result.result_hash,'certifiedAt',v_result.certified_at,
+   'organizationId',v_vote.organization_id
+ );
+end
+$candidate$;
+revoke all on function public.world_resolution_candidate_v1(uuid)
+ from public,anon,authenticated,service_role;
+grant execute on function public.world_resolution_candidate_v1(uuid)
+ to authenticated,service_role;
+
 do $contract$
 begin
  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
