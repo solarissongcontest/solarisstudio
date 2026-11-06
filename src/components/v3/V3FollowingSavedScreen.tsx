@@ -125,13 +125,13 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
   }, [countries.data, editions.data, follows.data, shows.data, viewerId]);
 
   const loading = follows.isLoading || countries.isLoading || editions.isLoading || shows.isLoading;
-  const paused = (
+  const failed = follows.isError || countries.isError || editions.isError || shows.isError;
+  const paused = !failed && (
     (follows.isPending && follows.isPaused) ||
     (countries.isPending && countries.isPaused) ||
     (editions.isPending && editions.isPaused) ||
     (shows.isPending && shows.isPaused)
   );
-  const failed = follows.isError || countries.isError || editions.isError || shows.isError;
   const retrying = follows.isFetching || countries.isFetching || editions.isFetching || shows.isFetching;
 
   // Retry only failed reads. Refetching every public collection would waste egress
