@@ -33,11 +33,13 @@ describe("V3 installed dock interrupted gesture recovery", () => {
     });
   }
 
-  it("installed AppTabBar releases captured pointers before forgetting drag ownership", () => {
-    expect(installed).toContain("captureTarget: HTMLAnchorElement");
-    expect(installed).toContain("captureTarget: event.currentTarget");
-    const reset = installed.slice(installed.indexOf("const resetDragDom ="), installed.indexOf("const clearDrag ="));
-    expect(reset).toMatch(/dragState\.current = null;[\s\S]*drag\.captureTarget\.releasePointerCapture\?\.\(drag\.pointerId\)/);
+  it("forgets gesture ownership before releasing captured pointers in either dock", () => {
+    for (const source of [installed, liquid]) {
+      expect(source).toContain("captureTarget: HTMLAnchorElement");
+      expect(source).toContain("captureTarget: event.currentTarget");
+      const reset = source.slice(source.indexOf("const resetDragDom ="), source.indexOf("const clearDrag ="));
+      expect(reset).toMatch(/dragState\.current = null;[\s\S]*drag\.captureTarget\.releasePointerCapture\?\.\(drag\.pointerId\)/);
+    }
   });
 
   it("installed AppTabBar cancels and disposes every lifecycle interruption", () => {
