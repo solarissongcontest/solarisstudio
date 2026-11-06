@@ -14,6 +14,36 @@ begin
   end if;
 end $contract$;
 
+
+-- New backend capabilities stay inaccessible until explicitly rolled out.
+-- Extend the EXISTING flag allowlist without overwriting another lane's keys.
+do $world_chat_flags$
+declare v_predicate text;
+begin
+  select pg_catalog.pg_get_expr(c.conbin,c.conrelid) into v_predicate
+  from pg_catalog.pg_constraint c
+  join pg_catalog.pg_class t on t.oid=c.conrelid
+  join pg_catalog.pg_namespace n on n.oid=t.relnamespace
+  where n.nspname='public' and t.relname='studio2_feature_flags'
+    and c.conname='studio2_feature_flags_key_check' and c.contype='c';
+  if v_predicate is null then
+    raise exception 'WORLD_PRIVATE_FLAGS_ALLOWLIST_MISSING' using errcode='23514';
+  end if;
+  if pg_catalog.strpos(v_predicate,'terra_private_spaces')=0
+     or pg_catalog.strpos(v_predicate,'terra_chat')=0 then
+    alter table public.studio2_feature_flags drop constraint studio2_feature_flags_key_check;
+    execute pg_catalog.format(
+      'alter table public.studio2_feature_flags add constraint studio2_feature_flags_key_check check ((%s) or key in (%L,%L))',
+      v_predicate, 'terra_private_spaces', 'terra_chat'
+    );
+  end if;
+end $world_chat_flags$;
+insert into public.studio2_feature_flags(key,enabled,admins_only,user_ids,edition_ids)
+values
+  ('terra_private_spaces',false,false,'{}'::uuid[],'{}'::uuid[]),
+  ('terra_chat',false,false,'{}'::uuid[],'{}'::uuid[])
+on conflict (key) do nothing;
+
 insert into public.studio2_capabilities(key, domain, label, description, access_level)
 values
   ('world.space.manage', 'world', 'Manage private spaces', 'Create, archive and control rooms in the institution.', 'administer'),
@@ -133,9 +163,11 @@ language sql stable security definer set search_path = pg_catalog
 as $$
   select min(q.since_at)
   from (
-    select m.joined_at as since_at
+    select greatest(m.joined_at,coalesce(ct.started_at,a.created_at)) as since_at
       from public.world_organization_memberships m
       join public.country_accounts a on a.country_id = m.country_id
+      left join public.world_country_control_terms ct
+        on ct.country_id=a.country_id and ct.user_id=a.user_id and ct.ended_at is null
       where a.user_id = auth.uid() and a.status = 'active'
         and m.organization_id = p_organization_id
         and m.status in ('member','observer','associate')
@@ -168,13 +200,15 @@ declare
   v_office boolean;
   v_manager boolean;
 begin
-  if auth.uid() is null then return null; end if;
+  if auth.uid() is null or not public.studio2_feature_enabled('terra_private_spaces',null)
+  then return null; end if;
   select * into v_space from public.world_spaces where id = p_space_id;
   if not found or v_space.status <> 'active' then return null; end if;
   v_manager := public.world_access_allowed('world.space.manage', v_space.organization_id)
     or public.world_access_allowed('world.organization.settings.manage', v_space.organization_id);
   v_member_since := private.world_space_member_since_v1(v_space.organization_id);
-  if v_member_since is null and not v_manager then return null; end if;
+  if v_member_since is null and not public.studio2_access_allowed('system.manage',null,false)
+  then return null; end if;
   select * into v_grant from private.world_space_access_grants
     where space_id = p_space_id and user_id = auth.uid()
       and starts_at <= now() and (ends_at is null or ends_at > now());
@@ -258,6 +292,8 @@ begin
   if not public.world_access_allowed('world.space.manage', p_organization_id)
      and not public.world_access_allowed('world.organization.settings.manage', p_organization_id)
   then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
+  if not public.studio2_feature_enabled('terra_private_spaces',null) then
+    raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   if p_request_id is null or length(btrim(coalesce(p_name,''))) not between 1 and 100
      or p_visibility not in ('members','leadership','organ','custom')
      or p_history not in ('from_join','all_member_history','custom')
@@ -294,6 +330,8 @@ begin
   select * into v_space from public.world_spaces where id=p_space_id for update;
   if not found or not public.world_access_allowed('world.space.manage',v_space.organization_id)
   then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
+  if not public.studio2_feature_enabled('terra_private_spaces',null) then
+    raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   if p_user_id is null or p_role not in ('member','moderator')
   then raise exception using errcode='22023', message='VALIDATION'; end if;
   if p_active then
@@ -317,6 +355,8 @@ returns jsonb language plpgsql stable security definer set search_path = pg_cata
 as $$
 declare v_from timestamptz; v_anchor record; v_result jsonb;
 begin
+  if not public.studio2_feature_enabled('terra_chat',null) then
+    raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   v_from := private.world_space_read_from_v1(p_space_id);
   if v_from is null then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
   if p_limit is null or p_limit < 1 or p_limit > 50
@@ -363,6 +403,8 @@ returns jsonb language plpgsql volatile security definer set search_path = pg_ca
 as $$
 declare v_from timestamptz; v_message private.world_space_messages%rowtype;
 begin
+  if not public.studio2_feature_enabled('terra_chat',null) then
+    raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   v_from:=private.world_space_read_from_v1(p_space_id);
   if v_from is null then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
   if p_request_id is null or length(btrim(coalesce(p_body,''))) not between 1 and 4000
@@ -390,6 +432,8 @@ returns bigint language plpgsql volatile security definer set search_path = pg_c
 as $$
 declare v_message private.world_space_messages%rowtype;
 begin
+  if not public.studio2_feature_enabled('terra_chat',null) then
+    raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   select * into v_message from private.world_space_messages
     where id=p_message_id for update;
   if not found or private.world_space_read_from_v1(v_message.space_id) is null
@@ -416,6 +460,8 @@ returns boolean language plpgsql volatile security definer set search_path = pg_
 as $$
 declare v_message private.world_space_messages%rowtype; v_from timestamptz;
 begin
+  if not public.studio2_feature_enabled('terra_chat',null) then
+    raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   select * into v_message from private.world_space_messages where id=p_message_id;
   if not found then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
   v_from:=private.world_space_read_from_v1(v_message.space_id);
@@ -441,6 +487,8 @@ returns bigint language plpgsql volatile security definer set search_path = pg_c
 as $$
 declare v_message private.world_space_messages%rowtype; v_org uuid; v_grant boolean;
 begin
+  if not public.studio2_feature_enabled('terra_chat',null) then
+    raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   select * into v_message from private.world_space_messages where id=p_message_id for update;
   if not found or private.world_space_read_from_v1(v_message.space_id) is null
   then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
