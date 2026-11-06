@@ -17,9 +17,7 @@ describe("V3 Organizer Submission History edition boundary", () => {
   });
 
   it("keeps the response index and selection bound to the exact edition", () => {
-    expect(route).toContain("loadAllConfirmationResponsesForEdition<ResponseRow>(editionId)");
-    expect(route).toContain("loadConfirmationVersionSummariesForEdition(");
-    expect(route).toContain("batch.rows.map((row) => row.id)");
+    expect(route).toContain(".filter((row) => row.editions?.id === editionId)");
     expect(route).toContain("['confirmation-responses-for-version-history', editionId ?? 'unscoped']");
     expect(route).toContain("setSelectedId('');");
     expect(route).toContain("filtered.some((row) => row.id === selectedId)");
