@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { WorldDocumentReaderScreen } from "@/components/v3/V3WorldDocumentLibrary";
-import { WorldPublicGate } from "@/components/world/WorldPublic";
 import { parseWorldDocumentVersionQuery } from "@/lib/world-public-documents";
 
 export const Route = createFileRoute("/world/documents/$organization/$document")({
@@ -25,9 +24,5 @@ export const Route = createFileRoute("/world/documents/$organization/$document")
 function WorldDocumentPage() {
   const { organization, document } = Route.useParams();
   const { version } = Route.useSearch();
-  return (
-    <WorldPublicGate verifyOnMount>
-      <WorldDocumentReaderScreen organization={organization} document={document} version={version} />
-    </WorldPublicGate>
-  );
+  return <WorldDocumentReaderScreen organization={organization} document={document} version={version} />;
 }

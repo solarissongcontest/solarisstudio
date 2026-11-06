@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { suggestedPublicWorldComparisonPair } from "@/lib/world-document-comparison";
 import {
   getWorldDocumentDetail,
   getWorldDocumentIndexPage,
@@ -95,12 +96,10 @@ export function WorldDocumentLibraryScreen({
       limit,
     }, signal),
     staleTime: 90_000,
-    refetchOnMount: "always",
     retry: shouldRetryPublicWorldDocumentRead,
   });
-  const verifiedIndex = query.isSuccess && query.isFetchedAfterMount &&
-    !query.isFetching && !query.isRefetchError ? query.data : undefined;
-  const canExpand = limit < 100 && Boolean(verifiedIndex?.couldHaveMore);
+
+  const canExpand = limit < 100 && Boolean(query.data?.couldHaveMore);
   const nextLimit: WorldDocumentLimit = limit === 25 ? 50 : 100;
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -162,7 +161,9 @@ export function WorldDocumentLibraryScreen({
               <h2 className="font-display text-xl font-bold">Published records</h2>
               <span className="text-xs text-muted-foreground">Up to {limit} records checked</span>
             </div>
-            {query.isError || query.isRefetchError ? (
+            {query.isPending ? (
+              <ArchiveDataLoading label="Opening institutional records…" />
+            ) : query.isError ? (
               <section role="alert" className="py-10">
                 <h3 className="text-base font-semibold">Documents could not be loaded</h3>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -172,17 +173,15 @@ export function WorldDocumentLibraryScreen({
                   Try again
                 </button>
               </section>
-            ) : !verifiedIndex ? (
-              <ArchiveDataLoading label="Verifying published institutional records…" />
-            ) : verifiedIndex.rows.length === 0 ? (
+            ) : query.data.rows.length === 0 ? (
               <section className="py-10">
                 <h3 className="text-base font-semibold">
-                  {verifiedIndex.couldHaveMore
+                  {query.data.couldHaveMore
                     ? "No published documents in the records checked yet"
                     : "No published documents found"}
                 </h3>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {verifiedIndex.couldHaveMore
+                  {query.data.couldHaveMore
                     ? "The index also contains unpublished work. Expand the search or narrow your terms to find published documents."
                     : "Try a different search or institution. Unpublished drafts do not appear in the public library."}
                 </p>
@@ -204,7 +203,7 @@ export function WorldDocumentLibraryScreen({
             ) : (
               <>
                 <div aria-live="polite">
-                  {verifiedIndex.rows.map((item) => <DocumentIndexRow key={item.documentId} item={item} />)}
+                  {query.data.rows.map((item) => <DocumentIndexRow key={item.documentId} item={item} />)}
                 </div>
                 {canExpand && (
                   <button
@@ -217,7 +216,7 @@ export function WorldDocumentLibraryScreen({
                 )}
               </>
             )}
-            {limit === 100 && verifiedIndex?.couldHaveMore && (
+            {!query.isPending && !query.isError && limit === 100 && query.data?.couldHaveMore && (
               <p className="mt-4 text-xs text-muted-foreground">
                 The public index checks at most 100 records per search. More published documents may exist; use an institution or a specific title to narrow results.
               </p>
@@ -305,13 +304,14 @@ export function WorldDocumentReaderScreen({
       version: version ?? undefined,
     }, signal),
     staleTime: 90_000,
-    refetchOnMount: "always",
     retry: shouldRetryPublicWorldDocumentRead,
   });
-  const detail = query.isSuccess && query.isFetchedAfterMount &&
-    !query.isFetching && !query.isRefetchError ? query.data : undefined;
+  const detail = query.data;
   const provisions = detail?.version.provisions;
   const currentVersion = detail?.history.find((item) => item.publicationState === "published");
+  const comparisonPair = detail
+    ? suggestedPublicWorldComparisonPair(detail.version.versionNumber, detail.history)
+    : null;
   const historicalVersion = Boolean(detail && (
     detail.version.publicationState !== "published" ||
     (currentVersion && currentVersion.versionNumber !== detail.version.versionNumber)
@@ -377,14 +377,14 @@ export function WorldDocumentReaderScreen({
               View the current published version
             </Link>
           </section>
-        ) : query.isError || query.isRefetchError ? (
+        ) : query.isPending ? (
+          <ArchiveDataLoading label="Opening the published document…" />
+        ) : query.isError ? (
           <section role="alert" className="py-10">
             <h2 className="text-lg font-semibold">Unable to open this document</h2>
             <p className="mt-2 text-sm text-muted-foreground">The document service may be temporarily unavailable. No unverified text is displayed.</p>
             <button type="button" onClick={() => void query.refetch()} className="mt-4 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold">Try again</button>
           </section>
-        ) : query.isPending || query.isFetching || !query.isFetchedAfterMount ? (
-          <ArchiveDataLoading label="Verifying the published document…" />
         ) : !detail ? (
           <section className="py-10">
             <h2 className="text-lg font-semibold">This public version is unavailable</h2>
@@ -551,6 +551,18 @@ export function WorldDocumentReaderScreen({
                   </ul>
                 )}
               </nav>
+              {comparisonPair && (
+                <Link
+                  to="/world/legal-compare"
+                  search={{
+                    organization, document,
+                    from: comparisonPair.from, to: comparisonPair.to,
+                  }}
+                  className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 text-sm font-semibold text-primary hover:bg-surface/70"
+                >
+                  Compare with version {comparisonPair.otherVersion}
+                </Link>
+              )}
             </aside>
           </div>
         )}
