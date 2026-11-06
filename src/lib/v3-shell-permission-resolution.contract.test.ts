@@ -62,7 +62,11 @@ describe("V3 shell permission resolution", () => {
     const source = shellSource();
 
     expect(source).toContain("{children}");
-    expect(source).toContain("<ShellAccessStatus state={accessResolution} />");
+    expect(source).toContain("<ShellAccessStatus");
+    expect(source).toContain("onRetry={() => setAccessRetry((version) => version + 1)}");
+    expect(source).toContain("Retry access check");
+    expect(source).toContain("pointer-events-auto fixed");
+    expect(source).toContain("}, [accessRetry]);");
     expect(source).not.toContain("if (!accessReady) return");
     expect(source).not.toContain("if (accessResolution !== \"ready\") return");
     expect(source).not.toContain("window.location.reload()");

@@ -83,19 +83,34 @@ const EMPTY_ACCESS: AccountAccess = {
 
 type ShellAccessResolution = "resolving" | "ready" | "unavailable";
 
-function ShellAccessStatus({ state }: { state: Exclude<ShellAccessResolution, "ready"> }) {
+function ShellAccessStatus({
+  state,
+  onRetry,
+}: {
+  state: Exclude<ShellAccessResolution, "ready">;
+  onRetry: () => void;
+}) {
   const unavailable = state === "unavailable";
   return (
     <div
       role="status"
       aria-live="polite"
       data-solaris-shell-access={state}
-      className="pointer-events-none fixed left-1/2 z-[65] w-[min(92vw,30rem)] -translate-x-1/2 rounded-full border border-border/70 bg-background/92 px-3 py-2 text-center text-[11px] font-semibold text-muted-foreground shadow-lg backdrop-blur-md"
+      className="pointer-events-auto fixed left-1/2 z-[65] w-[min(92vw,30rem)] -translate-x-1/2 rounded-full border border-border/70 bg-background/92 px-3 py-2 text-center text-[11px] font-semibold text-muted-foreground shadow-lg backdrop-blur-md"
       style={{ top: "calc(var(--solaris-app-safe-top, env(safe-area-inset-top)) + var(--solaris-app-safe-top-comfort, 6px) + .65rem)" }}
     >
       {unavailable
         ? "Solaris could not verify account access. Navigation stays limited until the session is checked again."
         : "Checking Solaris account access…"}
+      {unavailable ? (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="ml-2 rounded-full border border-border px-2 py-1 text-current underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          Retry access check
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -117,6 +132,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
   const [menuOpen, setMenuOpen] = useState(false);
   const [accessResolution, setAccessResolution] = useState<ShellAccessResolution>("resolving");
+  const [accessRetry, setAccessRetry] = useState(0);
   const accessRequestRef = useRef(0);
   const resolvedUserIdRef = useRef<string | null | undefined>(undefined);
   const appScreen = resolveSolarisAppScreen(pathname, searchStr);
@@ -207,7 +223,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       accessRequestRef.current += 1;
       subscription.subscription.unsubscribe();
     };
-  }, []);
+  }, [accessRetry]);
 
   useEffect(() => setMenuOpen(false), [pathname]);
 
@@ -348,7 +364,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="relative isolate min-h-screen overflow-x-clip">
         <div aria-hidden="true" className="app-background" />
 
-        {accessResolution !== "ready" ? <ShellAccessStatus state={accessResolution} /> : null}
+        {accessResolution !== "ready" ? (
+          <ShellAccessStatus
+            state={accessResolution}
+            onRetry={() => setAccessRetry((version) => version + 1)}
+          />
+        ) : null}
 
         {isAppMode && accessReady && appScreen.chrome.toolbar !== "hidden" ? (
           <AppToolbar pathname={pathname} searchStr={searchStr} access={access} />
