@@ -211,6 +211,7 @@ begin
  if v_reason is null or length(v_reason) not between 10 and 3000
    or p_expected_revision is null or p_expected_revision<1
    or p_operation_id is null or nullif(btrim(coalesce(p_idempotency_key,'')),'') is null
+   or p_target_state is null
    or p_target_state not in ('preliminary_review','response_pending','proceedings','hearing',
     'judgment_pending','closed','archived') then
   raise exception using errcode='22023',message='VALIDATION';
@@ -452,7 +453,7 @@ begin
  where ca.user_id=auth.uid() and ca.status='active' and ca.country_id=v_country
  for share;
  if not found then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
- if v_case.status not in ('decided','reconsideration_requested')
+ if v_case.status not in ('decided','reconsideration_requested','reconsideration')
     or not exists (
       select 1 from public.world_court_judgments j
       where j.id=p_judgment_id and j.case_id=p_case_id
@@ -474,7 +475,9 @@ begin
    p_case_id,v_country,'reconsideration_request',v_grounds,auth.uid(),v_op,v_case.revision+1
  );
  update public.world_court_cases
- set status='reconsideration_requested',revision=revision+1,updated_at=now()
+ set status=case when v_case.status='reconsideration'
+   then 'reconsideration' else 'reconsideration_requested' end,
+ revision=revision+1,updated_at=now()
  where id=p_case_id;
  perform private.v3_emit_domain_event(
   'world.court.reconsideration_requested','world_court_case',p_case_id::text,
@@ -483,7 +486,9 @@ begin
    'judgmentId',p_judgment_id,'revision',v_case.revision+1),1,array[]::text[]
  );
  v_result:=jsonb_build_object('ok',true,'caseId',p_case_id,
-  'identifier',v_case.identifier,'requestId',v_id,'status','reconsideration_requested',
+  'identifier',v_case.identifier,'requestId',v_id,
+  'status',case when v_case.status='reconsideration'
+    then 'reconsideration' else 'reconsideration_requested' end,
   'revision',v_case.revision+1,'operationId',v_op);
  perform private.studio2_complete_operation(v_op,v_result);
  return public.studio2_reconcile_operation(v_op)||jsonb_build_object('replayed',false);

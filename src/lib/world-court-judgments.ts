@@ -121,7 +121,8 @@ export function mayRequestCourtReconsideration(
   viewerCountry: string | null, requests: readonly CourtReconsideration[],
 ): boolean {
   return !!record && !!newest && !!viewerCountry
-    && (record.status === "decided" || record.status === "reconsideration_requested")
+    && (record.status === "decided" || record.status === "reconsideration_requested"
+      || record.status === "reconsideration")
     && (viewerCountry === record.applicantCountryId || viewerCountry === record.respondentCountryId)
     && !requests.some((request) => request.judgmentId === newest.id && request.partyCountryId === viewerCountry);
 }
