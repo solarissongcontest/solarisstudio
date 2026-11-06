@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  buildV3FollowingSavedProjection,
-  v3FollowPreferenceMatches,
-} from "./v3-following-saved";
+import { buildV3FollowingSavedProjection, searchV3FollowingSavedItems, v3FollowPreferenceMatches } from "./v3-following-saved";
 
 const follows = [
   {
@@ -83,52 +80,44 @@ describe("V3 Following and Saved projection", () => {
     expect(projection.scoped).toBe(false);
     expect(projection.items).toEqual([]);
   });
+  it("searches only already scoped saved items by name, context and category", () => {
+    const projection = buildV3FollowingSavedProjection({
+      viewerId: "viewer-1",
+      follows,
+      countries: [{ id: "country-1", name: "Solaria", short_code: "SOL" }],
+      editions: [{ id: "edition-1", name: "Solaris 22", slug: "solaris-22", edition_number: 22 }],
+      shows: [{ id: "show-1", name: "Grand Final", edition_id: "edition-1" }],
+    });
 
-  it("confirms saved, notification-level and removal intents only from refreshed server rows", () => {
-    expect(
-      v3FollowPreferenceMatches({
-        viewerId: "viewer-1",
-        follows,
-        entityType: "country",
-        entityId: "country-1",
-        following: true,
-        notificationLevel: "important",
-      }),
-    ).toBe(true);
-
-    expect(
-      v3FollowPreferenceMatches({
-        viewerId: "viewer-1",
-        follows,
-        entityType: "country",
-        entityId: "country-1",
-        following: true,
-        notificationLevel: "all",
-      }),
-    ).toBe(false);
-
-    expect(
-      v3FollowPreferenceMatches({
-        viewerId: "viewer-1",
-        follows: follows.filter((follow) => follow.entity_id !== "country-1"),
-        entityType: "country",
-        entityId: "country-1",
-        following: false,
-        notificationLevel: "important",
-      }),
-    ).toBe(true);
+    expect(searchV3FollowingSavedItems(projection.items, " SOLARIA ").map((x) => x.followId))
+      .toEqual(["follow-country"]);
+    expect(searchV3FollowingSavedItems(projection.items, "solarIS 22").map((x) => x.followId))
+      .toEqual(["follow-edition", "follow-show"]);
+    expect(searchV3FollowingSavedItems(projection.items, "show").map((x) => x.followId))
+      .toEqual(["follow-show"]);
+    expect(searchV3FollowingSavedItems(projection.items, "not saved")).toEqual([]);
+    expect(searchV3FollowingSavedItems(projection.items, " ")).toHaveLength(3);
   });
 
-  it("refuses reconciliation against cross-profile state", () => {
-    expect(
-      v3FollowPreferenceMatches({
-        viewerId: "viewer-1",
-        follows: [{ ...follows[0]!, profile_id: "viewer-2" }],
-        entityType: "country",
-        entityId: "country-1",
-        following: true,
-        notificationLevel: "important",
-      }),
-    ).toBe(false);
+  it("confirms saved, notification-level and removal preferences only from same-viewer rows", () => {
+    expect(v3FollowPreferenceMatches({
+      viewerId: "viewer-1", follows, entityType: "country",
+      entityId: "country-1", following: true, notificationLevel: "important",
+    })).toBe(true);
+    expect(v3FollowPreferenceMatches({
+      viewerId: "viewer-1", follows, entityType: "country",
+      entityId: "country-1", following: true, notificationLevel: "all",
+    })).toBe(false);
+    expect(v3FollowPreferenceMatches({
+      viewerId: "viewer-1", follows: follows.filter((x) => x.entity_id !== "country-1"),
+      entityType: "country", entityId: "country-1", following: false,
+      notificationLevel: "important",
+    })).toBe(true);
+    expect(v3FollowPreferenceMatches({
+      viewerId: "viewer-1", follows: [{ ...follows[0]!, profile_id: "another-viewer" }],
+      entityType: "country", entityId: "country-1", following: true,
+      notificationLevel: "important",
+    })).toBe(false);
   });
+
 });

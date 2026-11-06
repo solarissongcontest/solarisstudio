@@ -32,20 +32,26 @@ export type V3FollowingSavedProjection = {
   counts: Record<V3FollowEntityType, number>;
 };
 
-function editionName(edition: EditionLike) {
-  if (edition.edition_number != null) {
-    return edition.name?.trim() || `Edition ${edition.edition_number}`;
-  }
-  return edition.name?.trim() || "Edition";
+/**
+ * Search only the already verified fan-owned projection. This must never trigger
+ * another Supabase query or substitute an unverified profile's saved items.
+ */
+export function searchV3FollowingSavedItems(
+  items: readonly V3FollowingSavedItem[],
+  query: string,
+): V3FollowingSavedItem[] {
+  const term = query.trim().toLocaleLowerCase();
+  if (!term) return [...items];
+  return items.filter((item) =>
+    [item.title, item.context ?? "", item.entityType]
+      .some((text) => text.toLocaleLowerCase().includes(term)),
+  );
 }
 
+
+/** Match a preference against a fresh, viewer-scoped canonical readback. */
 export function v3FollowPreferenceMatches({
-  viewerId,
-  follows,
-  entityType,
-  entityId,
-  following,
-  notificationLevel,
+  viewerId, follows, entityType, entityId, following, notificationLevel,
 }: {
   viewerId: string;
   follows: readonly V3FollowRecord[];
@@ -55,13 +61,18 @@ export function v3FollowPreferenceMatches({
   notificationLevel: V3FollowNotificationLevel;
 }): boolean {
   if (!follows.every((follow) => follow.profile_id === viewerId)) return false;
-
   const current = follows.find(
     (follow) => follow.entity_type === entityType && follow.entity_id === entityId,
   );
-
   if (!following) return current === undefined;
   return current?.notification_level === notificationLevel;
+}
+
+function editionName(edition: EditionLike) {
+  if (edition.edition_number != null) {
+    return edition.name?.trim() || `Edition ${edition.edition_number}`;
+  }
+  return edition.name?.trim() || "Edition";
 }
 
 export function buildV3FollowingSavedProjection({
