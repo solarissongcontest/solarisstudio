@@ -29,26 +29,38 @@ begin
     return null;
   end if;
 
+  -- TG2 canonical alignment (20261102171700) renamed starts_at/ends_at.
+  -- A scheduled future office term is not a current legal actor.
   select term_row.holder_person_id
   into v_person_id
   from public.world_office_terms term_row
   join public.world_organization_offices office_row on office_row.id = term_row.office_id
   where office_row.organization_id = p_organization_id
+    and office_row.active
     and term_row.holder_user_id = auth.uid()
     and term_row.status = 'active'
-    and term_row.ends_at is null
-  order by term_row.starts_at desc, term_row.id
+    and term_row.actual_end_at is null
+    and term_row.started_at <= now()
+  order by term_row.started_at desc, term_row.id
   limit 1;
 
   if v_person_id is not null then
     return v_person_id;
   end if;
 
+  -- Resolve controller identity through the live canonical country_accounts
+  -- authority. An ended/stale/future control term cannot attribute an official
+  -- legal action to a country the caller no longer controls.
   select control_row.person_id
   into v_person_id
   from public.world_country_control_terms control_row
+  join public.country_accounts account_row
+    on account_row.country_id = control_row.country_id
+   and account_row.user_id = auth.uid()
+   and account_row.status = 'active'
   where control_row.user_id = auth.uid()
     and control_row.ended_at is null
+    and control_row.started_at <= now()
     and control_row.person_id is not null
   order by control_row.started_at desc, control_row.id
   limit 1;
