@@ -83,7 +83,7 @@ export function decodePublicWorldInstitution(input: unknown, slug: string): Publ
     slug,
     shortName: row.short_name,
     officialName: row.official_name,
-    status: row.status,
+    status: String(row.status),
   };
 }
 
