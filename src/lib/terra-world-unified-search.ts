@@ -13,6 +13,31 @@ import {
 export const WORLD_UNIFIED_SEARCH_LIMIT = 12;
 export const WORLD_UNIFIED_SEARCH_MAX_PAGE = 1000;
 
+/**
+ * React Query can retain a previously successful payload after a failed
+ * background refetch. Such a payload is not fresh publication evidence.
+ * Hide it both while a verification request is running and after it fails.
+ */
+export type WorldPublicQueryState = {
+  isSuccess: boolean;
+  isError: boolean;
+  isRefetchError: boolean;
+  isFetching: boolean;
+};
+export function worldPublicQueryVerified(query: WorldPublicQueryState): boolean {
+  return query.isSuccess && !query.isError && !query.isRefetchError && !query.isFetching;
+}
+
+/** Featured rows reuse the landing query, which may contain pre-recognition drafts. */
+export function verifiedWorldFeaturedOrganizations(
+  organizations: readonly WorldOrganization[],
+): WorldOrganization[] {
+  return organizations.filter((organization) =>
+    organization.slug === "guard" || organization.slug === "unity")
+    .filter((organization) =>
+      (WORLD_PUBLIC_SEARCH_STATUSES as readonly string[]).includes(organization.status));
+}
+
 export type WorldSearchCategory = "all" | "countries" | "organizations";
 
 /** Parse the query parameter as an explicit public category, never raw SQL. */
