@@ -10,7 +10,7 @@ import {
 describe("shared V3 journey accessibility", () => {
   it.each([
     ["complete", "Complete"],
-    ["active", "In progress"],
+    ["active", "Action available"],
     ["waiting", "Waiting"],
     ["locked", "Locked"],
     ["problem", "Action needed"],
