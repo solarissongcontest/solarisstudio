@@ -20,26 +20,23 @@ type PredictionLeagueStandingRow = Omit<
   position: number | string;
 };
 
-/**
- * The leaderboard RPC owns scoring, publication and ordering. This adapter
- * refuses malformed read projections instead of rendering invented positions
- * or NaN points as if they were authoritative contest data.
- */
+/** Invalid and empty RPC numerics must never become a real score or rank. */
+const rpcNumber = (value: unknown): number =>
+  typeof value === "number" || (typeof value === "string" && value.trim())
+    ? Number(value)
+    : NaN;
+
 export function normalizePredictionLeagueStandings(
   rows: readonly PredictionLeagueStandingRow[],
 ): PredictionLeagueStanding[] {
   return rows.map((row) => {
-    const score = Number(row.score);
-    const rounds = Number(row.rounds);
-    const position = Number(row.position);
+    const score = rpcNumber(row.score);
+    const rounds = rpcNumber(row.rounds);
+    const position = rpcNumber(row.position);
     if (
       !row.profileId ||
       typeof row.displayName !== "string" ||
       !row.displayName.trim() ||
-      (typeof row.score !== "string" && typeof row.score !== "number") ||
-      (typeof row.score === "string" && !row.score.trim()) ||
-      (typeof row.rounds !== "string" && typeof row.rounds !== "number") ||
-      (typeof row.position !== "string" && typeof row.position !== "number") ||
       !Number.isFinite(score) ||
       score < 0 ||
       !Number.isSafeInteger(rounds) ||
@@ -47,16 +44,9 @@ export function normalizePredictionLeagueStandings(
       !Number.isSafeInteger(position) ||
       position < 1
     ) {
-      throw new Error("Public Prediction League standings contain an invalid canonical row.");
+      throw new Error("Invalid canonical Prediction League standing.");
     }
-    return {
-      profileId: row.profileId,
-      displayName: row.displayName,
-      score,
-      rounds,
-      position,
-      lastScoredAt: row.lastScoredAt,
-    };
+    return { ...row, score, rounds, position };
   });
 }
 
