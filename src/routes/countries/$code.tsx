@@ -59,7 +59,7 @@ const CountryPlacementChart = lazy(() =>
 export const Route = createFileRoute("/countries/$code")({
   head: ({ params }) => {
     const code = params.code.toUpperCase();
-    const url = `https://studio.solaris-song-contest.workers.dev/countries/${encodeURIComponent(params.code)}`;
+    const url = `https://studio.solaris-song-contest.workers.dev/countries/${encodeURIComponent(code)}`;
     return {
       meta: [
         { title: `${code} — Country profile — Solaris Studio` },
