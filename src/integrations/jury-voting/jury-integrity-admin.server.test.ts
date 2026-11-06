@@ -45,14 +45,31 @@ describe("Jury integrity evidence service-role authorization", () => {
     expect(fixture.privilegedSchema).not.toHaveBeenCalled();
   });
 
+  it("denies private jury score evidence when integrity permission alone is present", async () => {
+    fixture.requireCapability.mockImplementation(async (capability: string) => {
+      if (capability === "jury.ballots.read") {
+        throw new Error("Missing Solaris capability: jury.ballots.read");
+      }
+    });
+
+    await expect(
+      listJuryIntegrityCasesServer("00000000-0000-4000-8000-00000000a791"),
+    ).rejects.toThrow("Missing Solaris capability: jury.ballots.read");
+
+    expect(fixture.requireCapability.mock.calls).toEqual([
+      ["integrity.read", "00000000-0000-4000-8000-00000000a791"],
+      ["jury.ballots.read", "00000000-0000-4000-8000-00000000a791"],
+    ]);
+    expect(fixture.privilegedSchema).not.toHaveBeenCalled();
+  });
+
   it("normalizes edition scope and enters the protected query only after capability approval", async () => {
     fixture.requireCapability.mockResolvedValue(undefined);
     fixture.privilegedSchema.mockImplementation(() => {
-      expect(fixture.requireCapability).toHaveBeenCalledTimes(1);
-      expect(fixture.requireCapability).toHaveBeenCalledWith(
-        "integrity.read",
-        "00000000-0000-4000-8000-00000000a791",
-      );
+      expect(fixture.requireCapability.mock.calls).toEqual([
+        ["integrity.read", "00000000-0000-4000-8000-00000000a791"],
+        ["jury.ballots.read", "00000000-0000-4000-8000-00000000a791"],
+      ]);
       throw new Error("CONTROLLED_PRIVILEGED_READ_REACHED");
     });
 
