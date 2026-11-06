@@ -163,7 +163,7 @@ describe("V3 release evidence truthfulness", () => {
 
   it("rejects an S15 physical-owner success flag contradicted by nested diagnostics", () => {
     const valid = {
-      schemaVersion: 4, inventory: {}, zeroOrphans: true, findings: [],
+      schemaVersion: 4, inventory: completeS15Inventory, zeroOrphans: true, findings: [],
       physicalOwnership: { zeroOwnershipConflicts: true, findings: [] },
     };
     expect(check("s15-zero-orphan.json", valid)).toBeNull();
