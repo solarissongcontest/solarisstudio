@@ -91,6 +91,7 @@ function MediaAssetsPage() {
   const countriesQuery = useCountries();
   const [selectedSources, setSelectedSources] = useState<Map<string, string>>(() => new Map());
   const [reviewReason, setReviewReason] = useState('');
+  const [retryingInventory, setRetryingInventory] = useState(false);
   const [pendingReview, setPendingReview] = useState<PendingMediaReview | null>(null);
 
   const editions = editionsQuery.data ?? [];
@@ -265,6 +266,22 @@ function MediaAssetsPage() {
     onError: (mutationError) => toast.error(errorText(mutationError)),
   });
 
+  async function retryInventory() {
+    // Manual, finite retry only. Do not refetch every historical edition or
+    // trigger a production-facing polling loop on an error screen.
+    if (retryingInventory) return;
+    setRetryingInventory(true);
+    try {
+      await Promise.all([
+        editionsQuery.refetch(),
+        countriesQuery.refetch(),
+        ...(resolvedEditionId ? [cockpitQuery.refetch(), reviewsQuery.refetch()] : []),
+      ]);
+    } finally {
+      setRetryingInventory(false);
+    }
+  }
+
   function updateSearch(patch: Partial<MediaSearch>) {
     void navigate({
       search: (previous) => ({ ...previous, ...patch }),
@@ -372,12 +389,24 @@ function MediaAssetsPage() {
           }
         />
 
-        {!selectedEdition && !editionsQuery.isLoading ? (
-          <AdminCard><AdminEmptyState icon={Images} title="No edition selected" description="Select the exact Organizer edition before reviewing media operations. Solaris will not substitute the newest edition for missing or stale context." /></AdminCard>
-        ) : editionsQuery.isLoading || countriesQuery.isLoading || cockpitQuery.isLoading || reviewsQuery.isLoading ? (
+        {editionsQuery.isLoading || countriesQuery.isLoading || cockpitQuery.isLoading || reviewsQuery.isLoading ? (
           <AdminCard><p className="py-12 text-center text-sm text-muted-foreground">Building media inventory…</p></AdminCard>
         ) : error ? (
-          <AdminCard><AdminEmptyState icon={AlertTriangle} title="Media operations could not load" description={errorText(error)} /></AdminCard>
+          <AdminCard>
+            <AdminEmptyState icon={AlertTriangle} title="Media operations could not load" description={errorText(error)} />
+            <div className="mt-3 flex justify-center">
+              <button
+                type="button"
+                className="admin-action-secondary"
+                disabled={retryingInventory}
+                onClick={() => void retryInventory()}
+              >
+                {retryingInventory ? 'Retrying inventory…' : 'Retry loading media inventory'}
+              </button>
+            </div>
+          </AdminCard>
+        ) : !selectedEdition ? (
+          <AdminCard><AdminEmptyState icon={Images} title="No edition selected" description="Select the exact Organizer edition before reviewing media operations. Solaris will not substitute the newest edition for missing or stale context." /></AdminCard>
         ) : (
           <>
             <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">

@@ -99,6 +99,30 @@ describe("Organizer Media Review opt-in external preview", () => {
     expect(route).not.toContain("{asset.sourceUrl ??");
   });
 
+  it("shows media read errors before a misleading empty edition and offers a bounded retry", () => {
+    const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
+    const loading = route.indexOf("editionsQuery.isLoading || countriesQuery.isLoading");
+    const error = route.indexOf(") : error ? (", loading);
+    const missing = route.indexOf(") : !selectedEdition ? (", error);
+    expect(loading).toBeGreaterThan(-1);
+    expect(error).toBeGreaterThan(loading);
+    expect(missing).toBeGreaterThan(error);
+    expect(route).toContain("Retry loading media inventory");
+    expect(route).toContain("onClick={() => void retryInventory()}");
+    expect(route).toContain("disabled={retryingInventory}");
+  });
+
+  it("retries only known inventory projections on a deliberate click", () => {
+    const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
+    expect(route).toContain("async function retryInventory()");
+    expect(route).toContain("if (retryingInventory) return;");
+    expect(route).toContain("editionsQuery.refetch()");
+    expect(route).toContain("countriesQuery.refetch()");
+    expect(route).toContain("resolvedEditionId ? [cockpitQuery.refetch(), reviewsQuery.refetch()] : []");
+    expect(route).not.toContain("setInterval");
+    expect(route).not.toContain("refetchInterval:");
+  });
+
   it("offers explicit in-sheet retry and unload without starting autoplay", () => {
     const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
     expect(route).toContain("const [previewAttempt, setPreviewAttempt] = useState(0)");
