@@ -69,6 +69,8 @@ export const SOLARIS_CAPABILITIES = [
   'world.office.manage',
   'world.office.term.assign',
   'world.office.term.transition',
+  'world.space.manage',
+  'world.chat.moderate',
 ] as const;
 
 export type SolarisCapability = (typeof SOLARIS_CAPABILITIES)[number];

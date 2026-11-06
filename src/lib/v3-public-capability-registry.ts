@@ -406,6 +406,21 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     acceptanceScenarioId: "public.v3-shell-five-root-navigation",
   },
   {
+    id: "terra-world-private-workspaces",
+    sourceFeatureFlags: ["terra_private_spaces", "terra_chat"],
+    legacyRoutes: ["/world/workspaces", "/world/workspaces/*"],
+    legacyComponents: ["WorldPrivateWorkspace"],
+    backendOwners: ["world-institutions"],
+    personas: ["member", "hod"],
+    authRequirement: "authenticated",
+    classification: "redesign",
+    targetArea: "me",
+    targetRoute: "/world/workspaces",
+    specificationStatus: "building",
+    acceptanceScenarioId: "public.terra-world-private-membership-workspace",
+    migrationEvidence: "TG11/TG12 draft private RPC-only space and chat foundation; server membership/RLS, explicit S15 route classification, rollout disabled pending isolated SQL tests and release certification.",
+  },
+  {
     id: "terra-world-institutions",
     // New Terra Solaris world routes do not belong to a legacy V6 surface.
     sourceFeatureFlags: ["terra_world_public"],

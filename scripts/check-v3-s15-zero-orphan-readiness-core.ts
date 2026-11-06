@@ -232,7 +232,7 @@ for (const file of routeFiles) {
 // World uses a distinct, canonical V3 rollout key registered in the Public capability inventory.
 // Include it in the S15 source-of-truth comparison rather than treating a valid owner as an orphan.
 const discoveredV3Flags = SOLARIS_FEATURE_FLAGS.filter(
-  (flag) => flag.startsWith("solaris_app_v3") || flag === "terra_world_public",
+  (flag) => flag.startsWith("solaris_app_v3") || flag === "terra_world_public" || flag === "terra_private_spaces" || flag === "terra_chat",
 );
 const mappedV3Flags = new Set([...V3_PUBLIC_FEATURE_FLAGS, ...V3_ORGANIZER_FEATURE_FLAGS]);
 const featureFlagDiff = setDiff(discoveredV3Flags, mappedV3Flags);

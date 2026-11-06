@@ -62,7 +62,7 @@ describe("Solaris V3 migration registries", () => {
 
   it("maps every V3 feature flag to Public or Organizer ownership", () => {
     const expected = SOLARIS_FEATURE_FLAGS.filter(
-      (flag) => flag.startsWith("solaris_app_v3") || flag === "terra_world_public",
+      (flag) => flag.startsWith("solaris_app_v3") || flag === "terra_world_public" || flag === "terra_private_spaces" || flag === "terra_chat",
     ).sort();
     const mapped = unique([
       ...V3_PUBLIC_FEATURE_FLAGS,
