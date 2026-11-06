@@ -55,7 +55,8 @@ describe("TG10 Me institution follow public-name boundary", () => {
   it("bounds a single public-only exact-ID lookup and never uses SELECT *", async () => {
     const request = simulateResult([publicOrg(), publicOrg(OTHER)]);
     const result = await fetchPublishedFollowingOrganizations([ID, OTHER, ID]);
-    expect(mock.from).toHaveBeenCalledExactlyOnceWith("world_organizations");
+    expect(mock.from).toHaveBeenCalledTimes(1);
+    expect(mock.from).toHaveBeenCalledWith("world_organizations");
     expect(request.select).toHaveBeenCalledWith(
       "id,slug,official_name,short_name,type,description,status,public_visibility",
     );
