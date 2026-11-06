@@ -1,6 +1,6 @@
 import type { Edition, ResultRow, Show } from "./data";
 import { normalizeLegacyEditionStatus, type EditionState } from "./edition-state";
-import { resolveShowPublication } from "./publication";
+import { isShowPublic, showPublishesResults } from "./publication";
 import type { PublicStatusKey } from "./public-status";
 
 export type PublicContestPhase =
@@ -59,7 +59,7 @@ export function resolveCurrentPublicEdition(
 }
 
 function exactLiveShow(shows: readonly Show[]) {
-  return shows.find((show) => LIVE_SHOW_STATUSES.has(show.status.trim().toLowerCase())) ?? null;
+  return shows.find((show) => isShowPublic(show) && LIVE_SHOW_STATUSES.has(show.status.trim().toLowerCase())) ?? null;
 }
 
 function finalResultPublished(
@@ -73,7 +73,7 @@ function finalResultPublished(
         (show) =>
           show.edition_id === edition.id &&
           (show.kind === "grand-final" || show.kind === "final") &&
-          resolveShowPublication(show).results,
+          showPublishesResults(show),
       )
       .map((show) => show.id),
   );
@@ -231,13 +231,25 @@ export function resolvePublicEditionState({
   const lifecycle = normalizeLegacyEditionStatus(edition.status);
   const editionShows = shows.filter((show) => show.edition_id === edition.id);
 
-  const phase = exactLiveShow(editionShows)
-    ? "live"
-    : isTerminalLifecycle(lifecycle)
-      ? "post_edition"
-      : finalResultPublished(edition, editionShows, results)
+  // Historical completion is authoritative. A stale show runtime flag must
+  // never resurrect Live on an archived or completed edition.
+  const publicLiveShow = exactLiveShow(editionShows);
+  const publishedFinalResult = finalResultPublished(edition, editionShows, results);
+  const lifecyclePhase = phaseFromLifecycle(lifecycle);
+  // Operational Live / Results lifecycle states are not publication grants.
+  // Only a public live show or public Final ranking may announce those phases.
+  const fallbackPhase = lifecyclePhase === "results_published"
+    ? "results_pending"
+    : lifecyclePhase === "live"
+      ? "pre_show"
+      : lifecyclePhase;
+  const phase = isTerminalLifecycle(lifecycle)
+    ? "post_edition"
+    : publicLiveShow
+      ? "live"
+      : publishedFinalResult
         ? "results_published"
-        : phaseFromLifecycle(lifecycle);
+        : fallbackPhase;
 
   return {
     edition,
