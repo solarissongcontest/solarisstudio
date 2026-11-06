@@ -854,7 +854,7 @@ function AdminSystemPage() {
             setCreateEditionId(null);
             setForm({ label: "", due_at: "", notes: "" });
           }
-        }
+        }}
         title="Add custom reminder"
         description={
           selectedEdition
