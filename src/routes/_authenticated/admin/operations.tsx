@@ -26,6 +26,7 @@ import type {
   V3OrganizerReadinessFactor,
 } from "@/lib/v3-organizer-projection";
 import { useV3OrganizerProjection } from "@/lib/v3-organizer-projection.query";
+import { organizerOverviewStatus } from "@/lib/organizer-overview-status";
 
 export const Route = createFileRoute("/_authenticated/admin/operations")({
   head: () => ({
@@ -46,6 +47,9 @@ function OrganizerOverview() {
   const { editionId } = useAdminContext();
   const projectionQuery = useV3OrganizerProjection(editionId || null);
   const projection = projectionQuery.data ?? null;
+  const overviewStatus = projection
+    ? organizerOverviewStatus(projection.risk, projection.systemHealth.state)
+    : { tone: "neutral" as const, label: "Status unverified" };
 
   return (
     <AdminPage>
@@ -101,20 +105,8 @@ function OrganizerOverview() {
                   {projection.edition.name} · state {humanize(projection.live.editionState)}
                 </p>
               </div>
-              <AdminStatus
-                tone={
-                  projection.risk === "critical"
-                    ? "blocked"
-                    : projection.risk === "elevated"
-                      ? "attention"
-                      : "ready"
-                }
-              >
-                {projection.risk === "critical"
-                  ? "Critical attention"
-                  : projection.risk === "elevated"
-                    ? "Needs attention"
-                    : "On track"}
+              <AdminStatus tone={overviewStatus.tone}>
+                {overviewStatus.label}
               </AdminStatus>
             </section>
 
