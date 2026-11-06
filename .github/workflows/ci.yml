@@ -68,6 +68,9 @@ jobs:
       - name: Verify V3 production isolation
         run: bun run scripts/check-v3-production-isolation.ts
 
+      - name: Regress independent Quality diagnostics (read-only)
+        run: node --test scripts/quality-independent-checks.contract.mjs scripts/quality-outcome-proof.contract.mjs
+
       - name: Enforce V3 capability status transitions on pull requests
         if: github.event_name == 'pull_request'
         shell: bash
@@ -177,6 +180,9 @@ jobs:
         run: bun run budget:client
 
       - name: Verify route tree was generated
+        # Preserve independent diagnostics even if the client budget fails.
+        # Never run after failed production build, failed preflight or cancellation.
+        if: ${{ !cancelled() && steps.production_build.outcome == 'success' }}
         id: route_tree_generated
         shell: bash
         run: |
@@ -188,6 +194,9 @@ jobs:
           echo "routeTree.gen.ts generated successfully."
 
       - name: Verify generated route tree is untracked
+        # Preserve independent diagnostics even if the client budget fails.
+        # Never run after failed production build, failed preflight or cancellation.
+        if: ${{ !cancelled() && steps.production_build.outcome == 'success' }}
         id: route_tree_untracked
         shell: bash
         run: |
@@ -203,11 +212,17 @@ jobs:
           echo "Generated route tree is correctly untracked and ignored."
 
       - name: TypeScript
+        # Preserve independent diagnostics even if the client budget fails.
+        # Never run after failed production build, failed preflight or cancellation.
+        if: ${{ !cancelled() && steps.production_build.outcome == 'success' }}
         id: typecheck
         continue-on-error: true
         run: bun run typecheck
 
       - name: Unit tests
+        # Preserve independent diagnostics even if the client budget fails.
+        # Never run after failed production build, failed preflight or cancellation.
+        if: ${{ !cancelled() && steps.production_build.outcome == 'success' }}
         id: unit_tests
         continue-on-error: true
         shell: bash
@@ -236,6 +251,9 @@ jobs:
           retention-days: 1
 
       - name: Lint
+        # Preserve independent diagnostics even if the client budget fails.
+        # Never run after failed production build, failed preflight or cancellation.
+        if: ${{ !cancelled() && steps.production_build.outcome == 'success' }}
         id: lint
         continue-on-error: true
         shell: bash
@@ -276,6 +294,7 @@ jobs:
           retention-days: 1
 
       - name: Write Quality diagnostic manifest
+        id: quality_manifest
         if: always()
         shell: bash
         env:
@@ -310,13 +329,20 @@ jobs:
             echo "::error::Quality diagnostic manifest is for checkout $checkout_sha, expected $expected"
             exit 1
           fi
+          node scripts/quality-outcome-proof.mjs \
+            --input quality-diagnostics.txt \
+            --expected "$expected" \
+            --output quality-diagnostics.json
+          test -s quality-diagnostics.json
 
       - name: Upload Quality diagnostic manifest
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: quality-diagnostics-${{ github.event.pull_request.head.sha || github.sha }}
-          path: quality-diagnostics.txt
+          path: |
+            quality-diagnostics.txt
+            quality-diagnostics.json
           if-no-files-found: error
           retention-days: 7
 
@@ -355,6 +381,7 @@ jobs:
           UNIT_OUTCOME: ${{ steps.unit_tests.outcome }}
           LINT_OUTCOME: ${{ steps.lint.outcome }}
           SOURCE_CHECK_OUTCOME: ${{ steps.tracked_source_check.outcome }}
+          MANIFEST_OUTCOME: ${{ steps.quality_manifest.outcome }}
         run: |
           set -euo pipefail
           failed=0
@@ -362,7 +389,8 @@ jobs:
             "TypeScript:${TYPECHECK_OUTCOME:-not-run}" \
             "Unit tests:${UNIT_OUTCOME:-not-run}" \
             "Lint:${LINT_OUTCOME:-not-run}" \
-            "Tracked-source mutation check:${SOURCE_CHECK_OUTCOME:-not-run}"
+            "Tracked-source mutation check:${SOURCE_CHECK_OUTCOME:-not-run}" \
+            "Exact-SHA Quality JSON proof:${MANIFEST_OUTCOME:-not-run}"
           do
             name="${check%%:*}"
             outcome="${check#*:}"
