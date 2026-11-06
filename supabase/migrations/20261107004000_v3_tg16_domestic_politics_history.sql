@@ -98,6 +98,8 @@ revoke all on public.world_domestic_parties from public, anon, authenticated;
 revoke all on public.world_domestic_elections from public, anon, authenticated;
 revoke all on public.world_history_events from public, anon, authenticated;
 revoke all on public.world_domestic_record_revisions from public,anon,authenticated;
+revoke all on public.world_domestic_parties, public.world_domestic_elections,
+  public.world_history_events, public.world_domestic_record_revisions from service_role;
 grant select on public.world_domestic_parties, public.world_domestic_elections,
   public.world_history_events, public.world_domestic_record_revisions to service_role;
 
