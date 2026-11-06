@@ -552,3 +552,126 @@ test("installed AppTabBar cancels held gestures on overlay/keyboard and restores
   await expect(page).toHaveURL(/\/explore(?:[?#]|$)/);
   await context.close();
 });
+
+
+test(
+  "installed app shell survives representative navigation without duplicate chrome: installed iOS standalone protects semantic top chrome in portrait, landscape and keyboard states",
+  async ({ browser }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "ios-pwa-portrait",
+      "The isolated WebKit installed-iOS project owns this top-safe geometry probe.",
+    );
+
+    // Browser.newContext does not inherit the project's device descriptor.
+    // Explicit touch/mobile capabilities are essential here: the canonical
+    // standalone iOS fallback is intentionally gated on (pointer: coarse).
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: true,
+      reducedMotion: "reduce",
+    });
+    const { baseURL } = await prepareNavbarInstalledContext(context);
+    const page = await context.newPage();
+    await page.goto(baseURL + "/my-solaris/account", { waitUntil: "domcontentloaded" });
+    await applyNavbarInstalledCssEmulation(page);
+
+    const header = page.locator(".v3-top-context");
+    const nav = page.locator(".solaris-app-tabbar");
+    await expect(page.locator('[data-v3-account-settings-screen="account"]')).toBeVisible();
+    await expect(header).toBeVisible();
+    await expect(nav).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.dataset.solarisRuntime))
+      .toBe("standalone");
+
+    async function readSafeZone() {
+      return page.evaluate(() => {
+        const shell = document.querySelector<HTMLElement>("[data-solaris-v3]");
+        const chrome = document.querySelector<HTMLElement>(".v3-top-context");
+        if (!shell || !chrome) return null;
+        const style = getComputedStyle(chrome);
+        const chromeRect = chrome.getBoundingClientRect();
+        const visibleControls = Array.from(
+          chrome.querySelectorAll<HTMLElement>("a, button, input, select, textarea, [tabindex]:not([tabindex='-1'])"),
+        ).filter((element) => getComputedStyle(element).visibility !== "hidden");
+        return {
+          runtime: document.documentElement.dataset.solarisRuntime ?? null,
+          coarsePointer: matchMedia("(pointer: coarse)").matches,
+          webkitSafeAreaSupport: CSS.supports("-webkit-touch-callout", "none"),
+          viewport: { width: innerWidth, height: innerHeight },
+          headerTop: chromeRect.top,
+          safePadding: Number.parseFloat(style.paddingTop),
+          computedSafeToken: getComputedStyle(shell).getPropertyValue("--v3-top-system-safe").trim(),
+          firstControlTop: visibleControls.length
+            ? Math.min(...visibleControls.map((element) => element.getBoundingClientRect().top))
+            : null,
+        };
+      });
+    }
+
+    const measurements: Array<{ state: string; evidence: NonNullable<Awaited<ReturnType<typeof readSafeZone>>> }> = [];
+    for (const state of [
+      { label: "portrait", width: 390, height: 844, minimum: 66 },
+      { label: "landscape", width: 844, height: 390, minimum: 26 },
+      { label: "portrait-after-rotation", width: 390, height: 844, minimum: 66 },
+    ]) {
+      await page.setViewportSize({ width: state.width, height: state.height });
+      await expect(header).toBeVisible();
+      await expect
+        .poll(async () => (await readSafeZone())?.safePadding ?? -1)
+        .toBeGreaterThanOrEqual(state.minimum - 1);
+
+      const evidence = await readSafeZone();
+      expect(evidence).not.toBeNull();
+      if (!evidence) throw new Error("Installed top-safe geometry became unreadable");
+      expect(evidence.runtime).toBe("standalone");
+      expect(evidence.coarsePointer).toBe(true);
+      expect(evidence.webkitSafeAreaSupport).toBe(true);
+      expect(evidence.safePadding).toBeGreaterThanOrEqual(state.minimum - 1);
+      if (evidence.firstControlTop != null) {
+        expect(evidence.firstControlTop).toBeGreaterThanOrEqual(
+          evidence.headerTop + state.minimum - 1,
+        );
+      }
+      measurements.push({ state: state.label, evidence });
+    }
+
+    await page.evaluate(() =>
+      document.documentElement.setAttribute("data-solaris-keyboard-open", "true"),
+    );
+    const keyboard = await readSafeZone();
+    expect(keyboard).not.toBeNull();
+    expect(keyboard?.safePadding).toBeGreaterThanOrEqual(65);
+    await page.evaluate(() =>
+      document.documentElement.removeAttribute("data-solaris-keyboard-open"),
+    );
+
+    // Browser-only visitors must not inherit a fake 60px installed-app inset.
+    // Toggle the CSS runtime marker only for this non-authoritative style probe,
+    // then restore it without changing application identity or server state.
+    await page.evaluate(() => {
+      document.documentElement.dataset.solarisRuntime = "web";
+    });
+    const webToken = (await readSafeZone())?.computedSafeToken ?? "";
+    expect(webToken).not.toContain("60px");
+    await page.evaluate(() => {
+      document.documentElement.dataset.solarisRuntime = "standalone";
+    });
+    await expect
+      .poll(async () => (await readSafeZone())?.safePadding ?? -1)
+      .toBeGreaterThanOrEqual(65);
+
+    await testInfo.attach("installed-ios-top-safe-boundary.json", {
+      body: Buffer.from(JSON.stringify({
+        candidateSha: process.env.GITHUB_SHA ?? null,
+        simulatedWebKitOnly: true,
+        measurements,
+        keyboard,
+        webToken,
+      }, null, 2)),
+      contentType: "application/json",
+    });
+    await context.close();
+  },
+);
