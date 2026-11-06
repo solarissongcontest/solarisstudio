@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -49,6 +50,15 @@ describe("Terra Solaris TG8 exact-rational legislative voting primitive", () => 
     ]) {
       expect(rehearsal).toContain(example);
     }
+  });
+
+  it("executes local-only URL authority and CLI-injection regressions", () => {
+    // Runs with stub Supabase and stub psql executables: zero hosted or local DB access.
+    execFileSync(process.execPath, ["--test", "scripts/rehearse-v3-world-exact-vote-math.security.test.mjs"], {
+      cwd: process.cwd(),
+      timeout: 15_000,
+      stdio: "pipe",
+    });
   });
 
   it("uses a fail-closed local-only wrapper rather than production Supabase", () => {
