@@ -154,10 +154,12 @@ revoke all on table public.world_spaces, private.world_space_access_grants,
   private.world_space_messages, private.world_space_message_revisions,
   private.world_space_reactions, private.world_space_attachments
   from public, anon, authenticated;
-grant all on table public.world_spaces, private.world_space_access_grants,
+-- No service_role direct INSERT/UPDATE/DELETE. The security-definer owner
+-- executes vetted commands; a service credential is not mutation authority.
+revoke all on table public.world_spaces, private.world_space_access_grants,
   private.world_space_messages, private.world_space_message_revisions,
-  private.world_space_reactions, private.world_space_attachments to service_role;
-grant usage, select on sequence private.world_space_message_revisions_id_seq to service_role;
+  private.world_space_reactions, private.world_space_attachments from service_role;
+revoke all on sequence private.world_space_message_revisions_id_seq from service_role;
 
 -- Canonical live TG2 memberships are essential; former or suspended members
 -- and future-dated representatives cannot use an old room URL or saved token.
@@ -332,6 +334,10 @@ begin
      or p_visibility not in ('members','leadership','organ','custom')
      or p_history not in ('from_join','all_member_history','custom')
   then raise exception using errcode='22023', message='VALIDATION'; end if;
+  -- Historical leadership/committee content must not become retrospectively
+  -- visible to new members. Full history is reserved for general member rooms.
+  if p_visibility <> 'members' and p_history = 'all_member_history' then
+    raise exception using errcode='22023',message='SENSITIVE_HISTORY_POLICY'; end if;
   if p_organ_id is not null and not exists (
     select 1 from public.world_organization_organs
       where id = p_organ_id and organization_id = p_organization_id
@@ -612,6 +618,7 @@ grant execute on function public.world_my_workspaces_v1(),
   public.world_space_create_v1(uuid,text,text,text,text,uuid,uuid),
   public.world_space_set_grant_v1(uuid,uuid,text,timestamptz,boolean),
   public.world_space_messages_v1(uuid,uuid,integer),
+  public.world_space_search_v1(uuid,text,integer),
   public.world_space_send_v1(uuid,text,uuid,uuid),
   public.world_space_edit_v1(uuid,bigint,text),
   public.world_space_set_reaction_v1(uuid,text,boolean),
