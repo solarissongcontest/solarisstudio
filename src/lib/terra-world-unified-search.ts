@@ -160,19 +160,22 @@ export type WorldOrganizationSearchPage = {
 export async function fetchWorldCountrySearchPage(
   raw: string,
   page = 0,
+  signal?: AbortSignal,
 ): Promise<WorldCountrySearchPage> {
   checkedPage(page);
   const term = verifiedWorldSearchTerm(raw);
   if (term.length < 2) return { countries: [], countryTotal: 0 };
+  if (signal?.aborted) throw new DOMException("World search cancelled.", "AbortError");
 
-  const { data, error, count } = await (supabase as any).from("countries")
+  let request = (supabase as any).from("countries")
     .select(COUNTRY_FIELDS, { count: "exact" })
     .or("name.ilike.%" + term + "%,short_code.ilike.%" + term + "%,region.ilike.%" + term + "%")
     .order("name", { ascending: true })
     .order("short_code", { ascending: true })
-    .order("id", { ascending: true })
-    .range(page * WORLD_UNIFIED_SEARCH_LIMIT,
-      (page + 1) * WORLD_UNIFIED_SEARCH_LIMIT - 1);
+    .order("id", { ascending: true });
+  if (signal) request = request.abortSignal(signal);
+  const { data, error, count } = await request.range(page * WORLD_UNIFIED_SEARCH_LIMIT,
+    (page + 1) * WORLD_UNIFIED_SEARCH_LIMIT - 1);
   if (error) throw new Error("Public World country search is temporarily unavailable.");
 
   const countries = parseWorldSearchCountries(data);
@@ -186,20 +189,23 @@ export async function fetchWorldCountrySearchPage(
 export async function fetchWorldOrganizationSearchPage(
   raw: string,
   page = 0,
+  signal?: AbortSignal,
 ): Promise<WorldOrganizationSearchPage> {
   checkedPage(page);
   const term = verifiedWorldSearchTerm(raw);
   if (term.length < 2) return { organizations: [], organizationTotal: 0 };
+  if (signal?.aborted) throw new DOMException("World search cancelled.", "AbortError");
 
-  const { data, error, count } = await (supabase as any).from("world_organizations")
+  let request = (supabase as any).from("world_organizations")
     .select(ORGANIZATION_FIELDS, { count: "exact" })
     .eq("public_visibility", "public")
     .in("status", [...WORLD_PUBLIC_SEARCH_STATUSES])
     .or("official_name.ilike.%" + term + "%,short_name.ilike.%" + term + "%")
     .order("official_name", { ascending: true })
-    .order("slug", { ascending: true })
-    .range(page * WORLD_UNIFIED_SEARCH_LIMIT,
-      (page + 1) * WORLD_UNIFIED_SEARCH_LIMIT - 1);
+    .order("slug", { ascending: true });
+  if (signal) request = request.abortSignal(signal);
+  const { data, error, count } = await request.range(page * WORLD_UNIFIED_SEARCH_LIMIT,
+    (page + 1) * WORLD_UNIFIED_SEARCH_LIMIT - 1);
   if (error) throw new Error("Public World organization search is temporarily unavailable.");
   if (!Array.isArray(data)) {
     throw new Error("Published organization results could not be verified.");
@@ -218,14 +224,15 @@ export async function fetchWorldUnifiedSearch(
   raw: string,
   countryPage = 0,
   organizationPage = 0,
+  signal?: AbortSignal,
 ): Promise<WorldUnifiedSearchResult> {
   // Validate both page arguments before starting either request.
   checkedPage(countryPage);
   checkedPage(organizationPage);
   const term = verifiedWorldSearchTerm(raw);
   const [countries, organizations] = await Promise.all([
-    fetchWorldCountrySearchPage(term, countryPage),
-    fetchWorldOrganizationSearchPage(term, organizationPage),
+    fetchWorldCountrySearchPage(term, countryPage, signal),
+    fetchWorldOrganizationSearchPage(term, organizationPage, signal),
   ]);
   return { term, ...countries, ...organizations };
 }
