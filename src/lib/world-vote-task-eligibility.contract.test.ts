@@ -81,6 +81,11 @@ describe("TG10 institutional vote Task Engine recipient authority", () => {
     expect(rehearsal).toContain("TG10_DISABLED_VOTING_TASK_LEAK");
     expect(rehearsal).toContain("TG10_DISABLED_RULES_TASK_LEAK");
     expect(rehearsal).toContain("TG10_READ_ONLY_TASK_LEAK");
+    expect(rehearsal).toContain("TG10_APPROVED_PROXY_TASK_DENIED");
+    expect(rehearsal).toContain("TG10_REPLACED_REPRESENTATIVE_TASK_LEAK");
+    expect(rehearsal).toContain("TG10_REVOKED_PROXY_TASK_LEAK");
+    expect(rehearsal).toContain("v_proxy_measure");
+    expect(rehearsal).toContain("v_proxy_version");
     expect(rehearsal).not.toMatch(/world_vote_electorate|world_legislative_ballots/i);
   });
 
