@@ -11,6 +11,7 @@ import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminSh
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions } from '@/lib/data';
 import { MEDIA_ASSET_TYPES, type MediaAssetType } from '@/lib/media-asset-vault';
+import { resolveOrganizerMediaPreviewSource } from '@/lib/v3-organizer-media-preview-source';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
 import {
   STUDIO2_MEDIA_ASSET_STATES,
@@ -439,8 +440,21 @@ function MediaAssetsPage() {
 }
 
 function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAssetItem | null; reviews: Awaited<ReturnType<typeof listStudio2MediaAssetReviews>>; onClose: () => void }) {
+  // A newly selected or replaced asset must never inherit an earlier preview.
+  const [previewTarget, setPreviewTarget] = useState<string | null>(null);
+  const [failedPreviewTarget, setFailedPreviewTarget] = useState<string | null>(null);
+  const source = asset ? resolveOrganizerMediaPreviewSource(asset.sourceUrl, asset.assetType) : null;
+  const previewKey = asset
+    ? [asset.editionId, asset.assetKey, asset.sourceFingerprint ?? 'no-source'].join(':')
+    : null;
+  const previewVisible = Boolean(source?.previewKind && previewKey && previewTarget === previewKey);
+  const dismiss = () => {
+    setPreviewTarget(null);
+    setFailedPreviewTarget(null);
+    onClose();
+  };
   return (
-    <AdminSheet open={Boolean(asset)} onClose={onClose} title={asset?.title ?? 'Media asset'} description={asset ? `${assetTypeLabel(asset.assetType)} · ${stateLabel(asset.state)}` : undefined}>
+    <AdminSheet open={Boolean(asset)} onClose={dismiss} title={asset?.title ?? 'Media asset'} description={asset ? `${assetTypeLabel(asset.assetType)} · ${stateLabel(asset.state)}` : undefined}>
       {asset ? (
         <div className="space-y-5">
           <section>
@@ -448,7 +462,68 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
             <div className="mt-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
               <div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">Current state</span><AdminStatus tone={stateTone(asset.state)}>{stateLabel(asset.state)}</AdminStatus></div>
               <p className="mt-3 break-all text-sm">{asset.sourceUrl ?? 'No source supplied.'}</p>
-              {asset.sourceUrl ? <a href={asset.sourceUrl} target="_blank" rel="noreferrer" className="admin-action-secondary mt-3 inline-flex">Open source <ExternalLink className="size-4" /></a> : null}
+              {source ? (
+                <a href={source.url} target="_blank" rel="noopener noreferrer" className="admin-action-secondary mt-3 inline-flex">
+                  Open source <ExternalLink className="size-4" />
+                </a>
+              ) : asset.sourceUrl ? (
+                <p className="mt-2 text-xs text-amber-100">
+                  This source is not a safe HTTP(S) link. Direct opening and preview are disabled.
+                </p>
+              ) : null}
+              {source?.previewKind && previewKey ? (
+                <div className="mt-3 space-y-2 rounded-xl border border-white/[0.08] bg-black/10 p-3">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    External {source.previewKind} from {source.host}. Media is loaded only if you choose to preview it.
+                    Large files may consume data. This preview is not an editorial approval.
+                  </p>
+                  {!previewVisible ? (
+                    <button
+                      type="button"
+                      className="admin-action-secondary"
+                      onClick={() => {
+                        setFailedPreviewTarget(null);
+                        setPreviewTarget(previewKey);
+                      }}
+                    >
+                      Load preview from {source.host}
+                    </button>
+                  ) : failedPreviewTarget === previewKey ? (
+                    <p role="status" className="text-xs text-amber-100">
+                      This source could not be previewed. Check its availability using Open source.
+                    </p>
+                  ) : source.previewKind === 'image' ? (
+                    <img
+                      src={source.url}
+                      alt={`Organizer preview of ${asset.title}`}
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      onError={() => setFailedPreviewTarget(previewKey)}
+                      className="max-h-80 w-full rounded-lg object-contain"
+                    />
+                  ) : source.previewKind === 'audio' ? (
+                    <audio
+                      src={source.url}
+                      controls
+                      preload="none"
+                      onError={() => setFailedPreviewTarget(previewKey)}
+                      className="w-full"
+                      aria-label={`Organizer audio preview: ${asset.title}`}
+                    />
+                  ) : (
+                    <video
+                      src={source.url}
+                      controls
+                      preload="none"
+                      playsInline
+                      onError={() => setFailedPreviewTarget(previewKey)}
+                      className="max-h-80 w-full rounded-lg bg-black object-contain"
+                      aria-label={`Organizer video preview: ${asset.title}`}
+                    />
+                  )}
+                </div>
+              ) : null}
               {asset.sourceUpdatedAt ? <p className="mt-3 text-xs text-muted-foreground">Canonical entry updated {formatTimestamp(asset.sourceUpdatedAt)}</p> : null}
             </div>
           </section>
