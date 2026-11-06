@@ -356,6 +356,31 @@ test("a complete S14 runtime is not clean without exact-SHA static audit and obs
     assert.equal(report.checks.staticEvidence.complete, true);
     assert.equal(hasRuntimeCleanProof(report), true, "unresolved S15 cutovers remain triage, not automatic runtime failures");
 
+    // Matrix artifacts are independent evidence. A copied successful run from a
+    // different lane must never satisfy the archive (or any other) lane.
+    for (const [description, reportedLane] of [
+      ["swapped full-contest report", "full-contest"],
+      ["missing lane identity", undefined],
+    ]) {
+      put("runtime-archive.json", {
+        candidateSha: SHA, ...(reportedLane ? { lane: reportedLane } : {}),
+        status: "passed", exitCode: 0,
+      });
+      report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+      assert.equal(report.checks.localRuntimeLanes.archive, "invalid-evidence", description);
+      assert.ok(report.findings.some((item) =>
+        item.id === "EVIDENCE_LANE_MISMATCH_ARCHIVE" &&
+        item.group === "evidence-integrity" &&
+        item.status === "confirmed-blocker"
+      ), description + " must surface a confirmed evidence-integrity blocker");
+      assert.equal(hasRuntimeCleanProof(report), false, description + " must fail closed");
+    }
+    put("runtime-archive.json", {
+      candidateSha: SHA, lane: "archive", status: "passed", exitCode: 0,
+    });
+    report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
+    assert.equal(hasRuntimeCleanProof(report), true, "restored archive evidence is valid");
+
     put("checks-static.json", { ...evidence, candidateSha: "b".repeat(40) });
     report = collectDefectSweep({ root, evidenceDir, candidateSha: SHA });
     assert.equal(hasRuntimeCleanProof(report), false, "stale static SHA cannot be accepted");
