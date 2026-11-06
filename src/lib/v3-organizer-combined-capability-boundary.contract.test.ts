@@ -49,6 +49,16 @@ describe("Organizer Combined Results global capability preflight", () => {
     if (sync >= 0) expect(sync).toBeGreaterThan(guard);
   });
 
+  it("rejects NaN, infinity and invalid point pools or rank exponents before privileged writes", () => {
+    expect(adapter).toContain("function boundedCombinedPointPool(value: unknown)");
+    expect(adapter).toContain("Number.isSafeInteger(integralPoints)");
+    expect(adapter).toContain('throw new Error("Invalid Combined Results point pool")');
+    expect(adapter).toContain("function boundedCombinedRankExponent(value: unknown)");
+    expect(adapter).toContain('throw new Error("Invalid Combined Results rank exponent")');
+    expect(adapter.split("boundedCombinedPointPool(data.totalPoints)").length - 1).toBe(2);
+    expect(adapter.split("boundedCombinedRankExponent(data.rankExponent)").length - 1).toBe(2);
+  });
+
   it("retains truthful System S16 writer debt instead of mislabeling the adapter as canonical", () => {
     expect(legacyServer).toContain('from("televote_aggregations")');
     expect(legacyServer).toContain('requireMergedTelevotingAdminServer');

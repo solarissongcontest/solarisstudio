@@ -1,6 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { CorrectionScope, SourceInputMode } from "@/integrations/televoting/combined-math";
 
+function boundedCombinedPointPool(value: unknown) {
+  const points = Number(value);
+  const integralPoints = Math.trunc(points);
+  if (!Number.isFinite(points) || points < 1 || !Number.isSafeInteger(integralPoints)) {
+    throw new Error("Invalid Combined Results point pool");
+  }
+  return integralPoints;
+}
+
+function boundedCombinedRankExponent(value: unknown) {
+  const exponent = Number(value);
+  if (!Number.isFinite(exponent) || exponent <= 0) {
+    throw new Error("Invalid Combined Results rank exponent");
+  }
+  return exponent;
+}
+
 async function requireCombinedCapability(capability: "voting.read" | "voting.manage") {
   const { requireSolarisCapabilityServer } = await import("@/integrations/supabase/capabilities.server");
   await requireSolarisCapabilityServer(capability, null);
@@ -40,9 +57,8 @@ export const createMergedCombinedAggregation = createServerFn({ method: "POST" }
   .inputValidator((data: { name: string; editionId?: string | null; totalPoints: number; rankExponent: number }) => {
     const name = String(data?.name ?? "").trim();
     if (!name) throw new Error("Name is required");
-    const totalPoints = Math.max(1, Math.trunc(Number(data.totalPoints)));
-    const rankExponent = Number(data.rankExponent);
-    if (!Number.isFinite(rankExponent) || rankExponent <= 0) throw new Error("Invalid rank exponent");
+    const totalPoints = boundedCombinedPointPool(data.totalPoints);
+    const rankExponent = boundedCombinedRankExponent(data.rankExponent);
     return { name, editionId: data.editionId ?? null, totalPoints, rankExponent };
   })
   .handler(async ({ data }) => {
@@ -56,7 +72,9 @@ export const updateMergedCombinedAggregation = createServerFn({ method: "POST" }
     if (!data?.id) throw new Error("Missing aggregation id");
     const name = String(data.name ?? "").trim();
     if (!name) throw new Error("Name is required");
-    return { id: data.id, name, totalPoints: Math.max(1, Math.trunc(Number(data.totalPoints))), rankExponent: Number(data.rankExponent) };
+    const totalPoints = boundedCombinedPointPool(data.totalPoints);
+    const rankExponent = boundedCombinedRankExponent(data.rankExponent);
+    return { id: data.id, name, totalPoints, rankExponent };
   })
   .handler(async ({ data }) => {
     await requireCombinedCapability("voting.manage");
