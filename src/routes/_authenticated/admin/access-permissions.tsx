@@ -274,10 +274,12 @@ function AccessPermissionsPage() {
         expectedVersion: pending.preview.expectedVersion,
       });
     },
-    onSuccess: async () => {
-      setPendingChange(null);
-      setReauthPassword("");
-      setMessage("Second-operator approval requested. Another authorized organizer must approve it before the change can be applied.");
+    onSuccess: async (_receipt, variables) => {
+      if (currentEditionRef.current === variables.pending.reviewContextEditionId) {
+        setPendingChange(null);
+        setReauthPassword("");
+        setMessage("Second-operator approval requested. Another authorized organizer must approve it before the change can be applied.");
+      }
       await queryClient.invalidateQueries({
         queryKey: ["permission-engine-approvals"],
       });
@@ -303,10 +305,12 @@ function AccessPermissionsPage() {
       }
       return approvePermissionChangeApproval(approval.id);
     },
-    onSuccess: async () => {
-      setApprovalAction(null);
-      setApprovalPassword("");
-      setMessage("R3 permission change approved. The original requester can now apply it.");
+    onSuccess: async (_receipt, variables) => {
+      if (currentEditionRef.current === variables.reviewContextEditionId) {
+        setApprovalAction(null);
+        setApprovalPassword("");
+        setMessage("R3 permission change approved. The original requester can now apply it.");
+      }
       await queryClient.invalidateQueries({
         queryKey: ["permission-engine-approvals"],
       });
@@ -345,10 +349,12 @@ function AccessPermissionsPage() {
         approvalRequestId: approval.id,
       });
     },
-    onSuccess: async () => {
-      setApprovalAction(null);
-      setApprovalPassword("");
-      setMessage("Access change applied with fresh authentication and second-operator approval.");
+    onSuccess: async (_receipt, variables) => {
+      if (currentEditionRef.current === variables.reviewContextEditionId) {
+        setApprovalAction(null);
+        setApprovalPassword("");
+        setMessage("Access change applied with fresh authentication and second-operator approval.");
+      }
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["permission-engine-users"],

@@ -82,6 +82,8 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).toContain("Organizer edition context changed during reauthentication. Nothing was approved.");
     expect(route).toContain("Organizer edition context changed during reauthentication. Nothing was applied.");
     expect(route).toContain("reviewContextEditionId: approvalAction.reviewContextEditionId");
+    expect(route).toContain("currentEditionRef.current === variables.pending.reviewContextEditionId");
+    expect(route).toContain("currentEditionRef.current === variables.reviewContextEditionId");
     expect(route).toContain("approvePermissionChangeApproval(approval.id)");
     expect(route).toContain("approvalRequestId: approval.id");
   });
