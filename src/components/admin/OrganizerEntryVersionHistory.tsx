@@ -4,6 +4,7 @@ import { ChevronDown, History, LoaderCircle } from "lucide-react";
 import { AdminStatus } from "@/components/admin/AdminUI";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import {
+  appendOrganizerEntryRevisionPage,
   compareOrganizerEntryRevisions,
   hasEarlierOrganizerEntryVersions,
   parseOrganizerEntryRevisions,
@@ -87,14 +88,12 @@ export function OrganizerEntryVersionHistory({
       if (cursor !== null && page.some((item) => item.revision >= cursor)) {
         throw new Error("Entry history pagination returned a stale or repeated revision.");
       }
-      if (older) {
-        setVersions((existing) => {
-          const seen = new Set(existing.map((item) => item.id));
-          return [...existing, ...page.filter((item) => !seen.has(item.id))];
-        });
-      } else {
-        setVersions(page);
-      }
+      // Validate the full append before changing visible history: React state
+      // updaters may run later, outside this try/catch error boundary.
+      const complete = older && cursor !== null
+        ? appendOrganizerEntryRevisionPage(versions, page, cursor)
+        : page;
+      setVersions(complete);
       setBeforeRevision(page.length ? page[page.length - 1].revision : null);
       setHasEarlier(hasEarlierOrganizerEntryVersions(page));
       setLoaded(true);
