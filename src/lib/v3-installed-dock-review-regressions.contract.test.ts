@@ -66,4 +66,19 @@ describe("V3 installed dock review regressions", () => {
     expect(css).toContain("@media (min-width: 900px) and (min-height: 600px)");
   });
 
+  it("names the installed V3 landmark without relabeling legacy tab bars", () => {
+    expect(tab).toContain('ariaLabel = "Solaris Studio"');
+    expect(tab).toContain("ariaLabel?: string;");
+    expect(tab).toContain("aria-label={ariaLabel}");
+    expect(shell).toContain('ariaLabel="Primary app navigation"');
+  });
+
+  it("rechecks the live dock after route remounts without swallowing other screenshot errors", () => {
+    const audit = source("e2e/v3-navigation/navbar-redesign-installed-app.e2e.ts");
+    expect(audit).toContain("for (let attempt = 0; attempt < 3; attempt += 1)");
+    expect(audit).toContain("await assertAuthoritativeNavbar(page)");
+    expect(audit).toContain("element is not attached to the dom");
+    expect(audit).toContain("throw error;");
+  });
+
 });
