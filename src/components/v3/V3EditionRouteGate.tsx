@@ -3,6 +3,7 @@ import { type ReactNode } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
+import { PublicDataState } from "@/components/public/PublicDataState";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import { useNotificationPreferences } from "@/lib/engagement-data";
 import { useV3EditionBundle } from "@/lib/v3-edition-runtime";
@@ -83,7 +84,45 @@ export function V3EditionRouteGate({
     return <>{legacy}</>;
   }
   if (bundleQuery.isLoading) return <ResolvingEditionSurface />;
-  if (bundleQuery.isError || !bundleQuery.data) return <>{legacy}</>;
+  // A failed publication-safe bundle read must never silently fall back to the
+  // legacy page's archive-wide requests. Keep failures and unpublished/missing
+  // contexts indistinguishable from other unavailable Editions.
+  if (bundleQuery.isError) {
+    return (
+      <V3AppShell editionLabel="Edition" activeArea="explore">
+        <div className="mx-auto w-full max-w-3xl px-4 py-10">
+          <PublicDataState
+            kind="error"
+            title="Edition could not be loaded"
+            description="The published Edition view is temporarily unavailable. No unverified archive content has been substituted."
+            action={
+              <button
+                type="button"
+                onClick={() => void bundleQuery.refetch()}
+                disabled={bundleQuery.isFetching}
+                className="min-h-11 rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-foreground disabled:opacity-60"
+              >
+                {bundleQuery.isFetching ? "Retrying…" : "Try again"}
+              </button>
+            }
+          />
+        </div>
+      </V3AppShell>
+    );
+  }
+  if (!bundleQuery.data) {
+    return (
+      <V3AppShell editionLabel="Edition" activeArea="explore">
+        <div className="mx-auto w-full max-w-3xl px-4 py-10">
+          <PublicDataState
+            kind="empty"
+            title="Edition unavailable"
+            description="This Edition is not available in the published archive."
+          />
+        </div>
+      </V3AppShell>
+    );
+  }
 
   const shell = decideV3ShellForRoute({
     pathname,

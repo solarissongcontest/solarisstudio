@@ -44,6 +44,8 @@ describe("V3 Edition production cutover", () => {
     expect(gate()).toContain("rollout.data?.editionHubEnabled === true");
     expect(gate()).toContain("bundleQuery.isError");
     expect(gate()).toContain("return <>{legacy}</>");
+    expect(gate()).not.toContain("if (bundleQuery.isError || !bundleQuery.data) return <>{legacy}</>");
+    expect(gate()).toContain("onClick={() => void bundleQuery.refetch()}");
   });
 
   it("evaluates Edition rollout against the edition resolved from the requested route slug", () => {
