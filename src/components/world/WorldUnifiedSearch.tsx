@@ -181,7 +181,7 @@ export function WorldUnifiedSearchPage({
 
   return (
     <AppShell>
-      <main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8">
+      <div className="mx-auto w-full max-w-5xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8">
         <Link to="/world" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" aria-hidden="true" /> Terra Solaris
         </Link>
@@ -348,7 +348,7 @@ export function WorldUnifiedSearchPage({
             </section> : null}
           </div>
         ) : null}
-      </main>
+      </div>
     </AppShell>
   );
 }
