@@ -277,7 +277,7 @@ country_uuid_sql="('14000000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid"
 participant_uuid_sql="('14000000-0000-4001-8000-' || lpad(i::text, 12, '0'))::uuid"
 
 s14_connection_snapshot 'baseline:local-supabase-ready' summary || true
-\r'* && "$value" != *'$('* && "$value" != *'\x60'* ]] ||
+\r'* && "$value" != *'$('* && "$value" != *'`'* ]] ||
     fail "unsafe local Supabase status value for $key"
   case "$key" in
     API_URL) API_URL="$value" ;;
