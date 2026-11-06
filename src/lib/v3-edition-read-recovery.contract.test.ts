@@ -7,43 +7,50 @@ const route = () => readFileSync(
   "utf8",
 );
 
-describe("V3 Edition bundle failure recovery", () => {
-  it("retains legacy compatibility for disabled rollout and ordinary website routes", () => {
+describe("V3 Edition rollout and bundle failure recovery", () => {
+  it("retains legacy compatibility for explicitly disabled rollout and ordinary web routes", () => {
     const source = route();
     expect(source).toContain("if (!isAppMode) return <>{legacy}</>");
     expect(source).toContain("rollout.data?.editionHubEnabled !== true");
     expect(source).toContain("return <>{legacy}</>");
   });
 
-  it("does not mount legacy archive-wide queries when an enabled V3 Edition read fails", () => {
+  it("does not mount legacy archive queries when V3 rollout authority or the bundle fails", () => {
     const source = route();
-    const errorStart = source.indexOf("if (bundleQuery.isError) {");
+    const rolloutStart = source.indexOf("if (rollout.isError) {");
+    const disabledStart = source.indexOf("rollout.data?.enabled !== true");
+    const bundleStart = source.indexOf("if (bundleQuery.isError) {");
     const unavailableStart = source.indexOf("if (!bundleQuery.data) {");
     const shellStart = source.indexOf("const shell = decideV3ShellForRoute");
-    expect(errorStart).toBeGreaterThan(0);
-    expect(unavailableStart).toBeGreaterThan(errorStart);
-    expect(shellStart).toBeGreaterThan(unavailableStart);
-    const failedBranches = source.slice(errorStart, shellStart);
-    expect(failedBranches).not.toContain("return <>{legacy}</>");
-    expect(failedBranches).not.toContain("useAllResults(");
-    expect(failedBranches).not.toContain("supabase");
+    expect(rolloutStart).toBeGreaterThan(0);
+    expect(disabledStart).toBeGreaterThan(rolloutStart);
+    expect(bundleStart).toBeGreaterThan(disabledStart);
+    expect(unavailableStart).toBeGreaterThan(bundleStart);
+    const rolloutError = source.slice(rolloutStart, disabledStart);
+    const bundleError = source.slice(bundleStart, unavailableStart);
+    expect(rolloutError).not.toContain("return <>{legacy}</>");
+    expect(bundleError).not.toContain("return <>{legacy}</>");
+    expect(source.slice(bundleStart, shellStart)).not.toContain("useAllResults(");
+    expect(source.slice(bundleStart, shellStart)).not.toContain("supabase");
   });
 
-  it("shows a retryable and non-leaking error on a failed exact Edition bundle", () => {
+  it("provides a shared, retryable, non-leaking failure state", () => {
     const source = route();
-    const error = source.slice(
-      source.indexOf("if (bundleQuery.isError) {"),
-      source.indexOf("if (!bundleQuery.data) {"),
+    const failure = source.slice(
+      source.indexOf("function EditionReadFailure("),
+      source.indexOf("export function V3EditionRouteGate("),
     );
-    expect(error).toContain('editionLabel="Edition"');
-    expect(error).toContain('kind="error"');
-    expect(error).toContain("Edition could not be loaded");
-    expect(error).toContain("onClick={() => void bundleQuery.refetch()}");
-    expect(error).toContain("disabled={bundleQuery.isFetching}");
-    expect(error).not.toContain("bundleQuery.error.message");
+    expect(failure).toContain('editionLabel="Edition"');
+    expect(failure).toContain('kind="error"');
+    expect(failure).toContain("Edition could not be loaded");
+    expect(failure).toContain("onClick={onRetry}");
+    expect(failure).toContain("disabled={retrying}");
+    expect(failure).not.toContain("error.message");
+    expect(source).toContain("onRetry={() => void rollout.refetch()}");
+    expect(source).toContain("onRetry={() => void bundleQuery.refetch()}");
   });
 
-  it("shows only a generic unavailable state if the publication-safe bundle is absent", () => {
+  it("shows generic unavailability when no published bundle exists", () => {
     const source = route();
     const unavailable = source.slice(
       source.indexOf("if (!bundleQuery.data) {"),

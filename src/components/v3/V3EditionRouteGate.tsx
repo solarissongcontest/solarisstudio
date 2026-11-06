@@ -41,6 +41,33 @@ function ResolvingEditionSurface() {
   );
 }
 
+function EditionReadFailure({ onRetry, retrying }: {
+  onRetry: () => void;
+  retrying: boolean;
+}) {
+  return (
+    <V3AppShell editionLabel="Edition" activeArea="explore">
+      <div className="mx-auto w-full max-w-3xl px-4 py-10">
+        <PublicDataState
+          kind="error"
+          title="Edition could not be loaded"
+          description="The published Edition view is temporarily unavailable. No unverified archive content has been substituted."
+          action={
+            <button
+              type="button"
+              onClick={onRetry}
+              disabled={retrying}
+              className="min-h-11 rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-foreground disabled:opacity-60"
+            >
+              {retrying ? "Retrying…" : "Try again"}
+            </button>
+          }
+        />
+      </div>
+    </V3AppShell>
+  );
+}
+
 /**
  * Reversible installed-app cutover for public Edition detail. Public web and
  * every disabled, unavailable, unpublished or malformed state keep the legacy
@@ -75,8 +102,12 @@ export function V3EditionRouteGate({
   if (!platformResolved) return <ResolvingEditionSurface />;
   if (!isAppMode) return <>{legacy}</>;
   if (rollout.isLoading) return <ResolvingEditionSurface />;
+  // Unknown rollout authority is not permission to spin up the legacy
+  // archive-wide query graph. Explicitly disabled V3 still uses legacy.
+  if (rollout.isError) {
+    return <EditionReadFailure onRetry={() => void rollout.refetch()} retrying={rollout.isFetching} />;
+  }
   if (
-    rollout.isError ||
     rollout.data?.enabled !== true ||
     rollout.data?.exploreEnabled !== true ||
     rollout.data?.editionHubEnabled !== true
@@ -88,27 +119,7 @@ export function V3EditionRouteGate({
   // legacy page's archive-wide requests. Keep failures and unpublished/missing
   // contexts indistinguishable from other unavailable Editions.
   if (bundleQuery.isError) {
-    return (
-      <V3AppShell editionLabel="Edition" activeArea="explore">
-        <div className="mx-auto w-full max-w-3xl px-4 py-10">
-          <PublicDataState
-            kind="error"
-            title="Edition could not be loaded"
-            description="The published Edition view is temporarily unavailable. No unverified archive content has been substituted."
-            action={
-              <button
-                type="button"
-                onClick={() => void bundleQuery.refetch()}
-                disabled={bundleQuery.isFetching}
-                className="min-h-11 rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-foreground disabled:opacity-60"
-              >
-                {bundleQuery.isFetching ? "Retrying…" : "Try again"}
-              </button>
-            }
-          />
-        </div>
-      </V3AppShell>
-    );
+    return <EditionReadFailure onRetry={() => void bundleQuery.refetch()} retrying={bundleQuery.isFetching} />;
   }
   if (!bundleQuery.data) {
     return (
