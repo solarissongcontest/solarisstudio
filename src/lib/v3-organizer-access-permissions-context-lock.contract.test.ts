@@ -73,6 +73,19 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     );
   });
 
+  it("drops late preview results and rechecks edition context after every password step", () => {
+    expect(route).toContain("const currentEditionRef = useRef<string | null>(editionId ?? null);");
+    expect(route).toContain("currentEditionRef.current = editionId ?? null;");
+    expect(route).toContain("currentEditionRef.current !== pending.reviewContextEditionId");
+    expect(route).toContain("Organizer edition context changed while the R3 preview was loading.");
+    expect(route).toContain("Organizer edition context changed during reauthentication. Nothing was requested.");
+    expect(route).toContain("Organizer edition context changed during reauthentication. Nothing was approved.");
+    expect(route).toContain("Organizer edition context changed during reauthentication. Nothing was applied.");
+    expect(route).toContain("reviewContextEditionId: approvalAction.reviewContextEditionId");
+    expect(route).toContain("approvePermissionChangeApproval(approval.id)");
+    expect(route).toContain("approvalRequestId: approval.id");
+  });
+
   it("cancels unfinished local R3 review state only from edition-context changes", () => {
     expect(route).toContain('const resetSimulation = simulation.reset;');
     expect(route).toContain('setPendingChange(null);');

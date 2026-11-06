@@ -9,7 +9,7 @@ import {
   ShieldEllipsis,
   UserRoundCog,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AccessSimulationPanel } from "@/components/admin/AccessSimulationPanel";
@@ -106,6 +106,8 @@ const TABS: Array<{ id: AccessTab; label: string }> = [
 function AccessPermissionsPage() {
   const queryClient = useQueryClient();
   const { editionId } = useAdminContext();
+  // Tracks the committed Organizer context across an in-flight password step.
+  const currentEditionRef = useRef<string | null>(editionId ?? null);
   const editionsQuery = useEditions();
   // A failed background refresh can retain cached edition rows. Do not
   // promote that cached identity to verified permission scope.
@@ -204,8 +206,12 @@ function AccessPermissionsPage() {
 
   const previewChange = useMutation({
     mutationFn: async (change: AccessChange): Promise<PendingAccessChange> => {
+      const reviewContextEditionId = editionId ?? null;
       const command = permissionCommand(change);
       const preview = await previewPermissionChange(command);
+      if (currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed while the R3 preview was loading. Start again from the current edition.");
+      }
       const operation = createOrganisationCommand({
         command: "permissions.access_change",
         riskClass: "R3",
@@ -227,11 +233,12 @@ function AccessPermissionsPage() {
         preview,
         operationId: operation.operationId,
         idempotencyKey: operation.idempotencyKey,
-        reviewContextEditionId: editionId ?? null,
+        reviewContextEditionId,
         scopeLabel: permissionScopeLabel(preview.editionId, editionLabels),
       };
     },
     onSuccess: (pending) => {
+      if (currentEditionRef.current !== pending.reviewContextEditionId) return;
       if (pending.preview.alreadyApplied) {
         setPendingChange(null);
         setMessage("That access state is already current.");
@@ -257,6 +264,9 @@ function AccessPermissionsPage() {
         );
       }
       await reauthenticatePermissionR3(password);
+      if (currentEditionRef.current !== pending.reviewContextEditionId) {
+        throw new Error("Organizer edition context changed during reauthentication. Nothing was requested.");
+      }
       return requestPermissionChangeApproval({
         ...pending.command,
         operationId: pending.operationId,
@@ -278,11 +288,19 @@ function AccessPermissionsPage() {
     mutationFn: async ({
       approval,
       password,
+      reviewContextEditionId,
     }: {
       approval: PermissionChangeApproval;
       password: string;
+      reviewContextEditionId: string | null;
     }) => {
+      if (currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed after this R3 review opened. Nothing was approved.");
+      }
       await reauthenticatePermissionR3(password);
+      if (currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed during reauthentication. Nothing was approved.");
+      }
       return approvePermissionChangeApproval(approval.id);
     },
     onSuccess: async () => {
@@ -299,14 +317,22 @@ function AccessPermissionsPage() {
     mutationFn: async ({
       approval,
       password,
+      reviewContextEditionId,
     }: {
       approval: PermissionChangeApproval;
       password: string;
+      reviewContextEditionId: string | null;
     }) => {
+      if (currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed after this R3 review opened. Nothing was applied.");
+      }
       if (!approval.targetUserId || !approval.idempotencyKey) {
         throw new Error("This approval is not actionable by the current organizer.");
       }
       await reauthenticatePermissionR3(password);
+      if (currentEditionRef.current !== reviewContextEditionId) {
+        throw new Error("Organizer edition context changed during reauthentication. Nothing was applied.");
+      }
       return applyPermissionChange({
         userId: approval.targetUserId,
         kind: approval.changeKind,
@@ -353,6 +379,7 @@ function AccessPermissionsPage() {
   const resetSimulation = simulation.reset;
 
   useEffect(() => {
+    currentEditionRef.current = editionId ?? null;
     setPendingChange(null);
     setReauthPassword("");
     setApprovalAction(null);
@@ -594,11 +621,13 @@ function AccessPermissionsPage() {
               await approveR3.mutateAsync({
                 approval: approvalAction.approval,
                 password: approvalPassword,
+                reviewContextEditionId: approvalAction.reviewContextEditionId,
               });
             } else {
               await applyApproved.mutateAsync({
                 approval: approvalAction.approval,
                 password: approvalPassword,
+                reviewContextEditionId: approvalAction.reviewContextEditionId,
               });
             }
           }}
