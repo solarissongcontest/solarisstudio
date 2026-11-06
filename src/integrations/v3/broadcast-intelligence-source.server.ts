@@ -170,16 +170,15 @@ export async function loadV3BroadcastIntelligenceBundle(
 
   const snapshot = await loadV3PublishedResultSnapshot(selectedShow.id);
   if (!snapshot) {
-    return emptyBundle({
-      edition: selectedEdition,
-      options,
-      selectedShowId: selectedShow.id,
-    });
+    throw new Error("Published Broadcast Result version is temporarily unavailable");
   }
   if (snapshot.edition.id !== selectedEdition.id) {
     throw new Error(
       "Canonical published Result snapshot escaped the selected Edition scope",
     );
+  }
+  if (snapshot.rows.length === 0) {
+    throw new Error("Published Broadcast Result snapshot contains no ranked entries");
   }
   if (!snapshot.availability.jury || !snapshot.availability.televote) {
     return emptyBundle({
@@ -221,41 +220,41 @@ export async function loadV3BroadcastIntelligenceBundle(
   }
 
   const displayMap = entityDisplayMap(entities, countries);
-  const entries: BroadcastEntry[] = snapshot.rows.flatMap((row) => {
+  const entries: BroadcastEntry[] = snapshot.rows.map((row) => {
     const id = row.contestEntityId ?? row.countryId ?? "";
     const display = displayMap.get(id);
-    if (!display) return [];
+    if (!display) {
+      throw new Error("Published Broadcast Result row identity could not be verified");
+    }
     if (row.juryPoints == null || row.televotePoints == null) {
       throw new Error(
         "Canonical published Result snapshot is missing public split points",
       );
     }
-    return [
-      {
+    return {
         id,
         name: display.name,
         juryPoints: row.juryPoints,
         televotePoints: row.televotePoints,
         totalPoints: row.totalPoints,
         officialRank: row.finalRank,
-      },
-    ];
+    };
   });
 
   const intelligence = buildBroadcastIntelligence(entries);
 
-  const identities: V3BroadcastIdentity[] = entries.flatMap((entry) => {
+  const identities: V3BroadcastIdentity[] = entries.map((entry) => {
     const display = displayMap.get(entry.id);
-    if (!display) return [];
-    return [
-      {
+    if (!display) {
+      throw new Error("Published Broadcast Result identity could not be verified");
+    }
+    return {
         id: entry.id,
         name: display.name,
         shortCode: display.short_code,
         flagImage: display.flag_image,
         accentColor: display.accent_color,
-      },
-    ];
+    };
   });
 
   return {

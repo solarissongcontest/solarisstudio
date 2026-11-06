@@ -33,6 +33,14 @@ describe("V3 Broadcast Intelligence immutable published Result authority", () =>
     );
   });
 
+  it("rejects missing or partial published rankings instead of silently inventing zero output", () => {
+    expect(source).toContain("Published Broadcast Result version is temporarily unavailable");
+    expect(source).toContain("Published Broadcast Result snapshot contains no ranked entries");
+    expect(source).toContain("snapshot.rows.map((row) => {");
+    expect(source).toContain("Published Broadcast Result row identity could not be verified");
+    expect(source).not.toContain("if (!display) return []");
+  });
+
   it("builds broadcast inputs directly from immutable official score fields", () => {
     expect(source).toContain(
       'const id = row.contestEntityId ?? row.countryId ?? ""',

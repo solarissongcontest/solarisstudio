@@ -194,10 +194,13 @@ export async function loadV3ResultLabBundle(
 
   const snapshot = await loadV3PublishedResultSnapshot(selectedShow.id);
   if (!snapshot) {
-    return emptyBundle(selectedEdition, options, selectedShow.id);
+    throw new Error("Published Result Lab version is temporarily unavailable");
   }
   if (snapshot.edition.id !== selectedEdition.id) {
     throw new Error("Canonical published Result snapshot escaped the selected Edition scope");
+  }
+  if (snapshot.rows.length === 0) {
+    throw new Error("Published Result Lab snapshot contains no ranked entries");
   }
   if (!snapshot.availability.jury || !snapshot.availability.televote) {
     return emptyBundle(selectedEdition, options, selectedShow.id);
@@ -218,32 +221,36 @@ export async function loadV3ResultLabBundle(
   const countries = (countriesResult.data ?? []) as Country[];
   const displayMap = entityDisplayMap(entities, countries);
 
-  const officialEntries: ResultLabOfficialEntry[] = snapshot.rows.flatMap((row) => {
+  const officialEntries: ResultLabOfficialEntry[] = snapshot.rows.map((row) => {
     const id = row.contestEntityId ?? row.countryId ?? "";
     const display = displayMap.get(id);
-    if (!display) return [];
+    if (!display) {
+      throw new Error("Published Result Lab row identity could not be verified");
+    }
     if (row.juryPoints == null || row.televotePoints == null) {
       throw new Error("Canonical published Result snapshot is missing public split points");
     }
-    return [{
+    return {
       id,
       name: display.name,
       juryPoints: row.juryPoints,
       televotePoints: row.televotePoints,
       officialRank: row.finalRank,
-    }];
+    };
   });
 
-  const identities: V3ResultLabIdentity[] = officialEntries.flatMap((entry) => {
+  const identities: V3ResultLabIdentity[] = officialEntries.map((entry) => {
     const display = displayMap.get(entry.id);
-    if (!display) return [];
-    return [{
+    if (!display) {
+      throw new Error("Published Result Lab identity could not be verified");
+    }
+    return {
       id: entry.id,
       name: display.name,
       shortCode: display.short_code,
       flagImage: display.flag_image,
       accentColor: display.accent_color,
-    }];
+    };
   });
 
   const detailedVotingPublic = snapshot.availability.detailedVoting;

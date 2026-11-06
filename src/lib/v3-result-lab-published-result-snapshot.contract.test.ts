@@ -33,6 +33,14 @@ describe("V3 Result Lab immutable published Result authority", () => {
     expect(source).not.toContain("televotePoints: 0");
   });
 
+  it("rejects missing or partial published rankings instead of silently inventing zero output", () => {
+    expect(source).toContain("Published Result Lab version is temporarily unavailable");
+    expect(source).toContain("Published Result Lab snapshot contains no ranked entries");
+    expect(source).toContain("snapshot.rows.map((row) => {");
+    expect(source).toContain("Published Result Lab row identity could not be verified");
+    expect(source).not.toContain("if (!display) return []");
+  });
+
   it("maps official simulation inputs from immutable snapshot identity and score fields", () => {
     expect(source).toContain(
       'const id = row.contestEntityId ?? row.countryId ?? ""',
