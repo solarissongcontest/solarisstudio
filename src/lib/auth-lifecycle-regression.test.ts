@@ -31,6 +31,10 @@ describe("auth lifecycle generations", () => {
         events.push("cancel-private");
         return Promise.resolve();
       }),
+      resetQueries: vi.fn(() => {
+        events.push("reset-authorization");
+        return Promise.resolve();
+      }),
       removeQueries: vi.fn(() => events.push("remove-private")),
       setQueryData: vi.fn((_key: unknown, user: { id: string } | null) =>
         events.push(`fan:${user?.id ?? "signed-out"}`),
@@ -61,14 +65,17 @@ describe("auth lifecycle generations", () => {
     expect(events).toEqual(beforeDelayedA);
     expect(events).toEqual([
       "cancel-private",
+      "reset-authorization",
       "remove-private",
       "reset-attention",
       "fan:A",
       "cancel-private",
+      "reset-authorization",
       "remove-private",
       "reset-attention",
       "fan:signed-out",
       "cancel-private",
+      "reset-authorization",
       "remove-private",
       "reset-attention",
       "fan:B",
