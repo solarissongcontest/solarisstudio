@@ -135,7 +135,10 @@ function compareOrganizer(baseSource: string, currentSource: string) {
 
   for (const [id, from] of before.statuses) {
     const to = after.statuses.get(id);
-    if (!to) continue;
+    if (!to) {
+      errors.push(`Organizer ${id}: capability row disappeared from the canonical registry; retain it and mark it retired instead`);
+      continue;
+    }
     if (from === "retired" && to !== "retired") {
       errors.push(`Organizer ${id}: retired is terminal, but status changed retired -> ${to}`);
       continue;
