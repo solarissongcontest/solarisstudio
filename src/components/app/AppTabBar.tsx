@@ -66,6 +66,7 @@ export function AppTabBar({
   meBadge = 0,
   onSelectV3Tab,
   v3TabHref,
+  ariaLabel = "Solaris Studio",
 }: {
   pathname: string;
   searchStr?: string;
@@ -74,6 +75,7 @@ export function AppTabBar({
   meBadge?: number;
   onSelectV3Tab?: (area: PrimaryArea) => void;
   v3TabHref?: (area: PrimaryArea) => string;
+  ariaLabel?: string;
 }) {
   const navigate = useNavigate();
   const chrome = resolveAppRouteChrome(pathname, searchStr);
@@ -480,7 +482,7 @@ export function AppTabBar({
         collapsed && "is-collapsed",
         tabbarMode === "minimal" && "is-minimal",
       )}
-      aria-label="Solaris Studio"
+      aria-label={ariaLabel}
       data-collapsed={collapsed ? "true" : "false"}
       data-layout={railMode ? "rail" : "bar"}
       data-mode={tabbarMode}
