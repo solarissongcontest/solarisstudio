@@ -77,7 +77,7 @@ test("unscoped feature-flag updates and truncation after the World migration are
     "truncate table public.studio2_feature_flags;",
   ]) {
     const report = check({ name: next("broad_flags"), source });
-    assert.ok(report.findings.some(f => f.code === "WORLD_FLAG_UNSCOPED_FEATURE_FLAG_WRITE"), source);
+    assert.ok(report.findings.some(f => f.code === "WORLD_FLAG_UNPROVEN_FEATURE_FLAG_WRITE_SCOPE"), source);
   }
 });
 
@@ -85,6 +85,20 @@ test("unrelated feature flags can still be edited with explicit key scope", () =
   const report = check({ name: next("unrelated_flag"), source:
     "update public.studio2_feature_flags set enabled=true where key='another_v3_feature';" });
   assert.equal(report.clean, true);
+});
+
+test("nonliteral, negative and OR selectors cannot pretend to exclude World", () => {
+  for (const where of [
+    "key != 'another_v3_feature'",
+    "key = 'another_v3_feature' OR true",
+    "key = 'terra_' || 'world_public'",
+    "enabled = true",
+    "key IN ('another_v3_feature')",
+  ]) {
+    const report = check({ name: next("unsafe_scope"), source:
+      `update public.studio2_feature_flags set enabled=true where ${where};` });
+    assert.ok(report.findings.some(f => f.code === "WORLD_FLAG_UNPROVEN_FEATURE_FLAG_WRITE_SCOPE"), where);
+  }
 });
 
 test("nested SQL comments and quoted comment markers do not create false-positive writes", () => {
