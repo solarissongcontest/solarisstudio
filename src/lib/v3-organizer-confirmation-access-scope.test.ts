@@ -89,6 +89,19 @@ describe("Organizer Confirmation legacy access mutation scope", () => {
     expect(sheet).toContain("if (saving || saveInFlightRef.current) return;");
   });
 
+  it("prevents cancel and sheet dismissal while an access mutation is in flight", () => {
+    const sheet = readFileSync(resolve(process.cwd(),
+      "src/components/admin/ConfirmationAccessSettingsSheet.tsx"), "utf8");
+    expect(sheet).toContain("const closeSettingsSafely = () => {");
+    const close = sheet.slice(sheet.indexOf("const closeSettingsSafely = () => {"),
+      sheet.indexOf("const closeReview = () => {"));
+    expect(close).toContain("if (saving || saveInFlightRef.current) return;");
+    expect(close).toContain("onClose();");
+    expect(sheet).toContain("onClose={closeSettingsSafely}");
+    expect(sheet).toContain("onClick={closeSettingsSafely}");
+    expect(sheet).not.toContain("onClose={saving ? () => undefined : onClose}");
+  });
+
   it("binds the sheet to the exact response scope from Organizer detail", () => {
     const detail = readFileSync(resolve(process.cwd(),
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
