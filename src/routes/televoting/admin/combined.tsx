@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 
 import { AdminDataView, type AdminDataColumn } from "@/components/admin/AdminDataView";
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminConfirmSheet, AdminPageHeader } from "@/components/admin/AdminUI";
 import { DangerZone } from "@/components/admin/AdminWorkspacePrimitives";
@@ -35,7 +36,7 @@ import {
 } from "@/integrations/televoting/combined.functions";
 import type { SourceInputMode } from "@/integrations/televoting/combined-math";
 import { getMergedRoundEntries } from "@/integrations/televoting/entries.functions";
-import { getMergedTelevotingRounds } from "@/integrations/televoting/rounds.functions";
+import { getMergedTelevotingRoundsPage } from "@/integrations/televoting/rounds.functions";
 
 export const Route = createFileRoute("/televoting/admin/combined")({
   head: () => ({
@@ -92,11 +93,20 @@ function emptySource(): SourceDraft {
 
 function CombinedResultsAccountBoundary() {
   const actorId = useAuthenticatedUser().id;
-  // Drop all prepared operations on a signed-in account transition.
-  return <CombinedResultsPage key={actorId ?? "signed-out"} />;
+  const { editionId } = useAdminContext();
+  if (!editionId) {
+    return (
+      <section className="mx-auto max-w-5xl space-y-4">
+        <AdminPageHeader eyebrow="Televoting" title="Combined Results" description="Choose the exact Organizer edition before opening a private component pool." />
+        <div className="glass p-6 text-sm text-muted-foreground">Select an edition in the Organizer toolbar. Combined Results never selects the newest or active edition automatically.</div>
+      </section>
+    );
+  }
+  // Reset selected aggregation and every prepared result action on account or edition changes.
+  return <CombinedResultsPage key={`${actorId}:${editionId}`} editionId={editionId} />;
 }
 
-function CombinedResultsPage() {
+function CombinedResultsPage({ editionId }: { editionId: string }) {
   const actorId = useAuthenticatedUser().id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -112,7 +122,7 @@ function CombinedResultsPage() {
   const recalcFn = useServerFn(recalculateMergedCombined);
   const statusFn = useServerFn(setMergedCombinedStatus);
   const deleteFn = useServerFn(deleteMergedCombinedAggregation);
-  const roundsFn = useServerFn(getMergedTelevotingRounds);
+  const roundsFn = useServerFn(getMergedTelevotingRoundsPage);
   const entriesFn = useServerFn(getMergedRoundEntries);
 
   const [selectedId, setSelectedId] = useState("");
@@ -136,8 +146,8 @@ function CombinedResultsPage() {
     if (actorId && !adminLoading && !adminFetching && !admin && !adminError) void navigate({ to: "/televoting/admin/sign-in" });
   }, [actorId, admin, adminLoading, adminFetching, adminError, navigate]);
 
-  const { data: aggregations = [], isLoading: listLoading, isFetching: listFetching, error: listError, refetch: retryList } = useQuery({
-    queryKey: ["merged-combined-aggregations", actorId],
+  const { data: allAggregations = [], isLoading: listLoading, isFetching: listFetching, error: listError, refetch: retryList } = useQuery({
+    queryKey: ["merged-combined-aggregations", actorId, editionId],
     queryFn: () => listFn(),
     enabled: Boolean(actorId && admin),
     gcTime: 0,
@@ -147,30 +157,44 @@ function CombinedResultsPage() {
     refetchOnReconnect: false,
   });
 
-  useEffect(() => {
-    if (!selectedId && aggregations.length) setSelectedId(aggregations[0]!.id);
-  }, [aggregations, selectedId]);
-
-  const { data: editionRounds = [], isLoading: roundsLoading, isFetching: roundsFetching, error: roundsError, refetch: retryRounds } = useQuery({
-    queryKey: ["merged-televoting-rounds", actorId],
-    queryFn: () => roundsFn(),
-    enabled: Boolean(actorId && admin),
+  // The read-only projection resolves canonical Solaris edition -> Televote edition.
+  // Never call the legacy global rounds synchronizer from a Combined read.
+  const { data: editionPage, isLoading: roundsLoading, isFetching: roundsFetching, error: roundsError, refetch: retryRounds } = useQuery({
+    queryKey: ["merged-combined-edition-rounds", actorId, editionId],
+    queryFn: () => roundsFn({ data: { editionId } }),
+    enabled: Boolean(actorId && admin && editionId),
     gcTime: 0,
     retry: false,
     refetchInterval: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-
+  const remoteEditionId = editionPage?.edition?.id ?? "";
+  const aggregations = useMemo(
+    () => allAggregations.filter((aggregation) => Boolean(remoteEditionId) && aggregation.edition_id === remoteEditionId),
+    [allAggregations, remoteEditionId],
+  );
   const allRounds = useMemo(
-    () => editionRounds.flatMap((edition) => edition.rounds.map((round) => ({ ...round, editionName: edition.name }))),
-    [editionRounds],
+    () => (editionPage?.edition?.rounds ?? []).map((round) => ({ ...round, editionName: editionPage!.edition!.name })),
+    [editionPage],
   );
 
+  useEffect(() => {
+    if (!aggregations.some((aggregation) => aggregation.id === selectedId)) {
+      setSelectedId(aggregations[0]?.id ?? "");
+    }
+  }, [aggregations, selectedId]);
+
   const { data: detail, isLoading: detailLoading, isFetching: detailFetching, error: detailError, refetch: retryDetail } = useQuery({
-    queryKey: ["merged-combined-detail", actorId, selectedId],
-    queryFn: () => detailFn({ data: { id: selectedId } }),
-    enabled: Boolean(actorId && admin && selectedId),
+    queryKey: ["merged-combined-detail", actorId, editionId, selectedId],
+    queryFn: async () => {
+      const response = await detailFn({ data: { id: selectedId } });
+      if (!remoteEditionId || response.aggregation.edition_id !== remoteEditionId) {
+        throw new Error("Combined result does not belong to the selected Organizer edition");
+      }
+      return response;
+    },
+    enabled: Boolean(actorId && admin && remoteEditionId && aggregations.some((aggregation) => aggregation.id === selectedId)),
     gcTime: 0,
     retry: false,
     refetchInterval: false,
@@ -180,8 +204,8 @@ function CombinedResultsPage() {
 
   const refresh = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["merged-combined-aggregations", actorId] }),
-      queryClient.invalidateQueries({ queryKey: ["merged-combined-detail", actorId, selectedId] }),
+      queryClient.invalidateQueries({ queryKey: ["merged-combined-aggregations", actorId, editionId] }),
+      queryClient.invalidateQueries({ queryKey: ["merged-combined-detail", actorId, editionId, selectedId] }),
       queryClient.invalidateQueries({ queryKey: ["merged-televoting-audit", actorId] }),
     ]);
   };
@@ -191,6 +215,7 @@ function CombinedResultsPage() {
       createFn({
         data: {
           name: createName,
+          editionId: remoteEditionId,
           totalPoints: Number(createPool),
           rankExponent: Number(createExponent),
         },
@@ -237,6 +262,14 @@ function CombinedResultsPage() {
     );
   }
   if (!admin) return null;
+  if (!editionPage?.linked || !editionPage.edition) {
+    return (
+      <section className="glass space-y-3 p-6">
+        <AdminPageHeader eyebrow="Televoting" title="Combined Results" description="The selected Solaris edition is not linked to a Televoting edition." />
+        <p className="text-sm text-muted-foreground">Link the selected edition from Voting before creating or modifying combined results. Legacy unassigned aggregates are not silently adopted.</p>
+      </section>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-5 py-2">
