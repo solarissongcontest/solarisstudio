@@ -376,18 +376,7 @@ begin
   if p_page is null or p_page < 0 or p_page > 100
      or (p_country_code is not null and (
        length(btrim(p_country_code)) not between 2 and 12
-       or p_country_code !~ '^[[:alnum:]-]+begin
-  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
-    perform public.v3_register_migration_contract(
-      'v3.tg16.domestic-legislation',1,'forward_fix_only',false,null,
-      'Optional fictional country-controlled democratic/monarchical/decree measure workflow, version snapshots and durable law enactment/repeal. No institutional authenticated ballots or competing TG7 legal authority.'
-    );
-  end if;
-end
-$contract$;
-notify pgrst,'reload schema';
-commit;
-)) then
+       or p_country_code !~ '^[[:alnum:]-]+$')) then
     raise exception using errcode='22023',message='VALIDATION';
   end if;
   if not coalesce(public.studio2_feature_enabled('terra_world_public',null),false) then
