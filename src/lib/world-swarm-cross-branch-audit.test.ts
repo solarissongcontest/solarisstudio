@@ -198,4 +198,25 @@ describe("TG19 read-only World cross-PR migration preflight", () => {
     expect(sameWorldSwarmPullSet([a, b], [b, a])).toBe(true);
   });
 
+  it("rejects malformed GitHub rename evidence and unexpected change statuses", () => {
+    const filename = path("20261107005500", "tg15_valid");
+    const candidate = pr(1, []);
+    candidate.files = [{ filename, status: "renamed" }];
+    expect(codes(snapshot([candidate]))).toContain("invalid_changed_file");
+    candidate.files = [{ filename, status: "surprise" as "added" }];
+    expect(codes(snapshot([candidate]))).toContain("invalid_changed_file");
+  });
+
+  it("treats GitHub changed as modification rather than a new proposed version", () => {
+    const filename = path("20261104121500", "already_on_main");
+    const candidate = pr(1, []);
+    candidate.files = [{ filename, status: "changed" }];
+    expect(codes(snapshot([candidate], [filename]))).toContain("main_migration_modified");
+  });
+
+  it("rejects duplicate main migration paths in untrusted offline snapshots", () => {
+    const filename = path("20261104121500", "already_on_main");
+    expect(codes(snapshot([], [filename, filename]))).toContain("invalid_snapshot");
+  });
+
 });
