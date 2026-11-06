@@ -18,10 +18,14 @@ describe("V3 Explore combined archive and chronology source", () => {
     expect(text).toContain("currentEditionId: currentEdition?.id ?? null");
   });
 
-  it("loads bounded public result evidence across published editions", () => {
+  it("bounds public result evidence to the current Edition and four archive previews", () => {
     const text = source();
-    expect(text).toContain("const publishedEditionIds = editions.map");
-    expect(text).toContain('.in("edition_id", publishedEditionIds)');
+    expect(text).toContain("const EXPLORE_ARCHIVE_PREVIEW_LIMIT = 4");
+    expect(text).toContain("const archivePreviewEditions = editions");
+    expect(text).toContain(".slice(0, EXPLORE_ARCHIVE_PREVIEW_LIMIT)");
+    expect(text).toContain("const projectionEditionIds = projectionEditions.map");
+    expect(text).toContain('.in("edition_id", projectionEditionIds)');
+    expect(text).not.toContain("publishedEditionIds");
     expect(text).toContain('.eq("published", true)');
     expect(text).toContain('.eq("final_rank", 1)');
     expect(text).toContain("resultsPublished: finalResultsPublished(editionShows, editionWinners)");
