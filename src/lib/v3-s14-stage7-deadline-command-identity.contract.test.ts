@@ -48,4 +48,13 @@ describe("S14 Stage 7 deadline operation identity", () => {
     expect(adapter).toContain("14000000-0000-4010-8600-000000000001");
     expect(adapter).toContain("s14-final-televote-deadline-set");
   });
+  it("uses the authoritative database clock and explicit expiry state rather than PostgreSQL boolean text shorthand", () => {
+    expect(adapter).toContain("with sample as (select clock_timestamp() as db_now)");
+    expect(adapter).toContain("when r.closes_at is not null and sample.db_now >= r.closes_at then 'expired' else 'waiting' end");
+    expect(adapter).toContain('if [[ "$expiry_state" == "expired" ]]');
+    expect(adapter).not.toContain('== "t"');
+    expect(adapter).toContain("S14_STAGE7_DEADLINE_POLL iteration=");
+    expect(adapter).toContain("last_state=$expiry_state");
+  });
+
 });
