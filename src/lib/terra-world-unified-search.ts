@@ -2,6 +2,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   cleanWorldSearch,
   parseWorldDirectoryRows,
+  WORLD_PUBLIC_INSTITUTION_STATUSES,
+  isPublicWorldInstitutionStatus,
   type WorldOrganization,
 } from "./terra-world-public";
 
@@ -35,7 +37,7 @@ export function verifiedWorldFeaturedOrganizations(
   return organizations.filter((organization) =>
     organization.slug === "guard" || organization.slug === "unity")
     .filter((organization) =>
-      (WORLD_PUBLIC_SEARCH_STATUSES as readonly string[]).includes(organization.status));
+      isPublicWorldInstitutionStatus(organization.status));
 }
 
 export type WorldSearchCategory = "all" | "countries" | "organizations";
@@ -45,10 +47,8 @@ export function parseWorldSearchCategory(value: unknown): WorldSearchCategory {
   return value === "countries" || value === "organizations" ? value : "all";
 }
 
-/** Proposals are not yet official international organizations. */
-export const WORLD_PUBLIC_SEARCH_STATUSES = [
-  "recognized", "active", "suspended", "historical", "dissolved",
-] as const;
+/** Preserve the Search export while sharing one World publication contract. */
+export const WORLD_PUBLIC_SEARCH_STATUSES = WORLD_PUBLIC_INSTITUTION_STATUSES;
 
 export type WorldSearchCountry = {
   id: string;
@@ -207,7 +207,7 @@ export async function fetchWorldOrganizationSearchPage(
   const organizations = parseWorldDirectoryRows(data);
   if (organizations.length !== data.length ||
     organizations.some((item) =>
-      !(WORLD_PUBLIC_SEARCH_STATUSES as readonly string[]).includes(item.status))) {
+      !isPublicWorldInstitutionStatus(item.status))) {
     throw new Error("Published organization results could not be verified.");
   }
   return { organizations, organizationTotal: checkedCount(count, organizations.length, page) };
