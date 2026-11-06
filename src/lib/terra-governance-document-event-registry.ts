@@ -11,6 +11,7 @@ export const TERRA_GOVERNANCE_DOCUMENT_EVENT_CONSUMERS = {
     "world.documents.search",
     "world.documents.projection",
   ],
+  "world.treaty.registered": ["world.documents.projection"],
 } as const;
 
 export type TerraGovernanceDocumentEventType = keyof typeof TERRA_GOVERNANCE_DOCUMENT_EVENT_CONSUMERS;
