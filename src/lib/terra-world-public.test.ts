@@ -181,6 +181,7 @@ describe("TG3 world publication-safe projections", () => {
   });
 
   it("requests only public organizations and bounded pages", async () => {
+    mocks.chain.range.mockResolvedValueOnce({ data: [row], count: 25, error: null });
     const result = await fetchWorldDirectory({ term: "", filter: "all", page: 2 });
     expect(mocks.from).toHaveBeenCalledWith("world_organizations");
     expect(mocks.chain.select).toHaveBeenCalledWith(
@@ -205,6 +206,20 @@ describe("TG3 world publication-safe projections", () => {
     mocks.chain.range.mockResolvedValueOnce({ data: [row], count: null, error: null });
     await expect(fetchWorldDirectory({ term: "", filter: "all", page: 0 }))
       .rejects.toThrow("count could not be verified");
+  });
+
+  it("rejects a directory page that contradicts its authoritative total", async () => {
+    mocks.chain.range.mockResolvedValueOnce({ data: [row], count: 12, error: null });
+    await expect(fetchWorldDirectory({ term: "", filter: "all", page: 1 }))
+      .rejects.toThrow("World directory page count could not be verified");
+    mocks.chain.range.mockResolvedValueOnce({ data: [], count: 3, error: null });
+    await expect(fetchWorldDirectory({ term: "", filter: "all", page: 0 }))
+      .rejects.toThrow("World directory page count could not be verified");
+    // A previously valid page can empty out after an organization is removed.
+    mocks.chain.range.mockResolvedValueOnce({ data: [], count: 1, error: null });
+    const empty = await fetchWorldDirectory({ term: "", filter: "all", page: 2 });
+    expect(empty.total).toBe(1);
+    expect(empty.organizations).toEqual([]);
   });
 
   it("filters current state without broadening public visibility", async () => {
