@@ -33,6 +33,9 @@ describe("Organizer Jury private ballot account/show isolation", () => {
     expect(source).toContain('if (privateBallotReadUnavailable) {\n    return (');
     expect(source).toContain("Retry Jury ballot evidence");
     expect(source).toContain("retryVotes()");
+    expect(source).toContain("retryVoters()");
+    expect(source).toContain("votersError");
+    expect(source).toContain("fetchingVoters");
     expect(source).toContain("loadingVotes ||");
     expect(source).toContain("votesError");
     expect(source).toContain("privateBallotReadError instanceof Error");
@@ -51,13 +54,16 @@ describe("Organizer Jury private ballot account/show isolation", () => {
   it("uses a private actor, edition and show query for raw unpublished Jury scores", () => {
     expect(source).toContain("useOrganizerJuryVotes({ actorId, editionId: edition?.id, showId: selectedShow?.id })");
     expect(source).not.toContain("useJuryVotes(selectedShow?.id)");
+    expect(source).toContain("useOrganizerShowVoters({ actorId, editionId: edition?.id, showId: selectedShow?.id })");
+    expect(source).not.toContain("useShowVoters(selectedShow?.id)");
     expect(privateVotes).toContain('["jury_votes", "organizer-private", actorId, editionId, showId]');
+    expect(privateVotes).toContain('["voters", "organizer-private", actorId, editionId, showId]');
     expect(privateVotes).toContain('enabled: Boolean(actorId && editionId && showId)');
     expect(privateVotes).toContain('.from("jury_votes")');
     expect(privateVotes).toContain('.eq("edition_id", editionId)');
     expect(privateVotes).toContain('.eq("show_id", showId)');
     for (const option of ["gcTime: 0", "retry: false", "refetchInterval: false", "refetchOnWindowFocus: false", "refetchOnReconnect: false"]) {
-      expect(privateVotes).toContain(option);
+      expect(privateVotes.split(option).length - 1).toBe(2);
     }
   });
 
