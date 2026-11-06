@@ -435,7 +435,10 @@ function ConfirmationResponsesList() {
     } catch (caught) {
       if (activeEditionRef.current === requestedEditionId &&
           requestedGeneration === responseLoadGenerationRef.current) {
+        // A failed canonical page validation ends this snapshot's pagination.
+        // Never let "Load more" resend the same failing cursor repeatedly.
         setError(caught instanceof Error ? caught.message : "More responses could not be loaded.");
+        setResponseCursor(null);
       }
     } finally {
       if (requestedGeneration === responseLoadGenerationRef.current) {
@@ -761,7 +764,7 @@ function ConfirmationResponsesList() {
         </section>
       ) : <AdminCard><AdminEmptyState title={query ? "No matching responses" : "Nothing in this view"} description={query ? "Try another country, username, artist or song." : "No responses match the selected filters in the loaded page."} /></AdminCard>}
 
-      {mode !== "next_in_line" && responseCursor ? (
+      {mode !== "next_in_line" && responseCursor && !visibleError ? (
         <div className="mt-4 flex justify-center">
           <button type="button" disabled={loadingMoreResponses} onClick={() => void loadMoreResponses()} className="admin-action-secondary">
             {loadingMoreResponses ? "Loading…" : `Load more · ${Math.max(0, responseTotalCount - rows.length)} remaining`}
