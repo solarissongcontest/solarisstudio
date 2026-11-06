@@ -12,6 +12,12 @@ describe("Organizer V3 website and installed navigation families", () => {
     expect(shell).toContain("organizerV3Enabled && platformResolved && !isAppMode");
     expect(shell).toContain("<OrganizerV3WebNavigation pathname={pathname} />");
     expect(shell).toContain("platformResolved && isAppMode ? <OrganizerV3MobileChrome />");
+    expect(shell).toContain("const organizerModeResolved =");
+    expect(shell).toContain("!organizerV3.isLoading && !organizerV3.isError && organizerV3.data != null");
+    expect(shell).toContain("{organizerModeResolved");
+    expect(shell).toContain("<OrganizerV6MobileChrome />");
+    expect(shell).toContain("Organizer navigation could not be verified.");
+    expect(shell).toContain("onClick={() => void organizerV3.refetch()}");
     expect(shell).not.toContain("window.innerWidth < 900");
   });
 
