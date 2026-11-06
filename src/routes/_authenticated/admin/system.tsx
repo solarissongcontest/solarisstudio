@@ -119,7 +119,13 @@ function AdminSystemPage() {
     isError: scheduleError,
     refetch: refetchSchedule,
   } = useAdminOperationalSchedule(selectedEdition?.id ?? null, selectedEdition?.slug ?? null);
-  const { data: audit = [] } = useAdminAudit(80);
+  const {
+    data: audit = [],
+    isLoading: auditLoading,
+    isError: auditError,
+    error: auditReadError,
+    refetch: refetchAudit,
+  } = useAdminAudit(80);
   const createDeadline = useCreateAdminDeadline();
   const toggleDeadline = useToggleAdminDeadline();
 
@@ -685,7 +691,30 @@ function AdminSystemPage() {
           description="Read-only history of significant changes across contest and country data."
         />
 
-        {!audit.length ? (
+        {auditLoading ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Verifying Organizer audit history…
+          </p>
+        ) : auditError ? (
+          <AdminEmptyState
+            icon={History}
+            title="Organizer audit history unavailable"
+            description={
+              auditReadError instanceof Error
+                ? auditReadError.message
+                : "Solaris could not verify the audit history. An unsuccessful read is not an empty history."
+            }
+            action={
+              <button
+                type="button"
+                className="admin-action-primary"
+                onClick={() => void refetchAudit()}
+              >
+                Retry audit history
+              </button>
+            }
+          />
+        ) : !audit.length ? (
           <AdminEmptyState
             icon={History}
             title="No audit rows yet"
