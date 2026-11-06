@@ -23,6 +23,18 @@ describe("V3 installed dock review regressions", () => {
     expect(tab).toMatch(/const startDrag = \([\s\S]*?suppressClick\.current = false;\s*if \(/);
   });
 
+  it("releases captured pointers and clears gestures on app interruption", () => {
+    expect(tab).toContain("captureTarget: event.currentTarget");
+    expect(tab).toContain("drag.captureTarget.releasePointerCapture?.(drag.pointerId)");
+    expect(tab).toContain('"data-solaris-feature-overlay-open"');
+    expect(tab).toContain('"data-solaris-keyboard-open"');
+    expect(tab).toContain('window.addEventListener("pagehide", resetInterruptedGesture)');
+    expect(tab).toContain("window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture)");
+    expect(tab).toContain('window.addEventListener("resize", resetInterruptedGesture)');
+    expect(tab).toContain("rootInterruptionObserver?.disconnect()");
+    expect(tab).toContain("onKeyDown={() => {");
+  });
+
   it("normalizes RTL and LTR drag targets and sorts the physical bounds", () => {
     expect(tab).toContain("Math.min(minCenter - originCenter, maxCenter - originCenter)");
     expect(tab).toContain("Math.max(minCenter - originCenter, maxCenter - originCenter)");
