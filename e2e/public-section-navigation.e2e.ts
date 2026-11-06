@@ -211,4 +211,9 @@ test("desktop advanced section follows deep links and browser history", async ({
   await expect(page).toHaveURL(/\/result-lab\/?(?:[?#].*)?$/);
   await expect(advanced).toHaveAttribute("open", "");
   await expect(resultLab).toHaveAttribute("aria-current", "page");
+
+  // A direct deep-link reload must initialize the current Advanced group open.
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(advanced).toHaveAttribute("open", "");
+  await expect(resultLab).toHaveAttribute("aria-current", "page");
 });
