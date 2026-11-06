@@ -145,6 +145,8 @@ describe("TG9 public statements: privacy and historical fidelity", () => {
     expect(sql).toContain("for update;");
     expect(sql).toContain("world_statements_published_public_read");
     expect(sql).toContain("world_statement_versions_published_public_read");
+    // Both RLS policies and both public RPC projections must fail closed when rollout is dark.
+    expect(sql.split("public.studio2_feature_enabled('terra_world_public', null)")).toHaveLength(5);
     expect(sql).toContain("limit least(greatest(coalesce(p_limit,20),1),30)");
     expect(sql).not.toMatch(/create table (?:public\.)?(?:world_follows|world_tasks|world_notifications)\b/i);
   });
