@@ -25,6 +25,7 @@ import type {
   V3EditionExperience,
   V3ExploreEditionInput,
 } from "@/lib/v3-explore";
+import { resolveV3ExploreNextPublicEvent } from "@/lib/v3-explore-next-event";
 
 const EDITION_COLUMNS =
   "id,edition_number,name,year,slug,description,host_country_id,host_city,logo,theme_id,artwork_url,status,published";
@@ -373,6 +374,8 @@ export async function loadV3EditionBundle(input: {
   const story = parsePublicStory(storyResult.data);
   const experience = editionExperience(edition, shows, resultRows);
   const resultsPublished = Boolean(resultShow);
+  // One server timestamp drives both Edition chronology and bundle freshness.
+  const generatedAt = new Date().toISOString();
 
   const editionInput: V3ExploreEditionInput = {
     id: edition.id,
@@ -387,7 +390,7 @@ export async function loadV3EditionBundle(input: {
     resultsPublication: resultsPublished ? "published" : "hidden",
     href: `/editions/${edition.slug}`,
     liveHref: experience.experience === "live" ? "/show-mode" : null,
-    nextEvent: null,
+    nextEvent: resolveV3ExploreNextPublicEvent(shows, generatedAt),
     archiveEligible:
       experience.experience === "post-edition" || experience.experience === "archived",
   };
@@ -425,6 +428,6 @@ export async function loadV3EditionBundle(input: {
       editionLabel: shellEditionLabel(edition),
       phaseLabel: experience.phaseLabel,
     },
-    generatedAt: new Date().toISOString(),
+    generatedAt,
   };
 }
