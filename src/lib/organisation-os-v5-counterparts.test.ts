@@ -16,7 +16,17 @@ describe("Organisation OS V5 feature counterparts", () => {
     );
     const navigation = mySolarisNavigationItems();
 
-    expect([...audited].sort()).toEqual(navigation.map((item) => item.id).sort());
+    // Tasks remains the Organizer's scoped read-only inspection route, rather
+    // than a second participant Task Center. Keep it in the capability audit.
+    const compatibility = ORGANISATION_OS_V5_COUNTERPARTS.find(
+      (item) => item.id === "mysolaris.tasks",
+    );
+    expect(compatibility?.kind).toBe("inspect");
+    expect(compatibility?.participantSurface).toBe("/my-solaris/tasks");
+    expect(compatibility?.organizerSurface).toBe("/admin/countries/:countryId?tab=participant-view");
+    expect([...audited].filter((id) => id !== "tasks").sort()).toEqual(
+      navigation.map((item) => item.id).sort(),
+    );
 
     for (const item of navigation) {
       const audit = ORGANISATION_OS_V5_COUNTERPARTS.find(
