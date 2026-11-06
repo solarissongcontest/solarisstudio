@@ -71,7 +71,17 @@ const EMPTY_CAPABILITIES = Object.freeze(
 
 const MySolarisContext = createContext<MySolarisContextValue | null>(null);
 
-export function MySolarisProvider({ children, editionId }: { children: ReactNode; editionId?: string | null }) {
+export function MySolarisProvider({
+  children,
+  editionId,
+  // Me's explicit-edition root needs account identity and membership, not a
+  // second copy of the canonical Participate task/notice/deadline queries.
+  includeParticipationContext = editionId === undefined,
+}: {
+  children: ReactNode;
+  editionId?: string | null;
+  includeParticipationContext?: boolean;
+}) {
   const userQuery = useFanSession();
   const countryAccountQuery = useMyCountryAccount();
   const editionsQuery = useEditions();
@@ -91,14 +101,14 @@ export function MySolarisProvider({ children, editionId }: { children: ReactNode
     queryKey: ["mysolaris-current-entry", userId, currentEdition?.id ?? "none", countryId ?? "none"],
     queryFn: () => loadMySolarisParticipant(countryId!, currentEdition!.id),
     staleTime: 15_000,
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: true,
+    refetchInterval: includeParticipationContext ? 30_000 : false,
+    refetchOnWindowFocus: includeParticipationContext,
   });
 
   const currentEntry = currentEntryQuery.data ?? null;
 
   const capabilitiesQuery = useQuery({
-    enabled: Boolean(userQuery.data),
+    enabled: Boolean(includeParticipationContext && userQuery.data),
     queryKey: ["mysolaris-capabilities", userId, currentEdition?.id],
     queryFn: async () => {
       const results = await Promise.allSettled(
@@ -116,10 +126,14 @@ export function MySolarisProvider({ children, editionId }: { children: ReactNode
     staleTime: 30_000,
   });
 
-  const capabilities = capabilitiesQuery.data ?? EMPTY_CAPABILITIES;
+  const capabilities = includeParticipationContext
+    ? capabilitiesQuery.data ?? EMPTY_CAPABILITIES
+    : EMPTY_CAPABILITIES;
   const isOrganizer = Boolean(account?.access.isOrganizer);
   const noticesQuery = useQuery({
-    enabled: Boolean(userQuery.data && capabilities.official_communications),
+    enabled: Boolean(
+      includeParticipationContext && userQuery.data && capabilities.official_communications,
+    ),
     queryKey: ["mysolaris-notice-summary", userId, currentEdition?.id, "recipient-inbox"],
     queryFn: async () => {
       const notices = await loadStudio2RecipientNoticeInbox(currentEdition?.id);
@@ -140,7 +154,7 @@ export function MySolarisProvider({ children, editionId }: { children: ReactNode
   });
 
   const roundsQuery = useQuery({
-    enabled: Boolean(userQuery.data),
+    enabled: Boolean(includeParticipationContext && userQuery.data),
     queryKey: ["mysolaris-context-deadlines", userId],
     queryFn: () => getPublicRounds(),
     staleTime: 20_000,
@@ -149,7 +163,7 @@ export function MySolarisProvider({ children, editionId }: { children: ReactNode
   });
 
   const confirmationQuery = useQuery({
-    enabled: Boolean(userQuery.data && account?.country),
+    enabled: Boolean(includeParticipationContext && userQuery.data && account?.country),
     queryKey: ["country-confirmation-access", userId, countryId, "mysolaris-context"],
     queryFn: getCountryConfirmationAccess,
     staleTime: 10_000,
@@ -159,7 +173,8 @@ export function MySolarisProvider({ children, editionId }: { children: ReactNode
 
   const juryQuery = useQuery({
     enabled: Boolean(
-      userQuery.data &&
+      includeParticipationContext &&
+        userQuery.data &&
         account?.country &&
         currentEdition?.id,
     ),
@@ -170,37 +185,41 @@ export function MySolarisProvider({ children, editionId }: { children: ReactNode
     refetchOnWindowFocus: true,
   });
 
-  const noticeSummary = noticesQuery.data ?? {
-    unreadNoticeCount: 0,
-    acknowledgementTasks: 0,
-  };
+  const noticeSummary = includeParticipationContext && noticesQuery.data
+    ? noticesQuery.data
+    : { unreadNoticeCount: 0, acknowledgementTasks: 0 };
   const unreadNoticeCount = noticeSummary.unreadNoticeCount;
   const acknowledgementTasks = noticeSummary.acknowledgementTasks;
 
   const deadlines = useMemo(
     () =>
-      (roundsQuery.data ?? [])
-        .filter((round) => !currentEdition || round.edition_id === currentEdition.id)
-        .filter((round) => round.status !== "closed")
-        .map(deadlineFromRound),
-    [currentEdition, roundsQuery.data],
+      includeParticipationContext
+        ? (roundsQuery.data ?? [])
+            .filter((round) => !currentEdition || round.edition_id === currentEdition.id)
+            .filter((round) => round.status !== "closed")
+            .map(deadlineFromRound)
+        : [],
+    [currentEdition, includeParticipationContext, roundsQuery.data],
   );
 
   const tasks = useMemo(
     () =>
-      buildParticipationTasks({
-        editionId: currentEdition?.id ?? null,
-        responses: confirmationQuery.data?.responses ?? [],
-        requirements: confirmationQuery.data?.requirements ?? [],
-        rounds: roundsQuery.data ?? [],
-        acknowledgementTasks,
-        jury: juryQuery.data ?? null,
-      }),
+      includeParticipationContext
+        ? buildParticipationTasks({
+            editionId: currentEdition?.id ?? null,
+            responses: confirmationQuery.data?.responses ?? [],
+            requirements: confirmationQuery.data?.requirements ?? [],
+            rounds: roundsQuery.data ?? [],
+            acknowledgementTasks,
+            jury: juryQuery.data ?? null,
+          })
+        : [],
     [
       acknowledgementTasks,
       confirmationQuery.data?.responses,
       confirmationQuery.data?.requirements,
       currentEdition?.id,
+      includeParticipationContext,
       juryQuery.data,
       roundsQuery.data,
     ],
@@ -231,6 +250,7 @@ export function MySolarisProvider({ children, editionId }: { children: ReactNode
   const taskCounts = participationTaskCounts(tasks);
 
   useEffect(() => {
+    if (!includeParticipationContext) return;
     if (userQuery.isLoading) return;
 
     if (!userQuery.data) {
@@ -252,6 +272,7 @@ export function MySolarisProvider({ children, editionId }: { children: ReactNode
     });
   }, [
     confirmationQuery.isLoading,
+    includeParticipationContext,
     juryQuery.isLoading,
     noticesQuery.isLoading,
     roundsQuery.isLoading,
@@ -284,9 +305,8 @@ export function MySolarisProvider({ children, editionId }: { children: ReactNode
       countryAccountQuery.isLoading ||
       editionsQuery.isLoading ||
       currentEntryQuery.isLoading ||
-      capabilitiesQuery.isLoading ||
-      confirmationQuery.isLoading ||
-      juryQuery.isLoading,
+      (includeParticipationContext &&
+        (capabilitiesQuery.isLoading || confirmationQuery.isLoading || juryQuery.isLoading)),
   };
 
   return <MySolarisContext.Provider value={value}>{children}</MySolarisContext.Provider>;
