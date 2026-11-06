@@ -271,6 +271,7 @@ begin
       where proxy.id=v_seat.proxy_id for share;
     if not found then raise exception using errcode='42501',message='NOT_ELIGIBLE'; end if;
   end if;
+  v_at:=clock_timestamp();
   if v_seat.vote_id is null or not private.world_vote_cast_authorized_v1(
      p_vote_id,v_seat.country_id,v_actor,v_at)
   then raise exception using errcode='42501',message='NOT_ELIGIBLE'; end if;
@@ -288,6 +289,7 @@ begin
       ||jsonb_build_object('replayed',true);
   end if;
 
+  v_at:=clock_timestamp();
   if v_vote.status<>'open' or v_vote.revision<>p_expected_vote_revision
      or v_at<v_vote.opened_at or v_at>=v_vote.closes_at
   then raise exception using errcode='40001',message='VOTE_CLOSED_OR_CHANGED'; end if;
@@ -339,6 +341,7 @@ begin
     null,v_vote.organ_id,null,null)
   then raise exception using errcode='42501',message='CERTIFICATION_AUTHORIZATION'; end if;
 
+  v_at:=clock_timestamp();
   v_claim:=private.studio2_claim_operation(
     p_operation_id,p_idempotency_key,coalesce(p_correlation_id,p_operation_id),
     'world.vote.certify','R3',
@@ -351,6 +354,7 @@ begin
     return public.studio2_reconcile_operation(v_operation_id)
       ||jsonb_build_object('replayed',true);
   end if;
+  v_at:=clock_timestamp();
   if v_vote.status<>'open' or v_vote.revision<>p_expected_vote_revision
      or v_at<v_vote.closes_at
   then raise exception using errcode='40001',message='VOTE_NOT_CLOSED_OR_CHANGED'; end if;
