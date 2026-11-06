@@ -114,6 +114,18 @@ describe("V3 publication-safe Search relevance", () => {
       .map((group) => visible.filter((item) => item.group === group).length))).toBeLessThanOrEqual(10);
   });
 
+  it("prioritizes the first 50 distinct categories when there are more groups than slots", () => {
+    const ranked = Array.from({ length: 65 }, (_, index) => ({
+      id: `item-${index}`,
+      group: `Category ${index}`,
+    }));
+    const limited = limitV3PublicSearchGroups(ranked);
+    expect(limited).toHaveLength(50);
+    expect(limited[0].id).toBe("item-0");
+    expect(limited[49].id).toBe("item-49");
+    expect(limited.map((item) => item.id)).not.toContain("item-50");
+  });
+
   it("preserves provider order for equally relevant matches, immutably", () => {
     const input: PublicSearchResult[] = [
       { id: "b", label: "Oland A", description: "", href: "/b", group: "Countries" },
