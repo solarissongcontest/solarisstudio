@@ -26,7 +26,8 @@ begin
   if auth.uid() is null or p_measure_id is null or p_rule_id is null
      or p_expected_measure_revision is null or p_operation_id is null
      or nullif(btrim(coalesce(p_idempotency_key,'')),'') is null
-     or not coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+     or not (coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+       and coalesce(public.studio2_feature_enabled('terra_world_legislative_voting',null),false))
   then raise exception using errcode='25006',message='VOTING_NOT_AVAILABLE'; end if;
   if p_closes_at is null or p_closes_at < v_at + interval '1 minute'
      or p_closes_at > v_at + interval '90 days'
@@ -245,7 +246,8 @@ begin
   if v_actor is null or p_vote_id is null or p_country_id is null or p_operation_id is null
      or p_expected_vote_revision is null
      or p_choice not in ('aye','nay','abstain') or p_choice is null
-     or not coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+     or not (coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+       and coalesce(public.studio2_feature_enabled('terra_world_legislative_voting',null),false))
   then raise exception using errcode='25006',message='BALLOT_UNAVAILABLE'; end if;
 
   -- Shared lock allows parallel country submissions but blocks certification.
@@ -328,7 +330,8 @@ declare
 begin
   if auth.uid() is null or p_vote_id is null or p_expected_vote_revision is null
      or p_operation_id is null
-     or not coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+     or not (coalesce(public.studio2_feature_enabled('terra_world_voting_rules',null),false)
+       and coalesce(public.studio2_feature_enabled('terra_world_legislative_voting',null),false))
   then raise exception using errcode='25006',message='CERTIFICATION_UNAVAILABLE'; end if;
   select * into v_vote from public.world_votes where id=p_vote_id for update;
   if v_vote.id is null or not public.world_access_allowed(
