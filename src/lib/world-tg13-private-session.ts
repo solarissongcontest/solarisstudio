@@ -54,12 +54,10 @@ export function useTg13PrivateActor(): Tg13PrivateActor {
   useEffect(() => {
     let live = true;
     let epoch = 0;
-    const { data } = supabase.auth.onAuthStateChange((event, next) => {
+    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+      // Handle *every* auth transition, including MFA or future new events.
+      // Missing an event type could retain a stale private authority snapshot.
       if (!live) return;
-      if (![
-        "INITIAL_SESSION", "SIGNED_IN", "SIGNED_OUT",
-        "TOKEN_REFRESHED", "USER_UPDATED",
-      ].includes(event)) return;
 
       // Cancel/remove while observers still belong to the old account.
       // Never await inside Supabase's auth callback.
