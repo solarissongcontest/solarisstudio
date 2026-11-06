@@ -82,3 +82,15 @@ export function projectPredictionRounds(
     .map((round) => projectPredictionRound(round, entries.get(round.id)))
     .filter((round): round is V3PredictionRoundProjection => Boolean(round));
 }
+
+/**
+ * A scored round is not automatically the viewer's prediction history.
+ * Require both a saved submission and a canonical score before displaying it.
+ */
+export function projectPersonalScoredPredictionRounds(
+  rounds: readonly V3PredictionRoundProjection[],
+): V3PredictionRoundProjection[] {
+  return rounds
+    .filter((round) => round.state === "scored" && round.savedEntryId !== null && round.score !== null)
+    .reverse();
+}
