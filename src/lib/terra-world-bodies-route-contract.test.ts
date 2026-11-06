@@ -39,6 +39,15 @@ describe("TG3 published body route ownership", () => {
     expect(section).not.toContain("projection.data.organs.length > 0 ? (");
   });
 
+  it("uses AppShell's one main landmark rather than nesting another main element", () => {
+    const shell = readFileSync(resolve(process.cwd(), "src/components/AppShell.tsx"), "utf8");
+    const bodies = readFileSync(resolve(process.cwd(), "src/components/world/WorldBodiesPublic.tsx"), "utf8");
+    expect(shell).toContain("<main");
+    expect(bodies).toContain("<AppShell><div");
+    expect(bodies).toContain("</div></AppShell>");
+    expect(bodies).not.toContain("<AppShell><main");
+  });
+
   it("keeps stable URL paths for both canonical public body screens", () => {
     const directory = readFileSync(resolve(bodyRoutes, "index.tsx"), "utf8");
     const detail = readFileSync(resolve(bodyRoutes, "$bodySlug.tsx"), "utf8");
