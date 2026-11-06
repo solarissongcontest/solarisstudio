@@ -171,7 +171,8 @@ begin
   if auth.uid() is null then return null; end if;
   select * into v_space from public.world_spaces where id = p_space_id;
   if not found or v_space.status <> 'active' then return null; end if;
-  v_manager := public.world_access_allowed('world.space.manage', v_space.organization_id);
+  v_manager := public.world_access_allowed('world.space.manage', v_space.organization_id)
+    or public.world_access_allowed('world.organization.settings.manage', v_space.organization_id);
   v_member_since := private.world_space_member_since_v1(v_space.organization_id);
   if v_member_since is null and not v_manager then return null; end if;
   select * into v_grant from private.world_space_access_grants
@@ -212,7 +213,15 @@ as $$
   select coalesce(jsonb_agg(jsonb_build_object(
     'id', s.id, 'name', s.name, 'description', s.description,
     'visibility', s.visibility_policy, 'history', s.history_policy,
-    'status', s.status, 'revision', s.revision
+    'status', s.status, 'revision', s.revision, 'organizationId', s.organization_id,
+    'canManage', public.world_access_allowed('world.space.manage',s.organization_id)
+      or public.world_access_allowed('world.organization.settings.manage',s.organization_id),
+    'canModerate', public.world_access_allowed('world.chat.moderate',s.organization_id)
+      or public.world_access_allowed('world.space.manage',s.organization_id)
+      or public.world_access_allowed('world.organization.settings.manage',s.organization_id)
+      or exists (select 1 from private.world_space_access_grants g
+        where g.space_id=s.id and g.user_id=auth.uid() and g.role='moderator'
+          and g.starts_at<=now() and (g.ends_at is null or g.ends_at>now()))
   ) order by s.created_at, s.id), '[]'::jsonb)
   from public.world_spaces s
   join public.world_organizations o on o.id = s.organization_id
@@ -441,6 +450,7 @@ begin
       and starts_at<=now() and (ends_at is null or ends_at>now())) into v_grant;
   if not v_grant and not public.world_access_allowed('world.chat.moderate',v_org)
      and not public.world_access_allowed('world.space.manage',v_org)
+     and not public.world_access_allowed('world.organization.settings.manage',v_org)
   then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
   if p_expected_revision is distinct from v_message.revision
   then raise exception using errcode='40001',message='VERSION_CONFLICT'; end if;
