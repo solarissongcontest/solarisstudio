@@ -3,53 +3,53 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
-
 const suggestions = read("src/integrations/unified/hod-suggestions.server.ts");
-const history = read("src/integrations/unified/hod-history.server.ts");
+const body = suggestions.slice(suggestions.indexOf("export async function getHodIdentitySuggestionsServer()"));
 
-describe("Organizer HOD suggestion authorization", () => {
-  it("requires protected Televote ballot read before private HOD history or privileged clients", () => {
-    const ballotCapability = 'requireSolarisCapabilityServer("televote.ballots.read", null)';
-    const resolverCall = "loadHodResolverServer()";
-    const supabaseImport = 'import("@/integrations/supabase/client.server")';
-    const televoteImport = 'import("@/integrations/televoting/client.server")';
+describe("Organizer HOD identity suggestion authorization", () => {
+  it("requires both global private-read capabilities before resolving HOD history", () => {
+    const delegation = 'requireSolarisCapabilityServer("delegation.read", null)';
+    const ballots = 'requireSolarisCapabilityServer("televote.ballots.read", null)';
+    const resolver = "const hod = await loadHodResolverServer()";
 
-    expect(suggestions).toContain(ballotCapability);
-    expect(suggestions.indexOf(ballotCapability)).toBeLessThan(suggestions.indexOf(resolverCall));
-    expect(suggestions.indexOf(resolverCall)).toBeLessThan(suggestions.indexOf(supabaseImport));
-    expect(suggestions.indexOf(resolverCall)).toBeLessThan(suggestions.indexOf(televoteImport));
+    expect(body).toContain(delegation);
+    expect(body).toContain(ballots);
+    expect(body.indexOf(delegation)).toBeLessThan(body.indexOf(ballots));
+    expect(body.indexOf(ballots)).toBeLessThan(body.indexOf(resolver));
   });
 
-  it("inherits the parent cross-edition delegation.read boundary before HOD history service-role access", () => {
-    const resolver = history.split("export async function loadHodResolverServer()")[1]?.split("export async function getHodHistoryServer")[0] ?? "";
+  it("does not import either privileged service client before authorization", () => {
+    const ballotGuard = body.indexOf('requireSolarisCapabilityServer("televote.ballots.read", null)');
+    const resolver = body.indexOf("const hod = await loadHodResolverServer()");
+    const primaryClient = body.indexOf('import("@/integrations/supabase/client.server")');
+    const votingClient = body.indexOf('import("@/integrations/televoting/client.server")');
 
-    expect(resolver).toContain('loadServiceRoleDbAfterCapability("delegation.read", null)');
-    expect(resolver.indexOf('loadServiceRoleDbAfterCapability("delegation.read", null)')).toBeLessThan(
-      resolver.indexOf('.from("delegation_people")'),
-    );
+    expect(ballotGuard).toBeGreaterThan(-1);
+    expect(primaryClient).toBeGreaterThan(resolver);
+    expect(votingClient).toBeGreaterThan(resolver);
+    expect(suggestions).not.toContain('import { supabaseAdmin }');
+    expect(suggestions).not.toContain('import { televotingAdmin }');
   });
 
-  it("reads only the raw Televote fields needed for identity suggestions and remains bounded", () => {
-    expect(suggestions).toContain('.from("vote_submissions")');
-    expect(suggestions).toContain('.select("id,round_id,country_code,username,username_normalized,status")');
-    expect(suggestions).toContain(".limit(50000)");
-    expect(suggestions).toContain('if (submission.status === "deleted") continue;');
-    expect(suggestions).not.toContain("risk_score");
-    expect(suggestions).not.toContain("is_vpn");
-    expect(suggestions).not.toContain("ip_address");
+  it("reads only bounded identity suggestion fields from raw votes", () => {
+    expect(body).toContain('.from("vote_submissions")');
+    expect(body).toContain('.select("id,round_id,country_code,username,username_normalized,status")');
+    expect(body).toContain(".limit(50000)");
+    expect(body).toContain('if (submission.status === "deleted") continue;');
+    expect(body).not.toContain("risk_score");
+    expect(body).not.toContain("ip_address");
+    expect(body).not.toContain("is_vpn");
   });
 
-  it("does not substitute generic Organizer or unrelated integrity authorization", () => {
-    expect(suggestions).not.toContain("requireSolarisOrganizerServer");
-    expect(suggestions).not.toContain('requireSolarisCapabilityServer("integrity.read"');
-    expect(suggestions).not.toContain('requireSolarisCapabilityServer("voting.read"');
-    expect(suggestions).toContain('requireSolarisCapabilityServer("televote.ballots.read", null)');
+  it("does not substitute generic organizer roles or unrelated permissions", () => {
+    expect(body).not.toContain("requireSolarisOrganizerServer");
+    expect(body).not.toContain('requireSolarisCapabilityServer("integrity.read"');
+    expect(body).not.toContain('requireSolarisCapabilityServer("voting.read"');
+    expect(body).toContain('requireSolarisCapabilityServer("delegation.read", null)');
+    expect(body).toContain('requireSolarisCapabilityServer("televote.ballots.read", null)');
   });
 
-  it("keeps the suggestion path observational", () => {
-    expect(suggestions).not.toContain(".insert(");
-    expect(suggestions).not.toContain(".update(");
-    expect(suggestions).not.toContain(".upsert(");
-    expect(suggestions).not.toContain(".delete(");
+  it("remains an observational read", () => {
+    expect(body).not.toMatch(/\.insert\(|\.update\(|\.upsert\(|\.delete\(/);
   });
 });

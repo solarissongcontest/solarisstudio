@@ -8,18 +8,18 @@ const server = read("src/integrations/unified/hod-history.server.ts");
 const functions = read("src/integrations/unified/hod-history.functions.ts");
 
 describe("Organizer HOD history authorization", () => {
-  it("requires canonical cross-edition delegation.read before privileged history reads", () => {
-    const resolver = server.split("export async function loadHodResolverServer()")[1]?.split("export async function getHodHistoryServer")[0] ?? "";
+  it("guards browser history reads without breaking trusted Televote/HOD resolver callers", () => {
+    const history = server.split("export async function getHodHistoryServer()")[1]?.split("const assignments: HodAssignment[]")[0] ?? "";
+    const resolver = server.split("export async function loadHodResolverServer()")[1]?.split("export async function getHodHistoryServer()")[0] ?? "";
 
-    expect(server).toContain('requireSolarisCapabilityServer');
-    expect(server).not.toContain('requireSolarisOrganizerServer');
-    expect(resolver).toContain('loadServiceRoleDbAfterCapability("delegation.read", null)');
-    expect(resolver.indexOf('loadServiceRoleDbAfterCapability("delegation.read", null)')).toBeLessThan(
-      resolver.indexOf('from("delegation_people")'),
+    expect(history).toContain('await requireSolarisCapabilityServer("delegation.read", null)');
+    expect(history.indexOf('requireSolarisCapabilityServer("delegation.read", null)')).toBeLessThan(
+      history.indexOf('loadHodResolverServer()'),
     );
-    expect(resolver.indexOf('loadServiceRoleDbAfterCapability("delegation.read", null)')).toBeLessThan(
-      resolver.indexOf('from("delegation_hod_assignments")'),
-    );
+    expect(resolver).not.toContain('loadServiceRoleDbAfterCapability("delegation.read", null)');
+    expect(resolver).toContain('await import("@/integrations/supabase/client.server")');
+    expect(read("src/integrations/televoting/canonical-context.server.ts")).toContain("loadHodResolverServer()");
+    expect(read("src/integrations/unified/hod-suggestions.server.ts")).toContain("loadHodResolverServer()");
   });
 
   it("requires global delegation.manage before shared HOD identity writes", () => {

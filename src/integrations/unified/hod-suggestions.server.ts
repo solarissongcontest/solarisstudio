@@ -28,11 +28,10 @@ function normalizeUsername(value: unknown) {
 }
 
 export async function getHodIdentitySuggestionsServer(): Promise<HodIdentitySuggestion[]> {
-  // This cross-edition helper combines private HOD history with raw protected
-  // Televote submission usernames. Both global read capabilities are required.
-  // The HOD resolver enforces global delegation.read before its service-role
-  // history queries; require protected-ballot access before invoking it so no
-  // privileged source is touched until the caller owns both data classes.
+  // This cross-edition suggestion uses both private delegation history and
+  // raw Televote ballot usernames. Prove both global read capabilities before
+  // loading any service-role client or shared HOD history resolver.
+  await requireSolarisCapabilityServer("delegation.read", null);
   await requireSolarisCapabilityServer("televote.ballots.read", null);
   const hod = await loadHodResolverServer();
 

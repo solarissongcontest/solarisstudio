@@ -76,9 +76,11 @@ async function loadServiceRoleDbAfterCapability(
 }
 
 export async function loadHodResolverServer() {
-  // This resolver exposes cross-edition private HOD identity/assignment history,
-  // so edition-scoped read grants are intentionally insufficient here.
-  const db = await loadServiceRoleDbAfterCapability("delegation.read", null);
+  // Trusted server-side resolver: also used by canonical Televote context and
+  // Organizer identity suggestions. Browser-facing history must authorize
+  // before invoking this shared internal read path.
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as any;
   const [peopleResult, assignmentsResult, editionsResult, countriesResult] = await Promise.all([
     db.from("delegation_people").select("id,display_name,identity_key,notes").order("display_name"),
     db
@@ -148,6 +150,8 @@ export async function loadHodResolverServer() {
 }
 
 export async function getHodHistoryServer() {
+  // Cross-edition private history requires a global grant, not only a role name.
+  await requireSolarisCapabilityServer("delegation.read", null);
   const resolver = await loadHodResolverServer();
 
   const assignments: HodAssignment[] = resolver.assignments
