@@ -48,7 +48,7 @@ import {
 } from "@/lib/public-search";
 import { isRecentShowPublic } from "@/lib/public-recent-show-publication";
 import { readPublicRecents } from "@/lib/public-recents";
-import { recentPublicationSlugs, visiblePublicationVerifiedRecents } from "@/lib/v3-search-recent-publication";
+import { recentPublicationSlugs, spoilerSafePublicRecents, visiblePublicationVerifiedRecents } from "@/lib/v3-search-recent-publication";
 import { visibleRecentShowDestinations } from "@/lib/v3-show-public-discovery";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
@@ -204,6 +204,7 @@ function publicRecentShowIds(recents: readonly { path: string }[]): string[] {
 }
 
 function usePublicationSafeRecents() {
+  const { preferences } = useAppExperiencePreferences();
   const recents = useMemo(() => readPublicRecents(), []);
   const showIds = useMemo(() => publicRecentShowIds(recents), [recents]);
   const publicationSlugs = useMemo(() => recentPublicationSlugs(recents), [recents]);
@@ -304,15 +305,19 @@ function usePublicationSafeRecents() {
       !storyVisibility.isFetching
         ? storyVisibility.data
         : [];
-    return visiblePublicationVerifiedRecents(
-      visibleRecentShowDestinations(recents, allowedShows),
-      {
-        publishedEditionLabels: new Map(allowedEditionLabels.map((row) => [row.slug, row.label])),
-        publishedStoryLabels: new Map(allowedStoryLabels.map((row) => [row.slug, row.label])),
-      },
+    return spoilerSafePublicRecents(
+      visiblePublicationVerifiedRecents(
+        visibleRecentShowDestinations(recents, allowedShows),
+        {
+          publishedEditionLabels: new Map(allowedEditionLabels.map((row) => [row.slug, row.label])),
+          publishedStoryLabels: new Map(allowedStoryLabels.map((row) => [row.slug, row.label])),
+        },
+      ),
+      preferences.spoilerFree,
     );
   }, [
     recents,
+    preferences.spoilerFree,
     showVisibility.isSuccess,
     showVisibility.isFetchedAfterMount,
     showVisibility.isFetching,
