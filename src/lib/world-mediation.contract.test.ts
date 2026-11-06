@@ -70,6 +70,9 @@ describe("TG13 mediation state and private evidence", () => {
       "world.mediation.respond",
       "world.mediation.request",
       "visibility text not null default 'private'",
+      "world_mediation_history_no_rewrite",
+      "IMMUTABLE_HISTORY",
+      "grant select on public.world_mediation_cases, public.world_mediation_history to service_role",
     ]) expect(source).toContain(fragment);
     expect(source).not.toMatch(/grant (insert|update|delete|all) on public\.world_mediation_cases[^;]*to authenticated/i);
     expect(source).not.toMatch(/create policy [^;]+to anon/i);
