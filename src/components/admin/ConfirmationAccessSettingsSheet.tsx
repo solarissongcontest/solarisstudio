@@ -1,5 +1,5 @@
 import { LockKeyhole, ShieldAlert } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
@@ -60,6 +60,7 @@ export function ConfirmationAccessSettingsSheet({
   const [draftNotes, setDraftNotes] = useState(adminNotes ?? "");
   const [pendingReview, setPendingReview] = useState<PendingAccessReview | null>(null);
   const [saving, setSaving] = useState(false);
+  const saveInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!open || pendingReview || saving) return;
@@ -95,6 +96,7 @@ export function ConfirmationAccessSettingsSheet({
     notesChanged;
 
   const openReview = () => {
+    if (saveInFlightRef.current || saving) return;
     if (!isScopeCurrent() || !editionId || !roundId || !responseUpdatedAt) {
       toast.error("Confirmation edition or response changed. Reload before reviewing access controls.");
       return;
@@ -111,13 +113,16 @@ export function ConfirmationAccessSettingsSheet({
   };
 
   const closeReview = () => {
-    if (saving) return;
+    if (saving || saveInFlightRef.current) return;
     setPendingReview(null);
   };
 
   const applyReviewedSettings = async () => {
-    if (!pendingReview || saving) return;
+    if (!pendingReview || saving || saveInFlightRef.current) return;
 
+    // A synchronous lock is essential for this legacy non-receipted RPC:
+    // rapid confirmations must not dispatch concurrent access mutations.
+    saveInFlightRef.current = true;
     setSaving(true);
     try {
       if (!isScopeCurrent()) {
@@ -126,9 +131,14 @@ export function ConfirmationAccessSettingsSheet({
       assertOrganizerConfirmationAccessScope(pendingReview.scope, {
         submissionId, editionId, roundId, updatedAt: responseUpdatedAt,
       });
+      // The legacy id-only detail RPC may return private cross-edition data
+      // before a client-side guard can run. Scope the read at the server.
       const { data: liveData, error: liveError } = await confirmationsSupabase.rpc(
-        "admin_confirmation_response",
-        { _submission_id: submissionId },
+        "admin_confirmation_response_for_edition",
+        {
+          _edition_id: pendingReview.scope.editionId,
+          _submission_id: pendingReview.scope.submissionId,
+        },
       );
       if (liveError) throw liveError;
 
@@ -192,6 +202,7 @@ export function ConfirmationAccessSettingsSheet({
       toast.error(caught instanceof Error ? caught.message : "Could not save response settings.");
       if (isScopeCurrent()) await onApplied();
     } finally {
+      saveInFlightRef.current = false;
       setSaving(false);
     }
   };
