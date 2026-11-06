@@ -689,10 +689,16 @@ function WebSearchArchiveResults({
   setOpen: (open: boolean) => void;
 }) {
   const router = useRouter();
-  const { data: shows = [], isFetching: showsFetching } = useAllShows();
-  const { data: participants = [], isFetching: participantsFetching } = usePublicSearchParticipants();
-  const { data: results = [], isFetching: resultsFetching } = useAllResults();
-  const { data: jury = [], isFetching: juryFetching } = useAllJuryVotes();
+  const showsQuery = useAllShows();
+  const participantsQuery = usePublicSearchParticipants();
+  const resultsQuery = useAllResults();
+  const juryQuery = useAllJuryVotes();
+  // A failed refetch may retain old cached rows. Never promote those rows to
+  // new public Search suggestions until the publication source is healthy.
+  const shows = showsQuery.isError ? [] : showsQuery.data ?? [];
+  const participants = participantsQuery.isError ? [] : participantsQuery.data ?? [];
+  const results = resultsQuery.isError ? [] : resultsQuery.data ?? [];
+  const jury = juryQuery.isError ? [] : juryQuery.data ?? [];
   const storiesQuery = useQuery({
     queryKey: ["public-command-palette-stories"],
     queryFn: () => loadPublicStorylines(40),
@@ -962,11 +968,17 @@ function WebSearchArchiveResults({
   ]);
 
   const isFetching =
-    showsFetching ||
-    participantsFetching ||
-    resultsFetching ||
-    juryFetching ||
+    showsQuery.isFetching ||
+    participantsQuery.isFetching ||
+    resultsQuery.isFetching ||
+    juryQuery.isFetching ||
     storiesQuery.isFetching;
+  const hasArchiveError =
+    showsQuery.isError ||
+    participantsQuery.isError ||
+    resultsQuery.isError ||
+    juryQuery.isError ||
+    storiesQuery.isError;
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -979,7 +991,7 @@ function WebSearchArchiveResults({
         target: "public-command-palette",
         metadata,
       });
-      if (!isFetching && !searchResults.length) {
+      if (!isFetching && !hasArchiveError && !searchResults.length) {
         trackPublicUxEvent("search_no_results", {
           target: "public-command-palette",
           metadata,
@@ -988,7 +1000,7 @@ function WebSearchArchiveResults({
     }, 500);
 
     return () => window.clearTimeout(timer);
-  }, [isFetching, normalized, searchResults.length]);
+  }, [isFetching, hasArchiveError, normalized, searchResults.length]);
 
   const openResult = (result: PublicSearchResult) => {
     trackPublicUxEvent("search_result_clicked", {
@@ -1019,8 +1031,31 @@ function WebSearchArchiveResults({
       <CommandEmpty>
         {isFetching
           ? "Searching Solaris…"
-          : "Nothing in Solaris Studio matches that search."}
+          : hasArchiveError
+            ? "Published Search is temporarily incomplete. Retry the unavailable sources."
+            : "Nothing in Solaris Studio matches that search."}
       </CommandEmpty>
+      {hasArchiveError ? (
+        <div role="alert" className="mx-3 my-2 rounded-xl border border-border/70 bg-surface/75 p-3">
+          <p className="text-sm font-semibold">Some published content could not be verified</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Available public results are shown below. Hidden or unverified records are not included.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (showsQuery.isError) void showsQuery.refetch();
+              if (participantsQuery.isError) void participantsQuery.refetch();
+              if (resultsQuery.isError) void resultsQuery.refetch();
+              if (juryQuery.isError) void juryQuery.refetch();
+              if (storiesQuery.isError) void storiesQuery.refetch();
+            }}
+            className="mt-3 min-h-11 rounded-lg border border-border px-3 text-sm font-semibold text-foreground hover:bg-surface-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            Retry unavailable sources
+          </button>
+        </div>
+      ) : null}
       {renderSearchGroups(grouped, openResult)}
     </CommandList>
   );
