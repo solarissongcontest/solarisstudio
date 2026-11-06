@@ -24,6 +24,7 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { getMergedTelevotingOverview } from "@/integrations/televoting/admin-data.functions";
 
 export const Route = createFileRoute("/televoting/admin/")({
@@ -54,13 +55,16 @@ const ADVANCED_VOTING_TOOLS: Array<{
 
 function VotingAdminOverview() {
   const { editionId, editionSlug } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
   const getOverview = useServerFn(getMergedTelevotingOverview);
 
   const { data, isLoading, error, isFetching, refetch } = useQuery({
-    queryKey: ["merged-televoting-admin-overview", editionId ?? "none"],
+    // Do not expose a previous organizer's capability-gated overview via cache.
+    queryKey: ["merged-televoting-admin-overview", actorId, editionId ?? "none"],
     enabled: Boolean(editionId),
     queryFn: () => getOverview({ data: { editionId: editionId! } }),
     staleTime: 10_000,
+    gcTime: 0,
     // Avoid polling closed/idle rounds; live voting still refreshes at a
     // deliberately bounded cadence. Operators can refresh explicitly.
     refetchInterval: (query) =>
