@@ -25,6 +25,8 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         output: {
+          // Shorten private module bindings without changing export signatures.
+          minify: { compress: true, mangle: { toplevel: true } },
           // Production evidence showed repeated gzip framing across hundreds of
           // tiny Lucide chunks and several TanStack Router helper chunks. Keep
           // package behavior unchanged while consolidating only those vendor
@@ -116,6 +118,15 @@ export default defineConfig({
                 minShareCount: 2,
                 minSize: 5000,
                 priority: 1,
+              },
+              // Bound modules shared by multiple lazy routes. Route-only code
+              // stays lazy; this also avoids oversized single JS downloads.
+              {
+                name: "shared-cross-route",
+                minShareCount: 2,
+                minSize: 10000,
+                maxSize: 800000,
+                priority: -1,
               },
             ],
           },
