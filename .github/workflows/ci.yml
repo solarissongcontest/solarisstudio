@@ -69,7 +69,7 @@ jobs:
         run: bun run scripts/check-v3-production-isolation.ts
 
       - name: Regress independent Quality diagnostics (read-only)
-        run: node --test scripts/quality-independent-checks.contract.mjs
+        run: node --test scripts/quality-independent-checks.contract.mjs scripts/quality-outcome-proof.contract.mjs
 
       - name: Enforce V3 capability status transitions on pull requests
         if: github.event_name == 'pull_request'
