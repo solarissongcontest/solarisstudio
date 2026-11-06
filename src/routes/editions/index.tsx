@@ -7,6 +7,7 @@ import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useV3DirectoryPresentation, type V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import { directoryCountLabel } from "@/lib/v3-directory-count";
+import { canStartPublishedEditionResultsRead } from "@/lib/v3-editions-result-read";
 import "@/styles/v3-directory-family.css";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
@@ -62,12 +63,16 @@ type EditionCard = {
 function EditionsPage() {
   const { isAppMode, platformResolved } = useSolarisApp();
   const presentation = useV3DirectoryPresentation();
-  const [resultsEnabled, setResultsEnabled] = useState(!isAppMode);
+  // Platform is initially unresolved (and defaults to web); never start the
+  // large result archive read until the actual runtime is known.
+  const [resultsEnabled, setResultsEnabled] = useState(false);
   const [search, setSearch] = useState("");
   const [scope, setScope] = useState<EditionDirectoryScope>("all");
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
-  const resultsQuery = useAllResults({ enabled: resultsEnabled });
+  const resultsQuery = useAllResults({
+    enabled: canStartPublishedEditionResultsRead(platformResolved, isAppMode, resultsEnabled),
+  });
   const countriesQuery = useCountries();
   const { data: editions } = editionsQuery;
   const { data: shows } = showsQuery;
@@ -75,10 +80,7 @@ function EditionsPage() {
   const { data: countries } = countriesQuery;
 
   useEffect(() => {
-    if (!isAppMode) {
-      setResultsEnabled(true);
-      return;
-    }
+    if (!platformResolved || !isAppMode) return;
 
     const idleWindow = window as typeof window & {
       requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
@@ -98,7 +100,7 @@ function EditionsPage() {
       if (idle != null) idleWindow.cancelIdleCallback?.(idle);
       if (timeout) window.clearTimeout(timeout);
     };
-  }, [isAppMode]);
+  }, [isAppMode, platformResolved]);
 
   const editionList = useMemo(
     () =>
