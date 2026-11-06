@@ -51,8 +51,9 @@ export function WorldEthicsFindings({ caseId }: { caseId: string }) {
   },[actorScope]);
 
   const safe=actorScope!==null && draftScope===actorScope && query.isSuccess && !query.isFetching;
-  const record=safe?query.data.record:null;
-  const canPrepare=safe && canSubmitEthicsFinding(query.data);
+  const visibleWorkspace = safe && query.data ? query.data : null;
+  const record = visibleWorkspace?.record ?? null;
+  const canPrepare = !!visibleWorkspace && canSubmitEthicsFinding(visibleWorkspace);
   const locked=uncertain || completed;
   const submitReady=canPrepare && record?.id===confirm.trim()
     && findings.trim().length>=20 && reasoning.trim().length>=20
@@ -113,10 +114,10 @@ export function WorldEthicsFindings({ caseId }: { caseId: string }) {
         {actor.ready && actor.userId && query.isError ? (
           <p role="alert" className="mt-6 text-sm text-destructive">{ethicsError(query.error)}</p>
         ) : null}
-        {safe && !record ? (
+        {visibleWorkspace && !record ? (
           <p role="status" className="mt-6 text-sm">No authorized case is available to your current account.</p>
         ) : null}
-        {safe && record ? (
+        {visibleWorkspace && record ? (
           <>
             <section className="mt-8 border-t border-border pt-6">
               <h2 className="text-xl font-semibold">Private case {record.id.slice(0,8)}</h2>
@@ -125,22 +126,22 @@ export function WorldEthicsFindings({ caseId }: { caseId: string }) {
               </p>
               <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">{record.allegation}</p>
             </section>
-            {query.data.finding ? (
+            {visibleWorkspace.finding ? (
               <section className="mt-8 space-y-4 border-t border-border pt-6">
                 <h2 className="text-xl font-semibold">Immutable prepared finding</h2>
                 <p className="text-xs text-muted-foreground">
-                  Prepared {new Date(query.data.finding.preparedAt).toLocaleString()}
-                  · Revision {query.data.finding.caseRevision}
-                  · Evidence count {query.data.finding.evidenceCount}
+                  Prepared {new Date(visibleWorkspace.finding.preparedAt).toLocaleString()}
+                  · Revision {visibleWorkspace.finding.caseRevision}
+                  · Evidence count {visibleWorkspace.finding.evidenceCount}
                 </p>
                 <h3 className="text-sm font-semibold">Factual findings</h3>
-                <p className="whitespace-pre-wrap break-words text-sm leading-6">{query.data.finding.findings}</p>
+                <p className="whitespace-pre-wrap break-words text-sm leading-6">{visibleWorkspace.finding.findings}</p>
                 <h3 className="text-sm font-semibold">Reasoning</h3>
-                <p className="whitespace-pre-wrap break-words text-sm leading-6">{query.data.finding.reasoning}</p>
+                <p className="whitespace-pre-wrap break-words text-sm leading-6">{visibleWorkspace.finding.reasoning}</p>
                 <h3 className="text-sm font-semibold">Nonbinding recommendation</h3>
-                <p className="text-sm">{titles[query.data.finding.recommendation]}</p>
-                {query.data.finding.recommendationText ? (
-                  <p className="whitespace-pre-wrap break-words text-sm">{query.data.finding.recommendationText}</p>
+                <p className="text-sm">{titles[visibleWorkspace.finding.recommendation]}</p>
+                {visibleWorkspace.finding.recommendationText ? (
+                  <p className="whitespace-pre-wrap break-words text-sm">{visibleWorkspace.finding.recommendationText}</p>
                 ) : null}
               </section>
             ) : canPrepare ? (
