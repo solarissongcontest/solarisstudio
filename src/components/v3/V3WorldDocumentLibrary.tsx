@@ -95,10 +95,12 @@ export function WorldDocumentLibraryScreen({
       limit,
     }, signal),
     staleTime: 90_000,
+    refetchOnMount: "always",
     retry: shouldRetryPublicWorldDocumentRead,
   });
-
-  const canExpand = limit < 100 && Boolean(query.data?.couldHaveMore);
+  const verifiedIndex = query.isSuccess && query.isFetchedAfterMount &&
+    !query.isFetching && !query.isRefetchError ? query.data : undefined;
+  const canExpand = limit < 100 && Boolean(verifiedIndex?.couldHaveMore);
   const nextLimit: WorldDocumentLimit = limit === 25 ? 50 : 100;
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -160,9 +162,7 @@ export function WorldDocumentLibraryScreen({
               <h2 className="font-display text-xl font-bold">Published records</h2>
               <span className="text-xs text-muted-foreground">Up to {limit} records checked</span>
             </div>
-            {query.isPending ? (
-              <ArchiveDataLoading label="Opening institutional records…" />
-            ) : query.isError ? (
+            {query.isError || query.isRefetchError ? (
               <section role="alert" className="py-10">
                 <h3 className="text-base font-semibold">Documents could not be loaded</h3>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -172,15 +172,17 @@ export function WorldDocumentLibraryScreen({
                   Try again
                 </button>
               </section>
-            ) : query.data.rows.length === 0 ? (
+            ) : !verifiedIndex ? (
+              <ArchiveDataLoading label="Verifying published institutional records…" />
+            ) : verifiedIndex.rows.length === 0 ? (
               <section className="py-10">
                 <h3 className="text-base font-semibold">
-                  {query.data.couldHaveMore
+                  {verifiedIndex.couldHaveMore
                     ? "No published documents in the records checked yet"
                     : "No published documents found"}
                 </h3>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {query.data.couldHaveMore
+                  {verifiedIndex.couldHaveMore
                     ? "The index also contains unpublished work. Expand the search or narrow your terms to find published documents."
                     : "Try a different search or institution. Unpublished drafts do not appear in the public library."}
                 </p>
@@ -202,7 +204,7 @@ export function WorldDocumentLibraryScreen({
             ) : (
               <>
                 <div aria-live="polite">
-                  {query.data.rows.map((item) => <DocumentIndexRow key={item.documentId} item={item} />)}
+                  {verifiedIndex.rows.map((item) => <DocumentIndexRow key={item.documentId} item={item} />)}
                 </div>
                 {canExpand && (
                   <button
@@ -215,7 +217,7 @@ export function WorldDocumentLibraryScreen({
                 )}
               </>
             )}
-            {!query.isPending && !query.isError && limit === 100 && query.data?.couldHaveMore && (
+            {limit === 100 && verifiedIndex?.couldHaveMore && (
               <p className="mt-4 text-xs text-muted-foreground">
                 The public index checks at most 100 records per search. More published documents may exist; use an institution or a specific title to narrow results.
               </p>
@@ -303,9 +305,11 @@ export function WorldDocumentReaderScreen({
       version: version ?? undefined,
     }, signal),
     staleTime: 90_000,
+    refetchOnMount: "always",
     retry: shouldRetryPublicWorldDocumentRead,
   });
-  const detail = query.data;
+  const detail = query.isSuccess && query.isFetchedAfterMount &&
+    !query.isFetching && !query.isRefetchError ? query.data : undefined;
   const provisions = detail?.version.provisions;
   const currentVersion = detail?.history.find((item) => item.publicationState === "published");
   const historicalVersion = Boolean(detail && (
@@ -373,14 +377,14 @@ export function WorldDocumentReaderScreen({
               View the current published version
             </Link>
           </section>
-        ) : query.isPending ? (
-          <ArchiveDataLoading label="Opening the published document…" />
-        ) : query.isError ? (
+        ) : query.isError || query.isRefetchError ? (
           <section role="alert" className="py-10">
             <h2 className="text-lg font-semibold">Unable to open this document</h2>
             <p className="mt-2 text-sm text-muted-foreground">The document service may be temporarily unavailable. No unverified text is displayed.</p>
             <button type="button" onClick={() => void query.refetch()} className="mt-4 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold">Try again</button>
           </section>
+        ) : query.isPending || query.isFetching || !query.isFetchedAfterMount ? (
+          <ArchiveDataLoading label="Verifying the published document…" />
         ) : !detail ? (
           <section className="py-10">
             <h2 className="text-lg font-semibold">This public version is unavailable</h2>
