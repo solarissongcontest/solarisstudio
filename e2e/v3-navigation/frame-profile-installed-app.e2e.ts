@@ -4,6 +4,7 @@ import {
   applyNavbarInstalledCssEmulation,
   prepareNavbarInstalledContext,
 } from "./navbar-local-rollout";
+import { readNavbarEvidenceProvenance } from "./navbar-evidence-provenance";
 
 type FrameProfile = {
   sampleCount: number;
@@ -141,7 +142,7 @@ test("installed app shell survives representative navigation without duplicate c
     body: Buffer.from(
       JSON.stringify(
         {
-          candidateSha: process.env.GITHUB_SHA ?? null,
+          ...readNavbarEvidenceProvenance(),
           project: testInfo.project.name,
           measuredAt: new Date().toISOString(),
           interaction: "active-lens-hold-drag-snapback",
