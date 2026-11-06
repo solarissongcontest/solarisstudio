@@ -73,7 +73,7 @@ describe("System V3 public published result snapshot", () => {
 
   it("executes adversarial localhost URL tests without a database or network", () => {
     const outcome = spawnSync(
-      process.execPath,
+      "node",
       ["--test", "scripts/rehearse-v3-public-result-snapshot.security.test.mjs"],
       { encoding: "utf8", timeout: 60_000 },
     );
