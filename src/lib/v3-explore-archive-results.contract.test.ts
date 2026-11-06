@@ -20,11 +20,11 @@ describe("V3 Explore combined archive and chronology source", () => {
 
   it("loads bounded public result evidence across published editions", () => {
     const text = source();
-    expect(text).toContain("const publishedEditionIds = editions.map");
-    expect(text).toContain('.in("edition_id", publishedEditionIds)');
+    expect(text).toContain("const projectionEditionIds = projectionEditions.map");
+    expect(text).toContain('.in("edition_id", projectionEditionIds)');
     expect(text).toContain('.eq("published", true)');
     expect(text).toContain('.eq("final_rank", 1)');
-    expect(text).toContain("resultsPublished: finalResultsPublished(editionShows, editionWinners)");
+    expect(text).toContain("resultsPublished: finalResultsPublished(resultShows, editionWinners)");
     expect(text).toContain('resultsPublication: resultsPublished ? "published" : "hidden"');
     expect(text).not.toContain('.from("participants")');
     expect(text).not.toContain("jury_votes");
