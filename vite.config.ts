@@ -25,6 +25,10 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         output: {
+          // Keep Oxc's safe private-binding minification without the broad
+          // shared-cross-route group that broke Organizer browser hydration.
+          // This exact option passed the isolated Browser Audit in #2190.
+          minify: { compress: true, mangle: { toplevel: true } },
           // Production evidence showed repeated gzip framing across hundreds of
           // tiny Lucide chunks and several TanStack Router helper chunks. Keep
           // package behavior unchanged while consolidating only those vendor
