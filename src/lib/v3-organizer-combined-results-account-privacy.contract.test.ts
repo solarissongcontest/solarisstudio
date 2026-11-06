@@ -29,7 +29,15 @@ describe("Organizer Combined Results private actor boundary", () => {
     expect(source).toContain('queryClient.invalidateQueries({ queryKey: ["merged-combined-aggregations", actorId] })');
     expect(source).toContain('queryClient.invalidateQueries({ queryKey: ["merged-combined-detail", actorId, selectedId] })');
     expect(source).toContain('queryClient.invalidateQueries({ queryKey: ["merged-televoting-audit", actorId] })');
-    expect(source).toContain("if (listError) {");
+    expect(source).toContain("const privateReadError = adminError ?? listError ?? roundsError ?? (selectedId ? detailError : null)");
+    expect(source).toContain("if (privateReadError) {");
+    expect(source).toContain("Verifying Combined Results…");
+    expect(source).toContain("adminFetching || listLoading || listFetching");
+    expect(source).toContain("roundsLoading || roundsFetching");
+    expect(source).toContain("detailLoading || detailFetching");
+    expect(source).toContain("adminError ? retryAdmin() : Promise.all([");
+    expect(source).toContain("retryRounds()");
+    expect(source).toContain("retryDetail()");
     expect(source).toContain("Combined Results unavailable");
     expect(source).toContain("Retry Combined Results");
     expect(source).toContain("No calculation or publication action is available until it reloads.");
