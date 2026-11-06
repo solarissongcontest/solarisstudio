@@ -112,7 +112,7 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).toContain('setApprovalPassword("");');
     expect(route).toContain('setMessage(null);');
     expect(route).toContain('resetSimulation();');
-    expect(route).toContain('}, [editionId, resetSimulation]);');
+    expect(route).toContain('}, [actorId, editionId, resetSimulation]);');
     expect(route).not.toContain('simulation,\n  ]);');
   });
 
@@ -123,6 +123,33 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     );
     expect(route).toContain('viewAccessAs(userId, resolvedEditionId || null)');
     expect(route).not.toContain('viewAccessAs(userId, editionId || null)');
+  });
+
+  it("segregates private permission, approval and audit projections by signed-in account", () => {
+    expect(route).toContain('useAuthenticatedUser().id');
+    for (const key of [
+      '["permission-engine-catalog", actorId]',
+      '["permission-engine-users", actorId]',
+      '["permission-engine-summary", actorId]',
+      '["permission-engine-events", mismatchesOnly, actorId]',
+      '["permission-engine-approvals", actorId]',
+    ]) expect(route).toContain(key);
+    expect(route).toContain('"permissions.read",');
+    expect(route).toContain('editionId ? (resolvedEditionId || "unverified") : "global",');
+    expect(route).toContain('      actorId,');
+  });
+
+  it("freezes actor identity as well as edition while an R3 review is in flight", () => {
+    expect(route).toContain('reviewContextActorId: string;');
+    expect(route).toContain('const currentActorRef = useRef(actorId);');
+    expect(route).toContain('reviewContextActorId: actorId,');
+    expect(route).toContain('currentActorRef.current = actorId;');
+    expect(route).toContain('}, [actorId, editionId, resetSimulation]);');
+    expect(route).toContain('currentActorRef.current !== pending.reviewContextActorId');
+    expect(route).toContain('currentActorRef.current !== reviewContextActorId');
+    expect(route).toContain('currentActorRef.current === variables.reviewContextActorId');
+    expect(route).toContain('reviewContextActorId: approvalAction.reviewContextActorId');
+    expect(route).toContain('Organizer account changed during reauthentication.');
   });
 
   it("preserves the existing server-authoritative R3 permission operation pipeline", () => {

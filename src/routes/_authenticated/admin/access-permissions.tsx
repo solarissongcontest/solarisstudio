@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AccessSimulationPanel } from "@/components/admin/AccessSimulationPanel";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { PermissionCutoverReadinessPanel } from "@/components/admin/PermissionCutoverReadinessPanel";
@@ -92,6 +93,7 @@ type PendingAccessChange = {
   operationId: string;
   idempotencyKey: string;
   reviewContextEditionId: string | null;
+  reviewContextActorId: string;
   scopeLabel: string;
 };
 
@@ -106,6 +108,8 @@ const TABS: Array<{ id: AccessTab; label: string }> = [
 function AccessPermissionsPage() {
   const queryClient = useQueryClient();
   const { editionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
+  const currentActorRef = useRef(actorId);
   // Tracks the committed Organizer context across an in-flight password step.
   const currentEditionRef = useRef<string | null>(editionId ?? null);
   const editionsQuery = useEditions();
@@ -142,27 +146,28 @@ function AccessPermissionsPage() {
     approval: PermissionChangeApproval;
     mode: "approve" | "apply";
     reviewContextEditionId: string | null;
+    reviewContextActorId: string;
   } | null>(null);
   const [approvalPassword, setApprovalPassword] = useState("");
 
   const catalogQuery = useQuery({
-    queryKey: ["permission-engine-catalog"],
+    queryKey: ["permission-engine-catalog", actorId],
     queryFn: loadPermissionCatalog,
   });
   const usersQuery = useQuery({
-    queryKey: ["permission-engine-users"],
+    queryKey: ["permission-engine-users", actorId],
     queryFn: loadAccessUsers,
   });
   const summaryQuery = useQuery({
-    queryKey: ["permission-engine-summary"],
+    queryKey: ["permission-engine-summary", actorId],
     queryFn: loadPermissionSummary,
   });
   const eventsQuery = useQuery({
-    queryKey: ["permission-engine-events", mismatchesOnly],
+    queryKey: ["permission-engine-events", mismatchesOnly, actorId],
     queryFn: () => loadPermissionEvents(mismatchesOnly),
   });
   const approvalsQuery = useQuery({
-    queryKey: ["permission-engine-approvals"],
+    queryKey: ["permission-engine-approvals", actorId],
     queryFn: loadPermissionChangeApprovals,
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
@@ -172,6 +177,7 @@ function AccessPermissionsPage() {
       "permission-engine-evaluation",
       "permissions.read",
       editionId ? (resolvedEditionId || "unverified") : "global",
+      actorId,
     ],
     queryFn: async () => {
       await recordPermissionEvaluation({
@@ -214,8 +220,12 @@ function AccessPermissionsPage() {
         throw new Error("Organizer edition context is not verified. No access change was previewed.");
       }
       const reviewContextEditionId = editionId ?? null;
+      const reviewContextActorId = actorId;
       const command = permissionCommand(change);
       const preview = await previewPermissionChange(command);
+      if (currentActorRef.current !== reviewContextActorId) {
+        throw new Error("Organizer account changed while the R3 preview was loading. Nothing was requested.");
+      }
       if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
         throw new Error("Organizer edition context changed or became unverified while the R3 preview was loading. Start again from the current edition.");
       }
@@ -241,10 +251,12 @@ function AccessPermissionsPage() {
         operationId: operation.operationId,
         idempotencyKey: operation.idempotencyKey,
         reviewContextEditionId,
+        reviewContextActorId,
         scopeLabel: permissionScopeLabel(preview.editionId, editionLabels),
       };
     },
     onSuccess: (pending) => {
+      if (currentActorRef.current !== pending.reviewContextActorId) return;
       if (!verifiedEditionRef.current || currentEditionRef.current !== pending.reviewContextEditionId) return;
       if (pending.preview.alreadyApplied) {
         setPendingChange(null);
@@ -265,12 +277,18 @@ function AccessPermissionsPage() {
       pending: PendingAccessChange;
       password: string;
     }) => {
+      if (currentActorRef.current !== pending.reviewContextActorId) {
+        throw new Error("Organizer account changed after the R3 review opened. Nothing was requested.");
+      }
       if (!verifiedEditionRef.current || (editionId ?? null) !== pending.reviewContextEditionId) {
         throw new Error(
           "Organizer edition context changed after this R3 review opened or could not be verified. Nothing was requested. Close the review and start again from the current context.",
         );
       }
       await reauthenticatePermissionR3(password);
+      if (currentActorRef.current !== pending.reviewContextActorId) {
+        throw new Error("Organizer account changed during reauthentication. Nothing was requested.");
+      }
       if (!verifiedEditionRef.current || currentEditionRef.current !== pending.reviewContextEditionId) {
         throw new Error("Organizer edition context changed during reauthentication or became unverified. Nothing was requested.");
       }
@@ -282,7 +300,7 @@ function AccessPermissionsPage() {
       });
     },
     onSuccess: async (_receipt, variables) => {
-      if (currentEditionRef.current === variables.pending.reviewContextEditionId) {
+      if (currentActorRef.current === variables.pending.reviewContextActorId && currentEditionRef.current === variables.pending.reviewContextEditionId) {
         setPendingChange(null);
         setReauthPassword("");
         setMessage("Second-operator approval requested. Another authorized organizer must approve it before the change can be applied.");
@@ -298,22 +316,30 @@ function AccessPermissionsPage() {
       approval,
       password,
       reviewContextEditionId,
+      reviewContextActorId,
     }: {
       approval: PermissionChangeApproval;
       password: string;
       reviewContextEditionId: string | null;
+      reviewContextActorId: string;
     }) => {
+      if (currentActorRef.current !== reviewContextActorId) {
+        throw new Error("Organizer account changed after this R3 review opened. Nothing was applied.");
+      }
       if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
         throw new Error("Organizer edition context changed after this R3 review opened or could not be verified. Nothing was approved.");
       }
       await reauthenticatePermissionR3(password);
+      if (currentActorRef.current !== reviewContextActorId) {
+        throw new Error("Organizer account changed during reauthentication. Nothing was applied.");
+      }
       if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
         throw new Error("Organizer edition context changed during reauthentication or became unverified. Nothing was approved.");
       }
       return approvePermissionChangeApproval(approval.id);
     },
     onSuccess: async (_receipt, variables) => {
-      if (currentEditionRef.current === variables.reviewContextEditionId) {
+      if (currentActorRef.current === variables.reviewContextActorId && currentEditionRef.current === variables.reviewContextEditionId) {
         setApprovalAction(null);
         setApprovalPassword("");
         setMessage("R3 permission change approved. The original requester can now apply it.");
@@ -329,11 +355,16 @@ function AccessPermissionsPage() {
       approval,
       password,
       reviewContextEditionId,
+      reviewContextActorId,
     }: {
       approval: PermissionChangeApproval;
       password: string;
       reviewContextEditionId: string | null;
+      reviewContextActorId: string;
     }) => {
+      if (currentActorRef.current !== reviewContextActorId) {
+        throw new Error("Organizer account changed after this R3 review opened. Nothing was applied.");
+      }
       if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
         throw new Error("Organizer edition context changed after this R3 review opened or could not be verified. Nothing was applied.");
       }
@@ -341,6 +372,9 @@ function AccessPermissionsPage() {
         throw new Error("This approval is not actionable by the current organizer.");
       }
       await reauthenticatePermissionR3(password);
+      if (currentActorRef.current !== reviewContextActorId) {
+        throw new Error("Organizer account changed during reauthentication. Nothing was applied.");
+      }
       if (!verifiedEditionRef.current || currentEditionRef.current !== reviewContextEditionId) {
         throw new Error("Organizer edition context changed during reauthentication or became unverified. Nothing was applied.");
       }
@@ -357,7 +391,7 @@ function AccessPermissionsPage() {
       });
     },
     onSuccess: async (_receipt, variables) => {
-      if (currentEditionRef.current === variables.reviewContextEditionId) {
+      if (currentActorRef.current === variables.reviewContextActorId && currentEditionRef.current === variables.reviewContextEditionId) {
         setApprovalAction(null);
         setApprovalPassword("");
         setMessage("Access change applied with fresh authentication and second-operator approval.");
@@ -392,6 +426,7 @@ function AccessPermissionsPage() {
   const resetSimulation = simulation.reset;
 
   useEffect(() => {
+    currentActorRef.current = actorId;
     currentEditionRef.current = editionId ?? null;
     setPendingChange(null);
     setReauthPassword("");
@@ -399,7 +434,7 @@ function AccessPermissionsPage() {
     setApprovalPassword("");
     setMessage(null);
     resetSimulation();
-  }, [editionId, resetSimulation]);
+  }, [actorId, editionId, resetSimulation]);
 
   useEffect(() => {
     verifiedEditionRef.current = editionContextVerified;
@@ -502,6 +537,7 @@ function AccessPermissionsPage() {
               approval,
               mode: "approve",
               reviewContextEditionId: editionId ?? null,
+              reviewContextActorId: actorId,
             });
           }}
           onApply={(approval) => {
@@ -510,6 +546,7 @@ function AccessPermissionsPage() {
               approval,
               mode: "apply",
               reviewContextEditionId: editionId ?? null,
+              reviewContextActorId: actorId,
             });
           }}
         />
@@ -650,6 +687,12 @@ function AccessPermissionsPage() {
           }}
           onConfirm={async () => {
             if (!approvalAction) return;
+            if (currentActorRef.current !== approvalAction.reviewContextActorId) {
+              setApprovalAction(null);
+              setApprovalPassword("");
+              setMessage("Organizer account changed after this R3 review opened. Nothing was applied.");
+              return;
+            }
             if ((editionId ?? null) !== approvalAction.reviewContextEditionId) {
               setApprovalAction(null);
               setApprovalPassword("");
@@ -663,12 +706,14 @@ function AccessPermissionsPage() {
                 approval: approvalAction.approval,
                 password: approvalPassword,
                 reviewContextEditionId: approvalAction.reviewContextEditionId,
+                reviewContextActorId: approvalAction.reviewContextActorId,
               });
             } else {
               await applyApproved.mutateAsync({
                 approval: approvalAction.approval,
                 password: approvalPassword,
                 reviewContextEditionId: approvalAction.reviewContextEditionId,
+                reviewContextActorId: approvalAction.reviewContextActorId,
               });
             }
           }}
