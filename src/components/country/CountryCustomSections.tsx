@@ -105,7 +105,7 @@ export function CountryCustomSections({
   surface: "country" | "wiki";
   defaultLayout?: CountrySectionLayoutVariant;
 }) {
-  const identityHistory = usePublicCountryIdentityHistory(country.id);
+  const identityHistory = usePublicCountryIdentityHistory(country.id, true);
   const visible = (sections as CountryPageSection[])
     .map(normalizeCountryPageSection)
     .filter((section) => sectionVisibleOn(section, surface))
@@ -115,7 +115,8 @@ export function CountryCustomSections({
   // detail URLs. Preserve published historical identities in both surfaces.
   // Do not keep formerly public identities visible after a failed or
   // in-progress refresh when the query still holds its previous cache.
-  const verifiedHistory = identityHistory.isSuccess && !identityHistory.isError &&
+  const verifiedHistory = identityHistory.isSuccess && identityHistory.isFetchedAfterMount &&
+    !identityHistory.isError &&
     !identityHistory.isRefetchError && !identityHistory.isFetching
     ? (identityHistory.data ?? [])
     : [];
