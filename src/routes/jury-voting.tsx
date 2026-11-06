@@ -37,6 +37,7 @@ import { useFanSession } from "@/lib/prediction-data";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import { juryReceiptQueryKey } from "@/lib/v3-jury-receipt-query-key";
 import {
   lookupV3JuryReceipt,
   loadV3JuryDraft,
@@ -104,6 +105,7 @@ export const Route = createFileRoute("/jury-voting")({
   head: () => ({
     meta: [
       { title: "Jury voting — Solaris Studio" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content: "Cast an official SSC jury ballot from your signed-in country account when jury voting is open.",
@@ -220,7 +222,14 @@ function JuryVotingPage() {
                       <div className="min-w-0"><p className="truncate text-sm font-semibold">SSC {round.edition_number} · {round.show_name}</p><p className="mt-1 text-xs text-muted-foreground">{round.already_submitted ? "Your country's jury ballot is already recorded." : !round.eligible ? "Your country is not in this show's jury roster." : round.status === "open" ? "Jury voting is open." : "Jury voting is closed."}</p></div>
                       <span className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em]", round.already_submitted ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200" : round.status === "open" ? "border-primary/25 bg-primary/10 text-primary" : "border-border bg-surface text-muted-foreground")}>{round.already_submitted ? "Recorded" : round.status}</span>
                     </div>
-                    {round.already_submitted && v3ReliabilityEnabled ? <JuryRecordedReceipt round={round} /> : null}
+                    {round.already_submitted && v3ReliabilityEnabled && context.country && userId !== "anonymous" ? (
+                      <JuryRecordedReceipt
+                        key={`${userId}:${context.country.id}:${round.edition_id}:${round.show_id}`}
+                        round={round}
+                        actorId={userId}
+                        countryId={context.country.id}
+                      />
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -238,12 +247,18 @@ function JuryVotingFrame({ children, description }: { children: ReactNode; descr
   return <ParticipationRouteChrome><ParticipationServiceShell service="jury" title="Jury voting" description={description} maxWidth="max-w-6xl">{children}</ParticipationServiceShell></ParticipationRouteChrome>;
 }
 
-function JuryRecordedReceipt({ round }: { round: JuryRound }) {
+function JuryRecordedReceipt({ round, actorId, countryId }: { round: JuryRound; actorId: string; countryId: string }) {
   const lookupReceipt = useServerFn(lookupV3JuryReceipt);
   const receiptQuery = useQuery({
-    queryKey: ["v3-jury-receipt", round.show_id],
+    queryKey: juryReceiptQueryKey({ actorId, countryId, editionId: round.edition_id, showId: round.show_id }),
+    // A receipt is private to the current country account and is never reused
+    // from an older session, even while the server revalidates authorization.
     queryFn: () => lookupReceipt({ data: { showId: round.show_id } }),
-    staleTime: 60_000,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   const receipt = receiptQuery.data?.receipt;
 
