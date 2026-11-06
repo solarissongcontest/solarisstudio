@@ -185,7 +185,8 @@ export function V3AppShell({
       : "Notifications";
 
   useEffect(() => {
-    if (typeof window === "undefined" || !navigationIdentityReady) return;
+    // Browser history, not installed tab memory, owns ordinary website visits.
+    if (typeof window === "undefined" || !isAppMode || !navigationIdentityReady) return;
 
     const previousViewerKey = previousResolvedViewerKeyRef.current;
     previousResolvedViewerKeyRef.current = resolvedViewerKey;
@@ -255,6 +256,7 @@ export function V3AppShell({
       );
     };
   }, [
+    isAppMode,
     navigationIdentityReady,
     navigationScope,
     pathname,

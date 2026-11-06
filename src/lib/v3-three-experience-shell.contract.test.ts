@@ -60,6 +60,16 @@ describe("V3 three-experience shell navigation cutover", () => {
     expect(shell).toContain("getV3PublicTabDestination");
   });
 
+  it("never persists ordinary website visits into installed viewer-scoped tab memory", () => {
+    expect(shell).toContain(
+      'if (typeof window === "undefined" || !isAppMode || !navigationIdentityReady) return;',
+    );
+    expect(shell).toContain("    isAppMode,");
+    expect(shell).toContain("rememberV3PublicLocation(");
+    expect(shell).toContain("updateV3PublicScrollPosition(");
+    expect(shell).toContain("markV3PublicNavigationRestore(");
+  });
+
   it("removes installed-only scroll-end reserve on mobile web without weakening the installed safe zone", () => {
     const appGeometry = read("src/styles/v3-navigation-fixed-geometry.css");
     expect(css).toContain('html:not([data-solaris-app]) [data-solaris-v3]');
