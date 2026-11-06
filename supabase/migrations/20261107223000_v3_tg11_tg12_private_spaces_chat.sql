@@ -204,7 +204,7 @@ declare
   v_office boolean;
   v_manager boolean;
 begin
-  if auth.uid() is null or not public.studio2_feature_enabled('terra_private_spaces',null)
+  if auth.uid() is null or public.studio2_feature_enabled('terra_private_spaces',null) is distinct from true
   then return null; end if;
   select * into v_space from public.world_spaces where id = p_space_id;
   if not found or v_space.status <> 'active' then return null; end if;
@@ -297,7 +297,7 @@ returns jsonb language plpgsql stable security definer set search_path = pg_cata
 as $$
 declare v_org public.world_organizations%rowtype; v_manage boolean;
 begin
-  if auth.uid() is null or not public.studio2_feature_enabled('terra_private_spaces',null)
+  if auth.uid() is null or public.studio2_feature_enabled('terra_private_spaces',null) is distinct from true
   then return null; end if;
   select * into v_org from public.world_organizations where slug=p_slug;
   if not found then return null; end if;
@@ -323,7 +323,7 @@ begin
   if not public.world_access_allowed('world.space.manage', p_organization_id)
      and not public.world_access_allowed('world.organization.settings.manage', p_organization_id)
   then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
-  if not public.studio2_feature_enabled('terra_private_spaces',null) then
+  if public.studio2_feature_enabled('terra_private_spaces',null) is distinct from true then
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   if private.world_space_member_since_v1(p_organization_id) is null
      and not public.studio2_access_allowed('system.manage',null,false) then
@@ -364,7 +364,7 @@ begin
   select * into v_space from public.world_spaces where id=p_space_id for update;
   if not found or not public.world_access_allowed('world.space.manage',v_space.organization_id)
   then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
-  if not public.studio2_feature_enabled('terra_private_spaces',null) then
+  if public.studio2_feature_enabled('terra_private_spaces',null) is distinct from true then
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   if private.world_space_member_since_v1(v_space.organization_id) is null
      and not public.studio2_access_allowed('system.manage',null,false) then
@@ -392,7 +392,7 @@ returns jsonb language plpgsql stable security definer set search_path = pg_cata
 as $$
 declare v_from timestamptz; v_cursor_at timestamptz; v_cursor_id uuid; v_result jsonb;
 begin
-  if not public.studio2_feature_enabled('terra_chat',null) then
+  if public.studio2_feature_enabled('terra_chat',null) is distinct from true then
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   v_from := private.world_space_read_from_v1(p_space_id);
   if v_from is null then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
@@ -443,12 +443,12 @@ returns jsonb language plpgsql stable security definer set search_path = pg_cata
 as $$
 declare v_from timestamptz; v_result jsonb; v_term text;
 begin
-  if not public.studio2_feature_enabled('terra_chat',null)
+  if public.studio2_feature_enabled('terra_chat',null) is distinct from true
   then raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   v_from := private.world_space_read_from_v1(p_space_id);
   if v_from is null then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
   v_term := btrim(coalesce(p_query,''));
-  if length(v_term) < 2 or length(v_term) > 80 or p_limit not between 1 and 50
+  if length(v_term) < 2 or length(v_term) > 80 or p_limit is null or p_limit not between 1 and 50
   then raise exception using errcode='22023',message='INVALID_SEARCH'; end if;
   select coalesce(jsonb_agg(jsonb_build_object(
     'id',m.id, 'spaceId',m.space_id, 'mine',m.sender_user_id=auth.uid(),
@@ -474,7 +474,7 @@ returns jsonb language plpgsql volatile security definer set search_path = pg_ca
 as $$
 declare v_from timestamptz; v_message private.world_space_messages%rowtype;
 begin
-  if not public.studio2_feature_enabled('terra_chat',null) then
+  if public.studio2_feature_enabled('terra_chat',null) is distinct from true then
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   v_from:=private.world_space_read_from_v1(p_space_id);
   if v_from is null then raise exception using errcode='42501', message='AUTHORIZATION'; end if;
@@ -491,7 +491,9 @@ begin
     select * into v_message from private.world_space_messages
     where sender_user_id=auth.uid() and request_id=p_request_id and space_id=p_space_id;
   end if;
-  if v_message.id is null then raise exception using errcode='23514',message='IDEMPOTENCY_SCOPE'; end if;
+  if v_message.id is null or v_message.body <> btrim(p_body)
+    or v_message.reply_to_id is distinct from p_reply_to_id then
+    raise exception using errcode='23514',message='IDEMPOTENCY_SCOPE'; end if;
   return jsonb_build_object('id',v_message.id,'revision',v_message.revision,'createdAt',v_message.created_at);
 end
 $$;
@@ -503,7 +505,7 @@ returns bigint language plpgsql volatile security definer set search_path = pg_c
 as $$
 declare v_message private.world_space_messages%rowtype;
 begin
-  if not public.studio2_feature_enabled('terra_chat',null) then
+  if public.studio2_feature_enabled('terra_chat',null) is distinct from true then
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   select * into v_message from private.world_space_messages
     where id=p_message_id for update;
@@ -531,7 +533,7 @@ returns boolean language plpgsql volatile security definer set search_path = pg_
 as $$
 declare v_message private.world_space_messages%rowtype; v_from timestamptz;
 begin
-  if not public.studio2_feature_enabled('terra_chat',null) then
+  if public.studio2_feature_enabled('terra_chat',null) is distinct from true then
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   select * into v_message from private.world_space_messages where id=p_message_id;
   if not found then raise exception using errcode='42501',message='AUTHORIZATION'; end if;
@@ -558,7 +560,7 @@ returns bigint language plpgsql volatile security definer set search_path = pg_c
 as $$
 declare v_message private.world_space_messages%rowtype; v_org uuid; v_grant boolean;
 begin
-  if not public.studio2_feature_enabled('terra_chat',null) then
+  if public.studio2_feature_enabled('terra_chat',null) is distinct from true then
     raise exception using errcode='42501',message='FEATURE_DISABLED'; end if;
   select * into v_message from private.world_space_messages where id=p_message_id for update;
   if not found or private.world_space_read_from_v1(v_message.space_id) is null
