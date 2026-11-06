@@ -257,10 +257,23 @@ function AppPublicPaletteDialog({
   const initialSearchState = useMemo(() => readAppSearchState(), []);
   const [query, setQuery] = useState(() => initialQuery ?? initialSearchState.lastQuery);
   const normalized = query.trim();
+  const [debouncedQuery, setDebouncedQuery] = useState(normalized);
 
+  useEffect(() => {
+    if (normalized.length < 2) {
+      setDebouncedQuery("");
+      return;
+    }
+    const timer = window.setTimeout(() => setDebouncedQuery(normalized), 300);
+    return () => window.clearTimeout(timer);
+  }, [normalized]);
+
+  // Local navigation matches render immediately; stale remote rows cannot
+  // appear under a newer query while waiting for the bounded RPC.
+  const awaitingRemote = normalized.length >= 2 && debouncedQuery !== normalized;
   const remote = useQuery({
-    queryKey: ["solaris-public-app-search", normalized.toLowerCase()],
-    enabled: normalized.length >= 2,
+    queryKey: ["solaris-public-app-search", debouncedQuery.toLowerCase()],
+    enabled: normalized.length >= 2 && !awaitingRemote,
     staleTime: 60_000,
     // A failed search must be recoverable without automatically repeating
     // hosted read traffic. Explicit Retry remains under the visitor's control.
@@ -268,7 +281,7 @@ function AppPublicPaletteDialog({
     refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("solaris_public_search", {
-        search_query: normalized,
+        search_query: debouncedQuery,
         result_limit: 30,
       });
       if (error) throw error;
@@ -330,7 +343,7 @@ function AppPublicPaletteDialog({
   const searchResults = useMemo<PublicSearchResult[]>(() => {
     if (!normalized) return [];
 
-    const remoteResults = (remote.isError ? [] : remote.data ?? []).map((item) => ({
+    const remoteResults = (awaitingRemote || remote.isError ? [] : remote.data ?? []).map((item) => ({
       id: item.result_id,
       label: item.title,
       description: item.subtitle ?? "",
@@ -354,7 +367,7 @@ function AppPublicPaletteDialog({
     ];
 
     return dedupePublicSearchResults([...local, ...remoteResults]).slice(0, 50);
-  }, [actionResults, normalized, remote.data]);
+  }, [actionResults, normalized, awaitingRemote, remote.data, remote.isError]);
 
   const grouped = useMemo(() => {
     const source = normalized ? searchResults : [...recentResults, ...actionResults];
@@ -379,7 +392,7 @@ function AppPublicPaletteDialog({
         target: "public-command-palette",
         metadata,
       });
-      if (!remote.isFetching && !remote.isError && !searchResults.length) {
+      if (!awaitingRemote && !remote.isFetching && !remote.isError && !searchResults.length) {
         trackPublicUxEvent("search_no_results", {
           target: "public-command-palette",
           metadata,
@@ -387,7 +400,7 @@ function AppPublicPaletteDialog({
       }
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [normalized, remote.isFetching, remote.isError, searchResults.length]);
+  }, [normalized, awaitingRemote, remote.isFetching, remote.isError, searchResults.length]);
 
   const openResult = (result: PublicSearchResult) => {
     trackPublicUxEvent("search_result_clicked", {
@@ -438,9 +451,9 @@ function AppPublicPaletteDialog({
       </div>
       <CommandList className="solaris-app-search-list">
         <CommandEmpty>
-          {remote.isError && normalized.length >= 2
+          {!awaitingRemote && remote.isError && normalized.length >= 2
             ? "Published content search is unavailable; local matches may still be shown."
-            : remote.isFetching
+             : awaitingRemote || remote.isFetching
               ? "Searching Solaris…"
               : normalized.length === 1
                 ? "Type one more character to search."
@@ -449,7 +462,7 @@ function AppPublicPaletteDialog({
                   : "Start typing to search Solaris Studio."}
         </CommandEmpty>
 
-        {remote.isFetching && normalized.length >= 2 ? (
+        {(awaitingRemote || remote.isFetching) && normalized.length >= 2 ? (
           <p role="status" aria-live="polite" className="px-4 py-2 text-xs text-muted-foreground">
             Searching published Solaris content…
           </p>
