@@ -919,7 +919,7 @@ html[data-solaris-app-boot] body::before {
   }
 
   .solaris-app-tabbar {
-    top: calc(env(safe-area-inset-top) + var(--solaris-app-toolbar-height) + 1rem);
+    top: calc(var(--solaris-app-safe-top) + var(--solaris-app-safe-top-comfort) + var(--solaris-app-toolbar-height) + 1rem);
     bottom: auto;
     left: max(.8rem, env(safe-area-inset-left));
     right: auto;
@@ -1805,13 +1805,14 @@ html[data-solaris-app][data-solaris-keyboard-open]
 
   .solaris-app-entity-sidebar {
     position: sticky;
-    top: calc(env(safe-area-inset-top) + var(--solaris-app-toolbar-height) + .8rem);
+    top: calc(var(--solaris-app-safe-top) + var(--solaris-app-safe-top-comfort) + var(--solaris-app-toolbar-height) + .8rem);
     display: flex;
     min-width: 0;
     max-height: calc(
       var(--solaris-visual-viewport-height, 100dvh) -
       var(--solaris-app-toolbar-height) -
-      env(safe-area-inset-top) -
+      var(--solaris-app-safe-top) -
+      var(--solaris-app-safe-top-comfort) -
       1.6rem
     );
     flex-direction: column;
@@ -1971,8 +1972,8 @@ html[data-solaris-app][data-solaris-keyboard-open]
   .solaris-app-master-pane {
     display: block;
     position: sticky;
-    top: calc(env(safe-area-inset-top) + var(--solaris-app-toolbar-height) + .75rem);
-    max-height: calc(100dvh - env(safe-area-inset-top) - var(--solaris-app-toolbar-height) - 1.5rem);
+    top: calc(var(--solaris-app-safe-top) + var(--solaris-app-safe-top-comfort) + var(--solaris-app-toolbar-height) + .75rem);
+    max-height: calc(100dvh - var(--solaris-app-safe-top) - var(--solaris-app-safe-top-comfort) - var(--solaris-app-toolbar-height) - 1.5rem);
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;

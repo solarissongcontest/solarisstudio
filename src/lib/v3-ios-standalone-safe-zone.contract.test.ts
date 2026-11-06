@@ -125,4 +125,23 @@ describe("V3 installed iOS top system safe zone", () => {
     expect(css).toContain("max(env(safe-area-inset-top, 0px), 20px)");
   });
 
+
+  it("anchors installed tablet rail and sticky workspaces to effective safe-area tokens", () => {
+    const legacyCss = source("src/styles/app-shell.css");
+    for (const gap of ["1rem", ".8rem", ".75rem"]) {
+      expect(legacyCss).toContain(
+        "top: calc(var(--solaris-app-safe-top) + var(--solaris-app-safe-top-comfort) + var(--solaris-app-toolbar-height) + " + gap + ");",
+      );
+    }
+    expect(legacyCss).toMatch(
+      /var\(--solaris-app-safe-top\) -\s*var\(--solaris-app-safe-top-comfort\) -\s*1\.6rem/,
+    );
+    expect(legacyCss).toContain(
+      "max-height: calc(100dvh - var(--solaris-app-safe-top) - var(--solaris-app-safe-top-comfort) - var(--solaris-app-toolbar-height) - 1.5rem);",
+    );
+    expect(legacyCss).not.toMatch(
+      /(?:top|max-height): calc\([^;]*env\(safe-area-inset-top\)[^;]*var\(--solaris-app-toolbar-height\)/,
+    );
+  });
+
 });
