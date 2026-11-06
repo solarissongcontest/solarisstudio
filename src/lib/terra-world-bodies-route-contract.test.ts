@@ -67,6 +67,17 @@ describe("TG3 published body route ownership", () => {
     expect(bodies).not.toContain("setInterval(");
   });
 
+  it("never displays cached public body or office records while publication verification is blocked", () => {
+    const bodies = readFileSync(resolve(process.cwd(), "src/components/world/WorldBodiesPublic.tsx"), "utf8");
+    expect(bodies).toContain("enabled: valid && !publicationBlocked");
+    expect(bodies).toContain("enabled: valid && !officeNetworkBlocked");
+    expect(bodies).toContain("enabled: !!result && !officeNetworkBlocked");
+    expect(bodies).toContain("const result = publicationBlocked || query.isError ? undefined : query.data");
+    expect(bodies).toContain("const result = officeNetworkBlocked || query.isError ? undefined : query.data");
+    expect(bodies).toContain("valid && publicationBlocked ? <Unavailable");
+    expect(bodies).toContain("valid && officeNetworkBlocked ? <Unavailable");
+  });
+
   it("keeps stable URL paths for both canonical public body screens", () => {
     const directory = readFileSync(resolve(bodyRoutes, "index.tsx"), "utf8");
     const detail = readFileSync(resolve(bodyRoutes, "$bodySlug.tsx"), "utf8");
