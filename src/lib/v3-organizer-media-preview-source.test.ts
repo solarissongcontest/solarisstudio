@@ -99,6 +99,24 @@ describe("Organizer Media Review opt-in external preview", () => {
     expect(route).not.toContain("{asset.sourceUrl ??");
   });
 
+  it("offers explicit in-sheet retry and unload without starting autoplay", () => {
+    const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
+    expect(route).toContain("const [previewAttempt, setPreviewAttempt] = useState(0)");
+    expect(route).toContain("setPreviewAttempt((previous) => previous + 1)");
+    expect(route).toContain("failedPreviewTarget === previewKey");
+    expect(route).toContain("Retry preview");
+    expect(route).toContain("Unload preview");
+    expect(route).toContain("key={`${previewKey}:${previewAttempt}`}");
+    expect(route).not.toContain("autoPlay");
+    expect(route).not.toContain("<iframe");
+  });
+
+  it("never claims the hidden signed fingerprint is displayed on-screen", () => {
+    const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
+    expect(route).not.toContain("exact source fingerprint displayed above");
+    expect(route).toContain("exact source identity currently loaded for this asset");
+  });
+
   it("renders media only behind deliberate interaction, without eager audio or video downloads", () => {
     const route = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/admin/media-assets.tsx"), "utf8");
     expect(route).toContain("resolveOrganizerMediaPreviewSource");

@@ -522,6 +522,7 @@ function MediaAssetSheet({
   const [singleAssetReviewReason, setSingleAssetReviewReason] = useState('');
   const [previewTarget, setPreviewTarget] = useState<string | null>(null);
   const [failedPreviewTarget, setFailedPreviewTarget] = useState<string | null>(null);
+  const [previewAttempt, setPreviewAttempt] = useState(0);
   const source = asset ? resolveOrganizerMediaPreviewSource(asset.sourceUrl, asset.assetType) : null;
   const previewKey = asset
     ? [asset.editionId, asset.assetKey, asset.sourceFingerprint ?? 'no-source', source?.url ?? 'no-url'].join(':')
@@ -530,6 +531,7 @@ function MediaAssetSheet({
   const dismiss = () => {
     setPreviewTarget(null);
     setFailedPreviewTarget(null);
+    setPreviewAttempt(0);
     onClose();
   };
   return (
@@ -568,17 +570,32 @@ function MediaAssetSheet({
                       className="admin-action-secondary"
                       onClick={() => {
                         setFailedPreviewTarget(null);
+                        setPreviewAttempt(0);
                         setPreviewTarget(previewKey);
                       }}
                     >
                       Load preview from {source.host}
                     </button>
                   ) : failedPreviewTarget === previewKey ? (
-                    <p role="status" className="text-xs text-amber-100">
-                      This source could not be previewed. Check its availability using Open source.
-                    </p>
+                    <div role="status" className="space-y-2 text-xs text-amber-100">
+                      <p>
+                        This source could not be previewed. It may be unavailable, access-restricted
+                        or unsupported by this browser.
+                      </p>
+                      <button
+                        type="button"
+                        className="admin-action-secondary"
+                        onClick={() => {
+                          setFailedPreviewTarget(null);
+                          setPreviewAttempt((previous) => previous + 1);
+                        }}
+                      >
+                        Retry preview
+                      </button>
+                    </div>
                   ) : source.previewKind === 'image' ? (
                     <img
+                      key={`${previewKey}:${previewAttempt}`}
                       src={source.url}
                       alt={`Organizer preview of ${asset.title}`}
                       loading="lazy"
@@ -589,6 +606,7 @@ function MediaAssetSheet({
                     />
                   ) : source.previewKind === 'audio' ? (
                     <audio
+                      key={`${previewKey}:${previewAttempt}`}
                       src={source.url}
                       controls
                       preload="none"
@@ -598,6 +616,7 @@ function MediaAssetSheet({
                     />
                   ) : (
                     <video
+                      key={`${previewKey}:${previewAttempt}`}
                       src={source.url}
                       controls
                       preload="none"
@@ -607,6 +626,19 @@ function MediaAssetSheet({
                       aria-label={`Organizer video preview: ${asset.title}`}
                     />
                   )}
+                  {previewVisible ? (
+                    <button
+                      type="button"
+                      className="admin-action-secondary"
+                      onClick={() => {
+                        setPreviewTarget(null);
+                        setFailedPreviewTarget(null);
+                        setPreviewAttempt(0);
+                      }}
+                    >
+                      Unload preview
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
               {asset.sourceUpdatedAt ? <p className="mt-3 text-xs text-muted-foreground">Canonical entry updated {formatTimestamp(asset.sourceUpdatedAt)}</p> : null}
@@ -629,7 +661,7 @@ function MediaAssetSheet({
             <div>
               <h3 className="text-sm font-semibold">Review this source</h3>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Apply one audited decision to the exact source fingerprint displayed above.
+                Apply one audited decision to the exact source identity currently loaded for this asset.
                 If its content changes, the canonical operation refuses this review and the
                 replacement must be inspected again.
               </p>
