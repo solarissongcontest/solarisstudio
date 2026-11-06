@@ -209,6 +209,20 @@ export function collectDefectSweep({ root, evidenceDir, candidateSha, toolSha = 
       laneStatuses[lane] = "invalid-evidence";
       continue;
     }
+    // The workflow emits the lane inside each independent runtime artifact.
+    // A copied full-contest success must never certify archive/deadline/televote.
+    if (report.lane !== lane) {
+      laneStatuses[lane] = "invalid-evidence";
+      findings.push(finding(
+        "EVIDENCE_LANE_MISMATCH_" + lane.toUpperCase().replace(/-/g, "_"),
+        "evidence-integrity",
+        "confirmed-blocker",
+        lane + " runtime evidence identifies " + safeText(report.lane ?? "missing lane") +
+          " instead of its own lane; duplicated or unlabeled evidence cannot prove an independent run.",
+        "runtime-" + lane + ".json",
+      ));
+      continue;
+    }
     const ok = report.exitCode === 0 && report.status === "passed";
     // 90/91/92/93 are local-bootstrap, isolation, lane-config and
     // unexpected-step-abort evidence sentinels. None proves a contest runtime failure; all block evidence.
