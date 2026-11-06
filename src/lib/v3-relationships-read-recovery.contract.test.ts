@@ -35,6 +35,20 @@ describe("Public Relationships read recovery", () => {
     expect(source).not.toContain("useAllJuryVotes");
   });
 
+  it("treats a successful unknown pair as a safe not-found, not a retryable outage", () => {
+    const source = gate();
+    const detailStart = source.indexOf("export function V3RelationshipDetailGate(");
+    const detail = source.slice(detailStart);
+    expect(detail).toContain("if (bundle.isSuccess && bundle.data === null)");
+    expect(detail.indexOf("if (bundle.isSuccess && bundle.data === null)")).toBeLessThan(
+      detail.indexOf("if (loading || unavailable)"),
+    );
+    expect(detail).toContain("<V3RelationshipsLoading notFound />");
+    expect(source).toContain("No published relationship matches this country pair");
+    expect(source).toContain('href="/relationships"');
+    expect(source).toContain("Browse voting relationships");
+  });
+
   it("preserves server-owned rollout-off fallback and publication-aware screens", () => {
     const source = gate();
     expect(source).toContain("useV3EditionRolloutProbe");
