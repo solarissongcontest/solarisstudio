@@ -5,6 +5,7 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: mockFrom } 
 
 import {
   WORLD_BODIES_PAGE_SIZE,
+  WORLD_BODIES_MAX_PAGE,
   WORLD_BODY_OFFICE_LIMIT,
   cleanWorldBodySearch,
   decodePublicBodyOffice,
@@ -138,6 +139,17 @@ describe("TG3 public institution bodies", () => {
     expect(result?.bodies).toHaveLength(1);
     expect(body.range).toHaveBeenCalledWith(0, WORLD_BODIES_PAGE_SIZE - 1);
     expect(body.eq).toHaveBeenCalledWith("visibility", "public");
+  });
+  it("clamps large page numbers to the public query ceiling", async () => {
+    const org = chain({ data: parent, error: null });
+    const body = chain({ data: [], error: null, count: 0 });
+    mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
+    const result = await readPublicWorldBodies("guard", Number.MAX_SAFE_INTEGER);
+    expect(result?.page).toBe(WORLD_BODIES_MAX_PAGE);
+    expect(body.range).toHaveBeenCalledWith(
+      WORLD_BODIES_MAX_PAGE * WORLD_BODIES_PAGE_SIZE,
+      (WORLD_BODIES_MAX_PAGE + 1) * WORLD_BODIES_PAGE_SIZE - 1,
+    );
   });
   it("treats a page emptied by publication changes as a verified empty page", async () => {
     const org = chain({ data: parent, error: null });
