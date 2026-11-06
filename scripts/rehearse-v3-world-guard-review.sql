@@ -28,7 +28,11 @@ begin
      or has_table_privilege(
        'authenticated','public.world_membership_application_review_history','SELECT')
      or has_table_privilege(
-       'authenticated','public.world_membership_application_review_history','INSERT') then
+       'authenticated','public.world_membership_application_review_history','INSERT')
+     or has_table_privilege(
+       'authenticated','public.world_membership_application_external_provenance','SELECT')
+     or has_table_privilege(
+       'authenticated','public.world_membership_application_external_provenance','INSERT') then
     raise exception 'TG5_REVIEW_UNSAFE_GRANTS';
   end if;
   insert into auth.users(id,aud,role,email,created_at,updated_at)
@@ -233,9 +237,13 @@ begin
     select 1 from public.world_membership_applications a
     where a.id=v_external_id and a.country_id=(v->>'external_country')::uuid
       and a.submitted_by is null and a.submitted_by_person_id is null
-      and a.registered_by_user_id=(v->>'chair')::uuid
       and a.intake_source='external'
-      and a.external_source_reference like 'DM from country delegation%'
+      and exists(
+        select 1 from public.world_membership_application_external_provenance p
+        where p.application_id=a.id
+          and p.registered_by_user_id=(v->>'chair')::uuid
+          and p.source_reference like 'DM from country delegation%'
+      )
   ) then
     raise exception 'TG5_REVIEW_EXTERNAL_IMPERSONATION_OR_PROVENANCE_ERROR';
   end if;
