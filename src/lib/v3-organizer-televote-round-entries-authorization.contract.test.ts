@@ -45,7 +45,7 @@ describe("V3 Organizer Televote round-entry service permission boundary", () => 
   });
 
   it("keeps the browser adapter as a separate independently guarded boundary", () => {
-    expect(adapters).toContain('import("@/integrations/televoting/entries.server")');
+    expect(adapters).toMatch(/import\(\s*"@\/integrations\/televoting\/entries\.server"\s*\)/);
     expect(adapters).not.toContain("televotingAdmin");
     expect(adapters).not.toContain("supabaseAdmin");
   });
