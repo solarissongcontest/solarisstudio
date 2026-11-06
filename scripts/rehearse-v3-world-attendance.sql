@@ -97,6 +97,96 @@ begin
 end
 $fixture$;
 
+-- An open meeting cannot bring a future-effective representative or member
+-- into the present. This checks command authority AND private roster choices.
+do $tg6_future_rep_setup$
+declare v jsonb:=current_setting('solaris.tg6_attendance_fixture')::jsonb;
+begin
+ update public.world_organization_representations
+ set starts_at=now()+interval '1 hour'
+ where id=(v->>'representationId')::uuid;
+end
+$tg6_future_rep_setup$;
+
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $tg6_future_rep_negative$
+declare
+ v jsonb:=current_setting('solaris.tg6_attendance_fixture')::jsonb;
+ v_manage jsonb;
+begin
+ perform set_config('request.jwt.claim.sub',v->>'manager',true);
+ perform set_config('request.jwt.claims',
+    jsonb_build_object('sub',v->>'manager','role','authenticated')::text,true);
+ v_manage:=public.world_session_attendance_manage_v1((v->>'sessionId')::uuid);
+ if exists(select 1 from jsonb_array_elements(v_manage->'countries') item
+           where item->>'countryId'=v->>'countryId') then
+   raise exception 'TG6_ATTENDANCE_FUTURE_REP_IN_ROSTER';
+ end if;
+ begin
+   perform public.world_record_session_attendance_v1(
+     (v->>'sessionId')::uuid,(v->>'countryId')::uuid,
+     (v->>'representationId')::uuid,'present',null,null,
+     gen_random_uuid(),'tg6-future-rep:'||gen_random_uuid()::text);
+   raise exception 'TG6_ATTENDANCE_FUTURE_REP_RECORD_ALLOWED';
+ exception when check_violation then null;
+ end;
+end
+$tg6_future_rep_negative$;
+reset role;
+
+do $tg6_future_member_setup$
+declare v jsonb:=current_setting('solaris.tg6_attendance_fixture')::jsonb;
+begin
+ update public.world_organization_representations
+ set starts_at=now()-interval '1 minute'
+ where id=(v->>'representationId')::uuid;
+ update public.world_organization_memberships
+ set joined_at=now()+interval '1 hour'
+ where organization_id=(select organization_id from public.world_sessions
+                        where id=(v->>'sessionId')::uuid)
+   and country_id=(v->>'countryId')::uuid;
+end
+$tg6_future_member_setup$;
+
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $tg6_future_member_negative$
+declare
+ v jsonb:=current_setting('solaris.tg6_attendance_fixture')::jsonb;
+ v_manage jsonb;
+begin
+ perform set_config('request.jwt.claim.sub',v->>'manager',true);
+ perform set_config('request.jwt.claims',
+    jsonb_build_object('sub',v->>'manager','role','authenticated')::text,true);
+ v_manage:=public.world_session_attendance_manage_v1((v->>'sessionId')::uuid);
+ if exists(select 1 from jsonb_array_elements(v_manage->'countries') item
+           where item->>'countryId'=v->>'countryId') then
+   raise exception 'TG6_ATTENDANCE_FUTURE_MEMBER_IN_ROSTER';
+ end if;
+ begin
+   perform public.world_record_session_attendance_v1(
+     (v->>'sessionId')::uuid,(v->>'countryId')::uuid,
+     (v->>'representationId')::uuid,'present',null,null,
+     gen_random_uuid(),'tg6-future-member:'||gen_random_uuid()::text);
+   raise exception 'TG6_ATTENDANCE_FUTURE_MEMBER_RECORD_ALLOWED';
+ exception when check_violation then null;
+ end;
+end
+$tg6_future_member_negative$;
+reset role;
+
+do $tg6_effective_restore$
+declare v jsonb:=current_setting('solaris.tg6_attendance_fixture')::jsonb;
+begin
+ update public.world_organization_memberships
+ set joined_at=now()-interval '1 minute'
+ where organization_id=(select organization_id from public.world_sessions
+                        where id=(v->>'sessionId')::uuid)
+   and country_id=(v->>'countryId')::uuid;
+end
+$tg6_effective_restore$;
+
 -- Even privileged direct writes must not bypass session/representation and
 -- proxy-identity structural FK-like invariants.
 do $direct_identity$
