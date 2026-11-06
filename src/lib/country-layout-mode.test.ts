@@ -20,6 +20,9 @@ describe("country page presentation ownership", () => {
     expect(gate).toContain('if (!isAppMode) return <>{legacy}</>');
     expect(gate).toContain("<V3DelegationScreen");
     expect(route).toContain("const countryLayoutMode = useCountryDirectoryPresentation()");
+    expect(route).toContain("const code = params.code.toUpperCase();");
+    expect(route).toContain("encodeURIComponent(code)");
+    expect(route).not.toContain("encodeURIComponent(params.code)");
     expect(route).toContain('publishedDesign && countryLayoutMode !== "mobile-web"');
     expect(route).toContain('countryLayoutMode === "mobile-web" ? (');
     expect(route).toContain("<CountryMobileWebMasthead");
