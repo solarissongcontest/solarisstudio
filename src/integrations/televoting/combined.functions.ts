@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { CorrectionScope, SourceInputMode } from "@/integrations/televoting/combined-math";
 
+async function requireCombinedCapability(capability: "voting.read" | "voting.manage") {
+  const { requireSolarisCapabilityServer } = await import("@/integrations/supabase/capabilities.server");
+  await requireSolarisCapabilityServer(capability, null);
+}
+
 async function refreshCombinedCanonicalParticipants(aggregationId: string) {
   const { syncEditableCombinedParticipantsFromSolarisServer } = await import(
     "@/integrations/televoting/combined-sync.server"
@@ -15,6 +20,7 @@ export const listMergedCombinedAggregations = createServerFn({ method: "POST" })
     return { editionId };
   })
   .handler(async ({ data }) => {
+    await requireCombinedCapability("voting.read");
     const { listMergedCombinedAggregationsServer } = await import("@/integrations/televoting/combined.server");
     return listMergedCombinedAggregationsServer(data.editionId);
   });
@@ -25,6 +31,7 @@ export const getMergedCombinedAggregation = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
+    await requireCombinedCapability("voting.read");
     const { getMergedCombinedAggregationServer } = await import("@/integrations/televoting/combined.server");
     return getMergedCombinedAggregationServer(data.id);
   });
@@ -39,6 +46,7 @@ export const createMergedCombinedAggregation = createServerFn({ method: "POST" }
     return { name, editionId: data.editionId ?? null, totalPoints, rankExponent };
   })
   .handler(async ({ data }) => {
+    await requireCombinedCapability("voting.manage");
     const { createMergedCombinedAggregationServer } = await import("@/integrations/televoting/combined.server");
     return createMergedCombinedAggregationServer(data);
   });
@@ -51,6 +59,7 @@ export const updateMergedCombinedAggregation = createServerFn({ method: "POST" }
     return { id: data.id, name, totalPoints: Math.max(1, Math.trunc(Number(data.totalPoints))), rankExponent: Number(data.rankExponent) };
   })
   .handler(async ({ data }) => {
+    await requireCombinedCapability("voting.manage");
     const { updateMergedCombinedAggregationServer } = await import("@/integrations/televoting/combined.server");
     return updateMergedCombinedAggregationServer(data);
   });
@@ -62,6 +71,7 @@ export const setMergedCombinedParticipants = createServerFn({ method: "POST" })
     return { id: data.id, participants };
   })
   .handler(async ({ data }) => {
+    await requireCombinedCapability("voting.manage");
     const canonicalSync = await refreshCombinedCanonicalParticipants(data.id);
     if (canonicalSync.status === "synced" || canonicalSync.status === "up_to_date") {
       throw new Error(
@@ -94,6 +104,7 @@ export const upsertMergedCombinedSource = createServerFn({ method: "POST" })
     return { ...data, name: String(data.name).trim(), weight: Number(data.weight) || 0, displayOrder: Math.max(0, Math.trunc(Number(data.displayOrder) || 0)) };
   })
   .handler(async ({ data }) => {
+    await requireCombinedCapability("voting.manage");
     const { upsertMergedCombinedSourceServer } = await import("@/integrations/televoting/combined.server");
     const remote = await upsertMergedCombinedSourceServer(data);
     const canonicalSync = await refreshCombinedCanonicalParticipants(data.aggregationId);
@@ -106,6 +117,7 @@ export const deleteMergedCombinedSource = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
+    await requireCombinedCapability("voting.manage");
     const { deleteMergedCombinedSourceServer } = await import("@/integrations/televoting/combined.server");
     const remote = await deleteMergedCombinedSourceServer(data);
     const canonicalSync = await refreshCombinedCanonicalParticipants(data.aggregationId);
@@ -119,6 +131,7 @@ export const saveMergedCombinedSourceValues = createServerFn({ method: "POST" })
     return { aggregationId: data.aggregationId, sourceId: data.sourceId, values };
   })
   .handler(async ({ data }) => {
+    await requireCombinedCapability("voting.manage");
     const { saveMergedCombinedSourceValuesServer } = await import("@/integrations/televoting/combined.server");
     return saveMergedCombinedSourceValuesServer(data);
   });
@@ -129,6 +142,7 @@ export const recalculateMergedCombined = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
+    await requireCombinedCapability("voting.manage");
     // Ensure the calculator always sees the current canonical show lineup before
     // it creates a new official calculation version.
     await refreshCombinedCanonicalParticipants(data.id);
@@ -143,6 +157,7 @@ export const setMergedCombinedStatus = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
+    await requireCombinedCapability("voting.manage");
     if (data.status === "locked" || data.status === "published") {
       // Refresh before the immutable transition. If the canonical lineup changed,
       // this marks the existing calculation outdated and the normal lock/publish
@@ -173,6 +188,7 @@ export const deleteMergedCombinedAggregation = createServerFn({ method: "POST" }
     return data;
   })
   .handler(async ({ data }) => {
+    await requireCombinedCapability("voting.manage");
     const { deleteMergedCombinedAggregationServer } = await import("@/integrations/televoting/combined.server");
     return deleteMergedCombinedAggregationServer(data.id);
   });
