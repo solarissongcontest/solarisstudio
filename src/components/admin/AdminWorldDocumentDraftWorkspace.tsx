@@ -190,6 +190,7 @@ export function AdminWorldDocumentDraftWorkspace() {
     queryKey: ["tg4-organizer-unpublished-version", organizationSlug, documentSlug, pendingDraft?.versionNumber],
     enabled: Boolean(snapshot.data?.allowedActions.manage && organization && pendingDraft),
     staleTime: 0,
+    gcTime: 0,
     retry: 1,
     queryFn: async () => {
       if (!pendingDraft || !snapshot.data) throw new Error("An exact unpublished version is required.");
@@ -231,9 +232,26 @@ export function AdminWorldDocumentDraftWorkspace() {
     setDraftProvisions(provisions);
   }, [snapshot.data]);
 
+  // Exact pending-version hydration: preserve in-progress edits on background
+  // refetch of the same revision, but reset after canonical CAS changes.
+  const hydratedPendingRevision = useRef<string | null>(null);
+  useEffect(() => {
+    const current = pendingDraftDetails.data;
+    const version = current?.version;
+    if (!current || !version || version.publicationState !== "draft") return;
+    const identity = `${current.documentId}:${version.versionId}:${version.revision}`;
+    if (hydratedPendingRevision.current === identity) return;
+    hydratedPendingRevision.current = identity;
+    originalDraft.current = worldDocumentDraftSignature({
+      title: version.title, plainText: version.plainText, provisions: version.provisions,
+    });
+    setDraftTitle(version.title);
+    setDraftText(version.plainText);
+    setDraftProvisions(version.provisions);
+  }, [pendingDraftDetails.data]);
+
   const hasUnsavedDraftEdits = Boolean(
     snapshot.data?.allowedActions.manage &&
-    !snapshot.data.hasUnpublishedDraft &&
     originalDraft.current !== null &&
     worldDocumentDraftSignature({
       title: draftTitle, plainText: draftText, provisions: draftProvisions,
@@ -388,6 +406,60 @@ export function AdminWorldDocumentDraftWorkspace() {
     );
   };
 
+  const reviewDraftUpdate = (event: FormEvent) => {
+    event.preventDefault();
+    const doc = snapshot.data;
+    const current = pendingDraftDetails.data;
+    const version = current?.version;
+    if (!organization || !doc?.allowedActions.manage || !doc.hasUnpublishedDraft ||
+        !current || !version || version.publicationState !== "draft" ||
+        !version.revision || !version.sourceProvenance ||
+        version.versionId !== doc.pendingDraft?.versionId ||
+        current.documentId !== doc.documentId ||
+        current.organization.organizationId !== doc.organization.organizationId) return;
+    const validation = validateWorldDocumentDraft({
+      title: draftTitle, plainText: draftText,
+      hasProvisions: draftProvisions.length > 0,
+    }) ?? validateWorldDocumentProvisions(draftProvisions);
+    if (validation) { setNotice(validation); return; }
+    const provisions = toWorldProvisionCommandRows(draftProvisions);
+    const changes = compareWorldDocumentProvisions(version.provisions, draftProvisions);
+    openReview("world.document.version.update_draft", "world_update_document_version_draft_v1",
+      {
+        documentId: doc.documentId, versionId: version.versionId,
+        expectedVersionRevision: version.revision,
+        title: draftTitle.trim(), plainText: draftText,
+        structuredContent: version.structuredContent,
+        sourceDescription: version.sourceDescription,
+        sourceProvenance: version.sourceProvenance,
+        effectiveFrom: version.effectiveFrom, effectiveTo: version.effectiveTo,
+        provisions,
+      },
+      {
+        p_version_id: version.versionId,
+        p_title: draftTitle.trim(),
+        p_structured_content: version.structuredContent,
+        p_plain_text: draftText,
+        p_effective_from: version.effectiveFrom,
+        p_effective_to: version.effectiveTo,
+        p_source_description: version.sourceDescription,
+        p_source_provenance: version.sourceProvenance,
+        p_provisions: provisions,
+        p_expected_version_revision: version.revision,
+      },
+      "Update an existing unpublished legal version",
+      [organization.official_name, doc.title, `Version: ${version.versionNumber}`,
+        `Expected draft revision: ${version.revision}`,
+        `Retained structured provisions: ${provisions.length}`,
+        `New identities: ${changes.added.join(", ") || "none"}`,
+        `Omitted from draft: ${changes.omitted.join(", ") || "none"}`,
+        `Modified: ${changes.modified.join(", ") || "none"}`,
+        "Existing source attribution and effective date will be preserved",
+        "No publication or historical-version overwrite"],
+      doc.slug,
+    );
+  };
+
   const checkReceipt = async (review: Review) => {
     const { data, error } = await db.rpc("studio2_reconcile_operation", {
       p_operation_id: review.operationId,
@@ -399,7 +471,8 @@ export function AdminWorldDocumentDraftWorkspace() {
   const reconcile = async (send: boolean) => {
     const active = operation;
     if (!active || (send && active.status !== "review") || active.status === "checking") return;
-    if (send && active.review.command === "world.document.version.create" && !reviewedFullText) return;
+    if (send && ["world.document.version.create", "world.document.version.update_draft"]
+      .includes(active.review.command) && !reviewedFullText) return;
     const { review } = active;
     if (executing.current.has(review.operationId)) return;
     executing.current.add(review.operationId);
@@ -434,11 +507,17 @@ export function AdminWorldDocumentDraftWorkspace() {
         await queryClient.invalidateQueries({
           queryKey: ["tg4-organizer-document", review.organizationSlug, review.documentSlug],
         });
-        setCreateTitle(""); setCreateSlug(""); setDraftTitle(""); setDraftText("");
-        setDraftProvisions([]);
-        originalDraft.current = worldDocumentDraftSignature({
-          title: "", plainText: "", provisions: [],
+        await queryClient.invalidateQueries({
+          queryKey: ["tg4-organizer-unpublished-version", review.organizationSlug, review.documentSlug],
         });
+        setCreateTitle(""); setCreateSlug("");
+        // Do not clear verified legal text after invalidation. The exact
+        // pending-version revision hydration refreshes the editor, and an
+        // empty optimistic reset could race that canonical read.
+        if (review.command === "world.document.version.create" ||
+            review.command === "world.document.version.update_draft") {
+          hydratedPendingRevision.current = null;
+        }
       } else {
         setOperation({ review, status: receipt.status === "failed" ? "failed" : "reconcile",
           message: receipt.status === "failed"
@@ -464,6 +543,11 @@ export function AdminWorldDocumentDraftWorkspace() {
           title="Document drafts"
           description="Create institutional legal Works and versioned unpublished text. Canonical commands own every write. Publication and amendments remain separate, reviewed operations."
         />
+        <p className="text-sm text-muted-foreground">
+          Once a draft is saved, <a className="font-semibold underline underline-offset-4"
+            href="/admin/world-document-publication">prepare and review official publication</a>
+          {" "}through the separate governed R2/R3 lifecycle.
+        </p>
 
         {organizations.isPending ? <p role="status">Loading institutions…</p> : organizations.isError ? (
           <div role="alert" className="space-y-3 rounded-xl border border-destructive/40 p-5">
@@ -626,40 +710,52 @@ export function AdminWorldDocumentDraftWorkspace() {
                         <p role="status" className="text-sm">Reading the exact pending version…</p>
                       ) : pendingDraftDetails.isError || !pendingDraftDetails.data?.version ? (
                         <div role="alert" className="space-y-2">
-                          <p>Unpublished text is not available. Do not assume it is empty.</p>
+                          <p>Unpublished text or its revision cannot be verified. Editing is unavailable.</p>
                           <button type="button" className={secondaryClass}
                             onClick={() => void pendingDraftDetails.refetch()}>Retry version read</button>
                         </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <p className="text-xs text-muted-foreground">
-                            Read-only unpublished text · revision {pendingDraftDetails.data.version.revision}
-                          </p>
-                          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-border/60 p-3 font-sans text-sm leading-6">
-                            {pendingDraftDetails.data.version.plainText || "No plain-text body"}
-                          </pre>
-                          <p className="text-sm font-semibold">
-                            {pendingDraftDetails.data.version.provisions.length} preserved structured provisions
-                          </p>
-                          <ul className="max-h-64 space-y-2 overflow-auto text-sm">
-                            {pendingDraftDetails.data.version.provisions.slice(0, 20).map((row) => (
-                              <li key={row.semanticKey}>
-                                <span className="font-medium">{row.displayLabel || row.semanticKey}</span>
-                                {row.heading ? ` · ${row.heading}` : ""}
-                              </li>
-                            ))}
-                          </ul>
-                          {pendingDraftDetails.data.version.provisions.length > 20 && (
-                            <p className="text-xs text-muted-foreground">
-                              Showing the first 20 provisions. No data has been modified.
-                            </p>
-                          )}
+                      ) : !pendingDraftDetails.data.version.sourceProvenance ? (
+                        <p role="alert">Canonical source provenance is missing. Refusing to overwrite the draft.</p>
+                      ) : validateWorldDocumentProvisions(pendingDraftDetails.data.version.provisions) ? (
+                        <div role="alert" className="space-y-2">
+                          <p>The draft exceeds this editor's provision or article-content limits.
+                            Its canonical text remains unchanged.</p>
+                          <p>{validateWorldDocumentProvisions(pendingDraftDetails.data.version.provisions)}</p>
                         </div>
+                      ) : (
+                        <form className="space-y-4" onSubmit={reviewDraftUpdate}>
+                          <p className="text-xs text-muted-foreground">
+                            Editing unpublished version {pendingDraftDetails.data.version.versionNumber}
+                            {" "}· exact revision {pendingDraftDetails.data.version.revision}.
+                            Provenance and effective dates are preserved by the R2 version update.
+                          </p>
+                          <label className="block space-y-1 text-sm">Unpublished version title
+                            <input className={fieldClass} required maxLength={180}
+                              value={draftTitle} disabled={authoringLocked}
+                              onChange={(event) => setDraftTitle(event.target.value)} />
+                          </label>
+                          <label className="block space-y-1 text-sm">Draft plain-text body
+                            <textarea className={fieldClass + " min-h-48 resize-y leading-6"}
+                              required={!draftProvisions.length} maxLength={100000}
+                              value={draftText} disabled={authoringLocked}
+                              onChange={(event) => setDraftText(event.target.value)} />
+                          </label>
+                          <WorldDocumentProvisionEditor
+                            rows={draftProvisions} onChange={setDraftProvisions}
+                            disabled={authoringLocked}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Updating keeps source provenance, structured document metadata,
+                            immutable published predecessors and effective chronology intact.
+                            A separate reviewed publication is still required.
+                          </p>
+                          <button type="submit" className={buttonClass}
+                            disabled={!hasUnsavedDraftEdits || !pendingDraftDetails.data.version.revision ||
+                              Boolean(operation && ["review", "checking", "reconcile"].includes(operation.status))}>
+                            Review changes to unpublished version
+                          </button>
+                        </form>
                       )}
-                      <p className="text-xs text-muted-foreground">
-                        Draft replacement is intentionally disabled until a canonical
-                        read model includes the provenance fields required to preserve all legal content.
-                      </p>
                     </div>
                   ) : snapshot.data.version &&
                       validateWorldDocumentProvisions(snapshot.data.version.provisions) ? (
@@ -719,7 +815,8 @@ export function AdminWorldDocumentDraftWorkspace() {
                   <ul className="space-y-1 text-sm text-muted-foreground">
                     {operation.review.details.map((detail, index) => <li key={index}>{detail}</li>)}
                   </ul>
-                  {operation.review.command === "world.document.version.create" && (
+                  {["world.document.version.create", "world.document.version.update_draft"].includes(
+                    operation.review.command) && (
                     <details className="space-y-3 rounded-xl border border-border p-3">
                       <summary className="cursor-pointer text-sm font-semibold">
                         Inspect the complete outgoing legal draft
@@ -764,7 +861,8 @@ export function AdminWorldDocumentDraftWorkspace() {
                     </details>
                   )}
                   {operation.status === "review" &&
-                    operation.review.command === "world.document.version.create" && (
+                    ["world.document.version.create", "world.document.version.update_draft"].includes(
+                      operation.review.command) && (
                     <label className="flex cursor-pointer items-start gap-3 text-sm">
                       <input type="checkbox" className="mt-1 size-4 shrink-0"
                         checked={reviewedFullText}
@@ -779,7 +877,8 @@ export function AdminWorldDocumentDraftWorkspace() {
                     {operation.status === "review" && (
                       <>
                         <button type="button" className={buttonClass}
-                          disabled={operation.review.command === "world.document.version.create" && !reviewedFullText}
+                          disabled={["world.document.version.create", "world.document.version.update_draft"]
+                            .includes(operation.review.command) && !reviewedFullText}
                           onClick={() => void reconcile(true)}>Execute reviewed action</button>
                         <button type="button" className={secondaryClass} onClick={() => setOperation(null)}>Back to editor</button>
                       </>

@@ -208,6 +208,7 @@ export const TERRA_GOVERNANCE_DOMAIN_REGISTRY: readonly TerraGovernanceDomainOwn
       "world.document.create",
       "world.document.version.create",
       "world.document.version.update_draft",
+      "world.document.version.effective_date.set",
       "world.document.version.publish",
     ],
     projections: [
@@ -256,6 +257,9 @@ export const TERRA_GOVERNANCE_TG4_MIGRATIONS = [
   "20261103170100_v3_tg4_world_document_hierarchy_cycles.sql",
   "20261103170500_v3_tg4_world_document_published_provision_guard.sql",
   "20261103171000_v3_tg4_world_document_provenance_privacy.sql",
+  "20261103171200_v3_tg4_world_document_effective_date.sql",
+  "20261103171400_v3_tg4_document_manager_provenance_projection.sql",
+  "20261103171600_v3_tg4_draft_updater_rowtype_fix.sql",
 ] as const;
 
 export const TERRA_GOVERNANCE_TG4_EVENT_TYPES = [
