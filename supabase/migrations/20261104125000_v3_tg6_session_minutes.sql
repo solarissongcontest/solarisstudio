@@ -59,7 +59,8 @@ alter table public.world_session_minutes enable row level security;
 alter table public.world_session_minutes_revisions enable row level security;
 revoke all on public.world_session_minutes,public.world_session_minutes_revisions
  from public,anon,authenticated,service_role;
-grant all on public.world_session_minutes,public.world_session_minutes_revisions to service_role;
+-- No direct service_role table grant: critical mutations must use governed
+-- SECURITY DEFINER commands, not a second raw database writer.
 
 -- A direct privileged write must not silently rewrite a published official
 -- document or rewrite history. Corrections require a future governed version.
