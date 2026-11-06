@@ -178,7 +178,8 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
     retry: false, staleTime: 0, gcTime: 0, refetchOnMount: "always",
     refetchOnWindowFocus: "always",
     // Bounded, single-active-room refresh. No cross-room subscription fanout.
-    refetchInterval: () => typeof document !== "undefined" && document.visibilityState === "visible" ? 20_000 : false,
+    refetchInterval: (query) => typeof document !== "undefined" && document.visibilityState === "visible" &&
+      (query.state.data?.pages.length ?? 0) <= 1 ? 20_000 : false,
     refetchIntervalInBackground: false,
   });
   const verifiedMessages = isVisiblePrivateWorldQuery(messages, online)
