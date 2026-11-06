@@ -115,6 +115,19 @@ describe("Organizer Entry Review detail summary", () => {
     expect(route).toContain("Previous decisions remain available in review history");
   });
 
+  it("does not badge a removed National Final candidate as an active winner", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    expect(route).toContain("Stored winner is inactive");
+    expect(route).toContain("storedWinner={data.national_final?.winning_entry_id === entry.id}");
+    expect(route).toContain("!entry.removed && entry.review_status !== \"removed\"");
+    expect(route).toContain("storedWinner && !winner");
+    expect(route).toContain("storedWinner && onClearWinner");
+    expect(route).toContain("onWinner && !storedWinner");
+    expect(route).toContain("entry.review_status === \"removed\"");
+    expect(route).not.toContain("winner={data.national_final?.winning_entry_id === entry.id}");
+  });
+
   it("keeps the dashboard summary on the same current-version interpretation", () => {
     const route = readFileSync(resolve(process.cwd(),
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
