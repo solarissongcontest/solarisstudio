@@ -209,6 +209,24 @@ export function collectDefectSweep({ root, evidenceDir, candidateSha, toolSha = 
       laneStatuses[lane] = "invalid-evidence";
       continue;
     }
+    // Artifacts from different matrix lanes must not be interchangeable.
+    // The workflow always records the lane and its actual child exit code.
+    const preflightCode = [90, 91, 92, 93].includes(report.exitCode);
+    const validExitCode = Number.isSafeInteger(report.exitCode) && report.exitCode >= 0;
+    const validStatus = (report.exitCode === 0 && report.status === "passed") ||
+      (report.exitCode > 0 && (report.status === "failed" ||
+        (preflightCode && report.status === "blocked-preflight")));
+    if (report.lane !== lane || !validExitCode || !validStatus) {
+      laneStatuses[lane] = "invalid-evidence";
+      findings.push(finding(
+        "RUNTIME_LANE_EVIDENCE_INVALID_" + lane.toUpperCase().replace(/-/g, "_"),
+        "evidence-integrity", "confirmed-blocker",
+        lane + " evidence has an absent/mismatched lane, invalid exit code, or contradictory status; " +
+          "one scenario cannot prove another scenario's execution.",
+        "runtime-" + lane + ".json",
+      ));
+      continue;
+    }
     const ok = report.exitCode === 0 && report.status === "passed";
     // 90/91/92/93 are local-bootstrap, isolation, lane-config and
     // unexpected-step-abort evidence sentinels. None proves a contest runtime failure; all block evidence.
