@@ -19,7 +19,7 @@ describe("V3 shared action card semantics", () => {
 
     expect(html).toContain('data-interactive="false"');
     expect(html).toContain("Semi-final 1");
-    expect(html).not.toMatch(/<(?:a|button)\\b/i);
+    expect(html).not.toMatch(/<(?:a|button)\b/i);
     expect(html).not.toContain("lucide-chevron-right");
     expect(html).not.toContain("tabindex=");
   });
@@ -29,7 +29,7 @@ describe("V3 shared action card semantics", () => {
       <V3ActionCard title="Retry" description="Try again" onClick={() => {}} />,
     );
 
-    expect(html).toMatch(/<button\\b[^>]*type="button"/);
+    expect(html).toMatch(/<button\b[^>]*type="button"/);
     expect(html).toContain('data-interactive="true"');
     expect(html).toContain("lucide-chevron-right");
   });
@@ -55,9 +55,9 @@ describe("V3 shared action card semantics", () => {
     await router.load();
     const html = renderToStaticMarkup(<RouterProvider router={router} />);
 
-    expect(html).toMatch(/<a\\b[^>]*href="\\/explore"/);
+    expect(html).toMatch(/<a\b[^>]*href="\/explore"/);
     expect(html).toContain('data-interactive="true"');
-    expect(html).not.toMatch(/<button\\b/i);
+    expect(html).not.toMatch(/<button\b/i);
   });
 
   it("applies hover and press cues only to interactive cards", async () => {
