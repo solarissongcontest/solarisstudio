@@ -196,8 +196,8 @@ function JuryWorkspace() {
       .sort((a, b) => (a.running_order ?? 9999) - (b.running_order ?? 9999)),
     [allParticipants, selectedShow?.id],
   );
-  const { data: showVoters = [], isLoading: loadingVoters, error: votersError, refetch: retryVoters } = useShowVoters(selectedShow?.id);
-  const { data: juryVotes = [], isLoading: loadingVotes, error: votesError, refetch: retryVotes } = useJuryVotes(selectedShow?.id);
+  const { data: showVoters = [], isLoading: loadingVoters, error: votersError, refetch: retryVoters } = useShowVoters(selectedShow?.id, actorId);
+  const { data: juryVotes = [], isLoading: loadingVotes, error: votesError, refetch: retryVotes } = useJuryVotes(selectedShow?.id, actorId);
   const { data: ballotStatuses = [], isLoading: loadingStatuses, error: statusesError, refetch: retryStatuses } = useQuery({
     enabled: Boolean(actorId && edition?.id && selectedShow?.id),
     queryKey: ["jury_ballot_statuses", actorId, edition?.id ?? "unscoped", "show", selectedShow?.id ?? "pending"],
