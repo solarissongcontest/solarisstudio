@@ -53,22 +53,35 @@ export function recentPublicationSlugs(recents: readonly RecentPath[]): RecentPu
  * Other existing public destination categories remain owned by their
  * respective discovery policies.
  */
-export function visiblePublicationVerifiedRecents<T extends RecentPath>(
+export function visiblePublicationVerifiedRecents<T extends RecentPath & { label: string }>(
   recents: readonly T[],
   grants: {
-    publishedEditionSlugs: ReadonlySet<string>;
-    publishedStorySlugs: ReadonlySet<string>;
+    publishedEditionLabels: ReadonlyMap<string, string>;
+    publishedStoryLabels: ReadonlyMap<string, string>;
   },
 ): T[] {
-  return recents.filter((recent) => {
+  return recents.flatMap((recent): T[] => {
+    const edition = /^\/editions\//i.test(recent.path)
+      ? singleSegment(recent.path, "editions")
+      : null;
     if (/^\/editions\//i.test(recent.path)) {
-      const slug = singleSegment(recent.path, "editions");
-      return slug != null && grants.publishedEditionSlugs.has(slug);
+      const label = edition == null ? null : grants.publishedEditionLabels.get(edition);
+      // Do not replay an old label if a once-published Edition was renamed,
+      // unpublished, or the current canonical label cannot be confirmed.
+      return typeof label === "string" && label.trim()
+        ? [{ ...recent, label: label.trim() } as T]
+        : [];
     }
+
+    const story = /^\/stories\//i.test(recent.path)
+      ? singleSegment(recent.path, "stories")
+      : null;
     if (/^\/stories\//i.test(recent.path)) {
-      const slug = singleSegment(recent.path, "stories");
-      return slug != null && grants.publishedStorySlugs.has(slug);
+      const label = story == null ? null : grants.publishedStoryLabels.get(story);
+      return typeof label === "string" && label.trim()
+        ? [{ ...recent, label: label.trim() } as T]
+        : [];
     }
-    return true;
+    return [recent];
   });
 }
