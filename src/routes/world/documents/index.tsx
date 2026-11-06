@@ -25,7 +25,7 @@ function WorldDocumentsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   return (
-    <WorldPublicGate>
+    <WorldPublicGate verifyOnMount>
       <WorldDocumentLibraryScreen
         initialSearch={search.q}
         initialOrganization={search.organization}
