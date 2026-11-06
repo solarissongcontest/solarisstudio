@@ -47,16 +47,17 @@ const response = {
   organizationTotal: 24,
 };
 
-function renderWorldSearch(countryPage: number, organizationPage: number, term = "land") {
+function renderWorldSearch(countryPage: number, organizationPage: number, term = "land", status = "active") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  client.setQueryData(["world", "public", "featured"], [response.organizations[0]]);
+  const organization = { ...response.organizations[0], status };
+  client.setQueryData(["world", "public", "featured"], [organization]);
   client.setQueryData(
     ["world", "public", "country-search", term, countryPage],
     { countries: response.countries, countryTotal: response.countryTotal },
   );
   client.setQueryData(
     ["world", "public", "organization-search", term, organizationPage],
-    { organizations: response.organizations, organizationTotal: response.organizationTotal },
+    { organizations: [organization], organizationTotal: response.organizationTotal },
   );
   try {
     return renderToStaticMarkup(
@@ -106,6 +107,15 @@ describe("Unified World Search public rendering", () => {
     expect(html).toContain("GUARD");
     expect(html).not.toContain("Oland");
     expect(html).not.toContain("never-render");
+  });
+
+  it("clearly identifies dissolved, historical and suspended organizations", () => {
+    for (const status of ["dissolved", "historical", "suspended"]) {
+      const html = renderWorldSearch(0, 0, "guard", status);
+      expect(html).toContain(status);
+      expect(html).toContain("GUARD");
+    }
+    expect(renderWorldSearch(0, 0, "guard", "active")).not.toContain(">active<");
   });
 
   it("keeps the main search result pages separate from featured institutions", () => {
