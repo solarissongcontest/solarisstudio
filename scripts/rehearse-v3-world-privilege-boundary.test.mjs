@@ -20,7 +20,9 @@ function runStubbed(apiUrl, dbUrl) {
     writeFileSync(cli, '#!/bin/sh\n' +
       '[ "$1" = status ] && [ "$2" = -o ] && [ "$3" = env ] || exit 2\n' +
       'printf "%s\\n" "API_URL=' + apiUrl + '" "DB_URL=' + dbUrl + '"\n');
-    writeFileSync(psql, '#!/bin/sh\nprintf invoked > "$TG19_MARKER_FILE"\n');
+    writeFileSync(psql, '#!/bin/sh\n' +
+      '[ -z "${PGHOSTADDR:-}" ] && [ -z "${PGSERVICE:-}" ] || exit 97\n' +
+      'printf invoked > "$TG19_MARKER_FILE"\n');
     chmodSync(cli, 0o755);
     chmodSync(psql, 0o755);
     const result = spawnSync('bash', [runner], {
@@ -29,6 +31,8 @@ function runStubbed(apiUrl, dbUrl) {
         ...process.env,
         PATH: dir + ':' + process.env.PATH,
         TG19_MARKER_FILE: marker,
+        PGHOSTADDR: 'evil.example',
+        PGSERVICE: 'production',
         API_URL: 'https://hosted.example.com',
         DB_URL: 'postgresql://postgres@hosted.example.com/prod',
       },
