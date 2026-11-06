@@ -216,9 +216,20 @@ function AdminSystemPage() {
     (item) => new Date(item.due_at).getTime() < Date.now(),
   );
   const workflowSchedule = operationalSchedule.filter((item) => item.source !== "reminder");
-  const relevantSchedule = workflowSchedule.filter(
-    (item) => new Date(item.at).getTime() >= Date.now() - 24 * 60 * 60 * 1000,
-  );
+  const relevantSchedule = workflowSchedule.filter((item) => {
+    if (isEditionCalendarItem(item)) {
+      // The canonical edition event_date is a calendar DATE, not an event
+      // start time. Do not use the schedule adapter's placeholder noon as
+      // an instant for this list's past-date cutoff.
+      const calendarDate = parseEditionCalendarDate(item.at);
+      if (!calendarDate) return false;
+      const yesterday = new Date();
+      yesterday.setHours(0, 0, 0, 0);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return calendarDate.getTime() >= yesterday.getTime();
+    }
+    return new Date(item.at).getTime() >= Date.now() - 24 * 60 * 60 * 1000;
+  });
 
   const allowedPlatformModes = platformQuery.data ? nextPlatformModes(platformQuery.data.mode) : [];
 
@@ -532,7 +543,11 @@ function AdminSystemPage() {
         ) : relevantSchedule.length ? (
           <div className="divide-y divide-white/[0.07]">
             {relevantSchedule.map((item) => {
-              const past = new Date(item.at).getTime() < Date.now();
+              const calendarDateOnly = isEditionCalendarItem(item);
+              const past = !calendarDateOnly && new Date(item.at).getTime() < Date.now();
+              const displayedDate = calendarDateOnly
+                ? parseEditionCalendarDate(item.at)?.toLocaleDateString() ?? "Date unavailable"
+                : new Date(item.at).toLocaleString();
               const content = (
                 <>
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-sky-200/12 bg-sky-200/[0.045] text-sky-100">
@@ -543,12 +558,12 @@ function AdminSystemPage() {
                       {item.label}
                     </span>
                     <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                      {new Date(item.at).toLocaleString()} · {item.detail}
+                      {displayedDate} · {item.detail}
                       {!item.href ? " · Select an edition first" : ""}
                     </span>
                   </span>
-                  <AdminStatus tone={past ? "neutral" : "info"}>
-                    {past ? "Passed" : "Scheduled"}
+                  <AdminStatus tone={calendarDateOnly || past ? "neutral" : "info"}>
+                    {calendarDateOnly ? "Calendar date" : past ? "Passed" : "Scheduled"}
                   </AdminStatus>
                   <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
                 </>
@@ -998,6 +1013,28 @@ function platformTone(mode: PlatformOperationalMode): "ready" | "info" | "attent
     case "maintenance":
       return "blocked";
   }
+}
+
+/** The edition's event_date is a date-only fact, never a scheduled show start instant. */
+function isEditionCalendarItem(item: { id: string; source: string }) {
+  return item.source === "edition" && item.id.startsWith("edition-event:");
+}
+
+function parseEditionCalendarDate(value: string): Date | null {
+  const match = /^(\\d{4})-(\\d{2})-(\\d{2})(?:T|$)/.exec(value);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  // Construct a LOCAL calendar date, not UTC midnight, to avoid an off-by-one
+  // day in time zones west of UTC.
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) return null;
+  return date;
 }
 
 function splitServices(value: string) {
