@@ -244,13 +244,17 @@ export function V3StatusChip({
 }
 
 export function V3Progress({ value, label }: { value: number; label?: string }) {
-  const clamped = Math.max(0, Math.min(100, value));
+  // Derived values can be temporarily non-finite while remote counts resolve.
+  // An unavailable value is not zero progress: keep those states distinct.
+  const clamped = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : null;
+  const percentage = clamped == null ? null : Math.round(clamped);
+
   return (
     <div>
-      {label ? (
+      {label || percentage == null ? (
         <div className="mb-1.5 flex items-center justify-between gap-2 text-[0.68rem] text-white/48">
-          <span>{label}</span>
-          <span className="tabular-nums">{Math.round(clamped)}%</span>
+          <span>{label ?? "Progress"}</span>
+          <span className="tabular-nums">{percentage == null ? "Unavailable" : `${percentage}%`}</span>
         </div>
       ) : null}
       <div
@@ -258,10 +262,12 @@ export function V3Progress({ value, label }: { value: number; label?: string }) 
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={Math.round(clamped)}
+        aria-valuenow={percentage ?? undefined}
+        aria-valuetext={percentage == null ? "Progress unavailable" : undefined}
         aria-label={label ?? "Progress"}
+        data-state={percentage == null ? "unavailable" : "known"}
       >
-        <div className="v3-progress__fill" style={{ width: `${clamped}%` }} />
+        <div className="v3-progress__fill" style={{ width: `${clamped ?? 0}%` }} />
       </div>
     </div>
   );
