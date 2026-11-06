@@ -121,6 +121,16 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
 
   const loading = follows.isLoading || countries.isLoading || editions.isLoading || shows.isLoading;
   const failed = follows.isError || countries.isError || editions.isError || shows.isError;
+  const retrying = follows.isFetching || countries.isFetching || editions.isFetching || shows.isFetching;
+
+  // Retry only failed reads. Refetching every public collection would waste egress
+  // and could invalidate unrelated successful data.
+  const retryFailedReads = () => {
+    if (follows.isError) void follows.refetch();
+    if (countries.isError) void countries.refetch();
+    if (editions.isError) void editions.refetch();
+    if (shows.isError) void shows.refetch();
+  };
 
   const updateFollow = async (
     item: V3FollowingSavedItem,
@@ -162,14 +172,28 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
           </p>
         ) : null}
 
+        {pendingKey ? (
+          <p role="status" aria-live="polite" className="mb-4 text-sm text-[var(--v3-text-secondary)]">
+            Saving your preference…
+          </p>
+        ) : null}
+
         {loading ? (
           <V3Surface className="p-5">
             <p role="status" aria-live="polite" className="text-sm text-[var(--v3-text-secondary)]">Loading your saved items…</p>
           </V3Surface>
         ) : failed ? (
-          <V3Surface className="p-5">
+          <V3Surface className="p-5" data-v3-following-saved-state="error">
             <p role="alert" className="text-sm font-semibold">Following & Saved could not be loaded.</p>
             <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">Solaris did not substitute public or browser-local data for your private preferences.</p>
+            <button
+              type="button"
+              disabled={retrying}
+              onClick={retryFailedReads}
+              className="mt-3 min-h-11 rounded-xl border border-[var(--v3-border)] px-4 text-sm font-semibold transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {retrying ? "Retrying…" : "Retry saved items"}
+            </button>
           </V3Surface>
         ) : follows.data?.schemaReady === false ? (
           <V3Surface className="p-5" data-v3-following-saved-state="unavailable">
@@ -192,7 +216,7 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
                       <SavedItem
                         key={item.followId}
                         item={item}
-                        pending={pendingKey === `${item.entityType}:${item.entityId}`}
+                        pending={Boolean(pendingKey)}
                         onLevel={(level) => void updateFollow(item, true, level)}
                         onRemove={() => void updateFollow(item, false)}
                       />
