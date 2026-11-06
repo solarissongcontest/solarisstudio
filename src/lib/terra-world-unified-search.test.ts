@@ -231,6 +231,17 @@ describe("Terra Solaris unified public World search", () => {
     expect(result.countryTotal).toBe(11);
   });
 
+  it("never returns an institutional partial result when country verification fails", async () => {
+    mocks.countries.range.mockResolvedValueOnce({
+      data: null, count: null, error: { message: "country read failed" },
+    });
+    await expect(fetchWorldUnifiedSearch("GUARD"))
+      .rejects.toThrow("Public World country search is temporarily unavailable");
+    // An institution may have been fetched, but the aggregate reader never
+    // publishes its result without both categories independently verified.
+    expect(mocks.organizations.range).toHaveBeenCalledTimes(1);
+  });
+
   it("does not show stale partial results when either data source fails", async () => {
     mocks.organizations.range.mockResolvedValueOnce({
       data: null, count: null, error: { message: "temporarily unavailable" },
