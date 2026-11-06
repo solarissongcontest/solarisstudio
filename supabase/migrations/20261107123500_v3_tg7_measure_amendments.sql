@@ -147,7 +147,19 @@ as $amendments_manage$
      else jsonb_build_object(
        'measureId',m.id,'organizationId',m.organization_id,'organId',m.organ_id,
        'measureTitle',v.title,'currentVersionId',v.id,
+       'currentVersionText',v.full_text,
        'measureState',m.state,'measureRevision',m.revision,
+       'canSubmit',exists(
+         select 1 from public.country_accounts acct
+         join public.world_organization_memberships membership
+           on membership.country_id=acct.country_id
+          and membership.organization_id=m.organization_id
+         where acct.user_id=auth.uid() and acct.status='active'
+           and membership.status='member'
+           and membership.ended_at is null and membership.joined_at<=now()
+           and public.world_access_allowed('world.amendment.submit',
+               m.organization_id,acct.country_id,m.organ_id,null,null)
+       ),
        'amendments',coalesce((
          select jsonb_agg(jsonb_build_object(
            'id',x.id,'sponsorCountryId',x.sponsor_country_id,
@@ -177,6 +189,10 @@ as $amendments_manage$
    from public.world_measures m
    join public.world_measure_versions v on v.id=m.current_version_id
    where m.id=p_measure_id
+     and m.registered_at is not null
+     and v.publication_state='published'
+     and m.state in ('registered','scheduled','under_debate','voting',
+                      'adopted','rejected','superseded','repealed','archived')
    limit 1
   ) end
 $amendments_manage$;
