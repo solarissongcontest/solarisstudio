@@ -62,8 +62,10 @@ describe("Terra Solaris unified public World search", () => {
   it("cancels obsolete country and institution searches through the same AbortSignal", async () => {
     const controller = new AbortController();
     await fetchWorldUnifiedSearch("GUARD", 0, 0, controller.signal);
-    expect(mocks.countries.abortSignal).toHaveBeenCalledExactlyOnceWith(controller.signal);
-    expect(mocks.organizations.abortSignal).toHaveBeenCalledExactlyOnceWith(controller.signal);
+    expect(mocks.countries.abortSignal).toHaveBeenCalledTimes(1);
+    expect(mocks.countries.abortSignal).toHaveBeenCalledWith(controller.signal);
+    expect(mocks.organizations.abortSignal).toHaveBeenCalledTimes(1);
+    expect(mocks.organizations.abortSignal).toHaveBeenCalledWith(controller.signal);
     expect(mocks.countries.range).toHaveBeenCalledOnce();
     expect(mocks.organizations.range).toHaveBeenCalledOnce();
   });
