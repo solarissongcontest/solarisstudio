@@ -32,25 +32,43 @@ const CRITICAL_CANONICAL_TABLES = new Set([
  * current-main debt at restack time. It is not permission to add another
  * critical mutation to one of these files.
  */
-const KNOWN_DIRECT_WRITE_DEBT: Readonly<Record<string, readonly string[]>> = {
-  "src/components/EditionPublicDesignPanel.tsx": ["editions"],
-  "src/components/admin/HeatProgressionSyncPanel.tsx": ["participants"],
-  "src/components/admin/ShowLineupWorkspace.tsx": ["participants", "shows"],
-  "src/components/studio/EditionArtworkControl.tsx": ["editions"],
-  "src/lib/visual-theme.ts": ["editions"],
-  "src/routes/_authenticated/admin/anniversary-dates.tsx": ["editions"],
-  "src/routes/_authenticated/admin/design.$slug.tsx": ["editions", "shows"],
-  "src/routes/_authenticated/admin/editions.tsx": ["editions"],
-  "src/routes/_authenticated/admin/jury/$slug.tsx": ["voters"],
-  "src/routes/_authenticated/admin/shows/$slug.tsx": ["shows"],
-  "src/routes/_authenticated/admin/televote/$slug.tsx": ["televote_votes"],
-  "src/routes/_authenticated/admin/voting-system/$slug.tsx": ["results", "shows"],
+type DirectWriteMethod = "insert" | "update" | "delete" | "upsert";
+type MethodBudget = Partial<Record<DirectWriteMethod, number>>;
+
+// Maximum existing call sites per file, table AND mutation method.
+// This does not bless additional writes in an already-debted file.
+const KNOWN_DIRECT_WRITE_DEBT: Readonly<Record<string, Readonly<Record<string, Readonly<MethodBudget>>>>> = {
+  "src/components/EditionPublicDesignPanel.tsx": { editions: { update: 1 } },
+  "src/components/admin/HeatProgressionSyncPanel.tsx": { participants: { insert: 1 } },
+  "src/components/admin/ShowLineupWorkspace.tsx": {
+    participants: { insert: 2, update: 3, delete: 1 }, shows: { update: 1 },
+  },
+  "src/components/studio/EditionArtworkControl.tsx": { editions: { update: 1 } },
+  "src/lib/visual-theme.ts": { editions: { update: 1 } },
+  "src/routes/_authenticated/admin/design.$slug.tsx": {
+    editions: { update: 1 }, shows: { update: 3 },
+  },
+  "src/routes/_authenticated/admin/editions.tsx": {
+    editions: { insert: 1, update: 1, delete: 1 },
+  },
+  "src/routes/_authenticated/admin/jury/$slug.tsx": {
+    voters: { insert: 2, update: 3, delete: 1 },
+  },
+  "src/routes/_authenticated/admin/shows/$slug.tsx": {
+    shows: { update: 2, insert: 1, delete: 1 },
+  },
+  "src/routes/_authenticated/admin/televote/$slug.tsx": {
+    televote_votes: { update: 1, insert: 1 },
+  },
+  "src/routes/_authenticated/admin/voting-system/$slug.tsx": {
+    results: { update: 1 }, shows: { update: 1 },
+  },
 };
 
 type DirectWrite = {
   file: string;
   table: string;
-  method: "insert" | "update" | "delete" | "upsert";
+  method: DirectWriteMethod;
   line: number;
 };
 
@@ -106,14 +124,21 @@ function directCriticalWrites(path: string): DirectWrite[] {
   return writes;
 }
 
-function isKnownDebt(write: DirectWrite) {
-  return KNOWN_DIRECT_WRITE_DEBT[write.file]?.includes(write.table) === true;
+function newlyIntroducedCriticalWrites(writes: readonly DirectWrite[]): DirectWrite[] {
+  const observed = new Map<string, number>();
+  return writes.filter((write) => {
+    const key = [write.file, write.table, write.method].join("\u0000");
+    const count = (observed.get(key) ?? 0) + 1;
+    observed.set(key, count);
+    const baselineLimit = KNOWN_DIRECT_WRITE_DEBT[write.file]?.[write.table]?.[write.method] ?? 0;
+    return count > baselineLimit;
+  });
 }
 
 describe("V3 critical browser-mutation regression guard", () => {
   it("does not allow new browser-owned writes to canonical lifecycle/voting tables", () => {
     const writes = browserSourceFiles(BROWSER_SOURCE_ROOT).flatMap(directCriticalWrites);
-    const newDebt = writes.filter((write) => !isKnownDebt(write));
+    const newDebt = newlyIntroducedCriticalWrites(writes);
 
     expect(
       newDebt,
@@ -130,12 +155,28 @@ describe("V3 critical browser-mutation regression guard", () => {
     ).toEqual([]);
   });
 
-  it("keeps the allowlist file-and-table-specific", () => {
+  it("rejects additional mutations even inside an existing debt file/table", () => {
+    const example: DirectWrite = {
+      file: "src/components/EditionPublicDesignPanel.tsx",
+      table: "editions", method: "update", line: 218,
+    };
+    expect(newlyIntroducedCriticalWrites([example])).toEqual([]);
+    expect(newlyIntroducedCriticalWrites([example, { ...example, line: 219 }]))
+      .toEqual([{ ...example, line: 219 }]);
+    expect(newlyIntroducedCriticalWrites([{ ...example, method: "insert" }]))
+      .toEqual([{ ...example, method: "insert" }]);
+  });
+
+  it("keeps the baseline bounded by file, table, method, and a positive call count", () => {
     for (const [file, tables] of Object.entries(KNOWN_DIRECT_WRITE_DEBT)) {
       expect(file.startsWith("src/")).toBe(true);
-      expect(tables.length).toBeGreaterThan(0);
-      for (const table of tables) {
+      expect(Object.keys(tables).length).toBeGreaterThan(0);
+      for (const [table, methods] of Object.entries(tables)) {
         expect(CRITICAL_CANONICAL_TABLES.has(table)).toBe(true);
+        for (const [method, count] of Object.entries(methods)) {
+          expect(["insert", "update", "delete", "upsert"]).toContain(method);
+          expect(Number.isSafeInteger(count) && count > 0).toBe(true);
+        }
       }
     }
   });
@@ -149,7 +190,9 @@ describe("V3 critical browser-mutation regression guard", () => {
   });
 
   it("does not bless currently clean official Jury mutation tables", () => {
-    const allowedTables = new Set(Object.values(KNOWN_DIRECT_WRITE_DEBT).flat());
+    const allowedTables = new Set(
+      Object.values(KNOWN_DIRECT_WRITE_DEBT).flatMap((tables) => Object.keys(tables)),
+    );
 
     expect(allowedTables.has("jury_votes")).toBe(false);
     expect(allowedTables.has("jury_ballot_statuses")).toBe(false);
