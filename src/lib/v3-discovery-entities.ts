@@ -2,7 +2,7 @@ import { resolveCurrentPublicEdition } from "./current-contest-state";
 import type { Country, Edition, Participant, Show } from "./data";
 import { normalizeLegacyEditionStatus } from "./edition-state";
 import { isShowPublic } from "./publication";
-import { showModeConfig } from "./show-mode";
+import { safeShowModeYoutubeUrl, showModeConfig } from "./show-mode";
 
 type PublicParticipant = Participant & {
   participation_status?: "confirmed" | "withdrawn" | "disqualified" | null;
@@ -26,6 +26,7 @@ export type ShowDiscoveryState =
   | "scheduled"
   | "ended"
   | "cancelled"
+  | "archived"
   | "other";
 
 export type ShowDiscoveryItem = {
@@ -147,24 +148,7 @@ function canonicalShowState(show: Show): ShowDiscoveryState {
 }
 
 function stateLabel(state: ShowDiscoveryState) {
-  switch (state) {
-    case "live":
-      return "Live";
-    case "paused":
-      return "Paused";
-    case "delayed":
-      return "Delayed";
-    case "preparing":
-      return "Preparing";
-    case "scheduled":
-      return "Scheduled";
-    case "ended":
-      return "Ended";
-    case "cancelled":
-      return "Cancelled";
-    case "other":
-      return "Show";
-  }
+  return state === "other" ? "Show" : state.charAt(0).toUpperCase() + state.slice(1);
 }
 
 function scheduledTime(item: ShowDiscoveryItem) {
@@ -198,46 +182,37 @@ export function buildShowDiscovery(input: {
     input.editions.filter((edition) => edition.published).map((edition) => [edition.id, edition]),
   );
 
-  const items = input.shows.flatMap<ShowDiscoveryItem>((show) => {
-    if (!isShowPublic(show)) return [];
+  const items: ShowDiscoveryItem[] = [];
+  for (const show of input.shows) {
+    if (!isShowPublic(show)) continue;
     const edition = editionById.get(show.edition_id);
-    if (!edition) return [];
+    if (!edition) continue;
     const config = showModeConfig(show);
-    const state = canonicalShowState(show);
-    let broadcastUrl: string | null = null;
-    try {
-      const raw = config.youtubeUrl?.trim();
-      if (raw) {
-        const url = new URL(raw);
-        const host = url.hostname.toLowerCase().replace(/^www\./, "");
-        if (
-          url.protocol === "https:" &&
-          (host === "youtube.com" || host.endsWith(".youtube.com") || host === "youtu.be")
-        ) {
-          broadcastUrl = url.toString();
-        }
-      }
-    } catch {
-      broadcastUrl = null;
-    }
+    const rawState = canonicalShowState(show);
+    // A terminal Edition is never "on air" or "coming soon". Preserve
+    // explicit completed/cancelled Show states, but neutralize stale active
+    // status labels from historical records without inventing a completion.
+    const state: ShowDiscoveryState = isTerminalEdition(edition) &&
+      rawState !== "ended" && rawState !== "cancelled" && rawState !== "other"
+      ? "archived" : rawState;
+    const broadcastUrl = safeShowModeYoutubeUrl(config.youtubeUrl);
 
-    return [{
+    items.push({
       show,
       edition,
       state,
       stateLabel: stateLabel(state),
       scheduledStart: config.scheduledStart || null,
       broadcastUrl,
-    }];
-  });
+    });
+  }
 
   const liveNow = items
-    .filter((item) => !isTerminalEdition(item.edition) && (item.state === "live" || item.state === "paused"))
+    .filter((item) => item.state === "live" || item.state === "paused")
     .sort(sortUpcoming);
   const upNext = items
     .filter(
       (item) =>
-        !isTerminalEdition(item.edition) &&
         (item.state === "scheduled" ||
           item.state === "preparing" ||
           item.state === "delayed"),
