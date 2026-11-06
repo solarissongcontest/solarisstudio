@@ -9,6 +9,7 @@ PRODUCTION_HEAD="${V3_PRODUCTION_MIGRATION_HEAD:-20261014020000}"
 # head. This makes the rehearsal fail closed if a branch rewrites deployed SQL
 # or inserts a backdated migration while retaining the same maximum version.
 PRODUCTION_BASELINE_SHA256="${V3_PRODUCTION_BASELINE_SHA256:-b60f5f9e923462943dde34fb2f6d4e2d003626b87952833a92948c6302bdf513}"
+KEEP_RUNNING="${V3_PRODUCTION_HEAD_KEEP_RUNNING:-false}"
 ROOT="$(git rev-parse --show-toplevel)"
 MIGRATIONS_DIR="$ROOT/supabase/migrations"
 HELD_DIR="$(mktemp -d)"
@@ -29,7 +30,11 @@ cleanup() {
   trap - EXIT INT TERM
   restore_migrations || true
   if [[ "$STARTED" == true ]]; then
-    (cd "$ROOT" && supabase stop --no-backup) >/dev/null 2>&1 || true
+    if [[ "$status" -eq 0 && "$KEEP_RUNNING" == true ]]; then
+      log "Leaving the successful disposable local stack running for caller follow-up checks"
+    else
+      (cd "$ROOT" && supabase stop --no-backup) >/dev/null 2>&1 || true
+    fi
   fi
   rm -rf "$HELD_DIR"
   exit "$status"
@@ -40,6 +45,10 @@ trap cleanup EXIT INT TERM
   || fail "Configured production head must be a 14-digit migration version"
 [[ "$PRODUCTION_BASELINE_SHA256" =~ ^[0-9a-f]{64}$ ]] \
   || fail "Configured production baseline fingerprint must be a lowercase SHA-256"
+case "$KEEP_RUNNING" in
+  true|false) ;;
+  *) fail "V3_PRODUCTION_HEAD_KEEP_RUNNING must be true or false" ;;
+esac
 
 mapfile -t all_migrations < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
 (( ${#all_migrations[@]} > 0 )) || fail "No migration files found"
@@ -78,8 +87,26 @@ expected_delta="$held"
 
 log "Building disposable local Supabase at the hosted production migration head"
 cd "$ROOT"
-supabase start
+# Mark the local stack for cleanup BEFORE startup: registry throttling or a
+# partially created Docker container can fail 'supabase start' after reserving
+# port 54322, and must never survive the EXIT trap.
 STARTED=true
+startup_ok=false
+for attempt in 1 2; do
+  if supabase start; then
+    startup_ok=true
+    break
+  fi
+  log "Disposable local Supabase startup attempt $attempt failed"
+  # A failed start can leave containers or published ports behind. Teardown
+  # before the single bounded retry; never switch to hosted Supabase.
+  supabase stop --no-backup || log "Partial local stack had nothing to stop"
+  if [[ "$attempt" == "1" ]]; then
+    sleep 8
+  fi
+done
+[[ "$startup_ok" == true ]] \
+  || fail "Disposable local Supabase failed twice; no hosted fallback"
 supabase db reset --local --no-seed
 
 eval "$(supabase status -o env)"
@@ -118,6 +145,7 @@ applied_delta="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select count(*) from
 
 log "Re-running critical V3 invariants on the production-head upgrade path"
 for rehearsal in \
+  v3-tg2-identity-linkage-privacy-rehearsal.sh \
   v3-operation-receipt-rehearsal.sh \
   v3-s2-entry-correction-rehearsal.sh \
   v3-confirmation-security-rehearsal.sh \

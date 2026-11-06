@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
+import { validateBallot } from "@/integrations/televoting/vote-input-validation";
 import { parseTelevoteRecoveryCode, serializeTelevoteRecoveryCode } from "@/lib/v3-televote-reconciliation";
 
 export type TelevotingVoteEntry = {
@@ -21,37 +22,6 @@ function validateRoundId(value: unknown) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(roundId))
     throw new Error("Invalid voting round");
   return roundId;
-}
-
-function validateBallot(data: TelevotingVoteInput) {
-  if (!data?.roundId) throw new Error("Missing round");
-  const username = String(data?.username ?? "").trim();
-  if (username.length < 2 || username.length > 40)
-    throw new Error("Username must be 2–40 characters");
-  if (!data?.countryCode) throw new Error("Home country required");
-  if (!Array.isArray(data.entries) || data.entries.length < 5)
-    throw new Error("Vote for at least 5 entries");
-
-  const total = data.entries.reduce((sum, entry) => sum + Number(entry.points || 0), 0);
-  if (total !== 20) throw new Error("You must distribute exactly 20 points");
-  if (
-    data.entries.some(
-      (entry) =>
-        !entry.target_country_code ||
-        !Number.isInteger(entry.points) ||
-        entry.points < 1 ||
-        entry.points > 10,
-    )
-  ) {
-    throw new Error("Each selected entry must receive between 1 and 10 points");
-  }
-  if (
-    new Set(data.entries.map((entry) => entry.target_country_code)).size !== data.entries.length
-  ) {
-    throw new Error("Duplicate voting entry");
-  }
-
-  return { ...data, username };
 }
 
 export const preflightMergedTelevotingVote = createServerFn({ method: "POST" })

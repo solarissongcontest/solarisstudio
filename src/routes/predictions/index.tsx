@@ -9,6 +9,7 @@ import { V3PredictionsRouteContent } from "@/components/v3/V3PredictionsRouteCon
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { usePredictionRounds } from "@/lib/prediction-data";
 import { formatEventDateTime } from "@/lib/public-time";
+import { predictionReadStatus } from "@/lib/public-prediction-read-status";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 export const Route = createFileRoute("/predictions/")({
@@ -64,7 +65,9 @@ function PredictionArenaPage() {
 }
 
 function LegacyPredictionArenaPage() {
-  const { data: roundData, isLoading } = usePredictionRounds();
+  const roundsQuery = usePredictionRounds();
+  const { data: roundData } = roundsQuery;
+  const readStatus = predictionReadStatus(roundsQuery);
   const { data: shows } = useAllShows();
   const { data: editions } = useEditions();
 
@@ -81,9 +84,26 @@ function LegacyPredictionArenaPage() {
         description="Make your picks before the round locks, then return after the result to see what you got right. Community consensus stays hidden until you submit."
       />
 
-      {isLoading ? (
+      {readStatus === "loading" ? (
         <Panel>
-          <p className="text-sm text-muted-foreground">Loading prediction rounds…</p>
+          <p role="status" className="text-sm text-muted-foreground">
+            Loading prediction rounds…
+          </p>
+        </Panel>
+      ) : readStatus === "error" ? (
+        <Panel title="Prediction rounds could not be verified">
+          <p role="alert" className="text-sm leading-relaxed text-muted-foreground">
+            Solaris could not check the published prediction windows. This does not mean that
+            no round is open. Try again before relying on the schedule.
+          </p>
+          <button
+            type="button"
+            onClick={() => void roundsQuery.refetch()}
+            disabled={roundsQuery.isFetching}
+            className="mt-3 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold text-foreground disabled:opacity-50"
+          >
+            {roundsQuery.isFetching ? "Retrying…" : "Retry prediction rounds"}
+          </button>
         </Panel>
       ) : roundData?.schemaReady === false ? (
         <Panel title="Prediction Arena is temporarily unavailable">
