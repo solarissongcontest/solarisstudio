@@ -19,9 +19,12 @@ describe("Organizer Entry review operation version presentation", () => {
     expect(isOrganizerEntryReviewResultForDisplayedVersion("version-4", "version-40")).toBe(false);
   });
 
-  it("supports exact legacy unbound state while retaining server preview/version CAS", () => {
-    expect(isOrganizerEntryReviewResultForDisplayedVersion(null, null)).toBe(true);
-    expect(isOrganizerEntryReviewResultForDisplayedVersion("", null)).toBe(true);
+  it("does not confuse missing immutable version bindings with current review authority", () => {
+    expect(isOrganizerEntryReviewResultForDisplayedVersion(null, null)).toBe(false);
+    expect(isOrganizerEntryReviewResultForDisplayedVersion("", null)).toBe(false);
+    expect(isOrganizerEntryReviewResultForDisplayedVersion("  ", " ")).toBe(false);
+    expect(isOrganizerEntryReviewResultForDisplayedVersion("version-4", null)).toBe(false);
+    expect(isOrganizerEntryReviewResultForDisplayedVersion(null, "version-4")).toBe(false);
   });
 
   it("clears old notes and receipts when a new immutable submission appears", () => {
@@ -41,7 +44,8 @@ describe("Organizer Entry review operation version presentation", () => {
     expect(route).toContain("pending?.expectedEntryVersion");
     expect(route).toContain("displayedEntryVersionRef.current");
     expect(route).toContain("isOrganizerEntryReviewResultForDisplayedVersion");
-    expect(route).toContain("Earlier Entry review settled for another version");
+    expect(route).toContain("The settled review is not bound to the displayed immutable Entry version");
+    expect(route).toContain("This review receipt does not prove the displayed Entry version is reviewed");
     expect(route).toContain("await onChanged()");
     expect(route).toContain("unresolvedReviewOperationRef.current = null");
     expect(route).toContain("isSuccessfulConfirmationEntryReviewReceipt");
