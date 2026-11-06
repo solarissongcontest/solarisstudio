@@ -10,8 +10,8 @@ describe("TG11/TG12 private workspace authority contracts", () => {
   it("has matched PostgreSQL function delimiters and transactional DDL", () => {
     expect((sql.match(/as \$\$/g) ?? []).length).toBe(11);
     expect((sql.match(/^\$\$;/gm) ?? []).length).toBe(11);
-    expect((sql.match(/as \$[a-z]+\$/g) ?? []).length).toBe(4);
-    expect((sql.match(/^\$[a-z]+\$;/gm) ?? []).length).toBe(4);
+    expect((sql.match(/as \$[a-z]+\$/g) ?? []).length).toBe(6);
+    expect((sql.match(/^\$[a-z]+\$;/gm) ?? []).length).toBe(6);
     expect(sql.startsWith("begin;")).toBe(true);
     expect(sql.trimEnd().endsWith("commit;")).toBe(true);
   });
@@ -56,6 +56,21 @@ describe("TG11/TG12 private workspace authority contracts", () => {
     expect(sql).toContain("p_expected_revision is distinct from v_message.revision");
     expect(sql).toContain("for update");
     expect(sql).toContain("'moderator_redaction'");
+  });
+
+  it("serializes all chat commands against live TG2 affiliation rows", () => {
+    expect(sql).toContain("create function private.world_space_lock_actor_membership_v1");
+    expect(sql).toContain("create function private.world_space_lock_member_for_space_v1");
+    expect(sql).toContain("limit 1 for share of m,a");
+    expect(sql).toContain("limit 1 for share of r,m");
+    expect((sql.match(/perform private\.world_space_lock_member_for_space_v1/g) ?? []).length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("rejects changed room-creation replays rather than returning the original room", () => {
+    expect(sql).toContain("v_existing.visibility_policy is distinct from p_visibility");
+    expect(sql).toContain("v_existing.history_policy is distinct from p_history");
+    expect(sql).toContain("v_existing.name is distinct from btrim(p_name)");
+    expect(sql).toContain("message='IDEMPOTENCY_SCOPE'");
   });
 
   it("limits manager invitations to current canonical TG2 members and protects grant retries", () => {

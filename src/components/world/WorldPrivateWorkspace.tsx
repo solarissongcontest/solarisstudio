@@ -81,7 +81,13 @@ function PrivateHeader({ title, context }: { title: string; context: string }) {
   </header>;
 }
 function SignInNotice() {
-  return <AccessNotice message="Sign in with your Solaris account to open an institutional workspace. Existing invitations never override a revoked membership." />;
+  return <div>
+    <AccessNotice message="Sign in with your Solaris account to open an institutional workspace. Existing invitations never override a revoked membership." />
+    <Link to="/auth" search={{ redirect: "/world/workspaces" }}
+      className="inline-flex min-h-11 items-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground">
+      Sign in to Solaris
+    </Link>
+  </div>;
 }
 
 export function WorldWorkspacesDirectory() {
