@@ -86,6 +86,7 @@ describe("TG3 public institution bodies", () => {
       "id,organization_id,slug,name,short_name,type,status,visibility,sort_order",
       { count: "exact" },
     );
+    expect(body.order).toHaveBeenCalledWith("slug", { ascending: true });
     expect(body.range).toHaveBeenCalledWith(0, WORLD_BODIES_PAGE_SIZE - 1);
   });
   it("preserves public-only predicates for historical filtering without search", async () => {
@@ -194,6 +195,7 @@ describe("TG3 institution body offices", () => {
     expect(query.eq).toHaveBeenCalledWith("organization_id", "org-1");
     expect(query.eq).toHaveBeenCalledWith("organ_id", "body-1");
     expect(query.eq).toHaveBeenCalledWith("active", true);
+    expect(query.order).toHaveBeenCalledWith("id", { ascending: true });
     expect(query.limit).toHaveBeenCalledWith(WORLD_BODY_OFFICE_LIMIT);
     expect(query.select).toHaveBeenCalledWith("id,organization_id,organ_id,title,office_type,active");
   });
