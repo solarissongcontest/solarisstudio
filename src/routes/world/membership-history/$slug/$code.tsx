@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
 import { WorldMembershipHistoryScreen } from "@/components/world/WorldMembershipHistory";
+import { WorldPublicGate } from "@/components/world/WorldPublic";
 
 export const Route = createFileRoute("/world/membership-history/$slug/$code")({
   head: () => ({
@@ -22,8 +23,10 @@ export const Route = createFileRoute("/world/membership-history/$slug/$code")({
 function MembershipHistoryPage() {
   const { slug, code } = Route.useParams();
   return (
-    <AppShell>
-      <WorldMembershipHistoryScreen slug={slug} code={code} />
-    </AppShell>
+    <WorldPublicGate verifyOnMount>
+      <AppShell>
+        <WorldMembershipHistoryScreen slug={slug} code={code} />
+      </AppShell>
+    </WorldPublicGate>
   );
 }
