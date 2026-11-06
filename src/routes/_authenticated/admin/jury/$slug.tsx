@@ -40,7 +40,6 @@ import {
   useContestEntities,
   useCountries,
   useEdition,
-  useJuryVotes,
   useParticipants,
   useShowVoters,
   useShows,
@@ -49,6 +48,7 @@ import {
   type VoterOption,
 } from "@/lib/data";
 import { DEFAULT_ACCENT, entityDisplayMap } from "@/lib/entities";
+import { useOrganizerJuryVotes } from "@/lib/v3-organizer-jury-private-votes";
 import { reportSupabaseError } from "@/lib/errors";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
 import { resolveVoting } from "@/lib/voting";
@@ -198,7 +198,13 @@ function JuryWorkspace() {
     [allParticipants, selectedShow?.id],
   );
   const { data: showVoters = [], isLoading: loadingVoters } = useShowVoters(selectedShow?.id);
-  const { data: juryVotes = [], isLoading: loadingVotes } = useJuryVotes(selectedShow?.id);
+  const {
+    data: juryVotes = [],
+    isLoading: loadingVotes,
+    isFetching: fetchingVotes,
+    error: votesError,
+    refetch: retryVotes,
+  } = useOrganizerJuryVotes({ actorId, editionId: edition?.id, showId: selectedShow?.id });
   const { data: ballotStatuses = [], isLoading: loadingStatuses, isFetching: fetchingStatuses, error: statusesError, refetch: retryStatuses } = useQuery({
     enabled: Boolean(actorId && edition?.id && selectedShow?.id),
     queryKey: ["jury_ballot_statuses", actorId, edition?.id ?? "unscoped", selectedShow?.id ?? "pending"],
@@ -267,10 +273,10 @@ function JuryWorkspace() {
     useState<PendingBallotReview | null>(null);
   const [pendingDnvChange, setPendingDnvChange] = useState<PendingDnvChange | null>(null);
   const [lifecycleReason, setLifecycleReason] = useState("");
-  const privateBallotReadError = statusesError ?? submissionsError;
+  const privateBallotReadError = statusesError ?? submissionsError ?? votesError;
   const privateBallotReadUnavailable = Boolean(
-    !actorId || loadingStatuses || loadingSubmittedBallots ||
-    fetchingStatuses || fetchingSubmittedBallots || privateBallotReadError,
+    !actorId || loadingStatuses || loadingSubmittedBallots || loadingVotes ||
+    fetchingStatuses || fetchingSubmittedBallots || fetchingVotes || privateBallotReadError,
   );
   useEffect(() => {
     // A prepared review cannot remain actionable while protected evidence is
@@ -721,7 +727,7 @@ function JuryWorkspace() {
         />
         <AdminCard>
           <p role="status" className="text-sm font-semibold">
-            {loadingStatuses || loadingSubmittedBallots || fetchingStatuses || fetchingSubmittedBallots
+            {loadingStatuses || loadingSubmittedBallots || loadingVotes || fetchingStatuses || fetchingSubmittedBallots || fetchingVotes
               ? "Verifying Jury ballot evidence…"
               : "Jury ballot evidence unavailable"}
           </p>
@@ -735,8 +741,8 @@ function JuryWorkspace() {
           <button
             type="button"
             className="admin-action-secondary mt-3 min-h-11"
-            disabled={!actorId || fetchingStatuses || fetchingSubmittedBallots}
-            onClick={() => void Promise.all([retryStatuses(), retrySubmittedBallots()])}
+            disabled={!actorId || fetchingStatuses || fetchingSubmittedBallots || fetchingVotes}
+            onClick={() => void Promise.all([retryStatuses(), retrySubmittedBallots(), retryVotes()])}
           >
             Retry Jury ballot evidence
           </button>
