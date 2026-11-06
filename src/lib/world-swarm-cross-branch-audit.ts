@@ -121,8 +121,23 @@ export function auditWorldSwarmCrossBranches(snapshot: WorldSwarmSnapshot): Worl
       prs: [pull.number], paths: [],
     });
     for (const file of pull.files) {
-      if (!file.filename.startsWith("supabase/migrations/") || !file.filename.endsWith(".sql")) continue;
+      const isMigration = (path: string) =>
+        path.startsWith("supabase/migrations/") && path.endsWith(".sql");
+      const sourcePath = file.previousFilename;
+      const destinationIsMigration = isMigration(file.filename);
+      const sourceIsMigration = Boolean(sourcePath && isMigration(sourcePath));
+      if (!destinationIsMigration && !sourceIsMigration) continue;
       migrationsChecked++;
+      if (file.status === "renamed" && sourceIsMigration && sourcePath && mainPaths.has(sourcePath)) {
+        addIssue(issues, {
+          severity: "error", code: "main_migration_removed",
+          message: `PR #${pull.number} renames an existing main migration; migration history must remain forward-only`,
+          prs: [pull.number], paths: [sourcePath, file.filename],
+        });
+      }
+      // A migration renamed out of the SQL directory is not an incoming new
+      // migration, but its old path must still be checked above.
+      if (!destinationIsMigration) continue;
       const v = versionOf(file.filename);
       if (!v) {
         invalid(`PR #${pull.number} has a noncanonical migration filename: ${file.filename}`, [pull.number]);
