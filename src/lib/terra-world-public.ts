@@ -222,6 +222,11 @@ export async function fetchWorldDirectory(input: {
   if (!Array.isArray(data) || organizations.length !== data.length) {
     throw new Error("World organization publication could not be verified.");
   }
+  if (organizations.length > WORLD_DIRECTORY_PAGE_SIZE ||
+      (organizations.length > 0 && page * WORLD_DIRECTORY_PAGE_SIZE + organizations.length > count) ||
+      (page === 0 && organizations.length === 0 && count > 0)) {
+    throw new Error("World directory page count could not be verified.");
+  }
   return { organizations, total: count };
 }
 
