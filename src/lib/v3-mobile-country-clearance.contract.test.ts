@@ -11,7 +11,8 @@ describe("V3 country browsing and bottom navigation clearance", () => {
     expect(countries).toContain('aria-label="Country collections"');
     expect(countries).toContain('aria-pressed={selectedParticipatingOnly}');
     expect(countries).toContain('aria-pressed={!selectedParticipatingOnly}');
-    expect(countries).toContain("<CountryTile key={country.id} country={country} presentation={presentation} />");
+    expect(countries).toContain("<CountryTile key={country.id} country={country} presentation={presentation}");
+    expect(countries).toContain("status={selectedParticipatingOnly ? undefined : publishedStatuses.get(country.id)}");
     expect(countries).toContain('"v3-countries-grid grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4"');
     expect(countries).toContain("setVisibleCount((count) => count + BROWSE_PAGE_SIZE)");
     expect(countries).toContain("v3-countries-controls solaris-app-directory-tools");
