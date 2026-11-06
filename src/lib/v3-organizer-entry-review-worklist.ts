@@ -59,7 +59,9 @@ export type OrganizerEntryWorkItem = {
 function statusOf(entry: OrganizerEntryWorkCandidate): OrganizerEntryWorkStatus {
   const status = classifyOrganizerEntryReview(entry);
   if (status === "removed") return "withdrawn";
-  if (status === "accepted") return "accepted";
+  // Canonical acceptance remains historical evidence, but a missing title
+  // must not turn the visible current song worklist green.
+  if (status === "accepted") return entry.song_title?.trim() ? "accepted" : "needs_review";
   if (status === "declined") return "changes_required";
   return "needs_review";
 }
