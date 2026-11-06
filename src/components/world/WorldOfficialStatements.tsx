@@ -155,11 +155,16 @@ export function WorldStatementComposer({
   const [reason, setReason] = useState("");
   const [review, setReview] = useState(false);
   const [pending, setPending] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<WorldIssueStatementReceipt | null>(null);
   const [identity, setIdentity] = useState<{ operationId: string; idempotencyKey: string } | null>(null);
 
   const resetDraft = () => {
+    // An uncertain network response may mean the public publication already
+    // committed. Never silently discard its idempotency identity and permit a
+    // second "new" operation with different content.
+    if (uncertain) return;
     setReview(false);
     setIdentity(null);
     setError(null);
@@ -186,9 +191,14 @@ export function WorldStatementComposer({
         ...stableIdentity,
       });
       setReceipt(result);
+      setUncertain(false);
       setReview(false);
-      onPublished?.(result);
+      // The successful database receipt is authoritative even if the optional
+      // parent refresh callback fails.
+      try { onPublished?.(result); } catch { /* parent may retry its own refresh */ }
     } catch (cause) {
+      setUncertain(true);
+      setReview(true);
       setError(cause instanceof Error ? cause.message : "Publication was not confirmed.");
     } finally {
       setPending(false);
@@ -208,16 +218,16 @@ export function WorldStatementComposer({
         <>
           <label className="block text-sm font-medium">Title
             <input className="mt-1 block w-full rounded-lg border bg-background p-3" maxLength={220}
-              value={title} disabled={pending || review} onChange={(e) => { setTitle(e.target.value); resetDraft(); }} />
+              value={title} disabled={pending || review || uncertain} onChange={(e) => { setTitle(e.target.value); resetDraft(); }} />
           </label>
           <label className="block text-sm font-medium">Official text
             <textarea className="mt-1 block min-h-40 w-full rounded-lg border bg-background p-3"
-              maxLength={50000} value={body} disabled={pending || review}
+              maxLength={50000} value={body} disabled={pending || review || uncertain}
               onChange={(e) => { setBody(e.target.value); resetDraft(); }} />
           </label>
           {correcting && <label className="block text-sm font-medium">Reason for correction (published)
             <textarea className="mt-1 block w-full rounded-lg border bg-background p-3"
-              maxLength={2000} value={reason} disabled={pending || review}
+              maxLength={2000} value={reason} disabled={pending || review || uncertain}
               onChange={(e) => { setReason(e.target.value); resetDraft(); }} />
           </label>}
           {!review ? (
@@ -233,13 +243,13 @@ export function WorldStatementComposer({
               {correcting && <p className="text-sm">Correction reason: {reason}</p>}
               <div className="flex flex-wrap gap-3">
                 <button type="button" disabled={pending} className="rounded-lg border px-5 py-3"
-                  onClick={() => setReview(false)}>Edit</button>
+                  onClick={() => setReview(false)} disabled={uncertain}>Edit</button>
                 <button type="button" disabled={pending} className="rounded-lg bg-primary px-5 py-3 text-primary-foreground disabled:opacity-50"
-                  onClick={() => void publish()}>{pending ? "Publishing…" : "Confirm official publication"}</button>
+                  onClick={() => void publish()}>{pending ? "Publishing…" : uncertain ? "Retry identical operation" : "Confirm official publication"}</button>
               </div>
             </div>
           )}
-          {error && <p role="alert" className="text-sm text-destructive">{error} The operation identity is preserved for a safe retry.</p>}
+          {error && <p role="alert" className="text-sm text-destructive">{error} This outcome may be uncertain. The draft is locked so you can retry with exactly the same operation identity without creating a second publication.</p>}
         </>
       )}
     </section>
