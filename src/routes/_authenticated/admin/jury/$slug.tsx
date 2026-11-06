@@ -267,9 +267,10 @@ function JuryWorkspace() {
     useState<PendingBallotReview | null>(null);
   const [pendingDnvChange, setPendingDnvChange] = useState<PendingDnvChange | null>(null);
   const [lifecycleReason, setLifecycleReason] = useState("");
+  const privateBallotReadError = statusesError ?? submissionsError;
   const privateBallotReadUnavailable = Boolean(
     !actorId || loadingStatuses || loadingSubmittedBallots ||
-    fetchingStatuses || fetchingSubmittedBallots || statusesError || submissionsError,
+    fetchingStatuses || fetchingSubmittedBallots || privateBallotReadError,
   );
   useEffect(() => {
     // A prepared review cannot remain actionable while protected evidence is
@@ -724,10 +725,10 @@ function JuryWorkspace() {
               ? "Verifying Jury ballot evidence…"
               : "Jury ballot evidence unavailable"}
           </p>
-          {statusesError || submissionsError ? (
+          {privateBallotReadError ? (
             <p role="alert" className="mt-2 text-sm text-rose-100">
-              {(statusesError || submissionsError) instanceof Error
-                ? (statusesError || submissionsError as Error)?.message
+              {privateBallotReadError instanceof Error
+                ? privateBallotReadError.message
                 : "Protected Jury ballot read failed."}
             </p>
           ) : null}
