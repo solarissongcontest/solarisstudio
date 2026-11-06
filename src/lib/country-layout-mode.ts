@@ -1,11 +1,10 @@
-/** Explicit surface ownership: a phone-sized browser is not an installed app. */
-export type CountryLayoutMode = "mobile-web" | "desktop-web" | "installed-app";
-export const COUNTRY_MOBILE_WEB_MEDIA_QUERY = "(max-width: 767px)";
+import {
+  COUNTRY_DIRECTORY_MOBILE_MEDIA,
+  resolveCountryDirectoryPresentation,
+  type CountryDirectoryPresentation,
+} from "@/lib/country-directory-presentation";
 
-export function resolveCountryLayoutMode(
-  isAppMode: boolean,
-  narrowViewport: boolean,
-): CountryLayoutMode {
-  if (isAppMode) return "installed-app";
-  return narrowViewport ? "mobile-web" : "desktop-web";
-}
+/** Country details and Countries discovery resolve the same three experiences. */
+export type CountryLayoutMode = CountryDirectoryPresentation;
+export const COUNTRY_MOBILE_WEB_MEDIA_QUERY = COUNTRY_DIRECTORY_MOBILE_MEDIA;
+export const resolveCountryLayoutMode = resolveCountryDirectoryPresentation;
