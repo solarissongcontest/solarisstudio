@@ -68,6 +68,9 @@ jobs:
       - name: Verify V3 production isolation
         run: bun run scripts/check-v3-production-isolation.ts
 
+      - name: Regress cross-system sweep classifier (no database or network)
+        run: node --test scripts/v3-s14-runtime-defect-sweep.contract.mjs
+
       - name: Enforce V3 capability status transitions on pull requests
         if: github.event_name == 'pull_request'
         shell: bash
@@ -128,6 +131,13 @@ jobs:
           GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts --json > v3-integration-evidence/v3-completion-dashboard.json
           bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > v3-integration-evidence/v3-s14-rehearsal-readiness.json
           bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > v3-integration-evidence/v3-s15-zero-orphan-readiness.json
+          mkdir -p v3-integration-evidence/sweep
+          cp v3-integration-evidence/v3-s14-rehearsal-readiness.json v3-integration-evidence/sweep/s14-readiness.json
+          cp v3-integration-evidence/v3-s15-zero-orphan-readiness.json v3-integration-evidence/sweep/s15-readiness.json
+          node scripts/v3-s14-runtime-defect-sweep.mjs --candidate "$expected" \
+            --evidence-dir v3-integration-evidence/sweep \
+            --json v3-integration-evidence/v3-s14-cross-system-defect-sweep.json \
+            --markdown v3-integration-evidence/v3-s14-cross-system-defect-sweep.md
           actual="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-integration-evidence/v3-completion-dashboard.json","utf8")).candidateSha)')"
           if [ "$actual" != "$expected" ]; then
             echo "::error::V3 completion dashboard is bound to $actual, expected exact source SHA $expected"
