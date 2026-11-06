@@ -289,14 +289,14 @@ export async function readPublicBodyOffices(
     .order("display_priority", { ascending: true })
     .order("id", { ascending: true });
   if (signal) request = request.abortSignal(signal);
-  // A plain LIMIT returns a plausible-looking prefix when the body has more
-  // offices than this deliberately bounded reader supports. Ask PostgREST for
-  // the count of the SAME public-only query so incomplete official lists never
-  // silently masquerade as the full public roster.
+  // The UI deliberately presents only the first 20 public office definitions
+  // and labels that limit. Verify that the bounded server response actually
+  // contains all expected rows; a short or malformed response must not be
+  // mistaken for a complete public snapshot.
   const { data, error, count } = await request.limit(WORLD_BODY_OFFICE_LIMIT);
   if (error || !Array.isArray(data) ||
       !Number.isSafeInteger(count) || count < 0 ||
-      count > WORLD_BODY_OFFICE_LIMIT || data.length !== count) {
+      data.length !== Math.min(count, WORLD_BODY_OFFICE_LIMIT)) {
     throw new Error("Public institutional offices could not be verified.");
   }
   const offices = data.map((row: unknown) =>
