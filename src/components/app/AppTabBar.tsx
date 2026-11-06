@@ -73,7 +73,6 @@ export function AppTabBar({
   const tabbarMode = chrome.tabBar;
   const [railMode, setRailMode] = useState(false);
   const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
-  const [dragging, setDragging] = useState(false);
   const { collapsed, expand: expandTabBar } = useScrollResponsiveBar({
     enabled: !railMode,
     resetKey: `${pathname}|${routeArea}|${searchStr}`,
@@ -89,6 +88,9 @@ export function AppTabBar({
     end: endHold,
     isEngaged: isHoldEngaged,
   } = useSolarisPressHold();
+  // The dock becomes a draggable surface only after hold intent engages.
+  // Pointer-down alone must leave the lens in its resting optical state.
+  const dragging = held;
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 900px)");
@@ -241,7 +243,6 @@ export function AppTabBar({
   const clearDrag = useCallback(() => {
     endHold();
     resetDragDom();
-    setDragging(false);
     setDragPreviewIndex(null);
   }, [endHold, resetDragDom]);
 
@@ -334,7 +335,6 @@ export function AppTabBar({
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginHold(event.pointerId, event.clientX, event.clientY);
-    setDragging(true);
   };
 
   const moveDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
