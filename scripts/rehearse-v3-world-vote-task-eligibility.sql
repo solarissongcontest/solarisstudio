@@ -209,6 +209,8 @@ declare
   v jsonb := current_setting('solaris.tg8_fixture')::jsonb;
   v_proxy uuid := gen_random_uuid();
   v_proxy_vote uuid := gen_random_uuid();
+  v_proxy_measure uuid := gen_random_uuid();
+  v_proxy_version uuid := gen_random_uuid();
   v_rep public.world_organization_representations%rowtype;
   v_member public.world_organization_memberships%rowtype;
   v_inserted integer;
@@ -246,9 +248,38 @@ begin
     raise exception 'TG10_PROXY_PERSON_IDENTITY_MISSING';
   end if;
 
-  -- The parent TG8 fixture has an already-closed independent measure/vote.
-  -- Freeze another transient OPEN vote for that measure, fully inside TG10's
-  -- savepoint, so the ordinary TG10 cast test can keep its own electorate.
+  -- Use an independent temporary measure so the TG8 partial unique index
+  -- (one OPEN vote per measure) remains intact. All rows roll back with TG10.
+  insert into public.world_measures (
+    id, organization_id, organ_id, identifier, measure_type, title,
+    sponsor_country_id, state, visibility, registered_at
+  )
+  select
+    v_proxy_measure, old_vote.organization_id, old_vote.organ_id,
+    'TG10.' || replace(v_proxy_measure::text, '-', ''),
+    'proposal', 'TG10 Proxy Entitlement Fixture',
+    (v->>'countryA')::uuid, 'submitted', 'public',
+    clock_timestamp() - interval '1 hour'
+  from public.world_votes old_vote
+  where old_vote.id = (v->>'closedVoteId')::uuid;
+  get diagnostics v_inserted = row_count;
+  if v_inserted <> 1 then raise exception 'TG10_PROXY_MEASURE_FIXTURE_MISSING'; end if;
+
+  insert into public.world_measure_versions (
+    id, measure_id, version_number, title, full_text, content_hash,
+    publication_state
+  ) values (
+    v_proxy_version, v_proxy_measure, 1,
+    'TG10 Proxy Entitlement Fixture', 'TG10 proxy fixture only',
+    encode(sha256(convert_to('TG10 proxy fixture only', 'UTF8')), 'hex'),
+    'published'
+  );
+
+  update public.world_measures
+  set current_version_id = v_proxy_version,
+      state = 'registered', revision = revision + 1
+  where id = v_proxy_measure;
+
   insert into public.world_votes (
     id, organization_id, organ_id, measure_id, measure_version_id,
     rule_id, rule_snapshot, electorate_count,
@@ -256,19 +287,14 @@ begin
   )
   select
     v_proxy_vote, old_vote.organization_id, old_vote.organ_id,
-    old_vote.measure_id, old_vote.measure_version_id,
+    v_proxy_measure, v_proxy_version,
     old_vote.rule_id, old_vote.rule_snapshot, 1,
     clock_timestamp() - interval '5 minutes',
     clock_timestamp() + interval '1 hour', gen_random_uuid()
   from public.world_votes old_vote
-  where old_vote.id = (v->>'closedVoteId')::uuid
-    and old_vote.status = 'open';
-  -- TG8's historical fixture is still an 'open' status row until certified;
-  -- only its close instant has already elapsed. That is expected here.
+  where old_vote.id = (v->>'closedVoteId')::uuid;
   get diagnostics v_inserted = row_count;
-  if v_inserted <> 1 then
-    raise exception 'TG10_PROXY_VOTE_FIXTURE_MISSING';
-  end if;
+  if v_inserted <> 1 then raise exception 'TG10_PROXY_VOTE_FIXTURE_MISSING'; end if;
 
   insert into public.world_vote_eligibility (
     vote_id, country_id, membership_id, membership_revision,
