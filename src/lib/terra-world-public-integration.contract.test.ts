@@ -53,6 +53,19 @@ describe("Integrated Terra Solaris public discovery chain", () => {
     expect(rollout).toContain("verifyOnMount && !state.isFetchedAfterMount");
   });
 
+  it("keeps published World landing and historical section links canonical", () => {
+    expect(source("src/routes/world/index.tsx"))
+      .toContain("<WorldPublicGate verifyOnMount><WorldLanding /></WorldPublicGate>");
+    const leadership = source("src/routes/world/organizations/$slug_.leadership.tsx");
+    const members = source("src/routes/world/organizations/$slug_.members.tsx");
+    for (const redirect of [leadership, members]) {
+      expect(redirect).toContain('to: "/world/organizations/$slug"');
+      expect(redirect).toContain("replace: true");
+    }
+    expect(leadership).toContain('search: { tab: "leadership" }');
+    expect(members).toContain('search: { tab: "members" }');
+  });
+
   it("requires an officially published parent in every body or office read", () => {
     expect(bodyReader).toContain("worldBodyParentPublished(row.status)");
     expect(bodyReader).toContain("worldBodyParentPublished(parent.status)"));
