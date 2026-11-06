@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import {
   buildV3PrIntegrationReport,
+  v3PrStrictEvidenceFailures,
   formatV3PrIntegrationReportMarkdown,
   type V3PrIntegrationSnapshot,
 } from "../src/lib/v3-pr-integration-state";
@@ -20,7 +21,7 @@ function usage() {
     "Options:",
     "  --json-output <path>              Write machine-readable evidence.",
     "  --markdown-output <path>          Write the human-readable report.",
-    "  --require-exact-head-verified     Exit non-zero unless every supplied candidate is exact-head verified.",
+    "  --require-exact-head-verified     Require at least one PR, six core checks and exact-head success.",
     "  --help                            Show this help.",
     "",
     "The caller supplies GitHub/main/check metadata as a snapshot. This evaluator",
@@ -114,14 +115,12 @@ function main() {
     writeFileSync(options.markdownOutput, markdown, "utf8");
   }
 
-  if (
-    options.requireExactHeadVerified &&
-    report.candidates.some((candidate) => candidate.state !== "exact_head_verified")
-  ) {
-    process.stderr.write(
-      "One or more V3 PR candidates do not have current-main, exact-head verified evidence.\n",
-    );
-    process.exitCode = 1;
+  if (options.requireExactHeadVerified) {
+    const failures = v3PrStrictEvidenceFailures(report);
+    if (failures.length > 0) {
+      process.stderr.write(`V3 PR strict integration evidence failed:\\n- ${failures.join("\\n- ")}\\n`);
+      process.exitCode = 1;
+    }
   }
 }
 
