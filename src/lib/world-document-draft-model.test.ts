@@ -41,6 +41,9 @@ const snapshot = (overrides: Record<string, unknown> = {}) => ({
     provisions: [],
     publicationState: "published",
     effectiveFrom: "2026-11-01T00:00:00Z",
+    effectiveTo: null,
+    sourceDescription: null,
+    sourceProvenance: { sourceKind: "institutional" },
   },
   ...overrides,
 });
