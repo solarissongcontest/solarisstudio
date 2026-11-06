@@ -29,8 +29,12 @@ export type OrganizerEntryDetailSummary = {
  * Presentation-only Organizer detail summary. Historical review statuses
  * remain visible in audit history but cannot count as accepted current
  * immutable Entry versions or imply an approved National Final winner.
+ * Counters describe the current participating selection, not residual data
+ * retained after a delegation changes its selection method.
  */
 export function summarizeOrganizerEntryDetail(input: {
+  participating: boolean;
+  selectionMethod: string | null;
   internalEntry?: Entry | null;
   nationalFinal?: NationalFinal | null;
 }): OrganizerEntryDetailSummary {
@@ -38,11 +42,11 @@ export function summarizeOrganizerEntryDetail(input: {
   const active = (nf?.entries ?? []).filter((entry) =>
     !entry.removed && entry.review_status !== "removed",
   );
-  const entries = [
-    ...(input.internalEntry && !input.internalEntry.removed &&
-      input.internalEntry.review_status !== "removed" ? [input.internalEntry] : []),
-    ...active,
-  ];
+  const entries = !input.participating ? []
+    : input.selectionMethod === "internal"
+      ? (input.internalEntry && !input.internalEntry.removed &&
+          input.internalEntry.review_status !== "removed" ? [input.internalEntry] : [])
+      : input.selectionMethod === "national_final" ? active : [];
   const currentAcceptedCount = entries.filter((entry) =>
     effectiveOrganizerEntryReviewStatus(entry) === "accepted",
   ).length;
@@ -55,7 +59,13 @@ export function summarizeOrganizerEntryDetail(input: {
       effectiveOrganizerEntryReviewStatus(entry) === "accepted",
     );
 
-    if (!active.length) {
+    if (!input.participating || input.selectionMethod !== "national_final") {
+      banner = {
+        label: "Historical selection",
+        tone: "neutral",
+        description: "This National Final is not the currently participating selection.",
+      };
+    } else if (!active.length) {
       banner = {
         label: "No active entries",
         tone: "attention",

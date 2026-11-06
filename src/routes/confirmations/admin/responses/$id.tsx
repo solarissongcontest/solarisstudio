@@ -1380,6 +1380,8 @@ function ResponseDetailPage() {
     (entry) => !entry.removed && entry.review_status !== "removed",
   );
   const entrySummary = summarizeOrganizerEntryDetail({
+    participating: data.participating,
+    selectionMethod: data.selection_method,
     internalEntry: data.internal_entry,
     nationalFinal: data.national_final,
   });

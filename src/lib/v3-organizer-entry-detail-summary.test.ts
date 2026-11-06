@@ -11,16 +11,28 @@ const stale = (id = "entry-2") => ({
   ...accepted(id), reviewed_version_id: "v1",
 });
 
+const summary = (input: {
+  internalEntry?: Parameters<typeof summarizeOrganizerEntryDetail>[0]["internalEntry"];
+  nationalFinal?: Parameters<typeof summarizeOrganizerEntryDetail>[0]["nationalFinal"];
+  selectionMethod?: string | null;
+  participating?: boolean;
+}) => summarizeOrganizerEntryDetail({
+  participating: input.participating ?? true,
+  selectionMethod: input.selectionMethod ?? (input.nationalFinal ? "national_final" : "internal"),
+  internalEntry: input.internalEntry,
+  nationalFinal: input.nationalFinal,
+});
+
 describe("Organizer Entry Review detail summary", () => {
   it("counts only current-version accepted entries", () => {
-    expect(summarizeOrganizerEntryDetail({
+    expect(summary({
       internalEntry: accepted(),
       nationalFinal: { entries: [accepted("entry-2"), stale("entry-3")], winning_entry_id: "entry-2" },
-    })).toMatchObject({ entryCount: 3, currentAcceptedCount: 2 });
+    })).toMatchObject({ entryCount: 2, currentAcceptedCount: 1 });
   });
 
   it("never marks a stale-version National Final ready, even with a stored winner", () => {
-    const result = summarizeOrganizerEntryDetail({
+    const result = summary({
       nationalFinal: { entries: [accepted(), stale()], winning_entry_id: "entry-1" },
     });
     expect(result.nationalFinal).toMatchObject({
@@ -34,7 +46,7 @@ describe("Organizer Entry Review detail summary", () => {
       [accepted()],
       [accepted(), { ...accepted("winner"), removed: true }],
     ]) {
-      const result = summarizeOrganizerEntryDetail({
+      const result = summary({
         nationalFinal: { entries, winning_entry_id: "winner" },
       });
       expect(result.nationalFinal).toMatchObject({
@@ -45,20 +57,36 @@ describe("Organizer Entry Review detail summary", () => {
 
   it("requires a winner and accepted exact versions for a ready National Final", () => {
     const entries = [accepted(), accepted("entry-2")];
-    expect(summarizeOrganizerEntryDetail({
+    expect(summary({
       nationalFinal: { entries, winning_entry_id: null },
     }).nationalFinal).toMatchObject({
       label: "Waiting for winner", tone: "neutral",
     });
-    expect(summarizeOrganizerEntryDetail({
+    expect(summary({
       nationalFinal: { entries, winning_entry_id: "entry-2" },
     }).nationalFinal).toMatchObject({
       label: "Winner set", tone: "ready",
     });
   });
 
+  it("ignores entries retained from an inactive selection", () => {
+    expect(summary({
+      internalEntry: accepted(),
+      nationalFinal: { entries: [accepted("nf")], winning_entry_id: "nf" },
+      selectionMethod: "internal",
+    })).toMatchObject({ entryCount: 1, currentAcceptedCount: 1,
+      nationalFinal: { label: "Historical selection", tone: "neutral" } });
+  });
+
+  it("never counts an unselected or withdrawn delegation as ready", () => {
+    expect(summary({ internalEntry: accepted(), participating: false }))
+      .toMatchObject({ entryCount: 0, currentAcceptedCount: 0 });
+    expect(summary({ internalEntry: accepted(), selectionMethod: "unknown" }))
+      .toMatchObject({ entryCount: 0, currentAcceptedCount: 0 });
+  });
+
   it("does not count removed or unbound legacy decisions as accepted", () => {
-    expect(summarizeOrganizerEntryDetail({
+    expect(summary({
       internalEntry: { ...accepted(), removed: true },
       nationalFinal: {
         entries: [
@@ -71,7 +99,7 @@ describe("Organizer Entry Review detail summary", () => {
   });
 
   it("reports an empty NF as needing attention rather than a chosen winner", () => {
-    expect(summarizeOrganizerEntryDetail({
+    expect(summary({
       nationalFinal: { entries: [], winning_entry_id: "stale-id" },
     }).nationalFinal).toMatchObject({
       label: "No active entries", tone: "attention",
@@ -82,6 +110,7 @@ describe("Organizer Entry Review detail summary", () => {
     const route = readFileSync(resolve(process.cwd(),
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
     expect(route).toContain("summarizeOrganizerEntryDetail({");
+    expect(route).toContain("selectionMethod: data.selection_method");
     expect(route).toContain("const acceptedCount = entrySummary.currentAcceptedCount;");
     expect(route).toContain("entrySummary.nationalFinal?.label");
     expect(route).toContain("entrySummary.nationalFinal?.description");
