@@ -22,6 +22,7 @@ export type DomesticElection = {
   winnerPartyId: string | null;
   resultSummary: string;
   published: boolean;
+  revision: number;
 };
 export type DomesticCountry = {
   countryId: string;
@@ -86,12 +87,12 @@ export function parseDomesticCountry(data: unknown, requestedCode: string): Dome
         !["general","presidential","legislative","regional","local","other"].includes(String(e.scope)) ||
         !(e.turnoutPercent === null || typeof e.turnoutPercent === "number") ||
         !opt(e.winnerPartyId) || !string(e.resultSummary) ||
-        typeof e.published !== "boolean") {
+        typeof e.published !== "boolean" || !integer(e.revision)) {
       throw new Error("Invalid domestic election projection");
     }
     return { id: String(e.id), title: e.title, scope: e.scope as DomesticElection["scope"],
       heldOn: e.heldOn, turnoutPercent: e.turnoutPercent, winnerPartyId: e.winnerPartyId,
-      resultSummary: e.resultSummary, published: e.published };
+      resultSummary: e.resultSummary, published: e.published, revision: e.revision };
   });
   return {
     countryId: data.countryId as string,
