@@ -106,6 +106,15 @@ describe("Organizer Entry Review detail summary", () => {
     });
   });
 
+  it("does not render actions for inactive or withdrawn Entry selections", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
+    expect(route).toContain('data.participating && data.selection_method === "internal" && data.internal_entry');
+    expect(route).toContain('data.participating && data.selection_method === "national_final" && data.national_final');
+    expect(route).toContain("No active Entry review target");
+    expect(route).toContain("Previous decisions remain available in review history");
+  });
+
   it("keeps the dashboard summary on the same current-version interpretation", () => {
     const route = readFileSync(resolve(process.cwd(),
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");

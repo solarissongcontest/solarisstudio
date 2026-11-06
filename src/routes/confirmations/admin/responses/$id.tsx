@@ -1503,7 +1503,17 @@ function ResponseDetailPage() {
           </div>
         </AdminCard>
 
-        {data.internal_entry ? (
+        {!data.participating || (data.selection_method !== "internal" && data.selection_method !== "national_final") ? (
+          <AdminCard>
+            <p className="text-sm font-semibold">No active Entry review target</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              The current Confirmation does not identify a participating internal or National Final selection.
+              Previous decisions remain available in review history, but there are no current Entry review actions here.
+            </p>
+          </AdminCard>
+        ) : null}
+
+        {data.participating && data.selection_method === "internal" && data.internal_entry ? (
           <section>
             <div className="mb-2 flex items-end justify-between gap-3 px-1">
               <div>
@@ -1525,7 +1535,7 @@ function ResponseDetailPage() {
           </section>
         ) : null}
 
-        {data.national_final ? (
+        {data.participating && data.selection_method === "national_final" && data.national_final ? (
           <AdminCard>
             <AdminCardHeader
               eyebrow="Entry review"
