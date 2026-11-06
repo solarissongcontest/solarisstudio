@@ -1,9 +1,10 @@
 import { CheckCircle2, FileCheck2, Gamepad2, History, ReceiptText, Vote } from "lucide-react";
 
 import { formatEventDateTime } from "@/lib/public-time";
-import type {
-  V3ParticipantActivityItem,
-  V3ParticipantActivityKind,
+import {
+  mergeV3ParticipantActivityPages,
+  type V3ParticipantActivityItem,
+  type V3ParticipantActivityKind,
 } from "@/lib/v3-participant-activity";
 import { useV3ParticipantActivity } from "@/lib/v3-participant-activity-runtime";
 import {
@@ -85,6 +86,10 @@ function ActivityItem({ item }: { item: V3ParticipantActivityItem }) {
 
 export function V3ParticipantActivityScreen() {
   const activity = useV3ParticipantActivity(true);
+  const pages = activity.data?.pages ?? [];
+  const firstPage = pages[0];
+  const items = mergeV3ParticipantActivityPages(pages);
+  const initialLoadFailed = activity.isError && pages.length === 0;
 
   return (
     <V3Screen className="pb-8">
@@ -102,14 +107,14 @@ export function V3ParticipantActivityScreen() {
                 Loading your activity…
               </p>
             </V3Surface>
-          ) : activity.isError ? (
+          ) : initialLoadFailed ? (
             <V3Surface>
               <p role="alert" className="text-sm font-semibold">Your activity could not be loaded.</p>
               <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
                 Solaris will not reconstruct private activity from browser history, notifications, or public content events.
               </p>
             </V3Surface>
-          ) : activity.data?.schemaReady === false ? (
+          ) : firstPage?.schemaReady === false ? (
             <V3Surface>
               <div data-v3-participant-activity-state="unavailable">
                 <p className="text-sm font-semibold">Activity history is not available yet</p>
@@ -118,9 +123,40 @@ export function V3ParticipantActivityScreen() {
                 </p>
               </div>
             </V3Surface>
-          ) : activity.data?.items.length ? (
+          ) : items.length ? (
             <div className="grid gap-3">
-              {activity.data.items.map((item) => <ActivityItem key={item.id} item={item} />)}
+              {items.map((item) => <ActivityItem key={item.id} item={item} />)}
+
+              {activity.hasNextPage || activity.isFetchNextPageError ? (
+                <div
+                  data-v3-participant-activity-pagination=""
+                  className="flex flex-col items-center gap-2 pt-1"
+                >
+                  <button
+                    type="button"
+                    className="min-h-11 rounded-xl border border-white/10 bg-white/[0.055] px-4 py-2.5 text-sm font-semibold text-[var(--v3-text-primary)] transition hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-60"
+                    disabled={activity.isFetchingNextPage}
+                    onClick={() => {
+                      void activity.fetchNextPage();
+                    }}
+                  >
+                    {activity.isFetchingNextPage
+                      ? "Loading older activity…"
+                      : activity.isFetchNextPageError
+                        ? "Retry older activity"
+                        : "Load older activity"}
+                  </button>
+                  <p
+                    className="text-center text-xs text-[var(--v3-text-tertiary)]"
+                    role={activity.isFetchNextPageError ? "alert" : "status"}
+                    aria-live="polite"
+                  >
+                    {activity.isFetchNextPageError
+                      ? "Older activity could not be loaded. Your already loaded activity is still shown above."
+                      : "Older activity is loaded from the same canonical account history."}
+                  </p>
+                </div>
+              ) : null}
             </div>
           ) : (
             <V3Surface>
