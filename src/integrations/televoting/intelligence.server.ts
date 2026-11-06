@@ -1,4 +1,5 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
+import { requirePrivateVotingAnalysisServer } from "@/integrations/televoting/private-analysis-auth.server";
 import { loadCanonicalVotingContextServer, canonicalEditionForRound } from "@/integrations/televoting/canonical-context.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 import {
@@ -166,6 +167,8 @@ function advancedObservation(row: Observation): AdvancedFriendVotingObservation 
 }
 
 export async function getMergedIntelligenceServer(options: IntelligenceOptions = {}) {
+  // Direct callers cannot bypass the global cross-channel ballot guard.
+  await requirePrivateVotingAnalysisServer();
   await requireMergedTelevotingAdminServer();
   const lens: IntelligenceLens = options.lens === "country" ? "country" : "hod";
   const channel: IntelligenceChannel = options.channel === "jury" || options.channel === "televote" ? options.channel : "combined";
