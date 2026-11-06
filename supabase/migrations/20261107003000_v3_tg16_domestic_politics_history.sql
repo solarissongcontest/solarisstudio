@@ -198,6 +198,14 @@ begin
         case when v_published then 'public' else 'draft' end
       ) returning id,revision into v_id,v_revision;
     else
+      -- A published election must never point to a suddenly hidden winner.
+      if not v_published and exists (
+        select 1 from public.world_domestic_elections e
+        where e.winner_party_id=p_subject_id and e.country_id=p_country_id
+          and e.visibility='public'
+      ) then
+        raise exception using errcode='23514',message='PUBLISHED_ELECTION_WINNER';
+      end if;
       update public.world_domestic_parties
          set name=v_title,
              abbreviation=nullif(btrim(p_payload ->> 'abbreviation'),''),
