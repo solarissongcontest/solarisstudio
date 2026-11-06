@@ -102,17 +102,38 @@ export function parseWorldResolutionCandidate(raw: unknown): WorldResolutionCand
     expectedMeasureRevision: r.expectedMeasureRevision,
   };
 }
+/** S2 operations return envelopes; an unwrapped result is not proof of success. */
 export function parseWorldResolutionReceipt(raw: unknown): WorldResolutionReceipt | null {
-  const r = record(raw);
-  if (!r || r.ok !== true || !uuid(r.resolutionId) || !uuid(r.voteId) ||
-      !uuid(r.sourceMeasureId) || !uuid(r.operationId) ||
-      !text(r.identifier) || r.status !== "adopted" || r.revision !== 1 ||
-      typeof r.replayed !== "boolean") return null;
+  const envelope = record(raw);
+  const r = record(envelope?.result);
+  if (!envelope || envelope.status !== "succeeded" ||
+      envelope.command !== "world.resolution.publish" ||
+      !uuid(envelope.operationId) || !r || r.ok !== true ||
+      r.operationId !== envelope.operationId ||
+      !uuid(r.resolutionId) || !uuid(r.voteId) ||
+      !uuid(r.sourceMeasureId) || !text(r.identifier) ||
+      r.status !== "adopted" || r.revision !== 1 ||
+      typeof envelope.replayed !== "boolean") return null;
   return {
     ok: true, resolutionId: r.resolutionId, voteId: r.voteId,
-    sourceMeasureId: r.sourceMeasureId, operationId: r.operationId,
-    identifier: r.identifier, status: "adopted", revision: 1, replayed: r.replayed,
+    sourceMeasureId: r.sourceMeasureId, operationId: envelope.operationId,
+    identifier: r.identifier, status: "adopted", revision: 1,
+    replayed: envelope.replayed,
   };
+}
+
+/** Read only this actor's S2 receipt after a potentially committed network failure. */
+async function recoverWorldResolutionReceipt(operationId: string): Promise<unknown> {
+  const { data, error } = await (supabase as any).rpc("studio2_reconcile_operation", {
+    p_operation_id: operationId,
+  });
+  if (error) throw new Error("Official publication receipt could not be recovered.");
+  const envelope = record(data);
+  if (!envelope || envelope.operationId !== operationId ||
+      envelope.command !== "world.resolution.publish" ||
+      envelope.status !== "succeeded" || !record(envelope.result))
+    throw new Error("Official publication receipt could not be recovered.");
+  return { ...envelope, replayed: true };
 }
 
 export async function listWorldCertifiedResolutions(orgSlug: string): Promise<WorldCertifiedResolution[]> {
@@ -173,8 +194,15 @@ export async function materializeWorldCertifiedResolution(input: {
     p_idempotency_key: input.idempotencyKey,
     p_correlation_id: input.operationId,
   });
-  if (error) throw new Error(error.message || "Resolution publication was not confirmed.");
-  const receipt = parseWorldResolutionReceipt(data);
+  let canonicalResponse: unknown = data;
+  if (error) {
+    try {
+      canonicalResponse = await recoverWorldResolutionReceipt(input.operationId);
+    } catch {
+      throw new Error(error.message || "Resolution publication was not confirmed.");
+    }
+  }
+  const receipt = parseWorldResolutionReceipt(canonicalResponse);
   if (!receipt || receipt.voteId !== input.voteId ||
       receipt.operationId !== input.operationId)
     throw new Error("Official publication receipt could not be verified.");
