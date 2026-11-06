@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
 import type { V3DirectoryPresentation } from "@/lib/v3-directory-presentation";
 import "@/styles/v3-shows-directory.css";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AppEmptyState, AppSectionHeader } from "@/components/app/AppPrimitives";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
@@ -35,13 +35,10 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
   const [editionId, setEditionId] = useState("all");
   const [kind, setKind] = useState("all");
   const [state, setState] = useState<ShowDiscoveryState | "all">("all");
-  const [browsePage, setBrowsePage] = useState(1);
-
-  // A new search/facet must start at the first result window, including when
-  // a visitor narrows a previously expanded historical browse.
-  useEffect(() => {
-    setBrowsePage(1);
-  }, [search, editionId, kind, state]);
+  // Keyed pagination resets synchronously with any filter change, without a
+  // render/effect cycle that could briefly reveal a stale historical window.
+  const browseFilterKey = JSON.stringify([search.trim(), editionId, kind, state]);
+  const [browseWindowState, setBrowseWindowState] = useState({ key: "", page: 1 });
 
   const discovery = useMemo(
     () =>
@@ -96,8 +93,11 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
   );
 
   const browseWindow = useMemo(
-    () => getV3ShowBrowsePage(browseItems, browsePage),
-    [browseItems, browsePage],
+    () => getV3ShowBrowsePage(
+      browseItems,
+      browseWindowState.key === browseFilterKey ? browseWindowState.page : 1,
+    ),
+    [browseItems, browseFilterKey, browseWindowState],
   );
   const activeFilterCount = [editionId !== "all", kind !== "all", state !== "all"].filter(Boolean).length;
 
@@ -318,7 +318,10 @@ export function V3ShowsDiscoveryScreen({ presentation = "installed-app" }: { pre
             type="button"
             className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-5 text-sm font-semibold text-primary hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             aria-controls="v3-shows-browse-results"
-            onClick={() => setBrowsePage((page) => page + 1)}
+            onClick={() => setBrowseWindowState((previous) => ({
+              key: browseFilterKey,
+              page: previous.key === browseFilterKey ? previous.page + 1 : 2,
+            }))}
           >
             Show {Math.min(V3_SHOW_BROWSE_PAGE_SIZE, browseWindow.remaining)} more shows
           </button>
