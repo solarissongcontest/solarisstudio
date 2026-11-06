@@ -12,7 +12,7 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).toContain('const editionsQuery = useEditions();');
     expect(route).toContain("editionsQuery.isSuccess && !editionsQuery.error");
     expect(route).toContain(
-      'selectOrganizerEdition(editionsQuery.data ?? [], editionId)',
+      'selectOrganizerEdition(editionsQuery.data ?? [], verifiedChoiceId)',
     );
     expect(route).toContain(
       'const resolvedEditionId = editionId && organizerEdition ? organizerEdition.id : "";',
@@ -66,6 +66,19 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).toContain("Scope verification required");
     expect(route).toContain("R3 approval actions are paused until the Organizer edition context can be verified.");
     expect(route).toContain("if (!editionContextVerified) return;");
+  });
+
+  it("requires affirmative actor-bound scope, even when NAV silently defaults an edition", () => {
+    expect(route).toContain("const { editionId, setEditionContext } = useAdminContext()");
+    expect(route).toContain('const explicitEditionId = explicitChoice?.actorId === actorId ? explicitChoice.editionId : "";');
+    expect(route).toContain('const verifiedChoiceId = explicitEditionId && editionId === explicitEditionId ? explicitEditionId : "";');
+    expect(route).toContain("Boolean(verifiedChoiceId) &&");
+    expect(route).toContain("Boolean(resolvedEditionId)");
+    expect(route).toContain("Choose the edition for this permission review");
+    expect(route).toContain("setExplicitChoice(choice ? { actorId, editionId: choice.id } : null)");
+    expect(route).toContain("setEditionContext({ id: choice.id, slug: choice.slug, label: formatEditionLabel(choice) })");
+    expect(route).toContain("NAV's default edition is not authorization.");
+    expect(route).toContain("enabled: editionContextVerified");
   });
 
   it("does not reinterpret stale edition context as a global permission evaluation", () => {
