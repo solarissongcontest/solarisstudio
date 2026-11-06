@@ -5,7 +5,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
-  WORLD_BODIES_PAGE_SIZE, WORLD_BODY_OFFICE_LIMIT, cleanWorldBodySearch, readPublicWorldBodies, readPublicWorldBody, readPublicBodyOffices, validWorldSlug,
+  WORLD_BODIES_PAGE_SIZE, WORLD_BODIES_MAX_PAGE, WORLD_BODY_OFFICE_LIMIT, cleanWorldBodySearch, readPublicWorldBodies, readPublicWorldBody, readPublicBodyOffices, validWorldSlug,
   type PublicWorldInstitution, type WorldBodyStatusFilter,
 } from "@/lib/terra-world-bodies-public";
 
@@ -64,7 +64,8 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
   });
   useEffect(() => {
     if (!query.isSuccess || query.isPlaceholderData || !query.data) return;
-    const lastPage = Math.max(0, Math.ceil(query.data.total / WORLD_BODIES_PAGE_SIZE) - 1);
+    const lastPage = Math.min(WORLD_BODIES_MAX_PAGE,
+      Math.max(0, Math.ceil(query.data.total / WORLD_BODIES_PAGE_SIZE) - 1));
     if (page > lastPage) setPage(lastPage);
   }, [page, query.isSuccess, query.isPlaceholderData, query.data?.total]);
   function applySearch(event: FormEvent<HTMLFormElement>) {
@@ -130,11 +131,16 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
         {result.total > WORLD_BODIES_PAGE_SIZE ? <nav aria-label="Body pages" className="mt-6 flex items-center justify-between gap-2">
           <button type="button" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}
             className="min-h-11 rounded-xl border border-border px-4 disabled:opacity-40">Previous</button>
-          <span className="text-xs">Page {page + 1} of {Math.ceil(result.total / WORLD_BODIES_PAGE_SIZE)}</span>
-          <button type="button" disabled={(page + 1) * WORLD_BODIES_PAGE_SIZE >= result.total}
-            onClick={() => setPage((p) => p + 1)}
+          <span className="text-xs">Page {page + 1} of {Math.min(WORLD_BODIES_MAX_PAGE + 1, Math.ceil(result.total / WORLD_BODIES_PAGE_SIZE))}</span>
+          <button type="button" disabled={page >= WORLD_BODIES_MAX_PAGE || (page + 1) * WORLD_BODIES_PAGE_SIZE >= result.total}
+            onClick={() => setPage((p) => Math.min(WORLD_BODIES_MAX_PAGE, p + 1))}
             className="min-h-11 rounded-xl border border-border px-4 disabled:opacity-40">Next</button>
         </nav> : null}
+        {result.total > (WORLD_BODIES_MAX_PAGE + 1) * WORLD_BODIES_PAGE_SIZE && page === WORLD_BODIES_MAX_PAGE ? (
+          <p className="mt-5 text-xs text-muted-foreground">
+            More public records exist beyond this bounded directory. Narrow the name search to find them.
+          </p>
+        ) : null}
       </section> : null}
     </> : null}
   </Frame>;
