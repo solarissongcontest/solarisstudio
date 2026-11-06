@@ -29,6 +29,11 @@ function requiredLocalConfig() {
     throw new Error(`Refusing V3 navigation E2E against non-local Supabase: ${url.origin}`);
   }
 
+  const appOrigin = new URL(baseURL);
+  if (appOrigin.hostname !== "127.0.0.1" && appOrigin.hostname !== "localhost") {
+    throw new Error(`Refusing V3 navigation E2E against non-local app origin: ${appOrigin.origin}`);
+  }
+
   return {
     supabaseUrl: supabaseUrl!,
     publishableKey: publishableKey!,
@@ -374,5 +379,77 @@ test("installed app shell survives representative navigation without duplicate c
     "ltr",
   );
 
+  await context.close();
+});
+
+
+test("installed Liquid dock cancels held gestures on overlay/keyboard and restores tap and keyboard navigation", async ({
+  browser,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "ios-pwa-portrait",
+    "The isolated installed-iOS fixture owns this focused gesture interruption contract.",
+  );
+
+  // This helper refuses hosted Supabase and non-loopback app origins.
+  const session = await signInLocalCountry();
+  const { baseURL } = requiredLocalConfig();
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "no-preference",
+  });
+  await installSession(context, session);
+  const page = await context.newPage();
+  await page.goto(baseURL + "/my-solaris/account", { waitUntil: "domcontentloaded" });
+  await expect(page.locator('[data-v3-account-settings-screen="account"]')).toBeVisible();
+
+  const nav = page.locator("[data-v3-liquid-tabbar]");
+  const material = nav.locator(".v3-liquid-tabbar__material");
+  await expect(nav).toBeVisible();
+  const me = nav.getByRole("link", { name: accessibleLabel("Me") });
+  await expect(me).toHaveAttribute("aria-current", "page");
+
+  async function holdActiveLens() {
+    const current = nav.locator('[data-v3-tab-index][aria-current="page"]');
+    const bounds = await current.boundingBox();
+    expect(bounds).not.toBeNull();
+    if (!bounds) throw new Error("The selected tab must remain measurable");
+    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    await page.mouse.down();
+    await expect(material).toHaveAttribute("data-held", "true", { timeout: 3000 });
+  }
+
+  await holdActiveLens();
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-solaris-feature-overlay-open", "true"),
+  );
+  await expect(material).toHaveAttribute("data-held", "false");
+  await page.evaluate(() =>
+    document.documentElement.removeAttribute("data-solaris-feature-overlay-open"),
+  );
+  await page.mouse.up();
+  await expect(page).toHaveURL(/\/my-solaris\/account(?:[?#]|$)/);
+
+  // The interrupted pointer must not swallow the next legitimate tab tap.
+  await nav.getByRole("link", { name: accessibleLabel("Explore") }).click();
+  await expect(page).toHaveURL(/\/explore(?:[?#]|$)/);
+
+  await holdActiveLens();
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-solaris-keyboard-open", "true"),
+  );
+  await expect(material).toHaveAttribute("data-held", "false");
+  await page.evaluate(() =>
+    document.documentElement.removeAttribute("data-solaris-keyboard-open"),
+  );
+  await page.mouse.up();
+  await expect(page).toHaveURL(/\/explore(?:[?#]|$)/);
+
+  // Keyboard activation after a cancelled touch must remain a first-class path.
+  const home = nav.getByRole("link", { name: accessibleLabel("Home") });
+  await home.focus();
+  await page.keyboard.press("Enter");
+  await expect(home).toHaveAttribute("aria-current", "page");
+  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
   await context.close();
 });
