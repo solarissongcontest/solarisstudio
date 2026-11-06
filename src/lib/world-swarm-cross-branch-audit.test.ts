@@ -150,4 +150,31 @@ describe("TG19 read-only World cross-PR migration preflight", () => {
     expect(report.issues.some((i) => i.code === "unresolved_stacked_parent")).toBe(true);
   });
 
+  it("fails closed if a merged migration is renamed outside the migration directory", () => {
+    const original = path("20261104121500", "v3_tg2_office_term_effective_authority");
+    const candidate = pr(1939, []);
+    candidate.files = [{
+      filename: "docs/archive/obsolete.sql", status: "renamed", previousFilename: original,
+    }];
+    const report = auditWorldSwarmCrossBranches(snapshot([candidate], [original]));
+    expect(report.clean).toBe(false);
+    expect(report.migrationsChecked).toBe(1);
+    expect(report.issues).toContainEqual(expect.objectContaining({
+      code: "main_migration_removed", severity: "error",
+      paths: [original, "docs/archive/obsolete.sql"],
+    }));
+  });
+
+  it("permits an unmerged invalid migration's forward rename to a valid version", () => {
+    const candidate = pr(2271, []);
+    candidate.files = [{
+      filename: path("20261107005500", "v3_tg15_valid"),
+      previousFilename: path("20261107006000", "v3_tg15_invalid"),
+      status: "renamed",
+    }];
+    const report = auditWorldSwarmCrossBranches(snapshot([candidate]));
+    expect(report.clean).toBe(true);
+    expect(report.migrationsChecked).toBe(1);
+  });
+
 });
