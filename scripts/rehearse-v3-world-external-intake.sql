@@ -42,6 +42,13 @@ begin
  values(v_office,'world.measure.register_external');
  update public.studio2_platform_operational_state
  set mode='normal',version=version+1 where singleton=true;
+ -- Prove rollout remains server-authoritative. Enable only inside this
+ -- disposable BEGIN/ROLLBACK fixture, never via a production test.
+ if not exists(select 1 from public.studio2_feature_flags
+    where key='terra_world_public' and enabled=false) then
+   raise exception 'TG7_WORLD_ROLLOUT_NOT_DISABLED_BY_DEFAULT'; end if;
+ update public.studio2_feature_flags set enabled=true
+   where key='terra_world_public';
  perform set_config('solaris.tg7_external_fixture',
  jsonb_build_object('officer',v_officer,'outsider',v_outsider,
  'org',v_org,'organ',v_organ,'country',v_country,
