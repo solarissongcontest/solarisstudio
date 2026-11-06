@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { parseTelevotingOverviewSummary } from "./admin-overview-summary";
+import { parseTelevotingOverviewSummary, requireTelevotingOverviewEditionId } from "./admin-overview-summary";
 
 export const getMergedTelevotingOverview = createServerFn({ method: "POST" })
   .inputValidator((data: { editionId?: string | null } | undefined) => ({
-    editionId: data?.editionId ? String(data.editionId) : null,
+    editionId: requireTelevotingOverviewEditionId(data?.editionId),
   }))
   .handler(async ({ data }) => {
     const {
@@ -46,7 +46,7 @@ export const getMergedTelevotingOverview = createServerFn({ method: "POST" })
     const summary = parseTelevotingOverviewSummary(rawSummary);
     // An edition-specific read must resolve the actual canonical edition.
     // Missing context is an error, not a new/empty voting setup prompt.
-    if (data.editionId && summary.activeEdition === null) {
+    if (summary.activeEdition === null) {
       throw new Error("Voting overview could not resolve the requested Solaris edition");
     }
     return summary;
