@@ -6,6 +6,11 @@ const migration = readFileSync(
   "utf8",
 );
 
+const publicRoute = readFileSync(
+  new URL("../routes/world/membership-history/$slug/$code.tsx", import.meta.url),
+  "utf8",
+);
+
 describe("TG3 scoped public membership history SQL contract", () => {
   it("exposes one read-only institutional projection on canonical TG2 tables", () => {
     expect(migration).toMatch(
@@ -52,6 +57,13 @@ describe("TG3 scoped public membership history SQL contract", () => {
     }
     expect(migration).toContain("'holderDisplayName'");
     expect(migration).toContain("'displayName'");
+  });
+
+  it("keeps the new route dark until World publication is server-verified", () => {
+    expect(publicRoute).toContain("WorldPublicGate");
+    expect(publicRoute).toContain("<WorldPublicGate verifyOnMount>");
+    expect(publicRoute).toContain("WorldMembershipHistoryScreen");
+    expect(publicRoute).toContain("noindex, follow");
   });
 
   it("restricts function grants and registers the additive migration contract", () => {
