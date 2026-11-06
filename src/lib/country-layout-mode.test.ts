@@ -2,19 +2,16 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { resolveCountryLayoutMode } from "./country-layout-mode";
+import { resolveCountryDirectoryPresentation } from "./country-directory-presentation";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("country page presentation ownership", () => {
   it("keeps three products distinct even at the same phone width", () => {
-    expect(resolveCountryLayoutMode(false, true)).toBe("mobile-web");
-    expect(resolveCountryLayoutMode(false, false)).toBe("desktop-web");
-    expect(resolveCountryLayoutMode(true, true)).toBe("installed-app");
-    expect(resolveCountryLayoutMode(true, false)).toBe("installed-app");
-    const countryLayout = read("src/lib/country-layout-mode.ts");
-    expect(countryLayout).toContain("resolveCountryDirectoryPresentation");
-    expect(countryLayout).toContain("COUNTRY_DIRECTORY_MOBILE_MEDIA");
+    expect(resolveCountryDirectoryPresentation(false, true)).toBe("mobile-web");
+    expect(resolveCountryDirectoryPresentation(false, false)).toBe("desktop-web");
+    expect(resolveCountryDirectoryPresentation(true, true)).toBe("installed-app");
+    expect(resolveCountryDirectoryPresentation(true, false)).toBe("installed-app");
   });
 
   it("keeps the installed-app route gated and the browser route separate", () => {
@@ -22,7 +19,7 @@ describe("country page presentation ownership", () => {
     const route = read("src/routes/countries/$code.tsx");
     expect(gate).toContain('if (!isAppMode) return <>{legacy}</>');
     expect(gate).toContain("<V3DelegationScreen");
-    expect(route).toContain("const countryLayoutMode = useCountryLayoutMode()");
+    expect(route).toContain("const countryLayoutMode = useCountryDirectoryPresentation()");
     expect(route).toContain('publishedDesign && countryLayoutMode !== "mobile-web"');
     expect(route).toContain('countryLayoutMode === "mobile-web" ? (');
     expect(route).toContain("<CountryMobileWebMasthead");
@@ -33,18 +30,15 @@ describe("country page presentation ownership", () => {
   });
 
   it("shares runtime-first layout selection with Wiki while keeping its browser article intact", () => {
-    const hook = read("src/lib/use-country-layout-mode.ts");
+    const hook = read("src/lib/use-country-directory-presentation.ts");
     const wiki = read("src/components/wiki/CountryWikiExperience.tsx");
     const css = read("src/wiki-mobile-web.css");
 
-    const directoryHook = read("src/lib/use-country-directory-presentation.ts");
-    expect(hook).toContain("useCountryDirectoryPresentation()");
-    expect(hook).not.toContain("useEffect(");
-    expect(hook).not.toContain("matchMedia");
-    expect(directoryHook).toContain("useSolarisApp()");
-    expect(directoryHook).toContain("useSyncExternalStore(");
-    expect(directoryHook).toContain("COUNTRY_DIRECTORY_MOBILE_MEDIA");
-    expect(wiki).toContain("const countryLayoutMode = useCountryLayoutMode()");
+    expect(hook).toContain("useSolarisApp()");
+    expect(hook).toContain("useSyncExternalStore(");
+    expect(hook).toContain("COUNTRY_DIRECTORY_MOBILE_MEDIA");
+    expect(hook).toContain("resolveCountryDirectoryPresentation(isAppMode, narrow)");
+    expect(wiki).toContain("const countryLayoutMode = useCountryDirectoryPresentation()");
     expect(wiki).toContain("data-wiki-layout-mode={countryLayoutMode}");
     expect(wiki).toContain('countryLayoutMode === "mobile-web" ? (');
     expect(wiki).toContain('<CountryWikiHeader country={country} layoutMode={countryLayoutMode} />');
