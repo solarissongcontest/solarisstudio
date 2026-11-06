@@ -108,6 +108,12 @@ function CourtCasePanel({
       <p className="mt-3 text-xs text-muted-foreground">
         Filed {new Date(record.filedAt).toLocaleDateString()} · Revision {record.revision}
       </p>
+      <Link
+        to="/world/court/$caseId/judgments" params={{ caseId: record.id }}
+        className="mt-4 inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold"
+      >
+        Read judgments and reconsideration
+      </Link>
       {eligible ? (
         <form
           className="mt-6 border-t border-border pt-5"
@@ -216,7 +222,10 @@ export function WorldCourtWorkspace() {
                   {workspace.data.docket.map((record) => (
                     <li key={record.id} className="flex flex-wrap justify-between gap-3 border-b border-border py-3 text-sm">
                       <div>
-                        <strong>{record.identifier}</strong>
+                        <Link
+                          to="/world/court/$caseId/judgments" params={{ caseId: record.id }}
+                          className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4"
+                        >{record.identifier} · Judgments</Link>
                         <p className="mt-1 text-muted-foreground">
                           {countryNames.get(record.applicantCountryId) ?? "Applicant"} v. {countryNames.get(record.respondentCountryId) ?? "Respondent"}
                         </p>
