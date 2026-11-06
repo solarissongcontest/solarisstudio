@@ -42,6 +42,17 @@ test("mobile browser section navigation supports keyboard disclosure, Escape, an
   await expect(panel).toBeHidden();
   await expect(page).toHaveURL(/\/results\/?(?:[?#].*)?$/);
 
+  // Crossing into the tablet rail must clear the hidden disclosure state.
+  // Returning to phone width must not reopen a stale menu.
+  await trigger.click();
+  await expect(panel).toBeVisible();
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await expect(nav).toBeHidden();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(nav).toBeVisible();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(panel).toBeHidden();
+
   await trigger.click();
   await scorechartsLink.click();
   await expect(page).toHaveURL(/\/scorecharts\/?(?:[?#].*)?$/);
