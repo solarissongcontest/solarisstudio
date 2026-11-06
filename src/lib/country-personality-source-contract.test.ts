@@ -139,8 +139,17 @@ describe("source-driven Country personality contract", () => {
 
     const countryRoute = source("src/routes/countries/$code.tsx");
     expect(countryRoute).toContain("countryPersonalitySource(heroPersonality)");
-    expect(countryRoute).toContain("data-country-composition={publishedDesign ? undefined : sourcePersonality.compositionFamily}");
-    expect(countryRoute).toContain("data-country-background-policy={publishedDesign ? undefined : sourcePersonality.backgroundPolicy}");
+    // Desktop's personality source metadata remains authoritative, while a
+    // mobile browser intentionally opts out of that *desktop* composition.
+    // This is a separate product surface, not a scaled-down PWA/desktop hero.
+    expect(countryRoute).toContain(
+      'data-country-composition={countryLayoutMode === "mobile-web" || publishedDesign ? undefined : sourcePersonality.compositionFamily}',
+    );
+    expect(countryRoute).toContain(
+      'data-country-background-policy={countryLayoutMode === "mobile-web" || publishedDesign ? undefined : sourcePersonality.backgroundPolicy}',
+    );
+    expect(countryRoute).toContain('countryLayoutMode === "mobile-web" ? (');
+    expect(countryRoute).toContain("<CountryMobileWebMasthead");
     expect(countryRoute).toContain("<CountryDesignV2Hero");
     expect(countryRoute).toContain("<CountryIdentityHero");
   });

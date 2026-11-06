@@ -1,0 +1,52 @@
+/* Mobile browser Country pages are editorial web pages, not scaled PWA cards.
+   Strict mode scoping keeps installed app and desktop layouts untouched. */
+@media (max-width: 767px) {
+  .country-profile-v8[data-country-layout-mode="mobile-web"] {
+    inline-size: 100%;
+    max-inline-size: none;
+    min-inline-size: 0;
+    --country-v2-card-shadow: none;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-masthead {
+    padding-block: .25rem .5rem;
+    border-block-end: 1px solid var(--border);
+    overflow-wrap: anywhere;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-tabs button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+  }
+
+  /* Real country data can contain long localized labels and non-numeric values.
+     Keep the compact three-stat strip readable at 320px and at increased text
+     sizes without making the entire browser page horizontally scroll. */
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .country-mobile-web-masthead dd {
+    font-size: clamp(.875rem, 4.5vw, 1.25rem);
+    line-height: 1.3;
+  }
+
+  /* Quiet browser reading sections; theme colors and canonical data survive. */
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .data-panel {
+    background: transparent !important;
+    border: 0 !important;
+    border-block-start: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding-inline: 0 !important;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] .data-panel::after {
+    content: none !important;
+  }
+
+  .country-profile-v8[data-country-layout-mode="mobile-web"] :is(
+    .country-personality-card,
+    [data-country-v2-surface]
+  ) {
+    box-shadow: none !important;
+  }
+}

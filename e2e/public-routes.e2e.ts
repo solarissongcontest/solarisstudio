@@ -68,6 +68,99 @@ test("real Country and Wiki pages pass collision and flag audits at this viewpor
   await auditRoutes(page, routes, testInfo);
 });
 
+test("Country and Wiki have distinct mobile-browser and desktop presentations", async ({ page, baseURL }, testInfo) => {
+  test.skip(!["public-320", "public-390", "public-1440"].includes(testInfo.project.name));
+
+  // The representative route must come from the isolated local seed, never a
+  // remote production country or a hard-coded live archive assumption.
+  const discovered = await sitemapRoutes(baseURL!);
+  const country = discovered.find((route) => /^\/countries\/[^/]+$/.test(route));
+  expect(country, "Local sitemap must contain an indexable Country detail").toBeTruthy();
+
+  await page.goto(country!, { waitUntil: "domcontentloaded" });
+  const root = page.locator(".country-profile-v8");
+  await expect(root).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator(".site-nav")).toBeVisible();
+  await expect(page.locator(".solaris-app-tabbar")).toHaveCount(0);
+
+  const mobileWeb = testInfo.project.name !== "public-1440";
+  await expect(root).toHaveAttribute(
+    "data-country-layout-mode",
+    mobileWeb ? "mobile-web" : "desktop-web",
+  );
+
+  if (mobileWeb) {
+    await expect(root.locator(".country-mobile-web-masthead")).toBeVisible();
+    await expect(root.locator(".country-mobile-web-tabs")).toBeVisible();
+    await expect(root.locator(".country-v2-hero, .country-identity-hero")).toHaveCount(0);
+    await expect(root).not.toHaveClass(/country-design-v2/);
+    const resultSection = root.locator(".country-mobile-web-tabs").getByRole("button", { name: "Results" });
+    await resultSection.click();
+    await expect(resultSection).toHaveAttribute("aria-current", "page");
+    const geometry = await page.evaluate(() => ({
+      overflow: document.documentElement.scrollWidth - window.innerWidth,
+      flagRatio: (() => {
+        const element = document.querySelector<HTMLElement>(".country-mobile-web-masthead [data-flag-frame]");
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        return rect.width / rect.height;
+      })(),
+    }));
+    expect(geometry.overflow, "Mobile web Country must not force horizontal document scroll").toBeLessThanOrEqual(2);
+    expect(geometry.flagRatio, "Mobile web Country should keep a 3:2 flag").not.toBeNull();
+    expect(geometry.flagRatio!).toBeGreaterThan(1.46);
+    expect(geometry.flagRatio!).toBeLessThan(1.54);
+  } else {
+    await expect(root.locator(".country-mobile-web-masthead")).toHaveCount(0);
+    await expect(root.locator(".country-mobile-web-tabs")).toHaveCount(0);
+    await expect(root.locator(".country-v2-hero, .country-identity-hero")).toHaveCount(1);
+  }
+
+  const wiki = discovered.find((route) => /^\/wiki\/[^/]+$/.test(route));
+  expect(wiki, "Local sitemap must contain a Wiki article").toBeTruthy();
+  await page.goto(wiki!, { waitUntil: "domcontentloaded" });
+  // Published Reference can intentionally redirect legacy /wiki/$code to
+  // /countries/$code. Check the authoritative rollout outcome before testing
+  // the still-supported legacy article composition.
+  await expect.poll(async () => {
+    if (await page.locator(".country-profile-v8[data-country-layout-mode]").isVisible()) return "country";
+    if (await page.locator(".wiki-canvas[data-wiki-layout-mode]").isVisible()) return "wiki";
+    return "pending";
+  }, { timeout: 30_000 }).not.toBe("pending");
+  if (await page.locator(".country-profile-v8[data-country-layout-mode]").isVisible()) {
+    await expect(page).toHaveURL(/\/countries\/[^/]+\/?$/);
+    await expect(page.locator(".country-profile-v8")).toHaveAttribute(
+      "data-country-layout-mode",
+      mobileWeb ? "mobile-web" : "desktop-web",
+    );
+    return;
+  }
+  const wikiRoot = page.locator(".wiki-canvas");
+  await expect(wikiRoot).toBeVisible({ timeout: 30_000 });
+  await expect(wikiRoot).toHaveAttribute(
+    "data-wiki-layout-mode",
+    mobileWeb ? "mobile-web" : "desktop-web",
+  );
+
+  if (mobileWeb) {
+    await expect(wikiRoot.locator(".wiki-mobile-web-heading")).toBeVisible();
+    await expect(wikiRoot.locator(".wiki-mobile-web-toc")).toBeVisible();
+    await expect(wikiRoot.locator(".country-wiki-header")).toHaveCount(0);
+    await expect(wikiRoot).not.toHaveClass(/country-design-v2/);
+    const introShadow = await wikiRoot.locator(".wiki-introduction").evaluate(
+      (node) => getComputedStyle(node).boxShadow,
+    );
+    expect(introShadow, "Mobile browser Wiki uses editorial reading surfaces, not personality cards").toBe("none");
+    await expect(wikiRoot.locator(".wiki-mobile-toolbar")).toHaveCount(0);
+    await wikiRoot.locator(".wiki-mobile-web-facts > summary").click();
+    await expect(wikiRoot.locator(".wiki-mobile-web-facts .wiki-infobox")).toBeVisible();
+  } else {
+    await expect(wikiRoot.locator(".wiki-mobile-web-heading")).toHaveCount(0);
+    await expect(wikiRoot.locator(".wiki-mobile-web-toc")).toHaveCount(0);
+    await expect(wikiRoot.locator(".country-wiki-header")).toHaveCount(1);
+  }
+});
+
 test("representative non-country dynamic route passes desktop audit", async ({ page, baseURL }, testInfo) => {
   test.skip(testInfo.project.name !== "public-1440", "Additional dynamic route smoke runs once at desktop baseline");
 
@@ -320,24 +413,36 @@ test("Country Glass atmosphere and Edition mobile toolbar keep their visible bou
   test.skip(process.env.E2E_REAL_DATA !== "1", "Abeven Glass and SSC20 require the real archive, which the seeded audit runner does not contain.");
 
   await page.goto("/countries/ABE", { waitUntil: "domcontentloaded" });
-  const atmosphere = page.locator(".country-v2-liquid-glass-scene-flag");
-  await expect(atmosphere).toBeVisible();
-  const coverage = await atmosphere.evaluate((image) => {
-    const hero = image.closest(".country-v2-hero")!.getBoundingClientRect();
-    const flag = image.getBoundingClientRect();
-    return { left: flag.left - hero.left, right: flag.right - hero.right, top: flag.top - hero.top, bottom: flag.bottom - hero.bottom, fit: getComputedStyle(image).objectFit };
-  });
-  expect(coverage.left).toBeLessThan(-20);
-  expect(coverage.right).toBeGreaterThan(20);
-  expect(coverage.top).toBeLessThan(-20);
-  expect(coverage.bottom).toBeGreaterThan(20);
-  expect(coverage.fit).toBe("cover");
-  await testInfo.attach("abeven-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
+  // A published Country Design V2 atmosphere remains a desktop/tablet web
+  // treatment; a phone browser uses its own editorial masthead instead.
+  if (["public-320", "public-390"].includes(testInfo.project.name)) {
+    await expect(page.locator(".country-mobile-web-masthead")).toBeVisible();
+    await expect(page.locator(".country-v2-liquid-glass-scene-flag")).toHaveCount(0);
+  } else {
+    const atmosphere = page.locator(".country-v2-liquid-glass-scene-flag");
+    await expect(atmosphere).toBeVisible();
+    const coverage = await atmosphere.evaluate((image) => {
+      const hero = image.closest(".country-v2-hero")!.getBoundingClientRect();
+      const flag = image.getBoundingClientRect();
+      return { left: flag.left - hero.left, right: flag.right - hero.right, top: flag.top - hero.top, bottom: flag.bottom - hero.bottom, fit: getComputedStyle(image).objectFit };
+    });
+    expect(coverage.left).toBeLessThan(-20);
+    expect(coverage.right).toBeGreaterThan(20);
+    expect(coverage.top).toBeLessThan(-20);
+    expect(coverage.bottom).toBeGreaterThan(20);
+    expect(coverage.fit).toBe("cover");
+    await testInfo.attach("abeven-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
+  }
 
   await page.goto("/wiki/ABE", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".country-v2-liquid-glass-scene-flag")).toBeVisible();
+  if (["public-320", "public-390"].includes(testInfo.project.name)) {
+    await expect(page.locator(".wiki-mobile-web-heading")).toBeVisible();
+    await expect(page.locator(".country-v2-liquid-glass-scene-flag")).toHaveCount(0);
+  } else {
+    await expect(page.locator(".country-v2-liquid-glass-scene-flag")).toBeVisible();
+    await testInfo.attach("abeven-wiki-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
+  }
   await expect(page.getByRole("navigation", { name: "breadcrumb" })).toHaveCount(1);
-  await testInfo.attach("abeven-wiki-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
 
   await page.goto("/editions/ssc-20", { waitUntil: "domcontentloaded" });
   const edition = page.locator(".edition-public-page");

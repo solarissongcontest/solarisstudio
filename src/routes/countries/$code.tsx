@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 
@@ -12,6 +13,7 @@ import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { CountryDesignV2Hero } from "@/components/country/CountryDesignV2Hero";
+import { CountryMobileWebMasthead } from "@/components/country/CountryMobileWebMasthead";
 import { CountryDesignV2Styles } from "@/components/country/CountryDesignV2Styles";
 import { CountryIdentityHero } from "@/components/country/CountryIdentityHero";
 import { V3DelegationRouteGate } from "@/components/v3/V3DelegationRouteGate";
@@ -24,6 +26,7 @@ import {
   useCountryDesignV2,
 } from "@/lib/country-design-v2";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
+import { useCountryDirectoryPresentation } from "@/lib/use-country-directory-presentation";
 import { countryPersonalitySource } from "@/lib/country-personality-sources";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 import {
@@ -38,6 +41,8 @@ import {
   useEditions,
 } from "@/lib/data-live";
 import { canonicalEditionEntries, canonicalEntryFor } from "@/lib/entry-utils";
+import { isPublishedCurrentCountryEntry, resolveCountryCurrentContext } from "@/lib/v3-country-current-context";
+import { buildCountryDiscovery } from "@/lib/v3-discovery-entities";
 import { computeCountryForm } from "@/lib/form";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 import {
@@ -45,7 +50,9 @@ import {
   type QualificationStatus,
 } from "@/lib/qualification";
 import { computeRelationship } from "@/lib/stats";
+import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import { countryThemeToVisual, useCountryTheme } from "@/lib/visual-theme";
+import "@/country-mobile-web.css";
 
 const CountryPlacementChart = lazy(() =>
   import("@/components/country/CountryPlacementChart"),
@@ -54,7 +61,7 @@ const CountryPlacementChart = lazy(() =>
 export const Route = createFileRoute("/countries/$code")({
   head: ({ params }) => {
     const code = params.code.toUpperCase();
-    const url = `https://studio.solaris-song-contest.workers.dev/countries/${encodeURIComponent(params.code)}`;
+    const url = `https://studio.solaris-song-contest.workers.dev/countries/${encodeURIComponent(code)}`;
     return {
       meta: [
         { title: `${code} — Country profile — Solaris Studio` },
@@ -116,7 +123,15 @@ type Tab = (typeof TABS)[number]["value"];
 
 function CountryProfilePage() {
   const { code } = Route.useParams();
-  const { isAppMode } = useSolarisApp();
+  const { isAppMode, platformResolved } = useSolarisApp();
+  const countryLayoutMode = useCountryDirectoryPresentation();
+  const referenceRollout = useQuery({
+    queryKey: ["studio2-feature", "public_encyclopedia"],
+    queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
+    enabled: platformResolved,
+    staleTime: 30_000,
+  });
+  const legacyWikiArticleAvailable = referenceRollout.isSuccess && referenceRollout.data === false;
   const [archiveEnabled, setArchiveEnabled] = useState(!isAppMode);
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
@@ -427,11 +442,30 @@ function CountryProfilePage() {
     })),
     geography: null,
     actions: {
-      wiki: { label: "Wiki", href: `/wiki/${country.short_code}` },
+      wiki: legacyWikiArticleAvailable
+        ? { label: "Wiki article", href: `/wiki/${country.short_code}` }
+        : { label: "Reference", href: "/wiki" },
       compare: { label: "Compare", href: `/compare?a=${country.short_code}` },
       follow: { label: "Follow", href: `/countries/${country.short_code}` },
     },
   };
+
+  const countryDiscovery = buildCountryDiscovery({
+    countries: countries ?? [],
+    editions: publicArchive.editions,
+    currentParticipants: publicArchive.participants,
+  });
+  const currentContextLoading = !archiveEnabled || archiveIsLoading(editionsQuery, showsQuery, participantsQuery);
+  const currentContextError = archiveHasError(editionsQuery, showsQuery, participantsQuery);
+  const currentContext = resolveCountryCurrentContext(countryDiscovery, country.id, {
+    loading: currentContextLoading,
+    error: currentContextError,
+  });
+  const latestEntryIsCurrent = isPublishedCurrentCountryEntry(
+    countryDiscovery.currentEdition?.id,
+    latestEntry?.edition_id,
+    { loading: currentContextLoading, error: currentContextError },
+  );
 
   const chartData =
     stats?.timeline.flatMap((point) =>
@@ -455,11 +489,12 @@ function CountryProfilePage() {
           className="solaris-app-entity-content"
         >
       <div
-        className={publishedDesign ? "country-profile-v8 country-design-v2" : "country-profile-v8"}
-        data-country-personality={publishedDesign ? undefined : heroPersonality}
-        data-country-composition={publishedDesign ? undefined : sourcePersonality.compositionFamily}
-        data-country-background-policy={publishedDesign ? undefined : sourcePersonality.backgroundPolicy}
-        data-country-source-status={publishedDesign ? undefined : sourcePersonality.status}
+        className={publishedDesign && countryLayoutMode !== "mobile-web" ? "country-profile-v8 country-design-v2" : "country-profile-v8"}
+        data-country-layout-mode={countryLayoutMode}
+        data-country-personality={countryLayoutMode === "mobile-web" || publishedDesign ? undefined : heroPersonality}
+        data-country-composition={countryLayoutMode === "mobile-web" || publishedDesign ? undefined : sourcePersonality.compositionFamily}
+        data-country-background-policy={countryLayoutMode === "mobile-web" || publishedDesign ? undefined : sourcePersonality.backgroundPolicy}
+        data-country-source-status={countryLayoutMode === "mobile-web" || publishedDesign ? undefined : sourcePersonality.status}
         data-country-surface={publishedDesign?.surface}
         data-country-accent={publishedDesign?.accent}
         data-country-motion={publishedDesign?.motion}
@@ -467,7 +502,14 @@ function CountryProfilePage() {
         style={publishedDesign ? countryDesignCssVariables(publishedDesign) : undefined}
       >
         {publishedDesign && countryDesignFontCss(publishedDesign) ? <style>{countryDesignFontCss(publishedDesign)}</style> : null}
-        {publishedDesign ? (
+        {countryLayoutMode === "mobile-web" ? (
+          <CountryMobileWebMasthead
+            identity={identityModel}
+            legacyWikiCode={legacyWikiArticleAvailable ? country.short_code : null}
+            currentContext={currentContext}
+            follow={<FollowButton entityType="country" entityId={country.id} label={country.name} />}
+          />
+        ) : publishedDesign ? (
           <CountryDesignV2Hero
             design={publishedDesign}
             code={identityModel.code}
@@ -480,7 +522,11 @@ function CountryProfilePage() {
             actions={
               <>
                 <div className="country-v2-hero-secondary-actions">
-                  <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
+                  {legacyWikiArticleAvailable ? (
+                    <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki article</Link>
+                  ) : (
+                    <Link to="/wiki">Reference</Link>
+                  )}
                   <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
                   <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
                 </div>
@@ -503,7 +549,11 @@ function CountryProfilePage() {
             className="mb-6"
             actions={
               <>
-                <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
+                {legacyWikiArticleAvailable ? (
+                    <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki article</Link>
+                  ) : (
+                    <Link to="/wiki">Reference</Link>
+                  )}
                 <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
                 <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
                 <FollowButton entityType="country" entityId={country.id} label={country.name} />
@@ -512,14 +562,37 @@ function CountryProfilePage() {
           />
         )}
 
-        <ResponsiveTabs
-          value={tab}
-          options={TABS}
-          onChange={setTab}
-          label="Country section"
-          collapseAt="lg"
-          className="mb-5"
-        />
+        {countryLayoutMode !== "mobile-web" ? (
+          <div className="mb-5 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-y border-border/70 py-3" aria-label="Current-edition participation">
+            <span className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">{currentContext.editionLabel}</span>
+            <strong className="text-sm font-semibold text-foreground">{currentContext.status}</strong>
+          </div>
+        ) : null}
+
+        {countryLayoutMode === "mobile-web" ? (
+          <nav className="country-mobile-web-tabs scroll-slim mb-5 flex gap-4 overflow-x-auto overscroll-x-contain border-b border-border" aria-label="Country sections">
+            {TABS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setTab(option.value)}
+                aria-current={tab === option.value ? "page" : undefined}
+                className={`min-h-12 shrink-0 cursor-pointer whitespace-nowrap border-b-2 bg-transparent px-0.5 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${tab === option.value ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </nav>
+        ) : (
+          <ResponsiveTabs
+            value={tab}
+            options={TABS}
+            onChange={setTab}
+            label="Country section"
+            collapseAt="lg"
+            className="mb-5"
+          />
+        )}
 
         {archiveLoading ? (
           <ArchiveDataLoading label="Loading country history…" />
@@ -550,8 +623,10 @@ function CountryProfilePage() {
                 </Panel>
 
                 <Panel
-                  title="Current entry"
-                  description="The latest published canonical entry for this delegation."
+                  title={latestEntryIsCurrent ? "Current published entry" : "Latest published entry"}
+                  description={latestEntryIsCurrent
+                    ? "Published entry for the active edition."
+                    : "Most recent published entry in this country's contest history."}
                 >
                   {latestEntry ? (
                     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">

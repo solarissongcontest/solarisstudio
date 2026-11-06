@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
-import { STATIC_PUBLIC_ROUTES } from "./audit-helpers";
+import { sitemapRoutes, STATIC_PUBLIC_ROUTES } from "./audit-helpers";
 
 // Playwright cannot emulate the CSS display-mode media feature for an installed
 // PWA. JS matchMedia can be shimmed, but @media (display-mode: standalone)
@@ -439,6 +439,27 @@ test("installed app shell survives representative navigation without duplicate c
     }
     await expectNoBottomChromeCollision(page, route);
   }
+});
+
+test("installed app shell survives representative navigation without duplicate chrome on Country detail", async ({
+  page,
+  baseURL,
+}) => {
+  // The same local fixture route used for mobile web remains an installed-app
+  // route when the iOS standalone runtime is enabled at the SAME width.
+  const discovered = await sitemapRoutes(baseURL!);
+  const country = discovered.find((route) => /^\/countries\/[^/]+$/.test(route));
+  expect(country, "Local sitemap must expose an installed-app Country target").toBeTruthy();
+
+  await skipFirstRun(page);
+  await page.goto(country!, { waitUntil: "domcontentloaded" });
+  await applyInstalledCssEmulation(page);
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-runtime", "standalone");
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-app", "");
+  await expect(page.locator(".site-nav")).toHaveCount(0);
+  await expect(page.locator(".mobile-quick-nav")).toHaveCount(0);
+  await expect(page.locator(".country-mobile-web-masthead")).toHaveCount(0);
+  await expect(page.locator('.country-profile-v8[data-country-layout-mode="mobile-web"]')).toHaveCount(0);
 });
 
 test("route contract owns the active global tab on help and directory screens", async ({

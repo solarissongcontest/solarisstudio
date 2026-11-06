@@ -1,0 +1,63 @@
+/* The mobile browser Wiki is an editorial website, not a PWA sheet interface.
+   All selectors require the explicit runtime-first web layout boundary. */
+@media (max-width: 767px) {
+  .wiki-canvas[data-wiki-layout-mode="mobile-web"] {
+    inline-size: 100%;
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Article-first browser composition: original legacy mobile cards are
+     explicitly excluded from this mode in wiki-mobile-encyclopedia.css. */
+  .wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-reading-grid {
+    gap: 0;
+    margin-inline: 0;
+  }
+
+  .wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-article-surface {
+    inline-size: 100%;
+    max-inline-size: var(--wiki-measure);
+    min-inline-size: 0;
+  }
+
+  .wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-introduction {
+    margin-block: 0 1.2rem;
+    padding: 0 0 1.4rem !important;
+    border-block-end: 1px solid var(--border) !important;
+  }
+
+  .wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-article-section {
+    border-block-start: 1px solid var(--border) !important;
+  }
+
+  .wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-article-section > summary {
+    min-block-size: 48px;
+    padding-block: 1rem;
+    background: transparent;
+  }
+
+  .wiki-canvas[data-wiki-layout-mode="mobile-web"] :is(.wiki-prose, .wiki-custom-section-content p) {
+    max-inline-size: 100%;
+    font-size: 1rem !important;
+    line-height: 1.68 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-record-strip > div {
+    min-inline-size: 0;
+  }
+
+  .wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-mobile-web-heading h1 {
+    min-inline-size: 0;
+    font-family: var(--font-display, inherit);
+    font-size: clamp(1.6rem, 7.25vw, 2.25rem);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -.045em;
+  }
+
+  .wiki-canvas[data-wiki-layout-mode="mobile-web"] .wiki-mobile-web-facts > .wiki-infobox {
+    margin-block-end: 1rem;
+  }
+
+}

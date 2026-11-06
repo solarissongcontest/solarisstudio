@@ -10,7 +10,7 @@ describe("canonical Country + Wiki completion contract", () => {
     for (const tab of ["Overview", "Entries", "Results", "Voting", "Relationships", "Form"]) {
       expect(route).toContain(`label: "${tab}"`);
     }
-    expect(route).toContain('title="Current entry"');
+    expect(route).toContain('title={latestEntryIsCurrent ? "Current published entry" : "Latest published entry"}');
     expect(route).toContain('title="Entry history"');
     expect(route).toContain("canonicalEditionEntries");
   });
@@ -115,7 +115,7 @@ describe("canonical Country + Wiki completion contract", () => {
     const world = source("src/components/CountryWorldOverview.tsx");
     expect(world.indexOf('title="About"')).toBeLessThan(world.indexOf('title="Quick Facts"'));
     const glance = route.indexOf('title="SSC at a glance"');
-    const current = route.indexOf('title="Current entry"');
+    const current = route.indexOf('title={latestEntryIsCurrent ? "Current published entry" : "Latest published entry"}');
     const recent = route.indexOf('title="Recent SSC history"');
     const allTime = route.indexOf('title="All-time record"');
     expect(glance).toBeGreaterThan(-1);
