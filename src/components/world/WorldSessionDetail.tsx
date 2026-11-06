@@ -81,11 +81,23 @@ export function WorldSessionDetail({ sessionId }: { sessionId: string }) {
                 <p className="text-[11px] font-bold uppercase tracking-[.15em] text-muted-foreground">Business</p>
                 <h2 id="world-session-agenda" className="mt-1 text-2xl font-bold tracking-tight">Public agenda</h2>
               </div>
-              <Link to={"/world/sessions/$sessionId/manage" as any}
-                params={{ sessionId } as any}
-                className="inline-flex min-h-11 items-center rounded-xl border border-border px-3 text-sm font-semibold hover:border-primary/50">
-                Manage agenda
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                <Link to={"/world/sessions/$sessionId/minutes" as any}
+                  params={{ sessionId } as any}
+                  className="inline-flex min-h-11 items-center rounded-xl border border-border px-3 text-sm font-semibold hover:border-primary/50">
+                  Official minutes
+                </Link>
+                <Link to={"/world/sessions/$sessionId/attendance" as any}
+                  params={{ sessionId } as any}
+                  className="inline-flex min-h-11 items-center rounded-xl border border-border px-3 text-sm font-semibold hover:border-primary/50">
+                  Attendance
+                </Link>
+                <Link to={"/world/sessions/$sessionId/manage" as any}
+                  params={{ sessionId } as any}
+                  className="inline-flex min-h-11 items-center rounded-xl border border-border px-3 text-sm font-semibold hover:border-primary/50">
+                  Manage agenda
+                </Link>
+              </div>
             </div>
             {session.data.agenda.length ? (
               <ol className="divide-y divide-border/60">
