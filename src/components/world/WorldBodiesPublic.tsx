@@ -39,14 +39,26 @@ function Loading() {
     <div className="h-28 max-w-2xl animate-pulse rounded-xl bg-muted motion-reduce:animate-none" /></div>;
 }
 function Unavailable({ retry, missing }: { retry?: () => void; missing?: boolean }) {
+  const { connectivity } = useSolarisApp();
+  const offline = !missing && connectivity.status === "offline";
+  const restricted = !missing && connectivity.status === "service-restricted";
+  const retryBlocked = offline || restricted;
+  const heading = missing ? "Public record not found"
+    : offline ? "Public records unavailable offline"
+    : restricted ? "Institutional service temporarily restricted"
+    : "Cannot verify public records";
   return <section role={missing ? undefined : "alert"} className="max-w-2xl border-t border-border pt-7">
-    <h1 className="text-2xl font-semibold">{missing ? "Public record not found" : "Cannot verify public records"}</h1>
+    <h1 className="text-2xl font-semibold">{heading}</h1>
     <p className="mt-3 text-sm leading-6 text-muted-foreground">
-      This institution or body may not exist, may be unpublished, or may be temporarily unavailable.
-      Restricted institutional information is never displayed.
+      {offline
+        ? "Reconnect to verify the latest published institutional records. Unverified cached records are not displayed."
+        : restricted
+          ? "The institutional data service is temporarily restricted. Published records cannot be verified right now."
+          : "This institution or body may not exist, may be unpublished, or may be temporarily unavailable. Restricted institutional information is never displayed."}
     </p>
-    {retry ? <button type="button" onClick={retry} className="mt-5 min-h-11 rounded-xl border border-border px-5 font-semibold">
-      Try again
+    {retry ? <button type="button" onClick={retry} disabled={retryBlocked}
+      className="mt-5 min-h-11 rounded-xl border border-border px-5 font-semibold disabled:cursor-not-allowed disabled:opacity-50">
+      {offline ? "Reconnect to retry" : restricted ? "Retry when service returns" : "Try again"}
     </button> : null}
   </section>;
 }
