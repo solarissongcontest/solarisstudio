@@ -138,6 +138,33 @@ describe('Studio 2 media asset operations', () => {
     expect(video?.activeReview?.decision).toBe('approved');
   });
 
+  it('never presents a blocked canonical source as approved because of a stored review', () => {
+    const unsafeSource = 'javascript:alert(1)';
+    const items = buildStudio2MediaAssetInventory({
+      edition,
+      countries: [country],
+      cockpits: [cockpit({ songUrl: unsafeSource })],
+      reviews: [review(unsafeSource, 'approved')],
+    });
+
+    const video = items.find((item) => item.assetType === 'performance_video');
+    expect(video?.validation.some((check) => check.level === 'blocked')).toBe(true);
+    expect(video?.activeReview?.decision).toBe('approved');
+    expect(video?.state).toBe('invalid');
+    expect(summarizeStudio2MediaAssets(items).blocking).toBe(1);
+  });
+
+  it('prioritizes blocking validation over superseded approval evidence', () => {
+    const unsafeSource = 'javascript:alert(1)';
+    expect(resolveStudio2MediaAssetState({
+      required: true,
+      sourceUrl: unsafeSource,
+      processing: false,
+      validation: validateStudio2MediaAssetSource('performance_video', unsafeSource),
+      previousReview: review('https://video.example.test/old.mp4', 'approved'),
+    })).toBe('invalid');
+  });
+
   it('marks a changed canonical source as superseded until the new version is reviewed', () => {
     const oldSource = 'https://video.example.test/old.mp4';
     const newSource = 'https://video.example.test/new.mp4';
