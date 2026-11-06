@@ -10,7 +10,7 @@ import {
   Plus,
   ShieldAlert,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
@@ -70,6 +70,7 @@ type PlatformModeForm = {
 };
 
 type PendingPlatformModeChange = {
+  actorId: string;
   preview: PlatformModeChangePreview;
   form: PlatformModeForm;
   operationId: string;
@@ -80,6 +81,8 @@ type PendingPlatformModeChange = {
 function AdminSystemPage() {
   const { editionId, setEditionContext } = useAdminContext();
   const actorId = useAuthenticatedUser().id;
+  const liveActorRef = useRef(actorId);
+  liveActorRef.current = actorId;
   const [explicitChoice, setExplicitChoice] = useState<{ actorId: string; editionId: string } | null>(null);
   const explicitEditionId = explicitChoice?.actorId === actorId ? explicitChoice.editionId : "";
   const verifiedChoiceId = explicitEditionId && editionId === explicitEditionId ? explicitEditionId : "";
@@ -135,11 +138,21 @@ function AdminSystemPage() {
   const toggleDeadline = useToggleAdminDeadline();
 
   const platformQuery = useQuery({
-    queryKey: ["platform-operational-state"],
+    queryKey: ["platform-operational-state", actorId],
     queryFn: loadPlatformOperationalSnapshot,
+    enabled: Boolean(actorId),
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
   });
+  const verifiedPlatform =
+    actorId && platformQuery.isSuccess && !platformQuery.isFetching && !platformQuery.error
+      ? platformQuery.data
+      : null;
+  const livePlatformVerifiedRef = useRef(Boolean(verifiedPlatform));
+  livePlatformVerifiedRef.current = Boolean(verifiedPlatform);
   const previewPlatformMode = useMutation({
     mutationFn: previewPlatformModeChange,
   });
@@ -170,6 +183,20 @@ function AdminSystemPage() {
   );
   const [platformPassword, setPlatformPassword] = useState("");
 
+  // Account changes invalidate all local platform review and password state.
+  // The server still owns permission/version checks at operation time.
+  useEffect(() => {
+    setPendingModeChange(null);
+    setPlatformPassword("");
+    setModeForm({
+      targetMode: "",
+      reason: "",
+      affectedServices: "",
+      message: "",
+      incidentReference: "",
+    });
+  }, [actorId]);
+
   // Keep an unfinished reminder draft while the edition list revalidates.
   // Only a real scope switch or a confirmed missing edition discards the draft.
   // A background refresh/error must never silently erase typed Organizer work.
@@ -195,8 +222,20 @@ function AdminSystemPage() {
       pending: PendingPlatformModeChange;
       password: string;
     }) => {
+      const stillAuthorizedReview = () =>
+        Boolean(pending.actorId) &&
+        pending.actorId === liveActorRef.current &&
+        livePlatformVerifiedRef.current;
+      if (!stillAuthorizedReview()) {
+        throw new Error("Platform review expired after an account or state verification change. Review the operation again.");
+      }
       if (pending.preview.riskClass === "R3") {
         await reauthenticatePlatformR3(password);
+      }
+      // Reauthentication is asynchronous: an account may have changed while
+      // the password step was waiting. Never carry its approval forward.
+      if (!stillAuthorizedReview()) {
+        throw new Error("Platform review expired after an account or state verification change. Review the operation again.");
       }
       return applyPlatformModeChange({
         preview: pending.preview,
@@ -209,16 +248,18 @@ function AdminSystemPage() {
         exitPreflightId: pending.exitPreflight?.id ?? null,
       });
     },
-    onSuccess: async () => {
-      setPendingModeChange(null);
-      setPlatformPassword("");
-      setModeForm({
+    onSuccess: async (_, variables) => {
+      if (variables.pending.actorId === liveActorRef.current) {
+        setPendingModeChange(null);
+        setPlatformPassword("");
+        setModeForm({
         targetMode: "",
         reason: "",
         affectedServices: "",
         message: "",
-        incidentReference: "",
-      });
+          incidentReference: "",
+        });
+      }
       await queryClient.invalidateQueries({ queryKey: ["platform-operational-state"] });
     },
   });
@@ -244,22 +285,26 @@ function AdminSystemPage() {
     return new Date(item.at).getTime() >= Date.now() - 24 * 60 * 60 * 1000;
   });
 
-  const allowedPlatformModes = platformQuery.data ? nextPlatformModes(platformQuery.data.mode) : [];
+  const allowedPlatformModes = verifiedPlatform ? nextPlatformModes(verifiedPlatform.mode) : [];
 
   const reviewPlatformChange = async () => {
-    if (!modeForm.targetMode || modeForm.reason.trim().length < 5) return;
+    if (!actorId || !verifiedPlatform || !modeForm.targetMode || modeForm.reason.trim().length < 5) return;
+    const reviewedActorId = actorId;
     const preview = await previewPlatformMode.mutateAsync({
       targetMode: modeForm.targetMode,
       affectedServices: splitServices(modeForm.affectedServices),
       message: modeForm.message.trim() || null,
       incidentReference: modeForm.incidentReference.trim() || null,
     });
+    if (reviewedActorId !== liveActorRef.current || !livePlatformVerifiedRef.current) return;
     const preflight = requiresExitPreflight(preview.currentMode, preview.targetMode)
       ? await exitPreflight.mutateAsync(preview.targetMode)
       : null;
+    if (reviewedActorId !== liveActorRef.current || !livePlatformVerifiedRef.current) return;
     const operationId = crypto.randomUUID();
     setPlatformPassword("");
     setPendingModeChange({
+      actorId: reviewedActorId,
       preview,
       form: { ...modeForm, reason: modeForm.reason.trim() },
       operationId,
@@ -370,15 +415,15 @@ function AdminSystemPage() {
           title="Platform operational mode"
           description="Normal, Degraded, Read-only and Maintenance are canonical server states. The emergency Worker maintenance circuit breaker stays separate so it still works if Supabase itself is unavailable."
           action={
-            platformQuery.data ? (
-              <AdminStatus tone={platformTone(platformQuery.data.mode)}>
-                {platformLabel(platformQuery.data.mode)} · v{platformQuery.data.version}
+            verifiedPlatform ? (
+              <AdminStatus tone={platformTone(verifiedPlatform.mode)}>
+                {platformLabel(verifiedPlatform.mode)} · v{verifiedPlatform.version}
               </AdminStatus>
             ) : null
           }
         />
 
-        {platformQuery.isLoading ? (
+        {platformQuery.isPending || platformQuery.isFetching ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             Verifying canonical platform state…
           </p>
@@ -397,20 +442,20 @@ function AdminSystemPage() {
               </button>
             }
           />
-        ) : platformQuery.data ? (
+        ) : verifiedPlatform ? (
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <SystemFact label="Current mode" value={platformLabel(platformQuery.data.mode)} />
-              <SystemFact label="State version" value={`v${platformQuery.data.version}`} />
+              <SystemFact label="Current mode" value={platformLabel(verifiedPlatform.mode)} />
+              <SystemFact label="State version" value={`v${verifiedPlatform.version}`} />
               <SystemFact
                 label="Changed"
-                value={new Date(platformQuery.data.changedAt).toLocaleString()}
+                value={new Date(verifiedPlatform.changedAt).toLocaleString()}
               />
               <SystemFact
                 label="Affected services"
                 value={
-                  platformQuery.data.affectedServices.length
-                    ? platformQuery.data.affectedServices.join(", ")
+                  verifiedPlatform.affectedServices.length
+                    ? verifiedPlatform.affectedServices.join(", ")
                     : "None declared"
                 }
               />
@@ -419,16 +464,16 @@ function AdminSystemPage() {
             <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
               <p className="text-xs font-semibold text-foreground">Current reason</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                {platformQuery.data.reason}
+                {verifiedPlatform.reason}
               </p>
-              {platformQuery.data.message ? (
+              {verifiedPlatform.message ? (
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  Public/operator message: {platformQuery.data.message}
+                  Public/operator message: {verifiedPlatform.message}
                 </p>
               ) : null}
-              {platformQuery.data.incidentReference ? (
+              {verifiedPlatform.incidentReference ? (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Incident: {platformQuery.data.incidentReference}
+                  Incident: {verifiedPlatform.incidentReference}
                 </p>
               ) : null}
             </div>
@@ -510,7 +555,7 @@ function AdminSystemPage() {
               />
             </label>
 
-            {platformQuery.data.mode === "maintenance" ? (
+            {verifiedPlatform.mode === "maintenance" ? (
               <p className="rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3 text-xs leading-5 text-amber-50/85">
                 Maintenance cannot jump directly to Normal. Recovery must move to Read-only first,
                 verify the system, then continue through Degraded before returning to Normal.
@@ -817,7 +862,7 @@ function AdminSystemPage() {
       </AdminCard>
 
       <AdminConfirmSheet
-        open={Boolean(pendingModeChange)}
+        open={Boolean(pendingModeChange?.actorId === actorId && verifiedPlatform)}
         onClose={() => {
           if (!applyPlatformMode.isPending) {
             setPendingModeChange(null);
@@ -825,7 +870,7 @@ function AdminSystemPage() {
           }
         }}
         onConfirm={async () => {
-          if (!pendingModeChange) return;
+          if (!pendingModeChange || pendingModeChange.actorId !== actorId || !verifiedPlatform) return;
           await applyPlatformMode.mutateAsync({
             pending: pendingModeChange,
             password: platformPassword,
