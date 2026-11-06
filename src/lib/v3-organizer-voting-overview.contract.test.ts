@@ -6,7 +6,9 @@ const votingOverview = readFileSync("src/routes/televoting/admin/index.tsx", "ut
 describe("V3 Organizer Voting overview", () => {
   it("does not call the legacy overview fallback without an explicit Organizer edition", () => {
     expect(votingOverview).toContain("enabled: Boolean(editionId)");
-    expect(votingOverview).toContain('queryKey: ["merged-televoting-admin-overview", editionId ?? "none"]');
+    expect(votingOverview).toContain("useAuthenticatedUser().id");
+    expect(votingOverview).toContain('queryKey: ["merged-televoting-admin-overview", actorId, editionId ?? "none"]');
+    expect(votingOverview).toContain("gcTime: 0");
     expect(votingOverview).toContain("editionId: editionId!");
     expect(votingOverview).toContain("Select an edition");
     expect(votingOverview).toContain("will not substitute a globally active or newest edition");

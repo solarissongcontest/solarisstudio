@@ -7,6 +7,10 @@ const migration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20261019013000_v3_public_live_rollout_flag.sql"),
   "utf8",
 );
+const worldRolloutMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20261104121000_v3_tg3_world_public_rollout_flag.sql"),
+  "utf8",
+);
 const probe = readFileSync(
   resolve(process.cwd(), "src/integrations/v3/rollout-probe.server.ts"),
   "utf8",
@@ -16,8 +20,14 @@ describe("System V3 Public Live rollout contract", () => {
   it("registers Public Live without dropping existing canonical feature keys", () => {
     expect(SOLARIS_FEATURE_FLAGS).toContain("solaris_app_v3_live");
     for (const key of SOLARIS_FEATURE_FLAGS) {
-      expect(migration, key).toContain(`'${key}'`);
+      // The World key arrived later as an additive, default-disabled migration.
+      // Earlier Public Live migration text cannot retroactively contain it.
+      const introducingMigration = key === "terra_world_public" ? worldRolloutMigration : migration;
+      expect(introducingMigration, key).toContain(`'${key}'`);
     }
+    expect(worldRolloutMigration).toContain("pg_catalog.pg_get_expr(");
+    expect(worldRolloutMigration).toContain("('terra_world_public', false, false");
+    expect(worldRolloutMigration).toContain("on conflict (key) do nothing");
     expect(migration).toContain("'public_ia_v3'");
   });
 

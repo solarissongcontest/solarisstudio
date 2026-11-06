@@ -34,6 +34,16 @@ describe("S14 Stage 7 deadline operation identity", () => {
     expect(adapter).toContain("event_type='televote.extended'");
   });
 
+  it("assigns the Grand Final its own stable deadline receipt identity", () => {
+    const finalIdentityBranch = adapter.split('elif [[ -n "${S14_FINAL_TELEVOTE_ROUND_ID:-}"')[1]?.split("  else")[0];
+    expect(finalIdentityBranch).toBeDefined();
+    expect(finalIdentityBranch).toContain('"$round_id" == "$S14_FINAL_TELEVOTE_ROUND_ID"');
+    expect(finalIdentityBranch).toContain("14000000-0000-4007-8500-000000000005");
+    expect(finalIdentityBranch).toContain("s14-televote-final-deadline-set");
+    expect(finalIdentityBranch).not.toContain("s14-televote-semi1-deadline-set");
+    expect(finalIdentityBranch).not.toContain("s14-televote-semi2-deadline-set");
+  });
+
   it("keeps receipt identity tied to the same deterministic operations used for replay", () => {
     expect(adapter).toContain("14000000-0000-4007-8500-000000000001");
     expect(adapter).toContain("14000000-0000-4007-8500-000000000002");
@@ -42,4 +52,13 @@ describe("S14 Stage 7 deadline operation identity", () => {
     expect(adapter).toContain("replay initial Televote deadline");
     expect(adapter).toContain("replay genuine +2 minute Televote extension");
   });
+  it("uses the authoritative database clock and explicit expiry state rather than PostgreSQL boolean text shorthand", () => {
+    expect(adapter).toContain("with sample as (select clock_timestamp() as db_now)");
+    expect(adapter).toContain("when r.closes_at is not null and sample.db_now >= r.closes_at then 'expired' else 'waiting' end");
+    expect(adapter).toContain('if [[ "$expiry_state" == "expired" ]]');
+    expect(adapter).not.toContain('== "t"');
+    expect(adapter).toContain("S14_STAGE7_DEADLINE_POLL iteration=");
+    expect(adapter).toContain("last_state=$expiry_state");
+  });
+
 });
