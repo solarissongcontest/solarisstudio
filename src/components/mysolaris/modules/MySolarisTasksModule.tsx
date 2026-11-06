@@ -46,7 +46,8 @@ export function MySolarisTasksModule() {
   const organizerCountry = organizerInspection
     ? (countries.data ?? []).find((candidate) => candidate.id === targetCountryId)
     : undefined;
-  const country = organizerCountry ?? ownCountry;
+  // An invalid Organizer inspection target must never fall back to the viewer's own country.
+  const country = organizerInspection ? organizerCountry : ownCountry;
   const countrySearch = buildCountrySearch(targetCountryId);
   const [editionId, setEditionId] = useState("");
 
