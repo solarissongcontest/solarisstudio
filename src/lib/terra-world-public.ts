@@ -114,7 +114,8 @@ export function parseWorldOrganization(value: unknown): WorldOrganization | null
 export function parseWorldProjection(input: unknown, requestedSlug: string): WorldProjection | null {
   const raw = object(input);
   const organization = parseWorldOrganization(raw?.organization);
-  if (!raw || !organization || organization.slug !== requestedSlug) return null;
+  if (!raw || !organization || organization.slug !== requestedSlug ||
+      !isPublicWorldInstitutionStatus(organization.status)) return null;
   return {
     organization,
     organs: items(raw.organs).flatMap((value) => {
@@ -177,7 +178,8 @@ export type WorldDirectoryResponse = {
 export function parseWorldDirectoryRows(raw: unknown): WorldOrganization[] {
   return items(raw).flatMap((value) => {
     const row = object(value);
-    if (!row || row.public_visibility !== "public") return [];
+    if (!row || row.public_visibility !== "public" ||
+        !isPublicWorldInstitutionStatus(String(row.status ?? ""))) return [];
     const organization = parseWorldOrganization({
       id: row.id, slug: row.slug, officialName: row.official_name,
       shortName: row.short_name, type: row.type, description: row.description,
@@ -193,12 +195,16 @@ export async function fetchWorldDirectory(input: {
   const term = cleanWorldSearch(input.term);
   const page = Math.max(0, Math.min(1000, Math.trunc(input.page) || 0));
   // Only public fields; do not select "*", count members or hydrate per-row profiles.
+  const publishedStatuses = input.filter === "current"
+    ? ["active", "recognized", "suspended"]
+    : input.filter === "historical"
+      ? ["historical", "dissolved"]
+      : [...WORLD_PUBLIC_INSTITUTION_STATUSES];
   let request = (supabase as any).from("world_organizations")
     .select("id,slug,official_name,short_name,type,description,status,public_visibility", { count: "exact" })
     .eq("public_visibility", "public")
+    .in("status", publishedStatuses)
     .order("official_name", { ascending: true });
-  if (input.filter === "current") request = request.in("status", ["active", "recognized", "suspended"]);
-  if (input.filter === "historical") request = request.in("status", ["historical", "dissolved"]);
   if (term) request = request.or("official_name.ilike.%" + term + "%,short_name.ilike.%" + term + "%");
   const { data, error, count } = await request.range(
     page * WORLD_DIRECTORY_PAGE_SIZE,
@@ -210,7 +216,13 @@ export async function fetchWorldDirectory(input: {
   if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0) {
     throw new Error("The world directory count could not be verified.");
   }
-  return { organizations: parseWorldDirectoryRows(data), total: count };
+  const organizations = parseWorldDirectoryRows(data);
+  // An invalid/hidden record leaking through an upstream query must not
+  // produce an apparently official listing or a misleading server count.
+  if (!Array.isArray(data) || organizations.length !== data.length) {
+    throw new Error("World organization publication could not be verified.");
+  }
+  return { organizations, total: count };
 }
 
 /**
