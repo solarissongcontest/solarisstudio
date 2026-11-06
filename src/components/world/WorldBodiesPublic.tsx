@@ -12,10 +12,12 @@ import {
 function Frame({ children }: { children: ReactNode }) {
   const { platformResolved, isAppMode } = useSolarisApp();
   if (!platformResolved) return <div role="status" aria-label="Opening Terra Solaris" className="min-h-20" />;
-  return <AppShell><main className={"mx-auto w-full pb-28 " +
+  // AppShell owns the single page <main> landmark and shared navigation.
+  // Keep this frame presentational to avoid a nested main landmark.
+  return <AppShell><div className={"mx-auto w-full pb-28 " +
     (isAppMode ? "max-w-2xl px-3 pt-3" : "max-w-6xl px-4 pt-6 sm:px-6 sm:pt-8")}>
     {children}
-  </main></AppShell>;
+  </div></AppShell>;
 }
 
 function Back({ institution }: { institution?: PublicWorldInstitution }) {
