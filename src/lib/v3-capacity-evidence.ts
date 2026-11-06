@@ -184,7 +184,14 @@ function validateLoopbackTarget(value: unknown) {
   if (!raw) return false;
   try {
     const url = new URL(raw);
-    return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(url.hostname);
+    if (!["127.0.0.1", "localhost", "::1", "[::1]"].includes(url.hostname)) return false;
+    // libpq may redirect a loopback-looking PostgreSQL URI using query authority.
+    // Fail closed rather than treating a remote database as a local rehearsal.
+    const authorityOverrides = new Set(["host", "hostaddr", "service", "servicefile"]);
+    for (const [key] of url.searchParams) {
+      if (authorityOverrides.has(key.toLowerCase())) return false;
+    }
+    return true;
   } catch {
     return false;
   }

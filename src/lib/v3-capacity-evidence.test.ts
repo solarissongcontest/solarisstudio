@@ -205,6 +205,28 @@ describe("System V3 S12 capacity evidence assessment", () => {
     expect(assessment.errors).toContain("capacity report outcome totals do not equal requested requests");
   });
 
+  it("rejects remote libpq authority overrides hidden behind loopback capacity targets", () => {
+    for (const target of [
+      "postgresql://127.0.0.1:5432/local?host=db.example.org",
+      "postgres://localhost/local?HOSTADDR=203.0.113.10",
+      "postgresql://localhost/local?%68ost=db.example.org",
+      "postgresql://localhost/local?service=remote",
+      "postgresql://localhost/local?SeRvIcEfIlE=/tmp/pg_service.conf",
+      "http://localhost/rehearsal?host=db.example.org",
+    ]) {
+      const assessment = assessV3CapacityEvidence(
+        { ...completeReport(), target },
+        completeContext(),
+      );
+      expect(assessment.status).toBe("invalid");
+      expect(assessment.errors).toContain("capacity report target must be loopback/local");
+    }
+    expect(assessV3CapacityEvidence(
+      { ...completeReport(), target: "http://localhost:4173/rehearsal?scenario=deadline" },
+      completeContext(),
+    ).status).toBe("ready_for_qa_review");
+  });
+
   it("rejects negative counters and an error rate that disagrees with the counters", () => {
     const report = completeReport();
     const negative = assessV3CapacityEvidence(
