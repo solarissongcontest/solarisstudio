@@ -1,5 +1,5 @@
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import type {
   VoteIntegrityFinding,
   VoteIntegrityTechnicalSignal,
@@ -110,12 +110,12 @@ export async function listIntegrityDeclarationsServer(input: {
   limit?: number;
   signedOnly?: boolean;
 }) {
-  await requireMergedTelevotingAdminServer();
-
   const scopedEditionId = String(input.editionId ?? "").trim();
   if (!scopedEditionId) {
     throw new Error("Voting integrity declarations require an explicit edition scope");
   }
+  // Caller's exact-edition integrity capability precedes all service-role evidence reads.
+  await requireSolarisCapabilityServer("integrity.read", scopedEditionId);
 
   const limit = Math.max(1, Math.min(1000, Number(input.limit ?? 300)));
   const tv = (supabaseAdmin as any).schema("televoting");

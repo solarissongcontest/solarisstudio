@@ -7,11 +7,17 @@ function source(path: string) {
 }
 
 describe("organizer voting-integrity declarations", () => {
-  it("requires organizer access and never exposes network hashes in the normal UI", () => {
+  it("requires edition-scoped integrity authority and never exposes network hashes in the normal UI", () => {
     const server = source("src/integrations/televoting/integrity-declarations.server.ts");
     const route = source("src/routes/televoting/admin/integrity-declarations.tsx");
 
-    expect(server).toContain("requireMergedTelevotingAdminServer");
+    expect(server).toContain('await requireSolarisCapabilityServer("integrity.read", scopedEditionId)');
+    expect(server).not.toContain("requireMergedTelevotingAdminServer");
+    const validateScope = server.indexOf("Voting integrity declarations require an explicit edition scope");
+    const capabilityGuard = server.indexOf('await requireSolarisCapabilityServer("integrity.read", scopedEditionId)');
+    const evidenceQuery = server.indexOf('from("vote_preflight_checks")');
+    expect(capabilityGuard).toBeGreaterThan(validateScope);
+    expect(evidenceQuery).toBeGreaterThan(capabilityGuard);
     expect(server).toContain('eq("requires_attestation", true)');
     expect(route).not.toContain("ip_hash");
     expect(route).not.toContain("fingerprint_hash");
