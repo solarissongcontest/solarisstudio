@@ -99,6 +99,8 @@ describe("V3 Predictions read recovery", () => {
     expect(source).toContain('data-v3-prediction-league-state="standings-paused"');
     expect(source).toContain('session.data && profile.isPending');
     expect(source).toContain("Your leaderboard privacy setting has not been verified.");
+    expect(source).toContain('history.isPending || history.isError ? "Checking saved picks"');
+    expect(source).toContain('leagueFeature.isPending || leagueFeature.isError ? "Checking availability"');
     expect(source).toContain("profile.isError || (profile.isPending && profile.isPaused)");
     expect(source).toContain("onClick={() => void profile.refetch()}");
     expect(source.indexOf('data-v3-prediction-league-state="paused"')).toBeLessThan(
