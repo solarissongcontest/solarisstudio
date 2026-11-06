@@ -125,6 +125,12 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
   }, [countries.data, editions.data, follows.data, shows.data, viewerId]);
 
   const loading = follows.isLoading || countries.isLoading || editions.isLoading || shows.isLoading;
+  const paused = (
+    (follows.isPending && follows.isPaused) ||
+    (countries.isPending && countries.isPaused) ||
+    (editions.isPending && editions.isPaused) ||
+    (shows.isPending && shows.isPaused)
+  );
   const failed = follows.isError || countries.isError || editions.isError || shows.isError;
   const retrying = follows.isFetching || countries.isFetching || editions.isFetching || shows.isFetching;
 
@@ -185,7 +191,14 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
           </p>
         ) : null}
 
-        {loading ? (
+        {paused ? (
+          <V3Surface className="p-5" data-v3-following-saved-state="paused">
+            <p role="status" className="text-sm font-semibold">Saved items cannot be verified while the connection is paused.</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
+              Reconnect to load your private preferences. Solaris will not mistake an unverified list for an empty one.
+            </p>
+          </V3Surface>
+        ) : loading ? (
           <V3Surface className="p-5">
             <p role="status" aria-live="polite" className="text-sm text-[var(--v3-text-secondary)]">Loading your saved items…</p>
           </V3Surface>
