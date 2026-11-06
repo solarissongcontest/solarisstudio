@@ -81,7 +81,9 @@ alter table public.world_statements enable row level security;
 alter table public.world_statement_versions enable row level security;
 revoke all on public.world_statements, public.world_statement_versions from public, anon, authenticated;
 grant select on public.world_statements, public.world_statement_versions to anon, authenticated;
-grant all on public.world_statements, public.world_statement_versions to service_role;
+-- A service-role connection must not be a second raw official-publication writer.
+-- The SECURITY DEFINER command is the only application mutation boundary.
+grant select on public.world_statements, public.world_statement_versions to service_role;
 
 create policy world_statements_published_public_read on public.world_statements
 for select to anon, authenticated using (
