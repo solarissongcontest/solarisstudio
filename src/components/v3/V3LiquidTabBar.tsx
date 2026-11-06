@@ -318,6 +318,9 @@ export function V3LiquidTabBar({
     index: number,
     active: boolean,
   ) => {
+    // Cancelled pointer sequences may never fire click. Reset suppression
+    // before eligibility so a subsequent real tap is never swallowed.
+    suppressClick.current = false;
     if (
       !active ||
       collapsed ||
@@ -588,6 +591,10 @@ export function V3LiquidTabBar({
               onPointerUp={finishDrag}
               onPointerCancel={cancelDrag}
               onLostPointerCapture={cancelDrag}
+              onKeyDown={() => {
+                // Keyboard/assistive activation never inherits pointer cancellation.
+                suppressClick.current = false;
+              }}
               onClick={(event) => {
                 if (suppressClick.current) {
                   suppressClick.current = false;
