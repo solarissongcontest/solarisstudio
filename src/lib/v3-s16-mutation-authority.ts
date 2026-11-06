@@ -331,9 +331,9 @@ export function scanV3S16StaticAuthority(
   // actor-bound server authorization, review, and audit receipts entirely.
   for (const file of files) {
     if (!file.path.startsWith("scripts/") ||
-        /\\.(?:test|spec)\\.[cm]?[jt]sx?$/.test(file.path) ||
+        /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file.path) ||
         file.path.includes("/fixtures/")) continue;
-    if (!/\\.auth\\s*\\.\\s*admin\\s*\\.\\s*(?:updateUserById|deleteUser)\\s*\\(/.test(file.source)) continue;
+    if (!/\.auth\s*\.\s*admin\s*\.\s*(?:updateUserById|deleteUser)\s*\(/.test(file.source)) continue;
     findings.push({
       domain: "account-session",
       kind: "competing_legacy_writer",
