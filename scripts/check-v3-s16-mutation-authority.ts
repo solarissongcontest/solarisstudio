@@ -5,7 +5,7 @@ import { extname, join, relative, resolve } from "node:path";
 import { buildV3S16MutationAuthorityReport, scanV3S16StaticAuthority, V3_S16_CRITICAL_DOMAINS, V3_S16_POLICY_VERSION, type V3S16CatalogEvidence, type V3S16SourceFile } from "../src/lib/v3-s16-mutation-authority";
 import { classifyV3S16ReleaseAuthority } from "../src/lib/v3-s16-release-risk";
 
-const SOURCE_ROOTS = ["src", "supabase/migrations", "supabase/functions", "workers", "functions"];
+const SOURCE_ROOTS = ["src", "supabase/migrations", "supabase/functions", "workers", "functions", "scripts"];
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".sql"]);
 
 function candidateSha() {
