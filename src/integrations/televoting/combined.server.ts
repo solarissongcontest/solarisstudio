@@ -63,11 +63,28 @@ async function audit(actor: Actor, action: string, targetId: string, values?: un
   });
 }
 
-export async function listMergedCombinedAggregationsServer() {
+export async function listMergedCombinedAggregationsServer(solarisEditionId: string) {
   await requireMergedTelevotingAdminServer();
+  // Resolve the exact canonical Organizer edition through the existing read-only
+  // projection rather than synchronizing every draft round in every edition.
+  const { data: payloadValue, error: projectionError } = await televotingAdmin.rpc(
+    "admin_rounds_page_overview",
+    { p_solaris_edition_id: solarisEditionId },
+  );
+  if (projectionError) throw new Error(projectionError.message);
+  const payload = payloadValue && typeof payloadValue === "object" && !Array.isArray(payloadValue)
+    ? (payloadValue as Record<string, unknown>)
+    : {};
+  if (payload.linked !== true) return [] as CombinedAggregation[];
+  const remoteRow = payload.edition && typeof payload.edition === "object" && !Array.isArray(payload.edition)
+    ? (payload.edition as Record<string, unknown>)
+    : {};
+  const remoteEditionId = typeof remoteRow.id === "string" ? remoteRow.id : "";
+  if (!remoteEditionId) throw new Error("Linked Televoting edition is missing its canonical projection id");
   const { data, error } = await televotingAdmin
     .from("televote_aggregations")
     .select("id,edition_id,name,combination_method,total_points_to_distribute,rank_exponent,status,calculation_version,calculated_at,calculated_by_username,locked_at,published_at,results_outdated,public_columns,broadcast_display_mode,created_at")
+    .eq("edition_id", remoteEditionId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as CombinedAggregation[];

@@ -8,10 +8,16 @@ async function refreshCombinedCanonicalParticipants(aggregationId: string) {
   return syncEditableCombinedParticipantsFromSolarisServer(aggregationId);
 }
 
-export const listMergedCombinedAggregations = createServerFn({ method: "GET" }).handler(async () => {
-  const { listMergedCombinedAggregationsServer } = await import("@/integrations/televoting/combined.server");
-  return listMergedCombinedAggregationsServer();
-});
+export const listMergedCombinedAggregations = createServerFn({ method: "POST" })
+  .inputValidator((data: { editionId: string }) => {
+    const editionId = String(data?.editionId ?? "").trim();
+    if (!editionId) throw new Error("Combined Results requires an exact Solaris edition");
+    return { editionId };
+  })
+  .handler(async ({ data }) => {
+    const { listMergedCombinedAggregationsServer } = await import("@/integrations/televoting/combined.server");
+    return listMergedCombinedAggregationsServer(data.editionId);
+  });
 
 export const getMergedCombinedAggregation = createServerFn({ method: "POST" })
   .inputValidator((data: { id: string }) => {

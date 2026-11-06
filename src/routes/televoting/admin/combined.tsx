@@ -148,7 +148,7 @@ function CombinedResultsPage({ editionId }: { editionId: string }) {
 
   const { data: allAggregations = [], isLoading: listLoading, isFetching: listFetching, error: listError, refetch: retryList } = useQuery({
     queryKey: ["merged-combined-aggregations", actorId, editionId],
-    queryFn: () => listFn(),
+    queryFn: () => listFn({ data: { editionId } }),
     enabled: Boolean(actorId && admin),
     gcTime: 0,
     retry: false,
