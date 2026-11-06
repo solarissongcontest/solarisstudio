@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
 import { supabase } from "@/integrations/supabase/client";
+import { worldPublicQueryVerified } from "@/lib/terra-world-unified-search";
 import {
   WORLD_DIRECTORY_PAGE_SIZE,
   currentWorldMemberships,
@@ -159,14 +160,14 @@ export function WorldLanding() {
             Browse all <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         </div>
-        {directory.isPending ? <LoadingWorld label="Loading institutions" /> : null}
-        {directory.isError ? <QueryFailure message="The organization directory could not be retrieved." retry={() => void directory.refetch()} /> : null}
-        {directory.isSuccess && featured.length > 0 ? (
+        {(directory.isPending || directory.isFetching) && !directory.isError && !directory.isRefetchError ? <LoadingWorld label="Verifying published institutions" /> : null}
+        {directory.isError || directory.isRefetchError ? <QueryFailure message="The organization directory could not be verified." retry={() => void directory.refetch()} /> : null}
+        {worldPublicQueryVerified(directory) && featured.length > 0 ? (
           <div className="divide-y divide-border">
             {featured.map((organization) => <OrganizationRow key={organization.id} organization={organization} />)}
           </div>
         ) : null}
-        {directory.isSuccess && featured.length === 0 ? (
+        {worldPublicQueryVerified(directory) && featured.length === 0 ? (
           <p className="py-8 text-sm text-muted-foreground">No featured public institutional profiles are available right now.</p>
         ) : null}
       </section>
