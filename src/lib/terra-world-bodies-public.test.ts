@@ -21,7 +21,7 @@ const organ = {
   short_name: "GAG", type: "general_assembly", description: "Public assembly",
   status: "active", visibility: "public", sort_order: 10, private_notes: "never-return-this",
 };
-function chain(response: Record<string, unknown>, terminal: "single" | "range" = "single") {
+function chain(response: Record<string, unknown>) {
   const q = {
     select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn(), order: vi.fn(), range: vi.fn(),
   };
@@ -93,7 +93,7 @@ describe("TG3 public institution bodies", () => {
   });
   it("requires a trustworthy exact count and bounded rows for directory pages", async () => {
     const org = chain({ data: parent, error: null });
-    const body = chain({ data: [organ], error: null, count: 1 }, "range");
+    const body = chain({ data: [organ], error: null, count: 1 });
     mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
     const result = await readPublicWorldBodies("guard", 0);
     expect(result?.total).toBe(1);
@@ -103,7 +103,7 @@ describe("TG3 public institution bodies", () => {
   });
   it("fails closed for a missing count, duplicate identity or foreign data", async () => {
     const org = chain({ data: parent, error: null });
-    const body = chain({ data: [organ], error: null, count: null }, "range");
+    const body = chain({ data: [organ], error: null, count: null });
     mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
     await expect(readPublicWorldBodies("guard", 0)).rejects.toThrow("verified");
     body.range.mockResolvedValue({ data: [organ, organ], error: null, count: 2 });
