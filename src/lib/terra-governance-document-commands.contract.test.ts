@@ -40,10 +40,25 @@ describe("Terra Solaris Governance TG4 document commands", () => {
     expect(migration).not.toMatch(/title\s*=\s*['\"]Chairperson/i);
   });
 
-  it("resolves a durable delegation person for consequential authorship", () => {
-    expect(migration).toContain("private.world_document_actor_person_v1");
-    expect(migration).toContain("public.world_office_terms");
-    expect(migration).toContain("public.world_country_control_terms");
+  it("resolves a durable current person through effective TG2 terms and country_accounts", () => {
+    const resolveStart = migration.indexOf(
+      "create or replace function private.world_document_actor_person_v1",
+    );
+    const resolveEnd = migration.indexOf("$actor$;", resolveStart);
+    const actorResolver = migration.slice(resolveStart, resolveEnd);
+    expect(actorResolver).toContain("public.world_office_terms");
+    expect(actorResolver).toContain("term_row.actual_end_at is null");
+    expect(actorResolver).toContain("term_row.started_at <= now()");
+    expect(actorResolver).toContain("office_row.active");
+    expect(actorResolver).not.toContain("term_row.ends_at");
+    expect(actorResolver).not.toContain("term_row.starts_at");
+    expect(actorResolver).toContain("public.world_country_control_terms");
+    expect(actorResolver).toContain("join public.country_accounts");
+    expect(actorResolver).toContain("account_row.country_id = control_row.country_id");
+    expect(actorResolver).toContain("account_row.user_id = auth.uid()");
+    expect(actorResolver).toContain("account_row.status = 'active'");
+    expect(actorResolver).toContain("control_row.ended_at is null");
+    expect(actorResolver).toContain("control_row.started_at <= now()");
     expect(migration).toContain("'actorPersonId'");
   });
 
