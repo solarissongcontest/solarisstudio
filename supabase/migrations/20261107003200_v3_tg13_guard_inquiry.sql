@@ -222,7 +222,6 @@ begin
   raise exception using errcode='42501',message='AUTHORIZATION';
  end if;
  if p_target_country_id is null or p_response_due_at is null
-  or p_response_due_at <= now()
   or v_allegation is null or length(v_allegation) not between 20 and 8000
   or v_source is null or length(v_source) not between 10 and 500
   or p_operation_id is null or nullif(btrim(coalesce(p_idempotency_key,'')),'') is null then
@@ -242,6 +241,11 @@ begin
  v_op:=(v_claim->>'operationId')::uuid;
  if coalesce((v_claim->>'replayed')::boolean,false) then
   return public.studio2_reconcile_operation(v_op)||jsonb_build_object('replayed',true);
+ end if;
+ -- Only a NEW inquiry is required to have a future deadline; a replay of an
+ -- already recorded inquiry must remain recoverable even after that deadline.
+ if p_response_due_at <= now() then
+  raise exception using errcode='22023',message='VALIDATION';
  end if;
  select term.holder_person_id into v_actor_person
  from public.world_office_terms term
