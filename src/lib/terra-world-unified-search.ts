@@ -13,6 +13,13 @@ import {
 export const WORLD_UNIFIED_SEARCH_LIMIT = 12;
 export const WORLD_UNIFIED_SEARCH_MAX_PAGE = 1000;
 
+export type WorldSearchCategory = "all" | "countries" | "organizations";
+
+/** Parse the query parameter as an explicit public category, never raw SQL. */
+export function parseWorldSearchCategory(value: unknown): WorldSearchCategory {
+  return value === "countries" || value === "organizations" ? value : "all";
+}
+
 /** Proposals are not yet official international organizations. */
 export const WORLD_PUBLIC_SEARCH_STATUSES = [
   "recognized", "active", "suspended", "historical", "dissolved",
