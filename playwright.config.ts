@@ -129,7 +129,7 @@ const maintenanceProjects = [
 
 const publicProjects = publicViewportMatrix.map(({ width, height }) => ({
   name: `public-${width}`,
-  testMatch: /(?:public-routes|records-mobile-web)\.e2e\.ts/,
+  testMatch: /(?:public-routes|records-mobile-web|public-section-navigation)\.e2e\.ts/,
   use: { viewport: { width, height } },
 }));
 
@@ -142,12 +142,12 @@ const personalityProjects = personalityViewportMatrix.map(({ width, height }) =>
 const representativeCiProjects = [
   {
     name: "public-390",
-    testMatch: /(?:public-routes|records-mobile-web)\.e2e\.ts/,
+    testMatch: /(?:public-routes|records-mobile-web|public-section-navigation)\.e2e\.ts/,
     use: { viewport: { width: 390, height: 844 } },
   },
   {
     name: "public-1440",
-    testMatch: /(?:public-routes|records-mobile-web)\.e2e\.ts/,
+    testMatch: /(?:public-routes|records-mobile-web|public-section-navigation)\.e2e\.ts/,
     use: { viewport: { width: 1440, height: 900 } },
   },
   {
