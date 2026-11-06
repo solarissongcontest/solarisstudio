@@ -23,16 +23,19 @@ describe("V3 Country current-result boundary", () => {
     expect(delegation).not.toMatch(/shortCode\s*===|code\s*===\s*input\.code/);
   });
 
-  it("redacts unpublished Jury and Televote splits before the browser bundle", () => {
+  it("inherits immutable snapshot disclosure instead of raw Result columns", () => {
     const results = source("src/integrations/v3/results-source.server.ts");
 
+    expect(results).toContain("loadV3PublishedResultSnapshot(selectedShow.id)");
     expect(results).toContain(
-      "juryPoints: publication.jury_results === true ? row.jury_points : null",
+      "juryPoints: snapshot.availability.jury ? row.juryPoints ?? null : null",
     );
     expect(results).toContain(
-      "televotePoints: publication.televote_results === true ? row.televote_points : null",
+      "televotePoints: snapshot.availability.televote ? row.televotePoints ?? null : null",
     );
-    expect(results).not.toContain("juryPoints: row.jury_points,\n      televotePoints: row.televote_points");
+    expect(results).not.toContain('.from("results")');
+    expect(results).not.toContain("row.jury_points");
+    expect(results).not.toContain("row.televote_points");
   });
 
   it("treats current-result context as supplemental and fail-closed", () => {
