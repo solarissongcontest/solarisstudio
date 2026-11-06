@@ -476,7 +476,6 @@ function ShowPage() {
 
   const showSidebarItems = (allShows ?? [])
     .filter((item) => item.edition_id === show.edition_id && isShowPublic(item))
-    .slice()
     .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
     .map((item) => ({
       key: item.id,
@@ -500,7 +499,7 @@ function ShowPage() {
         />
         <div className="solaris-app-entity-content">
       <PageHeader
-        eyebrow={showEdition ? `${editionLabel(showEdition)} · ${show.kind.replace("-", " ")}` : show.kind.replace("-", " ")}
+        eyebrow={`${editionLabel(showEdition!)} · ${show.kind.replace("-", " ")}`}
         title={show.name}
         description={
           winner && winnerStanding && publication.results
@@ -512,19 +511,13 @@ function ShowPage() {
         actions={
           <div className="flex flex-wrap justify-end gap-2">
             <FollowButton entityType="show" entityId={show.id} label={show.name} />
-            {showEdition?.published && showEdition.id === show.edition_id ? (
-              <Link
-                to="/editions/$slug"
-                params={{ slug: showEdition.slug }}
-                className="rounded-xl border border-border px-4 py-2.5 text-sm"
-              >
-                ← {editionLabel(showEdition)}
-              </Link>
-            ) : (
-              <Link to="/editions" className="rounded-xl border border-border px-4 py-2.5 text-sm">
-                ← Editions
-              </Link>
-            )}
+            <Link
+              to="/editions/$slug"
+              params={{ slug: showEdition!.slug }}
+              className="rounded-xl border border-border px-4 py-2.5 text-sm"
+            >
+              ← {editionLabel(showEdition!)}
+            </Link>
           </div>
         }
       />
