@@ -5,7 +5,7 @@ import { ArrowLeft, CalendarDays, RefreshCw, ScrollText } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
-import { courtError } from "@/lib/world-court-filing";
+import { courtError, type CourtCase } from "@/lib/world-court-filing";
 import {
   canRecordCourtHearing, decideCourtHearing, fetchCourtProceedings,
   issueCourtOrder, scheduleCourtHearing, type CourtHearing,
@@ -130,9 +130,9 @@ function Section({heading,children}:{heading:string;children:ReactNode}){
 }
 function HearingRow({
  hearing,canManage,caseRevision,caseStatus,onChanged,
-}:{hearing:CourtHearing;canManage:boolean;caseRevision:number;caseStatus:string;onChanged:()=>void}){
+}:{hearing:CourtHearing;canManage:boolean;caseRevision:number;caseStatus:CourtCase["status"];onChanged:()=>void}){
  const eligible=canManage&&hearing.status==="scheduled"&&!["decided","closed","archived"].includes(caseStatus);
- const started=canRecordCourtHearing(hearing,caseStatus as "proceedings",new Date());
+ const started=canRecordCourtHearing(hearing,caseStatus,new Date());
  return (
   <article className="border-b border-border py-5 last:border-0">
    <div className="flex flex-wrap justify-between gap-2 text-sm">
