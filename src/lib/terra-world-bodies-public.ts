@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export const WORLD_BODIES_PAGE_SIZE = 24;
 export const WORLD_BODIES_MAX_PAGE = 1000;
-export type WorldBodyStatusFilter = "all" | "active" | "historical";
+export type WorldBodyStatusFilter = "all" | "active" | "inactive" | "historical";
 
 export function cleanWorldBodySearch(term: string): string {
   // Remove PostgREST filter grammar and LIKE wildcards before constructing a bounded name search.
@@ -116,7 +116,7 @@ export async function readPublicWorldBodies(
   let request = (supabase as any).from("world_organization_organs")
     .select("id,organization_id,slug,name,short_name,type,status,visibility,sort_order", { count: "exact" })
     .eq("organization_id", organization.id).eq("visibility", "public");
-  if (options.status === "active" || options.status === "historical") {
+  if (options.status === "active" || options.status === "inactive" || options.status === "historical") {
     request = request.eq("status", options.status);
   }
   if (term) {
@@ -139,7 +139,7 @@ export async function readPublicWorldBodies(
     let recount = (supabase as any).from("world_organization_organs")
       .select("id", { count: "exact" })
       .eq("organization_id", organization.id).eq("visibility", "public");
-    if (options.status === "active" || options.status === "historical") {
+    if (options.status === "active" || options.status === "inactive" || options.status === "historical") {
       recount = recount.eq("status", options.status);
     }
     if (term) {
