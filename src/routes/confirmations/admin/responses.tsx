@@ -31,6 +31,12 @@ import {
   safeOrganizerResponseSongUrl,
   assertOrganizerNextInLineRowsInScope,
 } from "@/lib/v3-organizer-response-queue-guards";
+import {
+  buildOrganizerEntryReviewWorklist,
+  matchesOrganizerEntryWorkFilter,
+  matchesOrganizerEntryWorkSearch,
+  type OrganizerEntryWorkFilter,
+} from "@/lib/v3-organizer-entry-review-worklist";
 
 export const Route = createFileRoute("/confirmations/admin/responses")({
   head: () => ({
@@ -249,11 +255,12 @@ function ConfirmationResponsesList() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ResponseFilter>("all");
+  const [entryFilter, setEntryFilter] = useState<OrganizerEntryWorkFilter>("needs_review");
   const [responseReloadKey, setResponseReloadKey] = useState(0);
   const [nextReloadKey, setNextReloadKey] = useState(0);
   const responseLoadGenerationRef = useRef(0);
   const loadMoreInFlightRef = useRef(false);
-  const [mode, setMode] = useState<"confirmations" | "next_in_line">("confirmations");
+  const [mode, setMode] = useState<"confirmations" | "entry_review" | "next_in_line">("confirmations");
   const [editionId, setEditionId] = useState(organizerEditionId);
   const [roundId, setRoundId] = useState("all");
   const [responseCursor, setResponseCursor] = useState<ConfirmationProjectionCursor | null>(null);
@@ -469,6 +476,27 @@ function ConfirmationResponsesList() {
     });
   }, [editionId, nextRows, query]);
 
+  const entryWorklist = useMemo(
+    () => buildOrganizerEntryReviewWorklist(rows, editionId),
+    [rows, editionId],
+  );
+  const scopedEntryWorklist = useMemo(
+    () => entryWorklist.filter((item) => roundId === "all" || item.roundId === roundId),
+    [entryWorklist, roundId],
+  );
+  const filteredEntryWorklist = useMemo(
+    () => scopedEntryWorklist.filter((item) =>
+      matchesOrganizerEntryWorkFilter(item, entryFilter) &&
+      matchesOrganizerEntryWorkSearch(item, query)),
+    [scopedEntryWorklist, entryFilter, query],
+  );
+  const entryNeedsReview = scopedEntryWorklist.filter((item) => item.status === "needs_review").length;
+  const entryChangesRequired = scopedEntryWorklist.filter((item) => item.status === "changes_required").length;
+  const entryAccepted = scopedEntryWorklist.filter((item) => item.status === "accepted").length;
+  const entryAwaiting = scopedEntryWorklist.filter((item) => item.status === "awaiting_entry").length;
+  const entryRevised = scopedEntryWorklist.filter((item) =>
+    matchesOrganizerEntryWorkFilter(item, "revised")).length;
+
   const reviewCount = rows.filter((row) => responseCardState(row) === "review").length;
   const issueCount = rows.filter((row) => responseCardState(row) === "issue").length;
   const readyCount = rows.filter((row) => responseCardState(row) === "ready").length;
@@ -481,14 +509,17 @@ function ConfirmationResponsesList() {
     <div className="admin-page pb-5" data-v3-organizer-entry-review="">
       <AdminPageHeader
         eyebrow="Contest · Entry Review"
-        title="Responses"
-        description="Review confirmation and entry state for the exact edition selected in Solaris Organizer. The response queue is fetched through the bounded edition-scoped server projection. Next in Line is loaded separately only when opened; historical editions are never downloaded into this browser view."
+        title={mode === "entry_review" ? "Entry Review" : "Responses"}
+        description={mode === "entry_review"
+          ? "Review submitted Entries individually, separate from running order. This worklist uses only the loaded authorized edition-scoped Confirmation projection; review authority remains on the canonical server."
+          : "Review confirmation and entry state for the exact edition selected in Solaris Organizer. The response queue is fetched through the bounded edition-scoped server projection. Next in Line is loaded separately only when opened; historical editions are never downloaded into this browser view."}
         actions={<Link to="/confirmations/admin" className="admin-action-secondary">Delegations overview</Link>}
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-2">
-        <button type="button" disabled={!editionId} onClick={() => setMode("confirmations")} className={mode === "confirmations" ? "admin-action-primary" : "admin-action-secondary"}>Confirmations</button>
-        <button type="button" disabled={!editionId} onClick={() => { setMode("next_in_line"); setRoundId("all"); }} className={mode === "next_in_line" ? "admin-action-primary" : "admin-action-secondary"}>Next in Line</button>
+      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="Organizer review workspace">
+        <button type="button" disabled={!editionId} onClick={() => setMode("confirmations")} aria-pressed={mode === "confirmations"} className={mode === "confirmations" ? "admin-action-primary" : "admin-action-secondary"}>Confirmations</button>
+        <button type="button" disabled={!editionId} onClick={() => setMode("entry_review")} aria-pressed={mode === "entry_review"} className={mode === "entry_review" ? "admin-action-primary" : "admin-action-secondary"}>Entry Review</button>
+        <button type="button" disabled={!editionId} onClick={() => { setMode("next_in_line"); setRoundId("all"); }} aria-pressed={mode === "next_in_line"} className={mode === "next_in_line" ? "admin-action-primary" : "admin-action-secondary"}>Next in Line</button>
       </div>
 
       {editionId && mode === "confirmations" ? (
@@ -504,6 +535,23 @@ function ConfirmationResponsesList() {
             {responseStateVersion ? ` · canonical state ${responseStateVersion.slice(-12)}` : ""}.
           </p>
         </>
+      ) : null}
+
+      {editionId && mode === "entry_review" ? (
+        <div className="mb-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <Metric label="Needs review" value={entryNeedsReview} tone="rose" />
+            <Metric label="Changes required" value={entryChangesRequired} tone="amber" />
+            <Metric label="Accepted" value={entryAccepted} tone="emerald" />
+            <Metric label="Awaiting Entry" value={entryAwaiting} tone="amber" />
+            <Metric label="Revised to review" value={entryRevised} tone="rose" />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Candidate counts reflect {rows.length} of {responseTotalCount} loaded Confirmation responses
+            {roundId === "all" ? "" : " in the selected round"}.
+            A prior review never accepts a newer immutable Entry version.
+          </p>
+        </div>
       ) : null}
 
       <AdminCard className="mb-4 !p-3">
@@ -525,7 +573,7 @@ function ConfirmationResponsesList() {
             {editions.map((edition) => <option key={edition.id} value={edition.id}>SSC {edition.edition_number} · {edition.name}</option>)}
           </select>
 
-          {mode === "confirmations" ? (
+          {mode !== "next_in_line" ? (
             <select disabled={!editionId} value={roundId} onChange={(event) => setRoundId(event.target.value)} className="min-h-11 rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground [color-scheme:dark] disabled:opacity-45">
               <option value="all">All loaded rounds</option>
               {rounds.map((round) => <option key={round.id} value={round.id}>{round.name}</option>)}
@@ -533,14 +581,24 @@ function ConfirmationResponsesList() {
           ) : <div className="hidden md:block" />}
 
           {mode === "confirmations" ? (
-            <select disabled={!editionId} value={filter} onChange={(event) => setFilter(event.target.value as ResponseFilter)} className="min-h-11 rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground [color-scheme:dark] disabled:opacity-45">
+            <select aria-label="Confirmation response filter" disabled={!editionId} value={filter} onChange={(event) => setFilter(event.target.value as ResponseFilter)} className="min-h-11 rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground [color-scheme:dark] disabled:opacity-45">
               {FILTERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          ) : mode === "entry_review" ? (
+            <select aria-label="Entry Review status filter" disabled={!editionId} value={entryFilter} onChange={(event) => setEntryFilter(event.target.value as OrganizerEntryWorkFilter)} className="min-h-11 rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground [color-scheme:dark] disabled:opacity-45">
+              <option value="needs_review">Needs review</option>
+              <option value="revised">Revised / outdated review</option>
+              <option value="changes_required">Changes required</option>
+              <option value="accepted">Accepted current version</option>
+              <option value="withdrawn">Withdrawn / removed</option>
+              <option value="awaiting_entry">Awaiting Entry</option>
+              <option value="all">All Entry states</option>
             </select>
           ) : <div className="hidden md:block" />}
 
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input aria-label="Search confirmation responses" disabled={!editionId} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search country, username, artist or song…" className="min-h-11 pl-9" />
+            <Input aria-label={mode === "entry_review" ? "Search entries by country artist or song" : "Search confirmation responses"} disabled={!editionId} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search country, username, artist or song…" className="min-h-11 pl-9" />
           </div>
         </div>
       </AdminCard>
@@ -578,6 +636,66 @@ function ConfirmationResponsesList() {
             ))}
           </section>
         ) : <AdminCard><AdminEmptyState title="No Next in Line responses" description="Nothing matches the selected edition or search." /></AdminCard>
+      ) : mode === "entry_review" ? (
+        filteredEntryWorklist.length ? (
+          <section className="grid gap-3 lg:grid-cols-2" data-v3-organizer-entry-worklist="">
+            {filteredEntryWorklist.map((item) => {
+              const tone = item.status === "accepted" ? "ready"
+                : item.status === "changes_required" || item.status === "awaiting_entry" ? "attention"
+                  : item.status === "needs_review" ? "blocked" : "neutral";
+              const label = item.status === "needs_review" ? "Needs review"
+                : item.status === "changes_required" ? "Changes required"
+                  : item.status === "accepted" ? "Accepted current version"
+                    : item.status === "withdrawn" ? "Withdrawn" : "Awaiting Entry";
+              return (
+                <AdminCard key={item.key} className="!p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="admin-section-label">
+                        {item.roundName} · {item.selection === "national_final" ? "National Final" : item.selection === "internal" ? "Internal selection" : "Selection undecided"}
+                      </p>
+                      <h2 className="mt-1 text-base font-bold">{item.country}</h2>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {item.nationalFinalName ? `${item.nationalFinalName} · ` : ""}
+                        {item.username ? `@${item.username.replace(/^@/, "")}` : "Delegation response"}
+                      </p>
+                    </div>
+                    <AdminStatus tone={tone}>{label}</AdminStatus>
+                  </div>
+                  <p className="mt-3 text-sm font-semibold">
+                    {item.entryId
+                      ? `${item.artist ?? "Unknown artist"} — ${item.songTitle ?? "Unknown song"}`
+                      : "No current Entry submitted for review"}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    {item.revision ? <span>Revision {item.revision}</span> : null}
+                    {item.outdatedReview ? <span className="text-amber-100">Previous review is outdated</span> : null}
+                    {item.revised && item.status === "needs_review" ? <span className="text-amber-100">Revised content needs review</span> : null}
+                    {item.storedWinner ? <span>Stored NF winner (not a separate approval)</span> : null}
+                  </div>
+                  {item.status === "changes_required" && item.note ? (
+                    <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs text-muted-foreground">
+                      Latest review note: {item.note}
+                    </p>
+                  ) : null}
+                  <Link to="/confirmations/admin/responses/$id"
+                    params={{ id: item.responseId }}
+                    className={item.status === "needs_review" ? "admin-action-primary mt-4 w-full" : "admin-action-secondary mt-4 w-full"}
+                  >
+                    {item.status === "needs_review" ? "Review current Entry" : "Inspect response and history"}
+                  </Link>
+                </AdminCard>
+              );
+            })}
+          </section>
+        ) : (
+          <AdminCard>
+            <AdminEmptyState title="No matching Entries in loaded responses"
+              description={responseCursor
+                ? "No matching Entries are loaded yet. Load more response pages to continue reviewing this edition."
+                : "Try another Entry status, country, artist or song. Awaiting and withdrawn records are available in their own filters."} />
+          </AdminCard>
+        )
       ) : filtered.length ? (
         <section className="grid gap-3 lg:grid-cols-2">
           {filtered.map((row) => {
@@ -614,7 +732,7 @@ function ConfirmationResponsesList() {
         </section>
       ) : <AdminCard><AdminEmptyState title={query ? "No matching responses" : "Nothing in this view"} description={query ? "Try another country, username, artist or song." : "No responses match the selected filters in the loaded page."} /></AdminCard>}
 
-      {mode === "confirmations" && responseCursor ? (
+      {mode !== "next_in_line" && responseCursor ? (
         <div className="mt-4 flex justify-center">
           <button type="button" disabled={loadingMoreResponses} onClick={() => void loadMoreResponses()} className="admin-action-secondary">
             {loadingMoreResponses ? "Loading…" : `Load more · ${Math.max(0, responseTotalCount - rows.length)} remaining`}
