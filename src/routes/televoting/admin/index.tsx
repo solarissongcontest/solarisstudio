@@ -114,7 +114,7 @@ function VotingAdminOverview() {
                 disabled={isFetching}
                 aria-busy={isFetching}
               >
-                {isFetching ? "Refreshing…" : "Refresh voting status"}
+                {isFetching ? "Refreshing…" : error || !data ? "Retry voting status" : "Refresh voting status"}
               </button>
             ) : null}
             <Link to="/televoting" target="_blank" className="admin-action-secondary">
@@ -141,17 +141,8 @@ function VotingAdminOverview() {
           <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-4">
             <p className="text-sm font-semibold text-rose-100">Voting information could not be loaded</p>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              The selected edition was not changed. Retry this page or check System health if the problem continues.
+              The selected edition was not changed. Use Retry voting status above, or check System health.
             </p>
-            <button
-              type="button"
-              className="admin-action-secondary mt-4"
-              onClick={() => void refetch()}
-              disabled={isFetching}
-              aria-busy={isFetching}
-            >
-              {isFetching ? "Retrying…" : "Retry voting status"}
-            </button>
             {error instanceof Error && error.message ? (
               <details className="mt-3 text-[11px] text-muted-foreground">
                 <summary className="cursor-pointer font-semibold text-rose-100/80">Technical details</summary>
@@ -335,18 +326,7 @@ function VotingAdminOverview() {
           <AdminEmptyState
             icon={PlayCircle}
             title="Voting state unavailable"
-            description="Solaris did not receive an authoritative voting overview for the selected edition. It will not infer zero rounds or a healthy state from missing data."
-            action={
-              <button
-                type="button"
-                className="admin-action-secondary"
-                onClick={() => void refetch()}
-                disabled={isFetching}
-                aria-busy={isFetching}
-              >
-                {isFetching ? "Retrying…" : "Retry voting status"}
-              </button>
-            }
+            description="Voting status could not be verified for this edition. Retry above; missing data is never assumed healthy."
           />
         </AdminCard>
       )}
