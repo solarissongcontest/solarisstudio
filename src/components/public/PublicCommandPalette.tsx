@@ -497,6 +497,7 @@ function WebPublicPaletteDialog({
   access,
 }: PublicPaletteDialogProps) {
   const router = useRouter();
+  const webSearchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const { data: countries = [] } = useCountries();
   const { data: editions = [] } = useEditions();
@@ -612,13 +613,30 @@ function WebPublicPaletteDialog({
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
-      <CommandInput
-        autoFocus
-        value={query}
-        onValueChange={setQuery}
-        placeholder="Search Solaris Studio…"
-        aria-label="Search Solaris Studio"
-      />
+      <div className="relative">
+        <CommandInput
+          ref={webSearchInputRef}
+          autoFocus
+          value={query}
+          onValueChange={setQuery}
+          placeholder="Search Solaris Studio…"
+          aria-label="Search Solaris Studio"
+          className={query ? "pr-12" : undefined}
+        />
+        {query ? (
+          <button
+            type="button"
+            aria-label="Clear search"
+            onClick={() => {
+              setQuery("");
+              webSearchInputRef.current?.focus();
+            }}
+            className="absolute right-2 top-1/2 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        ) : null}
+      </div>
 
       {normalized.length >= 2 ? (
         <WebSearchArchiveResults
