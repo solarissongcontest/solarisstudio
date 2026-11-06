@@ -1,6 +1,6 @@
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import { loadV3ResultsBundle } from "@/integrations/v3/results-source.server";
-import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
+import { resolveActivePublicEdition } from "@/lib/v3-discovery-entities";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 import type { Edition } from "@/lib/data";
 import {
@@ -217,7 +217,10 @@ export async function loadV3DelegationBundle(input: {
   throwIfError(editionsResult.error, "Could not resolve the current public Solaris edition");
 
   const publishedEditions = (editionsResult.data ?? []) as Edition[];
-  const currentEdition = resolveCurrentPublicEdition(publishedEditions);
+  // The newest *archived* edition is useful history, not a current contest.
+  // Keep it out of the Current entry/result slots while preserving every
+  // published participation in the history projection.
+  const currentEdition = resolveActivePublicEdition(publishedEditions);
   const editionHrefById = new Map<string, string>();
   for (const edition of publishedEditions) {
     const id = stringOrNull(edition.id);
