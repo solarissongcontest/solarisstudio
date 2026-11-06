@@ -30,6 +30,7 @@ import {
   AdminStatus,
 } from '@/components/admin/AdminUI';
 import { useCountries } from '@/lib/data';
+import { newOrganizerEntryFollowupTemplate } from '@/lib/v3-organizer-entry-followup-template';
 import {
   NOTICE_AUDIENCES,
   NOTICE_DISPLAY_SURFACES,
@@ -120,6 +121,9 @@ function CommunicationsCentre() {
   const [editingBase, setEditingBase] = useState<OperationalNotice | null>(null);
   const [lifecycleReview, setLifecycleReview] = useState<PendingLifecycleReview | null>(null);
   const [reviewError, setReviewError] = useState<Error | null>(null);
+  const [entryFollowupReviewOpen, setEntryFollowupReviewOpen] = useState(false);
+  const [entryFollowupReviewEditionId, setEntryFollowupReviewEditionId] = useState<string | null>(null);
+  const [followupComposing, setFollowupComposing] = useState(false);
 
   const inboxEnabled = displaySurfaces.includes('delegation_inbox');
 
@@ -366,6 +370,9 @@ function CommunicationsCentre() {
     || supersedeNotice.isPending;
 
   function loadIntoComposer(notice: OperationalNotice, clearReview = true) {
+    setFollowupComposing(false);
+    setEntryFollowupReviewOpen(false);
+    setEntryFollowupReviewEditionId(null);
     setReviewError(null);
     if (clearReview) setLifecycleReview(null);
     setEditingId(notice.id);
@@ -383,6 +390,9 @@ function CommunicationsCentre() {
   }
 
   function resetComposer() {
+    setFollowupComposing(false);
+    setEntryFollowupReviewOpen(false);
+    setEntryFollowupReviewEditionId(null);
     setLifecycleReview(null);
     setEditingId(null);
     setEditingBase(null);
@@ -396,6 +406,36 @@ function CommunicationsCentre() {
     setCountryIds([]);
     setAcknowledgementRequired(false);
     setScheduledAt('');
+  }
+
+  function applyEntryFollowupTemplate() {
+    // A confirmation is valid only for the edition in which its review opened,
+    // and only while no other notice draft/publication command is in flight.
+    if (!entryFollowupReviewOpen || !editionId ||
+        entryFollowupReviewEditionId !== editionId || busy) {
+      setEntryFollowupReviewOpen(false);
+      setEntryFollowupReviewEditionId(null);
+      setReviewError(new Error("Organizer edition or communication state changed. Reopen the Entry follow-up review."));
+      return;
+    }
+    setReviewError(null);
+    // A confirmed template replaces local composer state only. It does not
+    // create, edit or publish a notice until the Organizer uses the governed
+    // draft/publication commands below.
+    resetComposer();
+    const template = newOrganizerEntryFollowupTemplate();
+    setNoticeType(template.noticeType);
+    setTitle(template.title);
+    setBody(template.body);
+    setSeverity(template.severity);
+    setDisplaySurfaces([...template.displaySurfaces]);
+    setAudience(template.audience);
+    setAudienceGroup(template.audienceGroup);
+    setCountryIds([...template.countryIds]);
+    setAcknowledgementRequired(template.acknowledgementRequired);
+    setScheduledAt(template.scheduledAt);
+    setFollowupComposing(true);
+    void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
   }
 
   function requestLifecycleReview(action: PendingLifecycleReview['action'], notice: OperationalNotice) {
@@ -478,17 +518,31 @@ function CommunicationsCentre() {
           title="Official Communications"
           description="Publish one authoritative message to delegation inboxes, every MySolaris home, the public homepage, or any combination of those destinations. Governed commands bind each consequential action to the selected edition, canonical notice revision and durable operation identity."
           actions={
-            <button
-              type="button"
-              onClick={() => {
-                setReviewError(null);
-                resetComposer();
-                void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
-              }}
-              className="admin-action-secondary"
-            >
-              New draft
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (busy || !editionId) return;
+                  setEntryFollowupReviewEditionId(editionId);
+                  setEntryFollowupReviewOpen(true);
+                }}
+                disabled={busy}
+                className="admin-action-secondary"
+              >
+                Draft Entry follow-up
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setReviewError(null);
+                  resetComposer();
+                  void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
+                }}
+                className="admin-action-secondary"
+              >
+                New draft
+              </button>
+            </div>
           }
         />
 
@@ -507,6 +561,17 @@ function CommunicationsCentre() {
               title={editingId ? 'Edit communication' : 'Create communication'}
             />
             <div className="mt-4 space-y-4">
+              {followupComposing ? (
+                <div role="status" className="rounded-xl border border-sky-200/20 bg-sky-200/[0.04] p-3 text-sm">
+                  <p className="font-semibold">Targeted Entry follow-up draft</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Choose the exact country recipient and write the issue below. Public/Home broadcast surfaces
+                    are disabled by default. This manual notice does not mark an Entry as declined,
+                    request corrections in the canonical Entry workflow, or change a participant task.
+                    Use Entry Review for the actual decision.
+                  </p>
+                </div>
+              ) : null}
               <fieldset>
                 <legend className="text-sm font-semibold">Where should this appear?</legend>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -1026,6 +1091,25 @@ function CommunicationsCentre() {
           busy={busy}
           confirmDisabled={!lifecycleReview?.prepared && lifecycleReview?.action === 'delete' && !lifecycleReview.reason.trim()}
           danger={Boolean(lifecycleReview?.prepared && lifecycleReview.prepared.preflight.riskClass === 'R3')}
+        />
+
+        <AdminConfirmSheet
+          open={entryFollowupReviewOpen}
+          onClose={() => {
+            setEntryFollowupReviewOpen(false);
+            setEntryFollowupReviewEditionId(null);
+          }}
+          onConfirm={applyEntryFollowupTemplate}
+          title="Prepare a targeted Entry follow-up?"
+          description={
+            <p>
+              This replaces the current local composer fields, including unsaved edits; it does not
+              delete a saved notice. The new draft uses only the delegation inbox with no recipients
+              selected and no issue details filled. Nothing is sent until you explicitly review
+              and commit publication through the existing governed workflow.
+            </p>
+          }
+          confirmLabel="Start targeted draft"
         />
 
         <AdminCard>
