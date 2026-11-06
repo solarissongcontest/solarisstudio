@@ -14,7 +14,10 @@ permissions:
 
 concurrency:
   group: quality-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # PR updates supersede obsolete verification. Main pushes instead finish the
+  # currently running exact-SHA check and retain only the newest pending run.
+  # Otherwise rapid merges can starve every post-merge Quality/Browser result.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality:
