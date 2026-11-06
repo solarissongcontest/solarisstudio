@@ -315,6 +315,7 @@ function EntryReviewCard({
   editionId,
   submissionId,
   winner,
+  storedWinner,
   onChanged,
   onWinner,
   onClearWinner,
@@ -325,6 +326,7 @@ function EntryReviewCard({
   editionId?: string | null;
   submissionId: string;
   winner?: boolean;
+  storedWinner?: boolean;
   onChanged: () => Promise<void>;
   isScopeCurrent: () => boolean;
   onWinner?: (reason: string) => Promise<void>;
@@ -696,6 +698,9 @@ function EntryReviewCard({
           <div className="flex flex-wrap justify-end gap-2">
             <AdminStatus tone={reviewTone(status)}>{status}</AdminStatus>
             {winner ? <AdminStatus tone="ready">Winner</AdminStatus> : null}
+            {storedWinner && !winner ? (
+              <AdminStatus tone="attention">Stored winner is inactive</AdminStatus>
+            ) : null}
           </div>
         </div>
 
@@ -874,10 +879,10 @@ function EntryReviewCard({
               <CheckCircle2 className="size-4" /> {busy ? "Working…" : "Accept entry"}
             </button>
 
-            {onWinner && !winner ? (
+            {onWinner && !storedWinner ? (
               <button
                 type="button"
-                disabled={busy || !reason.trim() || entry.removed}
+                disabled={busy || !reason.trim() || entry.removed || entry.review_status === "removed"}
                 onClick={() => void chooseWinner()}
                 className="admin-action-secondary w-full"
               >
@@ -885,7 +890,7 @@ function EntryReviewCard({
               </button>
             ) : null}
 
-            {winner && onClearWinner ? (
+            {storedWinner && onClearWinner ? (
               <button
                 type="button"
                 disabled={busy || !reason.trim()}
@@ -1716,7 +1721,9 @@ function ResponseDetailPage() {
                   targetType="national_final"
                   editionId={data.edition?.id}
                   submissionId={data.id}
-                  winner={data.national_final?.winning_entry_id === entry.id}
+                  storedWinner={data.national_final?.winning_entry_id === entry.id}
+                  winner={data.national_final?.winning_entry_id === entry.id &&
+                    !entry.removed && entry.review_status !== "removed"}
                   onChanged={load}
                   isScopeCurrent={isDisplayedResponseCurrent}
                   onWinner={(reason) => setWinner(entry, reason)}
