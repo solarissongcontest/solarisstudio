@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { organizerOverviewEmptyAttention, organizerOverviewStatus } from './organizer-overview-status';
+import { organizerIncidentEscalation, organizerOverviewEmptyAttention, organizerOverviewStatus } from './organizer-overview-status';
 
 describe('Organizer Overview risk and verified health presentation', () => {
   it('never describes unknown control-room evidence as on track', () => {
@@ -40,4 +40,23 @@ describe('Organizer Overview risk and verified health presentation', () => {
     expect(organizerOverviewEmptyAttention('elevated', 'healthy').verifiedClear).toBe(false);
     expect(organizerOverviewEmptyAttention('normal', 'outage').heading).toBe('Review operational health');
   });
+
+  it('keeps verified critical incident escalation visible with unknown or contradictory active totals', () => {
+    expect(organizerIncidentEscalation(null, 1)).toEqual({
+      title: '1 critical incident confirmed',
+      description: '1 critical incident requires immediate review. Total active incident count is unverified. Review Incident Command.',
+    });
+    const inconsistent = organizerIncidentEscalation(0, 2);
+    expect(inconsistent?.title).toBe('2 critical incidents confirmed');
+    expect(inconsistent?.description).toContain('unverified');
+  });
+
+  it('keeps exact active counts when verified, and does not invent zero-count incidents', () => {
+    expect(organizerIncidentEscalation(3, 1)?.title).toBe('3 active incidents');
+    expect(organizerIncidentEscalation(1, 0)?.title).toBe('1 active incident');
+    expect(organizerIncidentEscalation(0, 0)).toBeNull();
+    expect(organizerIncidentEscalation(null, 0)).toBeNull();
+    expect(organizerIncidentEscalation(Number.NaN, null)).toBeNull();
+  });
+
 });

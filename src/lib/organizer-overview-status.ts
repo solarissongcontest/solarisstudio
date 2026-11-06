@@ -61,3 +61,40 @@ export function organizerOverviewEmptyAttention(
     verifiedClear: false,
   };
 }
+
+
+export type OrganizerIncidentEscalation = {
+  title: string;
+  description: string;
+};
+
+/**
+ * Two exact HEAD counts can observe different database snapshots. If critical
+ * incidents are verified but the active total is missing or contradictory,
+ * keep the escalation visible without claiming an exact active count.
+ */
+export function organizerIncidentEscalation(
+  active: number | null,
+  critical: number | null,
+): OrganizerIncidentEscalation | null {
+  const valid = (count: number | null): count is number =>
+    typeof count === 'number' && Number.isSafeInteger(count) && count >= 0;
+  const knownActive = valid(active) && !(valid(critical) && critical > active) ? active : null;
+  const knownCritical = valid(critical) ? critical : null;
+  if (!(knownActive != null && knownActive > 0) && !(knownCritical != null && knownCritical > 0)) {
+    return null;
+  }
+  const criticalDescription = knownCritical != null && knownCritical > 0
+    ? `${knownCritical} critical incident${knownCritical === 1 ? '' : 's'} ${knownCritical === 1 ? 'requires' : 'require'} immediate review.`
+    : '';
+  if (knownActive == null) {
+    return {
+      title: `${knownCritical} critical incident${knownCritical === 1 ? '' : 's'} confirmed`,
+      description: `${criticalDescription} Total active incident count is unverified. Review Incident Command.`,
+    };
+  }
+  return {
+    title: `${knownActive} active incident${knownActive === 1 ? '' : 's'}`,
+    description: criticalDescription || 'Verified active incident count for the selected edition. Review details and escalation in Incident Command.',
+  };
+}

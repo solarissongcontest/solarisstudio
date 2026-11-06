@@ -26,7 +26,7 @@ import type {
   V3OrganizerReadinessFactor,
 } from "@/lib/v3-organizer-projection";
 import { useV3OrganizerProjection } from "@/lib/v3-organizer-projection.query";
-import { organizerOverviewEmptyAttention, organizerOverviewStatus } from "@/lib/organizer-overview-status";
+import { organizerIncidentEscalation, organizerOverviewEmptyAttention, organizerOverviewStatus } from "@/lib/organizer-overview-status";
 
 export const Route = createFileRoute("/_authenticated/admin/operations")({
   head: () => ({
@@ -52,6 +52,12 @@ function OrganizerOverview() {
     : { tone: "neutral" as const, label: "Status unverified" };
   const emptyAttention = projection
     ? organizerOverviewEmptyAttention(projection.risk, projection.systemHealth.state)
+    : null;
+  const incidentEscalation = projection
+    ? organizerIncidentEscalation(
+        projection.live.issues.incidents,
+        projection.live.issues.criticalIncidents,
+      )
     : null;
 
   return (
@@ -199,17 +205,13 @@ function OrganizerOverview() {
               </AdminCard>
             </section>
 
-            {(projection.live.issues.incidents ?? 0) > 0 ? (
+            {incidentEscalation ? (
               <section className="mt-4" aria-label="Active production incidents">
                 <AdminCard>
                   <AdminCardHeader
                     eyebrow="Production incidents"
-                    title={`${projection.live.issues.incidents} active incident${projection.live.issues.incidents === 1 ? "" : "s"}`}
-                    description={
-                      (projection.live.issues.criticalIncidents ?? 0) > 0
-                        ? `${projection.live.issues.criticalIncidents} critical incident${projection.live.issues.criticalIncidents === 1 ? "" : "s"} require immediate review.`
-                        : "Verified active incident count for the selected edition. Review details and escalation in Incident Command."
-                    }
+                    title={incidentEscalation.title}
+                    description={incidentEscalation.description}
                     action={
                       <Link
                         to="/admin/incidents"
