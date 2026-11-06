@@ -34,6 +34,10 @@
   padding: .72rem .85rem;
 }
 
+.public-mobile-section-panel[hidden] {
+  display: none;
+}
+
 .public-mobile-section-panel {
   display: grid;
   gap: .65rem;
@@ -51,6 +55,14 @@
   border-radius: .75rem;
   padding: .55rem .65rem;
   color: var(--foreground);
+}
+
+.public-mobile-section-trigger:focus-visible,
+.public-mobile-section-link:focus-visible,
+.public-site-sidebar-link:focus-visible,
+.public-site-sidebar details > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 
 .public-mobile-section-link.is-active {
@@ -176,12 +188,31 @@
     padding: 0;
   }
 
+  /* The tablet web rail must not silently hide Advanced destinations.
+     Expand them within the existing scrollable web navigation instead. */
   .public-site-sidebar details {
-    display: none;
+    display: block;
+    margin: 0;
+    border: 0;
+    padding: 0;
+  }
+
+  .public-site-sidebar details > summary {
+    min-height: 2.75rem;
+    white-space: nowrap;
+    padding-inline: .65rem;
+  }
+
+  .public-site-sidebar details[open] > div {
+    display: flex;
+    align-items: center;
+    gap: .2rem;
+    margin: 0;
+    white-space: nowrap;
   }
 
   .public-site-sidebar-link {
-    min-height: 2.4rem;
+    min-height: 2.75rem;
     white-space: nowrap;
   }
 }
