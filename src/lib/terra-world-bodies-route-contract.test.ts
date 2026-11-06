@@ -72,8 +72,9 @@ describe("TG3 published body route ownership", () => {
     expect(bodies).toContain("enabled: valid && !publicationBlocked");
     expect(bodies).toContain("enabled: valid && !officeNetworkBlocked");
     expect(bodies).toContain("enabled: !!result && !officeNetworkBlocked");
-    expect(bodies).toContain("const result = publicationBlocked || query.isError ? undefined : query.data");
-    expect(bodies).toContain("const result = officeNetworkBlocked || query.isError ? undefined : query.data");
+    expect(bodies).toContain("const result = publicationBlocked || query.isError ||");
+    expect(bodies).toContain("(query.isFetching && !query.isPlaceholderData) ? undefined : query.data");
+    expect(bodies).toContain("const result = officeNetworkBlocked || query.isError || query.isFetching");
     expect(bodies).toContain("valid && publicationBlocked ? <Unavailable");
     expect(bodies).toContain("valid && officeNetworkBlocked ? <Unavailable");
   });
@@ -82,7 +83,8 @@ describe("TG3 published body route ownership", () => {
     const bodies = readFileSync(resolve(process.cwd(), "src/components/world/WorldBodiesPublic.tsx"), "utf8");
     expect(bodies).toContain('queryKey: ["world", "public", "bodies", slug, term, status, page, connectivity.checkedAt]');
     expect(bodies).toContain('queryKey: ["world", "public", "body", slug, bodySlug, connectivity.checkedAt]');
-    expect(bodies).toContain('queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id, connectivity.checkedAt]');
+    expect(bodies).toContain('queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id,');
+    expect(bodies).toContain("query.dataUpdatedAt, connectivity.checkedAt]");
     // A stale pre-recovery list must not even be reused as placeholder content.
     expect(bodies).toContain("priorQuery?.queryKey[7] === connectivity.checkedAt");
     expect(bodies).toContain("!query.isPlaceholderData");
@@ -95,6 +97,25 @@ describe("TG3 published body route ownership", () => {
     expect(bodies).toContain('connectivity.status === "degraded"');
     expect(bodies).toContain("disabled={retryBlocked}");
     expect(bodies).toContain("disabled={officeNetworkBlocked}");
+  });
+
+  it("revalidates cached public bodies before revealing them when a route remounts", () => {
+    const bodies = readFileSync(resolve(process.cwd(), "src/components/world/WorldBodiesPublic.tsx"), "utf8");
+    // Directory, body detail and office data each opt into a fresh bounded read
+    // when revisited, including while a cached response is still within its TTL.
+    expect(bodies.split('refetchOnMount: "always"')).toHaveLength(4);
+    expect(bodies).toContain("(query.isFetching && !query.isPlaceholderData) ? undefined : query.data");
+    expect(bodies).toContain("const result = officeNetworkBlocked || query.isError || query.isFetching");
+    expect(bodies).toContain("!query.isFetching && !result ? <Unavailable missing />");
+    expect(bodies).toContain("offices.isSuccess && !offices.isFetching");
+    expect(bodies).toContain("offices.isPending || offices.isFetching");
+  });
+
+  it("requires a newly verified body snapshot before showing cached office definitions", () => {
+    const bodies = readFileSync(resolve(process.cwd(), "src/components/world/WorldBodiesPublic.tsx"), "utf8");
+    expect(bodies).toContain('queryKey: ["world", "public", "body-offices", result?.organization.id, result?.body.id,');
+    expect(bodies).toContain("query.dataUpdatedAt, connectivity.checkedAt]");
+    expect(bodies).toContain("enabled: !!result && !officeNetworkBlocked");
   });
 
   it("keeps stable URL paths for both canonical public body screens", () => {
