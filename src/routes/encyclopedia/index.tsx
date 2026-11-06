@@ -349,8 +349,9 @@ function ReferencePage() {
             <h2
               id="reference-browse-heading"
               className="mt-1 font-sans text-xl font-bold"
+              aria-live="polite"
             >
-              Browse published Solaris
+              {kind === "all" ? "Browse published Solaris" : `Browse ${KIND_LABELS[kind].toLowerCase()}`}
             </h2>
           </div>
           <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-directory-desktop-grid"}>
