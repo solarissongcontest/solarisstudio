@@ -63,10 +63,12 @@ async function audit(actor: Actor, action: string, targetId: string, values?: un
   });
 }
 
-export async function listMergedCombinedAggregationsServer(solarisEditionId: string) {
-  await requireMergedTelevotingAdminServer();
-  // Resolve the exact canonical Organizer edition through the existing read-only
-  // projection rather than synchronizing every draft round in every edition.
+/**
+ * Read-only canonical edition resolution shared by list, detail and create.
+ * Never synchronize legacy drafts or infer the edition from the remote record.
+ */
+async function resolveLinkedCombinedRemoteEditionId(solarisEditionId: string): Promise<string | null> {
+  if (!solarisEditionId.trim()) throw new Error("Combined Results requires an exact Solaris edition");
   const { data: payloadValue, error: projectionError } = await televotingAdmin.rpc(
     "admin_rounds_page_overview",
     { p_solaris_edition_id: solarisEditionId },
@@ -75,12 +77,21 @@ export async function listMergedCombinedAggregationsServer(solarisEditionId: str
   const payload = payloadValue && typeof payloadValue === "object" && !Array.isArray(payloadValue)
     ? (payloadValue as Record<string, unknown>)
     : {};
-  if (payload.linked !== true) return [] as CombinedAggregation[];
+  if (payload.linked !== true) return null;
   const remoteRow = payload.edition && typeof payload.edition === "object" && !Array.isArray(payload.edition)
     ? (payload.edition as Record<string, unknown>)
     : {};
   const remoteEditionId = typeof remoteRow.id === "string" ? remoteRow.id : "";
-  if (!remoteEditionId) throw new Error("Linked Televoting edition is missing its canonical projection id");
+  if (!remoteEditionId || remoteRow.solaris_id !== solarisEditionId) {
+    throw new Error("Televoting edition projection does not match the selected Solaris edition");
+  }
+  return remoteEditionId;
+}
+
+export async function listMergedCombinedAggregationsServer(solarisEditionId: string) {
+  await requireMergedTelevotingAdminServer();
+  const remoteEditionId = await resolveLinkedCombinedRemoteEditionId(solarisEditionId);
+  if (!remoteEditionId) return [] as CombinedAggregation[];
   const { data, error } = await televotingAdmin
     .from("televote_aggregations")
     .select("id,edition_id,name,combination_method,total_points_to_distribute,rank_exponent,status,calculation_version,calculated_at,calculated_by_username,locked_at,published_at,results_outdated,public_columns,broadcast_display_mode,created_at")
@@ -249,9 +260,23 @@ async function loadEntryCatalog(aggregationId: string, participants: string[]) {
   return participants.map((key) => catalog.get(key) ?? { key, name: key, code: key, image: null });
 }
 
-export async function getMergedCombinedAggregationServer(id: string) {
+export async function getMergedCombinedAggregationServer(id: string, solarisEditionId: string) {
   await requireMergedTelevotingAdminServer();
-  const [aggregation, participants, sources] = await Promise.all([loadAggregation(id), loadParticipants(id), loadSources(id)]);
+  const remoteEditionId = await resolveLinkedCombinedRemoteEditionId(solarisEditionId);
+  if (!remoteEditionId) throw new Error("Selected Solaris edition is not linked to Televoting");
+
+  // Scope the first database read before loading private participant/source/results
+  // data. A guessed aggregation ID from another edition must return no detail.
+  const { data: aggregationRow, error: aggregationError } = await televotingAdmin
+    .from("televote_aggregations")
+    .select("*")
+    .eq("id", id)
+    .eq("edition_id", remoteEditionId)
+    .maybeSingle();
+  if (aggregationError) throw new Error(aggregationError.message);
+  if (!aggregationRow) throw new Error("Combined result not found in selected Organizer edition");
+  const aggregation = aggregationRow as CombinedAggregation;
+  const [participants, sources] = await Promise.all([loadParticipants(id), loadSources(id)]);
   const resolved = await resolveSources(sources, participants);
   const preview = computeCombined({
     participants,
@@ -270,12 +295,14 @@ export async function getMergedCombinedAggregationServer(id: string) {
   return { aggregation, participants, sources, resolved, preview, catalog, stored: stored ?? [] };
 }
 
-export async function createMergedCombinedAggregationServer(data: { name: string; editionId?: string | null; totalPoints: number; rankExponent: number }) {
+export async function createMergedCombinedAggregationServer(data: { name: string; editionId: string; totalPoints: number; rankExponent: number }) {
   const actor = await requireMergedTelevotingAdminServer();
+  const remoteEditionId = await resolveLinkedCombinedRemoteEditionId(data.editionId);
+  if (!remoteEditionId) throw new Error("Cannot create Combined result: Solaris edition is not linked to Televoting");
   const { data: inserted, error } = await televotingAdmin
     .from("televote_aggregations")
     .insert({
-      edition_id: data.editionId ?? null,
+      edition_id: remoteEditionId,
       name: data.name,
       combination_method: "component_pool",
       total_points_to_distribute: data.totalPoints,

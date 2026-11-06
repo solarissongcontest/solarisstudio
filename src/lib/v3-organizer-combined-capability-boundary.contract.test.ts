@@ -59,6 +59,14 @@ describe("Organizer Combined Results global capability preflight", () => {
     expect(adapter.split("boundedCombinedRankExponent(data.rankExponent)").length - 1).toBe(2);
   });
 
+  it("requires canonical edition binding for protected detail and aggregation creation", () => {
+    expect(adapter).toContain("getMergedCombinedAggregationServer(data.id, data.editionId)");
+    expect(adapter).toContain("Combined detail requires an exact Solaris edition");
+    expect(adapter).toContain("Combined creation requires an exact Solaris edition");
+    expect(legacyServer).toContain("resolveLinkedCombinedRemoteEditionId(data.editionId)");
+    expect(legacyServer).toContain("Combined result not found in selected Organizer edition");
+  });
+
   it("retains truthful System S16 writer debt instead of mislabeling the adapter as canonical", () => {
     expect(legacyServer).toContain('from("televote_aggregations")');
     expect(legacyServer).toContain('requireMergedTelevotingAdminServer');

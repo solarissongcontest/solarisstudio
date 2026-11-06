@@ -34,8 +34,9 @@ describe("Organizer Combined Results exact-edition private boundary", () => {
     expect(source).toContain("roundsFn({ data: { editionId } })");
     expect(source).not.toContain("getMergedTelevotingRounds()");
     expect(source).toContain("aggregation.edition_id === remoteEditionId");
+    expect(source).toContain("detailFn({ data: { id: selectedId, editionId } })");
     expect(source).toContain("response.aggregation.edition_id !== remoteEditionId");
-    expect(source).toContain("editionId: remoteEditionId");
+    expect(source).toContain("editionId,");
     expect(source).toContain("if (!editionPage?.linked || !editionPage.edition)");
     expect(source).toContain("Legacy unassigned aggregates are not silently adopted.");
     expect(source).toContain("const selectedAggregationVerified = aggregations.some(");
@@ -51,8 +52,19 @@ describe("Organizer Combined Results exact-edition private boundary", () => {
     expect(functions).toContain("listMergedCombinedAggregationsServer(data.editionId)");
     expect(server).toContain('"admin_rounds_page_overview"');
     expect(server).toContain("p_solaris_edition_id: solarisEditionId");
-    expect(server).toContain('if (payload.linked !== true) return [] as CombinedAggregation[];');
+    expect(server).toContain("remoteRow.solaris_id !== solarisEditionId");
+    expect(server).toContain('if (payload.linked !== true) return null;');
+    expect(server).toContain('if (!remoteEditionId) return [] as CombinedAggregation[];');
     expect(server).toContain('.eq("edition_id", remoteEditionId)');
+    expect(server).toContain("getMergedCombinedAggregationServer(id: string, solarisEditionId: string)");
+    expect(server).toContain("Combined result not found in selected Organizer edition");
+    const scopedDetail = server.slice(server.indexOf("export async function getMergedCombinedAggregationServer"), server.indexOf("export async function createMergedCombinedAggregationServer"));
+    expect(scopedDetail.indexOf('.eq("edition_id", remoteEditionId)')).toBeGreaterThanOrEqual(0);
+    expect(scopedDetail.indexOf('.eq("edition_id", remoteEditionId)')).toBeLessThan(scopedDetail.indexOf("loadParticipants(id)"));
+    expect(server).toContain("createMergedCombinedAggregationServer(data: { name: string; editionId: string;");
+    expect(server).toContain("edition_id: remoteEditionId");
+    expect(functions).toContain("Combined detail requires an exact Solaris edition");
+    expect(functions).toContain("Combined creation requires an exact Solaris edition");
     expect(server).toContain("requireMergedTelevotingAdminServer()");
   });
 

@@ -189,7 +189,7 @@ function CombinedResultsPage({ editionId }: { editionId: string }) {
   const { data: detail, isLoading: detailLoading, isFetching: detailFetching, error: detailError, refetch: retryDetail } = useQuery({
     queryKey: ["merged-combined-detail", actorId, editionId, selectedId],
     queryFn: async () => {
-      const response = await detailFn({ data: { id: selectedId } });
+      const response = await detailFn({ data: { id: selectedId, editionId } });
       if (!remoteEditionId || response.aggregation.edition_id !== remoteEditionId) {
         throw new Error("Combined result does not belong to the selected Organizer edition");
       }
@@ -216,7 +216,7 @@ function CombinedResultsPage({ editionId }: { editionId: string }) {
       createFn({
         data: {
           name: createName,
-          editionId: remoteEditionId,
+          editionId,
           totalPoints: Number(createPool),
           rankExponent: Number(createExponent),
         },

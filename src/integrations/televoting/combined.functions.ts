@@ -43,23 +43,28 @@ export const listMergedCombinedAggregations = createServerFn({ method: "POST" })
   });
 
 export const getMergedCombinedAggregation = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string }) => {
-    if (!data?.id) throw new Error("Missing aggregation id");
-    return data;
+  .inputValidator((data: { id: string; editionId: string }) => {
+    const id = String(data?.id ?? "").trim();
+    const editionId = String(data?.editionId ?? "").trim();
+    if (!id) throw new Error("Missing aggregation id");
+    if (!editionId) throw new Error("Combined detail requires an exact Solaris edition");
+    return { id, editionId };
   })
   .handler(async ({ data }) => {
     await requireCombinedCapability("voting.read");
     const { getMergedCombinedAggregationServer } = await import("@/integrations/televoting/combined.server");
-    return getMergedCombinedAggregationServer(data.id);
+    return getMergedCombinedAggregationServer(data.id, data.editionId);
   });
 
 export const createMergedCombinedAggregation = createServerFn({ method: "POST" })
-  .inputValidator((data: { name: string; editionId?: string | null; totalPoints: number; rankExponent: number }) => {
+  .inputValidator((data: { name: string; editionId: string; totalPoints: number; rankExponent: number }) => {
     const name = String(data?.name ?? "").trim();
+    const editionId = String(data?.editionId ?? "").trim();
     if (!name) throw new Error("Name is required");
+    if (!editionId) throw new Error("Combined creation requires an exact Solaris edition");
     const totalPoints = boundedCombinedPointPool(data.totalPoints);
     const rankExponent = boundedCombinedRankExponent(data.rankExponent);
-    return { name, editionId: data.editionId ?? null, totalPoints, rankExponent };
+    return { name, editionId, totalPoints, rankExponent };
   })
   .handler(async ({ data }) => {
     await requireCombinedCapability("voting.manage");
