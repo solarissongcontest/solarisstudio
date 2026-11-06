@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { verifyOrganizerConfirmationRead } from "@/integrations/confirmations/organizer-confirmation-read-authorization";
 import { verifyFreshConfirmationRequirementReview } from "@/lib/v3-organizer-confirmation-requirements-r2-review";
+import { assertConfirmationRequirementCommandReceipt } from "@/lib/v3-organizer-confirmation-requirement-receipt";
 import {
   ensureConfirmationRequirements,
   loadConfirmationRequirements,
@@ -153,7 +154,7 @@ function ConfirmationRequirementsPage() {
         },
       });
 
-      return input.kind === "reconfirm"
+      const receipt = await (input.kind === "reconfirm"
         ? reconfirmConfirmationRequirement({
             requirementId: input.requirement.id,
             reason: input.actionReason,
@@ -165,26 +166,16 @@ function ConfirmationRequirementsPage() {
             reason: input.actionReason,
             operationId: command.operationId,
             idempotencyKey: command.idempotencyKey,
-          });
+          }));
+      assertConfirmationRequirementCommandReceipt(receipt, {
+        kind: input.kind,
+        operationId: command.operationId,
+        requirementId: input.requirement.id,
+        previousGeneration: input.requirement.generation,
+      });
+      return receipt;
     },
     onSuccess: async (_, variables) => {
-      if (
-        reviewScopeRef.current.epoch !== variables.reviewEpoch ||
-        reviewScopeRef.current.actorId !== variables.organizerActorId ||
-        reviewScopeRef.current.editionId !== variables.organizerEditionId
-      ) {
-        // Server action may already have committed. Do not claim it affects
-        // the newly selected edition, and never restore the old review.
-        toast.message("Confirmation action completed after Organizer context changed. Review the current edition.");
-        return;
-      }
-      toast.success(
-        variables.kind === "reconfirm"
-          ? variables.requirement.countryName + " now requires confirmation again"
-          : variables.requirement.countryName + " confirmation requirement waived",
-      );
-      setPending(null);
-      setReason("");
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["confirmation-requirements", variables.organizerEditionId],
@@ -196,6 +187,30 @@ function ConfirmationRequirementsPage() {
           queryKey: ["organizer-task-count-v5", variables.organizerEditionId],
         }),
       ]);
+      if (
+        reviewScopeRef.current.epoch !== variables.reviewEpoch ||
+        reviewScopeRef.current.actorId !== variables.organizerActorId ||
+        reviewScopeRef.current.editionId !== variables.organizerEditionId
+      ) {
+        toast.message("Confirmation action completed after Organizer context changed. Review the current edition.");
+        return;
+      }
+      toast.success(
+        variables.kind === "reconfirm"
+          ? variables.requirement.countryName + " now requires confirmation again"
+          : variables.requirement.countryName + " confirmation requirement waived",
+      );
+      setPending(null);
+      setReason("");
+    },
+    onError: async (error, variables) => {
+      setPending(null);
+      setReason("");
+      await queryClient.invalidateQueries({
+        queryKey: ["confirmation-requirements", variables.organizerEditionId],
+      });
+      toast.error((error instanceof Error ? error.message : "Confirmation result could not be verified.") +
+        " Review current requirements before retrying.");
     },
   });
 
