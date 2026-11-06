@@ -520,6 +520,7 @@ declare
   v jsonb := current_setting('solaris.tg6_proxy_fixture')::jsonb;
   v_receipt jsonb;
   v_replayed jsonb;
+  v_approval_op uuid:=gen_random_uuid();
 begin
   perform set_config('request.jwt.claim.sub',v->>'chair',true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',v->>'chair','role','authenticated')::text,true);
@@ -538,7 +539,7 @@ begin
 
   v_receipt := public.world_approve_proxy_v1(
     (v->>'proxyId')::uuid,'approved',1,
-    gen_random_uuid(),'tg6-chair:' || gen_random_uuid()::text
+    v_approval_op,'tg6-chair:' || v_approval_op::text
   );
   if v_receipt->>'status' <> 'succeeded'
      or v_receipt #>> '{result,status}' <> 'approved'
@@ -556,6 +557,8 @@ begin
     raise exception 'TG6_PROXY_APPROVED_REOPEN_ALLOWED';
   exception when check_violation then null;
   end;
+  perform set_config('solaris.tg6_proxy_fixture',
+    (v || jsonb_build_object('approvalOperationId',v_approval_op))::text,true);
   raise notice 'PASS: TG6 chair approval is scoped, revised, auditable and effective only in time window';
 end
 $authorized_approval$;
