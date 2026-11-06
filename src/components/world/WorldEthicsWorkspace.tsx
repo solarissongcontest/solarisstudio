@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, FileText, RefreshCw, Scale } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import {
   appendEthicsEvidence, assignEthicsCase, canAssignEthicsCase,
@@ -9,11 +9,12 @@ import {
   fetchEthicsWorkspace, fileEthicsCase,
   type EthicsCase, type EthicsCommitteeMember, type EthicsOperation,
 } from "@/lib/world-ethics";
+import { useTg13PrivateActor } from "@/lib/world-tg13-private-session";
 
 type Retry = { fingerprint: string; operation: EthicsOperation };
 function useOperation() {
   const ref = useRef<Retry | null>(null);
-  return {
+  return useMemo(() => ({
     current: (fingerprint: string): EthicsOperation => {
       if (ref.current?.fingerprint === fingerprint) return ref.current.operation;
       const id = crypto.randomUUID();
@@ -22,7 +23,7 @@ function useOperation() {
       return operation;
     },
     reset: () => { ref.current = null; },
-  };
+  }), []);
 }
 function Status({ children }: { children: React.ReactNode }) {
   return <p role="status" className="mt-4 rounded-xl border border-border p-5 text-sm leading-6 text-muted-foreground">{children}</p>;
@@ -37,10 +38,10 @@ function ErrorInfo({ error, retry }: { error: unknown; retry: () => void }) {
   );
 }
 
-function PrivateEvidence({ caseId }: { caseId: string }) {
+function PrivateEvidence({ caseId, actorId, actorEpoch }: { caseId: string; actorId: string; actorEpoch: number }) {
   const evidence = useQuery({
-    queryKey: ["world", "ethics", "evidence", caseId],
-    queryFn: () => fetchEthicsEvidence(caseId),
+    queryKey: ["world", "ethics", "evidence", actorId, actorEpoch, caseId],
+    queryFn: () => fetchEthicsEvidence(caseId, actorId),
     gcTime: 0,
     staleTime: 0,
     refetchOnMount: "always",
@@ -63,9 +64,10 @@ function PrivateEvidence({ caseId }: { caseId: string }) {
 }
 
 function EthicsCasePanel({
-  record, canManage, currentCountryId, committee, countryName, refresh,
+  record, canManage, currentCountryId, committee, countryName, refresh, actorId, actorEpoch,
 }: {
   record: EthicsCase; canManage: boolean; currentCountryId: string | null;
+  actorId: string; actorEpoch: number;
   committee: readonly EthicsCommitteeMember[];
   countryName: (id: string) => string;
   refresh: () => void;
@@ -171,7 +173,7 @@ function EthicsCasePanel({
         className="mt-4 min-h-11 text-sm font-semibold underline underline-offset-4">
         {showEvidence ? "Hide private evidence" : "View private evidence"}
       </button>
-      {showEvidence ? <PrivateEvidence caseId={record.id} /> : null}
+      {showEvidence ? <PrivateEvidence caseId={record.id} actorId={actorId} actorEpoch={actorEpoch} /> : null}
     </article>
   );
 }
@@ -230,14 +232,31 @@ function CommitteeConfiguration({
 }
 
 export function WorldEthicsWorkspace() {
+  const actor = useTg13PrivateActor();
+  const actorScope = actor.ready && actor.userId ? `${actor.userId}:${actor.epoch}` : null;
   const [subjectCountryId, setSubjectCountryId] = useState("");
   const [subjectPersonId, setSubjectPersonId] = useState("");
   const [allegation, setAllegation] = useState("");
   const [receipt, setReceipt] = useState<string | null>(null);
   const op = useOperation();
+  const [draftScope, setDraftScope] = useState<string | null>(null);
+  const activeScope = useRef(actorScope);
+  activeScope.current = actorScope;
+  const operationScope = useRef<string | null>(null);
+  useEffect(() => {
+    setSubjectCountryId("");
+    setSubjectPersonId("");
+    setAllegation("");
+    setReceipt(null);
+    op.reset();
+    operationScope.current = null;
+    setDraftScope(actorScope);
+  }, [actorScope, op]);
+  const showPrivate = actorScope !== null && actorScope === draftScope;
   const workspace = useQuery({
-    queryKey: ["world", "ethics", "workspace"],
-    queryFn: fetchEthicsWorkspace,
+    queryKey: ["world", "ethics", "workspace", actor.userId, actor.epoch],
+    enabled: actor.ready && !!actor.userId,
+    queryFn: () => fetchEthicsWorkspace(actor.userId!),
     gcTime: 0, staleTime: 0,
     refetchOnMount: "always", retry: false,
   });
@@ -247,7 +266,8 @@ export function WorldEthicsWorkspace() {
   const currentCountryId = workspace.data?.countryId ?? null;
   const create = useMutation({
     mutationFn: async () => {
-      if (!organizationId || !currentCountryId) throw new Error("VALIDATION");
+      operationScope.current = actorScope;
+      if (!actorScope || !organizationId || !currentCountryId) throw new Error("VALIDATION");
       const input = {
         organizationId, reportingCountryId: currentCountryId,
         subjectCountryId: subjectCountryId || null,
@@ -258,6 +278,7 @@ export function WorldEthicsWorkspace() {
     },
     retry: false,
     onSuccess: ({ caseId, revision }) => {
+      if (operationScope.current !== activeScope.current) return;
       op.reset(); setSubjectCountryId(""); setSubjectPersonId(""); setAllegation("");
       setReceipt(`Private Ethics case ${caseId} filed at revision ${revision}.`);
       void workspace.refetch();
@@ -278,9 +299,12 @@ export function WorldEthicsWorkspace() {
           Submit a formal confidential allegation, record evidence and follow authorized committee review.
           A filed allegation is not a finding; committee recommendations are not automatically sanctions.
         </p>
-        {workspace.isPending || workspace.isFetching ? <Status>Checking current country authority and private Ethics access…</Status> : null}
-        {workspace.isError ? <ErrorInfo error={workspace.error} retry={refresh} /> : null}
-        {workspace.isSuccess && !workspace.isFetching ? (
+        {!actor.ready || (actor.userId && (!showPrivate || workspace.isPending || workspace.isFetching)) ? (
+          <Status>Checking current country authority and private Ethics access…</Status>
+        ) : null}
+        {actor.ready && !actor.userId ? <Status>Sign in with an authorized country account to access private Ethics records.</Status> : null}
+        {actor.ready && actor.userId && showPrivate && workspace.isError ? <ErrorInfo error={workspace.error} retry={refresh} /> : null}
+        {actor.ready && actor.userId && showPrivate && workspace.isSuccess && !workspace.isFetching ? (
           <>
             {!workspace.data.signedIn ? <Status>Sign in with an authorized country account to access private Ethics records.</Status> : (
               <>
@@ -334,7 +358,7 @@ export function WorldEthicsWorkspace() {
                   )}
                 </section>
                 {workspace.data.canConfigure && organizationId ? (
-                  <CommitteeConfiguration organizationId={organizationId} refresh={refresh} />
+                  <CommitteeConfiguration key={actorScope} organizationId={organizationId} refresh={refresh} />
                 ) : null}
                 <section className="mt-9 border-t border-border pt-6" aria-labelledby="ethics-cases">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -347,7 +371,8 @@ export function WorldEthicsWorkspace() {
                   {workspace.data.cases.length ? (
                     <div className="mt-4">
                       {workspace.data.cases.map((record) => (
-                        <EthicsCasePanel key={record.id} record={record}
+                        <EthicsCasePanel key={`${actorScope}:${record.id}`} record={record}
+                          actorId={actor.userId} actorEpoch={actor.epoch}
                           canManage={workspace.data.canManage}
                           currentCountryId={currentCountryId}
                           committee={workspace.data.committee}
