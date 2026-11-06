@@ -647,7 +647,14 @@ test(
       if (!evidence) throw new Error("Installed top-safe geometry became unreadable");
       expect(evidence.runtime).toBe("standalone");
       expect(evidence.coarsePointer).toBe(true);
-      expect(evidence.webkitSafeAreaSupport).toBe(true);
+      // Playwright desktop WebKit does not necessarily expose the iOS-only
+      // -webkit-touch-callout feature query. The local CSS helper installs the
+      // exact production fallback declarations in that engine. Assert those
+      // declarations, plus the measured insets and control positions below,
+      // instead of treating desktop feature-query support as device evidence.
+      if (!evidence.webkitSafeAreaSupport) {
+        expect(evidence.computedSafeToken).toContain(`${state.minimum - 6}px`);
+      }
       expect(evidence.safePadding).toBeGreaterThanOrEqual(state.minimum - 1);
       if (evidence.firstControlTop != null) {
         expect(evidence.firstControlTop).toBeGreaterThanOrEqual(
