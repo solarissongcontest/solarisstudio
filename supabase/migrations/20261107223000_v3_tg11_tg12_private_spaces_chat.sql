@@ -70,7 +70,11 @@ create table public.world_spaces (
   constraint world_spaces_name_check check (length(btrim(name)) between 1 and 100),
   constraint world_spaces_organ_check check (visibility_policy <> 'organ' or organ_id is not null),
   unique (organization_id, name),
-  unique (created_by, create_request_id)
+  unique (created_by, create_request_id),
+  constraint world_spaces_organ_same_org_fk
+    foreign key (organ_id, organization_id)
+    references public.world_organization_organs(id, organization_id)
+    on update restrict on delete restrict
 );
 create index world_spaces_organization_idx on public.world_spaces(organization_id, status, created_at);
 
