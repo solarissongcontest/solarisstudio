@@ -104,11 +104,20 @@ describe("MySolaris product consolidation", () => {
 
   it("keys private task data by authenticated actor and evicts it on delegation context change", () => {
     expect(tasksModule).toContain('queryKey: ["studio2-hod-editions", actorId, country?.id ?? "none"]');
+    expect(tasksModule).toContain('queryKey: ["studio2-feature", "hod_workspace_v2", actorId]');
+    expect(tasksModule).toContain("enabled: Boolean(actorId)");
     expect(tasksModule).toContain('queryKey: ["studio2-hod-workspace", actorId, country?.id ?? "none", editionId || "none"]');
     expect(tasksModule).toMatch(/"studio2-eligibility-overrides",\s+actorId,/);
     expect(tasksModule).toContain('queryClient.cancelQueries({ queryKey })');
     expect(tasksModule).toContain('queryClient.removeQueries({ queryKey })');
     expect(tasksModule).toContain('Boolean(actorId && country?.id && editionId)');
+  });
+
+  it("never presents a failed delegation task capability read as a disabled feature", () => {
+    expect(tasksModule).toContain("if (account.isError || featureQuery.isError)");
+    expect(tasksModule).toContain("Unable to verify delegation tasks");
+    expect(tasksModule).toContain("Retry task access");
+    expect(tasksModule).toContain("void featureQuery.refetch()");
   });
 
   it("has real canonical route surfaces behind the remaining workspace destinations", () => {

@@ -53,7 +53,8 @@ export function MySolarisTasksModule() {
   const [editionId, setEditionId] = useState("");
 
   const featureQuery = useQuery({
-    queryKey: ["studio2-feature", "hod_workspace_v2"],
+    queryKey: ["studio2-feature", "hod_workspace_v2", actorId],
+    enabled: Boolean(actorId),
     queryFn: () => isStudio2FeatureEnabled("hod_workspace_v2"),
     staleTime: 30_000,
   });
@@ -138,6 +139,27 @@ export function MySolarisTasksModule() {
     return (
       <AppShell>
         <p className="text-sm text-muted-foreground">Loading MySolaris tasks…</p>
+      </AppShell>
+    );
+  }
+
+  if (account.isError || featureQuery.isError) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="MySolaris · Tasks"
+          title="Unable to verify delegation tasks"
+          description="A service read failed. Solaris has not assumed that your responsibilities are complete or unavailable."
+          actions={
+            <button
+              type="button"
+              onClick={() => { void account.refetch(); void featureQuery.refetch(); }}
+              className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold"
+            >
+              Retry task access
+            </button>
+          }
+        />
       </AppShell>
     );
   }
