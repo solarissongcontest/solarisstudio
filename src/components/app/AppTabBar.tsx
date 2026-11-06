@@ -14,13 +14,12 @@ import {
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import {
-  holdMovementExceeded,
   prefersReducedMotion,
   resolveElasticDrag,
   resolveTabDragTargetIndex,
 } from "@/lib/interaction-physics";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
-import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
+import { holdMovementExceeded, useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
