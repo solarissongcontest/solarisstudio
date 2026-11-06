@@ -120,7 +120,9 @@ describe("Organizer Entry Review detail summary", () => {
       "src/routes/confirmations/admin/responses/$id.tsx"), "utf8");
     expect(route).toContain("Stored winner is inactive");
     expect(route).toContain("storedWinner={data.national_final?.winning_entry_id === entry.id}");
-    expect(route).toContain("!entry.removed && entry.review_status !== \"removed\"");
+    expect(route).toContain('effectiveOrganizerEntryReviewStatus(entry) === "accepted"');
+    expect(route).toContain("Stored winner needs current-version review");
+    expect(route).toContain('entry.removed || entry.review_status === "removed"');
     expect(route).toContain("storedWinner && !winner");
     expect(route).toContain("storedWinner && onClearWinner");
     expect(route).toContain("onWinner && !storedWinner");
