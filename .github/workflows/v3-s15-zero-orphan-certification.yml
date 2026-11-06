@@ -128,6 +128,7 @@ jobs:
             v3-release-evidence/s15-cutover-triage.md
             v3-release-evidence/s15-release-risk-review.json
             v3-release-evidence/s15-release-risk-review.md
+            v3-release-evidence/s15-release-risk-review.template.json
           if-no-files-found: error
           retention-days: 30
 

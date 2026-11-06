@@ -134,6 +134,26 @@ export function assessS15ReleaseRisk(triage, candidateSha, review = null, rawS15
   };
 }
 
+/**
+ * Owner-review handoff generated from the exact checked-out S15 triage.
+ * Nothing in pendingCutovers counts as a decision or release approval.
+ */
+export function s15OwnerReviewTemplate(report) {
+  return {
+    schemaVersion: 1,
+    candidateSha: report.candidateSha,
+    sourceS15Sha256: report.sourceS15Sha256,
+    decisions: [],
+    pendingCutovers: report.rows.map((row) => ({
+      lane: row.lane, capabilityId: row.capabilityId, owner: row.owner,
+      sourceFinding: row.sourceFinding, releaseRisk: null, reviewer: null,
+      reason: null, evidenceUrls: [],
+    })),
+    instructions: "Move a pending row to decisions only after adding real risk, named reviewer, specific reason and relevant GitHub evidence. Unreviewed risks remain unknown. This is never release certification.",
+    certificationClaim: false,
+  };
+}
+
 const safe = (value) => String(value).replaceAll("|", "/").replaceAll("\r", " ").replaceAll("\n", " ");
 export function s15ReleaseRiskMarkdown(report) {
   const lines = [
@@ -179,6 +199,7 @@ export function runCli(args = process.argv.slice(2)) {
   mkdirSync(dir, { recursive: true });
   writeFileSync(resolve(dir, "s15-release-risk-review.json"), JSON.stringify(report, null, 2) + "\n");
   writeFileSync(resolve(dir, "s15-release-risk-review.md"), s15ReleaseRiskMarkdown(report));
+  writeFileSync(resolve(dir, "s15-release-risk-review.template.json"), JSON.stringify(s15OwnerReviewTemplate(report), null, 2) + "\n");
   return report;
 }
 

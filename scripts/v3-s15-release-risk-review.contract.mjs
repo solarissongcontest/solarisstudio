@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { assessS15ReleaseRisk, runCli } from "./v3-s15-release-risk-review.mjs";
+import { assessS15ReleaseRisk, s15OwnerReviewTemplate, runCli } from "./v3-s15-release-risk-review.mjs";
 
 const SHA = "a".repeat(40);
 const SOURCE_RAW = JSON.stringify({
@@ -134,6 +134,18 @@ test("source-bound triage cannot omit findings while retaining a valid original 
   t.cutoverCount=2;
   assert.throws(()=>assessS15ReleaseRisk(t,SHA,null,SOURCE_RAW),
     /does not reproduce every canonical finding/);
+});
+
+test("produces exact-source owner handoff without inventing review decisions", () => {
+  const r=assessS15ReleaseRisk(triage(),SHA,null,SOURCE_RAW);
+  const doc=s15OwnerReviewTemplate(r);
+  assert.equal(doc.candidateSha,SHA);
+  assert.equal(doc.sourceS15Sha256,SOURCE_DIGEST);
+  assert.equal(doc.certificationClaim,false);
+  assert.deepEqual(doc.decisions,[]);
+  assert.equal(doc.pendingCutovers.length,3);
+  assert.ok(doc.pendingCutovers.every(row=>row.releaseRisk===null && row.reviewer===null && row.reason===null));
+  assert.deepEqual(doc.pendingCutovers.map(row=>row.sourceFinding),r.rows.map(row=>row.sourceFinding));
 });
 
 test("CLI emits real read-only JSON and Markdown without owner decisions or Supabase", () => {
