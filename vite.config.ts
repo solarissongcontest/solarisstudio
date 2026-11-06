@@ -47,7 +47,13 @@ export default defineConfig({
         // Rolldown reorders modules only when execution semantics allow it.
         // Group similar source modules to improve real gzip compressibility.
         chunkModulesOrder: "module-id",
+        // A second smart-only inline pass eliminates otherwise redundant
+        // cross-module constants without duplicating long strings.
+        optimization: { inlineConst: { mode: "smart", pass: 2 } },
         output: {
+          // Generated JS does not need JSDoc. Preserve legal notices and
+          // tree-shaking annotations for compliance and correctness.
+          comments: { legal: true, annotation: true, jsdoc: false },
           // Shorten private module bindings without changing export signatures.
           minify: { compress: true, mangle: { toplevel: true } },
           // Production evidence showed repeated gzip framing across hundreds of
