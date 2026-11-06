@@ -195,6 +195,7 @@ begin
   if v_session.status not in ('open','recessed')
      or v_session.ends_at <= now()
      or v_rep.ends_at is not null
+     or v_rep.starts_at > now()
      or not exists (
        select 1 from public.world_organization_memberships member_row
        where member_row.organization_id=v_session.organization_id
@@ -202,6 +203,7 @@ begin
          and member_row.status in ('member','observer','associate')
          and (member_row.status <> 'member' or v_rep.voting_authority)
          and member_row.ended_at is null
+         and member_row.joined_at <= now()
      )
   then
     raise exception using errcode='23514',message='SESSION_OR_MEMBER_NOT_ELIGIBLE';
@@ -225,6 +227,7 @@ begin
         and member_row.country_id=p_country_id
         and member_row.status='member'
         and member_row.ended_at is null
+         and member_row.joined_at <= now()
     ) then
       raise exception using errcode='23514',message='PROXY_NOT_ELIGIBLE';
     end if;
@@ -346,6 +349,7 @@ begin
       where candidate.organization_id=membership_row.organization_id
         and candidate.country_id=membership_row.country_id
         and candidate.ends_at is null
+        and candidate.starts_at <= now()
         and candidate.role='representative'
         and (membership_row.status <> 'member' or candidate.voting_authority)
       order by candidate.voting_authority desc,
@@ -358,6 +362,7 @@ begin
      and attendance.country_id=country_row.id
     where membership_row.organization_id=v_session.organization_id
       and membership_row.ended_at is null
+      and membership_row.joined_at <= now()
       and membership_row.status in ('member','observer','associate')
     order by country_row.name,country_row.id
     limit 100
