@@ -50,8 +50,12 @@ const response = {
 function renderWorldSearch(countryPage: number, organizationPage: number, term = "land") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(
-    ["world", "public", "unified-search", term, countryPage, organizationPage],
-    response,
+    ["world", "public", "country-search", term, countryPage],
+    { countries: response.countries, countryTotal: response.countryTotal },
+  );
+  client.setQueryData(
+    ["world", "public", "organization-search", term, organizationPage],
+    { organizations: response.organizations, organizationTotal: response.organizationTotal },
   );
   try {
     return renderToStaticMarkup(
