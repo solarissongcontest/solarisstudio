@@ -6,7 +6,7 @@ const readMigration = (path: string) => readFileSync(
   resolve(process.cwd(), "supabase/migrations", path), "utf8",
 );
 
-const migration = readMigration("20261107003000_v3_tg2_platform_mode_authorization.sql");
+const migration = readMigration("20261107000500_v3_tg2_platform_mode_authorization.sql");
 const platformPolicy = readMigration("20261003212000_organisation_os_v5_platform_permission_enforcement.sql");
 const access = migration.split(
   "create or replace function public.world_access_allowed(",
