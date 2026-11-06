@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { AlertTriangle, ExternalLink, Images, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
@@ -93,6 +93,7 @@ function MediaAssetsPage() {
   const [reviewReason, setReviewReason] = useState('');
   const [retryingInventory, setRetryingInventory] = useState(false);
   const [pendingReview, setPendingReview] = useState<PendingMediaReview | null>(null);
+  const reviewCommitInFlightRef = useRef(false);
 
   const editions = editionsQuery.data ?? [];
   const selectedEdition = selectOrganizerEdition(editions, editionId);
@@ -224,23 +225,18 @@ function MediaAssetsPage() {
         throw new Error('The reviewed media decision is missing its exact asset set or audit reason.');
       }
 
-      const currentByKey = new Map(inventory.map((item) => [item.assetKey, item] as const));
-      const exactItems = review.items.map((reviewed) => {
-        const current = currentByKey.get(reviewed.assetKey);
-        if (!current || current.editionId !== review.commandEditionId) {
-          throw new Error('A reviewed media asset is no longer present in this edition. Reload and review again.');
-        }
-        if (!current.sourceFingerprint || current.processing) {
-          throw new Error(`${current.title} is no longer reviewable. Reload the current media state.`);
-        }
-        if (current.sourceFingerprint !== reviewed.sourceFingerprint) {
-          throw new Error(`${current.title} changed after this review opened. Review the replacement source instead.`);
-        }
-        if (review.decision === 'approved' && current.validation.some((check) => check.level === 'blocked')) {
-          throw new Error(`${current.title} now has a blocking validation check and cannot be approved.`);
-        }
-        return current;
-      });
+      // Re-run the same exact-edition, duplicate-identity and source-version
+      // guard used when opening the review. A Map built from inventory could
+      // otherwise silently overwrite ambiguous duplicate asset identities.
+      const reviewedSources = new Map(review.items.map((item) =>
+        [item.assetKey, item.sourceFingerprint] as const,
+      ));
+      if (reviewedSources.size !== review.items.length) {
+        throw new Error('The reviewed media set contains duplicate asset identities. Reopen review.');
+      }
+      const exactItems = resolveOrganizerMediaReviewTargets(
+        inventory, reviewedSources, review.commandEditionId, review.decision,
+      );
 
       return commitOrganizerMediaReviewOperation({
         currentEditionId: review.commandEditionId,
@@ -265,6 +261,19 @@ function MediaAssetsPage() {
     },
     onError: (mutationError) => toast.error(errorText(mutationError)),
   });
+
+  async function confirmPendingMediaReview() {
+    const reviewed = pendingReview;
+    if (!reviewed || reviewCommitInFlightRef.current || reviewMutation.isPending) return;
+    // A synchronous lock is required because two modal click events may occur
+    // before React publishes the async mutation's pending state.
+    reviewCommitInFlightRef.current = true;
+    try {
+      await reviewMutation.mutateAsync(reviewed);
+    } finally {
+      reviewCommitInFlightRef.current = false;
+    }
+  }
 
   async function retryInventory() {
     // Manual, finite retry only. Do not refetch every historical edition or
@@ -312,7 +321,8 @@ function MediaAssetsPage() {
     decision: Studio2MediaReviewDecision,
     singleAssetReview?: { assetKey: string; sourceFingerprint: string; reason: string },
   ) {
-    if (!selectedEdition || editionId !== selectedEdition.id || reviewMutation.isPending) {
+    if (!selectedEdition || editionId !== selectedEdition.id ||
+        reviewMutation.isPending || reviewCommitInFlightRef.current) {
       toast.error('Select the current Organizer edition again before reviewing media.');
       return;
     }
@@ -493,11 +503,9 @@ function MediaAssetsPage() {
         <AdminConfirmSheet
           open={Boolean(pendingReview)}
           onClose={() => {
-            if (!reviewMutation.isPending) setPendingReview(null);
+            if (!reviewMutation.isPending && !reviewCommitInFlightRef.current) setPendingReview(null);
           }}
-          onConfirm={async () => {
-            if (pendingReview) await reviewMutation.mutateAsync(pendingReview);
-          }}
+          onConfirm={confirmPendingMediaReview}
           title={pendingReview?.decision === 'approved' ? 'Approve these exact media sources?' : 'Mark these exact media sources invalid?'}
           description={pendingReview ? (
             <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
