@@ -229,7 +229,7 @@ export function V3PredictionsScreen() {
               )}
             </V3Section>
 
-            <V3Section title="Your prediction history" meta={session.data ? `${history.data?.length ?? 0} saved` : "Sign in required"}>
+            <V3Section title="Your prediction history" meta={!session.data ? "Sign in required" : history.isPending || history.isError ? "Checking saved picks" : `${history.data?.length ?? 0} saved`}>
               {!session.data ? (
                 <V3Surface>
                   <p className="text-sm font-semibold">Sign in to keep prediction history</p>
@@ -312,7 +312,7 @@ export function V3PredictionsScreen() {
               )}
             </V3Section>
 
-            <V3Section title="Prediction League" meta={leagueFeature.data === true ? "Opt-in public standings" : "Unavailable"}>
+            <V3Section title="Prediction League" meta={leagueFeature.isPending || leagueFeature.isError ? "Checking availability" : leagueFeature.data === true ? "Opt-in public standings" : "Unavailable"}>
               {leagueFeature.data === true ? (
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <label htmlFor="v3-prediction-league-edition" className="text-xs font-semibold text-[var(--v3-text-secondary)]">
