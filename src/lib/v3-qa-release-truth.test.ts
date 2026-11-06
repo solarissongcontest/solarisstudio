@@ -258,6 +258,26 @@ describe("V3 QA exact-SHA release truth", () => {
     truth = assessV3QaReleaseTruth(SHA, dir);
     expect(truth.certified).toBe(false);
     expect(truth.invalidEvidence.join("\n")).toContain("not exact candidate");
+
+    writeJson(dir, "s16-canonical-ci.json", {
+      schema_version: 1, candidate_sha: SHA, gate_id: "canonical-ci",
+      passed: true, result: "fail", workflow_run_id: 123,
+      job_name: "test", produced_at: "2026-11-07T00:00:00.000Z",
+    });
+    truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.certified).toBe(false);
+    expect(truth.invalidEvidence.join("\n")).toContain("contradictory success claim");
+
+    writeJson(dir, "s16-canonical-ci.json", {
+      schemaVersion: 2, schema_version: 1,
+      candidateSha: OTHER_SHA, candidate_sha: SHA, gate_id: "canonical-ci",
+      result: "pass", workflow_run_id: 123, job_name: "test",
+      produced_at: "2026-11-07T00:00:00.000Z",
+    });
+    truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.certified).toBe(false);
+    expect(truth.invalidEvidence.join("\n")).toContain("not exact candidate");
+    expect(truth.invalidEvidence.join("\n")).toContain("schema version is not 1");
   });
 
   it("rejects missing, duplicate, renamed, and stale S16 categories", () => {

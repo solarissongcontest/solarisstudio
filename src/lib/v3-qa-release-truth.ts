@@ -264,8 +264,12 @@ function s16CategoryEvidenceIssues(evidenceDir: string, categories: unknown, exp
     // The hardening artifact binds its candidate SHA separately for each S10-S13
     // phase; its top-level schema does not duplicate that identity.
     if (filename !== HARDENING_FILE) {
-      const sourceShaIssue = exactShaIssue(data.candidateSha ?? data.candidate_sha, expectedSha, "S16 " + category.id + " source");
-      if (sourceShaIssue) issues.push(sourceShaIssue);
+      const sourceShas = [data.candidateSha, data.candidate_sha].filter((value) => value !== undefined);
+      if (!sourceShas.length) issues.push("S16 " + category.id + " source candidate SHA is missing");
+      for (const claimedSha of sourceShas) {
+        const sourceShaIssue = exactShaIssue(claimedSha, expectedSha, "S16 " + category.id + " source");
+        if (sourceShaIssue) issues.push(sourceShaIssue);
+      }
     }
 
     if (filename === S14_FILE) {
@@ -277,17 +281,28 @@ function s16CategoryEvidenceIssues(evidenceDir: string, categories: unknown, exp
         issues.push(...hardeningPhaseTruth(phase, file, expectedSha, evidenceDir).issues.map((issue) => "S16 hardening " + phase + ": " + issue));
       }
     } else {
-      if (data.schemaVersion !== 1 && data.schema_version !== 1) {
+      const versions = [data.schemaVersion, data.schema_version].filter((value) => value !== undefined);
+      if (!versions.length || versions.some((value) => value !== 1)) {
         issues.push("S16 " + category.id + " source schema version is not 1");
       }
-      if (data.passed !== true && data.result !== "pass") {
-        issues.push("S16 " + category.id + " source did not pass");
+      if (
+        (data.passed === undefined && data.result === undefined) ||
+        (data.passed !== undefined && data.passed !== true) ||
+        (data.result !== undefined && data.result !== "pass")
+      ) {
+        issues.push("S16 " + category.id + " source has a missing or contradictory success claim");
       }
-      const gate = data.gateId ?? data.gate_id;
-      if (gate !== category.id) issues.push("S16 " + category.id + " source gate identity mismatch");
-      const runId = data.runId ?? data.workflow_run_id;
-      if (!Number.isSafeInteger(Number(runId)) || Number(runId) <= 0) {
-        issues.push("S16 " + category.id + " source lacks a valid workflow run ID");
+      const gates = [data.gateId, data.gate_id].filter((value) => value !== undefined);
+      if (!gates.length || gates.some((value) => value !== category.id)) {
+        issues.push("S16 " + category.id + " source gate identity mismatch");
+      }
+      const runIds = [data.runId, data.workflow_run_id].filter((value) => value !== undefined);
+      if (!runIds.length || runIds.some((value) =>
+        (typeof value !== "number" && (typeof value !== "string" || !/^[1-9][0-9]*$/.test(value))) ||
+        !Number.isSafeInteger(Number(value)) || Number(value) <= 0 ||
+        Number(value) !== Number(runIds[0])
+      )) {
+        issues.push("S16 " + category.id + " source lacks a consistent valid workflow run ID");
       }
       const jobName = data.jobName ?? data.job_name;
       if (typeof jobName !== "string" || !jobName.trim()) {
