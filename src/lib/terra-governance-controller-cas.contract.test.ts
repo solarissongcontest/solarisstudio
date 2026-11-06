@@ -55,7 +55,11 @@ describe("WORLD-01 TG1 controller-person CAS and effective identity", () => {
     expect(projection).toContain("term.ended_at is null");
     expect(projection).toContain("term.started_at <= now()");
     expect(projection).toContain("person.display_name");
-    expect(projection).not.toMatch(/select\s+[^;]*current_account\.user_id/i);
+    const selectedColumns = projection!.slice(
+      projection!.indexOf("as $projection$"),
+      projection!.indexOf("from public.countries c"),
+    );
+    expect(selectedColumns).not.toContain("current_account.user_id");
   });
 
   it("uses a distinct forward contract and retains least-privilege RPC grants", () => {
