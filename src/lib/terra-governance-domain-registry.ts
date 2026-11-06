@@ -193,6 +193,8 @@ export const TERRA_GOVERNANCE_DOMAIN_REGISTRY: readonly TerraGovernanceDomainOwn
       "public.world_document_provisions",
       "public.world_document_version_provisions",
       "public.world_document_artifacts",
+      "public.world_treaties",
+      "public.world_treaty_parties",
     ],
     existingSolarisOwnersReused: [
       "public.world_organizations",
@@ -210,17 +212,21 @@ export const TERRA_GOVERNANCE_DOMAIN_REGISTRY: readonly TerraGovernanceDomainOwn
       "world.document.version.update_draft",
       "world.document.version.effective_date.set",
       "world.document.version.publish",
+      "world.treaty.register",
     ],
     projections: [
       "public.world_get_document_index_v1",
       "public.world_get_document_v1",
       "public.world_get_document_archive_v1",
+      "public.world_get_treaty_manager_v1",
+      "public.world_get_published_treaties_v1",
     ],
     eventTypes: [
       "world.document.created",
       "world.document.version_created",
       "world.document.version_published",
       "world.document.version_superseded",
+      "world.treaty.registered",
     ],
     capabilities: ["world.document.manage", "world.document.publish"],
     notes: [
@@ -260,6 +266,7 @@ export const TERRA_GOVERNANCE_TG4_MIGRATIONS = [
   "20261103171200_v3_tg4_world_document_effective_date.sql",
   "20261103171400_v3_tg4_document_manager_provenance_projection.sql",
   "20261103171600_v3_tg4_draft_updater_rowtype_fix.sql",
+  "20261103172000_v3_tg4_treaty_register.sql",
 ] as const;
 
 export const TERRA_GOVERNANCE_TG4_EVENT_TYPES = [
@@ -267,6 +274,7 @@ export const TERRA_GOVERNANCE_TG4_EVENT_TYPES = [
   "world.document.version_created",
   "world.document.version_published",
   "world.document.version_superseded",
+  "world.treaty.registered",
 ] as const;
 
 export function terraGovernanceDomain(id: string) {
