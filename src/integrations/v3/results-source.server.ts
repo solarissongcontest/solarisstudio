@@ -174,6 +174,9 @@ export async function loadV3ResultsBundle(
       "Canonical published Result snapshot escaped the selected Edition scope",
     );
   }
+  if (snapshot.rows.length === 0) {
+    throw new Error("Published Result version contains no ranked entries");
+  }
 
   const entitiesResult = await client
     .from("contest_entities")
@@ -202,10 +205,12 @@ export async function loadV3ResultsBundle(
 
   const displayMap = entityDisplayMap(entities, countries);
   const resultCountries = new Map<string, Country>();
-  const projectedRows = snapshot.rows.flatMap((row) => {
+  const projectedRows = snapshot.rows.map((row) => {
     const identityId = row.contestEntityId ?? row.countryId ?? "";
     const display = displayMap.get(identityId);
-    if (!display) return [];
+    if (!display) {
+      throw new Error("Published Result row identity could not be verified");
+    }
     const country: Country = {
       id: display.id,
       name: display.name,
@@ -218,7 +223,7 @@ export async function loadV3ResultsBundle(
       first_participation: display.first_participation,
     };
     resultCountries.set(display.id, country);
-    return [{
+    return {
       countryId: display.id,
       canonicalCountryId: row.countryId,
       countryName: display.name,
@@ -229,7 +234,7 @@ export async function loadV3ResultsBundle(
       televotePoints: snapshot.availability.televote
         ? (row.televotePoints ?? null)
         : null,
-    }];
+    };
   });
 
   return {

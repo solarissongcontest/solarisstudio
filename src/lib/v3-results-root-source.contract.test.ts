@@ -51,6 +51,15 @@ describe("V3 Results root source contract", () => {
     expect(source).not.toContain("localStorage");
   });
 
+  it("never silently converts published identity failures into incomplete official rankings", () => {
+    expect(source).toContain("snapshot.rows.length === 0");
+    expect(source).toContain("Published Result version contains no ranked entries");
+    expect(source).toContain("snapshot.rows.map((row) => {");
+    expect(source).toContain("Published Result row identity could not be verified");
+    expect(source).not.toContain("if (!display) return []");
+    expect(gate).toContain("Retry official results");
+  });
+
   it("retains canonical country identity separately from historical display identity", () => {
     expect(source).toContain("countryId: display.id");
     expect(source).toContain("canonicalCountryId: row.countryId");
