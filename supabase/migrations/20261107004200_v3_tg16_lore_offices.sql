@@ -385,6 +385,95 @@ revoke all on function public.world_domestic_officials_v1(text)
 grant execute on function public.world_domestic_officials_v1(text)
   to anon,authenticated,service_role;
 
+-- TG17: derive public domestic appointments/cessations from the actual term
+-- authority. Never duplicate them as manually editable editorial history.
+create or replace function public.world_history_timeline_v1(
+  p_page integer default 0, p_country_code text default null
+) returns jsonb language plpgsql stable security definer
+set search_path = pg_catalog, public
+as $history$
+declare v_rows jsonb;
+begin
+  if p_page is null or p_page < 0 or p_page > 100
+     or (p_country_code is not null and (
+       length(btrim(p_country_code)) not between 2 and 12
+       or p_country_code !~ '^[[:alnum:]-]+
+begin
+  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
+    perform public.v3_register_migration_contract(
+      'v3.tg16.domestic-lore-offices',1,'forward_fix_only',false,null,
+      'Add fiction-only lore persons, nationally controlled offices and durable historical terms with published projections. Current real controllers remain country_accounts; no delegation_people or authenticated electorate is created.'
+    );
+  end if;
+end
+$contract$;
+notify pgrst,'reload schema';
+commit;
+)) then
+    raise exception using errcode='22023',message='VALIDATION';
+  end if;
+  select coalesce(jsonb_agg(to_jsonb(page_row) order by page_row.occurred_at desc,
+                             page_row.id desc),'[]'::jsonb)
+  into v_rows
+  from (
+    select * from (
+      select ('editorial:'||h.id::text) id, h.occurred_at,
+        h.title,h.summary,'editorial'::text source_type,
+        'world_history_events'::text provenance,
+        c.short_code country_code,null::text organization_slug
+      from public.world_history_events h
+      join public.countries c on c.id=h.country_id
+      where h.visibility='public'
+        and h.occurred_at<=now()
+        and (p_country_code is null or lower(c.short_code)=lower(p_country_code))
+      union all
+      select ('election:'||e.id::text), (e.held_on::timestamp at time zone 'UTC'),
+        e.title,e.result_summary,'domestic_election',
+        'world_domestic_elections',c.short_code,null::text
+      from public.world_domestic_elections e
+      join public.countries c on c.id=e.country_id
+      where e.visibility='public' and e.held_on<=current_date
+        and (p_country_code is null or lower(c.short_code)=lower(p_country_code))
+      union all
+      select ('office-start:'||t.id::text), t.started_at,
+        t.holder_display_name || ' appointed ' || t.office_title,
+        'A published domestic office term began.',
+        'domestic_office','world_domestic_office_terms',
+        c.short_code,null::text
+      from public.world_domestic_office_terms t
+      join public.countries c on c.id=t.country_id
+      where t.visibility='public' and t.started_at<=now()
+        and (p_country_code is null or lower(c.short_code)=lower(p_country_code))
+      union all
+      select ('office-end:'||t.id::text), t.actual_end_at,
+        t.holder_display_name || ' left the office of ' || t.office_title,
+        'A published domestic office term concluded.',
+        'domestic_office','world_domestic_office_terms',
+        c.short_code,null::text
+      from public.world_domestic_office_terms t
+      join public.countries c on c.id=t.country_id
+      where t.visibility='public'
+        and t.actual_end_at is not null and t.actual_end_at<=now()
+        and (p_country_code is null or lower(c.short_code)=lower(p_country_code))
+      union all
+      select ('organization:'||o.id::text),o.recognized_at,
+        o.official_name || ' recognized',
+        coalesce(o.description,'Official institution of Terra Solaris.'),
+        'institutional','world_organizations',
+        null::text,o.slug
+      from public.world_organizations o
+      where p_country_code is null and o.public_visibility='public'
+        and o.status in ('recognized','active','suspended','historical','dissolved')
+        and o.recognized_at is not null and o.recognized_at<=now()
+    ) source_records
+    order by occurred_at desc,id desc
+    limit 20 offset p_page*20
+  ) page_row;
+  return jsonb_build_object('events',v_rows,'page',p_page,
+    'pageSize',20,'hasMore',jsonb_array_length(v_rows)=20);
+end
+$history$;
+
 do $contract$
 begin
   if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
