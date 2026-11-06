@@ -203,12 +203,14 @@ function EmptyFeed({ children }: { children: ReactNode }) {
 function SolarisPulsePage() {
   const { data: user } = useFanSession();
   const { data: eventsData, isLoading } = useContentEvents(100);
-  const { data: followData } = useMyFollows(user?.id);
+  const followsQuery = useMyFollows(user?.id);
+  const followData = followsQuery.data;
   const { data: reads } = useEventReads(user?.id);
   const markRead = useMarkEventRead(user?.id);
   const markAllRead = useMarkAllEventsRead(user?.id);
   const setFollow = useSetFanFollow(user?.id);
-  const { data: preferences } = useNotificationPreferences(user?.id);
+  const preferencesQuery = useNotificationPreferences(user?.id);
+  const preferences = preferencesQuery.data;
   const savePreferences = useSaveNotificationPreferences(user?.id);
 
   const { data: editions } = useEditions();
@@ -401,6 +403,10 @@ function SolarisPulsePage() {
   };
 
   const saveNotificationSettings = async () => {
+    if (!preferencesQuery.isSuccess) {
+      setPreferenceMessage("Your saved preferences are not available yet. Retry loading them before saving.");
+      return;
+    }
     setPreferenceMessage(null);
     try {
       await savePreferences.mutateAsync({
@@ -882,7 +888,24 @@ function SolarisPulsePage() {
                   <div className="mt-4 space-y-5">
                     <div>
                       <h3 className="text-base font-bold">Following</h3>
-                      {followData?.schemaReady === false ? (
+                      {followsQuery.isLoading ? (
+                        <p role="status" className="mt-2 text-sm leading-6 text-muted-foreground">
+                          Loading your followed items…
+                        </p>
+                      ) : followsQuery.isError ? (
+                        <div role="alert" className="mt-2 space-y-2">
+                          <p className="text-sm leading-6 text-muted-foreground">
+                            Your followed items could not be loaded. This does not mean your list is empty.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => void followsQuery.refetch()}
+                            className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold"
+                          >
+                            Retry followed items
+                          </button>
+                        </div>
+                      ) : followData?.schemaReady === false ? (
                         <p className="mt-2 text-sm leading-6 text-muted-foreground">
                           Following is temporarily unavailable.
                         </p>
@@ -952,6 +975,24 @@ function SolarisPulsePage() {
 
                     <div>
                       <h3 className="text-base font-bold">Your update preferences</h3>
+                      {preferencesQuery.isLoading ? (
+                        <p role="status" className="mt-2 text-sm text-muted-foreground">
+                          Loading your saved preferences…
+                        </p>
+                      ) : preferencesQuery.isError ? (
+                        <div role="alert" className="mt-2 space-y-2">
+                          <p className="text-sm text-muted-foreground">
+                            Your notification preferences could not be loaded. Changes are disabled until your saved settings are verified.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => void preferencesQuery.refetch()}
+                            className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold"
+                          >
+                            Retry preferences
+                          </button>
+                        </div>
+                      ) : null}
                       <label className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface p-3">
                         <span>
                           <span className="block text-sm font-semibold">Show my personal updates</span>
@@ -962,6 +1003,7 @@ function SolarisPulsePage() {
                         <input
                           type="checkbox"
                           checked={inAppEnabled}
+                          disabled={!preferencesQuery.isSuccess || savePreferences.isPending}
                           onChange={(event) => setInAppEnabled(event.target.checked)}
                         />
                       </label>
@@ -975,6 +1017,7 @@ function SolarisPulsePage() {
                             <input
                               type="checkbox"
                               checked={categories.includes(value)}
+                              disabled={!preferencesQuery.isSuccess || savePreferences.isPending}
                               onChange={(event) =>
                                 setCategories((current) =>
                                   event.target.checked
@@ -991,7 +1034,7 @@ function SolarisPulsePage() {
                       <button
                         type="button"
                         onClick={saveNotificationSettings}
-                        disabled={savePreferences.isPending}
+                        disabled={!preferencesQuery.isSuccess || savePreferences.isPending}
                         className="mt-3 min-h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm font-semibold disabled:opacity-60"
                       >
                         {savePreferences.isPending ? "Saving…" : "Save preferences"}
