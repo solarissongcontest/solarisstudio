@@ -8,6 +8,26 @@ const roots: string[] = [];
 const SHA = "a".repeat(40);
 const OTHER_SHA = "b".repeat(40);
 
+const S16_EXPECTED = [
+  ["canonical-ci", "s16-canonical-ci.json"],
+  ["migration-rehearsal", "s16-migration-rehearsal.json"],
+  ["authorization-security", "s16-authorization-security.json"],
+  ["production-isolation", "s16-production-isolation.json"],
+  ["system-hardening", "s16-system-hardening.json"],
+  ["public-acceptance", "s16-public-acceptance.json"],
+  ["organizer-acceptance", "s16-organizer-acceptance.json"],
+  ["navigation-acceptance", "s16-navigation-acceptance.json"],
+  ["accessibility", "s16-accessibility.json"],
+  ["responsive-behavior", "s16-responsive-behavior.json"],
+  ["full-contest-rehearsal", "s14-full-contest.json"],
+  ["registry-zero-gap", "s15-zero-orphan.json"],
+] as const;
+
+function s16() {
+  return { schemaVersion: 1, candidateSha: SHA, certified: true,
+    categories: S16_EXPECTED.map(([id, evidenceFilename]) => ({ id, evidenceFilename, evidenceCandidateSha: SHA, passed: true })) };
+}
+
 function root() {
   const path = mkdtempSync(join(tmpdir(), "v3-qa-release-truth-"));
   roots.push(path);
@@ -124,7 +144,8 @@ describe("V3 QA exact-SHA release truth", () => {
     const dir = root();
     writeJson(dir, "s16-certification.json", { candidateSha: SHA, certified: true });
     const truth = assessV3QaReleaseTruth(SHA, dir);
-    expect(truth.phases.find((phase) => phase.id === "S16")?.state).toBe("passed");
+    expect(truth.phases.find((phase) => phase.id === "S16")?.state).toBe("invalid");
+    expect(truth.invalidEvidence.join("\\n")).toContain("categories must be an array");
     expect(truth.readyForS16).toBe(false);
     expect(truth.certified).toBe(false);
   });
@@ -134,12 +155,31 @@ describe("V3 QA exact-SHA release truth", () => {
     writeJson(dir, "s16-system-hardening.json", hardening());
     writeJson(dir, "s14-full-contest.json", s14());
     writeJson(dir, "s15-zero-orphan.json", s15());
-    writeJson(dir, "s16-certification.json", { candidateSha: SHA, certified: true });
+    writeJson(dir, "s16-certification.json", s16());
     const truth = assessV3QaReleaseTruth(SHA, dir);
     expect(truth.readyForS16).toBe(true);
     expect(truth.certified).toBe(true);
     expect(truth.invalidEvidence).toEqual([]);
     expect(truth.missingEvidence).toEqual([]);
+  });
+
+  it("rejects missing, duplicate, renamed, and stale S16 categories", () => {
+    const dir = root();
+    const valid = s16();
+    expect(valid.categories).toHaveLength(12);
+    writeJson(dir, "s16-certification.json", { ...valid, categories: valid.categories.slice(1) });
+    let truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.phases.find((phase) => phase.id === "S16")?.state).toBe("invalid");
+    expect(truth.invalidEvidence.join("\\n")).toContain("canonical-ci");
+
+    writeJson(dir, "s16-certification.json", { ...valid, categories: [...valid.categories.slice(1), valid.categories[1]] });
+    truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.invalidEvidence.join("\\n")).toContain("exactly one migration-rehearsal");
+
+    writeJson(dir, "s16-certification.json", { ...valid, categories: valid.categories.map((entry, i) => i === 0 ? { ...entry, evidenceFilename: "wrong.json", evidenceCandidateSha: OTHER_SHA } : entry) });
+    truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.invalidEvidence.join("\\n")).toContain("evidence filename");
+    expect(truth.invalidEvidence.join("\\n")).toContain("not exact candidate");
   });
 
   it("rejects evidence for a different candidate SHA", () => {
