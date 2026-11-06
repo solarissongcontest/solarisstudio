@@ -112,6 +112,11 @@ export function ConfirmationAccessSettingsSheet({
     });
   };
 
+  const closeSettingsSafely = () => {
+    if (saving || saveInFlightRef.current) return;
+    onClose();
+  };
+
   const closeReview = () => {
     if (saving || saveInFlightRef.current) return;
     setPendingReview(null);
@@ -222,7 +227,7 @@ export function ConfirmationAccessSettingsSheet({
     <>
       <AdminSheet
         open={open}
-        onClose={saving ? () => undefined : onClose}
+        onClose={closeSettingsSafely}
         title="Response settings"
         description="These controls affect delegation access. Review consequential access changes before applying them."
       >
@@ -285,7 +290,7 @@ export function ConfirmationAccessSettingsSheet({
             <button
               type="button"
               disabled={saving}
-              onClick={onClose}
+              onClick={closeSettingsSafely}
               className="admin-action-secondary"
             >
               Cancel
