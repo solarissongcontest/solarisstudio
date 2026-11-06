@@ -103,12 +103,7 @@ export function MySolarisProvider({
   const countryId = account?.country?.id ?? null;
   const currentEntryQuery = useQuery({
     enabled: Boolean(userQuery.data && countryId && currentEdition?.id),
-    queryKey: [
-      "mysolaris-current-entry",
-      userId,
-      currentEdition?.id ?? "none",
-      countryId ?? "none",
-    ],
+    queryKey: ["mysolaris-current-entry", userId, currentEdition?.id ?? "none", countryId ?? "none"],
     queryFn: () => loadMySolarisParticipant(countryId!, currentEdition!.id),
     staleTime: 15_000,
     refetchInterval: 30_000,
@@ -174,12 +169,7 @@ export function MySolarisProvider({
 
   const confirmationQuery = useQuery({
     enabled: Boolean(includeParticipationContext && userQuery.data && account?.country),
-    queryKey: [
-      "country-confirmation-access",
-      userId,
-      countryId,
-      "mysolaris-context",
-    ],
+    queryKey: ["country-confirmation-access", userId, countryId, "mysolaris-context"],
     queryFn: getCountryConfirmationAccess,
     staleTime: 10_000,
     refetchInterval: 30_000,
@@ -193,12 +183,7 @@ export function MySolarisProvider({
         account?.country &&
         currentEdition?.id,
     ),
-    queryKey: [
-      "mysolaris-jury-task",
-      userId,
-      countryId,
-      currentEdition?.id ?? "none",
-    ],
+    queryKey: ["mysolaris-jury-task", userId, countryId, currentEdition?.id ?? "none"],
     queryFn: () => loadCountryJuryVotingTask(currentEdition!.id),
     staleTime: 15_000,
     refetchInterval: 30_000,
