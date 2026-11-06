@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   classifyS15Finding,
   detectS14SourceDefects,
+  hasCompleteS14DiagnosticClaim,
   summarizeFindings,
   unsafeEnvironmentKeys,
 } from "./v3-integration-defect-sweep.mjs";
@@ -16,6 +17,49 @@ const samples = {
   adapter: 'if (round.televote_engine_version !== CALC_ENGINE_VERSION) fail("unsupported");',
   migration: "alter table televoting.rounds alter column televote_engine_version set default 'robust-televote-v2';",
 };
+
+test("S14 diagnostic refuses false full-contest passes for partial, failed or stale proof", () => {
+  const candidateSha = "a".repeat(40);
+  const evidence = {
+    candidateSha, passed: true, partial: false, runtimeFailure: false,
+    lifecycle: { finalState: "archived" },
+    completedStages: [
+      "stage-1-setup", "stage-2-delegation-onboarding", "stage-3-confirmations",
+      "stage-4-entries", "stage-5-running-orders", "stage-6-jury",
+      "stage-7-public-voting", "stage-8-results", "stage-9-publication",
+      "stage-10-archive",
+    ],
+    pendingStages: [],
+    completedContestExtensions: [
+      "grand-final-qualifier-bridge", "grand-final-voting",
+      "grand-final-results", "grand-final-publication",
+    ],
+    pendingContestExtensions: [], blockedContestExtensions: [],
+    runIdentity: { candidateSha, editionId: "disposable-edition", databaseFingerprint: "local-fixture" },
+    seed: { editionCount: 1, delegationCount: 66, showCount: 3 },
+  };
+  assert.equal(hasCompleteS14DiagnosticClaim(evidence, candidateSha), true);
+  const failedClaims = [
+    { ...evidence, passed: false },
+    { ...evidence, partial: true },
+    { ...evidence, runtimeFailure: true },
+    { ...evidence, lifecycle: { finalState: "completed" } },
+    { ...evidence, pendingStages: ["stage-8-results"] },
+    { ...evidence, completedStages: evidence.completedStages.slice(0, -1) },
+    { ...evidence, completedStages: [...evidence.completedStages].reverse() },
+    { ...evidence, completedContestExtensions: evidence.completedContestExtensions.slice(1) },
+    { ...evidence, pendingContestExtensions: ["grand-final-results"] },
+    { ...evidence, blockedContestExtensions: ["grand-final-publication"] },
+    { ...evidence, runIdentity: { ...evidence.runIdentity, candidateSha: "b".repeat(40) } },
+    { ...evidence, runIdentity: { ...evidence.runIdentity, databaseFingerprint: "" } },
+    { ...evidence, seed: { ...evidence.seed, showCount: 2 } },
+    { ...evidence, seed: { ...evidence.seed, delegationCount: 65 } },
+  ];
+  failedClaims.forEach((claim, index) =>
+    assert.equal(hasCompleteS14DiagnosticClaim(claim, candidateSha), false, `rejected invalid proof #${index}`));
+  assert.equal(hasCompleteS14DiagnosticClaim(evidence, "b".repeat(40)), false);
+  assert.equal(hasCompleteS14DiagnosticClaim(null, candidateSha), false);
+});
 
 test("finds the concrete S14 Stage 7 PostgreSQL boolean-text mismatch", () => {
   const problems = detectS14SourceDefects(samples);
