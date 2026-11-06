@@ -64,6 +64,25 @@ describe("V3 Organizer Tasks operational state contract", () => {
     expect(route).toContain("Boolean(resolvedEditionId) &&");
   });
 
+  it("distinguishes backend transport failure from unsupported task schema and provides bounded recovery", () => {
+    expect(route).toContain("backend.isError || backend.data?.available === false");
+    expect(route).toContain('title="Organizer backend unavailable"');
+    expect(route).toContain("backend.data?.error");
+    expect(route).toContain("Retry backend check");
+    expect(route).toContain("void backend.refetch()");
+    expect(route).toContain('title="Organizer Tasks backend update required"');
+  });
+
+  it("keeps explicit read errors separate from empty task results", () => {
+    expect(route).toContain('title="Edition context could not be resolved"');
+    expect(route).toContain("Retry edition lookup");
+    expect(route).toContain("void editionsQuery.refetch()");
+    expect(route).toContain('title="Tasks could not be evaluated"');
+    expect(route).toContain("Retry task evaluation");
+    expect(route).toContain("void tasksQuery.refetch()");
+    expect(route).toContain("tasksQuery.error ? (");
+  });
+
   it("does not equate task priority with blocked workflow state", () => {
     expect(route).toContain("Priority is severity, not workflow state");
     expect(route).not.toContain('task.priority === "critical") return "blocked"');

@@ -1,0 +1,31 @@
+/* Reference loading, disabled and published layouts share one typographic grammar. */
+.v3-reference-directory .v3-directory-mobile-header,
+.v3-reference-directory .v3-directory-app-heading { margin-bottom:.9rem; padding-bottom:.65rem; }
+.v3-reference-directory :is(.v3-directory-mobile-header,.v3-directory-app-heading) h1 {
+  font-family:var(--font-sans,ui-sans-serif,system-ui,sans-serif) !important;
+  font-size:clamp(1.85rem,7vw,2.15rem);font-weight:750;line-height:1.14;
+  letter-spacing:-.035em;text-transform:none
+}
+body .v3-reference-directory[data-directory-experience="desktop-web"] .page-header:not(.directory-page-hero) {
+  padding:0 0 .85rem !important;margin:0 0 1rem !important;
+  border:0 !important;border-bottom:1px solid var(--border) !important;
+  border-radius:0 !important;background:transparent !important;
+  box-shadow:none !important;overflow:visible !important
+}
+body .v3-reference-directory[data-directory-experience="desktop-web"] .page-header h1 {
+  font-family:var(--font-sans,ui-sans-serif,system-ui,sans-serif) !important;
+  font-size:clamp(1.95rem,3vw,2.35rem) !important;font-weight:750 !important;
+  text-transform:none !important;letter-spacing:-.035em !important
+}
+body .v3-reference-directory .v3-directory-search input:focus-visible {
+  outline:none !important;box-shadow:none !important
+}
+body .v3-reference-directory .v3-directory-search:focus-within {
+  outline:2px solid var(--primary);outline-offset:2px
+}
+.v3-reference-directory .v3-directory-search-clear {
+  display:grid;min-width:36px;min-height:36px;place-items:center;border-radius:.5rem
+}
+.v3-reference-directory .v3-directory-search-clear:focus-visible {
+  outline:2px solid var(--primary);outline-offset:2px
+}

@@ -201,6 +201,11 @@ function OrganizerTasksPage() {
                   ? editionsQuery.error.message
                   : "Solaris could not verify the selected Organizer edition."
               }
+              action={
+                <button type="button" onClick={() => void editionsQuery.refetch()} disabled={editionsQuery.isFetching} className="admin-action-secondary">
+                  Retry edition lookup
+                </button>
+              }
             />
           </AdminCard>
         ) : !edition ? (
@@ -216,6 +221,23 @@ function OrganizerTasksPage() {
             <p className="py-12 text-center text-sm text-muted-foreground">
               Verifying Organizer backend compatibility…
             </p>
+          </AdminCard>
+        ) : backend.isError || backend.data?.available === false ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Organizer backend unavailable"
+              description={
+                backend.error instanceof Error
+                  ? backend.error.message
+                  : backend.data?.error ?? "Solaris could not verify the Organizer runtime contract. Task state remains unknown."
+              }
+              action={
+                <button type="button" onClick={() => void backend.refetch()} disabled={backend.isFetching} className="admin-action-secondary">
+                  Retry backend check
+                </button>
+              }
+            />
           </AdminCard>
         ) : !tasksSupported ? (
           <AdminCard>
@@ -240,6 +262,11 @@ function OrganizerTasksPage() {
                 tasksQuery.error instanceof Error
                   ? tasksQuery.error.message
                   : "The Organizer Task Engine could not complete this request."
+              }
+              action={
+                <button type="button" onClick={() => void tasksQuery.refetch()} disabled={tasksQuery.isFetching} className="admin-action-secondary">
+                  Retry task evaluation
+                </button>
               }
             />
           </AdminCard>
