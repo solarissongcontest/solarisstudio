@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { auditWorldSwarmCrossBranches, type WorldSwarmPull, type WorldSwarmSnapshot } from "./world-swarm-cross-branch-audit";
+import { auditWorldSwarmCrossBranches, isPotentialWorldSwarmPull, type WorldSwarmPull, type WorldSwarmSnapshot } from "./world-swarm-cross-branch-audit";
 
 const SHA = "a".repeat(40);
 const MAIN = "b".repeat(40);
@@ -65,13 +65,13 @@ describe("TG19 read-only World cross-PR migration preflight", () => {
     expect(report.clean).toBe(true);
   });
 
-  it("flags missing stacked PR base as warning, never as verified dependency", () => {
+  it("fails closed when a stacked parent is omitted from the PR snapshot", () => {
     const report = auditWorldSwarmCrossBranches(snapshot([
       pr(10, [path("20261107100100", "child")], "unlisted-parent"),
     ]));
-    expect(report.clean).toBe(true);
+    expect(report.clean).toBe(false);
     expect(report.issues).toContainEqual(expect.objectContaining({
-      code: "unresolved_stacked_parent", severity: "warning",
+      code: "unresolved_stacked_parent", severity: "error",
     }));
   });
 
@@ -125,6 +125,29 @@ describe("TG19 read-only World cross-PR migration preflight", () => {
       filename: path("20261107006000", "v3_tg15_invalid"), status: "removed",
     });
     expect(auditWorldSwarmCrossBranches(snapshot([candidate])).clean).toBe(true);
+  });
+
+  it("collects World branches even when a PR title has no World keyword", () => {
+    expect(isPotentialWorldSwarmPull({
+      title: "Harden publication reader", branch: "v3/world/auto-replay-gates",
+    })).toBe(true);
+    expect(isPotentialWorldSwarmPull({
+      title: "Institutional reader", branch: "v3/sys-terra-governance-documents",
+    })).toBe(true);
+    expect(isPotentialWorldSwarmPull({
+      title: "[V3-WAVE2] TG4 legal documents", branch: "v3/integration-legal",
+    })).toBe(true);
+    expect(isPotentialWorldSwarmPull({
+      title: "Update account settings", branch: "v3/public-account-settings",
+    })).toBe(false);
+  });
+
+  it("does not allow a clean report when a historic donor base is absent", () => {
+    const child = pr(1940, [path("20261103172500", "child")],
+      "v3/sys-terra-governance-documents");
+    const report = auditWorldSwarmCrossBranches(snapshot([child]));
+    expect(report.clean).toBe(false);
+    expect(report.issues.some((i) => i.code === "unresolved_stacked_parent")).toBe(true);
   });
 
 });
