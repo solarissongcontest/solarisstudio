@@ -13,7 +13,7 @@ export function assertLocalBrowserAuditTarget(
     throw new Error("[Browser Audit safety] Invalid E2E_BASE_URL; refusing automated navigation");
   }
 
-  const hostname = target.hostname.replace(/^\\[|\\]$/g, "").toLowerCase();
+  const hostname = target.hostname.toLowerCase() === "[::1]" ? "::1" : target.hostname.toLowerCase();
   if (
     !["http:", "https:"].includes(target.protocol) ||
     !["127.0.0.1", "localhost", "::1"].includes(hostname) ||
