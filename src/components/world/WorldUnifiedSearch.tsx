@@ -9,13 +9,17 @@ import {
   fetchWorldUnifiedSearch,
   verifiedWorldSearchTerm,
   WORLD_UNIFIED_SEARCH_LIMIT,
+  WORLD_UNIFIED_SEARCH_MAX_PAGE,
   type WorldSearchCountry,
 } from "@/lib/terra-world-unified-search";
 import type { WorldOrganization } from "@/lib/terra-world-public";
 
 type Props = {
   term: string;
+  countryPage: number;
+  organizationPage: number;
   onSearch: (term: string) => void;
+  onPagesChange: (countryPage: number, organizationPage: number) => void;
 };
 
 function CountryRow({ country }: { country: WorldSearchCountry }) {
@@ -55,7 +59,39 @@ function OrganizationRow({ organization }: { organization: WorldOrganization }) 
   );
 }
 
-export function WorldUnifiedSearchPage({ term, onSearch }: Props) {
+function ResultPager({
+  label, page, total, onPageChange,
+}: {
+  label: string;
+  page: number;
+  total: number;
+  onPageChange: (page: number) => void;
+}) {
+  const pages = Math.ceil(total / WORLD_UNIFIED_SEARCH_LIMIT);
+  if (pages <= 1 || page >= pages) return null;
+  return (
+    <nav aria-label={label + " result pages"}
+      className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+      <button type="button" disabled={page === 0}
+        onClick={() => onPageChange(page - 1)}
+        className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40">
+        Previous
+      </button>
+      <span role="status" className="text-xs tabular-nums text-muted-foreground">
+        Page {page + 1} of {pages} · {page * WORLD_UNIFIED_SEARCH_LIMIT + 1}–{Math.min((page + 1) * WORLD_UNIFIED_SEARCH_LIMIT, total)} of {total}
+      </span>
+      <button type="button" disabled={page >= pages - 1 || page >= WORLD_UNIFIED_SEARCH_MAX_PAGE}
+        onClick={() => onPageChange(page + 1)}
+        className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40">
+        Next
+      </button>
+    </nav>
+  );
+}
+
+export function WorldUnifiedSearchPage({
+  term, countryPage, organizationPage, onSearch, onPagesChange,
+}: Props) {
   const [draft, setDraft] = useState(term);
 
   useEffect(() => {
@@ -65,13 +101,27 @@ export function WorldUnifiedSearchPage({ term, onSearch }: Props) {
   const normalized = verifiedWorldSearchTerm(term);
   const canSearch = normalized.length >= 2;
   const search = useQuery({
-    queryKey: ["world", "public", "unified-search", normalized],
-    queryFn: () => fetchWorldUnifiedSearch(normalized),
+    queryKey: ["world", "public", "unified-search", normalized, countryPage, organizationPage],
+    queryFn: () => fetchWorldUnifiedSearch(normalized, countryPage, organizationPage),
     enabled: canSearch,
     staleTime: 90_000,
     retry: false,
   });
   const visible = canSearch && search.isSuccess ? search.data : null;
+
+  // Recover both page positions in a single navigation when search results
+  // shrink after publication changes. Never render a false zero-results page.
+  useEffect(() => {
+    if (!visible) return;
+    const lastCountryPage = Math.max(0, Math.ceil(visible.countryTotal / WORLD_UNIFIED_SEARCH_LIMIT) - 1);
+    const lastOrganizationPage = Math.max(0, Math.ceil(visible.organizationTotal / WORLD_UNIFIED_SEARCH_LIMIT) - 1);
+    if (countryPage > lastCountryPage || organizationPage > lastOrganizationPage) {
+      onPagesChange(
+        Math.min(countryPage, lastCountryPage),
+        Math.min(organizationPage, lastOrganizationPage),
+      );
+    }
+  }, [visible, countryPage, organizationPage, onPagesChange]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -175,14 +225,13 @@ export function WorldUnifiedSearchPage({ term, onSearch }: Props) {
               </div>
               {visible.countries.length ? (
                 <div>{visible.countries.map((item) => <CountryRow key={item.id} country={item} />)}</div>
+              ) : countryPage > 0 && visible.countryTotal > 0 ? (
+                <p role="status" className="py-5 text-sm text-muted-foreground">Updating country results…</p>
               ) : (
                 <p className="py-5 text-sm text-muted-foreground">No matching countries.</p>
               )}
-              {visible.countryTotal > WORLD_UNIFIED_SEARCH_LIMIT ? (
-                <p className="pt-3 text-xs text-muted-foreground">
-                  Showing the first {WORLD_UNIFIED_SEARCH_LIMIT} of {visible.countryTotal} matching countries.
-                </p>
-              ) : null}
+              <ResultPager label="Country" page={countryPage} total={visible.countryTotal}
+                onPageChange={(next) => onPagesChange(next, organizationPage)} />
             </section>
 
             <section className="mt-9" aria-labelledby="world-search-organizations">
@@ -194,14 +243,13 @@ export function WorldUnifiedSearchPage({ term, onSearch }: Props) {
               </div>
               {visible.organizations.length ? (
                 <div>{visible.organizations.map((item) => <OrganizationRow key={item.id} organization={item} />)}</div>
+              ) : organizationPage > 0 && visible.organizationTotal > 0 ? (
+                <p role="status" className="py-5 text-sm text-muted-foreground">Updating organization results…</p>
               ) : (
                 <p className="py-5 text-sm text-muted-foreground">No matching organizations.</p>
               )}
-              {visible.organizationTotal > WORLD_UNIFIED_SEARCH_LIMIT ? (
-                <p className="pt-3 text-xs text-muted-foreground">
-                  Showing the first {WORLD_UNIFIED_SEARCH_LIMIT} of {visible.organizationTotal} matching organizations.
-                </p>
-              ) : null}
+              <ResultPager label="Organization" page={organizationPage} total={visible.organizationTotal}
+                onPageChange={(next) => onPagesChange(countryPage, next)} />
             </section>
           </div>
         ) : null}
