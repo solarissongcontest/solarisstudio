@@ -56,6 +56,8 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
     expect(desktop).toContain("useState(collapsible && !activeIsAdvanced)");
     expect(desktop).toContain("if (activeIsAdvanced) setCollapsed(false);");
     expect(desktop).toContain("onToggle={(event) => setOpen(event.currentTarget.open)}");
+    expect(desktop).toContain('if (event.key !== "Escape" || !open) return;');
+    expect(desktop).toContain('event.currentTarget.querySelector("summary")?.focus()');
     expect(desktop).toContain("<summary");
     expect(css).toContain(".public-site-sidebar details > summary:focus-visible");
     expect(css).toContain(".public-mobile-section-link:focus-visible");
