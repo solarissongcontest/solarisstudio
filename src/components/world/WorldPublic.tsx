@@ -200,7 +200,15 @@ export function WorldDirectory() {
     staleTime: 90_000,
     retry: false,
   });
-  const total = directory.data?.total ?? 0;
+  // The directory may retain its last successful page while an authoritative
+  // background recheck is in progress or has failed. Do not display stale rows.
+  const verifiedDirectory = worldPublicQueryVerified(directory) ? directory.data : null;
+  const total = verifiedDirectory?.total ?? 0;
+  useEffect(() => {
+    if (!verifiedDirectory || page === 0) return;
+    const lastPage = Math.max(0, Math.ceil(verifiedDirectory.total / WORLD_DIRECTORY_PAGE_SIZE) - 1);
+    if (page > lastPage) setPage(lastPage);
+  }, [page, verifiedDirectory]);
   return (
     <PublicFrame>
       <Link to="/world" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
@@ -238,16 +246,18 @@ export function WorldDirectory() {
         </label>
       </div>
       <div className="mt-6" aria-live="polite">
-        {directory.isPending ? <LoadingWorld label="Searching public organizations" /> : null}
-        {directory.isError ? <QueryFailure message="Search could not be completed. Your filters are still here." retry={() => void directory.refetch()} /> : null}
-        {directory.isSuccess ? (
+        {!(directory.isError || directory.isRefetchError) && (directory.isPending || directory.isFetching)
+          ? <LoadingWorld label="Verifying public organizations" /> : null}
+        {directory.isError || directory.isRefetchError
+          ? <QueryFailure message="Search could not be verified. Your filters are still here." retry={() => void directory.refetch()} /> : null}
+        {verifiedDirectory ? (
           <>
             <p className="text-sm text-muted-foreground">
               {total} {total === 1 ? "organization" : "organizations"} found
             </p>
-            {directory.data.organizations.length ? (
+            {verifiedDirectory.organizations.length ? (
               <div className="mt-3 divide-y divide-border">
-                {directory.data.organizations.map((organization) =>
+                {verifiedDirectory.organizations.map((organization) =>
                   <OrganizationRow key={organization.id} organization={organization} />)}
               </div>
             ) : (
