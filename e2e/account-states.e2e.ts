@@ -376,7 +376,8 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await page.waitForTimeout(100);
     const dockClearance = await page.evaluate(() => {
-      const dock = document.querySelector<HTMLElement>("[data-v3-liquid-tabbar]");
+      // Installed V3 now owns one canonical AppTabBar, never the legacy LiquidTabBar.
+      const dock = document.querySelector<HTMLElement>(".solaris-app-tabbar[data-layout='bar']");
       const spacer = document.querySelector<HTMLElement>("[data-v3-legacy-bottom-clearance]");
       const lastCard =
         document.querySelector<HTMLElement>(".v3-countries-regions > button:last-child") ??
