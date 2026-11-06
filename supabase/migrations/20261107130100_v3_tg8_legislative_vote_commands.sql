@@ -146,10 +146,10 @@ begin
     v_at,p_closes_at,v_operation_id
   ) returning id into v_vote_id;
 
-  insert into public.world_vote_electorate(
+  insert into public.world_vote_eligibility(
     vote_id,country_id,membership_id,membership_revision,
     representation_id,representation_revision,representative_person_id,
-    proxy_id,proxy_revision,captured_at
+    proxy_id,proxy_revision,snapshotted_at
   )
   select v_vote_id,m.country_id,m.id,m.revision,rep.id,rep.revision,rep.person_id,
     proxy.id,proxy.revision,v_at
@@ -164,7 +164,7 @@ begin
    and proxy.valid_from<=v_at and proxy.valid_until>v_at
   where m.organization_id=v_measure.organization_id
     and m.status='member' and m.joined_at<=v_at and m.ended_at is null;
-  if (select count(*) from public.world_vote_electorate where vote_id=v_vote_id)
+  if (select count(*) from public.world_vote_eligibility where vote_id=v_vote_id)
       <>v_member_count then
     raise exception using errcode='23514',message='ELECTORATE_SNAPSHOT_INCONSISTENT';
   end if;
@@ -195,7 +195,7 @@ create or replace function private.world_vote_cast_authorized_v1(
 ) returns boolean language sql stable security definer set search_path=pg_catalog
 as $actor$
   select exists(
-    select 1 from public.world_vote_electorate seat
+    select 1 from public.world_vote_eligibility seat
     join public.world_votes vote on vote.id=seat.vote_id
     join public.world_organization_memberships membership
       on membership.id=seat.membership_id
@@ -236,7 +236,7 @@ create or replace function public.world_cast_ballot_v1(
 as $cast_vote$
 declare
   v_vote public.world_votes%rowtype;
-  v_seat public.world_vote_electorate%rowtype;
+  v_seat public.world_vote_eligibility%rowtype;
   v_claim jsonb;
   v_operation_id uuid;
   v_result jsonb;
@@ -266,7 +266,7 @@ begin
   -- Shared lock allows parallel country submissions but blocks certification.
   select * into v_vote from public.world_votes where id=p_vote_id for share;
   if v_vote.id is null then raise exception using errcode='42501',message='BALLOT_UNAVAILABLE'; end if;
-  select * into v_seat from public.world_vote_electorate
+  select * into v_seat from public.world_vote_eligibility
   where vote_id=p_vote_id and country_id=p_country_id;
   if v_seat.vote_id is null then
     raise exception using errcode='42501',message='NOT_ELIGIBLE';
@@ -306,13 +306,15 @@ begin
   if v_vote.status<>'open' or v_vote.revision<>p_expected_vote_revision
      or v_at<v_vote.opened_at or v_at>=v_vote.closes_at
   then raise exception using errcode='40001',message='VOTE_CLOSED_OR_CHANGED'; end if;
-  if exists(select 1 from private.world_legislative_ballots
+  if exists(select 1 from private.world_ballots
       where vote_id=p_vote_id and country_id=v_seat.country_id)
   then raise exception using errcode='23505',message='BALLOT_ALREADY_CAST'; end if;
 
-  insert into private.world_legislative_ballots(
-    vote_id,country_id,choice,cast_by_user_id,cast_by_proxy_id,operation_id,cast_at
-  ) values(p_vote_id,v_seat.country_id,p_choice,v_actor,v_seat.proxy_id,v_operation_id,v_at);
+  insert into private.world_ballots(
+    vote_id,country_id,representation_id,choice,cast_by_user_id,
+    cast_by_proxy_id,operation_id,receipt_id,cast_at
+  ) values(p_vote_id,v_seat.country_id,v_seat.representation_id,p_choice,
+    v_actor,v_seat.proxy_id,v_operation_id,v_operation_id,v_at);
 
   -- The event must not contain the choice, private login ID or proxy identity.
   perform private.v3_emit_domain_event(
@@ -371,7 +373,7 @@ begin
   if v_vote.status<>'open' or v_vote.revision<>p_expected_vote_revision
      or v_at<v_vote.closes_at
   then raise exception using errcode='40001',message='VOTE_NOT_CLOSED_OR_CHANGED'; end if;
-  if (select count(*) from public.world_vote_electorate where vote_id=p_vote_id)
+  if (select count(*) from public.world_vote_eligibility where vote_id=p_vote_id)
       <> v_vote.electorate_count
   then raise exception using errcode='23514',message='FROZEN_ELECTORATE_TAMPERED'; end if;
 
@@ -379,7 +381,7 @@ begin
     count(*) filter(where choice='aye')::bigint as aye,
     count(*) filter(where choice='nay')::bigint as nay,
     count(*) filter(where choice='abstain')::bigint as abstain
-    into v_counts from private.world_legislative_ballots
+    into v_counts from private.world_ballots
   where vote_id=p_vote_id;
 
   v_tally:=private.world_legislative_tally_v1(
