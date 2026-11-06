@@ -1,0 +1,319 @@
+name: V3 S14 cross-system defect sweep
+
+on:
+  # Run once on integration into main; later main commits do not retrigger unless
+  # the diagnostic tooling itself changes.
+  push:
+    branches: [main]
+    paths:
+      - "scripts/v3-s14-runtime-defect-sweep*"
+      - ".github/workflows/v3-s14-runtime-defect-sweep.yml"
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact commit SHA, defaults to current branch SHA
+        required: false
+        type: string
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/v3-s14-runtime-defect-sweep*"
+      - ".github/workflows/v3-s14-runtime-defect-sweep.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  # Replacements of the SAME PR must not each run four disposable databases.
+  # Keep main and explicit-dispatch exact-SHA evidence runs independent.
+  group: s14-defect-sweep-${{ github.event_name == 'pull_request' && github.event.pull_request.number || inputs.candidate_sha || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Fail closed if checkout is not the requested exact SHA
+        env:
+          REQUESTED_SHA: ${{ inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
+          DISPATCH_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$REQUESTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]] ||
+            { echo "::error::An exact 40-character candidate SHA is mandatory"; exit 1; }
+          requested="$(printf '%s' "$REQUESTED_SHA" | tr '[:upper:]' '[:lower:]')"
+          dispatched="$(printf '%s' "$DISPATCH_SHA" | tr '[:upper:]' '[:lower:]')"
+          [[ "$requested" == "$dispatched" ]] ||
+            { echo "::error::Requested SHA must match the selected workflow-dispatch or pull-request commit"; exit 1; }
+          [[ "$(git rev-parse HEAD)" == "$requested" ]] ||
+            { echo "::error::Requested SHA does not match checkout"; exit 1; }
+      - name: Checkout sweep tooling separately from inspected candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: _sweep_tooling
+          fetch-depth: 1
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - run: bun install --frozen-lockfile
+      - name: Collect source, S14 and S15 contracts separately
+        run: |
+          set -uo pipefail
+          mkdir -p sweep
+          bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > sweep/s14-readiness.json
+          s14_rc=$?
+          bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > sweep/s15-readiness.json
+          s15_rc=$?
+          node --test _sweep_tooling/scripts/v3-s14-runtime-defect-sweep.contract.mjs
+          test_rc=$?
+          SWEEP_S14="$s14_rc" SWEEP_S15="$s15_rc" SWEEP_TEST="$test_rc" python3 - <<'PY'
+          import json,os,subprocess
+          sha=subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip().lower()
+          checks=[{"id":"s14-readiness","exitCode":int(os.environ["SWEEP_S14"])},
+                  {"id":"s15-inventory","exitCode":int(os.environ["SWEEP_S15"])},
+                  {"id":"sweep-contracts","exitCode":int(os.environ["SWEEP_TEST"])}]
+          with open("sweep/checks-static.json","w") as f: json.dump({"candidateSha":sha,"checks":checks},f)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sweep-static-${{ github.run_id }}
+          path: sweep/
+          if-no-files-found: error
+
+  runtime:
+    # Playwright's pinned browser revision supports Ubuntu 24.04, not the
+    # newer ubuntu-latest image that can resolve to 26.04.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [full-contest, archive, deadline, televote-truth]
+    env:
+      V3_VERIFICATION_TARGET: local
+      V3_SEED_TARGET: local
+      V3_CLEANUP_TARGET: local
+      V3_DESTRUCTIVE_VERIFICATION: "1"
+      V3_SERVICE_ROLE_SCOPE: local
+      V3_S14_ALLOW_PARTIAL: "0"
+      V3_S14_REQUIRE_COMPLETE: "1"
+      V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
+      LOCAL_SUPABASE_URL: http://127.0.0.1:54321
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Fail closed if checkout is not the requested exact SHA
+        env:
+          REQUESTED_SHA: ${{ inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
+          DISPATCH_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$REQUESTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]] ||
+            { echo "::error::An exact 40-character candidate SHA is mandatory"; exit 1; }
+          requested="$(printf '%s' "$REQUESTED_SHA" | tr '[:upper:]' '[:lower:]')"
+          dispatched="$(printf '%s' "$DISPATCH_SHA" | tr '[:upper:]' '[:lower:]')"
+          [[ "$requested" == "$dispatched" ]] ||
+            { echo "::error::Requested SHA must match the selected workflow-dispatch or pull-request commit"; exit 1; }
+          [[ "$(git rev-parse HEAD)" == "$requested" ]] ||
+            { echo "::error::Requested SHA does not match checkout"; exit 1; }
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - run: bun install --frozen-lockfile
+      # The complete S14 Grand Final executes Playwright Chromium. Only this
+      # matrix lane needs the matching browser; other lanes remain lightweight.
+      - name: Install Chromium for full contest
+        if: matrix.lane == 'full-contest'
+        run: bunx playwright install --with-deps chromium
+      - name: Execute isolated local scenario and preserve failure evidence
+        env:
+          LANE: ${{ matrix.lane }}
+        run: |
+          set -uo pipefail
+          mkdir -p sweep
+          rc=90
+          export V3_CANDIDATE_SHA="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          # Start, reset AND health inspection are one disposable local bootstrap.
+          # A successful reset may still lose its container before status checks.
+          # Retry that complete local sequence ONCE; never fall back to hosted data.
+          local_ready=false
+          for attempt in 1 2; do
+            if supabase start && supabase db reset --local --no-seed && status_env="$(supabase status -o env)"; then
+              local_ready=true
+              break
+            fi
+            echo "::warning::Disposable local Supabase start/reset/status attempt $attempt failed"
+            supabase stop --no-backup || true
+            if [[ "$attempt" == "1" ]]; then sleep 8; fi
+          done
+          if [[ "$local_ready" == true ]]; then
+            # Do not eval an empty/failed CLI response or launch an S14 subprocess.
+            eval "$status_env"
+            # The CLI reports shell variables; export only for the local-only Node guard.
+            # Without these exports every lane fails before its actual rehearsal starts.
+            export API_URL DB_URL ANON_KEY SERVICE_ROLE_KEY
+            export VITE_SUPABASE_URL="$API_URL" SUPABASE_URL="$API_URL" E2E_SUPABASE_URL="$API_URL"
+            export VITE_CONFIRMATIONS_SUPABASE_URL="$API_URL" CONFIRMATIONS_SUPABASE_URL="$API_URL"
+            export DATABASE_URL="$DB_URL" SUPABASE_PROJECT_ID=local SUPABASE_PROJECT_REF=local
+            export E2E_SUPABASE_PROJECT_ID=local E2E_SUPABASE_PROJECT_REF=local
+            export VITE_SUPABASE_PROJECT_ID=local VITE_SUPABASE_PROJECT_REF=local
+            if node -e 'for(const k of ["API_URL","DB_URL"]){const u=process.env[k];if(!u||!["localhost","127.0.0.1"].includes(new URL(u).hostname))throw Error("Not local: "+k)};for(const k of ["ANON_KEY","SERVICE_ROLE_KEY"]){if(!process.env[k])throw Error("Missing disposable local Supabase credential: "+k)}; for(const k of ["VITE_SUPABASE_URL","SUPABASE_URL","E2E_SUPABASE_URL","VITE_CONFIRMATIONS_SUPABASE_URL","CONFIRMATIONS_SUPABASE_URL"]){const u=process.env[k];if(!u||!["localhost","127.0.0.1"].includes(new URL(u).hostname))throw Error("Refusing audit server with hosted Supabase URL: "+k)};const base=process.env.E2E_BASE_URL;if(base&&!["localhost","127.0.0.1"].includes(new URL(base).hostname))throw Error("Refusing nonlocal audit server: E2E_BASE_URL")' &&
+              bun run scripts/check-v3-production-isolation.ts; then
+              # GitHub invokes this step with bash -e. A failing child process
+              # would otherwise abort before rc is saved, replacing a real
+              # semantic failure with the missing-evidence preflight sentinel.
+              # Keep each isolated child strict; capture its *actual* exit code.
+              case "$LANE" in
+                full-contest)
+                  if bash .github/scripts/v3-full-contest-rehearsal.sh; then
+                    rc=0
+                  else
+                    rc=$?
+                  fi ;;
+                archive)
+                  if bash .github/scripts/v3-s14-archive-system-rehearsal.sh &&
+                    bash .github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh &&
+                    bash .github/scripts/v3-s14-archive-guard-rehearsal.sh &&
+                    bash .github/scripts/v3-s14-archive-delete-guard-rehearsal.sh &&
+                    bash .github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh; then
+                    rc=0
+                  else
+                    rc=$?
+                  fi ;;
+                deadline)
+                  if bash .github/scripts/v3-s14-televote-deadline-extension-rehearsal.sh; then
+                    rc=0
+                  else
+                    rc=$?
+                  fi ;;
+                televote-truth)
+                  if bash .github/scripts/v3-s14-televote-result-truth-rehearsal.sh &&
+                    bash .github/scripts/v3-s14-televote-result-truth-replay-hardening-rehearsal.sh; then
+                    rc=0
+                  else
+                    rc=$?
+                  fi ;;
+                *) rc=92 ;;
+              esac
+            else
+              echo "::error::Production-isolation verification failed, no hosted fallback"
+              rc=91
+            fi
+          else
+            echo "::error::Disposable local Supabase failed, no hosted fallback"
+          fi
+          SWEEP_RC="$rc" python3 - <<'PY'
+          import json,os,subprocess
+          lane=os.environ["LANE"]
+          rc=int(os.environ["SWEEP_RC"])
+          sha=subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip().lower()
+          with open("sweep/runtime-"+lane+".json","w") as f:
+            json.dump({"candidateSha":sha,"lane":lane,"exitCode":rc,"status":"passed" if rc==0 else "blocked-preflight" if rc in (90,91,92) else "failed"},f)
+          print("Local rehearsal",lane,"exit",rc)
+          PY
+          if [[ "$LANE" == "full-contest" ]]; then
+            for file in v3-release-evidence/s14-full-contest.json v3-release-evidence/s14-full-contest.partial.json; do
+              [[ ! -f "$file" ]] || cp "$file" sweep/
+            done
+          fi
+          exit 0
+      - name: Preserve missing runtime evidence after unexpected step abort
+        if: always()
+        env:
+          LANE: ${{ matrix.lane }}
+        run: |
+          set -euo pipefail
+          mkdir -p sweep
+          if [[ ! -s "sweep/runtime-${LANE}.json" ]]; then
+            # Sentinel 93 describes lost evidence, NOT the interrupted shell exit.
+            # A missing runtime report must never be mistaken for S14 success.
+            python3 - "$LANE" <<'PY'
+          import json, subprocess, sys
+          lane = sys.argv[1]
+          sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip().lower()
+          with open("sweep/runtime-" + lane + ".json", "w") as evidence:
+              json.dump({
+                  "candidateSha": sha, "lane": lane, "exitCode": 93,
+                  "status": "blocked-preflight",
+                  "reason": "Scenario step ended before writing runtime evidence; 93 is an evidence sentinel, not its actual exit status"
+              }, evidence)
+          PY
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sweep-${{ matrix.lane }}-${{ github.run_id }}
+          path: sweep/
+          if-no-files-found: error
+      - name: Stop disposable local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  report:
+    needs: [static, runtime]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Fail closed if checkout is not the requested exact SHA
+        env:
+          REQUESTED_SHA: ${{ inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
+          DISPATCH_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$REQUESTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]] ||
+            { echo "::error::An exact 40-character candidate SHA is mandatory"; exit 1; }
+          requested="$(printf '%s' "$REQUESTED_SHA" | tr '[:upper:]' '[:lower:]')"
+          dispatched="$(printf '%s' "$DISPATCH_SHA" | tr '[:upper:]' '[:lower:]')"
+          [[ "$requested" == "$dispatched" ]] ||
+            { echo "::error::Requested SHA must match the selected workflow-dispatch or pull-request commit"; exit 1; }
+          [[ "$(git rev-parse HEAD)" == "$requested" ]] ||
+            { echo "::error::Requested SHA does not match checkout"; exit 1; }
+      - name: Checkout sweep tooling separately from inspected candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: _sweep_tooling
+          fetch-depth: 1
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sweep-*-${{ github.run_id }}
+          path: sweep-data/sweep
+          merge-multiple: true
+      - name: Consolidate all independent findings
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          node _sweep_tooling/scripts/v3-s14-runtime-defect-sweep.mjs --candidate "$sha" --tool-sha "$(git -C _sweep_tooling rev-parse HEAD)" --evidence-dir sweep-data/sweep --json sweep-report.json --markdown sweep-report.md
+          cat sweep-report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sweep-report-${{ github.run_id }}
+          path: |
+            sweep-report.json
+            sweep-report.md
+          if-no-files-found: error
+      - name: Fail closed on missing proof or confirmed failures
+        run: |
+          set -euo pipefail
+          node _sweep_tooling/scripts/v3-s14-runtime-defect-sweep.mjs \
+            --candidate "$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')" \
+            --tool-sha "$(git -C _sweep_tooling rev-parse HEAD)" --evidence-dir sweep-data/sweep --json sweep-report.json \
+            --markdown sweep-report.md --require-runtime-clean
