@@ -163,6 +163,10 @@ describe("WORLD-03 TG5C voluntary membership withdrawal", () => {
     expect(migration).toContain("term_row.actual_end_at is null");
     expect(migration).toContain("term_row.represented_country_id = p_country_id");
     expect(migration).toContain("controller_term.person_id = term_row.holder_person_id");
+    expect(migration).toContain("controller_term.started_at <= now()");
+    expect(migration).toContain("controller_term.ended_at is null");
+    expect(migration).toContain("representation_row.starts_at <= now()");
+    expect(migration).toContain("representation_row.ends_at is null");
     expect(migration).toContain("representation_row.person_id = term_row.holder_person_id");
     expect(migration).toContain("'OFFICE_TRANSITION_REQUIRED'");
     expect(migration).not.toMatch(/insert into public\.world_office_terms/i);
