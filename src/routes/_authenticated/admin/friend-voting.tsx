@@ -14,6 +14,7 @@ import {
 import { useMemo, useState } from "react";
 
 import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import {
   getFriendVotingCoordination,
   getLightweightFriendVotingIntelligence,
@@ -35,6 +36,7 @@ export const Route = createFileRoute("/_authenticated/admin/friend-voting")({
 });
 
 function FriendVotingPage() {
+  const actorId = useAuthenticatedUser().id;
   const getIntelligence = useServerFn(getLightweightFriendVotingIntelligence);
   const getCoordination = useServerFn(getFriendVotingCoordination);
   const { data: editions = [] } = useEditions();
@@ -57,7 +59,7 @@ function FriendVotingPage() {
   const scopedEditionId = editionId === ALL_EDITIONS ? null : editionId || null;
 
   const intelligence = useQuery({
-    queryKey: ["friend-voting-complete", lens, channel, hodPersonId ?? "all-hods", scopedEditionId ?? "all-editions"],
+    queryKey: ["friend-voting-complete", actorId, lens, channel, hodPersonId ?? "all-hods", scopedEditionId ?? "all-editions"],
     queryFn: async () => {
       const result = await getIntelligence({
         data: { lens, channel, hodPersonId, editionId: scopedEditionId },
@@ -65,12 +67,17 @@ function FriendVotingPage() {
       if (!result) throw new Error("Friend-voting analysis returned no data");
       return result;
     },
-    staleTime: 120_000,
+    enabled: Boolean(actorId),
+    staleTime: 0,
+    gcTime: 0,
     retry: 0,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const coordination = useQuery({
-    queryKey: ["friend-voting-network", channel, hodPersonId ?? "all-hods", scopedEditionId ?? "all-editions"],
+    queryKey: ["friend-voting-network", actorId, channel, hodPersonId ?? "all-hods", scopedEditionId ?? "all-editions"],
     queryFn: async () => {
       const result = await getCoordination({
         data: { lens: "hod", channel, hodPersonId, editionId: scopedEditionId },
@@ -78,9 +85,13 @@ function FriendVotingPage() {
       if (!result) throw new Error("Network analysis returned no data");
       return result;
     },
-    enabled: tab === "network" && lens === "hod",
-    staleTime: 120_000,
+    enabled: Boolean(actorId) && tab === "network" && lens === "hod",
+    staleTime: 0,
+    gcTime: 0,
     retry: 0,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const data = intelligence.data;
