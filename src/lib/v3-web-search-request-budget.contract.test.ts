@@ -32,7 +32,8 @@ describe("V3 web global Search request budget", () => {
     const archive = section("function WebSearchArchiveResults", "function renderSearchGroups");
 
     expect(archive).toContain("useAllShows()");
-    expect(archive).toContain("useAllParticipants()");
+    expect(archive).toContain("usePublicSearchParticipants()");
+    expect(archive).not.toContain("useAllParticipants()");
     expect(archive).toContain("useAllResults()");
     expect(archive).toContain("useAllJuryVotes()");
     expect(archive).toContain("loadPublicStorylines(40)");
