@@ -7,7 +7,7 @@ test("TG19 historical GAG provenance preflight passes its offline fail-closed co
     process.cwd(),
     "scripts/__tests__/world-gag-import-preflight.test.mjs",
   );
-  const result = spawnSync(process.execPath, ["--test", contractPath], {
+  const result = spawnSync("node", ["--test", contractPath], {
     cwd: process.cwd(),
     encoding: "utf8",
     timeout: 20_000,
