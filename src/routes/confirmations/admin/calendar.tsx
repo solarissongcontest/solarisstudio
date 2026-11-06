@@ -111,7 +111,7 @@ function CalendarPage() {
   const error = editionsQuery.error || readAccessQuery.error || calendarQuery.error;
   const verifiedRows = Boolean(editionId) && hasReadAccess && calendarQuery.isSuccess
     && !calendarQuery.isFetching && !calendarQuery.error;
-  const rows = verifiedRows ? calendarQuery.data : [];
+  const rows = verifiedRows ? (calendarQuery.data ?? []) : [];
 
   const { dated, undated } = useMemo(() => {
     const items = buildItems(rows);

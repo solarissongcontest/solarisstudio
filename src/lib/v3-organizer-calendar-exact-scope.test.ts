@@ -50,13 +50,13 @@ describe("Organizer Delegation Calendar exact actor/edition/round read contract"
   });
 
   it.each([
-    [{ ...row, edition_id: "edition-2" }, "edition-1", null],
-    [{ ...row, round_id: "round-2" }, "edition-1", "round-1"],
-    [{ ...row, participating: null }, "edition-1", null],
-    [{ ...row, id: "" }, "edition-1", null],
-    [{ ...row, country: "" }, "edition-1", null],
-  ])("rejects malformed or foreign rows (%j)", async (bad, editionId, roundId) => {
-    await expect(loadExactOrganizerConfirmationCalendar({ editionId, roundId }, mockClient([bad]))).rejects.toThrow(/cross-scope data/);
+    { data: { ...row, edition_id: "edition-2" }, scope: { editionId: "edition-1" } },
+    { data: { ...row, round_id: "round-2" }, scope: { editionId: "edition-1", roundId: "round-1" } },
+    { data: { ...row, participating: null }, scope: { editionId: "edition-1" } },
+    { data: { ...row, id: "" }, scope: { editionId: "edition-1" } },
+    { data: { ...row, country: "" }, scope: { editionId: "edition-1" } },
+  ])("rejects malformed or foreign rows ($data.id)", async ({ data, scope }) => {
+    await expect(loadExactOrganizerConfirmationCalendar(scope, mockClient([data]))).rejects.toThrow(/cross-scope data/);
   });
 
   it("rejects duplicates, missing rows, and backend errors instead of claiming zero events", async () => {
