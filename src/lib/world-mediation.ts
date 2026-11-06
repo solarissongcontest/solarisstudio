@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { assertTg13CurrentActor } from "@/lib/world-tg13-private-session";
 
 export const MEDIATION_STATES = [
   "requested", "accepted", "open", "negotiating", "settled", "failed",
@@ -130,13 +131,10 @@ function check(error: { message: string } | null): void {
 }
 
 /** Only signed-in parties and explicitly scoped managers ever receive this read. */
-export async function fetchMediationWorkspace(): Promise<MediationWorkspace> {
+export async function fetchMediationWorkspace(expectedUserId: string): Promise<MediationWorkspace> {
   const { data: auth, error: authError } = await supabase.auth.getUser();
   check(authError);
-  if (!auth.user) {
-    return { signedIn: false, requesterCountryId: null,
-      organizations: [], countries: [], cases: [], managedOrganizations: [] };
-  }
+  if (!auth.user || auth.user.id !== expectedUserId) throw new Error("AUTHORIZATION");
   const client = supabase as any;
   const [accountResult, organizationResult, countryResult, caseResult] = await Promise.all([
     client.from("country_accounts").select("country_id")
@@ -162,6 +160,7 @@ export async function fetchMediationWorkspace(): Promise<MediationWorkspace> {
     check(error);
     return data === true ? organization.id : null;
   }));
+  await assertTg13CurrentActor(expectedUserId);
   return {
     signedIn: true,
     requesterCountryId: accountResult.data?.country_id ? uuid(accountResult.data.country_id) : null,
@@ -172,12 +171,14 @@ export async function fetchMediationWorkspace(): Promise<MediationWorkspace> {
   };
 }
 
-export async function fetchMediationHistory(caseId: string): Promise<MediationHistory[]> {
+export async function fetchMediationHistory(caseId: string, expectedUserId: string): Promise<MediationHistory[]> {
+  await assertTg13CurrentActor(expectedUserId);
   const client = supabase as any;
   const { data, error } = await client.from("world_mediation_history")
     .select("id,from_state,to_state,revision,occurred_at,reason")
     .eq("case_id", uuid(caseId)).order("revision", { ascending: true }).limit(100);
   check(error);
+  await assertTg13CurrentActor(expectedUserId);
   return (data ?? []).map(parseMediationHistory);
 }
 
