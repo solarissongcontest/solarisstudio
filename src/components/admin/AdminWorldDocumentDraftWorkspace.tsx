@@ -707,40 +707,52 @@ export function AdminWorldDocumentDraftWorkspace() {
                         <p role="status" className="text-sm">Reading the exact pending version…</p>
                       ) : pendingDraftDetails.isError || !pendingDraftDetails.data?.version ? (
                         <div role="alert" className="space-y-2">
-                          <p>Unpublished text is not available. Do not assume it is empty.</p>
+                          <p>Unpublished text or its revision cannot be verified. Editing is unavailable.</p>
                           <button type="button" className={secondaryClass}
                             onClick={() => void pendingDraftDetails.refetch()}>Retry version read</button>
                         </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <p className="text-xs text-muted-foreground">
-                            Read-only unpublished text · revision {pendingDraftDetails.data.version.revision}
-                          </p>
-                          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-border/60 p-3 font-sans text-sm leading-6">
-                            {pendingDraftDetails.data.version.plainText || "No plain-text body"}
-                          </pre>
-                          <p className="text-sm font-semibold">
-                            {pendingDraftDetails.data.version.provisions.length} preserved structured provisions
-                          </p>
-                          <ul className="max-h-64 space-y-2 overflow-auto text-sm">
-                            {pendingDraftDetails.data.version.provisions.slice(0, 20).map((row) => (
-                              <li key={row.semanticKey}>
-                                <span className="font-medium">{row.displayLabel || row.semanticKey}</span>
-                                {row.heading ? ` · ${row.heading}` : ""}
-                              </li>
-                            ))}
-                          </ul>
-                          {pendingDraftDetails.data.version.provisions.length > 20 && (
-                            <p className="text-xs text-muted-foreground">
-                              Showing the first 20 provisions. No data has been modified.
-                            </p>
-                          )}
+                      ) : !pendingDraftDetails.data.version.sourceProvenance ? (
+                        <p role="alert">Canonical source provenance is missing. Refusing to overwrite the draft.</p>
+                      ) : validateWorldDocumentProvisions(pendingDraftDetails.data.version.provisions) ? (
+                        <div role="alert" className="space-y-2">
+                          <p>The draft exceeds this editor's provision or article-content limits.
+                            Its canonical text remains unchanged.</p>
+                          <p>{validateWorldDocumentProvisions(pendingDraftDetails.data.version.provisions)}</p>
                         </div>
+                      ) : (
+                        <form className="space-y-4" onSubmit={reviewDraftUpdate}>
+                          <p className="text-xs text-muted-foreground">
+                            Editing unpublished version {pendingDraftDetails.data.version.versionNumber}
+                            {" "}· exact revision {pendingDraftDetails.data.version.revision}.
+                            Provenance and effective dates are preserved by the R2 version update.
+                          </p>
+                          <label className="block space-y-1 text-sm">Unpublished version title
+                            <input className={fieldClass} required maxLength={180}
+                              value={draftTitle} disabled={authoringLocked}
+                              onChange={(event) => setDraftTitle(event.target.value)} />
+                          </label>
+                          <label className="block space-y-1 text-sm">Draft plain-text body
+                            <textarea className={fieldClass + " min-h-48 resize-y leading-6"}
+                              required={!draftProvisions.length} maxLength={100000}
+                              value={draftText} disabled={authoringLocked}
+                              onChange={(event) => setDraftText(event.target.value)} />
+                          </label>
+                          <WorldDocumentProvisionEditor
+                            rows={draftProvisions} onChange={setDraftProvisions}
+                            disabled={authoringLocked}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Updating keeps source provenance, structured document metadata,
+                            immutable published predecessors and effective chronology intact.
+                            A separate reviewed publication is still required.
+                          </p>
+                          <button type="submit" className={buttonClass}
+                            disabled={!hasUnsavedDraftEdits || !pendingDraftDetails.data.version.revision ||
+                              Boolean(operation && ["review", "checking", "reconcile"].includes(operation.status))}>
+                            Review changes to unpublished version
+                          </button>
+                        </form>
                       )}
-                      <p className="text-xs text-muted-foreground">
-                        Draft replacement is intentionally disabled until a canonical
-                        read model includes the provenance fields required to preserve all legal content.
-                      </p>
                     </div>
                   ) : snapshot.data.version &&
                       validateWorldDocumentProvisions(snapshot.data.version.provisions) ? (
