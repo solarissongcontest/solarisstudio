@@ -103,6 +103,7 @@ test('multiline verified historical text is accepted without collapsing whitespa
   }, /safe whitespace controls/);
 });
 
+
 test('duplicate JSON keys cannot silently override historical provenance', () => {
   const m = original();
   const base = JSON.stringify(m);
