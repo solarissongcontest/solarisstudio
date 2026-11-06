@@ -23,23 +23,26 @@ const STYLES = `
 
 export function WorldDocumentPrintPage({
   organization, document, version,
-}: { organization: string; document: string; version?: number }) {
+}: { organization: string; document: string; version?: number | null }) {
   const [copy, setCopy] = useState<"idle" | "done" | "error">("idle");
   const valid = isWorldSlug(organization) && isWorldSlug(document) &&
     (version === undefined || (Number.isSafeInteger(version) && version > 0));
   const query = useQuery({
     queryKey: ["v3", "tg4", "public-document-print", organization, document, version ?? "current"],
     enabled: valid,
-    queryFn: () => getWorldDocumentDetail({ organization, document, version }),
+    queryFn: ({ signal }) => getWorldDocumentDetail({ organization, document, version: version ?? undefined }, signal),
     retry: false,
     refetchOnWindowFocus: false,
+    refetchOnMount: "always",
     staleTime: 90_000,
   });
   let sourceError = false;
   let model: ReturnType<typeof buildWorldPublicPrintModel> = null;
-  if (query.isSuccess) {
+  // A cached legal version is not fresh publication authority. Verify after
+  // every mount and hide it during background checks or failed refetches.
+  if (query.isSuccess && query.isFetchedAfterMount && !query.isFetching && !query.isRefetchError) {
     try {
-      model = buildWorldPublicPrintModel(query.data, { organization, document, version });
+      model = buildWorldPublicPrintModel(query.data, { organization, document, version: version ?? undefined });
     } catch {
       sourceError = true;
     }
@@ -61,7 +64,7 @@ export function WorldDocumentPrintPage({
       <div className="world-print-toolbar mx-auto mb-5 flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 sm:px-6">
         <Link to="/world/documents/$organization/$document"
           params={{organization,document}}
-          search={{version}}
+          search={{version: version ?? undefined}}
           className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2">
           <ArrowLeft aria-hidden="true" className="size-4" /> Document reader
         </Link>
@@ -81,14 +84,14 @@ export function WorldDocumentPrintPage({
       </div>
       <main className="world-print-document mx-auto min-h-[60vh] max-w-4xl border border-slate-200 bg-white px-6 py-9 shadow-sm sm:px-12 sm:py-14">
         {!valid ? <p role="alert" className="text-sm">Invalid document link or Version number.</p>
-        : query.isPending ? (
-          <p role="status" className="text-sm">Loading the authorized public legal text…</p>
-        ) : query.isError ? (
+        : query.isError || query.isRefetchError ? (
           <section role="alert" className="space-y-3">
             <h1 className="text-xl font-bold">The legal text could not be verified</h1>
             <p className="text-sm">The public document service may be unavailable. Nothing will be printed without canonical source data.</p>
             <button onClick={() => void query.refetch()} className="world-print-actions min-h-11 rounded-xl border border-slate-300 px-4 text-sm" type="button">Retry</button>
           </section>
+        ) : query.isPending || query.isFetching || !query.isFetchedAfterMount ? (
+          <p role="status" className="text-sm">Verifying the latest published legal text…</p>
         ) : sourceError || !model ? (
           <p role="status" className="text-sm">This document or Version is not publicly available for archival printing.</p>
         ) : (
@@ -112,6 +115,11 @@ export function WorldDocumentPrintPage({
                     <section key={article.id} className="world-print-article border-b border-slate-200 pb-7 last:border-b-0">
                       {article.label && <p className="text-xs font-bold uppercase tracking-wider text-slate-600">{article.label}</p>}
                       {article.heading && <h2 className="mt-1 text-lg font-bold leading-7">{article.heading}</h2>}
+                      {article.status !== "active" ? (
+                        <p className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-800">
+                          {article.status === "repealed" ? "Repealed provision" : "Omitted provision"}
+                        </p>
+                      ) : null}
                       <p className="mt-3 whitespace-pre-wrap break-words text-[15px] leading-7">
                         {article.text || "No text recorded for this provision."}
                       </p>
