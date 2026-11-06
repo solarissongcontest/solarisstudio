@@ -24,4 +24,5 @@ case "$DB_URL" in
   *) fail "DB_URL is not local disposable Supabase Postgres" ;;
 esac
 PGCONNECT_TIMEOUT=5 timeout 120s psql "$DB_URL" --no-psqlrc -v ON_ERROR_STOP=1 \
-  -f "$SCRIPT_DIR/rehearse-v3-world-legislative-votes.sql"
+  -f "$SCRIPT_DIR/rehearse-v3-world-legislative-votes.sql" \
+  -f "$SCRIPT_DIR/rehearse-v3-world-legislative-votes-checks.sql"
