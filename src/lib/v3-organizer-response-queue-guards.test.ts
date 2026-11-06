@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   assertOrganizerResponsePageContinuity,
+  assertOrganizerResponsePageDisjoint,
   safeOrganizerResponseSongUrl,
   assertOrganizerNextInLineRowsInScope,
   assertOrganizerResponseRowsInEdition,
@@ -34,6 +35,35 @@ describe("Organizer Confirmation response queue page guards", () => {
     } catch (error) {
       expect(error).toMatchObject({ status: 409 });
     }
+  });
+  it("rejects repeated response IDs across pages without replacing old review evidence", () => {
+    const oldPage = [{ id: "response-1" }, { id: "response-2" }];
+    expect(() => assertOrganizerResponsePageDisjoint(oldPage, [
+      { id: "response-2" },
+    ])).toThrow(/repeated an earlier response/);
+    expect(() => assertOrganizerResponsePageDisjoint(oldPage, [
+      { id: "response-3" }, { id: "response-3" },
+    ])).toThrow(/repeated an earlier response/);
+    try {
+      assertOrganizerResponsePageDisjoint(oldPage, [{ id: "response-1" }]);
+      throw new Error("expected conflict");
+    } catch (error) {
+      expect(error).toMatchObject({ status: 409 });
+    }
+  });
+  it("allows only unique new response IDs and does not mutate incoming records", () => {
+    const previous = [{ id: "response-1" }];
+    const incoming = [{ id: "response-2" }, { id: "response-3" }];
+    expect(() => assertOrganizerResponsePageDisjoint(previous, incoming)).not.toThrow();
+    expect(incoming).toEqual([{ id: "response-2" }, { id: "response-3" }]);
+  });
+  it("rejects empty continuing pages and never silently overwrites older entries", () => {
+    const route = readFileSync(resolve(process.cwd(),
+      "src/routes/confirmations/admin/responses.tsx"), "utf8");
+    expect(route).toContain("assertOrganizerResponsePageDisjoint(rows, newRows)");
+    expect(route).toContain("if (page.page.hasMore && newRows.length === 0)");
+    expect(route).toContain("setRows((current) => [...current, ...newRows]);");
+    expect(route).not.toContain("newRows.forEach((row) => byId.set(row.id, row));");
   });
   it("allows ordinary and signed HTTP(S) source links", () => {
     expect(safeOrganizerResponseSongUrl("https://song.example.test/entry.mp3?token=opaque")).toBe(
