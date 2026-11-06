@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
+import * as ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const BROWSER_SOURCE_ROOT = join(process.cwd(), "src");
@@ -93,35 +94,60 @@ function browserSourceFiles(directory: string): string[] {
   });
 }
 
-function directCriticalWrites(path: string): DirectWrite[] {
-  const source = readFileSync(path, "utf8");
-  const writes: DirectWrite[] = [];
-  const fromPattern = /\.from\(\s*["']([A-Za-z0-9_]+)["']\s*\)/g;
 
-  for (const match of source.matchAll(fromPattern)) {
-    const table = match[1];
-    if (!CRITICAL_CANONICAL_TABLES.has(table)) continue;
-
-    const afterFrom = (match.index ?? 0) + match[0].length;
-    const remaining = source.slice(afterFrom);
-    const nextFromOffset = remaining.search(/\.from\(\s*["']/);
-    const chain = nextFromOffset >= 0 ? remaining.slice(0, nextFromOffset) : remaining;
-    const mutation = chain.match(/\.(insert|update|delete|upsert)\s*\(/);
-    if (!mutation) continue;
-
-    const method = mutation[1] as DirectWrite["method"];
-    const mutationOffset = afterFrom + (mutation.index ?? 0);
-    const line = source.slice(0, mutationOffset).split("\n").length;
-
-    writes.push({
-      file: normalizedRepoPath(path),
-      table,
-      method,
-      line,
-    });
+/**
+ * Read only the actual call chain. Text searching until the next .from()
+ * wrongly attributes an unrelated later update() to an earlier SELECT.
+ * A syntax tree also handles multiline and nested calls without crossing
+ * statement boundaries.
+ */
+function tableInMutationReceiver(expression: ts.Expression): string | null {
+  let receiver = expression;
+  while (ts.isCallExpression(receiver) && ts.isPropertyAccessExpression(receiver.expression)) {
+    const invoked = receiver.expression;
+    if (
+      invoked.name.text === "from" &&
+      receiver.arguments.length === 1 &&
+      ts.isStringLiteral(receiver.arguments[0])
+    ) {
+      return receiver.arguments[0].text;
+    }
+    receiver = invoked.expression;
   }
+  return null;
+}
 
+function directCriticalWritesInSource(source: string, file: string): DirectWrite[] {
+  const ast = ts.createSourceFile(
+    file, source, ts.ScriptTarget.Latest, true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const writes: DirectWrite[] = [];
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+      const method = node.expression.name.text;
+      if (method === "insert" || method === "update" || method === "delete" || method === "upsert") {
+        const table = tableInMutationReceiver(node.expression.expression);
+        if (table && CRITICAL_CANONICAL_TABLES.has(table)) {
+          writes.push({
+            file,
+            table,
+            method,
+            line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1,
+          });
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+
+  visit(ast);
   return writes;
+}
+
+function directCriticalWrites(path: string): DirectWrite[] {
+  return directCriticalWritesInSource(readFileSync(path, "utf8"), normalizedRepoPath(path));
 }
 
 function newlyIntroducedCriticalWrites(writes: readonly DirectWrite[]): DirectWrite[] {
@@ -153,6 +179,27 @@ describe("V3 critical browser-mutation regression guard", () => {
           ].join("\n")
         : undefined,
     ).toEqual([]);
+  });
+
+
+  it("attributes mutations only to their actual AST chain, not later unrelated calls", () => {
+    const source = [
+      "const readonly = await db.from('editions').select('id');",
+      "unrelated.update({ status: 'not a database update' });",
+      "const showWrite = db.from('shows')",
+      "  .update({ status: 'live' })",
+      "  .eq('id', showId);",
+      "const voteWrite = db.schema('public').from('televote_votes').insert([{ id: voteId }]);",
+      "db.from('jury_votes').delete().eq('id', juryId);",
+    ].join("\n");
+    const writes = directCriticalWritesInSource(source, "src/contract.ts");
+    expect(writes.map((write) => [write.table, write.method, write.line])).toEqual([
+      ["shows", "update", 4],
+      ["televote_votes", "insert", 6],
+      ["jury_votes", "delete", 7],
+    ]);
+    // No baseline exists for new files, including now-clean official Jury tables.
+    expect(newlyIntroducedCriticalWrites(writes)).toEqual(writes);
   });
 
   it("rejects additional mutations even inside an existing debt file/table", () => {
