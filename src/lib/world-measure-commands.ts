@@ -24,7 +24,7 @@ export type WorldMeasureListItem = {
   id: string; organizationSlug: string; organName: string; identifier: string;
   shortTitle: string | null; measureType: string; title: string; summary: string | null;
   state: string; sponsorCountryCode: string; categoryCode: string | null;
-  submittedAt: string; registeredAt: string; revision: number;
+  submittedAt: string | null; registeredAt: string; revision: number;
 };
 export type WorldMeasureVersion = {
   id: string; number: number; title: string; text: string; summary: string | null;
@@ -60,7 +60,7 @@ export function parseWorldMeasureListItem(value: unknown): WorldMeasureListItem 
       !optional(value.shortTitle) || !str(value.measureType) || !kinds.has(value.measureType) ||
       !str(value.title) || !optional(value.summary) || !str(value.state) ||
       !states.has(value.state) || !str(value.sponsorCountryCode) ||
-      !optional(value.categoryCode) || !str(value.submittedAt) ||
+      !optional(value.categoryCode) || !optional(value.submittedAt) ||
       !str(value.registeredAt) || !rev(value.revision)) return fail("public list");
   return {
     id: value.id, organizationSlug: value.organizationSlug, organName: value.organName,
@@ -91,7 +91,7 @@ export function parseWorldMeasureDetail(value: unknown): WorldMeasureDetail | nu
     ...value,
     title: currentVersion.title,
     summary: currentVersion.summary,
-    submittedAt: value.registeredAt,
+    submittedAt: null,
   };
   return { ...parseWorldMeasureListItem(list), categoryLabel: value.categoryLabel,
     currentVersion, publishedHistory: history };
