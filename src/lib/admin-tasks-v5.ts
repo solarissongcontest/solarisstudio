@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
+
 import { supabase } from "@/integrations/supabase/client";
 
 export type OrganizerTaskPriority = "critical" | "high" | "normal";
@@ -216,10 +218,13 @@ export function useOrganizerTasksV5(
   filter: OrganizerTaskFilter,
   enabled = true,
 ) {
+  // Task payloads may include private actor-scoped data. Never reuse another
+  // authenticated account's React Query cache on the same browser session.
+  const actorId = useAuthenticatedUser().id;
   const normalizedEditionId = normalizeOrganizerEditionId(editionId);
   return useQuery({
     enabled,
-    queryKey: ["organizer-tasks-v5", normalizedEditionId ?? "unscoped", filter],
+    queryKey: ["organizer-tasks-v5", normalizedEditionId ?? "unscoped", filter, actorId],
     queryFn: () => loadOrganizerTasksV5(normalizedEditionId, filter),
     retry: shouldRetryOrganizerTaskQuery,
     refetchInterval: 60_000,
@@ -231,10 +236,12 @@ export function useOrganizerTaskCountV5(
   editionId: string | null | undefined,
   enabled = true,
 ) {
+  // Organizer mobile badge counts must be segregated by account as well.
+  const actorId = useAuthenticatedUser().id;
   const normalizedEditionId = normalizeOrganizerEditionId(editionId);
   return useQuery({
     enabled,
-    queryKey: ["organizer-task-count-v5", normalizedEditionId ?? "unscoped"],
+    queryKey: ["organizer-task-count-v5", normalizedEditionId ?? "unscoped", actorId],
     queryFn: () => loadOrganizerTaskCountV5(normalizedEditionId),
     retry: shouldRetryOrganizerTaskQuery,
     refetchInterval: 60_000,
