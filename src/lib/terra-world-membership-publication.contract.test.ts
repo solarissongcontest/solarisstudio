@@ -1,0 +1,26 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+describe("TG3 membership chronicle public rollout boundary", () => {
+  it("checks the canonical server feature flag before either membership read", () => {
+    const source = readFileSync(resolve(process.cwd(),
+      "src/integrations/v3/terra-world-membership-chronicle.server.ts"), "utf8");
+    expect(source).toContain('client.rpc("studio2_feature_enabled"');
+    expect(source).toContain('p_key: "terra_world_public"');
+    expect(source).toContain("if (error || data !== true)");
+    expect(source.split("await requireWorldPublication(client);")).toHaveLength(3);
+  });
+
+  it("never presents cached identities and membership terms during refetch", () => {
+    const source = readFileSync(resolve(process.cwd(),
+      "src/components/world/TerraWorldMembershipChronicle.tsx"), "utf8");
+    expect(source.split('refetchOnMount: "always"')).toHaveLength(3);
+    expect(source).toContain("const verifiedHistory = history.isSuccess && history.isFetchedAfterMount");
+    expect(source).toContain("const verifiedInstitutions = institutions.isSuccess && institutions.isFetchedAfterMount");
+    expect(source).toContain("!history.isFetching && !history.isRefetchError ? history.data : undefined");
+    expect(source).toContain("!institutions.isFetching && !institutions.isRefetchError ? institutions.data : undefined");
+    expect(source).toContain("verifiedHistory.records.map");
+    expect(source).not.toContain("history.data.records.map");
+  });
+});
