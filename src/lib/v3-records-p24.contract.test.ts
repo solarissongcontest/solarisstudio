@@ -32,8 +32,8 @@ describe("Public V3 P24 Records", () => {
     const contract = read("src/lib/v3-records.ts");
 
     expect(runtime).toContain("getV3RecordsBundle");
-    expect(contract).toContain("records: FanRecord[]");
-    expect(contract).toContain("spoilerSafeRecords: FanRecord[]");
+    expect(contract).toContain("records: V3Record[]");
+    expect(contract).toContain("spoilerSafeRecords: V3Record[]");
     expect(contract).not.toContain("participants:");
     expect(contract).not.toContain("results:");
     expect(contract).not.toContain("jury:");
@@ -77,7 +77,7 @@ describe("Public V3 P24 Records", () => {
     expect(source).toContain("edition.id !== currentEditionId");
     expect(source).toContain("show.edition_id !== currentEditionId");
     expect(source).toContain("row.edition_id !== currentEditionId");
-    expect(source).toContain("const spoilerSafeRecords = currentEditionAffectsRecords");
+    expect(source).toContain("const spoilerSafeRawRecords = currentEditionAffectsRecords");
     expect(source).toContain("buildCanonicalFanRecords({");
     expect(source).toContain("spoilerSafeArchivedFinalEditions");
   });
@@ -93,8 +93,10 @@ describe("Public V3 P24 Records", () => {
     expect(gate).toContain("serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null");
     expect(gate).toContain("bundle.data.currentEditionAffectsRecords");
     expect(gate).toContain("bundle.data.spoilerSafeRecords");
-    expect(gate).toContain("setCurrentEditionRevealed(true)");
-    expect(gate).toContain("setCurrentEditionRevealed(false)");
+    expect(gate).toContain("setRevealedScope(revealScope)");
+    expect(gate).toContain("setRevealedScope(null)");
+    expect(gate).toContain('rollout.data?.userId ?? "anonymous"');
+    expect(gate).toContain("revealedScope === revealScope");
     expect(screen).toContain('data-v3-records-spoilers="protected"');
     expect(screen).toContain("Reveal current-edition records");
   });
@@ -125,6 +127,24 @@ describe("Public V3 P24 Records", () => {
     expect(screen).toContain("record.holders.length} tied");
     expect(screen).toContain('to="/countries/$code"');
     expect(screen).toContain('data-v3-records-empty=""');
+  });
+
+  it("attaches only publication-safe result, voting or edition provenance", () => {
+    const source = read("src/integrations/v3/records-source.server.ts");
+    const provenance = read("src/lib/v3-record-provenance.ts");
+    const screen = read("src/components/v3/V3RecordsScreen.tsx");
+
+    expect(source).toContain("attachV3RecordProvenance({");
+    expect(source).toContain("results: canonicalResults");
+    expect(source).toContain("jury: canonicalJury");
+    expect(provenance).toContain('kind: "voting"');
+    expect(provenance).toContain('?tab=matrix&from=results');
+    expect(provenance).toContain('kind: "result"');
+    expect(provenance).toContain('?from=results');
+    expect(provenance).toContain('kind: "edition"');
+    expect(provenance).toContain("if (!input.editionId) return null");
+    expect(screen).toContain('data-v3-record-provenance={holder.provenance.kind}');
+    expect(screen).toContain("Source: {holder.provenance.label}");
   });
 
   it("does not expose a browser-controlled Records rollout escape hatch", () => {

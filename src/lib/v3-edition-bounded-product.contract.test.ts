@@ -57,7 +57,9 @@ describe("V3 Edition bounded product architecture", () => {
   it("keeps Story and Results on their existing dedicated product destinations", () => {
     const screenSource = overview();
     expect(screenSource).toContain("href: projection.story?.href ?? base");
-    expect(screenSource).toContain("href: projection.results.showHref ?? base");
+    expect(screenSource).toContain('href: projection.results.showHref ?? ""');
+    expect(screenSource).toContain("canOpenV3EditionResults");
+    expect(screenSource).not.toContain("href: projection.results.showHref ?? base");
     expect(screenSource).toContain('title="Open full story"');
     expect(screenSource).toContain('title="Open complete official result"');
     expect(viewContract()).not.toContain('"results" |');

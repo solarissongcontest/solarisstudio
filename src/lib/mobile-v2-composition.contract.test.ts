@@ -25,8 +25,13 @@ describe("Mobile App V2 composition completion", () => {
     ]) {
       const code = source(route);
       expect(code, route).toContain("AppScreen");
-      expect(code, route).toContain("AppSectionHeader");
       expect(code, route).toContain("AppGroupedList");
+      // App directory sections now use one semantic heading, not a decorative eyebrow stack.
+      if (route.includes("/results/")) {
+        expect(code, route).toContain("AppSectionHeader");
+      } else {
+        expect(code, route).toContain("v3-directory-group-title");
+      }
     }
 
     const countriesRoute = source("src/routes/countries/index.tsx");

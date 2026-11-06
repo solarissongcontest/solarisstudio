@@ -11,6 +11,9 @@ import type { PredictionType } from "@/lib/predictions";
 
 const supabase = baseSupabase as unknown as SupabaseClient<AppDatabase>;
 
+const ORGANIZER_PREDICTION_ROUND_PROJECTION =
+  "id, show_id, opens_at, locks_at, status, prediction_types, scoring_version, consensus_minimum, created_at, updated_at" as const;
+
 export function useOrganizerPredictionRoundsForShows(
   showIds: string[],
   includeCancelled = false,
@@ -27,7 +30,7 @@ export function useOrganizerPredictionRoundsForShows(
 
       let query = supabase
         .from("prediction_rounds")
-        .select("*")
+        .select(ORGANIZER_PREDICTION_ROUND_PROJECTION)
         .in("show_id", normalizedShowIds)
         .order("locks_at", { ascending: true });
 

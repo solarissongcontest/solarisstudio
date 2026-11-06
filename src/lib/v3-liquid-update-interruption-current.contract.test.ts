@@ -35,7 +35,17 @@ describe("V3 Liquid navigation update interruption safety", () => {
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
     expect(tabs).toContain("const clearDrag = useCallback");
     expect(tabs).toContain("resetDragDom();");
-    expect(tabs).toContain("const resetInterruptedGesture = () => clearDrag()");
+    const interruptionStart = tabs.indexOf("const resetInterruptedGesture =");
+    const interruptionEnd = tabs.indexOf("const resetWhenHidden =", interruptionStart);
+    const interruptionBlock = tabs.slice(interruptionStart, interruptionEnd);
+    expect(interruptionStart).toBeGreaterThanOrEqual(0);
+    expect(interruptionBlock).toContain("if (dragState.current) suppressClick.current = true;");
+    expect(interruptionBlock).toContain("clearDrag();");
+    // Late synthetic clicks from interrupted drags cannot commit a route
+    // change, but the following real pointer/keyboard activation still can.
+    expect(tabs).toContain("onKeyDown={() => {");
+    expect(tabs).toContain("suppressClick.current = false;");
+    expect(tabs).toContain("resetInterruptedGesture();");
     expect(tabs).toContain("onPointerCancel={cancelDrag}");
     expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
     expect(tabs.match(/maxSteps: 1/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
