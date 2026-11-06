@@ -56,6 +56,17 @@ describe("TG3 published body route ownership", () => {
     expect(bodies).not.toContain('if (!platformResolved) return');
   });
 
+  it("uses the existing connectivity state for offline and restricted read errors", () => {
+    const bodies = readFileSync(resolve(process.cwd(), "src/components/world/WorldBodiesPublic.tsx"), "utf8");
+    expect(bodies).toContain('connectivity.status === "offline"');
+    expect(bodies).toContain('connectivity.status === "service-restricted"');
+    expect(bodies).toContain("disabled={retryBlocked}");
+    expect(bodies).toContain("disabled={officeNetworkBlocked}");
+    expect(bodies).toContain("Unverified cached records are not displayed.");
+    expect(bodies).not.toContain("window.addEventListener");
+    expect(bodies).not.toContain("setInterval(");
+  });
+
   it("keeps stable URL paths for both canonical public body screens", () => {
     const directory = readFileSync(resolve(bodyRoutes, "index.tsx"), "utf8");
     const detail = readFileSync(resolve(bodyRoutes, "$bodySlug.tsx"), "utf8");
