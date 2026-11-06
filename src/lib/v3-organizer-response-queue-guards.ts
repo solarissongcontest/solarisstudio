@@ -22,6 +22,30 @@ export function assertOrganizerResponsePageContinuity(
 }
 
 /**
+ * An immutable-looking cursor snapshot must never silently replace a response
+ * already presented from an earlier page. Duplicate IDs across pages can hide
+ * inconsistent ordering or changed review evidence even if a state-version
+ * token and total count happen to remain equal.
+ *
+ * Validate before appending. Do not make "last page wins" a review authority.
+ */
+export function assertOrganizerResponsePageDisjoint(
+  existing: readonly { id: string }[],
+  incoming: readonly { id: string }[],
+): void {
+  const seen = new Set(existing.map((row) => row.id));
+  for (const row of incoming) {
+    if (seen.has(row.id)) {
+      throw Object.assign(
+        new Error("Confirmation response pagination repeated an earlier response. Reload the current edition before reviewing."),
+        { status: 409 },
+      );
+    }
+    seen.add(row.id);
+  }
+}
+
+/**
  * Next-in-Line song URLs are participant supplied. Reject script/data/file,
  * malformed, relative, credentialed and control-character URLs. This is a
  * display-only guard, not authorization to fetch private media.
