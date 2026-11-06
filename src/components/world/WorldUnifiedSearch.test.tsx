@@ -121,7 +121,9 @@ describe("Unified World Search public rendering", () => {
     const html = renderWorldSearch(0, 0, "a", "active", "countries");
     expect(html).toContain("Explore the world");
     expect(html).not.toContain("Featured institutions");
-    expect(html).not.toContain("GUARD");
+    // The search placeholder names GUARD as an example. Check the actual
+    // featured row instead of rejecting the accessible placeholder text.
+    expect(html).not.toContain("Global Union for Allied Resilience and Defence");
   });
 
   it("shows published featured institutions without searching when the term is too short", () => {
