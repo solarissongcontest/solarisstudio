@@ -2,6 +2,12 @@ import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
 import { OrganizerEntryVersionHistory } from "@/components/admin/OrganizerEntryVersionHistory";
 import { OrganizerEntryMediaPreview } from "@/components/admin/OrganizerEntryMediaPreview";
 import { isOrganizerEntryReviewResultForDisplayedVersion } from "@/lib/v3-organizer-entry-operation-version";
+import {
+  prepareOrganizerEntryReviewDecision,
+  isOrganizerEntryReviewDecisionCurrent,
+  type OrganizerEntryDecisionIntent,
+  type OrganizerEntryDecisionStatus,
+} from "@/lib/v3-organizer-entry-review-decision";
 import { summarizeOrganizerEntryDetail } from "@/lib/v3-organizer-entry-detail-summary";
 import {
   buildOrganizerEntryCorrectionReason,
@@ -325,6 +331,7 @@ function EntryReviewCard({
   onClearWinner?: (reason: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
+  const [pendingReviewDecision, setPendingReviewDecision] = useState<OrganizerEntryDecisionIntent | null>(null);
   const [reason, setReason] = useState(entry.review_reason ?? "");
   const [correctionNotes, setCorrectionNotes] = useState<
     Partial<Record<OrganizerEntryCorrectionCategory, string>>
@@ -363,8 +370,43 @@ function EntryReviewCard({
     setCorrectionMessage("");
     setReceipt(null);
     setError(null);
+    setPendingReviewDecision(null);
     setOpen(false);
   }, [editionId, submissionId, targetType, entry.id, entry.current_version_id]);
+
+  function requestReviewDecision(status: OrganizerEntryDecisionStatus) {
+    if (busy || mutationInFlightRef.current || !isScopeCurrent()) return;
+    const reviewedReason = status === "declined" ? correctionReason ?? "" : reason.trim();
+    try {
+      setPendingReviewDecision(prepareOrganizerEntryReviewDecision({
+        entryId: entry.id,
+        submissionId,
+        editionId: editionId ?? "",
+        currentVersionId: entry.current_version_id ?? null,
+      }, status, reviewedReason));
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Review this Entry decision again.");
+    }
+  }
+
+  async function confirmReviewDecision() {
+    const pending = pendingReviewDecision;
+    if (!pending || busy) return;
+    const currentReason = pending.status === "declined" ? correctionReason ?? "" : reason.trim();
+    if (!isScopeCurrent() || !isOrganizerEntryReviewDecisionCurrent(pending, {
+      entryId: entry.id,
+      submissionId,
+      editionId: editionId ?? "",
+      currentVersionId: entry.current_version_id ?? null,
+    }, currentReason)) {
+      setPendingReviewDecision(null);
+      setError("The Entry version, edition or reviewed reason changed. Review the current decision again.");
+      return;
+    }
+    setPendingReviewDecision(null);
+    await review(pending.status);
+  }
 
   function toggleCorrectionCategory(category: OrganizerEntryCorrectionCategory) {
     setCorrectionNotes((current) => {
@@ -820,7 +862,7 @@ function EntryReviewCard({
             <button
               type="button"
               disabled={busy}
-              onClick={() => void review("accepted")}
+              onClick={() => requestReviewDecision("accepted")}
               className="admin-action-primary w-full"
             >
               <CheckCircle2 className="size-4" /> {busy ? "Working…" : "Accept entry"}
@@ -851,7 +893,7 @@ function EntryReviewCard({
             <button
               type="button"
               disabled={busy || !correctionReason}
-              onClick={() => void review("declined")}
+              onClick={() => requestReviewDecision("declined")}
               className="admin-action-secondary w-full"
             >
               <XCircle className="size-4" /> Request changes
@@ -861,7 +903,7 @@ function EntryReviewCard({
               <button
                 type="button"
                 disabled={busy || !reason.trim()}
-                onClick={() => void review("pending")}
+                onClick={() => requestReviewDecision("pending")}
                 className="admin-action-secondary w-full"
               >
                 <RotateCcw className="size-4" /> Reset to pending
@@ -872,7 +914,7 @@ function EntryReviewCard({
               <button
                 type="button"
                 disabled={busy || !reason.trim()}
-                onClick={() => void review("removed")}
+                onClick={() => requestReviewDecision("removed")}
                 className="admin-action-danger w-full"
               >
                 Remove from National Final
@@ -881,6 +923,66 @@ function EntryReviewCard({
           </div>
         </div>
       </AdminSheet>
+
+      <AdminConfirmSheet
+        open={Boolean(pendingReviewDecision)}
+        onClose={busy ? () => undefined : () => setPendingReviewDecision(null)}
+        onConfirm={() => void confirmReviewDecision()}
+        title={pendingReviewDecision?.status === "accepted"
+          ? "Accept this exact Entry revision?"
+          : pendingReviewDecision?.status === "declined"
+            ? "Request these Entry changes?"
+            : pendingReviewDecision?.status === "removed"
+              ? "Remove this National Final candidate?"
+              : "Reset this Entry review to pending?"}
+        description={pendingReviewDecision ? (
+          <div className="space-y-3 text-sm">
+            <p className="font-semibold">
+              Review current Entry version {entry.content_revision ?? "unavailable"}
+            </p>
+            <p>
+              {entry.artist ?? "Unknown artist"} · {entry.song_title ?? "Unknown song"}
+            </p>
+            <p className="break-all text-xs text-muted-foreground">
+              Entry: {pendingReviewDecision.entryId} · Version: {pendingReviewDecision.currentVersionId ?? "unbound"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              The canonical server checks the latest immutable version, permissions and
+              operation preflight before applying this decision. The current review is not
+              accepted until a matching authoritative receipt confirms it.
+            </p>
+            {sourceIssues && pendingReviewDecision.status === "accepted" ? (
+              <p className="text-xs text-amber-100">
+                {sourceIssues} metadata items require organizer inspection. This display-only
+                checklist is not an authoritative eligibility gate.
+              </p>
+            ) : null}
+            {pendingReviewDecision.reason ? (
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-white/[0.09] p-3">
+                <p className="text-xs font-semibold">Exact reviewed reason</p>
+                <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
+                  {pendingReviewDecision.reason}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        confirmLabel={pendingReviewDecision?.status === "accepted"
+          ? "Confirm accepted Entry review"
+          : pendingReviewDecision?.status === "declined"
+            ? "Send canonical changes request"
+            : pendingReviewDecision?.status === "removed"
+              ? "Remove reviewed Entry"
+              : "Confirm review reset"}
+        confirmationText={pendingReviewDecision?.status === "removed"
+          ? (entry.song_title?.trim() || entry.id)
+          : undefined}
+        confirmationHint={pendingReviewDecision?.status === "removed"
+          ? "Type the displayed song title (or Entry ID) to confirm removal"
+          : undefined}
+        danger={pendingReviewDecision?.status === "removed"}
+        busy={busy}
+      />
     </>
   );
 }
