@@ -18,7 +18,7 @@ describe("Public V3 Live route reconnect boundary", () => {
     expect(gate).not.toContain("if (!rollout.data || !v3Enabled)");
     expect(gate).toContain("Official Live rollout state could not be verified");
     expect(gate).toContain("Official Live state could not be verified");
-    expect(gate.match(/return <>{fallback}<\\/>;/g)?.length).toBe(1);
+    expect(gate.split("return <>{fallback}</>;").length - 1).toBe(1);
   });
 
   it("fails closed with manual retry when rollout or V3 bundle is absent", () => {

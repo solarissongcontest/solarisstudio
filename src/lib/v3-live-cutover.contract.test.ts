@@ -56,7 +56,7 @@ describe("Public V3 Live route cutover", () => {
     expect(source).toContain("Official Live rollout state could not be verified");
     expect(source).toContain("Official Live state could not be verified");
     expect(source).toContain("rollout.isError || bundle.isError");
-    expect(source.match(/return <>{fallback}<\\/>;/g)?.length).toBe(1);
+    expect(source.split("return <>{fallback}</>;").length - 1).toBe(1);
   });
 
   it("preserves the existing Show Mode wake-lock preference as progressive enhancement", () => {
