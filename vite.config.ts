@@ -78,7 +78,7 @@ export default defineConfig({
                 name: "shared-app-primitives",
                 test: /[\\/]src[\\/]components[\\/]app[\\/]/,
                 minShareCount: 2,
-                minSize: 2500,
+                minSize: 6000,
                 priority: 1,
               },
               // Collapse small, frequently reused UI control adapters instead
@@ -90,7 +90,24 @@ export default defineConfig({
                 name: "shared-controls",
                 test: /[\\/]src[\\/]components[\\/]ui[\\/]/,
                 minShareCount: 2,
-                minSize: 1000,
+                minSize: 5000,
+                priority: 1,
+              },
+              // Reused public/V3 presentation widgets were scattered across
+              // many lazy route chunks. Group only genuine multi-route modules,
+              // never entire route screens or private/Server code.
+              {
+                name: "shared-public-presentation",
+                test: /[\\/]src[\\/]components[\\/]public[\\/]/,
+                minShareCount: 2,
+                minSize: 3000,
+                priority: 1,
+              },
+              {
+                name: "shared-v3-presentation",
+                test: /[\\/]src[\\/]components[\\/]v3[\\/]/,
+                minShareCount: 2,
+                minSize: 3000,
                 priority: 1,
               },
               // Reused client-only domain modules were each carrying separate
@@ -100,7 +117,7 @@ export default defineConfig({
                 name: "shared-client-helpers",
                 test: /[\\/]src[\\/]lib[\\/](?!.*(?:\.server\.|\.test\.|\.contract\.|\.spec\.))/,
                 minShareCount: 2,
-                minSize: 1000,
+                minSize: 5000,
                 priority: 1,
               },
             ],
