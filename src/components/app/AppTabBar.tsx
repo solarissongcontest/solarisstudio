@@ -281,9 +281,13 @@ export function AppTabBar({
   }, [held]);
 
   useEffect(() => {
-    const resetInterruptedGesture = () => clearDrag();
+    const resetInterruptedGesture = () => {
+      // A cancelled hold must not navigate if WebKit sends a late click.
+      if (dragState.current) suppressClick.current = true;
+      clearDrag();
+    };
     const resetWhenHidden = () => {
-      if (document.visibilityState !== "visible") clearDrag();
+      if (document.visibilityState !== "visible") resetInterruptedGesture();
     };
 
     const root = document.documentElement;
@@ -293,7 +297,7 @@ export function AppTabBar({
             if (
               root.hasAttribute("data-solaris-feature-overlay-open") ||
               root.hasAttribute("data-solaris-keyboard-open")
-            ) clearDrag();
+            ) resetInterruptedGesture();
           })
         : null;
     rootInterruptionObserver?.observe(root, {
