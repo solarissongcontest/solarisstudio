@@ -75,6 +75,13 @@ describe("TG10 optional World follow notification policy", () => {
     const result = publicWorldFollowPushPreview("GUARD", publishedEvent);
     expect(result.title).toBe("GUARD");
     expect(result.body).toBe("A new official statement is available.");
+    const unverified = publicWorldFollowPushPreview("Secret private organization", {
+      ...publishedEvent, verifiedPublic: false,
+    });
+    expect(unverified).toEqual({
+      title: "Terra Solaris", body: "An update is available in Solaris.",
+    });
+    expect(JSON.stringify(unverified)).not.toContain("Secret");
     expect(JSON.stringify(result)).not.toContain("secret");
     expect(JSON.stringify(result)).not.toContain("private");
   });
