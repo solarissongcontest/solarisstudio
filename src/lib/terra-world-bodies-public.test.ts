@@ -222,6 +222,7 @@ describe("TG3 public institution bodies", () => {
       null,
       { id: "org-1", public_visibility: "private" },
       { id: "another-org", public_visibility: "public" },
+      { id: "org-1", public_visibility: "public", status: "proposed" },
     ]) {
       body.maybeSingle.mockResolvedValue({
         data: { ...organ, world_organizations: joinedParent }, error: null,
