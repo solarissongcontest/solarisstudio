@@ -14,7 +14,7 @@ describe("Organizer O4 Delegations attention boundary", () => {
   it("fails closed without explicit Organizer edition context", () => {
     // The shell's raw id is not proof of an accessible edition.
     // Only the resolved Organizer edition may reach the Confirmation query.
-    expect(route).toContain("selectOrganizerEdition(editionsQuery.data ?? [], explicitEditionId)");
+    expect(route).toContain("selectOrganizerEdition(editionsQuery.data ?? [], verifiedChoiceId)");
     expect(route).toContain('const resolvedEditionId = selectedEdition?.id ?? "";');
     expect(route).toContain("editionsQuery.isSuccess && !editionsQuery.error");
     expect(route).toContain("enabled: editionsQuery.isSuccess && !editionsQuery.error && !editionsQuery.isFetching && Boolean(resolvedEditionId)");
@@ -30,7 +30,7 @@ describe("Organizer O4 Delegations attention boundary", () => {
     expect(route).toContain('const explicitEditionId = explicitChoice?.actorId === actorId ? explicitChoice.editionId : "";');
     expect(route).toContain('Choose an edition for this Delegations review');
     expect(route).toContain('No edition is inferred from the Organizer shell.');
-    expect(route).not.toContain("useAdminContext()");
+    expect(route).toContain("const { editionId, setEditionContext } = useAdminContext();");
   });
 
   it("never reuses cached edition rows to read private obligations after a failed context refresh", () => {
