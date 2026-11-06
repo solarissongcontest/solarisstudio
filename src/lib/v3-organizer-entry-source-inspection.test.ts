@@ -34,6 +34,11 @@ describe("Organizer Entry source inspection", () => {
     }
   });
 
+  it("rejects leading and trailing URL controls before trimming", () => {
+    expect(safeOrganizerEntrySourceUrl("\nhttps://media.example.test/a.mp3")).toBeNull();
+    expect(safeOrganizerEntrySourceUrl("https://media.example.test/a.mp3\r")).toBeNull();
+  });
+
   it("reports submitted artist, title, and source as present without claiming media eligibility", () => {
     const inspection = inspectOrganizerEntrySource(valid);
     expect(inspection.songUrl).toBe(valid.song_url);

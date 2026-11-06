@@ -1,5 +1,6 @@
 import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
 import { OrganizerEntryVersionHistory } from "@/components/admin/OrganizerEntryVersionHistory";
+import { OrganizerEntryMediaPreview } from "@/components/admin/OrganizerEntryMediaPreview";
 import { isOrganizerEntryReviewResultForDisplayedVersion } from "@/lib/v3-organizer-entry-operation-version";
 import { summarizeOrganizerEntryDetail } from "@/lib/v3-organizer-entry-detail-summary";
 import {
@@ -713,6 +714,14 @@ function EntryReviewCard({
           <TechnicalRows entry={entry} />
           <EntryVersionEvidence entry={entry} />
           <EntrySourceInspection entry={entry} />
+          {open && editionId ? (
+            <OrganizerEntryMediaPreview
+              key={`${editionId}:${submissionId}:${targetType}:${entry.id}:${entry.current_version_id ?? "unbound"}:${entry.song_url ?? "no-song"}:${entry.replacement_video_url ?? "no-video"}`}
+              songUrl={entry.song_url}
+              replacementVideoUrl={entry.replacement_video_url}
+              replacementVideoRequired={entry.replacement_video_required}
+            />
+          ) : null}
           {open && editionId ? (
             <OrganizerEntryVersionHistory
               key={`${editionId}:${submissionId}:${targetType}:${entry.id}:${entry.current_version_id ?? "unbound"}`}

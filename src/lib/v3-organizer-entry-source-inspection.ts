@@ -3,8 +3,9 @@
  * an Organizer href. This resolver never fetches or authorizes the resource.
  */
 export function safeOrganizerEntrySourceUrl(source: string | null | undefined): string | null {
+  if (source && /[\u0000-\u001f\u007f]/.test(source)) return null;
   const value = source?.trim();
-  if (!value || /[\u0000-\u001f\u007f]/.test(value)) return null;
+  if (!value) return null;
   try {
     const url = new URL(value);
     if (
