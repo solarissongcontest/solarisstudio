@@ -16,13 +16,12 @@ const projection = migration.split(
   "create or replace function public.world_country_identity_v1(",
 )[1]?.split("$projection$;")[0];
 
-describe("WORLD-01 TG1 controller-person CAS and effective identity", () => 
+describe("WORLD-01 TG1 controller-person CAS and effective identity", () => {
   it("runs stub-only local-target and malicious-CLI regression tests", () => {
     execFileSync(process.execPath, [
       "--test", "scripts/rehearse-v3-world-controller-cas.security.test.mjs",
     ], { cwd: process.cwd(), stdio: "pipe", timeout: 30_000 });
   });
-{
   it("requires an expected actor for new writes, while retaining old exact receipt replays", () => {
     expect(bind).toBeDefined();
     expect(bind).toContain("if p_expected_current_user_id is null then");
