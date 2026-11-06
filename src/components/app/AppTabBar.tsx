@@ -577,7 +577,7 @@ export function AppTabBar({
                       {badge > 9 ? "9+" : badge}
                     </span>
                     <span className="sr-only" id={`${badgeDescriptionId}-${area.id}`}>
-                      {badge} item{badge === 1 ? "" : "s"} need attention
+                      {badge} item{badge === 1 ? " needs" : "s need"} attention
                     </span>
                   </>
                 ) : null}
