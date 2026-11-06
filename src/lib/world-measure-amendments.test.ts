@@ -119,5 +119,8 @@ describe("WORLD-05 TG7 amendments, without fake adoption",()=>{
    expect(commands).not.toContain("set current_version_id");
    expect(client).not.toMatch(/\.from\(["'](?:world_measure_amendments|world_measure_versions)["']\)/);
    expect(route).toContain("<WorldPublicGate verifyOnMount>");
+   const published=readFileSync(resolve(process.cwd(),
+     "src/components/world/WorldMeasuresWorkspace.tsx"),"utf8");
+   expect(published).toContain('to="/world/measures/$measureId/amendments"');
  });
 });
