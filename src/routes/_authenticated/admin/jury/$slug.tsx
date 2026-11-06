@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { CountryPicker } from "@/components/CountryPicker";
 import { FlagChip } from "@/components/FlagChip";
 import { AdminPage } from "@/components/admin/AdminShell";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import {
   AdminActionItem,
   AdminCard,
@@ -164,10 +165,19 @@ export const Route = createFileRoute("/_authenticated/admin/jury/$slug")({
   validateSearch: (search: Record<string, unknown>): JurySearch => ({
     show: typeof search.show === "string" && search.show ? search.show : undefined,
   }),
-  component: JuryWorkspace,
+  component: JuryWorkspaceAccountBoundary,
 });
 
+function JuryWorkspaceAccountBoundary() {
+  const actorId = useAuthenticatedUser().id;
+  const { slug } = Route.useParams();
+  const { show } = Route.useSearch();
+  // Prepared lifecycle reviews must never survive an actor, edition or show change.
+  return <JuryWorkspace key={`${actorId}:${slug}:${show ?? "default"}`} />;
+}
+
 function JuryWorkspace() {
+  const actorId = useAuthenticatedUser().id;
   const { slug } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -186,11 +196,16 @@ function JuryWorkspace() {
       .sort((a, b) => (a.running_order ?? 9999) - (b.running_order ?? 9999)),
     [allParticipants, selectedShow?.id],
   );
-  const { data: showVoters = [], isLoading: loadingVoters } = useShowVoters(selectedShow?.id);
-  const { data: juryVotes = [], isLoading: loadingVotes } = useJuryVotes(selectedShow?.id);
-  const { data: ballotStatuses = [], isLoading: loadingStatuses } = useQuery({
-    enabled: !!selectedShow?.id,
-    queryKey: ["jury_ballot_statuses", "show", selectedShow?.id ?? "pending"],
+  const { data: showVoters = [], isLoading: loadingVoters, error: votersError, refetch: retryVoters } = useShowVoters(selectedShow?.id);
+  const { data: juryVotes = [], isLoading: loadingVotes, error: votesError, refetch: retryVotes } = useJuryVotes(selectedShow?.id);
+  const { data: ballotStatuses = [], isLoading: loadingStatuses, error: statusesError, refetch: retryStatuses } = useQuery({
+    enabled: Boolean(actorId && edition?.id && selectedShow?.id),
+    queryKey: ["jury_ballot_statuses", actorId, edition?.id ?? "unscoped", "show", selectedShow?.id ?? "pending"],
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     queryFn: async () => {
       if (!selectedShow?.id) return [] as JuryBallotStatus[];
       const { data, error } = await (supabase as any)
@@ -201,9 +216,14 @@ function JuryWorkspace() {
       return (data ?? []) as JuryBallotStatus[];
     },
   });
-  const { data: submittedBallots = [], isLoading: loadingSubmittedBallots } = useQuery({
-    enabled: !!selectedShow?.id,
-    queryKey: ["jury_ballot_submissions", "show", selectedShow?.id ?? "pending"],
+  const { data: submittedBallots = [], isLoading: loadingSubmittedBallots, error: submissionsError, refetch: retrySubmissions } = useQuery({
+    enabled: Boolean(actorId && edition?.id && selectedShow?.id),
+    queryKey: ["jury_ballot_submissions", actorId, edition?.id ?? "unscoped", "show", selectedShow?.id ?? "pending"],
+    gcTime: 0,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     queryFn: async () => {
       if (!selectedShow?.id) return [] as JuryBallotSubmission[];
       const { data, error } = await (supabase as any)
@@ -677,6 +697,31 @@ function JuryWorkspace() {
   if (loadingEdition || loadingShows) return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading jury workspace…</p></AdminCard>;
   if (!edition) return <AdminCard><AdminEmptyState icon={Vote} title="Edition not found" description="Choose another edition from the organizer workspace." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
   if (!orderedShows.length) return <AdminPage><AdminPageHeader eyebrow={editionLabel(edition)} title="Jury voting" description="Create a show before configuring its juries and ballots." /><AdminCard><AdminEmptyState icon={Users} title="No shows yet" description="Juries belong to a show." action={<Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary">Create a show</Link>} /></AdminCard></AdminPage>;
+  // An empty response is not the same as an unread or failed private Jury projection.
+  // Do not show completeness metrics, roster mutations or lifecycle reviews without it.
+  if (loadingVoters || loadingVotes || loadingStatuses || loadingSubmittedBallots) {
+    return <AdminPage><AdminCard><p className="py-8 text-center text-sm text-muted-foreground" role="status">Verifying jury voting evidence…</p></AdminCard></AdminPage>;
+  }
+  const evidenceError = votersError ?? votesError ?? statusesError ?? submissionsError;
+  if (evidenceError) {
+    return (
+      <AdminPage>
+        <AdminPageHeader eyebrow={editionLabel(edition)} title="Jury evidence unavailable" description="The selected show was not changed. An unverified ballot is never treated as did-not-vote or complete." />
+        <AdminCard>
+          <p className="text-sm text-rose-100" role="alert">
+            {evidenceError instanceof Error ? evidenceError.message : "Private Jury evidence could not be verified."}
+          </p>
+          <button
+            type="button"
+            className="admin-action-secondary mt-3 min-h-11"
+            onClick={() => void Promise.all([retryVoters(), retryVotes(), retryStatuses(), retrySubmissions()])}
+          >
+            Retry jury evidence
+          </button>
+        </AdminCard>
+      </AdminPage>
+    );
+  }
 
   return (
     <AdminPage>
