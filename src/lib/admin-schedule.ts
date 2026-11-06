@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
   resolveOperationalScheduleEditionSlug,
@@ -36,13 +37,14 @@ const db = supabase as any;
  */
 export function useAdminOperationalSchedule(editionId?: string | null, slug?: string | null) {
   const { editionId: organizerContextEditionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
   const requestedEditionId = editionId?.trim() || null;
   const organizerEditionId = organizerContextEditionId?.trim() || null;
   const exactEditionId =
     requestedEditionId && organizerEditionId === requestedEditionId ? requestedEditionId : null;
 
   return useQuery({
-    queryKey: ["admin-operational-schedule", exactEditionId ?? "unscoped", slug ?? ""],
+    queryKey: ["admin-operational-schedule", exactEditionId ?? "unscoped", slug ?? "", actorId],
     enabled: Boolean(exactEditionId),
     queryFn: async () => {
       if (!exactEditionId) {
