@@ -451,5 +451,26 @@ test("installed Liquid dock cancels held gestures on overlay/keyboard and restor
   await page.keyboard.press("Enter");
   await expect(meReturn).toHaveAttribute("aria-current", "page");
   await expect(page).toHaveURL(/\/my-solaris(?:[/?#]|$)/);
+
+  // A screen reader can dispatch a click without pointerdown or keydown.
+  // Abort the held pointer while the cursor subsequently releases outside
+  // the link; no click should arrive to clear the stale suppression flag.
+  await holdActiveLens();
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-solaris-feature-overlay-open", "true"),
+  );
+  await expect(material).toHaveAttribute("data-held", "false");
+  await page.mouse.move(1, 1);
+  await page.mouse.up();
+  await page.evaluate(() =>
+    document.documentElement.removeAttribute("data-solaris-feature-overlay-open"),
+  );
+  await expect(page).toHaveURL(/\/my-solaris(?:[/?#]|$)/);
+
+  // VoiceOver's detail=0 activation must work the first time, not the second.
+  await nav.getByRole("link", { name: accessibleLabel("Home") }).dispatchEvent("click", {
+    detail: 0,
+  });
+  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
   await context.close();
 });
