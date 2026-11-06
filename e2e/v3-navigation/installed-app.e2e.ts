@@ -472,5 +472,22 @@ test("installed Liquid dock cancels held gestures on overlay/keyboard and restor
     detail: 0,
   });
   await expect(page).toHaveURL(/\/(?:\?.*)?$/);
+
+  // A client-side redirect can replace the route while the active tab is
+  // physically held. Route teardown must end hold, clear the update blocker,
+  // and leave the next pointer navigation usable without a second tap.
+  await nav.getByRole("link", { name: accessibleLabel("Me") }).click();
+  await expect(page).toHaveURL(/\/my-solaris(?:[/?#]|$)/);
+  await holdActiveLens();
+  await nav.getByRole("link", { name: accessibleLabel("Home") }).dispatchEvent("click", {
+    detail: 0,
+  });
+  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
+  await expect(material).toHaveAttribute("data-held", "false");
+  await page.mouse.move(1, 1);
+  await page.mouse.up();
+  await expect(page).toHaveURL(/\/(?:\?.*)?$/);
+  await nav.getByRole("link", { name: accessibleLabel("Explore") }).click();
+  await expect(page).toHaveURL(/\/explore(?:[?#]|$)/);
   await context.close();
 });
