@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const source = (file: string) => readFileSync(file, "utf8");
 const functions = source("src/integrations/televoting/entries.functions.ts");
+const solarisSyncAdapter = source("src/integrations/televoting/solaris-sync.functions.ts");
 const legacyServer = source("src/integrations/televoting/entries.server.ts");
 const routeMap = source("src/lib/permission-route-map.ts");
 
@@ -56,4 +57,14 @@ describe("Organizer Televoting round-entry adapter authorization", () => {
     expect(functions).not.toContain("operationId");
     expect(functions).not.toContain("idempotencyKey");
   });
+  it("preflights voting.manage before loading the cross-edition Solaris line-up sync writer", () => {
+    const start = solarisSyncAdapter.indexOf("export const syncMergedRoundFromSolaris =");
+    expect(start).toBeGreaterThanOrEqual(0);
+    const code = solarisSyncAdapter.slice(start);
+    const guard = code.indexOf('await requireSolarisCapabilityServer("voting.manage", null)');
+    const privilegedImport = code.indexOf('"@/integrations/televoting/solaris-sync.server"');
+    expect(guard).toBeGreaterThanOrEqual(0);
+    expect(privilegedImport).toBeGreaterThan(guard);
+  });
+
 });
