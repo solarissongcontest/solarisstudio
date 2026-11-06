@@ -134,6 +134,10 @@ describe("TG14 Court hearings and orders",()=>{
   const end=body.indexOf("revoke all on function public.world_court_public_orders_v1",start);
   const projection=body.slice(start,end);
   expect(projection).toContain("ord.publicly_listed");
+  expect(projection).toContain("order by ord.order_number desc,ord.id");
+  expect(projection).toContain("limit 50");
+  expect(projection).toContain(") ord");
+
   expect(projection).toContain("public.studio2_feature_enabled('terra_world_public',null) is true");
   expect(projection).toContain('c.public_metadata @> \'{"listed":true}\'::jsonb');
   for(const forbidden of [
