@@ -170,7 +170,7 @@ const representativeCiProjects = [
     // geometry and visual certification remains a separate explicit audit.
     name: "ios-pwa-portrait",
     testMatch: /installed-app\.e2e\.ts/,
-    grep: /installed app shell survives representative navigation without duplicate chrome|installed Liquid dock cancels held gestures/,
+    grep: /installed app shell survives representative navigation without duplicate chrome|installed AppTabBar cancels held gestures/,
     use: {
       ...devices["iPhone 13"],
       browserName: "webkit" as const,

@@ -33,7 +33,7 @@ describe("PR browser smoke contract", () => {
     const installed = representativeProject("ios-pwa-portrait");
     expect(installed).toContain('testMatch: /installed-app\\.e2e\\.ts/');
     expect(installed).toContain(
-      "grep: /installed app shell survives representative navigation without duplicate chrome|installed Liquid dock cancels held gestures/",
+      "grep: /installed app shell survives representative navigation without duplicate chrome|installed AppTabBar cancels held gestures/",
     );
     expect(installed).toContain('browserName: "webkit"');
   });

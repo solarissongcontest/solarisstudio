@@ -34,22 +34,24 @@ describe("V3 app shell migration contract", () => {
     expect(shell).not.toContain("sessionStorage");
   });
 
-  it("uses canonical Liquid mobile navigation plus the desktop adaptation in the installed shell", () => {
+  it("preserves the accessible installed dock and distinguishes mobile-web from desktop-web navigation", () => {
     const shell = source("src/components/v3/V3AppShell.tsx");
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const desktop = source("src/components/v3/V3DesktopPrimaryNavigation.tsx");
     const installedShell = shell.slice(shell.indexOf("export function V3AppShell("));
 
-    expect(installedShell).toContain("<V3LiquidTabBar");
+    expect(installedShell).toContain("<V3MobileWebPrimaryNavigation");
+    expect(installedShell).not.toContain("<V3LiquidTabBar");
     expect(installedShell).toContain("<V3DesktopPrimaryNavigation");
     expect(installedShell).not.toContain("<V3BottomNavigation");
     expect(shell).toContain("export function V3BottomNavigation");
     expect(tabs).toContain('aria-label="Primary app navigation"');
     expect(tabs).toContain('aria-current={active ? "page" : undefined}');
-    expect(desktop).toContain('aria-label="Primary app navigation"');
+    expect(desktop).toContain('aria-label="Solaris website sections"');
     expect(desktop).toContain(
-      'aria-current={destination.active ? "page" : undefined}',
+      'aria-current={resolveV3WebNavigationCurrent({ active: destination.active, pathname, target: destination.to })}',
     );
+    expect(desktop).toContain('import { resolveV3WebNavigationCurrent } from "@/lib/v3-web-current-link"');
   });
 
   it("keeps direct manipulation progressive rather than gesture-only navigation", () => {
