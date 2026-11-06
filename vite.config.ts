@@ -24,10 +24,6 @@ export default defineConfig({
     },
     build: {
       rolldownOptions: {
-        // Permit removal of unused pure property reads across module boundaries.
-        // Keep side-effectful imports, writes and unknown globals conservative.
-        // The exact production/browser suite must prove compatibility before merge.
-        treeshake: { propertyReadSideEffects: false },
         output: {
           // Production evidence showed repeated gzip framing across hundreds of
           // tiny Lucide chunks and several TanStack Router helper chunks. Keep
@@ -106,6 +102,15 @@ export default defineConfig({
                 minShareCount: 2,
                 minSize: 5000,
                 priority: 1,
+              },
+              // Combine only remaining modules shared by at least two lazy
+              // entrypoints. Existing named groups retain precedence, while
+              // single-route pages and feature code stay behind route imports.
+              {
+                name: "shared-cross-route",
+                minShareCount: 2,
+                minSize: 10000,
+                priority: -1,
               },
             ],
           },
