@@ -410,12 +410,34 @@ test("installed Liquid dock cancels held gestures on overlay/keyboard and restor
   await expect(me).toHaveAttribute("aria-current", "page");
 
   async function holdActiveLens() {
+    // Route/scroll restoration can leave the dock collapsed. Its first pointer
+    // down merely expands it, by design, so the deliberate hold probe must
+    // first request the expanded state without starting an anchor gesture.
+    if ((await nav.getAttribute("data-collapsed")) === "true") {
+      await nav.dispatchEvent("pointerdown", {
+        pointerId: 179,
+        pointerType: "mouse",
+        button: 0,
+      });
+    }
+    await expect(nav).toHaveAttribute("data-collapsed", "false");
+    await expect(nav).toBeVisible();
     const current = nav.locator('[data-v3-tab-index][aria-current="page"]');
     const bounds = await current.boundingBox();
     expect(bounds).not.toBeNull();
     if (!bounds) throw new Error("The selected tab must remain measurable");
     await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
     await page.mouse.down();
+    const eligibility = await page.evaluate(() => ({
+      reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      keyboardOpen: document.documentElement.hasAttribute("data-solaris-keyboard-open"),
+      overlayOpen: document.documentElement.hasAttribute("data-solaris-feature-overlay-open"),
+    }));
+    expect(eligibility).toEqual({
+      reducedMotion: false,
+      keyboardOpen: false,
+      overlayOpen: false,
+    });
     await expect(material).toHaveAttribute("data-held", "true", { timeout: 3000 });
   }
 
