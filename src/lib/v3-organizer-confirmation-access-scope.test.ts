@@ -96,6 +96,7 @@ describe("Organizer Confirmation legacy access mutation scope", () => {
     const close = sheet.slice(sheet.indexOf("const closeSettingsSafely = () => {"),
       sheet.indexOf("const closeReview = () => {"));
     expect(close).toContain("if (saving || saveInFlightRef.current) return;");
+    expect(close).toContain("setPendingReview(null);");
     expect(close).toContain("onClose();");
     expect(sheet).toContain("onClose={closeSettingsSafely}");
     expect(sheet).toContain("onClick={closeSettingsSafely}");
