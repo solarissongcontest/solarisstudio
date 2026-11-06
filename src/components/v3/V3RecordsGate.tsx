@@ -28,7 +28,13 @@ export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
     setCurrentEditionRevealed(false);
   }, [bundle.data?.currentEditionId]);
 
-  if (bundle.isLoading || (bundle.isSuccess && rollout.isLoading)) {
+  // Until canonical Records/publication authority can be verified, do not
+  // launch legacy archive-wide readers just because a network request failed.
+  // A confirmed disabled V3 rollout is the only legacy fallback condition.
+  const loading = bundle.isLoading || (bundle.isSuccess && rollout.isLoading);
+  const unavailable = bundle.isError || !bundle.data || rollout.isError || !rollout.data;
+  if (loading || unavailable) {
+    const retrying = bundle.isFetching || rollout.isFetching;
     return (
       <V3AppShell
         editionLabel={bundle.data?.shell.editionLabel ?? "Solaris Studio"}
@@ -36,22 +42,34 @@ export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
         activeArea="results"
       >
         <V3Screen>
-          <V3Surface className="p-5">
+          <V3Surface
+            level="raised"
+            className="p-5"
+            data-v3-records-authority-unavailable={!loading ? "" : undefined}
+          >
             <h1 className="text-2xl font-bold">Records</h1>
             <p role="status" className="mt-2 text-sm text-[var(--v3-text-secondary)]">
-              Calculating records from the published archive…
+              {loading
+                ? "Calculating records from the published archive…"
+                : "The published Records archive could not be verified. No current-edition records are shown until the official service is reachable."}
             </p>
+            {!loading ? (
+              <button
+                type="button"
+                disabled={retrying}
+                onClick={() => {
+                  if (bundle.isError || !bundle.data) void bundle.refetch();
+                  else void rollout.refetch();
+                }}
+                className="mt-4 min-h-11 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:opacity-50"
+              >
+                {retrying ? "Retrying Records…" : "Retry official Records"}
+              </button>
+            ) : null}
           </V3Surface>
         </V3Screen>
       </V3AppShell>
     );
-  }
-
-  // Records is a derived Results surface. It adopts V3 only when canonical
-  // Results rollout authority is resolved and enabled; every other state keeps
-  // the established route available as a reversible fallback.
-  if (bundle.isError || !bundle.data || rollout.isError || !rollout.data) {
-    return <>{fallback}</>;
   }
 
   if (rollout.data.enabled !== true || rollout.data.resultsEnabled !== true) {
