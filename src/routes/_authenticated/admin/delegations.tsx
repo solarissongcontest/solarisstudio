@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
+import { supabase } from "@/integrations/supabase/client";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
@@ -39,6 +41,7 @@ export const Route = createFileRoute("/_authenticated/admin/delegations")({
 
 function OrganizerDelegationsPage() {
   const { editionId } = useAdminContext();
+  const { id: actorId } = useAuthenticatedUser();
   const editionsQuery = useEditions();
   // A failed refresh may retain cached edition rows. Those rows must not
   // authorize another private Confirmation request after verification fails.
@@ -49,15 +52,51 @@ function OrganizerDelegationsPage() {
   const resolvedEditionId = selectedEdition?.id ?? "";
   const selectedEditionLabel = selectedEdition ? editionLabel(selectedEdition) : null;
 
+  // A published edition is visible in the public catalogue even when this
+  // actor has lost its edition-scoped Confirmation permission. Probe canonical
+  // server authorization before accessing private requirement data.
+  const capabilityQuery = useQuery({
+    queryKey: ["v3-organizer", "delegations", "confirmation-read", actorId, resolvedEditionId || "none"],
+    queryFn: async () => {
+      const client = supabase as unknown as {
+        rpc: (
+          name: string,
+          args: Record<string, unknown>,
+        ) => PromiseLike<{ data: unknown; error: { message?: string } | null }>;
+      };
+      const { data, error } = await client.rpc("studio2_access_allowed", {
+        p_capability: "confirmation.read",
+        p_edition_id: resolvedEditionId,
+        p_strict_before_cutover: false,
+      });
+      if (error) throw error;
+      if (typeof data !== "boolean") {
+        throw new Error("Confirmation access verification returned an invalid response.");
+      }
+      return data;
+    },
+    enabled: editionsQuery.isSuccess && !editionsQuery.error && Boolean(resolvedEditionId),
+    // Do not reuse a previously-authorized actor/edition scope on a later visit.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+  });
+  const hasConfirmationRead =
+    capabilityQuery.isSuccess &&
+    !capabilityQuery.isFetching &&
+    !capabilityQuery.error &&
+    capabilityQuery.data === true;
+
   const requirementsQuery = useQuery({
     queryKey: [
       "v3-organizer",
       "delegations",
       "confirmation-requirements",
+      actorId,
       resolvedEditionId || "none",
     ],
     queryFn: () => loadConfirmationRequirements(resolvedEditionId),
-    enabled: editionsQuery.isSuccess && !editionsQuery.error && Boolean(resolvedEditionId),
+    enabled: hasConfirmationRead,
     staleTime: 20_000,
   });
 
@@ -117,6 +156,38 @@ function OrganizerDelegationsPage() {
             icon={Flag}
             title="Edition context required"
             description="Select an exact accessible Organizer edition before opening Delegations. Solaris will not substitute another edition or a globally active Confirmation edition for missing, stale or revoked context."
+          />
+        </AdminCard>
+      ) : capabilityQuery.isPending || capabilityQuery.isFetching ? (
+        <AdminCard>
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Verifying edition-scoped Confirmation access…
+          </p>
+        </AdminCard>
+      ) : capabilityQuery.isError ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={CircleAlert}
+            title="Confirmation access could not be verified"
+            description="Private Confirmation obligations remain unavailable until Solaris can verify this edition-scoped capability."
+          />
+          <div className="mt-3 flex justify-center">
+            <button
+              type="button"
+              onClick={() => void capabilityQuery.refetch()}
+              disabled={capabilityQuery.isFetching}
+              className="admin-action-secondary"
+            >
+              Retry access verification
+            </button>
+          </div>
+        </AdminCard>
+      ) : !hasConfirmationRead ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={CircleAlert}
+            title="Confirmation access required"
+            description="This Organizer account does not currently have confirmation.read for the selected edition. Public edition visibility does not grant access to private obligations."
           />
         </AdminCard>
       ) : requirementsQuery.isLoading ? (

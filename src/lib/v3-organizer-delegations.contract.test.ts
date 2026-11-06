@@ -23,7 +23,24 @@ describe('V3 Organizer Delegations context boundary', () => {
     expect(delegationsRoute).toContain('const resolvedEditionId = selectedEdition?.id ?? "";');
     expect(delegationsRoute).toContain('queryFn: () => loadConfirmationRequirements(resolvedEditionId)');
     expect(delegationsRoute).toContain('enabled: editionsQuery.isSuccess && !editionsQuery.error && Boolean(resolvedEditionId)');
+    expect(delegationsRoute).toContain('p_capability: "confirmation.read"');
+    expect(delegationsRoute).toContain('p_edition_id: resolvedEditionId');
+    expect(delegationsRoute).toContain('client.rpc("studio2_access_allowed"');
+    expect(delegationsRoute).toContain('enabled: hasConfirmationRead');
+    expect(delegationsRoute).toContain('!capabilityQuery.isFetching');
+    expect(delegationsRoute).toContain('capabilityQuery.data === true');
     expect(delegationsRoute).not.toContain('loadConfirmationRequirements(editionId!)');
+  });
+
+  it('distinguishes missing Confirmation permission from network failure and never substitutes public visibility', () => {
+    expect(delegationsRoute).toContain('title="Confirmation access could not be verified"');
+    expect(delegationsRoute).toContain('title="Confirmation access required"');
+    expect(delegationsRoute).toContain('Retry access verification');
+    expect(delegationsRoute).toContain('Public edition visibility does not grant access to private obligations.');
+    expect(delegationsRoute).toContain('actorId, resolvedEditionId || "none"');
+    expect(delegationsRoute).toContain('gcTime: 0');
+    expect(delegationsRoute).toContain('refetchOnMount: "always"');
+    expect(delegationsRoute).not.toContain('enabled: Boolean(resolvedEditionId)');
   });
 
   it('keeps the canonical delegation roster reachable when Confirmation obligations cannot load', () => {
