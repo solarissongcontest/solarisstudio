@@ -59,7 +59,7 @@ export function AppReconnectReconciler() {
       data-solaris-app-reconnected=""
       className="fixed left-1/2 z-[75] flex w-[min(calc(100vw-1.5rem),32rem)] -translate-x-1/2 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-950/90 px-3 py-2 text-[0.7rem] font-semibold text-emerald-100 shadow-xl"
       style={{
-        top: "calc(env(safe-area-inset-top) + var(--solaris-app-toolbar-height) + .45rem)",
+        top: "calc(var(--solaris-app-safe-top) + var(--solaris-app-toolbar-height) + var(--solaris-app-safe-top-comfort) + .45rem)",
       }}
     >
       Back online · refreshing Solaris
