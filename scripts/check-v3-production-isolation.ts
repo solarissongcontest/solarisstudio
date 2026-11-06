@@ -120,6 +120,37 @@ export function assertV3ProductionIsolation(environment: NodeJS.ProcessEnv = pro
     }
   }
 
+  // Libpq environment variables can route a separate psql invocation even when
+  // the Supabase CLI URLs above are local. Treat these as connection authorities,
+  // not harmless configuration, and fail closed on service-file indirection.
+  for (const key of ["PGHOST", "PGHOSTADDR"] as const) {
+    const value = environment[key]?.trim();
+    if (!value) continue;
+    inspected.push(key);
+    // Comma-separated libpq hosts allow fallback to a remote target.
+    // Unix sockets and hostname aliases are deliberately not accepted here:
+    // the automated rehearsal contract requires an explicit loopback target.
+    if (value.includes(",") || !loopbackHost(value)) {
+      errors.push(`${key} is not an explicit loopback PostgreSQL host; refusing indirect database routing in automated V3 verification`);
+    }
+  }
+
+  for (const key of ["PGSERVICE", "PGSERVICEFILE"] as const) {
+    if (!environment[key]?.trim()) continue;
+    inspected.push(key);
+    errors.push(`${key} configures indirect PostgreSQL service routing; refusing automated V3 verification`);
+  }
+
+  const pgDatabase = environment.PGDATABASE?.trim();
+  if (pgDatabase) {
+    inspected.push("PGDATABASE");
+    // PostgreSQL accepts connection-string forms in database contexts. Only
+    // ordinary database names are appropriate as ambient CI configuration.
+    if (pgDatabase.includes("://") || pgDatabase.includes("=")) {
+      errors.push("PGDATABASE is a connection string rather than a database name; refusing indirect database routing");
+    }
+  }
+
   const dynamicProjectKeys = Object.keys(environment).filter((key) => /SUPABASE.*(?:PROJECT_ID|PROJECT_REF)$/i.test(key));
   const projectKeys = [...new Set([...PROJECT_ID_KEYS, ...dynamicProjectKeys])];
   for (const key of projectKeys) {
