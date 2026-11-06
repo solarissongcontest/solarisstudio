@@ -67,6 +67,11 @@ describe("installed V3 N14 evidence commit identity", () => {
       expect(evidenceSource).toContain("...readNavbarEvidenceProvenance()");
       expect(evidenceSource).not.toContain("candidateSha: process.env.GITHUB_SHA");
     }
+    // Geometry audits must reject BOTH hosted Supabase and a hosted app URL.
+    expect(geometry).toContain("const appOrigin = new URL(baseURL)");
+    expect(geometry).toContain('appOrigin.protocol !== "http:"');
+    expect(geometry).toContain('!["127.0.0.1", "localhost"].includes(appOrigin.hostname)');
+    expect(geometry).toContain("Refusing V3 geometry evidence against non-local app");
     expect(frame).toContain("automatedCadenceCheckEligible: cadenceSufficient");
     expect(frame).toContain("certificationEligible: false");
     expect(frame).toContain('physicalDeviceGate: "N14-required"');
