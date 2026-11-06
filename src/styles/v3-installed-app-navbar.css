@@ -260,3 +260,21 @@ html[data-solaris-app][data-solaris-keyboard-open] .solaris-app-tabbar {
   visibility: hidden;
   pointer-events: none;
 }
+
+/*
+ * A glass lens communicates selection visually, but keyboard focus is not
+ * selection. Keep a distinct focus cue INSIDE the 44px semantic link: outlines
+ * never change dock size, lens alignment or swipe/touch hit geometry.
+ * The installed runtime owns this, not individual pages.
+ */
+html[data-solaris-app] .solaris-app-tabbar .solaris-app-tab:focus-visible {
+  outline: 2px solid var(--solaris-app-tab-focus-color, #d9f5ff);
+  outline-offset: -4px;
+}
+
+@media (forced-colors: active) {
+  html[data-solaris-app] .solaris-app-tabbar .solaris-app-tab:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: -4px;
+  }
+}

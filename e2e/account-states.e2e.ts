@@ -338,6 +338,11 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     // Assert the V3-installed Countries composition within the authorized local rollout.
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/countries", { waitUntil: "domcontentloaded" });
+    // page.goto is a full document navigation: Playwright-injected standalone
+    // CSS from the Home route does not survive it. Reapply the exact source-
+    // derived CSS in this new document, just as a real installed iOS PWA
+    // continues matching its display-mode media query on every route.
+    await applyNavbarInstalledCssEmulation(page);
     await expect(page.locator("[data-v3-legacy-route-adapter]")).toBeVisible();
     await expect(page.locator("[data-v3-legacy-bottom-clearance]")).toHaveCount(1);
     await expect(page.locator(".v3-countries-title")).toBeVisible();
@@ -420,6 +425,7 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
       return {
         gap: dock.getBoundingClientRect().top - lastCard.getBoundingClientRect().bottom,
         spacerHeight: spacer.getBoundingClientRect().height,
+        dockPosition: getComputedStyle(dock).position,
         dockTop: dock.getBoundingClientRect().top,
         lastCardBottom: lastCard.getBoundingClientRect().bottom,
         spacerTop: spacer.getBoundingClientRect().top,
@@ -428,6 +434,10 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
       };
     });
     expect(dockClearance, "Installed AppTabBar, final country control and shell-owned spacer must all exist").not.toBeNull();
+    // A normal-flow dock at y=0 is an emulation/cascade defect, not a
+    // legitimate "hidden final row" result. Fail before the 12px gap check.
+    expect(dockClearance!.dockPosition).toBe("fixed");
+    expect(dockClearance!.dockTop).toBeGreaterThan(390);
     expect(dockClearance!.spacerHeight).toBeGreaterThanOrEqual(100);
     expect(
       dockClearance!.gap,
