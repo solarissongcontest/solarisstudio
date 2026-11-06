@@ -155,15 +155,16 @@ export async function readPublicWorldBodies(
     return { organization, bodies: [], total: verifiedCount as number, page };
   }
   const offset = page * WORLD_BODIES_PAGE_SIZE;
-  if (!Number.isSafeInteger(count) || count < 0 || !Array.isArray(data) ||
-      data.length > WORLD_BODIES_PAGE_SIZE ||
-      (data.length > 0 && offset + data.length > count) ||
-      (data.length === 0 && offset < count)) {
+  if (!Number.isSafeInteger(count) || count < 0 || !Array.isArray(data)) {
     throw new Error("Public institutional bodies could not be verified.");
   }
-  // A page may become empty between requests when a published organ is withdrawn.
-  // Return the verified count instead of turning a legitimate out-of-range page
-  // into an error, so the UI can reset to the final available page.
+  // Exact count and page rows must agree. A short nonfinal page is not proof
+  // that records have been withdrawn; it could also be a truncated response.
+  // Only a genuinely out-of-range page can have zero rows with positive count.
+  const expectedRows = Math.min(WORLD_BODIES_PAGE_SIZE, Math.max(0, count - offset));
+  if (data.length !== expectedRows) {
+    throw new Error("Public institutional bodies could not be verified.");
+  }
   const bodies = data.map((row: unknown) => decodePublicWorldBody(row, organization.id));
   if (bodies.some((body: PublicWorldBody | null) => !body)) {
     throw new Error("An institutional body had an invalid public identity.");
