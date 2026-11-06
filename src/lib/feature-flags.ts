@@ -34,6 +34,7 @@ export const SOLARIS_FEATURE_FLAGS = [
   'solaris_app_v3_jury',
   'solaris_app_v3_live',
   'solaris_app_v3_organizer',
+  'terra_world_public',
 ] as const;
 
 export type SolarisFeatureFlag = (typeof SOLARIS_FEATURE_FLAGS)[number];
