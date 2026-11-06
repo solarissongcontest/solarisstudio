@@ -151,6 +151,41 @@ describe("WORLD-08 TG13 governed GUARD noncompliance inquiry",()=>{
     expect(s).not.toMatch(/create policy [^;]*to anon/i);
   });
 
+  it("uses the granted boolean eligibility wrapper in RLS, not an ungranted private function",()=>{
+    const source=sql();
+    const start=source.indexOf("create policy world_guard_inquiry_private_read");
+    const end=source.indexOf("create policy world_guard_inquiry_responses_private_read",start);
+    const policy=source.slice(start,end);
+    expect(policy).toContain("public.world_guard_inquiry_can_review_v1(organization_id)");
+    expect(policy).not.toContain("private.world_current_guard_inquiry_chair");
+    expect(source).toContain("grant execute on function public.world_guard_inquiry_can_review_v1(uuid)");
+  });
+  it("includes local-only rollback execution and denial, replay, deadline and immutable history fixtures",()=>{
+    const runner=read("scripts/rehearse-v3-world-guard-inquiry.sh");
+    const scenario=read("scripts/rehearse-v3-world-guard-inquiry.sql");
+    for(const value of [
+      "supabase status -o env",
+      "unset DATABASE_URL PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE",
+      "Refusing nonloopback Supabase API",
+      "Refusing nonloopback or non-disposable PostgreSQL URL",
+      "--no-psqlrc -v ON_ERROR_STOP=1",
+    ])expect(runner).toContain(value);
+    for(const marker of [
+      "begin;", "rollback;", "set local role anon",
+      "set local role authenticated",
+      "GUARD_OUTSIDER_PRIVATE_INQUIRY_VISIBLE",
+      "GUARD_INQUIRY_IDEMPOTENCY_REPLAY_INVALID",
+      "GUARD_REVIEW_BEFORE_DEADLINE_ALLOWED",
+      "GUARD_TARGET_RESPONSE_RECEIPT_INVALID",
+      "GUARD_REVIEW_RECEIPT_INVALID",
+      "GUARD_REVIEW_CAUSED_UNAUTHORIZED_SUSPENSION",
+      "GUARD_PRIVILEGED_RESPONSE_REWRITE_ALLOWED",
+      "GUARD_LOCAL_FIXTURE_PERSISTED",
+    ])expect(scenario).toContain(marker);
+    expect(runner).not.toContain("supabase.co");
+    expect(scenario.lastIndexOf("rollback;")).toBeGreaterThan(scenario.indexOf("begin;"));
+  });
+
   it("reviews recommendations without executing punishment, expulsion or membership mutation",()=>{
     const s=sql();
     expect(s).toContain("decision_kind in ('no_action','recommend_action')");
