@@ -9,7 +9,7 @@ describe("V3 Explore bounded archive publication reads", () => {
   it("does not download unused historical Edition text, theme or host-country fields", () => {
     const implementation = source();
     expect(implementation).toContain(
-      'const EDITION_COLUMNS =\\n  "id,edition_number,name,year,slug,host_city,logo,artwork_url,status,published";',
+      '"id,edition_number,name,year,slug,host_city,logo,artwork_url,status,published"',
     );
     expect(implementation).not.toContain("description,host_country_id");
     expect(implementation).not.toContain("host_country_id,host_city");
