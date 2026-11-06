@@ -248,10 +248,12 @@ export function buildShowDiscovery(input: {
         .filter((item) => item.edition.id === currentEdition.id)
         .sort((left, right) => left.show.sort_order - right.show.sort_order)
     : [];
-  const recent = currentEditionShows
-    .filter((item) => item.state === "ended" || item.state === "cancelled")
-    .slice()
-    .sort((left, right) => right.show.sort_order - left.show.sort_order)
+  // Recent means the latest *completed* published shows, even between editions
+  // or when the newest public edition has already moved into the Archive.
+  // Cancelled shows remain browsable under their own state, not "completed".
+  const recent = items
+    .filter((item) => item.state === "ended")
+    .sort(sortArchive)
     .slice(0, 4);
   const archive = items
     .filter((item) => !currentEdition || item.edition.id !== currentEdition.id)
