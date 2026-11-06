@@ -3,8 +3,10 @@
  * an Organizer href. This resolver never fetches or authorizes the resource.
  */
 export function safeOrganizerEntrySourceUrl(source: string | null | undefined): string | null {
-  const value = source?.trim();
-  if (!value || /[\u0000-\u001f\u007f]/.test(value)) return null;
+  // Check the original bytes before trim can discard leading/trailing controls.
+  if (!source || /[\u0000-\u001f\u007f]/.test(source)) return null;
+  const value = source.trim();
+  if (!value) return null;
   try {
     const url = new URL(value);
     if (
@@ -89,9 +91,11 @@ export function inspectOrganizerEntrySource(
     });
   }
 
-  if (entry.current_version_id?.trim() &&
-      (entry.review_status === "accepted" || entry.review_status === "declined")) {
-    const matches = entry.current_version_id.trim() === entry.reviewed_version_id?.trim();
+  if (entry.review_status === "accepted" || entry.review_status === "declined") {
+    // Legacy decisions without both immutable IDs also need an explicit warning.
+    const current = entry.current_version_id?.trim();
+    const reviewed = entry.reviewed_version_id?.trim();
+    const matches = Boolean(current && reviewed && current === reviewed);
     checks.push({
       id: "review-version",
       label: "Current-version review",
