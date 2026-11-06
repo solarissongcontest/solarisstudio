@@ -47,6 +47,11 @@ describe("V3 Organizer historical Televote backtest least privilege", () => {
     expect(page).not.toContain("Apply to production");
   });
 
+  it("prevents private historical ballot simulation evidence from being indexed", () => {
+    expect(page).toContain('head: () => ({');
+    expect(page).toContain('{ name: "robots", content: "noindex, nofollow" }');
+  });
+
   it("remounts private historical backtest readback on actor change and blocks unsigned requests", () => {
     expect(page).toContain('useAuthenticatedUser().id');
     expect(page).toContain('key={actorId ?? "signed-out"}');
