@@ -25,6 +25,7 @@ describe("V3 installed dock review regressions", () => {
 
   it("releases captured pointers and clears gestures on app interruption", () => {
     expect(tab).toContain("captureTarget: event.currentTarget");
+    expect(tab).toContain("if (dragState.current) suppressClick.current = true;");
     expect(tab).toContain("drag.captureTarget.releasePointerCapture?.(drag.pointerId)");
     expect(tab).toContain('"data-solaris-feature-overlay-open"');
     expect(tab).toContain('"data-solaris-keyboard-open"');
