@@ -113,6 +113,28 @@ describe("TG3 public institution bodies", () => {
     expect(recount.abortSignal).toHaveBeenCalledWith(controller.signal);
     expect(numberOfOrganQueries).toBe(2);
   });
+  it("includes inactive institutions' public bodies in the exact-status directory", async () => {
+    const org = chain({ data: parent, error: null });
+    const body = chain({ data: [{ ...organ, status: "inactive" }], error: null, count: 1 });
+    mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
+    const rows = await readPublicWorldBodies("guard", 0, { status: "inactive" });
+    expect(rows?.bodies[0]?.status).toBe("inactive");
+    expect(body.eq).toHaveBeenCalledWith("status", "inactive");
+    expect(body.eq).toHaveBeenCalledWith("visibility", "public");
+  });
+  it("uses the same inactive-publication predicates when recounting a withdrawn page", async () => {
+    const org = chain({ data: parent, error: null });
+    const expiredPage = chain({ data: null, error: { code: "PGRST103" }, count: null });
+    const recount = chain({ data: [{ id: "body-1" }], error: null, count: 1 });
+    let bodyRequests = 0;
+    mockFrom.mockImplementation((name: string) =>
+      name === "world_organizations" ? org : ++bodyRequests === 1 ? expiredPage : recount);
+    const result = await readPublicWorldBodies("guard", 1, { status: "inactive" });
+    expect(result?.total).toBe(1);
+    expect(recount.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(recount.eq).toHaveBeenCalledWith("visibility", "public");
+    expect(recount.eq).toHaveBeenCalledWith("status", "inactive");
+  });
   it("preserves public-only predicates for historical filtering without search", async () => {
     const org = chain({ data: parent, error: null });
     const body = chain({ data: [], error: null, count: 0 });
