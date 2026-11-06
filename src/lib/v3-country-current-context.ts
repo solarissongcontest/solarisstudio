@@ -37,3 +37,17 @@ export function resolveCountryCurrentContext(
   }
   return { editionLabel, status: "No published participation confirmed" };
 }
+
+
+/** An old published entry is not a current entry merely because it is the
+ * newest row in the archive. Hide the "current" claim if the underlying
+ * published participation query is loading or unavailable. */
+export function isPublishedCurrentCountryEntry(
+  activeEditionId: string | null | undefined,
+  entryEditionId: string | null | undefined,
+  availability: { loading: boolean; error: boolean },
+): boolean {
+  return !availability.loading &&
+    !availability.error &&
+    Boolean(activeEditionId && entryEditionId && activeEditionId === entryEditionId);
+}
