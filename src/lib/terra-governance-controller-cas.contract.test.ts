@@ -51,7 +51,7 @@ describe("WORLD-01 TG1 controller-person CAS and effective identity", () => {
       resolve(process.cwd(), "scripts/rehearse-v3-world-controller-cas.sql"), "utf8",
     );
     expect(rehearsal).toContain("TG1_CAS_FUTURE_SUPERSESSION_INVALID");
-    expect(rehearsal).toContain("term.ended_at is distinct from term.started_at");
+    expect(rehearsal).toContain("v_term.ended_at is distinct from v_term.started_at");
     expect(rehearsal).toContain("TG1_CAS_FUTURE_SUPERSESSION_OWNER_CHANGED");
   });
 
