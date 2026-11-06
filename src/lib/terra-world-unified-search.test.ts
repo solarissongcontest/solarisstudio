@@ -67,9 +67,18 @@ describe("Terra Solaris unified public World search", () => {
       .toBe("GUARDstatuseqprivate");
     await fetchWorldUnifiedSearch("GUARD),status.eq.private%");
     expect(mocks.countries.or).toHaveBeenCalledWith(
-      "name.ilike.%GUARDstatuseqprivate%,short_code.ilike.%GUARDstatuseqprivate%");
+      "name.ilike.%GUARDstatuseqprivate%,short_code.ilike.%GUARDstatuseqprivate%,region.ilike.%GUARDstatuseqprivate%");
     expect(mocks.organizations.or).toHaveBeenCalledWith(
       "official_name.ilike.%GUARDstatuseqprivate%,short_name.ilike.%GUARDstatuseqprivate%");
+  });
+
+  it("supports canonical region-name searches without a new country index", async () => {
+    await fetchWorldCountrySearchPage("Hydra");
+    expect(mocks.countries.or).toHaveBeenCalledWith(
+      "name.ilike.%Hydra%,short_code.ilike.%Hydra%,region.ilike.%Hydra%");
+    expect(mocks.countries.select).toHaveBeenCalledWith(
+      "id,name,short_code,region,flag_image,accent_color", { count: "exact" });
+    expect(mocks.organizations.range).not.toHaveBeenCalled();
   });
 
   it("returns only two bounded projections and the verified exact counts", async () => {
