@@ -50,6 +50,20 @@ describe("Organizer V3 Result Integrity authorization", () => {
     expect(recomputeEngine).toBeGreaterThan(recomputeGuard);
   });
 
+  it.each([
+    ["getResultIntegrityServer", "requireResultIntegrityReadServer"],
+    ["recomputeResultIntegrityServer", "requireResultIntegrityRecomputeServer"],
+  ] as const)("enforces the capability bundle inside direct service %s", (methodName, permissionGuard) => {
+    const start = server.indexOf(`export async function ${methodName}`);
+    expect(start).toBeGreaterThanOrEqual(0);
+    const next = server.indexOf("\nexport async function ", start + methodName.length);
+    const implementation = server.slice(start, next < 0 ? undefined : next);
+    const guard = implementation.indexOf(`await ${permissionGuard}()`);
+    const legacyAdmin = implementation.indexOf("await requireMergedTelevotingAdminServer()");
+    expect(guard).toBeGreaterThanOrEqual(0);
+    expect(legacyAdmin).toBeGreaterThan(guard);
+  });
+
   it("protects exactly the data classes the raw server exposes", () => {
     expect(server).toContain('.from("round_results")');
     expect(server).toContain('.from("vote_preflight_checks")');
