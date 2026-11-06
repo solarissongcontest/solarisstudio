@@ -196,7 +196,10 @@ export function V3CountriesDiscoveryScreen({
           <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground" role="status">
             <span>Current-edition lineup unavailable. You can still browse all countries.</span>
             <button type="button" className="min-h-11 rounded-lg border border-border px-3 font-semibold text-foreground"
-              onClick={() => void participantsQuery.refetch()}>Retry lineup</button>
+              disabled={participantsQuery.isFetching}
+              onClick={() => void participantsQuery.refetch()}>
+              {participantsQuery.isFetching ? "Retrying…" : "Retry lineup"}
+            </button>
           </div>
         ) : null}
         <div className={presentation === "desktop-web" ? "v3-countries-workspace v3-countries-workspace--desktop" : "v3-countries-workspace"}>
