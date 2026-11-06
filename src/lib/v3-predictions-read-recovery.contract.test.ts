@@ -27,6 +27,22 @@ describe("V3 Predictions read recovery", () => {
     expect(source).toContain("Retry privacy setting");
   });
 
+  it("withholds misleading Open/Submitted round cards until a signed-in fan's history is verified", () => {
+    const source = screen();
+    const title = source.indexOf('<V3Section title="Prediction rounds"');
+    const cards = source.indexOf('active.map((round)', title);
+    const guard = source.indexOf("viewerId && history.isLoading ? (", title);
+    const failure = source.indexOf("viewerId && history.isError ? (", title);
+    expect(title).toBeGreaterThan(-1);
+    expect(guard).toBeGreaterThan(title);
+    expect(failure).toBeGreaterThan(guard);
+    expect(cards).toBeGreaterThan(failure);
+    expect(source).toContain('data-v3-prediction-rounds-state="private-history-error"');
+    expect(source).toContain("Your submitted prediction states could not be verified.");
+    expect(source).toContain("Retry saved predictions");
+    expect(source).toContain("onClick={() => void history.refetch()}");
+  });
+
   it("makes private-history failure recoverable without substituting anonymous state", () => {
     const source = screen();
     expect(source).toContain('data-v3-prediction-history-state="error"');
