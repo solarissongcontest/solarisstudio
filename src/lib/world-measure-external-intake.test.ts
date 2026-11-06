@@ -129,6 +129,10 @@ describe("WORLD-05 TG7 governed external proposals",()=>{
     expect(recordSql).toContain("'world.measure.external_intake.received'");
     expect(recordSql).not.toContain("insert into public.world_measures");
     expect(recordSql).toContain("private.studio2_claim_operation");
+    expect(recordSql).toContain("WORLD_INTAKE_ROLLOUT_DISABLED");
+    expect(introduceSql).toContain("WORLD_INTAKE_ROLLOUT_DISABLED");
+    expect(intakeSql.match(/studio2_feature_enabled\('terra_world_public',null\)/g)?.length)
+      .toBeGreaterThanOrEqual(3);
     expect(introduceSql).toContain("'SPONSOR_NOT_CURRENT_MEMBER'");
     expect(introduceSql).toContain("GUARD_TOPIC_CODE_REQUIRED");
     expect(introduceSql).toContain("insert into public.world_measures");
