@@ -20,6 +20,7 @@ import {
   type VotingTaskInput,
 } from "./participation-os";
 import { isShowPublic, showPublishesResults } from "./publication";
+import { showModeConfig } from "./show-mode";
 import type { PublicRound } from "./confirmation-rounds.functions";
 import type { V3ShowState } from "./v3-domain-state";
 import type {
@@ -165,16 +166,35 @@ function showHasPublishedResult(show: Show, results: readonly ResultRow[]) {
 function upcomingItems(
   shows: readonly Show[],
   results: readonly ResultRow[],
+  serverTimeMs: number,
 ): readonly V3PrimaryHomeListItem[] {
-  return [...shows]
-    .filter(
-      (show) =>
-        UPCOMING_STATUSES.has(normalizedStatus(show)) &&
-        !showHasPublishedResult(show, results),
+  // Canonical show schedule takes precedence over running order. Do not
+  // advertise a past or invalid announced start as an upcoming public event.
+  // Legacy shows without a schedule remain browsable, after timed events.
+  const scheduled = shows.flatMap<{ show: Show; startsAt: number | null }>((show) => {
+    if (
+      !UPCOMING_STATUSES.has(normalizedStatus(show)) ||
+      showHasPublishedResult(show, results)
+    ) return [];
+
+    const mode = showModeConfig(show);
+    if (mode.phase !== "scheduled") return [];
+    if (!mode.scheduledStart) return [{ show, startsAt: null }];
+
+    const startsAt = Date.parse(mode.scheduledStart);
+    if (!Number.isFinite(startsAt) || startsAt <= serverTimeMs) return [];
+    return [{ show, startsAt }];
+  });
+
+  return scheduled
+    .sort(
+      (left, right) =>
+        (left.startsAt === null ? 1 : right.startsAt === null ? -1 : left.startsAt - right.startsAt) ||
+        left.show.sort_order - right.show.sort_order ||
+        left.show.id.localeCompare(right.show.id),
     )
-    .sort((a, b) => a.sort_order - b.sort_order)
     .slice(0, 3)
-    .map((show) => ({
+    .map(({ show }) => ({
       id: `show:${show.id}`,
       title: show.name,
       description: "Public show information is available.",
@@ -402,7 +422,7 @@ export function assembleV3PrimarySurfaceSnapshot(
     generatedAt: generatedAt.value,
     hideResultSpoilers: input.hideResultSpoilers ?? false,
     primarySurfaces: {
-      upcoming: terminalHome ? [] : upcomingItems(publicShows, editionResults),
+      upcoming: terminalHome ? [] : upcomingItems(publicShows, editionResults, serverTime.ms),
       latest: latestItems({
         shows: publicShows,
         results: editionResults,
