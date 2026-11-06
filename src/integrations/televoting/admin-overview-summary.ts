@@ -67,6 +67,12 @@ export function parseTelevotingOverviewSummary(input: unknown): TelevotingOvervi
   if (record.linked !== Boolean(remoteEditionId)) {
     throw new Error("Voting overview returned inconsistent edition link state");
   }
+  if (!record.linked && (rounds !== 0 || openRounds !== 0 || submissions !== 0 || blocked !== 0)) {
+    throw new Error("Voting overview returned unlinked edition with voting activity");
+  }
+  if (rounds === 0 && (submissions !== 0 || blocked !== 0)) {
+    throw new Error("Voting overview returned ballot activity without configured rounds");
+  }
 
   return { editions, rounds, openRounds, submissions, blocked, activeEdition, remoteEditionId, linked: record.linked };
 }
