@@ -90,6 +90,28 @@ describe("TG14 Court hearings and orders",()=>{
    "'world.court.order.publish','R3'",
   ])expect(body).toContain(expected);
  });
+ it("replays a completed hearing schedule even after its original start date",()=>{
+  const body=sql();
+  const schedule=body.slice(body.indexOf("create function public.world_schedule_court_hearing_v1"),
+   body.indexOf("end $schedule$;"));
+  const replay=schedule.indexOf("coalesce((v_claim->>'replayed')::boolean,false)");
+  const timeGuard=schedule.indexOf("if p_starts_at<=now()");
+  expect(replay).toBeGreaterThan(0);
+  expect(timeGuard).toBeGreaterThan(replay);
+  expect(schedule).toContain("HEARING_START_IN_PAST");
+ });
+ it("provides a fail-closed local-only rehearsal without production fallback",()=>{
+  const shell=read("scripts/rehearse-v3-world-court-proceedings.sh");
+  const rehearsal=read("scripts/rehearse-v3-world-court-proceedings.sql");
+  expect(shell).toContain("supabase status -o env");
+  expect(shell).toContain("http://127.0.0.1:*");
+  expect(shell).toContain("postgres:postgres@127.0.0.1:");
+  expect(shell).not.toContain("DATABASE_URL");
+  expect(rehearsal.trim()).toMatch(/rollback;$/);
+  expect(rehearsal).toContain("TG14_PROCEEDINGS_RLS_MISSING");
+  expect(rehearsal).toContain("TG14_PROCEEDINGS_RAW_WRITE_OR_ANON_LEAK");
+  expect(rehearsal).toContain("TG14_PROCEEDINGS_ANONYMOUS_MUTATION_EXECUTE");
+ });
  it("allows signed orders only for current effective UNITY SG office and never for frontend role guess",()=>{
   const body=sql();
   for(const expected of [
