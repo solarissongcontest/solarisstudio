@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, RefreshCw, ShieldCheck, UserRoundCog } from "lucide-react";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminCountryPasswordPanel } from "@/components/admin/AdminCountryPasswordPanel";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
@@ -16,10 +17,15 @@ import {
 import { FlagChip } from "@/components/FlagChip";
 import {
   useAdminCountryAccounts,
-  useAdminSetCountryAccountStatus,
   type AdminCountryAccount,
 } from "@/lib/country-account";
 import { useCountries } from "@/lib/data";
+import { systemErrorCodeFromUnknown } from "@/lib/system-error";
+import {
+  createCountryAccountStatusOperationIdentity,
+  type CountryAccountStatusOperationIdentity,
+} from "@/lib/v3-country-account-status";
+import { useAdminSetCountryAccountStatusV3 } from "@/lib/v3-organizer-country-account-status";
 
 export const Route = createFileRoute("/_authenticated/admin/country-accounts")({
   head: () => ({
@@ -32,6 +38,7 @@ export const Route = createFileRoute("/_authenticated/admin/country-accounts")({
 });
 
 type PendingAccountStatusReview = {
+  actorId: string;
   userId: string;
   countryId: string;
   countryName: string;
@@ -41,10 +48,28 @@ type PendingAccountStatusReview = {
   currentUpdatedAt: string;
   targetStatus: "active" | "suspended";
   reason: string;
+  operationIdentity: CountryAccountStatusOperationIdentity;
+  outcomeUnconfirmed: boolean;
 };
 
+function reviewInvalidatingErrorCode(code: ReturnType<typeof systemErrorCodeFromUnknown>) {
+  return (
+    code === "AUTHENTICATION" ||
+    code === "AUTHORIZATION" ||
+    code === "VALIDATION" ||
+    code === "STATE_CHANGED" ||
+    code === "VERSION_CONFLICT" ||
+    code === "IDEMPOTENCY_CONFLICT"
+  );
+}
+
 function CountryAccountsAdminPage() {
-  const { data: countries = [] } = useCountries();
+  const actorId = useAuthenticatedUser().id;
+  const currentActorRef = useRef(actorId);
+  const countriesQuery = useCountries();
+  const countries = countriesQuery.data ?? [];
+  // Stale cached rows are not a verified country roster after a failed refetch.
+  const countriesReady = countriesQuery.isSuccess && !countriesQuery.error && !countriesQuery.isFetching;
   const {
     data,
     isLoading: accountsLoading,
@@ -53,12 +78,24 @@ function CountryAccountsAdminPage() {
     error: accountsError,
     refetch: refetchAccounts,
   } = useAdminCountryAccounts();
-  const setStatus = useAdminSetCountryAccountStatus();
+  const setStatus = useAdminSetCountryAccountStatusV3();
   const [query, setQuery] = useState("");
   const [target, setTarget] = useState<AdminCountryAccount | null>(null);
   const [reason, setReason] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [lastOperationId, setLastOperationId] = useState<string | null>(null);
   const [pendingReview, setPendingReview] = useState<PendingAccountStatusReview | null>(null);
+
+  useEffect(() => {
+    if (currentActorRef.current === actorId) return;
+    currentActorRef.current = actorId;
+    // No reviewed identity or private account details survive a login switch.
+    setTarget(null);
+    setPendingReview(null);
+    setReason("");
+    setMessage(null);
+    setLastOperationId(null);
+  }, [actorId]);
 
   const accountByCountry = useMemo(
     () => new Map((data?.accounts ?? []).map((account) => [account.country_id, account])),
@@ -80,22 +117,26 @@ function CountryAccountsAdminPage() {
   }, [countries, accountByCountry, query]);
 
   function openAccount(account: AdminCountryAccount) {
+    if (!countriesReady) return;
     setTarget(account);
     setReason(account.suspension_reason ?? "");
     setMessage(null);
+    setLastOperationId(null);
     setPendingReview(null);
   }
 
   function closeAccount() {
-    if (setStatus.isPending) return;
+    if (setStatus.isPending || pendingReview?.outcomeUnconfirmed) return;
     setTarget(null);
     setPendingReview(null);
   }
 
   function requestStatusReview(targetStatus: "active" | "suspended") {
-    if (!target || target.status === targetStatus) return;
+    if (!countriesReady || !target || target.status === targetStatus) return;
     setMessage(null);
+    setLastOperationId(null);
     setPendingReview({
+      actorId,
       userId: target.user_id,
       countryId: target.country_id,
       countryName: target.country_name,
@@ -105,42 +146,68 @@ function CountryAccountsAdminPage() {
       currentUpdatedAt: target.updated_at,
       targetStatus,
       reason: targetStatus === "suspended" ? reason.trim() : "",
+      operationIdentity: createCountryAccountStatusOperationIdentity(),
+      outcomeUnconfirmed: false,
     });
   }
 
   async function confirmStatusReview() {
-    if (!pendingReview) return;
+    if (!pendingReview || currentActorRef.current !== actorId) return;
     const review = pendingReview;
-    const refreshed = await refetchAccounts();
-    const refreshedData = refreshed.data;
-
-    if (refreshed.error || !refreshedData?.schemaReady) {
+    if (review.actorId !== currentActorRef.current) return;
+    if (!review.outcomeUnconfirmed && !countriesReady) {
       setPendingReview(null);
-      setMessage("Country account state could not be refreshed before apply. Nothing was changed. Reload the account and review the access change again.");
+      setMessage("Country roster could not be verified before applying this review. Nothing was changed. Retry the country directory and open a new review.");
       return;
     }
 
-    const liveAccount = refreshedData.accounts.find((account) => account.user_id === review.userId) ?? null;
-    if (
-      !liveAccount ||
-      liveAccount.country_id !== review.countryId ||
-      liveAccount.country_name !== review.countryName ||
-      liveAccount.email !== review.email ||
-      liveAccount.status !== review.currentStatus ||
-      liveAccount.suspension_reason !== review.currentSuspensionReason ||
-      liveAccount.updated_at !== review.currentUpdatedAt
-    ) {
-      setPendingReview(null);
-      setMessage("Country account state changed while the review was open. Nothing was changed. Reload the account and review the access change again.");
-      return;
+    // A first attempt must prove the human-reviewed account is still current.
+    // Once an outcome is unconfirmed, however, refetching the account first can
+    // misclassify a successfully committed-but-lost response as ordinary drift.
+    // Retry the same frozen operation identity and let S2 replay/CAS arbitrate it.
+    if (!review.outcomeUnconfirmed) {
+      const refreshed = await refetchAccounts();
+      const refreshedData = refreshed.data;
+
+      if (refreshed.error || !refreshedData?.schemaReady) {
+        setPendingReview(null);
+        setMessage(
+          "Country account state could not be refreshed before apply. Nothing was changed. Reload the account and review the access change again.",
+        );
+        return;
+      }
+
+      const liveAccount =
+        refreshedData.accounts.find((account) => account.user_id === review.userId) ?? null;
+      if (
+        !liveAccount ||
+        liveAccount.country_id !== review.countryId ||
+        liveAccount.country_name !== review.countryName ||
+        liveAccount.email !== review.email ||
+        liveAccount.status !== review.currentStatus ||
+        liveAccount.suspension_reason !== review.currentSuspensionReason ||
+        liveAccount.updated_at !== review.currentUpdatedAt
+      ) {
+        setPendingReview(null);
+        setMessage(
+          "Country account state changed while the review was open. Nothing was changed. Reload the account and review the access change again.",
+        );
+        return;
+      }
     }
 
+    if (review.actorId !== currentActorRef.current) return;
     try {
-      await setStatus.mutateAsync({
+      const receipt = await setStatus.mutateAsync({
         userId: review.userId,
-        status: review.targetStatus,
+        countryId: review.countryId,
+        currentUpdatedAt: review.currentUpdatedAt,
+        targetStatus: review.targetStatus,
+        operationIdentity: review.operationIdentity,
         ...(review.targetStatus === "suspended" ? { reason: review.reason } : {}),
       });
+      if (review.actorId !== currentActorRef.current) return;
+      setLastOperationId(receipt.operationId);
       setMessage(
         review.targetStatus === "suspended"
           ? `${review.countryName} account suspended.`
@@ -149,12 +216,30 @@ function CountryAccountsAdminPage() {
       setPendingReview(null);
       setTarget(null);
     } catch (error) {
+      if (review.actorId !== currentActorRef.current) return;
+      const errorCode = systemErrorCodeFromUnknown(error);
+      if (reviewInvalidatingErrorCode(errorCode)) {
+        setPendingReview(null);
+        setMessage(
+          `${
+            error instanceof Error
+              ? error.message
+              : review.targetStatus === "suspended"
+                ? "Account could not be suspended."
+                : "Account could not be restored."
+          } Review the current account state before trying again.`,
+        );
+        return;
+      }
+
+      setPendingReview((current) =>
+        current?.operationIdentity.operationId === review.operationIdentity.operationId
+          ? { ...current, outcomeUnconfirmed: true }
+          : current,
+      );
+      setLastOperationId(review.operationIdentity.operationId);
       setMessage(
-        error instanceof Error
-          ? error.message
-          : review.targetStatus === "suspended"
-            ? "Account could not be suspended."
-            : "Account could not be restored.",
+        `The outcome is not confirmed. Retry this same reviewed operation (${review.operationIdentity.operationId}) to reconcile or replay it; do not start a second access change.`,
       );
     }
   }
@@ -164,7 +249,7 @@ function CountryAccountsAdminPage() {
   const suspended = accountsReady
     ? data!.accounts.filter((account) => account.status === "suspended").length
     : null;
-  const unclaimed = claimed === null ? null : Math.max(0, countries.length - claimed);
+  const unclaimed = claimed === null || !countriesReady ? null : Math.max(0, countries.length - claimed);
 
   return (
     <AdminPage>
@@ -181,7 +266,12 @@ function CountryAccountsAdminPage() {
 
       {message ? (
         <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] p-3 text-sm text-foreground">
-          {message}
+          <p>{message}</p>
+          {lastOperationId ? (
+            <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+              Operation {lastOperationId}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -223,6 +313,30 @@ function CountryAccountsAdminPage() {
                 className="admin-action-primary"
               >
                 <RefreshCw className="size-4" /> Retry
+              </button>
+            }
+          />
+        ) : countriesQuery.isLoading ? (
+          <div className="py-10 text-center text-sm text-muted-foreground">
+            Verifying country directory…
+          </div>
+        ) : !countriesReady ? (
+          <AdminEmptyState
+            icon={RefreshCw}
+            title="Country directory could not be verified"
+            description={
+              countriesQuery.error instanceof Error
+                ? countriesQuery.error.message
+                : "The country directory is unavailable. Account totals and moderation controls will not be inferred from missing country data."
+            }
+            action={
+              <button
+                type="button"
+                onClick={() => void countriesQuery.refetch()}
+                disabled={countriesQuery.isFetching}
+                className="admin-action-secondary"
+              >
+                <RefreshCw className="size-4" /> Retry country directory
               </button>
             }
           />
@@ -367,7 +481,7 @@ function CountryAccountsAdminPage() {
       <AdminConfirmSheet
         open={Boolean(pendingReview)}
         onClose={() => {
-          if (!setStatus.isPending) setPendingReview(null);
+          if (!setStatus.isPending && !pendingReview?.outcomeUnconfirmed) setPendingReview(null);
         }}
         onConfirm={confirmStatusReview}
         title={
@@ -378,31 +492,61 @@ function CountryAccountsAdminPage() {
         description={
           pendingReview ? (
             <div className="space-y-3" data-v3-organizer-country-account-status-review>
-              <p>
-                Review the exact country account before changing delegation editing access.
-              </p>
+              <p>Review the exact country account before changing delegation editing access.</p>
               <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3 text-xs leading-5 text-muted-foreground">
-                <strong className="text-foreground">Account:</strong> {pendingReview.email ?? "No account email"}<br />
-                <strong className="text-foreground">Access:</strong> {pendingReview.currentStatus} → {pendingReview.targetStatus}
+                <strong className="text-foreground">Account:</strong>{" "}
+                {pendingReview.email ?? "No account email"}
+                <br />
+                <strong className="text-foreground">Access:</strong>{" "}
+                {pendingReview.currentStatus} → {pendingReview.targetStatus}
+                <br />
+                <strong className="text-foreground">Reviewed revision:</strong>{" "}
+                {pendingReview.currentUpdatedAt}
+                <br />
+                <strong className="text-foreground">Operation:</strong>{" "}
+                <span className="break-all font-mono">{pendingReview.operationIdentity.operationId}</span>
               </div>
               {pendingReview.targetStatus === "suspended" ? (
                 <p className="text-xs leading-5 text-muted-foreground">
-                  The owner will lose country-profile editing access. Public country visibility and contest results are not removed. Reason shown to owner: {pendingReview.reason || "No reason provided"}.
+                  The owner will lose country-profile editing access. Public country visibility and
+                  contest results are not removed. Reason shown to owner:{" "}
+                  {pendingReview.reason || "No reason provided"}.
                 </p>
               ) : (
                 <p className="text-xs leading-5 text-muted-foreground">
-                  The owner will regain country-profile editing access. This does not change contest participation, entries or results.
+                  The owner will regain country-profile editing access. This does not change contest
+                  participation, entries or results.
                 </p>
               )}
-              <p className="text-xs leading-5 text-muted-foreground">
-                Organizer refreshes the account directory immediately before apply and refuses the change if the exact country, owner email, access state, suspension reason or account revision changed while this review was open. The existing status RPC is still not a version-bound/idempotent V3 command, so a narrow race remains until System provides canonical account-access authority and receipts.
-              </p>
+              {pendingReview.outcomeUnconfirmed ? (
+                <p className="text-xs leading-5 text-amber-100/90">
+                  The previous attempt has an unconfirmed outcome. This review is locked to the same
+                  frozen operation identity. Reconcile or replay that operation before starting a new
+                  access change; do not refresh it into a second write.
+                </p>
+              ) : (
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Organizer refreshes the account directory immediately before the first apply and
+                  refuses the change if the exact country, owner email, access state, suspension
+                  reason or account revision changed while this review was open. The canonical R2 command
+                  repeats exact user + country scope and applies only when this reviewed account
+                  revision still matches. If transport and reconciliation both become unavailable,
+                  this review keeps the frozen identity and reconciles the same operation receipt
+                  rather than creating a second access change.
+                </p>
+              )}
             </div>
           ) : (
             "Review the account access change before continuing."
           )
         }
-        confirmLabel={pendingReview?.targetStatus === "suspended" ? "Suspend editing" : "Restore editing"}
+        confirmLabel={
+          pendingReview?.outcomeUnconfirmed
+            ? "Reconcile same operation"
+            : pendingReview?.targetStatus === "suspended"
+              ? "Suspend editing"
+              : "Restore editing"
+        }
         confirmationText={pendingReview?.countryName}
         confirmationHint={
           pendingReview ? `Type ${pendingReview.countryName} to confirm the access change` : undefined
