@@ -21,6 +21,22 @@ type HoldSession = {
   engaged: boolean;
 };
 
+/**
+ * Hold intent can be cancelled by finger movement only until the timer
+ * engages. Once engaged, the gesture belongs to direct lens manipulation
+ * until its matching pointer ends/cancels.
+ */
+export function shouldCancelPendingHoldOnMove(
+  engaged: boolean,
+  startX: number,
+  startY: number,
+  clientX: number,
+  clientY: number,
+  tolerance = SOLARIS_HOLD_MOVEMENT_TOLERANCE,
+) {
+  return !engaged && holdMovementExceeded(startX, startY, clientX, clientY, tolerance);
+}
+
 export function useSolarisPressHold({
   delayMs = SOLARIS_HOLD_DELAY_MS,
   movementTolerance = SOLARIS_HOLD_MOVEMENT_TOLERANCE,
@@ -69,14 +85,9 @@ export function useSolarisPressHold({
     (pointerId: number, clientX: number, clientY: number) => {
       const active = session.current;
       if (!active || active.pointerId !== pointerId) return;
-
-      // Finger travel cancels only a pending hold. Once the long-press has
-      // actually engaged, movement belongs to the direct-manipulation gesture
-      // and must keep the lens picked up until pointer end/cancel.
-      if (active.engaged) return;
-
       if (
-        holdMovementExceeded(
+        shouldCancelPendingHoldOnMove(
+          active.engaged,
           active.startX,
           active.startY,
           clientX,
@@ -90,7 +101,15 @@ export function useSolarisPressHold({
     [end, movementTolerance],
   );
 
+  const isEngaged = useCallback(
+    (pointerId: number) => {
+      const active = session.current;
+      return Boolean(active && active.pointerId === pointerId && active.engaged);
+    },
+    [],
+  );
+
   useEffect(() => () => disposeSession(), [disposeSession]);
 
-  return { held, begin, move, end };
+  return { held, begin, move, end, isEngaged };
 }

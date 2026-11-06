@@ -147,9 +147,8 @@ export async function prepareNavbarInstalledContext(
   // Navbar certification owns a real V3 route matrix. The local seed keeps most
   // slice flags disabled by default, so explicitly enable only the existing V3
   // slices this proof visits. No production feature state is involved.
-  // Browser Audit projects share the same disposable local feature-flag rows.
-  // Preserve both seeded identities so this navbar probe cannot revoke the
-  // Organizer account-state fixture while their tests run concurrently.
+  // Concurrent local Browser Audit fixtures must not revoke one another's
+  // seeded organizer/country rollouts while both run in parallel.
   const audience = [...new Set([organizer.user.id, country.user.id])];
   for (const key of [
     "solaris_app_v3",

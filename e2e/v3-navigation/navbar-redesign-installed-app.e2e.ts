@@ -172,9 +172,8 @@ async function assertAuthoritativeNavbar(page: Page) {
 }
 
 async function attachNavbar(page: Page, testInfo: TestInfo, name: string) {
-  // Route-level V3 shells can remount between a Playwright visibility probe
-  // and the screenshot frame. Retry ONLY transient element detach, and
-  // re-run all navigation assertions on the newly mounted authoritative bar.
+  // Route-driven shells can remount between the visibility probe and screenshot.
+  // Retry only DOM detach, reasserting authoritative navigation on each attempt.
   let image: Buffer | null = null;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const nav = await assertAuthoritativeNavbar(page);

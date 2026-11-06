@@ -7,11 +7,11 @@ describe("installed app adaptive layout", () => {
   it("switches iPad-sized installed apps to a stable side rail", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
     const css = source("src/styles/app-shell.css");
-    expect(tabs).toContain('(min-width: 900px)');
+    expect(tabs).toContain('(min-width: 900px) and (min-height: 600px)');
     expect(tabs).toContain('data-layout={railMode ? "rail" : "bar"}');
     expect(tabs).toContain("railMode ||");
     expect(css).toContain("Installed iPad / large-screen rail");
-    expect(css).toContain("@media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px)");
+    expect(css).toContain("@media (display-mode: standalone) and (min-width: 900px) and (min-height: 600px), (display-mode: window-controls-overlay) and (min-width: 900px) and (min-height: 600px)");
     expect(css).toContain("grid-template-columns: 1fr");
   });
 

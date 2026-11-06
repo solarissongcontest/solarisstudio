@@ -34,13 +34,12 @@ describe("V3 app shell migration contract", () => {
     expect(shell).not.toContain("sessionStorage");
   });
 
-  it("separates installed dock, browser-mobile sections and browser-desktop navigation", () => {
+  it("uses canonical Liquid mobile navigation plus the desktop adaptation in the installed shell", () => {
     const shell = source("src/components/v3/V3AppShell.tsx");
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const desktop = source("src/components/v3/V3DesktopPrimaryNavigation.tsx");
     const installedShell = shell.slice(shell.indexOf("export function V3AppShell("));
 
-    expect(installedShell).toContain("<AppTabBar");
     expect(installedShell).toContain("<V3MobileWebPrimaryNavigation");
     expect(installedShell).not.toContain("<V3LiquidTabBar");
     expect(installedShell).toContain("<V3DesktopPrimaryNavigation");
@@ -50,7 +49,7 @@ describe("V3 app shell migration contract", () => {
     expect(tabs).toContain('aria-current={active ? "page" : undefined}');
     expect(desktop).toContain('aria-label="Primary app navigation"');
     expect(desktop).toContain(
-      'aria-current={resolveV3WebNavigationCurrent({ active: destination.active, pathname, target: destination.to })}',
+      'aria-current={destination.active ? "page" : undefined}',
     );
   });
 

@@ -119,7 +119,7 @@ describe("PR455 Browser Audit regression contracts", () => {
     const audit = source("e2e/audit-helpers.ts");
     const preflight = source("e2e/pr455-organizer-regression.e2e.ts");
     const bootLocator = audit.indexOf(
-      'page.locator("[data-v3-primary-boot], [data-v3-explore-boot], [data-v3-edition-boot], [data-v3-confirmation-route-boot], [data-v3-account-settings-route-boot], [data-v3-notifications-route-boot]")',
+      'page.locator("[data-v3-primary-boot], [data-v3-explore-boot], [data-v3-edition-boot], [data-v3-confirmation-route-boot], [data-v3-account-settings-route-boot], [data-v3-notifications-route-boot], [data-v3-stories-boot]")',
     );
     const finalMainReadiness = audit.indexOf('page.locator("main:visible")', bootLocator + 1);
     const finalHeadingReadiness = audit.indexOf('page.locator("h1:visible")', finalMainReadiness + 1);

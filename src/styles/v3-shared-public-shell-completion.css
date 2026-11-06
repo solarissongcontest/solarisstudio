@@ -13,6 +13,32 @@
   --v3-top-chrome-content-height: 42px;
 }
 
+/*
+ * iOS standalone PWAs can report a zero/undersized top inset even while the
+ * translucent status bar or Dynamic Island obscures the physical screen top.
+ * Resolve this once in the installed V3 shell, not in individual routes.
+ *
+ * data-solaris-runtime is established by the pre-hydration root bootstrap.
+ * The WebKit/touch predicates keep ordinary phone websites, Android and
+ * pointer-driven desktop standalone windows on their platform-provided inset.
+ * Keep the additional comfort margin as a separate shell token above.
+ */
+@supports (-webkit-touch-callout: none) {
+  @media (pointer: coarse) and (orientation: portrait) {
+    html[data-solaris-runtime="standalone"] [data-solaris-v3] {
+      --v3-top-system-safe: max(env(safe-area-inset-top, 0px), 60px);
+    }
+  }
+
+  /* Landscape is a different status-bar geometry; never use portrait's
+     Dynamic Island exclusion height after rotation. */
+  @media (pointer: coarse) and (orientation: landscape) {
+    html[data-solaris-runtime="standalone"] [data-solaris-v3] {
+      --v3-top-system-safe: max(env(safe-area-inset-top, 0px), 20px);
+    }
+  }
+}
+
 /* Keep the physical system exclusion region separate from application chrome.
    Meaningful controls start below safe-area + comfort margin; decorative shell
    background remains edge-to-edge. */

@@ -4,22 +4,26 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("V3 Public completion Chat 3 discovery roots", () => {
-  it("keeps Countries as one current-edition collection with secondary context", () => {
+  it("keeps one editorial Countries headline and a full current-edition collection", () => {
     const route = source("src/routes/countries/index.tsx");
     const screen = source("src/components/v3/V3CountriesDiscoveryScreen.tsx");
 
     expect(route).toContain("V3CountriesDiscoveryScreen");
-    expect(screen).toContain('eyebrow={discovery.currentEdition ? "Current edition" : "Explore Terra Solaris"}');
-    expect(screen).toContain('eyebrow="Browse all"');
+    expect(screen).toContain('id="countries-page-title"');
+    expect(screen).toContain('className="v3-countries-title"');
+    expect(screen).toContain('presentation === "installed-app"');
+    expect(screen).toContain('? "Countries"');
+    expect(screen).toContain('aria-pressed={!selectedParticipatingOnly}');
+    expect(screen).toContain('<Check size={16}');
+    expect(screen).toContain('data-country-directory-experience={presentation}');
+    expect(screen).toContain('aria-labelledby="countries-page-title"');
+    expect(screen).not.toContain('eyebrow="Browse all"');
     expect(screen).toContain('eyebrow="Current movement"');
     expect(screen).toContain('eyebrow="Explore by region"');
-    expect(screen.indexOf('eyebrow="Browse all"')).toBeLessThan(
+    expect(screen.indexOf('className="v3-countries-browser scroll-mt-24"')).toBeLessThan(
       screen.indexOf('eyebrow="Current movement"'),
     );
-    expect(screen.indexOf('eyebrow="Browse all"')).toBeLessThan(
-      screen.indexOf('eyebrow="Explore by region"'),
-    );
-    expect(screen).toContain("participatingOnly && activeEdition ? filtered : filtered.slice(0, visibleCount)");
+    expect(screen).toContain("selectedParticipatingOnly ? filtered : filtered.slice(0, visibleCount)");
     expect(screen).toContain("usePublicEditionParticipants(activeEdition?.id)");
     expect(screen).not.toContain("useAllParticipants");
     expect(screen).not.toContain("useAllResults");
@@ -32,11 +36,15 @@ describe("V3 Public completion Chat 3 discovery roots", () => {
     const screen = source("src/components/v3/V3ShowsDiscoveryScreen.tsx");
 
     expect(route).toContain("V3ShowsDiscoveryScreen");
-    expect(screen).toContain('eyebrow="Live now"');
-    expect(screen).toContain('eyebrow="Up next"');
-    expect(screen).toContain('eyebrow="Recent"');
-    expect(screen).toContain('eyebrow="Current edition"');
-    expect(screen).toContain('eyebrow="Browse"');
+    expect(screen).toContain('eyebrow: "Live now"');
+    expect(screen).toContain('eyebrow: "Up next"');
+    expect(screen).toContain('eyebrow: "Recent"');
+    expect(screen).toContain('eyebrow: "Current edition"');
+    expect(screen).toContain("collection.items.length > 0");
+    expect(screen).toContain('<ShowCollection key={collection.id} presentation={presentation} {...collection} />');
+    expect(screen).toContain('id="shows-browse-title"');
+    expect(screen).toContain("All public shows");
+    expect(screen).toContain('aria-labelledby="shows-browse-title"');
     expect(screen).toContain('eyebrow="Archive"');
     expect(screen).toContain("showPublishesResults(item.show)");
     expect(screen).toContain("item.broadcastUrl");

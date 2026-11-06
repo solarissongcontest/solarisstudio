@@ -26,6 +26,7 @@ import {
   resetV3PublicTabToRoot,
   updateV3PublicScrollPosition,
   v3PublicEntryHref,
+  v3PublicTabRoot,
   type V3PublicTabId,
 } from "@/lib/v3-public-navigation";
 import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
@@ -36,8 +37,7 @@ import { V3FoundationShell, V3TopContext } from "./V3Foundation";
 import { V3MobileWebPrimaryNavigation } from "./V3MobileWebPrimaryNavigation";
 import type { V3LiquidTabDestination } from "./V3LiquidTabBar";
 
-// Preserve shared V3 shell geometry and its iOS safe-area rules when the
-// LiquidTabBar React component is no longer mounted for web users.
+// Keep shared geometry tokens when V3 no longer mounts the legacy web dock.
 import "@/styles/v3-liquid-tabbar.css";
 import "@/styles/v3-navigation-fixed-geometry.css";
 
@@ -128,10 +128,9 @@ export type V3AppShellProps = {
  * Migration-ready V3 chrome.
  *
  * Canonical route ownership stays in TanStack Router and the screen registry.
- * Installed-app tabs provide direct manipulation as progressive enhancement.
- * Ordinary browser routes use in-flow website section links and real history,
- * never an app-like fixed dock. All destinations remain semantic links and the
- * shell never invents a second URL/state model. Per-tab memory is viewer-scoped and rejects focused,
+ * The Liquid bar provides direct manipulation as progressive enhancement, but
+ * every destination remains a semantic link and this shell never invents a
+ * second URL/state model. Per-tab memory is viewer-scoped and rejects focused,
  * immersive and critical-task routes. Whole-page swipe remains deliberately
  * disabled until route owners provide safe live adjacent DOM surfaces rather
  * than screenshots or duplicate data graphs.
@@ -172,9 +171,10 @@ export function V3AppShell({
     !rollout.isLoading && !rollout.isError && rollout.data != null;
   const navigationScope = navigationIdentityReady ? (rollout.data.userId ?? null) : null;
   const resolvedViewerKey = navigationScope ?? "anonymous";
-  // Remounting the installed AppTabBar on an authoritative viewer change
-  // releases pointer capture and drops any held/drag-preview state. An
-  // unresolved identity is not the same generation as an anonymous viewer.
+  // Interaction ownership is stricter than storage scope. An unresolved viewer
+  // is not the same generation as an explicitly anonymous viewer. Remounting
+  // the Liquid primitive on these transitions guarantees pointer capture,
+  // long-press and drag state cannot cross login/logout identity handoffs.
   const navigationInteractionKey = navigationIdentityReady
     ? (navigationScope ?? "anonymous")
     : "resolving";
@@ -351,7 +351,7 @@ export function V3AppShell({
   return (
     <V3FoundationShell>
       <div
-        className={cn("min-h-dvh", className)}
+        className={cn("min-h-dvh", isAppMode && "v3-installed-app-layout", className)}
         data-v3-shell-experience={!platformResolved ? "resolving" : isAppMode ? "app" : "web"}
       >
         <V3TopContext edition={editionLabel} phase={phaseLabel} actions={shellActions} />
@@ -375,13 +375,22 @@ export function V3AppShell({
 
       {platformResolved && isAppMode ? (
         <AppTabBar
-          key={navigationInteractionKey}
           ariaLabel="Primary app navigation"
+          key={navigationInteractionKey}
           pathname={pathname}
           searchStr={searchStr}
           signedIn={Boolean(rollout.data?.userId)}
           participateBadge={participateAttentionCount}
           meBadge={attention.me}
+          onSelectV3Tab={(id) => {
+            const destination = navigationDestinations.find((candidate) => candidate.id === id);
+            if (destination) selectDestination(destination);
+          }}
+          v3TabHref={(id) =>
+            navigationIdentityReady
+              ? v3PublicEntryHref(getV3PublicTabDestination(id, undefined, navigationScope))
+              : v3PublicTabRoot(id)
+          }
         />
       ) : null}
     </V3FoundationShell>

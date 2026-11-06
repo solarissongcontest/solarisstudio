@@ -1,5 +1,4 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
-
 import { applyNavbarInstalledCssEmulation } from "./v3-navigation/navbar-local-rollout";
 
 type AccountState = "COUNTRY" | "ORGANIZER" | "SUSPENDED";
@@ -158,6 +157,19 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
       await expect(page.locator("body")).not.toContainText("This page didn't load");
       await expect(page.locator("body")).not.toContainText("Organizer could not open");
 
+      // Read-only acceptance for the governed Anniversary consumer. Choosing
+      // the exact seeded edition first avoids relying on global active-edition state.
+      await page.goto("/admin/ssc22", { waitUntil: "domcontentloaded" });
+      await expect(page.locator("main").last()).toBeVisible();
+      await page.goto("/admin/anniversary", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "Anniversary Settings", exact: true })).toBeVisible();
+      const anniversaryReason = page.getByRole("textbox", { name: "Anniversary audit reason" });
+      await expect(anniversaryReason).toBeVisible();
+      await anniversaryReason.fill("Review isolated Anniversary editorial controls");
+      await expect(anniversaryReason).toHaveValue("Review isolated Anniversary editorial controls");
+      await expect(page.getByRole("button", { name: /Generate storyline|Refresh from canonical events/ })).toBeVisible();
+      await expect(page.locator("body")).not.toContainText("This page didn't load");
+
       await page.goto("/my-solaris/notices", { waitUntil: "domcontentloaded" });
       await expect(page).toHaveURL(/\/my-solaris\/notices/);
       await expect(page.locator("body")).not.toContainText("This page didn't load");
@@ -281,10 +293,9 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     url!, publishableKey!, session, "solaris_app_v3_results", true, [ARCHIVE_EDITION_ID],
   );
 
-  // Playwright's JS standalone override does not affect native CSS
-  // @media (display-mode: standalone). Install the existing isolated CSS
-  // emulator after every document navigation, including a reload, so
-  // browser tests exercise the same visible installed dock as real PWAs.
+  // JS display-mode overrides do not change Playwright's native CSS media
+  // queries. Apply the existing loopback-only installed CSS fixture after each
+  // new document or reload, preserving actual PWA dock visibility semantics.
   const gotoInstalled = async (target: string) => {
     await page.goto(target, { waitUntil: "domcontentloaded" });
     await applyNavbarInstalledCssEmulation(page);
@@ -331,6 +342,58 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
       "aria-current", "page",
     );
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
+
+    // Assert the V3-installed Countries composition within the authorized local rollout.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoInstalled("/countries");
+    await expect(page.locator("[data-v3-legacy-route-adapter]")).toBeVisible();
+    await expect(page.locator("[data-v3-legacy-bottom-clearance]")).toHaveCount(1);
+    await expect(page.locator(".v3-countries-title")).toBeVisible();
+    // Browser Audit seeds countries but no published SSC 22 participants.
+    // Choose the full archive without forging participation records.
+    await page.getByRole("group", { name: "Country collections" })
+      .getByRole("button", { name: /All \d+ countries/ }).click();
+    await expect(page.locator(".v3-countries-grid a").first()).toBeVisible();
+
+    const countryLayout = await page.evaluate(() => {
+      const title = document.querySelector<HTMLElement>(".v3-countries-title");
+      const kicker = document.querySelector<HTMLElement>(".v3-countries-kicker");
+      const controls = document.querySelector<HTMLElement>(".v3-countries-controls");
+      const card = document.querySelector<HTMLElement>(".v3-countries-grid a");
+      const grid = document.querySelector<HTMLElement>(".v3-countries-grid");
+      if (!title || !kicker || !controls || !card || !grid) return null;
+      return {
+        hierarchy: parseFloat(getComputedStyle(title).fontSize) / parseFloat(getComputedStyle(kicker).fontSize),
+        rowGap: parseFloat(getComputedStyle(grid).rowGap),
+        filterGap: card.getBoundingClientRect().top - controls.getBoundingClientRect().bottom,
+      };
+    });
+    expect(countryLayout).not.toBeNull();
+    expect(countryLayout!.hierarchy).toBeGreaterThan(1.8);
+    expect(countryLayout!.rowGap).toBeGreaterThanOrEqual(12);
+    expect(countryLayout!.filterGap).toBeGreaterThanOrEqual(12);
+
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForTimeout(100);
+    const dockClearance = await page.evaluate(() => {
+      const dock = document.querySelector<HTMLElement>("[data-v3-liquid-tabbar]");
+      const spacer = document.querySelector<HTMLElement>("[data-v3-legacy-bottom-clearance]");
+      const lastCard =
+        document.querySelector<HTMLElement>(".v3-countries-regions > button:last-child") ??
+        document.querySelector<HTMLElement>(".v3-countries-grid > a:last-child");
+      if (!dock || !spacer || !lastCard) return null;
+      return {
+        gap: dock.getBoundingClientRect().top - lastCard.getBoundingClientRect().bottom,
+        spacerHeight: spacer.getBoundingClientRect().height,
+      };
+    });
+    expect(dockClearance).not.toBeNull();
+    expect(dockClearance!.spacerHeight).toBeGreaterThanOrEqual(100);
+    expect(dockClearance!.gap).toBeGreaterThanOrEqual(12);
+
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await gotoInstalled("/explore");
+    await expect(page.getByRole("heading", { name: "Discover the contest", exact: true })).toBeVisible();
 
     await page.getByRole("link", { name: /Open edition/i }).click();
     await expect(page).toHaveURL(/\/editions\/ssc22\/?$/);

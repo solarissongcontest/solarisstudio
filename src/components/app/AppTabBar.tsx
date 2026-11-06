@@ -3,6 +3,7 @@ import { Compass, Home, Trophy, UserRound, Vote, type LucideIcon } from "lucide-
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
+import { APP_RESUME_EVENT } from "@/lib/app-lifecycle";
 import {
   appEntryHref,
   appTabRoot,
@@ -20,10 +21,11 @@ import {
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { holdMovementExceeded, useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
+import { resolveV3LogicalHorizontalDelta, type V3LayoutDirection } from "@/lib/v3-navigation-gesture";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
-// The installed bottom dock must keep its geometry on legacy and V3 routes.
+// One shared geometry source for installed legacy and V3 app routes.
 import "@/styles/v3-installed-app-navbar.css";
 
 const ICONS: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
@@ -38,11 +40,12 @@ type PrimaryArea = (typeof PUBLIC_GLOBAL_AREAS)[number]["id"];
 
 type DragState = {
   pointerId: number;
+  captureTarget: HTMLAnchorElement;
   startX: number;
   startY: number;
   originIndex: number;
   moved: boolean;
-  engaged: boolean;
+  layoutDirection: V3LayoutDirection;
 };
 
 function isPrimaryArea(value: string): value is PrimaryArea {
@@ -61,6 +64,8 @@ export function AppTabBar({
   signedIn,
   participateBadge = 0,
   meBadge = 0,
+  onSelectV3Tab,
+  v3TabHref,
   ariaLabel = "Solaris Studio",
 }: {
   pathname: string;
@@ -68,7 +73,8 @@ export function AppTabBar({
   signedIn: boolean;
   participateBadge?: number;
   meBadge?: number;
-  /** Semantic landmark title. V3 screens use the established primary navigation name. */
+  onSelectV3Tab?: (area: PrimaryArea) => void;
+  v3TabHref?: (area: PrimaryArea) => string;
   ariaLabel?: string;
 }) {
   const navigate = useNavigate();
@@ -78,7 +84,6 @@ export function AppTabBar({
   const tabbarMode = chrome.tabBar;
   const [railMode, setRailMode] = useState(false);
   const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
-  const [dragging, setDragging] = useState(false);
   const { collapsed, expand: expandTabBar } = useScrollResponsiveBar({
     enabled: !railMode,
     resetKey: `${pathname}|${routeArea}|${searchStr}`,
@@ -92,10 +97,14 @@ export function AppTabBar({
     begin: beginHold,
     move: moveHold,
     end: endHold,
+    isEngaged: isHoldEngaged,
   } = useSolarisPressHold();
+  // The dock becomes a draggable surface only after hold intent engages.
+  // Pointer-down alone must leave the lens in its resting optical state.
+  const dragging = held;
 
   useEffect(() => {
-    const media = window.matchMedia("(min-width: 900px)");
+    const media = window.matchMedia("(min-width: 900px) and (min-height: 600px)");
     const refresh = () => {
       setRailMode(media.matches);
       if (media.matches) expandTabBar();
@@ -114,8 +123,7 @@ export function AppTabBar({
     const bar = barRef.current;
 
     const updateMetrics = () => {
-      const keyboardOpen = root.hasAttribute("data-solaris-keyboard-open");
-      if (!bar || railMode || tabbarMode === "hidden" || keyboardOpen) {
+      if (!bar || railMode || tabbarMode === "hidden" || root.hasAttribute("data-solaris-keyboard-open")) {
         root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
         root.style.setProperty("--solaris-bottom-obstruction", "0px");
         return;
@@ -138,6 +146,8 @@ export function AppTabBar({
         ? new ResizeObserver(updateMetrics)
         : null;
     if (observer && bar) observer.observe(bar as Element);
+    // A keyboard-state attribute can change without a visualViewport resize.
+    // Recompute scroll clearance on both transitions, not only physical resize.
     const keyboardObserver =
       typeof MutationObserver !== "undefined"
         ? new MutationObserver(updateMetrics)
@@ -186,6 +196,10 @@ export function AppTabBar({
   const openTab = (index: number) => {
     const area = PUBLIC_GLOBAL_AREAS[index];
     if (!area) return;
+    if (onSelectV3Tab) {
+      onSelectV3Tab(area.id);
+      return;
+    }
     const target = getAppTabDestination(area.id, signedIn);
     const root = appTabRoot(area.id, signedIn);
     if (appEntryHref(target) !== root || target.scrollY > 0) {
@@ -206,6 +220,10 @@ export function AppTabBar({
   const activateCurrentTab = (index: number) => {
     const area = PUBLIC_GLOBAL_AREAS[index];
     if (!area) return;
+    if (onSelectV3Tab) {
+      onSelectV3Tab(area.id);
+      return;
+    }
     const root = appTabRoot(area.id, signedIn);
     const normalizedPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
     const normalizedRoot = root.endsWith("/") && root !== "/" ? root.slice(0, -1) : root;
@@ -230,6 +248,19 @@ export function AppTabBar({
   };
 
   const resetDragDom = useCallback(() => {
+    // A hidden, resized or interrupted dock must relinquish pointer capture.
+    // Clear ref first so lostpointercapture cannot re-enter a stale gesture.
+    const drag = dragState.current;
+    dragState.current = null;
+    if (drag) {
+      try {
+        if (drag.captureTarget.hasPointerCapture?.(drag.pointerId)) {
+          drag.captureTarget.releasePointerCapture?.(drag.pointerId);
+        }
+      } catch {
+        // The browser may have released this pointer already.
+      }
+    }
     const material = materialRef.current;
     material?.style.setProperty("--solaris-tab-drag-x", "0px");
     material?.style.setProperty("--solaris-tab-drag-scale-x", "1");
@@ -237,37 +268,68 @@ export function AppTabBar({
     material?.style.setProperty("--solaris-tabbar-pull-height", "0px");
     material?.style.setProperty("--solaris-tabbar-pull-radius", "0px");
     material?.removeAttribute("data-drag-direction");
-    dragState.current = null;
   }, []);
 
   const clearDrag = useCallback(() => {
     endHold();
     resetDragDom();
-    setDragging(false);
     setDragPreviewIndex(null);
   }, [endHold, resetDragDom]);
 
-  useEffect(() => {
-    if (!held) return;
-    const drag = dragState.current;
-    if (!drag || drag.engaged) return;
-    drag.engaged = true;
-    setDragging(true);
-  }, [held]);
+  const navigationIdentity = `${pathname}|${searchStr}|${signedIn ? "signed-in" : "anonymous"}`;
+  const previousNavigationIdentity = useRef(navigationIdentity);
+
+  // React Router may change routes/auth while an active pointer still owns the
+  // tab. Teardown must end the press-hold state, not only release DOM capture.
+  // A layout effect runs before a late pointer click can commit the old route.
+  useLayoutEffect(() => {
+    if (previousNavigationIdentity.current === navigationIdentity) return;
+    previousNavigationIdentity.current = navigationIdentity;
+    if (dragState.current || held) suppressClick.current = true;
+    clearDrag();
+  }, [clearDrag, held, navigationIdentity]);
 
   useEffect(() => {
-    const resetInterruptedGesture = () => clearDrag();
+    const resetInterruptedGesture = () => {
+      // A late synthetic click after interruption must not navigate.
+      if (dragState.current) suppressClick.current = true;
+      clearDrag();
+    };
     const resetWhenHidden = () => {
-      if (document.visibilityState !== "visible") clearDrag();
+      if (document.visibilityState !== "visible") resetInterruptedGesture();
     };
 
+    const root = document.documentElement;
+    const interruptionObserver =
+      typeof MutationObserver !== "undefined"
+        ? new MutationObserver(() => {
+            if (
+              root.hasAttribute("data-solaris-feature-overlay-open") ||
+              root.hasAttribute("data-solaris-keyboard-open")
+            ) resetInterruptedGesture();
+          })
+        : null;
+    interruptionObserver?.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-solaris-feature-overlay-open", "data-solaris-keyboard-open"],
+    });
+
     window.addEventListener("blur", resetInterruptedGesture);
+    window.addEventListener("resize", resetInterruptedGesture);
+    window.visualViewport?.addEventListener("resize", resetInterruptedGesture);
     window.addEventListener("orientationchange", resetInterruptedGesture);
+    window.addEventListener("pagehide", resetInterruptedGesture);
+    window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
     document.addEventListener("visibilitychange", resetWhenHidden);
 
     return () => {
+      interruptionObserver?.disconnect();
       window.removeEventListener("blur", resetInterruptedGesture);
+      window.removeEventListener("resize", resetInterruptedGesture);
+      window.visualViewport?.removeEventListener("resize", resetInterruptedGesture);
       window.removeEventListener("orientationchange", resetInterruptedGesture);
+      window.removeEventListener("pagehide", resetInterruptedGesture);
+      window.removeEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
       // Unmount/StrictMode teardown must not set React state. The press-hold
       // hook cancels its own timer; only imperative DOM/ref cleanup is needed.
@@ -280,23 +342,27 @@ export function AppTabBar({
     index: number,
     active: boolean,
   ) => {
+    // A pointercancel may not produce a click, so stale suppression must not
+    // swallow the next real pointer or touch activation.
+    suppressClick.current = false;
     if (
       !active ||
       collapsed ||
       railMode ||
       prefersReducedMotion() ||
       document.documentElement.hasAttribute("data-solaris-keyboard-open") ||
+      document.documentElement.hasAttribute("data-solaris-feature-overlay-open") ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) return;
 
-    suppressClick.current = false;
     dragState.current = {
       pointerId: event.pointerId,
+      captureTarget: event.currentTarget,
       startX: event.clientX,
       startY: event.clientY,
       originIndex: index,
       moved: false,
-      engaged: false,
+      layoutDirection: getComputedStyle(materialRef.current ?? event.currentTarget).direction === "rtl" ? "rtl" : "ltr",
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginHold(event.pointerId, event.clientX, event.clientY);
@@ -305,23 +371,14 @@ export function AppTabBar({
   const moveDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    moveHold(event.pointerId, event.clientX, event.clientY);
-
-    if (!drag.engaged) {
+    // Until the hold timer has engaged, movement belongs to scrolling and
+    // other gesture owners. A quick swipe over the dock must never change tabs.
+    if (!isHoldEngaged(event.pointerId)) {
+      moveHold(event.pointerId, event.clientX, event.clientY);
       if (
-        holdMovementExceeded(
-          drag.startX,
-          drag.startY,
-          event.clientX,
-          event.clientY,
-        )
+        holdMovementExceeded(drag.startX, drag.startY, event.clientX, event.clientY)
       ) {
         suppressClick.current = true;
-        try {
-          event.currentTarget.releasePointerCapture?.(event.pointerId);
-        } catch {
-          // Browser may already have released pointer capture.
-        }
         clearDrag();
       }
       return;
@@ -337,8 +394,8 @@ export function AppTabBar({
     const maxCenter = lastRect ? lastRect.left + lastRect.width / 2 : originCenter;
     const response = resolveElasticDrag({
       rawDelta: event.clientX - drag.startX,
-      minDelta: minCenter - originCenter,
-      maxDelta: maxCenter - originCenter,
+      minDelta: Math.min(minCenter - originCenter, maxCenter - originCenter),
+      maxDelta: Math.max(minCenter - originCenter, maxCenter - originCenter),
       slotWidth: origin.width,
     });
 
@@ -352,7 +409,7 @@ export function AppTabBar({
     material?.setAttribute("data-drag-direction", response.direction);
 
     const preview = resolveTabDragTargetIndex({
-      rawDelta: event.clientX - drag.startX,
+      rawDelta: resolveV3LogicalHorizontalDelta(event.clientX - drag.startX, drag.layoutDirection),
       originIndex: drag.originIndex,
       slotWidth: origin.width,
       itemCount: PUBLIC_GLOBAL_AREAS.length,
@@ -367,7 +424,9 @@ export function AppTabBar({
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
-    if (!drag.engaged) {
+    // Ordinary pointer taps must remain semantic clicks. Only the engaged
+    // hold gesture can commit a drag navigation on pointer release.
+    if (!isHoldEngaged(event.pointerId)) {
       clearDrag();
       return;
     }
@@ -375,14 +434,16 @@ export function AppTabBar({
     const rects = tabRects();
     const origin = rects[drag.originIndex];
     const targetIndex = resolveTabDragTargetIndex({
-      rawDelta: event.clientX - drag.startX,
+      rawDelta: resolveV3LogicalHorizontalDelta(event.clientX - drag.startX, drag.layoutDirection),
       originIndex: drag.originIndex,
       slotWidth: origin?.width ?? 1,
       itemCount: PUBLIC_GLOBAL_AREAS.length,
       activationRatio: 0.72,
     });
     const moved = drag.moved;
-    suppressClick.current = drag.engaged || moved;
+    // An engaged long press consumes its generated pointer click, even if
+    // it settled on the same tab without crossing a drag threshold.
+    suppressClick.current = true;
 
     try {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
@@ -395,10 +456,10 @@ export function AppTabBar({
     if (!moved || targetIndex === drag.originIndex) return;
     const area = PUBLIC_GLOBAL_AREAS[targetIndex];
     if (!area) return;
-    const target = getAppTabDestination(area.id, signedIn);
+    const targetHref = v3TabHref?.(area.id) ?? appEntryHref(getAppTabDestination(area.id, signedIn));
 
     trackPublicUxEvent("public_nav_clicked", {
-      target: appEntryHref(target),
+      target: targetHref,
       metadata: { area: area.id, source: "app_tabbar_drag" },
     });
     openTab(targetIndex);
@@ -407,7 +468,7 @@ export function AppTabBar({
   const cancelDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    suppressClick.current = drag.moved || drag.engaged;
+    suppressClick.current = true;
     clearDrag();
   };
 
@@ -463,11 +524,21 @@ export function AppTabBar({
               onPointerUp={finishDrag}
               onPointerCancel={cancelDrag}
               onLostPointerCapture={cancelDrag}
+              onKeyDown={() => {
+                // Keyboard, VoiceOver and other synthetic activations must work
+                // even when the previous touch ended without a click.
+                suppressClick.current = false;
+              }}
               onClick={(event) => {
                 if (suppressClick.current) {
+                  // A cancelled pointer can leave a synthetic click pending.
+                  // VoiceOver/assistive activation uses a detail=0 click without
+                  // pointerdown or keydown and must not be swallowed by that flag.
                   suppressClick.current = false;
-                  event.preventDefault();
-                  return;
+                  if (event.detail > 0) {
+                    event.preventDefault();
+                    return;
+                  }
                 }
 
                 const wasCollapsed = collapsed;
@@ -479,7 +550,7 @@ export function AppTabBar({
 
                 event.preventDefault();
                 trackPublicUxEvent("public_nav_clicked", {
-                  target: active ? pathname : appEntryHref(getAppTabDestination(area.id, signedIn)),
+                  target: active ? pathname : (v3TabHref?.(area.id) ?? appEntryHref(getAppTabDestination(area.id, signedIn))),
                   metadata: {
                     area: area.id,
                     source: active ? "app_tabbar_active" : "app_tabbar_restore",

@@ -125,6 +125,7 @@ export function V3LiquidTabBar({
     begin: beginHold,
     move: moveHold,
     end: endHold,
+    isEngaged: isHoldEngaged,
   } = useSolarisPressHold();
 
   const dragging = held;
@@ -150,7 +151,8 @@ export function V3LiquidTabBar({
       syncDirection();
       if (
         !bar ||
-        window.innerWidth >= 1024 ||
+        bar.getClientRects().length === 0 ||
+        (window.innerWidth >= 1024 && window.innerHeight >= 600) ||
         root.hasAttribute("data-solaris-keyboard-open")
       ) {
         root.style.setProperty("--v3-bottom-obstruction", "0px");
@@ -228,7 +230,11 @@ export function V3LiquidTabBar({
 
   const resetDragDom = useCallback(() => {
     clearAppUpdateBlocker(V3_LIQUID_LENS_UPDATE_BLOCKER);
+    // Forget the gesture before releasing capture: WebKit may dispatch
+    // lostpointercapture synchronously, and its handler must not overwrite
+    // a previously suppressed synthetic click from an interrupted gesture.
     const drag = dragState.current;
+    dragState.current = null;
     if (drag) {
       try {
         if (drag.captureTarget.hasPointerCapture?.(drag.pointerId)) {
@@ -251,7 +257,6 @@ export function V3LiquidTabBar({
     material?.style.setProperty("--v3-liquid-pull-height", "0px");
     material?.style.setProperty("--v3-liquid-pull-radius", "0px");
     material?.removeAttribute("data-drag-direction");
-    dragState.current = null;
   }, []);
 
   const clearDrag = useCallback(() => {
@@ -269,10 +274,29 @@ export function V3LiquidTabBar({
     [endHold, pathname, resetDragDom],
   );
 
+  const navigationIdentity = `${pathname}|${activeIndex}|${destinations
+    .map((destination) => `${destination.id}:${destination.to}`)
+    .join("|")}`;
+  const previousNavigationIdentity = useRef(navigationIdentity);
+
+  // A route redirect, auth-dependent destination change or active-tab change
+  // interrupts the old gesture before its delayed click can change routes.
+  // This also ends held state and releases the V3 update blocker immediately.
+  useLayoutEffect(() => {
+    if (previousNavigationIdentity.current === navigationIdentity) return;
+    previousNavigationIdentity.current = navigationIdentity;
+    if (dragState.current || held) suppressClick.current = true;
+    clearDrag();
+  }, [clearDrag, held, navigationIdentity]);
+
   useEffect(() => {
-    const resetInterruptedGesture = () => clearDrag();
+    const resetInterruptedGesture = () => {
+      // A late WebKit synthetic click must not commit an interrupted drag.
+      if (dragState.current) suppressClick.current = true;
+      clearDrag();
+    };
     const resetWhenHidden = () => {
-      if (document.visibilityState !== "visible") clearDrag();
+      if (document.visibilityState !== "visible") resetInterruptedGesture();
     };
     const root = document.documentElement;
     const rootInterruptionObserver =
@@ -282,7 +306,7 @@ export function V3LiquidTabBar({
               root.hasAttribute("data-solaris-feature-overlay-open") ||
               root.hasAttribute("data-solaris-keyboard-open")
             ) {
-              clearDrag();
+              resetInterruptedGesture();
             }
           })
         : null;
@@ -296,6 +320,7 @@ export function V3LiquidTabBar({
     });
     window.addEventListener("blur", resetInterruptedGesture);
     window.addEventListener("resize", resetInterruptedGesture);
+    window.visualViewport?.addEventListener("resize", resetInterruptedGesture);
     window.addEventListener("orientationchange", resetInterruptedGesture);
     window.addEventListener("pagehide", resetInterruptedGesture);
     window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
@@ -305,6 +330,7 @@ export function V3LiquidTabBar({
       rootInterruptionObserver?.disconnect();
       window.removeEventListener("blur", resetInterruptedGesture);
       window.removeEventListener("resize", resetInterruptedGesture);
+      window.visualViewport?.removeEventListener("resize", resetInterruptedGesture);
       window.removeEventListener("orientationchange", resetInterruptedGesture);
       window.removeEventListener("pagehide", resetInterruptedGesture);
       window.removeEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
@@ -318,11 +344,15 @@ export function V3LiquidTabBar({
     index: number,
     active: boolean,
   ) => {
+    // Pointer cancellation may have no click event. A later normal gesture
+    // must never inherit the previous gesture's click suppression.
+    suppressClick.current = false;
     if (
       !active ||
       collapsed ||
       prefersReducedMotion() ||
       document.documentElement.hasAttribute("data-solaris-keyboard-open") ||
+      document.documentElement.hasAttribute("data-solaris-feature-overlay-open") ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) {
       return;
@@ -373,7 +403,7 @@ export function V3LiquidTabBar({
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
-    if (!drag.engaged) {
+    if (!isHoldEngaged(event.pointerId)) {
       moveHold(event.pointerId, event.clientX, event.clientY);
       if (
         holdMovementExceeded(
@@ -461,7 +491,7 @@ export function V3LiquidTabBar({
 
     // Pending presses are still ordinary taps. Navigation remains owned by the
     // semantic click path unless the hold threshold actually engaged the lens.
-    if (!drag.engaged) {
+    if (!isHoldEngaged(event.pointerId)) {
       clearDrag();
       return;
     }
@@ -506,7 +536,7 @@ export function V3LiquidTabBar({
   const cancelDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    suppressClick.current = drag.moved || drag.engaged;
+    suppressClick.current = true;
     clearDrag();
   };
 
@@ -588,11 +618,20 @@ export function V3LiquidTabBar({
               onPointerUp={finishDrag}
               onPointerCancel={cancelDrag}
               onLostPointerCapture={cancelDrag}
+              onKeyDown={() => {
+                // Keyboard and assistive activation is independent of pointer gestures.
+                suppressClick.current = false;
+              }}
               onClick={(event) => {
                 if (suppressClick.current) {
+                  // A cancelled pointer can leave a synthetic click pending.
+                  // VoiceOver/assistive activation uses a detail=0 click without
+                  // pointerdown or keydown and must not be swallowed by that flag.
                   suppressClick.current = false;
-                  event.preventDefault();
-                  return;
+                  if (event.detail > 0) {
+                    event.preventDefault();
+                    return;
+                  }
                 }
 
                 const wasCollapsed = collapsed;

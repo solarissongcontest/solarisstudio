@@ -29,22 +29,31 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
   });
 
-  it("keeps installed AppTabBar direct manipulation behind hold engagement", () => {
+  it("keeps installed AppTabBar direct manipulation behind synchronous hold engagement", () => {
     const installedTabs = source("src/components/app/AppTabBar.tsx");
 
     expect(installedTabs).toContain("prefersReducedMotion()");
-    expect(installedTabs).toContain('data-solaris-keyboard-open');
+    expect(installedTabs).toContain("data-solaris-keyboard-open");
     expect(installedTabs).toContain("holdMovementExceeded(");
-    expect(installedTabs).toContain("engaged: false");
-    expect(installedTabs).toMatch(
-      /if \(!held\) return;[\s\S]*drag\.engaged = true;[\s\S]*setDragging\(true\)/,
-    );
-    expect(installedTabs).toMatch(
-      /moveHold\([\s\S]*if \(!drag\.engaged\)[\s\S]*holdMovementExceeded\(/,
-    );
-    expect(installedTabs).toMatch(
-      /if \(!drag\.engaged\) \{[\s\S]*clearDrag\(\);[\s\S]*return;[\s\S]*\}/,
-    );
+    expect(installedTabs).toContain("isEngaged: isHoldEngaged");
+    expect(installedTabs).toContain("const dragging = held;");
+    expect(installedTabs).not.toContain("setDragging(true)");
+    const move = installedTabs.slice(installedTabs.indexOf("const moveDrag ="), installedTabs.indexOf("const finishDrag ="));
+    expect(move).toContain("if (!isHoldEngaged(event.pointerId))");
+    expect(move).toContain("moveHold(event.pointerId, event.clientX, event.clientY)");
+    const finish = installedTabs.slice(installedTabs.indexOf("const finishDrag ="), installedTabs.indexOf("const cancelDrag ="));
+    expect(finish).toContain("if (!isHoldEngaged(event.pointerId))");
+    expect(finish).toContain("suppressClick.current = true;");
+  });
+
+  it("recovers pointer and keyboard tab activation after a cancelled lens gesture", () => {
+    const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const start = tabs.slice(tabs.indexOf("const startDrag ="), tabs.indexOf("const moveDrag ="));
+    expect(start).toMatch(/suppressClick\.current = false;[\s\S]*?if \(/);
+    expect(tabs).toContain("if (dragState.current) suppressClick.current = true;");
+    expect(tabs).toContain("onKeyDown={() => {");
+    expect(tabs).toContain("onPointerCancel={cancelDrag}");
+    expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
   });
 
   it("keeps the pointer-move hot path free of layout reads", () => {
@@ -135,17 +144,22 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(geometry).toContain("var(--v3-bottom-obstruction, 0px) + 24px");
     expect(geometry).toContain("106px + env(safe-area-inset-bottom)");
     expect(geometry).toContain("html[data-solaris-keyboard-open]");
-    expect(geometry).toContain("@media (min-width: 1024px)");
+    expect(geometry).toContain("@media (min-width: 1024px) and (min-height: 600px)");
     expect(geometry).toContain("--v3-nav-shell-height: 64px");
   });
 
   it("keeps keyboard, Reduced Motion and Reduced Transparency fallbacks", () => {
     const liquidCss = source("src/styles/v3-liquid-tabbar.css");
+    const fixedGeometryCss = source("src/styles/v3-navigation-fixed-geometry.css");
+    const organizerCss = source("src/styles/v3-organizer-navigation.css");
     const responsiveCss = source("src/styles/v3-responsive-shell.css");
 
     expect(liquidCss).toContain("html[data-solaris-keyboard-open]");
     expect(liquidCss).toContain("visibility: hidden");
     expect(liquidCss).toContain("pointer-events: none");
+    expect(liquidCss).toMatch(/data-solaris-keyboard-open[\s\S]*pointer-events: none;/);
+    expect(fixedGeometryCss).toMatch(/data-solaris-keyboard-open[\s\S]*visibility: hidden;/);
+    expect(organizerCss).toMatch(/data-solaris-keyboard-open[\s\S]*visibility: hidden;[\s\S]*pointer-events: none;/);
     expect(liquidCss).toContain("@media (prefers-reduced-motion: reduce)");
     expect(liquidCss).toContain("@media (prefers-reduced-transparency: reduce)");
     expect(responsiveCss).toContain("@media (min-width: 1024px)");
@@ -161,4 +175,23 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(shell).toContain("safe live adjacent DOM surfaces");
     expect(shell).toContain("duplicate data graphs");
   });
+
+  it("keeps Organizer Liquid navigation and scroll clearance active on wide landscape phones", () => {
+    const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const organizer = source("src/components/admin/OrganizerV3MobileChrome.tsx");
+    const organizerCss = source("src/styles/v3-organizer-liquid-tabbar.css");
+    const responsive = source("src/styles/v3-responsive-shell.css");
+    const geometry = source("src/styles/v3-navigation-fixed-geometry.css");
+
+    expect(tabs).toContain("(window.innerWidth >= 1024 && window.innerHeight >= 600)");
+    expect(organizer).toContain('window.matchMedia("(max-width: 899px), (max-height: 599px)")');
+    expect(organizer).toContain("(window.innerWidth >= 900 && window.innerHeight >= 600)");
+    expect(organizerCss).toContain("@media (min-width: 900px) and (min-height: 600px)");
+    expect(organizerCss).toContain("html:not([data-solaris-app]) [data-organizer-v3-liquid-nav]");
+    expect(tabs).toContain("bar.getClientRects().length === 0");
+    expect(responsive).toContain("@media (min-width: 1024px) and (max-height: 599px)");
+    expect(responsive).toContain("html[data-solaris-app] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar");
+    expect(geometry).toContain("@media (min-width: 1024px) and (min-height: 600px)");
+  });
+
 });
