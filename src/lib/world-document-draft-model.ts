@@ -45,6 +45,10 @@ export type WorldDocumentDraftSnapshot = {
     provisions: WorldDocumentProvision[];
     publicationState: string;
     effectiveFrom: string | null;
+    effectiveTo: string | null;
+    /** Null for public readers. Manager-only canonical provenance. */
+    sourceDescription: string | null;
+    sourceProvenance: Record<string, unknown> | null;
   };
 };
 
@@ -181,7 +185,10 @@ export function parseWorldDocumentDraftSnapshot(value: unknown): WorldDocumentDr
       (!v || !str(v.versionId) || !revision(v.versionNumber) || !str(v.title) ||
        typeof v.plainText !== "string" || !str(v.publicationState) ||
        !record(v.structuredContent) || !Array.isArray(v.provisions) ||
-       (canManage && !revision(v.revision)))) {
+       (v.effectiveTo !== null && v.effectiveTo !== undefined && typeof v.effectiveTo !== "string") ||
+       (canManage && (!revision(v.revision) ||
+         !record(v.sourceProvenance) ||
+         (v.sourceDescription !== null && typeof v.sourceDescription !== "string"))))) {
     throw new Error("The document version returned invalid revision evidence.");
   }
   return {
@@ -207,6 +214,9 @@ export function parseWorldDocumentDraftSnapshot(value: unknown): WorldDocumentDr
       provisions: parseWorldDocumentProvisions(v.provisions),
       publicationState: v.publicationState as string,
       effectiveFrom: typeof v.effectiveFrom === "string" ? v.effectiveFrom : null,
+      effectiveTo: typeof v.effectiveTo === "string" ? v.effectiveTo : null,
+      sourceDescription: canManage && typeof v.sourceDescription === "string" ? v.sourceDescription : null,
+      sourceProvenance: canManage ? v.sourceProvenance as Record<string, unknown> : null,
     } : null,
   };
 }
