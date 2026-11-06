@@ -9,7 +9,7 @@
  */
 export type V3S13MigrationVersionIssue = {
   filename: string;
-  reason: "invalid_migration_filename" | "duplicate_migration_version";
+  reason: "invalid_migration_filename" | "invalid_migration_calendar_version" | "duplicate_migration_version";
   version?: string;
   firstFilename?: string;
 };
@@ -21,6 +21,30 @@ export type V3S13MigrationVersionReport = {
 };
 
 const MIGRATION_FILENAME = /^(\d{14})_[a-z0-9][a-z0-9_.-]*\.sql$/;
+
+/**
+ * Five older, potentially already-applied migrations used synthetic timestamp
+ * values. Never rename deployed history. From Nov 2026, enforce real calendar
+ * instants as well as global uniqueness for newly introduced migrations.
+ */
+const STRICT_CALENDAR_VERSION_FROM = "20261101000000";
+
+function isValidCalendarVersion(version: string): boolean {
+  const match = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(version);
+  if (!match) return false;
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const second = Number(secondText);
+  if (year < 1 || month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59 || second > 59) {
+    return false;
+  }
+  return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
 
 export function auditV3S13MigrationVersions(
   sqlFilenames: readonly string[],
@@ -37,6 +61,13 @@ export function auditV3S13MigrationVersions(
     }
 
     const version = match[1];
+    if (version >= STRICT_CALENDAR_VERSION_FROM && !isValidCalendarVersion(version)) {
+      issues.push({
+        filename,
+        reason: "invalid_migration_calendar_version",
+        version,
+      });
+    }
     const firstFilename = firstByVersion.get(version);
     if (firstFilename) {
       issues.push({
