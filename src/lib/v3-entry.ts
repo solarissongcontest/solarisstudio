@@ -133,6 +133,12 @@ export type V3EntryProjection = {
     }[];
   };
   versionHistory: readonly V3EntryVersionEvidence[];
+  /** Explicit candidate identity for the one canonical Entry version-history read. */
+  versionHistorySubject?: {
+    entryId: string;
+    label: string;
+    source: "internal" | "national_final";
+  } | null;
 };
 
 export function reviewMatchesCurrentVersion(input: {
