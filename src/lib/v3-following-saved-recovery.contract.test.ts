@@ -17,15 +17,15 @@ describe("V3 Following & Saved read and mutation recovery", () => {
 
   it("shows a paused connection instead of a false empty state when initial reads are offline", () => {
     const source = screen();
-    for (const query of ["follows", "countries", "editions", "shows"]) {
-      expect(source).toContain(`(${query}.isPending && ${query}.isPaused)`);
+    for (const query of ["follows", "entityDetails"]) {
+      expect(source).toContain(`${query}.isPending && ${query}.isPaused`);
     }
     expect(source).toContain('data-v3-following-saved-state="paused"');
     expect(source).toContain("const paused = !failed && (");
     expect(source).toContain("Solaris will not mistake an unverified list for an empty one.");
     expect(source.indexOf("{failed ? (")).toBeLessThan(source.indexOf(") : paused ? ("));
     expect(source.indexOf(") : paused ? (")).toBeLessThan(source.indexOf(") : loading ? ("));
-    expect(source.indexOf("{paused ? (")).toBeLessThan(source.indexOf("data-v3-following-saved-state=\"empty\""));
+    expect(source.indexOf(") : paused ? (")).toBeLessThan(source.indexOf("data-v3-following-saved-state=\"empty\""));
   });
 
   it("keeps a failed query recoverable even while another query is still loading", () => {
@@ -34,7 +34,7 @@ describe("V3 Following & Saved read and mutation recovery", () => {
     expect(source.indexOf("{failed ? (")).toBeLessThan(source.indexOf(") : paused ? ("));
     expect(source.indexOf(") : paused ? (")).toBeLessThan(source.indexOf(") : loading ? ("));
     // Unrelated successful/ongoing public reads must not disable failed-read retry.
-    for (const query of ["follows", "countries", "editions", "shows"]) {
+    for (const query of ["follows", "entityDetails"]) {
       expect(source).toContain(`(${query}.isError && ${query}.isFetching)`);
     }
     expect(source).not.toContain("const retrying = follows.isFetching ||");
@@ -64,9 +64,7 @@ describe("V3 Following & Saved read and mutation recovery", () => {
   it("only retries queries that actually failed, avoiding redundant public reads", () => {
     const source = screen();
     expect(source).toContain("if (follows.isError) void follows.refetch()");
-    expect(source).toContain("if (countries.isError) void countries.refetch()");
-    expect(source).toContain("if (editions.isError) void editions.refetch()");
-    expect(source).toContain("if (shows.isError) void shows.refetch()");
+    expect(source).toContain("if (entityDetails.isError) void entityDetails.refetch()");
     expect(source).not.toContain("Promise.all([follows.refetch()");
   });
 
@@ -84,17 +82,50 @@ describe("V3 Following & Saved read and mutation recovery", () => {
 
   it("never shows an old account's delayed mutation message to a different viewer", () => {
     const source = screen();
-    expect(source).toContain('useEffect(() => {\n    setMessage(null);\n    setSearch("");\n  }, [viewerId]);');
-    expect(source).toContain("setMessage({ viewerId, text: following ?");
-    expect(source).toContain("setMessage({ viewerId, text: \"Update not confirmed.");
+    expect(source).toContain('useEffect(() => {\n    latestViewerId.current = viewerId;\n    setMessage(null);\n    setSearch("");\n  }, [viewerId]);');
+    expect(source).toContain("setMessage({ viewerId, text: confirmed");
+    expect(source).toContain("Update not confirmed. Solaris could not confirm whether that preference was saved.");
     expect(source).toContain("message?.viewerId === viewerId");
     expect(source).toContain("{message.text}");
   });
 
   it("does not claim failure means the server definitely rejected a write", () => {
     const source = screen();
-    expect(source).toContain("Update not confirmed. Check your saved items before trying again.");
+    expect(source).toContain("Update not confirmed. Solaris could not confirm whether that preference was saved.");
     expect(source).not.toContain("Nothing else was changed.");
     expect(source).toContain("} finally {");
   });
+  it("does not confirm old cached preferences when the reconciliation refetch fails or pauses", () => {
+    const source = screen();
+    expect(source).toContain("const reconciled = await follows.refetch()");
+    expect(source).toContain("reconciled.isSuccess && !reconciled.isPaused");
+    expect(source).toContain("matchesIntent(reconciled.data.follows)");
+    expect(source).toContain("has not confirmed it yet");
+    expect(source).toContain("could not confirm whether that preference was saved");
+  });
+
+  it("checks the live actor before dispatching the saved preference writer", () => {
+    const source = screen();
+    expect(source).not.toContain("integrations/supabase");
+    expect(source).toContain('import { assertCurrentFollowingActor } from "@/lib/v3-following-actor";');
+    expect(source).toContain("const latestViewerId = useRef(viewerId);");
+    expect(source).toContain("await assertCurrentFollowingActor(viewerId);");
+    expect(source).toContain("latestViewerId.current !== viewerId");
+    expect(source.indexOf("assertCurrentFollowingActor(viewerId)")).toBeLessThan(source.indexOf("await setFollow.mutateAsync({"));
+    expect(source).toContain("Following account changed before the preference update.");
+    expect(source).toContain("let mutationDispatched = false;");
+    expect(source).toContain("mutationDispatched = true;");
+    expect(source).toContain("if (mutationDispatched) {");
+    expect(source.indexOf("mutationDispatched = true;"))
+      .toBeGreaterThan(source.indexOf("Following account changed before the preference update."));
+  });
+
+  it("keeps the authentication lookup inside the existing integration boundary", () => {
+    const integration = readFileSync(resolve(process.cwd(), "src/integrations/v3/following-actor.ts"), "utf8");
+    const adapter = readFileSync(resolve(process.cwd(), "src/lib/v3-following-actor.ts"), "utf8");
+    expect(adapter).toContain('@/integrations/v3/following-actor');
+    expect(integration).toContain("await supabase.auth.getUser()");
+    expect(integration).toContain("data.user.id !== expectedViewerId");
+  });
+
 });

@@ -2,14 +2,16 @@ import { Link } from "@tanstack/react-router";
 import { Bell, BellOff, BookmarkCheck, ChevronRight, Radio, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import { useMyFollows, useSetFanFollow } from "@/lib/engagement-data";
+import { assertCurrentFollowingActor } from "@/lib/v3-following-actor";
 import {
   buildV3FollowingSavedProjection,
   searchV3FollowingSavedItems,
+  v3FollowPreferenceMatches,
   type V3FollowingSavedItem,
   type V3FollowNotificationLevel,
 } from "@/lib/v3-following-saved";
+import { useV3FollowEntityDetails } from "@/lib/v3-following-saved-data";
 import { V3Screen, V3ScreenHeader, V3Section, V3StatusChip, V3Surface } from "./V3Foundation";
 
 const LEVELS: Array<{ value: V3FollowNotificationLevel; label: string }> = [
@@ -102,58 +104,53 @@ function SavedItem({
 
 export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
   const follows = useMyFollows(viewerId);
-  const countries = useCountries();
-  const editions = useEditions();
-  const shows = useAllShows();
+  const followRows = follows.data?.schemaReady ? follows.data.follows : undefined;
+  const entityDetails = useV3FollowEntityDetails(viewerId, followRows);
   const setFollow = useSetFanFollow(viewerId);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const mutationInFlight = useRef(false);
+  const latestViewerId = useRef(viewerId);
   const [message, setMessage] = useState<{ viewerId: string; text: string } | null>(null);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
+    latestViewerId.current = viewerId;
     setMessage(null);
     setSearch("");
   }, [viewerId]);
 
   const projection = useMemo(() => {
-    if (!follows.data?.schemaReady) return null;
+    if (!followRows) return null;
     return buildV3FollowingSavedProjection({
       viewerId,
-      follows: follows.data.follows,
-      countries: countries.data ?? [],
-      editions: editions.data ?? [],
-      shows: shows.data ?? [],
+      follows: followRows,
+      countries: entityDetails.data?.countries ?? [],
+      editions: entityDetails.data?.editions ?? [],
+      shows: entityDetails.data?.shows ?? [],
     });
-  }, [countries.data, editions.data, follows.data, shows.data, viewerId]);
+  }, [entityDetails.data, followRows, viewerId]);
   const visibleItems = useMemo(
     () => searchV3FollowingSavedItems(projection?.items ?? [], search),
     [projection, search],
   );
 
-  const loading = follows.isLoading || countries.isLoading || editions.isLoading || shows.isLoading;
-  const failed = follows.isError || countries.isError || editions.isError || shows.isError;
+  const loading = follows.isLoading || (follows.data?.schemaReady === true && entityDetails.isLoading);
+  const failed = follows.isError || entityDetails.isError;
   const paused = !failed && (
     (follows.isPending && follows.isPaused) ||
-    (countries.isPending && countries.isPaused) ||
-    (editions.isPending && editions.isPaused) ||
-    (shows.isPending && shows.isPaused)
+    (follows.data?.schemaReady === true && entityDetails.isPending && entityDetails.isPaused)
   );
   // Only a query being retried should disable error recovery. Other public
   // collections can still be loading or refreshing independently.
   const retrying =
     (follows.isError && follows.isFetching) ||
-    (countries.isError && countries.isFetching) ||
-    (editions.isError && editions.isFetching) ||
-    (shows.isError && shows.isFetching);
+    (entityDetails.isError && entityDetails.isFetching);
 
   // Retry only failed reads. Refetching every public collection would waste egress
   // and could invalidate unrelated successful data.
   const retryFailedReads = () => {
     if (follows.isError) void follows.refetch();
-    if (countries.isError) void countries.refetch();
-    if (editions.isError) void editions.refetch();
-    if (shows.isError) void shows.refetch();
+    if (entityDetails.isError) void entityDetails.refetch();
   };
 
   const updateFollow = async (
@@ -166,17 +163,58 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
     const operationKey = `${item.entityType}:${item.entityId}`;
     setPendingKey(operationKey);
     setMessage(null);
+    const matchesIntent = (rows: typeof followRows) => Boolean(
+      rows && v3FollowPreferenceMatches({
+        viewerId,
+        follows: rows,
+        entityType: item.entityType,
+        entityId: item.entityId,
+        following,
+        notificationLevel,
+      }),
+    );
+    const readConfirmedIntent = async () => {
+      const reconciled = await follows.refetch();
+      // Failed/paused refetches may retain stale cached rows. Never confirm them.
+      return reconciled.isSuccess && !reconciled.isPaused &&
+        reconciled.data?.schemaReady === true &&
+        matchesIntent(reconciled.data.follows);
+    };
+    let mutationDispatched = false;
     try {
+      // Do not dispatch a stale preference click under a different login.
+      await assertCurrentFollowingActor(viewerId);
+      if (latestViewerId.current !== viewerId) {
+        throw new Error("Following account changed before the preference update.");
+      }
+      mutationDispatched = true;
       await setFollow.mutateAsync({
         entityType: item.entityType,
         entityId: item.entityId,
         following,
         notificationLevel,
       });
-      setMessage({ viewerId, text: following ? `Updated ${item.title}.` : `Removed ${item.title} from Following & Saved.` });
+      const confirmed = await readConfirmedIntent();
+      setMessage({ viewerId, text: confirmed
+        ? (following ? `Updated ${item.title}.` : `Removed ${item.title} from Following & Saved.`)
+        : "Solaris submitted that preference, but the refreshed server state has not confirmed it yet. Check your saved items before retrying.",
+      });
     } catch (error) {
       console.error("[V3 Following & Saved] Preference update failed", error);
-      setMessage({ viewerId, text: "Update not confirmed. Check your saved items before trying again." });
+      let confirmed = false;
+      // A rejected actor preflight sent no mutation: never infer that an
+      // empty stale-account refetch means a requested removal succeeded.
+      if (mutationDispatched) {
+        try {
+          confirmed = await readConfirmedIntent();
+        } catch (readError) {
+          console.error("[V3 Following & Saved] Reconciliation read failed", readError);
+        }
+      }
+      setMessage({ viewerId, text: confirmed
+        ? (following ? `Updated ${item.title} after reconnecting to server state.` : `Removed ${item.title} after reconnecting to server state.`)
+        : "Update not confirmed. Solaris could not confirm whether that preference was saved. Check your saved items before trying again.",
+      });
     } finally {
       mutationInFlight.current = false;
       setPendingKey(null);

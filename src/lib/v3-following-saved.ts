@@ -48,6 +48,26 @@ export function searchV3FollowingSavedItems(
   );
 }
 
+
+/** Match a preference against a fresh, viewer-scoped canonical readback. */
+export function v3FollowPreferenceMatches({
+  viewerId, follows, entityType, entityId, following, notificationLevel,
+}: {
+  viewerId: string;
+  follows: readonly V3FollowRecord[];
+  entityType: V3FollowEntityType;
+  entityId: string;
+  following: boolean;
+  notificationLevel: V3FollowNotificationLevel;
+}): boolean {
+  if (!follows.every((follow) => follow.profile_id === viewerId)) return false;
+  const current = follows.find(
+    (follow) => follow.entity_type === entityType && follow.entity_id === entityId,
+  );
+  if (!following) return current === undefined;
+  return current?.notification_level === notificationLevel;
+}
+
 function editionName(edition: EditionLike) {
   if (edition.edition_number != null) {
     return edition.name?.trim() || `Edition ${edition.edition_number}`;
