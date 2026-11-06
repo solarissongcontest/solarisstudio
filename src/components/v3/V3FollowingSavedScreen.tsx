@@ -105,7 +105,7 @@ function SavedItem({
             </button>
           </div>
           {item.entityType === "organization" ? (
-            <button type="button" onClick={onTopics} aria-expanded={topicsOpen}
+            <button type="button" onClick={onTopics} disabled={pending} aria-expanded={topicsOpen}
               className="mt-3 min-h-11 rounded-xl border border-[var(--v3-border)] px-3 text-sm font-semibold">
               {topicsOpen ? "Close institution topics" : "Manage institution topics"}
             </button>
@@ -155,6 +155,9 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
   useEffect(() => {
     setMessage(null);
     setSearch("");
+  }, [viewerId]);
+
+  useEffect(() => {
     setExpandedWorldFollow(null);
   }, [viewerId]);
 
@@ -204,7 +207,8 @@ export function V3FollowingSavedScreen({ viewerId }: { viewerId: string }) {
     following: boolean,
     notificationLevel = item.notificationLevel,
   ) => {
-    if (mutationInFlight.current || item.entityType === "unsupported") return;
+    if (mutationInFlight.current) return;
+    if (item.entityType === "unsupported") return;
     mutationInFlight.current = true;
     const operationKey = `${item.entityType}:${item.entityId}`;
     setPendingKey(operationKey);
