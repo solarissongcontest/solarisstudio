@@ -23,8 +23,21 @@ describe("V3 Following & Saved read and mutation recovery", () => {
     expect(source).toContain('data-v3-following-saved-state="paused"');
     expect(source).toContain("const paused = !failed && (");
     expect(source).toContain("Solaris will not mistake an unverified list for an empty one.");
-    expect(source.indexOf("{paused ? (")).toBeLessThan(source.indexOf(": loading ? ("));
+    expect(source.indexOf("{failed ? (")).toBeLessThan(source.indexOf(") : paused ? ("));
+    expect(source.indexOf(") : paused ? (")).toBeLessThan(source.indexOf(") : loading ? ("));
     expect(source.indexOf("{paused ? (")).toBeLessThan(source.indexOf("data-v3-following-saved-state=\"empty\""));
+  });
+
+  it("keeps a failed query recoverable even while another query is still loading", () => {
+    const source = screen();
+    // A failed query must win over another query's loading/paused state.
+    expect(source.indexOf("{failed ? (")).toBeLessThan(source.indexOf(") : paused ? ("));
+    expect(source.indexOf(") : paused ? (")).toBeLessThan(source.indexOf(") : loading ? ("));
+    // Unrelated successful/ongoing public reads must not disable failed-read retry.
+    for (const query of ["follows", "countries", "editions", "shows"]) {
+      expect(source).toContain(`(${query}.isError && ${query}.isFetching)`);
+    }
+    expect(source).not.toContain("const retrying = follows.isFetching ||");
   });
 
   it("filters only a verified saved projection without extra Supabase requests", () => {
