@@ -33,6 +33,39 @@ export const Route = createFileRoute("/_authenticated/admin/integrity-evidence")
   component: IntegrityEvidenceLifecycle,
 });
 
+type DueEvidenceReview = {
+  item: DueEvidenceDeletion;
+  fingerprint: string;
+};
+
+type ExpiredUploadReview = {
+  item: ExpiredEvidenceUpload;
+  fingerprint: string;
+};
+
+function dueEvidenceReviewFingerprint(item: DueEvidenceDeletion) {
+  return JSON.stringify([
+    item.id,
+    item.case_id,
+    item.case_code,
+    item.title,
+    item.original_name,
+    item.mime_type,
+    item.retention_until,
+    item.deletion_reason,
+  ]);
+}
+
+function expiredUploadReviewFingerprint(item: ExpiredEvidenceUpload) {
+  return JSON.stringify([
+    item.token_id,
+    item.case_id,
+    item.original_name,
+    item.expires_at,
+    item.object_exists,
+  ]);
+}
+
 function IntegrityEvidenceLifecycle() {
   const dueQuery = useQuery({
     queryKey: ["admin-integrity-evidence-due"],
@@ -123,15 +156,33 @@ function IntegrityEvidenceLifecycle() {
 }
 
 function DueEvidenceCard({ item, onChanged }: { item: DueEvidenceDeletion; onChanged: () => Promise<unknown> }) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [review, setReview] = useState<DueEvidenceReview | null>(null);
+  const reviewedItem = review?.item ?? item;
   const mutation = useMutation({
-    mutationFn: () => deleteDueEvidence(item),
+    mutationFn: async () => {
+      if (!review) throw new Error("Open a fresh evidence deletion review before continuing.");
+
+      const current = (await listDueEvidenceDeletions()).find(
+        (candidate) => candidate.id === review.item.id,
+      );
+      if (!current || dueEvidenceReviewFingerprint(current) !== review.fingerprint) {
+        throw new Error(
+          "Evidence deletion eligibility or reviewed details changed. Refresh and review the deletion again.",
+        );
+      }
+
+      return deleteDueEvidence(review.item);
+    },
     onSuccess: async () => {
-      setConfirmOpen(false);
+      setReview(null);
       await onChanged();
       toast.success("Evidence deletion completed");
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not delete evidence"),
+    onError: async (error) => {
+      setReview(null);
+      await onChanged();
+      toast.error(error instanceof Error ? error.message : "Could not delete evidence");
+    },
   });
 
   return (
@@ -147,33 +198,45 @@ function DueEvidenceCard({ item, onChanged }: { item: DueEvidenceDeletion; onCha
       <p className="mt-3 text-xs leading-5 text-muted-foreground">{item.deletion_reason}</p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Link to="/admin/integrity-case/$caseId" params={{ caseId: item.case_id }} className="admin-action-secondary">Open case <ArrowRight className="size-3.5" /></Link>
-        <button type="button" disabled={mutation.isPending} onClick={() => setConfirmOpen(true)} className="admin-action-secondary text-rose-100"><Trash2 className="size-3.5" />Review permanent deletion</button>
+        <button
+          type="button"
+          disabled={mutation.isPending}
+          onClick={() =>
+            setReview({
+              item: { ...item },
+              fingerprint: dueEvidenceReviewFingerprint(item),
+            })
+          }
+          className="admin-action-secondary text-rose-100"
+        >
+          <Trash2 className="size-3.5" />Review permanent deletion
+        </button>
       </div>
 
       <AdminConfirmSheet
-        open={confirmOpen}
+        open={Boolean(review)}
         onClose={() => {
-          if (!mutation.isPending) setConfirmOpen(false);
+          if (!mutation.isPending) setReview(null);
         }}
         onConfirm={async () => {
           await mutation.mutateAsync();
         }}
-        title={`Permanently delete evidence for ${item.case_code}?`}
+        title={`Permanently delete evidence for ${reviewedItem.case_code}?`}
         description={
-          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground" data-v3-organizer-evidence-deletion-review>
             <p>This is a Tier 4 irreversible evidence action. Any stored private file is permanently removed and cannot be recovered from Solaris.</p>
             <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-              <p className="font-semibold text-foreground">{item.title}</p>
-              <p className="mt-1">{item.original_name ?? "Non-file evidence"}{item.mime_type ? ` · ${item.mime_type}` : ""}</p>
-              <p className="mt-2"><span className="font-semibold text-foreground">Scheduled reason:</span> {item.deletion_reason}</p>
-              <p className="mt-2"><span className="font-semibold text-foreground">Retention ended:</span> {new Date(item.retention_until).toLocaleString()}</p>
+              <p className="font-semibold text-foreground">{reviewedItem.title}</p>
+              <p className="mt-1">{reviewedItem.original_name ?? "Non-file evidence"}{reviewedItem.mime_type ? ` · ${reviewedItem.mime_type}` : ""}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Scheduled reason:</span> {reviewedItem.deletion_reason}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Retention ended:</span> {new Date(reviewedItem.retention_until).toLocaleString()}</p>
             </div>
-            <p>The audit trail remains after deletion. Verify the case and retention decision before continuing.</p>
+            <p>The reviewed evidence details are frozen while this sheet is open. Solaris re-checks the exact deletion eligibility immediately before applying it and refuses the action if that basis changed.</p>
           </div>
         }
         confirmLabel="Delete private evidence permanently"
-        confirmationText={item.case_code}
-        confirmationHint={`Type ${item.case_code} to confirm permanent deletion for this case.`}
+        confirmationText={reviewedItem.case_code}
+        confirmationHint={`Type ${reviewedItem.case_code} to confirm permanent deletion for this case.`}
         busy={mutation.isPending}
         danger
       />
@@ -182,15 +245,33 @@ function DueEvidenceCard({ item, onChanged }: { item: DueEvidenceDeletion; onCha
 }
 
 function ExpiredUploadCard({ item, onChanged }: { item: ExpiredEvidenceUpload; onChanged: () => Promise<unknown> }) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [review, setReview] = useState<ExpiredUploadReview | null>(null);
+  const reviewedItem = review?.item ?? item;
   const mutation = useMutation({
-    mutationFn: () => cleanExpiredEvidenceUpload(item),
+    mutationFn: async () => {
+      if (!review) throw new Error("Open a fresh expired-upload review before continuing.");
+
+      const current = (await listExpiredEvidenceUploads()).find(
+        (candidate) => candidate.token_id === review.item.token_id,
+      );
+      if (!current || expiredUploadReviewFingerprint(current) !== review.fingerprint) {
+        throw new Error(
+          "Expired upload eligibility or reviewed details changed. Refresh and review the cleanup again.",
+        );
+      }
+
+      return cleanExpiredEvidenceUpload(review.item);
+    },
     onSuccess: async () => {
-      setConfirmOpen(false);
+      setReview(null);
       await onChanged();
       toast.success("Expired upload cleaned");
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not clean expired upload"),
+    onError: async (error) => {
+      setReview(null);
+      await onChanged();
+      toast.error(error instanceof Error ? error.message : "Could not clean expired upload");
+    },
   });
 
   return (
@@ -203,36 +284,48 @@ function ExpiredUploadCard({ item, onChanged }: { item: ExpiredEvidenceUpload; o
         <ArchiveRestore className="size-4 shrink-0 text-amber-200" />
       </div>
       <p className="mt-2 text-[10px] leading-4 text-muted-foreground">Private storage location hidden from the interface.</p>
-      <button type="button" disabled={mutation.isPending} onClick={() => setConfirmOpen(true)} className="admin-action-secondary mt-4"><Trash2 className="size-3.5" />{mutation.isPending ? "Cleaning…" : "Review expired upload cleanup"}</button>
+      <button
+        type="button"
+        disabled={mutation.isPending}
+        onClick={() =>
+          setReview({
+            item: { ...item },
+            fingerprint: expiredUploadReviewFingerprint(item),
+          })
+        }
+        className="admin-action-secondary mt-4"
+      >
+        <Trash2 className="size-3.5" />{mutation.isPending ? "Cleaning…" : "Review expired upload cleanup"}
+      </button>
 
       <AdminConfirmSheet
-        open={confirmOpen}
+        open={Boolean(review)}
         onClose={() => {
-          if (!mutation.isPending) setConfirmOpen(false);
+          if (!mutation.isPending) setReview(null);
         }}
         onConfirm={async () => {
           await mutation.mutateAsync();
         }}
-        title={`Clean expired upload ${item.original_name}?`}
+        title={`Clean expired upload ${reviewedItem.original_name}?`}
         description={
           <div className="space-y-3 text-xs leading-relaxed text-muted-foreground" data-v3-organizer-expired-upload-cleanup-review>
             <p>
-              Clean this expired unfinished upload only after verifying it was never finalised into case evidence. Cleanup discards the upload token permanently{item.object_exists ? " and removes its orphaned private storage object first" : ""}.
+              Clean this expired unfinished upload only after verifying it was never finalised into case evidence. Cleanup discards the upload token permanently{reviewedItem.object_exists ? " and removes its orphaned private storage object first" : ""}.
             </p>
             <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-              <p className="font-semibold text-foreground">{item.original_name}</p>
-              <p className="mt-1">Expired: {new Date(item.expires_at).toLocaleString()}</p>
-              <p className="mt-1">Private storage object: {item.object_exists ? "exists and will be permanently removed" : "already absent"}</p>
-              <p className="mt-1 font-mono text-[10px]">Upload token: {item.token_id}</p>
+              <p className="font-semibold text-foreground">{reviewedItem.original_name}</p>
+              <p className="mt-1">Expired: {new Date(reviewedItem.expires_at).toLocaleString()}</p>
+              <p className="mt-1">Private storage object: {reviewedItem.object_exists ? "exists and will be permanently removed" : "already absent"}</p>
+              <p className="mt-1 font-mono text-[10px]">Upload token: {reviewedItem.token_id}</p>
             </div>
-            <p>{item.object_exists ? "The storage object cannot be recovered after cleanup." : "No storage bytes remain, but discarding the token is still irreversible."}</p>
+            <p>The reviewed upload details are frozen while this sheet is open. Solaris re-checks the exact expired token immediately before applying cleanup and refuses the action if that basis changed.</p>
           </div>
         }
-        confirmLabel={item.object_exists ? "Delete orphaned upload permanently" : "Discard expired upload token"}
-        confirmationText={item.original_name}
-        confirmationHint={`Type ${item.original_name} to confirm cleanup of this exact expired upload.`}
+        confirmLabel={reviewedItem.object_exists ? "Delete orphaned upload permanently" : "Discard expired upload token"}
+        confirmationText={reviewedItem.original_name}
+        confirmationHint={`Type ${reviewedItem.original_name} to confirm cleanup of this exact expired upload.`}
         busy={mutation.isPending}
-        danger={item.object_exists}
+        danger={reviewedItem.object_exists}
       />
     </article>
   );
