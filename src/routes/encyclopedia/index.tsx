@@ -223,7 +223,26 @@ function ReferencePage() {
     );
   }
 
-  if (feature.isError || feature.data !== true) {
+  if (feature.isError) {
+    return (
+      <AppShell>
+        <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
+          <ReferenceDirectoryHeader presentation={presentation} />
+          <Panel title="Reference availability could not be checked">
+            <p className="text-sm text-muted-foreground">
+              Solaris could not verify whether the public Reference is enabled. No unpublished articles are shown.
+            </p>
+            <button type="button" onClick={() => void feature.refetch()}
+              className="mt-3 min-h-11 rounded-xl border border-border bg-surface px-4 text-sm font-semibold">
+              Retry availability check
+            </button>
+          </Panel>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (feature.data !== true) {
     return (
       <AppShell>
         <div className="v3-directory-family v3-reference-directory" data-directory-experience={presentation}>
@@ -281,9 +300,13 @@ function ReferencePage() {
           <StatTile label="Stories" value={coverageValue(coverage?.stories)} />
         </div>
         {coverageQuery.isError ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Archive totals are temporarily unavailable. Search and reference links still work.
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <p>Archive totals are temporarily unavailable. Search and reference links still work.</p>
+            <button type="button" onClick={() => void coverageQuery.refetch()}
+              className="min-h-11 rounded-xl border border-border px-3 font-semibold text-foreground">
+              Retry archive totals
+            </button>
+          </div>
         ) : null}
       </Panel>
 
