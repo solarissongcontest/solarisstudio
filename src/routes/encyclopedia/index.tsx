@@ -40,7 +40,7 @@ export const Route = createFileRoute("/encyclopedia/")({
 });
 
 type ResultKind = "edition" | "country" | "entry" | "show";
-type Kind = "all" | ResultKind;
+type Kind = "all" | ResultKind | "story" | "rule";
 type Coverage = {
   countries: number;
   entries: number;
@@ -54,6 +54,8 @@ const KIND_LABELS: Record<Kind, string> = {
   country: "Countries",
   entry: "Entries",
   show: "Shows",
+  story: "Stories",
+  rule: "Official rules",
 };
 const RESULT_LABELS: Record<ResultKind, string> = {
   edition: "Edition",
@@ -107,6 +109,7 @@ function ReferencePage() {
     return () => window.clearTimeout(timeoutId);
   }, [normalizedQuery, settledQuery]);
   const searchPending = settledQuery !== normalizedQuery;
+  const dedicatedTopicOnly = kind === "story" || kind === "rule";
 
   const feature = useQuery({
     queryKey: ["studio2-feature", "public_encyclopedia"],
@@ -134,7 +137,7 @@ function ReferencePage() {
       "search",
       settledQuery.toLocaleLowerCase(),
     ],
-    enabled: feature.data === true && normalizedQuery.length >= 2 &&
+    enabled: feature.data === true && !dedicatedTopicOnly && normalizedQuery.length >= 2 &&
       normalizedQuery.length <= MAX_REFERENCE_QUERY_LENGTH && !searchPending,
     staleTime: 60_000,
     queryFn: async () => {
@@ -320,7 +323,7 @@ function ReferencePage() {
         ) : null}
       </section>
 
-      {normalizedQuery.length === 0 ? (
+      {normalizedQuery.length === 0 || dedicatedTopicOnly ? (
         <section className="mt-5" aria-labelledby="reference-browse-heading">
           <div className="mb-3 border-b border-border/60 pb-3">
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
@@ -334,6 +337,11 @@ function ReferencePage() {
               {kind === "all" ? "Browse published Solaris" : `Browse ${KIND_LABELS[kind].toLowerCase()}`}
             </h2>
           </div>
+          {dedicatedTopicOnly && normalizedQuery.length > 0 ? (
+            <p className="mb-3 text-sm leading-6 text-muted-foreground" role="status">
+              {KIND_LABELS[kind]} has a dedicated published index. The bounded Reference record search does not index this topic; open its public index below.
+            </p>
+          ) : null}
           <div className={presentation === "mobile-web" ? "v3-directory-mobile-list" : presentation === "installed-app" ? "solaris-app-grouped-list" : "v3-directory-desktop-grid"}>
             {browseDestinations.map(({ label, description, href }) => (
               <Link
