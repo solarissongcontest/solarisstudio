@@ -114,6 +114,8 @@ export function ConfirmationAccessSettingsSheet({
 
   const closeSettingsSafely = () => {
     if (saving || saveInFlightRef.current) return;
+    // A previously reviewed access change must not survive dismissal.
+    setPendingReview(null);
     onClose();
   };
 
