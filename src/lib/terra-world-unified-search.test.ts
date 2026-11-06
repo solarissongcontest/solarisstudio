@@ -22,6 +22,7 @@ import {
   fetchWorldOrganizationSearchPage,
   parseWorldSearchCountries,
   parseWorldSearchPage,
+  parseWorldSearchCategory,
   verifiedWorldSearchTerm,
 } from "./terra-world-unified-search";
 
@@ -131,6 +132,14 @@ describe("Terra Solaris unified public World search", () => {
     mocks.organizations.range.mockResolvedValueOnce({ data: [], count: 3, error: null });
     await expect(fetchWorldUnifiedSearch("GUARD"))
       .rejects.toThrow("World search count could not be verified");
+  });
+
+  it("accepts only supported URL search categories", () => {
+    expect(parseWorldSearchCategory("countries")).toBe("countries");
+    expect(parseWorldSearchCategory("organizations")).toBe("organizations");
+    for (const raw of ["all", "private", "countries,all", null, {}, 7]) {
+      expect(parseWorldSearchCategory(raw)).toBe("all");
+    }
   });
 
   it("parses shareable page positions without permitting unbounded offsets", () => {
