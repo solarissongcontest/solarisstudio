@@ -44,11 +44,12 @@ export async function applyNavbarInstalledCssEmulation(page: Page) {
   // Only the WebKit desktop runner needs this source-extracted feature-query
   // shim; normal Safari keeps its unmodified production @supports condition.
   // All selectors, viewport media rules and fallback tokens stay unchanged.
-  const emulateIOSWebKit = await page.evaluate(
-    () =>
-      navigator.userAgent.includes("AppleWebKit") &&
-      !CSS.supports("-webkit-touch-callout", "none"),
-  );
+  // Chromium user agents also include "AppleWebKit". Use Playwright's
+  // actual browser engine so Android/Chromium never receives iOS-only CSS.
+  const isWebKitEngine = page.context().browser()?.browserType().name() === "webkit";
+  const emulateIOSWebKit =
+    isWebKitEngine &&
+    !(await page.evaluate(() => CSS.supports("-webkit-touch-callout", "none")));
   if (emulateIOSWebKit) {
     await page.addStyleTag({ content: IOS_WEBKIT_FEATURE_QUERY_EMULATION });
   }
