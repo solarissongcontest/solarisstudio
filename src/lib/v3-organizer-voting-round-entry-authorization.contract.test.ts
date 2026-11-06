@@ -96,6 +96,9 @@ describe("Organizer Televoting round-entry adapter authorization", () => {
     expect(editor).toContain('setPendingSelfVotingMode(null)');
     expect(editor).toContain('setCustomForm(emptyCustom)');
     expect(editor).toContain('const editable = Boolean(actorId && admin && data && data.round.status !== "open")');
+    expect(editor).toContain("component: RoundEntriesAccountBoundary");
+    expect(editor).toContain('function RoundEntriesAccountBoundary()');
+    expect(editor).toContain('<RoundEntriesPage key={`${actorId ?? "signed-out"}:${roundId}`} />');
     expect(editor).toContain('queryKey: ["merged-televoting-round-entries", actorId, roundId] })');
     expect(editor).toContain('queryKey: ["merged-televoting-solaris-source", actorId, roundId] })');
   });

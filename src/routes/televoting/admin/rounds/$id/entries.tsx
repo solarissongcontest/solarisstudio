@@ -27,7 +27,7 @@ import {
 
 export const Route = createFileRoute("/televoting/admin/rounds/$id/entries")({
   head: () => ({ meta: [{ title: "Round Entries — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
-  component: RoundEntriesPage,
+  component: RoundEntriesAccountBoundary,
 });
 
 type CustomForm = {
@@ -62,6 +62,14 @@ function selfVotingModeLabel(mode: SelfVotingMode) {
   if (mode === "linked_identity") return "Linked identity";
   if (mode === "disabled") return "Disabled";
   return "Unrestricted";
+}
+
+// A keyed component boundary discards prepared commands and pending UI callbacks
+// when either the signed-in account or the round changes.
+function RoundEntriesAccountBoundary() {
+  const { id: roundId } = Route.useParams();
+  const actorId = useAuthenticatedUser().id;
+  return <RoundEntriesPage key={`${actorId ?? "signed-out"}:${roundId}`} />;
 }
 
 function RoundEntriesPage() {
