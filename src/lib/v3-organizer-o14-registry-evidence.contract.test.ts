@@ -45,9 +45,9 @@ describe("V3 Organizer platform and anniversary capability evidence", () => {
     expect(statusFor("workspace-anniversary-dates")).toBe("building");
     expect(route).toContain("prepareDateReview(edition)");
     expect(route).toContain("applyReviewedDate");
-    expect(route).toContain("changed immediately before apply, so the reviewed date was not written");
-    expect(route).toContain("System #633 still owns the canonical versioned, idempotent");
-    expect(reviewContract).toContain("guards the legacy write against a race after the live read");
+    expect(route).toContain("expectedRevision: pendingReview.baselineRevision");
+    expect(route).toContain("broader edition writer cutover remains incomplete");
+    expect(reviewContract).toContain("uses the governed exact reviewed revision instead of raw table DML");
   });
 
   it("reports System Settings as building from the merged exact-edition reminder boundary", () => {

@@ -58,6 +58,19 @@ describe("Organizer V3 Result Integrity authorization", () => {
     expect(server).toContain('.from("round_influence_results")');
   });
 
+  it("binds private Result Integrity readback and invalidation to the signed-in actor", () => {
+    const page = readFileSync("src/routes/televoting/admin/result-integrity.tsx", "utf8");
+    expect(page).toContain("useAuthenticatedUser().id");
+    expect(page).toContain('queryKey: ["v3-organizer-result-integrity-rounds", actorId, editionId]');
+    expect(page).toContain('queryKey: ["televoting-result-integrity", actorId, editionId, effectiveRoundId]');
+    expect(page).toContain('invalidateQueries({ queryKey: ["televoting-result-integrity", actorId, editionId, effectiveRoundId] })');
+    expect(page).toContain("enabled: Boolean(actorId)");
+    expect((page.match(/gcTime: 0/g) ?? [])).toHaveLength(2);
+    expect((page.match(/refetchInterval: false/g) ?? [])).toHaveLength(2);
+    expect((page.match(/refetchOnWindowFocus: false/g) ?? [])).toHaveLength(2);
+    expect((page.match(/refetchOnReconnect: false/g) ?? [])).toHaveLength(2);
+  });
+
   it("matches the existing votingSupervisor operator profile", () => {
     const start = rolePresets.indexOf("votingSupervisor: [");
     const end = rolePresets.indexOf("],", start);

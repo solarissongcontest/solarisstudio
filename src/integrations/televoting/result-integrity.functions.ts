@@ -12,7 +12,6 @@ export const getResultIntegrity = createServerFn({ method: "POST" })
       "@/integrations/televoting/result-integrity-auth.server"
     );
     await requireResultIntegrityReadServer();
-
     const { getResultIntegrityServer } = await import(
       "@/integrations/televoting/result-integrity.server"
     );
@@ -26,7 +25,6 @@ export const recomputeResultIntegrity = createServerFn({ method: "POST" })
       "@/integrations/televoting/result-integrity-auth.server"
     );
     await requireResultIntegrityRecomputeServer();
-
     const { recomputeResultIntegrityServer } = await import(
       "@/integrations/televoting/result-integrity.server"
     );
