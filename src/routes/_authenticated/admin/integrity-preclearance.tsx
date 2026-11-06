@@ -15,6 +15,7 @@ import {
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminConfirmSheet, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/admin/integrity-preclearan
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: IntegrityPreclearanceWorkspace,
+  component: IntegrityPreclearanceIdentityBoundary,
 });
 
 type CaseListItem = {
@@ -117,27 +118,42 @@ export function preclearanceRulingReviewFingerprint(detail: CaseDetail) {
   });
 }
 
-function IntegrityPreclearanceWorkspace() {
+function IntegrityPreclearanceIdentityBoundary() {
+  const { id: actorId } = useAuthenticatedUser();
+  // A new authenticated actor must never inherit another actor's open ruling
+  // review, selected case, or cached private participant information.
+  return <IntegrityPreclearanceWorkspace key={actorId} actorId={actorId} />;
+}
+
+function IntegrityPreclearanceWorkspace({ actorId }: { actorId: string }) {
   const casesQuery = useQuery({
-    queryKey: ["admin-integrity-cases", "preclearance"],
+    queryKey: ["admin-integrity-cases", "preclearance", actorId],
+    enabled: Boolean(actorId),
+    refetchOnMount: "always",
     queryFn: () => rpc<CaseListItem[]>("admin_integrity_cases"),
   });
   const [selectedCase, setSelectedCase] = useState("");
+  // An old private snapshot is not authority during a fresh account/role check.
+  const casesVerified = casesQuery.isSuccess && !casesQuery.isFetching;
   const { questions, caseId } = useMemo(
-    () => resolvePrivateRuleQuestionSelection(casesQuery.data, selectedCase, casesQuery.isSuccess),
-    [casesQuery.data, casesQuery.isSuccess, selectedCase],
+    () => resolvePrivateRuleQuestionSelection(casesQuery.data, selectedCase, casesVerified),
+    [casesQuery.data, casesVerified, selectedCase],
   );
 
   const detailQuery = useQuery({
-    queryKey: ["admin-integrity-case", "preclearance", caseId],
+    queryKey: ["admin-integrity-case", "preclearance", actorId, caseId],
+    refetchOnMount: "always",
     queryFn: () => rpc<CaseDetail | null>("admin_integrity_case", { _case_id: caseId }),
-    enabled: Boolean(caseId),
+    enabled: Boolean(actorId && caseId),
   });
   const rulingsQuery = useQuery({
-    queryKey: ["admin-integrity-preclearance-rulings", caseId],
+    queryKey: ["admin-integrity-preclearance-rulings", actorId, caseId],
+    refetchOnMount: "always",
     queryFn: () => getAdminPreclearanceRulings(caseId),
-    enabled: Boolean(caseId),
+    enabled: Boolean(actorId && caseId),
   });
+  const detailVerified = detailQuery.isSuccess && !detailQuery.isFetching;
+  const rulingsVerified = rulingsQuery.isSuccess && !rulingsQuery.isFetching;
 
   const refresh = async () => {
     const refreshedQueue = await casesQuery.refetch();
@@ -169,8 +185,8 @@ function IntegrityPreclearanceWorkspace() {
         />
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Metric label="Private questions" value={casesQuery.isSuccess ? questions.length : null} tone="info" />
-          <Metric label="Rulings on selected case" value={caseId && rulingsQuery.isSuccess ? rulingsQuery.data.length : null} tone={rulingsQuery.data?.length ? "ready" : "attention"} />
+          <Metric label="Private questions" value={casesVerified ? questions.length : null} tone="info" />
+          <Metric label="Rulings on selected case" value={caseId && rulingsVerified ? rulingsQuery.data.length : null} tone={rulingsVerified && rulingsQuery.data?.length ? "ready" : "attention"} />
         </div>
 
         <AdminCard className="mt-4">
@@ -180,10 +196,10 @@ function IntegrityPreclearanceWorkspace() {
               <select
                 value={caseId}
                 onChange={(event) => setSelectedCase(event.target.value)}
-                disabled={!casesQuery.isSuccess}
+                disabled={!casesVerified}
                 className="mt-2 min-h-11 w-full rounded-xl border px-3 text-sm"
               >
-                {!questions.length ? <option value="">{casesQuery.isPending ? "Loading rule questions" : casesQuery.isError ? "Rule questions unavailable" : "No private rule questions"}</option> : null}
+                {!questions.length ? <option value="">{casesQuery.isPending || casesQuery.isFetching ? "Loading rule questions" : casesQuery.isError ? "Rule questions unavailable" : "No private rule questions"}</option> : null}
                 {questions.map((item) => (
                   <option key={item.id} value={item.id}>{item.public_code} · {item.summary}</option>
                 ))}
@@ -193,19 +209,19 @@ function IntegrityPreclearanceWorkspace() {
           </div>
         </AdminCard>
 
-        {casesQuery.isPending ? (
+        {casesQuery.isPending || casesQuery.isFetching ? (
           <AdminCard className="mt-4"><LoadingState /></AdminCard>
         ) : casesQuery.isError ? (
           <AdminCard className="mt-4"><EmptyState text="The private rule-question queue could not be verified. Refresh before issuing a ruling." /></AdminCard>
         ) : !caseId ? (
           <AdminCard className="mt-4"><EmptyState text="No protected rule questions are waiting in the Integrity Centre." /></AdminCard>
-        ) : detailQuery.isPending || rulingsQuery.isPending ? (
+        ) : detailQuery.isPending || detailQuery.isFetching || rulingsQuery.isPending || rulingsQuery.isFetching ? (
           <AdminCard className="mt-4"><LoadingState /></AdminCard>
         ) : detailQuery.isError ? (
           <AdminCard className="mt-4"><EmptyState text="The selected private rule question could not be verified. Refresh before issuing a ruling." /></AdminCard>
         ) : rulingsQuery.isError ? (
           <AdminCard className="mt-4"><EmptyState text="Ruling history could not be verified. Refresh before issuing another ruling or interpretation draft." /></AdminCard>
-        ) : detailQuery.data?.case.id === caseId && detailQuery.data.case.case_kind === "rule_question" ? (
+        ) : detailVerified && rulingsVerified && detailQuery.data?.case.id === caseId && detailQuery.data.case.case_kind === "rule_question" ? (
           <SelectedCaseWorkspace
             detail={detailQuery.data}
             rulings={rulingsQuery.data ?? []}
