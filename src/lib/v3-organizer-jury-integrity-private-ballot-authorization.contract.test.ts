@@ -51,6 +51,8 @@ describe("Organizer Jury Integrity protected ballot boundary", () => {
     expect(server).toContain("assertJuryIntegrityV5Evidence(");
     expect(server.indexOf("assertJuryIntegrityV5Evidence(")).toBeLessThan(server.indexOf("const showIds"));
     expect(server).toContain("missingShow");
+    expect(server).toContain("Jury integrity target evidence is missing a country identity");
+    expect(server).toContain("targetIds.add(id)");
   });
   it("renders failed authorized reads as errors with an explicit accessible retry", () => {
     expect(page).toContain('role="alert"');
