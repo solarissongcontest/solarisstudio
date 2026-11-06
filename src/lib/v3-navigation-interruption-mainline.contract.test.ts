@@ -45,6 +45,8 @@ describe("V3 installed dock interrupted gesture recovery", () => {
       expect(installed).toContain('window.addEventListener("' + event + '", resetInterruptedGesture)');
       expect(installed).toContain('window.removeEventListener("' + event + '", resetInterruptedGesture)');
     }
+    expect(installed).toContain('window.visualViewport?.addEventListener("resize", resetInterruptedGesture)');
+    expect(installed).toContain('window.visualViewport?.removeEventListener("resize", resetInterruptedGesture)');
     expect(installed).toContain("window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture)");
     expect(installed).toContain("window.removeEventListener(APP_RESUME_EVENT, resetInterruptedGesture)");
     expect(installed).toContain("interruptionObserver?.disconnect()");
@@ -56,6 +58,8 @@ describe("V3 installed dock interrupted gesture recovery", () => {
     expect(liquid).toContain("clearAppUpdateBlocker(V3_LIQUID_LENS_UPDATE_BLOCKER)");
     expect(liquid).toContain("setAppUpdateBlocker(");
     expect(liquid).toContain("resetInterruptedGesture();");
+    expect(liquid).toContain('window.visualViewport?.addEventListener("resize", resetInterruptedGesture)');
+    expect(liquid).toContain('window.visualViewport?.removeEventListener("resize", resetInterruptedGesture)');
     expect(liquid).toContain("rootInterruptionObserver?.disconnect()");
     expect(liquid).toContain("onLostPointerCapture={cancelDrag}");
   });
