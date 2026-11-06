@@ -61,6 +61,9 @@ describe("TG14 immutable Court judgment and reconsideration",()=>{
     expect(mayRequestCourtReconsideration(record,judgment,id,[])).toBe(false);
     expect(mayRequestCourtReconsideration({ ...record,status:"closed" },judgment,thirdId,[])).toBe(false);
     expect(mayRequestCourtReconsideration({ ...record,status:"reconsideration_requested" },judgment,thirdId,[])).toBe(true);
+    // The first party's accepted request cannot extinguish the other
+    // country's one constitutionally allowed reconsideration request.
+    expect(mayRequestCourtReconsideration({ ...record,status:"reconsideration" },judgment,thirdId,requests)).toBe(true);
     expect(parseCourtReconsideration(request,new Map([[id,{decision:"rejected",reason:"Insufficient grounds"}]])).decision)
       .toBe("rejected");
   });
@@ -141,6 +144,9 @@ describe("TG14 immutable Court judgment and reconsideration",()=>{
     for(const value of [
       "'reconsideration_request',v_grounds",
       "v_case.status not in ('reconsideration_requested','reconsideration')",
+      "if v_case.status not in ('decided','reconsideration_requested','reconsideration')",
+      "case when v_case.status='reconsideration'",
+      "p_target_state is null",
       "p_decision='accepted' or v_case.status='reconsideration'",
       "and not exists (",
       "pending.judgment_id=v_previous.id",
