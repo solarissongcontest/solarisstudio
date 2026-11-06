@@ -64,14 +64,24 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Collect source, S14 and S15 contracts separately
         run: |
-          set -uo pipefail
+          set -euo pipefail
           mkdir -p sweep
-          bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > sweep/s14-readiness.json
-          s14_rc=$?
-          bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > sweep/s15-readiness.json
-          s15_rc=$?
-          node --test _sweep_tooling/scripts/v3-s14-runtime-defect-sweep.contract.mjs
-          test_rc=$?
+          # Capture expected nonzero child outcomes even under GitHub Bash errexit.
+          if bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > sweep/s14-readiness.json; then
+            s14_rc=0
+          else
+            s14_rc=$?
+          fi
+          if bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > sweep/s15-readiness.json; then
+            s15_rc=0
+          else
+            s15_rc=$?
+          fi
+          if node --test _sweep_tooling/scripts/v3-s14-runtime-defect-sweep.contract.mjs; then
+            test_rc=0
+          else
+            test_rc=$?
+          fi
           SWEEP_S14="$s14_rc" SWEEP_S15="$s15_rc" SWEEP_TEST="$test_rc" python3 - <<'PY'
           import json,os,subprocess
           sha=subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip().lower()

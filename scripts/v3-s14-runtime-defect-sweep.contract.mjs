@@ -387,3 +387,29 @@ test("a complete S14 runtime is not clean without exact-SHA static audit and obs
     assert.equal(hasRuntimeCleanProof(report), false, "duplicate/missing static checks cannot pass");
   });
 });
+
+test("static S14 sweep preserves nonzero diagnostic exit codes under Bash errexit", () => {
+  const workflow = readFileSync(
+    join(process.cwd(), ".github/workflows/v3-s14-runtime-defect-sweep.yml"), "utf8",
+  );
+  const segment = workflow.split(
+    "      - name: Collect source, S14 and S15 contracts separately\n",
+  )[1]?.split("      - uses: actions/upload-artifact@v4")[0];
+  assert.ok(segment, "static S14 diagnostics step must exist");
+  assert.ok(segment.includes("set -euo pipefail"), "unexpected failures must fail closed");
+  for (const [command, variable] of [
+    ["bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > sweep/s14-readiness.json", "s14_rc"],
+    ["bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > sweep/s15-readiness.json", "s15_rc"],
+    ["node --test _sweep_tooling/scripts/v3-s14-runtime-defect-sweep.contract.mjs", "test_rc"],
+  ]) {
+    const guard = [
+      "          if " + command + "; then",
+      "            " + variable + "=0",
+      "          else",
+      "            " + variable + "=$?",
+      "          fi",
+    ].join("\n");
+    assert.ok(segment.includes(guard), command + " must record actual child exit code");
+  }
+  assert.ok(segment.includes("SWEEP_S14=\"$s14_rc\" SWEEP_S15=\"$s15_rc\" SWEEP_TEST=\"$test_rc\""));
+});
