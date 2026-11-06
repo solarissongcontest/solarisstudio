@@ -16,6 +16,7 @@ const targets = source("src/lib/navigation-targets.ts");
 const homeRoute = source("src/routes/_authenticated/my-solaris/index.tsx");
 const votingRoute = source("src/routes/_authenticated/my-solaris/voting.tsx");
 const tasksRoute = source("src/routes/_authenticated/my-solaris/tasks.tsx");
+const tasksModule = source("src/components/mysolaris/modules/MySolarisTasksModule.tsx");
 const entryRoute = source("src/routes/_authenticated/my-solaris/entry.tsx");
 const noticesRoute = source("src/routes/_authenticated/my-solaris/notices.tsx");
 const countryRoute = source("src/routes/_authenticated/my-solaris/country.tsx");
@@ -96,6 +97,8 @@ describe("MySolaris product consolidation", () => {
     expect(tasksRoute).toContain('<Navigate to={NAV_TARGETS.participate} replace />');
     expect(tasksRoute).toContain('<MySolarisTasksModule />');
     expect(tasksRoute).toContain('Unable to verify Organizer access.');
+    expect(tasksModule).toContain("const country = organizerInspection ? organizerCountry : ownCountry;");
+    expect(tasksModule).not.toContain("const country = organizerCountry ?? ownCountry;");
   });
 
   it("has real canonical route surfaces behind the remaining workspace destinations", () => {
