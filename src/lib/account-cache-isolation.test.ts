@@ -47,6 +47,43 @@ describe("shared-browser private state", () => {
     expect(client.getQueryData(["mysolaris-jury-task", "B", "country", "edition"])).toBeUndefined();
     client.clear();
   });
+  it("evicts legacy Jury and private Televote evidence while preserving ordinary public discovery", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const protectedKeys = [
+      ["voters", "show", "show-1"],
+      ["jury_votes", "show", "show-1"],
+      ["jury_ballot_statuses", "actor-A", "edition-1", "show", "show-1"],
+      ["jury_ballot_submissions", "actor-A", "edition-1", "show", "show-1"],
+      ["merged-televoting-conversion", "actor-A", "edition-1", "round-1"],
+      ["merged-televoting-admin", "actor-A"],
+      ["merged-combined-detail", "actor-A", "combined-1"],
+      ["merged-integrity-declarations", "actor-A", "edition-1"],
+      ["v3-organizer-integrity-submissions", "actor-A", "edition-1"],
+      ["integrity-human-moderation"],
+      ["televoting-result-integrity", "actor-A", "edition-1"],
+    ] as const;
+
+    for (const key of protectedKeys) client.setQueryData(key, { privateAccount: "A" });
+    client.setQueryData(["countries"], { published: true });
+    client.setQueryData(["editions"], { published: true });
+
+    let resolveOld: (value: unknown) => void = () => undefined;
+    const pending = client.fetchQuery({
+      queryKey: ["merged-televoting-round-entries", "actor-A", "round-1"],
+      queryFn: () => new Promise((resolve) => { resolveOld = resolve; }),
+    }).catch(() => undefined);
+
+    clearPrivateAccountQueries(client);
+    resolveOld({ privateAccount: "A", late: true });
+    await pending;
+
+    for (const key of protectedKeys) expect(client.getQueryData(key)).toBeUndefined();
+    expect(client.getQueryData(["merged-televoting-round-entries", "actor-A", "round-1"])).toBeUndefined();
+    expect(client.getQueryData(["countries"])).toEqual({ published: true });
+    expect(client.getQueryData(["editions"])).toEqual({ published: true });
+    client.clear();
+  });
+
   it("namespaces private jury observers and remounts the ballot when accounts change", () => {
     const context = readFileSync("src/components/mysolaris/MySolarisContext.tsx", "utf8");
     const jury = readFileSync("src/routes/jury-voting.tsx", "utf8");
