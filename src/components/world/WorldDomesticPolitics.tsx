@@ -4,6 +4,7 @@ import { ArrowLeft, BookOpen, Landmark, Pencil, Plus, Vote } from "lucide-react"
 import { useRef, useState, type FormEvent } from "react";
 
 import { WorldDomesticLegislature } from "@/components/world/WorldDomesticLegislature";
+import { WorldDomesticOffices } from "@/components/world/WorldDomesticOffices";
 
 import {
   readWorldDomesticCountry, writeWorldDomesticCanon,
@@ -257,6 +258,7 @@ export function WorldDomesticPolitics({ code }: { code: string }) {
         </section>
       </div>
       <WorldDomesticLegislature code={code} />
+      <WorldDomesticOffices code={code} />
       {country.isController ? <DomesticEditor country={country} /> : null}
     </> : null}
   </div>;
