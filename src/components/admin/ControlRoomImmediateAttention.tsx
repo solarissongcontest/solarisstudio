@@ -80,6 +80,12 @@ export function ControlRoomImmediateAttention({
                   </AdminStatus>
                 </span>
                 <span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.detail}</span>
+                <a
+                  href={item.route}
+                  className="mt-2 inline-flex min-h-9 items-center rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 text-[11px] font-semibold text-foreground hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {item.actionLabel}
+                </a>
               </span>
             </div>
           ))}
