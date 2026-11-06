@@ -224,7 +224,7 @@ export function V3LiveScreen({
           <div className="min-w-0">
             <p className="v3-kicker">Current show state</p>
             <p className="mt-2 text-xl font-bold tracking-[-0.03em]">
-              {experience.stateLabel}
+              {degraded ? `Last reported · ${experience.stateLabel}` : experience.stateLabel}
             </p>
           </div>
           <V3StatusChip tone={degraded ? "warning" : presentation.tone}>
@@ -444,7 +444,7 @@ export function V3LiveScreen({
       ) : null}
 
       <p className="sr-only" aria-live="polite">
-        {experience.stateLabel}. {freshnessLabel(experience.freshness.updatedAt)}.
+        {degraded ? "Last known show state: " : ""}{experience.stateLabel}. {freshnessLabel(experience.freshness.updatedAt)}.
       </p>
     </V3Screen>
   );
