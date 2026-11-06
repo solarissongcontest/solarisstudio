@@ -2,6 +2,24 @@ begin;
 
 -- WORLD-03 TG5B. Private, governed procedural review of GUARD applications.
 -- Review and introduction are not decisions on membership or GAG ballots.
+-- Preserve provenance for applications the Chairperson received externally,
+-- without impersonating the country's controller or creating second intake truth.
+alter table public.world_membership_applications
+  add column intake_source text not null default 'solaris'
+    check (intake_source in ('solaris','external')),
+  add column external_source_reference text,
+  add column registered_by_user_id uuid references auth.users(id) on delete set null,
+  add constraint world_membership_application_external_provenance_check check (
+    (intake_source = 'solaris'
+      and external_source_reference is null
+      and registered_by_user_id is null)
+    or
+    (intake_source = 'external'
+      and length(btrim(coalesce(external_source_reference,''))) between 8 and 500
+      and registered_by_user_id is not null
+      and submitted_by is null)
+  );
+
 create table public.world_membership_application_review_history (
   application_id uuid not null references public.world_membership_applications(id) on delete restrict,
   revision bigint not null check (revision > 1),
@@ -68,6 +86,8 @@ begin
       'motivation',page.motivation,
       'contributions',page.contributions,
       'commitment',page.international_commitment,
+      'intakeSource',page.intake_source,
+      'sourceReference',page.external_source_reference,
       'status',page.status,
       'submittedAt',page.submitted_at,
       'revision',page.revision
@@ -79,8 +99,9 @@ begin
       country.name as country_name,country.short_code,
       application.official_state_designation,application.government_system,
       application.motivation,application.contributions,
-      application.international_commitment,application.status,
-      application.submitted_at,application.revision
+      application.international_commitment,
+      application.intake_source,application.external_source_reference,
+      application.status,application.submitted_at,application.revision
     from public.world_membership_applications application
     join public.countries country on country.id=application.country_id
     where application.organization_id=v_org_id
@@ -272,12 +293,144 @@ grant execute on function public.world_review_guard_application_v1(
   uuid,uuid,uuid,bigint,text,uuid,text
 ) to authenticated,service_role;
 
+
+-- A historical/direct-message application is registered by an authorized
+-- Chairperson, not by impersonating its country controller. Country consent
+-- and actual admission remain separate constitutional decisions.
+create or replace function public.world_register_external_guard_application_v1(
+  p_organization_id uuid,
+  p_country_id uuid,
+  p_official_state_designation text,
+  p_government_system text,
+  p_motivation text,
+  p_contributions text,
+  p_international_commitment text,
+  p_source_reference text,
+  p_operation_id uuid,
+  p_idempotency_key text
+)
+returns jsonb language plpgsql security definer
+set search_path=pg_catalog
+as $external$
+declare
+  v_actor uuid := auth.uid();
+  v_claim jsonb;
+  v_operation_id uuid;
+  v_application_id uuid;
+  v_result jsonb;
+  v_designation text := btrim(coalesce(p_official_state_designation,''));
+  v_government text := btrim(coalesce(p_government_system,''));
+  v_motivation text := btrim(coalesce(p_motivation,''));
+  v_contributions text := btrim(coalesce(p_contributions,''));
+  v_commitment text := btrim(coalesce(p_international_commitment,''));
+  v_reference text := btrim(coalesce(p_source_reference,''));
+begin
+  if v_actor is null or p_organization_id is null or p_country_id is null then
+    raise exception using errcode='42501',message='AUTHORIZATION';
+  end if;
+  if p_operation_id is null or length(btrim(coalesce(p_idempotency_key,''))) not between 8 and 160
+    or length(v_designation) not between 2 and 160
+    or length(v_government) not between 2 and 200
+    or length(v_motivation) not between 20 and 3000
+    or length(v_contributions) not between 20 and 3000
+    or length(v_commitment) not between 20 and 3000
+    or length(v_reference) not between 8 and 500 then
+    raise exception using errcode='22023',message='VALIDATION';
+  end if;
+
+  perform 1 from public.world_organizations org
+  where org.id=p_organization_id and org.slug='guard'
+    and org.status='active' and org.public_visibility='public'
+  for share;
+  if not found
+    or not public.world_access_allowed('world.membership.introduce',p_organization_id,null,null,null,null)
+    or not public.world_access_allowed('world.membership.review',p_organization_id,null,null,null,null) then
+    raise exception using errcode='42501',message='AUTHORIZATION';
+  end if;
+  perform 1 from public.countries country where country.id=p_country_id for share;
+  if not found then
+    raise exception using errcode='23503',message='VALIDATION';
+  end if;
+
+  v_claim := private.studio2_claim_operation(
+    p_operation_id,p_idempotency_key,p_operation_id,
+    'world.membership.application.register_external','R2',
+    jsonb_build_object('organizationId',p_organization_id,'countryId',p_country_id,
+      'subjectType','world_membership_application'),
+    jsonb_build_object('countryId',p_country_id,
+      'officialDesignation',v_designation,'governmentSystem',v_government,
+      'motivation',v_motivation,'contributions',v_contributions,
+      'commitment',v_commitment,'sourceReference',v_reference)
+  );
+  v_operation_id := (v_claim->>'operationId')::uuid;
+  if coalesce((v_claim->>'replayed')::boolean,false) then
+    return public.studio2_reconcile_operation(v_operation_id)
+      || jsonb_build_object('replayed',true);
+  end if;
+
+  if exists(
+    select 1 from public.world_organization_memberships membership
+    where membership.organization_id=p_organization_id
+      and membership.country_id=p_country_id and membership.ended_at is null
+  ) then
+    raise exception using errcode='23514',message='ALREADY_MEMBER';
+  end if;
+  if exists(
+    select 1 from public.world_membership_applications application
+    where application.organization_id=p_organization_id
+      and application.country_id=p_country_id
+      and application.status in ('submitted','under_review','introduced','approved')
+  ) then
+    raise exception using errcode='23505',message='APPLICATION_ALREADY_PENDING';
+  end if;
+
+  insert into public.world_membership_applications(
+    organization_id,country_id,
+    official_state_designation,government_system,
+    motivation,contributions,international_commitment,
+    intake_source,external_source_reference,registered_by_user_id,
+    operation_id
+  ) values (
+    p_organization_id,p_country_id,
+    v_designation,v_government,v_motivation,v_contributions,v_commitment,
+    'external',v_reference,v_actor,v_operation_id
+  ) returning id into v_application_id;
+
+  perform private.v3_emit_domain_event(
+    'world.membership.application.registered_external',
+    'world_membership_application',v_application_id::text,1,
+    v_operation_id,null,null,
+    jsonb_build_object(
+      'applicationId',v_application_id,
+      'organizationId',p_organization_id,'countryId',p_country_id,
+      'intakeSource','external','status','submitted'
+    ),1,array[]::text[]
+  );
+  v_result := jsonb_build_object(
+    'ok',true,'applicationId',v_application_id,
+    'organizationId',p_organization_id,'countryId',p_country_id,
+    'intakeSource','external','status','submitted','revision',1,
+    'operationId',v_operation_id
+  );
+  perform private.studio2_complete_operation(v_operation_id,v_result);
+  return public.studio2_reconcile_operation(v_operation_id)
+    || jsonb_build_object('replayed',false);
+end
+$external$;
+
+revoke all on function public.world_register_external_guard_application_v1(
+  uuid,uuid,text,text,text,text,text,text,uuid,text
+) from public,anon,authenticated,service_role;
+grant execute on function public.world_register_external_guard_application_v1(
+  uuid,uuid,text,text,text,text,text,text,uuid,text
+) to authenticated,service_role;
+
 do $contract$
 begin
  if to_regprocedure('public.v3_register_migration_contract(text,integer,text,boolean,text,text)') is not null then
   perform public.v3_register_migration_contract(
     'v3.tg5.guard-application-review',1,'forward_fix_only',false,null,
-    'Private bounded GUARD reviewer inbox, CAS/idempotent procedural transitions, audit and public-safe events; never admit members without certified GAG vote.'
+    'Private bounded GUARD reviewer inbox, CAS/idempotent procedural transitions, external Chairperson intake provenance, audit and public-safe events; never admit members without certified GAG vote.'
   );
  end if;
 end
