@@ -42,6 +42,7 @@ create table public.world_guard_inquiries(
  response_due_at timestamptz not null,
  opened_at timestamptz not null default now(),
  opened_by_user_id uuid not null,
+ opened_by_person_id uuid not null references public.delegation_people(id) on delete restrict,
  status text not null default 'awaiting_response',
  revision bigint not null default 1,
  updated_at timestamptz not null default now(),
@@ -259,9 +260,9 @@ begin
  end if;
  insert into public.world_guard_inquiries(
   organization_id,target_country_id,allegation,source_reference,
-  response_due_at,opened_by_user_id
+  response_due_at,opened_by_user_id,opened_by_person_id
  ) values(p_organization_id,p_target_country_id,v_allegation,v_source,
-   p_response_due_at,auth.uid()) returning id into v_id;
+   p_response_due_at,auth.uid(),v_actor_person) returning id into v_id;
  insert into public.world_guard_inquiry_history(
   inquiry_id,action,from_state,to_state,actor_user_id,operation_id,revision
  ) values(v_id,'opened',null,'awaiting_response',auth.uid(),v_op,1);
