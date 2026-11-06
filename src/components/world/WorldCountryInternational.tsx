@@ -80,7 +80,7 @@ export function WorldCountriesDirectory() {
     staleTime: 120_000,
     refetchOnMount: "always",
     retry: 1,
-    queryFn: () => fetchWorldCountryDirectory(safeSearch, page),
+    queryFn: ({ signal }) => fetchWorldCountryDirectory(safeSearch, page, signal),
   });
 
   // A failed revalidation may retain old React Query data. Never render it.
@@ -157,7 +157,7 @@ function useCountryMemberships(countryId: string | undefined, phase: Phase, page
     refetchOnMount: "always",
     staleTime: 120_000,
     retry: 1,
-    queryFn: () => fetchWorldCountryMembershipPage(countryId ?? "", phase, page),
+    queryFn: ({ signal }) => fetchWorldCountryMembershipPage(countryId ?? "", phase, page, signal),
   });
 }
 
@@ -240,7 +240,7 @@ export function WorldCountryInternational({ code }: { code: string }) {
     refetchOnMount: "always",
     staleTime: 5 * 60_000,
     retry: 1,
-    queryFn: () => fetchWorldCountryIdentity(canonicalCode),
+    queryFn: ({ signal }) => fetchWorldCountryIdentity(canonicalCode, signal),
   });
 
   const current = useCountryMemberships(identity.data?.id, "current", currentPage);
@@ -276,7 +276,7 @@ export function WorldCountryInternational({ code }: { code: string }) {
     refetchOnMount: "always",
     staleTime: 120_000,
     retry: 1,
-    queryFn: () => fetchWorldPublicCountryInstitutions(organizationIds),
+    queryFn: ({ signal }) => fetchWorldPublicCountryInstitutions(organizationIds, signal),
   });
 
   if (!validCode) return <div className="mx-auto max-w-4xl px-4 py-12">
