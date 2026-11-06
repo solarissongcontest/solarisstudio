@@ -276,7 +276,7 @@ export async function readPublicBodyOffices(
   // foreign key. PostgREST requires the explicit constraint hint or the embed
   // is ambiguous (PGRST201), even though the SQL schema itself is valid.
   let request = (supabase as any).from("world_organization_offices")
-    .select("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility,status),world_organization_organs:world_organization_organs!world_offices_organ_same_organization_fk!inner(id,organization_id,visibility)")
+    .select("id,organization_id,organ_id,title,office_type,active,world_organizations!inner(id,public_visibility,status),world_organization_organs:world_organization_organs!world_offices_organ_same_organization_fk!inner(id,organization_id,visibility)", { count: "exact" })
     .eq("organization_id", organization.id)
     .eq("organ_id", body.id)
     .eq("active", true)
@@ -289,8 +289,14 @@ export async function readPublicBodyOffices(
     .order("display_priority", { ascending: true })
     .order("id", { ascending: true });
   if (signal) request = request.abortSignal(signal);
-  const { data, error } = await request.limit(WORLD_BODY_OFFICE_LIMIT);
-  if (error || !Array.isArray(data) || data.length > WORLD_BODY_OFFICE_LIMIT) {
+  // A plain LIMIT returns a plausible-looking prefix when the body has more
+  // offices than this deliberately bounded reader supports. Ask PostgREST for
+  // the count of the SAME public-only query so incomplete official lists never
+  // silently masquerade as the full public roster.
+  const { data, error, count } = await request.limit(WORLD_BODY_OFFICE_LIMIT);
+  if (error || !Array.isArray(data) ||
+      !Number.isSafeInteger(count) || count < 0 ||
+      count > WORLD_BODY_OFFICE_LIMIT || data.length !== count) {
     throw new Error("Public institutional offices could not be verified.");
   }
   const offices = data.map((row: unknown) =>
