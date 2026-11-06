@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { releaseEvidenceConsistencyFailure } from "../../scripts/v3-release-evidence-consistency";
 
 export const V3_QA_RELEASE_PHASES = ["S10", "S11", "S12", "S13", "S14", "S15", "S16"] as const;
 export type V3QaReleasePhaseId = (typeof V3_QA_RELEASE_PHASES)[number];
@@ -30,23 +31,6 @@ const HARDENING_FILE = "s16-system-hardening.json";
 const S14_FILE = "s14-full-contest.json";
 const S15_FILE = "s15-zero-orphan.json";
 const S16_FILE = "s16-certification.json";
-
-// Independent read-only minimum guard, matching the canonical S16 evidence
-// envelope. It cannot replace the System/QA-owned category source validators.
-export const V3_QA_REQUIRED_S16_CATEGORIES = [
-  { id: "canonical-ci", evidenceFilename: "s16-canonical-ci.json" },
-  { id: "migration-rehearsal", evidenceFilename: "s16-migration-rehearsal.json" },
-  { id: "authorization-security", evidenceFilename: "s16-authorization-security.json" },
-  { id: "production-isolation", evidenceFilename: "s16-production-isolation.json" },
-  { id: "system-hardening", evidenceFilename: "s16-system-hardening.json" },
-  { id: "public-acceptance", evidenceFilename: "s16-public-acceptance.json" },
-  { id: "organizer-acceptance", evidenceFilename: "s16-organizer-acceptance.json" },
-  { id: "navigation-acceptance", evidenceFilename: "s16-navigation-acceptance.json" },
-  { id: "accessibility", evidenceFilename: "s16-accessibility.json" },
-  { id: "responsive-behavior", evidenceFilename: "s16-responsive-behavior.json" },
-  { id: "full-contest-rehearsal", evidenceFilename: "s14-full-contest.json" },
-  { id: "registry-zero-gap", evidenceFilename: "s15-zero-orphan.json" },
-] as const;
 
 function record(value: unknown): JsonRecord | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : null;
@@ -158,6 +142,8 @@ function s14Truth(evidence: ReturnType<typeof readJson>, expectedSha: string): V
     else if ((value[key] as unknown[]).length) issues.push(`S14 ${key} must be empty`);
   }
   if (record(value.lifecycle)?.finalState !== "archived") issues.push("S14 must prove lifecycle.finalState=archived");
+  const consistencyIssue = releaseEvidenceConsistencyFailure(S14_FILE, value);
+  if (consistencyIssue) issues.push(consistencyIssue);
   return { id: "S14", state: issues.length ? "invalid" : "passed", source: S14_FILE, issues };
 }
 
@@ -178,6 +164,8 @@ function s15Truth(evidence: ReturnType<typeof readJson>, expectedSha: string): V
   if (record(value.physicalOwnership)?.zeroOwnershipConflicts !== true) {
     issues.push("S15 physical ownership is not conflict-free");
   }
+  const consistencyIssue = releaseEvidenceConsistencyFailure(S15_FILE, value);
+  if (consistencyIssue) issues.push(consistencyIssue);
   return { id: "S15", state: issues.length ? "invalid" : "passed", source: S15_FILE, issues };
 }
 
@@ -187,40 +175,14 @@ function s16Truth(evidence: ReturnType<typeof readJson>, expectedSha: string): V
   const value = record(evidence.value);
   const issues: string[] = [];
   if (!value) return { id: "S16", state: "invalid", source: S16_FILE, issues: [`${S16_FILE} must be a JSON object`] };
-  if (value.schemaVersion !== 1) issues.push("S16 certification schemaVersion must be 1");
   const shaIssue = exactShaIssue(value.candidateSha, expectedSha, "S16 candidateSha");
   if (shaIssue) issues.push(shaIssue);
   if (value.certified !== true) issues.push("S16 does not prove certified=true");
-
-  // A bare "certified": true is never proof. Every category must correspond
-  // to a distinct successful same-SHA artifact named by the canonical envelope.
-  if (!Array.isArray(value.categories)) {
-    issues.push("S16 certification categories must be an array");
-  } else {
-    const rows = value.categories.map(record);
-    if (rows.length !== V3_QA_REQUIRED_S16_CATEGORIES.length) {
-      issues.push(`S16 must contain ${V3_QA_REQUIRED_S16_CATEGORIES.length} category attestations, found ${rows.length}`);
-    }
-    for (const expected of V3_QA_REQUIRED_S16_CATEGORIES) {
-      const matches = rows.filter((row) => row?.id === expected.id);
-      if (matches.length !== 1) {
-        issues.push(`S16 must contain exactly one ${expected.id} category; found ${matches.length}`);
-        continue;
-      }
-      const category = matches[0]!;
-      if (category.evidenceFilename !== expected.evidenceFilename) {
-        issues.push(`S16 ${expected.id} evidence filename must be ${expected.evidenceFilename}`);
-      }
-      if (category.passed !== true) issues.push(`S16 ${expected.id} has not passed`);
-      const sourceShaIssue = exactShaIssue(category.evidenceCandidateSha, expectedSha, `S16 ${expected.id} evidenceCandidateSha`);
-      if (sourceShaIssue) issues.push(sourceShaIssue);
-    }
-    for (const row of rows) {
-      if (!row || !V3_QA_REQUIRED_S16_CATEGORIES.some((category) => category.id === row.id)) {
-        issues.push(`S16 contains an unknown or invalid category: ${String(row?.id ?? "<missing>")}`);
-      }
-    }
-  }
+  // The canonical cross-release semantic validator already checks all 12
+  // category identities, filenames, same-SHA attestations and duplicates.
+  // Reuse it instead of maintaining a second S16 release contract here.
+  const consistencyIssue = releaseEvidenceConsistencyFailure(S16_FILE, value);
+  if (consistencyIssue) issues.push(consistencyIssue);
   return { id: "S16", state: issues.length ? "invalid" : "passed", source: S16_FILE, issues };
 }
 

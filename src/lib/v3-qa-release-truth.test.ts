@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 import { assessV3QaReleaseTruth } from "./v3-qa-release-truth";
+import { V3_S14_STAGES, V3_S14_INVARIANTS, V3_S14_FAILURE_INJECTIONS, V3_S14_SEED_CONTRACT } from "../../scripts/v3-s14-full-contest-spec";
 
 const roots: string[] = [];
 const SHA = "a".repeat(40);
@@ -71,9 +72,20 @@ function s14() {
     passed: true,
     partial: false,
     runtimeFailure: false,
+    completedStages: V3_S14_STAGES.map((entry) => entry.id),
     pendingStages: [],
+    completedContestExtensions: [
+      "grand-final-qualifier-bridge",
+      "grand-final-voting",
+      "grand-final-results",
+      "grand-final-publication",
+    ],
     pendingContestExtensions: [],
     blockedContestExtensions: [],
+    implementedInvariants: V3_S14_INVARIANTS.map((entry) => entry.id),
+    implementedFailureInjections: V3_S14_FAILURE_INJECTIONS.map((entry) => entry.id),
+    seed: { editionCount: V3_S14_SEED_CONTRACT.editionCount, delegationCount: V3_S14_SEED_CONTRACT.delegationCount, showCount: V3_S14_SEED_CONTRACT.minimumShowCount },
+    runIdentity: { candidateSha: SHA, editionId: "local-test-edition", databaseFingerprint: "isolated-test-db" },
     lifecycle: { finalState: "archived" },
   };
 }
@@ -83,8 +95,9 @@ function s15() {
     schemaVersion: 4,
     candidateSha: SHA,
     zeroOrphans: true,
+    inventory: { domains: 1 },
     findings: [],
-    physicalOwnership: { zeroOwnershipConflicts: true },
+    physicalOwnership: { zeroOwnershipConflicts: true, findings: [] },
   };
 }
 
@@ -145,7 +158,7 @@ describe("V3 QA exact-SHA release truth", () => {
     writeJson(dir, "s16-certification.json", { candidateSha: SHA, certified: true });
     const truth = assessV3QaReleaseTruth(SHA, dir);
     expect(truth.phases.find((phase) => phase.id === "S16")?.state).toBe("invalid");
-    expect(truth.invalidEvidence.join("\\n")).toContain("categories must be an array");
+    expect(truth.invalidEvidence.join("\\n")).toContain("complete S16 category contract");
     expect(truth.readyForS16).toBe(false);
     expect(truth.certified).toBe(false);
   });
@@ -170,16 +183,36 @@ describe("V3 QA exact-SHA release truth", () => {
     writeJson(dir, "s16-certification.json", { ...valid, categories: valid.categories.slice(1) });
     let truth = assessV3QaReleaseTruth(SHA, dir);
     expect(truth.phases.find((phase) => phase.id === "S16")?.state).toBe("invalid");
-    expect(truth.invalidEvidence.join("\\n")).toContain("canonical-ci");
+    expect(truth.invalidEvidence.join("\\n")).toContain("complete S16 category contract");
 
     writeJson(dir, "s16-certification.json", { ...valid, categories: [...valid.categories.slice(1), valid.categories[1]] });
     truth = assessV3QaReleaseTruth(SHA, dir);
-    expect(truth.invalidEvidence.join("\\n")).toContain("exactly one migration-rehearsal");
+    expect(truth.invalidEvidence.join("\\n")).toContain("exactly one canonical-ci release gate");
 
     writeJson(dir, "s16-certification.json", { ...valid, categories: valid.categories.map((entry, i) => i === 0 ? { ...entry, evidenceFilename: "wrong.json", evidenceCandidateSha: OTHER_SHA } : entry) });
     truth = assessV3QaReleaseTruth(SHA, dir);
-    expect(truth.invalidEvidence.join("\\n")).toContain("evidence filename");
-    expect(truth.invalidEvidence.join("\\n")).toContain("not exact candidate");
+    expect(truth.invalidEvidence.join("\\n")).toContain("incomplete or stale canonical-ci gate evidence");
+  });
+
+  it("rejects apparently successful S14 evidence missing real lifecycle or failure-injection coverage", () => {
+    const dir = root();
+    writeJson(dir, "s14-full-contest.json", { ...s14(), completedStages: ["stage-10-archive"] });
+    let truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.phases.find((phase) => phase.id === "S14")?.state).toBe("invalid");
+    expect(truth.invalidEvidence.join("\\n")).toContain("every ordered lifecycle stage");
+
+    writeJson(dir, "s14-full-contest.json", { ...s14(), implementedFailureInjections: [] });
+    truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.invalidEvidence.join("\\n")).toContain("required integrity or recovery rehearsal coverage");
+  });
+
+  it("rejects zero-orphan claims without the canonical S15 inventory", () => {
+    const dir = root();
+    const { inventory, ...shallow } = s15();
+    writeJson(dir, "s15-zero-orphan.json", shallow);
+    const truth = assessV3QaReleaseTruth(SHA, dir);
+    expect(truth.phases.find((phase) => phase.id === "S15")?.state).toBe("invalid");
+    expect(truth.invalidEvidence.join("\\n")).toContain("S15 inventory contract");
   });
 
   it("rejects evidence for a different candidate SHA", () => {

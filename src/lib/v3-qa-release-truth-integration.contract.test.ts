@@ -8,6 +8,14 @@ const cli = source("scripts/check-v3-qa-release-truth.ts");
 const truth = source("src/lib/v3-qa-release-truth.ts");
 
 describe("V3 QA release-truth preflight integration", () => {
+  it("uses the existing canonical cross-release consistency validator for S14, S15 and S16", () => {
+    expect(truth).toContain('releaseEvidenceConsistencyFailure } from "../../scripts/v3-release-evidence-consistency"');
+    expect(truth).toContain("releaseEvidenceConsistencyFailure(S14_FILE, value)");
+    expect(truth).toContain("releaseEvidenceConsistencyFailure(S15_FILE, value)");
+    expect(truth).toContain("releaseEvidenceConsistencyFailure(S16_FILE, value)");
+    expect(truth).not.toContain("V3_QA_REQUIRED_S16_CATEGORIES");
+  });
+
   it("preserves the reviewed dispatch-SHA binding instead of checking out arbitrary input", () => {
     expect(workflow).toContain("DISPATCH_SHA: ${{ github.sha }}");
     expect(workflow).toContain("ref: ${{ github.sha }}");
