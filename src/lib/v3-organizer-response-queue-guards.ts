@@ -64,7 +64,7 @@ export function assertOrganizerResponsePageCoverage(
     );
   }
   const loaded = alreadyLoaded + incoming;
-  if (loaded > totalCount || (hasMore ? loaded >= totalCount : loaded !== totalCount)) {
+  if (loaded > totalCount || (hasMore ? incoming === 0 || loaded >= totalCount : loaded !== totalCount)) {
     throw Object.assign(
       new Error("Confirmation pagination does not match its canonical response count. Reload the current edition before reviewing."),
       { status: 409 },
