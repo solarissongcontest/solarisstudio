@@ -1,0 +1,60 @@
+name: V3 Parallel PR Conflict Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: v3-parallel-pr-conflict-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  parallel-conflict-guard:
+    if: startsWith(github.head_ref, 'v3/') || startsWith(github.event.pull_request.title, '[V3-')
+    name: V3 parallel PR conflict guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Verify conflict-policy unit tests
+        run: bun test scripts/__tests__/check-v3-parallel-pr-conflicts.test.ts
+
+      - name: Detect parallel V3 PR collisions
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          V3_CURRENT_PR: ${{ github.event.pull_request.number }}
+        run: bun run scripts/check-v3-parallel-pr-conflicts.ts
+
+      - name: Safety note
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo
+            echo "### Verification boundary"
+            echo
+            echo "This guard reads GitHub pull-request metadata only."
+            echo "It does not start Supabase, contact hosted Supabase, run browser traffic, or mutate production data."
+          } >> "$GITHUB_STEP_SUMMARY"
