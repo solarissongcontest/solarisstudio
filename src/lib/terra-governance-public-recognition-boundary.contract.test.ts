@@ -60,6 +60,9 @@ describe("TG19 unrecognized institution public privacy / dark rollout", () => {
     expect(definer).toContain("organization_row.status in ('recognized','active','suspended','dissolved','historical')");
     expect(definer).toContain("studio2_feature_enabled('terra_world_public', null)");
     expect(definer).toContain("visible_organ.visibility = 'public'");
+    // The policy hardening must not regress TG2's later effective-start repair.
+    expect(definer).toContain("term_row.started_at <= now()");
+    expect(definer).toContain("term_row.actual_end_at is null");
     expect(definer).not.toMatch(/\bholder_user_id\b|\bproxy_user_id\b/);
     expect(migration).toContain("grant execute on function public.world_organization_projection_v1(text)");
   });
