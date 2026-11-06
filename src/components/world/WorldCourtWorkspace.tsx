@@ -149,6 +149,7 @@ function CourtCasePanel({
 export function WorldCourtWorkspace() {
   const workspace = useQuery({
     queryKey: ["world", "court", "workspace"],
+    gcTime: 0,
     queryFn: fetchCourtWorkspace,
     staleTime: 0,
     refetchOnMount: "always",
