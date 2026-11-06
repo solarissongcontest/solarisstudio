@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Search } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
@@ -60,7 +60,7 @@ export function WorldBodiesDirectory({ slug }: { slug: string }) {
     staleTime: 90_000,
     retry: false,
   });
-  function applySearch(event: React.FormEvent<HTMLFormElement>) {
+  function applySearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleaned = cleanWorldBodySearch(input);
     setInput(cleaned);
