@@ -1,5 +1,10 @@
 import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
 import { OrganizerEntryVersionHistory } from "@/components/admin/OrganizerEntryVersionHistory";
+import {
+  buildOrganizerEntryCorrectionReason,
+  ORGANIZER_ENTRY_CORRECTION_CATEGORIES,
+  type OrganizerEntryCorrectionCategory,
+} from "@/lib/v3-organizer-entry-correction-reason";
 import { assertDisplayedEntryVersion } from "@/lib/v3-entry-review-preview";
 import {
   effectiveOrganizerEntryReviewStatus,
@@ -318,6 +323,10 @@ function EntryReviewCard({
 }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState(entry.review_reason ?? "");
+  const [correctionNotes, setCorrectionNotes] = useState<
+    Partial<Record<OrganizerEntryCorrectionCategory, string>>
+  >({});
+  const [correctionMessage, setCorrectionMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<SystemReceipt | null>(null);
@@ -334,6 +343,22 @@ function EntryReviewCard({
   const status = reviewLabel(entry);
   const inspection = inspectOrganizerEntrySource(entry);
   const sourceIssues = inspection.checks.filter((check) => check.status === "attention").length;
+  const selectedCorrectionIssues = ORGANIZER_ENTRY_CORRECTION_CATEGORIES
+    .filter((item) => Object.prototype.hasOwnProperty.call(correctionNotes, item.id))
+    .map((item) => ({ category: item.id, explanation: correctionNotes[item.id] ?? "" }));
+  const correctionReason = buildOrganizerEntryCorrectionReason(selectedCorrectionIssues, correctionMessage);
+
+  function toggleCorrectionCategory(category: OrganizerEntryCorrectionCategory) {
+    setCorrectionNotes((current) => {
+      const next = { ...current };
+      if (Object.prototype.hasOwnProperty.call(next, category)) {
+        delete next[category];
+      } else {
+        next[category] = "";
+      }
+      return next;
+    });
+  }
 
   async function recoverReview(operationId: string) {
     if (!isScopeCurrent()) return false;
@@ -366,8 +391,11 @@ function EntryReviewCard({
       setError("Organizer edition or response changed. Reopen the current submission before reviewing.");
       return;
     }
-    if (!unresolvedReviewOperationRef.current && nextStatus !== "accepted" && !reason.trim()) {
-      setError("Add an organiser reason first.");
+    const effectiveReason = nextStatus === "declined" ? correctionReason : reason.trim();
+    if (!unresolvedReviewOperationRef.current && nextStatus !== "accepted" && !effectiveReason) {
+      setError(nextStatus === "declined"
+        ? "Select a correction category and explain each requested change."
+        : "Add an organiser reason first.");
       return;
     }
 
@@ -433,7 +461,7 @@ function EntryReviewCard({
           targetStatus: nextStatus,
           expectedEntryVersion: entry.current_version_id ?? null,
         },
-        reason: reason.trim() || null,
+        reason: effectiveReason || null,
         expectedVersion: preview.expectedVersion,
       });
       if (!isScopeCurrent()) {
@@ -456,7 +484,7 @@ function EntryReviewCard({
           p_target_type: targetType,
           p_entry_id: entry.id,
           p_target_status: nextStatus,
-          p_reason: reason.trim(),
+          p_reason: effectiveReason || "",
           p_operation_id: command.operationId,
           p_idempotency_key: command.idempotencyKey,
           p_correlation_id: command.correlationId,
@@ -491,7 +519,7 @@ function EntryReviewCard({
         nextStatus === "accepted"
           ? "Entry accepted"
           : nextStatus === "declined"
-            ? "Entry declined"
+            ? "Entry changes requested"
             : nextStatus === "removed"
               ? "Entry removed"
               : "Entry reset to pending",
@@ -658,15 +686,81 @@ function EntryReviewCard({
           ) : null}
 
           <div className="space-y-2">
-            <Label htmlFor={`review-reason-${entry.id}`}>Organiser reason</Label>
+            <Label htmlFor={`review-reason-${entry.id}`}>
+              General organiser reason (reset, removal or winner decision)
+            </Label>
             <Textarea
               id={`review-reason-${entry.id}`}
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              placeholder="Required for decline, remove, reset or winner changes."
+              placeholder="For reset, removal or winner changes. Request changes below has its own explanation."
               rows={4}
             />
           </div>
+
+          <section className="space-y-3 rounded-xl border border-white/[0.09] bg-white/[0.025] p-3">
+            <div>
+              <p className="text-sm font-semibold">Request changes</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Select the issues and explain precisely what must be fixed. The backend currently records one reviewed reason
+                from these category notes; it does not yet store separate structured issue objects. The existing canonical
+                Entry request-changes operation, revision guard and receipt remain authoritative.
+              </p>
+            </div>
+            <fieldset>
+              <legend className="text-xs font-semibold">Correction categories</legend>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {ORGANIZER_ENTRY_CORRECTION_CATEGORIES.map((item) => (
+                  <label key={item.id} className="flex items-center gap-2 rounded-lg border border-white/[0.08] p-2 text-xs">
+                    <input
+                      type="checkbox"
+                      disabled={busy}
+                      checked={Object.prototype.hasOwnProperty.call(correctionNotes, item.id)}
+                      onChange={() => toggleCorrectionCategory(item.id)}
+                    />
+                    <span>{item.label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {selectedCorrectionIssues.map((issue) => {
+              const label = ORGANIZER_ENTRY_CORRECTION_CATEGORIES.find((item) => item.id === issue.category)?.label ?? issue.category;
+              return (
+                <div key={issue.category} className="space-y-1.5">
+                  <Label htmlFor={`correction-${entry.id}-${issue.category}`}>{label}: requested correction</Label>
+                  <Textarea
+                    id={`correction-${entry.id}-${issue.category}`}
+                    disabled={busy}
+                    value={issue.explanation}
+                    onChange={(event) => setCorrectionNotes((current) => ({
+                      ...current,
+                      [issue.category]: event.target.value,
+                    }))}
+                    rows={2}
+                    placeholder={`Explain the ${label.toLowerCase()} correction…`}
+                  />
+                </div>
+              );
+            })}
+            <div className="space-y-1.5">
+              <Label htmlFor={`correction-context-${entry.id}`}>Additional context (optional)</Label>
+              <Textarea
+                id={`correction-context-${entry.id}`}
+                disabled={busy}
+                value={correctionMessage}
+                onChange={(event) => setCorrectionMessage(event.target.value)}
+                rows={2}
+              />
+            </div>
+            {correctionReason ? (
+              <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3 text-xs">
+                <p className="font-semibold">Reviewed message to the delegation</p>
+                <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{correctionReason}</p>
+              </div>
+            ) : (
+              <p className="text-xs text-amber-100">Choose at least one category and explain each selected issue before requesting changes.</p>
+            )}
+          </section>
 
           {error ? (
             <div className="rounded-xl border border-rose-200/20 bg-rose-200/[0.05] p-3 text-sm text-rose-100">
@@ -708,11 +802,11 @@ function EntryReviewCard({
 
             <button
               type="button"
-              disabled={busy || !reason.trim()}
+              disabled={busy || !correctionReason}
               onClick={() => void review("declined")}
               className="admin-action-secondary w-full"
             >
-              <XCircle className="size-4" /> Decline entry
+              <XCircle className="size-4" /> Request changes
             </button>
 
             {status !== "pending" ? (
