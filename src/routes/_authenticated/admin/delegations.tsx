@@ -90,6 +90,10 @@ function OrganizerDelegationsPage() {
     queryFn: () => loadConfirmationRequirements(resolvedEditionId),
     enabled: hasConfirmationRead,
     staleTime: 20_000,
+    // Private obligation snapshots must not survive inactive route caches.
+    // Re-entering Delegations requires current server truth, not a cached all-clear.
+    gcTime: 0,
+    refetchOnMount: "always",
   });
 
   const summary = summarizeConfirmationRequirementAttention(requirementsQuery.data ?? []);
@@ -204,7 +208,7 @@ function OrganizerDelegationsPage() {
             description="This Organizer account does not currently have confirmation.read for the selected edition. Public edition visibility does not grant access to private obligations."
           />
         </AdminCard>
-      ) : requirementsQuery.isLoading ? (
+      ) : requirementsQuery.isPending || requirementsQuery.isFetching ? (
         <AdminCard>
           <p className="py-8 text-center text-sm text-muted-foreground">
             Loading confirmation obligations…
