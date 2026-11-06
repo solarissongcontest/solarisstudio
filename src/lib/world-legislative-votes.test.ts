@@ -67,11 +67,14 @@ describe("WORLD-05 TG8 canonical voting consumer",()=>{
   });
 
   it("will not accept another operation ID as a receipt",()=>{
-    const receipt={ok:true,voteId,operationId,revision:1,status:"cast",replayed:false};
-    expect(parseVoteReceipt(receipt,operationId)).toEqual(receipt);
-    expect(()=>parseVoteReceipt({...receipt,operationId:countryId},operationId)).toThrow();
-    expect(()=>parseVoteReceipt({...receipt,replayed:null},operationId)).toThrow();
-    expect(()=>parseVoteReceipt({...receipt,revision:0},operationId)).toThrow();
+    const result={ok:true,voteId,operationId,revision:1,status:"cast"};
+    const envelope={status:"succeeded",operationId,replayed:false,result};
+    expect(parseVoteReceipt(envelope,operationId)).toEqual({...result,replayed:false});
+    expect(()=>parseVoteReceipt(result,operationId)).toThrow();
+    expect(()=>parseVoteReceipt({...envelope,operationId:countryId},operationId)).toThrow();
+    expect(()=>parseVoteReceipt({...envelope,replayed:null},operationId)).toThrow();
+    expect(()=>parseVoteReceipt({...envelope,result:{...result,revision:0}},operationId)).toThrow();
+    expect(()=>parseVoteReceipt({...envelope,result:{...result,operationId:countryId}},operationId)).toThrow();
   });
 
   it("reads only from public publication-filtered RPC and bounded results",async()=>{
@@ -96,7 +99,8 @@ describe("WORLD-05 TG8 canonical voting consumer",()=>{
     const data={voteId,countryId,expectedVoteRevision:1,
       choice:"abstain" as const,operationId};
     rpcMock.mockResolvedValueOnce({data:{
-      ok:true,voteId,operationId,revision:1,status:"cast",replayed:false,
+      status:"succeeded",operationId,replayed:false,
+      result:{ok:true,voteId,operationId,revision:1,status:"cast"},
     },error:null});
     expect((await castWorldBallot(data)).status).toBe("cast");
     expect(rpcMock).toHaveBeenCalledWith("world_cast_ballot_v1",{
@@ -109,7 +113,8 @@ describe("WORLD-05 TG8 canonical voting consumer",()=>{
 
   it("opens and certifies only through governed R2/R3 command + stable exact idempotency key",async()=>{
     rpcMock.mockResolvedValueOnce({data:{
-      ok:true,voteId,measureId,revision:1,status:"open",operationId,replayed:false,
+      status:"succeeded",operationId,replayed:false,
+      result:{ok:true,voteId,measureId,revision:1,status:"open",operationId},
     },error:null});
     expect((await openWorldVote({measureId,expectedMeasureRevision:3,ruleId,
       closesAt:"2099-01-01T10:00:00Z",operationId})).status).toBe("open");
@@ -117,9 +122,18 @@ describe("WORLD-05 TG8 canonical voting consumer",()=>{
       p_measure_id:measureId,p_expected_measure_revision:3,
       p_rule_id:ruleId,p_idempotency_key:"world.vote.open:"+operationId,
     }));
+    // A completed opening must still reconcile after its deadline passes.
+    // The server distinguishes a replay from an invalid NEW vote window.
     rpcMock.mockResolvedValueOnce({data:{
-      ok:true,voteId,measureId,revision:2,status:"certified",operationId,
-      replayed:false,resultHash:hash,outcome:"passed",
+      status:"succeeded",operationId,replayed:true,
+      result:{ok:true,voteId,measureId,revision:1,status:"open",operationId},
+    },error:null});
+    expect((await openWorldVote({measureId,expectedMeasureRevision:3,ruleId,
+      closesAt:"2020-01-01T10:00:00Z",operationId})).replayed).toBe(true);
+    rpcMock.mockResolvedValueOnce({data:{
+      status:"succeeded",operationId,replayed:false,
+      result:{ok:true,voteId,measureId,revision:2,status:"certified",operationId,
+        resultHash:hash,outcome:"passed"},
     },error:null});
     expect((await certifyWorldVote({voteId,expectedVoteRevision:1,operationId})).outcome)
       .toBe("passed");
