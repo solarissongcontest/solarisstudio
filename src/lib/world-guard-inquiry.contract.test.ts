@@ -170,7 +170,7 @@ describe("WORLD-08 TG13 governed GUARD noncompliance inquiry",()=>{
     expect(ui).toContain("Retry same operation");
     expect(ui).toContain("onAuthStateChange");
     expect(ui).toContain("gcTime:0");
-    expect(ui).toContain("only a live Chairperson");
+    expect(ui).toContain("Only a live Chairperson");
     expect(ui).toContain("No suspension, freeze, sanction or expulsion was executed");
     expect(ui).toContain("Official sanctions and expulsion require independent");
     for(const file of [client,ui])
