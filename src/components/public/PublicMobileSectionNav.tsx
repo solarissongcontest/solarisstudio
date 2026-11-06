@@ -27,14 +27,20 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
     setOpen(false);
     const pending = pendingKeyboardSectionFocus;
     if (!pending || pending.path !== pathname) return;
-    pendingKeyboardSectionFocus = null;
-    if (Date.now() - pending.at > 5_000) return;
+    if (Date.now() - pending.at > 5_000) {
+      pendingKeyboardSectionFocus = null;
+      return;
+    }
 
     // A route transition may replace the focused link (and sometimes the
     // disclosure trigger). After the new page paints, focus its heading so
     // keyboard and screen-reader users enter the destination instead of
     // falling back to the document body.
     const frame = window.requestAnimationFrame(() => {
+      // React StrictMode can replay mount effects and cancel the first frame.
+      // Consume the hand-off only after the surviving frame actually runs.
+      if (pendingKeyboardSectionFocus !== pending) return;
+      pendingKeyboardSectionFocus = null;
       const heading = document.querySelector<HTMLElement>(".public-site-content h1");
       if (heading) {
         heading.tabIndex = -1;

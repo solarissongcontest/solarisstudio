@@ -40,6 +40,9 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
     expect(mobile).toContain("pendingKeyboardSectionFocus =");
     expect(mobile).toContain("pending.path !== pathname");
     expect(mobile).toContain("Date.now() - pending.at > 5_000");
+    expect(mobile).toContain("if (pendingKeyboardSectionFocus !== pending) return;");
+    expect(mobile).toContain("React StrictMode can replay mount effects");
+    expect(mobile).toMatch(/requestAnimationFrame\([\s\S]*pendingKeyboardSectionFocus = null;/);
     expect(mobile).toContain("heading.focus({ preventScroll: true })");
     expect(mobile).toContain("window.requestAnimationFrame(");
     expect(mobile).toContain("window.cancelAnimationFrame(frame)");
