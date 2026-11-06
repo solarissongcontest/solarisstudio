@@ -55,7 +55,7 @@ describe("country page presentation ownership", () => {
     expect(wiki).toContain("data-wiki-layout-mode={countryLayoutMode}");
     expect(wiki).toContain('countryLayoutMode === "mobile-web" ? (');
     expect(wiki).toContain('<CountryWikiHeader country={country} layoutMode={countryLayoutMode} publishedDesign={publishedDesign} />');
-    expect(wiki.match(/useCountryDesignV2\\(/g)).toHaveLength(1);
+    expect(wiki.split("useCountryDesignV2(")).toHaveLength(2);
     expect(wiki).toContain("const heroProps = {");
     expect(wiki).not.toContain("const identityModel: CountryIdentityModel");
     expect(wiki).toContain("<CountryDesignV2Hero {...heroProps} design={publishedDesign} />");
