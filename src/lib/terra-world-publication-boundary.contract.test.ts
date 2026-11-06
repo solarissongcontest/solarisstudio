@@ -97,6 +97,9 @@ describe("World TG19 publication-boundary rehearsal isolation", () => {
     expect(sql).toContain("TG19_ANON_PRIVATE_ORGANIZATION_RLS_LEAK");
     expect(sql).toContain("TG19_ANON_PRIVATE_PROJECTION_LEAK");
     expect(sql).toContain("TG19_ANON_PRIVATE_CHILD_PROJECTION_LEAK");
+    expect(sql).toContain("TG19_ANON_PRIVATE_MEMBERSHIP_RLS_LEAK");
+    expect(sql).toContain("TG19_ANON_PUBLIC_MEMBERSHIP_PROJECTION_MISSING");
+    expect(sql).toContain("TG19_NO_JWT_PRIVATE_MEMBERSHIP_LEAK");
     expect(sql).toContain("TG19_NO_JWT_PRIVATE_CHILD_LEAK");
     expect(sql).toContain("TG19_WORLD_DARK_ROLLOUT_REQUIRED");
     expect(sql).not.toMatch(/\bdblink\b|\bhttp_post\b/i);
