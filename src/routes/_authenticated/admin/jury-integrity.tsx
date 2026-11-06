@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, CheckCircle2, Scale, ShieldAlert, Users } from "lucide-react";
+import { CheckCircle2, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
@@ -78,10 +78,10 @@ function JuryIntegrityPage() {
 
       {query.data && !query.error && !query.isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Metric label="Checked ballots" value={query.data.stats.total} icon={Scale} />
-          <Metric label="Review 50+" value={query.data.stats.reviewOrHigher} icon={Users} />
-          <Metric label="Declaration 65+" value={query.data.stats.declarationOrHigher} icon={AlertTriangle} />
-          <Metric label="High 80+" value={query.data.stats.highOrHigher} icon={ShieldAlert} />
+          <Metric label="Checked ballots" value={query.data.stats.total} />
+          <Metric label="Review 50+" value={query.data.stats.reviewOrHigher} />
+          <Metric label="Declaration 65+" value={query.data.stats.declarationOrHigher} />
+          <Metric label="High 80+" value={query.data.stats.highOrHigher} />
         </div>
       ) : null}
 
@@ -148,12 +148,11 @@ function JuryIntegrityPage() {
   );
 }
 
-function Metric({ label, value, icon: Icon }: { label: string; value: number; icon: typeof Scale }) {
+function Metric({ label, value }: { label: string; value: number }) {
   return (
     <AdminCard>
       <div className="flex items-center justify-between gap-3">
         <div><p className="admin-section-label">{label}</p><p className="mt-2 numeric text-2xl font-black">{value}</p></div>
-        <span className="grid size-10 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-muted-foreground"><Icon className="size-4" /></span>
       </div>
     </AdminCard>
   );
