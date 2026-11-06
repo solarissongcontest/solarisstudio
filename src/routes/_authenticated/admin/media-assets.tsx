@@ -92,6 +92,7 @@ function MediaAssetsPage() {
   const [selectedSources, setSelectedSources] = useState<Map<string, string>>(() => new Map());
   const [reviewReason, setReviewReason] = useState('');
   const [retryingInventory, setRetryingInventory] = useState(false);
+  const inventoryRetryInFlightRef = useRef(false);
   const [pendingReview, setPendingReview] = useState<PendingMediaReview | null>(null);
   const reviewCommitInFlightRef = useRef(false);
 
@@ -278,7 +279,9 @@ function MediaAssetsPage() {
   async function retryInventory() {
     // Manual, finite retry only. Do not refetch every historical edition or
     // trigger a production-facing polling loop on an error screen.
-    if (retryingInventory) return;
+    // React state alone is not a synchronous lock against rapid double clicks.
+    if (retryingInventory || inventoryRetryInFlightRef.current) return;
+    inventoryRetryInFlightRef.current = true;
     setRetryingInventory(true);
     try {
       await Promise.all([
@@ -287,6 +290,7 @@ function MediaAssetsPage() {
         ...(resolvedEditionId ? [cockpitQuery.refetch(), reviewsQuery.refetch()] : []),
       ]);
     } finally {
+      inventoryRetryInFlightRef.current = false;
       setRetryingInventory(false);
     }
   }
