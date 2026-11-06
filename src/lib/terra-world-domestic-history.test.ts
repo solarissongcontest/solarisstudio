@@ -87,14 +87,18 @@ describe("WORLD-09 TG16 canonical domestic political records", () => {
   });
   it("requires an acknowledged server receipt rather than faking client success", async () => {
     expect(() => parseDomesticWriteReceipt({ ok: true })).toThrow("receipt");
-    mockRpc.mockResolvedValueOnce({ data: { ok: true, id: partyId, kind: "party",
-      revision: 1, operationId, replayed: false }, error: null });
+    mockRpc.mockResolvedValueOnce({ data: { operationId, status:"succeeded",error:null,
+      result:{ok:true,id:partyId,kind:"party",revision:1,operationId} },error:null });
     const result = await writeWorldDomesticCanon({
       countryId, kind:"party", subjectId: null,
       payload: { name:"Example Party",published:true }, expectedRevision:0,
       operationId, idempotencyKey:operationId,
     });
     expect(result.operationId).toBe(operationId);
+    expect(()=>parseDomesticWriteReceipt({operationId,status:"processing",error:null,
+      result:{ok:true,id:partyId,revision:1,kind:"party",operationId}})).toThrow("receipt");
+    expect(()=>parseDomesticWriteReceipt({operationId,status:"succeeded",error:null,
+      result:{ok:true,id:partyId,revision:1,kind:"party",operationId}},countryId)).toThrow("receipt");
     expect(mockRpc).toHaveBeenCalledWith("world_write_domestic_canon_v1", {
       p_country_id:countryId,p_kind:"party",p_subject_id:null,
       p_payload:{ name:"Example Party",published:true },p_expected_revision:0,
