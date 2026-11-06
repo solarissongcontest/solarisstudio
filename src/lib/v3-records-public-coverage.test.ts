@@ -56,7 +56,14 @@ describe("Public Records archive coverage", () => {
 
   it("does not count results prepared for a show whose results are not published", () => {
     const input = publishedFixture();
-    input.shows[0].publication_config.results = false;
+    // Overall result publication is only one of four layers that can
+    // authorize public result rows. Keep all result-bearing layers closed.
+    Object.assign(input.shows[0].publication_config, {
+      results: false,
+      jury_results: false,
+      televote_results: false,
+      detailed_voting: false,
+    });
     expect(buildCanonicalFanRecordsWithCoverage(input).archivedFinalEditions).toBe(0);
   });
 
