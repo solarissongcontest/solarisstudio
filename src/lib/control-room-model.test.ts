@@ -58,4 +58,37 @@ describe('control room model', () => {
     expect(model.editionState).toBe('vote_verification');
     expect(model.actions.map((item) => item.id)).toEqual(['verify-results', 'reopen-televote']);
   });
+
+  it('does not claim healthy status when incident or health evidence is unavailable', () => {
+    const base = {
+      editionId: 'ssc22',
+      editionName: 'SSC 22',
+      healthStatus: 'ready' as const,
+      healthIssues: 0,
+      criticalIssues: 0,
+    };
+    expect(buildControlRoomModel(base).overallHealth).toBe('unknown');
+    expect(buildControlRoomModel({
+      ...base, activeIncidents: 0, criticalIncidents: 0,
+    }).overallHealth).toBe('healthy');
+    expect(buildControlRoomModel({
+      ...base, healthStatus: null, activeIncidents: 0, criticalIncidents: 0,
+    }).overallHealth).toBe('unknown');
+  });
+
+  it('prioritizes verified operational incident severity over otherwise healthy edition status', () => {
+    const base = {
+      editionId: 'ssc22',
+      editionName: 'SSC 22',
+      healthStatus: 'ready' as const,
+      healthIssues: 0,
+      criticalIssues: 0,
+      activeIncidents: 2,
+      criticalIncidents: 1,
+    };
+    expect(buildControlRoomModel(base).overallHealth).toBe('critical');
+    expect(buildControlRoomModel({
+      ...base, criticalIncidents: 0,
+    }).overallHealth).toBe('attention');
+  });
 });

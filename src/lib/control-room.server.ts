@@ -51,9 +51,58 @@ async function loadPersistedRuntimeState(
   }
 }
 
+type IncidentSignalCounts = { active: number; critical: number };
+
+/**
+ * Only callers with canonical incident or integrity read capability may
+ * retrieve incident counts. Use HEAD + exact count, not a full incident list:
+ * Control Room needs severity signals, not private incident details.
+ *
+ * Null means "unverified", never "there are zero incidents".
+ */
+async function loadIncidentSignals(
+  db: ReturnType<typeof createSolarisAuthenticatedClientServer>,
+  editionId: string,
+  authorized: boolean,
+): Promise<IncidentSignalCounts | null> {
+  if (!authorized) return null;
+
+  const [active, critical] = await Promise.all([
+    (db as any)
+      .from('studio2_incidents')
+      .select('id', { count: 'exact', head: true })
+      .eq('edition_id', editionId)
+      .neq('status', 'resolved'),
+    (db as any)
+      .from('studio2_incidents')
+      .select('id', { count: 'exact', head: true })
+      .eq('edition_id', editionId)
+      .neq('status', 'resolved')
+      .or('severity.eq.sev1,crisis_declared_at.not.is.null'),
+  ]);
+
+  const error = active.error ?? critical.error;
+  if (error) {
+    if (missingSchema(error)) return null;
+    throw error;
+  }
+
+  // Missing count evidence must not be converted to an invented clean state.
+  if (
+    !Number.isSafeInteger(active.count) || active.count < 0 ||
+    !Number.isSafeInteger(critical.count) || critical.count < 0
+  ) {
+    return null;
+  }
+  return { active: active.count, critical: critical.count };
+}
+
 export async function loadControlRoomModelServer(editionId: string): Promise<ControlRoomModel> {
   if (!editionId) throw new Error('Edition id is required');
-  await requireSolarisCapabilityServer('edition.read', editionId);
+  const viewer = await requireSolarisCapabilityServer('edition.read', editionId);
+  const canReadIncidents =
+    viewer.capabilities.includes('incident.read') ||
+    viewer.capabilities.includes('integrity.read');
 
   const db = createSolarisAuthenticatedClientServer();
   const [{ data: edition, error: editionError }, runtimeState] = await Promise.all([
@@ -63,10 +112,13 @@ export async function loadControlRoomModelServer(editionId: string): Promise<Con
 
   if (editionError) throw editionError;
 
-  const { data: healthData, error: healthError } = await (db as any).rpc(
-    'admin_edition_health_summary',
-    { _edition_id: editionId },
-  );
+  const [
+    { data: healthData, error: healthError },
+    incidentCounts,
+  ] = await Promise.all([
+    (db as any).rpc('admin_edition_health_summary', { _edition_id: editionId }),
+    loadIncidentSignals(db, editionId, canReadIncidents),
+  ]);
 
   const health = healthError && missingSchema(healthError) ? null : healthData;
   if (healthError && !missingSchema(healthError)) throw healthError;
@@ -77,9 +129,9 @@ export async function loadControlRoomModelServer(editionId: string): Promise<Con
     legacyEditionStatus: edition.status,
     runtimeState,
     healthStatus: health?.status ?? null,
-    healthIssues: health?.issues_count ?? 0,
-    criticalIssues: health?.critical_count ?? 0,
-    activeIncidents: 0,
-    criticalIncidents: 0,
+    healthIssues: health?.issues_count ?? null,
+    criticalIssues: health?.critical_count ?? null,
+    activeIncidents: incidentCounts?.active ?? null,
+    criticalIncidents: incidentCounts?.critical ?? null,
   });
 }

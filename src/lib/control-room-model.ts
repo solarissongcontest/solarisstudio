@@ -1,7 +1,7 @@
 import type { EditionRuntimeState, EditionState, SubsystemState } from './edition-state';
 import { defaultSubsystemStatesForEdition, normalizeLegacyEditionStatus } from './edition-state';
 
-export type ControlRoomHealth = 'healthy' | 'attention' | 'critical';
+export type ControlRoomHealth = 'healthy' | 'attention' | 'critical' | 'unknown';
 export type ControlRoomActionRisk = 'normal' | 'elevated' | 'critical';
 
 export type ControlRoomAction = {
@@ -56,6 +56,17 @@ function deriveHealth(input: ControlRoomInput): ControlRoomHealth {
   }
   if ((input.activeIncidents ?? 0) > 0 || (input.healthIssues ?? 0) > 0 || input.healthStatus === 'needs-attention') {
     return 'attention';
+  }
+  // An absent health response or an unreadable incident source cannot prove
+  // that the live show is healthy. Keep "unknown" distinct from zero incidents.
+  if (
+    input.healthStatus !== 'ready' ||
+    input.healthIssues == null ||
+    input.criticalIssues == null ||
+    input.activeIncidents == null ||
+    input.criticalIncidents == null
+  ) {
+    return 'unknown';
   }
   return 'healthy';
 }
