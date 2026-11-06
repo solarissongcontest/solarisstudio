@@ -271,6 +271,24 @@ describe("V3 PR current-main freshness guard", () => {
     expect(checker).toContain("selectFreshnessHeadsToInvalidate");
   });
 
+  it("prevents a stale run from poisoning a newer PR head", () => {
+    expect(checker).toContain("if (pullAfter.head.sha !== pullBefore.head.sha) {");
+    expect(checker).toContain("no status published to the new head");
+    expect(checker).toContain("pullBefore.head.sha,\n    assessment.valid ? \"success\" : \"failure\"");
+    expect(checker).not.toContain("pullAfter.head.sha,\n    assessment.valid");
+  });
+
+  it("revokes success if main advances between the pre-publish check and commit status", () => {
+    const publish = checker.indexOf("await publishFreshnessStatus(");
+    const postPublish = checker.indexOf("const [postPublicationMain, postPublicationPull]");
+    expect(publish).toBeGreaterThan(0);
+    expect(postPublish).toBeGreaterThan(publish);
+    expect(checker).toContain("postPublicationMain.commit.sha === mainBefore.commit.sha");
+    expect(checker).toContain("postPublicationPull.head.sha === pullBefore.head.sha");
+    expect(checker).toContain("revoked assessed-head success.");
+    expect(checker).toContain('"failure",\n        `Stale: main or PR changed during status publication');
+  });
+
   it("keeps GitHub invalidation metadata-only and production-isolated", () => {
     expect(checker).not.toContain("supabase.co");
     expect(workflow).not.toContain("supabase.co");
