@@ -134,8 +134,14 @@ reset role;
 -- Effective service-role DML cannot become a command by spoofing a marker/JWT.
 select set_config('app.v3_show_cue_operation_id','27271000-0000-4000-8000-000000000107',true);
 set local role service_role;
+-- Presentation updates must preserve the latest canonical cue state atomically,
+-- rather than erasing it or requiring presentation to act as a cue writer.
+update public.shows set broadcast_config='{"scoreboard":{"style":"classic"}}'
+ where id=current_setting('test.lock_show_id')::uuid;
 do $test$
 begin
+ if (select (broadcast_config->'studio2Rundown'->>'revision')::int from public.shows where id=current_setting('test.lock_show_id')::uuid) is distinct from 5 then
+  raise exception 'Presentation compatibility erased or rewound canonical cues'; end if;
  begin
   update public.shows set broadcast_config=jsonb_set(broadcast_config,'{studio2Rundown,revision}','99')
    where id=current_setting('test.lock_show_id')::uuid;

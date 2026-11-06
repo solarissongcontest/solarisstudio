@@ -52,6 +52,16 @@ as $guard$
 declare
   v_marker text := current_setting('app.v3_show_cue_operation_id', true);
 begin
+  -- Existing presentation editors replace their own config document. Omission
+  -- is not authority to delete runtime state: preserve the current cue subtree
+  -- inside the locked UPDATE, including when a cue advanced after their review.
+  -- Explicit replacement/removal of the subtree still requires its command.
+  if tg_op = 'UPDATE'
+     and coalesce(old.broadcast_config, '{}'::jsonb) ? 'studio2Rundown'
+     and not (coalesce(new.broadcast_config, '{}'::jsonb) ? 'studio2Rundown') then
+    new.broadcast_config := coalesce(new.broadcast_config, '{}'::jsonb)
+      || jsonb_build_object('studio2Rundown', old.broadcast_config -> 'studio2Rundown');
+  end if;
   if (tg_op = 'INSERT' and not (coalesce(new.broadcast_config, '{}'::jsonb) ? 'studio2Rundown'))
      or (tg_op = 'UPDATE' and coalesce(new.broadcast_config, '{}'::jsonb) -> 'studio2Rundown'
        is not distinct from coalesce(old.broadcast_config, '{}'::jsonb) -> 'studio2Rundown') then
