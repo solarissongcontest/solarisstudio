@@ -190,7 +190,10 @@ export function hasCompleteS14DiagnosticClaim(data, candidateSha) {
       !includesEachOnce(data.implementedInvariants, S14_DIAGNOSTIC_INVARIANTS) ||
       !includesEachOnce(data.implementedFailureInjections, S14_DIAGNOSTIC_FAILURES)) return false;
   if (data.runIdentity?.candidateSha !== candidateSha ||
-      !data.runIdentity.editionId || !data.runIdentity.databaseFingerprint ||
+      typeof data.runIdentity.editionId !== "string" ||
+      !data.runIdentity.editionId.trim() ||
+      typeof data.runIdentity.databaseFingerprint !== "string" ||
+      !data.runIdentity.databaseFingerprint.trim() ||
       data.seed?.editionCount !== 1 || data.seed?.delegationCount !== 66 ||
       !Number.isSafeInteger(data.seed.showCount) || data.seed.showCount < 3) return false;
   return true;
