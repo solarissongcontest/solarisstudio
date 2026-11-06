@@ -108,6 +108,28 @@ function OfficialEditor({item,onSaved}:{item:WorldDomesticOfficials;onSaved:()=>
           <span>{kind==="office"?"Office title":"Fictional person name"}</span>
           <input required maxLength={160} className={field} value={title} onChange={e=>setTitle(e.target.value)}/>
         </label>
+        {kind==="lore_person"?<>
+          <label className="grid gap-2 text-sm font-medium"><span>Native name (optional)</span>
+            <input className={field} maxLength={160} value={nativeName}
+              onChange={e=>setNativeName(e.target.value)}/></label>
+          <label className="grid gap-2 text-sm font-medium"><span>Public summary (optional)</span>
+            <textarea className={field} maxLength={600} rows={2} value={publicSummary}
+              onChange={e=>setPublicSummary(e.target.value)}/></label>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <label className="grid gap-2 text-sm font-medium"><span>Character status</span>
+              <select className={field} value={lifeStatus} onChange={e=>setLifeStatus(e.target.value)}>
+                {["unknown","active","historical","deceased"].map(x=><option key={x} value={x}>{x}</option>)}
+              </select></label>
+            <label className="grid gap-2 text-sm font-medium"><span>Birth date (optional)</span>
+              <input type="date" className={field} value={bornOn}
+                max={new Date().toLocaleDateString("sv-SE")}
+                onChange={e=>setBornOn(e.target.value)}/></label>
+            <label className="grid gap-2 text-sm font-medium"><span>Death date (optional)</span>
+              <input type="date" className={field} value={diedOn} min={bornOn||undefined}
+                max={new Date().toLocaleDateString("sv-SE")}
+                onChange={e=>setDiedOn(e.target.value)}/></label>
+          </div>
+        </>:null}
         {kind==="office"?<label className="grid gap-2 text-sm font-medium"><span>Office type</span>
           <select className={field} value={officeType} onChange={e=>setOfficeType(e.target.value)}>
             {["head_of_state","head_of_government","monarch","minister","legislative","judicial","other"].map(s=>
