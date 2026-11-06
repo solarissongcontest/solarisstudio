@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { assertTg13CurrentActor } from "@/lib/world-tg13-private-session";
 
 export type EthicsState = "filed" | "assigned" | "under_review" |
   "findings_prepared" | "concluded" | "archived";
@@ -95,13 +96,10 @@ export function ethicsError(error: unknown): string {
   return "The Ethics operation could not be confirmed. Retry with the same operation identity.";
 }
 
-export async function fetchEthicsWorkspace(): Promise<EthicsWorkspace> {
+export async function fetchEthicsWorkspace(expectedUserId: string): Promise<EthicsWorkspace> {
   const { data: auth, error: authError } = await supabase.auth.getUser();
   check(authError);
-  if (!auth.user) return {
-    signedIn: false, countryId: null, organizationId: null, organId: null,
-    countries: [], cases: [], committee: [], assignments: [], canManage: false, canConfigure: false,
-  };
+  if (!auth.user || auth.user.id !== expectedUserId) throw new Error("AUTHORIZATION");
   const db = supabase as any;
   const [account, organizations, countries, cases] = await Promise.all([
     db.from("country_accounts").select("country_id")
@@ -158,6 +156,7 @@ export async function fetchEthicsWorkspace(): Promise<EthicsWorkspace> {
       caseId: uuid(item.case_id), memberId: uuid(item.member_id),
     }));
   }
+  await assertTg13CurrentActor(expectedUserId);
   return {
     signedIn: true,
     countryId: account.data?.country_id ? uuid(account.data.country_id) : null,
@@ -168,12 +167,14 @@ export async function fetchEthicsWorkspace(): Promise<EthicsWorkspace> {
     cases: caseRows, committee: roster, assignments, canManage, canConfigure,
   };
 }
-export async function fetchEthicsEvidence(caseId: string): Promise<EthicsEvidence[]> {
+export async function fetchEthicsEvidence(caseId: string, expectedUserId: string): Promise<EthicsEvidence[]> {
+  await assertTg13CurrentActor(expectedUserId);
   const db = supabase as any;
   const { data, error } = await db.from("world_ethics_case_evidence")
     .select("id,statement_text,created_at")
     .eq("case_id",uuid(caseId)).order("created_at",{ascending:true}).limit(100);
   check(error);
+  await assertTg13CurrentActor(expectedUserId);
   return (data ?? []).map(parseEthicsEvidence);
 }
 
