@@ -128,7 +128,11 @@ test("browser navigation remains identifiable in system high-contrast mode", asy
     );
     expect(border, "Selected links keep a physical indicator in forced colors").toBe("3px");
 
+    // Use genuine keyboard traversal so Chromium applies :focus-visible.
     await trigger.focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+    await expect(trigger).toBeFocused();
     const outline = await trigger.evaluate((element) => {
       const style = getComputedStyle(element);
       return { width: style.outlineWidth, type: style.outlineStyle };
@@ -144,6 +148,9 @@ test("browser navigation remains identifiable in system high-contrast mode", asy
     expect(border).toBe("3px");
 
     await selected.focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+    await expect(selected).toBeFocused();
     const outlineWidth = await selected.evaluate((element) =>
       getComputedStyle(element).outlineWidth,
     );
