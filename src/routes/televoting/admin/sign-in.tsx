@@ -10,6 +10,5 @@ export const Route = createFileRoute("/televoting/admin/sign-in")({
       search: { redirect: "/admin/operations" },
     });
   },
-  head: () => ({ meta: [{ name: "robots", content: "noindex" }] }),
-  component: () => null,
+  head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow" }] }),
 });

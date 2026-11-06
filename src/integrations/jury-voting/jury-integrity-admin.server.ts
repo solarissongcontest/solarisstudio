@@ -1,5 +1,8 @@
-import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
+import { getSolarisCapabilitiesServer } from "@/integrations/supabase/capabilities.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { assertCompleteJuryIntegrityReadback, assertJuryIntegrityV5Evidence, numberValue, percentageValue, peerCountValue, proportionValue } from "./jury-integrity-readback";
+
+const EDITION_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type JuryIntegrityTargetEvidence = {
   targetCountryId: string;
@@ -43,22 +46,26 @@ function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
-function numberValue(value: unknown) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
-}
-
 export async function listJuryIntegrityCasesServer(editionId: string) {
   const scopedEditionId = String(editionId ?? "").trim();
   if (!scopedEditionId) throw new Error("Jury Integrity requires an explicit edition scope");
-  await requireSolarisCapabilityServer("integrity.read", scopedEditionId);
+  if (!EDITION_UUID.test(scopedEditionId)) throw new Error("Jury Integrity requires a valid edition id");
+  // Private target-level scores require BOTH integrity and ballot access.
+  // Resolve the exact-edition capability set only once to avoid repeating
+  // authenticated permission queries on every Organizer read.
+  const access = await getSolarisCapabilitiesServer(scopedEditionId);
+  for (const capability of ["integrity.read", "jury.ballots.read"] as const) {
+    if (!access.capabilities.includes(capability)) {
+      throw new Error(`Solaris capability required: ${capability}`);
+    }
+  }
 
   const db = supabaseAdmin as any;
   const tv = db.schema("televoting");
 
-  const { data: rows, error } = await tv
+  const { data: rows, error, count: exactCount } = await tv
     .from("vote_preflight_checks")
-    .select("id,show_id,canonical_edition_id,country_code,hod_person_id,relationship_risk,risk_score,confidence,intervention_level,model_version,admin_evidence,attested_at,submitted_at,created_at")
+    .select("id,show_id,canonical_edition_id,country_code,hod_person_id,relationship_risk,risk_score,confidence,intervention_level,model_version,admin_evidence,attested_at,submitted_at,created_at", { count: "exact" })
     .eq("canonical_edition_id", scopedEditionId)
     .not("show_id", "is", null)
     .eq("model_version", "jury-integrity-model-v5")
@@ -66,12 +73,23 @@ export async function listJuryIntegrityCasesServer(editionId: string) {
     .limit(1000);
   if (error) throw new Error(error.message);
 
-  const preflights = rows ?? [];
+  if (!Array.isArray(rows)) {
+    throw new Error("Jury Integrity returned no valid protected preflight evidence");
+  }
+  const preflights = rows;
+  assertCompleteJuryIntegrityReadback(exactCount, preflights.length);
   const mismatchedPreflight = preflights.find(
     (row: any) => String(row.canonical_edition_id ?? "") !== scopedEditionId,
   );
   if (mismatchedPreflight) {
     throw new Error("Jury Integrity returned evidence outside the selected edition scope");
+  }
+  for (const row of preflights) {
+    const evidence = asObject(asObject(row.admin_evidence).juryIndependence);
+    assertJuryIntegrityV5Evidence(
+      { risk: row.risk_score, confidence: row.confidence },
+      evidence,
+    );
   }
 
   const showIds = [...new Set(preflights.map((row: any) => String(row.show_id ?? "")).filter(Boolean))];
@@ -108,8 +126,9 @@ export async function listJuryIntegrityCasesServer(editionId: string) {
   for (const row of preflights) {
     const evidence = asObject(asObject(row.admin_evidence).juryIndependence);
     for (const target of asArray(evidence.targets)) {
-      const id = String(asObject(target).targetCountryId ?? "");
-      if (id) targetIds.add(id);
+      const id = String(asObject(target).targetCountryId ?? "").trim();
+      if (!id) throw new Error("Jury integrity target evidence is missing a country identity");
+      targetIds.add(id);
     }
   }
   const countriesResult = targetIds.size
@@ -127,15 +146,15 @@ export async function listJuryIntegrityCasesServer(editionId: string) {
     const evidence = asObject(asObject(row.admin_evidence).juryIndependence);
     const targets = asArray(evidence.targets).map((target): JuryIntegrityTargetEvidence => {
       const item = asObject(target);
-      const targetCountryId = String(item.targetCountryId ?? "");
+      const targetCountryId = String(item.targetCountryId ?? "").trim();
       return {
         targetCountryId,
         targetName: countryNames.get(targetCountryId) ?? targetCountryId,
         score: numberValue(item.score),
-        expectedNormalizedScore: numberValue(item.expectedNormalizedScore),
-        positiveDeviation: numberValue(item.positiveDeviation),
+        expectedNormalizedScore: proportionValue(item.expectedNormalizedScore),
+        positiveDeviation: proportionValue(item.positiveDeviation),
         zScore: numberValue(item.zScore),
-        risk: numberValue(item.risk),
+        risk: percentageValue(item.risk),
       };
     });
     return {
@@ -146,12 +165,12 @@ export async function listJuryIntegrityCasesServer(editionId: string) {
       editionLabel,
       countryCode: String(row.country_code ?? ""),
       hodPersonId: row.hod_person_id ? String(row.hod_person_id) : null,
-      risk: numberValue(row.risk_score),
-      relationshipRisk: numberValue(row.relationship_risk),
-      confidence: numberValue(row.confidence),
-      independenceScore: numberValue(evidence.independenceScore),
-      peerDeviationRisk: numberValue(evidence.peerDeviationRisk),
-      peerBallots: numberValue(evidence.peerBallots),
+      risk: percentageValue(row.risk_score),
+      relationshipRisk: percentageValue(row.relationship_risk),
+      confidence: percentageValue(row.confidence),
+      independenceScore: percentageValue(evidence.independenceScore),
+      peerDeviationRisk: percentageValue(evidence.peerDeviationRisk),
+      peerBallots: peerCountValue(evidence.peerBallots),
       evidenceFamilies: asArray(evidence.evidenceFamilies).map(String),
       interventionLevel: String(row.intervention_level ?? "none"),
       attestedAt: row.attested_at ? String(row.attested_at) : null,
