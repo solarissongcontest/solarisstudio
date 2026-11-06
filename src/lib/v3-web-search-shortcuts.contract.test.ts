@@ -34,6 +34,10 @@ describe("V3 web Search canonical discovery shortcuts", () => {
     expect(web).toContain('setQuery("")');
     expect(web).toContain('normalized.length >= 2 ? (');
     expect(web).toContain('Type one more character to search published Solaris content.');
+    // Default CommandDialog close is right-3/size-11. The clear control must
+    // occupy a separate slot, not steal the visitor's tap from the close icon.
+    expect(web).toContain('className={query ? "pr-28" : "pr-14"}');
+    expect(web).toContain('className="absolute right-16 top-1/2 inline-flex size-10');
   });
 
   it("uses only published show, edition, result and participant sources for web discovery", () => {
@@ -64,6 +68,11 @@ describe("V3 web Search canonical discovery shortcuts", () => {
     expect(archive).toContain("hasArchiveError");
     expect(archive).toContain("storiesQuery.isError ? [] : storiesQuery.data ?? []");
     expect(archive).toContain("!isFetching && !hasArchiveError && !searchResults.length");
+    // Missing verification is not equivalent to zero withdrawn participants.
+    // Never compute public historical records from cached or failed participant reads.
+    expect(archive).toContain("participantsQuery.isSuccess && !participantsQuery.isError");
+    expect(archive).toContain(": [],");
+    expect(archive).toContain("buildCanonicalFanRecords({");
     expect(archive).toContain('role="alert"');
     expect(archive).toContain("Retry unavailable sources");
   });
