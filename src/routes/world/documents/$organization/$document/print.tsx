@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { WorldDocumentPrintPage } from "@/components/world/WorldDocumentPrintPage";
+import { WorldPublicGate } from "@/components/world/WorldPublic";
 
 function versionOrInvalid(input: unknown): number | undefined {
   if (input === undefined || input === null || input === "") return undefined;
@@ -25,5 +26,9 @@ export const Route = createFileRoute("/world/documents/$organization/$document/p
 function PrintWorldDocumentRoute() {
   const { organization, document } = Route.useParams();
   const { version } = Route.useSearch();
-  return <WorldDocumentPrintPage organization={organization} document={document} version={version}/>;
+  return (
+    <WorldPublicGate>
+      <WorldDocumentPrintPage organization={organization} document={document} version={version} />
+    </WorldPublicGate>
+  );
 }
