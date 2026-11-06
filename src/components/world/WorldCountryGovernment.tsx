@@ -32,7 +32,7 @@ export function WorldCountryGovernmentScreen({ code }: { code: string }) {
   // A cached successful read is not current publication evidence. Suppress
   // all Government content during a recheck or after its failure, even when
   // React Query still retains the previous response.
-  const verified = query.isSuccess && query.isFetchedAfterMount &&
+  const verified = !invalid && query.isSuccess && query.isFetchedAfterMount &&
     !query.isFetching && !query.isError && !query.isRefetchError;
   const data = verified ? query.data : undefined;
   const profile = data?.profile;
