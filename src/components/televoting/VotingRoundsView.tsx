@@ -56,7 +56,7 @@ export function VotingRoundsView() {
   const [pendingStatus, setPendingStatus] = useState<PendingRoundStatusChange | null>(null);
   const [statusBusy, setStatusBusy] = useState<string | null>(null);
 
-  const { data: pageData, isLoading, error } = useQuery({
+  const { data: pageData, isLoading, isFetching, error } = useQuery({
     queryKey: ["merged-televoting-rounds-page", actorId, editionId],
     queryFn: () => getRoundsPage({ data: { editionId } }),
     enabled: Boolean(actorId && editionId),
@@ -69,6 +69,7 @@ export function VotingRoundsView() {
   });
 
   const edition = pageData?.edition ?? null;
+  const privateReadVerified = Boolean(actorId && editionId && edition && pageData?.linked && !isLoading && !isFetching && !error);
   const rounds = edition?.rounds ?? [];
   const openRound = rounds.find((round) => round.status === "open") ?? null;
   const remoteEditionId = edition?.id ?? "";
@@ -127,7 +128,7 @@ export function VotingRoundsView() {
   }
 
   async function confirmStatusChange() {
-    if (!pendingStatus) return;
+    if (!pendingStatus || !privateReadVerified) return;
     const pending = pendingStatus;
     setStatusBusy(pending.round.id);
     try {
@@ -158,7 +159,7 @@ export function VotingRoundsView() {
   }
 
   async function removeRound() {
-    if (!deleteTarget) return;
+    if (!deleteTarget || !privateReadVerified) return;
     const target = deleteTarget;
     try {
       await deleteRound({ data: { id: target.id } });
@@ -179,7 +180,7 @@ export function VotingRoundsView() {
         actions={
           <button
             type="button"
-            disabled={!remoteEditionId}
+            disabled={!privateReadVerified}
             onClick={() => setCreateOpen(true)}
             className="admin-action-primary"
           >
@@ -188,7 +189,7 @@ export function VotingRoundsView() {
         }
       />
 
-      {!editionId || isLoading ? (
+      {!actorId || !editionId || isLoading || isFetching ? (
         <AdminCard className="py-10 text-center text-sm text-muted-foreground">
           {!editionId ? "Selecting the current Organizer edition…" : "Loading voting rounds…"}
         </AdminCard>
@@ -302,33 +303,33 @@ export function VotingRoundsView() {
             icon={Radio}
             title="No voting rounds yet"
             description={edition ? `Create a draft round for ${edition.name}, configure its entries, then open voting when the line-up is ready.` : "Create a draft round, configure its entries, then open voting when the line-up is ready."}
-            action={<button type="button" disabled={!remoteEditionId} onClick={() => setCreateOpen(true)} className="admin-action-primary"><Plus className="size-4" /> Create round</button>}
+            action={<button type="button" disabled={!privateReadVerified} onClick={() => setCreateOpen(true)} className="admin-action-primary"><Plus className="size-4" /> Create round</button>}
           />
         </AdminCard>
       )}
 
-      <AdminSheet open={createOpen} onClose={() => !createMutation.isPending && setCreateOpen(false)} title="Create voting round" description="The round starts as a draft. Configure its entries before opening voting.">
+      <AdminSheet open={privateReadVerified && createOpen} onClose={() => !createMutation.isPending && setCreateOpen(false)} title="Create voting round" description="The round starts as a draft. Configure its entries before opening voting.">
         <div className="space-y-4">
           <label className="block"><span className="text-xs font-semibold">Round name</span><Input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Grand Final" className="mt-2 min-h-11" /></label>
           <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2">
             <button type="button" disabled={createMutation.isPending} onClick={() => setCreateOpen(false)} className="admin-action-secondary">Cancel</button>
-            <button type="button" disabled={!remoteEditionId || !newName.trim() || createMutation.isPending} onClick={() => createMutation.mutate()} className="admin-action-primary w-full">{createMutation.isPending ? "Creating…" : "Create draft round"}</button>
+            <button type="button" disabled={!privateReadVerified || !newName.trim() || createMutation.isPending} onClick={() => createMutation.mutate()} className="admin-action-primary w-full">{createMutation.isPending ? "Creating…" : "Create draft round"}</button>
           </div>
         </div>
       </AdminSheet>
 
-      <AdminSheet open={Boolean(editing)} onClose={() => !renameMutation.isPending && setEditing(null)} title="Rename voting round" description="This changes the round name without touching entries, ballots or results.">
+      <AdminSheet open={privateReadVerified && Boolean(editing)} onClose={() => !renameMutation.isPending && setEditing(null)} title="Rename voting round" description="This changes the round name without touching entries, ballots or results.">
         <div className="space-y-4">
           <Input value={editingName} onChange={(event) => setEditingName(event.target.value)} className="min-h-11" />
           <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2">
             <button type="button" disabled={renameMutation.isPending} onClick={() => setEditing(null)} className="admin-action-secondary">Cancel</button>
-            <button type="button" disabled={!editingName.trim() || renameMutation.isPending} onClick={() => renameMutation.mutate()} className="admin-action-primary w-full">{renameMutation.isPending ? "Saving…" : "Save name"}</button>
+            <button type="button" disabled={!privateReadVerified || !editingName.trim() || renameMutation.isPending} onClick={() => renameMutation.mutate()} className="admin-action-primary w-full">{renameMutation.isPending ? "Saving…" : "Save name"}</button>
           </div>
         </div>
       </AdminSheet>
 
       <AdminConfirmSheet
-        open={Boolean(pendingStatus)}
+        open={privateReadVerified && Boolean(pendingStatus)}
         onClose={() => {
           if (!statusBusy) setPendingStatus(null);
         }}
@@ -365,7 +366,7 @@ export function VotingRoundsView() {
       />
 
       <AdminConfirmSheet
-        open={Boolean(deleteTarget)}
+        open={privateReadVerified && Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
         onConfirm={removeRound}
         title={deleteTarget ? `Delete ${deleteTarget.name}?` : "Delete round?"}

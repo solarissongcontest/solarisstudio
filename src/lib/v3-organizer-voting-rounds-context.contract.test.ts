@@ -34,6 +34,12 @@ describe("V3 Organizer Voting Rounds edition boundary", () => {
     expect(view).toContain("refetchOnReconnect: false");
     expect(view).toContain('queryClient.invalidateQueries({ queryKey: ["merged-televoting-rounds-page", actorId, editionId] })');
     expect(view).toContain("Retry voting rounds");
+    expect(view).toContain("const privateReadVerified = Boolean(actorId && editionId && edition && pageData?.linked && !isLoading && !isFetching && !error)");
+    expect(view).toContain("open={privateReadVerified && Boolean(pendingStatus)}");
+    expect(view).toContain("open={privateReadVerified && Boolean(deleteTarget)}");
+    expect(view).toContain("if (!pendingStatus || !privateReadVerified) return");
+    expect(view).toContain("if (!deleteTarget || !privateReadVerified) return");
+
     expect(route).toContain("authenticated actor changes");
   });
 

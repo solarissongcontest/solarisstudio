@@ -78,7 +78,7 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
   const [protectedRecalcOpen, setProtectedRecalcOpen] = useState(false);
   const [statusBusy, setStatusBusy] = useState(false);
 
-  const { data: admin, isLoading: adminLoading } = useQuery({
+  const { data: admin, isLoading: adminLoading, isFetching: adminFetching, error: adminError, refetch: retryAdmin } = useQuery({
     queryKey: ["merged-televoting-admin", actorId],
     queryFn: () => getAdmin(),
     enabled: Boolean(actorId),
@@ -90,8 +90,10 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
   });
 
   useEffect(() => {
-    if (!adminLoading && !admin) void navigate({ to: "/televoting/admin/sign-in" });
-  }, [admin, adminLoading, navigate]);
+    if (actorId && !adminLoading && !adminFetching && !admin && !adminError) {
+      void navigate({ to: "/televoting/admin/sign-in" });
+    }
+  }, [actorId, admin, adminLoading, adminFetching, adminError, navigate]);
 
   const scopedRounds = useMemo(
     () => rounds.map((round) => ({ ...round, editionName })),
@@ -103,7 +105,7 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
     : scopedRounds.find((round) => round.status === "closed")?.id ?? scopedRounds[0]?.id ?? "";
   const conversionQueryKey = ["merged-televoting-conversion", actorId, editionId, effectiveRoundId] as const;
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isFetching: conversionFetching, error, refetch: retryConversion } = useQuery({
     queryKey: conversionQueryKey,
     queryFn: () => getConversion({ data: { roundId: effectiveRoundId } }),
     enabled: Boolean(actorId && admin && effectiveRoundId),
@@ -258,6 +260,26 @@ export function VotingResultsView({ editionId, editionName, rounds }: VotingResu
     () => [...storedRows].sort((a, b) => Number(b.final_points) - Number(a.final_points) || Number(a.robust_rank ?? a.original_rank ?? 999) - Number(b.robust_rank ?? b.original_rank ?? 999)),
     [storedRows],
   );
+
+  // No stale admin presence or stored conversion may authorize a result command
+  // while a protected read is refreshing or has failed.
+  if (!actorId || adminLoading || adminFetching || (admin && effectiveRoundId && (isLoading || conversionFetching))) {
+    return <div className="admin-page mx-auto max-w-5xl pb-5"><AdminCard className="py-10 text-center text-sm text-muted-foreground" role="status">Verifying official result permissions and data…</AdminCard></div>;
+  }
+  const privateReadError = adminError ?? (admin && effectiveRoundId ? error : null);
+  if (privateReadError || (admin && effectiveRoundId && !data)) {
+    return (
+      <div className="admin-page mx-auto max-w-5xl pb-5">
+        <AdminCard className="space-y-3 border-rose-200/15 bg-rose-200/[0.045] text-sm text-rose-100" role="alert">
+          <p className="font-semibold">Official Televote result unavailable</p>
+          <p>Protected result data or Organizer identity could not be verified. Publication and recalculation are disabled.</p>
+          <p className="break-words text-xs">{privateReadError instanceof Error ? privateReadError.message : "Protected result read unavailable"}</p>
+          <button type="button" className="admin-action-secondary min-h-11" onClick={() => void (adminError ? retryAdmin() : retryConversion())}>Retry protected result read</button>
+        </AdminCard>
+      </div>
+    );
+  }
+  if (!admin) return null;
 
   return (
     <div className="admin-page mx-auto max-w-5xl pb-5" data-v3-organizer-results-edition={editionId}>

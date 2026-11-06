@@ -48,7 +48,7 @@ export function VotingResultsWorkspace() {
   const actorId = useAuthenticatedUser().id;
   const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["merged-televoting-results-edition", actorId, editionId],
     queryFn: () => getRoundsPage({ data: { editionId } }),
     enabled: Boolean(actorId && editionId),
@@ -60,7 +60,7 @@ export function VotingResultsWorkspace() {
     refetchOnReconnect: false,
   });
 
-  if (!editionId || isLoading) {
+  if (!actorId || !editionId || isLoading || isFetching) {
     return (
       <div className="admin-page mx-auto max-w-5xl pb-5">
         <AdminPageHeader eyebrow="Voting" title="Televote result" description="Loading the selected edition…" />

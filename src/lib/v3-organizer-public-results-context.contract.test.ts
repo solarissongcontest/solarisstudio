@@ -42,6 +42,15 @@ describe("V3 Organizer public voting results scope", () => {
     expect(workspace.match(/gcTime: 0/g)).toHaveLength(2);
     expect(resultsView.match(/gcTime: 0/g)).toHaveLength(2);
     expect(resultsView).toContain("refetchOnWindowFocus: false");
+    expect(resultsView).toContain("isFetching: adminFetching, error: adminError");
+    expect(resultsView).toContain("isFetching: conversionFetching, error, refetch: retryConversion");
+    expect(resultsView).toContain("if (actorId && !adminLoading && !adminFetching && !admin && !adminError)");
+    expect(resultsView).toContain("const privateReadError = adminError ?? (admin && effectiveRoundId ? error : null)");
+    expect(resultsView).toContain("Official Televote result unavailable");
+    expect(resultsView).toContain("Retry protected result read");
+    expect(resultsView).toContain("Publication and recalculation are disabled.");
+    expect(workspace).toContain("if (!actorId || !editionId || isLoading || isFetching)");
+
   });
 
   it("does not claim governed write parity while result lifecycle commands remain legacy", () => {
