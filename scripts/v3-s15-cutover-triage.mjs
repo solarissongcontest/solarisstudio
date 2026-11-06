@@ -4,6 +4,7 @@
  * Consumes the unchanged exact-SHA S15 scanner artifact; never queries Supabase.
  */
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -25,6 +26,9 @@ export function buildS15CutoverTriage(source, expectedSha) {
   }
   if (!Number.isInteger(source.schemaVersion) || source.schemaVersion < 4) {
     throw new Error("S15 inventory lacks versioned physical ownership evidence");
+  }
+  if (!source.inventory || typeof source.inventory !== "object" || Array.isArray(source.inventory)) {
+    throw new Error("S15 inventory is missing the canonical inventory object");
   }
   if (typeof source.zeroOrphans !== "boolean" || !Array.isArray(source.findings)) {
     throw new Error("S15 inventory is missing authoritative readiness and findings");
@@ -99,6 +103,7 @@ export function s15TriageMarkdown(report) {
     "# S15 exact-SHA cutover triage (diagnostic, NOT release certification)",
     "",
     "Candidate: `"+report.candidateSha+"`",
+    ...(report.sourceSha256 ? ["Source S15 JSON SHA-256: `"+report.sourceSha256+"`"] : []),
     "",
     "- S15 source zero-orphans: **"+report.sourceZeroOrphans+"** (authoritative; not overridden)",
     "- Outstanding Public cutovers: **"+report.publicCutoverCount+"** (Chat 2 / Public)",
@@ -126,8 +131,12 @@ export function runCli(args=process.argv.slice(2)) {
   if (args.length !== 6 || args[0] !== "--input" || args[2] !== "--sha" || args[4] !== "--output-dir") {
     throw new Error("Usage: node scripts/v3-s15-cutover-triage.mjs --input <s15.json> --sha <sha> --output-dir <dir>");
   }
-  const source=JSON.parse(readFileSync(resolve(args[1]),"utf8"));
-  const report=buildS15CutoverTriage(source,args[3]);
+  const raw=readFileSync(resolve(args[1]),"utf8");
+  const source=JSON.parse(raw);
+  const report={
+    ...buildS15CutoverTriage(source,args[3]),
+    sourceSha256:createHash("sha256").update(raw,"utf8").digest("hex"),
+  };
   const dir=resolve(args[5]); mkdirSync(dir,{recursive:true});
   writeFileSync(resolve(dir,"s15-cutover-triage.json"),JSON.stringify(report,null,2)+"\n");
   writeFileSync(resolve(dir,"s15-cutover-triage.md"),s15TriageMarkdown(report));
