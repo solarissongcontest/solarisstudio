@@ -36,6 +36,10 @@ describe("V3 Country discovery recovery", () => {
 
   it("keeps optional lineup errors separate from an unavailable country directory", () => {
     expect(screen).toContain("if (participatingOnly && participantsQuery.isError) setParticipatingOnly(false)");
+    // Retained query data after an unsuccessful refresh must not be presented
+    // as confirmed movement, withdrawal or disqualification in the current edition.
+    expect(screen).toContain("currentParticipants: participantsQuery.isSuccess ? participantsQuery.data ?? [] : []");
+    expect(screen).toContain("participantsQuery.data, participantsQuery.isSuccess");
     expect(screen).toContain("const selectedParticipatingOnly = effectiveParticipatingScope(participatingOnly, currentLineupReady)");
     expect(screen).toContain("onClick={() => void participantsQuery.refetch()}");
     expect(screen).toContain("disabled={participantsQuery.isFetching}");
