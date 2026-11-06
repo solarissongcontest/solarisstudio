@@ -36,8 +36,14 @@ describe("Organizer Jury private evidence and account boundary", () => {
   });
 
   it("shows no false completion, DNV or review controls when any required Jury read fails", () => {
-    expect(route).toContain("const evidenceError = votersError ?? votesError ?? statusesError ?? submissionsError");
-    expect(route).toContain("if (loadingVoters || loadingVotes || loadingStatuses || loadingSubmittedBallots)");
+    expect(route).toContain("const evidenceError = editionError ?? showsError ?? participantsError ?? countriesError ?? entitiesError ??");
+    expect(route).toContain("if (loadingEdition || loadingShows || loadingParticipants || loadingCountries || loadingEntities ||");
+    expect(route).toContain("loadingVoters || loadingVotes || loadingStatuses || loadingSubmittedBallots");
+    expect(route).toContain("retryEdition()");
+    expect(route).toContain("retryShows()");
+    expect(route).toContain("retryParticipants()");
+    expect(route).toContain("retryCountries()");
+    expect(route).toContain("retryEntities()");
     expect(route).toContain("if (evidenceError) {");
     expect(route).toContain("Jury evidence unavailable");
     expect(route).toContain("Retry jury evidence");
