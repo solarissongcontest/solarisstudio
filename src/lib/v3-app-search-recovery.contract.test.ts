@@ -28,7 +28,18 @@ describe("V3 installed global Search recovery", () => {
     expect(app).toContain('role="alert"');
     expect(app).toContain("Published search could not load");
     expect(app).toContain("Nothing in Solaris Studio matches that search.");
-    expect(app).toContain("(remote.isError ? [] : remote.data ?? [])");
+    expect(app).toContain("(normalized.length < 2 || awaitingRemote || remote.isError ? [] : remote.data ?? [])");
+  });
+
+  it("debounces remote reads and prevents stale query results while local suggestions remain immediate", () => {
+    expect(app).toContain("window.setTimeout(() => setDebouncedQuery(normalized), 300)");
+    expect(app).toContain("window.clearTimeout(timer)");
+    expect(app).toContain("enabled: normalized.length >= 2 && !awaitingRemote");
+    expect(app).toContain('queryKey: ["solaris-public-app-search", debouncedQuery.toLowerCase()]');
+    expect(app).toContain("search_query: debouncedQuery");
+    expect(app).toContain("normalized.length < 2 || awaitingRemote || remote.isError");
+    expect(app).toContain("navigationSearchResults(normalized)");
+    expect(app).toContain("(awaitingRemote || remote.isFetching)");
   });
 
   it("offers explicit accessible retry without automated failure loops", () => {
@@ -43,6 +54,6 @@ describe("V3 installed global Search recovery", () => {
     expect(app).toContain("dedupePublicSearchResults([...local, ...remoteResults])");
     expect(app).toContain("renderSearchGroups(grouped, openResult)");
     expect(app).toContain("rememberAppSearchReturn(originPath, normalized, result.href)");
-    expect(app).toContain("!remote.isFetching && !remote.isError && !searchResults.length");
+    expect(app).toContain("!awaitingRemote && !remote.isFetching && !remote.isError && !searchResults.length");
   });
 });
