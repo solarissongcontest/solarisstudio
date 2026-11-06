@@ -139,6 +139,28 @@ describe("TG3 public institution bodies", () => {
     expect(body.range).toHaveBeenCalledWith(0, WORLD_BODIES_PAGE_SIZE - 1);
     expect(body.eq).toHaveBeenCalledWith("visibility", "public");
   });
+  it("treats a page emptied by publication changes as a verified empty page", async () => {
+    const org = chain({ data: parent, error: null });
+    const body = chain({ data: [], error: null, count: 4 });
+    mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
+    const result = await readPublicWorldBodies("guard", 1);
+    expect(result?.page).toBe(1);
+    expect(result?.total).toBe(4);
+    expect(result?.bodies).toEqual([]);
+    expect(body.range).toHaveBeenCalledWith(WORLD_BODIES_PAGE_SIZE, WORLD_BODIES_PAGE_SIZE * 2 - 1);
+  });
+  it("fails closed when an in-range page is silently missing records", async () => {
+    const org = chain({ data: parent, error: null });
+    const body = chain({ data: [], error: null, count: 3 });
+    mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
+    await expect(readPublicWorldBodies("guard", 0)).rejects.toThrow("could not be verified");
+  });
+  it("rejects a stale page whose returned row exceeds its verified count", async () => {
+    const org = chain({ data: parent, error: null });
+    const body = chain({ data: [organ], error: null, count: 3 });
+    mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : body);
+    await expect(readPublicWorldBodies("guard", 1)).rejects.toThrow("could not be verified");
+  });
   it("fails closed for a missing count, duplicate identity or foreign data", async () => {
     const org = chain({ data: parent, error: null });
     const body = chain({ data: [organ], error: null, count: null });
