@@ -1,4 +1,4 @@
-import type { WorldDocumentDetail } from "./world-public-documents";
+import type { WorldDocumentDetail, WorldDocumentProvision } from "./world-public-documents";
 
 /**
  * A presentation-only archival print model derived from the publication-safe
@@ -18,6 +18,7 @@ export type WorldPublicPrintModel = {
   plainText: string;
   articles: {
     id: string;
+    status: WorldDocumentProvision["status"];
     label: string;
     heading: string;
     text: string;
@@ -56,8 +57,12 @@ export function buildWorldPublicPrintModel(
       throw new Error("Duplicate or missing canonical legal provision identity");
     }
     seen.add(item.provisionId);
+    if (item.status !== "active" && item.status !== "repealed" && item.status !== "omitted") {
+      throw new Error("Unknown canonical legal provision status");
+    }
     return {
       id: item.provisionId,
+      status: item.status,
       label: item.displayLabel,
       heading: item.heading,
       text: item.bodyPlainText,
