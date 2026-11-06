@@ -35,7 +35,10 @@ describe("MySolaris product consolidation", () => {
     expect(workspaceNav).toContain("MY_SOLARIS_MOBILE_PRIMARY_IDS");
     expect(workspaceNav).toContain("<MoreHorizontal");
     expect(workspaceNav).toContain("More");
-    expect(shell).toContain("!isMySolarisWorkspace && (");
+    // MySolaris owns its own local mobile navigation. The browser-wide
+    // fixed five-tab dock is deliberately gone under the three-experience manifesto.
+    expect(shell).toContain("isMySolarisWorkspace ? (");
+    expect(shell).not.toContain('className="mobile-quick-nav');
   });
 
   it("loads shared participant context once at the workspace shell", () => {
