@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
+import { requireLocalPlaywrightTarget } from "./scripts/lib/require-local-playwright-target.mjs";
 
-const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4177";
+const baseURL = requireLocalPlaywrightTarget(process.env.E2E_BASE_URL, "http://127.0.0.1:4177");
 
 export default defineConfig({
   testDir: "./e2e",
