@@ -168,8 +168,9 @@ export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
     classification: "merge",
     targetArea: "me",
     targetRoute: "/my-solaris",
-    specificationStatus: "mapped",
+    specificationStatus: "building",
     acceptanceScenarioId: "public.country-hub-hod-workspace",
+    migrationEvidence: "Country Hub is compatibility-only: retained legacy bookmarks redirect with replace semantics into canonical V3 Participate/MySolaris ownership rather than retaining a second shell or query authority. Responsibility-oriented HOD/readiness cutover is independently owned by the active Participate convergence slice, while personal/delegation tools remain native MySolaris modules. Final parity waits for those cutovers plus Me/Participate acceptance evidence.",
   },
   {
     id: "me-route",
