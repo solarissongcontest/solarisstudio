@@ -34,7 +34,7 @@ import {
 } from "@/lib/country-design-v2";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
-import type { CountryLayoutMode } from "@/lib/country-layout-mode";
+import type { CountryDirectoryPresentation } from "@/lib/country-directory-presentation";
 import { buildCountryCharacter, buildCountryFunFacts } from "@/lib/country-wiki";
 import type { Country, Edition, Participant } from "@/lib/data";
 import {
@@ -58,7 +58,7 @@ import {
   type QualificationStatus,
 } from "@/lib/qualification";
 import { countryThemeToVisual, useCountryTheme } from "@/lib/visual-theme";
-import { useCountryLayoutMode } from "@/lib/use-country-layout-mode";
+import { useCountryDirectoryPresentation } from "@/lib/use-country-directory-presentation";
 import "@/wiki-mobile-web.css";
 
 type PublicArchive = ReturnType<typeof buildPublicCountryArchive>;
@@ -222,7 +222,7 @@ function CountryWikiArticle({
   archivePending: boolean;
   archivePartial: boolean;
 }) {
-  const countryLayoutMode = useCountryLayoutMode();
+  const countryLayoutMode = useCountryDirectoryPresentation();
   const world = useCountryWorldProfile(country.id);
   const identityHistory = usePublicCountryIdentityHistory(country.id);
   const nationalFinals = useCountryNationalFinals(country.id);
@@ -543,7 +543,7 @@ function CountryWikiArticle({
   );
 }
 
-function CountryWikiHeader({ country, layoutMode }: { country: Country; layoutMode: CountryLayoutMode }) {
+function CountryWikiHeader({ country, layoutMode }: { country: Country; layoutMode: CountryDirectoryPresentation }) {
   const { data: countryThemeRow } = useCountryTheme(country.id);
   const designV2Query = useCountryDesignV2(country.id);
   const visualTheme = countryThemeToVisual(countryThemeRow);
