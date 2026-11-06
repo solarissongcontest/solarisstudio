@@ -60,6 +60,8 @@ export type MySolarisContextValue = {
   deadlines: MySolarisDeadline[];
   priorities: MySolarisPriorityItem[];
   isLoading: boolean;
+  hasContextError: boolean;
+  hasParticipationReadError: boolean;
 };
 
 const EMPTY_CAPABILITIES = Object.freeze(
@@ -111,16 +113,15 @@ export function MySolarisProvider({
     enabled: Boolean(includeParticipationContext && userQuery.data),
     queryKey: ["mysolaris-capabilities", userId, currentEdition?.id],
     queryFn: async () => {
-      const results = await Promise.allSettled(
+      // An unavailable feature service is not evidence that a capability is
+      // disabled. Preserve the read error instead of manufacturing false.
+      const results = await Promise.all(
         PARTICIPANT_CAPABILITIES.map((key) =>
           isStudio2FeatureEnabled(key, currentEdition?.id ?? null),
         ),
       );
       return Object.fromEntries(
-        PARTICIPANT_CAPABILITIES.map((key, index) => {
-          const result = results[index];
-          return [key, result?.status === "fulfilled" ? result.value : false];
-        }),
+        PARTICIPANT_CAPABILITIES.map((key, index) => [key, results[index]]),
       ) as Record<ParticipantCapability, boolean>;
     },
     staleTime: 30_000,
@@ -248,15 +249,43 @@ export function MySolarisProvider({
   }, [deadlines, tasks]);
 
   const taskCounts = participationTaskCounts(tasks);
+  const hasContextError = Boolean(
+    userQuery.isError ||
+      userQuery.isRefetchError ||
+      countryAccountQuery.isError ||
+      countryAccountQuery.isRefetchError ||
+      editionsQuery.isError ||
+      editionsQuery.isRefetchError ||
+      currentEntryQuery.isError ||
+      currentEntryQuery.isRefetchError,
+  );
+  const hasParticipationReadError = Boolean(
+    includeParticipationContext &&
+      (hasContextError ||
+        capabilitiesQuery.isError ||
+        capabilitiesQuery.isRefetchError ||
+        noticesQuery.isError ||
+        noticesQuery.isRefetchError ||
+        roundsQuery.isError ||
+        roundsQuery.isRefetchError ||
+        confirmationQuery.isError ||
+        confirmationQuery.isRefetchError ||
+        juryQuery.isError ||
+        juryQuery.isRefetchError),
+  );
 
   useEffect(() => {
     if (!includeParticipationContext) return;
-    if (userQuery.isLoading) return;
+    if (userQuery.isLoading || userQuery.isError || userQuery.isRefetchError) return;
 
     if (!userQuery.data) {
       writeAppAttentionSummary({ participate: 0, me: 0, osBadge: 0 });
       return;
     }
+
+    // Unverified responsibilities/receipts must not overwrite a previously
+    // known attention count with a fabricated zero.
+    if (hasParticipationReadError) return;
 
     if (
       noticesQuery.isLoading ||
@@ -272,6 +301,7 @@ export function MySolarisProvider({
     });
   }, [
     confirmationQuery.isLoading,
+    hasParticipationReadError,
     includeParticipationContext,
     juryQuery.isLoading,
     noticesQuery.isLoading,
@@ -280,6 +310,8 @@ export function MySolarisProvider({
     unreadNoticeCount,
     userQuery.data,
     userQuery.isLoading,
+    userQuery.isError,
+    userQuery.isRefetchError,
   ]);
 
   const value: MySolarisContextValue = {
@@ -300,13 +332,15 @@ export function MySolarisProvider({
     tasks,
     deadlines,
     priorities,
+    hasContextError,
+    hasParticipationReadError,
     isLoading:
       userQuery.isLoading ||
       countryAccountQuery.isLoading ||
       editionsQuery.isLoading ||
       currentEntryQuery.isLoading ||
       (includeParticipationContext &&
-        (capabilitiesQuery.isLoading || confirmationQuery.isLoading || juryQuery.isLoading)),
+        (capabilitiesQuery.isLoading || noticesQuery.isLoading || roundsQuery.isLoading || confirmationQuery.isLoading || juryQuery.isLoading)),
   };
 
   return <MySolarisContext.Provider value={value}>{children}</MySolarisContext.Provider>;

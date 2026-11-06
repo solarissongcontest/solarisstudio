@@ -31,6 +31,26 @@ export function V3MeRoot({ viewerId, editionId }: { viewerId: string; editionId:
     return () => window.removeEventListener(CONFIRMATION_SUBMITTED_EVENT, refresh);
   }, [queryClient, viewerId]);
 
+  if (workspace.hasContextError) {
+    return (
+      <V3AppShell editionLabel="Solaris Studio" phaseLabel="Me" activeArea="me">
+        <div className="p-6" role="alert" data-v3-me-account-unavailable="">
+          <h1 className="text-lg font-semibold">Account information unavailable</h1>
+          <p className="mt-2 text-sm">
+            Solaris could not verify your delegation or current membership. This is not an empty account.
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-4 min-h-11 rounded-xl border border-border px-4 text-sm font-semibold"
+          >
+            Retry account check
+          </button>
+        </div>
+      </V3AppShell>
+    );
+  }
+
   if (!ownsIdentity || workspace.isLoading) {
     return <V3AppShell editionLabel="Solaris Studio" phaseLabel="Me" activeArea="me"><p role="status" className="p-6">Opening your account…</p></V3AppShell>;
   }

@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const context = source("src/components/mysolaris/MySolarisContext.tsx");
 const meRoute = source("src/routes/_authenticated/my-solaris/index.tsx");
+const operations = source("src/components/MySolarisOperationsPanel.tsx");
+const meRoot = source("src/components/v3/V3MeRoot.tsx");
 
 describe("V3 Me identity-only query budget", () => {
   it("selects identity-only context for the canonical explicit-edition Me root", () => {
@@ -35,6 +37,25 @@ describe("V3 Me identity-only query budget", () => {
     expect(context).toContain("const noticeSummary = includeParticipationContext && noticesQuery.data");
     expect(context).toContain("includeParticipationContext\n        ? buildParticipationTasks");
     expect(context).toContain("if (!includeParticipationContext) return;");
+  });
+
+  it("does not turn failed participant reads into empty tasks or zero notification badges", () => {
+    expect(context).toContain("const hasParticipationReadError = Boolean(");
+    expect(context).toContain("const hasContextError = Boolean(");
+    expect(context).toContain("if (hasParticipationReadError) return;");
+    expect(context).toContain("userQuery.isLoading || userQuery.isError || userQuery.isRefetchError");
+    expect(context).not.toContain("Promise.allSettled");
+    expect(context).toContain("const results = await Promise.all(");
+    expect(context).toContain("noticesQuery.isLoading || roundsQuery.isLoading");
+    expect(operations).toContain("if (hasParticipationReadError)");
+    expect(operations).toContain("Current responsibilities unavailable");
+    expect(operations).toContain("This is a temporary read failure");
+  });
+
+  it("distinguishes unavailable Me identity and current membership from an empty account", () => {
+    expect(meRoot).toContain("if (workspace.hasContextError)");
+    expect(meRoot).toContain('data-v3-me-account-unavailable=""');
+    expect(meRoot).toContain("Retry account check");
   });
 
   it("does not poll current membership unnecessarily from the V3 Me root", () => {
