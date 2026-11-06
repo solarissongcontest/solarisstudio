@@ -61,8 +61,8 @@ describe("System V3 S5 Media consequences", () => {
     expect(migration).toContain("private.studio2_request_is_service_role()");
   });
 
-  it("does not falsely claim media.verified is event-backed", () => {
+  it("records both declared Media lifecycle facts as event-backed once verification is bridged", () => {
     expect(registry).toContain('"media.reviewed": [');
-    expect(registry).not.toMatch(/"media\.verified":\s*\[/);
+    expect(registry).toContain('"media.verified": [');
   });
 });

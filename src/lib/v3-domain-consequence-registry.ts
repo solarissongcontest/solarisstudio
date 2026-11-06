@@ -53,10 +53,13 @@ const NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT: Readonly<Record<string, readonly st
  * event. Notice publication/supersession cannot fabricate a delivery-failure
  * task, a queued/delivered notification is not itself a delivery failure, and
  * private/participant projections must not claim a canonical task worker until
- * that worker actually exists.
+ * that worker actually exists. Successful byte verification also does not, by
+ * itself, mean a review is required or that processing failed. Changing an
+ * already-governed Selection winner likewise does not create review work.
  */
 const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = {
   "acknowledgement.recorded": [],
+  "media.verified": [],
   "notice.published": [],
   "notice.superseded": [],
   "notification.queued": [],
@@ -64,6 +67,7 @@ const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = 
   "notification.failed": ["notification.delivery_failed"],
   "prediction.changed": [],
   "prediction.scored": [],
+  "selection.winner_changed": [],
 };
 
 const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
@@ -102,6 +106,11 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
   "entry.changes_requested": [
     "supabase/migrations/20261015201221_v3_s5_entry_consequences.sql",
     ".github/scripts/v3-s5-entry-consequences-rehearsal.sh",
+  ],
+  "media.verified": [
+    "supabase/migrations/20261018083000_v3_s5_media_verification_consequences.sql",
+    "src/lib/v3-s5-media-verification-consequences.test.ts",
+    ".github/scripts/v3-s5-media-verification-consequences-rehearsal.sh",
   ],
   "media.reviewed": [
     "supabase/migrations/20261016050000_v3_s5_media_review_consequences.sql",
@@ -158,6 +167,22 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "supabase/migrations/20261016053000_v3_s5_results_consequences.sql",
     "src/lib/v3-s5-results-consequences.test.ts",
     ".github/scripts/v3-s5-results-consequences-rehearsal.sh",
+  ],
+  "selection.reviewed": [
+    "supabase/migrations/20261018084500_v3_s5_selection_consequences.sql",
+    "src/lib/v3-s5-selection-consequences.test.ts",
+    ".github/scripts/v3-s5-selection-consequences-rehearsal.sh",
+    ".github/workflows/v3-s5-selection-consequences-rehearsal.yml",
+  ],
+  "selection.winner_changed": [
+    "supabase/migrations/20261018084500_v3_s5_selection_consequences.sql",
+    "supabase/migrations/20261018084600_v3_selection_country_winner_cutover.sql",
+    "supabase/migrations/20261018084700_v3_selection_complete_winner_authority.sql",
+    "supabase/migrations/20261018084800_v3_selection_submit_noop_guard.sql",
+    "src/lib/v3-s5-selection-consequences.test.ts",
+    ".github/scripts/v3-s5-selection-consequences-rehearsal.sh",
+    ".github/scripts/v3-s5-selection-winner-secondary-rehearsal.sh",
+    ".github/workflows/v3-s5-selection-consequences-rehearsal.yml",
   ],
   "publication.changed": [
     "supabase/migrations/20261016060000_v3_s5_publication_consequences.sql",

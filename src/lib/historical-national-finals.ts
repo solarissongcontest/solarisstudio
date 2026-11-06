@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import type { PublicNationalFinal } from "@/lib/national-finals";
 
@@ -78,43 +77,74 @@ export function useSetCountryNationalFinalWinner(countryId?: string) {
     }) => {
       if (!countryId) throw new Error("No country is selected.");
 
-      const saveSolarisWinner = async (winnerEntryId: string | null) => {
+      // Manual/historical country finals are a separate country-history domain.
+      // Confirmation-backed finals use the same exact-version Selection
+      // authority as Organizer so MySolaris cannot bypass S2 receipts or current
+      // reviewed Entry-version invariants.
+      if (input.source !== "confirmation") {
         const { data, error } = await supabase.rpc("set_country_national_final_winner", {
           _country_id: countryId,
           _national_final_id: input.nationalFinalId,
-          _winning_entry_id: winnerEntryId,
+          _winning_entry_id: input.winnerEntryId,
         });
         if (error) throw error;
         return data as {
           id: string;
           winning_entry_id: string | null;
         };
-      };
-
-      const localResult = await saveSolarisWinner(input.winnerEntryId);
-
-      if (input.source === "confirmation") {
-        const confirmationResult = await confirmationsSupabase.rpc(
-          "set_confirmation_national_final_winner_from_solaris",
-          {
-            _national_final_id: input.nationalFinalId,
-            _winning_entry_id: input.winnerEntryId,
-          },
-        );
-
-        if (confirmationResult.error) {
-          // Keep the two databases from drifting apart if the remote write
-          // fails after Solaris has already accepted the change.
-          try {
-            await saveSolarisWinner(input.previousWinnerEntryId);
-          } catch (rollbackError) {
-            console.error("NF winner rollback failed", rollbackError);
-          }
-          throw new Error(`Winner was not synced to Confirmations: ${confirmationResult.error.message}`);
-        }
       }
 
-      return localResult;
+      const action = input.winnerEntryId ? "select" : "clear";
+      const previewResult = await supabase.rpc("studio2_confirmation_winner_change_preview", {
+        p_national_final_id: input.nationalFinalId,
+        p_action: action,
+        p_entry_id: input.winnerEntryId,
+      });
+      if (previewResult.error) throw previewResult.error;
+
+      const preview = previewResult.data as {
+        expectedVersion?: number;
+        currentVersionId?: string | null;
+        alreadyApplied?: boolean;
+      } | null;
+      if (!preview || !Number.isSafeInteger(preview.expectedVersion)) {
+        throw new Error("Could not load the canonical National Final winner version.");
+      }
+
+      // A lost-response retry or repeated tap must not manufacture another audit
+      // transition merely because the browser generated a fresh operation id.
+      if (action === "select" && preview.alreadyApplied === true) {
+        return {
+          id: input.nationalFinalId,
+          winning_entry_id: input.winnerEntryId,
+        };
+      }
+
+      if (action === "select" && !preview.currentVersionId) {
+        throw new Error("The selected winner is missing its current reviewed Entry version.");
+      }
+
+      const operationId = crypto.randomUUID();
+      const applyResult = await supabase.rpc("studio2_apply_confirmation_winner_change", {
+        p_national_final_id: input.nationalFinalId,
+        p_action: action,
+        p_entry_id: input.winnerEntryId,
+        p_reason: "Country account updated the National Final winner.",
+        p_operation_id: operationId,
+        p_idempotency_key: `country-nf-winner:${input.nationalFinalId}:${operationId}`,
+        p_expected_version: preview.expectedVersion,
+        p_expected_entry_version: action === "select" ? preview.currentVersionId : null,
+      });
+      if (applyResult.error) throw applyResult.error;
+
+      const result = applyResult.data as {
+        nationalFinalId?: string;
+        winnerEntryId?: string | null;
+      } | null;
+      return {
+        id: result?.nationalFinalId ?? input.nationalFinalId,
+        winning_entry_id: result?.winnerEntryId ?? null,
+      };
     },
     onSuccess: async () => {
       await Promise.all([
