@@ -2,6 +2,7 @@ import { useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { FollowButton } from "@/components/FollowButton";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import { useNotificationPreferences } from "@/lib/engagement-data";
 import { useV3DelegationBundle } from "@/lib/v3-delegation-runtime";
@@ -106,6 +107,8 @@ export function V3DelegationRouteGate({
     >
       <V3DelegationScreen
         projection={bundle.projection}
+        followControl={<FollowButton entityType="country" entityId={bundle.countryId} label={bundle.projection.name} />}
+        activeEditionLabel={bundle.activeEditionLabel}
         hideResultSpoilers={hideResultSpoilers}
       />
     </V3AppShell>

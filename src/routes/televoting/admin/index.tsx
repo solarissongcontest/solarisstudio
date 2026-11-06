@@ -24,6 +24,7 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { getMergedTelevotingOverview } from "@/integrations/televoting/admin-data.functions";
 
 export const Route = createFileRoute("/televoting/admin/")({
@@ -36,17 +37,42 @@ export const Route = createFileRoute("/televoting/admin/")({
   component: VotingAdminOverview,
 });
 
+const ADVANCED_VOTING_TOOLS: Array<{
+  to: string;
+  icon: typeof PlayCircle;
+  title: string;
+  description: string;
+}> = [
+  { to: "/admin/friend-voting", icon: Network, title: "Friend-voting intelligence", description: "Historical relationships, reciprocity and HOD-aware network analysis." },
+  { to: "/televoting/admin/analytics", icon: BarChart3, title: "Voting analytics", description: "Turnout, point distribution and entry performance." },
+  { to: "/televoting/admin/combined", icon: Blend, title: "Combined result tools", description: "Inspect how jury and public voting are combined." },
+  { to: "/televoting/admin/result-integrity", icon: ShieldAlert, title: "Result integrity", description: "Review result sensitivity, support concentration and influence evidence before release." },
+  { to: "/televoting/admin/integrity-declarations", icon: ShieldAlert, title: "Integrity declarations", description: "Review declaration trails attached to voting submissions." },
+  { to: "/televoting/admin/audit-log", icon: History, title: "Voting audit log", description: "Review important organizer actions and integrity decisions." },
+  { to: "/televoting/admin/backtest", icon: FlaskConical, title: "Result backtest", description: "Rehearse historical result and integrity scenarios without changing official state." },
+  { to: "/televoting/admin/editions", icon: Trophy, title: "Voting edition links", description: "Inspect the voting service projection of Solaris editions." },
+];
+
 function VotingAdminOverview() {
   const { editionId, editionSlug } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
   const getOverview = useServerFn(getMergedTelevotingOverview);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["merged-televoting-admin-overview", editionId ?? "none"],
+  const { data, isLoading, error, isFetching, refetch } = useQuery({
+    // Do not expose a previous organizer's capability-gated overview via cache.
+    queryKey: ["merged-televoting-admin-overview", actorId, editionId ?? "none"],
     enabled: Boolean(editionId),
     queryFn: () => getOverview({ data: { editionId: editionId! } }),
     staleTime: 10_000,
-    refetchInterval: 60_000,
+    gcTime: 0,
+    // Avoid polling closed/idle rounds; live voting still refreshes at a
+    // deliberately bounded cadence. Operators can refresh explicitly.
+    refetchInterval: (query) =>
+      query.state.status === "success" && (query.state.data?.openRounds ?? 0) > 0
+        ? 60_000
+        : false,
     refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
   });
 
   const nextAction =
@@ -99,9 +125,22 @@ function VotingAdminOverview() {
         title="Voting"
         description="Jury, public voting, integrity and official results are operated from the exact edition selected in Solaris Organizer."
         actions={
-          <Link to="/televoting" target="_blank" className="admin-action-secondary">
-            <Globe2 className="size-4" /> Public voting
-          </Link>
+          <>
+            {editionId ? (
+              <button
+                type="button"
+                className="admin-action-secondary"
+                onClick={() => void refetch()}
+                disabled={isFetching}
+                aria-busy={isFetching}
+              >
+                {isFetching ? "Refreshing…" : error || !data ? "Retry voting status" : "Refresh voting status"}
+              </button>
+            ) : null}
+            <Link to="/televoting" target="_blank" className="admin-action-secondary">
+              <Globe2 className="size-4" /> Public voting
+            </Link>
+          </>
         }
       />
 
@@ -122,7 +161,7 @@ function VotingAdminOverview() {
           <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-4">
             <p className="text-sm font-semibold text-rose-100">Voting information could not be loaded</p>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              The selected edition was not changed. Retry this page or check System health if the problem continues.
+              The selected edition was not changed. Use Retry voting status above, or check System health.
             </p>
             {error instanceof Error && error.message ? (
               <details className="mt-3 text-[11px] text-muted-foreground">
@@ -251,54 +290,7 @@ function VotingAdminOverview() {
               <span className="text-xs transition group-open:rotate-90">›</span>
             </summary>
             <div className="border-t border-white/[0.07] px-1 pb-1">
-              <WorkspaceRow
-                to="/admin/friend-voting"
-                icon={Network}
-                title="Friend-voting intelligence"
-                description="Historical relationships, reciprocity and HOD-aware network analysis."
-              />
-              <WorkspaceRow
-                to="/televoting/admin/analytics"
-                icon={BarChart3}
-                title="Voting analytics"
-                description="Turnout, point distribution and entry performance."
-              />
-              <WorkspaceRow
-                to="/televoting/admin/combined"
-                icon={Blend}
-                title="Combined result tools"
-                description="Inspect how jury and public voting are combined."
-              />
-              <WorkspaceRow
-                to="/televoting/admin/result-integrity"
-                icon={ShieldAlert}
-                title="Result integrity"
-                description="Review result sensitivity, support concentration and influence evidence before release."
-              />
-              <WorkspaceRow
-                to="/televoting/admin/integrity-declarations"
-                icon={ShieldAlert}
-                title="Integrity declarations"
-                description="Review declaration trails attached to voting submissions."
-              />
-              <WorkspaceRow
-                to="/televoting/admin/audit-log"
-                icon={History}
-                title="Voting audit log"
-                description="Review important organizer actions and integrity decisions."
-              />
-              <WorkspaceRow
-                to="/televoting/admin/backtest"
-                icon={FlaskConical}
-                title="Result backtest"
-                description="Rehearse historical result and integrity scenarios without changing official state."
-              />
-              <WorkspaceRow
-                to="/televoting/admin/editions"
-                icon={Trophy}
-                title="Voting edition links"
-                description="Inspect the voting service projection of Solaris editions."
-              />
+              {ADVANCED_VOTING_TOOLS.map((tool) => <WorkspaceRow key={tool.to} {...tool} />)}
             </div>
           </details>
         </div>
@@ -307,7 +299,7 @@ function VotingAdminOverview() {
           <AdminEmptyState
             icon={PlayCircle}
             title="Voting state unavailable"
-            description="Solaris did not receive an authoritative voting overview for the selected edition. It will not infer zero rounds or a healthy state from missing data."
+            description="Voting status could not be verified for this edition. Retry above; missing data is never assumed healthy."
           />
         </AdminCard>
       )}

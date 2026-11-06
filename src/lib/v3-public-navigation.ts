@@ -218,13 +218,21 @@ export function rememberV3PublicLocation(
 
   const state = readV3PublicNavigationState(storage, scopeKey);
   const previous = state.tabs[tab];
+  const normalizedSearch = normalizeSearch(searchStr);
+  const href = pathname + normalizedSearch;
+  // Scroll belongs to a specific URL, not the previous page within this tab.
+  // Preserve a prior visit to the same URL, but start a new page at the top.
+  const rememberedEntry =
+    previous?.current && v3PublicEntryHref(previous.current) === href
+      ? previous.current
+      : previous?.history.filter((entry) => v3PublicEntryHref(entry) === href).at(-1);
   const next: V3PublicHistoryEntry = {
     pathname,
-    searchStr: normalizeSearch(searchStr),
+    searchStr: normalizedSearch,
     scrollY:
       typeof scrollY === "number" && Number.isFinite(scrollY)
         ? Math.max(0, scrollY)
-        : previous?.current.scrollY ?? 0,
+        : rememberedEntry?.scrollY ?? 0,
     visitedAt: new Date().toISOString(),
   };
   const last = previous?.history.at(-1);

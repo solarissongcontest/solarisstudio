@@ -1,0 +1,111 @@
+name: V3 release evidence contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/v3-release-evidence-consistency.ts"
+      - "scripts/v3-dashboard-exact-sha.ts"
+      - "scripts/generate-v3-completion-dashboard.ts"
+      - "src/lib/v3-dashboard-exact-sha.contract.test.ts"
+      - "src/lib/v3-release-evidence-consistency.contract.test.ts"
+      - ".github/workflows/v3-release-evidence-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-evidence-contract-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence-contract:
+    name: Exact-SHA release evidence truthfulness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_URL: http://127.0.0.1:54321
+      E2E_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      VITE_SUPABASE_PROJECT_ID: local
+      VITE_SUPABASE_PROJECT_REF: local
+      E2E_SUPABASE_PROJECT_ID: local
+      E2E_SUPABASE_PROJECT_REF: local
+      V3_VERIFICATION_TARGET: local
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Verify checked-out source identity
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$SOURCE_SHA" ]]; then
+            echo "::error::Release contract checkout $actual differs from requested $SOURCE_SHA"
+            exit 1
+          fi
+          echo "V3_CANDIDATE_SHA=$actual" >> "$GITHUB_ENV"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Fail closed against hosted Supabase
+        run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Validate release evidence contracts
+        run: bunx vitest run src/lib/v3-release-evidence-consistency.contract.test.ts src/lib/v3-dashboard-exact-sha.contract.test.ts
+
+      - name: Typecheck and lint evidence validators
+        shell: bash
+        run: |
+          set -euo pipefail
+          bunx tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler --skipLibCheck scripts/v3-release-evidence-consistency.ts
+          bunx eslint scripts/v3-release-evidence-consistency.ts scripts/v3-dashboard-exact-sha.ts scripts/generate-v3-completion-dashboard.ts src/lib/v3-release-evidence-consistency.contract.test.ts src/lib/v3-dashboard-exact-sha.contract.test.ts --quiet
+
+      - name: Emit exact-head verification record
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v3-release-contract-evidence
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const cp = require("node:child_process");
+          const sha = cp.execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+          if (sha !== process.env.V3_CANDIDATE_SHA) throw new Error("Candidate identity changed");
+          const evidence = {
+            schema_version: 1,
+            candidate_sha: sha,
+            gate_id: "release-evidence-consistency-contract",
+            result: "pass",
+            workflow_run_id: process.env.GITHUB_RUN_ID,
+            job_name: "Exact-SHA release evidence truthfulness",
+            produced_at: new Date().toISOString(),
+            scope: "evidence parser contract only; not full V3 release certification"
+          };
+          fs.writeFileSync("v3-release-contract-evidence/contract.json", JSON.stringify(evidence, null, 2) + String.fromCharCode(10));
+          NODE
+
+      - name: Upload exact-head contract evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-release-contract-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-contract-evidence/contract.json
+          if-no-files-found: error
+          retention-days: 30

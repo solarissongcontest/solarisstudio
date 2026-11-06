@@ -1,0 +1,39 @@
+name: V3 governed Anniversary editor acceptance
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/routes/_authenticated/admin/anniversary.tsx"
+      - "src/lib/anniversary-command-scope*"
+      - "src/lib/studio2-storytelling*"
+      - "src/lib/v3-organizer-capability-registry.ts"
+      - "src/lib/v3-organizer-anniversary*.contract.test.ts"
+      - ".github/scripts/v3-anniversary-editor*"
+      - ".github/workflows/v3-anniversary-editor-rehearsal.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: anniversary-editor-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  acceptance:
+    name: Isolated governed Anniversary command acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Start disposable local database
+        run: bash .github/scripts/v3-start-disposable-supabase.sh
+      - name: Replay candidate migrations locally
+        run: supabase db reset --local --no-seed
+      - name: Verify governed editorial lifecycle and negative authorization
+        run: bash .github/scripts/v3-anniversary-editor-rehearsal.sh
+      - name: Stop this disposable stack
+        if: always()
+        run: supabase stop --no-backup || true

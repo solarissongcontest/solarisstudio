@@ -17,6 +17,7 @@ import {
 import type { PredictionItem, PredictionType } from "@/lib/predictions";
 import { formatEventDateTime } from "@/lib/public-time";
 import { predictionDraftScope, predictionReadStatus } from "@/lib/public-prediction-read-status";
+import { hasSubmittedPrediction } from "@/lib/v3-predictions";
 
 export const Route = createFileRoute("/predictions/$showId")({
   head: () => ({
@@ -67,7 +68,15 @@ function PredictionBuilderPage() {
   const [now, setNow] = useState<number | null>(null);
   const draftScope = predictionDraftScope(round?.id, user?.id);
   const [activeDraftScope, setActiveDraftScope] = useState(draftScope);
+  const [draftDirty, setDraftDirty] = useState(false);
+  const [hydratedEntryKey, setHydratedEntryKey] = useState<string | null>(null);
   const draftScopeChanged = draftScope !== activeDraftScope;
+  const savedEntryKey = savedPrediction
+    ? `${draftScope}:${savedPrediction.id}:${savedPrediction.version}`
+    : null;
+  const hasSavedRevisionConflict = Boolean(
+    draftDirty && savedPrediction && hydratedEntryKey !== savedEntryKey,
+  );
 
   // React Router can keep this page mounted while a fan changes accounts or
   // navigates to another show. Never display the previous owner's pick state.
@@ -80,6 +89,8 @@ function PredictionBuilderPage() {
     setQualifiers([]);
     setMessage(null);
     setShareMessage(null);
+    setDraftDirty(false);
+    setHydratedEntryKey(null);
     setActiveDraftScope(draftScope);
   }, [draftScope, draftScopeChanged]);
 
@@ -113,7 +124,9 @@ function PredictionBuilderPage() {
   );
 
   useEffect(() => {
-    if (!savedPrediction) return;
+    // Background refetches must not erase selections being edited locally.
+    // A newer saved revision is surfaced for explicit reconciliation below.
+    if (draftScopeChanged || !savedPrediction || draftDirty || hydratedEntryKey === savedEntryKey) return;
 
     const items = savedPrediction.prediction_items;
     setWinner(items.find((item) => item.prediction_type === "winner")?.country_id ?? "");
@@ -132,7 +145,8 @@ function PredictionBuilderPage() {
     setQualifiers(
       items.filter((item) => item.prediction_type === "qualifier").map((item) => item.country_id),
     );
-  }, [savedPrediction]);
+    setHydratedEntryKey(savedEntryKey);
+  }, [draftScopeChanged, savedPrediction, draftDirty, hydratedEntryKey, savedEntryKey]);
 
   const types = new Set<PredictionType>(round?.prediction_types ?? []);
   const locked =
@@ -143,12 +157,14 @@ function PredictionBuilderPage() {
     now >= new Date(round.locks_at).getTime();
   const canSeeConsensus = Boolean(
     user &&
-      (savedPrediction ||
+      (hasSubmittedPrediction(savedPrediction) ||
         (round && now != null && now >= new Date(round.locks_at).getTime())),
   );
   const { data: consensus } = usePredictionConsensus(round?.id, canSeeConsensus);
 
   const toggleQualifier = (countryId: string) => {
+    if (submitPrediction.isPending) return;
+    setDraftDirty(true);
     setQualifiers((current) => {
       if (current.includes(countryId)) {
         return current.filter((id) => id !== countryId);
@@ -164,7 +180,12 @@ function PredictionBuilderPage() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (submitPrediction.isPending) return;
     setMessage(null);
+    if (hasSavedRevisionConflict) {
+      setMessage("A newer saved prediction is available. Load that version before submitting. Your unsaved picks have not been overwritten.");
+      return;
+    }
 
     const required: Array<[PredictionType, string]> = [
       ["winner", winner],
@@ -210,6 +231,7 @@ function PredictionBuilderPage() {
 
     try {
       await submitPrediction.mutateAsync(items);
+      setDraftDirty(false);
       setMessage("Prediction saved. You can revise it until the round locks.");
     } catch (error) {
       const errorMessage =
@@ -349,7 +371,7 @@ function PredictionBuilderPage() {
         description="Your picks stay private. Consensus remains hidden until you submit, preventing other predictions from anchoring yours."
         roundStatus={round?.status ?? null}
         locksAt={round?.locks_at ?? null}
-        saved={Boolean(savedPrediction)}
+        saved={hasSubmittedPrediction(savedPrediction)}
       />
 
       {roundData?.schemaReady === false ? (
@@ -387,19 +409,41 @@ function PredictionBuilderPage() {
                 : `Locks ${formatEventDateTime(round.locks_at)}. The displayed deadline is authoritative.`
             }
           >
+            {draftDirty ? (
+              <p role="status" aria-live="polite" className="text-xs text-muted-foreground">
+                You have unsaved prediction changes.
+              </p>
+            ) : null}
+            {hasSavedRevisionConflict ? (
+              <div role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-3 text-sm">
+                A newer saved prediction was found. Your edits have been preserved locally; submitting them would overwrite the newer version.
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm("Discard your unsaved prediction edits and load the latest saved version?")) {
+                      setDraftDirty(false);
+                    }
+                  }}
+                  className="mt-3 block min-h-11 rounded-xl border border-border px-3 text-sm font-semibold"
+                >
+                  Discard edits and load saved version
+                </button>
+              </div>
+            ) : null}
             <form onSubmit={submit} className="space-y-5">
               {types.has("winner") && (
                 <PredictionSelect
                   label="Winner"
                   value={winner}
                   onChange={(value) => {
+                    setDraftDirty(true);
                     setWinner(value);
                     if (types.has("top_three")) {
                       setTopThree((current) => [value, current[1], current[2]]);
                     }
                   }}
                   options={options}
-                  disabled={locked}
+                  disabled={locked || submitPrediction.isPending}
                 />
               )}
 
@@ -415,13 +459,14 @@ function PredictionBuilderPage() {
                         label={`#${index + 1}`}
                         value={countryId}
                         onChange={(value) => {
+                          setDraftDirty(true);
                           setTopThree((current) =>
                             current.map((item, itemIndex) => (itemIndex === index ? value : item)),
                           );
                           if (index === 0 && types.has("winner")) setWinner(value);
                         }}
                         options={options}
-                        disabled={locked}
+                        disabled={locked || submitPrediction.isPending}
                         compact
                       />
                     ))}
@@ -435,18 +480,18 @@ function PredictionBuilderPage() {
                     <PredictionSelect
                       label="Jury winner"
                       value={juryWinner}
-                      onChange={setJuryWinner}
+                      onChange={(value) => { setDraftDirty(true); setJuryWinner(value); }}
                       options={options}
-                      disabled={locked}
+                      disabled={locked || submitPrediction.isPending}
                     />
                   )}
                   {types.has("televote_winner") && (
                     <PredictionSelect
                       label="Televote winner"
                       value={televoteWinner}
-                      onChange={setTelevoteWinner}
+                      onChange={(value) => { setDraftDirty(true); setTelevoteWinner(value); }}
                       options={options}
-                      disabled={locked}
+                      disabled={locked || submitPrediction.isPending}
                     />
                   )}
                 </div>
@@ -471,7 +516,7 @@ function PredictionBuilderPage() {
                         <input
                           type="checkbox"
                           checked={qualifiers.includes(option.id)}
-                          disabled={locked}
+                          disabled={locked || submitPrediction.isPending}
                           onChange={() => toggleQualifier(option.id)}
                         />
                         {option.display && (

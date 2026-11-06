@@ -10,5 +10,4 @@ export const Route = createFileRoute("/_authenticated/country-hub/page-builder")
     throw redirect({ to: NAV_TARGETS.mySolarisPageBuilder, search, replace: true });
   },
   head: () => ({ meta: [{ title: "Country page builder — Solaris Studio" }] }),
-  component: () => null,
 });

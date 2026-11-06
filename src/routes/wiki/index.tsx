@@ -10,6 +10,7 @@ import { ArchiveDataError, ArchiveDataLoading } from "@/components/ArchiveDataSt
 import { FlagChip } from "@/components/FlagChip";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useCountries } from "@/lib/data";
+import { countryDirectoryRegionOptions, filterCountryDirectory } from "@/lib/v3-country-directory-filters";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 
 export const Route = createFileRoute("/wiki/")({
@@ -26,17 +27,21 @@ export const Route = createFileRoute("/wiki/")({
 });
 
 const DIRECTORY_PAGE_SIZE = 18;
+const ALL_COUNTRIES_SCOPE = new Set<string>();
 
 function WikiIndexPage() {
-  const { isAppMode } = useSolarisApp();
+  const { isAppMode, platformResolved } = useSolarisApp();
   const referenceRollout = useQuery({
     queryKey: ["studio2-feature", "public_encyclopedia"],
     queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
-    enabled: isAppMode,
+    enabled: platformResolved,
     staleTime: 30_000,
   });
 
-  if (isAppMode && referenceRollout.isLoading) {
+  // Wiki and Reference solve the same search job. Once Reference is
+  // published, every browser and the installed app follow one canonical root.
+  // A rollout error must NOT silently hide the still-public Wiki fallback.
+  if (!platformResolved || referenceRollout.isLoading) {
     return (
       <AppShell>
         <ArchiveDataLoading label="Opening Solaris Reference…" />
@@ -44,7 +49,7 @@ function WikiIndexPage() {
     );
   }
 
-  if (isAppMode && !referenceRollout.isError && referenceRollout.data === true) {
+  if (!referenceRollout.isError && referenceRollout.data === true) {
     return <Navigate to="/encyclopedia" search={{ artist: undefined }} replace />;
   }
 
@@ -58,22 +63,16 @@ function AppWikiIndexPage() {
   const [region, setRegion] = useState("all");
 
   const regions = useMemo(
-    () => [...new Set((countries ?? []).map((country) => country.region).filter(Boolean))].sort(),
+    () => countryDirectoryRegionOptions(countries ?? [], {
+      participatingOnly: false,
+      participatingCountryIds: ALL_COUNTRIES_SCOPE,
+    }).map(({ name }) => name),
     [countries],
   );
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return [...(countries ?? [])]
-      .filter((country) => region === "all" || country.region === region)
-      .filter((country) =>
-        !query ||
-        country.name.toLowerCase().includes(query) ||
-        country.short_code.toLowerCase().includes(query) ||
-        (country.native_name ?? "").toLowerCase().includes(query),
-      )
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [countries, region, search]);
+  const filtered = useMemo(() => filterCountryDirectory(countries ?? [], {
+    search, region, participatingOnly: false, participatingCountryIds: ALL_COUNTRIES_SCOPE,
+  }), [countries, region, search]);
 
   if (countriesQuery.isLoading) return <AppShell><ArchiveDataLoading label="Loading the Wiki…" /></AppShell>;
   if (countriesQuery.isError) return <AppShell><ArchiveDataError /></AppShell>;
@@ -157,7 +156,15 @@ function AppWikiIndexPage() {
           </div>
 
           {!filtered.length ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No Wiki article matches those filters.</p>
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              <p>{countries?.length ? "No Wiki article matches those filters." : "No published Wiki countries are available."}</p>
+              {countries?.length && (search || region !== "all") ? (
+                <button type="button" onClick={() => { setSearch(""); setRegion("all"); }}
+                  className="mt-3 min-h-11 rounded-xl border border-border px-4 font-semibold text-foreground">
+                  Clear Wiki filters
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </section>
       </div>
@@ -175,7 +182,9 @@ function WebWikiIndexPage() {
   const [hydrated, setHydrated] = useState(false);
 
   const regions = useMemo(
-    () => [...new Set((countries ?? []).map((country) => country.region).filter(Boolean))].sort(),
+    () => countryDirectoryRegionOptions(countries ?? [], {
+      participatingOnly: false, participatingCountryIds: ALL_COUNTRIES_SCOPE,
+    }).map(({ name }) => name),
     [countries],
   );
 
@@ -184,19 +193,10 @@ function WebWikiIndexPage() {
     [countries],
   );
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return [...(countries ?? [])]
-      .filter((country) =>
-        (region === "all" || country.region === region) &&
-        (letter === "all" || country.name.toUpperCase().startsWith(letter)) &&
-        (!query ||
-          country.name.toLowerCase().includes(query) ||
-          country.short_code.toLowerCase().includes(query) ||
-          (country.native_name ?? "").toLowerCase().includes(query)),
-      )
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [countries, search, region, letter]);
+  const filtered = useMemo(() => filterCountryDirectory(countries ?? [], {
+    search, region, participatingOnly: false, participatingCountryIds: ALL_COUNTRIES_SCOPE,
+  }).filter((country) => letter === "all" || country.name.toUpperCase().startsWith(letter)),
+  [countries, search, region, letter]);
 
   const visibleCountries = filtered.slice(0, visibleCount);
   useEffect(() => setVisibleCount(DIRECTORY_PAGE_SIZE), [search, region, letter]);
@@ -306,7 +306,13 @@ function WebWikiIndexPage() {
 
           {!filtered.length && (
             <div className="rounded-2xl border border-border/70 bg-surface p-7 text-center text-sm text-muted-foreground sm:col-span-2 lg:col-span-3">
-              No Wiki country matches that search.
+              <p>{countries?.length ? "No Wiki country matches that search." : "No published Wiki countries are available."}</p>
+              {countries?.length && (search || region !== "all" || letter !== "all") ? (
+                <button type="button" onClick={() => { setSearch(""); setRegion("all"); setLetter("all"); setVisibleCount(DIRECTORY_PAGE_SIZE); }}
+                  className="mt-3 min-h-11 rounded-xl border border-border px-4 font-semibold text-foreground">
+                  Clear Wiki filters
+                </button>
+              ) : null}
             </div>
           )}
         </div>

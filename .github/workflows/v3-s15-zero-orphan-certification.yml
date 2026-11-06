@@ -93,6 +93,30 @@ jobs:
           console.log(`S15 exact-SHA inventory preserved: ${evidence.findings.length} unresolved findings for ${sha}`);
           NODE
 
+      - name: Preserve per-capability S15 owner triage (diagnostic only)
+        if: always() && steps.checkout.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/v3-s15-cutover-triage.contract.mjs
+          exact_sha="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          node scripts/v3-s15-cutover-triage.mjs \
+            --input v3-release-evidence/s15-zero-orphan.json \
+            --sha "$exact_sha" \
+            --output-dir v3-release-evidence
+          cat v3-release-evidence/s15-cutover-triage.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload per-capability S15 owner triage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s15-cutover-triage-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            v3-release-evidence/s15-cutover-triage.json
+            v3-release-evidence/s15-cutover-triage.md
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Upload exact-SHA S15 evidence including failed inventory
         if: always()
         uses: actions/upload-artifact@v4

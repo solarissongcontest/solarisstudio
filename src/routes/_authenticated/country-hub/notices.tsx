@@ -28,5 +28,4 @@ export const Route = createFileRoute("/_authenticated/country-hub/notices")({
   beforeLoad: ({ search }) => {
     throw redirect({ to: NAV_TARGETS.mySolarisNotices, search, replace: true });
   },
-  component: () => null,
 });
