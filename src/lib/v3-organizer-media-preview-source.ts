@@ -7,6 +7,14 @@ export type OrganizerMediaPreviewSource = {
   previewKind: OrganizerMediaPreviewKind | null;
 };
 
+function hasUrlControlCharacters(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code < 32 || code === 127) return true;
+  }
+  return false;
+}
+
 const imageTypes = new Set<MediaAssetType>([
   "logo", "flag", "artist_photo", "cover_artwork",
   "postcard", "press_image", "broadcast_graphic",
@@ -28,7 +36,7 @@ export function resolveOrganizerMediaPreviewSource(
   sourceUrl: string | null | undefined,
   assetType: MediaAssetType,
 ): OrganizerMediaPreviewSource | null {
-  if (sourceUrl && /[\u0000-\u001f\u007f]/.test(sourceUrl)) return null;
+  if (sourceUrl && hasUrlControlCharacters(sourceUrl)) return null;
   const trimmed = sourceUrl?.trim();
   if (!trimmed) return null;
   try {
@@ -63,7 +71,7 @@ export function describeOrganizerMediaSource(
   sourceUrl: string | null | undefined,
 ): string {
   if (!sourceUrl?.trim()) return "No source supplied";
-  if (/[\u0000-\u001f\u007f]/.test(sourceUrl)) return "Source link requires inspection";
+  if (hasUrlControlCharacters(sourceUrl)) return "Source link requires inspection";
   try {
     const source = new URL(sourceUrl.trim());
     if ((source.protocol !== "http:" && source.protocol !== "https:") ||
