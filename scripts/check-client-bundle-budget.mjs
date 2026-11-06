@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { gzipSync } from "node:zlib";
 
 const ROOTS = [
@@ -62,8 +62,24 @@ function isPublicPassthrough(name, outputBytes) {
   return sourceBytes.equals(outputBytes);
 }
 
-const measuredAssets = readdirSync(assetRoot)
-  .filter((name) => /\.(?:js|css)$/.test(name))
+// Generated Vite assets may be organized under subdirectories. A flat scan
+// silently undercounts nested bundles and can falsely certify an oversized app.
+function generatedAssetPaths(root, relative = "") {
+  const directory = join(root, relative);
+  return readdirSync(directory, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap((entry) => {
+      const name = relative ? join(relative, entry.name) : entry.name;
+      if (entry.isDirectory()) return generatedAssetPaths(root, name);
+      if (entry.isSymbolicLink()) {
+        // Do not allow generated JS/CSS to bypass measurement through links.
+        failBeforeMeasurement(`Solaris client budget: symlink in generated assets: ${name}`);
+      }
+      return entry.isFile() && /\.(?:js|css)$/.test(entry.name) ? [name] : [];
+    });
+}
+
+const measuredAssets = generatedAssetPaths(assetRoot)
   .map((name) => {
     const bytes = readFileSync(join(assetRoot, name));
     return {
@@ -93,8 +109,8 @@ const passthroughGzip = publicPassthrough.reduce(
   (sum, file) => sum + file.gzip,
   0,
 );
-const appShell = css.find((file) => /^app-shell-.*\.css$/.test(file.name));
-const globalStyles = css.find((file) => /^styles-.*\.css$/.test(file.name));
+const appShell = css.find((file) => /^app-shell-.*\.css$/.test(basename(file.name)));
+const globalStyles = css.find((file) => /^styles-.*\.css$/.test(basename(file.name)));
 
 const kb = (bytes) => (bytes / 1024).toFixed(1);
 const failures = [];
