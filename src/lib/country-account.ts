@@ -8,6 +8,15 @@ import { uploadVerifiedFile } from "@/lib/upload-safety";
 
 const supabase = typedSupabase as any;
 
+const COUNTRY_FIELDS =
+  "id,name,native_name,short_code,flag_image,flag_crop_x,flag_crop_y,flag_crop_zoom,region,accent_color,description,first_participation";
+const COUNTRY_PROFILE_FIELDS =
+  "country_id,capital,government_type,leader_name,leader_title,demonym,official_languages,currency,motto,population,established,summary,updated_at";
+const COUNTRY_PROFILE_SECTION_FIELDS =
+  "id,country_id,heading,body,image_url,image_caption,sort_order,created_at,updated_at";
+const COUNTRY_MEDIA_FIELDS =
+  "id,country_id,storage_path,public_url,caption,alt_text,sort_order,created_at";
+
 export type AccountAccess = {
   userId: string | null;
   isOrganizer: boolean;
@@ -184,7 +193,7 @@ export function useMyCountryAccount() {
 
       const { data, error } = await typedSupabase
         .from("countries")
-        .select("*")
+        .select(COUNTRY_FIELDS)
         .eq("id", access.countryId)
         .maybeSingle();
       if (error) throw error;
@@ -300,18 +309,18 @@ export function useCountryWorldProfile(countryId?: string) {
       const [profileResult, sectionsResult, mediaResult] = await Promise.all([
         supabase
           .from("country_profiles")
-          .select("*")
+          .select(COUNTRY_PROFILE_FIELDS)
           .eq("country_id", countryId)
           .maybeSingle(),
         supabase
           .from("country_profile_sections")
-          .select("*")
+          .select(COUNTRY_PROFILE_SECTION_FIELDS)
           .eq("country_id", countryId)
           .order("sort_order")
           .order("created_at"),
         supabase
           .from("country_media")
-          .select("*")
+          .select(COUNTRY_MEDIA_FIELDS)
           .eq("country_id", countryId)
           .order("sort_order")
           .order("created_at"),
@@ -422,7 +431,7 @@ export function useSaveCountryProfile(countryId?: string) {
       const { data, error } = await supabase
         .from("country_profiles")
         .upsert({ country_id: countryId, ...values }, { onConflict: "country_id" })
-        .select("*")
+        .select(COUNTRY_PROFILE_FIELDS)
         .single();
       if (error) throw error;
       return data as CountryProfile;
@@ -463,7 +472,7 @@ export function useSaveCountrySection(countryId?: string) {
             .eq("country_id", countryId)
         : supabase.from("country_profile_sections").insert(payload);
 
-      const { data, error } = await query.select("*").single();
+      const { data, error } = await query.select(COUNTRY_PROFILE_SECTION_FIELDS).single();
       if (error) throw error;
       return data as CountryProfileSection;
     },
@@ -510,7 +519,7 @@ export function useAddCountryMedia(countryId?: string) {
           caption: media.caption?.trim() || null,
           alt_text: media.altText?.trim() || null,
         })
-        .select("*")
+        .select(COUNTRY_MEDIA_FIELDS)
         .single();
       if (error) throw error;
       return data as CountryMedia;
