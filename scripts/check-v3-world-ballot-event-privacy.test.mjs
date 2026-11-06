@@ -87,7 +87,7 @@ test("rejects event-shaped strings and PostgreSQL nested comments as fake eviden
   const bodyEnd = safe.indexOf("\nend;", bodyStart);
   const fakeBodies = [
     `\n/* outer /* inner */ ${invocation} */`,
-    `\nperform do_something($fake${invocation}$fake$);`,
+    `\nperform do_something($fake$${invocation}$fake$);`,
     `\nperform do_something('${invocation.replaceAll("\'", "\'\'")}');`,
   ];
   for (const fake of fakeBodies) {
@@ -96,7 +96,7 @@ test("rejects event-shaped strings and PostgreSQL nested comments as fake eviden
   }
   for (const sourceSql of [
     `/* outer /* inner */ ${invocation} */`,
-    `select $fake${invocation}$fake$;`,
+    `select $fake$${invocation}$fake$;`,
   ]) {
     assert.throws(() => auditWorldBallotEventSql(source(sourceSql)), /found 0/);
   }
