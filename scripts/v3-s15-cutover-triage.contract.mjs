@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { buildS15CutoverTriage, s15TriageMarkdown } from "./v3-s15-cutover-triage.mjs";
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { buildS15CutoverTriage, s15TriageMarkdown, runCli } from "./v3-s15-cutover-triage.mjs";
 
 const sha="a".repeat(40);
 const fixture=(findings=[],zeroOrphans=findings.length===0,conflictFree=true)=>({
@@ -61,6 +64,7 @@ test("rejects stale/malformed/conflicting or falsely green inventories",()=>{
     fixture(["PUBLIC_CUTOVER_UNRESOLVED"]),
     fixture(["PUBLIC_CUTOVER_UNRESOLVED invalid-without-status"]),
     {...fixture(),physicalOwnership:null},
+    {...fixture(),inventory:null},
     {...fixture(),findings:[null]},
   ]) {
     assert.throws(()=>buildS15CutoverTriage(bad,sha));
@@ -74,6 +78,29 @@ test("retains real physical ownership conflicts as blockers, without inventing g
   assert.equal(r.physicalOwnershipConflictFree,false);
   assert.equal(r.releaseCertified,false);
   assert.equal(r.cutoverCount,1);
+});
+
+test("retained JSON and Markdown bind to identical raw S15 source bytes",()=>{
+  const dir=mkdtempSync(join(tmpdir(),"v3-s15-owner-triage-"));
+  try {
+    const input=join(dir,"s15.json");
+    const output=join(dir,"reports");
+    const raw=JSON.stringify(fixture(["PUBLIC_CUTOVER_UNRESOLVED entry:building"]),null,2)+"\\n";
+    writeFileSync(input,raw,"utf8");
+    const report=runCli(["--input",input,"--sha",sha,"--output-dir",output]);
+    const expected=createHash("sha256").update(raw,"utf8").digest("hex");
+    const retained=JSON.parse(readFileSync(join(output,"s15-cutover-triage.json"),"utf8"));
+    const md=readFileSync(join(output,"s15-cutover-triage.md"),"utf8");
+    assert.equal(report.sourceSha256,expected);
+    assert.equal(retained.sourceSha256,expected);
+    assert.equal(retained.candidateSha,sha);
+    assert.equal(retained.cutoverCount,1);
+    assert.equal(retained.releaseCertified,false);
+    assert.ok(md.includes(expected));
+    assert.ok(md.includes("entry"));
+  } finally {
+    rmSync(dir,{recursive:true,force:true});
+  }
 });
 
 test("workflow uploads separate triage artifacts without weakening zero-orphan dispatch",()=>{
