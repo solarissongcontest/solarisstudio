@@ -102,7 +102,7 @@ export type WorldBodyDirectory = {
 
 export async function readPublicWorldBodies(
   slug: string, requestedPage: number,
-  options: { term?: string; status?: WorldBodyStatusFilter } = {},
+  options: { term?: string; status?: WorldBodyStatusFilter; signal?: AbortSignal } = {},
 ): Promise<WorldBodyDirectory | null> {
   const organization = await readPublicWorldInstitution(slug);
   if (!organization) return null;
@@ -118,6 +118,7 @@ export async function readPublicWorldBodies(
   if (term) {
     request = request.or("name.ilike.%" + term + "%,short_name.ilike.%" + term + "%");
   }
+  if (options.signal) request = request.abortSignal(options.signal);
   const { data, error, count } = await request
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true })
@@ -140,6 +141,7 @@ export async function readPublicWorldBodies(
     if (term) {
       recount = recount.or("name.ilike.%" + term + "%,short_name.ilike.%" + term + "%");
     }
+    if (options.signal) recount = recount.abortSignal(options.signal);
     const { error: countError, count: verifiedCount } = await recount.range(0, 0);
     if (countError || !Number.isSafeInteger(verifiedCount) || verifiedCount < 0 ||
         page * WORLD_BODIES_PAGE_SIZE < verifiedCount) {
