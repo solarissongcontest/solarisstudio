@@ -151,14 +151,18 @@ function ShowPage() {
   const [resultSpoilersRevealed, setResultSpoilersRevealed] = useState(false);
   const showQuery = useShow(showId);
   const editionQuery = useEditionById(showQuery.data?.edition_id);
+  // Historical/global archives are never requested for unpublished Show or
+  // Edition contexts. Publication ownership stays in existing server/RLS rules.
+  const publishedShowContext = isPublishedShowInPublishedEdition(showQuery.data, editionQuery.data);
+  const canLoadPublishedResultHistory = publishedShowContext && resolveShowPublication(showQuery.data).results;
   const participantsQuery = usePublicShowParticipants(showId);
   const resultsQuery = useResults(showId);
   const juryQuery = useJuryVotes(showId);
   const televoteQuery = useTelevotes(showId);
   const votersQuery = useShowVoters(showId);
   const countriesQuery = useCountries();
-  const allResultsQuery = useAllResults();
-  const allShowsQuery = useAllShows();
+  const allResultsQuery = useAllResults({ enabled: canLoadPublishedResultHistory });
+  const allShowsQuery = useAllShows({ enabled: publishedShowContext });
   const themesQuery = useThemes();
   const entitiesQuery = useContestEntities(showQuery.data?.edition_id);
   const getPublicTelevoteDetail = useServerFn(getPublicShowTelevoteDetail);
@@ -210,7 +214,7 @@ function ShowPage() {
   const detailedTelevote = televoteDetailQuery.data ?? null;
   const hasDetailedTelevote = Boolean(detailedTelevote?.rounds.length);
 
-  const showIsPublic = isPublishedShowInPublishedEdition(show, showEdition);
+  const showIsPublic = publishedShowContext;
   const displayMap = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
   const participantRows = (participants ?? []) as ParticipationAwareParticipant[];
   const scoreableResults = useMemo(
