@@ -25,11 +25,20 @@ describe("V3 official delegation notices", () => {
     const source = content();
 
     expect(source).toContain("loadStudio2RecipientNoticeInbox(editionId)");
-    expect(source).toContain('["v3-delegation-notices", userId, editionId ?? "current"]');
+    expect(source).toContain('["v3-delegation-notices", userId, countryId, editionId ?? "current"]');
     expect(source).toContain('["v3-notifications-inbox", userId, editionId ?? "current"]');
     expect(source).not.toContain("loadStudio2NoticeInbox");
     expect(source).not.toContain("refetchInterval");
     expect(source).not.toContain("from(\"");
+  });
+
+  it("clears account/delegation-specific private inbox state when context changes", () => {
+    const source = content();
+    expect(source).toContain('key={`${userId}:${country.id}:${editionId ?? "current"}`}');
+    expect(source).toContain("countryId={country.id}");
+    expect(source).toContain("queryClient.cancelQueries({ queryKey, exact: true })");
+    expect(source).toContain("queryClient.removeQueries({ queryKey, exact: true })");
+    expect(source).toContain("}, [queryClient, userId, countryId, editionId])");
   });
 
   it("keeps mark-open, acknowledgement and archive on existing authoritative mutations", () => {
