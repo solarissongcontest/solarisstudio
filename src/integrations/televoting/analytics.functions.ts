@@ -26,6 +26,7 @@ async function requireVotingRead() {
   const { requireSolarisCapabilityServer } = await import(
     "@/integrations/supabase/capabilities.server"
   );
+  // Specialist history can span many editions: require a global voting read.
   await requireSolarisCapabilityServer("voting.read");
 }
 

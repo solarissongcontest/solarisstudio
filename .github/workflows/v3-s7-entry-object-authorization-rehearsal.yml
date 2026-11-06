@@ -3,6 +3,8 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - ".github/scripts/v3-start-disposable-supabase.sh"
+      - ".github/scripts/prepare-archive-local-config.py"
       - "supabase/migrations/**"
       - ".github/scripts/v3-s7-entry-object-authorization-rehearsal.sh"
       - ".github/workflows/v3-s7-entry-object-authorization-rehearsal.yml"
@@ -20,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with: { version: 2.113.0 }
-      - run: supabase start
+      - run: bash .github/scripts/v3-start-disposable-supabase.sh
       - run: supabase db reset --local --no-seed
       - run: bash .github/scripts/v3-s7-entry-object-authorization-rehearsal.sh
       - if: always()
@@ -38,7 +40,7 @@ jobs:
           git fetch origin main --no-tags
           git worktree add /tmp/solaris-s7-entry-main origin/main
           cd /tmp/solaris-s7-entry-main
-          supabase start
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-start-disposable-supabase.sh"
           supabase db reset --local --no-seed
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" /tmp/solaris-s7-entry-main
           supabase migration up --local --include-all

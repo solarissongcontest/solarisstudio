@@ -862,7 +862,7 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           "/admin/system",
           Settings2,
           "settings deadlines audit maintenance",
-          (path) => path.startsWith("/admin/system"),
+          (path) => path === "/admin/system" || path.startsWith("/admin/system/"),
         ),
       ],
     },
