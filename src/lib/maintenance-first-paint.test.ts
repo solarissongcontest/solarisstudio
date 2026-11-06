@@ -2,59 +2,56 @@ import { describe, expect, it } from "vitest";
 
 import { renderMaintenancePage } from "./maintenance-page";
 
-describe("TerraOS 3 progressive reveal rendering", () => {
-  it("renders only the 18 October material and one next-reveal marker before 19 October", () => {
-    const teaser = renderMaintenancePage(new Date("2026-10-18T13:00:00+03:00"));
+const CURRENT_STORY_FRAGMENTS = [
+  "TerraOS&nbsp;3",
+  "Solaris, reimagined.",
+  "What matters,<br />now.",
+  "More Solaris.<br />Less searching.",
+  "Know exactly<br />what needs you.",
+  "See what<br />happened.",
+  "Your<br />Solaris.",
+  'id="confirmation-access"',
+] as const;
 
-    expect(teaser).toContain('data-terraos-teaser-phase="0"');
-    expect(teaser).toContain("Take a closer look.");
-    expect(teaser).toContain("Five places.<br />One Solaris.");
-    expect(teaser).toContain('data-next-reveal="2026-10-19"');
-    expect(teaser).toContain("More on 19.10");
+function expectMatureMaintenanceStory(html: string) {
+  for (const fragment of CURRENT_STORY_FRAGMENTS) expect(html).toContain(fragment);
 
-    expect(teaser).not.toContain('id="liquid-demo"');
-    expect(teaser).not.toContain("What’s next,<br />at a glance.");
-    expect(teaser).not.toContain("Results, live.");
-    expect(teaser).not.toContain("More on 20.10");
-    expect(teaser).not.toContain("More on 21.10");
-    expect(teaser).not.toContain("class=\"gate\"");
-    expect(teaser).not.toContain("data-locked-copy");
+  expect(html).not.toContain("data-terraos-teaser-phase");
+  expect(html).not.toContain("data-next-reveal");
+  expect(html).not.toContain("data-teaser-locked");
+  expect(html).not.toMatch(/More on (?:19|20|21)\.10/i);
+  expect(html).not.toContain("Nothing new here. Yet.");
+}
+
+describe("TerraOS 3 maintenance first paint", () => {
+  it.each([
+    "2026-10-17T20:00:00+03:00",
+    "2026-10-18T12:00:00+03:00",
+    "2026-10-19T09:00:00+03:00",
+    "2026-10-20T09:00:00+03:00",
+    "2026-10-21T09:00:00+03:00",
+    "2026-11-02T00:00:00+02:00",
+  ])("ships the same mature product story at %s", (iso) => {
+    expectMatureMaintenanceStory(renderMaintenancePage(new Date(iso)));
   });
 
-  it("keeps the hero centered and gives it scroll-linked product choreography", () => {
-    const teaser = renderMaintenancePage(new Date("2026-10-18T13:00:00+03:00"));
+  it("keeps the product story understandable when enhancement scripts are unavailable", () => {
+    const html = renderMaintenancePage(new Date("2026-11-02T00:00:00+02:00"));
+    const scriptless = html.replace(/<script\b[\s\S]*?<\/script>/gi, "");
 
-    expect(teaser).toContain("grid-template-columns:minmax(0,1fr)");
-    expect(teaser).toContain("max-width:calc(100vw - 2rem)");
-    expect(teaser).toContain("--hero-stage-scale:.96");
-    expect(teaser).toContain("requestAnimationFrame(updateHeroMotion)");
-    expect(teaser).toContain("window.addEventListener('scroll',requestHeroMotion,{passive:true})");
-    expect(teaser).toContain("prefers-reduced-motion:reduce");
-    expect(teaser).toContain('class="hero-copy-inner"');
+    expectMatureMaintenanceStory(scriptless);
+    expect(scriptless).toContain("Take a closer look.");
+    expect(scriptless).toContain("Built for<br />contest night.");
+    expect(scriptless).toContain("Your delegation<br />keeps moving.");
   });
 
-  it("adds navigation on 19 October without rendering later-day placeholders", () => {
-    const teaser = renderMaintenancePage(new Date("2026-10-19T00:01:00+03:00"));
+  it("detects a regression that reintroduces an historical reveal gate", () => {
+    const html = renderMaintenancePage(new Date("2026-11-02T00:00:00+02:00"));
+    const historicallyGated = html.replace(
+      '<main class="product-story"',
+      '<main data-terraos-teaser-phase="launch-day" class="product-story"',
+    );
 
-    expect(teaser).toContain('data-terraos-teaser-phase="1"');
-    expect(teaser).toContain('id="liquid-demo"');
-    expect(teaser).toContain("Touch it.");
-    expect(teaser).toContain('data-next-reveal="2026-10-20"');
-    expect(teaser).not.toContain("What’s next,<br />at a glance.");
-    expect(teaser).not.toContain("Results, live.");
-  });
-
-  it("adds Participation on 20 October and Results on 21 October", () => {
-    const twenty = renderMaintenancePage(new Date("2026-10-20T00:01:00+03:00"));
-    expect(twenty).toContain('data-terraos-teaser-phase="2"');
-    expect(twenty).toContain("What’s next,<br />at a glance.");
-    expect(twenty).toContain('data-next-reveal="2026-10-21"');
-    expect(twenty).not.toContain("Results, live.");
-
-    const twentyOne = renderMaintenancePage(new Date("2026-10-21T00:01:00+03:00"));
-    expect(twentyOne).toContain('data-terraos-teaser-phase="3"');
-    expect(twentyOne).toContain("Results, live.");
-    expect(twentyOne).toContain("Combined");
-    expect(twentyOne).not.toContain("data-next-reveal=");
+    expect(() => expectMatureMaintenanceStory(historicallyGated)).toThrow();
   });
 });

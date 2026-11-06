@@ -2,6 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  resolveOperationalScheduleEditionSlug,
+  uniqueOperationalTelevoteRoundIds,
+} from "./admin-schedule-scope";
 
 export type AdminScheduleItem = {
   id: string;
@@ -47,6 +51,21 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
         );
       }
 
+      const editionResult = await db
+        .from("editions")
+        .select("id,slug,event_date")
+        .eq("id", exactEditionId)
+        .maybeSingle();
+
+      if (editionResult.error) {
+        throw new Error("Operational schedule could not be verified: edition.");
+      }
+      const canonicalSlug = resolveOperationalScheduleEditionSlug(
+        editionResult.data,
+        exactEditionId,
+        slug,
+      );
+
       const [
         roundsResult,
         juryWindowsResult,
@@ -54,7 +73,6 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
         showsResult,
         entriesResult,
         noticesResult,
-        editionResult,
         remindersResult,
       ] = await Promise.all([
         db
@@ -83,7 +101,6 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
           .eq("edition_id", exactEditionId)
           .eq("status", "scheduled")
           .not("scheduled_at", "is", null),
-        db.from("editions").select("id,event_date").eq("id", exactEditionId).maybeSingle(),
         db
           .from("admin_deadlines")
           .select("id,label,due_at,notes,completed_at")
@@ -91,9 +108,7 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
           .is("completed_at", null),
       ]);
 
-      const remoteRoundIds = (televoteBindingsResult.data ?? [])
-        .map((binding: { remote_round_id?: string | null }) => binding.remote_round_id)
-        .filter((value: string | null | undefined): value is string => Boolean(value));
+      const remoteRoundIds = uniqueOperationalTelevoteRoundIds(televoteBindingsResult.data ?? []);
 
       const televoteRoundsResult = remoteRoundIds.length
         ? await db
@@ -111,7 +126,6 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
         ["televote rounds", televoteRoundsResult.error],
         ["entry publication", entriesResult.error],
         ["communications", noticesResult.error],
-        ["edition", editionResult.error],
         ["custom reminders", remindersResult.error],
       ].filter(([, error]) => Boolean(error));
 
@@ -125,8 +139,8 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
 
       const items: AdminScheduleItem[] = [];
       const confirmationHref = "/confirmations/admin/rounds";
-      const entriesHref = slug ? `/admin/entries/${slug}` : null;
-      const editionHref = slug ? `/admin/shows/${slug}` : null;
+      const entriesHref = `/admin/entries/${canonicalSlug}`;
+      const editionHref = `/admin/shows/${canonicalSlug}`;
       const showNameById = new Map(
         (showsResult.data ?? []).map(
           (show: { id: string; name: string }) => [show.id, show.name] as const,
@@ -180,7 +194,7 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
             kind: "opens",
             label: `${label} opens`,
             at: window.opened_at,
-            href: slug ? `/admin/jury/${slug}` : null,
+            href: `/admin/jury/${canonicalSlug}`,
             detail: "Jury voting window",
           });
         }
@@ -191,7 +205,7 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
             kind: "closes",
             label: `${label} closes`,
             at: window.closed_at,
-            href: slug ? `/admin/jury/${slug}` : null,
+            href: `/admin/jury/${canonicalSlug}`,
             detail: "Jury voting window",
           });
         }

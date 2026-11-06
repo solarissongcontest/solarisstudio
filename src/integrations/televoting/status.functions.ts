@@ -23,14 +23,12 @@ async function checkPublicBackend() {
 
 async function checkAdminBackend() {
   try {
-    const { requireSolarisCapabilityServer } = await import(
-      "@/integrations/supabase/capabilities.server"
-    );
-    await requireSolarisCapabilityServer("voting.read", null);
+    const [{ requireSolarisOrganizerServer }, { televotingAdmin }] = await Promise.all([
+      import("@/integrations/supabase/organizer.server"),
+      import("@/integrations/televoting/client.server"),
+    ]);
 
-    const { televotingAdmin } = await import(
-      "@/integrations/televoting/client.server"
-    );
+    await requireSolarisOrganizerServer();
 
     const { error } = await televotingAdmin
       .from("rounds")
