@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import type { Country } from "@/lib/data";
 import { useFanSession } from "@/lib/prediction-data";
@@ -241,9 +242,11 @@ async function loadAdminCountryAccountsFallback(): Promise<AdminCountryAccount[]
 }
 
 export function useAdminCountryAccounts(enabled = true) {
+  const actorId = useAuthenticatedUser().id;
   return useQuery({
     enabled,
-    queryKey: ["admin-country-accounts"],
+    // The directory includes private account and country associations.
+    queryKey: ["admin-country-accounts", actorId],
     queryFn: async () => {
       const rpc = await supabase.rpc("admin_country_accounts");
       const rpcAccounts = (rpc.data ?? []) as AdminCountryAccount[];
