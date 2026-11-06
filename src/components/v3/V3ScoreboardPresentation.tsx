@@ -4,6 +4,7 @@ import { ChevronRight, Trophy } from "lucide-react";
 import { FlagChip } from "@/components/FlagChip";
 import type { Standing } from "@/lib/analysis";
 import type { Country, Participant } from "@/lib/data";
+import { resolvePublishedScoreboardAdvancement } from "@/lib/v3-scoreboard-advancement";
 import { V3Section, V3StatusChip, V3Surface } from "./V3Foundation";
 
 export type V3ScoreboardPresentationProps = {
@@ -59,7 +60,6 @@ export function V3ScoreboardPresentation({
     ? participants?.get(winnerStanding.countryId)
     : undefined;
   const winnerSubtitle = entrySubtitle(winnerParticipant);
-  const hasQualifierCutoff = typeof qualifiers === "number" && qualifiers > 0;
 
   return (
     <section
@@ -139,14 +139,10 @@ export function V3ScoreboardPresentation({
                 const subtitle = entrySubtitle(participant);
                 const countryLabel = country?.name || UNAVAILABLE_COUNTRY_LABEL;
                 const isTied = tiedRanks.has(standing.rank);
-                const isQualified =
-                  participant?.qualified === true
-                    ? true
-                    : participant?.qualified === false
-                      ? false
-                      : hasQualifierCutoff
-                        ? standing.rank <= qualifiers!
-                        : null;
+                const advancement = resolvePublishedScoreboardAdvancement(
+                  qualifiers,
+                  participant?.qualified,
+                );
 
                 const body = (
                   <>
@@ -173,9 +169,9 @@ export function V3ScoreboardPresentation({
                         {isTied ? (
                           <V3StatusChip tone="neutral">Tie</V3StatusChip>
                         ) : null}
-                        {country && isQualified === true ? (
+                        {country && advancement === "qualified" ? (
                           <V3StatusChip tone="success">Qualified</V3StatusChip>
-                        ) : country && isQualified === false ? (
+                        ) : country && advancement === "eliminated" ? (
                           <V3StatusChip tone="neutral">Eliminated</V3StatusChip>
                         ) : null}
                       </span>

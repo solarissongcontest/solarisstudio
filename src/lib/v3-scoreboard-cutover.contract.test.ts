@@ -125,19 +125,20 @@ describe("V3 Scoreboard cutover", () => {
     expect(source).not.toContain("b.televote - a.televote");
   });
 
-  it("prefers projected qualification truth over a numeric cutoff fallback", () => {
+  it("renders only public canonical advancement decisions, never top-N guesses", () => {
     const source = presentation();
-    const qualifiedTrue = source.indexOf("participant?.qualified === true");
-    const qualifiedFalse = source.indexOf("participant?.qualified === false");
-    const cutoffFallback = source.indexOf("standing.rank <= qualifiers!");
+    const resolver = read("src/lib/v3-scoreboard-advancement.ts");
 
-    expect(source).toContain(
-      'const hasQualifierCutoff = typeof qualifiers === "number" && qualifiers > 0',
-    );
-    expect(qualifiedTrue).toBeGreaterThan(-1);
-    expect(qualifiedFalse).toBeGreaterThan(qualifiedTrue);
-    expect(cutoffFallback).toBeGreaterThan(qualifiedFalse);
-    expect(source).not.toContain("qualifiers\n                  ? standing.rank <= qualifiers");
+    expect(source).toContain("resolvePublishedScoreboardAdvancement");
+    expect(source).toContain("participant?.qualified");
+    expect(source).toContain('advancement === "qualified"');
+    expect(source).toContain('advancement === "eliminated"');
+    expect(source).not.toContain("standing.rank <= qualifiers");
+    expect(source).not.toContain("hasQualifierCutoff");
+    expect(resolver).toContain("participantQualified === true");
+    expect(resolver).toContain("participantQualified === false");
+    expect(resolver).not.toContain("rank <=");
+    expect(resolver).not.toContain("rank >=");
   });
 
   it("fails unresolved country identity closed instead of exposing internal ids", () => {
