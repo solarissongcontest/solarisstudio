@@ -26,13 +26,14 @@ const organ = {
 };
 function chain(response: Record<string, unknown>) {
   const q = {
-    select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn(), order: vi.fn(), range: vi.fn(),
+    select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn(), order: vi.fn(), range: vi.fn(), limit: vi.fn(),
   };
   q.select.mockReturnValue(q);
   q.eq.mockReturnValue(q);
   q.order.mockReturnValue(q);
   q.maybeSingle.mockResolvedValue(response);
   q.range.mockResolvedValue(response);
+  q.limit.mockResolvedValue(response);
   return q;
 }
 
