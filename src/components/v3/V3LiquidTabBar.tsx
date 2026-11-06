@@ -272,6 +272,21 @@ export function V3LiquidTabBar({
     [endHold, pathname, resetDragDom],
   );
 
+  const navigationIdentity = `${pathname}|${activeIndex}|${destinations
+    .map((destination) => `${destination.id}:${destination.to}`)
+    .join("|")}`;
+  const previousNavigationIdentity = useRef(navigationIdentity);
+
+  // A route redirect, auth-dependent destination change or active-tab change
+  // interrupts the old gesture before its delayed click can change routes.
+  // This also ends held state and releases the V3 update blocker immediately.
+  useLayoutEffect(() => {
+    if (previousNavigationIdentity.current === navigationIdentity) return;
+    previousNavigationIdentity.current = navigationIdentity;
+    if (dragState.current || held) suppressClick.current = true;
+    clearDrag();
+  }, [clearDrag, held, navigationIdentity]);
+
   useEffect(() => {
     const resetInterruptedGesture = () => {
       // A late WebKit synthetic click must not commit an interrupted drag.
