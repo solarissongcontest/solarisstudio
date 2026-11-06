@@ -47,9 +47,11 @@ export function V3CountriesDiscoveryScreen({
       buildCountryDiscovery({
         countries: countriesQuery.data ?? [],
         editions: editionsQuery.data ?? [],
-        currentParticipants: participantsQuery.data ?? [],
+        // Cached participant rows may outlive a failed refetch. Only a successful
+        // current-edition read can assert participation or movement status.
+        currentParticipants: participantsQuery.isSuccess ? participantsQuery.data ?? [] : [],
       }),
-    [countriesQuery.data, editionsQuery.data, participantsQuery.data],
+    [countriesQuery.data, editionsQuery.data, participantsQuery.data, participantsQuery.isSuccess],
   );
 
   const participatingCountryIds = useMemo(
