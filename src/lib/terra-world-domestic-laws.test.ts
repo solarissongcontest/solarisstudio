@@ -148,6 +148,18 @@ describe("WORLD-09 TG16 country-controlled domestic laws",()=>{
     expect(history).toContain("limit 21 offset p_page*20");
     expect(history).toContain("count(*) > 20");
     expect(history).toContain("WORLD_NOT_PUBLISHED");
+    // A previous source edit injected the registration DO block into a SQL regexp.
+    // Ensure the entire validation clause is literal SQL, never an interleaved block.
+    expect(history).toContain("p_country_code !~ '^[[:alnum:]-]+
+    expect(history.split("$history$").length-1).toBe(2);
+    expect(history).not.toContain("insert into public.world_history_events");
+  });
+});
+)) then");
+    expect(history).not.toContain("v3_register_migration_contract");
+    expect(history).not.toContain("notify pgrst");
+    expect(history).not.toContain("$contract$");
+    expect(SQL.match(/do \\$contract\\$/g)).toHaveLength(1);
     expect(history.split("$history$").length-1).toBe(2);
     expect(history).not.toContain("insert into public.world_history_events");
   });
