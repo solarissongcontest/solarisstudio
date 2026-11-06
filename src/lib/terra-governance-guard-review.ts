@@ -85,7 +85,7 @@ export function parseGuardReviewInbox(
       || !validText(row.contributions, 3000)
       || !validText(row.commitment, 3000)
       || (row.intakeSource !== "solaris" && row.intakeSource !== "external")
-      || !(row.sourceReference === null ||
+      || !((row.intakeSource === "solaris" && row.sourceReference === null) ||
         (row.intakeSource === "external" && validText(row.sourceReference, 500)))
       || row.status !== phase || !validTimestamp(row.submittedAt)
       || !Number.isSafeInteger(row.revision) || Number(row.revision) < 1) {
