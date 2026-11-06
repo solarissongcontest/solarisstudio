@@ -121,10 +121,11 @@ export function WorldCountriesDirectory() {
   // If a concurrent deletion empties the selected page, recover to the last
   // valid page instead of presenting a misleading zero-results dead end.
   useEffect(() => {
-    if (verifiedWorldQueryData(query) && page > 0 && page * WORLD_COUNTRY_PAGE_SIZE >= query.data.count) {
-      setPage(Math.max(0, Math.ceil(query.data.count / WORLD_COUNTRY_PAGE_SIZE) - 1));
+    const verifiedPage = verifiedWorldQueryData(query);
+    if (verifiedPage && page > 0 && page * WORLD_COUNTRY_PAGE_SIZE >= verifiedPage.count) {
+      setPage(Math.max(0, Math.ceil(verifiedPage.count / WORLD_COUNTRY_PAGE_SIZE) - 1));
     }
-  }, [page, query.data, query.isSuccess]);
+  }, [page, query.data, query.isSuccess, query.isFetchedAfterMount, query.isFetching]);
 
   const visibleCountryData = verifiedWorldQueryData(query);
   const total = visibleCountryData?.count ?? 0;
@@ -280,17 +281,19 @@ export function WorldCountryInternational({ code }: { code: string }) {
   const historical = useCountryMemberships(identity.data?.id, "historical", historyPage);
 
   useEffect(() => {
-    if (verifiedWorldQueryData(current) && currentPage > 0 &&
-        currentPage * WORLD_AFFILIATION_PAGE_SIZE >= current.data.count) {
-      setCurrentPage(Math.max(0, Math.ceil(current.data.count / WORLD_AFFILIATION_PAGE_SIZE) - 1));
+    const verifiedPage = verifiedWorldQueryData(current);
+    if (verifiedPage && currentPage > 0 &&
+        currentPage * WORLD_AFFILIATION_PAGE_SIZE >= verifiedPage.count) {
+      setCurrentPage(Math.max(0, Math.ceil(verifiedPage.count / WORLD_AFFILIATION_PAGE_SIZE) - 1));
     }
-  }, [current.data, current.isSuccess, currentPage]);
+  }, [current.data, current.isSuccess, current.isFetchedAfterMount, current.isFetching, currentPage]);
   useEffect(() => {
-    if (verifiedWorldQueryData(historical) && historyPage > 0 &&
-        historyPage * WORLD_AFFILIATION_PAGE_SIZE >= historical.data.count) {
-      setHistoryPage(Math.max(0, Math.ceil(historical.data.count / WORLD_AFFILIATION_PAGE_SIZE) - 1));
+    const verifiedPage = verifiedWorldQueryData(historical);
+    if (verifiedPage && historyPage > 0 &&
+        historyPage * WORLD_AFFILIATION_PAGE_SIZE >= verifiedPage.count) {
+      setHistoryPage(Math.max(0, Math.ceil(verifiedPage.count / WORLD_AFFILIATION_PAGE_SIZE) - 1));
     }
-  }, [historical.data, historical.isSuccess, historyPage]);
+  }, [historical.data, historical.isSuccess, historical.isFetchedAfterMount, historical.isFetching, historyPage]);
 
   // Resolve only the organizations on the visible current/historical pages.
   // This independently enforces the world_organizations PUBLIC RLS boundary
