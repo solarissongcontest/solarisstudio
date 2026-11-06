@@ -24,6 +24,7 @@ export type ExternalInstitution = { id: string; slug: string; shortName: string 
 export type ExternalOptions = {
   organs: Array<{ id: string; name: string }>;
   countries: Array<{ id: string; name: string; shortCode: string }>;
+  categories: Array<{ code: string; label: string }>;
 };
 export type ExternalIntake = {
   id: string;
@@ -81,7 +82,8 @@ export function parseExternalInstitutions(v: unknown): ExternalInstitution[] {
 export function parseExternalOptions(v: unknown): ExternalOptions | null {
   if (v === null) return null;
   if (!object(v) || !Array.isArray(v.organs) || v.organs.length > 60 ||
-      !Array.isArray(v.countries) || v.countries.length > 200) return invalid("options");
+      !Array.isArray(v.countries) || v.countries.length > 200 ||
+      !Array.isArray(v.categories) || v.categories.length > 100) return invalid("options");
   const organs = v.organs.map((row: unknown) => {
     if (!object(row) || !uuid(row.id) || !string(row.name) || !row.name.trim())
       return invalid("organ");
@@ -92,7 +94,12 @@ export function parseExternalOptions(v: unknown): ExternalOptions | null {
         !string(row.shortCode) || !row.shortCode.trim()) return invalid("country");
     return { id: row.id, name: row.name, shortCode: row.shortCode };
   });
-  return { organs, countries };
+  const categories = v.categories.map((row: unknown) => {
+    if (!object(row) || !string(row.code) || !/^[A-Z0-9]{2,12}$/.test(row.code) ||
+        !string(row.label) || !row.label.trim()) return invalid("category");
+    return { code: row.code, label: row.label };
+  });
+  return { organs, countries, categories };
 }
 export function parseExternalIntakes(v: unknown, institutionId: string): ExternalIntake[] | null {
   if (v === null) return null;
