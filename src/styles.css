@@ -1,5 +1,12 @@
 @import "tailwindcss" source(none);
 @source "../src";
+/* Test and story fixtures never render in production. Their class strings
+   should not manufacture CSS utilities for every visitor's browser. */
+@source not "../src/**/*.test.ts";
+@source not "../src/**/*.test.tsx";
+@source not "../src/**/*.spec.ts";
+@source not "../src/**/*.spec.tsx";
+@source not "../src/**/*.stories.tsx";
 @import "tw-animate-css";
 
 /* Solaris cascade ownership. Dynamic personality CSS is explicitly placed in
