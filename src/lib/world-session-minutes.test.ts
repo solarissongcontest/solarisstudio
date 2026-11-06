@@ -11,6 +11,8 @@ import {
 const source = (file: string) => readFileSync(resolve(process.cwd(), file), "utf8");
 const migration = source("supabase/migrations/20261104125000_v3_tg6_session_minutes.sql");
 const ui = source("src/components/world/WorldSessionMinutesWorkspace.tsx");
+const rehearsal = source("scripts/rehearse-v3-world-minutes.sql");
+const runner = source("scripts/rehearse-v3-world-minutes.sh");
 const sessionId = "11111111-1111-4111-8111-111111111111";
 const operationId = "22222222-2222-4222-8222-222222222222";
 
@@ -110,6 +112,31 @@ describe("TG6 minutes authority and source invariants", () => {
     expect(publishing).toContain("agenda_snapshot");
     expect(publishing).not.toContain("world_vote_eligibility");
     expect(publishing).not.toContain("world_ballots");
+  });
+
+  it("provides rollback-only real-role migration and privacy rehearsal without hosted fallback", () => {
+    expect(rehearsal).toContain("set local role anon");
+    expect(rehearsal).toContain("set local role authenticated");
+    for (const failure of [
+      "TG6_MINUTES_ANON_DRAFT_VISIBLE",
+      "TG6_MINUTES_OUTSIDER_PRIVATE_READ",
+      "TG6_MINUTES_STALE_CAS_ALLOWED",
+      "TG6_MINUTES_REVIEW_PUBLIC",
+      "TG6_MINUTES_EARLY_PUBLICATION_ALLOWED",
+      "TG6_MINUTES_PUBLICATION_REPLAY",
+      "TG6_MINUTES_PRIVILEGED_PUBLISHED_EDIT",
+      "TG6_MINUTES_PRIVILEGED_HISTORY_EDIT",
+      "TG6_MINUTES_HISTORICAL_SNAPSHOT_MISSING",
+      "TG6_MINUTES_PUBLIC_ARCHIVE_MISSING",
+      "TG6_MINUTES_FIXTURE_PERSISTED",
+    ]) {
+      expect(rehearsal).toContain(failure);
+    }
+    expect(rehearsal).toContain("rollback;");
+    expect(runner).toContain("supabase status -o env");
+    expect(runner).toContain("Refusing hosted Supabase API");
+    expect(runner).toContain("Refusing hosted database URI");
+    expect(runner).not.toContain("DATABASE_URL");
   });
 
   it("never converts a browser button into official publication authority", () => {
