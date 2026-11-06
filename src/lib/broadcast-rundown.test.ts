@@ -98,4 +98,43 @@ describe('broadcast rundown engine', () => {
     expect(rundown.estimatedFinishAt).toBe('2026-09-10T18:08:00.000Z');
     expect(rundown.overallDriftSeconds).toBe(-60);
   });
+
+  it('projects each cue estimated end separately from the planned completion time', () => {
+    const rundown = buildBroadcastRundown('2026-09-10T18:00:00.000Z', [
+      {
+        id: 'intro', label: 'Intro', plannedDurationSeconds: 240, status: 'completed',
+        actualStartedAt: '2026-09-10T18:00:00.000Z',
+        actualCompletedAt: '2026-09-10T18:06:00.000Z',
+      },
+      { id: 'hosts', label: 'Hosts', plannedDurationSeconds: 180, status: 'ready' },
+    ]);
+    expect(rundown.segments[0]).toMatchObject({
+      plannedCompletedAt: '2026-09-10T18:04:00.000Z',
+      estimatedCompletedAt: '2026-09-10T18:06:00.000Z',
+    });
+    expect(rundown.segments[1]).toMatchObject({
+      plannedCompletedAt: '2026-09-10T18:07:00.000Z',
+      estimatedCompletedAt: '2026-09-10T18:09:00.000Z',
+    });
+    expect(rundown.estimatedFinishAt).toBe(rundown.segments[1].estimatedCompletedAt);
+  });
+
+  it('fails closed on corrupt completion timestamps without rejecting valid early skip timestamps', () => {
+    expect(() => buildBroadcastRundown('2026-09-10T18:00:00.000Z', [{
+      id: 'skip', label: 'Skip', plannedDurationSeconds: 120,
+      status: 'skipped', actualCompletedAt: 'not-an-instant',
+    }])).toThrow('Invalid actual completion time');
+
+    expect(() => buildBroadcastRundown('2026-09-10T18:00:00.000Z', [{
+      id: 'cue', label: 'Cue', plannedDurationSeconds: 120,
+      status: 'completed', actualStartedAt: '2026-09-10T18:05:00Z',
+      actualCompletedAt: '2026-09-10T18:04:00Z',
+    }])).toThrow('Actual completion precedes start');
+
+    const earlySkip = buildBroadcastRundown('2026-09-10T18:00:00.000Z', [{
+      id: 'skip', label: 'Skip', plannedDurationSeconds: 120,
+      status: 'skipped', actualCompletedAt: '2026-09-10T17:50:00Z',
+    }]);
+    expect(earlySkip.segments[0].estimatedCompletedAt).toBe('2026-09-10T18:00:00.000Z');
+  });
 });

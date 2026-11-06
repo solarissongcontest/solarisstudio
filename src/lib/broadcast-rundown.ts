@@ -14,6 +14,8 @@ export type ScheduledRundownSegment = RundownSegment & {
   plannedStartedAt: string;
   estimatedStartedAt: string;
   plannedCompletedAt: string;
+  /** Projected cue end after observed overrun, early finish or pre-air skip. */
+  estimatedCompletedAt: string;
   driftSeconds: number;
 };
 
@@ -69,10 +71,13 @@ export function buildBroadcastRundown(
     let segmentEnd = skippedBeforeAir
       ? estimatedStartedAt
       : plusSeconds(estimatedStartedAt, segment.plannedDurationSeconds);
-    if (segment.actualCompletedAt && !skippedBeforeAir) {
+    if (segment.actualCompletedAt) {
       const actualEndMs = new Date(segment.actualCompletedAt).getTime();
       if (!Number.isFinite(actualEndMs)) throw new Error(`Invalid actual completion time for segment: ${segment.id}`);
-      segmentEnd = new Date(actualEndMs).toISOString();
+      if (segment.actualStartedAt && actualEndMs < new Date(segment.actualStartedAt).getTime()) {
+        throw new Error(`Actual completion precedes start for segment: ${segment.id}`);
+      }
+      if (!skippedBeforeAir) segmentEnd = new Date(actualEndMs).toISOString();
     }
     latestDrift = secondsBetween(plannedCompletedAt, segmentEnd);
 
@@ -81,6 +86,7 @@ export function buildBroadcastRundown(
       plannedStartedAt,
       estimatedStartedAt,
       plannedCompletedAt,
+      estimatedCompletedAt: segmentEnd,
       driftSeconds: latestDrift,
     };
 
