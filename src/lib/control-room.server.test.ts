@@ -77,6 +77,20 @@ describe('Organizer Control Room server incident verification', () => {
     expect(model.overallHealth).toBe('critical');
   });
 
+  it('permits integrity readers without disclosing incident rows', async () => {
+    const db = arrange({ capabilities: ['edition.read', 'integrity.read'], active: 1, critical: 0 });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(db.incidentSelections).toHaveLength(2);
+    expect(model.overallHealth).toBe('attention');
+  });
+
+  it('treats absent count evidence as unknown even when the health RPC is ready', async () => {
+    const db = arrange({ capabilities: ['edition.read'] });
+    const model = await loadControlRoomModelServer('ssc22');
+    expect(db.from.mock.calls.some(([table]) => table === 'studio2_incidents')).toBe(false);
+    expect(model.overallHealth).toBe('unknown');
+  });
+
   it('does not read protected incidents or invent zero when the viewer lacks incident access', async () => {
     const db = arrange({ capabilities: ['edition.read'] });
     const model = await loadControlRoomModelServer('ssc22');

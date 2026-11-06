@@ -18,10 +18,10 @@ export type ControlRoomInput = {
   legacyEditionStatus?: string | null;
   runtimeState?: EditionRuntimeState | null;
   healthStatus?: 'ready' | 'needs-attention' | 'blocked' | null;
-  healthIssues?: number;
-  criticalIssues?: number;
-  activeIncidents?: number;
-  criticalIncidents?: number;
+  healthIssues?: number | null;
+  criticalIssues?: number | null;
+  activeIncidents?: number | null;
+  criticalIncidents?: number | null;
   currentSegment?: string | null;
   nextSegment?: string | null;
   ballotsReceived?: number | null;
