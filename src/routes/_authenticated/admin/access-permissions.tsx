@@ -26,7 +26,7 @@ import {
 } from "@/components/admin/AdminUI";
 import { WorkspaceTabs } from "@/components/admin/AdminWorkspacePrimitives";
 import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
-import { verifyOrganizerPermissionRead } from "@/lib/v3-organizer-permission-read";
+import { verifyOrganizerPermissionRead } from "@/integrations/permissions/organizer-permission-read-authorization";
 import { editionLabel as formatEditionLabel, useEditions } from "@/lib/data";
 import {
   applyPermissionChange,
