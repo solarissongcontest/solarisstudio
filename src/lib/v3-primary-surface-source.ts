@@ -189,7 +189,13 @@ function upcomingItems(
   return scheduled
     .sort(
       (left, right) =>
-        (left.startsAt === null ? 1 : right.startsAt === null ? -1 : left.startsAt - right.startsAt) ||
+        (left.startsAt === null && right.startsAt !== null
+          ? 1
+          : right.startsAt === null && left.startsAt !== null
+            ? -1
+            : left.startsAt !== null && right.startsAt !== null
+              ? left.startsAt - right.startsAt
+              : 0) ||
         left.show.sort_order - right.show.sort_order ||
         left.show.id.localeCompare(right.show.id),
     )
