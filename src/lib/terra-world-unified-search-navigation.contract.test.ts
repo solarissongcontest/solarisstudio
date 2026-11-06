@@ -29,6 +29,16 @@ describe("Public Terra Solaris World Search integration", () => {
     expect(searchRoute).toContain("c: 0, o: 0, type: parseWorldSearchCategory(next)");
   });
 
+  it("does not display cached results while publication queries are revalidating or failed", () => {
+    expect(searchScreen).toContain("worldPublicQueryVerified(countryQuery)");
+    expect(searchScreen).toContain("worldPublicQueryVerified(organizationQuery)");
+    expect(searchScreen).toContain("worldPublicQueryVerified(featured)");
+    expect(searchScreen).toContain("countryQuery.isRefetchError");
+    expect(searchScreen).toContain("organizationQuery.isRefetchError");
+    expect(searchScreen).toContain("featured.isRefetchError");
+    expect(searchScreen).toContain("Verifying public institutions");
+  });
+
   it("reuses the existing World capability instead of adding a competing rollout flag", () => {
     expect(registry).toContain('legacyRoutes: ["/world", "/world/*"]');
     expect(registry).toContain('sourceFeatureFlags: ["terra_world_public"]');
