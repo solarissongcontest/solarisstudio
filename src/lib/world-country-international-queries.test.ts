@@ -116,6 +116,10 @@ describe("Country International public Supabase read contracts", () => {
     expect(ui).toContain('queryFn: ({ signal }) => fetchWorldCountryMembershipPage(countryId ?? "", phase, page, signal)');
     expect(ui).toContain("queryFn: ({ signal }) => fetchWorldCountryIdentity(canonicalCode, signal)");
     expect(ui).toContain("queryFn: ({ signal }) => fetchWorldPublicCountryInstitutions(organizationIds, signal)");
+    expect(ui).toContain("const verifiedIdentity = verifiedWorldQueryData(identity)");
+    expect(ui).toContain('useCountryMemberships(verifiedIdentity?.id, "current", currentPage)');
+    expect(ui).toContain('useCountryMemberships(verifiedIdentity?.id, "historical", historyPage)');
+    expect(ui).not.toContain("useCountryMemberships(identity.data?.id");
   });
 
   it("shares the canonical World rollout flag key and refuses unknown decisions", async () => {
