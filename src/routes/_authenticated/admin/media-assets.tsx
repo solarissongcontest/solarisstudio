@@ -12,6 +12,7 @@ import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions } from '@/lib/data';
 import { MEDIA_ASSET_TYPES, type MediaAssetType } from '@/lib/media-asset-vault';
 import { resolveOrganizerMediaPreviewSource } from '@/lib/v3-organizer-media-preview-source';
+import { resolveOrganizerMediaReviewTargets } from '@/lib/v3-organizer-media-review-selection';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
 import {
   STUDIO2_MEDIA_ASSET_STATES,
@@ -276,25 +277,33 @@ function MediaAssetsPage() {
     setSelectedKeys(new Set(reviewable.map((item) => item.assetKey)));
   }
 
-  function requestReview(decision: Studio2MediaReviewDecision) {
-    if (!selectedEdition || editionId !== selectedEdition.id) {
+  function requestReview(
+    decision: Studio2MediaReviewDecision,
+    singleAssetReview?: { assetKey: string; reason: string },
+  ) {
+    if (!selectedEdition || editionId !== selectedEdition.id || reviewMutation.isPending) {
       toast.error('Select the current Organizer edition again before reviewing media.');
       return;
     }
-    if (!reviewableSelected.length || reviewableSelected.length !== selectedItems.length) {
-      toast.error('Only uploaded assets that are not processing can be reviewed.');
-      return;
-    }
-    if (reviewReason.trim().length < 5) {
+    const auditReason = singleAssetReview?.reason ?? reviewReason;
+    if (auditReason.trim().length < 5) {
       toast.error('Add an audit reason of at least 5 characters.');
       return;
     }
-    if (decision === 'approved' && !canApproveSelected) {
-      toast.error('Resolve blocked validation checks before approving these assets.');
+    let exactAssets: Studio2MediaAssetItem[];
+    try {
+      const selection = singleAssetReview
+        ? new Set([singleAssetReview.assetKey])
+        : selectedKeys;
+      exactAssets = resolveOrganizerMediaReviewTargets(
+        inventory, selection, selectedEdition.id, decision,
+      );
+    } catch (error) {
+      toast.error(errorText(error));
       return;
     }
 
-    const items = reviewableSelected.map((item) => ({
+    const items = exactAssets.map((item) => ({
       assetKey: item.assetKey,
       assetType: item.assetType,
       countryId: item.countryId,
@@ -309,7 +318,7 @@ function MediaAssetsPage() {
     try {
       const operation = prepareOrganizerMediaReviewOperation({
         editionId: selectedEdition.id,
-        reason: reviewReason,
+        reason: auditReason,
         reviews: items.map((item) => ({
           assetKey: item.assetKey,
           assetType: item.assetType,
@@ -328,6 +337,7 @@ function MediaAssetsPage() {
         items,
         operation,
       });
+      if (singleAssetReview) updateSearch({ asset: undefined });
     } catch (prepareError) {
       toast.error(errorText(prepareError));
     }
@@ -419,7 +429,16 @@ function MediaAssetsPage() {
           </>
         )}
 
-        <MediaAssetSheet asset={selectedAsset} reviews={(reviewsQuery.data ?? []).filter((review) => review.assetKey === selectedAsset?.assetKey)} onClose={() => updateSearch({ asset: undefined })} />
+        <MediaAssetSheet
+          key={selectedAsset
+            ? [selectedAsset.editionId, selectedAsset.assetKey, selectedAsset.sourceFingerprint ?? 'no-fingerprint', selectedAsset.sourceUrl ?? 'no-url'].join(':')
+            : 'no-asset'}
+          asset={selectedAsset}
+          reviews={(reviewsQuery.data ?? []).filter((review) => review.assetKey === selectedAsset?.assetKey)}
+          onClose={() => updateSearch({ asset: undefined })}
+          onRequestReview={(assetKey, decision, reason) => requestReview(decision, { assetKey, reason })}
+          reviewPending={reviewMutation.isPending}
+        />
 
         <AdminConfirmSheet
           open={Boolean(pendingReview)}
@@ -466,13 +485,23 @@ function MediaAssetsPage() {
   );
 }
 
-function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAssetItem | null; reviews: Awaited<ReturnType<typeof listStudio2MediaAssetReviews>>; onClose: () => void }) {
-  // A newly selected or replaced asset must never inherit an earlier preview.
+function MediaAssetSheet({
+  asset, reviews, onClose, onRequestReview, reviewPending,
+}: {
+  asset: Studio2MediaAssetItem | null;
+  reviews: Awaited<ReturnType<typeof listStudio2MediaAssetReviews>>;
+  onClose: () => void;
+  onRequestReview: (assetKey: string, decision: Studio2MediaReviewDecision, reason: string) => void;
+  reviewPending: boolean;
+}) {
+  // The sheet is keyed by edition, asset identity, fingerprint and URL, so
+  // switching or replacing a source discards both old review notes and preview.
+  const [singleAssetReviewReason, setSingleAssetReviewReason] = useState('');
   const [previewTarget, setPreviewTarget] = useState<string | null>(null);
   const [failedPreviewTarget, setFailedPreviewTarget] = useState<string | null>(null);
   const source = asset ? resolveOrganizerMediaPreviewSource(asset.sourceUrl, asset.assetType) : null;
   const previewKey = asset
-    ? [asset.editionId, asset.assetKey, asset.sourceFingerprint ?? 'no-source'].join(':')
+    ? [asset.editionId, asset.assetKey, asset.sourceFingerprint ?? 'no-source', source?.url ?? 'no-url'].join(':')
     : null;
   const previewVisible = Boolean(source?.previewKind && previewKey && previewTarget === previewKey);
   const dismiss = () => {
@@ -565,6 +594,61 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
                 </div>
               ))}
             </div>
+          </section>
+
+          <section className="space-y-3 rounded-xl border border-white/[0.09] bg-white/[0.025] p-3">
+            <div>
+              <h3 className="text-sm font-semibold">Review this source</h3>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Apply one audited decision to the exact source fingerprint displayed above.
+                If its content changes, the canonical operation refuses this review and the
+                replacement must be inspected again.
+              </p>
+            </div>
+            {asset.sourceFingerprint && !asset.processing ? (
+              <>
+                <label className="block space-y-1.5 text-xs">
+                  <span className="font-semibold">Organizer audit reason (required)</span>
+                  <textarea
+                    value={singleAssetReviewReason}
+                    onChange={(event) => setSingleAssetReviewReason(event.target.value)}
+                    rows={3}
+                    disabled={reviewPending}
+                    className="admin-input min-h-24 w-full"
+                    placeholder="Record what you checked and why this source is acceptable or invalid."
+                  />
+                </label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    disabled={reviewPending || singleAssetReviewReason.trim().length < 5 ||
+                      asset.validation.some((check) => check.level === 'blocked')}
+                    onClick={() => onRequestReview(asset.assetKey, 'approved', singleAssetReviewReason)}
+                    className="admin-action-primary w-full"
+                  >
+                    Review approval
+                  </button>
+                  <button
+                    type="button"
+                    disabled={reviewPending || singleAssetReviewReason.trim().length < 5}
+                    onClick={() => onRequestReview(asset.assetKey, 'invalid', singleAssetReviewReason)}
+                    className="admin-action-secondary w-full"
+                  >
+                    Review invalidation
+                  </button>
+                </div>
+                {asset.validation.some((check) => check.level === 'blocked') ? (
+                  <p className="text-xs text-amber-100">
+                    Approval is disabled because this source has a blocking validation check.
+                    Invalidation remains available with an audit reason.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-xs text-amber-100">
+                This source is missing or processing and cannot be reviewed yet.
+              </p>
+            )}
           </section>
 
           <section>

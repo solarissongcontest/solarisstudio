@@ -29,7 +29,7 @@ export function resolveOrganizerMediaPreviewSource(
   assetType: MediaAssetType,
 ): OrganizerMediaPreviewSource | null {
   const trimmed = sourceUrl?.trim();
-  if (!trimmed) return null;
+  if (!trimmed || /[\\u0000-\\u001f\\u007f]/.test(trimmed)) return null;
   try {
     const parsed = new URL(trimmed);
     if (
