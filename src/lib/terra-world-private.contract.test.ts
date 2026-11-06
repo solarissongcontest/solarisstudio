@@ -8,8 +8,10 @@ const ui = readFileSync(resolve(process.cwd(), "src/components/world/WorldPrivat
 
 describe("TG11/TG12 private workspace authority contracts", () => {
   it("has matched PostgreSQL function delimiters and transactional DDL", () => {
-    expect((sql.match(/as \$\$/g) ?? []).length).toBe(13);
-    expect((sql.match(/^\$\$;/gm) ?? []).length).toBe(13);
+    expect((sql.match(/as \$\$/g) ?? []).length).toBe(11);
+    expect((sql.match(/^\$\$;/gm) ?? []).length).toBe(11);
+    expect((sql.match(/as \$[a-z]+\$/g) ?? []).length).toBe(4);
+    expect((sql.match(/^\$[a-z]+\$;/gm) ?? []).length).toBe(4);
     expect(sql.startsWith("begin;")).toBe(true);
     expect(sql.trimEnd().endsWith("commit;")).toBe(true);
   });
@@ -54,6 +56,42 @@ describe("TG11/TG12 private workspace authority contracts", () => {
     expect(sql).toContain("p_expected_revision is distinct from v_message.revision");
     expect(sql).toContain("for update");
     expect(sql).toContain("'moderator_redaction'");
+  });
+
+  it("limits manager invitations to current canonical TG2 members and protects grant retries", () => {
+    expect(sql).toContain("create function private.world_space_member_since_for_v1");
+    expect(sql).toContain("p_user_id uuid");
+    expect(sql).toContain("create function public.world_space_candidates_v1");
+    expect(sql).toContain("private.world_space_member_since_for_v1(v_space.organization_id,actor_list.user_id)");
+    expect(sql).toContain("private.world_space_member_since_for_v1(v_space.organization_id,p_user_id)");
+    expect(sql).toContain("message='TARGET_NOT_CURRENT_MEMBER'");
+    expect(sql).toContain("create table private.world_space_grant_audit");
+    expect(sql).toContain("unique (actor_user_id, request_id)");
+    expect(sql).toContain("p_expected_revision<>case when v_old_found then v_old.revision else 0 end");
+    expect(sql).toContain("message='VERSION_CONFLICT'");
+    expect(sql).toContain("message='IDEMPOTENCY_SCOPE'");
+    expect(sql).toContain("v_receipt.payload_fingerprint<>v_fingerprint");
+    expect(sql).toContain("insert into private.world_space_grant_audit(");
+  });
+
+  it("does not grant raw service-role mutation authority or reveal sensitive leadership history", () => {
+    expect(sql).toContain("private.world_space_grant_audit enable row level security");
+    expect(sql).toMatch(/revoke all on table public\.world_spaces[^;]*from service_role;/s);
+    expect(sql).not.toMatch(/grant\s+(insert|update|delete|all)\s+on\s+table\s+[^;]*\s+to\s+service_role\b/i);
+    expect(sql).toContain("message='SENSITIVE_HISTORY_POLICY'");
+    expect(sql).toContain("return greatest(v_grant.history_from,coalesce(v_member_since,now()))");
+    expect(sql).toContain("public.world_space_set_grant_v1(uuid,uuid,text,timestamptz,boolean,bigint,uuid)");
+  });
+
+  it("makes member access management client-only and never exposes candidates in general search", () => {
+    const manager = readFileSync(resolve(process.cwd(),
+      "src/components/world/WorldRoomAccessManager.tsx"), "utf8");
+    expect(manager).toContain('getWorldRoomCandidates(roomId, signal)');
+    expect(manager).toContain("changeWorldRoomGrant({");
+    expect(manager).toContain("requests.current.set(key, requestId)");
+    expect(manager).toContain("isVisiblePrivateWorldQuery(candidates, online)");
+    expect(manager).not.toContain('supabase.from("world_space_access_grants")');
+    expect(ui).toContain("<WorldRoomAccessManager");
   });
 
   it("rolls out dark and erases private client caches after auth transitions", () => {

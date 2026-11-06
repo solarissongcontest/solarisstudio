@@ -4,13 +4,14 @@ import { ArrowLeft, LockKeyhole, MessageSquare, Pencil, Pin, Plus, RefreshCcw, R
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { WorldRoomAccessManager } from "@/components/world/WorldRoomAccessManager";
 import { supabase } from "@/integrations/supabase/client";
 import {
   PRIVATE_WORLD_QUERY_ROOT, WORLD_ROOM_PAGE_SIZE,
   createWorldRoom, editWorldRoomMessage, getMyWorldWorkspaces, getWorldWorkspaceContext,
   getWorldRoomMessages, getWorldRooms, isVisiblePrivateWorldQuery,
   moderateWorldRoomMessage, reactToWorldRoomMessage, searchWorldRoomMessages, sendWorldRoomMessage,
-  type WorldChatMessage, type WorldPrivateRoom,
+  type WorldPrivateRoom,
 } from "@/lib/terra-world-private";
 
 function useWorldPrivateIdentity() {
@@ -86,14 +87,22 @@ function SignInNotice() {
 export function WorldWorkspacesDirectory() {
   const identity = useWorldPrivateIdentity();
   const online = useOnline();
+  const queryClient = useQueryClient();
+  const [accessUncertain, setAccessUncertain] = useState(false);
+  useEffect(() => setAccessUncertain(false), [identity.data]);
   const organizations = useQuery({
     queryKey: [...PRIVATE_WORLD_QUERY_ROOT, identity.data, "organizations"],
     queryFn: ({ signal }) => getMyWorldWorkspaces(signal),
-    enabled: Boolean(identity.data) && online,
+    enabled: Boolean(identity.data) && online && !accessUncertain,
     staleTime: 0, gcTime: 0, retry: false, refetchOnMount: "always",
     refetchOnWindowFocus: "always",
   });
-  const visible = isVisiblePrivateWorldQuery(organizations, online);
+  useEffect(() => {
+    if (!organizations.isError && !organizations.isRefetchError) return;
+    setAccessUncertain(true);
+    queryClient.removeQueries({ queryKey: PRIVATE_WORLD_QUERY_ROOT });
+  }, [organizations.isError, organizations.isRefetchError, queryClient]);
+  const visible = !accessUncertain && isVisiblePrivateWorldQuery(organizations, online);
   return <PrivateLayout>
     <PrivateHeader title="Institutional workspaces" context="Member area" />
     <nav aria-label="World navigation" className="mb-5">
@@ -105,6 +114,9 @@ export function WorldWorkspacesDirectory() {
       identity.isPending ? <p role="status">Verifying your account…</p> :
       identity.isError ? <AccessNotice message="Your session could not be verified." retry={() => void identity.refetch()} /> :
       !identity.data ? <SignInNotice /> :
+      accessUncertain ? <AccessNotice message="Your institutional access could not be confirmed. Previously loaded private data was erased." retry={() => {
+        setAccessUncertain(false); void organizations.refetch();
+      }} /> :
       organizations.isPending || !organizations.isFetchedAfterMount ? <p role="status">Checking current institutional access…</p> :
       !visible ? <AccessNotice message="Institutional access could not be verified. Previously cached private rooms are hidden." retry={() => void organizations.refetch()} /> :
       !organizations.data?.length ? <AccessNotice message="No private institutional rooms are currently accessible to this account. A membership, office or room invitation may be required." /> :
@@ -132,10 +144,12 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
   const identity = useWorldPrivateIdentity();
   const online = useOnline();
   const queryClient = useQueryClient();
+  const [accessUncertain, setAccessUncertain] = useState(false);
+  useEffect(() => setAccessUncertain(false), [identity.data, slug]);
   const rooms = useQuery({
     queryKey: [...PRIVATE_WORLD_QUERY_ROOT, identity.data, slug, "rooms"],
     queryFn: ({ signal }) => getWorldRooms(slug, signal),
-    enabled: Boolean(identity.data) && online,
+    enabled: Boolean(identity.data) && online && !accessUncertain,
     staleTime: 0, gcTime: 0, retry: false, refetchOnMount: "always",
     refetchOnWindowFocus: "always",
   });
@@ -143,7 +157,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
   const bootstrap = useQuery({
     queryKey: [...PRIVATE_WORLD_QUERY_ROOT, identity.data, slug, "context"],
     queryFn: ({ signal }) => getWorldWorkspaceContext(slug, signal),
-    enabled: Boolean(identity.data && online && rooms.isSuccess && rooms.data?.length === 0),
+    enabled: Boolean(identity.data && online && !accessUncertain && rooms.isSuccess && rooms.data?.length === 0),
     gcTime: 0, staleTime: 0, retry: false, refetchOnMount: "always",
     refetchOnWindowFocus: "always",
   });
@@ -160,12 +174,13 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
   const [actionError, setActionError] = useState<string | null>(null);
   const pendingRequest = useRef<{ id: string; body: string; reply: string | null } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showAccess, setShowAccess] = useState(false);
   const [roomName, setRoomName] = useState("");
   const [roomVisibility, setRoomVisibility] = useState<WorldPrivateRoom["visibility"]>("members");
-  const [historyPolicy, setHistoryPolicy] = useState<WorldPrivateRoom["history"]>("from_join");
+  const [historyPolicy, setHistoryPolicy] = useState<WorldPrivateRoom["history"]>("all_member_history");
 
   useEffect(() => {
-    setDraft(""); setSearchInput(""); setActiveSearch(""); setReplyToId(null); setEditingId(null); setActionError(null);
+    setDraft(""); setSearchInput(""); setActiveSearch(""); setShowAccess(false); setReplyToId(null); setEditingId(null); setActionError(null);
     pendingRequest.current = null;
   }, [selectedId, identity.data]);
 
@@ -174,7 +189,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
     queryFn: ({ pageParam, signal }) => getWorldRoomMessages(selectedId!, pageParam, signal),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.length === WORLD_ROOM_PAGE_SIZE ? last[0].id : undefined,
-    enabled: Boolean(identity.data && selectedId && verifiedRooms && online),
+    enabled: Boolean(identity.data && selectedId && verifiedRooms && online && !accessUncertain),
     retry: false, staleTime: 0, gcTime: 0, refetchOnMount: "always",
     refetchOnWindowFocus: "always",
     // Bounded, single-active-room refresh. No cross-room subscription fanout.
@@ -188,7 +203,7 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
   const search = useQuery({
     queryKey: [...PRIVATE_WORLD_QUERY_ROOT, identity.data, slug, selectedId, "search", activeSearch],
     queryFn: ({ signal }) => searchWorldRoomMessages(selectedId!, activeSearch, signal),
-    enabled: Boolean(identity.data && selectedId && verifiedRooms && online && activeSearch),
+    enabled: Boolean(identity.data && selectedId && verifiedRooms && online && activeSearch && !accessUncertain),
     gcTime: 0, staleTime: 0, retry: false, refetchOnMount: "always",
     refetchOnWindowFocus: "always",
   });
@@ -236,6 +251,17 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
     catch (error) { setActionError(error instanceof Error ? error.message : "Action could not be verified."); }
   }
 
+  useEffect(() => {
+    if (!rooms.isError && !rooms.isRefetchError &&
+        !messages.isError && !messages.isRefetchError &&
+        !search.isError && !search.isRefetchError) return;
+    // Confidential projections are removed from memory, not merely obscured
+    // by a stale error overlay. A user must explicitly revalidate after denial.
+    setAccessUncertain(true);
+    queryClient.removeQueries({ queryKey: PRIVATE_WORLD_QUERY_ROOT });
+  }, [rooms.isError, rooms.isRefetchError, messages.isError, messages.isRefetchError,
+      search.isError, search.isRefetchError, queryClient]);
+
   const allMessages = useMemo(() => verifiedMessages ?? [], [verifiedMessages]);
   const replyTo = allMessages.find((m) => m.id === replyToId);
   const canManage = Boolean(verifiedRooms?.some((room) => room.canManage) || verifiedBootstrap?.canManage);
@@ -251,6 +277,9 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
       identity.isPending ? <p role="status">Verifying your account…</p> :
       identity.isError ? <AccessNotice message="Session verification failed." retry={() => void identity.refetch()} /> :
       !identity.data ? <SignInNotice /> :
+      accessUncertain ? <AccessNotice message="Membership or room permissions could not be verified. Private messages and search caches were cleared." retry={() => {
+        setAccessUncertain(false); void rooms.refetch();
+      }} /> :
       rooms.isPending || !rooms.isFetchedAfterMount ? <p role="status">Checking your room access…</p> :
       !verifiedRooms ? <AccessNotice message="Your room permissions could not be verified. Cached private content is hidden." retry={() => void rooms.refetch()} /> :
       verifiedRooms.length === 0 ? <section className="max-w-xl border-t border-border pt-6">
@@ -264,7 +293,11 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
                   className="mt-1 block min-h-11 w-full rounded-lg border border-border bg-background px-3" />
               </label>
               <label className="block text-sm font-semibold">Access policy
-                <select value={roomVisibility} onChange={(event) => setRoomVisibility(event.target.value as WorldPrivateRoom["visibility"])}
+                <select value={roomVisibility} onChange={(event) => {
+                  const next = event.target.value as WorldPrivateRoom["visibility"];
+                  setRoomVisibility(next);
+                  setHistoryPolicy(next === "members" ? "all_member_history" : "from_join");
+                }}
                   className="mt-1 block min-h-11 w-full rounded-lg border border-border bg-background px-3">
                   <option value="members">Current members</option>
                   <option value="leadership">Leadership and invited members</option>
@@ -305,7 +338,11 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
                 className="mt-1 min-h-11 w-full rounded-lg border border-border bg-background px-3" />
             </label>
             <label className="block text-sm">Access policy
-              <select value={roomVisibility} onChange={(event) => setRoomVisibility(event.target.value as WorldPrivateRoom["visibility"])}
+              <select value={roomVisibility} onChange={(event) => {
+                  const next = event.target.value as WorldPrivateRoom["visibility"];
+                  setRoomVisibility(next);
+                  setHistoryPolicy(next === "members" ? "all_member_history" : "from_join");
+                }}
                 className="mt-1 min-h-11 w-full rounded-lg border border-border bg-background px-3">
                 <option value="members">All current members</option>
                 <option value="leadership">Leadership and invited members</option>
@@ -346,11 +383,20 @@ export function WorldPrivateWorkspace({ slug, roomId, onRoomChange }: WorkspaceP
                 <h2 className="truncate font-semibold">{selectedRoom.name}</h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">{selectedRoom.description || "Private institutional discussion"}</p>
               </div>
+              {selectedRoom.canManage ? <button type="button" aria-expanded={showAccess}
+                onClick={() => setShowAccess((current) => !current)}
+                className="min-h-11 rounded-lg border border-border px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                {showAccess ? "Hide members" : "Manage access"}
+              </button> : null}
               <button type="button" onClick={() => void messages.refetch()} aria-label="Refresh messages"
                 className="grid size-11 place-items-center rounded-lg hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 <RefreshCcw className="size-4" />
               </button>
             </div>
+            {showAccess && selectedRoom.canManage && identity.data ? <WorldRoomAccessManager
+              roomId={selectedRoom.id} visibility={selectedRoom.visibility} actorId={identity.data} online={online}
+              onClose={() => setShowAccess(false)}
+            /> : null}
             <form className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2" onSubmit={(event) => {
               event.preventDefault();
               const term = searchInput.trim();
