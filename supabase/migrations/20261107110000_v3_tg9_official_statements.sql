@@ -303,9 +303,12 @@ as $list$
     'correctionReason', published.correction_reason
   ) order by published.published_at desc, published.id desc), '[]'::jsonb)
   from (
+    -- Directory rows use short excerpts; full text is fetched on deliberate
+    -- detail open. A 30-row list must never download 30 x 50 KB bodies.
     select st.id, org.slug, org.short_name, st.issuing_office_id,
            st.published_at, st.current_revision,
-           version_row.title, version_row.body, version_row.correction_reason
+           version_row.title, left(version_row.body, 320) as body,
+           version_row.correction_reason
     from public.world_statements st
     join public.world_organizations org on org.id = st.organization_id
     join public.world_statement_versions version_row on version_row.id = st.current_version_id
