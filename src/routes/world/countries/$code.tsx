@@ -19,5 +19,5 @@ export const Route = createFileRoute("/world/countries/$code")({
 
 function WorldCountryRoute() {
   const { code } = Route.useParams();
-  return <AppShell><WorldCountryRolloutGate><WorldCountryInternational code={code} /></WorldCountryRolloutGate></AppShell>;
+  return <WorldCountryRolloutGate><AppShell><WorldCountryInternational code={code} /></AppShell></WorldCountryRolloutGate>;
 }
