@@ -65,4 +65,20 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
     expect(css).toContain(".public-site-sidebar-link {\n  display: flex;\n  min-height: 2.75rem;");
     expect(css).toContain("min-height: 2.75rem;");
   });
+
+  it("keeps browser section links identifiable with Windows forced-colors enabled", () => {
+    const css = source("src/styles/public-navigation.css");
+    const highContrast = css.split("@media (forced-colors: active) {")[1];
+
+    expect(highContrast).toBeTruthy();
+    expect(highContrast).toContain(".public-mobile-section-trigger:focus-visible");
+    expect(highContrast).toContain(".public-section-nav-toggle:focus-visible");
+    expect(highContrast).toContain(".public-site-sidebar details > summary:focus-visible");
+    expect(highContrast).toContain("outline: 2px solid Highlight;");
+    expect(highContrast).toContain(".public-mobile-section-link.is-active,");
+    expect(highContrast).toContain(".public-site-sidebar-link.is-active");
+    expect(highContrast).toContain("color: HighlightText;");
+    expect(highContrast).toContain("background: Highlight;");
+    expect(highContrast).toContain("border-inline-start: 3px solid HighlightText;");
+  });
 });
