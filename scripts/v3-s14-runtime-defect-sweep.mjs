@@ -209,6 +209,20 @@ export function collectDefectSweep({ root, evidenceDir, candidateSha, toolSha = 
       laneStatuses[lane] = "invalid-evidence";
       continue;
     }
+    // A matching SHA cannot prove that a report belongs to this matrix lane.
+    // Reject swapped, copied, or unlabeled artifacts before evaluating success.
+    if (report.lane !== lane) {
+      laneStatuses[lane] = "invalid-evidence";
+      findings.push(finding(
+        "EVIDENCE_LANE_MISMATCH_" + lane.toUpperCase().replace(/-/g, "_"),
+        "evidence-integrity",
+        "confirmed-blocker",
+        "Runtime report identifies " + safeText(report.lane ?? "<missing>") +
+          " instead of the expected " + lane + " lane.",
+        "runtime-" + lane + ".json",
+      ));
+      continue;
+    }
     const ok = report.exitCode === 0 && report.status === "passed";
     // 90/91/92/93 are local-bootstrap, isolation, lane-config and
     // unexpected-step-abort evidence sentinels. None proves a contest runtime failure; all block evidence.
