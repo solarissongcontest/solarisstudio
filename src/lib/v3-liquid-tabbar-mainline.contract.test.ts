@@ -29,22 +29,21 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
   });
 
-  it("keeps installed AppTabBar direct manipulation behind hold engagement", () => {
+  it("keeps installed AppTabBar direct manipulation behind synchronous hold engagement", () => {
     const installedTabs = source("src/components/app/AppTabBar.tsx");
 
     expect(installedTabs).toContain("prefersReducedMotion()");
-    expect(installedTabs).toContain('data-solaris-keyboard-open');
+    expect(installedTabs).toContain("data-solaris-keyboard-open");
     expect(installedTabs).toContain("holdMovementExceeded(");
-    expect(installedTabs).toContain("engaged: false");
-    expect(installedTabs).toMatch(
-      /if \(!held\) return;[\s\S]*drag\.engaged = true;[\s\S]*setDragging\(true\)/,
-    );
-    expect(installedTabs).toMatch(
-      /moveHold\([\s\S]*if \(!drag\.engaged\)[\s\S]*holdMovementExceeded\(/,
-    );
-    expect(installedTabs).toMatch(
-      /if \(!drag\.engaged\) \{[\s\S]*clearDrag\(\);[\s\S]*return;[\s\S]*\}/,
-    );
+    expect(installedTabs).toContain("isEngaged: isHoldEngaged");
+    expect(installedTabs).toContain("const dragging = held;");
+    expect(installedTabs).not.toContain("setDragging(true)");
+    const move = installedTabs.slice(installedTabs.indexOf("const moveDrag ="), installedTabs.indexOf("const finishDrag ="));
+    expect(move).toContain("if (!isHoldEngaged(event.pointerId))");
+    expect(move).toContain("moveHold(event.pointerId, event.clientX, event.clientY)");
+    const finish = installedTabs.slice(installedTabs.indexOf("const finishDrag ="), installedTabs.indexOf("const cancelDrag ="));
+    expect(finish).toContain("if (!isHoldEngaged(event.pointerId))");
+    expect(finish).toContain("suppressClick.current = true;");
   });
 
   it("recovers pointer and keyboard tab activation after a cancelled lens gesture", () => {

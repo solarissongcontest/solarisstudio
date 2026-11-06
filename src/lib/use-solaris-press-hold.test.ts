@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   holdMovementExceeded,
+  shouldCancelPendingHoldOnMove,
   SOLARIS_HOLD_MOVEMENT_TOLERANCE,
 } from "@/lib/use-solaris-press-hold";
 
@@ -11,7 +12,7 @@ describe("Solaris V6 press-hold physics", () => {
     expect(holdMovementExceeded(0, 0, 3, 4)).toBe(false);
   });
 
-  it("cancels pending hold intent once movement becomes a drag", () => {
+  it("cancels hold intent once movement becomes a drag", () => {
     expect(
       holdMovementExceeded(
         0,
@@ -22,10 +23,20 @@ describe("Solaris V6 press-hold physics", () => {
     ).toBe(true);
   });
 
-  it("keeps an engaged hold picked up while direct manipulation moves", () => {
+  it("cancels an ordinary pre-hold swipe instead of opening another tab", () => {
+    expect(shouldCancelPendingHoldOnMove(false, 0, 0, 12, 0)).toBe(true);
+    expect(shouldCancelPendingHoldOnMove(false, 0, 0, 3, 4)).toBe(false);
+  });
+
+  it("keeps an engaged hold active during a direct lens drag", () => {
+    expect(shouldCancelPendingHoldOnMove(true, 0, 0, 100, 0)).toBe(false);
+    expect(shouldCancelPendingHoldOnMove(true, 0, 0, 0, 150)).toBe(false);
+  });
+
+  it("marks an engaged pointer before publishing the held state", () => {
     const source = readFileSync("src/lib/use-solaris-press-hold.ts", "utf8");
-    expect(source).toContain("active.engaged = true");
-    expect(source).toContain("if (active.engaged) return;");
+    expect(source).toMatch(/active\.engaged = true;\s*setHeld\(true\);/);
+    expect(source).toContain("active.pointerId === pointerId && active.engaged");
   });
 
   it("tears down a pending hold without enqueueing React state", () => {

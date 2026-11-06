@@ -29,9 +29,12 @@ describe("PR browser smoke contract", () => {
     );
   });
 
-  it("keeps the installed-app PR project on one representative shell path", () => {
-    expect(representativeProject("ios-pwa-portrait")).toContain(
-      "grep: /installed app shell survives representative navigation without duplicate chrome/",
+  it("keeps installed-app PR coverage limited to shell geometry and gesture interruption", () => {
+    const installed = representativeProject("ios-pwa-portrait");
+    expect(installed).toContain('testMatch: /installed-app\\.e2e\\.ts/');
+    expect(installed).toContain(
+      "grep: /installed app shell survives representative navigation without duplicate chrome|installed AppTabBar cancels held gestures/",
     );
+    expect(installed).toContain('browserName: "webkit"');
   });
 });

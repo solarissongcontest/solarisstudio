@@ -32,7 +32,7 @@ describe("V3 installed dock review regressions", () => {
     expect(tab).toContain('window.addEventListener("pagehide", resetInterruptedGesture)');
     expect(tab).toContain("window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture)");
     expect(tab).toContain('window.addEventListener("resize", resetInterruptedGesture)');
-    expect(tab).toContain("rootInterruptionObserver?.disconnect()");
+    expect(tab).toContain("interruptionObserver?.disconnect()");
     expect(tab).toContain("onKeyDown={() => {");
   });
 

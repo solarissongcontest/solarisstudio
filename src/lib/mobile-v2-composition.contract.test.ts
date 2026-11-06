@@ -21,12 +21,17 @@ describe("Mobile App V2 composition completion", () => {
     for (const route of [
       "src/routes/editions/index.tsx",
       "src/routes/results/index.tsx",
-      "src/routes/site-directory/index.tsx",
+      "src/components/v3/V3DirectoryFamilyIndex.tsx",
     ]) {
       const code = source(route);
       expect(code, route).toContain("AppScreen");
-      expect(code, route).toContain("AppSectionHeader");
       expect(code, route).toContain("AppGroupedList");
+      // App directory sections now use one semantic heading, not a decorative eyebrow stack.
+      if (route.includes("/results/")) {
+        expect(code, route).toContain("AppSectionHeader");
+      } else {
+        expect(code, route).toContain("v3-directory-group-title");
+      }
     }
 
     const countriesRoute = source("src/routes/countries/index.tsx");
@@ -60,7 +65,7 @@ describe("Mobile App V2 composition completion", () => {
   it("gives installed directory empty states a recovery action", () => {
     for (const route of [
       "src/routes/editions/index.tsx",
-      "src/routes/site-directory/index.tsx",
+      "src/components/v3/V3DirectoryFamilyIndex.tsx",
     ]) {
       const code = source(route);
       expect(code, route).toContain("AppEmptyState");
