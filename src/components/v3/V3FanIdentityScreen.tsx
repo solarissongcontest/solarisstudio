@@ -12,19 +12,22 @@ export function V3FanIdentityScreen({ viewerId }: { viewerId: string }) {
   const [displayName, setDisplayName] = useState("Solaris fan");
   const [visibility, setVisibility] = useState<FanVisibility>("private");
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     setDisplayName("Solaris fan");
     setVisibility("private");
     setLeaderboardOptIn(false);
+    setDirty(false);
   }, [viewerId]);
 
   useEffect(() => {
-    if (!profile.data) return;
+    // A background refresh must not discard unsaved local changes.
+    if (!profile.data || dirty || saveProfile.isPending) return;
     setDisplayName(profile.data.display_name);
     setVisibility(profile.data.visibility);
     setLeaderboardOptIn(profile.data.leaderboard_opt_in);
-  }, [viewerId, profile.data]);
+  }, [viewerId, profile.data, dirty, saveProfile.isPending]);
 
   if (profile.isPending) {
     return (
@@ -53,7 +56,7 @@ export function V3FanIdentityScreen({ viewerId }: { viewerId: string }) {
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     const normalizedName = displayName.trim();
-    if (!normalizedName) return;
+    if (!normalizedName || saveProfile.isPending) return;
 
     const promise = saveProfile.mutateAsync({
       display_name: normalizedName,
@@ -71,6 +74,7 @@ export function V3FanIdentityScreen({ viewerId }: { viewerId: string }) {
 
     try {
       await promise;
+      setDirty(false);
     } catch {
       // The toast owns transient mutation feedback. Server state stays authoritative.
     }
@@ -91,7 +95,8 @@ export function V3FanIdentityScreen({ viewerId }: { viewerId: string }) {
               <span className="mb-2 block text-xs font-semibold text-white/60">Display name</span>
               <input
                 value={displayName}
-                onChange={(event) => setDisplayName(event.target.value)}
+                onChange={(event) => { setDirty(true); setDisplayName(event.target.value); }}
+                disabled={saveProfile.isPending}
                 minLength={1}
                 maxLength={40}
                 required
@@ -104,7 +109,8 @@ export function V3FanIdentityScreen({ viewerId }: { viewerId: string }) {
               <span className="mb-2 block text-xs font-semibold text-white/60">Visibility</span>
               <select
                 value={visibility}
-                onChange={(event) => setVisibility(event.target.value as FanVisibility)}
+                onChange={(event) => { setDirty(true); setVisibility(event.target.value as FanVisibility); }}
+                disabled={saveProfile.isPending}
                 className="min-h-11 w-full rounded-xl border border-white/10 bg-black/35 px-3 text-sm"
               >
                 <option value="private">Private</option>
@@ -117,7 +123,8 @@ export function V3FanIdentityScreen({ viewerId }: { viewerId: string }) {
               <input
                 type="checkbox"
                 checked={leaderboardOptIn}
-                onChange={(event) => setLeaderboardOptIn(event.target.checked)}
+                onChange={(event) => { setDirty(true); setLeaderboardOptIn(event.target.checked); }}
+                disabled={saveProfile.isPending}
                 className="mt-1 size-4"
               />
               <span>
@@ -130,6 +137,12 @@ export function V3FanIdentityScreen({ viewerId }: { viewerId: string }) {
                 </span>
               </span>
             </label>
+
+            {dirty ? (
+              <p role="status" className="text-xs text-white/60">
+                Unsaved fan identity changes. Save to apply your preferences.
+              </p>
+            ) : null}
 
             <button
               type="submit"
