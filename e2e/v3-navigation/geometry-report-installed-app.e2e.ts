@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
 import { applyNavbarInstalledCssEmulation } from "./navbar-local-rollout";
+import { readNavbarEvidenceProvenance } from "./navbar-evidence-provenance";
 
 import { V3_NAVIGATION_GEOMETRY } from "../../src/lib/v3-navigation-geometry";
 import type { V3NavigationReferenceGeometry } from "../../src/lib/v3-navigation-reference-baseline";
@@ -238,7 +239,7 @@ test("installed app shell survives representative navigation without duplicate c
     body: Buffer.from(
       JSON.stringify(
         {
-          candidateSha: process.env.GITHUB_SHA ?? null,
+          ...readNavbarEvidenceProvenance(),
           project: testInfo.project.name,
           measuredAt: new Date().toISOString(),
           referenceStatus: "awaiting-approved-instagram-baseline",
