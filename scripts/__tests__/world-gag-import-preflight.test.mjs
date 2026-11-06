@@ -103,6 +103,35 @@ test('multiline verified historical text is accepted without collapsing whitespa
   }, /safe whitespace controls/);
 });
 
+test('duplicate JSON keys cannot silently override historical provenance', () => {
+  const m = original();
+  const base = JSON.stringify(m);
+  const cases = [
+    base.replace('"identifier":"EXAMPLE 001"', '"identifier":"UNKNOWN","identifier":"EXAMPLE 001"'),
+    base.replace('"identifier":"EXAMPLE 001"', '"\\u0069dentifier":"OTHER","identifier":"EXAMPLE 001"'),
+    base.replace('"source":{', '"source":{},"source":{'),
+  ];
+  for (const raw of cases) {
+    assert.throws(() => validateGagManifest(JSON.parse(raw), source, Buffer.from(raw)), /duplicate JSON object key/);
+  }
+});
+
+test('preflight proves its validated object is the exact manifest bytes supplied', () => {
+  const genuine = original();
+  const altered = original();
+  altered.records[0].sourceLocator = 'invented locator';
+  assert.throws(
+    () => validateGagManifest(altered, source, Buffer.from(JSON.stringify(genuine))),
+    /does not match source manifest bytes/,
+  );
+});
+
+test('manifest must be strictly decodable UTF-8', () => {
+  const m = original();
+  const bytes = Buffer.concat([Buffer.from(JSON.stringify(m)), Buffer.from([0xff])]);
+  assert.throws(() => validateGagManifest(m, source, bytes), /invalid UTF-8/);
+});
+
 test('CLI writes a strict private local report and refuses overwrites', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'world-gag-proof-'));
   try {
