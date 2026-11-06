@@ -6,6 +6,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { ExternalLink, Inbox } from "lucide-react";
 import { type CSSProperties, type ReactNode } from "react";
 
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { useAdminNotifications } from "@/lib/admin-ops";
 import { resolveOrganizerV6Screen } from "@/lib/organizer-v6-screen-registry";
 import { useScrollMorphProgress } from "@/lib/use-scroll-morph-progress";
@@ -18,6 +19,7 @@ import { AdminHealthStrip } from "./AdminHealthStrip";
 import { AdminPermissionShadowProbe } from "./AdminPermissionShadowProbe";
 import { OrganizerV6MobileChrome } from "./OrganizerV6MobileChrome";
 import { OrganizerV3MobileChrome } from "./OrganizerV3MobileChrome";
+import { OrganizerV3WebNavigation } from "./OrganizerV3WebNavigation";
 import { JuryVotingWindowControl } from "./JuryVotingWindowControl";
 import { AdminSelectors } from "./AdminSelectors";
 
@@ -33,6 +35,7 @@ export function AdminShell({
   const morphProgress = useScrollMorphProgress({ resetKey: pathname });
   const organizerV3 = useV3RolloutProbe(true);
   const organizerV3Enabled = organizerV3.data?.organizerEnabled === true;
+  const { isAppMode, platformResolved } = useSolarisApp();
   const organizerToolbarStyle = {
     "--organizer-toolbar-title-scale": (1.035 - morphProgress * 0.035).toFixed(4),
     "--organizer-toolbar-title-y": `${(1 - morphProgress) * 1.25}px`,
@@ -51,6 +54,7 @@ export function AdminShell({
       <div
         className="admin-control-room relative min-h-screen overflow-x-clip [&_.site-nav]:hidden [&_.mobile-quick-nav]:hidden [&_.app-background]:hidden [&_.app-main]:!max-w-none [&_.app-main]:!p-0"
         data-organizer-generation={organizerV3Enabled ? "v3" : "legacy"}
+        data-organizer-runtime={!platformResolved ? "resolving" : isAppMode ? "app" : "web"}
       >
         <AdminPermissionShadowProbe />
         <header
@@ -118,13 +122,18 @@ export function AdminShell({
         </header>
 
         <div className="relative z-10">
+          {organizerV3Enabled && platformResolved && !isAppMode ? (
+            <OrganizerV3WebNavigation pathname={pathname} />
+          ) : null}
           <AdminEditionScopedWorkspace
             showJuryWindowControl={showJuryWindowControl}
             showContextLock={!pageOwnsContextLock}
           >
             {children}
           </AdminEditionScopedWorkspace>
-          {organizerV3Enabled ? <OrganizerV3MobileChrome /> : <OrganizerV6MobileChrome />}
+          {organizerV3Enabled
+            ? platformResolved && isAppMode ? <OrganizerV3MobileChrome /> : null
+            : <OrganizerV6MobileChrome />}
         </div>
       </div>
     </AdminContextProvider>
