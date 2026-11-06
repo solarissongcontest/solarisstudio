@@ -125,3 +125,38 @@ export function rankV3PublicSearchResults<T extends PublicSearchResult>(
     .sort((a, b) => a.score - b.score || a.index - b.index)
     .map(({ result }) => result);
 }
+
+/**
+ * A prolific source must not consume every visible result and hide another
+ * relevant category. Reserve one slot per matching group, then fill remaining
+ * slots by canonical relevance, preserving relative order and group identity.
+ *
+ * This runs *after* publication filters and deduplication. It never invents
+ * content or increases the existing fifty-result UI budget.
+ */
+export function limitV3PublicSearchGroups<T extends Pick<PublicSearchResult, "group">>(
+  rankedResults: readonly T[],
+): T[] {
+  const maxTotal = 50;
+  const maxPerGroup = 10;
+  const chosen = new Set<number>();
+  const counts = new Map<string, number>();
+
+  // Preserve even a low-ranked category's best match before larger categories
+  // can fill all available slots.
+  for (let index = 0; index < rankedResults.length && chosen.size < maxTotal; index += 1) {
+    const group = rankedResults[index].group;
+    if (counts.has(group)) continue;
+    chosen.add(index);
+    counts.set(group, 1);
+  }
+  for (let index = 0; index < rankedResults.length && chosen.size < maxTotal; index += 1) {
+    if (chosen.has(index)) continue;
+    const group = rankedResults[index].group;
+    const count = counts.get(group) ?? 0;
+    if (count >= maxPerGroup) continue;
+    chosen.add(index);
+    counts.set(group, count + 1);
+  }
+  return rankedResults.filter((_result, index) => chosen.has(index));
+}
