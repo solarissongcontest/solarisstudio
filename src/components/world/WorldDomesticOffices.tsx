@@ -17,6 +17,11 @@ function OfficialEditor({item,onSaved}:{item:WorldDomesticOfficials;onSaved:()=>
   const [editing,setEditing]=useState<EditorRecord>(null);
   const [title,setTitle]=useState("");
   const [description,setDescription]=useState("");
+  const [nativeName,setNativeName]=useState("");
+  const [publicSummary,setPublicSummary]=useState("");
+  const [lifeStatus,setLifeStatus]=useState("unknown");
+  const [bornOn,setBornOn]=useState("");
+  const [diedOn,setDiedOn]=useState("");
   const [officeType,setOfficeType]=useState("other");
   const [officeId,setOfficeId]=useState("");
   const [personId,setPersonId]=useState("");
@@ -33,7 +38,10 @@ function OfficialEditor({item,onSaved}:{item:WorldDomesticOfficials;onSaved:()=>
     mutationFn:async()=>{
       let subjectId=editing?.id??null,expectedRevision=editing?.revision??0;
       let payload:Record<string,string|boolean|number|null>;
-      if(kind==="lore_person")payload={name:title.trim(),description:description.trim(),published};
+      if(kind==="lore_person")payload={
+        name:title.trim(),nativeName:nativeName.trim(),description:description.trim(),
+        publicSummary:publicSummary.trim(),status:lifeStatus,bornOn,diedOn,published,
+      };
       else if(kind==="office")payload={title:title.trim(),description:description.trim(),officeType,published};
       else if(kind==="term_start")payload={
         officeId,holderPersonId:personId,
@@ -60,12 +68,18 @@ function OfficialEditor({item,onSaved}:{item:WorldDomesticOfficials;onSaved:()=>
   });
   function clear(next:OfficialMutationKind){
     setKind(next);setEditing(null);setTitle("");setDescription("");setOfficeType("other");
+    setNativeName("");setPublicSummary("");setLifeStatus("unknown");
+    setBornOn("");setDiedOn("");
     setOfficeId("");setPersonId("");setEndedAt("");setReason("");setTermId("");
     setTermRevision(0);setEndStatus("ended");setPublished(false);saving.reset();
   }
   function chooseRecord(record:WorldLorePerson|WorldDomesticOffice,next:OfficialMutationKind){
     clear(next);setEditing(record);
-    if("displayName" in record){setTitle(record.displayName);setDescription(record.biography??"");}
+    if("displayName" in record){
+      setTitle(record.displayName);setDescription(record.biography??"");
+      setNativeName(record.nativeName??"");setPublicSummary(record.publicSummary??"");
+      setLifeStatus(record.status);setBornOn(record.bornOn??"");setDiedOn(record.diedOn??"");
+    }
     else{setTitle(record.title);setDescription(record.description??"");setOfficeType(record.officeType);}
     setPublished(record.published);
     document.getElementById("world-official-editor")?.scrollIntoView({block:"start",behavior:"smooth"});
