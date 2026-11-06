@@ -215,6 +215,10 @@ test("desktop advanced section follows deep links and browser history", async ({
   // A direct deep-link reload must expose the active link, not just set the
   // details element's open attribute inside an otherwise collapsed sidebar.
   await page.reload({ waitUntil: "domcontentloaded" });
+  // The collapse button only mounts after hydration. Wait for it before
+  // checking visibility so pre-hydration SSR cannot give a false pass.
+  const toggle = sidebar.locator(".public-section-nav-toggle");
+  await expect(toggle).toBeVisible();
   await expect(sidebar).not.toHaveClass(/is-collapsed/);
   await expect(advanced).toBeVisible();
   await expect(advanced).toHaveAttribute("open", "");
@@ -222,8 +226,6 @@ test("desktop advanced section follows deep links and browser history", async ({
   await expect(resultLab).toHaveAttribute("aria-current", "page");
 
   // Manual collapse remains available after the current route was exposed.
-  const toggle = sidebar.locator(".public-section-nav-toggle");
-  await expect(toggle).toBeVisible();
   await toggle.click();
   await expect(sidebar).toHaveClass(/is-collapsed/);
   await expect(resultLab).toBeHidden();
