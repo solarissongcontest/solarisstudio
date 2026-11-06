@@ -86,6 +86,7 @@ grant all on public.world_statements, public.world_statement_versions to service
 create policy world_statements_published_public_read on public.world_statements
 for select to anon, authenticated using (
   status = 'published' and visibility = 'public'
+  and public.studio2_feature_enabled('terra_world_public', null) is true
   and exists (
     select 1 from public.world_organizations org
     where org.id = organization_id and org.public_visibility = 'public'
@@ -94,7 +95,8 @@ for select to anon, authenticated using (
 );
 create policy world_statement_versions_published_public_read on public.world_statement_versions
 for select to anon, authenticated using (
-  exists (
+  public.studio2_feature_enabled('terra_world_public', null) is true
+  and exists (
     select 1 from public.world_statements statement_row
     where statement_row.id = statement_id
       and statement_row.status = 'published'
@@ -307,7 +309,8 @@ as $list$
     from public.world_statements st
     join public.world_organizations org on org.id = st.organization_id
     join public.world_statement_versions version_row on version_row.id = st.current_version_id
-    where org.slug = lower(btrim(p_organization_slug))
+    where public.studio2_feature_enabled('terra_world_public', null) is true
+      and org.slug = lower(btrim(p_organization_slug))
       and org.public_visibility = 'public'
       and org.status in ('recognized','active','suspended','historical')
       and st.visibility = 'public' and st.status = 'published'
@@ -343,7 +346,8 @@ as $detail$
   )
   from public.world_statements st
   join public.world_organizations org on org.id = st.organization_id
-  where st.id = p_statement_id
+  where public.studio2_feature_enabled('terra_world_public', null) is true
+    and st.id = p_statement_id
     and st.status = 'published' and st.visibility = 'public'
     and org.public_visibility = 'public'
     and org.status in ('recognized','active','suspended','historical')
