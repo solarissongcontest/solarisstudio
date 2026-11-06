@@ -66,6 +66,8 @@ function hash(value: unknown): value is string {
 }
 const choice = (value: unknown): value is "aye"|"nay"|"abstain" =>
   value==="aye" || value==="nay" || value==="abstain";
+const fraction = (value: unknown): value is string =>
+  string(value) && /^\\d{1,19}$/.test(value);
 const optionalFraction = (value: unknown): value is string|null =>
   textOrNull(value) && (value===null || /^\d{1,19}$/.test(value));
 function parseListRow(value: unknown): WorldVoteListRow {
@@ -82,8 +84,8 @@ export function parseWorldVoteResult(value: unknown): WorldVoteResult|null {
   if (!object(value) || !string(value.organName) || !string(value.measureIdentifier) ||
       !voteUuid(value.measureVersionId) || !integer(value.castBallots) ||
       typeof value.quorumMet!=="boolean" || typeof value.thresholdMet!=="boolean" ||
-      !string(value.ruleKey) || !optionalFraction(value.ruleRevision) ||
-      !optionalFraction(value.quorumNumerator) || !optionalFraction(value.quorumDenominator) ||
+      !string(value.ruleKey) || !fraction(value.ruleRevision) ||
+      !fraction(value.quorumNumerator) || !fraction(value.quorumDenominator) ||
       !string(value.thresholdKind) || !optionalFraction(value.thresholdNumerator) ||
       !optionalFraction(value.thresholdDenominator) ||
       value.denominatorPolicy!=="all_cast_including_abstentions" ||
@@ -111,8 +113,8 @@ export function parseMyWorldVote(value: unknown): MyWorldVote|null {
       !integer(value.revision) || value.revision<1 ||
       !string(value.openedAt) || !string(value.closesAt) ||
       !string(value.ballotType) || !ballotTypes.has(value.ballotType) ||
-      !string(value.ruleKey) || !optionalFraction(value.quorumNumerator) ||
-      !optionalFraction(value.quorumDenominator) || !string(value.thresholdKind) ||
+      !string(value.ruleKey) || !fraction(value.quorumNumerator) ||
+      !fraction(value.quorumDenominator) || !string(value.thresholdKind) ||
       !optionalFraction(value.thresholdNumerator) ||
       !optionalFraction(value.thresholdDenominator) ||
       !Array.isArray(value.countries) || value.countries.length>200) return invalid("own ballot");
@@ -186,7 +188,7 @@ export async function getOpenableMeasures(organizationId:string): Promise<Openab
     if(!object(row)||!voteUuid(row.id)||!string(row.title)||
        !string(row.identifier)||!voteUuid(row.organizationId)||!voteUuid(row.organId)||
        !string(row.state)||!integer(row.revision)||row.revision<1) return invalid("measure option");
-    return row as OpenableMeasure;
+    return row as unknown as OpenableMeasure;
   });
 }
 export async function getOpenableRules(organizationId:string,organId:string):Promise<OpenableRule[]> {
@@ -198,7 +200,7 @@ export async function getOpenableRules(organizationId:string,organId:string):Pro
     if(!object(row)||!voteUuid(row.id)||!string(row.key)||!string(row.label)||
         !string(row.ballotType)||!ballotTypes.has(row.ballotType)||
         !integer(row.ruleRevision)||row.ruleRevision<1)return invalid("rule option");
-    return row as OpenableRule;
+    return row as unknown as OpenableRule;
   });
 }
 export async function listWorldVoteOrganizations():Promise<VoteOrganization[]> {
