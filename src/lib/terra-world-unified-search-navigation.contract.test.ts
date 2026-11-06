@@ -86,6 +86,16 @@ describe("Public Terra Solaris World Search integration", () => {
     expect(profile).not.toContain("projection.data.organization.shortName");
   });
 
+  it("forwards query cancellation to scoped, bounded PostgREST readers", () => {
+    const reader = source("src/lib/terra-world-unified-search.ts");
+    expect(searchScreen).toContain("queryFn: ({ signal }) => fetchWorldCountrySearchPage(normalized, countryPage, signal)");
+    expect(searchScreen).toContain("queryFn: ({ signal }) => fetchWorldOrganizationSearchPage(normalized, organizationPage, signal)");
+    expect(reader).toContain("if (signal?.aborted)");
+    expect(reader).toContain("request = request.abortSignal(signal)");
+    expect(reader).toContain("fetchWorldCountrySearchPage(term, countryPage, signal)");
+    expect(reader).toContain("fetchWorldOrganizationSearchPage(term, organizationPage, signal)");
+  });
+
   it("reuses the existing World capability instead of adding a competing rollout flag", () => {
     expect(registry).toContain('legacyRoutes: ["/world", "/world/*"]');
     expect(registry).toContain('sourceFeatureFlags: ["terra_world_public"]');
