@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   classifyOrganizerEntryReview,
   deriveOrganizerResponseReviewState,
   hasOutdatedOrganizerEntryReview,
   hasOutdatedOrganizerResponseReview,
+  hasCurrentOrganizerResponseReviewDecision,
+  describeOrganizerNationalFinalQueue,
   type OrganizerResponseReviewEvidence,
 } from "./v3-organizer-entry-review-status";
 
@@ -139,6 +143,87 @@ describe("Organizer Entry Review current-version queue", () => {
     expect(hasOutdatedOrganizerResponseReview({
       ...internal(stale), selection_method: null,
     })).toBe(false);
+  });
+
+  it("does not surface withdrawn or unknown selections in accepted/declined filters", () => {
+    const acceptedEntry = internal(accepted());
+    expect(hasCurrentOrganizerResponseReviewDecision(acceptedEntry,"internal","accepted")).toBe(true);
+    expect(hasCurrentOrganizerResponseReviewDecision({
+      ...acceptedEntry, participating: false,
+    },"internal","accepted")).toBe(false);
+    expect(hasCurrentOrganizerResponseReviewDecision({
+      ...acceptedEntry, entry_unknown: true,
+    },"internal","accepted")).toBe(false);
+    expect(hasCurrentOrganizerResponseReviewDecision({
+      ...acceptedEntry, selection_method: "national_final",
+    },"internal","accepted")).toBe(false);
+    expect(hasCurrentOrganizerResponseReviewDecision(
+      internal({ ...accepted(), song_title: null }),"internal","accepted",
+    )).toBe(false);
+  });
+
+  it("never accepts old or missing immutable review bindings in the filters", () => {
+    const stale = { ...accepted(), reviewed_version_id: "old-version" };
+    expect(hasCurrentOrganizerResponseReviewDecision(
+      internal(stale), "internal", "accepted",
+    )).toBe(false);
+    expect(hasCurrentOrganizerResponseReviewDecision(
+      nationalFinal([stale], "entry-1"), "national_final", "accepted",
+    )).toBe(false);
+    expect(hasCurrentOrganizerResponseReviewDecision(
+      nationalFinal([{ ...accepted(), review_status: "declined" }], null),
+      "national_final", "declined",
+    )).toBe(true);
+  });
+
+  it("does not count unknown/removed NF candidates as current approvals", () => {
+    const nf = nationalFinal([accepted(), { ...accepted(), id:"two", removed:true }], "entry-1");
+    expect(hasCurrentOrganizerResponseReviewDecision(nf,"national_final","accepted")).toBe(true);
+    expect(hasCurrentOrganizerResponseReviewDecision({
+      ...nf, nf_entries_unknown: true,
+    },"national_final","accepted")).toBe(false);
+    expect(hasCurrentOrganizerResponseReviewDecision({
+      ...nf, participating: false,
+    },"national_final","accepted")).toBe(false);
+  });
+
+  it("does not call a withdrawn or foreign National Final winner selected", () => {
+    expect(describeOrganizerNationalFinalQueue(
+      nationalFinal([accepted()], "wrong"),
+    )).toMatch(/no longer an active candidate/);
+    expect(describeOrganizerNationalFinalQueue(
+      nationalFinal([{...accepted(),removed:true}],"entry-1"),
+    )).toBe("No active National Final candidates");
+    expect(describeOrganizerNationalFinalQueue({
+      ...nationalFinal([accepted()],"entry-1"), nf_entries_unknown:true,
+    })).toMatch(/not confirmed/);
+  });
+
+  it("distinguishes stale, declined, selected and missing National Final winners", () => {
+    expect(describeOrganizerNationalFinalQueue(
+      nationalFinal([accepted(), {...accepted(),id:"two",reviewed_version_id:"old"}],"entry-1"),
+    )).toMatch(/reviews still incomplete/);
+    expect(describeOrganizerNationalFinalQueue(
+      nationalFinal([{...accepted(),review_status:"declined"}],"entry-1"),
+    )).toMatch(/corrections/);
+    expect(describeOrganizerNationalFinalQueue(
+      nationalFinal([accepted()],"entry-1"),
+    )).toMatch(/all active Entries accepted/);
+    expect(describeOrganizerNationalFinalQueue(
+      nationalFinal([accepted()],null),
+    )).toMatch(/waiting for National Final winner/);
+    expect(describeOrganizerNationalFinalQueue({
+      ...nationalFinal([accepted()],"entry-1"), participating:false,
+    })).toBeNull();
+  });
+
+  it("keeps the summary and current-decision filters in the Organizer queue", () => {
+    const route = readFileSync(
+      resolve(process.cwd(),"src/routes/confirmations/admin/responses.tsx"),"utf8",
+    );
+    expect(route).toContain("hasCurrentOrganizerResponseReviewDecision(");
+    expect(route).toContain("describeOrganizerNationalFinalQueue(row)");
+    expect(route).not.toContain('nf?.winning_entry_id ? "National Final winner selected"');
   });
 
   it("does not confer acceptance from legacy, missing or unknown review evidence", () => {

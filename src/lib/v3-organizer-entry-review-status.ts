@@ -102,3 +102,55 @@ export function deriveOrganizerResponseReviewState(
 
   return "neutral";
 }
+
+/**
+ * These are response-queue filters, not historical decision counts.
+ * Withdrawn/unknown selections cannot appear in the current accepted or
+ * declined queues just because a previous decision is still in the read model.
+ */
+export function hasCurrentOrganizerResponseReviewDecision(
+  response: OrganizerResponseReviewEvidence,
+  method: "internal" | "national_final",
+  decision: "accepted" | "declined",
+): boolean {
+  if (!response.participating || response.selection_method !== method) return false;
+  if (method === "internal") {
+    const entry = response.internal_entries;
+    return !response.entry_unknown && Boolean(entry?.song_title) &&
+      Boolean(entry && classifyOrganizerEntryReview(entry) === decision);
+  }
+  if (response.nf_entries_unknown) return false;
+  return (response.national_finals?.national_final_entries ?? [])
+    .some((entry) => !entry.removed && classifyOrganizerEntryReview(entry) === decision);
+}
+
+/**
+ * Display-only National Final summary. Never imply a stored winner is valid
+ * when the referenced candidate is removed/unknown, or when accepted review
+ * evidence belongs to an earlier immutable version.
+ */
+export function describeOrganizerNationalFinalQueue(
+  response: OrganizerResponseReviewEvidence,
+): string | null {
+  if (!response.participating || response.selection_method !== "national_final") return null;
+  if (response.nf_entries_unknown) return "National Final entries are not confirmed yet";
+  const entries = (response.national_finals?.national_final_entries ?? [])
+    .filter((entry) => !entry.removed && entry.review_status !== "removed");
+  if (!entries.length) return "No active National Final candidates";
+  const winner = response.national_finals?.winning_entry_id;
+  if (winner && !entries.some((entry) => entry.id === winner)) {
+    return "Stored National Final winner is no longer an active candidate";
+  }
+  const reviewStates = entries.map(classifyOrganizerEntryReview);
+  if (reviewStates.includes("declined")) {
+    return "National Final entries require corrections";
+  }
+  if (reviewStates.some((state) => state !== "accepted")) {
+    return winner
+      ? "Winner recorded · current Entry reviews still incomplete"
+      : "National Final entries still need review";
+  }
+  return winner
+    ? "Winner selected · all active Entries accepted on current versions"
+    : "All active Entries accepted · waiting for National Final winner";
+}
