@@ -129,7 +129,7 @@ begin
       gen_random_uuid(),'tg6-future-rep:'||gen_random_uuid()::text
     );
     raise exception 'TG6_PROXY_FUTURE_REP_REQUEST_ALLOWED';
-  exception when insufficient_privilege then null;
+  exception when check_violation then null;
   end;
 end
 $future_rep_negative$;
@@ -416,6 +416,85 @@ begin
    and country_id=(v->>'countryId')::uuid;
 end
 $tg6_future_approval_restore$;
+
+-- Receipt replay must survive later changes to live representation authority
+-- and session time. Such changes must still block FRESH requests.
+do $tg6_replay_ended_rep_setup$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+ update public.world_organization_representations
+ set ends_at=now()
+ where id=(v->>'representationId')::uuid;
+end
+$tg6_replay_ended_rep_setup$;
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $tg6_replay_ended_rep$
+declare
+ v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+ v_replay jsonb;
+begin
+ perform set_config('request.jwt.claim.sub',v->>'owner',true);
+ perform set_config('request.jwt.claims',
+   jsonb_build_object('sub',v->>'owner','role','authenticated')::text,true);
+ v_replay:=public.world_request_proxy_v1(
+   (v->>'representationId')::uuid,(v->>'proxyPersonId')::uuid,
+   (v->>'sessionId')::uuid,(v->>'validFrom')::timestamptz,
+   (v->>'validUntil')::timestamptz,'Proxy for committee session',1,
+   (v->>'requestOperationId')::uuid,
+   'tg6-proxy:'||(v->>'requestOperationId'));
+ if coalesce((v_replay->>'replayed')::boolean,false) is not true
+    or v_replay #>> '{result,proxyId}' <> v->>'proxyId'
+ then raise exception 'TG6_PROXY_ENDED_REP_RECEIPT_LOST'; end if;
+end
+$tg6_replay_ended_rep$;
+reset role;
+
+do $tg6_replay_rescheduled_session_setup$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+ update public.world_organization_representations
+ set ends_at=null
+ where id=(v->>'representationId')::uuid;
+ update public.world_sessions
+ set starts_at=now()+interval '5 days',
+     ends_at=now()+interval '5 days 2 hours'
+ where id=(v->>'sessionId')::uuid;
+end
+$tg6_replay_rescheduled_session_setup$;
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $tg6_replay_rescheduled_session$
+declare
+ v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+ v_replay jsonb;
+begin
+ perform set_config('request.jwt.claim.sub',v->>'owner',true);
+ perform set_config('request.jwt.claims',
+   jsonb_build_object('sub',v->>'owner','role','authenticated')::text,true);
+ v_replay:=public.world_request_proxy_v1(
+   (v->>'representationId')::uuid,(v->>'proxyPersonId')::uuid,
+   (v->>'sessionId')::uuid,(v->>'validFrom')::timestamptz,
+   (v->>'validUntil')::timestamptz,'Proxy for committee session',1,
+   (v->>'requestOperationId')::uuid,
+   'tg6-proxy:'||(v->>'requestOperationId'));
+ if coalesce((v_replay->>'replayed')::boolean,false) is not true
+    or v_replay #>> '{result,proxyId}' <> v->>'proxyId'
+ then raise exception 'TG6_PROXY_RESCHEDULED_SESSION_RECEIPT_LOST'; end if;
+end
+$tg6_replay_rescheduled_session$;
+reset role;
+
+do $tg6_replay_fixture_restore$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+ update public.world_sessions
+ set starts_at=now()+interval '1 day',
+     ends_at=now()+interval '1 day 2 hours'
+ where id=(v->>'sessionId')::uuid;
+end
+$tg6_replay_fixture_restore$;
+
 set local role authenticated;
 set local request.jwt.claim.role='authenticated';
 
@@ -441,6 +520,7 @@ declare
   v jsonb := current_setting('solaris.tg6_proxy_fixture')::jsonb;
   v_receipt jsonb;
   v_replayed jsonb;
+  v_approval_op uuid:=gen_random_uuid();
 begin
   perform set_config('request.jwt.claim.sub',v->>'chair',true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',v->>'chair','role','authenticated')::text,true);
@@ -459,7 +539,7 @@ begin
 
   v_receipt := public.world_approve_proxy_v1(
     (v->>'proxyId')::uuid,'approved',1,
-    gen_random_uuid(),'tg6-chair:' || gen_random_uuid()::text
+    v_approval_op,'tg6-chair:' || v_approval_op::text
   );
   if v_receipt->>'status' <> 'succeeded'
      or v_receipt #>> '{result,status}' <> 'approved'
@@ -477,6 +557,8 @@ begin
     raise exception 'TG6_PROXY_APPROVED_REOPEN_ALLOWED';
   exception when check_violation then null;
   end;
+  perform set_config('solaris.tg6_proxy_fixture',
+    (v || jsonb_build_object('approvalOperationId',v_approval_op))::text,true);
   raise notice 'PASS: TG6 chair approval is scoped, revised, auditable and effective only in time window';
 end
 $authorized_approval$;
@@ -632,6 +714,36 @@ begin
   end if;
 end
 $revoked_state$;
+
+do $tg6_approval_closure_setup$
+declare v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+begin
+ update public.world_sessions set status='concluded'
+ where id=(v->>'sessionId')::uuid;
+end
+$tg6_approval_closure_setup$;
+
+set local role authenticated;
+set local request.jwt.claim.role='authenticated';
+do $tg6_approval_closed_receipt_replay$
+declare
+ v jsonb:=current_setting('solaris.tg6_proxy_fixture')::jsonb;
+ v_op uuid:=(v->>'approvalOperationId')::uuid;
+ v_replay jsonb;
+begin
+ perform set_config('request.jwt.claim.sub',v->>'chair',true);
+ perform set_config('request.jwt.claims',
+   jsonb_build_object('sub',v->>'chair','role','authenticated')::text,true);
+ v_replay:=public.world_approve_proxy_v1(
+   (v->>'proxyId')::uuid,'approved',1,
+   v_op,'tg6-chair:'||v_op::text);
+ if coalesce((v_replay->>'replayed')::boolean,false) is not true
+    or v_replay #>> '{result,status}' <> 'approved'
+    or v_replay #>> '{result,revision}' <> '2'
+ then raise exception 'TG6_PROXY_APPROVAL_CLOSED_RECEIPT_LOST'; end if;
+end
+$tg6_approval_closed_receipt_replay$;
+reset role;
 
 rollback;
 do $rolled_back$
