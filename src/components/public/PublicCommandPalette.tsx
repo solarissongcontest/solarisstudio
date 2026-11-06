@@ -25,12 +25,12 @@ import {
 } from "@/lib/app-search-state";
 import type { AccountAccess } from "@/lib/country-account";
 import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
+import { usePublicSearchParticipants } from "@/lib/public-participants";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import { canSuggestDelegationSearchActions } from "@/lib/public-search-action-visibility";
 import {
   editionLabel,
   useAllJuryVotes,
-  useAllParticipants,
   useAllResults,
   useAllShows,
   useCountries,
@@ -49,7 +49,7 @@ import { readPublicRecents } from "@/lib/public-recents";
 import { visibleRecentShowDestinations } from "@/lib/v3-show-public-discovery";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
-import { isShowPublic, resolveShowPublication } from "@/lib/publication";
+import { isShowPublic, resolveShowPublication, showPublishesResults } from "@/lib/publication";
 import { loadPublicStorylines } from "@/lib/studio2-storytelling";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -689,7 +689,7 @@ function WebSearchArchiveResults({
 }) {
   const router = useRouter();
   const { data: shows = [], isFetching: showsFetching } = useAllShows();
-  const { data: participants = [], isFetching: participantsFetching } = useAllParticipants();
+  const { data: participants = [], isFetching: participantsFetching } = usePublicSearchParticipants();
   const { data: results = [], isFetching: resultsFetching } = useAllResults();
   const { data: jury = [], isFetching: juryFetching } = useAllJuryVotes();
   const storiesQuery = useQuery({
@@ -698,9 +698,49 @@ function WebSearchArchiveResults({
     staleTime: 5 * 60 * 1000,
   });
 
-  const editionById = useMemo(
-    () => new Map(editions.map((edition) => [edition.id, edition])),
+  // Search is a public surface even when the viewer is a signed-in
+  // delegation member. Never promote private edition/show/result rows into
+  // the public discovery results just because the session can read them.
+  const publicEditions = useMemo(
+    () => editions.filter((edition) => edition.published === true),
     [editions],
+  );
+  const publicEditionIds = useMemo(
+    () => new Set(publicEditions.map((edition) => edition.id)),
+    [publicEditions],
+  );
+  const publicShows = useMemo(
+    () => shows.filter((show) =>
+      publicEditionIds.has(show.edition_id) && isShowPublic(show),
+    ),
+    [publicEditionIds, shows],
+  );
+  const publishedResultShowIds = useMemo(
+    () => new Set(publicShows.filter(showPublishesResults).map((show) => show.id)),
+    [publicShows],
+  );
+  const visibleResults = useMemo(
+    () => results.filter((row) =>
+      row.show_id != null && publishedResultShowIds.has(row.show_id),
+    ),
+    [results, publishedResultShowIds],
+  );
+  const detailedVotingShowIds = useMemo(
+    () => new Set(publicShows
+      .filter((show) => resolveShowPublication(show).detailed_voting)
+      .map((show) => show.id)),
+    [publicShows],
+  );
+  const visibleJury = useMemo(
+    () => jury.filter((row) =>
+      row.show_id != null && detailedVotingShowIds.has(row.show_id),
+    ),
+    [jury, detailedVotingShowIds],
+  );
+
+  const editionById = useMemo(
+    () => new Map(publicEditions.map((edition) => [edition.id, edition])),
+    [publicEditions],
   );
   const countryById = useMemo(
     () => new Map(countries.map((country) => [country.id, country])),
@@ -709,6 +749,7 @@ function WebSearchArchiveResults({
   const searchableEntries = useMemo(() => {
     const byEditionCountry = new Map<string, (typeof participants)[number]>();
     for (const participant of participants) {
+      if (!publicEditionIds.has(participant.edition_id)) continue;
       if (!participant.artist && !participant.song) continue;
       const key = `${participant.edition_id}:${participant.country_id}`;
       const existing = byEditionCountry.get(key);
@@ -717,27 +758,25 @@ function WebSearchArchiveResults({
       }
     }
     return [...byEditionCountry.values()];
-  }, [participants]);
+  }, [participants, publicEditionIds]);
   const scorechartShows = useMemo(
     () =>
-      shows.filter(
-        (show) =>
-          isShowPublic(show) &&
-          Boolean(resolveShowPublication(show).detailed_voting),
+      publicShows.filter(
+        (show) => Boolean(resolveShowPublication(show).detailed_voting),
       ),
-    [shows],
+    [publicShows],
   );
   const records = useMemo(
     () =>
       buildCanonicalFanRecords({
         countries,
-        editions,
-        shows,
+        editions: publicEditions,
+        shows: publicShows,
         participants,
-        results,
-        jury,
+        results: visibleResults,
+        jury: visibleJury,
       }),
-    [countries, editions, jury, participants, results, shows],
+    [countries, publicEditions, visibleJury, participants, visibleResults, publicShows],
   );
 
   const searchResults = useMemo(() => {
@@ -777,7 +816,7 @@ function WebSearchArchiveResults({
             group: "Wiki",
           },
         ]),
-      ...editions
+      ...publicEditions
         .filter((edition) =>
           matchesPublicSearch(
             normalized,
@@ -795,7 +834,7 @@ function WebSearchArchiveResults({
           href: `/editions/${edition.slug}`,
           group: "Editions",
         })),
-      ...shows
+      ...publicShows
         .filter((show) => {
           const edition = editionById.get(show.edition_id);
           return matchesPublicSearch(
@@ -931,12 +970,12 @@ function WebSearchArchiveResults({
     countries,
     countryById,
     editionById,
-    editions,
+    publicEditions,
     normalized,
     records,
     scorechartShows,
     searchableEntries,
-    shows,
+    publicShows,
     storiesQuery.data,
   ]);
 
