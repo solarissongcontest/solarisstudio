@@ -104,4 +104,15 @@ describe("disposable local Supabase bootstrap recovery", () => {
       expect(workflow).not.toMatch(/^\s+(?:run: )?supabase start$/m);
     }
   });
+  it("keeps every Rules/Integrity upgrade script attached to the upgraded disposable worktree", () => {
+    const workflow = readFileSync(".github/workflows/rules-integrity-migration-rehearsal.yml", "utf8");
+    const upgrade = workflow.split("  upgrade-from-main:")[1];
+    expect(upgrade).toBeDefined();
+    const operations = (upgrade ?? "").split(/\n[ ]{6}- /).filter((step) => step.includes(".github/scripts/"));
+    expect(operations.length).toBeGreaterThan(0);
+    for (const step of operations) {
+      expect(step).toContain("cd /tmp/solaris-main");
+      expect(step).toContain('$GITHUB_WORKSPACE/.github/scripts/');
+    }
+  });
 });

@@ -1,0 +1,129 @@
+name: V3 PR Main Freshness
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - ready_for_review
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Main-based V3 pull request to validate immediately before integration
+        required: true
+        type: number
+  workflow_call:
+    inputs:
+      pr_number:
+        description: Main-based V3 pull request to validate
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: v3-pr-main-freshness-${{ github.event_name }}-${{ inputs.pr_number || github.event.pull_request.number || github.sha || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  pr-main-freshness:
+    if: github.event_name != 'push' && (inputs.pr_number != 0 || startsWith(github.head_ref, 'v3/') || startsWith(github.event.pull_request.title, '[V3-'))
+    name: V3 PR current-main freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout freshness policy source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.pr_number == 0 && github.event.pull_request.head.sha || 'main' }}
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Verify integration-truth unit tests
+        run: >-
+          bun test
+          scripts/__tests__/check-v3-pr-main-freshness.test.ts
+          src/lib/v3-pr-integration-state.test.ts
+
+      - name: Require automatic PR head to contain live current main
+        if: inputs.pr_number == 0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          V3_CURRENT_PR: ${{ github.event.pull_request.number }}
+          V3_EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bun run scripts/check-v3-pr-main-freshness.ts
+
+      - name: Require requested PR head to contain live current main
+        if: inputs.pr_number != 0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          V3_CURRENT_PR: ${{ inputs.pr_number }}
+        run: bun run scripts/check-v3-pr-main-freshness.ts
+
+      - name: Safety boundary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo
+            echo "### Verification boundary"
+            echo
+            echo "This gate performs five bounded GitHub reads plus one commit-status write for the requested PR head."
+            echo "Automatic PR runs pin the exact event head. Manual/reusable runs intentionally read the requested PR's live head and current main at invocation time."
+            echo "It does not contact Supabase, run Browser Audit, generate load, or mutate production application data."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  invalidate-stale-pr-freshness:
+    if: github.event_name == 'push'
+    name: Invalidate stale V3 freshness after main advances
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout new current main
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Verify freshness invalidation policy
+        run: bun test scripts/__tests__/check-v3-pr-main-freshness.test.ts
+
+      - name: Invalidate only successful old-main freshness statuses
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          V3_INVALIDATE_OPEN_PRS: "1"
+        run: bun run scripts/check-v3-pr-main-freshness.ts
+
+      - name: Safety and request-budget boundary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo
+            echo "### Main-advance invalidation boundary"
+            echo
+            echo "The invalidator pages lightweight open-PR legacy status metadata through GitHub GraphQL (100 PRs/page)."
+            echo "It performs no per-PR ancestry compare and writes only to heads whose V3 PR Main Freshness status is still SUCCESS for an older main SHA."
+            echo "Already stale/failed/untracked PRs receive no write. No Supabase, browser, load or production-application traffic is generated."
+          } >> "$GITHUB_STEP_SUMMARY"

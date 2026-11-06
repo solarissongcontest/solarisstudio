@@ -66,12 +66,12 @@ export const SOLARIS_CAPABILITIES = [
   'world.representation.manage',
   'world.proxy.request',
   'world.proxy.approve',
-  'world.office.manage',
-  'world.office.term.assign',
-  'world.office.term.transition',
   'world.session.create',
   'world.session.manage',
   'world.agenda.manage',
+  'world.office.manage',
+  'world.office.term.assign',
+  'world.office.term.transition',
 ] as const;
 
 export type SolarisCapability = (typeof SOLARIS_CAPABILITIES)[number];

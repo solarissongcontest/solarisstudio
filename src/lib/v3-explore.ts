@@ -64,6 +64,8 @@ export type V3ExploreRoutes = {
   /** Explicit canonical Reference route, when its independent rollout is available. */
   reference?: string | null;
   archiveGames?: string | null;
+  /** Link to the existing public Prediction Arena; not a new voting authority. */
+  predictions?: string | null;
   advancedDiscovery?: string | null;
 };
 
@@ -310,6 +312,13 @@ export function buildV3ExploreRootProjection(
       key: "archive-games",
       label: "Archive games",
       href: input.routes.archiveGames,
+    });
+  }
+  if (input.routes.predictions) {
+    more.push({
+      key: "predictions",
+      label: "Predictions",
+      href: input.routes.predictions,
     });
   }
   if (input.routes.advancedDiscovery) {

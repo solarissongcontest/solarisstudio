@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -147,14 +147,36 @@ function publicationControlFingerprint(control: PublicationControlSummary) {
 }
 
 function AdminHome() {
-  const { data: editions = [], isLoading: editionsLoading } = useEditions();
-  const { data: countries = [] } = useCountries();
-  const { data: shows = [] } = useAllShows();
-  const { data: participants = [] } = useAllParticipants();
-  const { data: isOrganizer } = useIsOrganizer();
+  const editionsQuery = useEditions();
+  const countriesQuery = useCountries();
+  const showsQuery = useAllShows();
+  const participantsQuery = useAllParticipants();
+  const organizerQuery = useIsOrganizer();
+  const { data: editions = [] } = editionsQuery;
+  const { data: countries = [] } = countriesQuery;
+  const { data: shows = [] } = showsQuery;
+  const { data: participants = [] } = participantsQuery;
+  const { data: isOrganizer } = organizerQuery;
   const qc = useQueryClient();
 
-  const nextNumber = editionsLoading
+  // Incomplete reads must never look like an empty contest or authorize editing.
+  const editionReads = [editionsQuery, countriesQuery, showsQuery, participantsQuery, organizerQuery];
+  // Failed background refreshes may keep their last successful data. Never
+  // reclassify that cached data as a newly verified administration snapshot.
+  const readsUnavailable = editionReads.some((query) => query.isError || query.error != null);
+  const snapshotReady = editionReads.every((query) => query.isSuccess && query.error == null);
+  const canManageEditions = snapshotReady && isOrganizer === true;
+  const verifiedAccessRef = useRef(canManageEditions);
+
+  const retryFailedReads = () => {
+    if (editionsQuery.isError || editionsQuery.error != null) void editionsQuery.refetch();
+    if (countriesQuery.isError || countriesQuery.error != null) void countriesQuery.refetch();
+    if (showsQuery.isError || showsQuery.error != null) void showsQuery.refetch();
+    if (participantsQuery.isError || participantsQuery.error != null) void participantsQuery.refetch();
+    if (organizerQuery.isError || organizerQuery.error != null) void organizerQuery.refetch();
+  };
+
+  const nextNumber = !editionsQuery.isSuccess
     ? null
     : Math.max(0, ...editions.map((edition) => edition.edition_number ?? 0)) + 1;
 
@@ -191,6 +213,14 @@ function AdminHome() {
   }, [participants]);
 
   useEffect(() => {
+    verifiedAccessRef.current = canManageEditions;
+    if (!canManageEditions) {
+      setLifecycleReview(null);
+      setCreateOpen(false);
+    }
+  }, [canManageEditions]);
+
+  useEffect(() => {
     if (nextNumber !== null && !numberTouched && form.edition_number === "") {
       setForm((current) => ({ ...current, edition_number: nextNumber }));
     }
@@ -205,6 +235,10 @@ function AdminHome() {
   const createEdition = async (event: FormEvent) => {
     event.preventDefault();
     if (saving) return;
+    if (!canManageEditions) {
+      setError("Edition administration requires verified Organizer access and complete edition data. Retry failed reads before proceeding.");
+      return;
+    }
 
     setMsg(null);
     setError(null);
@@ -262,6 +296,10 @@ function AdminHome() {
     edition: Edition,
     kind: EditionLifecycleReviewKind,
   ) => {
+    if (!canManageEditions) {
+      setError("Cannot review an edition while Organizer access or required edition data is unverified.");
+      return;
+    }
     const actionKey = `review:${kind}:${edition.id}`;
     if (busyAction) return;
     setBusyAction(actionKey);
@@ -270,6 +308,10 @@ function AdminHome() {
 
     try {
       const controls = await loadShowPublicationControls(edition.id);
+      if (!verifiedAccessRef.current) {
+        setError("Organizer verification was lost while preparing the edition review. No review was opened.");
+        return;
+      }
       const editionShows = shows.filter((show) => show.edition_id === edition.id);
       const participantIds = sorted(
         participants
@@ -353,6 +395,11 @@ function AdminHome() {
   const applyEditionLifecycleReview = async () => {
     const review = lifecycleReview;
     if (!review || busyAction) return;
+    if (!canManageEditions) {
+      setLifecycleReview(null);
+      setError("Edition state is no longer fully verified. No change was applied; reload the workspace and start a new review.");
+      return;
+    }
     if (review.kind === "delete" && review.reason.trim().length < 5) return;
 
     const actionKey = `${review.kind}:${review.editionId}`;
@@ -362,6 +409,9 @@ function AdminHome() {
 
     try {
       const fresh = await revalidateEditionLifecycleReview(review);
+      if (!verifiedAccessRef.current) {
+        throw new Error("Organizer verification was lost before the edition lifecycle action. No mutation was started.");
+      }
 
       if (review.kind === "private") {
         const showById = new Map(fresh.shows.map((show) => [show.id, show] as const));
@@ -378,6 +428,9 @@ function AdminHome() {
             scheduledFor: null,
           });
           if (preview.alreadyApplied) continue;
+          if (!verifiedAccessRef.current) {
+            throw new Error("Organizer verification was lost while hiding show publication. Reconcile any completed changes before retrying.");
+          }
 
           const operationId = crypto.randomUUID();
           await applyShowPublicationChange({
@@ -387,6 +440,9 @@ function AdminHome() {
           });
         }
 
+        if (!verifiedAccessRef.current) {
+          throw new Error("Organizer verification was lost during edition publication changes. Reconcile any completed show changes before retrying.");
+        }
         const { error: editionError } = await supabase
           .from("editions")
           .update({ published: false, status: "draft" })
@@ -406,6 +462,9 @@ function AdminHome() {
           `${review.editionLabel} is private. Its saved publication choices are still available.`,
         );
       } else {
+        if (!verifiedAccessRef.current) {
+          throw new Error("Organizer verification was lost before deletion. Nothing was deleted.");
+        }
         const { error: deleteError } = await supabase
           .from("editions")
           .delete()
@@ -447,18 +506,12 @@ function AdminHome() {
             <Link to="/admin/anniversary-dates" className="admin-action-secondary">
               <CalendarDays className="size-4" /> Edition dates
             </Link>
-            <button type="button" onClick={() => setCreateOpen(true)} className="admin-action-primary">
+            <button type="button" disabled={!canManageEditions} onClick={() => setCreateOpen(true)} className="admin-action-primary">
               <Plus className="size-4" /> New edition
             </button>
           </div>
         }
       />
-
-      {isOrganizer === false ? (
-        <div className="mb-4 rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-3 text-sm leading-relaxed text-rose-100">
-          This account does not have organizer access, so changes will be rejected.
-        </div>
-      ) : null}
 
       {error ? (
         <div className="mb-4 rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-3 text-sm text-rose-100">
@@ -472,6 +525,31 @@ function AdminHome() {
         </div>
       ) : null}
 
+      {!snapshotReady ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={Trophy}
+            title={readsUnavailable ? "Edition data unavailable" : "Verifying edition administration"}
+            description={readsUnavailable
+              ? "Solaris could not verify all edition, country, show, participant and Organizer access reads. Missing data is not treated as an empty contest. Management is disabled until these reads succeed."
+              : "Checking the authoritative data needed to display and manage editions."}
+            action={readsUnavailable ? (
+              <button type="button" className="admin-action-secondary" onClick={retryFailedReads}>
+                Retry failed reads
+              </button>
+            ) : undefined}
+          />
+        </AdminCard>
+      ) : isOrganizer !== true ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={Trophy}
+            title="Organizer access required"
+            description="Edition administration is unavailable for this account. No edition data or management actions are shown."
+          />
+        </AdminCard>
+      ) : (
+        <>
       <MetricStrip className="mb-4 grid-cols-3 sm:grid-cols-3 xl:grid-cols-3">
         <MiniMetric label="Editions" value={editions.length} />
         <MiniMetric label="Public" value={publicEditionCount} />
@@ -651,6 +729,8 @@ function AdminHome() {
           />
         </AdminCard>
       )}
+        </>
+      )}
 
       <AdminSheet
         open={createOpen}
@@ -661,13 +741,13 @@ function AdminHome() {
         <form onSubmit={createEdition} className="space-y-4">
           <Field
             label="Edition number"
-            hint={editionsLoading ? "Loading existing editions…" : "Suggested from the latest edition"}
+            hint={!canManageEditions ? "Verify Organizer access and existing editions before proceeding" : "Suggested from the latest edition"}
           >
             <TextInput
               type="number"
               min={1}
               required
-              disabled={editionsLoading}
+              disabled={!canManageEditions}
               className="numeric"
               value={form.edition_number}
               onChange={(event) => {
@@ -748,7 +828,7 @@ function AdminHome() {
             </button>
             <button
               type="submit"
-              disabled={saving || editionsLoading}
+              disabled={saving || !canManageEditions}
               className="admin-action-primary w-full"
             >
               {saving ? "Creating…" : "Create private edition"}

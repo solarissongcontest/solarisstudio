@@ -1,0 +1,21 @@
+name: V3 disposable stack transport isolation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/scripts/prepare-archive-local-config.py"
+      - ".github/scripts/v3-start-disposable-supabase.sh"
+      - ".github/tests/test_prepare_archive_local_config.py"
+      - ".github/workflows/v3-disposable-stack-isolation.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit:
+    name: Disposable stack port and ownership regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: python3 .github/tests/test_prepare_archive_local_config.py
