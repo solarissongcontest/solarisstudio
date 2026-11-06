@@ -51,6 +51,29 @@ describe("Organizer private cross-channel voting analysis", () => {
     expect(gate).toBeLessThan(Math.min(...privateActions));
   });
 
+  it("scopes cross-channel analytics private data by actor, with no automatic poll", () => {
+    const page = read("src/routes/televoting/admin/analytics.tsx");
+    expect(page).toContain("useAuthenticatedUser().id");
+    expect(page).toContain('queryKey: ["merged-televoting-analytics", actorId, scopeKey(scope), hodPersonId ?? "all-hods"]');
+    expect(page).toContain("enabled: Boolean(actorId)");
+    for (const rule of ["gcTime: 0", "retry: false", "refetchInterval: false", "refetchOnWindowFocus: false", "refetchOnReconnect: false"]) {
+      expect(page).toContain(rule);
+    }
+    expect(page).not.toContain('queryKey: ["merged-televoting-admin"]');
+    expect(page).not.toContain("useNavigate");
+  });
+
+  it("scopes HOD intelligence and network data by actor, with no automatic polls", () => {
+    const page = read("src/routes/_authenticated/admin/friend-voting.tsx");
+    expect(page).toContain("useAuthenticatedUser().id");
+    expect(page).toContain('queryKey: ["friend-voting-complete", actorId');
+    expect(page).toContain('queryKey: ["friend-voting-network", actorId');
+    expect(page).toContain('enabled: Boolean(actorId) && tab === "network" && lens === "hod"');
+    for (const rule of ["gcTime: 0", "retry: false", "refetchInterval: false", "refetchOnWindowFocus: false", "refetchOnReconnect: false"]) {
+      expect((page.match(new RegExp(rule, "g")) ?? [])).toHaveLength(2);
+    }
+  });
+
   it("keeps all adapters observational and away from result/ballot mutations", () => {
     for (const file of [analytics, intelligence, auth]) {
       expect(file).not.toMatch(/\.insert\(|\.update\(|\.upsert\(|\.delete\(/);
