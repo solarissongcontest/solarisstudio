@@ -27,7 +27,9 @@ describe("V3 Organizer Shows exact-edition boundary", () => {
     expect(source).toContain('.eq("edition_id", review.editionId)');
     expect(source).toContain("!edition || !draft.name.trim() || !assertEditionScope()");
     expect(source).toContain("!target || !assertEditionScope(target)");
-    expect(source).toContain("!deleteTarget || !assertEditionScope(deleteTarget)");
+    expect(source).toContain("const review = deleteTarget;");
+    expect(source).toContain("if (!review || busy) return;");
+    expect(source).toContain("edition.id !== review.editionId");
   });
 
   it("does not disguise the legacy CRUD path as canonical V3 authority", () => {

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Abstract purple TerraOS transition artwork</title>
+  <desc id="desc">Original Solaris artwork with layered violet and blue luminous arches.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#05040c"/>
+      <stop offset=".55" stop-color="#140b2f"/>
+      <stop offset="1" stop-color="#02040b"/>
+    </linearGradient>
+    <linearGradient id="lineA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5ed9ff" stop-opacity=".1"/>
+      <stop offset=".5" stop-color="#b47cff" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#5a70ff" stop-opacity=".12"/>
+    </linearGradient>
+    <radialGradient id="core">
+      <stop offset="0" stop-color="#8c73ff" stop-opacity=".72"/>
+      <stop offset="1" stop-color="#8c73ff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur20"><feGaussianBlur stdDeviation="20"/></filter>
+    <filter id="blur55"><feGaussianBlur stdDeviation="55"/></filter>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <ellipse cx="800" cy="510" rx="390" ry="270" fill="url(#core)" filter="url(#blur55)"/>
+  <g fill="none" stroke="url(#lineA)" stroke-linecap="round">
+    <path d="M40 950 C130 170 340 60 800 60 S1470 170 1560 950" stroke-width="32" opacity=".2"/>
+    <path d="M170 950 C250 260 420 155 800 155 S1350 260 1430 950" stroke-width="28" opacity=".3"/>
+    <path d="M300 950 C370 355 500 245 800 245 S1230 355 1300 950" stroke-width="24" opacity=".42"/>
+    <path d="M430 950 C485 445 585 335 800 335 S1115 445 1170 950" stroke-width="20" opacity=".6"/>
+    <path d="M560 950 C600 530 665 430 800 430 S1000 530 1040 950" stroke-width="16" opacity=".82"/>
+  </g>
+  <path d="M560 950 C600 530 665 430 800 430 S1000 530 1040 950" fill="none" stroke="#b690ff" stroke-width="44" opacity=".14" filter="url(#blur20)"/>
+  <g fill="#e4d9ff" opacity=".32">
+    <circle cx="380" cy="255" r="3"/><circle cx="520" cy="180" r="2"/><circle cx="680" cy="285" r="4"/><circle cx="910" cy="205" r="2"/><circle cx="1080" cy="320" r="3"/><circle cx="1260" cy="215" r="4"/><circle cx="1390" cy="380" r="2"/>
+  </g>
+</svg>

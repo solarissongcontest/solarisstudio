@@ -1,0 +1,144 @@
+/* Shows preserve live-state priority while sharing the directory composition. */
+.v3-shows-directory .v3-shows-browse-results {
+  display: grid;
+  gap: .65rem;
+  min-width: 0;
+  margin-top: .85rem;
+}
+.v3-shows-directory .v3-shows-filter-fields {
+  min-width: 0;
+}
+.v3-shows-directory[data-show-directory-experience="mobile-web"] .v3-shows-web-list,
+.v3-shows-directory[data-show-directory-experience="mobile-web"] .v3-shows-browse-results {
+  display: block;
+  border-top: 1px solid var(--border);
+}
+.v3-shows-directory .v3-show-web-row {
+  color: var(--foreground);
+  text-decoration: none;
+}
+.v3-shows-directory .v3-show-web-row:hover {
+  background: var(--surface);
+}
+.v3-shows-directory .v3-show-web-row:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+@media (min-width: 768px) {
+  .v3-shows-directory[data-show-directory-experience="desktop-web"] #shows-browse {
+    display: grid;
+    grid-template-columns: minmax(10.5rem, 13rem) minmax(0, 1fr);
+    align-items: start;
+    column-gap: clamp(1.25rem, 3vw, 2rem);
+  }
+  .v3-shows-directory[data-show-directory-experience="desktop-web"] #shows-browse > .solaris-app-section-heading {
+    grid-column: 1 / -1;
+    margin-bottom: 1.15rem;
+  }
+  .v3-shows-directory[data-show-directory-experience="desktop-web"] .v3-shows-filter-fields {
+    grid-column: 1;
+    position: sticky;
+    top: 5.5rem;
+    grid-template-columns: minmax(0, 1fr);
+    padding-right: 1rem;
+    border-right: 1px solid var(--border);
+  }
+  .v3-shows-directory[data-show-directory-experience="desktop-web"] .v3-shows-browse-results {
+    grid-column: 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 0;
+  }
+  .v3-shows-directory[data-show-directory-experience="desktop-web"] #shows-browse > .solaris-app-empty-state {
+    grid-column: 2;
+  }
+}
+
+.v3-shows-directory .v3-shows-filter-fields > .v3-directory-search{grid-column:1/-1}
+
+/* Broadcast search uses the same directory control geometry; the installed app
+ * owns one compact filter sheet instead of four permanently stacked fields. */
+.v3-shows-directory .v3-shows-filter-fields {
+  min-width: 0;
+  gap: .65rem;
+}
+.v3-shows-directory .v3-shows-filter-fields--app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .5rem;
+}
+.v3-shows-directory .v3-shows-sheet-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  min-width: 80px;
+  min-height: 46px;
+  padding: .5rem .65rem;
+  border: 1px solid var(--border);
+  border-radius: .8rem;
+  background: var(--surface);
+  color: var(--foreground);
+  font-size: .8rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.v3-shows-directory .v3-shows-sheet-trigger:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.v3-shows-directory .v3-shows-filter-fields .v3-directory-search {
+  min-height: 46px;
+}
+.v3-shows-directory .v3-directory-results-count {
+  margin: .65rem 0 .85rem;
+  font-variant-numeric: tabular-nums;
+}
+.v3-shows-directory[data-show-directory-experience="mobile-web"] .v3-shows-filter-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.v3-shows-directory[data-show-directory-experience="mobile-web"] .v3-shows-filter-fields > .v3-directory-search {
+  grid-column: 1 / -1;
+}
+@media (max-width: 359px) {
+  .v3-shows-directory[data-show-directory-experience="mobile-web"] .v3-shows-filter-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Broadcast roots use ordinary UI typography. Other editorial display artwork
+ * remains untouched even though legacy global headers use !important. */
+body .v3-shows-family[data-directory-experience="desktop-web"] .page-header:not(.directory-page-hero) {
+  margin-bottom: 1rem !important;
+  padding: 0 0 .85rem !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+body .v3-shows-family[data-directory-experience="desktop-web"] .page-header::before,
+body .v3-shows-family[data-directory-experience="desktop-web"] .page-header::after {
+  content: none !important;
+  display: none !important;
+}
+body .v3-shows-family[data-directory-experience="desktop-web"] .page-header h1 {
+  font-family: var(--font-sans, system-ui, sans-serif) !important;
+  font-size: clamp(1.95rem, 3vw, 2.35rem) !important;
+  font-weight: 750 !important;
+  text-transform: none !important;
+  letter-spacing: -.035em !important;
+}
+.v3-shows-directory .v3-shows-browse-heading {
+  margin: 0 0 .75rem;
+  padding: 0 0 .55rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 1.14rem;
+  font-weight: 750;
+}
+.v3-shows-directory[data-show-directory-experience="desktop-web"] #shows-browse > .v3-shows-browse-heading {
+  grid-column: 1 / -1;
+}

@@ -8,7 +8,10 @@ describe("Public V3 country current-entry semantics", () => {
   it("resolves the canonical current public edition instead of treating newest history as current", () => {
     const source = read("src/integrations/v3/delegation-source.server.ts");
 
-    expect(source).toContain("resolveCurrentPublicEdition");
+    // An archived edition is public history, but it is not an active current edition.
+    // Country discovery already supplies the canonical active-edition selector.
+    expect(source).toContain("resolveActivePublicEdition");
+    expect(source).not.toContain("resolveCurrentPublicEdition");
     expect(source).toContain('.from("editions")');
     expect(source).toContain('.eq("published", true)');
     expect(source).toContain("currentEdition?.id ?? null");
@@ -27,16 +30,20 @@ describe("Public V3 country current-entry semantics", () => {
     const source = read("src/integrations/v3/delegation-source.server.ts");
 
     expect(source).toContain('throwIfError(editionsResult.error, "Could not resolve the current public Solaris edition")');
-    expect(source).toContain("currentEditionId\n      ?");
-    expect(source).toContain(": null,");
+    expect(source).toContain("currentEntry: currentEditionId");
+    expect(source).toContain("entries.find((entry) => entry.editionId === currentEditionId)");
+    expect(source).toMatch(/currentEntry:\s*currentEditionId[\s\S]*?: null,/);
+    expect(source).not.toContain("currentEntry: entries[0]");
   });
 
-  it("keeps result and voting authority out of the delegation source", () => {
+  it("keeps raw result and voting authority out of the delegation source", () => {
     const source = read("src/integrations/v3/delegation-source.server.ts");
 
+    expect(source).toContain("loadV3ResultsBundle()");
     expect(source).not.toContain('.from("results")');
     expect(source).not.toContain('.from("jury_votes")');
     expect(source).not.toContain('.from("televotes")');
+    expect(source).not.toContain('.from("televote_votes")');
     expect(source).not.toContain(".insert(");
     expect(source).not.toContain(".update(");
   });

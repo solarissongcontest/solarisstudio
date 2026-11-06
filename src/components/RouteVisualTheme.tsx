@@ -154,7 +154,7 @@ function CountryRouteVisual({ code }: { code: string }) {
 function EditionRouteVisual({ slug }: { slug: string }) {
   const { data: edition } = useEdition(slug);
   useResultRefresh({
-    editionSlug: slug,
+    editionId: edition?.id,
     live: Boolean(edition && isLiveResultContext(edition.status)),
   });
 
@@ -200,11 +200,11 @@ function ShowRouteVisual({ showId }: { showId: string }) {
 
 function useResultRefresh({
   showId,
-  editionSlug,
+  editionId,
   live,
 }: {
   showId?: string;
-  editionSlug?: string;
+  editionId?: string;
   live: boolean;
 }) {
   const queryClient = useQueryClient();
@@ -215,8 +215,8 @@ function useResultRefresh({
       if (showId) {
         void queryClient.invalidateQueries({ queryKey: ["results", "show", showId] });
       }
-      if (editionSlug) {
-        void queryClient.invalidateQueries({ queryKey: ["results", "all"] });
+      if (editionId) {
+        void queryClient.invalidateQueries({ queryKey: ["results", "edition", editionId] });
       }
     };
 
@@ -233,7 +233,7 @@ function useResultRefresh({
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [editionSlug, live, queryClient, showId]);
+  }, [editionId, live, queryClient, showId]);
 }
 
 function RouteAddons({ pathname }: { pathname: string }) {

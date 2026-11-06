@@ -4,12 +4,20 @@ import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { V3FocusedTaskShell } from "@/components/v3/V3FocusedTaskShell";
+import { V3ScreenHeader } from "@/components/v3/V3Foundation";
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import {
   GLOBAL_MAINTENANCE_MODE,
   isMaintenanceHodAppRouteAllowed,
 } from "@/lib/maintenance";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
+import {
+  resolveV3FocusedTaskChrome,
+  v3FocusedParticipationRouteEnabled,
+} from "@/lib/v3-focused-task-chrome";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 type ParticipationService = "confirmations" | "jury" | "televoting" | "next-in-line";
 
@@ -112,8 +120,14 @@ export function ParticipationServiceShell({
   actions?: ServiceAction[];
   maxWidth?: string;
 }) {
-  const { isAppMode } = useSolarisApp();
+  const { isAppMode, platformResolved } = useSolarisApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const screen = resolveSolarisAppScreen(pathname);
+  const maintenanceIsolated =
+    GLOBAL_MAINTENANCE_MODE && isMaintenanceHodAppRouteAllowed(pathname, "GET", true);
+  const focusedTaskCandidate =
+    isAppMode && !maintenanceIsolated && screen.behavior.criticalTask;
+  const rollout = useV3RolloutProbe(platformResolved && focusedTaskCandidate);
   const serviceLabel = {
     confirmations: "Confirmations",
     jury: "Jury voting",
@@ -132,10 +146,65 @@ export function ParticipationServiceShell({
     });
   }, [service]);
 
-  if (isAppMode) {
+  if (isAppMode && !maintenanceIsolated) {
     const appActions = visibleActions.filter(
       (action) => !(service === "televoting" && action.to === "/televoting/how-to-vote"),
     );
+    const focusedFeatureEnabled = v3FocusedParticipationRouteEnabled(pathname, rollout.data);
+
+    if (screen.behavior.criticalTask && rollout.isLoading) {
+      return (
+        <section
+          className={cn("solaris-app-task-shell mx-auto min-w-0", maxWidth)}
+          data-v3-focused-task-boot={service}
+          aria-label={title}
+          aria-busy="true"
+        >
+          <p className="sr-only" role="status" aria-live="polite">
+            Opening {title}.
+          </p>
+        </section>
+      );
+    }
+
+    if (screen.behavior.criticalTask && focusedFeatureEnabled) {
+      const chrome = resolveV3FocusedTaskChrome(pathname);
+      return (
+        <V3FocusedTaskShell chrome={chrome} contentWidth="wide">
+          <div className="v3-screen v3-participation-task-route-screen">
+            <V3ScreenHeader
+              kicker={`${serviceLabel} · Participate`}
+              title={title}
+              description={description}
+            />
+            <section
+              className={cn("solaris-app-task-shell mx-auto min-w-0", maxWidth)}
+              data-solaris-app-task-shell={service}
+              data-v3-participation-task-route={service}
+              aria-label={title}
+            >
+              {appActions.length ? (
+                <nav className="solaris-app-task-utilities" aria-label={`${serviceLabel} options`}>
+                  {appActions.map((action) => (
+                    <Link
+                      key={action.to}
+                      to={action.to as any}
+                      className={cn(
+                        "solaris-app-task-utility",
+                        pathMatches(pathname, action.to) && "is-active",
+                      )}
+                    >
+                      {action.label}
+                    </Link>
+                  ))}
+                </nav>
+              ) : null}
+              {children}
+            </section>
+          </div>
+        </V3FocusedTaskShell>
+      );
+    }
 
     return (
       <section

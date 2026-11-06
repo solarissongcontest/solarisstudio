@@ -41,9 +41,14 @@ describe("public SSR and semantic route regressions", () => {
   });
 
   it("does not read mutable rulebook metadata directly inside the Rules experience", () => {
-    expect(rules).toContain("RulesHomeV5({ version }");
+    expect(rules).toContain("export function RulesHomeV5({");
+    expect(rules).toContain("version,");
+    expect(rules).toContain("effectiveFrom,");
+    expect(rules).not.toContain("usePublishedRulebook");
     expect(rules).not.toContain("SSC_RULEBOOK.version");
+    expect(rulesRoute).toContain("usePublishedRulebook()");
     expect(rulesRoute).toContain("version={published.version}");
+    expect(rulesRoute).toContain("effectiveFrom={published.data?.effective_from ?? null}");
   });
 
   it("keeps a visible country page heading while archive data loads", () => {

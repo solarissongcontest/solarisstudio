@@ -15,7 +15,8 @@ const migration = readFileSync(
 describe("V3 Organizer private rule ruling review", () => {
   it("does not record a participant-visible ruling directly from the editor", () => {
     expect(route).toContain("AdminConfirmSheet");
-    expect(route).toContain("onClick={() => setReviewOpen(true)}");
+    expect(route).toContain("onClick={openRulingReview}");
+    expect(route).toContain("open={Boolean(pendingReview)}");
     expect(route).toContain("Review ruling");
     expect(route).not.toContain('onClick={() => mutation.mutate()} className="admin-action-primary">\n            <Gavel');
   });

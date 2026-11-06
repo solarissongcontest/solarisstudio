@@ -77,7 +77,7 @@ describe("Public V3 P24 Records", () => {
     expect(source).toContain("edition.id !== currentEditionId");
     expect(source).toContain("show.edition_id !== currentEditionId");
     expect(source).toContain("row.edition_id !== currentEditionId");
-    expect(source).toContain("const spoilerSafeRecords = currentEditionAffectsRecords");
+    expect(source).toContain("const spoilerSafeRawRecords = currentEditionAffectsRecords");
     expect(source).toContain("buildCanonicalFanRecords({");
     expect(source).toContain("spoilerSafeArchivedFinalEditions");
   });
@@ -93,8 +93,10 @@ describe("Public V3 P24 Records", () => {
     expect(gate).toContain("serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null");
     expect(gate).toContain("bundle.data.currentEditionAffectsRecords");
     expect(gate).toContain("bundle.data.spoilerSafeRecords");
-    expect(gate).toContain("setCurrentEditionRevealed(true)");
-    expect(gate).toContain("setCurrentEditionRevealed(false)");
+    expect(gate).toContain("setRevealedScope(revealScope)");
+    expect(gate).toContain("setRevealedScope(null)");
+    expect(gate).toContain('rollout.data?.userId ?? "anonymous"');
+    expect(gate).toContain("revealedScope === revealScope");
     expect(screen).toContain('data-v3-records-spoilers="protected"');
     expect(screen).toContain("Reveal current-edition records");
   });

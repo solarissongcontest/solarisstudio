@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
+import { RefreshCcw } from "lucide-react";
+
 import { Switch } from "@/components/ui/switch";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import type { V3PublicShowState } from "@/lib/v3-live";
@@ -28,7 +30,15 @@ const WAKE_STATES = new Set<V3PublicShowState>([
   "results_pending",
 ]);
 
-function LiveBootSurface({ message }: { message: string }) {
+function LiveBootSurface({
+  message,
+  onRetry,
+  refreshing = false,
+}: {
+  message: string;
+  onRetry?: () => void;
+  refreshing?: boolean;
+}) {
   return (
     <V3FoundationShell>
       <V3Screen className="min-h-dvh">
@@ -38,6 +48,20 @@ function LiveBootSurface({ message }: { message: string }) {
           <p role="status" className="mt-2 text-sm text-white/55">
             {message}
           </p>
+          {onRetry ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              disabled={refreshing}
+              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-4 text-sm font-semibold text-white/80 transition hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:cursor-wait disabled:opacity-50"
+            >
+              <RefreshCcw
+                aria-hidden="true"
+                className={`size-4 ${refreshing ? "motion-safe:animate-spin" : ""}`}
+              />
+              {refreshing ? "Retrying Live…" : "Retry Live"}
+            </button>
+          ) : null}
         </V3Surface>
       </V3Screen>
     </V3FoundationShell>
@@ -51,13 +75,17 @@ function LiveBootSurface({ message }: { message: string }) {
  * an enabled V3 session never launches the old archive-wide browser fan-out.
  * The V3 branch intentionally uses only the foundation shell: /show-mode is an
  * immersive route and must not acquire the normal five-tab application chrome.
+ *
+ * Once authoritative rollout + Live snapshots exist, later refetch/reconnect
+ * failures keep those cached snapshots mounted in a visibly degraded state.
+ * Falling back at that point would discard known-good server truth precisely
+ * while connectivity is unreliable.
  */
 export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
   const rollout = useV3RolloutProbe(true);
   const { preferences, update } = useAppExperiencePreferences();
   const [wakeActive, setWakeActive] = useState(false);
   const v3Enabled =
-    rollout.isSuccess &&
     rollout.data?.enabled === true &&
     rollout.data.liveEnabled === true;
   const bundle = useV3LiveBundle(v3Enabled);
@@ -124,31 +152,60 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
     };
   }, [shouldWake]);
 
-  if (rollout.isLoading) {
+  if (rollout.isLoading && !rollout.data) {
     return <LiveBootSurface message="Checking the live experience…" />;
   }
 
-  if (rollout.isError || !rollout.data || !v3Enabled) {
+  // A failed initial rollout probe cannot authorize either V3 or legacy. Do
+  // not mount legacy's archive-wide readers just because the network failed.
+  // Once a snapshot exists, later refetch errors preserve that cached authority.
+  if (rollout.isError && !rollout.data) {
+    return (
+      <LiveBootSurface
+        message="Couldn't verify the Live experience. Retry to check the current show state."
+        onRetry={() => { void rollout.refetch(); }}
+        refreshing={rollout.isFetching}
+      />
+    );
+  }
+  if (!rollout.data || !v3Enabled) {
     return <>{fallback}</>;
   }
 
-  if (bundle.isLoading) {
+  if (bundle.isLoading && !bundle.data) {
     return <LiveBootSurface message="Opening authoritative show state…" />;
   }
 
-  // The existing Show Mode remains the reversible fallback if the focused V3
-  // read boundary itself fails. Never substitute locally inferred state.
-  if (bundle.isError || !bundle.data) {
+  // An actual failed initial Live read is an error, not a rollout decision:
+  // present a bounded manual retry instead of mounting legacy archive queries.
+  if (bundle.isError && !bundle.data) {
+    return (
+      <LiveBootSurface
+        message="Couldn't load the official Live snapshot. Retry to reconnect to show information."
+        onRetry={() => { void bundle.refetch(); }}
+        refreshing={bundle.isFetching}
+      />
+    );
+  }
+
+  // Keep the reversible fallback for genuinely absent initial data without a
+  // transport failure. Refetch errors with cached data stay on the V3 screen.
+  if (!bundle.data) {
     return <>{fallback}</>;
   }
+
+  const degraded = rollout.isError || bundle.isError;
+  const refreshing = rollout.isFetching || bundle.isFetching;
 
   return (
     <V3FoundationShell>
       <V3LiveScreen
+        edition={bundle.data.edition}
         experience={bundle.data.experience}
-        refreshing={bundle.isFetching}
+        degraded={degraded}
+        refreshing={refreshing}
         onRefresh={() => {
-          void bundle.refetch();
+          void Promise.all([rollout.refetch(), bundle.refetch()]);
         }}
       />
       <div className="v3-screen pt-0" data-v3-live-settings="">

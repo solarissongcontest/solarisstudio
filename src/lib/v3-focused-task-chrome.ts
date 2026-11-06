@@ -13,12 +13,51 @@ export type V3FocusedTaskChrome = {
   helpTo: string | null;
 };
 
+export type V3FocusedParticipationRollout = {
+  enabled?: boolean;
+  confirmationEnabled?: boolean;
+  juryEnabled?: boolean;
+} | null | undefined;
+
 function absoluteAppPath(value: string, label: string) {
   const normalized = value.trim();
   if (!normalized.startsWith("/") || normalized.startsWith("//")) {
     throw new Error(`${label} must be an internal absolute Solaris route`);
   }
   return normalized;
+}
+
+/**
+ * One fail-closed rollout decision for the shared participation task shell and
+ * the compatibility AppToolbar that must disappear when that shell owns chrome.
+ * Keeping both consumers on this helper prevents duplicate or missing Back/Help
+ * regions if feature-specific rollout rules evolve.
+ */
+export function v3FocusedParticipationRouteEnabled(
+  pathname: string,
+  rollout: V3FocusedParticipationRollout,
+) {
+  const normalizedPath = absoluteAppPath(pathname, "pathname");
+  const screen = resolveSolarisAppScreen(normalizedPath);
+  if (
+    screen.id !== "participation.task" ||
+    !screen.behavior.criticalTask ||
+    screen.chrome.toolbar !== "focused" ||
+    rollout?.enabled !== true
+  ) {
+    return false;
+  }
+
+  if (normalizedPath.startsWith("/confirmations")) {
+    return rollout.confirmationEnabled === true;
+  }
+  if (normalizedPath.startsWith("/jury-voting")) {
+    return rollout.juryEnabled === true;
+  }
+  return (
+    normalizedPath.startsWith("/televoting") ||
+    normalizedPath.startsWith("/next-in-line")
+  );
 }
 
 /**

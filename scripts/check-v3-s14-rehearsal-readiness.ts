@@ -185,14 +185,24 @@ if (unifiedDriverPresent && runtimeLibraryPresent) {
   ]) {
     if (!runtimeSource.includes(safetyMarker)) blockers.push(`S14 runtime safety contract missing marker: ${safetyMarker}`);
   }
-  if (!driverSource.includes("s14-full-contest.partial.json")) blockers.push("S14 driver does not emit explicit partial-state evidence while incomplete");
-  if (!driverSource.includes("No release-grade s14-full-contest.json was written")) blockers.push("S14 driver does not explicitly fail closed against premature release evidence");
+  for (const completeMarker of [
+    "s14-full-contest.partial.json",
+    "s14-full-contest.json",
+    "assert_same_persistent_contest",
+    "S14_RESULTS_RUNTIME_RECONCILIATION_COMPLETE",
+    "run_stage stage-10-archive run_s14_stage_10_archive",
+    "write_final_evidence",
+    '"passed": True',
+    '"partial": False',
+  ]) {
+    if (!driverSource.includes(completeMarker)) blockers.push(`S14 complete-evidence contract missing marker: ${completeMarker}`);
+  }
   if (allImplementationSource.includes("supabase.co")) blockers.push("S14 harness contains a hosted Supabase endpoint");
 }
 
 const ready = blockers.length === 0;
 const report = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   ready,
   lifecycle,
   negativeCases,

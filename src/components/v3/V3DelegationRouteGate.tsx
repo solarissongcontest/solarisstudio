@@ -2,8 +2,12 @@ import { useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { FollowButton } from "@/components/FollowButton";
+import { useAppExperiencePreferences } from "@/lib/app-experience";
+import { useNotificationPreferences } from "@/lib/engagement-data";
 import { useV3DelegationBundle } from "@/lib/v3-delegation-runtime";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
 import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
 import { V3AppShell } from "./V3AppShell";
 import { V3DelegationScreen } from "./V3DelegationScreen";
@@ -46,9 +50,11 @@ export function V3DelegationRouteGate({
   legacy: ReactNode;
 }) {
   const { isAppMode, platformResolved } = useSolarisApp();
+  const { preferences } = useAppExperiencePreferences();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const rollout = useV3RolloutProbe(platformResolved && isAppMode);
+  const serverPreferences = useNotificationPreferences(rollout.data?.userId ?? undefined);
   const shouldLoadBundle =
     platformResolved &&
     isAppMode &&
@@ -56,6 +62,14 @@ export function V3DelegationRouteGate({
     rollout.data?.exploreEnabled === true &&
     rollout.data?.delegationEnabled === true;
   const bundleQuery = useV3DelegationBundle(code, shouldLoadBundle);
+  const hideResultSpoilers = resolveV3ResultsSpoilerProtection({
+    localSpoilerFree: preferences.spoilerFree,
+    viewerResolved: Boolean(rollout.data),
+    viewerId: rollout.data?.userId ?? null,
+    serverPending: serverPreferences.isPending,
+    serverError: serverPreferences.isError,
+    serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null,
+  });
 
   if (!platformResolved) return <ResolvingDelegationSurface code={code} />;
   if (!isAppMode) return <>{legacy}</>;
@@ -91,7 +105,12 @@ export function V3DelegationRouteGate({
       phaseLabel={bundle.shell.phaseLabel}
       activeArea="explore"
     >
-      <V3DelegationScreen projection={bundle.projection} />
+      <V3DelegationScreen
+        projection={bundle.projection}
+        followControl={<FollowButton entityType="country" entityId={bundle.countryId} label={bundle.projection.name} />}
+        activeEditionLabel={bundle.activeEditionLabel}
+        hideResultSpoilers={hideResultSpoilers}
+      />
     </V3AppShell>
   );
 }

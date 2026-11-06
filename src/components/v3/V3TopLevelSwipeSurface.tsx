@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -25,6 +26,10 @@ import {
   type V3LayoutDirection,
   type V3SwipeIntent,
 } from "@/lib/v3-navigation-gesture";
+import {
+  resolveV3SwipePointerStart,
+  v3SwipeTouchStillSingle,
+} from "@/lib/v3-page-swipe-pointer-ownership";
 import { resolveV3TabIconVisualState } from "@/lib/v3-navigation-visual-progress";
 import "@/styles/v3-top-level-swipe.css";
 
@@ -295,6 +300,23 @@ export function V3TopLevelSwipeSurface({
     const hidden = () => {
       if (document.visibilityState !== "visible") resetSurface();
     };
+    // The competing contact may start outside this page's React subtree.
+    // Observe the document capture phase so a two-finger interaction always
+    // cancels the owned swipe before its primary pointer can commit a route.
+    const cancelCompetingTouch = (event: PointerEvent) => {
+      const active = dragRef.current;
+      if (!active) return;
+      if (
+        resolveV3SwipePointerStart({
+          activePointerId: active.pointerId,
+          incomingPointerId: event.pointerId,
+          isPrimary: event.isPrimary,
+          pointerType: event.pointerType,
+        }) === "cancel"
+      ) {
+        resetSurface();
+      }
+    };
     const root = document.documentElement;
     const rootInterruptionObserver = new MutationObserver(() => {
       if (shellInteractionBlocked()) resetSurface();
@@ -313,6 +335,7 @@ export function V3TopLevelSwipeSurface({
     window.addEventListener("pagehide", interrupt);
     window.addEventListener(APP_RESUME_EVENT, interrupt);
     document.addEventListener("visibilitychange", hidden);
+    document.addEventListener("pointerdown", cancelCompetingTouch, true);
     return () => {
       rootInterruptionObserver.disconnect();
       window.removeEventListener("blur", interrupt);
@@ -321,6 +344,7 @@ export function V3TopLevelSwipeSurface({
       window.removeEventListener("pagehide", interrupt);
       window.removeEventListener(APP_RESUME_EVENT, interrupt);
       document.removeEventListener("visibilitychange", hidden);
+      document.removeEventListener("pointerdown", cancelCompetingTouch, true);
       resetSurface();
     };
   }, [resetSurface]);
@@ -331,7 +355,11 @@ export function V3TopLevelSwipeSurface({
 
     const preventOwnedHorizontalTouchPan = (event: TouchEvent) => {
       const drag = dragRef.current;
-      if (!drag || event.touches.length !== 1) return;
+      if (!drag) return;
+      if (!v3SwipeTouchStillSingle(event.touches.length)) {
+        resetSurface();
+        return;
+      }
 
       const touch = event.touches[0];
       if (!touch) return;
@@ -352,10 +380,21 @@ export function V3TopLevelSwipeSurface({
     return () => {
       surface.removeEventListener("touchmove", preventOwnedHorizontalTouchPan);
     };
-  }, []);
+  }, [resetSurface]);
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pointerDecision = resolveV3SwipePointerStart({
+      activePointerId: dragRef.current?.pointerId ?? null,
+      incomingPointerId: event.pointerId,
+      isPrimary: event.isPrimary,
+      pointerType: event.pointerType,
+    });
+    if (pointerDecision === "cancel") {
+      resetSurface();
+      return;
+    }
     if (
+      pointerDecision !== "start" ||
       !enabled ||
       committedTargetRef.current != null ||
       prefersReducedMotion() ||
@@ -519,10 +558,32 @@ export function V3TopLevelSwipeSurface({
   const visualNextSurface = settlingComposition?.nextSurface ?? nextSurface;
   const canonicalSlot = canonicalSwipeSlot(settlingComposition, activeIndex);
 
+  useLayoutEffect(() => {
+    const surface = surfaceRef.current;
+    if (!surface || typeof document === "undefined") return;
+
+    const focusedElement = document.activeElement;
+    if (!(focusedElement instanceof HTMLElement) || !surface.contains(focusedElement)) return;
+
+    const focusedPage = focusedElement.closest<HTMLElement>(".v3-top-level-swipe-page");
+    if (!focusedPage || focusedPage.dataset.v3SwipeCanonical === "true") return;
+
+    // A committed swipe can make the formerly-current page inert while one of
+    // its descendants still owns focus. Move focus to the selected top-level
+    // destination rather than leaving assistive technology anchored inside an
+    // aria-hidden subtree. The stable surface is the no-tab fallback when the
+    // shell has no mounted Liquid tab item.
+    const selectedTab = navigationMaterial()?.querySelector<HTMLElement>(
+      '[data-v3-tab-index][aria-current="page"]',
+    );
+    (selectedTab ?? surface).focus({ preventScroll: true });
+  }, [canonicalSlot]);
+
   return (
     <div
       ref={surfaceRef}
       className="v3-top-level-swipe-surface"
+      tabIndex={-1}
       data-v3-top-level-swipe-policy={policy}
       data-v3-top-level-swipe-preview-ready={previewReady ? "true" : "false"}
       data-v3-top-level-swipe-adjacent-ready={requiredAdjacentSurfacesReady ? "true" : "false"}

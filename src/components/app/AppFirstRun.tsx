@@ -8,25 +8,39 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  optionalBrowserStorage,
+  readOptionalStorage,
+  writeOptionalStorage,
+} from "@/lib/app-optional-browser-storage";
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 
 export const APP_FIRST_RUN_COMPLETE_KEY = "solaris:app-first-run-complete:v1";
 
-function allowedOnPath(pathname: string) {
-  return !(
+export function appFirstRunAllowedOnPath(pathname: string) {
+  if (
     pathname === "/app-launch" ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/confirmations") ||
-    pathname.startsWith("/jury-voting") ||
-    pathname.startsWith("/televoting") ||
-    pathname.startsWith("/next-in-line") ||
-    pathname.startsWith("/broadcast/")
-  );
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
+    /^\/(auth|reset|recover)(\/|$)/.test(pathname)
+  ) {
+    return false;
+  }
+
+  const screen = resolveSolarisAppScreen(pathname);
+  return !screen.behavior.criticalTask && !screen.behavior.immersive;
 }
 
 export function appFirstRunComplete() {
   if (typeof window === "undefined") return true;
-  return window.localStorage.getItem(APP_FIRST_RUN_COMPLETE_KEY) === "1";
+  const stored = readOptionalStorage(
+    optionalBrowserStorage("localStorage"),
+    APP_FIRST_RUN_COMPLETE_KEY,
+  );
+
+  // First-run education is optional. If browser preference storage cannot be
+  // read, do not let an unpersistable modal become a repeated app-wide blocker.
+  return stored === undefined || stored === "1";
 }
 
 export function AppFirstRun({
@@ -39,15 +53,32 @@ export function AppFirstRun({
   onComplete?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [completedThisSession, setCompletedThisSession] = useState(false);
 
   useEffect(() => {
-    if (!isAppMode || !allowedOnPath(pathname)) return;
-    if (window.localStorage.getItem(APP_FIRST_RUN_COMPLETE_KEY) === "1") return;
+    if (!isAppMode || !appFirstRunAllowedOnPath(pathname) || completedThisSession) {
+      setOpen(false);
+      return;
+    }
+
+    const stored = readOptionalStorage(
+      optionalBrowserStorage("localStorage"),
+      APP_FIRST_RUN_COMPLETE_KEY,
+    );
+    if (stored === undefined || stored === "1") {
+      setOpen(false);
+      return;
+    }
     setOpen(true);
-  }, [isAppMode, pathname]);
+  }, [completedThisSession, isAppMode, pathname]);
 
   const complete = () => {
-    window.localStorage.setItem(APP_FIRST_RUN_COMPLETE_KEY, "1");
+    writeOptionalStorage(
+      optionalBrowserStorage("localStorage"),
+      APP_FIRST_RUN_COMPLETE_KEY,
+      "1",
+    );
+    setCompletedThisSession(true);
     setOpen(false);
     onComplete?.();
   };

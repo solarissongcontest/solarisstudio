@@ -23,7 +23,7 @@ export function buildPublicUserContext({
     signedIn,
     organizer: signedIn && access.isOrganizer,
     hod: signedIn && Boolean(access.countryId),
-    ...(access.countryId ? { countryId: access.countryId } : {}),
+    ...(signedIn && access.countryId ? { countryId: access.countryId } : {}),
     ...(currentEdition ? { currentEdition } : {}),
   };
 }
@@ -42,10 +42,10 @@ export function publicGlobalAreasForContext(
     return {
       ...item,
       label: context.signedIn ? "Me" : "Sign in",
-      to: context.signedIn ? "/my-solaris" : "/auth",
+      to: context.signedIn ? "/me" : "/auth",
       description: context.signedIn
-        ? "Your tasks, country, messages and account."
-        : "Sign in to access MySolaris and country tools.",
+        ? "Your identity, history, saved content, preferences and account."
+        : "Sign in to access your Solaris identity, history, saved content, preferences and account.",
     };
   });
 }

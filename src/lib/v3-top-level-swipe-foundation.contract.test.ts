@@ -36,6 +36,17 @@ describe("V3 top-level swipe foundation", () => {
     expect(surface).not.toContain("fetch(");
   });
 
+  it("evacuates focus before a retained page remains inert and aria-hidden", () => {
+    const surface = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+
+    expect(surface).toContain("useLayoutEffect(() => {");
+    expect(surface).toContain('focusedElement.closest<HTMLElement>(".v3-top-level-swipe-page")');
+    expect(surface).toContain('focusedPage.dataset.v3SwipeCanonical === "true"');
+    expect(surface).toContain('[data-v3-tab-index][aria-current="page"]');
+    expect(surface).toContain("(selectedTab ?? surface).focus({ preventScroll: true })");
+    expect(surface).toContain("tabIndex={-1}");
+  });
+
   it("keeps page, lens and icon motion on one continuous visual progress", () => {
     const surface = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
 
