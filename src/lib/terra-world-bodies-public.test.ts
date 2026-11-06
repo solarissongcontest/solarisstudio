@@ -151,6 +151,41 @@ describe("TG3 public institution bodies", () => {
       (WORLD_BODIES_MAX_PAGE + 1) * WORLD_BODIES_PAGE_SIZE - 1,
     );
   });
+  it("recovers from an out-of-range PostgREST 416 using one public-only recount", async () => {
+    const org = chain({ data: parent, error: null });
+    const expiredPage = chain({ data: null, error: { code: "PGRST103" }, count: null });
+    const recount = chain({ data: [{ id: "body-1" }], error: null, count: 4 });
+    let organQueries = 0;
+    mockFrom.mockImplementation((name: string) =>
+      name === "world_organizations" ? org : ++organQueries === 1 ? expiredPage : recount);
+    const response = await readPublicWorldBodies("guard", 1, { term: "General", status: "active" });
+    expect(response?.bodies).toEqual([]);
+    expect(response?.total).toBe(4);
+    expect(organQueries).toBe(2);
+    expect(recount.select).toHaveBeenCalledWith("id", { count: "exact" });
+    expect(recount.eq).toHaveBeenCalledWith("organization_id", "org-1");
+    expect(recount.eq).toHaveBeenCalledWith("visibility", "public");
+    expect(recount.eq).toHaveBeenCalledWith("status", "active");
+    expect(recount.or).toHaveBeenCalledWith("name.ilike.%General%,short_name.ilike.%General%");
+    expect(recount.range).toHaveBeenCalledWith(0, 0);
+  });
+  it("fails closed if a PostgREST 416 recount leaves the requested page in range", async () => {
+    const org = chain({ data: parent, error: null });
+    const expiredPage = chain({ data: null, error: { code: "PGRST103" }, count: null });
+    const recount = chain({ data: [{ id: "body-1" }], error: null, count: 25 });
+    let organQueries = 0;
+    mockFrom.mockImplementation((name: string) =>
+      name === "world_organizations" ? org : ++organQueries === 1 ? expiredPage : recount);
+    await expect(readPublicWorldBodies("guard", 1)).rejects.toThrow("could not be verified");
+    expect(organQueries).toBe(2);
+  });
+  it("does not attempt to recover a different database error as an expired page", async () => {
+    const org = chain({ data: parent, error: null });
+    const blocked = chain({ data: null, error: { code: "PGRST301" }, count: null });
+    mockFrom.mockImplementation((name: string) => name === "world_organizations" ? org : blocked);
+    await expect(readPublicWorldBodies("guard", 1)).rejects.toThrow("could not be loaded");
+    expect(mockFrom).toHaveBeenCalledTimes(2);
+  });
   it("treats a page emptied by publication changes as a verified empty page", async () => {
     const org = chain({ data: parent, error: null });
     const body = chain({ data: [], error: null, count: 4 });
