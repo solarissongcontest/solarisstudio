@@ -51,6 +51,20 @@ describe("Organizer Friend Voting settings capability and audit boundary", () =>
     expect(direct).toContain("p_actor_id: organizer.id");
   });
 
+  it("binds the capability grant to the server-derived Organizer identity before any private read or audited write", () => {
+    for (const method of ["getFriendVotingSettingsServer", "updateFriendVotingSettingsServer"]) {
+      const code = serverMethod(method);
+      const check = code.indexOf("if (capabilityContext.userId !== organizer.id)");
+      const organizer = code.indexOf("await requireSolarisOrganizerServer()");
+      expect(check).toBeGreaterThan(organizer);
+      const protectedOperation = method.startsWith("get")
+        ? code.indexOf("return loadFriendVotingSettingsServer()")
+        : code.indexOf('db.rpc("update_friend_voting_settings_with_audit"');
+      expect(protectedOperation).toBeGreaterThan(check);
+    }
+    expect(serverMethod("updateFriendVotingSettingsServer")).toContain("p_actor_id: organizer.id");
+  });
+
   it("retains internal read for authorized calculations without adding a second writer", () => {
     const internal = serverMethod("loadFriendVotingSettingsServer");
     expect(internal).toContain('.from("friend_voting_settings")');
