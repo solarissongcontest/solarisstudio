@@ -40,8 +40,8 @@ describe("V3 Search shared-device recent publication", () => {
 
   it("hides changed or unverified publications before replaying stored labels", () => {
     const verified = visiblePublicationVerifiedRecents(saved, {
-      publishedEditionSlugs: new Set(["ssc21"]),
-      publishedStorySlugs: new Set(["ssc21"]),
+      publishedEditionLabels: new Map([["ssc21", "Official edition 21"]]),
+      publishedStoryLabels: new Map([["ssc21", "Official story 21"]]),
     });
     expect(verified.map((item) => item.path)).toEqual([
       "/shows/222",
@@ -50,15 +50,36 @@ describe("V3 Search shared-device recent publication", () => {
       "/countries/ol",
     ]);
     expect(visiblePublicationVerifiedRecents(saved, {
-      publishedEditionSlugs: new Set(),
-      publishedStorySlugs: new Set(),
+      publishedEditionLabels: new Map(),
+      publishedStoryLabels: new Map(),
     }).map((item) => item.path)).toEqual(["/shows/222", "/countries/ol"]);
+  });
+
+  it("replaces stale local titles with current verified public labels", () => {
+    const items = visiblePublicationVerifiedRecents(saved, {
+      publishedEditionLabels: new Map([["ssc21", "Current published Edition"]]),
+      publishedStoryLabels: new Map([["ssc21", "Revised published Story"]]),
+    });
+    expect(items.find((item) => item.path === "/editions/ssc21")?.label)
+      .toBe("Current published Edition");
+    expect(items.find((item) => item.path === "/stories/ssc21")?.label)
+      .toBe("Revised published Story");
+    expect(saved.find((item) => item.path === "/stories/ssc21")?.label)
+      .toBe("Published story");
+  });
+
+  it("does not trust empty or missing official titles even when the slug exists", () => {
+    const verified = visiblePublicationVerifiedRecents(saved, {
+      publishedEditionLabels: new Map([["ssc21", "   "]]),
+      publishedStoryLabels: new Map([["ssc21", ""]]),
+    });
+    expect(verified.map((item) => item.path)).toEqual(["/shows/222", "/countries/ol"]);
   });
 
   it("does not mutate or promote unrelated public content into new destinations", () => {
     const visible = visiblePublicationVerifiedRecents(saved, {
-      publishedEditionSlugs: new Set(["ssc22", "ssc21"]),
-      publishedStorySlugs: new Set(["ssc21"]),
+      publishedEditionLabels: new Map([["ssc22", "Official edition 22"], ["ssc21", "Official edition 21"]]),
+      publishedStoryLabels: new Map([["ssc21", "Official story 21"]]),
     });
     expect(visible).toHaveLength(saved.length - 1);
     expect(saved).toHaveLength(6);
