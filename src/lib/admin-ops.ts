@@ -44,14 +44,14 @@ export type AdminNotification = {
   created_at: string;
 };
 
+const adminDb = supabase as any;
+
 const ADMIN_DEADLINE_FIELDS =
   "id,edition_id,show_id,kind,label,due_at,completed_at,notes,created_at";
 const ADMIN_AUDIT_FIELDS =
   "id,actor_id,action,table_name,record_id,edition_id,country_id,before_data,after_data,created_at";
 const ADMIN_NOTIFICATION_FIELDS =
   "id,recipient_id,severity,title,body,href,source_key,read_at,resolved_at,requires_action,resolution_mode,created_at";
-
-const adminDb = supabase as any;
 
 function missingSchema(error: unknown) {
   const text = String((error as { message?: string })?.message ?? error ?? "").toLowerCase();
@@ -79,7 +79,7 @@ async function loadAdminDeadlines(editionId?: string | null) {
     .order("due_at", { ascending: true });
 
   if (error) {
-    if (missingSchema(error)) return [] as AdminDeadline[];
+    // Missing private authority is not an all-clear: preserve a visible read failure.
     throw error;
   }
 
@@ -88,6 +88,7 @@ async function loadAdminDeadlines(editionId?: string | null) {
 
 export function useAdminDeadlines(editionId?: string | null) {
   const { editionId: organizerContextEditionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
   const requestedEditionId = normalizeEditionId(editionId);
   const organizerEditionId = normalizeEditionId(organizerContextEditionId);
   const exactEditionId =
@@ -95,7 +96,7 @@ export function useAdminDeadlines(editionId?: string | null) {
 
   return useQuery({
     enabled: Boolean(exactEditionId),
-    queryKey: ["admin-deadlines", exactEditionId ?? "unscoped"],
+    queryKey: ["admin-deadlines", exactEditionId ?? "unscoped", actorId],
     queryFn: () => {
       if (!exactEditionId) {
         throw new Error(
@@ -108,10 +109,11 @@ export function useAdminDeadlines(editionId?: string | null) {
 }
 
 export function useEditionAdminDeadlines(editionId?: string | null) {
+  const actorId = useAuthenticatedUser().id;
   const normalizedEditionId = normalizeEditionId(editionId);
   return useQuery({
     enabled: Boolean(normalizedEditionId),
-    queryKey: ["admin-deadlines", normalizedEditionId ?? "unscoped"],
+    queryKey: ["admin-deadlines", normalizedEditionId ?? "unscoped", actorId],
     queryFn: () => {
       if (!normalizedEditionId) {
         throw new Error("Edition deadlines require an explicit Organizer edition scope.");
@@ -122,8 +124,9 @@ export function useEditionAdminDeadlines(editionId?: string | null) {
 }
 
 export function useAdminAudit(limit = 30) {
+  const actorId = useAuthenticatedUser().id;
   return useQuery({
-    queryKey: ["admin-audit", limit],
+    queryKey: ["admin-audit", limit, actorId],
     queryFn: async () => {
       const { data, error } = await adminDb
         .from("admin_audit_log")
@@ -132,7 +135,7 @@ export function useAdminAudit(limit = 30) {
         .limit(limit);
 
       if (error) {
-        if (missingSchema(error)) return [] as AdminAuditRow[];
+        // Audit history must not silently become empty when its authority fails.
         throw error;
       }
 
