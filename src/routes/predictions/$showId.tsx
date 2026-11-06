@@ -17,6 +17,7 @@ import {
 import type { PredictionItem, PredictionType } from "@/lib/predictions";
 import { formatEventDateTime } from "@/lib/public-time";
 import { predictionDraftScope, predictionReadStatus } from "@/lib/public-prediction-read-status";
+import { hasSubmittedPrediction } from "@/lib/v3-predictions";
 
 export const Route = createFileRoute("/predictions/$showId")({
   head: () => ({
@@ -143,7 +144,7 @@ function PredictionBuilderPage() {
     now >= new Date(round.locks_at).getTime();
   const canSeeConsensus = Boolean(
     user &&
-      (savedPrediction ||
+      (hasSubmittedPrediction(savedPrediction) ||
         (round && now != null && now >= new Date(round.locks_at).getTime())),
   );
   const { data: consensus } = usePredictionConsensus(round?.id, canSeeConsensus);
