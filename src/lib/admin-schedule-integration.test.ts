@@ -1,3 +1,5 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
@@ -64,8 +66,20 @@ type HookConfig = {
   queryFn: () => Promise<AdminScheduleItem[]>;
 };
 
-function schedule(editionId = 'edition-22', slug?: string | null) {
-  return useAdminOperationalSchedule(editionId, slug) as unknown as HookConfig;
+let capturedQuery: HookConfig | null = null;
+
+// Invoke the hook inside a real React component. The query transport is
+// mocked above, so no network or Supabase provider is required.
+function ScheduleProbe({ editionId, slug }: { editionId: string; slug?: string | null }) {
+  capturedQuery = useAdminOperationalSchedule(editionId, slug) as unknown as HookConfig;
+  return null;
+}
+
+function schedule(editionId = 'edition-22', slug?: string | null): HookConfig {
+  capturedQuery = null;
+  renderToStaticMarkup(createElement(ScheduleProbe, { editionId, slug }));
+  if (!capturedQuery) throw new Error('Operational schedule hook did not render.');
+  return capturedQuery;
 }
 
 describe('Organizer operational schedule read scope', () => {
