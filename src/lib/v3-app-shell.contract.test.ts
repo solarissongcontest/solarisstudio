@@ -47,7 +47,7 @@ describe("V3 app shell migration contract", () => {
     expect(shell).toContain("export function V3BottomNavigation");
     expect(tabs).toContain('aria-label="Primary app navigation"');
     expect(tabs).toContain('aria-current={active ? "page" : undefined}');
-    expect(desktop).toContain('aria-label="Primary app navigation"');
+    expect(desktop).toContain('aria-label="Solaris website sections"');
     expect(desktop).toContain(
       'aria-current={resolveV3WebNavigationCurrent({ active: destination.active, pathname, target: destination.to })}',
     );
