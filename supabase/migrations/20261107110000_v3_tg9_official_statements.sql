@@ -174,8 +174,8 @@ begin
       and office_row.active
       and term.holder_user_id = v_actor
       and term.status = 'active'
-      and term.starts_at <= now()
-      and term.ends_at is null
+      and term.started_at <= now()
+      and term.actual_end_at is null
     limit 1;
     if v_office_person is null then
       raise exception using errcode = '42501', message = 'ISSUING_OFFICE_NOT_HELD';
