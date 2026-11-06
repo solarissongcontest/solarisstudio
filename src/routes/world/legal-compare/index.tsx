@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { WorldLegalComparisonScreen } from "@/components/world/WorldLegalComparison";
+import { WorldPublicGate } from "@/components/world/WorldPublic";
 
 function parseVersion(value: unknown): number | null {
   if (value == null || value === "") return null;
@@ -31,5 +32,9 @@ export const Route = createFileRoute("/world/legal-compare/")({
 });
 
 function LegalComparisonRoute() {
-  return <WorldLegalComparisonScreen search={Route.useSearch()} />;
+  return (
+    <WorldPublicGate>
+      <WorldLegalComparisonScreen search={Route.useSearch()} />
+    </WorldPublicGate>
+  );
 }
