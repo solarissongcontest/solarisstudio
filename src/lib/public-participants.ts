@@ -39,3 +39,17 @@ export function usePublicShowParticipants(showId?: string) {
     queryFn: () => loadPublicParticipants({ showId }),
   });
 }
+
+/**
+ * Existing public-safe participant projection for cross-edition Search.
+ * This must never fall back to the raw participants table for signed-in users.
+ */
+export function usePublicSearchParticipants() {
+  return useQuery({
+    queryKey: ["public-participants", "search"],
+    queryFn: () => loadPublicParticipants({}),
+    staleTime: 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+}
