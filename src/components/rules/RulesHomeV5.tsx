@@ -29,6 +29,7 @@ import {
   type GovernanceActionKey,
 } from "@/lib/governance-v5";
 import { getRuleContext } from "@/lib/rule-context";
+import { formatRulebookHistoryDate } from "@/lib/v3-rulebook-history";
 
 function actionFromStoredPath(path: string | null): GovernanceActionKey | null {
   if (!path) return null;
@@ -74,11 +75,7 @@ function formatEffectiveDate(value: string | null | undefined) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(date);
+  return formatRulebookHistoryDate(value);
 }
 
 export function RulesHomeV5({
