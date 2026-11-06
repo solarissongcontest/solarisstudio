@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { AlertTriangle, CheckCircle2, RadioTower, ShieldAlert } from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { useAuthenticatedUser } from '@/components/auth/AuthenticatedUserContext';
 import { ControlRoomImmediateAttention } from '@/components/admin/ControlRoomImmediateAttention';
 import { AdminPage } from '@/components/admin/AdminShell';
 import {
@@ -33,6 +34,7 @@ type TransitionRisk = 'normal' | 'elevated' | 'critical';
 type PendingControlReview =
   | {
       kind: 'edition-transition';
+      actorId: string;
       editionId: string;
       editionLabel: string;
       from: EditionState;
@@ -45,6 +47,7 @@ type PendingControlReview =
     }
   | {
       kind: 'approve-transition';
+      actorId: string;
       editionId: string;
       editionLabel: string;
       requestId: string;
@@ -56,6 +59,7 @@ type PendingControlReview =
     }
   | {
       kind: 'incident-transition';
+      actorId: string;
       editionId: string;
       editionLabel: string;
       incidentId: string;
@@ -77,8 +81,11 @@ export const Route = createFileRoute('/_authenticated/admin/control-room')({
 
 function ControlRoomV2() {
   const { editionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
   const editionIdRef = useRef(editionId);
+  const actorIdRef = useRef(actorId);
   editionIdRef.current = editionId;
+  actorIdRef.current = actorId;
   const queryClient = useQueryClient();
   const { data: editions = [] } = useEditions();
   const showsQuery = useShows(editionId || undefined);
@@ -114,27 +121,31 @@ function ControlRoomV2() {
     setPendingReview(null);
     setReviewError(null);
     setReviewChecking(false);
-  }, [editionId]);
+  }, [editionId, actorId]);
 
   const snapshotQuery = useQuery({
-    queryKey: ['studio2-control-room', editionId ?? 'none'],
-    enabled: Boolean(editionId),
+    queryKey: ['studio2-control-room', actorId, editionId ?? 'none'],
+    enabled: Boolean(actorId && editionId),
     queryFn: () => studio2ControlRoom.loadSnapshot(editionId!),
     refetchInterval: 60_000,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
   });
 
   const approvalsQuery = useQuery({
-    queryKey: ['studio2-transition-approvals', editionId ?? 'none'],
-    enabled: Boolean(editionId),
+    queryKey: ['studio2-transition-approvals', actorId, editionId ?? 'none'],
+    enabled: Boolean(actorId && editionId),
     queryFn: () => studio2ControlRoom.listTransitionApprovals(editionId!),
     refetchInterval: 60_000,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
   });
 
   const refresh = async (targetEditionId = editionId) => {
-    if (!targetEditionId) return;
+    if (!targetEditionId || !actorId) return;
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['studio2-control-room', targetEditionId] }),
-      queryClient.invalidateQueries({ queryKey: ['studio2-transition-approvals', targetEditionId] }),
+      queryClient.invalidateQueries({ queryKey: ['studio2-control-room', actorId, targetEditionId] }),
+      queryClient.invalidateQueries({ queryKey: ['studio2-transition-approvals', actorId, targetEditionId] }),
     ]);
   };
 
@@ -242,7 +253,7 @@ function ControlRoomV2() {
     transition: NonNullable<ReturnType<typeof getEditionTransition>>,
     approvalRequestId?: string | null,
   ) => {
-    if (!snapshot || !editionId || snapshot.editionId !== editionId) return;
+    if (!snapshot || !editionId || !actorId || snapshot.editionId !== editionId) return;
     const reviewedApproval = approvalRequestId
       ? approvals.find((approval) => approval.id === approvalRequestId) ?? null
       : null;
@@ -253,6 +264,7 @@ function ControlRoomV2() {
     setReviewError(null);
     setPendingReview({
       kind: 'edition-transition',
+      actorId,
       editionId: snapshot.editionId,
       editionLabel: selectedEdition?.name ?? editionId,
       from: transition.from,
@@ -266,10 +278,11 @@ function ControlRoomV2() {
   };
 
   const openApprovalReview = (approval: (typeof approvals)[number]) => {
-    if (!snapshot || !editionId || snapshot.editionId !== editionId) return;
+    if (!snapshot || !editionId || !actorId || snapshot.editionId !== editionId) return;
     setReviewError(null);
     setPendingReview({
       kind: 'approve-transition',
+      actorId,
       editionId: snapshot.editionId,
       editionLabel: selectedEdition?.name ?? editionId,
       requestId: approval.id,
@@ -285,10 +298,11 @@ function ControlRoomV2() {
     incident: Studio2ControlRoomSnapshot['incidents'][number],
     to: IncidentStatus,
   ) => {
-    if (!snapshot || !editionId || snapshot.editionId !== editionId) return;
+    if (!snapshot || !editionId || !actorId || snapshot.editionId !== editionId) return;
     setReviewError(null);
     setPendingReview({
       kind: 'incident-transition',
+      actorId,
       editionId: snapshot.editionId,
       editionLabel: selectedEdition?.name ?? editionId,
       incidentId: incident.id,
@@ -302,9 +316,13 @@ function ControlRoomV2() {
   const applyReviewedCommand = async () => {
     if (!pendingReview) return;
     const reviewedEditionId = pendingReview.editionId;
+    const reviewedActorId = pendingReview.actorId;
     setReviewError(null);
     setReviewChecking(true);
     try {
+      if (actorIdRef.current !== reviewedActorId || actorId !== reviewedActorId) {
+        throw new Error('Organizer account changed after this review opened. Nothing was applied.');
+      }
       if (!snapshot || !controlRoomReviewMatchesEdition(
         pendingReview.editionId,
         editionIdRef.current,
@@ -324,6 +342,7 @@ function ControlRoomV2() {
       ]);
 
       if (
+        actorIdRef.current !== reviewedActorId ||
         editionIdRef.current !== reviewedEditionId ||
         freshSnapshot.editionId !== reviewedEditionId
       ) {
