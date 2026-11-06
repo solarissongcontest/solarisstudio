@@ -80,7 +80,7 @@ export function WorldCountriesDirectory() {
     staleTime: 120_000,
     refetchOnMount: "always",
     retry: 1,
-    queryFn: () => fetchWorldCountryDirectory(safeSearch, page),
+    queryFn: ({ signal }) => fetchWorldCountryDirectory(safeSearch, page, signal),
   });
 
   // A failed revalidation may retain old React Query data. Never render it.
@@ -157,7 +157,7 @@ function useCountryMemberships(countryId: string | undefined, phase: Phase, page
     refetchOnMount: "always",
     staleTime: 120_000,
     retry: 1,
-    queryFn: () => fetchWorldCountryMembershipPage(countryId ?? "", phase, page),
+    queryFn: ({ signal }) => fetchWorldCountryMembershipPage(countryId ?? "", phase, page, signal),
   });
 }
 
@@ -240,11 +240,14 @@ export function WorldCountryInternational({ code }: { code: string }) {
     refetchOnMount: "always",
     staleTime: 5 * 60_000,
     retry: 1,
-    queryFn: () => fetchWorldCountryIdentity(canonicalCode),
+    queryFn: ({ signal }) => fetchWorldCountryIdentity(canonicalCode, signal),
   });
 
-  const current = useCountryMemberships(identity.data?.id, "current", currentPage);
-  const historical = useCountryMemberships(identity.data?.id, "historical", historyPage);
+  // Do not start dependent membership reads from an unverified cached country
+  // identity. The current country must pass its post-mount publication check.
+  const verifiedIdentity = verifiedWorldQueryData(identity);
+  const current = useCountryMemberships(verifiedIdentity?.id, "current", currentPage);
+  const historical = useCountryMemberships(verifiedIdentity?.id, "historical", historyPage);
 
   useEffect(() => {
     const verifiedPage = verifiedWorldQueryData(current);
@@ -272,11 +275,11 @@ export function WorldCountryInternational({ code }: { code: string }) {
   ].map((item) => item.organizationId))), [verifiedCurrent, verifiedHistorical]);
   const institutions = useQuery({
     queryKey: ["world", "country-international-public-institutions", organizationIds.join(",")],
-    enabled: Boolean(verifiedWorldQueryData(identity)) && organizationIds.length > 0,
+    enabled: Boolean(verifiedIdentity) && organizationIds.length > 0,
     refetchOnMount: "always",
     staleTime: 120_000,
     retry: 1,
-    queryFn: () => fetchWorldPublicCountryInstitutions(organizationIds),
+    queryFn: ({ signal }) => fetchWorldPublicCountryInstitutions(organizationIds, signal),
   });
 
   if (!validCode) return <div className="mx-auto max-w-4xl px-4 py-12">
@@ -285,7 +288,6 @@ export function WorldCountryInternational({ code }: { code: string }) {
   </div>;
   if (identity.isError) return <div className="mx-auto max-w-5xl px-4 py-10"><FailureState retry={() => void identity.refetch()} /></div>;
   if (identity.isPending || identity.isFetching || !identity.isFetchedAfterMount) return <div className="mx-auto max-w-5xl px-4 py-10"><ArchiveDataLoading label="Opening country identity…" /></div>;
-  const verifiedIdentity = verifiedWorldQueryData(identity);
   if (!verifiedIdentity) return <div className="mx-auto max-w-4xl px-4 py-12">
     <h1 className="text-xl font-bold">Country not found</h1>
     <p className="mt-2 text-sm text-muted-foreground">No current public country identity matches this address.</p>
