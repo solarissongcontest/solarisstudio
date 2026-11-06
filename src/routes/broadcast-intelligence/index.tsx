@@ -401,8 +401,8 @@ function LegacyBroadcastIntelligencePage() {
   if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Broadcast Intelligence" title="Replay the voting" description="Replay and inspect a published result." /><ArchiveDataError /></AppShell>;
 
   return (
-    <PublicResultsAnalysisSpoilerBoundary selectedShowId={selectedShow?.id ?? null} title="Broadcast Intelligence">
-      <AppShell>
+    <AppShell>
+      <PublicResultsAnalysisSpoilerBoundary selectedShowId={selectedShow?.id ?? null} title="Broadcast Intelligence">
       <PageHeader
         eyebrow="Broadcast Intelligence"
         title="Replay the voting"
@@ -968,7 +968,7 @@ function LegacyBroadcastIntelligencePage() {
         </div>
         </div>
       </DataStoryPage>
-      </AppShell>
-    </PublicResultsAnalysisSpoilerBoundary>
+      </PublicResultsAnalysisSpoilerBoundary>
+    </AppShell>
   );
 }
