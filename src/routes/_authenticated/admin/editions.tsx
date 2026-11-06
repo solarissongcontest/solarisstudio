@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -29,6 +29,8 @@ import {
 } from "@/components/admin/AdminWorkspacePrimitives";
 import { Field, Select, TextInput } from "@/components/studio/Controls";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
+import { createEditionThroughAuthority } from "@/lib/edition-create-command";
 import { reportSupabaseError } from "@/lib/errors";
 import {
   editionLabel,
@@ -147,6 +149,9 @@ function publicationControlFingerprint(control: PublicationControlSummary) {
 }
 
 function AdminHome() {
+  const actorId = useAuthenticatedUser().id;
+  const activeActor = useRef({id:actorId,generation:0});
+
   const { data: editions = [], isLoading: editionsLoading } = useEditions();
   const { data: countries = [] } = useCountries();
   const { data: shows = [] } = useAllShows();
@@ -172,6 +177,18 @@ function AdminHome() {
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  useLayoutEffect(() => {
+    if (activeActor.current.id === actorId) return;
+    activeActor.current = {id:actorId,generation:activeActor.current.generation+1};
+    setCreateOpen(false);
+    setLifecycleReview(null);
+    setNumberTouched(false);
+    setForm({edition_number:"",name:"",year:"",host_city:"",host_country_id:""});
+    setMsg(null);
+    setError(null);
+  }, [actorId]);
+  const latestForm = useRef(form);
+  useLayoutEffect(() => { latestForm.current = form; }, [form]);
 
   const participantCountByShow = useMemo(() => {
     const counts = new Map<string, number>();
@@ -202,9 +219,10 @@ function AdminHome() {
     );
   };
 
+  const createInFlight = useRef(false);
   const createEdition = async (event: FormEvent) => {
     event.preventDefault();
-    if (saving) return;
+    if (saving || createInFlight.current) return;
 
     setMsg(null);
     setError(null);
@@ -224,24 +242,23 @@ function AdminHome() {
       return;
     }
 
+    const reviewedForm = {...form};
+    const requestActor = {...activeActor.current};
+    createInFlight.current = true;
     setSaving(true);
     try {
-      const { error: insertError } = await supabase.from("editions").insert({
-        edition_number: num,
+      const receipt = await createEditionThroughAuthority({
+        editionNumber: num,
         name: form.name || `Solaris Song Contest ${num}`,
         year: form.year ? Number(form.year) : null,
-        slug,
-        host_city: form.host_city || null,
-        host_country_id: form.host_country_id || null,
-        status: "draft",
-        published: false,
+        hostCity: form.host_city || null,
+        hostCountryId: form.host_country_id || null,
+        reason: "Create reviewed private Edition draft",
       });
 
-      if (insertError) {
-        setError(reportSupabaseError(insertError, "Could not create the edition. Nothing was saved."));
-        return;
-      }
-
+      if (activeActor.current.id !== requestActor.id || activeActor.current.generation !== requestActor.generation) return;
+      // Do not discard text entered while the original request was pending.
+      if (JSON.stringify(latestForm.current) === JSON.stringify(reviewedForm)) {
       setNumberTouched(false);
       setForm({
         edition_number: num + 1,
@@ -251,9 +268,14 @@ function AdminHome() {
         host_country_id: "",
       });
       setCreateOpen(false);
-      setMsg(`SSC ${num} created as a private draft.`);
+      }
+      setMsg(`SSC ${num} creation confirmed · receipt ${receipt.operationId}.`);
       refresh();
+    } catch (creationError) {
+      if (activeActor.current.id !== requestActor.id || activeActor.current.generation !== requestActor.generation) return;
+      setError(reportSupabaseError(creationError, "Edition creation is unconfirmed. Keep the same draft and reconcile its outcome before changing it."));
     } finally {
+      createInFlight.current = false;
       setSaving(false);
     }
   };
