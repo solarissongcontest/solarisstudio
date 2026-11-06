@@ -42,6 +42,20 @@ describe('V3 Organizer exact-source media review preview', () => {
 
   it('clears pending review when Organizer edition context changes', () => {
     expect(route).toContain('setPendingReview(null)');
-    expect(route).toContain('}, [resolvedEditionId]);');
+    expect(route).toContain('}, [resolvedEditionId, actorId]);');
+  });
+
+  it('isolates private media review caches and pending decisions by account and edition', () => {
+    expect(route).toContain('const actorId = useAuthenticatedUser().id');
+    expect(route).toContain("queryKey: ['studio2-media-asset-reviews', actorId, resolvedEditionId || 'none']");
+    expect(route).toContain("queryKey: ['studio2-country-cockpit', actorId, resolvedEditionId || 'none']");
+    expect(route).toContain("queryKey: ['studio2-media-asset-reviews'],");
+    expect(route).toContain('queryClient.removeQueries({');
+    expect(route).toContain('commandActorId: actorId');
+    expect(route).toContain('liveActorRef.current !== review.commandActorId');
+    expect(route).toContain('liveActorRef.current !== variables.commandActorId');
+    expect(route).toContain("queryKey: ['studio2-media-asset-reviews', variables.commandActorId, variables.commandEditionId]");
+    expect(route).toContain('refetchOnWindowFocus: false');
+    expect(route).toContain('refetchOnReconnect: false');
   });
 });

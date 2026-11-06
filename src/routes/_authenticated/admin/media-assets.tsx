@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { AlertTriangle, ExternalLink, Images, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { useAuthenticatedUser } from '@/components/auth/AuthenticatedUserContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminSheet, AdminStatus } from '@/components/admin/AdminUI';
@@ -48,6 +49,7 @@ type PendingMediaReviewItem = {
 type PendingMediaReview = {
   decision: Studio2MediaReviewDecision;
   commandEditionId: string;
+  commandActorId: string;
   editionLabel: string;
   reason: string;
   items: PendingMediaReviewItem[];
@@ -76,6 +78,9 @@ export const Route = createFileRoute('/_authenticated/admin/media-assets')({
 
 function MediaAssetsPage() {
   const { editionId } = useAdminContext();
+  const actorId = useAuthenticatedUser().id;
+  const liveActorRef = useRef(actorId);
+  liveActorRef.current = actorId;
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const queryClient = useQueryClient();
@@ -93,16 +98,26 @@ function MediaAssetsPage() {
     setSelectedKeys(new Set());
     setReviewReason('');
     setPendingReview(null);
-  }, [resolvedEditionId]);
+  }, [resolvedEditionId, actorId]);
+
+  // Private review history must not remain reachable after account/edition changes.
+  useEffect(() => {
+    queryClient.removeQueries({
+      queryKey: ['studio2-media-asset-reviews'],
+      predicate: (query) => query.queryKey[1] !== actorId || query.queryKey[2] !== (resolvedEditionId || 'none'),
+    });
+  }, [actorId, resolvedEditionId, queryClient]);
 
   const cockpitQuery = useQuery({
-    queryKey: ['studio2-country-cockpit', resolvedEditionId || 'none'],
+    queryKey: ['studio2-country-cockpit', actorId, resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId),
     queryFn: () => loadStudio2CountryCockpit(resolvedEditionId),
     staleTime: 20_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   const reviewsQuery = useQuery({
-    queryKey: ['studio2-media-asset-reviews', resolvedEditionId || 'none'],
+    queryKey: ['studio2-media-asset-reviews', actorId, resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId),
     queryFn: async () => {
       const reviews = await listStudio2MediaAssetReviews(resolvedEditionId);
@@ -112,6 +127,8 @@ function MediaAssetsPage() {
       return reviews;
     },
     staleTime: 10_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const inventory = useMemo(() => selectedEdition ? buildStudio2MediaAssetInventory({
@@ -202,6 +219,9 @@ function MediaAssetsPage() {
 
   const reviewMutation = useMutation({
     mutationFn: async (review: PendingMediaReview) => {
+      if (liveActorRef.current !== review.commandActorId) {
+        throw new Error('Organizer account changed. Reload and review the current media sources again.');
+      }
       if (!selectedEdition || selectedEdition.id !== review.commandEditionId || editionId !== review.commandEditionId) {
         throw new Error('Organizer edition changed. Review the current media selection again before applying a decision.');
       }
@@ -241,8 +261,8 @@ function MediaAssetsPage() {
       });
     },
     onSuccess: async (_rows, variables) => {
-      await queryClient.invalidateQueries({ queryKey: ['studio2-media-asset-reviews', variables.commandEditionId] });
-      if (editionId !== variables.commandEditionId) return;
+      if (liveActorRef.current !== variables.commandActorId || editionId !== variables.commandEditionId) return;
+      await queryClient.invalidateQueries({ queryKey: ['studio2-media-asset-reviews', variables.commandActorId, variables.commandEditionId] });
       toast.success(variables.decision === 'approved' ? 'Media assets approved.' : 'Media assets marked invalid.');
       setSelectedKeys(new Set());
       setReviewReason('');
@@ -291,6 +311,7 @@ function MediaAssetsPage() {
     }
     setPendingReview({
       decision,
+      commandActorId: actorId,
       commandEditionId: selectedEdition.id,
       editionLabel: `${selectedEdition.edition_number ? `SSC ${selectedEdition.edition_number} · ` : ''}${selectedEdition.name}`,
       reason: reviewReason.trim(),
