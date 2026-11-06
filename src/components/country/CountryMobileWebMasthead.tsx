@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronLeft } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 
 import { FlagFrame } from "@/components/FlagMedia";
@@ -31,7 +30,7 @@ export function CountryMobileWebMasthead({
         to="/countries"
         className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground"
       >
-        <ChevronLeft className="size-4" aria-hidden="true" />
+        <span aria-hidden="true">←</span>
         Countries
       </Link>
 
