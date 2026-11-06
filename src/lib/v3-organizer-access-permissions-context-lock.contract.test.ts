@@ -41,7 +41,10 @@ describe("V3 Organizer Access & Permissions context lock", () => {
     expect(route).toContain('Edition-scoped grants use only this verified Organizer context.');
     expect(route).toContain('scopeLabel: permissionScopeLabel(preview.editionId, editionLabels)');
     expect(route).toContain('{pending.scopeLabel}');
-    expect(route).toContain('permissionScopeLabel(approval.editionId, editionLabels)');
+    expect(route).toContain('scopeLabelForEdition={(approvalEditionId) =>');
+    expect(route).toContain('permissionScopeLabel(approvalEditionId, editionLabels)');
+    expect(route).toContain('{scopeLabelForEdition(approval.editionId)}');
+    expect(route).toContain('scopeLabel={permissionScopeLabel(approvalAction.approval.editionId, editionLabels)}');
     expect(route).toContain('editionScopeLabel={organizerEditionLabel}');
   });
 
