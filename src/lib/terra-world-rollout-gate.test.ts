@@ -37,6 +37,15 @@ describe("TG3 strict public World rollout gate", () => {
     }, true)).toBe("error");
   });
 
+  it("blocks all World routes during background verification and failed refetch", () => {
+    expect(publicWorldRolloutDisplay({ ...published, isFetching: true }, false))
+      .toBe("checking");
+    expect(publicWorldRolloutDisplay({ ...published, isRefetchError: true }, false))
+      .toBe("error");
+    expect(publicWorldRolloutDisplay({ ...published, isRefetchError: true }, true))
+      .toBe("error");
+  });
+
   it("keeps genuinely pending states hidden regardless of stale data", () => {
     expect(publicWorldRolloutDisplay({ ...published, isPending: true }, true))
       .toBe("checking");
@@ -45,7 +54,7 @@ describe("TG3 strict public World rollout gate", () => {
   it("preserves legacy World page behavior when strict verification was not requested", () => {
     expect(publicWorldRolloutDisplay({
       ...published, isFetchedAfterMount: false, isFetching: true,
-    }, false)).toBe("enabled");
+    }, false)).toBe("checking");
     expect(publicWorldRolloutDisplay({ ...published, data: false }, false))
       .toBe("disabled");
     expect(publicWorldRolloutDisplay({ ...published, isError: true }, false))
