@@ -7,6 +7,7 @@
  */
 export type PublicWorldRolloutSnapshot = {
   isError: boolean;
+  isRefetchError?: boolean;
   isPending: boolean;
   isFetching: boolean;
   isFetchedAfterMount: boolean;
@@ -18,8 +19,9 @@ export type PublicWorldRolloutDisplay = "error" | "checking" | "disabled" | "ena
 export function publicWorldRolloutDisplay(
   state: PublicWorldRolloutSnapshot, verifyOnMount: boolean,
 ): PublicWorldRolloutDisplay {
-  if (state.isError) return "error";
-  if (state.isPending || (verifyOnMount && (!state.isFetchedAfterMount || state.isFetching))) {
+  if (state.isError || state.isRefetchError) return "error";
+  // A background verification hides previously published identities on ALL World routes.
+  if (state.isPending || state.isFetching || (verifyOnMount && !state.isFetchedAfterMount)) {
     return "checking";
   }
   return state.data === true ? "enabled" : "disabled";
