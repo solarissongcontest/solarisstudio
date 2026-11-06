@@ -25,8 +25,7 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         output: {
-          // JS is already minified in production; mangle only private top-level
-          // module bindings, keeping public export contracts and runtime data.
+          // Keep exports stable while shortening private module bindings.
           minify: { compress: true, mangle: { toplevel: true } },
           // Production evidence showed repeated gzip framing across hundreds of
           // tiny Lucide chunks and several TanStack Router helper chunks. Keep
@@ -96,6 +95,20 @@ export default defineConfig({
                 minSize: 5000,
                 priority: 1,
               },
+              // Reused public-browser presentation primitives are shared across
+              // the section rails, hubs and data explorers. Consolidate only
+              // components referenced from multiple route chunks; preserve
+              // route-only modules and installed-app boundaries.
+              {
+                name: "shared-cross-page-primitives",
+                // Preserve existing app, control, Organizer and V3 shell
+                // boundaries. Only reused cross-page presentation modules
+                // can join the group; route-specific modules remain lazy.
+                test: /[\\/]src[\\/]components[\\/](?!(?:app|ui|admin|v3)[\\/])/,
+                minShareCount: 2,
+                minSize: 5000,
+                priority: 1,
+              },
               // Reused client-only domain modules were each carrying separate
               // chunk wrappers and gzip framing. Combine only modules actually
               // shared by multiple lazy entrypoints; preserve route-local code.
@@ -106,15 +119,12 @@ export default defineConfig({
                 minSize: 5000,
                 priority: 1,
               },
-              // Combine only remaining modules shared by at least two lazy
-              // entrypoints. Existing named groups retain precedence, while
-              // single-route pages and feature code stay behind route imports.
+              // Bound shared dependencies to preserve lazy routes, reduce
+              // repeated gzip overhead, and honor all single-file budgets.
               {
                 name: "shared-cross-route",
                 minShareCount: 2,
                 minSize: 10000,
-                // Never concatenate every shared route dependency into an
-                // oversized download; Rolldown splits at module boundaries.
                 maxSize: 800000,
                 priority: -1,
               },
