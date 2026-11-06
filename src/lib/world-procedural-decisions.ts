@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { fetchWorldPublicEnabled } from "@/lib/terra-world-public";
+import { recoverWorldOfficialOperationEnvelope } from "@/lib/world-official-operation-receipt";
 
 export type WorldProceduralDecisionKind = "procedural" | "scheduling";
 export type WorldProceduralDecision = {
@@ -172,8 +173,12 @@ export async function issueWorldProceduralDecision(input: WorldIssueDecisionInpu
     p_idempotency_key: input.idempotencyKey,
     p_correlation_id: input.operationId,
   });
-  if (error) throw new Error(error.message || "Decision publication not confirmed.");
-  const envelope = rec(data);
+  const reconciled = await recoverWorldOfficialOperationEnvelope(
+    { data, error },
+    input.operationId,
+    input.decisionId === null ? "world.decision.publish" : "world.decision.correct",
+  );
+  const envelope = rec(reconciled);
   const result = rec(envelope?.result);
   if (envelope?.status !== "succeeded" || typeof envelope.replayed !== "boolean" ||
       !result || result.ok !== true ||
