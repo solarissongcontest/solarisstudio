@@ -1,3 +1,15 @@
+/** Match typed country names even when a keyboard omits diacritics. Never changes canonical identity. */
+function normaliseCountrySearch(value: string): string {
+  return value.toLocaleLowerCase().normalize("NFKD").replace(/\p{M}/gu, "")
+    .replace(/ø/g, "o").replace(/æ/g, "ae").replace(/œ/g, "oe")
+    .replace(/ł/g, "l").replace(/ß/g, "ss");
+}
+
+/** Current-edition selection is usable only with a successful published lineup read. */
+export function effectiveParticipatingScope(requested: boolean, currentLineupReady: boolean): boolean {
+  return requested && currentLineupReady;
+}
+
 /** Bounded public country discovery filters; this is presentation only, never participation authority. */
 export type DirectoryCountry = {
   id: string;
@@ -16,7 +28,7 @@ export function filterCountryDirectory<T extends DirectoryCountry>(
     participatingCountryIds: ReadonlySet<string>;
   },
 ): T[] {
-  const query = input.search.trim().toLowerCase();
+  const query = normaliseCountrySearch(input.search.trim());
 
   return countries
     .filter((country) => !input.participatingOnly || input.participatingCountryIds.has(country.id))
@@ -24,10 +36,10 @@ export function filterCountryDirectory<T extends DirectoryCountry>(
     .filter(
       (country) =>
         !query ||
-        country.name.toLowerCase().includes(query) ||
-        country.short_code.toLowerCase().includes(query) ||
-        (country.native_name ?? "").toLowerCase().includes(query) ||
-        (country.region?.trim() || "Other").toLowerCase().includes(query),
+        normaliseCountrySearch(country.name).includes(query) ||
+        normaliseCountrySearch(country.short_code).includes(query) ||
+        normaliseCountrySearch(country.native_name ?? "").includes(query) ||
+        normaliseCountrySearch(country.region?.trim() || "Other").includes(query),
     )
     .sort((left, right) => left.name.localeCompare(right.name));
 }

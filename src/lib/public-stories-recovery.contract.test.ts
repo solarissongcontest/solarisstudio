@@ -50,7 +50,7 @@ describe("public Stories error and recovery states", () => {
       indexSource.indexOf("anniversary.onThisDay.slice(0, 6)"),
     );
     expect(indexSource.indexOf("storiesQuery.isError ?")).toBeLessThan(
-      indexSource.indexOf("stories.map((story)"),
+      indexSource.indexOf("filteredStories.map((story)"),
     );
     expect(detailSource.indexOf("storyQuery.isError ?")).toBeLessThan(
       detailSource.indexOf("story.items.map((item, index)"),

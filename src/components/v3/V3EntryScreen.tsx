@@ -58,8 +58,11 @@ function CandidateCard({ candidate, winner }: { candidate: V3EntryCandidate; win
           <span className="text-[var(--v3-text-tertiary)]">Revision {candidate.contentRevision}</span>
         ) : null}
       </div>
-      {candidate.reviewReason ? (
+      {candidate.reviewReason?.trim() ? (
         <p className="mt-3 text-sm leading-6 text-[var(--v3-text-secondary)]">
+          <span className="mb-1 block text-xs font-semibold text-[var(--v3-text-tertiary)]">
+            Review note · {review.label}
+          </span>
           {candidate.reviewReason}
         </p>
       ) : null}

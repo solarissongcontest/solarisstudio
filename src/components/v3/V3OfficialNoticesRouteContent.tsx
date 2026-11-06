@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { AlertTriangle, Inbox, UserRound } from "lucide-react";
+import { AlertTriangle, Inbox, RotateCcw, UserRound } from "lucide-react";
 
 import { useMyCountryAccount } from "@/lib/country-account";
 import {
@@ -49,6 +49,16 @@ export function V3OfficialNoticesRouteContent({
           </V3Surface>
         </V3Screen>
       </V3AppShell>
+    );
+  }
+
+  if (account.isError) {
+    return (
+      <OfficialNoticesBoundaryState
+        title="Delegation access unavailable"
+        description="Solaris could not verify your delegation access. No private notices or actions were loaded. Retry the access check."
+        onRetry={() => { void account.refetch(); }}
+      />
     );
   }
 
@@ -216,6 +226,13 @@ function V3OfficialNoticesBoundInbox({
         onFilter={selectFilter}
         onAcknowledge={(noticeId) => acknowledge.mutate(noticeId)}
         onArchive={(noticeId, archived) => archive.mutate({ noticeId, archived })}
+        onRetry={() => {
+          if (feature.isError) {
+            void feature.refetch();
+          } else if (inbox.isError) {
+            void inbox.refetch();
+          }
+        }}
       />
     </V3AppShell>
   );
@@ -224,9 +241,11 @@ function V3OfficialNoticesBoundInbox({
 function OfficialNoticesBoundaryState({
   title,
   description,
+  onRetry,
 }: {
   title: string;
   description: string;
+  onRetry?: () => void;
 }) {
   return (
     <V3AppShell editionLabel="Solaris Studio" phaseLabel="Official notices" activeArea="me">
@@ -238,6 +257,16 @@ function OfficialNoticesBoundaryState({
             <div>
               <p className="text-sm font-semibold">No notice action is available from this state.</p>
               <div className="mt-3 flex flex-wrap gap-2">
+                {onRetry ? (
+                  <button
+                    type="button"
+                    onClick={onRetry}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--v3-border)] px-3 text-xs font-semibold"
+                  >
+                    <RotateCcw className="size-4" aria-hidden="true" />
+                    Retry access check
+                  </button>
+                ) : null}
                 <Link
                   to="/me"
                   className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--v3-border-subtle)] px-3 text-xs font-semibold"

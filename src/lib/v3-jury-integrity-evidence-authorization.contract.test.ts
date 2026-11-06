@@ -11,26 +11,32 @@ const foundation = readFileSync(
 );
 
 describe("V3 Jury integrity evidence authorization", () => {
-  it("requires explicit edition scope and integrity.read before service-role access", () => {
+  it("requires explicit edition scope and both private-evidence capabilities before service-role access", () => {
     const scope = server.indexOf("Jury Integrity requires an explicit edition scope");
     const capability = server.indexOf(
-      'await requireSolarisCapabilityServer("integrity.read", scopedEditionId);',
+      "getSolarisCapabilitiesServer(scopedEditionId)",
     );
+    const integrity = server.indexOf('"integrity.read", "jury.ballots.read"');
+    const enforcement = server.indexOf("!access.capabilities.includes(capability)");
     const privilegedClient = server.indexOf("const db = supabaseAdmin as any");
 
     expect(scope).toBeGreaterThan(-1);
     expect(capability).toBeGreaterThan(scope);
-    expect(privilegedClient).toBeGreaterThan(capability);
+    expect(integrity).toBeGreaterThan(capability);
+    expect(enforcement).toBeGreaterThan(integrity);
+    expect(privilegedClient).toBeGreaterThan(enforcement);
   });
 
   it("does not rely on the broad merged Organizer compatibility identity", () => {
     expect(server).not.toContain("requireMergedTelevotingAdminServer");
-    expect(server).toContain("requireSolarisCapabilityServer");
+    expect(server).toContain("getSolarisCapabilitiesServer(scopedEditionId)");
+    expect(server).toContain('"integrity.read", "jury.ballots.read"');
+    expect(server).not.toContain("requireSolarisCapabilityServer");
   });
 
   it("keeps protected HOD, risk and model evidence behind the capability boundary", () => {
     const capability = server.indexOf(
-      'await requireSolarisCapabilityServer("integrity.read", scopedEditionId);',
+      "getSolarisCapabilitiesServer(scopedEditionId)",
     );
     const evidenceQuery = server.indexOf('from("vote_preflight_checks")');
 

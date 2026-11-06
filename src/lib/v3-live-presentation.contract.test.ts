@@ -88,6 +88,17 @@ describe("Public V3 Live presentation", () => {
     expect(screen).toContain('degraded ? "Retry refresh" : "Refresh"');
   });
 
+  it("never treats a stale open-voting snapshot as permission to advertise voting", () => {
+    const screen = source();
+
+    expect(screen).toContain('const voteActionAvailable = !degraded && experience.voting.state === "open"');
+    expect(screen).toContain("{voteActionAvailable ? (");
+    expect(screen).toContain('data-v3-live-voting-unverified=""');
+    expect(screen).toContain("Voting status unverified");
+    expect(screen).toContain('degraded ? "Last known" : presentation.label');
+    expect(screen).toContain("Voting availability cannot be confirmed");
+  });
+
   it("also marks a cached empty snapshot stale when reconnect fails", () => {
     const screen = source();
 
