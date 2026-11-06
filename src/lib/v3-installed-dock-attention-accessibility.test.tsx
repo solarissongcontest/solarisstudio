@@ -76,8 +76,12 @@ describe("V3 installed dock attention accessibility", () => {
     expect(participateId).not.toBe(meId);
 
     // Real link/description association, not just a source-code substring.
-    expect(html).toContain('id="' + participateId + '">12 items need attention</span>');
-    expect(html).toContain('id="' + meId + '">1 item needs attention</span>');
+    // React SSR may insert invisible text-node boundaries between adjacent
+    // numeric, literal and conditional children. Those comments have no
+    // accessible text, so normalize only them before checking the spoken copy.
+    const spokenMarkup = html.replace(/<!--\s*-->/g, "");
+    expect(spokenMarkup).toContain('id="' + participateId + '">12 items need attention</span>');
+    expect(spokenMarkup).toContain('id="' + meId + '">1 item needs attention</span>');
 
     // Visual material remains capped at 9+ while VoiceOver gets the full count.
     expect(html).toMatch(/class="solaris-app-tab-badge" aria-hidden="true">9\+<\/span>/);
