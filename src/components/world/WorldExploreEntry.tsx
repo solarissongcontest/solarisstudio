@@ -15,10 +15,13 @@ export function WorldExploreEntry() {
     queryKey: ["world", "public", "rollout"],
     queryFn: fetchWorldPublicEnabled,
     staleTime: 60_000,
+    refetchOnMount: "always",
     retry: false,
   });
 
-  if (rollout.data !== true) return null;
+  // A cached success is not new publication evidence if its recheck fails.
+  if (!rollout.isSuccess || rollout.isFetching || rollout.isRefetchError ||
+      rollout.data !== true) return null;
 
   return (
     <section className="public-hub-section" aria-labelledby="explore-world-heading">
