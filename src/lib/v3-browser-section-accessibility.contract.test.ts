@@ -51,4 +51,18 @@ describe("V3 mobile-browser and desktop section-navigation accessibility", () =>
     expect(css).toContain(".public-site-sidebar details > summary:focus-visible");
     expect(css).toContain(".public-mobile-section-link:focus-visible");
   });
+
+  it("wires desktop collapse semantics to the actual nav and keeps focus visible", () => {
+    const desktop = source("src/components/public/PublicSectionNav.tsx");
+    const css = source("src/styles/public-navigation.css");
+
+    expect(desktop).toContain('aria-controls={`public-section-nav-links-${area}`}');
+    expect(desktop).toContain('id={`public-section-nav-links-${area}`}');
+    expect(desktop).toContain('aria-label={`${sectionLabel(area)} section links`}');
+    expect(desktop).toContain("aria-expanded={!interactiveCollapsed}");
+    expect(css).toContain(".public-section-nav-toggle:focus-visible");
+    expect(css).toContain(".public-drawer-page-link:focus-visible");
+    expect(css).toContain(".public-site-sidebar-link {\\n  display: flex;\\n  min-height: 2.75rem;");
+    expect(css).toContain("min-height: 2.75rem;");
+  });
 });
