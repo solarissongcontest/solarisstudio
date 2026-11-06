@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/AppShell", () => ({
   PageHeader: () => null,
+  AppShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 vi.mock("@/components/ArchiveDataState", () => ({
   ArchiveDataLoading: ({ label }: { label: string }) => <div>{label}</div>,
