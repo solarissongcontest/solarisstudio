@@ -1,20 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-
-type TelevotingOverviewSummary = {
-  editions: number;
-  rounds: number;
-  openRounds: number;
-  submissions: number;
-  blocked: number;
-  activeEdition: string | null;
-  remoteEditionId: string | null;
-  linked: boolean;
-};
-
-function numberValue(value: unknown) {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
+import { parseTelevotingOverviewSummary } from "./admin-overview-summary";
 
 export const getMergedTelevotingOverview = createServerFn({ method: "POST" })
   .inputValidator((data: { editionId?: string | null } | undefined) => ({
@@ -58,21 +43,11 @@ export const getMergedTelevotingOverview = createServerFn({ method: "POST" })
     );
     if (error) throw new Error(error.message);
 
-    const summary =
-      rawSummary && typeof rawSummary === "object" && !Array.isArray(rawSummary)
-        ? (rawSummary as Record<string, unknown>)
-        : {};
-
-    return {
-      editions: numberValue(summary.editions),
-      rounds: numberValue(summary.rounds),
-      openRounds: numberValue(summary.openRounds),
-      submissions: numberValue(summary.submissions),
-      blocked: numberValue(summary.blocked),
-      activeEdition:
-        typeof summary.activeEdition === "string" ? summary.activeEdition : null,
-      remoteEditionId:
-        typeof summary.remoteEditionId === "string" ? summary.remoteEditionId : null,
-      linked: summary.linked === true,
-    } satisfies TelevotingOverviewSummary;
+    const summary = parseTelevotingOverviewSummary(rawSummary);
+    // An edition-specific read must resolve the actual canonical edition.
+    // Missing context is an error, not a new/empty voting setup prompt.
+    if (data.editionId && summary.activeEdition === null) {
+      throw new Error("Voting overview could not resolve the requested Solaris edition");
+    }
+    return summary;
   });
